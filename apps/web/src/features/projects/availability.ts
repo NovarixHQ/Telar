@@ -32,5 +32,4 @@ export const awayLabel = (away: Away): string => AWAY[away].label;
 
 export const awayTitle = (away: Away): string => AWAY[away].title;
 
-/** One sentence on why nothing can be read or run, and what brings it back. */
 export const awayReason = (away: Away, name = "this project"): string => AWAY[away].reason(name);

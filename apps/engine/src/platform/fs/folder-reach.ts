@@ -40,7 +40,6 @@ export function reachOfError(error: unknown): FolderReach {
   return { reach: "failing", code: code ?? "unknown error" };
 }
 
-/** Whether a process could work in `folder`, answered within `timeoutMs` even when the drive hangs. */
 export async function reachFolder(folder: string, options: { fs?: FolderFs; timeoutMs?: number } = {}): Promise<FolderReach> {
   const io = options.fs ?? folderFs;
   const check = async (): Promise<FolderReach> => {

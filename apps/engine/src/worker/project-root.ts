@@ -8,7 +8,6 @@ type WorktreeFacts = { branch: string; repoRoot: string };
 
 export type FolderCheck = { volumes?: VolumeDeps; fs?: FolderFs; timeoutMs?: number };
 
-/** The turn's folder can't be worked in; the message says why in words a person can act on. */
 export class WorkspaceUnreachableError extends Error {}
 
 function missingWorktreeMessage(cwd: string, worktree: WorktreeFacts, exists: (path: string) => boolean): string {
@@ -40,7 +39,6 @@ function reachMessage(cwd: string, folder: Exclude<FolderReach, { reach: "ok" }>
   }
 }
 
-/** Why a provider can't work in `cwd`, or undefined when it can. Bounded, so a hung drive answers too. */
 export async function unreachableReason(cwd: string, worktree?: WorktreeFacts, check: FolderCheck = {}): Promise<string | undefined> {
   const volumes = check.volumes ?? {};
   // macOS leaves an empty `/Volumes/<name>` behind, which passes every folder check.

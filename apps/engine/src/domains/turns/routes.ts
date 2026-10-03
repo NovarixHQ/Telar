@@ -97,6 +97,7 @@ function turnFailure(body: Record<string, unknown>) {
   const failure = WorkerTurnFailure.safeParse({
     code: code.data,
     message: stringValue(body.message, "failure message")!,
+    ...(body.detail === undefined ? {} : { detail: body.detail }),
     ...(body.resumeAt === undefined ? {} : { resumeAt: body.resumeAt }),
     ...(body.limitType === undefined ? {} : { limitType: body.limitType }),
   });

@@ -175,3 +175,17 @@ describe("the uncommitted count", () => {
     expect(read.branch).toBe("main");
   });
 });
+
+describe("a folder that can't be reached", () => {
+  test("the composer says so, names why, and offers a retry", () => {
+    const markup = render({ projectId: "p1", projectName: "aurora", session, git: git({ availability: "denied" }), onRetry: () => {} });
+    expect(markup).toContain("Folder unreachable:");
+    expect(markup).toContain("macOS or a security tool is denying access to the folder for aurora");
+    expect(markup).toContain(">Retry<");
+    expect(markup).toContain("no access");
+  });
+
+  test("a reachable folder draws no banner", () => {
+    expect(render({ projectId: "p1", session, git: git({ availability: "available" }), onRetry: () => {} })).not.toContain("Folder unreachable");
+  });
+});

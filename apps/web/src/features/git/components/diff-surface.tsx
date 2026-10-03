@@ -7,6 +7,7 @@ import { describeReview, reconcileReview, reviewFraming } from "../session-revie
 import { diffBaseFor, type DiffScopeKind, type DiffTab } from "../diff-scope";
 import { turnFor, turnLabel, type DiffTurn } from "../diff-turns";
 import { PanelEmpty } from "@/ui/panel";
+import { awayReason, awayTitle, isAway } from "@/features/projects";
 import { Spinner } from "@/ui/spinner";
 import { api } from "../api";
 import { useDiffRead, useDiffRefresh } from "../hooks/use-diff-read";
@@ -168,17 +169,10 @@ function unreadableState(sessionId: string | undefined, projectId: string | unde
       </PanelEmpty>
     );
   }
-  if (diff?.availability === "unmounted") {
+  if (diff && isAway(diff.availability)) {
     return (
-      <PanelEmpty icon={<HardDriveIcon />} title="The drive is not connected">
-        This project lives on a drive that is not plugged in, so there is nothing to read — not nothing to review. Reconnect it and this comes back as it was.
-      </PanelEmpty>
-    );
-  }
-  if (diff?.availability === "missing") {
-    return (
-      <PanelEmpty icon={<HardDriveIcon />} title="The project folder is gone">
-        {diff.workspacePath} is not on this machine any more.
+      <PanelEmpty icon={<HardDriveIcon />} title={awayTitle(diff.availability)}>
+        {awayReason(diff.availability, diff.workspacePath)} There is nothing to read, which is not the same as nothing to review.
       </PanelEmpty>
     );
   }

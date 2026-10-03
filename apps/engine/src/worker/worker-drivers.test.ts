@@ -1,7 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
 import { startEngine } from "../daemon";
 import { ProviderUnavailableError, type TurnDriver } from "../drivers";
@@ -218,34 +216,6 @@ test("turns from DIFFERENT sessions run concurrently up to the cap; one session 
   await eventually(async () => expect((await client.session("session_a")).turns[0]?.state).toBe("completed"));
   await worker.tick();
   await eventually(async () => expect((await client.session("session_a")).turns[1]?.state).toBe("completed"));
-});
-
-test("a project folder that no longer exists fails the turn with the folder named — never a spawn", async () => {
-  const { assertProjectRoot } = await import(".");
-  expect(() => assertProjectRoot("/definitely/not/here/telar-integration")).toThrow(/does not exist.*moved or deleted.*re-register/i);
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "telar-root-")), "file.txt");
-  fs.writeFileSync(file, "x");
-  expect(() => assertProjectRoot(file)).toThrow(/not a folder/);
-  expect(() => assertProjectRoot(os.tmpdir())).not.toThrow();
-  // Through the worker: the driver is never invoked; the turn fails with the sentence.
-  let invoked = 0;
-  const driver: TurnDriver = { run: async () => { invoked += 1; return { text: "" }; } };
-  const daemon = await startEngine({ models: stubModels, engineRoot: root(), workerLeaseMs: 60_000 });
-  daemons.push(daemon);
-  const client = new EngineClient(daemon.discovery);
-  const stale = fs.mkdtempSync(path.join(os.tmpdir(), "telar-stale-"));
-  const project = await client.registerProject({ id: "project_stale", name: "Stale", root: stale });
-  const session = await client.createSession({ id: "session_stale", projectId: project.project.id });
-  fs.rmSync(stale, { recursive: true, force: true });
-  const worker = new EngineWorker({ client, workerId: "worker_stale", driver, pollMs: 60_000 });
-  workers.push(worker);
-  await worker.start();
-  await client.submitTurn(session.session.id, { runId: "run_stale", input: "Hello" });
-  await worker.tick();
-  await eventually(async () => expect((await client.session(session.session.id)).turns[0]).toMatchObject({ state: "failed" }));
-  const failed = (await client.events(session.session.id)).events.find((event) => event.type === "turn.failed");
-  expect(failed && failed.type === "turn.failed" ? failed.message : "").toMatch(/project folder .* does not exist/);
-  expect(invoked).toBe(0);
 });
 
 test("the default concurrency is derived from memory, with a floor and a ceiling", () => {

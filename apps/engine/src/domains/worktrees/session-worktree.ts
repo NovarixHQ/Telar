@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { ProjectAvailability } from "../../platform/fs/volumes";
+import { unreachableSentence, type ProjectAvailability } from "../../platform/fs/volumes";
 import { defaultWorktreesRoot, readWorktreesRoot, rootOf, worktreesRootBlocker, type WorktreesRootState } from "./location";
 import { detectCacheDedup, type CacheDedupVerdict } from "../storage";
 import type { GitRunner, AsyncGitRunner } from "../../platform/git/runner";
@@ -120,6 +120,9 @@ export function prepareSessionWorktree(
   }
   if (input.availability === "missing") {
     throw new WorktreeError(`The folder for ${input.projectName ?? input.projectRoot} is not on this machine any more (${input.projectRoot}).`);
+  }
+  if (input.availability === "denied" || input.availability === "unresponsive") {
+    throw new WorktreeError(unreachableSentence(input.projectName ?? input.projectRoot, input.availability));
   }
   if (!isGitWorkTree(git, input.projectRoot)) {
     throw new WorktreeError(

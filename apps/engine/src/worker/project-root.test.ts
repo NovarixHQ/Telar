@@ -34,7 +34,8 @@ import os from "node:os";
 import path from "node:path";
 import { EngineStore } from "../state";
 import { EngineStateError } from "../platform/kernel";
-import { assertProjectRoot } from ".";
+import { assertProjectRoot, unreachableReason } from ".";
+import { folderFs, type FolderFs } from "../platform/fs/folder-reach";
 import { createClaudeDriver } from "../drivers/claude";
 import { createCodexDriver } from "../drivers/codex";
 import type { DriverRun } from "../drivers";
@@ -104,13 +105,26 @@ test("an ordinary session still claims with its project root", () => {
   expect(claim?.projectRoot).toBe(fs.realpathSync.native(project));
 });
 
-test("the worker's folder check is about a folder, and still fires for one that is gone", () => {
+test("the worker's folder check is about a folder, and still fires for one that is gone", async () => {
   // The skip in `execute` is `cwd !== undefined`, so what this pins is the
   // other half: the check itself has lost nothing.
   const missing = path.join(root(), "moved-away");
-  expect(() => assertProjectRoot(missing)).toThrow(/does not exist/);
-  const present = root();
-  expect(() => assertProjectRoot(present)).not.toThrow();
+  await expect(assertProjectRoot(missing)).rejects.toThrow(/no longer exists/);
+  await expect(assertProjectRoot(root())).resolves.toBeUndefined();
+});
+
+test("each way a folder is unreachable gets its own sentence, naming the folder", async () => {
+  const folder = root();
+  const failing = (code: string): FolderFs => ({ ...folderFs, peek: () => Promise.reject(Object.assign(new Error(code), { code })) });
+  const reason = (code: string) => unreachableReason(folder, undefined, { fs: failing(code) });
+  for (const code of ["ENOENT", "ENOTDIR", "EACCES", "EPERM", "EIO"]) expect(await reason(code)).toContain(`isn't reachable: ${folder}.`);
+  expect(await reason("ENOENT")).toMatch(/no longer exists/);
+  expect(await reason("ENOTDIR")).toMatch(/not a folder/);
+  expect(await reason("EACCES")).toMatch(/Permission was denied by macOS or a security tool/);
+  expect(await reason("EPERM")).toMatch(/Permission was denied by macOS or a security tool/);
+  expect(await reason("EIO")).toMatch(/drive reported EIO.*security software/);
+  const hung: FolderFs = { ...folderFs, stat: () => new Promise(() => undefined) };
+  expect(await unreachableReason(folder, undefined, { fs: hung, timeoutMs: 10 })).toMatch(/drive isn't responding/);
 });
 
 test("a driver that spawns a CLI refuses a turn with no directory, by name", async () => {

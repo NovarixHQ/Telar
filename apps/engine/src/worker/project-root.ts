@@ -1,8 +1,14 @@
 import fs from "node:fs";
-import { isMountPoint, mountPointForRoot, type VolumeDeps } from "../platform/fs/volumes";
+import { reachFolder, type FolderFs, type FolderReach } from "../platform/fs/folder-reach";
+import { probeVolume } from "../platform/fs/volume-gate";
+import { mountPointForRoot, statAsyncOf, type VolumeDeps } from "../platform/fs/volumes";
 
 /** Present exactly when the session's cwd is a worktree rather than the project's checkout. */
 type WorktreeFacts = { branch: string; repoRoot: string };
+
+export type FolderCheck = { volumes?: VolumeDeps; fs?: FolderFs; timeoutMs?: number };
+
+export class WorkspaceUnreachableError extends Error {}
 
 function missingWorktreeMessage(cwd: string, worktree: WorktreeFacts, exists: (path: string) => boolean): string {
   const project = exists(worktree.repoRoot)
@@ -16,42 +22,40 @@ function missingWorktreeMessage(cwd: string, worktree: WorktreeFacts, exists: (p
   ].join(" ");
 }
 
-/**
- * Throws a readable reason when a provider cannot be spawned in `cwd`. The drive check comes
- * first: macOS leaves an empty `/Volumes/<name>` behind, which passes every later check.
- */
-export function assertProjectRoot(cwd: string, volumes: VolumeDeps = {}, worktree?: WorktreeFacts): void {
+function reachMessage(cwd: string, folder: Exclude<FolderReach, { reach: "ok" }>, worktree?: WorktreeFacts): string {
+  const lead = `This session's folder isn't reachable: ${cwd}.`;
+  switch (folder.reach) {
+    case "missing":
+      if (worktree) return missingWorktreeMessage(cwd, worktree, (target) => fs.existsSync(target));
+      return `${lead} The folder no longer exists; it may have been moved or deleted. Restore it, or re-register the project with its current location, and retry.`;
+    case "not_folder":
+      return `${lead} That path is not a folder any more.`;
+    case "denied":
+      return `${lead} Permission was denied by macOS or a security tool. Allow access to the folder or its drive, then retry.`;
+    case "unresponsive":
+      return `${lead} The drive isn't responding; it may be disconnected or blocked by security software.`;
+    case "failing":
+      return `${lead} The drive reported ${folder.code}; it may be disconnected or blocked by security software.`;
+  }
+}
+
+export async function unreachableReason(cwd: string, worktree?: WorktreeFacts, check: FolderCheck = {}): Promise<string | undefined> {
+  const volumes = check.volumes ?? {};
+  // macOS leaves an empty `/Volumes/<name>` behind, which passes every folder check.
   const mount = mountPointForRoot(cwd, volumes);
-  if (mount !== undefined && !isMountPoint(mount, volumes)) {
-    throw new Error(
-      `The drive holding this project is not connected (${mount}). Plug it back in and retry — do not re-register the project from another path, which would give it a new id and leave this session's history behind.`,
-    );
+  const [drive, folder] = await Promise.all([
+    mount === undefined ? undefined : probeVolume(mount, statAsyncOf(volumes)),
+    reachFolder(cwd, { ...(check.fs ? { fs: check.fs } : {}), ...(check.timeoutMs === undefined ? {} : { timeoutMs: check.timeoutMs }) }),
+  ]);
+  if (drive === "missing") {
+    return `This session's folder isn't reachable: ${cwd}. The drive holding it (${mount}) is not connected. Plug it back in and retry — do not re-register the project from another path, which would give it a new id and leave this session's history behind.`;
   }
-  const what = worktree ? "This session's worktree" : "The project folder";
-  let stat: fs.Stats;
-  try {
-    stat = fs.statSync(cwd);
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") {
-      throw new Error(
-        worktree
-          ? missingWorktreeMessage(cwd, worktree, (target) => fs.existsSync(target))
-          : `The project folder ${cwd} does not exist. It may have been moved or deleted; re-register the project with its current location (or restore the folder) and retry.`,
-      );
-    }
-    throw new Error(`${what} ${cwd} cannot be accessed (${code ?? "unknown error"}). Check its permissions and retry.`);
-  }
-  if (!stat.isDirectory()) {
-    throw new Error(
-      worktree
-        ? `This session's worktree path ${cwd} is not a folder. Something replaced it; the project at ${worktree.repoRoot} is unaffected.`
-        : `The project path ${cwd} is not a folder. Re-register the project with its checkout directory and retry.`,
-    );
-  }
-  try {
-    fs.accessSync(cwd, fs.constants.R_OK | fs.constants.X_OK);
-  } catch {
-    throw new Error(`${what} ${cwd} is not readable by this user. Check its permissions and retry.`);
-  }
+  if (folder.reach !== "ok") return reachMessage(cwd, folder, worktree);
+  if (drive === "slow") return reachMessage(cwd, { reach: "unresponsive" }, worktree);
+  return undefined;
+}
+
+export async function assertProjectRoot(cwd: string, worktree?: WorktreeFacts, check: FolderCheck = {}): Promise<void> {
+  const reason = await unreachableReason(cwd, worktree, check);
+  if (reason !== undefined) throw new WorkspaceUnreachableError(reason);
 }

@@ -47,7 +47,7 @@ describe("when it cannot", () => {
 
     expect(start).toEqual({
       ok: false,
-      reason: "The drive holding TelarVR Work is not connected. Plug it back in and this will work again.",
+      reason: "The drive holding TelarVR Work is not connected. Plug it back in; its conversations and settings are all still here. There is nowhere to cut a worktree until it is back.",
     });
   });
 
@@ -56,7 +56,7 @@ describe("when it cannot", () => {
 
     expect(start).toEqual({
       ok: false,
-      reason: "The folder for Exoplanets is not on this machine any more, so there is nowhere to cut a worktree.",
+      reason: "The folder for Exoplanets is not on this machine any more. There is nowhere to cut a worktree until it is back.",
     });
   });
 

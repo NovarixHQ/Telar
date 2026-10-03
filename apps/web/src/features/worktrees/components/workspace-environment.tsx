@@ -12,11 +12,12 @@ import {
   RefreshCwIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import type { GitOverview, GitReadFailure, GitRefEntry, ProjectAvailability, Session } from "@telar/engine-client";
+import type { GitOverview, GitReadFailure, GitRefEntry, Session } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { cn } from "@/ui/utils";
 import { usePoll } from "@/ui/hooks/use-poll";
+import { awayLabel, awayReason, isAway, type Away } from "@/features/projects";
 
 const api = createEngineApi();
 
@@ -278,21 +279,23 @@ function WhereThisLands({
   );
 }
 
-function AwayNotice({ away, projectName }: { away: Exclude<ProjectAvailability, "available">; projectName?: string | undefined }) {
+function AwayNotice({ away, projectName, onRetry }: { away: Away; projectName?: string | undefined; onRetry?: (() => void | Promise<void>) | undefined }) {
   return (
-    <p className="flex items-start gap-2 border-b border-border/40 px-3 py-2 text-2xs text-muted-foreground">
+    <div role="status" className="flex items-start gap-2 border-b border-border/40 px-3 py-2 text-2xs text-muted-foreground">
       <HardDriveIcon className="mt-px size-3.5 shrink-0" />
-      <span>
-        {away === "unmounted" ? (
-          `The drive holding ${projectName ?? "this project"} is not connected, so nothing can run here yet. Plug it back in — the conversation, its history and its settings are all still here.`
-        ) : (
-          <>
-            The folder for <strong className="font-medium text-foreground">{projectName ?? "this project"}</strong> is not
-            on this machine any more, so nothing can run here.
-          </>
-        )}
+      <span className="min-w-0 flex-1">
+        <strong className="font-medium text-foreground">Folder unreachable:</strong> {awayReason(away, projectName)} Nothing can run here until it is back.
       </span>
-    </p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={() => void onRetry()}
+          className="shrink-0 rounded-md border border-border px-2 py-0.5 text-2xs text-foreground transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Retry
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -306,7 +309,7 @@ function BranchPopover({
 }: {
   git?: GitOverview | undefined;
   branch?: string | undefined;
-  away?: Exclude<ProjectAvailability, "available"> | undefined;
+  away?: Away | undefined;
   reachable: boolean;
   modeLabel: string;
   onOpenChanges?: (() => void) | undefined;
@@ -325,7 +328,7 @@ function BranchPopover({
       >
         {away ? <HardDriveIcon className="size-3.5 shrink-0" /> : <GitBranchIcon className="size-3.5 shrink-0" />}
         <span className="min-w-0 truncate font-mono">
-          {away === "unmounted" ? "drive away" : away === "missing" ? "folder gone" : (branch ?? "no branch")}
+          {away ? awayLabel(away).toLowerCase() : (branch ?? "no branch")}
         </span>
         <ChevronDownIcon className="size-3 shrink-0" />
       </PopoverTrigger>
@@ -359,11 +362,9 @@ function BranchPopover({
           <p className="px-2 pt-2 text-2xs text-muted-foreground">
             {!reachable
               ? "The engine did not answer — this may be out of date."
-              : away === "unmounted"
-                ? "The drive holding this project is not connected, so nothing above was read from it. Plug it back in and this comes back as it was — the project keeps its id, its conversations and its settings."
-                : away === "missing"
-                  ? "This project's folder is not on this machine any more, so nothing above was read from it."
-                  : "Not a git repository."}
+              : away
+                ? `${awayReason(away)} Nothing above was read from it.`
+                : "Not a git repository."}
           </p>
         )}
         {onOpenChanges && (
@@ -406,7 +407,7 @@ export function EnvironmentStrip({
   onBase?: (next: { baseRef?: string; branchName?: string }) => void;
   onOpenChanges?: () => void;
 }) {
-  const away = git?.availability === "available" ? undefined : git?.availability;
+  const away = isAway(git?.availability) ? git.availability : undefined;
   const worktreeBranch = session?.workspace.mode === "worktree" ? session.workspace.branch : undefined;
   const branch = worktreeBranch ?? git?.branch;
   const dirty = git?.dirtyFiles ?? 0;
@@ -417,7 +418,7 @@ export function EnvironmentStrip({
   return (
     <div className="mx-3 -mt-px">
       <div className="overflow-hidden rounded-b-2xl border border-t-0 border-border/80 bg-card/95 shadow-1 backdrop-blur-xl">
-        {away && <AwayNotice away={away} projectName={projectName} />}
+        {away && <AwayNotice away={away} projectName={projectName} onRetry={onRetry} />}
         <div className="flex min-h-8 w-full items-center gap-1 px-2 text-2xs text-muted-foreground">
         {choosing && onEnvMode ? (
           <WhereThisLands
@@ -474,7 +475,7 @@ export function WorkspaceEnvironment({
   onAvailability,
   ...props
 }: Omit<Parameters<typeof EnvironmentStrip>[0], "git" | "reachable" | "onRetry"> & {
-  onAvailability?: (availability: Exclude<ProjectAvailability, "available"> | undefined) => void;
+  onAvailability?: (availability: Away | undefined) => void;
 }) {
   const { projectId, session } = props;
   const worktreeSessionId = session?.workspace.mode === "worktree" ? session.id : undefined;
@@ -488,7 +489,7 @@ export function WorkspaceEnvironment({
       const next = await readWorkspaceGit(api, projectId, worktreeSessionId, own.current);
       setGit(next);
       setReachable(true);
-      onAvailability?.(next.availability === "available" ? undefined : next.availability);
+      onAvailability?.(isAway(next.availability) ? next.availability : undefined);
     } catch {
       setReachable(false);
     }

@@ -2,6 +2,7 @@ import type { EngineClient, ProviderDriverKind } from "@telar/engine-client";
 import type { TelarToolSocket } from "../domains/agent-tools";
 import type { BrowserToolSocket, LoginGrantStore, SecretsProvider } from "../domains/browser";
 import type { TurnDriver } from "../drivers";
+import type { FolderCheck } from "./project-root";
 
 // Every verb goes back over the loopback socket, so the embedded and out-of-process workers
 // hold the same toolkit. What is absent is absent on purpose: nothing archives, deletes or
@@ -105,6 +106,7 @@ export type EngineWorkerOptions = {
   leaseExempt?: boolean;
   now?: () => number;
   pause?: (ms: number) => Promise<void>;
+  folderCheck?: FolderCheck;
   /** Test barriers; `starting` fires immediately before the driver runs. */
   onClaimPhase?: (phase: "requested" | "granted" | "starting" | "idle") => void;
   /** Sanitized connectivity diagnostics; never a message, URL, header or token. Defaults to stderr. */

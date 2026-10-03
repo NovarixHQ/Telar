@@ -150,7 +150,7 @@ describe("when a worktree cannot be cut", () => {
     await press(action());
 
     expect(pushed).toEqual([]);
-    expect(host?.textContent).toContain("is not connected. Plug it back in and this will work again.");
+    expect(host?.textContent).toContain("is not connected. Plug it back in;");
     expect(readDraft(undefined, "project_1")).toBe("");
   });
 

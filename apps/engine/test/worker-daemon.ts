@@ -6,6 +6,7 @@ import type { BrowserToolSocket } from "../src/domains/browser";
 import { startEngine, type EngineDaemon } from "../src/daemon";
 import type { TurnDriver } from "../src/drivers";
 import { EngineWorker } from "../src/worker";
+import type { FolderCheck } from "../src/worker/project-root";
 import { stubModels } from "./stub-models";
 
 const roots: string[] = [];
@@ -29,7 +30,7 @@ export async function teardown(): Promise<void> {
 
 export async function setup(
   driver: TurnDriver,
-  extras: { browserSocket?: BrowserToolSocket; workerLeaseMs?: number } = {},
+  extras: { browserSocket?: BrowserToolSocket; workerLeaseMs?: number; folderCheck?: FolderCheck } = {},
 ): Promise<{ client: EngineClient; sessionId: string; worker: EngineWorker }> {
   // Manual ticks need a lease covering the test; expiry is tested separately.
   const daemon = await startEngine({ models: stubModels, engineRoot: root(), workerLeaseMs: extras.workerLeaseMs ?? 60_000 });
@@ -37,7 +38,7 @@ export async function setup(
   const client = new EngineClient(daemon.discovery);
   const project = await client.registerProject({ id: "project_one", name: "One", root: "/tmp" });
   const session = await client.createSession({ id: "session_one", projectId: project.project.id });
-  const worker = new EngineWorker({ client, workerId: "worker_one", driver, ...(extras.browserSocket ? { browserSocket: extras.browserSocket } : {}), pollMs: 60_000 });
+  const worker = new EngineWorker({ client, workerId: "worker_one", driver, ...(extras.browserSocket ? { browserSocket: extras.browserSocket } : {}), ...(extras.folderCheck ? { folderCheck: extras.folderCheck } : {}), pollMs: 60_000 });
   workers.push(worker);
   await worker.start();
   return { client, sessionId: session.session.id, worker };

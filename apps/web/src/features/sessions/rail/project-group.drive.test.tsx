@@ -95,3 +95,12 @@ test("nothing is drawn when the disk is fine, or when nobody has said", () => {
   expect(renderGroup([session("one", { projectAvailability: "available" })])).not.toContain("drive away");
   expect(renderGroup([session("one")])).not.toContain("drive away");
 });
+
+test("a folder a security tool blocks, or a drive that stopped answering, says which", () => {
+  const denied = renderGroup([session("one", { projectAvailability: "denied" })]);
+  expect(denied).toContain("no access");
+  expect(denied).toContain("macOS or a security tool is denying access to the folder for TelarVR Work");
+  const hung = renderGroup([session("one", { projectAvailability: "unresponsive" })]);
+  expect(hung).toContain("not responding");
+  expect(hung).toContain("blocked by security software");
+});

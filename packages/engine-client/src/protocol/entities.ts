@@ -18,7 +18,7 @@ import {
   UsageSnapshot,
 } from "./common";
 
-export const ProjectAvailability = z.enum(["available", "unmounted", "missing"]);
+export const ProjectAvailability = z.enum(["available", "unmounted", "missing", "denied", "unresponsive"]);
 export type ProjectAvailability = z.infer<typeof ProjectAvailability>;
 
 export const Project = z.object({
@@ -317,6 +317,7 @@ export type TurnStall = z.infer<typeof TurnStall>;
 export const TurnFailure = z.object({
   code: TurnFailureCode,
   message: z.string(),
+  detail: z.string().optional(),
   resumeAt: Timestamp.optional(),
   /** `rate_limited`: which limit, so a row can say "five hour" rather than "a
    *  limit". Narrowed to the closed set — see `RateLimitType`. */

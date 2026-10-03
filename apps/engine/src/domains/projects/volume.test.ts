@@ -16,7 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { fakeMounts, type FakeMounts } from "../../../test/fake-mount";
 import { EngineStore } from "../../state";
-import { assertProjectRoot } from "../../worker";
+import { assertProjectRoot, unreachableReason } from "../../worker";
 import { prepareSessionWorktree } from "../worktrees";
 
 const drives: FakeMounts[] = [];
@@ -295,31 +295,32 @@ test("restoring a project re-reads the drive rather than trusting what was store
  * Nothing starts on a disk that is not there
  * ------------------------------------------------------------------ */
 
-test("the worker refuses to spawn in a RECREATED EMPTY MOUNTPOINT, which every other check passes", () => {
+test("the worker refuses to spawn in a RECREATED EMPTY MOUNTPOINT, which every other check passes", async () => {
   const mounts = fixture();
   const mount = mounts.mount("TelarVR");
   const root = path.join(mount, "project");
   fs.mkdirSync(root);
 
-  expect(() => assertProjectRoot(root, mounts.deps)).not.toThrow();
+  expect(await unreachableReason(root, undefined, { volumes: mounts.deps })).toBeUndefined();
 
   // macOS leaves the folder behind. `stat` succeeds, `isDirectory` succeeds,
   // `access` succeeds — and the provider would have worked in a directory that
   // disappears at the next remount.
   mounts.leaveEmptyMountpoint("TelarVR");
   fs.mkdirSync(root, { recursive: true });
-  expect(() => assertProjectRoot(root, mounts.deps)).toThrow(/drive holding this project is not connected/i);
+  expect(await unreachableReason(root, undefined, { volumes: mounts.deps })).toMatch(/drive holding it .* is not connected/i);
 });
 
-test("an unplugged drive is never described as a folder to re-register — that is how an id is lost", () => {
+test("an unplugged drive is never described as a folder to re-register — that is how an id is lost", async () => {
   const mounts = fixture();
   const mount = mounts.mount("TelarVR");
   const root = path.join(mount, "project");
   fs.mkdirSync(root);
   mounts.unmount("TelarVR");
 
-  expect(() => assertProjectRoot(root, mounts.deps)).toThrow(/drive holding this project is not connected/i);
-  expect(() => assertProjectRoot(root, mounts.deps)).not.toThrow(/re-register the project with its current location/i);
+  const reason = await unreachableReason(root, undefined, { volumes: mounts.deps });
+  expect(reason).toMatch(/drive holding it .* is not connected/i);
+  expect(reason).not.toMatch(/re-register the project with its current location/i);
 });
 
 /**
@@ -330,25 +331,16 @@ test("an unplugged drive is never described as a folder to re-register — that 
  * a worktree had been removed. Following it mints a new project id and leaves
  * the session's history behind — for a project that was never the problem.
  */
-test("a removed worktree says so, and never sends anyone to re-register the project", () => {
+test("a removed worktree says so, and never sends anyone to re-register the project", async () => {
   const projectRoot = home();
   const worktree = path.join(home(), "worktrees", "telar--some-feature-ab12cd34");
   // The state gh leaves behind: the worktree gone, the project untouched.
   expect(fs.existsSync(worktree)).toBe(false);
 
-  expect(() => assertProjectRoot(worktree, {}, { branch: "telar/some-feature", repoRoot: projectRoot })).toThrow(
-    /this session's worktree .* no longer exists/i,
-  );
+  const message = (await unreachableReason(worktree, { branch: "telar/some-feature", repoRoot: projectRoot })) ?? "";
+  expect(message).toMatch(/this session's worktree .* no longer exists/i);
   // The whole point: the wrong remedy is absent and the right facts are present.
-  expect(() => assertProjectRoot(worktree, {}, { branch: "telar/some-feature", repoRoot: projectRoot })).not.toThrow(
-    /re-register the project with its current location/i,
-  );
-  let message = "";
-  try {
-    assertProjectRoot(worktree, {}, { branch: "telar/some-feature", repoRoot: projectRoot });
-  } catch (error) {
-    message = (error as Error).message;
-  }
+  expect(message).not.toMatch(/re-register the project with its current location/i);
   expect(message).toContain(projectRoot);
   expect(message).toContain("do NOT re-register it");
   expect(message).toContain("telar/some-feature");
@@ -357,22 +349,17 @@ test("a removed worktree says so, and never sends anyone to re-register the proj
   expect(message).toContain("gh pr merge --delete-branch");
 });
 
-test("a project with no worktree facts keeps the sentence it always had", () => {
+test("a project with no worktree facts keeps the sentence it always had", async () => {
   const missing = path.join(home(), "gone");
   // A LOCAL session, and an older engine that sends no worktree block: the
   // project folder really is what is missing, and re-registering really is the
   // remedy. The fix must not take that sentence away from the case it fits.
-  expect(() => assertProjectRoot(missing)).toThrow(/re-register the project with its current location/i);
+  await expect(assertProjectRoot(missing)).rejects.toThrow(/re-register the project with its current location/i);
 });
 
-test("a worktree whose project also vanished does not claim the project is fine", () => {
+test("a worktree whose project also vanished does not claim the project is fine", async () => {
   const worktree = path.join(home(), "worktrees", "telar--x-ab12cd34");
-  let message = "";
-  try {
-    assertProjectRoot(worktree, {}, { branch: "telar/x", repoRoot: path.join(home(), "no-such-project") });
-  } catch (error) {
-    message = (error as Error).message;
-  }
+  const message = (await unreachableReason(worktree, { branch: "telar/x", repoRoot: path.join(home(), "no-such-project") })) ?? "";
   // Saying "the project itself is fine" over a project that is also gone would
   // be a comforting sentence and a false one.
   expect(message).not.toContain("The project itself is fine");

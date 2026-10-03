@@ -8,7 +8,7 @@ import { webImageOf } from "../domains/sessions";
 import { framedTurnInput, SteerMailbox, withTurnNotes } from "../domains/turns";
 import { UnsupportedDriverError } from "./options";
 import { isConnectivityLoss } from "./lease";
-import { assertProjectRoot } from "./project-root";
+import { assertProjectRoot, unreachableReason, WorkspaceUnreachableError } from "./project-root";
 import { telarCapabilities } from "./capabilities";
 import { bindTurn, repointBrowser, type TurnGate } from "./turn-gate";
 import type { PendingSteerAck, TurnHost } from "./host";
@@ -47,7 +47,9 @@ export async function executeClaim(host: TurnHost, claim: WorkerClaim): Promise<
   try {
     if (claim.readOnly && claim.driver !== "claude") throw new ProviderUnavailableError("A usage diagnosis runs on Claude Code for now.");
     const driver = host.driverFor(claim.driver);
-    if (claim.projectRoot !== undefined) assertProjectRoot(claim.projectRoot, {}, claim.worktree);
+    const folder = claim.projectRoot === undefined
+      ? undefined
+      : assertProjectRoot(claim.projectRoot, claim.worktree, host.options.folderCheck).then(() => undefined, (fault: unknown) => fault);
     // No await on the paths that need none: `markTurnRunning` must go out before the pump's next claim.
     const { browserSocket, telarSocket } = host.options;
     const lease = browserSocket && !claim.readOnly ? await bindBrowser(host, browserSocket, turn) : undefined;
@@ -56,6 +58,8 @@ export async function executeClaim(host: TurnHost, claim: WorkerClaim): Promise<
     // Marked only now, so a Stop during setup settles a `claimed` turn instead of a running one.
     await client.markTurnRunning(sessionId, runId, claimToken);
     running = true;
+    const unreachable = await folder;
+    if (unreachable !== undefined) throw unreachable;
     const result = await driver.run({ ...driverRun(host, turn, lease, telarLease), ...capabilities });
     // Drained before settling, or a late state read reports against a closed turn.
     await lease?.drain();
@@ -260,7 +264,7 @@ async function openProviderTurn(
 }
 
 /** A shutdown says so; a human Stop stays silent because the engine already recorded `stopped`. */
-async function settleFault(host: TurnHost, { sessionId, runId, claimToken, controller }: Turn, error: unknown, ensureRunning: () => Promise<void>): Promise<void> {
+async function settleFault(host: TurnHost, { claim, sessionId, runId, claimToken, controller }: Turn, error: unknown, ensureRunning: () => Promise<void>): Promise<void> {
   const { client } = host.options;
   if (host.shuttingDown() && controller.signal.aborted) {
     await ensureRunning();
@@ -291,6 +295,19 @@ async function settleFault(host: TurnHost, { sessionId, runId, claimToken, contr
     });
     return;
   }
+  const failure = await failureOf(host, claim, error);
+  await ensureRunning();
+  await host.settle({
+    sessionId,
+    runId,
+    claimToken,
+    operation: "failTurn",
+    send: (signal) => client.failTurn(sessionId, runId, claimToken, failure, signal),
+  });
+}
+
+async function failureOf(host: TurnHost, claim: WorkerClaim, error: unknown): Promise<WorkerTurnFailure> {
+  if (error instanceof WorkspaceUnreachableError) return { code: "workspace_unavailable", message: error.message };
   // `resumeAt` rides along because the engine schedules the resume from it.
   const failure: WorkerTurnFailure =
     error instanceof RateLimitedError
@@ -303,12 +320,8 @@ async function settleFault(host: TurnHost, { sessionId, runId, claimToken, contr
       : error instanceof ProviderUnavailableError || error instanceof UnsupportedDriverError
         ? { code: "provider_unavailable" as const, message: error.message }
         : { code: "driver_failed" as const, message: error instanceof Error ? error.message : "Telar driver failed" };
-  await ensureRunning();
-  await host.settle({
-    sessionId,
-    runId,
-    claimToken,
-    operation: "failTurn",
-    send: (signal) => client.failTurn(sessionId, runId, claimToken, failure, signal),
-  });
+  if (failure.code !== "driver_failed" || claim.projectRoot === undefined) return failure;
+  // A folder lost mid-turn surfaces as the provider's own opaque exit, so it is read again here.
+  const reason = await unreachableReason(claim.projectRoot, claim.worktree, host.options.folderCheck);
+  return reason === undefined ? failure : { code: "workspace_unavailable", message: reason, detail: failure.message };
 }

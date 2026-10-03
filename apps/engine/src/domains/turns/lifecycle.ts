@@ -173,7 +173,7 @@ export class TurnLifecycle {
     sessionId: string,
     runId: string,
     claimToken: string,
-    failure: { code: TurnFailure["code"]; message: string; resumeAt?: number; limitType?: TurnFailure["limitType"] },
+    failure: { code: TurnFailure["code"]; message: string; detail?: string; resumeAt?: number; limitType?: TurnFailure["limitType"] },
   ): Turn {
     return this.kernel.command("failTurn", () => {
       if (!TURN_FAILURE_CODES.has(failure.code) || typeof failure.message !== "string" || !failure.message.trim()) {
@@ -195,6 +195,7 @@ export class TurnLifecycle {
       turn.failure = {
         code: failure.code,
         message: failure.message.slice(0, 4_000),
+        ...(typeof failure.detail === "string" && failure.detail.trim() ? { detail: failure.detail.slice(0, 4_000) } : {}),
         // Only on the code that means them: a `driver_failed` carrying a reset
         // time would be a row inviting a resume that nothing will ever perform.
         ...(failure.code === "rate_limited" && resumeAt !== undefined ? { resumeAt } : {}),

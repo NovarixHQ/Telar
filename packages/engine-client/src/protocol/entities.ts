@@ -317,6 +317,7 @@ export type TurnStall = z.infer<typeof TurnStall>;
 export const TurnFailure = z.object({
   code: TurnFailureCode,
   message: z.string(),
+  detail: z.string().optional(),
   resumeAt: Timestamp.optional(),
   /** `rate_limited`: which limit, so a row can say "five hour" rather than "a
    *  limit". Narrowed to the closed set — see `RateLimitType`. */

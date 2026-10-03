@@ -60,4 +60,16 @@ describe("a turn waiting for a usage limit to reset", () => {
     expect(markup).toContain("limited");
     expect(markup).not.toContain("Waiting for the");
   });
+
+  test("a folder failure leads with Telar's reading and keeps the provider's words behind a toggle", () => {
+    const markup = render({
+      failure: "This session's folder isn't reachable: /Volumes/Work/app. Permission was denied by macOS or a security tool.",
+      code: "workspace_unavailable",
+      detail: "Claude Code process exited with code 1. stderr: error: An unknown error occurred (Unexpected)",
+    });
+    expect(markup.indexOf("isn&#x27;t reachable")).toBeLessThan(markup.indexOf("<details"));
+    expect(markup).toContain("<summary");
+    expect(markup).toContain("What the provider said");
+    expect(markup).toContain("An unknown error occurred (Unexpected)");
+  });
 });

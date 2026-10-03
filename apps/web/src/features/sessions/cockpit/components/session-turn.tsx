@@ -140,6 +140,7 @@ function sameTurnContent(prev: JournalTurn, next: JournalTurn): boolean {
     prev.resultText === next.resultText &&
     prev.failure === next.failure &&
     prev.failureCode === next.failureCode &&
+    prev.failureDetail === next.failureDetail &&
     prev.resumeAt === next.resumeAt &&
     prev.limitType === next.limitType &&
     prev.resumedAfterRateLimit === next.resumedAfterRateLimit &&
@@ -265,6 +266,7 @@ function SessionTurnBody({
             <TurnFailureRow
               failure={turn.failure}
               {...(turn.failureCode ? { code: turn.failureCode } : {})}
+              {...(turn.failureDetail ? { detail: turn.failureDetail } : {})}
               {...(turn.resumeAt === undefined ? {} : { resumeAt: turn.resumeAt })}
               {...(turn.limitType ? { limitType: turn.limitType } : {})}
               {...(onResumeNow ? { onResume: onResumeNow, resuming: sending } : {})}

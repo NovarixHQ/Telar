@@ -30,6 +30,7 @@ export function Marker({ children, attention }: { children: React.ReactNode; att
 export function TurnFailureRow({
   failure,
   code,
+  detail,
   resumeAt,
   limitType,
   onResume,
@@ -37,6 +38,7 @@ export function TurnFailureRow({
 }: {
   failure: string;
   code?: TurnFailureCode;
+  detail?: string;
   resumeAt?: number;
   limitType?: RateLimitType;
   onResume?: () => void;
@@ -44,7 +46,18 @@ export function TurnFailureRow({
 }) {
   // A limit with no reset time cannot promise one, so it falls back to the
   // ordinary marker rather than rendering "resets at Invalid Date".
-  if (code !== "rate_limited" || resumeAt === undefined) return <Marker attention>{failure}</Marker>;
+  if (code !== "rate_limited" || resumeAt === undefined) {
+    if (!detail) return <Marker attention>{failure}</Marker>;
+    return (
+      <div>
+        <Marker attention>{failure}</Marker>
+        <details className="mt-1 text-2xs text-muted-foreground">
+          <summary className="cursor-pointer select-none">What the provider said</summary>
+          <pre className="mt-1 whitespace-pre-wrap break-words font-mono">{detail}</pre>
+        </details>
+      </div>
+    );
+  }
   const resets = new Date(resumeAt);
   const sameDay = resets.toDateString() === new Date().toDateString();
   const at = sameDay

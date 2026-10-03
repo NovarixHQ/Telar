@@ -2,6 +2,7 @@ import type { GitHubCheck, GitHubIssueFilter, GitHubMergeMethod, GitHubPullFilte
 import { issueReference } from "@/features/composer";
 import type { ForgeFilterChip } from "./github-forge";
 import { canvasHref } from "@/features/sessions";
+import { awayReason, isAway } from "@/features/projects";
 
 export type IssueSessionStart =
   | { ok: true; href: string; text: string; baseRef: string }
@@ -25,11 +26,8 @@ export function issueSessionStart(input: {
         : `Telar could not read ${name}'s checkout, so it did not cut a worktree.`,
     };
   }
-  if (input.git.availability === "unmounted") {
-    return { ok: false, reason: `The drive holding ${name} is not connected. Plug it back in and this will work again.` };
-  }
-  if (input.git.availability === "missing") {
-    return { ok: false, reason: `The folder for ${name} is not on this machine any more, so there is nowhere to cut a worktree.` };
+  if (isAway(input.git.availability)) {
+    return { ok: false, reason: `${awayReason(input.git.availability, name)} There is nowhere to cut a worktree until it is back.` };
   }
   if (!input.git.repository) {
     return { ok: false, reason: `${name} is not a git repository, so a session on #${input.issue.number} cannot have a worktree of its own.` };

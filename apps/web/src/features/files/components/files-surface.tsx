@@ -13,6 +13,7 @@ import { EDITOR_HEADER_ROW } from "./editor-chrome";
 import { FileKindIcon } from "./file-icon";
 import { OpenerIcon } from "./opener-icon";
 import { PanelEmpty, PanelRow } from "@/ui/panel";
+import { awayReason, awayTitle, isAway } from "@/features/projects";
 import { Spinner } from "@/ui/spinner";
 import {
   ContextMenu,
@@ -274,17 +275,10 @@ function FilesUnavailable({ scoped, error, listing }: { scoped: boolean; error: 
       </PanelEmpty>
     );
   }
-  if (listing?.availability === "unmounted") {
+  if (listing && isAway(listing.availability)) {
     return (
-      <PanelEmpty icon={<HardDriveIcon />} title="The drive is not connected">
-        This project lives on a drive that is not plugged in. Its files are still on it — reconnect the drive and the tree comes back.
-      </PanelEmpty>
-    );
-  }
-  if (listing?.availability === "missing") {
-    return (
-      <PanelEmpty icon={<HardDriveIcon />} title="The project folder is gone">
-        {listing.workspacePath} is not on this machine any more.
+      <PanelEmpty icon={<HardDriveIcon />} title={awayTitle(listing.availability)}>
+        {awayReason(listing.availability, listing.workspacePath)}
       </PanelEmpty>
     );
   }
@@ -326,7 +320,7 @@ export function FilesSurface({
   const files = useWorkspaceFileMenu({ workspacePath, hostId });
 
   const scoped = Boolean(sessionId || projectId);
-  if (!scoped || tree.error || listing?.availability === "unmounted" || listing?.availability === "missing") {
+  if (!scoped || tree.error || isAway(listing?.availability)) {
     return <FilesUnavailable scoped={scoped} error={tree.error} listing={listing} />;
   }
 

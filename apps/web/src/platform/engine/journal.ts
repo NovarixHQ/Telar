@@ -76,6 +76,7 @@ export type JournalTurn = {
   failure?: string;
   /** Which kind of failure: `rate_limited` is a wait with a known end, not a fault. */
   failureCode?: TurnFailureCode;
+  failureDetail?: string;
   /** `rate_limited`: when the limit lifts, in MILLISECONDS. The engine converted
    *  it from the provider's seconds — see `TurnFailure.resumeAt`. */
   resumeAt?: number;
@@ -144,6 +145,7 @@ function journalTurn(turn: Turn): JournalTurn {
     ...(turn.completedAt ? { endedAt: turn.completedAt } : {}),
     resultText: turn.resultText ?? "",
     ...(turn.failure ? { failure: turn.failure.message, failureCode: turn.failure.code } : {}),
+    ...(turn.failure?.detail ? { failureDetail: turn.failure.detail } : {}),
     ...(turn.failure?.resumeAt === undefined ? {} : { resumeAt: turn.failure.resumeAt }),
     ...(turn.failure?.limitType ? { limitType: turn.failure.limitType } : {}),
     ...(turn.resumedAfterRateLimit === undefined ? {} : { resumedAfterRateLimit: turn.resumedAfterRateLimit }),
@@ -247,6 +249,7 @@ function applyTurnEvent(fold: Fold, turn: JournalTurn | undefined, event: Engine
         turn.state = "failed";
         turn.failure = event.message;
         turn.failureCode = event.code;
+        if (event.detail) turn.failureDetail = event.detail;
         if (event.resumeAt !== undefined) turn.resumeAt = event.resumeAt;
         if (event.limitType) turn.limitType = event.limitType;
       }

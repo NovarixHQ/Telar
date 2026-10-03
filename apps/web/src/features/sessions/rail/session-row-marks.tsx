@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlarmClockIcon, CircleDashedIcon, CircleDotIcon, HardDriveIcon, PinIcon, SquareTerminalIcon } from "lucide-react";
 import { fmtAgo } from "@/ui/format";
+import { awayLabel, awayReason, isAway, type Away } from "@/features/projects";
 import { ACTIVITY_TONE, fmtDuration, rowStatusText } from "../session-activity";
 import type { SessionBand, SidebarSession } from "../session-list";
 import { settledTerminalsHint, wakeLabel } from "../session-settling";
@@ -20,20 +21,15 @@ function TickingDuration({ startedAt }: { startedAt: number }) {
   return <span className="tabular-nums">{fmtDuration(startedAt, now)}</span>;
 }
 
-function DriveStatus({ session }: { session: SidebarSession }) {
-  const unmounted = session.projectAvailability === "unmounted";
+function DriveStatus({ session, away }: { session: SidebarSession; away: Away }) {
   return (
     <span
       className={`inline-flex min-w-0 shrink items-center gap-1 text-2xs font-medium text-muted-foreground ${yieldOnHover}`}
-      title={
-        unmounted
-          ? `The drive holding ${session.projectName ?? "this project"} is not connected. Its work is still on it.`
-          : `${session.workspacePath ?? "This session's folder"} is not on this machine any more.`
-      }
+      title={awayReason(away, session.projectName)}
     >
       <HardDriveIcon className="size-3 shrink-0" />
       <span role="status" className="truncate">
-        {unmounted ? "Drive away" : "Folder gone"}
+        {awayLabel(away)}
       </span>
     </span>
   );
@@ -65,7 +61,7 @@ function PreparationStatus({ preparation }: { preparation: NonNullable<SidebarSe
 }
 
 export function RowStatus({ session, band, renderedAt }: { session: SidebarSession; band: SessionBand; renderedAt: number }) {
-  if (session.projectAvailability === "unmounted" || session.projectAvailability === "missing") return <DriveStatus session={session} />;
+  if (isAway(session.projectAvailability)) return <DriveStatus session={session} away={session.projectAvailability} />;
   if (session.preparation) return <PreparationStatus preparation={session.preparation} />;
   if (session.draft) return <span className={`shrink-0 text-2xs text-sidebar-foreground/45 ${yieldOnHover}`}>Draft</span>;
   if (band === "snoozed" && session.snoozedUntil !== undefined) {

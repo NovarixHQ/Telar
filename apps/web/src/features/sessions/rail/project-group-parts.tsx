@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu";
 import { cn } from "@/ui/utils";
+import { awayLabel, awayReason } from "@/features/projects";
 import type { ProjectGroup as Group } from "../session-groups";
 import { canvasHref } from "../session-list";
 
@@ -50,14 +51,10 @@ export function ProjectGroupBadges({ group, badges }: { group: Group; badges: re
       {group.availability ? (
         <span
           className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-sidebar-accent px-1 text-3xs text-sidebar-foreground/60"
-          title={
-            group.availability === "unmounted"
-              ? `The drive holding ${group.name} is not connected. Plug it back in and this project comes back as it was.`
-              : `The folder for ${group.name} is not on this machine any more.`
-          }
+          title={awayReason(group.availability, group.name)}
         >
           <HardDriveIcon className="size-2.5" />
-          <span className="max-w-20 truncate">{group.availability === "unmounted" ? "drive away" : "folder gone"}</span>
+          <span className="max-w-20 truncate">{awayLabel(group.availability).toLowerCase()}</span>
         </span>
       ) : null}
       {badges.map((place) => {

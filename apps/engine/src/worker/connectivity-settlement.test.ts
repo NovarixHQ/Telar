@@ -6,6 +6,7 @@ import { EngineClient, EngineClientError } from "@telar/engine-client";
 import { startEngine } from "../daemon";
 import { EngineWorker } from ".";
 import { stubModels } from "../../test/stub-models";
+import { eventually } from "../../test/wait";
 import { fakeClient, fakeClock, HEARTBEAT_INTERVAL_MS, idle, workerFor } from "./connectivity-fixture";
 
 /** Past the worker's capped retry spacing, so a drain is due. */
@@ -87,6 +88,7 @@ test("a lost settlement response is retried as ITSELF, against the real engine s
     await client.submitTurn(session.session.id, { runId: "run_one", input: "Hello" });
     await worker.tick();
     await barrier.settled();
+    await eventually(async () => expect((await client.session(session.session.id)).turns[0]?.state).toBe("completed"));
 
     // The turn is COMPLETED with its own text and usage — not interrupted.
     const turn = (await client.session(session.session.id)).turns[0];
@@ -141,6 +143,7 @@ test("five failures BEFORE commit, then a recovered endpoint: the turn resolves 
     await client.submitTurn(session.session.id, { runId: "run_one", input: "Hello" });
     await worker.tick();
     await barrier.settled();
+    await eventually(() => expect(diagnostics.some((line) => line.event === "turn_settlement_pending")).toBeTrue());
 
     // All five inline attempts were spent and the turn is NOT settled yet —
     // but it is retained rather than abandoned.

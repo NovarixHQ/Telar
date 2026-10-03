@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { mountRootsFor, volumeSupportOn, type Project, type ProjectAvailability } from "@telar/engine-client";
+import { FOLDER_REACH_TIMEOUT_MS, folderFs, reachFolder, type FolderReach } from "./folder-reach";
 
 export type VolumeIdentity = NonNullable<Project["volume"]>;
 
@@ -45,6 +46,8 @@ function resolveDeps(deps: VolumeDeps): Resolved {
     volumeUuid: deps.volumeUuid ?? (platform === "darwin" ? diskutilUuid : noUuid),
   };
 }
+
+export const statAsyncOf = (deps: VolumeDeps): ((target: string) => Promise<fs.Stats>) => resolveDeps(deps).statAsync;
 
 export function mountPointForRoot(root: string, deps: VolumeDeps = {}): string | undefined {
   const { mounts } = resolveDeps(deps);
@@ -165,15 +168,50 @@ export async function probeAvailability(
   const { statAsync } = resolveDeps(deps);
   const stat = (target: string) => statAsync(target).catch(() => undefined);
   const volume = project.volume;
-  const [root, mount, parent] = await Promise.all([
-    stat(project.root),
-    volume && stat(volume.mount),
-    volume && path.dirname(volume.mount) !== volume.mount ? stat(path.dirname(volume.mount)) : undefined,
-  ]);
-  if (volume === undefined) return root?.isDirectory() ? "available" : "missing";
-  if (!mount || !parent || mount.dev === parent.dev) return "unmounted";
-  if (!root?.isDirectory()) return "missing";
-  return root.dev === mount.dev ? "available" : "unmounted";
+  let rootDev: number | undefined;
+  const folder = reachFolder(project.root, {
+    fs: { ...folderFs, stat: async (target) => {
+      const found = await statAsync(target);
+      rootDev = found.dev;
+      return found;
+    } },
+  });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const mounted = volume
+    ? Promise.race([
+        Promise.all([stat(volume.mount), path.dirname(volume.mount) !== volume.mount ? stat(path.dirname(volume.mount)) : undefined]),
+        new Promise<"hung">((resolve) => (timer = setTimeout(() => resolve("hung"), FOLDER_REACH_TIMEOUT_MS))),
+      ]).finally(() => clearTimeout(timer))
+    : undefined;
+  const [reach, mountStats] = await Promise.all([folder, mounted]);
+  if (mountStats === "hung") return "unresponsive";
+  if (mountStats) {
+    const [mount, parent] = mountStats;
+    if (!mount || !parent || mount.dev === parent.dev) return "unmounted";
+    if (reach.reach === "ok" && rootDev !== mount.dev) return "unmounted";
+  }
+  return availabilityOf(reach);
+}
+
+export function unreachableSentence(name: string, availability: "denied" | "unresponsive"): string {
+  return availability === "denied"
+    ? `macOS or a security tool is denying access to the folder for ${name}. Allow access and this will work again.`
+    : `The drive holding ${name} isn't responding; it may be disconnected or blocked by security software.`;
+}
+
+function availabilityOf(folder: FolderReach): ProjectAvailability {
+  switch (folder.reach) {
+    case "ok":
+      return "available";
+    case "missing":
+    case "not_folder":
+      return "missing";
+    case "denied":
+      return "denied";
+    case "unresponsive":
+    case "failing":
+      return "unresponsive";
+  }
 }
 
 export function knownVolumeMount(uuid: string, deps: VolumeDeps = {}): string | undefined {

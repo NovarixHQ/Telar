@@ -16,7 +16,7 @@ import {
   type Project,
 } from "@telar/engine-client";
 import { assertId, assertStateVersion, EngineStateError, STATE_VERSION, type Kernel } from "../../platform/kernel";
-import { volumeForRoot, volumeForRootAsync, type VolumeDeps, type VolumeIdentity } from "../../platform/fs/volumes";
+import { unreachableSentence, volumeForRoot, volumeForRootAsync, type VolumeDeps, type VolumeIdentity } from "../../platform/fs/volumes";
 import { ensureTelarGitignore } from "../git";
 import type { ProjectIcon } from "../appearance";
 import type { ProjectProbes } from "./probes";
@@ -103,9 +103,11 @@ export class ProjectRegistry {
     if (project.removedAt !== undefined) {
       throw new EngineStateError("conflict", "this project was removed from Telar; restore it to start work on it again");
     }
-    if (this.deps.probes.availability(project) === "unmounted") {
+    const availability = this.deps.probes.availability(project);
+    if (availability === "unmounted") {
       throw new EngineStateError("conflict", `The drive holding ${project.name} is not connected. Plug it back in and this will work again.`);
     }
+    if (availability === "denied" || availability === "unresponsive") throw new EngineStateError("conflict", unreachableSentence(project.name, availability));
   }
 
   /** The icon's bytes-on-disk; refuses when the project has none rather than guessing. */

@@ -30,3 +30,15 @@ test("project roots are canonical existing directories and legacy homes are reje
     if (createdLegacy) fs.rmdirSync(legacy);
   }
 });
+
+test("a project whose folder a security tool denies refuses new work, saying why", async () => {
+  const checkout = fs.realpathSync.native(root());
+  const statAsync = (target: string) =>
+    target === checkout ? Promise.reject(Object.assign(new Error("operation not permitted"), { code: "EPERM" })) : fs.promises.stat(target);
+  const store = new EngineStore(root(), undefined, { volumes: { statAsync } });
+  const project = store.projectRegistry.register({ id: "project_one", name: "One", root: checkout });
+
+  expect(await store.projectProbes.probe(project)).toBe("denied");
+  expect(store.projectRegistry.list()[0]!.availability).toBe("denied");
+  expect(() => store.projectRegistry.assertAvailable("project_one")).toThrow(/security tool is denying access to the folder for One/);
+});

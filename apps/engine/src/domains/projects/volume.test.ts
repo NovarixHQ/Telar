@@ -226,8 +226,7 @@ test("git comes back on its own when the drive does", async () => {
   mounts.mount("TelarVR");
   fs.mkdirSync(path.join(mounts.mountRoot, "TelarVR", "project"), { recursive: true });
   tick(11_000);
-  store.projectRegistry.list();
-  expect(await until(() => spawns() > quiet)).toBe(true);
+  expect(await until(() => (store.projectRegistry.list(), spawns() > quiet))).toBe(true);
 });
 
 test("a read never waits on a drive whose stat hangs, and asks it only once", () => {

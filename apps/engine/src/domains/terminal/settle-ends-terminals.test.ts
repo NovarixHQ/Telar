@@ -8,6 +8,7 @@ import { RunManager } from "./manager";
 import { type StartRunInput } from "./live-run";
 import { RunTerminalClient } from "./terminal-client";
 import { EngineStore } from "../../state";
+import { sessionLifecycleRoutes } from "../sessions";
 import { SETTLED_TERMINAL_GRACE_MS } from "./session-terminals";
 import { desktopTerminalServer } from "../../../test/desktop-terminal";
 
@@ -130,6 +131,21 @@ test("an explicit settle closes every terminal of the session through /close-ses
   expect(manager.run(other.terminalId).status).toBe("running");
   expect(manager.openCount("session_two")).toBe(1);
   expect(manager.openSessions()).toEqual(["session_two"]);
+});
+
+test("archiving a session closes its terminals, as Telar", async () => {
+  const { host, manager, store, open } = await scene();
+  const run = await open("session_one");
+  const shell = host.personShell("session_one");
+  const other = await open("session_two");
+  const archive = sessionLifecycleRoutes(store, () => {}).find((route) => route.method === "POST" && String(route.path).includes("archive"))!;
+
+  await archive.handle({ params: ["session_one"], body: {} } as never);
+
+  expect(store.records.get("session_one").state).toBe("archived");
+  expect(manager.run(run.terminalId)).toMatchObject({ status: "closed", closedBy: "telar" });
+  expect(host.terminals.has(shell)).toBe(false);
+  expect(manager.run(other.terminalId).status).toBe("running");
 });
 
 test("settling a session with nothing open closes nothing and still answers", async () => {

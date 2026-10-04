@@ -11,7 +11,6 @@ export type SessionDeltaStore = {
   };
 };
 
-/** What a cached head needs to catch up, or `reset` when a fresh bootstrap is cheaper or the cursor is not this journal's. */
 export function sessionDelta(store: SessionDeltaStore, sessionId: string, after: number): SessionDelta {
   const cursor = store.queries.eventCursor(sessionId);
   if (after > cursor || after < store.queries.eventFloor(sessionId)) return { reset: true };

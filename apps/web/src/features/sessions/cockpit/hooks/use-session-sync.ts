@@ -47,7 +47,6 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
   const cachedAt = useRef<number | undefined>(undefined);
   const lastLiveAt = useRef<number | undefined>(undefined);
   const [loading, setLoading] = useState(() => initiallyLoading && data.readKey !== syncKey);
-  /** The last opening the engine answered; until it matches, what is on screen may be a cached head. */
   const [reconciled, setReconciled] = useState<string>();
   const photographed = useRef<Photo>(undefined);
   const syncQueue = useRef<Promise<void>>(Promise.resolve());

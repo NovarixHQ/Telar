@@ -189,23 +189,23 @@ test("the default answer carries only the rows a rail draws, and says how many i
   for (const id of Object.keys(after.assignments)) expect(kept.has(id)).toBe(true);
 });
 
-// Counts the work, not the answer: `SessionQueues.read` is where the sqlite read, parse and validation happen.
-test("the live fold opens each session's queue once, and an archived one not at all", () => {
+// Counts the work, not the answer: the fold reads each session's activity rows once and no whole queue.
+test("the live fold reads each session's turns once, and an archived one's not at all", () => {
   const store = new EngineStore(root(), () => 1_700_000_000_000);
   store.projectRegistry.register({ id: "project_one", name: "Telar", root: checkout() });
   const ids = ["session_aaaaaaaa1111111111111111111111", "session_bbbbbbbb2222222222222222222222", "session_cccccccc3333333333333333333333"];
   for (const id of ids) store.lifecycle.createSession({ id, projectId: "project_one", title: id });
   store.lifecycle.archiveSession(ids[2]!);
 
-  const reads = spyOn(SessionQueues.prototype, "read");
+  const whole = spyOn(SessionQueues.prototype, "read");
+  const reads = spyOn(SessionQueues.prototype, "forActivity");
   const answer = store.live.rows({ all: true });
   const opened = reads.mock.calls.map(([sessionId]) => sessionId);
   reads.mockRestore();
+  expect(whole).not.toHaveBeenCalled();
+  whole.mockRestore();
   expect(answer.sessions).toHaveLength(2);
-  // ONCE EACH. It was twice — the activity fold read one copy and the
-  // assignment fold read another of the same document, moments apart. Sorted
-  // because the pass reads in the store's own order and sorts afterwards; the
-  // claim here is the COUNT, not the order.
+  // Sorted: the claim is the count, not the order.
   expect(opened.sort()).toEqual([ids[0]!, ids[1]!].sort());
   // And the archived one is never opened: its state is in the metadata
   // document, so it is answerable before the expensive read rather than after.

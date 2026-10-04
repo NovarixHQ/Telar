@@ -63,6 +63,25 @@ describe("an open item's streamed prefix", () => {
     expect(store.prefixes.get("session_one", "i1", store.queries.eventCursor("session_one"))!.streamed).toBe("Once upon ");
   });
 
+  test("a lost cache is rebuilt page by page and stops at the item's start", () => {
+    const { store, token } = streaming();
+    const deltas = Array.from({ length: 1_200 }, (_, n) => ({ kind: "content.delta" as const, itemId: "i1", stream: "assistant_text" as const, text: `${n % 10}` }));
+    store.ingest.ingestObservations("session_one", "run_one", token, deltas);
+    forgetOpenPrefixes(store);
+    const execution = store.kernel.executionStore;
+    const page = execution.eventsBefore.bind(execution);
+    const pages: number[] = [];
+    execution.eventsBefore = (sessionId, before, limit) => {
+      pages.push(before);
+      return page(sessionId, before, limit);
+    };
+    const prefix = store.prefixes.get("session_one", "i1", store.queries.eventCursor("session_one"))!;
+    execution.eventsBefore = page;
+    expect(prefix.streamed).toBe(`Once upon ${deltas.map((delta) => delta.text).join("")}`);
+    // 1,201 deltas above the start: three pages of 500, and the third ends the walk.
+    expect(pages).toHaveLength(3);
+  });
+
   test("two sessions' items with the same id do not share a prefix", () => {
     const { store, token } = streaming();
     store.lifecycle.createSession({ id: "session_two", projectId: "project_one" });

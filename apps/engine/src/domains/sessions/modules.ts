@@ -30,7 +30,9 @@ export function createSessionModules(kernel: Kernel, host: SessionHost) {
   const tasks = new SessionTasks(kernel);
   const mailbox = new SessionMailbox(kernel);
   const activity: SessionActivity = new SessionActivity(kernel, {
-    readQueue: (sessionId) => queues.read(sessionId),
+    activityTurns: (sessionId, runIds) => queues.forActivity(sessionId, runIds),
+    assignedTurns: (sessionId) => queues.assigned(sessionId),
+    liveTurns: (sessionId) => queues.live(sessionId),
     liveRequests: (sessionId) => requests.live(sessionId),
     peekRun: (sessionId, runId) => items.peekRun(sessionId, runId),
     readTasks: (sessionId) => tasks.read(sessionId),
@@ -40,7 +42,7 @@ export function createSessionModules(kernel: Kernel, host: SessionHost) {
   });
   const index = new SessionIndex(kernel, {
     withActivityFrom: (session, turns) => activity.from(session, turns),
-    readQueue: (sessionId) => queues.read(sessionId),
+    activityTurns: (sessionId) => activity.turnsFor(sessionId),
     autoSettleAfterHours: host.autoSettleAfterHours,
   });
   const queues: SessionQueues = new SessionQueues(kernel, {
@@ -49,11 +51,10 @@ export function createSessionModules(kernel: Kernel, host: SessionHost) {
     afterWrite: (sessionId, turns) => requests.trim(sessionId, turns),
     ...(host.onQueueChanged ? { onChanged: host.onQueueChanged } : {}),
   });
-  const prefixes = new OpenPrefixes(kernel, (sessionId) => queries.readEvents(sessionId));
+  const prefixes = new OpenPrefixes(kernel, (sessionId, before, limit) => kernel.executionStore.eventsBefore(sessionId, before, limit));
   const attachments = new SessionAttachments(kernel, (sessionId) => void records.require(sessionId));
   const queries: SessionQueries = new SessionQueries(kernel, {
-    records, items, tasks, requests,
-    readQueue: (sessionId) => queues.read(sessionId),
+    records, items, tasks, requests, queues,
     autoSettleAfterHours: host.autoSettleAfterHours,
   });
   return { records, items, requests, tasks, mailbox, activity, index, queues, prefixes, attachments, queries };

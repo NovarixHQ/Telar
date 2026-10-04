@@ -11,7 +11,7 @@ export type LiveScope = "lean" | "all" | "shelf";
 
 type IndexDeps = {
   withActivityFrom: (session: Session, turns: Turn[]) => Session;
-  readQueue: (sessionId: string) => SessionQueue;
+  activityTurns: (sessionId: string) => Turn[];
   autoSettleAfterHours: () => number | null;
 };
 
@@ -182,7 +182,7 @@ export class SessionIndex {
       return;
     }
     const folded = movesActivity || before === undefined
-      ? this.deps.withActivityFrom(record, (written ?? this.deps.readQueue(sessionId)).turns)
+      ? this.deps.withActivityFrom(record, written?.turns ?? this.deps.activityTurns(sessionId))
       : {
           ...record,
           activity: before.activity,

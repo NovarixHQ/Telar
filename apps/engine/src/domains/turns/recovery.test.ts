@@ -4,20 +4,10 @@ import path from "node:path";
 import type { Turn } from "@telar/engine-client";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
-import type { ExecutionStore } from "../../platform/db/execution-store";
+import { editSessionDocument } from "../../../test/store-internals";
 import { useTempStores } from "../../../test/temp-store";
 
 const { root, readyStore } = useTempStores();
-
-const documents = (store: EngineStore) => (store as unknown as { kernel: { executionStore: ExecutionStore } }).kernel.executionStore;
-
-// Rewrites a stored session_one document, as an older build left it.
-function editDocument(store: EngineStore, stateRoot: string, name: string, edit: (value: any) => void): void {
-  const file = path.join(stateRoot, "sessions", "session_one", name);
-  const value = documents(store).read(file);
-  edit(value);
-  documents(store).write(file, value);
-}
 
 test("a request left open on an already-ended turn is retired at boot; one on an ambiguous turn is kept", () => {
   // Persisted histories from before requests were retired with their turn.
@@ -33,7 +23,7 @@ test("a request left open on an already-ended turn is retired at boot; one on an
   });
   // Fail the turn behind the store's back, as an older build did: the
   // request stays open on disk beside a failed turn.
-  editDocument(store, stateRoot, "queue.json", (queue) => {
+  editSessionDocument(store, "queue.json", (queue) => {
     Object.assign(queue.turns[0], { state: "failed", completedAt: 90, failure: { code: "driver_failed", message: "old build" } });
   });
   store.kernel.executionStore.close();
@@ -124,7 +114,7 @@ test("the boot sweep closes every terminal turn's leftovers in one pass over eac
     });
     // End each turn behind the store's back, the way an older build's crash
     // left them: terminal on disk with its rows still open.
-    editDocument(store, stateRoot, "queue.json", (queue) => {
+    editSessionDocument(store, "queue.json", (queue) => {
       const turn = queue.turns.find((candidate: Turn) => candidate.runId === runId);
       Object.assign(turn, { state: "failed", completedAt: 90, failure: { code: "driver_failed", message: "old build" } });
     });

@@ -4,6 +4,7 @@ import { EngineEvent } from "@telar/engine-client";
 import { atomicWrite } from "../fs/atomic";
 import { statePaths } from "../fs/state-paths";
 import type { ExecutionHousekeeping, ExecutionStore } from "./execution-store";
+import { exportQueueRows } from "./turn-rows";
 
 const FILES = ["session.json", "queue.json", "items.json", "requests.json", "tasks.json"];
 
@@ -69,6 +70,7 @@ export function exportLegacy(store: ExecutionStore, destination: string): void {
     atomicWrite(file, JSON.parse(String(row.value)));
   }
   for (const id of store.sessionIds()) {
+    exportQueueRows(store, id, path.join(destination, "sessions", id));
     const events = store.events(id);
     fs.writeFileSync(path.join(destination, "sessions", id, "events.ndjson"), events.map((event) => JSON.stringify(event) + "\n").join(""), { mode: 0o600 });
   }

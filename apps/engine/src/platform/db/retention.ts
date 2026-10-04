@@ -5,6 +5,7 @@ import { atomicWrite } from "../fs/atomic";
 import type { ExecutionStore } from "./execution-store";
 import { TERMINAL_HIGH_PREFIX, TERMINAL_TURN_TYPES } from "./journal-maintenance";
 import { allSessionRows, itemRows, itemsAreRows, prefixRange, turnSummaryStates, type SessionIndexRow } from "./tables";
+import { exportQueueRows } from "./turn-rows";
 
 // Retention drops a settled session's raw `events` and nothing else: `session.json` must stay, or the next
 // start's reconcile removes the session from the rail. Deleted rows go to the freelist until Reclaim.
@@ -59,6 +60,7 @@ export function exportSession(store: ExecutionStore, sessionId: string, destinat
     fs.writeFileSync(path.join(directory, "items.json"), `{"items":[${itemRows(store, sessionId).join(",")}]}`, { mode: 0o600 });
     documents += 1;
   }
+  if (exportQueueRows(store, sessionId, directory)) documents += 1;
   const handle = fs.openSync(path.join(directory, "events.ndjson"), "w", 0o600);
   let events = 0;
   try {

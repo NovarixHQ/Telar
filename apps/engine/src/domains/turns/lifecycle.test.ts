@@ -4,20 +4,10 @@ import path from "node:path";
 import type { Turn } from "@telar/engine-client";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
-import type { ExecutionStore } from "../../platform/db/execution-store";
+import { editSessionDocument } from "../../../test/store-internals";
 import { useTempStores } from "../../../test/temp-store";
 
 const { readyStore } = useTempStores();
-
-const documents = (store: EngineStore) => (store as unknown as { kernel: { executionStore: ExecutionStore } }).kernel.executionStore;
-
-// Rewrites a stored session_one document, as an older build left it.
-function editDocument(store: EngineStore, stateRoot: string, name: string, edit: (value: any) => void): void {
-  const file = path.join(stateRoot, "sessions", "session_one", name);
-  const value = documents(store).read(file);
-  edit(value);
-  documents(store).write(file, value);
-}
 
 test("stop is durable and idempotent", () => {
   const { store } = readyStore();
@@ -226,8 +216,8 @@ describe("stop is stop — there is no pause to resume", () => {
   test("session Stop terminalizes legacy held work before clearing its pause latch", () => {
     const { store, root: directory } = readyStore();
     store.intake.submitTurn("session_one", { runId: "run_held", input: "keep these words" });
-    editDocument(store, directory, "queue.json", (queue) => { queue.turns[0].held = { at: 100, reason: "session_paused" }; });
-    editDocument(store, directory, "session.json", (metadata) => { metadata.paused = { at: 100, by: "human" }; });
+    editSessionDocument(store, "queue.json", (queue) => { queue.turns[0].held = { at: 100, reason: "session_paused" }; });
+    editSessionDocument(store, "session.json", (metadata) => { metadata.paused = { at: 100, by: "human" }; });
     store.kernel.executionStore.close();
     const legacy = new EngineStore(directory, () => 200);
     legacy.turnLifecycle.stopSession("session_one");
@@ -309,7 +299,7 @@ test("releasing checks the turn's state before its hold, and refuses a removed p
    * still carried a stale `held` flag skipped it — and was reported as
    * "released", which is a lie about a turn that has already ended.
    */
-  editDocument(rebooted, stateRoot, "queue.json", (queue) => {
+  editSessionDocument(rebooted, "queue.json", (queue) => {
     Object.assign(queue.turns.find((turn: Turn) => turn.runId === "run_held"), { state: "stopped", completedAt: 150 });
   });
   rebooted.kernel.executionStore.close();
@@ -320,7 +310,7 @@ test("releasing checks the turn's state before its hold, and refuses a removed p
   // so it keeps its own `assertProjectAvailable` gate. The state is written by hand.
   const { store: away, root: awayRoot } = readyStore();
   away.intake.submitTurn("session_one", { runId: "run_held", input: "before the crash" });
-  editDocument(away, awayRoot, "queue.json", (queue) => { queue.turns[0].held = { at: 100, reason: "engine_restart" }; });
+  editSessionDocument(away, "queue.json", (queue) => { queue.turns[0].held = { at: 100, reason: "engine_restart" }; });
   away.kernel.executionStore.close();
   const registryFile = path.join(awayRoot, "projects.json");
   const registry = JSON.parse(fs.readFileSync(registryFile, "utf8"));

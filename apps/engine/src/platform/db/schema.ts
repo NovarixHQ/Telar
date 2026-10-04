@@ -113,7 +113,25 @@ export function openDatabase(root: string): { db: Database; searchIndex: "fts5" 
         value TEXT NOT NULL,
         PRIMARY KEY(session_id, item_id)
       );
-      CREATE INDEX IF NOT EXISTS items_run ON items(session_id, run_id, ord);`);
+      CREATE INDEX IF NOT EXISTS items_run ON items(session_id, run_id, ord);
+      CREATE INDEX IF NOT EXISTS items_order ON items(session_id, ord);`);
+    db.exec(`CREATE TABLE IF NOT EXISTS turns (
+        session_id TEXT NOT NULL,
+        run_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL,
+        state TEXT NOT NULL,
+        accepted_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        completed_at INTEGER,
+        live INTEGER NOT NULL DEFAULT 0,
+        assigned INTEGER NOT NULL DEFAULT 0,
+        value TEXT NOT NULL,
+        PRIMARY KEY(session_id, run_id)
+      );
+      CREATE INDEX IF NOT EXISTS turns_order ON turns(session_id, sequence);
+      CREATE INDEX IF NOT EXISTS turns_ended ON turns(session_id, completed_at, sequence) WHERE completed_at IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS turns_live ON turns(session_id, sequence) WHERE live=1;
+      CREATE INDEX IF NOT EXISTS turns_assigned ON turns(session_id, sequence) WHERE assigned=1;`);
     // usage_* is the SUM of a turn's usage rows plus their count: Codex rows are per call, Claude's last row is the total.
     addColumns(db, "turn_summaries", [
       "usage_input INTEGER", "usage_output INTEGER", "usage_cache_read INTEGER",

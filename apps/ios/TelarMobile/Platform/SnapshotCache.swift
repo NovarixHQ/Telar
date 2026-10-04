@@ -3,12 +3,15 @@ import Foundation
 struct SnapshotCache: Sendable {
     let root: URL
 
-    static let sessionsPerHost = 30
+    static let sessionsOnDisk = 30
+    static let sessionBytes = 1_000_000
+    static let sessionsTotalBytes = 20_000_000
 
-    static let `default` = SnapshotCache(
-        root: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appending(path: "snapshots")
-    )
+    static let `default`: SnapshotCache = {
+        let files = FileManager.default
+        try? files.removeItem(at: files.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appending(path: "snapshots"))
+        return SnapshotCache(root: files.urls(for: .cachesDirectory, in: .userDomainMask)[0].appending(path: "snapshots"))
+    }()
 
     struct Entry: Equatable {
         var data: Data
@@ -21,8 +24,13 @@ struct SnapshotCache: Sendable {
     }
 
     func writeSession(host: HostID, id: EngineID, data: Data) {
+        guard data.count <= Self.sessionBytes else { return dropSession(host: host, id: id) }
         write(sessionFile(host, id), data)
-        prune(sessionsDir(host))
+        prune()
+    }
+
+    func dropSessions(host: HostID) {
+        try? FileManager.default.removeItem(at: sessionsDir(host))
     }
 
     func dropSession(host: HostID, id: EngineID) {
@@ -78,16 +86,18 @@ struct SnapshotCache: Sendable {
         }
     }
 
-    private func prune(_ dir: URL) {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: dir, includingPropertiesForKeys: [.contentModificationDateKey]
-        ), files.count > Self.sessionsPerHost else { return }
-        let dated = files.map { file -> (URL, Date) in
-            let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-            return (file, date)
-        }
-        for (file, _) in dated.sorted(by: { $0.1 > $1.1 }).dropFirst(Self.sessionsPerHost) {
-            try? FileManager.default.removeItem(at: file)
+    private func prune() {
+        let files = FileManager.default
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
+        let hosts = (try? files.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+        let newest = hosts
+            .flatMap { (try? files.contentsOfDirectory(at: $0.appending(path: "sessions"), includingPropertiesForKeys: keys)) ?? [] }
+            .map { file in (file, (try? file.resourceValues(forKeys: Set(keys))) ?? URLResourceValues()) }
+            .sorted { ($0.1.contentModificationDate ?? .distantPast) > ($1.1.contentModificationDate ?? .distantPast) }
+        var total = 0
+        for (rank, (file, values)) in newest.enumerated() {
+            total += values.fileSize ?? 0
+            if rank >= Self.sessionsOnDisk || total > Self.sessionsTotalBytes { try? files.removeItem(at: file) }
         }
     }
 }
@@ -99,6 +109,7 @@ struct HostSnapshotCache: Sendable {
     func readSession(_ id: EngineID) -> SnapshotCache.Entry? { cache.readSession(host: hostId, id: id) }
     func writeSession(_ id: EngineID, _ data: Data) { cache.writeSession(host: hostId, id: id, data: data) }
     func dropSession(_ id: EngineID) { cache.dropSession(host: hostId, id: id) }
+    func dropSessions() { cache.dropSessions(host: hostId) }
     func readInbox() -> SnapshotCache.Entry? { cache.readInbox(host: hostId) }
     func writeInbox(_ data: Data) { cache.writeInbox(host: hostId, data: data) }
     func readShelf() -> SnapshotCache.Entry? { cache.readShelf(host: hostId) }

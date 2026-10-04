@@ -74,7 +74,8 @@ type LifecycleHost = {
   requireInstance(instanceId: string): ProviderInstance;
   cachedModels(driver: ProviderDriverKind): ModelCatalogue["models"] | undefined;
   chooseModel(driver: ProviderDriverKind, instanceId: string, choice: AgentModelChoice): ModelSelectionValue | undefined;
-  readQueue(sessionId: string): SessionQueue;
+  readQueue(sessionId: string, runIds?: readonly string[]): SessionQueue;
+  assignedTurns(sessionId: string): Turn[];
   writeQueue(sessionId: string, queue: SessionQueue): void;
   appendEvent(sessionId: string, event: JournalEntry, runId?: string): EngineEvent;
   settleWorktree(sessionId: string, error: string | undefined): void;
@@ -468,7 +469,7 @@ export class SessionLifecycle {
   detachAssignments(sessionId: string, runId?: string): Turn[] {
     const session = this.records.get(sessionId);
     const at = this.kernel.now();
-    const queue = this.host.readQueue(session.id);
+    const queue = this.host.readQueue(session.id, this.host.assignedTurns(session.id).map((turn) => turn.runId));
     const detached: Turn[] = [];
     for (const turn of queue.turns) {
       if (turn.origin !== "session" || turn.agentIntent !== "task") continue;

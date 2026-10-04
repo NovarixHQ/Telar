@@ -82,7 +82,7 @@ type WakeDeps = {
   items: SessionItems;
   mailbox: SessionMailbox;
   subscriptions: SessionSubscriptions;
-  readQueue: (sessionId: string) => SessionQueue;
+  readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   scanQueue: (sessionId: string) => SessionQueue;
   submitTurn: (sessionId: string, input: TurnSubmission) => { turn: Turn; replayed: boolean };
@@ -292,7 +292,7 @@ export class TurnWakes {
 
   /** Joins a notification to the waiting turn. Not a delivery spent; a peer's turn keeps its body and takes no `wakeReason`. */
   joinWaitingNotification(sessionId: string, waitingRunId: string, notification: NotificationDetail, wakeReason?: WakeReason): void {
-    const queue = this.deps.readQueue(sessionId);
+    const queue = this.deps.readQueue(sessionId, [waitingRunId]);
     const waiting = queue.turns.find((candidate) => candidate.runId === waitingRunId);
     if (!waiting?.notification || waiting.state !== "queued") return;
     const at = this.kernel.now();
@@ -389,7 +389,7 @@ export class TurnWakes {
 
   /** A turn in front of a provider now; `queued` is deliberately not busy. */
   hasLiveTurn(sessionId: string): boolean {
-    return this.deps.scanQueue(sessionId).turns.some((turn) => turn.state === "claimed" || turn.state === "running" || turn.state === "steering");
+    return this.deps.readQueue(sessionId).turns.some((turn) => turn.state === "claimed" || turn.state === "running" || turn.state === "steering");
   }
 
   /** Delivers everything held as one notification when the session is idle; peer mail alone rides with the next turn. */

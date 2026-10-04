@@ -2,7 +2,7 @@ import path from "node:path";
 import { Turn, TurnState, type Item } from "@telar/engine-client";
 import type { ExecutionStore } from "../../platform/db/execution-store";
 import {
-  activityTurnRows, allTurnRows, assignedTurnRows, liveTurnRows, turnRowsFor, turnWindowRows, type TurnRow,
+  activityTurnRows, allTurnRows, assignedTurnRows, liveTurnRows, openTurnRows, turnRowsFor, turnWindowRows, type TurnRow,
 } from "../../platform/db/turn-rows";
 import { assertId, assertStateVersion, EngineStateError, STATE_VERSION, type Kernel } from "../../platform/kernel";
 import type { EngineStatePaths } from "../../platform/fs/state-paths";
@@ -11,8 +11,8 @@ import { sessionDir } from "./metadata";
 
 export type SessionQueue = { version: typeof STATE_VERSION; sessionId: string; nextSequence: number; turns: Turn[] };
 
-const FOLDED_TURNS_LIMIT = 8;
 const SCANNED_IDLE_QUEUES_LIMIT = 32;
+const REMEMBERED_ROWS_LIMIT = 256;
 
 export const emptyQueue = (sessionId: string): SessionQueue => ({ version: STATE_VERSION, sessionId, nextSequence: 1, turns: [] });
 
@@ -106,18 +106,17 @@ type QueueDeps = {
   onChanged?: () => void;
 };
 
-/** A session's stored rows by run id, in sequence order, and the parsed copy `scan` shares. */
+/** The stored text of each row a command read or wrote, and the parsed copy `scan` shares. */
 type Loaded = { nextSequence: number; texts: Map<string, string>; shared?: SessionQueue };
 
 /**
  * Each session's turns, one `turns` row apiece, their only writer, and the caches
- * that writer keeps in step: the loaded rows, the index of sessions a worker could
- * care about, and the memo of turn states already folded into `turn_summaries`.
+ * that writer keeps in step: the rows commands have seen and the index of sessions
+ * a worker could care about.
  */
 export class SessionQueues {
   private readonly cache = new Map<string, Loaded>();
   private liveIndex: Set<string> | undefined;
-  private readonly foldedTurnStates = new Map<string, Map<string, Turn["state"]>>();
   private changeAnnounced = false;
 
   constructor(
@@ -128,7 +127,6 @@ export class SessionQueues {
       this.cache.clear();
       this.liveIndex = undefined;
       this.changeAnnounced = false;
-      this.foldedTurnStates.clear();
     });
     kernel.onSessionDeleted((id) => {
       this.cache.delete(id);
@@ -136,25 +134,36 @@ export class SessionQueues {
     });
   }
 
-  /** Forgets every loaded queue and fold memo, as a restart would. */
+  /** Forgets every loaded queue, as a restart would. */
   clear(): void {
     this.cache.clear();
-    this.foldedTurnStates.clear();
   }
 
-  /** A queue of the caller's own, safe to edit and hand back to `write`. */
-  read(sessionId: string): SessionQueue {
+  /**
+   * The unfinished turns plus `runIds`, in sequence order: a working set of the caller's own to edit and hand back
+   * to `write`. A settled turn that is not named is not in it.
+   */
+  read(sessionId: string, runIds: readonly string[] = []): SessionQueue {
     const loaded = this.load(sessionId);
-    if (loaded.texts.size > 0) this.kernel.readAccounting.queueParses += 1;
-    return { version: STATE_VERSION, sessionId, nextSequence: loaded.nextSequence, turns: parseTurns([...loaded.texts.values()]) };
+    const rows = openTurnRows(this.kernel.executionStore, sessionId, runIds);
+    this.kernel.readAccounting.turnRows += rows.length;
+    if (loaded.texts.size > REMEMBERED_ROWS_LIMIT) loaded.texts.clear();
+    for (const row of rows) loaded.texts.set(row.runId, row.value);
+    return { version: STATE_VERSION, sessionId, nextSequence: loaded.nextSequence, turns: parseTurns(rows.map((row) => row.value)) };
   }
 
-  /** The shared parsed copy, for reading only. */
+  /** Every turn, parsed once and shared, for reading only. */
   scan(sessionId: string): SessionQueue {
     const loaded = this.load(sessionId);
     if (!loaded.shared) {
-      if (loaded.texts.size > 0) this.kernel.readAccounting.queueParses += 1;
-      loaded.shared = { version: STATE_VERSION, sessionId, nextSequence: loaded.nextSequence, turns: parseTurns([...loaded.texts.values()]) };
+      const rows = allTurnRows(this.kernel.executionStore, sessionId);
+      if (rows.length > 0) {
+        this.kernel.readAccounting.queueParses += 1;
+        this.kernel.readAccounting.documentReads += 1;
+      }
+      this.kernel.readAccounting.turnRows += rows.length;
+      this.kernel.readAccounting.documentBytes += rows.reduce((sum, row) => sum + row.value.length, 0);
+      loaded.shared = { version: STATE_VERSION, sessionId, nextSequence: loaded.nextSequence, turns: parseTurns(rows.map((row) => row.value)) };
     }
     return loaded.shared;
   }
@@ -211,16 +220,19 @@ export class SessionQueues {
     return index;
   }
 
-  /** The only writer: validates and stores the turns that changed, and keeps every cache and projection level. */
+  /**
+   * The only writer: validates and stores the turns of `queue` that differ from their stored row, and keeps every cache
+   * and projection level. A turn missing from `queue` is left as stored; `queue` must hold every unfinished turn.
+   */
   write(sessionId: string, queue: SessionQueue): void {
     const loaded = this.load(sessionId);
-    const texts = new Map<string, string>();
+    const seen = new Set<string>();
     const changed: Turn[] = [];
     const rows: TurnRow[] = [];
     for (const turn of queue.turns) {
-      if (texts.has(turn.runId)) throw new EngineStateError("invalid_request", "duplicate Telar turn id");
+      if (seen.has(turn.runId)) throw new EngineStateError("invalid_request", "duplicate Telar turn id");
+      seen.add(turn.runId);
       const text = JSON.stringify(turn);
-      texts.set(turn.runId, text);
       if (loaded.texts.get(turn.runId) === text) continue;
       changed.push(turn);
       rows.push(turnRow(turn, text));
@@ -228,14 +240,9 @@ export class SessionQueues {
     if (!Turn.array().safeParse(changed).success || !Number.isSafeInteger(queue.nextSequence)) {
       throw new EngineStateError("invalid_request", "invalid session queue");
     }
-    const removed = [...loaded.texts.keys()].filter((runId) => !texts.has(runId));
-    this.kernel.writeRows(
-      sessionQueueFile(this.kernel.paths, sessionId),
-      () => this.kernel.executionStore.writeTurnRows(sessionId, queue.nextSequence, rows, removed),
-      queue,
-    );
-    this.remember(sessionId, loaded, { nextSequence: queue.nextSequence, texts }, rows);
-    this.reconcileTurnSummaries(sessionId, queue);
+    this.kernel.writeRows(sessionQueueFile(this.kernel.paths, sessionId), () => this.kernel.executionStore.writeTurnRows(sessionId, queue.nextSequence, rows));
+    this.remember(sessionId, loaded, queue.nextSequence, rows);
+    this.reconcileTurnSummaries(sessionId, changed);
     this.announceChange();
     this.deps.afterWrite(sessionId, queue.turns);
     const live = queue.turns.some(turnConcernsAWorker);
@@ -246,16 +253,13 @@ export class SessionQueues {
   }
 
   // The shared copy keeps every unchanged turn object, so a write costs a scan one parse per changed row.
-  private remember(sessionId: string, before: Loaded, after: Loaded, rows: readonly TurnRow[]): void {
-    if (before.shared) {
-      const kept = new Map(before.shared.turns.map((turn) => [turn.runId, turn]));
-      for (const row of rows) kept.delete(row.runId);
-      const turns = [...after.texts].map(([runId, text]) => kept.get(runId) ?? (JSON.parse(text) as Turn));
-      after.shared = { version: STATE_VERSION, sessionId, nextSequence: after.nextSequence, turns };
-    }
-    this.cache.delete(sessionId);
-    this.cache.set(sessionId, after);
-    this.evictIdleQueues();
+  private remember(sessionId: string, loaded: Loaded, nextSequence: number, rows: readonly TurnRow[]): void {
+    loaded.nextSequence = nextSequence;
+    for (const row of rows) loaded.texts.set(row.runId, row.value);
+    if (!loaded.shared) return;
+    const turns = new Map(loaded.shared.turns.map((turn) => [turn.runId, turn]));
+    for (const row of rows) turns.set(row.runId, JSON.parse(row.value) as Turn);
+    loaded.shared = { version: STATE_VERSION, sessionId, nextSequence, turns: [...turns.values()].sort((a, b) => a.sequence - b.sequence) };
   }
 
   private load(sessionId: string): Loaded {
@@ -265,17 +269,7 @@ export class SessionQueues {
       this.cache.set(sessionId, cached);
       return cached;
     }
-    const nextSequence = this.ensureRows(sessionId);
-    const texts = new Map<string, string>();
-    let bytes = 0;
-    for (const row of allTurnRows(this.kernel.executionStore, sessionId)) {
-      texts.set(row.runId, row.value);
-      bytes += row.value.length;
-    }
-    if (texts.size > 0) this.kernel.readAccounting.documentReads += 1;
-    this.kernel.readAccounting.documentBytes += bytes;
-    this.kernel.readAccounting.turnRows += texts.size;
-    const loaded: Loaded = { nextSequence, texts };
+    const loaded: Loaded = { nextSequence: this.ensureRows(sessionId), texts: new Map() };
     this.cache.set(sessionId, loaded);
     this.evictIdleQueues();
     return loaded;
@@ -311,37 +305,15 @@ export class SessionQueues {
     }
   }
 
-  private knownTurnStates(sessionId: string): Map<string, Turn["state"]> {
-    const cached = this.foldedTurnStates.get(sessionId);
-    if (cached) return cached;
-    const known = new Map<string, Turn["state"]>(
-      this.kernel.executionStore.turnSummaryStates(sessionId).map((row) => [row.runId, row.state as Turn["state"]]),
-    );
-    if (this.foldedTurnStates.size >= FOLDED_TURNS_LIMIT) {
-      const oldest = this.foldedTurnStates.keys().next();
-      if (!oldest.done) this.foldedTurnStates.delete(oldest.value);
-    }
-    this.foldedTurnStates.set(sessionId, known);
-    return known;
-  }
-
-  // Refolds only the turns whose state moved, and drops rows whose turn left the queue.
-  private reconcileTurnSummaries(sessionId: string, queue: SessionQueue): void {
+  // Refolds only the written turns whose state moved.
+  private reconcileTurnSummaries(sessionId: string, changed: readonly Turn[]): void {
+    if (changed.length === 0) return;
     const store = this.kernel.executionStore;
-    const known = this.knownTurnStates(sessionId);
-    const stale = queue.turns.filter((turn) => known.get(turn.runId) !== turn.state);
-    const live = new Set(queue.turns.map((turn) => turn.runId));
-    const gone = [...known.keys()].filter((runId) => !live.has(runId));
-    if (stale.length === 0 && gone.length === 0) return;
-    const items = stale.length > 0 ? this.deps.itemsForRuns(sessionId, new Set(stale.map((turn) => turn.runId))) : [];
-    for (const turn of stale) {
-      store.writeTurnSummary(summariseTurn(turn, items));
-      known.set(turn.runId, turn.state);
-    }
-    for (const runId of gone) {
-      store.deleteTurnSummary(sessionId, runId);
-      known.delete(runId);
-    }
+    const known = new Map(store.turnSummaryStatesFor(sessionId, changed.map((turn) => turn.runId)).map((row) => [row.runId, row.state]));
+    const stale = changed.filter((turn) => known.get(turn.runId) !== turn.state);
+    if (stale.length === 0) return;
+    const items = this.deps.itemsForRuns(sessionId, new Set(stale.map((turn) => turn.runId)));
+    for (const turn of stale) store.writeTurnSummary(summariseTurn(turn, items));
   }
 
   // Once per committed command: a rolled-back write must not wake a worker.

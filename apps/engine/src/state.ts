@@ -314,9 +314,8 @@ export class EngineStore {
       records: this.records,
       tasks: this.sessionTasks,
       activity: this.activity,
-      readQueue: (id) => this.sessionQueues.read(id),
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
-      scanQueue: (id) => this.sessionQueues.scan(id),
       liveQueueSessionIds: () => this.sessionQueues.liveSessionIds(),
       stopSession: (id) => this.turnLifecycle.stopSession(id),
       assertProjectAvailable: (id) => this.projectRegistry.assertAvailable(id),
@@ -324,6 +323,8 @@ export class EngineStore {
     const settler = new SessionSettler(this.kernel, {
       records: this.records,
       scanQueue: (id) => this.sessionQueues.scan(id),
+      delegatesOf: (id) => this.kernel.executionStore.delegatesOf(id),
+      assignedTurns: (id) => this.sessionQueues.assigned(id),
       settleDelegatedAfterHours: () => this.settings.inbox().settleDelegatedAfterHours,
       reviewCohorts: () => this.subscriptions.reviewCohorts(),
       onShelfGrew: () => this.enforceTerminalLimitSoon(),
@@ -336,7 +337,7 @@ export class EngineStore {
       items: this.sessionItems,
       mailbox: this.mailbox,
       subscriptions: this.subscriptions,
-      readQueue: (id) => this.sessionQueues.read(id),
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       scanQueue: (id) => this.sessionQueues.scan(id),
       submitTurn: (id, input) => this.intake.submitTurn(id, input),
@@ -347,7 +348,7 @@ export class EngineStore {
       items: this.sessionItems,
       tasks: this.sessionTasks,
       requests: this.sessionRequests,
-      readQueue: (id) => this.sessionQueues.read(id),
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       scanQueue: (id) => this.sessionQueues.scan(id),
       liveQueueSessionIds: () => this.sessionQueues.liveSessionIds(),
@@ -359,8 +360,7 @@ export class EngineStore {
       items: this.sessionItems,
       tasks: this.sessionTasks,
       prefixes: this.prefixes,
-      readQueue: (id) => this.sessionQueues.read(id),
-      scanQueue: (id) => this.sessionQueues.scan(id),
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       requireRunningClaimFromQueue: (queue, runId, token) => requireRunningClaimFromQueue(queue, runId, token),
       filesChanged: (id) => {
@@ -391,7 +391,7 @@ export class EngineStore {
     const requestGate = new RequestGate(this.kernel, this.records, this.sessionRequests, {
       requireRunningClaim: (sessionId, runId, claimToken) => this.worker.requireRunningClaim(sessionId, runId, claimToken),
       liveQueueSessionIds: () => this.sessionQueues.liveSessionIds(),
-      scanQueue: (sessionId) => this.sessionQueues.scan(sessionId),
+      liveTurns: (sessionId) => this.sessionQueues.live(sessionId),
       appendEvent: (sessionId, event, runId) => this.kernel.appendEvent(sessionId, event, runId),
       requestOpened: (sessionId, turn, request) => this.wakes.fireSubscriptions(sessionId, "request_opened", turn, { request }),
     });
@@ -461,6 +461,7 @@ export class EngineStore {
 
   private createLifecycle(): SessionLifecycle {
     return new SessionLifecycle(this.kernel, this.records, this.subscriptions, {
+      assignedTurns: (sessionId) => this.sessionQueues.assigned(sessionId),
       git: this.prefetch.run,
       worktreeGit: this.worktreeGit,
       worktreeQueue: this.worktreeQueue,
@@ -472,7 +473,7 @@ export class EngineStore {
       requireInstance: (instanceId) => this.providers.require(instanceId),
       cachedModels: (driver) => this.catalogues.cachedRows(driver),
       chooseModel: (driver, instanceId, choice) => chosenModel(driver, instanceId, choice, this.catalogues.cachedRows(driver)),
-      readQueue: (sessionId) => this.sessionQueues.read(sessionId),
+      readQueue: (sessionId, runIds) => this.sessionQueues.read(sessionId, runIds),
       writeQueue: (sessionId, queue) => this.sessionQueues.write(sessionId, queue),
       appendEvent: (sessionId, event, runId) => this.kernel.appendEvent(sessionId, event, runId),
       settleWorktree: (sessionId, error) => this.worktrees.settle(sessionId, error),
@@ -580,7 +581,6 @@ export class EngineStore {
       computerUse: () => this.computerUse?.(),
       readQueue: (id) => this.sessionQueues.read(id),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
-      scanQueue: (id) => this.sessionQueues.scan(id),
       liveQueueSessionIds: () => this.sessionQueues.liveSessionIds(),
       requeueUndeliveredSteers: (queue, runId, at) => this.turnLifecycle.requeueUndeliveredSteers(queue, runId, at),
       fireSubscriptions: (id, kind, turn, context) => this.wakes.fireSubscriptions(id, kind, turn, context),
@@ -602,7 +602,7 @@ export class EngineStore {
       items: this.sessionItems,
       tasks: this.sessionTasks,
       requests: this.sessionRequests,
-      readQueue: (id) => this.sessionQueues.read(id),
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       requireRunningClaimFromQueue: (queue, runId, token) => requireRunningClaimFromQueue(queue, runId, token),
       assertProjectAvailable: (id) => this.projectRegistry.assertAvailable(id),
@@ -622,7 +622,8 @@ export class EngineStore {
       mailbox: this.mailbox,
       attachments: this.attachments,
       git: this.prefetch.run,
-      readQueue: (id) => this.sessionQueues.read(id),
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
+      assignedTurns: (id) => this.sessionQueues.assigned(id),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       getProject: (id) => this.projectRegistry.get(id),
       availability: (project) => this.projectProbes.availability(project),
@@ -645,7 +646,7 @@ export class EngineStore {
         const session = this.records.get(id);
         return turnModelChoice(session, choice, this.catalogues.cachedRows(session.driver));
       },
-      runSpend: (id, runId) => runSpendOf(this.records.get(id), this.sessionQueues.read(id).turns.find((turn) => turn.runId === runId), {
+      runSpend: (id, runId) => runSpendOf(this.records.get(id), this.sessionQueues.read(id, [runId]).turns.find((turn) => turn.runId === runId), {
         tokens: this.kernel.executionStore.runTokens(id, runId),
         defaultModel: (instanceId) => this.catalogues.defaultClaudeModelId(instanceId),
       }),

@@ -4,7 +4,8 @@ import { newestFirst, parseSession, releaseDelegationSettle, sessionMetadataFile
 
 type RecordsDeps = {
   withActivity: (session: Session) => Session;
-  readQueue: (sessionId: string) => { turns: Turn[] };
+  readQueue: (sessionId: string, runIds?: readonly string[]) => { turns: Turn[] };
+  scanQueue: (sessionId: string) => { turns: Turn[] };
 };
 
 /** Session metadata documents: reading, listing and the small writes that only touch `session.json`. */
@@ -78,7 +79,7 @@ export class SessionRecords {
   /** Prefer metadata, but let a durable turn heal an interrupted metadata write. */
   resumeCursorFor(session: Session): string | undefined {
     if (session.resumeCursor) return session.resumeCursor;
-    const recovered = latestProviderSessionId(this.deps.readQueue(session.id).turns);
+    const recovered = latestProviderSessionId(this.deps.scanQueue(session.id).turns);
     if (!recovered) return undefined;
     session.resumeCursor = recovered;
     session.updatedAt = this.kernel.now();
@@ -91,7 +92,7 @@ export class SessionRecords {
     return this.kernel.command("markSessionRead", () => {
       assertId(runId, "run id");
       const session = this.get(sessionId);
-      const turn = this.deps.readQueue(sessionId).turns.find((entry) => entry.runId === runId);
+      const turn = this.deps.readQueue(sessionId, [runId]).turns.find((entry) => entry.runId === runId);
       if (!turn || !isResultTurn(turn)) {
         throw new EngineStateError("invalid_request", "read receipt must name a completed, failed or stopped turn in this session");
       }

@@ -31,7 +31,7 @@ type RecoveryDeps = {
   items: SessionItems;
   tasks: SessionTasks;
   requests: SessionRequests;
-  readQueue: (sessionId: string) => SessionQueue;
+  readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   scanQueue: (sessionId: string) => SessionQueue;
   liveQueueSessionIds: () => Set<string>;
@@ -121,7 +121,7 @@ export class TurnRecovery {
   cancellationsForWorker(workerId: string): Array<{ sessionId: string; runId: string; claimToken: string }> {
     assertId(workerId, "worker id");
     return [...this.deps.liveQueueSessionIds()].flatMap((sessionId) =>
-      this.deps.scanQueue(sessionId).turns.flatMap((turn) =>
+      this.deps.readQueue(sessionId).turns.flatMap((turn) =>
         turn.state === "stopped" && turn.claim?.workerId === workerId
           ? [{ sessionId, runId: turn.runId, claimToken: turn.claim.token }]
           : [],
@@ -131,8 +131,9 @@ export class TurnRecovery {
 
   private recoverSession(session: Session, cutOff: Map<string, string[]>, stopped: string[]): void {
     const queue = this.deps.readQueue(session.id);
+    const history = this.deps.scanQueue(session.id).turns;
     const settledRuns = new Set<string>();
-    for (const turn of queue.turns) {
+    for (const turn of history) {
       if (turn.state === "queued" || turn.state === "claimed" || turn.state === "running") continue;
       settledRuns.add(turn.runId);
     }
@@ -146,7 +147,7 @@ export class TurnRecovery {
     let claimsRetired = false;
     const recoveryEvents: Array<{ type: "turn.stopped"; runId: string }> = [];
     const at = this.kernel.now();
-    const recoveredProviderSessionId = latestProviderSessionId(queue.turns);
+    const recoveredProviderSessionId = latestProviderSessionId(history);
     let metadataChanged = false;
     if (!session.resumeCursor && recoveredProviderSessionId) {
       session.resumeCursor = recoveredProviderSessionId;
@@ -240,7 +241,7 @@ export class TurnRecovery {
       const candidates = new Map(cutOff);
       for (const sessionId of this.kernel.executionStore.sessionIdsWithTurnsEndedSince(plannedAt)) {
         if (candidates.has(sessionId)) continue;
-        const interrupted = this.deps.readQueue(sessionId).turns.filter(
+        const interrupted = this.deps.scanQueue(sessionId).turns.filter(
           (turn) => endedByShutdown(turn) && turn.kind !== "compact" && (turn.completedAt ?? 0) >= plannedAt,
         );
         if (interrupted.length > 0) candidates.set(sessionId, interrupted.map((turn) => turn.runId));
@@ -251,7 +252,7 @@ export class TurnRecovery {
           const session = this.deps.records.get(sessionId);
           // Put away, or stopped by the person: either way somebody decided this session is done for now.
           if (session.state === "archived" || session.settledOverride === "settled" || session.agentMessagesBlocked || session.draft) continue;
-          const turns = this.deps.readQueue(sessionId).turns;
+          const turns = this.deps.readQueue(sessionId, runIds).turns;
           const last = turns.filter((turn) => runIds.includes(turn.runId)).sort((a, b) => b.sequence - a.sequence)[0];
           // A turn the person stopped is theirs to restart, not ours.
           if (!last || last.stopReason === "user" || last.stopReason === "agent") continue;

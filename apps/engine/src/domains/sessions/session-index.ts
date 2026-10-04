@@ -3,7 +3,6 @@ import { isShelved, settlingActivityOf, type Session, type Turn } from "@telar/e
 import type { SessionIndexRow } from "../../platform/db/tables";
 import { ID, type Kernel } from "../../platform/kernel";
 import { parseSession, sessionMetadataFile } from "./metadata";
-import type { SessionQueue } from "./queue";
 
 type SettlingClock = { now: number; autoSettleAfterHours: number | null };
 type Owner = { id: string; movesActivity: boolean };
@@ -50,7 +49,7 @@ export function rowIsShelved(row: SessionIndexRow, at: SettlingClock): boolean {
  * and the live-list revision counters: `list` for membership, the others per side of the shelf.
  */
 export class SessionIndex {
-  private readonly dirtyRows = new Map<string, { movesActivity: boolean; queue?: SessionQueue }>();
+  private readonly dirtyRows = new Map<string, boolean>();
   private revisionClock = Date.now();
   private listRevision = this.revisionClock;
   private unshelvedRevision = this.revisionClock;
@@ -62,9 +61,9 @@ export class SessionIndex {
     private readonly kernel: Kernel,
     private readonly deps: IndexDeps,
   ) {
-    kernel.onWrite((file, write, written) => {
+    kernel.onWrite((file, write) => {
       const owner = this.ownerOf(file);
-      this.inRowTransaction(owner, write, written as SessionQueue | undefined);
+      this.inRowTransaction(owner, write);
       this.bumpFor(file, owner);
     });
     kernel.beforeCommit(() => this.flush());
@@ -133,21 +132,17 @@ export class SessionIndex {
     return { id: relative, movesActivity: name !== "session.json" };
   }
 
-  private inRowTransaction(owner: Owner | undefined, write: () => void, written?: SessionQueue): void {
+  private inRowTransaction(owner: Owner | undefined, write: () => void): void {
     if (owner === undefined) return write();
     if (this.kernel.inCommand) {
       write();
-      const owed = this.dirtyRows.get(owner.id);
-      // Activity is OR-ed across the command's writes; the latest queue written wins.
-      this.dirtyRows.set(owner.id, {
-        movesActivity: (owed?.movesActivity ?? false) || owner.movesActivity,
-        queue: written ?? owed?.queue,
-      });
+      // Activity is OR-ed across the command's writes.
+      this.dirtyRows.set(owner.id, (this.dirtyRows.get(owner.id) ?? false) || owner.movesActivity);
       return;
     }
     this.kernel.executionStore.atomically(() => {
       write();
-      this.store(owner.id, owner.movesActivity, undefined, written);
+      this.store(owner.id, owner.movesActivity);
     });
   }
 
@@ -157,15 +152,14 @@ export class SessionIndex {
     const owed = [...this.dirtyRows];
     this.dirtyRows.clear();
     const at = this.settlingClock();
-    for (const [sessionId, row] of owed) this.store(sessionId, row.movesActivity, at, row.queue);
+    for (const [sessionId, movesActivity] of owed) this.store(sessionId, movesActivity, at);
   }
 
   /**
    * Folds one session into its row. Without `movesActivity` the five folded
-   * fields are carried from the stored row, sparing a queue parse; `written`
-   * is the queue this command already holds.
+   * fields are carried from the stored row, sparing a turn read.
    */
-  private store(sessionId: string, movesActivity = true, at = this.settlingClock(), written?: SessionQueue): void {
+  private store(sessionId: string, movesActivity = true, at = this.settlingClock()): void {
     const store = this.kernel.executionStore;
     this.generations.set(sessionId, (this.generations.get(sessionId) ?? 0) + 1);
     const stored = this.kernel.readDocument(sessionMetadataFile(this.kernel.paths, sessionId));
@@ -182,7 +176,7 @@ export class SessionIndex {
       return;
     }
     const folded = movesActivity || before === undefined
-      ? this.deps.withActivityFrom(record, written?.turns ?? this.deps.activityTurns(sessionId))
+      ? this.deps.withActivityFrom(record, this.deps.activityTurns(sessionId))
       : {
           ...record,
           activity: before.activity,

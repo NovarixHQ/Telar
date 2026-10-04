@@ -276,6 +276,12 @@ export function turnSummaryStates(store: ExecutionStore, sessionId: string): Arr
     .map((row) => ({ runId: String(row.run_id), state: String(row.state) }));
 }
 
+export function turnSummaryStatesFor(store: ExecutionStore, sessionId: string, runIds: readonly string[]): Array<{ runId: string; state: string }> {
+  return store.statement("SELECT t.run_id, t.state FROM json_each(?2) AS j CROSS JOIN turn_summaries AS t ON t.session_id=?1 AND t.run_id=j.value")
+    .all(sessionId, JSON.stringify(runIds))
+    .map((row) => ({ runId: String(row.run_id), state: String(row.state) }));
+}
+
 export function writeTurnSummary(store: ExecutionStore, row: TurnSummary): void {
   store.statement(`INSERT INTO turn_summaries(
       session_id, run_id, sequence, origin, state, started_at, ended_at,

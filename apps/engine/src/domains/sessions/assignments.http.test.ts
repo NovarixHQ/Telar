@@ -57,7 +57,7 @@ function handOver(store: EngineDaemon["store"], runId: string, scope?: string) {
 
 /** Settle a turn so it leaves the unsettled set and becomes pageable. */
 function settle(store: EngineDaemon["store"], sessionId: string, runId: string, state: "completed" | "stopped") {
-  const queue = (store as never as { sessionQueues: { read(id: string): { turns: { runId: string; state: string; completedAt?: number }[] } } }).sessionQueues.read(sessionId);
+  const queue = (store as never as { sessionQueues: { read(id: string, runIds: string[]): { turns: { runId: string; state: string; completedAt?: number }[] } } }).sessionQueues.read(sessionId, [runId]);
   const turn = queue.turns.find((candidate) => candidate.runId === runId)!;
   turn.state = state;
   turn.completedAt = 5_000;
@@ -74,7 +74,7 @@ test("a CARRIER OUTSIDE THE PAGE still resolves to its real outcome", async () =
   // The task, steered into that carrier, then plenty of newer turns above it.
   handOver(store, "run_task", "engine only");
   settle(store, "session_worker", "run_task", "completed");
-  const queue = (store as never as { sessionQueues: { read(id: string): { turns: Record<string, unknown>[] } } }).sessionQueues.read("session_worker");
+  const queue = (store as never as { sessionQueues: { read(id: string, runIds: string[]): { turns: Record<string, unknown>[] } } }).sessionQueues.read("session_worker", ["run_task"]);
   const task = queue.turns.find((turn) => turn.runId === "run_task")!;
   task.state = "steered";
   // `steer` requires `requestedAt`; a hand-built one must satisfy the schema
@@ -113,7 +113,7 @@ test("a TASK OUTSIDE THE PAGE with an ACTIVE carrier still reports outstanding",
 
   // The task is old; the run it joined is still going.
   handOver(store, "run_task");
-  const queue = (store as never as { sessionQueues: { read(id: string): { turns: Record<string, unknown>[] } } }).sessionQueues.read("session_worker");
+  const queue = (store as never as { sessionQueues: { read(id: string, runIds: string[]): { turns: Record<string, unknown>[] } } }).sessionQueues.read("session_worker", ["run_task"]);
   const task = queue.turns.find((turn) => turn.runId === "run_task")!;
   task.state = "steered";
   task.steer = { intoRunId: "run_live", requestedAt: 1, deliveredAt: 2 };

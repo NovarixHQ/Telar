@@ -65,7 +65,7 @@ export class TurnAnchors {
     if (Object.keys(patch).length === 0) return;
     try {
       this.kernel.command("stampTurnAnchor", () => {
-        const queue = this.queues.read(sessionId);
+        const queue = this.queues.read(sessionId, [runId]);
         const turn = queue.turns.find((candidate) => candidate.runId === runId);
         if (!turn) return;
         const merged = { ...turn.anchor, ...patch };

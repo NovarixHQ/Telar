@@ -5,6 +5,7 @@ import {
   type AssignmentTurn,
   type Session,
   type SessionSettleEnded,
+  type Turn,
   type SessionSettledBy,
 } from "@telar/engine-client";
 import type { Kernel } from "../../platform/kernel";
@@ -16,6 +17,8 @@ import type { SessionRecords } from "./records";
 type SettlerDeps = {
   records: SessionRecords;
   scanQueue: (sessionId: string) => SessionQueue;
+  delegatesOf: (coordinatorSessionId: string) => string[];
+  assignedTurns: (sessionId: string) => Turn[];
   settleDelegatedAfterHours: () => number | null;
   reviewCohorts: () => void;
   onShelfGrew: () => void;
@@ -38,16 +41,10 @@ export class SessionSettler {
   evaluate(sessionId: string): void {
     try {
       this.settleIfDue(sessionId);
-      // A coordinator's own queue names every delegate that could have just become delivered, so no store-wide scan.
-      const delegates = new Set<string>();
-      for (const turn of this.deps.scanQueue(sessionId).turns) {
-        if (turn.wakeReason?.sessionId) delegates.add(turn.wakeReason.sessionId);
-        if (turn.origin === "session" && turn.agentIntent === "result" && turn.sender?.sessionId) {
-          delegates.add(turn.sender.sessionId);
-        }
+      // Only a session this one handed a task to reads this one's turns to settle, so no store-wide scan.
+      for (const delegate of this.deps.delegatesOf(sessionId)) {
+        if (delegate !== sessionId) this.settleIfDue(delegate);
       }
-      delegates.delete(sessionId);
-      for (const delegate of delegates) this.settleIfDue(delegate);
     } catch (error) {
       this.kernel.appendEvent(sessionId, {
         type: "runtime.warning",
@@ -106,10 +103,10 @@ export class SessionSettler {
     }
     // An archived row is off every list already, and a standing human decision is not the engine's to revisit.
     if (session.state === "archived" || session.settledOverride !== undefined) return false;
-    const turns = this.deps.scanQueue(sessionId).turns;
-    const assignments = assignmentsOf(turns as unknown as AssignmentTurn[]);
+    const assignments = assignmentsOf(this.deps.assignedTurns(sessionId) as unknown as AssignmentTurn[]);
     const newest = newestAssignment(assignments);
     if (!newest) return false;
+    const turns = this.deps.scanQueue(sessionId).turns;
     const personTurnAt = turns.reduce<number | undefined>(
       (at, turn) => ((turn.origin ?? "user") === "user" && turn.acceptedAt > (at ?? -Infinity) ? turn.acceptedAt : at),
       undefined,

@@ -23,7 +23,8 @@ type SessionHost = {
 export function createSessionModules(kernel: Kernel, host: SessionHost) {
   const records: SessionRecords = new SessionRecords(kernel, {
     withActivity: (session) => activity.of(session),
-    readQueue: (sessionId) => queues.read(sessionId),
+    readQueue: (sessionId, runIds) => queues.read(sessionId, runIds),
+    scanQueue: (sessionId) => queues.scan(sessionId),
   });
   const items = new SessionItems(kernel);
   const requests = new SessionRequests(kernel, () => records.ids());

@@ -16,7 +16,6 @@ import {
 } from "@telar/engine-client";
 import { assertId, EngineStateError, type JournalEntry, type Kernel } from "../../platform/kernel";
 import type { EngineNotifier } from "../../state";
-import type { SessionQueue } from "./queue";
 import type { SessionRecords } from "./records";
 import type { SessionRequests } from "./requests";
 import { diagnosisRequestDecision } from "../usage";
@@ -62,7 +61,7 @@ export type RequestGateHost = {
   requireRunningClaim(sessionId: string, runId: string, claimToken: string): Turn;
   /** An open request implies a running claim, so these sessions are the whole candidate set. */
   liveQueueSessionIds(): Iterable<string>;
-  scanQueue(sessionId: string): SessionQueue;
+  liveTurns(sessionId: string): Turn[];
   appendEvent(sessionId: string, event: JournalEntry, runId?: string): EngineEvent;
   requestOpened(sessionId: string, turn: Turn, request: EngineRequest): void;
 };
@@ -190,7 +189,7 @@ export class RequestGate {
   resolutionsForWorker(workerId: string): WorkerStatus["resolved"] {
     assertId(workerId, "worker id");
     return [...this.host.liveQueueSessionIds()].flatMap((sessionId) => {
-      const turns = this.host.scanQueue(sessionId).turns;
+      const turns = this.host.liveTurns(sessionId);
       const claimed = new Map(turns.filter((turn) => turn.claim?.workerId === workerId && turn.state === "running").map((turn) => [turn.runId, turn] as const));
       if (claimed.size === 0) return [];
       this.requests.trim(sessionId, turns);

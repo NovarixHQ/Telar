@@ -23,7 +23,7 @@ mock.module("next/navigation", () => ({
 
 const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearTranscriptCache } = await import("../transcript-cache");
+const { clearConnections } = await import("@/platform/engine");
 const { installPageApi } = await import("@/features/composer/page-api");
 const { activeComposer } = await import("@/features/composer");
 
@@ -117,7 +117,7 @@ let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 
 beforeEach(() => {
-  clearTranscriptCache();
+  clearConnections();
   calls = [];
   localStorage.clear();
   host = document.createElement("div");

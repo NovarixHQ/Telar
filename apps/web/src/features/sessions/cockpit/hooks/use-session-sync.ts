@@ -1,51 +1,56 @@
 "use client";
 
 import { type SetStateAction, useCallback, useEffect, useReducer, useRef, useState } from "react";
-import type { EngineEvent, Session, SessionSnapshot } from "@telar/engine-client";
-import { asEngineError, createEngineApi, INITIAL_TURNS, loadOlderTurns, projectJournal, sessionConnection, tailIntervalMs, type EngineApiError } from "@/platform/engine";
+import type { Session } from "@telar/engine-client";
+import { asEngineError, createEngineApi, isActiveTurn, loadOlderTurns, tailIntervalMs, type EngineApiError, type HydratedSession } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
-import { saveSnapshot, snapshotKey, snapshotStore } from "../../snapshot-cache";
-import { recallTranscript, rememberTranscript, transcriptKey } from "../transcript-cache";
+import { headConnection, headKey, headStore, openHead, saveHead } from "../../session-heads";
 import { decideStale } from "../stale-state";
-import { emptySessionData, sessionDataReducer } from "../session-data";
+import { emptySessionData, sessionDataReducer, type SessionData } from "../session-data";
 
-type Snapshot = SessionSnapshot & { events?: EngineEvent[] };
 const PHOTOGRAPHED = ["session", "turns", "items", "tasks", "requests", "events"] as const;
-type Photo = { id: string } & Pick<Snapshot, (typeof PHOTOGRAPHED)[number]>;
+type Photo = { id: string } & Pick<HydratedSession, (typeof PHOTOGRAPHED)[number]>;
 
 /** Records identities, not contents, so a tail that changed nothing is not written again. */
-function record(photographed: { current: Photo | undefined }, host: string, id: string, snapshot: Snapshot) {
-  rememberTranscript(transcriptKey(host, id), { ...snapshot, events: snapshot.events ?? [], cursor: snapshot.cursor ?? 0 });
-  const store = snapshotStore();
+function persist(photographed: { current: Photo | undefined }, host: string, id: string, head: HydratedSession) {
+  const store = headStore();
   if (!store) return;
   const held = photographed.current;
-  if (held && held.id === id && PHOTOGRAPHED.every((field) => held[field] === snapshot[field])) return;
-  photographed.current = { id, ...Object.fromEntries(PHOTOGRAPHED.map((field) => [field, snapshot[field]])) } as Photo;
-  const foldedItems = snapshot.events ? projectJournal(snapshot.turns, snapshot.items, snapshot.events, snapshot.tasks)
-    .flatMap((turn) => [...turn.items, ...turn.tasks.flatMap((task) => task.items)])
-    .map((item) => ({ ...item, streamed: item.streamedText, streamedThrough: snapshot.cursor ?? item.streamedThrough })) : snapshot.items;
-  void saveSnapshot(store, host, id, {
-    session: snapshot.session,
-    turns: snapshot.turns,
-    items: foldedItems,
-    tasks: snapshot.tasks,
-    requests: snapshot.requests,
-    ...(snapshot.page ? { page: snapshot.page } : {}),
-  }).catch(() => undefined);
+  if (held && held.id === id && PHOTOGRAPHED.every((field) => held[field] === head[field])) return;
+  photographed.current = { id, ...Object.fromEntries(PHOTOGRAPHED.map((field) => [field, head[field]])) } as Photo;
+  void saveHead(store, headKey(host, id), head).catch(() => undefined);
+}
+
+function staleSince(code: string | undefined, savedAt: number | undefined, liveAt: number | undefined): number | undefined {
+  return decideStale({
+    hasContent: savedAt !== undefined || liveAt !== undefined,
+    ...(code === undefined ? {} : { code }),
+    ...(savedAt === undefined ? {} : { cachedAt: savedAt }),
+    ...(liveAt === undefined ? {} : { lastLiveAt: liveAt }),
+  });
+}
+
+/** What the first render can paint without waiting: the head this tab already holds in memory. */
+function heldData(hostId: string, sessionId: string | undefined, readKey: string): SessionData {
+  const head = sessionId ? headConnection(hostId, sessionId).peek() : undefined;
+  return head ? { ...head, readKey } : emptySessionData;
 }
 
 export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId: string; sessionId: string | undefined; initiallyLoading: boolean }) {
-  const [data, dispatch] = useReducer(sessionDataReducer, emptySessionData);
+  const syncKey = JSON.stringify([hostId, sessionId]);
+  const [data, dispatch] = useReducer(sessionDataReducer, syncKey, (key) => heldData(hostId, sessionId, key));
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState<EngineApiError>();
   const [stale, setStale] = useState<number>();
-  const staleAt = useRef<number | undefined>(undefined);
+  /** `savedAt` of a head on screen the engine has not confirmed yet. */
+  const cachedAt = useRef<number | undefined>(undefined);
   const lastLiveAt = useRef<number | undefined>(undefined);
-  const [loading, setLoading] = useState(initiallyLoading);
+  const [loading, setLoading] = useState(() => initiallyLoading && data.readKey !== syncKey);
+  /** The last opening the engine answered; until it matches, what is on screen may be a cached head. */
+  const [reconciled, setReconciled] = useState<string>();
   const photographed = useRef<Photo>(undefined);
   const syncQueue = useRef<Promise<void>>(Promise.resolve());
-  const syncKey = JSON.stringify([hostId, sessionId]);
   const syncSession = useRef(syncKey);
   const syncGeneration = useRef(0);
   const tailInFlight = useRef(false);
@@ -54,8 +59,8 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
   const [transcriptSubject, setTranscriptSubject] = useState(syncKey);
   if (transcriptSubject !== syncKey) {
     setTranscriptSubject(syncKey);
-    const recalled = sessionId ? recallTranscript(transcriptKey(hostId, sessionId)) : undefined;
-    if (recalled) dispatch({ type: "replace", data: recalled, readKey: syncKey });
+    const held = heldData(hostId, sessionId, syncKey);
+    if (held.readKey) dispatch({ type: "replace", data: held, readKey: syncKey });
   }
 
   useEffect(() => {
@@ -72,46 +77,34 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
     return next;
   }, []);
   /** Any answer, even an empty tail, proves the engine is reachable and clears the banner. */
-  const remember = useCallback((id: string, snapshot: Snapshot) => {
+  const remember = useCallback((id: string, head: HydratedSession, opened = false) => {
     lastLiveAt.current = Date.now();
-    if (staleAt.current !== undefined) {
-      staleAt.current = undefined;
-      setStale(undefined);
-    }
-    record(photographed, hostId, id, snapshot);
+    cachedAt.current = undefined;
+    setStale(undefined);
+    // Saved on opening and whenever a turn settles, so a streaming turn is not folded every tick.
+    if (opened || !head.turns.some((turn) => isActiveTurn(turn.state))) persist(photographed, hostId, id, head);
   }, [hostId]);
   const fail = useCallback((cause: unknown, fallback: string) => {
     const failure = asEngineError(cause, fallback);
-    const [cachedAt, liveAt] = [staleAt.current, lastLiveAt.current];
-    const at = decideStale({
-      code: failure.code,
-      hasContent: cachedAt !== undefined || liveAt !== undefined,
-      ...(cachedAt === undefined ? {} : { cachedAt }),
-      ...(liveAt === undefined ? {} : { lastLiveAt: liveAt }),
-    });
+    const at = staleSince(failure.code, cachedAt.current, lastLiveAt.current);
     if (at === undefined) {
       setError(failure);
       return;
     }
     setError(undefined);
-    staleAt.current = at;
     setStale(at);
   }, []);
-  const read = useCallback(
-    (id: string) => sessionConnection(hostId, createEngineApi(hostFetcher(hostId)), id, { turns: INITIAL_TURNS }).read(),
-    [hostId],
-  );
   const pull = useCallback(
     (type: "replace" | "tail") =>
       enqueueSync(async () => {
         if (!sessionId) return;
         const generation = syncGeneration.current;
-        const snapshot = await read(sessionId);
+        const snapshot = await headConnection(hostId, sessionId).read();
         if (generation !== syncGeneration.current || syncSession.current !== syncKey) return;
         dispatch(type === "replace" ? { type, data: snapshot, readKey: syncKey } : { type, data: snapshot });
         remember(sessionId, snapshot);
       }),
-    [enqueueSync, sessionId, remember, read, syncKey],
+    [enqueueSync, sessionId, remember, hostId, syncKey],
   );
   const hydrate = useCallback(() => pull("replace"), [pull]);
   const page = data.page;
@@ -129,22 +122,35 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
       .finally(() => setLoadingOlder(false));
   }, [enqueueSync, sessionId, page, loadingOlder, syncKey, hostId]);
 
+  const open = useCallback(
+    () =>
+      enqueueSync(async () => {
+        if (!sessionId) return;
+        const generation = syncGeneration.current;
+        const current = () => generation === syncGeneration.current && syncSession.current === syncKey;
+        const connection = headConnection(hostId, sessionId);
+        if (connection.peek()) cachedAt.current = connection.readAt;
+        const { held, reconciled } = openHead(hostId, sessionId);
+        const painted = held && (await held);
+        if (painted && current()) {
+          cachedAt.current = connection.readAt;
+          dispatch({ type: "replace", data: painted, readKey: syncKey });
+          setLoading(false);
+        }
+        const head = await reconciled;
+        if (!current()) return;
+        dispatch({ type: "replace", data: head, readKey: syncKey });
+        remember(sessionId, head, true);
+      }),
+    [enqueueSync, sessionId, hostId, syncKey, remember],
+  );
+
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
     lastLiveAt.current = undefined;
-    staleAt.current = undefined;
-    void snapshotStore()
-      ?.read(snapshotKey(hostId, sessionId))
-      .then((cached) => {
-        if (!cached || cancelled || lastLiveAt.current !== undefined) return;
-        if (recallTranscript(transcriptKey(hostId, sessionId))) return;
-        dispatch({ type: "replace", data: { ...cached, events: [] } });
-        staleAt.current = cached.savedAt;
-        setStale(cached.savedAt);
-        setLoading(false);
-      }, () => undefined);
-    void hydrate()
+    cachedAt.current = undefined;
+    void open()
       .then(
         () => !cancelled && setError(undefined),
         (cause) => {
@@ -153,11 +159,15 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
           dispatch({ type: "landed", readKey: syncKey });
         },
       )
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+        setReconciled(syncKey);
+      });
     return () => {
       cancelled = true;
     };
-  }, [hydrate, sessionId, hostId, fail, syncKey]);
+  }, [open, sessionId, fail, syncKey]);
 
   usePoll((signal) => {
     if (tailInFlight.current) return;
@@ -173,5 +183,5 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
   const setSession = useCallback((next: SetStateAction<Session | undefined>) => dispatch({ type: "session", next }), []);
   const clearTranscript = useCallback(() => dispatch({ type: "clear" }), []);
   const session = sessionId ? data.session : undefined;
-  return { ...data, session, setSession, clearTranscript, loadOlder, loadingOlder, error, setError, stale, loading, syncKey, transcriptLanded, hydrate };
+  return { ...data, session, setSession, clearTranscript, loadOlder, loadingOlder, error, setError, stale, loading, updating: Boolean(sessionId) && reconciled !== syncKey, syncKey, transcriptLanded, hydrate };
 }

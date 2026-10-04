@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MonitorIcon, XIcon } from "lucide-react";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import type { PublicHost } from "@telar/engine-client";
-import { forgetRows, readSidebarCache, writeSidebarCache, snapshotStore } from "@/features/sessions";
+import { forgetRows, readSidebarCache, writeSidebarCache, forgetHostHeads } from "@/features/sessions";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Row, SettingsGroup } from "@/features/settings";
@@ -54,13 +54,7 @@ export function OtherHostsSection() {
   const remove = async (id: string) => {
     await api.removeHost(id).catch(() => undefined);
     writeSidebarCache(forgetRows(readSidebarCache(), id));
-    const store = snapshotStore();
-    if (store) {
-      void store
-        .keys(`${id}:`)
-        .then((keys) => Promise.all(keys.map((key) => store.remove(key))))
-        .catch(() => undefined);
-    }
+    void forgetHostHeads(id).catch(() => undefined);
     await load();
   };
 

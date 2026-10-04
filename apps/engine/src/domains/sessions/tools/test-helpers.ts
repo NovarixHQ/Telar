@@ -72,6 +72,7 @@ export function capabilityOver(store: EngineStore, self?: { sessionId: string })
       return { ...store.records.get(sessionId), ended };
     },
     diff: async (sessionId) => store.workspaceReads.sessionDiff(sessionId),
+    handOff: async (sessionId, to) => store.handoff.handOff(sessionId, { ...(to ? { to } : {}), ...(self ? { by: self.sessionId } : {}) }),
     subscribe: async (subscriber, input) => store.subscriptions.subscribe(subscriber, input),
     unsubscribe: async (id, subscriber) => store.subscriptions.unsubscribe(id, subscriber),
     subscriptions: async (subscriber) => store.subscriptions.subscriptionsFor(subscriber),

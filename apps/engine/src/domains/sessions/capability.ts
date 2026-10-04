@@ -25,6 +25,7 @@ export type SessionsPort = {
   stopSession(sessionId: string, by: "agent"): ReturnType<Capability["stop"]>;
   settleSession(sessionId: string, settled: boolean): Promise<{ session: Session; ended?: SessionSettleEnded }>;
   sessionDiff(sessionId: string): Promise<{ diff: SessionDiff }>;
+  handOffSession(sessionId: string, input: { to?: string; proof?: ClaimProof & { sessionId: string } }): Promise<{ session: Session }>;
   subscribe(subscriber: string, input: Parameters<Capability["subscribe"]>[1]): Promise<{ subscription: Subscription }>;
   unsubscribe(id: string, input: { subscriberSessionId: string }): Promise<{ removed: boolean }>;
   subscriptions(subscriber: string): Promise<{ subscriptions: Subscription[] }>;
@@ -101,6 +102,10 @@ export function storeSessionsPort(store: EngineStore): SessionsPort {
       return { session: store.records.get(id), ended };
     },
     sessionDiff: async (id) => ({ diff: await store.workspaceReads.sessionDiff(id) }),
+    handOffSession: async (id, { to, proof }) => {
+      const by = proof ? store.worker.requireSenderClaim(proof).sessionId : undefined;
+      return { session: store.handoff.handOff(id, { ...(to ? { to } : {}), ...(by ? { by } : {}) }) };
+    },
     subscribe: async (subscriber, input) => ({ subscription: store.subscriptions.subscribe(subscriber, input) }),
     unsubscribe: async (id, { subscriberSessionId }) => ({ removed: store.subscriptions.unsubscribe(id, subscriberSessionId) }),
     subscriptions: async (subscriber) => ({ subscriptions: store.subscriptions.subscriptionsFor(subscriber) }),
@@ -140,6 +145,8 @@ export function sessionsCapability(port: SessionsPort, identity: SessionIdentity
       return answer.ended ? { ...answer.session, ended: answer.ended } : answer.session;
     },
     diff: async (id) => (await port.sessionDiff(id)).diff,
+    handOff: async (id, to) =>
+      (await port.handOffSession(id, { ...(to ? { to } : {}), ...(identity ? { proof: { sessionId: identity.sessionId, ...identity.proof() } } : {}) })).session,
     subscribe: async (subscriber, input) => (await port.subscribe(subscriber, input)).subscription,
     unsubscribe: async (id, subscriber) => (await port.unsubscribe(id, { subscriberSessionId: subscriber })).removed,
     subscriptions: async (subscriber) => (await port.subscriptions(subscriber)).subscriptions,

@@ -100,6 +100,9 @@ is plainly yours, such as a technical detail the brief already settled.
 Settle each worker session (\`sessions_settle\`) once its work is merged or
 handed over. Settling shelves it; it approves nothing.
 
+Hand a builder to another orchestrator, or detach it, when it belongs
+elsewhere (\`sessions_handoff\`; omit \`to\` to detach).
+
 ## 7. Summarise
 
 Keep a short running list and show it whenever something changes:

@@ -133,6 +133,9 @@ test("the sessions toolkit registers under the SAME one server, and only when th
     diff: async () => {
       throw new Error("this test does not diff");
     },
+    handOff: async () => {
+      throw new Error("this test does not hand off");
+    },
     subscribe: async () => {
       throw new Error("this test does not subscribe");
     },
@@ -187,6 +190,7 @@ test("the sessions toolkit registers under the SAME one server, and only when th
     // #543, appended at the END so the wall GROWS rather than reorders.
     "sessions_schedule",
     "sessions_capabilities",
+    "sessions_handoff",
   ]);
   // #877 retired `warp`, which was the one name on this wall that was not a
   // sessions verb and the one registered whether or not the turn carried a

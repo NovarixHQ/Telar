@@ -20,6 +20,7 @@ const WALL_NAMES = [
   "sessions_resolve_request",
   "sessions_schedule",
   "sessions_capabilities",
+  "sessions_handoff",
 ];
 
 describe("what the wall is", () => {

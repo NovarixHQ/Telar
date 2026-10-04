@@ -173,6 +173,7 @@ function capabilities(): { sessions: SessionsCapability; notes: NotesCapability 
     status: async () => ({ session: session(0), turns: TURNS_FIXTURE }),
     stop: async () => ({ stopped: TURNS_FIXTURE.slice(0, 40), live: turn(TURNS - 1) }),
     settle: async () => session(0),
+    handOff: async () => session(0),
     diff: async () =>
       ({
         repository: true,

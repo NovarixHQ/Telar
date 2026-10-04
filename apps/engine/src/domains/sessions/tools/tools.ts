@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { err, failure, json, type ToolFactory } from "../../agent-tools";
-import { controlTools } from "./control";
+import { controlTools, handoffTool } from "./control";
 import { messagingTools } from "./messaging";
 import { readTools, statusTools } from "./read";
 import { CAPABILITIES, NO_SESSION_TO_SCHEDULE, type SessionsCapability } from "./shared";
@@ -58,5 +58,6 @@ export function sessionsTools(tool: ToolFactory, capability: SessionsCapability)
         return err(`Could not read what this Mac offers: ${failure(error)}`);
       }
     }),
+    handoffTool(tool, capability),
   ];
 }

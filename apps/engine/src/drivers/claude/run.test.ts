@@ -168,6 +168,7 @@ test("a toolkit registers under the SAME one server, and only when the turn carr
     // Appended at the end so the wall grows rather than reorders.
     "sessions_schedule",
     "sessions_capabilities",
+    "sessions_handoff",
   ]);
   // #877: `warp` sat after these, registered whether or not the turn carried a
   // capability. Pinned as an absence so a re-add fails here.

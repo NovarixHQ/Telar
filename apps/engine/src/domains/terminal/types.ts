@@ -125,12 +125,7 @@ export function redactConfiguration(config: RunConfiguration): RunConfigurationV
     command: redactText(config.command, secrets),
     ...(config.shell === undefined
       ? {}
-      : {
-          shell: {
-            program: redactText(config.shell.program, secrets),
-            ...(config.shell.args === undefined ? {} : { args: config.shell.args.map((arg) => redactText(arg, secrets)) }),
-          },
-        }),
+      : { shell: { program: redactText(config.shell.program, secrets) } }),
     ...(config.cwd === undefined ? {} : { cwd: redactText(config.cwd, secrets) }),
     ...(config.readinessUrl === undefined ? {} : { readinessUrl: redactText(config.readinessUrl, secrets) }),
     env: (config.env ?? []).map((entry) => (entry.secret ? { key: entry.key, secret: true } : { key: entry.key, value: redactText(entry.value, secrets) })),

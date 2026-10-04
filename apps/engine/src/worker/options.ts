@@ -42,6 +42,7 @@ export type WorkerClient = Pick<
   | "runStatus"
   | "startRun"
   | "openTerminal"
+  | "runCommand"
   | "stopRun"
   | "restartRun"
   | "runOutput"

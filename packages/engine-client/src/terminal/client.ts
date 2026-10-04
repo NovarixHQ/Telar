@@ -1,6 +1,6 @@
 import type { EngineTransport } from "../platform/transport";
 import type {
-  RunBytesAnswer, RunClosedBy, RunConfigurationDraft, RunConfigurationsAnswer, RunConfigurationView, RunOpenInput, RunOutputAnswer, RunOutputFilter,
+  RunBytesAnswer, RunClosedBy, RunCommandInput, RunConfigurationDraft, RunConfigurationsAnswer, RunConfigurationView, RunOpenInput, RunOutputAnswer, RunOutputFilter,
   RunResizeAnswer, RunStartInput, RunStatusAnswer, RunStopSignal, RunView, RunWaitAnswer, RunWriteAnswer,
 } from "./schema";
 
@@ -61,6 +61,10 @@ export const terminalClient = {
 
   openTerminal(this: EngineTransport, sessionId: string, input: RunOpenInput): Promise<RunView> {
     return this.request("POST", `${runBase(sessionId)}/open`, input);
+  },
+
+  runCommand(this: EngineTransport, sessionId: string, input: RunCommandInput): Promise<RunView> {
+    return this.request("POST", `${runBase(sessionId)}/command`, input);
   },
 
   stopRun(this: EngineTransport, sessionId: string, terminalId?: string, signal?: RunStopSignal, options: { closedBy?: RunClosedBy } = {}): Promise<RunView> {

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { RunManager } from "./manager";
 import { type StartRunInput } from "./live-run";
-import type { RunLauncher } from "./launcher";
+import type { RunLaunchEvents, RunLaunchRequest, RunLauncher } from "./launcher";
 import type { RunConfiguration, RunEnvVar } from "./types";
 
 const worktree = () => track(fs.mkdtempSync(path.join(os.tmpdir(), "telar-run-tree-")));
@@ -88,7 +88,7 @@ test("a watcher is told every transition, with the whole view and the session it
   expect(seen.length).toBe(before);
 });
 
-test("a run lands in the configured directory with the configured environment, and its output is kept after it exits", async () => {
+test("a run lands in the configured directory with the configured environment, and its output is kept after it finishes", async () => {
   const tree = worktree();
   fs.mkdirSync(path.join(tree, "apps", "web"), { recursive: true });
   const manager = runManager();
@@ -103,9 +103,8 @@ test("a run lands in the configured directory with the configured environment, a
   expect(started.terminalId).toMatch(/^pipe_/);
   expect(started.runId).toBe(started.terminalId);
 
-  expect(await until(() => manager.run(started.runId).status === "exited")).toBe(true);
-  const finished = manager.run(started.runId);
-  expect(finished.exitCode).toBe(0);
+  expect(await until(() => manager.run(started.runId).activity === "idle")).toBe(true);
+  expect(manager.run(started.runId).lastExit?.exitCode).toBe(0);
 
   const output = manager.output(started.runId);
   const text = output.lines.map((line) => line.text).join("\n");
@@ -154,7 +153,7 @@ test("a secret env value reaches the process but never the captured output or th
   const secret: RunEnvVar = { key: "TOKEN", value: "sk_live_do_not_print", secret: true };
   const run = await manager.start(input(worktree(), config('echo "token is $TOKEN"', { env: [secret] })));
 
-  expect(await until(() => manager.run(run.runId).status === "exited")).toBe(true);
+  expect(await until(() => manager.run(run.runId).activity === "idle")).toBe(true);
   const text = manager.output(run.runId).lines.map((line) => line.text).join("\n");
   expect(text).toContain("token is «redacted»");
   expect(text).not.toContain("sk_live_do_not_print");
@@ -245,3 +244,145 @@ test("shutdown closes the pipe fallback's children rather than leaving orphans n
   expect(manager.run(run.terminalId).status).toBe("closed");
   expect(manager.run(run.terminalId).closedBy).toBe("telar");
 }, 15_000);
+
+const PROMPT = "\x1b]133;A\x07% ";
+const finished = (code: number) => `\x1b]133;D;${code}\x07${PROMPT}`;
+
+function fakeShell() {
+  const writes: string[] = [];
+  const requests: RunLaunchRequest[] = [];
+  const events = new Map<string, RunLaunchEvents>();
+  const launcher: RunLauncher = {
+    kind: "pty",
+    async launch(request, sink) {
+      requests.push(request);
+      const terminalId = `term_${requests.length}`;
+      events.set(terminalId, sink);
+      return {
+        pid: 40_000 + requests.length,
+        terminalId,
+        close: async () => sink.exited({ exitCode: 0, closed: "close" }),
+        signal: async () => {},
+        write: async (data) => (writes.push(data), true),
+        resize: async () => true,
+      };
+    },
+  };
+  return { launcher, writes, requests, print: (terminalId: string, text: string) => events.get(terminalId)!.output("stdout", text) };
+}
+
+function shellManager(shell = fakeShell()) {
+  const manager = runManager({ launcher: shell.launcher, platform: "darwin", env: { SHELL: "/bin/zsh" }, shellDir: worktree() });
+  return { manager, shell };
+}
+
+test("a terminal is the person's login shell, the command is typed at its first prompt, and the shell outlives it", async () => {
+  const { manager, shell } = shellManager();
+  const run = await manager.start(input(worktree(), config("bun test")));
+
+  expect(shell.requests[0]!.file).toBe("/bin/zsh");
+  expect(shell.requests[0]!.args).toEqual(["-l", "-i"]);
+  expect(run.activity).toBe("busy");
+  expect(shell.writes).toEqual([]);
+
+  shell.print(run.terminalId, PROMPT);
+  expect(shell.writes).toEqual(["bun test\r"]);
+
+  shell.print(run.terminalId, `bun test\r\n3 pass\r\n${finished(0)}`);
+  const after = manager.run(run.terminalId);
+  expect(after.status).toBe("running");
+  expect(after.activity).toBe("idle");
+  expect(after.lastExit?.exitCode).toBe(0);
+  const lines = manager.output(run.terminalId).lines.map((line) => line.text);
+  expect(lines).toContain("3 pass");
+  expect(lines.join("\n")).not.toContain("133;");
+});
+
+test("waiting for exit answers the command's exit code while the shell stays open", async () => {
+  const { manager, shell } = shellManager();
+  const run = await manager.start(input(worktree(), config("bun run build")));
+  shell.print(run.terminalId, PROMPT);
+
+  const waiting = manager.wait(run.terminalId, { exit: true, timeoutMs: 5_000 });
+  shell.print(run.terminalId, `bun run build\r\nerror: build failed\r\n${finished(2)}`);
+  const answer = await waiting;
+
+  expect(answer.fired).toBe("finished");
+  expect(answer.exitCode).toBe(2);
+  expect(answer.lines.map((line) => line.text)).toContain("error: build failed");
+  expect(manager.run(run.terminalId).status).toBe("running");
+});
+
+test("a command is typed into an idle terminal, and refused while the last one still runs", async () => {
+  const { manager, shell } = shellManager();
+  const run = await manager.start(input(worktree(), config("bun run dev")));
+  shell.print(run.terminalId, PROMPT);
+
+  expect(() => manager.command(run.terminalId, "bun test")).toThrow(/still running "bun run dev"/);
+  shell.print(run.terminalId, finished(130));
+
+  const next = manager.command(run.terminalId, "bun test");
+  expect(next.terminalId).toBe(run.terminalId);
+  expect(next.activity).toBe("busy");
+  expect(next.command).toBe("bun test");
+  expect(shell.writes.at(-1)).toBe("bun test\r");
+  expect(shell.requests).toHaveLength(1);
+});
+
+test("starting a configuration reuses its idle terminal, and opens another while that one is busy", async () => {
+  const { manager, shell } = shellManager();
+  const tree = worktree();
+  const first = await manager.start(input(tree, config("bun run dev")));
+  shell.print(first.terminalId, PROMPT);
+
+  const busy = await manager.start(input(tree, config("bun run dev")));
+  expect(busy.terminalId).not.toBe(first.terminalId);
+  expect(busy.title).toBe("fixture #2");
+
+  shell.print(first.terminalId, finished(0));
+  const reused = await manager.start(input(tree, config("bun run dev")));
+  expect(reused.terminalId).toBe(first.terminalId);
+  expect(shell.requests).toHaveLength(2);
+  expect(shell.writes.filter((text) => text === "bun run dev\r")).toHaveLength(2);
+});
+
+test("restart interrupts the running command and types it again in the same shell", async () => {
+  const { manager, shell } = shellManager();
+  const run = await manager.start(input(worktree(), config("bun run dev")));
+  shell.print(run.terminalId, PROMPT);
+
+  const restarting = manager.restart(run.terminalId);
+  expect(shell.writes.at(-1)).toBe("\x03");
+  shell.print(run.terminalId, `^C\r\n${finished(130)}`);
+  const again = await restarting;
+
+  expect(again.terminalId).toBe(run.terminalId);
+  expect(again.activity).toBe("busy");
+  expect(shell.writes.at(-1)).toBe("bun run dev\r");
+  expect(manager.run(run.terminalId).status).toBe("running");
+});
+
+test("a shell whose hooks never draw a prompt is typed into anyway, with a sentinel that marks the finish", async () => {
+  const shell = fakeShell();
+  const manager = runManager({ launcher: shell.launcher, platform: "darwin", env: { SHELL: "/bin/zsh" }, shellDir: worktree(), promptWaitMs: 0 });
+  const run = await manager.start(input(worktree(), config("make")));
+
+  expect(await until(() => shell.writes.length > 0)).toBe(true);
+  expect(shell.writes[0]).toBe("make\rprintf '\\033]133;D;%s\\007' \"$?\"\r");
+  shell.print(run.terminalId, `done\r\n\x1b]133;D;0\x07`);
+  expect(manager.run(run.terminalId).activity).toBe("idle");
+});
+
+test("without a terminal host the shell still survives its command and takes the next one", async () => {
+  const manager = runManager();
+  const run = await manager.start(input(worktree(), config("echo first; false")));
+  expect(await until(() => manager.run(run.terminalId).activity === "idle")).toBe(true);
+  expect(manager.run(run.terminalId).lastExit?.exitCode).toBe(1);
+
+  manager.command(run.terminalId, "echo second");
+  expect(await until(() => manager.run(run.terminalId).activity === "idle")).toBe(true);
+  const after = manager.run(run.terminalId);
+  expect(after.status).toBe("running");
+  expect(after.pid).toBe(run.pid);
+  expect(manager.output(run.terminalId).lines.map((line) => line.text)).toEqual(["first", "second"]);
+}, 10_000);

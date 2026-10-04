@@ -204,7 +204,7 @@ test("a run that ends by itself is simply exited — nothing is asked, nothing i
     },
   });
   const tree = worktree();
-  const run = await manager.start(input(tree, config("echo done")));
+  const run = await manager.start(input(tree, config("echo done; exit")));
   expect(await until(() => manager.run(run.terminalId).status !== "running")).toBe(true);
 
   expect(manager.run(run.terminalId).status).toBe("exited");

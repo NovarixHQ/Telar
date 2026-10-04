@@ -77,7 +77,7 @@ function reap(pid: number | undefined): void {
 test("a shell that exits leaving a child behind is recorded as the exit it was, and blocks nothing", async () => {
   const tree = temp("tree");
   const manager = runManager();
-  const run = await manager.start(input(tree, config("sleep 30 & echo $! > child.pid")));
+  const run = await manager.start(input(tree, config("sleep 30 & echo $! > child.pid; exit")));
   const pidFile = path.join(tree, "child.pid");
   let child: number | undefined;
   try {
@@ -125,7 +125,7 @@ test("closing a terminal whose child ignores SIGTERM ends the child too, and rec
 
 test("an ordinary run still exits cleanly", async () => {
   const manager = runManager();
-  const run = await manager.start(input(temp("tree"), config("echo done")));
+  const run = await manager.start(input(temp("tree"), config("echo done; exit")));
   try {
     await until("the ordinary run to be reported as exited", () => manager.run(run.terminalId).status === "exited");
     expect(manager.run(run.terminalId).exitCode).toBe(0);
@@ -244,7 +244,7 @@ test("a run that never emits a newline is still bounded, and still scrubbed", as
     ),
   );
   try {
-    await until("the unbuffered run to exit", () => manager.run(run.terminalId).status === "exited");
+    await until("the unbuffered command to finish", () => manager.run(run.terminalId).activity === "idle");
     await until("the pipe to deliver the output the exit raced", () => manager.output(run.terminalId).lines.length > 1);
     const output = manager.output(run.terminalId);
     expect(output.lines.length).toBeGreaterThan(1);

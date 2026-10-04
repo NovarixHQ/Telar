@@ -15,6 +15,7 @@ export type RunLaunchRequest = {
   sessionId?: string;
   origin?: RunOrigin;
   title?: string;
+  stdin?: boolean;
 };
 
 type RunCloseReason = NonNullable<TerminalEnding["closed"]>;
@@ -59,8 +60,9 @@ export function pipeLauncher(group: RunProcessGroup, options: { graceMs?: number
         shell: false,
         detached: group.detached,
         windowsVerbatimArguments: request.windowsVerbatimArguments,
-        stdio: ["ignore", "pipe", "pipe"] as ["ignore", "pipe", "pipe"],
+        stdio: [request.stdin ? "pipe" : "ignore", "pipe", "pipe"] as ["pipe" | "ignore", "pipe", "pipe"],
       });
+      child.stdin?.on("error", () => {});
 
       let ended = false;
       const exit = new Promise<void>((resolve) => {
@@ -107,6 +109,15 @@ export function pipeLauncher(group: RunProcessGroup, options: { graceMs?: number
           return child.pid;
         },
         terminalId: newPipeTerminalId(),
+        ...(child.stdin
+          ? {
+              write: async (data: string) => {
+                if (ended || !child.stdin || child.stdin.destroyed) return false;
+                child.stdin.write(data);
+                return true;
+              },
+            }
+          : {}),
         async close() {
           if (ended) return;
           send(false);

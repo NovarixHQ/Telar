@@ -36,6 +36,7 @@ export function createRunMount(options: {
   const client = channel ? new RunTerminalClient(channel) : undefined;
   const manager = new RunManager({
     journal: new RunJournalFile(dir),
+    shellDir: path.join(dir, "shell"),
     ...(client ? { launcher: terminalLauncher(client) } : {}),
     ...(options.noteForNextTurn ? { personClosed: (run: RunView) => options.noteForNextTurn!(run.sessionId, personClosedNote(run)) } : {}),
   });

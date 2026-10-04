@@ -31,6 +31,7 @@ afterAll(() => {
 
 function fakeHost() {
   const opened: Array<{ id: string; request: RunLaunchRequest; events: RunLaunchEvents }> = [];
+  const writes: Array<[string, string]> = [];
   let sequence = 0;
   const launcher: RunLauncher = {
     kind: "pty",
@@ -44,7 +45,7 @@ function fakeHost() {
           events.exited({ exitCode: 143, closed: "close" });
         },
         async signal() {},
-        write: async () => true,
+        write: async (data) => (writes.push([id, data]), true),
         resize: async () => true,
       };
       return handle;
@@ -54,6 +55,7 @@ function fakeHost() {
   return {
     launcher,
     opened,
+    writes,
     print: (id: string, text: string) => find(id).events.output("stdout", text),
     personCloses: (id: string) => find(id).events.exited({ exitCode: 143, closed: "close" }),
   };
@@ -64,7 +66,13 @@ type Answer = { text: string; isError: boolean };
 function surface() {
   const host = fakeHost();
   const closedByPerson: RunView[] = [];
-  const manager = new RunManager({ launcher: host.launcher, personClosed: (run) => closedByPerson.push(run) });
+  const manager = new RunManager({
+    launcher: host.launcher,
+    personClosed: (run) => closedByPerson.push(run),
+    platform: "darwin",
+    env: { SHELL: "/bin/zsh" },
+    shellDir: temp("shell"),
+  });
   managers.push(manager);
   const store = new RunStore(temp("state"));
   const tree = temp("tree");
@@ -102,6 +110,34 @@ test("terminal_open opens a NEW terminal on every call, owned by the session, an
   expect(manager.run(b).status).toBe("running");
 });
 
+test("terminal_run types the next command into the same terminal once its last one finished", async () => {
+  const { call, host } = surface();
+  const id = idIn((await call("terminal_open", { command: "bun run build" })).text);
+  host.print(id, "\x1b]133;A\x07% ");
+
+  const refused = await call("terminal_run", { terminalId: id, command: "bun test" });
+  expect(refused.isError).toBe(true);
+  expect(refused.text).toContain('still running "bun run build"');
+
+  host.print(id, "bun run build\r\nbuilt\r\n\x1b]133;D;0\x07\x1b]133;A\x07% ");
+  expect((await call("terminal_list")).text).toContain("Idle at the prompt; the last command exited 0");
+
+  const ran = await call("terminal_run", { terminalId: id, command: "bun test" });
+  expect(ran.isError).toBe(false);
+  expect(idIn(ran.text)).toBe(id);
+  expect(host.opened).toHaveLength(1);
+  expect(host.writes).toEqual([
+    [id, "bun run build\r"],
+    [id, "bun test\r"],
+  ]);
+
+  const waiting = call("terminal_wait", { terminalId: id, exit: true, timeoutMs: 5_000 });
+  host.print(id, "bun test\r\n1 fail\r\n\x1b]133;D;1\x07\x1b]133;A\x07% ");
+  const waited = await waiting;
+  expect(waited.text.startsWith("FINISHED — the command exited 1")).toBe(true);
+  expect(waited.text).toContain("1 fail");
+});
+
 test("terminal_open with a configId opens that configuration as a run; with neither, or both, it says what it needs", async () => {
   const { call, host, store } = surface();
   const config = store.create("p", { name: "web dev", command: "bun run dev" });
@@ -126,7 +162,7 @@ test("terminal_list, terminal_output and terminal_wait read the terminal they ar
   const id = idIn((await call("terminal_open", { command: "bun run dev", name: "web" })).text);
 
   const listed = await call("terminal_list");
-  expect(listed.text).toContain('"web" is running');
+  expect(listed.text).toContain('Busy with "bun run dev"');
   expect(listed.text).toContain(id);
 
   const waiting = call("terminal_wait", { terminalId: id, pattern: "Listening on", timeoutMs: 5_000 });

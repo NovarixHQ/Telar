@@ -192,7 +192,7 @@ test("output is a bounded window, and what it dropped is reported rather than hi
   const manager = runManager();
   const run = await manager.start(input(worktree(), config("i=0; while [ $i -lt 2500 ]; do echo line-$i; i=$((i+1)); done")));
 
-  expect(await until(() => manager.run(run.terminalId).status === "exited", 20_000)).toBe(true);
+  expect(await until(() => manager.run(run.terminalId).activity === "idle", 20_000)).toBe(true);
   const output = manager.output(run.terminalId);
   expect(output.lines.length).toBeLessThanOrEqual(2000);
   expect(output.dropped).toBeGreaterThan(0);

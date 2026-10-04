@@ -14,9 +14,8 @@ export type RunIcon = z.infer<typeof RunIcon>;
 export const DEFAULT_RUN_ICON: RunIcon = "play";
 
 export const RunShell = z.object({
-  /** The program spawned. An absolute path, or a name found on PATH. */
+  /** The shell a terminal holds instead of the person's own. An absolute path, or a name found on PATH. */
   program: z.string().min(1).max(1024),
-  args: z.array(z.string().max(4000)).max(32).optional(),
 });
 export type RunShell = z.infer<typeof RunShell>;
 
@@ -26,7 +25,7 @@ export const RunConfigurationDraft = z.object({
   /** Which glyph the Run menu draws before the name. Default: `play`. */
   icon: RunIcon.optional(),
   command: z.string().min(1).max(4000),
-  /** Which shell, spelled out. Absent: the engine's platform default. */
+  /** Which shell the command is typed into. Absent: the person's login shell. */
   shell: RunShell.optional(),
   /** Relative to the worktree the run is launched from. Default: its root. */
   cwd: z.string().max(1024).optional(),
@@ -59,7 +58,6 @@ export type RunConfigurationView = z.infer<typeof RunConfigurationView>;
 export const RunStatus = z.enum(["running", "ready", "exited", "failed", "closed"]);
 export type RunStatus = z.infer<typeof RunStatus>;
 
-/** A terminal that has ended for good. */
 /** Why a terminal exists: a saved configuration (`run`), or a command an agent
  *  opened so the person can watch it (`agent`). */
 export const RunOrigin = z.enum(["run", "agent"]);
@@ -101,6 +99,9 @@ export const RunView = z.object({
   worktreeBranch: z.string().optional(),
   cwd: z.string(),
   status: RunStatus,
+  /** Busy while a command typed into the shell has not finished. `command` is the last one typed. */
+  activity: z.enum(["idle", "busy"]),
+  lastExit: z.object({ exitCode: z.number().optional(), at: z.number() }).optional(),
   readiness: RunReadiness,
   readinessUrl: z.string().optional(),
   /** Present only while the terminal is open. */
@@ -150,7 +151,8 @@ export const RunStopSignal = z.enum(["SIGTERM", "SIGINT", "SIGKILL"]);
 export type RunStopSignal = z.infer<typeof RunStopSignal>;
 
 export const RunWaitAnswer = z.object({
-  fired: z.enum(["pattern", "ready", "exit", "timeout"]),
+  fired: z.enum(["pattern", "ready", "finished", "exit", "timeout"]),
+  exitCode: z.number().optional(),
   cursor: z.number(),
   lines: z.array(RunOutputLine),
 });
@@ -178,7 +180,6 @@ export type RunResizeAnswer = z.infer<typeof RunResizeAnswer>;
 
 export const RunStartInput = z.object({
   configId: z.string().min(1),
-  replace: z.boolean().optional(),
   openedBy: z.enum(["person", "agent"]).optional(),
 });
 export type RunStartInput = z.infer<typeof RunStartInput>;
@@ -193,6 +194,14 @@ export const RunOpenInput = z.object({
   readyPattern: z.string().min(1).max(500).optional(),
 });
 export type RunOpenInput = z.infer<typeof RunOpenInput>;
+
+export const RunCommandInput = z.object({
+  terminalId: z.string().min(1),
+  command: z.string().min(1).max(4000),
+  readinessUrl: z.string().url().optional(),
+  readyPattern: z.string().min(1).max(500).optional(),
+});
+export type RunCommandInput = z.infer<typeof RunCommandInput>;
 
 export const RunConfigurationsAnswer = z.object({ configurations: z.array(RunConfigurationView) });
 export type RunConfigurationsAnswer = z.infer<typeof RunConfigurationsAnswer>;

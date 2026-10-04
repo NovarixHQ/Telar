@@ -1,15 +1,18 @@
 import { type RunClosedBy, type RunOutputFilter, type RunOutputLine, type RunStatusEvent, type RunView, type RunWaitAnswer } from "@telar/engine-client";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { nullRunJournal, type RunJournal, type RunRecord } from "./journal";
 import { pipeLauncher, type RunHandle, type RunLaunchEvents, type RunLauncher } from "./launcher";
 import { processGroupFor, type RunKill } from "./platform";
-import { createPtyRedactor, safeCutBack } from "./pty-stream";
-import { resolveShell } from "./shell";
+import { createPtyRedactor, escapeScan, safeCutBack } from "./pty-stream";
+import { interactiveShell, splitMarkers } from "./shell";
+import { onMarker, typeCommand, type TypingHost, untilIdle, wakeIdle } from "./typing";
 import { createOutputSplitter } from "./stream";
 import type { TerminalFacts } from "./terminal-client";
 import { isTerminal, type RunConfiguration, RunError, type RunProbe, redactText, secretValues, unhideableSecrets } from "./types";
-import { CLOSE_SETTLE_MS, compile, defaultProbe, KEEP_FINISHED, type LiveRun, MAX_BYTE_CHARS, MAX_BYTE_CHUNKS, MAX_LINE_CHARS, MAX_LINES, portOf, READY_POLL_MS, type RunManagerOptions, type StartRunInput, WAIT_TICK_MS } from "./live-run";
+import { CLOSE_SETTLE_MS, compile, defaultProbe, KEEP_FINISHED, type LiveRun, MAX_BYTE_CHARS, MAX_BYTE_CHUNKS, MAX_LINE_CHARS, MAX_LINES, portOf, PROMPT_WAIT_MS, READY_POLL_MS, type RunManagerOptions, type StartRunInput, WAIT_TICK_MS } from "./live-run";
+import { recordOf, splitTitle, titleOf, viewOf } from "./views";
 import { agentEnv } from "../../platform/process/agent-env";
 
 export class RunManager {
@@ -26,6 +29,9 @@ export class RunManager {
   private readonly closeSettleMs: number;
   private readonly readyPollMs: number;
   private readonly personClosed: ((run: RunView) => void) | undefined;
+  private readonly shellDir: string;
+  private readonly env: NodeJS.ProcessEnv;
+  private readonly promptWaitMs: number;
 
   constructor(options: RunManagerOptions = {}) {
     this.now = options.now ?? Date.now;
@@ -38,7 +44,22 @@ export class RunManager {
     this.closeSettleMs = options.closeSettleMs ?? CLOSE_SETTLE_MS;
     this.readyPollMs = options.readyPollMs ?? READY_POLL_MS;
     this.personClosed = options.personClosed;
+    this.shellDir = options.shellDir ?? path.join(os.tmpdir(), "telar-shell");
+    this.env = options.env ?? process.env;
+    this.promptWaitMs = options.promptWaitMs ?? PROMPT_WAIT_MS;
   }
+
+  private get pty(): boolean {
+    return this.launcher.kind === "pty";
+  }
+
+  private readonly typing: TypingHost = {
+    now: () => this.now(),
+    pty: () => this.pty,
+    promptWaitMs: () => this.promptWaitMs,
+    announce: (run) => this.announce(run),
+    pollReadiness: (run) => this.pollReadiness(run),
+  };
 
   async recover(options: { configFor?: (projectId: string, configId: string) => RunConfiguration | undefined } = {}): Promise<RunView[]> {
     const records = this.journal.list();
@@ -110,6 +131,10 @@ export class RunManager {
       readiness: config.readinessUrl ? { kind: "pending" } : { kind: "none" },
       blind: record.configId !== undefined && stored === undefined,
       secrets: stored ? secretValues(stored) : [],
+      shell: { kind: record.shellKind ?? "other", integrated: record.integrated ?? false },
+      prompted: true,
+      activity: "busy",
+      typed: true,
     };
   }
 
@@ -167,15 +192,20 @@ export class RunManager {
     }
     const from = run.dropped + run.lines.length;
     const since = () => this.output(terminalId, from).lines;
-    const answer = (fired: RunWaitAnswer["fired"], lines: RunOutputLine[]): RunWaitAnswer => ({ fired, cursor: from + lines.length, lines });
+    const answer = (fired: RunWaitAnswer["fired"], lines: RunOutputLine[], exitCode?: number): RunWaitAnswer => ({
+      fired,
+      cursor: from + lines.length,
+      lines,
+      ...(exitCode === undefined ? {} : { exitCode }),
+    });
     const deadline = Date.now() + options.timeoutMs;
 
     for (;;) {
       const seen = since();
       if (options.ready && run.readiness.kind === "ready") return answer("ready", seen);
-      if (options.exit && isTerminal(run.status)) return answer("exit", seen);
       if (pattern && seen.some((line) => pattern.test(line.text))) return answer("pattern", seen);
-      if (isTerminal(run.status)) return answer("exit", seen);
+      if (isTerminal(run.status)) return answer("exit", seen, run.exitCode);
+      if (options.exit && run.activity === "idle") return answer("finished", seen, run.lastExit?.exitCode);
       const left = deadline - Date.now();
       if (left <= 0) break;
       await new Promise((resolve) => setTimeout(resolve, Math.min(WAIT_TICK_MS, left)));
@@ -192,6 +222,13 @@ export class RunManager {
   async start(input: StartRunInput): Promise<RunView> {
     if (this.shuttingDown) {
       throw new RunError("conflict", "Telar is shutting down and will not open a new terminal");
+    }
+    const reused = this.idleFor(input);
+    if (reused) {
+      reused.config = input.config;
+      reused.agentWatching ||= input.openedBy === "agent";
+      typeCommand(this.typing, reused, input.config.command);
+      return this.view(reused);
     }
     const exposed = unhideableSecrets(input.config);
     if (exposed.length) {
@@ -232,8 +269,51 @@ export class RunManager {
     return this.view(run);
   }
 
+  private idleFor(input: StartRunInput): LiveRun | undefined {
+    if (!input.config.id) return undefined;
+    return [...this.runs.values()].find(
+      (run) =>
+        run.sessionId === input.sessionId &&
+        run.config.id === input.config.id &&
+        run.config.updatedAt === input.config.updatedAt &&
+        !isTerminal(run.status) &&
+        run.activity === "idle" &&
+        run.handle?.write !== undefined,
+    );
+  }
+
+  command(terminalId: string, command: string, readiness: { readinessUrl?: string; readyPattern?: string } = {}): RunView {
+    const run = this.require(terminalId);
+    if (isTerminal(run.status) || !run.handle?.write) {
+      throw new RunError("conflict", `"${redactText(titleOf(run), run.secrets)}" is not open, so nothing can be typed into it; open a new terminal`);
+    }
+    if (run.activity === "busy") {
+      throw new RunError(
+        "conflict",
+        redactText(`"${titleOf(run)}" is still running "${run.command}"; wait for it to finish, or use another terminal for work that must run alongside it`, run.secrets),
+      );
+    }
+    if (!run.config.id) {
+      run.config = { ...run.config, readinessUrl: readiness.readinessUrl };
+      run.readyPattern = readiness.readyPattern === undefined ? undefined : compile(readiness.readyPattern, "ready");
+    }
+    run.agentWatching = true;
+    typeCommand(this.typing, run, command);
+    return this.view(run);
+  }
+
   async restart(terminalId: string, by: RunClosedBy = "person"): Promise<RunView> {
     const run = this.require(terminalId);
+    if (!isTerminal(run.status) && run.handle?.write && (run.activity === "idle" || this.pty)) {
+      if (run.activity === "busy") {
+        await run.handle.write("\x03").catch(() => false);
+        if (!(await untilIdle(run, this.closeSettleMs))) run.activity = "idle";
+      }
+      if (!isTerminal(run.status)) {
+        typeCommand(this.typing, run, run.command);
+        return this.view(run);
+      }
+    }
     if (!isTerminal(run.status)) await this.close(terminalId, by);
     return await this.start({
       projectId: run.projectId,
@@ -270,19 +350,20 @@ export class RunManager {
 
     const env = agentEnv();
     for (const entry of run.config.env ?? []) env[entry.key] = entry.value;
-    const launch = resolveShell(run.config, this.platform, process.env);
     let handle: RunHandle;
     try {
+      const shell = interactiveShell({ program: run.config.shell?.program, pty: this.pty, platform: this.platform, env: this.env, integrationDir: this.shellDir });
+      run.shell = { kind: shell.kind, integrated: shell.integrated };
       handle = await this.launcher.launch(
         {
-          file: launch.file,
-          args: launch.args,
+          file: shell.file,
+          args: shell.args,
           cwd: run.cwd,
-          env,
-          windowsVerbatimArguments: launch.windowsVerbatimArguments,
+          env: { ...env, ...shell.env },
           sessionId: run.sessionId,
           origin: run.origin,
-          title: this.title(run),
+          title: titleOf(run),
+          stdin: true,
         },
         this.events(run),
       );
@@ -300,11 +381,11 @@ export class RunManager {
       this.finish(run, "failed", { error: "the process could not be started (no pid)" });
       return;
     }
-    this.announce(run);
+    typeCommand(this.typing, run, run.command, { armed: true });
     if (run.readiness.kind === "pending" && run.config.readinessUrl) this.pollReadiness(run);
     if (this.launcher.held) {
       try {
-        this.journal.open(this.record(run));
+        this.journal.open(recordOf(run));
       } catch {
       }
     }
@@ -339,10 +420,6 @@ export class RunManager {
     let instance = 1;
     while (used.has(instance)) instance += 1;
     return instance;
-  }
-
-  private title(run: LiveRun): string {
-    return run.instance > 1 ? `${run.baseTitle} #${run.instance}` : run.baseTitle;
   }
 
   private register(run: LiveRun): void {
@@ -381,25 +458,6 @@ export class RunManager {
     return cwd;
   }
 
-  private record(run: LiveRun): RunRecord {
-    const hide = (text: string) => redactText(text, run.secrets);
-    return {
-      terminalId: run.terminalId,
-      projectId: run.projectId,
-      sessionId: run.sessionId,
-      origin: run.origin,
-      title: hide(this.title(run)),
-      ...(run.config.id ? { configId: run.config.id } : {}),
-      configName: hide(run.configName),
-      command: hide(run.command),
-      worktreePath: hide(run.worktreePath),
-      ...(run.worktreeBranch ? { worktreeBranch: hide(run.worktreeBranch) } : {}),
-      cwd: hide(run.cwd),
-      ...(run.config.readinessUrl ? { readinessUrl: hide(run.config.readinessUrl) } : {}),
-      startedAt: run.startedAt,
-    };
-  }
-
   private closeRecord(run: LiveRun): void {
     try {
       this.journal.close(run.terminalId);
@@ -415,8 +473,9 @@ export class RunManager {
   }
 
   private capture(run: LiveRun): (stream: "stdout" | "stderr", chunk: string) => void {
-    if (this.launcher.kind === "pipes") {
+    if (!this.pty) {
       const splitters = new Map<string, ReturnType<typeof createOutputSplitter>>();
+      let held = "";
       return (stream, chunk) => {
         let splitter = splitters.get(stream);
         if (!splitter) {
@@ -425,7 +484,15 @@ export class RunManager {
           });
           splitters.set(stream, splitter);
         }
-        splitter.push(chunk);
+        if (stream === "stderr") return splitter.push(chunk);
+        held += chunk;
+        const { pending } = escapeScan(held);
+        const ready = pending === -1 ? held : held.slice(0, pending);
+        held = pending === -1 ? "" : held.slice(pending);
+        for (const part of splitMarkers(ready)) {
+          if (typeof part === "string") splitter.push(part);
+          else onMarker(this.typing, run, part);
+        }
       };
     }
     let carry = "";
@@ -433,16 +500,26 @@ export class RunManager {
     const redactor = createPtyRedactor(run.secrets, (text) => {
       const cursor = this.keep(run, text);
       run.handle?.mirror?.(text, cursor);
-      carry += text;
-      for (let at = carry.indexOf("\n"); at !== -1; at = carry.indexOf("\n")) {
-        emitLine(carry.slice(0, at));
-        carry = carry.slice(at + 1);
-      }
-      while (carry.length > MAX_LINE_CHARS) {
-        const cut = safeCutBack(carry, [], MAX_LINE_CHARS);
-        if (cut <= 0) break;
-        emitLine(carry.slice(0, cut));
-        carry = carry.slice(cut);
+      for (const part of splitMarkers(text)) {
+        if (typeof part !== "string") {
+          if (part.kind === "done" && carry) {
+            emitLine(carry);
+            carry = "";
+          }
+          onMarker(this.typing, run, part);
+          continue;
+        }
+        carry += part;
+        for (let at = carry.indexOf("\n"); at !== -1; at = carry.indexOf("\n")) {
+          emitLine(carry.slice(0, at));
+          carry = carry.slice(at + 1);
+        }
+        while (carry.length > MAX_LINE_CHARS) {
+          const cut = safeCutBack(carry, [], MAX_LINE_CHARS);
+          if (cut <= 0) break;
+          emitLine(carry.slice(0, cut));
+          carry = carry.slice(cut);
+        }
       }
     });
     return (_stream, chunk) => {
@@ -509,12 +586,12 @@ export class RunManager {
   private requireLiveKeyboard(terminalId: string, verb: string): LiveRun {
     const run = this.require(terminalId);
     if (isTerminal(run.status) || !run.handle) {
-      throw new RunError("conflict", `"${redactText(this.title(run), run.secrets)}" is not running, so there is nothing to ${verb}`);
+      throw new RunError("conflict", `"${redactText(titleOf(run), run.secrets)}" is not running, so there is nothing to ${verb}`);
     }
     if (!run.handle.write || !run.handle.resize) {
       throw new RunError(
         "conflict",
-        `"${redactText(this.title(run), run.secrets)}" was started without a terminal — Telar's desktop shell is what provides one — so there is no keyboard to ${verb} with`,
+        `"${redactText(titleOf(run), run.secrets)}" was started without a terminal — Telar's desktop shell is what provides one — so there is no keyboard to ${verb} with`,
       );
     }
     return run;
@@ -549,7 +626,7 @@ export class RunManager {
       run.closing = undefined;
       throw new RunError(
         "conflict",
-        redactText(`Telar could not close "${this.title(run)}": ${error instanceof Error ? error.message : String(error)}`, run.secrets),
+        redactText(`Telar could not close "${titleOf(run)}": ${error instanceof Error ? error.message : String(error)}`, run.secrets),
       );
     }
     if (await this.ended(run, this.closeSettleMs)) return;
@@ -629,7 +706,8 @@ export class RunManager {
 
   private blank(): Pick<
     LiveRun,
-    "terminalId" | "status" | "readiness" | "blind" | "lines" | "dropped" | "bytes" | "byteChars" | "bytesDropped" | "secrets" | "waiters" | "agentWatching"
+    | "terminalId" | "status" | "readiness" | "blind" | "lines" | "dropped" | "bytes" | "byteChars" | "bytesDropped" | "secrets" | "waiters" | "agentWatching"
+    | "shell" | "activity" | "prompted" | "typed" | "idleWaiters"
   > {
     return {
       terminalId: "",
@@ -644,6 +722,11 @@ export class RunManager {
       secrets: [],
       waiters: [],
       agentWatching: false,
+      shell: { kind: "other", integrated: false },
+      activity: "idle",
+      prompted: false,
+      typed: false,
+      idleWaiters: [],
     };
   }
 
@@ -659,9 +742,12 @@ export class RunManager {
     if (detail.error) run.error = redactText(detail.error, run.secrets);
     if (detail.closedBy) run.closedBy = detail.closedBy;
     if (run.readyTimer) clearInterval(run.readyTimer);
+    clearTimeout(run.promptTimer);
+    run.queued = undefined;
     if (run.readiness.kind === "pending") run.readiness = { kind: "none" };
     this.closeRecord(run);
     this.wake(run);
+    wakeIdle(run);
     this.announce(run);
     if (status === "closed" && run.closedBy === "person" && run.agentWatching && this.runs.has(run.terminalId)) {
       try {
@@ -685,38 +771,6 @@ export class RunManager {
   }
 
   private view(run: LiveRun): RunView {
-    const hide = (text: string) => redactText(text, run.secrets);
-    return {
-      terminalId: run.terminalId,
-      runId: run.terminalId,
-      projectId: run.projectId,
-      sessionId: run.sessionId,
-      origin: run.origin,
-      title: hide(this.title(run)),
-      ...(run.config.id ? { configId: run.config.id } : {}),
-      configName: hide(run.configName),
-      command: hide(run.command),
-      worktreePath: hide(run.worktreePath),
-      ...(run.worktreeBranch ? { worktreeBranch: hide(run.worktreeBranch) } : {}),
-      cwd: hide(run.cwd),
-      status: run.status,
-      readiness: run.readiness,
-      ...(run.config.readinessUrl ? { readinessUrl: hide(run.config.readinessUrl) } : {}),
-      ...(run.handle?.pid !== undefined && !isTerminal(run.status) ? { pid: run.handle.pid } : {}),
-      startedAt: run.startedAt,
-      ...(run.endedAt ? { endedAt: run.endedAt } : {}),
-      ...(run.exitCode !== undefined ? { exitCode: run.exitCode } : {}),
-      ...(run.signal ? { signal: run.signal } : {}),
-      ...(run.closedBy ? { closedBy: run.closedBy } : {}),
-      ...(run.warning ? { warning: run.warning } : {}),
-      ...(run.error ? { error: run.error } : {}),
-      env: (run.config.env ?? []).map((entry) => (entry.secret ? { key: entry.key, secret: true } : { key: entry.key, value: hide(entry.value) })),
-    };
+    return viewOf(run);
   }
-}
-
-function splitTitle(title: string): { base: string; instance: number } {
-  const match = /^(.*) #(\d+)$/.exec(title);
-  if (match && Number(match[2]) > 1) return { base: match[1]!, instance: Number(match[2]) };
-  return { base: title, instance: 1 };
 }

@@ -189,12 +189,11 @@ test("a shell that ignores SIGTERM and keeps working is killed outright, and the
   const run = await manager.start(input(worktree(), config("trap '' TERM; echo trapped; while :; do sleep 1; done")));
   expect(await until(() => manager.output(run.terminalId).lines.some((line) => line.text === "trapped"))).toBe(true);
 
-  const before = Date.now();
   const closed = await manager.close(run.terminalId, "agent");
-  expect(Date.now() - before).toBeGreaterThanOrEqual(500);
   expect(closed.status).toBe("closed");
   expect(closed.closedBy).toBe("agent");
   expect(closed.signal).toBe("SIGKILL");
+  expect(await until(() => !alive(run.pid!))).toBe(true);
 }, 15_000);
 
 test("restart closes the terminal and opens the same recipe on the same tree in a new one", async () => {

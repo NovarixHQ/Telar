@@ -8,6 +8,7 @@ HeldReports,
 RequestDecision,
 RuntimeMode,Session,
 SessionBootstrap,
+SessionDelta,
 SessionSettleEnded,
 SessionSnapshot,
 SnapshotWindow,
@@ -103,6 +104,8 @@ export function sessionCalls(fetcher: Fetcher) {
         undefined,
         opens,
       ),
+    sessionDelta: (sessionId: string, after: number) =>
+      request<SessionDelta>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/delta?after=${after}`, undefined, undefined, opens),
     /** Rename, change the model, or change what the session may do without
      *  asking. The model must belong to the session's provider instance — the
      *  engine rejects anything else, because a turn is routed by that instance

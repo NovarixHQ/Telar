@@ -1,4 +1,4 @@
-import type { EngineEvent, Item, SessionBootstrap, SessionSnapshot, SnapshotPage, SnapshotWindow, Subscription, Task, Turn } from "@telar/engine-client";
+import type { EngineEvent, Item, SessionBootstrap, SessionDelta, SessionSnapshot, SnapshotPage, SnapshotWindow, Subscription, Task, Turn } from "@telar/engine-client";
 import { journalCursor } from "./journal";
 import { isActiveTurn } from "./journal-items";
 
@@ -17,6 +17,8 @@ export type SessionSyncApi = {
   ): Promise<{ unchanged: true; etag?: string } | { unchanged: false; payload: { events: EngineEvent[]; more?: boolean }; etag?: string }>;
   /** One-read opening; optional because a remote host may run an older engine. */
   sessionBootstrap?(sessionId: string, window?: SnapshotWindow): Promise<SessionBootstrap>;
+  /** Bounded catch-up for a cached head; optional for the same reason. */
+  sessionDelta?(sessionId: string, after: number): Promise<SessionDelta>;
 };
 
 /** First paint covers about a screen plus scrollback; older pages load on click. */

@@ -12,25 +12,25 @@ The Terminal tab holds a strip of shells. While a shell has focus, ⌘T opens an
 
 ## Run configurations
 
-A run configuration is a saved command for the project, such as "Dev server: bun run dev". Create and start them from the Run control at the top of the conversation. Each has:
+A run configuration is a saved command for the project, such as "Dev server: bun run dev". Create and run them from the Run control at the top of the conversation. Each has:
 
 - a name and an icon,
 - the command,
-- a working directory, relative to the checkout the run starts in,
+- a working directory, relative to the session's checkout,
 - an optional readiness check: an address Telar watches to know the server is up,
 - environment variables. Mark a variable as secret and Telar never shows its value again, and hides it in the output.
 
-Starting a configuration opens a new terminal in the session's panel, with a dot for its state. Starting it again opens a second one ("Dev server #2") instead of replacing the first. If its port is already in use, Telar warns you but doesn't stop it. Each run can be stopped or restarted from its tab.
+A terminal is a shell that stays open after its command finishes. Running a configuration types its command into that configuration's idle terminal, or opens a new one if there isn't one free ("Dev server #2" when the first is still busy). The tab's dot shows whether a command is running or the shell is idle, and the last exit code if it failed. If its port is already in use, Telar warns you but doesn't stop it. Stop a command with Ctrl-C or by closing the tab; the tab's run-again button runs the last command again in the same shell.
 
 ## Agents and terminals
 
-Agents open terminals for anything long-running, instead of leaving it hidden in the background. A terminal an agent opens belongs to its session and appears in the Terminal tab, without switching what you're looking at. Agents can read the output, wait for a server to come up and close their terminals, but they never type into one. An agent can also save a run configuration for the project, or start one of yours.
+Agents open terminals for anything long-running, instead of leaving it hidden in the background. A terminal an agent opens belongs to its session and appears in the Terminal tab, without switching what you're looking at. Agents can type commands into their terminals, read the output, wait for a command to finish or a server to come up, and close them. An agent can also save a run configuration for the project, or start one of yours.
 
 If you close a terminal an agent opened, the agent is told on its next turn that you closed it, and not to reopen it unless you ask.
 
 ## Closing
 
-Closing a terminal ends everything running in it, including child processes. The tab of a run that has finished stays, so you can read its last output, until you close it.
+Closing a terminal ends everything running in it, including child processes, and asks first if a command is still running. A terminal whose shell has ended keeps its tab, so you can read its last output, until you close it.
 
 Terminals are tied to their session:
 

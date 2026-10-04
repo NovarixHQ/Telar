@@ -87,7 +87,7 @@ describe("configurationPatch", () => {
     // API. The engine merges shallowly, so the patch must not mention `shell`
     // at all; mentioning it as `undefined` would be the same erasure the
     // environment rule above exists to prevent.
-    const original = config({ shell: { program: "/bin/bash", args: ["-lc"] } });
+    const original = config({ shell: { program: "/bin/bash" } });
     const patch = configurationPatch(original, { ...draftFromConfiguration(original), command: "bun run start" });
     expect("shell" in patch).toBe(false);
     expect(patch.command).toBe("bun run start");

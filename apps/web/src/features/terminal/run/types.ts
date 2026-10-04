@@ -18,7 +18,6 @@ export type {
   RunIcon,
   RunBytesAnswer,
   RunReadiness,
-  RunStatus,
   RunStatusAnswer,
   RunStatusEvent,
   RunView,

@@ -24,6 +24,7 @@ const view = (over: Partial<RunView> = {}): RunView => ({
   worktreePath: "/fixtures/telar",
   cwd: "/fixtures/telar",
   status: "running",
+  activity: "idle",
   readiness: { kind: "pending" },
   startedAt: 200,
   env: [],

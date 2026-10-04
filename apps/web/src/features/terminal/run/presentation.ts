@@ -1,21 +1,12 @@
 /**
- * What the run surfaces SAY, decided away from the components that say it.
- *
- * The interesting decisions here are not cosmetic: whether a readiness dot is
- * green is a claim about a process we may not be able to attribute anything
- * to, and whether a label says "Running" is a claim about a terminal that may
- * have ended. Both are folds over the status answer, both are wrong in ways a
- * screenshot will not show, so both are tested as functions.
- *
- * A RUN IS A TERMINAL NOW ("Run = a new terminal"): a session has a LIST of
- * them, any number open at once, and pressing Run opens another. There is no
- * deployment slot, so there is no Replace, Switch or Release to choose from.
+ * What the run surfaces say, decided away from the components that say it.
+ * A terminal is a shell that stays open: its status is the shell's, and
+ * `activity` says whether a command typed into it is still running.
  */
 
 import type {
   RunConfigurationDraft,
   RunReadiness,
-  RunStatus,
   RunStatusAnswer,
   RunView,
 } from "./types";
@@ -27,12 +18,13 @@ const MIN_SECRET_CHARS = 4;
 
 export type RunTone = "idle" | "working" | "good" | "bad";
 
-export function statusTone(status: RunStatus): RunTone {
-  switch (status) {
-    case "running":
-      return "working";
+/** An open shell is idle until a command runs in it; a busy one is good once its readiness check answered. */
+export function statusTone(view: RunView): RunTone {
+  switch (view.status) {
     case "ready":
-      return "good";
+    case "running":
+      if (view.activity === "idle") return "idle";
+      return view.status === "ready" ? "good" : "working";
     case "failed":
       return "bad";
     case "exited":
@@ -41,15 +33,15 @@ export function statusTone(status: RunStatus): RunTone {
   }
 }
 
-/** Present tense for the states a human can still act on; past tense once the
- *  terminal has ended, because "Running" on a dead process is the lie that
- *  makes people hunt for a server that is not there. */
+/** Past tense once the shell has ended, so a dead terminal never reads as running. */
 export function statusLabel(view: RunView): string {
   switch (view.status) {
     case "running":
-      return "Running";
-    case "ready":
-      return "Ready";
+    case "ready": {
+      if (view.activity === "busy") return view.status === "ready" ? "Ready" : "Running";
+      const code = view.lastExit?.exitCode;
+      return code === undefined || code === 0 ? "Idle" : `Idle · exit ${code}`;
+    }
     case "failed":
       return "Failed";
     case "closed":
@@ -105,29 +97,11 @@ export function terminalTitle(view: RunView): string {
   return view.title?.trim() || view.configName;
 }
 
-/** How many terminals of this configuration are open — the "2 open" beside
- *  its Start row, so pressing it again is visibly "another one". */
-export function openCount(open: readonly RunView[], configId: string): number {
-  return open.filter((run) => run.configId === configId).length;
-}
-
-/**
- * WHAT THE MASTHEAD'S RUN BUTTON SAYS, over the whole list.
- *
- * None open: "Run". One: its name, with its own status dot. Several: how many,
- * because naming one of three would say the other two are not there. The dot
- * of several is amber if any chip's dot is amber (running, no readiness answer
- * yet) and green only when every one of them answered — a green masthead over
- * an amber chip would be the summary disagreeing with what it summarises.
- */
-export function runSummary(open: readonly RunView[]): { label: string; tone: RunTone; detail?: string } {
-  if (open.length === 0) return { label: "Run", tone: "idle" };
-  if (open.length === 1) {
-    const only = open[0]!;
-    return { label: terminalTitle(only), tone: statusTone(only.status), detail: statusLabel(only) };
-  }
-  const starting = open.some((run) => run.status === "running");
-  return { label: `${open.length} terminals`, tone: starting ? "working" : "good" };
+/** What the Run button names: nothing, the one open terminal, or how many are open. */
+export function runSummary(open: readonly RunView[]): string {
+  if (open.length === 0) return "Run";
+  if (open.length === 1) return terminalTitle(open[0]!);
+  return `${open.length} terminals`;
 }
 
 export function describeReadiness(readiness: RunReadiness, url?: string): string | undefined {

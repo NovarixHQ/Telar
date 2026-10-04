@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
-import { mayClose } from "../close";
 import { createRunApi, type RunApi } from "../run/api";
-import { openTerminals, terminalTitle } from "../run/presentation";
+import { openTerminals } from "../run/presentation";
 import { useRunStatusFeed } from "../run/status-stream";
 import type { RunConfigurationDraft, RunConfigurationView, RunView } from "../run/types";
 
@@ -105,16 +104,10 @@ export function useRunHeader({
       setEditing(undefined);
     });
 
-  // End closes the terminal, asking first only if something is running in it.
-  const end = (view: RunView) =>
-    void (async () => {
-      if (!(await mayClose([{ id: view.terminalId, label: terminalTitle(view), command: view.command }]))) return;
-      await run(() => api.stop(sessionId, view.terminalId));
-    })();
-
+  // The engine types it into this configuration's idle shell, or opens a new one.
   const start = (configId: string) => void run(() => api.start(sessionId, configId));
 
-  return { open, setOpen, busy, configs, editing, setEditing, error, terminals, save, end, start };
+  return { open, setOpen, busy, configs, editing, setEditing, error, terminals, save, start };
 }
 
 export type RunHeader = ReturnType<typeof useRunHeader>;

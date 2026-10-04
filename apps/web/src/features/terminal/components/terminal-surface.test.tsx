@@ -543,6 +543,7 @@ describe("closing a chip ends its terminal", () => {
       worktreePath: CHECKOUT,
       cwd: CHECKOUT,
       status: "ready",
+      activity: "idle",
       readiness: { kind: "none" },
       startedAt: 1,
       env: [],
@@ -579,6 +580,54 @@ describe("closing a chip ends its terminal", () => {
       });
     }
     expect(tabs(host).map((tab) => tab.textContent)).toEqual(["Shell 1"]);
+  });
+});
+
+describe("a run's chip", () => {
+  test("run again re-runs the last command in that terminal, and the dot's tooltip says what the shell is doing", async () => {
+    const run: RunView = {
+      terminalId: "term_run",
+      runId: "term_run",
+      projectId: "project_1",
+      sessionId: "session_a",
+      origin: "run",
+      title: "tests",
+      configId: "cfg_test",
+      configName: "tests",
+      command: "bun test",
+      worktreePath: CHECKOUT,
+      cwd: CHECKOUT,
+      status: "running",
+      activity: "idle",
+      lastExit: { exitCode: 1, at: 2 },
+      readiness: { kind: "none" },
+      startedAt: 1,
+      env: [],
+    };
+    const posted: Array<{ url: string; body: unknown }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST") posted.push({ url, body: init.body ? JSON.parse(String(init.body)) : undefined });
+      if (url.includes("/run/status")) return Response.json({ terminals: [run] });
+      if (url.includes("/run/configs")) return Response.json({ configurations: [] });
+      if (url.includes("/run/restart")) return Response.json({ ...run, activity: "busy" });
+      if (url.includes("/run/")) return new Response("", { status: 404 });
+      return Response.json({ listing: { workspacePath: CHECKOUT, repository: true, files: [], source: "git", truncated: false, readAt: 1 } });
+    }) as typeof fetch;
+    installBridge({ live: [{ id: "t1" }] });
+    const params = workspaceParams(
+      upsertRunShell(readWorkspace(restored("t1")), { runId: "term_run", configId: "cfg_test", terminalId: "term_run", title: "tests" }),
+    );
+    const host = await mount({ sessionId: "session_a", params });
+
+    expect(tabs(host).find((tab) => tab.textContent === "tests")?.title).toBe("tests — Idle · exit 1 · bun test");
+    await click(host.querySelector('button[aria-label="Run tests again"]') as HTMLButtonElement);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(posted.find((entry) => entry.url.includes("/run/restart"))?.body).toEqual({ terminalId: "term_run" });
+    expect(posted.some((entry) => entry.url.includes("/run/stop"))).toBe(false);
   });
 });
 

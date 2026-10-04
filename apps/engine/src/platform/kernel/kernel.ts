@@ -2,7 +2,7 @@ import fs from "node:fs";
 import type { EngineEvent } from "@telar/engine-client";
 import type { ExecutionStore } from "../db/execution-store";
 import type { EngineStatePaths } from "../fs/state-paths";
-import { arrayElementRanges, parseSpan, type DocumentIndex } from "../db/document-window";
+import { parseSpan, type DocumentIndex } from "../db/document-window";
 import { atomicWrite } from "../fs/atomic";
 import { EngineStateError } from "./errors";
 
@@ -41,7 +41,7 @@ export class Kernel<Notifier = unknown> {
   readonly executionStore: ExecutionStore;
   readonly notifier?: Notifier;
   /** What reads touched, so tests can hold whole-document parses to a ratchet. */
-  readonly readAccounting = { documentBytes: 0, documentReads: 0, queueParses: 0, itemParses: 0 };
+  readonly readAccounting = { documentBytes: 0, documentReads: 0, queueParses: 0, itemParses: 0, turnRows: 0 };
   /** The newest record naming each session's running turn; `Turn.lastProgressAt` is its durable copy. */
   readonly runProgress = new Map<string, { runId: string; at: number }>();
 
@@ -119,19 +119,9 @@ export class Kernel<Notifier = unknown> {
     });
   }
 
-  /** Writes a document and the byte-range index that lets its tail be read alone. */
-  writeIndexedDocument(file: string, indexFile: string, value: unknown, property: string, rows: Array<{ key: string; tag?: string }>, written?: unknown): void {
-    const text = JSON.stringify(value);
-    this.route(file, () => {
-      this.executionStore.writeText(file, text);
-    }, written);
-    const bytes = Buffer.from(text, "utf8");
-    const ranges = arrayElementRanges(bytes, property);
-    const index: DocumentIndex = ranges && ranges.length === rows.length
-      ? { version: STATE_VERSION, length: bytes.length, rows: coalesceByKey(rows, ranges) }
-      // Length -1 never matches, so an unindexable document can't inherit the previous index.
-      : { version: STATE_VERSION, length: -1, rows: [] };
-    this.executionStore.write(indexFile, index);
+  /** Rows stored under a document's name, so the write route sees them as that document's write. */
+  writeRows(file: string, write: () => void, written?: unknown): void {
+    this.route(file, write, written);
   }
 
   /** The index beside `file`, or `undefined` when none still describes it. */
@@ -206,19 +196,4 @@ function readJson(file: string): unknown | undefined {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
   }
-}
-
-// One index row per turn: a span may cover other turns' rows, and readers filter by key.
-function coalesceByKey(rows: Array<{ key: string; tag?: string }>, ranges: Array<{ start: number; end: number }>): DocumentIndex["rows"] {
-  const merged = new Map<string, DocumentIndex["rows"][number]>();
-  for (const [at, row] of rows.entries()) {
-    const range = ranges[at]!;
-    const known = merged.get(row.key);
-    if (!known) merged.set(row.key, { ...row, ...range });
-    else {
-      known.start = Math.min(known.start, range.start);
-      known.end = Math.max(known.end, range.end);
-    }
-  }
-  return [...merged.values()];
 }

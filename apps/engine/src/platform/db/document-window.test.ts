@@ -15,7 +15,6 @@ import { EngineStore } from "../../state";
 import { ExecutionStore } from "./execution-store";
 import { ITEM_ROWS_FOR_RUNS_SQL } from "./tables";
 import { sessionSnapshot } from "../../domains/sessions";
-import { arrayElementRanges, parseSpan } from "./document-window";
 import { toLegacyHome } from "../../../test/store-internals";
 
 const roots: string[] = [];
@@ -277,22 +276,4 @@ test("a window carries every item its turns own", () => {
   const window = open(home).queries.snapshotWindow("session_one", { limit: 2 });
   expect(window.items).toEqual(everyItem.filter((item) => ["run_10", "run_11"].includes(item.runId)));
   expect(window.items).toHaveLength(16);
-});
-
-/** The scanner the index is built with, on text that is not ASCII. */
-test("array element ranges point at whole elements, in bytes", () => {
-  const value = { version: 2, sessionId: "session_one", turns: [{ runId: "run_1", text: "café ☕" }, { runId: "run_2", text: 'a "quoted" ] brace }' }, { runId: "run_3", text: "plain" }] };
-  const bytes = Buffer.from(JSON.stringify(value), "utf8");
-  const ranges = arrayElementRanges(bytes, "turns")!;
-  expect(ranges).toHaveLength(3);
-  for (const [at, range] of ranges.entries()) {
-    expect(JSON.parse(bytes.toString("utf8", range.start, range.end))).toEqual(value.turns[at]!);
-  }
-  // A span from one element to another is a valid array body once bracketed,
-  // which is what makes a one-read window possible.
-  expect(parseSpan(bytes.subarray(ranges[1]!.start, ranges[2]!.end))).toEqual([value.turns[1]!, value.turns[2]!]);
-
-  expect(arrayElementRanges(Buffer.from('{"turns":[]}'), "turns")).toEqual([]);
-  expect(arrayElementRanges(Buffer.from('{"turns":{}}'), "turns")).toBeUndefined();
-  expect(arrayElementRanges(Buffer.from('{"other":[1]}'), "turns")).toBeUndefined();
 });

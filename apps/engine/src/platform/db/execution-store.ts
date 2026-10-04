@@ -13,6 +13,7 @@ import { exportLegacy, fenceLegacy, importLegacy, sweepLegacyBackup } from "./le
 import { exportSession, JOURNAL_FLOOR_PREFIX, retentionPreview, retireJournal, retireSession } from "./retention";
 import { openDatabase, type Database, type Statement } from "./schema";
 import * as tables from "./tables";
+import { deleteTurnRows, migrateQueueToRows, queueNextSequence, writeTurnRows, type TurnRow } from "./turn-rows";
 
 /** A delta may sit in memory for this many events or this long; readers see it at once, only durability waits. */
 const FLUSH_COUNT = 32;
@@ -176,6 +177,9 @@ export class ExecutionStore {
   hasItemRow(sessionId: string, itemId: string): boolean { return tables.hasItemRow(this, sessionId, itemId); }
   itemRows(sessionId: string): string[] { return tables.itemRows(this, sessionId); }
   itemRowsForRuns(sessionId: string, runIds: readonly string[]): string[] { return tables.itemRowsForRuns(this, sessionId, runIds); }
+  queueNextSequence(sessionId: string): number | undefined { return queueNextSequence(this, sessionId); }
+  migrateQueueToRows(sessionId: string, nextSequence: number, rows: readonly TurnRow[], documents: string[]): void { migrateQueueToRows(this, sessionId, nextSequence, rows, documents); }
+  writeTurnRows(sessionId: string, nextSequence: number, rows: readonly TurnRow[], removed: readonly string[]): void { writeTurnRows(this, sessionId, nextSequence, rows, removed); }
   sessionIds(): string[] { return tables.sessionIds(this); }
   sessionRowGaps() { return tables.sessionRowGaps(this); }
   liveSessionRows(): tables.SessionIndexRow[] { return tables.liveSessionRows(this); }
@@ -259,6 +263,7 @@ export class ExecutionStore {
       this.statement("DELETE FROM events WHERE session_id=?").run(sessionId);
       tables.deleteSessionRow(this, sessionId);
       this.statement("DELETE FROM items WHERE session_id=?").run(sessionId);
+      deleteTurnRows(this, sessionId);
       for (const prefix of [
         COMPACT_WATERMARK_PREFIX, USAGE_WATERMARK_PREFIX, SLIM_WATERMARK_PREFIX, REQUEST_PRUNE_WATERMARK_PREFIX,
         TERMINAL_HIGH_PREFIX, tables.ITEMS_ROWS_PREFIX, tables.LIVE_QUEUE_PREFIX, JOURNAL_FLOOR_PREFIX,

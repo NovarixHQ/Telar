@@ -1,22 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import path from "node:path";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
-import type { ExecutionStore } from "../../platform/db/execution-store";
+import { editSessionDocument } from "../../../test/store-internals";
 import { useTempStores } from "../../../test/temp-store";
 import { closeStores, setup } from "./notification-fixture";
 
 const { root, readyStore } = useTempStores();
-
-const documents = (store: EngineStore) => (store as unknown as { kernel: { executionStore: ExecutionStore } }).kernel.executionStore;
-
-// Rewrites a stored session_one document, as an older build left it.
-function editDocument(store: EngineStore, stateRoot: string, name: string, edit: (value: any) => void): void {
-  const file = path.join(stateRoot, "sessions", "session_one", name);
-  const value = documents(store).read(file);
-  edit(value);
-  documents(store).write(file, value);
-}
 
 test("submitting a stable run id is idempotent and a session has only one active turn", () => {
   const { store } = readyStore();
@@ -222,12 +211,12 @@ describe("a message typed into a session that had already been claimed", () => {
   test("a claim written before the watermark existed promotes nothing", () => {
     // Forward courtesy for a queue.json on disk from an older engine: absent
     // means "the behaviour this claim was written under", never "promote all".
-    const { store, root: stateRoot } = readyStore();
+    const { store } = readyStore();
     store.intake.submitTurn("session_one", { runId: "run_live", input: "work" });
     const claim = store.claims.claimTurn("session_one", "worker_one")!;
     store.intake.submitTurn("session_one", { runId: "run_typed", input: "Hello?" });
 
-    editDocument(store, stateRoot, "queue.json", (queue) => {
+    editSessionDocument(store, "queue.json", (queue) => {
       for (const turn of queue.turns) if (turn.claim) delete turn.claim.sequence;
     });
 

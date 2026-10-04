@@ -52,8 +52,7 @@ export function createSessionModules(kernel: Kernel, host: SessionHost) {
   const prefixes = new OpenPrefixes(kernel, (sessionId) => queries.readEvents(sessionId));
   const attachments = new SessionAttachments(kernel, (sessionId) => void records.require(sessionId));
   const queries: SessionQueries = new SessionQueries(kernel, {
-    records, items, tasks, requests,
-    readQueue: (sessionId) => queues.read(sessionId),
+    records, items, tasks, requests, queues,
     autoSettleAfterHours: host.autoSettleAfterHours,
   });
   return { records, items, requests, tasks, mailbox, activity, index, queues, prefixes, attachments, queries };

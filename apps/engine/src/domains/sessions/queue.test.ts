@@ -1,29 +1,7 @@
 /**
- * THE QUEUE DOCUMENT ON THE WRITE PATH — issue #547, steps 2 and 3.
- *
- * THE INSTRUMENT FIRST, AND FALSIFIED ON ITS OWN. Everything #547 claims about
- * the write path is counted rather than argued, so the counter has to be worth
- * something before it certifies anything: `readAccounting` could not see
- * `readQueue` at all, which means it read 0 before and 0 after a change that
- * doubled the wall time. The first two tests are what go red if that is ever
- * true again.
- *
- * THEN THE CLAIM: THE ROW'S FOLD NO LONGER RE-PARSES WHAT THE COMMAND JUST
- * WROTE. Measured, not asserted in prose — the parse counts below are exact,
- * and reverting the pass-through in `writeQueue` adds one to each of them. A
- * test that could not tell N from N+1 would not be testing this.
- *
- * THE COUNTS ARE ALSO A RATCHET. Fifteen whole-queue parses per turn survive
- * this issue (5 + 4 + 2 + 4), and they are written down on purpose: this issue
- * is about the write path reading the queue more often than it needs to, so a
- * change that moves these numbers is a change somebody should look at, in
- * either direction.
- *
- * AND THEN THE TRADE: VALIDATE ON WRITE, TRUST ON READ, with the refusal
- * surviving it. A turn that violates `Turn` must still be refused — at the
- * write now rather than at the read. Every
- * test below that asserts a refusal has a sibling asserting the same shape is
- * ACCEPTED where it should be, so "refuses everything" cannot pass here.
+ * The queue on the read and write paths: one row per turn (#547, then rows).
+ * The counters are exact on purpose, so a change that moves them is looked at.
+ * Validate on write, trust on read: each refusal has a sibling acceptance.
  */
 import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
@@ -32,6 +10,7 @@ import path from "node:path";
 import { EngineStore } from "../../state";
 import { ExecutionStore } from "../../platform/db/execution-store";
 import { toLegacyHome } from "../../../test/store-internals";
+import type { Turn } from "@telar/engine-client";
 import { SessionQueues } from "./queue";
 
 const roots: string[] = [];
@@ -72,6 +51,19 @@ function seeded(store: EngineStore, turns: number, sessionId = "session_one"): E
   return store;
 }
 
+/** Turn rows read during `action`, whatever the route. */
+function rowsRead(store: EngineStore, action: () => void): number {
+  const before = store.kernel.readAccounting.turnRows;
+  action();
+  return store.kernel.readAccounting.turnRows - before;
+}
+
+/** Closes `store` so the next `open` of its home starts with nothing cached. */
+function reopen(store: EngineStore): void {
+  store.kernel.executionStore.close();
+  stores.splice(stores.indexOf(store), 1);
+}
+
 /** Whole-queue parses made by `action`, which is the number #547 is about. */
 function queueParses(store: EngineStore, action: () => void): number {
   const before = store.kernel.readAccounting.queueParses;
@@ -79,43 +71,26 @@ function queueParses(store: EngineStore, action: () => void): number {
   return store.kernel.readAccounting.queueParses - before;
 }
 
-// ── the instrument, falsified before anything is proved with it ──────────────
-
-test("a whole-queue read is accounted for, bytes and all", () => {
-  /**
-   * THE COUNTER THIS SUITE USES, CHECKED AGAINST THE DOCUMENT ITSELF.
-   *
-   * `readAccounting` could not see `readQueue` at all before #547 — it was
-   * called from the two windowed reads and nowhere else, so every whole-queue
-   * read counted zero and a fold improvement proved with it would have read
-   * 0 = 0 as success. This test is the one that goes red if that is true
-   * again, and it is deliberately the first in the file.
-   */
-  const store = seeded(open(root()), 4);
-  const turns = store.queries.turns("session_one");
-
+test("a whole-queue read is accounted for, rows and bytes", () => {
+  const directory = root();
+  reopen(seeded(open(directory), 4));
+  const store = open(directory);
   store.kernel.readAccounting.documentBytes = 0;
   store.kernel.readAccounting.documentReads = 0;
   store.kernel.readAccounting.queueParses = 0;
-  // `turns()` is one `readQueue` and nothing else, which is what makes the
-  // count below exactly one rather than "at least one".
-  expect(store.queries.turns("session_one")).toEqual(turns);
+  store.kernel.readAccounting.turnRows = 0;
+  const turns = store.queries.turns("session_one");
 
   expect(store.kernel.readAccounting.documentReads).toBe(1);
   expect(store.kernel.readAccounting.queueParses).toBe(1);
-
-  // AND THE BYTES ARE THE DOCUMENT'S BYTES: larger than the turns it holds, and
-  // not by much — the rest is a version, a session id and a sequence.
-  const rows = Buffer.byteLength(JSON.stringify(turns), "utf8");
-  expect(store.kernel.readAccounting.documentBytes).toBeGreaterThanOrEqual(rows);
-  expect(store.kernel.readAccounting.documentBytes).toBeLessThan(rows + 200);
+  expect(store.kernel.readAccounting.turnRows).toBe(4);
+  expect(store.kernel.readAccounting.documentBytes).toBe(turns.map((turn) => JSON.stringify(turn)).join("").length);
 });
 
-test("a session whose queue document is missing is not counted as a read", () => {
-  // `createSession` writes an empty queue, so the absent branch is reached by a
-  // legacy home that lost the file; it must record nothing, not a zero-byte read.
+test("a legacy session whose queue document is missing reads as empty", () => {
   const directory = root();
   toLegacyHome(seeded(open(directory), 1), directory);
+  expect(fs.existsSync(path.join(directory, "sessions", "session_one", "queue.json"))).toBe(true);
   fs.rmSync(path.join(directory, "sessions", "session_one", "queue.json"));
   const store = open(directory);
   store.kernel.readAccounting.documentReads = 0;
@@ -125,31 +100,29 @@ test("a session whose queue document is missing is not counted as a read", () =>
   expect(store.kernel.readAccounting.queueParses).toBe(0);
 });
 
-// ── step 2: the row's fold reads nothing the command already wrote ───────────
+// ── a write stores the turns it changed, and nothing else ────────────────────
 
-test("a queue-writing command parses the queue a fixed number of times", () => {
-  /**
-   * THE NUMBERS, AND WHY THEY ARE WRITTEN DOWN RATHER THAN COMPARED.
-   *
-   * Each of the four transitions used to make one MORE whole-queue parse than
-   * this: `storeSessionRow` fetched the document back out of the store and
-   * re-parsed it to fold the activity, immediately after `writeQueue` had
-   * serialised the very same object. Reverting that pass-through turns
-   * 5/4/2/4 into 6/5/3/5, which is the red run this test exists to produce.
-   */
-  const store = seeded(open(root()), 5);
+/** The turn rows each `writeTurnRows` call stored or deleted during `action`. */
+function rowWrites(store: EngineStore, action: () => void): number[] {
+  const execution = store.kernel.executionStore;
+  const original = execution.writeTurnRows.bind(execution);
+  const writes: number[] = [];
+  execution.writeTurnRows = (sessionId, next, rows, removed) => {
+    writes.push(rows.length + removed.length);
+    original(sessionId, next, rows, removed);
+  };
+  try { action(); } finally { execution.writeTurnRows = original; }
+  return writes;
+}
 
-  expect(queueParses(store, () => store.intake.submitTurn("session_one", { runId: "run_x", input: "hello" }))).toBe(5);
-
+test("each turn transition writes one row, however long the queue", () => {
+  const store = seeded(open(root()), 40);
   let token = "";
-  expect(queueParses(store, () => { token = store.claims.claimTurn("session_one", "worker_one")!.claim!.token; })).toBe(4);
-  expect(queueParses(store, () => store.turnLifecycle.markRunning("session_one", "run_x", token))).toBe(2);
-  expect(queueParses(store, () => store.turnLifecycle.completeTurn("session_one", "run_x", token, { text: "done" }))).toBe(4);
-
-  // AND A WRITE THAT CANNOT HAVE MOVED THE QUEUE still reads it once and not
-  // twice — `indexedSessionOf`'s carve-out means the row carries the folded
-  // fields over rather than folding them again.
-  expect(queueParses(store, () => store.lifecycle.updateSession("session_one", { title: "Renamed" }))).toBe(1);
+  expect(rowWrites(store, () => store.intake.submitTurn("session_one", { runId: "run_x", input: "hello" }))).toEqual([1]);
+  expect(rowWrites(store, () => { token = store.claims.claimTurn("session_one", "worker_one")!.claim!.token; })).toEqual([1]);
+  expect(rowWrites(store, () => store.turnLifecycle.markRunning("session_one", "run_x", token))).toEqual([1]);
+  expect(rowWrites(store, () => store.turnLifecycle.completeTurn("session_one", "run_x", token, { text: "done" }))).toEqual([1]);
+  expect(store.queries.turns("session_one")).toHaveLength(41);
 });
 
 test("the carried queue is the one the command wrote, at every transition", () => {
@@ -205,58 +178,40 @@ const malformedTurn = (sessionId: string, sequence: number): Record<string, unkn
   updatedAt: 1,
 });
 
-/** Put an exact queue document into the store's database, behind its back. */
+/** Rewrite a session as a store from before turns were rows: an exact `queue.json`, and no rows. */
 function injectQueue(directory: string, sessionId: string, document: unknown): void {
   const raw = new ExecutionStore(directory);
   try {
     raw.transaction("test-inject", () => {
       raw.writeText(path.join(directory, "sessions", sessionId, "queue.json"), JSON.stringify(document));
-      // The offset index describes bytes that have just moved, so it is
-      // invalidated rather than left to be trusted — the same marker
-      // `writeIndexedDocument` writes when it cannot index a document.
-      raw.write(path.join(directory, "sessions", sessionId, "queue.index.json"), { version: 2, length: -1, rows: [] });
+      raw.statement("DELETE FROM turns WHERE session_id=?").run(sessionId);
+      raw.statement("DELETE FROM metadata WHERE key=?").run(`queue-rows/${sessionId}`);
     });
   } finally {
     raw.close();
   }
 }
 
-test("a malformed turn in the store is refused at the write, not let through", () => {
-  /**
-   * THE TRADE THIS STEP MAKES, IN BOTH DIRECTIONS.
-   *
-   * The schema walk no longer runs per read, so a turn that violates
-   * `Turn` is READ without complaint — that is the saving, and pretending
-   * otherwise would be testing the wrong thing. What must not change is that
-   * the store refuses to carry it: the next write validates every turn and
-   * throws, so the bad row cannot be written back and cannot spread.
-   */
+const bareQueues = (store: EngineStore) => new SessionQueues(store.kernel, { sessionIds: () => ["session_one"], itemsForRuns: () => [], afterWrite: () => {} });
+
+test("a malformed turn is read, but a write that changes it is refused", () => {
+  // Only changed rows are validated: an untouched bad row is carried, never rewritten.
   const directory = root();
   const first = seeded(open(directory), 2);
   const seededTurns = first.queries.turns("session_one");
-  const queue = { version: 2, sessionId: "session_one", nextSequence: 9, turns: [...seededTurns, malformedTurn("session_one", 8)] };
-  first.kernel.executionStore.close();
-  stores.splice(stores.indexOf(first), 1);
-
-  injectQueue(directory, "session_one", queue);
+  reopen(first);
+  injectQueue(directory, "session_one", { version: 2, sessionId: "session_one", nextSequence: 9, turns: [...seededTurns, malformedTurn("session_one", 8)] });
 
   const store = open(directory);
-  // READ: trusted, so the row reaches the caller rather than throwing.
   expect(store.queries.turns("session_one").map((turn) => turn.runId)).toEqual(["run_seed_0", "run_seed_1", "run_bad"]);
-
-  // WRITE: refused, with the turn still on file rather than half-replaced.
-  expect(() => store.intake.submitTurn("session_one", { runId: "run_next", input: "hello" })).toThrow(/invalid session queue/);
-  expect(store.queries.turns("session_one").map((turn) => turn.runId)).toEqual(["run_seed_0", "run_seed_1", "run_bad"]);
-
-  // …and a well-formed turn in the same position is accepted, so this is a
-  // guard rather than a store that has stopped writing.
-  const clean = { ...queue, turns: seededTurns };
-  store.kernel.executionStore.close();
-  stores.splice(stores.indexOf(store), 1);
-  injectQueue(directory, "session_one", clean);
-  const healthy = open(directory);
-  healthy.intake.submitTurn("session_one", { runId: "run_next", input: "hello" });
-  expect(healthy.queries.turns("session_one").map((turn) => turn.runId)).toEqual(["run_seed_0", "run_seed_1", "run_next"]);
+  const queues = bareQueues(store);
+  const touched = queues.read("session_one");
+  touched.turns[2]!.updatedAt = 2;
+  expect(() => queues.write("session_one", touched)).toThrow(/invalid session queue/);
+  const fixed = queues.read("session_one");
+  fixed.turns[2] = { ...seededTurns[0]!, runId: "run_bad", sequence: 8 };
+  queues.write("session_one", fixed);
+  expect(open(directory).queries.turns("session_one")[2]).toEqual(fixed.turns[2]!);
 });
 
 test("a structurally broken turn is refused on read", () => {
@@ -266,8 +221,7 @@ test("a structurally broken turn is refused on read", () => {
   const directory = root();
   const first = seeded(open(directory), 2);
   const turns = first.queries.turns("session_one");
-  first.kernel.executionStore.close();
-  stores.splice(stores.indexOf(first), 1);
+  reopen(first);
 
   for (const broken of [
     { ...turns[0]!, runId: undefined },
@@ -278,8 +232,7 @@ test("a structurally broken turn is refused on read", () => {
     injectQueue(directory, "session_one", { version: 2, sessionId: "session_one", nextSequence: 3, turns: [broken] });
     const store = open(directory);
     expect(() => store.queries.turns("session_one")).toThrow(/invalid session queue/);
-    store.kernel.executionStore.close();
-    stores.splice(stores.indexOf(store), 1);
+    reopen(store);
   }
 
   // AND THE SAME ROW, INTACT, READS FINE — four refusals mean nothing without
@@ -297,10 +250,19 @@ test("the scan cache keeps live queues and only the most recently scanned idle o
   const queues = new SessionQueues(store.kernel, { sessionIds: () => ids, itemsForRuns: () => [], afterWrite: () => {} });
   expect([...queues.liveSessionIds()]).toEqual(["session_0"]);
   for (const id of ids) queues.scan(id);
+  // A cache miss asks the store for the queue's head; a hit asks nothing.
+  const execution = store.kernel.executionStore;
+  const head = execution.queueNextSequence.bind(execution);
+  const loads = (action: () => void): number => {
+    let count = 0;
+    execution.queueNextSequence = (sessionId) => { count += 1; return head(sessionId); };
+    try { action(); } finally { execution.queueNextSequence = head; }
+    return count;
+  };
 
-  expect(queueParses(store, () => queues.scan("session_0"))).toBe(0);
-  expect(queueParses(store, () => { for (const id of ids.slice(-32)) queues.scan(id); })).toBe(0);
-  expect(queueParses(store, () => queues.scan("session_1"))).toBe(1);
+  expect(loads(() => queues.scan("session_0"))).toBe(0);
+  expect(loads(() => { for (const id of ids.slice(-32)) queues.scan(id); })).toBe(0);
+  expect(loads(() => queues.scan("session_1"))).toBe(1);
 });
 
 test("a cold live-queue build reads the live queues only, however long the history", () => {
@@ -322,18 +284,53 @@ test("a cold live-queue build reads the live queues only, however long the histo
   const queues = (on: EngineStore) => new SessionQueues(on.kernel, { sessionIds: () => ids, itemsForRuns: () => [], afterWrite: () => {} });
 
   let first: Set<string> = new Set();
-  expect(queueParses(store, () => { first = queues(store).liveSessionIds(); })).toBe(ids.length);
+  // Every session is asked, and only live rows come back.
+  expect(rowsRead(store, () => { first = queues(store).liveSessionIds(); })).toBe(2);
   expect([...first].sort()).toEqual(["session_queued", "session_stopped"]);
-  store.kernel.executionStore.close();
-  stores.splice(stores.indexOf(store), 1);
+  reopen(store);
 
   const reopened = open(directory);
   let cold: Set<string> = new Set();
-  expect(queueParses(reopened, () => { cold = queues(reopened).liveSessionIds(); })).toBeLessThanOrEqual(2);
+  expect(rowsRead(reopened, () => { cold = queues(reopened).liveSessionIds(); })).toBe(2);
   expect([...cold].sort()).toEqual(["session_queued", "session_stopped"]);
 
   const token = reopened.claims.claimTurn("session_queued", "worker_two")!.claim!.token;
   reopened.turnLifecycle.markRunning("session_queued", "run_queued", token);
   reopened.turnLifecycle.completeTurn("session_queued", "run_queued", token, { text: "done" });
   expect([...queues(reopened).liveSessionIds()]).toEqual(["session_stopped"]);
+});
+
+// ── a long history: migrated from its document, then read by the window ──────
+
+const STATES = ["completed", "failed", "stopped", "discarded", "ambiguous", "steered"] as const;
+
+/** A legacy `queue.json` of `count` settled turns in every terminal state, plus one queued and one running. */
+function longHistory(directory: string, count: number): { turns: Turn[]; nextSequence: number } {
+  const first = seeded(open(directory), 1);
+  const shape = first.queries.turns("session_one")[0]!;
+  reopen(first);
+  const { claim: _claim, completedAt: _completed, resultText: _result, ...open_ } = shape;
+  // A settled turn's claim is released; a stopped one keeping it would still concern a worker.
+  const turns: Turn[] = Array.from({ length: count }, (_, n) => ({
+    ...open_, runId: `run_${n}`, sequence: n + 1, state: STATES[n % STATES.length]!, input: `message ${n}`, resultText: `answer ${n}`,
+    completedAt: 2_000 + n, updatedAt: 2_000 + n,
+  }));
+  turns.push({ ...open_, runId: "run_queued", sequence: count + 1, state: "queued", input: "next", updatedAt: 9_000 });
+  turns.push({ ...shape, runId: "run_running", sequence: count + 2, state: "running", input: "now", completedAt: undefined, resultText: undefined, updatedAt: 9_001 });
+  const nextSequence = count + 7;
+  injectQueue(directory, "session_one", { version: 2, sessionId: "session_one", nextSequence, turns });
+  return { turns, nextSequence };
+}
+
+test("migrating a queue.json keeps every turn, its state and the next sequence, and drops the document", () => {
+  const directory = root();
+  const { turns, nextSequence } = longHistory(directory, 300);
+  const store = open(directory);
+  expect(store.queries.turns("session_one")).toEqual(turns);
+  expect(store.kernel.readDocument(path.join(directory, "sessions", "session_one", "queue.json"))).toBeUndefined();
+
+  store.intake.submitTurn("session_one", { runId: "run_after", input: "after" });
+  expect(store.queries.turns("session_one").at(-1)!.sequence).toBe(nextSequence);
+  reopen(store);
+  expect(open(directory).queries.turns("session_one")).toHaveLength(turns.length + 1);
 });

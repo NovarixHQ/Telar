@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ExecutionStore } from "../src/platform/db/execution-store";
+import { allTurnRows, exportQueueRows } from "../src/platform/db/turn-rows";
 import type { TurnPolicyRequests } from "../src/platform/db/journal-maintenance";
 import type { EngineStore } from "../src/state";
 
@@ -14,6 +15,32 @@ type Row = Record<string, unknown> | undefined;
 type Statement = { get(...args: unknown[]): Row; all(...args: unknown[]): Array<Record<string, unknown>> };
 const db = (store: ExecutionStore) => (store as unknown as { db: { prepare(sql: string): Statement } }).db;
 const executionOf = (store: EngineStore) => (store as unknown as { kernel: { executionStore: ExecutionStore } }).kernel.executionStore;
+
+/**
+ * Rewrites one of session_one's documents as an older build left it. The queue
+ * is handed over as the `queue.json` it was before turns were rows, and goes back as one.
+ */
+export function editSessionDocument(store: EngineStore, name: string, edit: (value: any) => void): void {
+  const execution = executionOf(store);
+  const file = path.join(execution.root, "sessions", "session_one", name);
+  if (name !== "queue.json") {
+    const value = execution.read(file);
+    edit(value);
+    execution.write(file, value);
+    return;
+  }
+  const queue = execution.read(file) ?? {
+    version: 2, sessionId: "session_one", nextSequence: execution.queueNextSequence("session_one") ?? 1,
+    turns: allTurnRows(execution, "session_one").map((row) => JSON.parse(row.value)),
+  };
+  edit(queue);
+  execution.atomically(() => {
+    execution.write(file, queue);
+    execution.statement("DELETE FROM turns WHERE session_id=?").run("session_one");
+    execution.statement("DELETE FROM metadata WHERE key=?").run("queue-rows/session_one");
+  });
+  (store as unknown as { sessionQueues: { clear(): void } }).sessionQueues.clear();
+}
 
 /** The SQLite execution store behind an `EngineStore`. */
 export function executionStoreOf(store: EngineStore): ExecutionStore {
@@ -29,7 +56,11 @@ export function toLegacyHome(store: EngineStore, root: string, edit?: (key: stri
   const execution = executionOf(store);
   const documents = db(execution).prepare("SELECT key, value FROM documents WHERE key LIKE 'sessions/%'").all();
   const journals = new Map<string, string[]>();
+  const queues = new Map<string, unknown>();
   for (const sessionId of execution.sessionIds()) {
+    const staged = fs.mkdtempSync(path.join(root, ".queue-"));
+    if (exportQueueRows(execution, sessionId, staged)) queues.set(sessionId, JSON.parse(fs.readFileSync(path.join(staged, "queue.json"), "utf8")));
+    fs.rmSync(staged, { recursive: true, force: true });
     journals.set(sessionId, execution.events(sessionId).map((event) => JSON.stringify(event)));
   }
   store.kernel.executionStore.close();
@@ -39,6 +70,11 @@ export function toLegacyHome(store: EngineStore, root: string, edit?: (key: stri
     const value = JSON.parse(String(row.value));
     fs.mkdirSync(path.dirname(path.join(root, key)), { recursive: true });
     fs.writeFileSync(path.join(root, key), JSON.stringify(edit ? edit(key, value) : value));
+  }
+  for (const [sessionId, queue] of queues) {
+    const key = `sessions/${sessionId}/queue.json`;
+    fs.mkdirSync(path.dirname(path.join(root, key)), { recursive: true });
+    fs.writeFileSync(path.join(root, key), JSON.stringify(edit ? edit(key, queue) : queue));
   }
   for (const [sessionId, lines] of journals) {
     if (lines.length) fs.writeFileSync(path.join(root, "sessions", sessionId, "events.ndjson"), `${lines.join("\n")}\n`);

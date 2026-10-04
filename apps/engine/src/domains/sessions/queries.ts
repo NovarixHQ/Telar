@@ -2,7 +2,6 @@ import {
   assignmentsOf,
   countsAsActivity,
   isBackgroundWork,
-  Turn as TurnSchema,
   type AssignmentTurn,
   type EngineEvent,
   type EngineRequest,
@@ -14,7 +13,7 @@ import {
 import { EngineStateError, type Kernel } from "../../platform/kernel";
 import { boundedOutline, context, FIND_SCAN, isLiveTask, firstLine, GREP_CONTEXT_CHARS, ITEM_TITLE_CHARS, type OutlineRow, outlineRow, TURN_ANSWER_NO_SUCH_RUN, TURN_ANSWER_NONE, WHY_CHARS } from "../turns";
 import type { SessionItems } from "./items";
-import { sessionQueueFile, sessionQueueIndexFile, type SessionQueue } from "./queue";
+import type { SessionQueues } from "./queue";
 import type { SessionRecords } from "./records";
 import type { SessionRequests } from "./requests";
 import { rowIsShelved } from "./session-index";
@@ -33,35 +32,12 @@ function boundedRequests(all: EngineRequest[], chosen?: Set<string>): EngineRequ
   return carried.filter((request) => !dropped.has(request));
 }
 
-// Shared by the indexed read and the whole-document fallback so the two cannot disagree about a page.
-function planWindow(
-  rows: Array<{ key: string; tag?: string }>,
-  window: { limit: number; before?: string },
-): { chosen: Set<string>; page: { before: string | null; more: boolean; total: number } } {
-  let end = rows.length;
-  if (window.before !== undefined) {
-    end = rows.findIndex((row) => row.key === window.before);
-    if (end === -1) throw new EngineStateError("not_found", "page cursor names no turn in this session");
-  }
-  const active = (row: { tag?: string }): boolean => ACTIVE_TURN_STATES.has(row.tag as Turn["state"]);
-  const settled = rows.slice(0, end).filter((row) => !active(row));
-  const start = Math.max(0, settled.length - window.limit);
-  const paged = settled.slice(start);
-  // The active tail is never paged out — but only on the FIRST page; an older
-  // page is history and must not repeat rows the client already has.
-  const unsettled = window.before === undefined ? rows.filter(active) : [];
-  return {
-    chosen: new Set([...paged, ...unsettled].map((row) => row.key)),
-    page: { before: start > 0 ? (paged[0]?.key ?? null) : null, more: start > 0, total: rows.length },
-  };
-}
-
 type QueryDeps = {
   records: SessionRecords;
   items: SessionItems;
   tasks: SessionTasks;
   requests: SessionRequests;
-  readQueue: (sessionId: string) => SessionQueue;
+  queues: SessionQueues;
   autoSettleAfterHours: () => number | null;
 };
 
@@ -142,18 +118,6 @@ export class SessionQueries {
     if (!this.kernel.executionStore.sessionRow(sessionId)) throw new EngineStateError("not_found", "session does not exist");
   }
 
-  // One turn by the queue index, falling back to the whole document when there is none.
-  private turnByIndex(sessionId: string, runId: string): Turn | undefined {
-    const file = sessionQueueFile(this.kernel.paths, sessionId);
-    const index = this.kernel.documentIndex(file, sessionQueueIndexFile(this.kernel.paths, sessionId));
-    if (!index) return this.deps.readQueue(sessionId).turns.find((turn) => turn.runId === runId);
-    const wanted = index.rows.filter((row) => row.key === runId);
-    if (wanted.length === 0) return undefined;
-    const parsed = TurnSchema.array().safeParse(this.kernel.readIndexedRows(file, wanted));
-    if (!parsed.success) throw new EngineStateError("invalid_request", "invalid session queue");
-    return parsed.data.find((turn) => turn.runId === runId);
-  }
-
   private runItemsInOrder(sessionId: string, runId: string): Item[] {
     return this.deps.items.forRuns(sessionId, new Set([runId])).sort((a, b) => a.startedAt - b.startedAt);
   }
@@ -175,7 +139,7 @@ export class SessionQueries {
       : store.turnSummary(sessionId, options.runId);
     const runId = options.runId ?? summary?.runId;
     if (runId === undefined) throw new EngineStateError("not_found", TURN_ANSWER_NONE);
-    const turn = this.turnByIndex(sessionId, runId);
+    const turn = this.deps.queues.turns(sessionId, [runId])[0];
     if (!turn) throw new EngineStateError("not_found", TURN_ANSWER_NO_SUCH_RUN);
     const answer = turn.resultText ?? "";
     const from = Math.min(Math.max(0, options.from), answer.length);
@@ -268,7 +232,7 @@ export class SessionQueries {
     page: { before: string | null; more: boolean; total: number };
   } {
     this.deps.records.require(sessionId);
-    const plan = this.windowedTurns(sessionId, window);
+    const plan = this.deps.queues.window(sessionId, window.limit, window.before);
     const chosen = new Set(plan.turns.map((turn) => turn.runId));
     return structuredClone({
       turns: plan.turns,
@@ -279,24 +243,6 @@ export class SessionQueries {
     });
   }
 
-  // The index chooses the window without reading; only the chosen span is parsed.
-  private windowedTurns(sessionId: string, window: { limit: number; before?: string }): { turns: Turn[]; page: { before: string | null; more: boolean; total: number } } {
-    const file = sessionQueueFile(this.kernel.paths, sessionId);
-    const index = this.kernel.documentIndex(file, sessionQueueIndexFile(this.kernel.paths, sessionId));
-    if (!index) {
-      // `readQueue` accounts for itself now (#547), so the explicit call that
-      // used to be here would double this read.
-      const all = this.deps.readQueue(sessionId).turns;
-      const plan = planWindow(all.map((turn) => ({ key: turn.runId, tag: turn.state })), window);
-      return { turns: all.filter((turn) => plan.chosen.has(turn.runId)), page: plan.page };
-    }
-    const plan = planWindow(index.rows, window);
-    const span = this.kernel.readIndexedRows(file, index.rows.filter((row) => plan.chosen.has(row.key)));
-    const parsed = TurnSchema.array().safeParse(span);
-    if (!parsed.success) throw new EngineStateError("invalid_request", "invalid session queue");
-    return { turns: parsed.data.filter((turn) => plan.chosen.has(turn.runId)), page: plan.page };
-  }
-
   /** A snapshot's requests with no window, bounded like the windowed ones. */
   snapshotRequests(sessionId: string): EngineRequest[] {
     this.deps.records.require(sessionId);
@@ -305,7 +251,7 @@ export class SessionQueries {
 
   turns(sessionId: string): Turn[] {
     this.deps.records.require(sessionId);
-    return structuredClone(this.deps.readQueue(sessionId).turns);
+    return structuredClone(this.deps.queues.read(sessionId).turns);
   }
 
   items(sessionId: string): Item[] {
@@ -334,13 +280,14 @@ export class SessionQueries {
 
   /** Every assignment the session holds, folded over its whole queue: a client's page cannot tell "finished" from "not in this window". */
   assignments(sessionId: string): SessionAssignment[] {
-    return assignmentsOf(this.deps.readQueue(sessionId).turns as AssignmentTurn[]);
+    return assignmentsOf(this.deps.queues.read(sessionId).turns as AssignmentTurn[]);
   }
 
   /** Something running or that might be: `ambiguous` counts as busy, and so do live backgrounded tasks. */
   hasWorkInFlight(sessionId: string): boolean {
     const unsettled: ReadonlySet<Turn["state"]> = new Set<Turn["state"]>(["queued", "claimed", "running", "steering", "ambiguous"]);
-    if (this.turns(sessionId).some((turn) => unsettled.has(turn.state))) return true;
+    this.deps.records.require(sessionId);
+    if (this.deps.queues.scan(sessionId).turns.some((turn) => unsettled.has(turn.state))) return true;
     return [...this.deps.tasks.read(sessionId).values()].some(isLiveTask);
   }
 

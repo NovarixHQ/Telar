@@ -43,6 +43,14 @@ import Testing
         #expect(SessionNesting.visible(families, expanded: expanded, selected: nil).count == rows.count)
     }
 
+    @Test func aDetachedAssignmentNoLongerNests() throws {
+        let rows = try [row("orchestrator"), row("handed")]
+        let assignments = [key("handed"): [SessionAssignment(fromSessionId: "orchestrator", outcome: "detached", receivedAt: 1)]]
+        let families = SessionNesting.families(rows, assignments: assignments)
+        #expect(families.map(\.parent.session.id) == ["orchestrator", "handed"])
+        #expect(families.allSatisfy { $0.children.isEmpty })
+    }
+
     @Test func foldedParentStillShowsWhatNeedsYouAndTheOpenChild() throws {
         let rows = try [row("parent"), row("quiet", startedFrom: "parent"), row("stuck", activity: "blocked", startedFrom: "parent"),
                         row("open", startedFrom: "parent")]

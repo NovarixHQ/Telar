@@ -20,7 +20,7 @@ struct NestedRow: Identifiable {
 
 enum SessionNesting {
     static func parentId(_ session: Session, assignments: [SessionAssignment]) -> EngineID? {
-        let first = assignments.min { ($0.receivedAt ?? .max) < ($1.receivedAt ?? .max) }
+        let first = assignments.filter { $0.outcome != "detached" }.min { ($0.receivedAt ?? .max) < ($1.receivedAt ?? .max) }
         guard let parent = session.startedFrom?.sessionId ?? first?.fromSessionId, parent != session.id else { return nil }
         return parent
     }

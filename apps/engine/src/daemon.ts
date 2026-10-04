@@ -145,13 +145,14 @@ function openStore(root: string, options: EngineDaemonOptions, doorbell: Embedde
 
 const leaseMs = (options: EngineDaemonOptions) => options.workerLeaseMs ?? 15_000;
 
-function engineSweeps(store: EngineStore, options: EngineDaemonOptions, pruneWorkers: () => void, forgetStorage: () => void): Sweep[] {
+function engineSweeps(store: EngineStore, options: EngineDaemonOptions, pruneWorkers: () => void, forgetStorage: () => void, closeIdleTerminals: () => Promise<number>): Sweep[] {
   const sweepCleanup = () => store.worktrees.runCleanup().then(forgetStorage);
   return [
     { name: "worker-prune", every: options.workerPruneIntervalMs ?? Math.max(10, Math.floor(leaseMs(options) / 3)), run: pruneWorkers },
     // Nothing writes when a delegate's quiet hour passes, a settled session's grace ends or a deadline expires; these are those writes.
     { name: "delegations", every: options.delegationSweepIntervalMs ?? 5 * 60_000, run: () => store.settler.sweepDelegated() },
     { name: "settled-terminals", every: options.settledTerminalSweepIntervalMs ?? 5 * 60_000, run: () => store.sessionTerminals.sweepSettled() },
+    { name: "idle-terminals", every: options.settledTerminalSweepIntervalMs ?? 60_000, run: closeIdleTerminals },
     // A minute is the shortest cohort timeout, so this ticks faster than that.
     {
       name: "cohorts",
@@ -302,7 +303,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const execution = createExecutionPort(store, workers.registration, workers.active, (sessionId) =>
     setImmediate(() => void maybeRetitleWithContext(store, sessionId).catch((error: unknown) => console.error(`[engine] the second title for ${sessionId} failed: ${String(error)}`))),
   );
-  const sweepers = startSweepers(engineSweeps(store, options, workers.prune, storageMeter.forget), loopLag.run);
+  const sweepers = startSweepers(engineSweeps(store, options, workers.prune, storageMeter.forget, () => runMount.manager.closeIdleAgentShells()), loopLag.run);
   // Read once, `.local` dropped: a name that changed per request would be a row that renames itself.
   const hostname = os.hostname().replace(/\.local$/i, "") || undefined;
   const health = (): EngineHealth => ({

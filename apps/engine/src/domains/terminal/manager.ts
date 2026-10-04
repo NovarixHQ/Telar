@@ -1,5 +1,4 @@
 import { type RunClosedBy, type RunOutputFilter, type RunOutputLine, type RunStatusEvent, type RunView, type RunWaitAnswer } from "@telar/engine-client";
-import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { nullRunJournal, type RunJournal, type RunRecord } from "./journal";
@@ -14,6 +13,8 @@ import { isTerminal, type RunConfiguration, RunError, type RunProbe, redactText,
 import { CLOSE_SETTLE_MS, compile, defaultProbe, KEEP_FINISHED, type LiveRun, MAX_BYTE_CHARS, MAX_BYTE_CHUNKS, MAX_LINE_CHARS, MAX_LINES, portOf, PROMPT_WAIT_MS, READY_POLL_MS, type RunManagerOptions, type StartRunInput, WAIT_TICK_MS } from "./live-run";
 import { recordOf, splitTitle, titleOf, viewOf } from "./views";
 import { agentEnv } from "../../platform/process/agent-env";
+import { AGENT_SHELL_CAP, AGENT_SHELL_IDLE_MS, evictionFor, expiredAgentShells, idleAgentShell } from "./agent-shells";
+import { resolveRunCwd } from "./run-cwd";
 
 export class RunManager {
   private readonly runs = new Map<string, LiveRun>();
@@ -32,6 +33,8 @@ export class RunManager {
   private readonly shellDir: string;
   private readonly env: NodeJS.ProcessEnv;
   private readonly promptWaitMs: number;
+  private readonly agentShellCap: number;
+  private readonly agentShellIdleMs: number;
 
   constructor(options: RunManagerOptions = {}) {
     this.now = options.now ?? Date.now;
@@ -47,6 +50,8 @@ export class RunManager {
     this.shellDir = options.shellDir ?? path.join(os.tmpdir(), "telar-shell");
     this.env = options.env ?? process.env;
     this.promptWaitMs = options.promptWaitMs ?? PROMPT_WAIT_MS;
+    this.agentShellCap = options.agentShellCap ?? AGENT_SHELL_CAP;
+    this.agentShellIdleMs = options.agentShellIdleMs ?? AGENT_SHELL_IDLE_MS;
   }
 
   private get pty(): boolean {
@@ -223,13 +228,16 @@ export class RunManager {
     if (this.shuttingDown) {
       throw new RunError("conflict", "Telar is shutting down and will not open a new terminal");
     }
-    const reused = this.idleFor(input);
+    const reused = this.idleFor(input) ?? (input.reuseIdle ? idleAgentShell(this.runs.values(), input.sessionId, resolveRunCwd(input)) : undefined);
     if (reused) {
       reused.config = input.config;
+      if (!input.config.id) reused.readyPattern = input.readyPattern === undefined ? undefined : compile(input.readyPattern, "ready");
       reused.agentWatching ||= input.openedBy === "agent";
       typeCommand(this.typing, reused, input.config.command);
       return this.view(reused);
     }
+    const evicted = input.origin === "agent" ? evictionFor(this.runs.values(), input.sessionId, this.agentShellCap) : undefined;
+    if (evicted) await this.close(evicted.terminalId, "telar");
     const exposed = unhideableSecrets(input.config);
     if (exposed.length) {
       throw new RunError(
@@ -237,7 +245,7 @@ export class RunManager {
         `${exposed.join(", ")} ${exposed.length === 1 ? "is" : "are"} marked secret but too short or spread over lines to be removed from captured output; change the value or unmark it rather than have Telar print it`,
       );
     }
-    const cwd = this.resolveCwd(input);
+    const cwd = resolveRunCwd(input);
     const run: LiveRun = {
       ...this.blank(),
       projectId: input.projectId,
@@ -425,37 +433,6 @@ export class RunManager {
   private register(run: LiveRun): void {
     run.terminalId = run.handle?.terminalId ?? run.terminalId;
     this.runs.set(run.terminalId, run);
-  }
-
-  private resolveCwd(input: StartRunInput): string {
-    if (!path.isAbsolute(input.worktreePath)) {
-      throw new RunError("invalid_request", "a run needs the absolute path of the worktree it launches from");
-    }
-    const root = path.resolve(input.worktreePath);
-    const cwd = path.resolve(root, input.config.cwd ?? ".");
-    if (cwd !== root && !cwd.startsWith(`${root}${path.sep}`)) {
-      throw new RunError("invalid_request", `the working directory "${input.config.cwd}" resolves outside the worktree`);
-    }
-    let stat: fs.Stats;
-    try {
-      stat = fs.statSync(cwd);
-    } catch {
-      throw new RunError("invalid_request", `there is no directory "${input.config.cwd ?? "."}" in ${root}`);
-    }
-    if (!stat.isDirectory()) throw new RunError("invalid_request", `"${input.config.cwd}" is not a directory`);
-
-    let realRoot: string;
-    let realCwd: string;
-    try {
-      realRoot = fs.realpathSync(root);
-      realCwd = fs.realpathSync(cwd);
-    } catch {
-      throw new RunError("invalid_request", `the working directory "${input.config.cwd ?? "."}" could not be resolved inside ${root}`);
-    }
-    if (realCwd !== realRoot && !realCwd.startsWith(`${realRoot}${path.sep}`)) {
-      throw new RunError("invalid_request", `the working directory "${input.config.cwd}" is a link out of the worktree: it really points at ${realCwd}`);
-    }
-    return cwd;
   }
 
   private closeRecord(run: LiveRun): void {
@@ -668,6 +645,12 @@ export class RunManager {
     await Promise.all(open.map((run) => this.ended(run, this.closeSettleMs)));
     for (const run of open) if (!isTerminal(run.status)) this.finish(run, "closed", { closedBy: run.closing ?? "telar" });
     return Math.max(closed, open.length);
+  }
+
+  async closeIdleAgentShells(): Promise<number> {
+    const expired = expiredAgentShells(this.runs.values(), this.now(), this.agentShellIdleMs);
+    await Promise.allSettled(expired.map((run) => this.close(run.terminalId, "telar")));
+    return expired.length;
   }
 
   private ended(run: LiveRun, ms: number): Promise<boolean> {

@@ -173,15 +173,25 @@ describe("each provider answers one bare call from an empty scratch directory", 
     expect(args).not.toContain("[--mcp-config]");
   });
 
-  test("Claude: logs in through the settings file's env even though settings sources are off", async () => {
+  test("Claude: a regenerated title logs in through the settings file's env, as a session does, even for a configured provider", async () => {
     const config = tmp("telar-tg-claude-config-");
     fs.writeFileSync(path.join(config, "settings.json"), JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://gateway.test", ANTHROPIC_AUTH_TOKEN: "t0ken" } }));
     const cli = fakeCli("claude", `echo '{"structured_output":{"title":"Queue refill race"}}'`);
-    expect(await generateSessionTitle({ driver: "claude", binaryPath: cli.binaryPath, env: { A: "b", CLAUDE_CONFIG_DIR: config }, message: "fix it" })).toBe("Queue refill race");
+    const store: RegenerateStore = {
+      settings: { textGen: () => ({ titles: true, renameBranches: false, driver: "claude" }) },
+      records: { get: () => ({ title: "fix it", state: "active" }) },
+      providers: { resolve: () => ({ enabled: true, binaryPath: cli.binaryPath, configDir: config, env: [{ name: "ANTHROPIC_BASE_URL", value: "https://instance.test" }] }) },
+      queries: { items: () => [{ id: "item_1", runId: "run_one", sessionId: "session_one", status: "completed", detail: { type: "user_message", text: "fix it" }, startedAt: 1 } as Item] },
+      lifecycle: { updateSession: () => undefined, refreshWorktreeBranchFromTitle: () => undefined },
+    };
+    const switched = process.env.TELAR_TEXTGEN;
+    delete process.env.TELAR_TEXTGEN;
+    try {
+      expect(await regenerateSessionTitle(store, "session_one")).toEqual({ title: "Queue refill race", changed: true });
+    } finally {
+      process.env.TELAR_TEXTGEN = switched;
+    }
     expect(cli.recorded().env.slice(2)).toEqual(["GW=https://gateway.test", "TOKEN=set"]);
-
-    await generateSessionTitle({ driver: "claude", binaryPath: cli.binaryPath, env: { CLAUDE_CONFIG_DIR: config, ANTHROPIC_BASE_URL: "https://instance.test" }, message: "fix it" });
-    expect(cli.recorded().env[2]).toBe("GW=https://instance.test");
   });
 
   test("a failed call is logged with its exit and the CLI's words, never a key", async () => {

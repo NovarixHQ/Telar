@@ -511,7 +511,7 @@ test("a read-only turn takes only the env block from the person's Claude setting
     },
   });
   try {
-    const env = { CLAUDE_CONFIG_DIR: configDir, ANTHROPIC_DEFAULT_HAIKU_MODEL: "from-instance" };
+    const env = { CLAUDE_CONFIG_DIR: configDir, ANTHROPIC_BASE_URL: undefined, ANTHROPIC_AUTH_TOKEN: undefined, ANTHROPIC_DEFAULT_HAIKU_MODEL: "from-instance" };
     await run(createClaudeDriver(sdk), { readOnly: true, usageDiagnosis: { call: async () => "" }, env }).result;
     await run(createClaudeDriver(sdk), { env }).result;
   } finally {
@@ -520,7 +520,7 @@ test("a read-only turn takes only the env block from the person's Claude setting
 
   const [readOnly, ordinary] = seen as [{ env: Record<string, string>; settingSources?: unknown; hooks?: unknown }, { env?: Record<string, string> }];
   const picked = ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_SMALL_FAST_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL"].map((key) => readOnly.env[key]);
-  expect(picked.join(" ") === "http://127.0.0.1:8317 gateway-token haiku from-instance").toBe(true);
+  expect(picked.join(" ") === "http://127.0.0.1:8317 gateway-token haiku from-settings").toBe(true);
   expect(readOnly.settingSources).toEqual([]);
   expect(readOnly.hooks).toBeUndefined();
   expect(JSON.stringify(readOnly)).not.toContain("touch /tmp/hooked");

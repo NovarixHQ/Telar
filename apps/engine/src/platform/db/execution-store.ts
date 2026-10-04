@@ -225,6 +225,15 @@ export class ExecutionStore {
     const page = [...stored, ...held];
     return bounded ? page.slice(0, limit) : page;
   }
+  /** Up to `limit` events below `before`, newest first; held deltas are newer than every stored row. */
+  eventsBefore(sessionId: string, before: number, limit: number): EngineEvent[] {
+    const held = this.held().filter((event) => event.sessionId === sessionId && event.id < before).reverse().slice(0, limit);
+    if (held.length >= limit) return held;
+    const floor = held.at(-1)?.id ?? before;
+    const stored = this.statement("SELECT value FROM events WHERE session_id=? AND id<? ORDER BY id DESC LIMIT ?")
+      .all(sessionId, floor, limit - held.length).map((row) => rehydrate(this, sessionId, String(row.value)));
+    return [...held, ...stored];
+  }
   cursor(sessionId: string): number {
     const known = this.cursors.get(sessionId);
     if (known !== undefined) return known;

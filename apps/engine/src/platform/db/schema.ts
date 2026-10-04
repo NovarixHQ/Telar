@@ -113,7 +113,8 @@ export function openDatabase(root: string): { db: Database; searchIndex: "fts5" 
         value TEXT NOT NULL,
         PRIMARY KEY(session_id, item_id)
       );
-      CREATE INDEX IF NOT EXISTS items_run ON items(session_id, run_id, ord);`);
+      CREATE INDEX IF NOT EXISTS items_run ON items(session_id, run_id, ord);
+      CREATE INDEX IF NOT EXISTS items_order ON items(session_id, ord);`);
     db.exec(`CREATE TABLE IF NOT EXISTS turns (
         session_id TEXT NOT NULL,
         run_id TEXT NOT NULL,

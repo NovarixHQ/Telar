@@ -417,7 +417,7 @@ export function markLiveQueuesIndexed(store: ExecutionStore): void {
 
 /** Exported so a test can hold the query plan to the `items_run` index. */
 export const ITEM_ROWS_FOR_RUNS_SQL =
-  "SELECT value FROM items WHERE session_id=? AND run_id IN (SELECT value FROM json_each(?)) ORDER BY ord";
+  "SELECT value FROM items INDEXED BY items_run WHERE session_id=? AND run_id IN (SELECT value FROM json_each(?)) ORDER BY ord";
 
 /** Decided by the per-session marker, never by a missing document, which can't tell migrated from empty. */
 export function itemsAreRows(store: ExecutionStore, sessionId: string): boolean {

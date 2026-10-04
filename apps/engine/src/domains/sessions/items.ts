@@ -7,6 +7,7 @@ import { sessionDir } from "./metadata";
 
 const ITEMS_CACHE_LIMIT = 8;
 const OPEN_PREFIX_LIMIT = 64;
+const PREFIX_SCAN_PAGE = 500;
 
 function itemsFile(paths: EngineStatePaths, sessionId: string): string {
   return path.join(sessionDir(paths, sessionId), "items.json");
@@ -183,7 +184,7 @@ export class OpenPrefixes {
 
   constructor(
     kernel: Kernel,
-    private readonly readEvents: (sessionId: string) => EngineEvent[],
+    private readonly eventsBefore: (sessionId: string, before: number, limit: number) => EngineEvent[],
   ) {
     kernel.onRollback(() => this.prefixes.clear());
   }
@@ -200,14 +201,21 @@ export class OpenPrefixes {
   get(sessionId: string, itemId: string, through: number): { streamed: string; streamedThrough: number } | undefined {
     const cached = this.prefixes.get(key(sessionId, itemId));
     if (cached?.sealed && cached.through <= through) return { streamed: cached.text, streamedThrough: cached.through };
-    let streamed = "";
+    const chunks: string[] = [];
     let streamedThrough = 0;
-    for (const event of this.readEvents(sessionId)) {
-      if (event.id > through) break;
-      if (event.type !== "content.delta" || event.itemId !== itemId) continue;
-      streamed += event.text;
-      streamedThrough = event.id;
+    // Backwards from the cutoff to the item's start: the open turn's tail, not the session's history.
+    walk: for (let before = through + 1; ;) {
+      const page = this.eventsBefore(sessionId, before, PREFIX_SCAN_PAGE);
+      for (const event of page) {
+        if (event.type === "item.started" && event.item.id === itemId) break walk;
+        if (event.type !== "content.delta" || event.itemId !== itemId) continue;
+        chunks.push(event.text);
+        streamedThrough ||= event.id;
+      }
+      if (page.length < PREFIX_SCAN_PAGE) break;
+      before = page.at(-1)!.id;
     }
+    const streamed = chunks.reverse().join("");
     if (!streamedThrough) return undefined;
     // Not written back: the entry may hold deltas above the cutoff.
     return { streamed, streamedThrough };

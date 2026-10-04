@@ -10,6 +10,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   activateShell,
+  dropEndedRuns,
   activeShell,
   addShell,
   closeShell,
@@ -335,5 +336,24 @@ describe("a run in the strip", () => {
     const state = closeShell(upsertRunShell(three(), dev), "run");
     expect(shellForRun(state, "run_1")).toBeUndefined();
     expect(ids(state)).toEqual(["shell", "shell#2", "shell#3"]);
+  });
+});
+
+describe("dropping ended runs", () => {
+  const withRuns = () =>
+    upsertRunShell(upsertRunShell(addShell(emptyWorkspace()), { runId: "term_1", configId: "", terminalId: "term_1" }), { runId: "term_2", configId: "", terminalId: "term_2" });
+
+  test("a run that ended loses its chip; an open one and the person's shell keep theirs", () => {
+    const next = dropEndedRuns(withRuns(), [
+      { runId: "term_1", status: "closed" },
+      { runId: "term_2", status: "running" },
+    ]);
+    expect(next.shells.map((shell) => shell.run?.runId ?? shell.id)).toEqual(["shell", "term_2"]);
+  });
+
+  test("a run the engine no longer lists goes only when asked to drop missing ones", () => {
+    const listed = [{ runId: "term_2", status: "ready" }];
+    expect(dropEndedRuns(withRuns(), listed).shells).toHaveLength(3);
+    expect(dropEndedRuns(withRuns(), listed, { dropMissing: true }).shells.map((shell) => shell.run?.runId ?? shell.id)).toEqual(["shell", "term_2"]);
   });
 });

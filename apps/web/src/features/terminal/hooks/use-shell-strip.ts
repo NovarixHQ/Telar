@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { claimChords } from "@/features/commands";
-import { endTerminal, mayClose } from "../close";
+import { terminalBridge, type TerminalActivity } from "../bridge";
+import { endTerminal, idleChips, mayClose } from "../close";
 import { TERMINAL_CHORD_CLAIMS } from "../keys";
 import { isOpenTerminal } from "../run/presentation";
 import { activateShell, addShell, closeShell, emptyWorkspace, readWorkspace, shellLabel, workspaceParams, type TerminalWorkspace } from "../workspace";
@@ -69,11 +70,38 @@ export function useShellStrip({
       const next = closeShell(latest.current, id);
       latest.current = next;
       setWorkspace(next);
-      if (next.shells.length === 0) dismiss.current?.();
     } finally {
       closing.current.delete(id);
     }
   };
+
+  const closeIdle = async () => {
+    const shells = latest.current.shells.filter((shell) => !shell.run && shell.terminalId);
+    const bridge = terminalBridge();
+    let activity: TerminalActivity[] | undefined;
+    try {
+      activity = bridge?.active && shells.length ? (await bridge.active(shells.map((shell) => shell.terminalId!))).terminals : undefined;
+    } catch {
+      activity = undefined;
+    }
+    const ids = idleChips(latest.current, run.runs.status ? run.runsById : undefined, activity);
+    const chips = latest.current.shells.filter((shell) => ids.includes(shell.id));
+    await Promise.all(
+      chips.map((shell) => {
+        const terminalId = shell.run ? (isOpenTerminal(run.runsById.get(shell.run.runId)) ? shell.run.runId : undefined) : shell.terminalId;
+        if (!terminalId) return undefined;
+        return endTerminal({ terminalId, run: Boolean(shell.run) }, { bridge, stopRun: (runId) => run.runApi.stop(sessionId!, runId) });
+      }),
+    );
+    if (chips.some((shell) => shell.run)) run.runs.refresh();
+    const next = ids.reduce(closeShell, latest.current);
+    latest.current = next;
+    setWorkspace(next);
+  };
+
+  useEffect(() => {
+    if (workspace.shells.length === 0) dismiss.current?.();
+  }, [workspace.shells.length]);
 
   // Capture phase and the native stopImmediatePropagation: xterm's textarea and the window dispatcher would answer too.
   const onKeys = (event: KeyboardEvent) => {
@@ -108,7 +136,7 @@ export function useShellStrip({
     }
   };
 
-  return { workspace, setWorkspace, run, closeOne, onKeys, setHasKeys };
+  return { workspace, setWorkspace, run, closeOne, closeIdle, onKeys, setHasKeys };
 }
 
 export type ShellStrip = ReturnType<typeof useShellStrip>;

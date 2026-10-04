@@ -110,7 +110,7 @@ test("terminal_list lists THIS session's terminals, each with its id", async () 
   const config = store.create("p", { name: "server", command: "sleep 30" });
 
   const empty = await tools.get("terminal_list")!.call();
-  expect(empty.text).toContain("no terminals");
+  expect(empty.text).toContain("no open terminals");
 
   const started = await tools.get("terminal_open")!.call({ configId: config.id });
   expect(started.isError).toBe(false);
@@ -122,7 +122,7 @@ test("terminal_list lists THIS session's terminals, each with its id", async () 
   expect(seen.text).toContain(tree);
 
   sessionId = "other";
-  expect((await tools.get("terminal_list")!.call()).text).toContain("no terminals");
+  expect((await tools.get("terminal_list")!.call()).text).toContain("no open terminals");
 }, 15_000);
 
 test("opening a configuration already open opens another instance", async () => {
@@ -151,7 +151,9 @@ test("terminal_kill closes the terminal and records the agent as who closed it",
   expect(manager.run(first).closedBy).toBe("agent");
   expect(manager.run(second).status).toBe("running");
 
-  expect((await tools.get("terminal_list")!.call()).text).toContain("Closed by you");
+  const listed = (await tools.get("terminal_list")!.call()).text;
+  expect(listed).not.toContain(first);
+  expect(listed).toContain("1 ended terminal(s) not listed");
 }, 15_000);
 
 test("a close from the cockpit is the person's, and the agent is told so", async () => {

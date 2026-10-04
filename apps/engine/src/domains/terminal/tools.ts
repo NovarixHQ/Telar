@@ -54,16 +54,25 @@ function runToolsContext(tool: ToolFactory, capability: RunCapability) {
   const list = async () => {
     try {
       const status = await capability.status();
-      const terminals = status.terminals;
+      const terminals = status.terminals.filter((run) => !run.endedAt || run.closedBy === "person");
+      const ended = status.terminals.length - terminals.length;
       const where = status.sessionWorktreePath ? `\nThis session's worktree: ${status.sessionWorktreePath}` : "";
-      if (!terminals.length) return ok(`This session has no terminals.${where}`);
-      return ok(`${terminals.map((run) => `- ${describe(run)}`).join("\n")}${where}`);
+      const more = ended ? `\n${ended} ended terminal(s) not listed; terminal_output still reads them.` : "";
+      if (!terminals.length) return ok(`This session has no open terminals.${more}${where}`);
+      return ok(`${terminals.map((run) => `- ${describe(run)}`).join("\n")}${more}${where}`);
     } catch (error) {
       return err(`Could not list the terminals: ${failure(error)}`);
     }
   };
-  const opened = (run: RunView) =>
-    ok(`Typed into ${describe(run)}\nterminalId: ${run.terminalId}. Read it with terminal_output; wait for it with terminal_wait; run the next command here with terminal_run.`);
+  const opened = (run: RunView, lead = "", hint = "") =>
+    ok(`${lead}Typed into ${describe(run)}\nterminalId: ${run.terminalId}. Read it with terminal_output; wait for it with terminal_wait; run the next command here with terminal_run.${hint}`);
+  const idleTerminals = async (): Promise<RunView[]> => {
+    try {
+      return (await capability.status()).terminals.filter((run) => !run.endedAt && run.activity === "idle");
+    } catch {
+      return [];
+    }
+  };
   const openFromConfig = async (configId: string) => {
     try {
       return opened(await capability.start({ configId, openedBy: "agent" }));
@@ -143,7 +152,7 @@ function runToolsContext(tool: ToolFactory, capability: RunCapability) {
     return /^https?:\/\//i.test(value) ? { readinessUrl: value } : { readyPattern: value };
   };
   const READY = z.string().min(1).max(500).optional().describe("A URL that answers, or a regex printed, once it is up.");
-  return { idOf, list, opened, openFromConfig, kill, output, wait, ready, READY, OUTPUT_SHAPE, WAIT_SHAPE };
+  return { idOf, list, opened, idleTerminals, openFromConfig, kill, output, wait, ready, READY, OUTPUT_SHAPE, WAIT_SHAPE };
 }
 
 export function runTools(tool: ToolFactory, capability: RunCapability): unknown[] {
@@ -155,17 +164,18 @@ export function runTools(tool: ToolFactory, capability: RunCapability): unknown[
 }
 
 function terminalTools(tool: ToolFactory, capability: RunCapability, h: ReturnType<typeof runToolsContext>): unknown[] {
-  const { idOf, list, opened, openFromConfig, kill, output, wait, ready, READY, OUTPUT_SHAPE, WAIT_SHAPE } = h;
+  const { idOf, list, opened, idleTerminals, openFromConfig, kill, output, wait, ready, READY, OUTPUT_SHAPE, WAIT_SHAPE } = h;
   return [
     tool(
       "terminal_open",
-      "Open a new shell terminal in the panel and type a command (or a saved configId) into it. The shell stays open after the command ends. Reuse an idle terminal with terminal_run instead; open a new one only for something that must keep running alongside, like a dev server. Never use '&' or a background shell for that.",
+      "Run a command (or a saved configId) in a shell in the panel; the shell stays open after it ends. Types into your idle terminal in the same directory if there is one, else opens a new one; fresh: true always opens one. Never use '&' or a background shell for something long-running.",
       {
         command: z.string().min(1).max(4000).optional().describe("e.g. 'bun run dev'."),
         cwd: z.string().max(1024).optional().describe("Relative to the worktree."),
         name: z.string().min(1).max(120).optional().describe("Tab title."),
         ready: READY,
         configId: z.string().min(1).optional().describe("A saved run configuration."),
+        fresh: z.boolean().optional().describe("Open a new terminal even if an idle one could take it."),
       },
       async (args) => {
         const configId = idOf(args.configId);
@@ -174,13 +184,20 @@ function terminalTools(tool: ToolFactory, capability: RunCapability, h: ReturnTy
         if (configId) return await openFromConfig(configId);
         if (!command) return err("terminal_open needs a command, or the configId of a saved run configuration.");
         try {
+          const idleBefore = await idleTerminals();
           const run = await capability.open({
             command,
             ...(typeof args.cwd === "string" ? { cwd: args.cwd } : {}),
             ...(typeof args.name === "string" ? { name: args.name } : {}),
+            ...(args.fresh === true ? { fresh: true } : {}),
             ...ready(args.ready),
           });
-          return opened(run);
+          if (idleBefore.some((idle) => idle.terminalId === run.terminalId)) return opened(run, "Reused your idle terminal instead of opening another. ");
+          const others = idleBefore.filter((idle) => idle.terminalId !== run.terminalId);
+          const hint = others.length
+            ? `\nYou also have idle terminal${others.length > 1 ? "s" : ""} ${others.map((idle) => `${idle.terminalId} ("${idle.title}")`).join(", ")}: use terminal_run there, or terminal_kill what you no longer need.`
+            : "";
+          return opened(run, "", hint);
         } catch (error) {
           return err(`Did not open: ${failure(error)}`);
         }

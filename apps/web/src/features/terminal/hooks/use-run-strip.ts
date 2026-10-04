@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { runAsChip } from "../reveal";
 import { createRunApi } from "../run/api";
 import { isOpenTerminal } from "../run/presentation";
 import { useRunStatusFeed } from "../run/status-stream";
 import type { RunConfigurationView, RunView } from "../run/types";
-import { runShells, upsertRunShell, type TerminalWorkspace } from "../workspace";
+import { dropEndedRuns, runShells, upsertRunShell, type TerminalWorkspace } from "../workspace";
 
 /** The session's runs in the strip: one status read, then events. Pinned to one Mac, since session ids are per host. */
 export function useRunStrip(sessionId: string | undefined, hostId: string | undefined, setWorkspace: Dispatch<SetStateAction<TerminalWorkspace>>) {
@@ -30,15 +30,18 @@ export function useRunStrip(sessionId: string | undefined, hostId: string | unde
     };
   }, [runApi, sessionId]);
 
-  // Every open run gets a chip, and every existing chip stays current; a chip is never removed here.
+  // Every open run gets a chip and every chip stays current; an ended run's chip goes, and on the first read so does one the engine forgot.
+  const firstRead = useRef(true);
   useEffect(() => {
     const status = runs.status;
-    if (!status) return;
     // An older paired engine has no `terminals` list.
-    const terminals = status.terminals ?? [];
+    if (!status?.terminals) return;
+    const terminals = status.terminals;
+    const dropMissing = firstRead.current;
+    firstRead.current = false;
     const task = window.setTimeout(() => {
       setWorkspace((current) => {
-        let next = current;
+        let next = dropEndedRuns(current, terminals, { dropMissing });
         for (const shell of runShells(next)) {
           const view = terminals.find((run) => run.runId === shell.run!.runId);
           if (view) next = upsertRunShell(next, runAsChip(view));

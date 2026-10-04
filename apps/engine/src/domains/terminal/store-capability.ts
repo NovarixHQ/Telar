@@ -110,6 +110,7 @@ export function storeRunCapability(deps: RunDeps): RunCapability {
         origin: "agent",
         openedBy: "agent",
         ...(input.readyPattern ? { readyPattern: input.readyPattern } : {}),
+        reuseIdle: input.fresh !== true,
       });
     },
 

@@ -52,7 +52,16 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
         return ok({ session: store.handoff.handOff(sessionId!, { ...(to ? { to } : {}), ...(by ? { by } : {}) }) });
       },
     },
-    { method: "POST", path: sessionRoute("/archive"), auth: "engine", handle: ({ params }) => ok({ session: store.lifecycle.archiveSession(params[0]!) }) },
+    {
+      method: "POST",
+      path: sessionRoute("/archive"),
+      auth: "engine",
+      async handle({ params: [sessionId] }) {
+        const session = store.lifecycle.archiveSession(sessionId!);
+        await store.settler.endLeftovers(sessionId!);
+        return ok({ session });
+      },
+    },
     { method: "DELETE", path: sessionRoute(""), auth: "engine", handle: ({ params }) => ok({ deleted: store.lifecycle.deleteSession(params[0]!) }) },
     {
       method: "POST",

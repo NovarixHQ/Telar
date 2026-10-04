@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, RotateCwIcon, TriangleAlertIcon, XIcon } from "lucide-react";
+import { BrushCleaningIcon, PlusIcon, RotateCwIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import { RunGlyph } from "../run/icons";
 import { isOpenTerminal, statusDetail, statusLabel, statusTone } from "../run/presentation";
@@ -93,6 +93,15 @@ export function TerminalStrip({ strip, sessionId }: { strip: ShellStrip; session
         onClick={() => strip.setWorkspace(addShell(strip.workspace))}
       >
         <PlusIcon className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        aria-label="Close idle terminals"
+        title="Close idle terminals — the ones not running anything"
+        className="ml-auto shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        onClick={() => void strip.closeIdle()}
+      >
+        <BrushCleaningIcon className="size-3.5" />
       </button>
     </div>
   );

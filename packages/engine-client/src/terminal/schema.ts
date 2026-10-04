@@ -192,6 +192,7 @@ export const RunOpenInput = z.object({
   name: z.string().min(1).max(120).optional(),
   readinessUrl: z.string().url().optional(),
   readyPattern: z.string().min(1).max(500).optional(),
+  fresh: z.boolean().optional(),
 });
 export type RunOpenInput = z.infer<typeof RunOpenInput>;
 

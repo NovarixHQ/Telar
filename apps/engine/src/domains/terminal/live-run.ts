@@ -32,6 +32,7 @@ export type StartRunInput = {
   origin?: RunOrigin;
   openedBy?: "person" | "agent";
   readyPattern?: string;
+  reuseIdle?: boolean;
 };
 
 export type LiveRun = {
@@ -95,6 +96,8 @@ export type RunManagerOptions = {
   shellDir?: string;
   env?: NodeJS.ProcessEnv;
   promptWaitMs?: number;
+  agentShellCap?: number;
+  agentShellIdleMs?: number;
 };
 
 export const defaultProbe: RunProbe = async (url) => {

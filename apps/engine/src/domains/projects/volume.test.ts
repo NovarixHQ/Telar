@@ -439,7 +439,7 @@ test("a WORKTREE session is left alone — its checkout never moved", async () =
   const root = path.join(mount, "project");
   fs.mkdirSync(root);
   store.projectRegistry.register({ id: "project_one", name: "One", root });
-  store.lifecycle.createSession({ id: "session_tree", projectId: "project_one", envMode: "worktree" });
+  await store.requestPath.createSession({ id: "session_tree", projectId: "project_one", envMode: "worktree" });
   const cut = store.records.get("session_tree").workspace;
   expect(cut.mode).toBe("worktree");
 
@@ -504,9 +504,8 @@ test("a worktree cut that failed while the drive was away is retried once on rec
   let repositoryReadable = true;
   const store = new EngineStore(home(), () => 1_000, {
     volumes: mounts.deps,
-    git: () => ({ status: 0, stdout: "true\n", stderr: "" }),
     asyncGit: async (_cwd, args) => {
-      if (args[0] !== "worktree" || args[1] !== "add") return { status: 0, stdout: "", stderr: "" };
+      if (args[0] !== "worktree" || args[1] !== "add") return { status: 0, stdout: "true\n", stderr: "" };
       cuts += 1;
       return repositoryReadable
         ? { status: 0, stdout: "", stderr: "" }
@@ -519,7 +518,7 @@ test("a worktree cut that failed while the drive was away is retried once on rec
   store.projectRegistry.register({ id: "project_one", name: "One", root });
 
   repositoryReadable = false;
-  store.lifecycle.createSession({ id: "session_tree", projectId: "project_one", envMode: "worktree" });
+  await store.requestPath.createSession({ id: "session_tree", projectId: "project_one", envMode: "worktree" });
   expect(await until(() => store.records.get("session_tree").preparation?.state === "failed")).toBe(true);
   const failedAfter = cuts;
 
@@ -547,8 +546,7 @@ test("a worktree release PRUNES NOTHING while the project's drive is away", asyn
   const ran: string[] = [];
   const store = new EngineStore(home(), () => 1_000, {
     volumes: mounts.deps,
-    git: () => ({ status: 0, stdout: "true\n", stderr: "" }),
-    asyncGit: async (_cwd, args) => { ran.push(args.join(" ")); return { status: 0, stdout: "", stderr: "" }; },
+    asyncGit: async (_cwd, args) => { ran.push(args.join(" ")); return { status: 0, stdout: "true\n", stderr: "" }; },
   });
   const mount = mounts.mount("TelarVR");
   const root = path.join(mount, "project");
@@ -574,8 +572,7 @@ test("…and prunes as it always did once the drive is back", async () => {
   const ran: string[] = [];
   const store = new EngineStore(home(), () => 1_000, {
     volumes: mounts.deps,
-    git: () => ({ status: 0, stdout: "true\n", stderr: "" }),
-    asyncGit: async (_cwd, args) => { ran.push(args.join(" ")); return { status: 0, stdout: "", stderr: "" }; },
+    asyncGit: async (_cwd, args) => { ran.push(args.join(" ")); return { status: 0, stdout: "true\n", stderr: "" }; },
   });
   const mount = mounts.mount("TelarVR");
   const root = path.join(mount, "project");

@@ -96,7 +96,7 @@ test("a session names its provider, and the routing instance is derived from it"
   expect(store.claims.claimNextTurn("worker_one")).toMatchObject({ sessionId: "session_codex", driver: "codex" });
 });
 
-test("a local session records the commit it started from, so its review survives the agent committing", () => {
+test("a local session records the commit it started from, so its review survives the agent committing", async () => {
   // Without a base, "what has this session done" was answerable only for
   // worktree sessions: `git status` forgets a change the instant it is
   // committed, so a session that committed its work reviewed as having done
@@ -106,7 +106,7 @@ test("a local session records the commit it started from, so its review survives
     git: (_cwd, args) => (args.join(" ") === "rev-parse HEAD" ? { status: 0, stdout: "base000\n", stderr: "" } : { status: 1, stdout: "", stderr: "" }),
   });
   store.projectRegistry.register({ id: "project_one", name: "One", root: projectRoot });
-  const session = store.lifecycle.createSession({ id: "session_one", projectId: "project_one" });
+  const session = await store.requestPath.createSession({ id: "session_one", projectId: "project_one" });
   expect(session.workspace).toEqual({ mode: "local", path: projectRoot, baseRef: "base000" });
 });
 

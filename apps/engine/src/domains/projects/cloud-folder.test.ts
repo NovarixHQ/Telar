@@ -6,8 +6,9 @@ import path from "node:path";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
 import { probeAvailability, volumeForRoot } from "../../platform/fs/volumes";
-import { createAsyncGitRunner, defaultGitRunner } from "../../platform/git/runner";
+import { createAsyncGitRunner } from "../../platform/git/runner";
 import { createSessionWorktreeAsync, defaultWorktreesRoot, isGitWorkTree, prepareSessionWorktree } from "../worktrees";
+import { syncGit } from "../../../test/worktree-fixtures";
 
 /**
  * A REPOSITORY INSIDE A CLOUD DRIVE'S LOCAL MIRROR, end to end — the reported
@@ -55,16 +56,16 @@ test("a cloud-folder repository registers as an ordinary project on this Mac's o
   expect(project.volume).toBeUndefined();
   expect(volumeForRoot(root, { platform: "darwin" })).toBeUndefined();
   expect(await probeAvailability(project, { platform: "darwin" })).toBe("available");
-  expect(isGitWorkTree(defaultGitRunner, root)).toBe(true);
+  expect(isGitWorkTree(syncGit, root)).toBe(true);
 });
 
 test("its worktrees are cut in the worktrees root, never inside the cloud folder", async () => {
   const { root } = cloudRepo();
   const engineRoot = tmp("telar-cloud-engine-");
-  const { plan, baseSha } = prepareSessionWorktree(defaultGitRunner, { engineRoot, projectRoot: root, sessionId: "session_one" });
+  const { plan, baseSha } = prepareSessionWorktree(syncGit, { engineRoot, projectRoot: root, sessionId: "session_one" });
   expect(path.dirname(plan.path)).toBe(defaultWorktreesRoot(engineRoot));
   expect(plan.path.startsWith(path.dirname(root))).toBe(false);
-  const cut = await createSessionWorktreeAsync(createAsyncGitRunner(), { engineRoot, projectRoot: root, plan, baseSha });
+  const cut = await createSessionWorktreeAsync(createAsyncGitRunner(), { engineRoot, projectRoot: root, plan, baseSha: baseSha! });
   expect(fs.existsSync(path.join(cut.path, "README.md"))).toBe(true);
   // Syncing a checkout per session into somebody's drive would be the surprise.
   expect(fs.readdirSync(path.dirname(root))).toEqual(["repo"]);

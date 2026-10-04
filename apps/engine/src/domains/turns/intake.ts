@@ -84,7 +84,8 @@ type IntakeDeps = {
   availability: (project: Project) => ProjectAvailability;
   assertProjectAvailable: (projectId: string) => void;
   reopenWorktree: (sessionId: string) => void;
-  prepareWorktree: (sessionId: string, projectRoot: string, plan: WorktreePlan, baseSha: string) => void;
+  prepareWorktree: (sessionId: string, projectRoot: string, plan: WorktreePlan, baseSha: string | undefined, baseRef?: string) => void;
+  gitAnswersCut: (projectRoot: string, baseRef: string | undefined) => boolean;
   // Injected rather than imported: the worktrees domain reaches agent-tools, which reads the sessions index at load.
   planWorktree: typeof prepareSessionWorktree;
   derivedBranchFor: (title: string, sessionId: string) => string | undefined;
@@ -338,13 +339,13 @@ export class TurnIntake {
   // The first message turns a draft into a session: its worktree is planned now and cut after the document is written.
   private promoteDraft(sessionId: string, session: Session, turn: Turn, text: string, kind: "compact" | undefined, at: number): void {
     const draft = session.draft!;
-    let cut: { projectRoot: string; plan: WorktreePlan; baseSha: string } | undefined;
+    let cut: { projectRoot: string; plan: WorktreePlan; baseSha?: string } | undefined;
     if (session.state === "archived") throw new EngineStateError("conflict", "session is archived");
     if (kind === "compact") throw new EngineStateError("conflict", "a browser draft has no conversation to compact");
     if (session.envMode === "worktree") {
       if (!session.projectId) throw new EngineStateError("conflict", "a worktree draft requires a project");
       const project = this.deps.getProject(session.projectId);
-      const planned = this.deps.planWorktree(this.deps.git, {
+      const planned = this.deps.planWorktree(this.deps.gitAnswersCut(project.root, draft.baseRef) ? this.deps.git : undefined, {
         engineRoot: this.kernel.paths.root, projectRoot: project.root, projectName: project.name, sessionId,
         // The send already went through `assertProjectAvailable`; this is that reading, not a second one.
         availability: this.deps.availability(project),
@@ -352,7 +353,7 @@ export class TurnIntake {
         ...(draft.baseRef ? { baseRef: draft.baseRef } : {}),
         ...(draft.branchName ? { branchName: draft.branchName } : {}),
       });
-      session.workspace = { mode: "worktree", path: planned.plan.path, branch: planned.plan.branch, baseRef: planned.baseSha };
+      session.workspace = { mode: "worktree", path: planned.plan.path, branch: planned.plan.branch, ...(planned.baseSha ? { baseRef: planned.baseSha } : {}) };
       session.preparation = { state: "preparing", at };
       cut = { projectRoot: project.root, ...planned };
     }
@@ -362,7 +363,7 @@ export class TurnIntake {
     }
     delete session.draft;
     this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(session));
-    if (cut) this.deps.prepareWorktree(sessionId, cut.projectRoot, cut.plan, cut.baseSha);
+    if (cut) this.deps.prepareWorktree(sessionId, cut.projectRoot, cut.plan, cut.baseSha, draft.baseRef);
   }
 
   /** Where a corrected message stands for this recipient; refused when it names nothing this sender sent here. */

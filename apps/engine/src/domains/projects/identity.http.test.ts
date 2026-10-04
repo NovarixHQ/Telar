@@ -204,12 +204,12 @@ describe("a new conversation honours the project before the Mac", () => {
     expect(store.lifecycle.createSession({ id: "session_a", projectId: "project_one", envMode: "local" }).envMode).toBe("local");
   });
 
-  test("a pinned worktree yields on an unversioned checkout rather than refusing the session", () => {
+  test("a pinned worktree yields on an unversioned checkout rather than refusing the session", async () => {
     // Nobody typed `worktree` for THIS session — it is a preference, like the
     // Mac's, and a project without git must still be openable.
     const store = readyStore();
     store.projectRegistry.update("project_one", { envMode: "worktree" });
-    expect(store.lifecycle.createSession({ id: "session_a", projectId: "project_one" }).envMode).toBe("local");
+    expect((await store.requestPath.createSession({ id: "session_a", projectId: "project_one" })).envMode).toBe("local");
   });
 
   test("the project's default model rides the session, when the session lands on its login", () => {

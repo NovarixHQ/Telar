@@ -5,11 +5,11 @@ import path from "node:path";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
 import { worktreeReady } from "../../../test/worktree-ready";
-import { createAsyncGitRunner, defaultAsyncGitRunner, defaultGitRunner, type AsyncGitRunner } from "../../platform/git/runner";
+import { createAsyncGitRunner, defaultAsyncGitRunner, type AsyncGitRunner } from "../../platform/git/runner";
 import { prepareSessionWorktree, removeSessionWorktreeAsync, WorktreeError, derivedBranchFor } from "./index";
 import { defaultWorktreesRoot } from "./location";
 import { gitOverviewAsync, sessionDiffAsync, sessionFilePatchAsync } from "../git";
-import { tmp, removeTmp, engineHome, worktreeFixtures, repo } from "../../../test/worktree-fixtures";
+import { tmp, removeTmp, engineHome, worktreeFixtures, repo, syncGit } from "../../../test/worktree-fixtures";
 
 afterEach(removeTmp);
 const { poolGit, cutWorktree } = worktreeFixtures();
@@ -49,8 +49,8 @@ test("a non-git project is refused with an actionable message rather than a git 
   const engineRoot = tmp("telar-wt-state-");
   // ON THE REQUEST, not on the row: a directory that cannot host a worktree is
   // a bad request, and #496 deliberately left those refusals synchronous.
-  expect(() => prepareSessionWorktree(defaultGitRunner, { engineRoot, projectRoot, sessionId: "one" })).toThrow(WorktreeError);
-  expect(() => prepareSessionWorktree(defaultGitRunner, { engineRoot, projectRoot, sessionId: "one" })).toThrow(/envMode "local"/);
+  expect(() => prepareSessionWorktree(syncGit, { engineRoot, projectRoot, sessionId: "one" })).toThrow(WorktreeError);
+  expect(() => prepareSessionWorktree(syncGit, { engineRoot, projectRoot, sessionId: "one" })).toThrow(/envMode "local"/);
 });
 
 test("recreating a session's worktree after a reap succeeds instead of failing on the branch name", async () => {
@@ -123,7 +123,7 @@ test("a branch slug outside the engine-owned namespaces is refused", () => {
   const projectRoot = repo();
   const engineRoot = tmp("telar-wt-state-");
   for (const slug of ["main", "feature/login", "loom", "loom//x"]) {
-    expect(() => prepareSessionWorktree(defaultGitRunner, { engineRoot, projectRoot, sessionId: "s", branchSlug: slug })).toThrow(
+    expect(() => prepareSessionWorktree(syncGit, { engineRoot, projectRoot, sessionId: "s", branchSlug: slug })).toThrow(
       WorktreeError,
     );
   }
@@ -147,7 +147,7 @@ test("a session created with envMode worktree records its branch and base", asyn
   const projectRoot = repo();
   const store = new EngineStore(engineHome("telar-wt-engine-"), () => 100);
   store.projectRegistry.register({ id: "project_one", name: "One", root: projectRoot });
-  const session = store.lifecycle.createSession({ id: "session_one", projectId: "project_one", envMode: "worktree" });
+  const session = await store.requestPath.createSession({ id: "session_one", projectId: "project_one", envMode: "worktree" });
 
   expect(session.envMode).toBe("worktree");
   // THE ROW IS COMPLETE BEFORE THE DIRECTORY IS (#496): the branch and the base
@@ -248,7 +248,7 @@ test("a local session's diff says the checkout is shared, and a worktree session
   expect((await store.workspaceReads.projectDiff("project_one")).shared).toBeUndefined();
 });
 
-test("the worktree default yields on an unversioned project, but a stated worktree still throws", () => {
+test("the worktree default yields on an unversioned project, but a stated worktree still throws", async () => {
   // `prepareSessionWorktree` refuses a directory that is not a repo — right for
   // a caller who asked for a worktree, and wrong for one who asked for nothing
   // and would otherwise be unable to open a session in that project at all.
@@ -256,19 +256,19 @@ test("the worktree default yields on an unversioned project, but a stated worktr
   store.projectRegistry.register({ id: "project_one", name: "One", root: tmp("telar-wt-plain-") });
   store.settings.setSessionDefaults({ envMode: "worktree" });
 
-  const silent = store.lifecycle.createSession({ id: "session_one", projectId: "project_one" });
+  const silent = await store.requestPath.createSession({ id: "session_one", projectId: "project_one" });
   expect(silent.envMode).toBe("local");
 
-  expect(() => store.lifecycle.createSession({ id: "session_two", projectId: "project_one", envMode: "worktree" })).toThrow(WorktreeError);
+  await expect(store.requestPath.createSession({ id: "session_two", projectId: "project_one", envMode: "worktree" })).rejects.toThrow(WorktreeError);
 });
 
-test("a refused worktree request leaves no half-created session behind", () => {
+test("a refused worktree request leaves no half-created session behind", async () => {
   // The REFUSALS still happen before the session document is written (#496), so
   // a bad request leaves nothing to repair on read. What moved to the
   // background is only the cut itself, whose failure lands on the row.
   const store = new EngineStore(engineHome("telar-wt-engine-"), () => 100);
   store.projectRegistry.register({ id: "project_one", name: "One", root: tmp("telar-wt-plain-") });
-  expect(() => store.lifecycle.createSession({ id: "session_one", projectId: "project_one", envMode: "worktree" })).toThrow(WorktreeError);
+  await expect(store.requestPath.createSession({ id: "session_one", projectId: "project_one", envMode: "worktree" })).rejects.toThrow(WorktreeError);
   expect(() => store.records.get("session_one")).toThrow(EngineStateError);
 });
 
@@ -359,7 +359,7 @@ test("human branch names refuse the engine namespaces and unusable shapes", () =
   const projectRoot = repo();
   const engineRoot = tmp("telar-wt-state-");
   for (const bad of ["telar/mine", "loom/x", "-flag", "a..b", "a//b", "ends/"]) {
-    expect(() => prepareSessionWorktree(defaultGitRunner, { engineRoot, projectRoot, sessionId: "s", branchName: bad })).toThrow(WorktreeError);
+    expect(() => prepareSessionWorktree(syncGit, { engineRoot, projectRoot, sessionId: "s", branchName: bad })).toThrow(WorktreeError);
   }
 });
 
@@ -411,9 +411,9 @@ test("the default base falls back to common names, and is absent without remote 
 test("async git reads preserve overview and review data for committed and untracked changes", async () => {
   const asyncGit = createAsyncGitRunner();
   const root = repo();
-  const base = defaultGitRunner(root, ["rev-parse", "HEAD"]).stdout.trim();
+  const base = syncGit(root, ["rev-parse", "HEAD"]).stdout.trim();
   fs.writeFileSync(path.join(root, "README.md"), "hello\ncommitted\n");
-  defaultGitRunner(root, ["commit", "-am", "second"]);
+  syncGit(root, ["commit", "-am", "second"]);
   fs.writeFileSync(path.join(root, "README.md"), "hello\ncommitted\nworking\n");
   fs.writeFileSync(path.join(root, "new.txt"), "new file\n");
   const input = { cwd: root, baseRef: base };

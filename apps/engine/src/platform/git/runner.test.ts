@@ -5,17 +5,10 @@ import { PassThrough } from "node:stream";
 import fs from "node:fs";
 import path from "node:path";
 import { createGitChildren } from "./children";
-import { createAsyncGitRunner, defaultAsyncGitRunner, createGitRunner, DEFAULT_GIT_TIMEOUT_MS, defaultGitRunner, GIT_TIMEOUT_STATUS, STUCK_CHILD_REPORT_MS } from "./runner";
+import { createAsyncGitRunner, defaultAsyncGitRunner, GIT_TIMEOUT_STATUS, STUCK_CHILD_REPORT_MS } from "./runner";
 import { tmp, removeTmp, until, repo } from "../../../test/worktree-fixtures";
 
 afterEach(removeTmp);
-
-function stalledGit(): { bin: string } {
-  const dir = tmp("telar-stalled-git-");
-  const bin = path.join(dir, "git");
-  fs.writeFileSync(bin, "#!/bin/sh\nexec sleep 600\n", { mode: 0o755 });
-  return { bin };
-}
 
 const alive = (pid: number): boolean => {
   try {
@@ -26,52 +19,12 @@ const alive = (pid: number): boolean => {
   }
 };
 
-test("a git child that stalls is reported as timed out at its bound, not waited on forever", () => {
-  const { bin } = stalledGit();
-  // 250 ms, where it used to be 1,500: nothing in this test depends on the child
-  // having reached its first line, because the bound is on the PARENT's wait.
-  const git = createGitRunner({ gitBin: bin, defaultTimeoutMs: 250 });
-  const started = Date.now();
-  const result = git("/tmp", ["rev-parse", "--abbrev-ref", "HEAD"]);
-  expect(result.timedOut).toBe(true);
-  expect(result.status).toBe(GIT_TIMEOUT_STATUS);
-  expect(result.stderr).toContain("did not finish within 250ms");
-  // The fake sleeps for ten minutes, so this bounds a hang rather than measuring
-  // the bound: twenty times the budget, compared against nothing (#706).
-  expect(Date.now() - started).toBeLessThan(5_000);
-});
-
-test("and the child itself is killed, not left behind once the runner has given up", () => {
-  const { bin } = stalledGit();
-  const git = createGitRunner({ gitBin: bin, defaultTimeoutMs: 2_000 });
-  const result = git("/tmp", ["rev-parse", "--abbrev-ref", "HEAD"]);
-  expect(result.timedOut).toBe(true);
-  // Reported by the runner, which spawned it — not written by the child, which
-  // may never have run a line. `spawnSync` reaps what it kills before returning,
-  // so by here the process is either gone or was never anything to begin with.
-  const killed = result.killedPid;
-  expect(killed).toBeGreaterThan(0);
-  expect(alive(killed as number)).toBe(false);
-  // And the pid is in the message, where a log that says which process it killed
-  // is worth more than one that says it killed something.
-  expect(result.stderr).toContain(`(pid ${killed})`);
-});
-
-test("a per-call bound wins over the runner's default", () => {
-  const { bin } = stalledGit();
-  const git = createGitRunner({ gitBin: bin, defaultTimeoutMs: 60_000 });
-  const started = Date.now();
-  expect(git("/tmp", ["status"], { timeoutMs: 200 }).timedOut).toBe(true);
-  expect(Date.now() - started).toBeLessThan(5_000);
-});
-
-test("an ordinary failure is still an ordinary failure, and the default runner is bounded", () => {
+test("an ordinary failure is still an ordinary failure", async () => {
   const unversioned = tmp("telar-not-a-repo-");
-  const result = defaultGitRunner(unversioned, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const result = await defaultAsyncGitRunner(unversioned, ["rev-parse", "--abbrev-ref", "HEAD"]);
   expect(result.status).not.toBe(0);
   expect(result.timedOut).toBeUndefined();
   expect(result.stderr).toContain("not a git repository");
-  expect(DEFAULT_GIT_TIMEOUT_MS).toBeGreaterThan(0);
 });
 
 test("async git deadlines do not block timers and missing binaries return failures", async () => {
@@ -351,37 +304,18 @@ describe("live git children", () => {
     expect(refused[0]!.stderr).toContain("cap 16");
     expect(children.live()).toBeLessThanOrEqual(16);
   });
-
-  test("the sync runner counts toward the cap and refuses past it without spawning", () => {
-    const root = tmp("telar-git-cap-");
-    const marker = path.join(root, "ran");
-    const bin = path.join(root, "git");
-    fs.writeFileSync(bin, `#!/bin/sh\ntouch ${JSON.stringify(marker)}\n`, { mode: 0o755 });
-    const children = createGitChildren(1, () => {});
-    const git = createGitRunner({ gitBin: bin, children });
-    expect(children.tryAcquire()).toBe(true);
-    const refused = git(root, ["status"]);
-    expect(refused.status).not.toBe(0);
-    expect(refused.stderr).toContain("cap is 1");
-    expect(fs.existsSync(marker)).toBe(false);
-    children.release();
-    expect(git(root, ["status"]).status).toBe(0);
-    expect(fs.existsSync(marker)).toBe(true);
-    expect(children.live()).toBe(0);
-  });
 });
 
-test("both runners hand git fsmonitor off and no optional locks, over what the caller passes", async () => {
+test("the runner hands git fsmonitor off and no optional locks, over what the caller passes", async () => {
   const script = ["-e", "process.stdout.write(JSON.stringify([process.env.GIT_OPTIONAL_LOCKS, process.env.GIT_CONFIG_PARAMETERS, process.env.EXTRA]))"];
   const expected = JSON.stringify(["0", "'core.fsmonitor=false' 'core.untrackedCache=false'", "yes"]);
-  expect(createGitRunner({ gitBin: process.execPath })(process.cwd(), script, { env: { EXTRA: "yes" } }).stdout).toBe(expected);
   expect((await createAsyncGitRunner({ gitBin: process.execPath })(process.cwd(), script, { env: { EXTRA: "yes" } })).stdout).toBe(expected);
 });
 
 test("a status through the runner in a repo with fsmonitor on reads it as off", async () => {
   const root = repo();
   execFileSync("git", ["config", "core.fsmonitor", "true"], { cwd: root });
-  expect(defaultGitRunner(root, ["config", "core.fsmonitor"]).stdout.trim()).toBe("false");
+  expect((await defaultAsyncGitRunner(root, ["config", "core.fsmonitor"])).stdout.trim()).toBe("false");
   try {
     expect((await defaultAsyncGitRunner(root, ["status", "--porcelain"])).status).toBe(0);
     expect(spawnSync("git", ["fsmonitor--daemon", "status"], { cwd: root , timeout: 20_000, killSignal: "SIGKILL" }).status).not.toBe(0);

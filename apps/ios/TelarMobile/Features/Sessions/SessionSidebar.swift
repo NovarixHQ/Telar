@@ -450,6 +450,7 @@ struct SessionSidebar: View {
             }
             .padding(.leading, nested ? 22 : 0)
             .opacity(inbox.staleHosts.contains(row.hostId) ? 0.6 : 1)
+            .warmsHead(row.id) { settings.api(for: row.hostId) }
 
             .overlay(alignment: .leading) {
                 if variant == .card, let tone = accentTone(row.session) {

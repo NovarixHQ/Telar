@@ -26,11 +26,11 @@ import Observation
     }
     private var attachmentsKey: String? { hostId.map { "telar.draft.\($0).\(sessionId).attachments" } }
 
-    init(api: any EngineAPI, sessionId: EngineID, hostId: HostID? = nil, cache: HostSnapshotCache? = nil) {
+    init(api: any EngineAPI, sessionId: EngineID, hostId: HostID? = nil, cache: HostSnapshotCache? = nil, heads: SessionHeads? = nil) {
         self.api = api
         self.sessionId = sessionId
         self.hostId = hostId
-        sync = SessionSyncEngine(api: api, sessionId: sessionId, cache: cache)
+        sync = SessionSyncEngine(api: api, sessionId: sessionId, cache: cache, heads: heads)
         if let data = UserDefaults.standard.data(forKey: pendingKey) {
             pendingSend = try? JSONDecoder().decode(PendingSend.self, from: data)
         }

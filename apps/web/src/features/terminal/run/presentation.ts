@@ -68,42 +68,6 @@ export function isOpenTerminal(view: RunView | undefined): boolean {
   return view?.status === "running" || view?.status === "ready";
 }
 
-/**
- * THE NEWEST OPEN TERMINAL. `undefined` when none is open. The masthead reads
- * the whole list (`openTerminals`); this is for a caller that wants one.
- */
-export function latestOpenTerminal(answer: RunStatusAnswer | undefined): RunView | undefined {
-  // `?? []`: a paired Mac on an older engine answers without the list.
-  return (answer?.terminals ?? []).find((run) => isOpenTerminal(run));
-}
-
-/**
- * EVERY OPEN TERMINAL OF THE SESSION, OLDEST FIRST — the order the Terminal
- * strip reads in, so the masthead's list and the chips name them in the same
- * order. The engine answers newest first; this does not depend on that.
- */
-export function openTerminals(answer: RunStatusAnswer | undefined): RunView[] {
-  return (answer?.terminals ?? []).filter((run) => isOpenTerminal(run)).sort((a, b) => a.startedAt - b.startedAt);
-}
-
-/**
- * A TERMINAL'S NAME: the title the engine gave it at launch — "web dev", then
- * "web dev #2" for a second one open at once. The engine numbers them (the
- * lowest free number among the session's open terminals), because only it sees
- * two presses in the same tick; this never invents a number. An engine older
- * than titles falls back to the configuration's name.
- */
-export function terminalTitle(view: RunView): string {
-  return view.title?.trim() || view.configName;
-}
-
-/** What the Run button names: nothing, the one open terminal, or how many are open. */
-export function runSummary(open: readonly RunView[]): string {
-  if (open.length === 0) return "Run";
-  if (open.length === 1) return terminalTitle(open[0]!);
-  return `${open.length} terminals`;
-}
-
 export function describeReadiness(readiness: RunReadiness, url?: string): string | undefined {
   switch (readiness.kind) {
     case "none":

@@ -1,50 +1,12 @@
 "use client";
 
-import { PlusIcon, SlidersHorizontalIcon, TriangleAlertIcon } from "lucide-react";
+import { PlusIcon, SlidersHorizontalIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { cn } from "@/ui/utils";
 import { RunGlyph } from "../run/icons";
-import { statusDetail, statusLabel, statusTone, terminalTitle, type RunTone } from "../run/presentation";
-import type { RunConfigurationView, RunView } from "../run/types";
+import type { RunConfigurationView } from "../run/types";
 import type { RunHeader } from "../hooks/use-run-header";
 import { RunConfigEditor } from "./run-config-editor";
-
-export const TONE_DOT: Record<RunTone, string> = {
-  idle: "bg-muted-foreground/40",
-  working: "bg-warning",
-  good: "bg-success",
-  bad: "bg-destructive",
-};
-
-const heading = "px-2 pt-1 text-3xs font-medium tracking-wide text-muted-foreground uppercase";
-
-/** A warning shows in full here, the one place with room for the engine's sentence. */
-function OpenTerminalRow({ view, config }: { view: RunView; config: RunConfigurationView | undefined }) {
-  const title = terminalTitle(view);
-  return (
-    <div className="flex flex-col gap-0.5 rounded-md px-2 py-1.5">
-      <div className="flex items-center gap-2">
-        <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", TONE_DOT[statusTone(view)])} />
-        <RunGlyph icon={config?.icon} className="size-3.5 shrink-0 opacity-80" />
-        <span className="min-w-0 flex-1 truncate text-sm" title={view.command}>
-          {title}
-        </span>
-        <span className="shrink-0 text-3xs text-muted-foreground">{statusLabel(view)}</span>
-      </div>
-      {view.warning && (
-        <p className="flex items-start gap-1 pl-3.5 text-2xs leading-snug text-warning">
-          <TriangleAlertIcon aria-hidden className="mt-px size-3 shrink-0" />
-          <span>{statusDetail(view)}</span>
-        </p>
-      )}
-      {view.readinessUrl && !view.warning && (
-        <a href={view.readinessUrl} target="_blank" rel="noreferrer" className="truncate pl-3.5 text-2xs text-muted-foreground underline-offset-2 hover:underline">
-          {view.readinessUrl}
-        </a>
-      )}
-    </div>
-  );
-}
 
 function RunRow({ header, config }: { header: RunHeader; config: RunConfigurationView }) {
   return (
@@ -77,17 +39,9 @@ function RunRow({ header, config }: { header: RunHeader; config: RunConfiguratio
 }
 
 export function RunHeaderMenu({ header, onWatchOutput }: { header: RunHeader; onWatchOutput: (() => void) | undefined }) {
-  const { terminals, configs, error } = header;
+  const { configs, error } = header;
   return (
     <>
-      {terminals.length > 0 && (
-        <section aria-label="Open terminals" className="flex max-h-56 flex-col gap-0.5 overflow-y-auto border-b border-border p-1">
-          <h3 className={heading}>Open</h3>
-          {terminals.map((view) => (
-            <OpenTerminalRow key={view.terminalId} view={view} config={configs?.find((config) => config.id === view.configId)} />
-          ))}
-        </section>
-      )}
       <section aria-label="Run a configuration" className="flex min-h-0 max-h-72 flex-col gap-0.5 overflow-y-auto p-1">
         {configs === undefined ? (
           <p className="px-2 py-1.5 text-2xs text-muted-foreground">Reading configurations…</p>

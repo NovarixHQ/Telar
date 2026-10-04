@@ -3,10 +3,16 @@
 import { BrushCleaningIcon, PlusIcon, RotateCwIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import { RunGlyph } from "../run/icons";
-import { isOpenTerminal, statusDetail, statusLabel, statusTone } from "../run/presentation";
+import { isOpenTerminal, statusDetail, statusLabel, statusTone, type RunTone } from "../run/presentation";
 import { activateShell, addShell, shellLabel, type TerminalShell } from "../workspace";
 import type { ShellStrip } from "../hooks/use-shell-strip";
-import { TONE_DOT } from "./run-header-menu";
+
+const TONE_DOT: Record<RunTone, string> = {
+  idle: "bg-muted-foreground/40",
+  working: "bg-warning",
+  good: "bg-success",
+  bad: "bg-destructive",
+};
 
 const chipButton = "shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground";
 

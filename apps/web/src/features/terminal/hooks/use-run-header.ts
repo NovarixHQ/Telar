@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { createRunApi, type RunApi } from "../run/api";
-import { openTerminals } from "../run/presentation";
 import { useRunStatusFeed } from "../run/status-stream";
 import type { RunConfigurationDraft, RunConfigurationView, RunView } from "../run/types";
 
@@ -26,12 +25,12 @@ export function createReadGuard() {
 
 export type ReadGuard = ReturnType<typeof createReadGuard>;
 
-/** "Setup" only for a list known to be empty with nothing open; an unread list is unknown, not empty. */
-export function headerMode(configs: RunConfigurationView[] | undefined, active: RunView | undefined): "setup" | "run" {
-  return configs?.length === 0 && !active ? "setup" : "run";
+/** "Setup" only for a list known to be empty; an unread list is unknown, not empty. */
+export function headerMode(configs: RunConfigurationView[] | undefined): "setup" | "run" {
+  return configs?.length === 0 ? "setup" : "run";
 }
 
-/** The run pill's state: one status read then events (never a poll), and the configurations re-read on each open. */
+/** The run pill's state: the configurations re-read on each open, and the status feed handed on to whoever reveals new terminals. */
 export function useRunHeader({
   sessionId,
   hostId,
@@ -61,7 +60,6 @@ export function useRunHeader({
   useEffect(() => {
     if (feed.status) report.current?.(feed.status.terminals ?? []);
   }, [feed.status]);
-  const terminals = openTerminals(feed.status);
 
   const loadConfigs = useCallback(() => {
     const token = guard.open("configs");
@@ -107,7 +105,7 @@ export function useRunHeader({
   // The engine types it into this configuration's idle shell, or opens a new one.
   const start = (configId: string) => void run(() => api.start(sessionId, configId));
 
-  return { open, setOpen, busy, configs, editing, setEditing, error, terminals, save, start };
+  return { open, setOpen, busy, configs, editing, setEditing, error, save, start };
 }
 
 export type RunHeader = ReturnType<typeof useRunHeader>;

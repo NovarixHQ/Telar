@@ -1,17 +1,16 @@
 "use client";
 
-import { ChevronDownIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
+import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { cn } from "@/ui/utils";
 import { RunGlyph } from "../run/icons";
-import { runSummary } from "../run/presentation";
 import type { RunApi } from "../run/api";
 import type { RunView } from "../run/types";
 import { headerMode, useRunHeader } from "../hooks/use-run-header";
 import { RunHeaderEditor, RunHeaderMenu } from "./run-header-menu";
 
-/** The masthead's run pill: setup and run. Watching output lives in the panel's Terminal tab. */
+/** The masthead's run pill: an action menu. Busy and idle show on the panel's terminal strip, not here. */
 export function RunHeaderControl({
   sessionId,
   hostId,
@@ -30,18 +29,9 @@ export function RunHeaderControl({
   onTerminals?: (terminals: readonly RunView[]) => void;
 }) {
   const header = useRunHeader({ sessionId, hostId, api, onTerminals });
-  const { terminals, configs, editing } = header;
-  const summary = runSummary(terminals);
-  const setup = headerMode(configs, terminals[0]) === "setup";
-  // One open terminal wears its recipe's glyph; several do not share one.
-  const only = terminals.length === 1 ? terminals[0] : undefined;
-  const onlyConfig = only ? configs?.find((config) => config.id === only.configId) : undefined;
-  const warned = terminals.some((view) => view.warning);
-  const label = setup
-    ? "Run — set up a configuration"
-    : terminals.length === 0
-      ? "Run this project"
-      : `Run: ${summary}${warned ? ", with a warning" : ""}`;
+  const { configs, editing } = header;
+  const setup = headerMode(configs) === "setup";
+  const label = setup ? "Run — set up a configuration" : "Run this project";
 
   return (
     <Popover
@@ -63,9 +53,8 @@ export function RunHeaderControl({
               </>
             ) : (
               <>
-                <RunGlyph icon={onlyConfig?.icon} className="size-3.5 shrink-0 opacity-80" />
-                <span className="max-w-32 truncate">{summary}</span>
-                {warned && <TriangleAlertIcon aria-hidden className="size-3 shrink-0 text-warning" />}
+                <RunGlyph className="size-3.5 shrink-0 opacity-80" />
+                <span>Run</span>
                 <ChevronDownIcon className="size-3 shrink-0 opacity-60" />
               </>
             )}

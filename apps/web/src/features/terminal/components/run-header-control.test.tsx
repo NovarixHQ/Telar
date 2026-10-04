@@ -45,8 +45,6 @@ function recordingApi(status: RunStatusAnswer) {
     configurations: async () => ({ configurations: [{ id: "config_dev", name: "dev server" }] }),
     status: async () => status,
     start: async (_s: string, configId: string) => (calls.push(`start:${configId}`), view()),
-    stop: async (_s: string, terminalId?: string) => (calls.push(`stop:${terminalId}`), view({ status: "closed" })),
-    restart: async (_s: string, terminalId?: string) => (calls.push(`restart:${terminalId}`), view()),
   } as unknown as RunApi;
   return { api, calls };
 }
@@ -54,7 +52,7 @@ function recordingApi(status: RunStatusAnswer) {
 const render = (api: RunApi) => renderToStaticMarkup(<RunHeaderControl sessionId="session_1" api={api} onWatchOutput={() => {}} />);
 
 describe("the pill", () => {
-  test("says Run when nothing is open", () => {
+  test("says Run over nothing open", () => {
     const { api } = recordingApi({ terminals: [] });
     expect(render(api)).toContain("Run this project");
   });
@@ -70,12 +68,11 @@ describe("the empty state", () => {
   const config = (over: Partial<RunConfigurationView> = {}): RunConfigurationView =>
     ({ id: "config_dev", name: "dev server", ...over }) as RunConfigurationView;
 
-  test("no saved configuration and nothing open is the one setup case", () => {
-    expect(headerMode([], undefined)).toBe("setup");
+  test("no saved configuration is the one setup case", () => {
+    expect(headerMode([])).toBe("setup");
     // An unread list is unknown, not empty.
-    expect(headerMode(undefined, undefined)).toBe("run");
-    expect(headerMode([], view())).toBe("run");
-    expect(headerMode([config()], undefined)).toBe("run");
+    expect(headerMode(undefined)).toBe("run");
+    expect(headerMode([config()])).toBe("run");
   });
 
   test("the setup case opens the editor, which paints the form rather than a menu", () => {
@@ -140,10 +137,20 @@ describe("the open menu", () => {
     expect(calls).toEqual(["start:config_dev"]);
   });
 
-  test("an open terminal is listed without a stop control or a spinner", async () => {
+  test("an open terminal changes nothing: no Open section, no status, no stop control", async () => {
     await openMenu({ terminals: [view()] });
-    expect(document.body.querySelector('[aria-label="Open terminals"]')?.textContent).toContain("dev server");
-    expect(buttons().some((button) => /^(End|Stop) /.test(button.getAttribute("aria-label") ?? ""))).toBe(false);
-    expect(document.body.querySelector(".animate-spin")).toBeNull();
+    const menu = document.body.textContent ?? "";
+    expect(menu).toContain("Run dev server");
+    expect(menu).toContain("New configuration");
+    expect(menu).toContain("Show terminals");
+    expect(document.body.querySelector('[aria-label="Open terminals"]')).toBeNull();
+    expect(menu).not.toMatch(/Running|Ready|Idle|Open/);
+    expect(buttons().some((button) => /^(End|Stop|Restart) /.test(button.getAttribute("aria-label") ?? ""))).toBe(false);
+  });
+
+  test("the button reads Run while a terminal is busy", async () => {
+    await openMenu({ terminals: [view()] });
+    const trigger = document.body.querySelector('button[aria-label="Run this project"]');
+    expect(trigger?.textContent).toBe("Run");
   });
 });

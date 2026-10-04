@@ -75,7 +75,7 @@ function claudeTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, 
 
 async function runClaude(input: TextGenDriverInput, scratch: string, prompt: string, schema: object): Promise<Structured | undefined> {
   const executable = requireCli("claude", input.binaryPath ? { binaryPath: input.binaryPath } : {});
-  const env = withClaudeSettingsEnv(spawnEnv(input.env));
+  const env = withClaudeSettingsEnv(spawnEnv(input.env)) as NodeJS.ProcessEnv;
   const exit = await runToCompletion(executable, claudeTextGenArgs(input, schema), scratch, input, env, prompt);
   if (exit === undefined) return undefined;
   const answer = parseJson(exit.out);

@@ -16,7 +16,6 @@ function running(store: EngineStore, sessionId: string, runId: string) {
   return { sessionId, runId, claimToken };
 }
 
-/** `session_a` created `session_child` and tasked it; `session_b` is another orchestrator. */
 function setup() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-handoff-"));
   homes.push(home);

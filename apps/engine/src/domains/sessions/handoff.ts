@@ -13,7 +13,6 @@ type HandoffDeps = {
   appendEvent(sessionId: string, event: JournalEntry): unknown;
 };
 
-/** The session `session` reports to, as the rail nests it: its creator, else its earliest assigner still attached. */
 function parentIdOf(session: Pick<Session, "id" | "startedFrom">, assignments: readonly SessionAssignment[]): string | undefined {
   const first = assignments.filter((each) => each.outcome !== "detached").sort((a, b) => a.receivedAt - b.receivedAt)[0];
   const parent = session.startedFrom?.sessionId ?? first?.fromSessionId;
@@ -30,7 +29,6 @@ export class SessionHandoff {
     return parentIdOf(this.deps.records.require(sessionId), this.deps.assignments(sessionId));
   }
 
-  /** `to` absent detaches. `by` is the session asking, which must be the current parent; absent is a person. */
   handOff(sessionId: string, input: { to?: string; by?: string }): Session {
     return this.kernel.command("handOffSession", () => {
       const session = this.deps.records.require(sessionId);

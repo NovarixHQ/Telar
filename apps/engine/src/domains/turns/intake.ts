@@ -239,7 +239,10 @@ export class TurnIntake {
   }
 
   private assertAnswersAnAssignment(recipientSessionId: string, senderSessionId: string, intent: "result" | "blocker"): void {
-    const assigners = [...new Set(assignmentsOf(this.deps.readQueue(senderSessionId).turns as AssignmentTurn[]).map((each) => each.fromSessionId))];
+    const assignments = assignmentsOf(this.deps.readQueue(senderSessionId).turns as AssignmentTurn[]);
+    if (assignments.length === 0) return;
+    const parent = this.deps.records.require(senderSessionId).startedFrom?.sessionId;
+    const assigners = [...new Set([...assignments.filter((each) => each.outcome !== "detached").map((each) => each.fromSessionId), ...(parent ? [parent] : [])])];
     if (assigners.length === 0 || assigners.includes(recipientSessionId)) return;
     throw new EngineStateError(
       "conflict",

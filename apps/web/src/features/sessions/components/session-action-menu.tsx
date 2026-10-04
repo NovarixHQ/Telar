@@ -7,6 +7,8 @@ import {
   ArrowRightIcon,
   CircleCheckIcon,
   CopyIcon,
+  CornerUpLeftIcon,
+  FolderInputIcon,
   PencilIcon,
   PinIcon,
   PinOffIcon,
@@ -51,6 +53,8 @@ const ICONS: Record<SessionActionIcon, ComponentType<{ className?: string }>> = 
   regenerate: SparklesIcon,
   copy: CopyIcon,
   "project-settings": SettingsIcon,
+  move: FolderInputIcon,
+  detach: CornerUpLeftIcon,
   delete: Trash2Icon,
 };
 

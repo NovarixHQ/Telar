@@ -173,6 +173,7 @@ function capabilities(): { sessions: SessionsCapability; notes: NotesCapability 
     status: async () => ({ session: session(0), turns: TURNS_FIXTURE }),
     stop: async () => ({ stopped: TURNS_FIXTURE.slice(0, 40), live: turn(TURNS - 1) }),
     settle: async () => session(0),
+    handOff: async () => session(0),
     diff: async () =>
       ({
         repository: true,
@@ -494,9 +495,9 @@ describe("every tool description is short enough to carry", () => {
   });
 
   // The count and `warp`'s absence are asserted together, so a re-add cannot pass by replacing something else.
-  test("`warp` is not on the wall, and the wall is fifteen tools", () => {
+  test("`warp` is not on the wall, and the wall is sixteen tools", () => {
     const names = wall().registered.map((entry) => entry.name);
-    expect(names.length).toBe(15);
+    expect(names.length).toBe(16);
     expect(names).not.toContain("warp");
     expect(names.every((name) => name.startsWith("sessions_") || name.startsWith("notes_"))).toBe(true);
   });

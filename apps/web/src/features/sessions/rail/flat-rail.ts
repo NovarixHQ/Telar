@@ -9,10 +9,29 @@ export type FlatEntry = {
 };
 
 export function parentKeyOf(session: Pick<SidebarSession, "id" | "hostId" | "startedFrom" | "assignments">): string | undefined {
-  const first = [...(session.assignments ?? [])].sort((left, right) => left.receivedAt - right.receivedAt)[0];
+  const first = (session.assignments ?? []).filter((each) => each.outcome !== "detached").sort((left, right) => left.receivedAt - right.receivedAt)[0];
   const parentId = session.startedFrom?.sessionId ?? first?.fromSessionId;
   if (!parentId || parentId === session.id) return undefined;
   return session.hostId ? `${session.hostId}:${parentId}` : parentId;
+}
+
+export function moveCandidates(session: SidebarSession, rows: readonly SidebarSession[]): SidebarSession[] {
+  const byKey = new Map(rows.map((row) => [sessionKey(row), row]));
+  const self = sessionKey(session);
+  const under = (row: SidebarSession): boolean => {
+    const seen = new Set<string>();
+    let key = parentKeyOf(row);
+    while (key && !seen.has(key)) {
+      if (key === self) return true;
+      seen.add(key);
+      const parent = byKey.get(key);
+      key = parent ? parentKeyOf(parent) : undefined;
+    }
+    return false;
+  };
+  const parent = parentKeyOf(session);
+  const open = rows.filter((row) => row.hostId === session.hostId && !row.archived && !row.draft && sessionKey(row) !== self && sessionKey(row) !== parent && !under(row));
+  return [...open.filter((row) => row.projectId === session.projectId), ...open.filter((row) => row.projectId !== session.projectId)];
 }
 
 export function flattenSessions(list: Pick<SessionListResult, "pinned" | "sessions">, pinnedOrder: readonly string[] = []): FlatEntry[] {

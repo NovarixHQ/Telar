@@ -154,6 +154,8 @@ export function turnCalls(fetcher: Fetcher) {
       request<{ ok: boolean }>(fetcher, "DELETE", `/api/browser-logins/${encodeURIComponent(id)}`),
     regenerateSessionTitle: (sessionId: string) =>
       request<{ session: Session; changed: boolean }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/regenerate-title`, {}),
+    handOffSession: (sessionId: string, to?: string) =>
+      request<{ session: Session }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/handoff`, to ? { to } : {}),
     /** End a session and free its worktree. The branch survives. */
     archiveSession: (sessionId: string) =>
       request<{ session: Session }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/archive`, {}),

@@ -22,6 +22,7 @@ export type SessionsCapability = {
   turn?(sessionId: string, runId: string): Promise<Turn | undefined>;
   stop(sessionId: string): Promise<{ stopped: Turn[]; live?: Turn }>;
   settle(sessionId: string, settled: boolean): Promise<Session & { ended?: SessionSettleEnded }>;
+  handOff(sessionId: string, to?: string): Promise<Session>;
   putSchedule?(input: { sessionId: string; prompt: string; rule: unknown; zone: string }): Promise<{ id: string; nextRunAt: number; zone: string }>;
   diff(sessionId: string): Promise<SessionDiff>;
   self?: { sessionId: string };
@@ -79,6 +80,8 @@ export const STATUS = `Whether a session is working, waiting, scheduled or idle,
 export const STOP = `Stop a session's work now: the running turn ends and its queue is cleared. Nothing is undone.`;
 
 export const SETTLE = `Shelve a session (settled: false brings it back). Closes its terminals, the person's shells too, and stops background tasks; deletes nothing. Housekeeping, not acceptance.`;
+
+export const HANDOFF = `Move a session you started or tasked under another session, or omit \`to\` to make it stand alone. Its results and blockers go to the new parent from then on.`;
 
 export function endedNote(ended: SessionSettleEnded | undefined): string {
   if (!ended) return "";

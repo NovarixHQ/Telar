@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { SessionAssignment } from "@telar/engine-client";
-import { flatRailRows, flattenSessions, parentKeyOf, summarizeChildren } from "./flat-rail";
+import { flatRailRows, flattenSessions, moveCandidates, parentKeyOf, summarizeChildren } from "./flat-rail";
 import { deriveSessionList, type SidebarSession } from "../session-list";
 
 const NOW = 10_000_000;
@@ -98,6 +98,25 @@ describe("flat rail nesting", () => {
   test("a loop leaves every row in it top-level rather than hiding them", () => {
     const sessions = [row("a", { startedFrom: { sessionId: "b" } }), row("b", { startedFrom: { sessionId: "a" } })];
     expect(shape(sessions).map(([id]) => id).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("handing a session off", () => {
+  test("a detached assignment no longer nests the session under its tasker", () => {
+    expect(parentKeyOf(row("w", { assignments: [{ ...task("boss"), outcome: "detached" }] }))).toBeUndefined();
+  });
+
+  test("the picker offers the rest, its own project first, never itself, its parent or anything under it", () => {
+    const child = row("child", { startedFrom: { sessionId: "boss" } });
+    const rows = [
+      row("elsewhere", { projectId: "p2" }),
+      row("boss"),
+      child,
+      row("grandchild", { startedFrom: { sessionId: "child" } }),
+      row("peer"),
+      row("gone", { archived: true }),
+    ];
+    expect(moveCandidates(child, rows).map((each) => each.id)).toEqual(["peer", "elsewhere"]);
   });
 });
 

@@ -95,7 +95,7 @@ It is not this CLI's own notion of a session, and not a chat thread.
 Tools: \`sessions_list\`, \`sessions_create\`, \`sessions_send\`, \`sessions_read\`,
 \`sessions_status\`, \`sessions_stop\`, \`sessions_settle\`, \`sessions_subscribe\`,
 \`sessions_requests\`, \`sessions_resolve_request\`, \`sessions_schedule\`,
-\`sessions_capabilities\`.
+\`sessions_capabilities\`, \`sessions_handoff\`.
 
 ### Reading a peer without spending your context on it
 

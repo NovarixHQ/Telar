@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { SessionDiff } from "@telar/engine-client";
 import { err, failure, fillWithin, json, type ToolFactory } from "../../agent-tools";
-import { DIFF_COMMITS_CHARS, DIFF_COMMITS_LIMIT, DIFF_FILES_CHARS, DIFF_FILES_LIMIT, endedNote, type SessionsCapability, SETTLE, STOP } from "./shared";
+import { DIFF_COMMITS_CHARS, DIFF_COMMITS_LIMIT, DIFF_FILES_CHARS, DIFF_FILES_LIMIT, endedNote, HANDOFF, type SessionsCapability, SETTLE, STOP } from "./shared";
 
 export function controlTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
   return [
@@ -56,6 +56,34 @@ export function controlTools(tool: ToolFactory, capability: SessionsCapability):
       },
     ),
   ];
+}
+
+export function handoffTool(tool: ToolFactory, capability: SessionsCapability): unknown {
+  return tool(
+    "sessions_handoff",
+    HANDOFF,
+    {
+      sessionId: z.string().min(1),
+      to: z.string().min(1).optional().describe("The new parent; omit to detach."),
+    },
+    async (args) => {
+      const sessionId = String(args.sessionId ?? "");
+      const to = args.to === undefined ? undefined : String(args.to);
+      try {
+        const session = await capability.handOff(sessionId, to);
+        return json({
+          sessionId,
+          ...(to ? { to } : { detached: true }),
+          title: session.title,
+          note: to
+            ? `Handed to ${to}. You no longer wait on it, and its results and blockers go there.`
+            : "It stands alone now. You no longer wait on it, and it reports to no one.",
+        });
+      } catch (error) {
+        return err(`Could not hand off "${sessionId}": ${failure(error)}`);
+      }
+    },
+  );
 }
 
 export async function diffView(capability: SessionsCapability, sessionId: string) {

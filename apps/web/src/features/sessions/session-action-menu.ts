@@ -17,6 +17,8 @@ export type SessionActionIcon =
   | "regenerate"
   | "copy"
   | "project-settings"
+  | "move"
+  | "detach"
   | "delete";
 
 export type SessionActionItem = {
@@ -45,6 +47,7 @@ export type SessionActionTarget = {
   snoozedUntil?: number;
   snoozedAt?: number;
   terminals?: number;
+  parentTitle?: string;
   archived: boolean;
   updatedAt: number;
 };
@@ -67,6 +70,8 @@ export type SessionActionHandlers = {
   regenerateTitle: () => void;
   copy: (text: string) => void;
   projectSettings: (input: { projectId: string }) => void;
+  moveTo?: () => void;
+  detach?: () => void;
   remove: () => void;
 };
 
@@ -197,6 +202,11 @@ export function buildSessionActionMenuItems(state: SessionActionMenuState): Sess
         })),
       });
     }
+  }
+
+  if (!session.archived && session.parentTitle !== undefined) {
+    if (actions.moveTo) items.push({ id: "move", label: "Move to…", icon: "move", separatorBefore: true, run: actions.moveTo });
+    if (actions.detach) items.push({ id: "detach", label: `Detach from ${session.parentTitle}`, icon: "detach", run: actions.detach });
   }
 
   items.push(...titleItems(session, actions));

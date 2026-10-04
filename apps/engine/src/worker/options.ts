@@ -59,6 +59,7 @@ export type WorkerClient = Pick<
   | "session"
   | "stopSession"
   | "sessionDiff"
+  | "handOffSession"
   | "subscribe"
   | "unsubscribe"
   | "subscriptions"

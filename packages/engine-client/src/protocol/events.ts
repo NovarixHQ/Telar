@@ -28,6 +28,7 @@ const SessionUpdated = event("session.updated", { session: Session });
 const SessionArchived = event("session.archived", {});
 const SessionSettled = event("session.settled", { settledBy: SessionSettledBy });
 const SessionWoke = event("session.woke", { wokeAt: Timestamp });
+const SessionHandedOff = event("session.handed_off", { subject: Id, from: Id.optional(), to: Id.optional() });
 
 // ── runtime: the process, not the conversation ─────────────────────────────
 const RuntimeStarted = event("runtime.started", { runtime: Runtime });
@@ -167,6 +168,7 @@ export const EngineEvent = z.discriminatedUnion("type", [
   SessionArchived,
   SessionSettled,
   SessionWoke,
+  SessionHandedOff,
   SessionPaused,
   SessionResumed,
   RuntimeStarted,

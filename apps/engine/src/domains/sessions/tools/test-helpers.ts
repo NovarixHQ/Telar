@@ -55,7 +55,8 @@ export function capabilityOver(store: EngineStore, self?: { sessionId: string })
   return {
     ...(self ? { self } : {}),
     list: async () => store.live.all(),
-    create: async (input) => store.requestPath.createSession({ ...input, origin: "session" }),
+    create: async ({ owner, ...input }) =>
+      store.requestPath.createSession(owner === "person" ? { ...input, detached: false } : { ...input, origin: "session" }),
     send: async (sessionId, input) => store.requestPath.submitAgentTurn(sessionId, input),
     read: async (sessionId, after) => store.queries.readEvents(sessionId, after),
     capabilities: async () => store.sessionCapabilities(self?.sessionId),

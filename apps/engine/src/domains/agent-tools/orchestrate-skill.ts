@@ -101,7 +101,9 @@ Settle each worker session (\`sessions_settle\`) once its work is merged or
 handed over. Settling shelves it; it approves nothing.
 
 Hand a builder to another orchestrator, or detach it, when it belongs
-elsewhere (\`sessions_handoff\`; omit \`to\` to detach).
+elsewhere (\`sessions_handoff\`; omit \`to\` to detach). When the person asks
+for a session for themselves rather than for work you delegate, create it with
+\`owner: "person"\`: it is top level, not yours, and you are not subscribed.
 
 ## 7. Summarise
 

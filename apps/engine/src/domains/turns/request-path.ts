@@ -13,6 +13,8 @@ type RequestPathDeps = {
   requireSenderClaim: (proof: SenderProof) => { sessionId: string };
 };
 
+type CreateSessionRequest = Parameters<SessionLifecycle["createSession"]>[0] & { brief?: { runId: string; input: string } };
+
 const cutQuestions = (baseRef: string | undefined): string[][] => {
   const base = prefetchableRef(baseRef);
   return [["rev-parse", "--is-inside-work-tree"], ...(base ? [["rev-parse", base]] : [])];
@@ -23,8 +25,15 @@ export class RequestPath {
   constructor(private readonly deps: RequestPathDeps) {}
 
   /** A project that is not there skips the prefetch: `createSession` refuses it before asking git anything. */
-  async createSession(requested: Parameters<SessionLifecycle["createSession"]>[0], proof?: SenderProof): Promise<Session> {
-    const input = proof ? { ...requested, startedFrom: { sessionId: this.deps.requireSenderClaim(proof).sessionId, runId: proof.runId } } : requested;
+  async createSession(requested: CreateSessionRequest, proof?: SenderProof): Promise<Session> {
+    const { brief, ...rest } = requested;
+    const input = proof ? { ...rest, startedFrom: { sessionId: this.deps.requireSenderClaim(proof).sessionId, runId: proof.runId } } : rest;
+    const session = await this.cutSession(input);
+    if (brief && requested.id === undefined) await this.submitTurn(session.id, brief);
+    return session;
+  }
+
+  private async cutSession(input: Parameters<SessionLifecycle["createSession"]>[0]): Promise<Session> {
     let project: Project | undefined;
     try {
       project = input.projectId === undefined ? undefined : this.deps.getProject(input.projectId);

@@ -74,6 +74,7 @@ export const sessionsClient = {
       ceilingFrom?: string;
       model?: AgentModelChoice;
       proof?: AgentTurnInput["proof"];
+      brief?: { runId: string; input: string };
     },
   ): Promise<{ session: Session }> {
     return this.request("POST", "/v2/sessions", input);

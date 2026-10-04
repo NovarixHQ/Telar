@@ -14,7 +14,7 @@ export type SessionIdentity = { sessionId: string; proof: () => ClaimProof };
 export type SessionsPort = {
   liveSessions(options: { all?: boolean }): ReturnType<Capability["list"]>;
   createSession(
-    input: Parameters<Capability["create"]>[0] & { origin: "session"; ceilingFrom?: string; proof?: ClaimProof & { sessionId: string } },
+    input: Omit<Parameters<Capability["create"]>[0], "owner"> & { origin?: "session"; detached?: boolean; ceilingFrom?: string; proof?: ClaimProof & { sessionId: string } },
   ): Promise<{ session: Session }>;
   submitAgentTurn(
     sessionId: string,
@@ -130,12 +130,16 @@ export function sessionsCapability(port: SessionsPort, identity: SessionIdentity
     ...(identity ? { self: { sessionId: identity.sessionId } } : {}),
     ...reads,
     list: (options) => port.liveSessions({ all: options?.settled === true }),
-    create: async (input) =>
-      (await port.createSession({
-        ...input,
-        origin: "session",
-        ...(identity ? { ceilingFrom: identity.sessionId, proof: { sessionId: identity.sessionId, ...identity.proof() } } : {}),
-      })).session,
+    create: async ({ owner, ...input }) =>
+      (await port.createSession(
+        owner === "person"
+          ? { ...input, detached: false, ...(identity ? { ceilingFrom: identity.sessionId } : {}) }
+          : {
+              ...input,
+              origin: "session",
+              ...(identity ? { ceilingFrom: identity.sessionId, proof: { sessionId: identity.sessionId, ...identity.proof() } } : {}),
+            },
+      )).session,
     send: (id, input) => port.submitAgentTurn(id, identity ? { ...input, proof: { sessionId: identity.sessionId, ...identity.proof() } } : input),
     read: async (id, after, options) => (await port.events(id, after, options?.limit)).events,
     capabilities: () => port.sessionCapabilities(identity?.sessionId),

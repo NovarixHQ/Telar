@@ -10,6 +10,7 @@ import {
   type LiveSessionsUnchanged,
   type SessionBootstrap,
   type SessionCapabilities,
+  type SessionDelta,
   type SessionGrepAnswer,
   type SessionOutlineAnswer,
   type SessionSearchAnswer,
@@ -114,6 +115,10 @@ export const sessionsClient = {
 
   sessionBootstrap(this: EngineTransport, sessionId: string, window?: SnapshotWindow): Promise<SessionBootstrap> {
     return this.request("GET", `${sessionPath(sessionId)}/bootstrap${snapshotQuery(window)}`);
+  },
+
+  sessionDelta(this: EngineTransport, sessionId: string, after: number): Promise<SessionDelta> {
+    return this.request("GET", `${sessionPath(sessionId)}/delta?after=${after}`);
   },
 
   findSessions(this: EngineTransport, query: { q: string; projectId?: string; settled?: boolean; since?: number; limit?: number }): Promise<SessionSearchAnswer> {

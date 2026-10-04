@@ -44,6 +44,8 @@ export type SessionSnapshot = {
 /** A client's own cursor after applying `events` is `max(cursor, last event id)`. */
 export type SessionBootstrap = SessionSnapshot & { events: EngineEvent[]; subscriptions: Subscription[] };
 
+export type SessionDelta = { reset: true } | { reset: false; events: EngineEvent[]; cursor: number };
+
 export type HeldReports = { held: number };
 
 export type SessionSearchHit = {

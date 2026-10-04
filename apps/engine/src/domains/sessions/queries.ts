@@ -332,6 +332,10 @@ export class SessionQueries {
     return this.kernel.executionStore.cursor(sessionId);
   }
 
+  eventFloor(sessionId: string): number {
+    return this.kernel.executionStore.floor(sessionId);
+  }
+
   /** Every assignment the session holds, folded over its whole queue: a client's page cannot tell "finished" from "not in this window". */
   assignments(sessionId: string): SessionAssignment[] {
     return assignmentsOf(this.deps.readQueue(sessionId).turns as AssignmentTurn[]);

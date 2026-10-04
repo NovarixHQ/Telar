@@ -42,7 +42,7 @@ describe("creating a session", () => {
     expect(made.origin).toBe("session");
     expect(made.startedFrom).toBeUndefined();
     expect(Object.keys(capabilityOver(store)).sort()).toEqual([
-      "capabilities", "cohorts", "create", "diff", "list", "query", "read", "requests", "resolveRequest", "send", "settle", "status", "stop", "subscribe", "subscribeCohort", "subscriptions", "unsubscribe",
+      "capabilities", "cohorts", "create", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "send", "settle", "status", "stop", "subscribe", "subscribeCohort", "subscriptions", "unsubscribe",
     ]);
   });
 

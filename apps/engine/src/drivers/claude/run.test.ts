@@ -83,7 +83,7 @@ test("the browser socket registers as its own http server, ALONGSIDE the in-proc
   // surface per capability, not two.
   const telar = servers?.telar as { tools?: { name?: string }[] } | undefined;
   const inProcess = (telar?.tools ?? []).map((tool) => tool.name);
-  expect(inProcess.length).toBe(12);
+  expect(inProcess.length).toBe(13);
   expect(inProcess.every((name) => name!.startsWith("sessions_"))).toBe(true);
   // #877: `warp` was the one name here that was not a sessions verb, and it was
   // registered UNCONDITIONALLY. Pinned as an absence so a re-add fails here.

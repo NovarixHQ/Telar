@@ -24,7 +24,7 @@ const WALL_NAMES = [
 ];
 
 describe("what the wall is", () => {
-  test("exactly twelve tools, every one declaring the `sessions` capability in its name", () => {
+  test("exactly thirteen tools, every one declaring the `sessions` capability in its name", () => {
     const { store } = engine();
     const names = [...wall(store).keys()];
     // Pinned as a set: the socket's parity test then requires each on the socket too.
@@ -67,9 +67,9 @@ describe("what the wall is", () => {
 });
 
 describe("the shape of the wall", () => {
-  test("twelve tools, every one of them a `sessions_` verb", () => {
+  test("thirteen tools, every one of them a `sessions_` verb", () => {
     const names = collectSessionsWallTools({} as SessionsCapability).map((tool) => tool.name);
-    expect(names.length).toBe(12);
+    expect(names.length).toBe(13);
     for (const name of names) {
       expect(name.startsWith("sessions_")).toBe(true);
       expect(qualifyTelarTool(name)).toBe(`mcp__telar__${name}`);

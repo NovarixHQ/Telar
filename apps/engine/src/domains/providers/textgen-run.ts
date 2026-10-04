@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import type { ProviderDriverKind } from "@telar/engine-client";
 import { requireCli } from "./cli";
-import { claudeSettingsEnv } from "./claude-settings-env";
+import { withClaudeSettingsEnv } from "./claude-settings-env";
 
 export type TextGenEffort = "low" | "medium" | "high";
 
@@ -73,11 +73,10 @@ function claudeTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, 
   ];
 }
 
-
 async function runClaude(input: TextGenDriverInput, scratch: string, prompt: string, schema: object): Promise<Structured | undefined> {
   const executable = requireCli("claude", input.binaryPath ? { binaryPath: input.binaryPath } : {});
-  const env = { ...claudeSettingsEnv({ ...process.env, ...input.env }), ...input.env };
-  const exit = await runToCompletion(executable, claudeTextGenArgs(input, schema), scratch, { ...input, env }, prompt);
+  const env = withClaudeSettingsEnv(spawnEnv(input.env));
+  const exit = await runToCompletion(executable, claudeTextGenArgs(input, schema), scratch, input, env, prompt);
   if (exit === undefined) return undefined;
   const answer = parseJson(exit.out);
   if (answer?.["is_error"] === true && typeof answer["result"] === "string") throw new TextGenFailure(redactedTail(answer["result"]));
@@ -116,7 +115,7 @@ async function runCodex(input: TextGenDriverInput, scratch: string, prompt: stri
   fs.writeFileSync(schemaPath, JSON.stringify(schema));
   const work = path.join(scratch, "work");
   fs.mkdirSync(work);
-  const exit = await runToCompletion(executable, codexTextGenArgs(input, schemaPath, outputPath), work, input, prompt);
+  const exit = await runToCompletion(executable, codexTextGenArgs(input, schemaPath, outputPath), work, input, spawnEnv(input.env), prompt);
   if (exit === undefined) return undefined;
   if (exit.code !== 0) throw exitFailure(exit);
   return parseJson(readOrEmpty(outputPath)) ?? noAnswer(exit);
@@ -139,8 +138,8 @@ function openCodeTextGenConfig(schema: object): string {
 
 async function runOpenCode(input: TextGenDriverInput, scratch: string, prompt: string, schema: object): Promise<Structured | undefined> {
   const executable = requireCli("opencode", input.binaryPath ? { binaryPath: input.binaryPath } : {});
-  const env = { ...input.env, OPENCODE_CONFIG_CONTENT: openCodeTextGenConfig(schema), OPENCODE_DISABLE_PROJECT_CONFIG: "1" };
-  const exit = await runToCompletion(executable, openCodeTextGenArgs(input), scratch, { ...input, env }, prompt);
+  const env = spawnEnv({ ...input.env, OPENCODE_CONFIG_CONTENT: openCodeTextGenConfig(schema), OPENCODE_DISABLE_PROJECT_CONFIG: "1" });
+  const exit = await runToCompletion(executable, openCodeTextGenArgs(input), scratch, input, env, prompt);
   if (exit === undefined) return undefined;
   if (exit.code !== 0) throw exitFailure(exit);
   return parseOpenCodeAnswer(exit.out) ?? noAnswer(exit);
@@ -174,7 +173,14 @@ function noAnswer(exit: Exit): never {
   throw new TextGenFailure(`no JSON answer${exit.err.trim() ? `: ${redactedTail(exit.err)}` : ""}`);
 }
 
-function runToCompletion(executable: string, args: string[], cwd: string, input: TextGenDriverInput, prompt: string): Promise<Exit | undefined> {
+function runToCompletion(
+  executable: string,
+  args: string[],
+  cwd: string,
+  input: TextGenDriverInput,
+  env: NodeJS.ProcessEnv,
+  prompt: string,
+): Promise<Exit | undefined> {
   return new Promise((resolve, reject) => {
     if (input.signal?.aborted) {
       resolve(undefined);
@@ -182,7 +188,7 @@ function runToCompletion(executable: string, args: string[], cwd: string, input:
     }
     const child = spawn(executable, args, {
       cwd,
-      env: spawnEnv(input.env),
+      env,
       stdio: ["pipe", "pipe", "pipe"],
     });
     let out = "";

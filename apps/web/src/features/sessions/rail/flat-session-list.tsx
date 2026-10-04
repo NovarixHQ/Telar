@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import { SessionRow } from "./session-row";
 import { summarizeChildren, type ChildSummary, type FlatEntry } from "./flat-rail";
@@ -7,6 +8,7 @@ import type { RailJumpSlot } from "../session-groups";
 import type { SessionRowChanged } from "../session-mutations";
 import { sessionKey, type SessionBand, type SidebarSession } from "../session-list";
 import { cn } from "@/ui/utils";
+import { RailRows } from "./move-session-dialog";
 
 type RowContext = {
   activeSessionId?: string;
@@ -90,17 +92,20 @@ export function FlatSessionList({
   onToggle: (key: string) => void;
 }) {
   const pinnedCount = entries.filter((entry) => entry.pinned).length;
+  const rows = useMemo(() => entries.flatMap((entry) => [entry.session, ...entry.children]), [entries]);
   return (
-    <div className="space-y-0.5">
-      {entries.map((entry, index) => {
-        const key = sessionKey(entry.session);
-        return (
-          <div key={key}>
-            <FlatEntryItem entry={entry} open={expanded.has(key)} onToggle={() => onToggle(key)} context={context} />
-            {index === pinnedCount - 1 && index < entries.length - 1 && <div aria-hidden className="mx-2 mt-1.5 h-px bg-sidebar-border" />}
-          </div>
-        );
-      })}
-    </div>
+    <RailRows.Provider value={rows}>
+      <div className="space-y-0.5">
+        {entries.map((entry, index) => {
+          const key = sessionKey(entry.session);
+          return (
+            <div key={key}>
+              <FlatEntryItem entry={entry} open={expanded.has(key)} onToggle={() => onToggle(key)} context={context} />
+              {index === pinnedCount - 1 && index < entries.length - 1 && <div aria-hidden className="mx-2 mt-1.5 h-px bg-sidebar-border" />}
+            </div>
+          );
+        })}
+      </div>
+    </RailRows.Provider>
   );
 }

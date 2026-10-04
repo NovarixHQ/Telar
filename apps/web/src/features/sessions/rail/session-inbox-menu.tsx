@@ -10,6 +10,7 @@ import { canvasHref, sessionKey, type SidebarSession } from "../session-list";
 import {
   closeRowTerminals,
   deleteSession,
+  handOffRow,
   mutateRow,
   patchSession,
   regenerateTitle,
@@ -32,8 +33,9 @@ import { Button } from "@/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { Spinner } from "@/ui/spinner";
 import { dropdownSessionMenuParts, SessionActionContextMenu, SessionActionMenuItems } from "../components/session-action-menu";
+import { MoveSessionDialog, useRailParentTitle } from "./move-session-dialog";
 
-function menuTarget(session: SidebarSession, settled?: boolean): SessionActionTarget {
+function menuTarget(session: SidebarSession, settled?: boolean, parentTitle?: string): SessionActionTarget {
   return {
     id: session.id,
     title: session.title,
@@ -47,6 +49,7 @@ function menuTarget(session: SidebarSession, settled?: boolean): SessionActionTa
     ...(session.snoozedUntil === undefined ? {} : { snoozedUntil: session.snoozedUntil }),
     ...(session.snoozedAt === undefined ? {} : { snoozedAt: session.snoozedAt }),
     ...(session.terminals ? { terminals: session.terminals } : {}),
+    ...(parentTitle === undefined ? {} : { parentTitle }),
     archived: session.archived,
     updatedAt: session.updatedAt,
   };
@@ -66,9 +69,13 @@ export type SessionRowMenuProps = {
 function useSessionRowMenu({ session, activity = {}, now, settled, active, onRename, onRowChanged, onLeave }: SessionRowMenuProps): {
   items: SessionActionItem[];
   busy: boolean;
+  picker: React.ReactNode;
 } {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const parentTitle = useRailParentTitle(session);
+  const handOff = (to?: string) => void handOffRow({ row: session, ...(to ? { to } : {}), onRowChanged: onRowChanged ?? (() => {}) });
 
   const mutate = async (after: SessionRowChange, send: Parameters<typeof mutateRow>[0]["send"]) => {
     if (busy) return;
@@ -103,6 +110,8 @@ function useSessionRowMenu({ session, activity = {}, now, settled, active, onRen
     regenerateTitle: () => void mutate({ row: session }, () => regenerateTitle(session)),
     copy: (text) => void copyToClipboard(text),
     projectSettings: ({ projectId }) => router.push(projectSettingsHref(projectId)),
+    moveTo: () => setMoving(true),
+    detach: () => handOff(),
     remove: () => {
       const name = session.title || "Untitled session";
       if (!window.confirm(`Delete "${name}"?`)) return;
@@ -114,7 +123,7 @@ function useSessionRowMenu({ session, activity = {}, now, settled, active, onRen
   };
 
   const items = buildSessionActionMenuItems({
-    session: menuTarget(session, settled),
+    session: menuTarget(session, settled, parentTitle),
     activity,
     now,
     capabilities: {
@@ -123,7 +132,18 @@ function useSessionRowMenu({ session, activity = {}, now, settled, active, onRen
     },
     actions,
   });
-  return { items, busy };
+  const picker = parentTitle === undefined ? null : (
+    <MoveSessionDialog
+      session={session}
+      open={moving}
+      onOpenChange={setMoving}
+      onPick={(to) => {
+        setMoving(false);
+        handOff(to.id);
+      }}
+    />
+  );
+  return { items, busy, picker };
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -135,33 +155,41 @@ async function copyToClipboard(text: string): Promise<void> {
 }
 
 export function SessionRowContextMenu({ children, ...props }: SessionRowMenuProps & { children: React.ReactNode }) {
-  const { items } = useSessionRowMenu(props);
-  return <SessionActionContextMenu items={items}>{children}</SessionActionContextMenu>;
+  const { items, picker } = useSessionRowMenu(props);
+  return (
+    <>
+      <SessionActionContextMenu items={items}>{children}</SessionActionContextMenu>
+      {picker}
+    </>
+  );
 }
 
 export function SessionInboxMenu({ className, ...props }: SessionRowMenuProps & { className?: string }) {
-  const { items, busy } = useSessionRowMenu(props);
+  const { items, busy, picker } = useSessionRowMenu(props);
   const [open, setOpen] = useState(false);
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Session actions"
-            title="Session actions"
-            disabled={busy}
-            className={cn("text-muted-foreground hover:text-foreground", className)}
-          />
-        }
-      >
-        {busy ? <Spinner className="size-3" /> : <MoreHorizontalIcon />}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-52">
-        <SessionActionMenuItems items={items} parts={dropdownSessionMenuParts} />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      {picker}
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Session actions"
+              title="Session actions"
+              disabled={busy}
+              className={cn("text-muted-foreground hover:text-foreground", className)}
+            />
+          }
+        >
+          {busy ? <Spinner className="size-3" /> : <MoreHorizontalIcon />}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-52">
+          <SessionActionMenuItems items={items} parts={dropdownSessionMenuParts} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }

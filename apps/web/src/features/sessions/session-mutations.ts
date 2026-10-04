@@ -89,6 +89,31 @@ export async function regenerateTitle(session: Pick<SidebarSession, "id" | "host
   return answer.session;
 }
 
+async function handOffSession(session: Pick<SidebarSession, "id" | "hostId">, to?: string): Promise<LiveSessionRow> {
+  const answer = (await engineFor(session).handOffSession(session.id, to)) as { session?: LiveSessionRow } | null;
+  if (!answer?.session) throw new Error("The engine answered without a session.");
+  return answer.session;
+}
+
+function withParent(row: SidebarSession, to: string | undefined): SidebarSession {
+  const { startedFrom: _old, ...rest } = row;
+  return {
+    ...rest,
+    ...(to ? { startedFrom: { sessionId: to } } : {}),
+    ...(row.assignments ? { assignments: row.assignments.map((each) => ({ ...each, outcome: "detached" as const })) } : {}),
+  };
+}
+
+export async function handOffRow({ row, to, onRowChanged, report = alertReporter }: { row: SidebarSession; to?: string; onRowChanged: SessionRowChanged; report?: MutationReporter }): Promise<void> {
+  onRowChanged({ row: withParent(row, to) });
+  try {
+    onRowChanged({ row: withParent(patchedRow(row, await handOffSession(row, to)), to) });
+  } catch (cause) {
+    onRowChanged({ row });
+    report(cause instanceof Error ? cause.message : "The engine refused that move.");
+  }
+}
+
 export async function deleteSession(session: Pick<SidebarSession, "id" | "hostId">): Promise<undefined> {
   await engineFor(session).deleteSession(session.id);
   return undefined;

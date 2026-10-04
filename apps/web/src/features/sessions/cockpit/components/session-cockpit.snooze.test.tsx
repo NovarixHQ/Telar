@@ -32,7 +32,7 @@ mock.module("next/navigation", () => ({
 
 const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearTranscriptCache } = await import("../transcript-cache");
+const { clearConnections } = await import("@/platform/engine");
 const { installPageApi } = await import("@/features/composer/page-api");
 
 installPageApi();
@@ -125,7 +125,7 @@ let host: HTMLDivElement | undefined;
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
-  clearTranscriptCache();
+  clearConnections();
   patches = [];
   pushes = [];
   localStorage.clear();

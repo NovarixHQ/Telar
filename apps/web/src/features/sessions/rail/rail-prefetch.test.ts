@@ -9,8 +9,6 @@
  * five places and the cap has to be counted once across all of them.
  */
 import { beforeEach, describe, expect, test } from "bun:test";
-import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
-import { LOCAL_HOST } from "../snapshot-cache";
 import { claimPrefetch, PREFETCH_CAP, releasePrefetch, resetPrefetch, warmedRows } from "./rail-prefetch";
 
 beforeEach(() => resetPrefetch());
@@ -95,18 +93,5 @@ describe("which rows the rail may open ahead of the click", () => {
   test("releasing a row that holds nothing is not an error", () => {
     releasePrefetch("never-warmed");
     expect(warmedRows()).toEqual([]);
-  });
-});
-
-describe("the key a warm-up is filed under", () => {
-  /**
-   * `warmConversation` reaches a `SessionConnection` under `hostId ?? LOCAL_HOST`
-   * while the cockpit reaches the same one through `hostFromPathname`, which
-   * answers `LOCAL_HOST_ID` rather than nothing. If those two ever stopped
-   * spelling local the same way, the rail would warm a cache entry the cockpit
-   * never reads — and nothing on screen would say so.
-   */
-  test("local is the same string in the host book and the snapshot cache", () => {
-    expect(LOCAL_HOST).toBe(LOCAL_HOST_ID);
   });
 });

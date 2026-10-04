@@ -143,7 +143,7 @@ export function RowLink({
 }) {
   const linkProps = {
     href,
-    prefetch: warm ? null : false,
+    prefetch: warm,
     draggable: false,
     role: searchable ? "option" : undefined,
     "aria-selected": searchable ? searchSelected : undefined,

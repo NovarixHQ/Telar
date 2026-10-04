@@ -181,7 +181,7 @@ describe("a row near the viewport", () => {
   test("warms when it arrives, and gives the slot back when it leaves", async () => {
     await mount();
     await act(async () => watchers[0]!.fire(true));
-    expect(asked.at(-1)).toBeNull();
+    expect(asked.at(-1)).toBe(true);
     expect(warmedRows()).toEqual(["session_1"]);
     // …and it paid its own `/bootstrap`, which is the read the click would
     // otherwise have waited for.
@@ -212,7 +212,7 @@ describe("a row you are pointing at", () => {
     expect(warmedRows()).toEqual([]);
     await rest(120);
     expect(warmedRows()).toEqual(["session_hover"]);
-    expect(asked.at(-1)).toBeNull();
+    expect(asked.at(-1)).toBe(true);
     expect(fetched.some((url) => url.includes("/api/sessions/session_hover/bootstrap"))).toBe(true);
   });
 

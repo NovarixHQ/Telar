@@ -10,7 +10,6 @@ import { sessionKey, toSidebarSession, type SidebarSession } from "../session-li
 import { applyRowChange, type SessionRowChange } from "../session-mutations";
 import { readSettledCache, readSidebarCache, rememberRows, staleRows, writeSettledCache, writeSidebarCache } from "./sidebar-cache";
 import { observeSidebarLayout } from "./sidebar-layout";
-import { LOCAL_HOST } from "../snapshot-cache";
 
 const api = createEngineApi();
 
@@ -39,7 +38,7 @@ const SHELF = "#shelf";
 const shelfKey = (key: string): string => `${key}${SHELF}`;
 
 function markShelvesStale(cache: HostCache): void {
-  cache.staleShelves.add(LOCAL_HOST);
+  cache.staleShelves.add(LOCAL_HOST_ID);
   for (const key of cache.pages.keys()) if (!key.endsWith(SHELF)) cache.staleShelves.add(key);
 }
 
@@ -110,7 +109,7 @@ function withShelf(rows: readonly SidebarSession[], shelf: readonly SidebarSessi
 /** The unsettled list, and with `wide` the shelf beside it: read again only when opened, changed, or the list moved. */
 async function readHostPage(cache: HostCache, wide: boolean, host: { id: string; name: string } | undefined): Promise<HostPage> {
   const hostApi = createEngineApi(hostFetcher(host?.id ?? LOCAL_HOST_ID));
-  const key = host?.id ?? LOCAL_HOST;
+  const key = host?.id ?? LOCAL_HOST_ID;
   const lean = await readList(cache, hostApi, key, "lean", host);
   if (!wide) return lean.page;
   const held = cache.pages.get(shelfKey(key));
@@ -158,7 +157,7 @@ export function useRailData() {
     const [local, ...remotes] = await Promise.allSettled([loadHost(undefined), ...book.map((host) => loadHost({ id: host.id, name: host.name }))]);
     if (local.status !== "fulfilled") {
       setUnavailable(true);
-      const remembered = staleRows(cache, LOCAL_HOST);
+      const remembered = staleRows(cache, LOCAL_HOST_ID);
       if (remembered.length > 0) {
         setSessions(remembered);
         setRenderedAt(Date.now());
@@ -172,8 +171,8 @@ export function useRailData() {
     const reads: { daemonId?: string; sessions: SidebarSession[]; settledCount?: number }[] = [local.value];
     const remoteProjects: RemoteProject[] = [];
     const windows = new Map<string, number | null>();
-    if (local.value.policy) windows.set(LOCAL_HOST, local.value.policy.autoSettleAfterHours);
-    let next = rememberRows(cache, LOCAL_HOST, local.value.sessions);
+    if (local.value.policy) windows.set(LOCAL_HOST_ID, local.value.policy.autoSettleAfterHours);
+    let next = rememberRows(cache, LOCAL_HOST_ID, local.value.sessions);
     remotes.forEach((page, index) => {
       const host = book[index]!;
       if (page.status === "fulfilled") {

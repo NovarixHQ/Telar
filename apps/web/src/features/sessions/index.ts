@@ -4,5 +4,5 @@ export { forgetRows, readSidebarCache, writeSidebarCache } from "./rail/sidebar-
 export { useSessionDefaults } from "./session-defaults";
 export { groupSessions, railJumpSlots, railRowsForCommandKeys } from "./session-groups";
 export { canvasHref, deriveSessionList, sessionHref, sessionKey, type SidebarSession } from "./session-list";
-export { snapshotStore } from "./snapshot-cache";
+export { forgetHostHeads } from "./session-heads";
 export { appendToDraft } from "./cockpit/model";

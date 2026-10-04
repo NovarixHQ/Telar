@@ -23,7 +23,7 @@ mock.module("next/navigation", () => ({
 
 const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearTranscriptCache } = await import("../transcript-cache");
+const { clearConnections } = await import("@/platform/engine");
 
 const STARTED = 1_700_000_000_000;
 
@@ -82,6 +82,7 @@ function wire() {
         subscriptions: [],
       });
     }
+    if (url.includes("/delta")) return Response.json({ reset: false, events: [], cursor: 1 });
     if (url.includes("/events")) return Response.json({ events: [], cursor: 1, more: false });
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
     if (url.includes("/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
@@ -96,7 +97,7 @@ let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 
 beforeEach(() => {
-  clearTranscriptCache();
+  clearConnections();
   opened = [];
   wire();
 });
@@ -165,7 +166,7 @@ describe("switching back to a conversation this tab already read", () => {
     expect(host.textContent).not.toContain("answer from session_b");
   });
 
-  test("and the read behind it is a tail, not a second opening", async () => {
+  test("and the read behind it is a delta, not a second opening", async () => {
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -173,8 +174,8 @@ describe("switching back to a conversation this tab already read", () => {
     await show("session_c");
     await show("session_d");
     await show("session_c");
-    // `/bootstrap` once per conversation: the warm connection tails from the
-    // cursor it already holds rather than opening again.
+    // `/bootstrap` once per conversation: the warm connection catches up from
+    // the cursor it already holds rather than opening again.
     expect(opened).toEqual(["session_c", "session_d"]);
   });
 });

@@ -26,7 +26,7 @@ mockNavigation();
 
 const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearTranscriptCache } = await import("../transcript-cache");
+const { clearConnections } = await import("@/platform/engine");
 const { TAIL_LIVE_MS, TAIL_SETTLED_MS } = await import("@/platform/engine");
 
 const STARTED = 1_700_000_000_000;
@@ -119,7 +119,7 @@ let host: HTMLDivElement | undefined;
 beforeEach(() => {
   jest.useFakeTimers();
   mockNavigation();
-  clearTranscriptCache();
+  clearConnections();
   tails = 0;
   pending = [];
   nextEventId = 2;

@@ -1,8 +1,5 @@
-import { createEngineApi } from "@/platform/engine";
-import { sessionConnection } from "@/platform/engine";
-import { INITIAL_TURNS } from "@/platform/engine";
-import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
-import { LOCAL_HOST } from "../snapshot-cache";
+import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
+import { openHead } from "../session-heads";
 
 export const PREFETCH_CAP = 3;
 
@@ -43,7 +40,5 @@ export function resetPrefetch(): void {
 }
 
 export function warmConversation(hostId: string | undefined, sessionId: string): void {
-  void sessionConnection(hostId ?? LOCAL_HOST, createEngineApi(hostFetcher(hostId ?? LOCAL_HOST_ID)), sessionId, { turns: INITIAL_TURNS })
-    .read()
-    .catch(() => undefined);
+  void openHead(hostId ?? LOCAL_HOST_ID, sessionId).reconciled.catch(() => undefined);
 }

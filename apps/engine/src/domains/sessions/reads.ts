@@ -3,6 +3,7 @@ import { positiveParam } from "../../platform/http/params";
 import { notModified, ok, sessionRoute, type Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
 import { sessionBootstrap, sessionSnapshot, type SessionBootstrapWindow } from "./bootstrap";
+import { sessionDelta } from "./delta";
 
 
 // Ceilings, not suggestions: these answers land in a model's context, so a caller pages for the rest.
@@ -44,6 +45,7 @@ export function sessionReadRoutes(store: EngineStore): Route[] {
     { method: "GET", path: sessionRoute(""), auth: "engine", handle: ({ params, query }) => ok(sessionSnapshot(store, params[0]!, snapshotWindow(query))) },
     // The snapshot and the journal from its cursor in one answer, through the same fold as the snapshot.
     { method: "GET", path: sessionRoute("/bootstrap"), auth: "engine", handle: ({ params, query }) => ok(sessionBootstrap(store, params[0]!, snapshotWindow(query))) },
+    { method: "GET", path: sessionRoute("/delta"), auth: "engine", handle: ({ params, query }) => ok(sessionDelta(store, params[0]!, positiveParam(query.get("after"), 0, ANY, "after"))) },
     {
       method: "GET",
       path: sessionRoute("/events"),

@@ -68,7 +68,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   );
   return (
     // `display: contents`: a click boundary, never a layout box.
-    <div className="contents" onClickCapture={props.onConversationClick}>
+    <div className="contents" aria-busy={sync.updating || undefined} onClickCapture={props.onConversationClick}>
       <ConversationViewport className="min-w-0 flex-1" conversation={sync.syncKey} landed={sync.transcriptLanded} followRef={props.follow} onAtBottomChange={props.onAtBottomChange}>
         <ConversationContent>
           {props.projectId !== session?.projectId && session && (

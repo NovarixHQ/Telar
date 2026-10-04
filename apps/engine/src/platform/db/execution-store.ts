@@ -238,11 +238,14 @@ export class ExecutionStore {
     const known = this.cursors.get(sessionId);
     if (known !== undefined) return known;
     const rows = Number(this.statement("SELECT COALESCE(MAX(id),0) AS id FROM events WHERE session_id=?").get(sessionId)?.id ?? 0);
-    const floor = Number(this.statement("SELECT value FROM metadata WHERE key=?").get(`${JOURNAL_FLOOR_PREFIX}${sessionId}`)?.value ?? 0);
-    const stored = Math.max(rows, Number.isFinite(floor) ? floor : 0);
+    const stored = Math.max(rows, this.floor(sessionId));
     const head = this.held().reduce((highest, event) => event.sessionId === sessionId && event.id > highest ? event.id : highest, stored);
     this.cursors.set(sessionId, head);
     return head;
+  }
+  floor(sessionId: string): number {
+    const floor = Number(this.statement("SELECT value FROM metadata WHERE key=?").get(`${JOURNAL_FLOOR_PREFIX}${sessionId}`)?.value ?? 0);
+    return Number.isFinite(floor) ? floor : 0;
   }
   append(event: EngineEvent): void {
     this.cursors.set(event.sessionId, Math.max(event.id, this.cursors.get(event.sessionId) ?? 0));

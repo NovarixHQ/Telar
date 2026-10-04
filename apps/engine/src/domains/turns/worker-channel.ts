@@ -29,9 +29,8 @@ type ChannelDeps = {
   records: SessionRecords;
   tasks: SessionTasks;
   activity: SessionActivity;
-  readQueue: (sessionId: string) => SessionQueue;
+  readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
-  scanQueue: (sessionId: string) => SessionQueue;
   liveQueueSessionIds: () => Set<string>;
   stopSession: (sessionId: string) => { stopped: Turn[]; live?: Turn };
   assertProjectAvailable: (projectId: string) => void;
@@ -48,7 +47,7 @@ export class WorkerChannel {
   steerForWorker(workerId: string): WorkerStatus["steer"] {
     assertId(workerId, "worker id");
     return [...this.deps.liveQueueSessionIds()].flatMap((sessionId) => {
-      const queue = this.deps.scanQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId);
       const claimed = new Map(
         queue.turns
           .filter((turn) => turn.claim?.workerId === workerId && turn.state === "running")
@@ -59,9 +58,8 @@ export class WorkerChannel {
         if (turn.state !== "steering" || !turn.steer) return [];
         const claimToken = claimed.get(turn.steer.intoRunId);
         if (!claimToken) return [];
-        // Cloned: `queue` is the shared scan copy, and a delivery must not hand a worker live references into it.
         return [
-          structuredClone({
+          ({
             sessionId,
             runId: turn.steer.intoRunId,
             claimToken,
@@ -81,7 +79,7 @@ export class WorkerChannel {
   }
 
   requireRunningClaim(sessionId: string, runId: string, claimToken: string): Turn {
-    return requireRunningClaimFromQueue(this.deps.readQueue(sessionId), runId, claimToken);
+    return requireRunningClaimFromQueue(this.deps.readQueue(sessionId, [runId]), runId, claimToken);
   }
 
   /**
@@ -89,7 +87,7 @@ export class WorkerChannel {
    * the turn it is running now (a retry carries that claim), or says there is none. A foreign token keeps the flat answer.
    */
   requireSenderClaim(proof: SenderProof): Turn {
-    const queue = this.deps.readQueue(proof.sessionId);
+    const queue = this.deps.readQueue(proof.sessionId, [proof.runId]);
     try {
       return requireRunningClaimFromQueue(queue, proof.runId, proof.claimToken);
     } catch (error) {
@@ -120,7 +118,7 @@ export class WorkerChannel {
       });
       if (closed.length === 0) return 0;
       const deliveries = this.deps.tasks.readStops();
-      const turns = this.deps.readQueue(sessionId).turns;
+      const turns = this.deps.readQueue(sessionId, closed.map((task) => task.runId)).turns;
       const driver = this.deps.records.get(sessionId).driver;
       for (const task of closed) {
         if (!task.providerTaskId) continue;

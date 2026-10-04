@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mountPointForRoot } from "../fs/volumes";
 import { gitChildren, type GitChildren } from "./children";
 import { engineGitEnv } from "./env";
@@ -33,69 +33,17 @@ export type GitRunnerDeps = {
   /** Which binary to run; `git` from PATH by default. Tests point it at a stalled fake. */
   gitBin?: string;
   defaultTimeoutMs?: number;
-  /** Async runner only: how long a call may wait for a slot. */
+  /** How long a call may wait for a slot. */
   defaultAdmissionMs?: number;
   children?: GitChildren;
   spawn?: typeof spawn;
   warn?: (message: string) => void;
 };
 
-const overCap = (children: GitChildren, cwd: string, args: string[]): string =>
-  `git ${args.join(" ")} in ${cwd} was refused: ${children.live()} git processes are alive and the cap is ${children.cap}`;
-
-export function createGitRunner(deps: GitRunnerDeps = {}): GitRunner {
-  const gitBin = deps.gitBin ?? "git";
-  const children = deps.children ?? gitChildren;
-  return (cwd, args, options) => {
-    if (!children.tryAcquire()) return { status: 1, stdout: "", stderr: overCap(children, cwd, args) };
-    const timeout = Math.max(1, options?.timeoutMs ?? deps.defaultTimeoutMs ?? gitTimeoutFromEnv());
-    let run: ReturnType<typeof spawnSync>;
-    try {
-      run = spawnSync(gitBin, args, {
-        cwd,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-        env: engineGitEnv(options?.env),
-        timeout,
-        // SIGKILL: the stall this guards against is a child stuck in a syscall.
-        killSignal: "SIGKILL",
-      });
-    } finally {
-      children.release();
-    }
-    const stdout = String(run.stdout ?? "");
-    const failure = run.error as { code?: string } | undefined;
-    if (failure?.code === "ENOBUFS") {
-      return { status: 1, stdout, stderr: `git ${args.join(" ")} in ${cwd} wrote more than this runner's output bound`, overflowed: true };
-    }
-    if (failure?.code === "ETIMEDOUT" || (run.status == null && run.signal === "SIGKILL")) {
-      const killed = typeof run.pid === "number" && run.pid > 0 ? run.pid : undefined;
-      return {
-        status: GIT_TIMEOUT_STATUS,
-        stdout,
-        stderr:
-          `git ${args.join(" ")} in ${cwd} did not finish within ${timeout}ms and was killed` +
-          (killed === undefined ? "" : ` (pid ${killed})`),
-        timedOut: true,
-        killedPid: killed,
-      };
-    }
-    if (run.status === 0) return { status: 0, stdout, stderr: "" };
-    return {
-      status: run.status ?? 1,
-      stdout,
-      // A failure to start (ENOENT) arrives in `error` with no stderr.
-      stderr: String(run.stderr ?? "") || (run.error ? String(run.error) : `git ${args.join(" ")} in ${cwd} exited with status ${run.status}`),
-    };
-  };
-}
-
 function gitTimeoutFromEnv(): number {
   const raw = Number(process.env.TELAR_GIT_TIMEOUT_MS);
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_GIT_TIMEOUT_MS;
 }
-
-export const defaultGitRunner: GitRunner = createGitRunner();
 
 export type AsyncGitRunner = (cwd: string, args: string[], options?: GitRunOptions) => Promise<GitResult>;
 

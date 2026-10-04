@@ -1,8 +1,8 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createAsyncGitRunner, defaultGitRunner } from "../src/platform/git/runner";
+import { createAsyncGitRunner, type GitRunner } from "../src/platform/git/runner";
 import { createSessionWorktreeAsync, prepareSessionWorktree } from "../src/domains/worktrees";
 
 const roots: string[] = [];
@@ -24,6 +24,12 @@ export const engineHome = (prefix: string): string => {
   return directory;
 };
 
+/** Git run in-line, for a test that calls a synchronous planner the engine feeds from answers read ahead. */
+export const syncGit: GitRunner = (cwd, args) => {
+  const run = spawnSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  return { status: run.status ?? 1, stdout: run.stdout ?? "", stderr: run.stderr ?? "" };
+};
+
 /** A git pool of the calling file's own, never the shared singleton, and the whole cut the way `createSession` makes it. */
 export function worktreeFixtures() {
   const poolGit = createAsyncGitRunner();
@@ -35,8 +41,8 @@ export function worktreeFixtures() {
     branchSlug?: string;
     branchName?: string;
   }): Promise<{ path: string; branch: string; baseRef: string }> {
-    const { plan, baseSha } = prepareSessionWorktree(defaultGitRunner, input);
-    return createSessionWorktreeAsync(poolGit, { engineRoot: input.engineRoot, projectRoot: input.projectRoot, plan, baseSha });
+    const { plan, baseSha } = prepareSessionWorktree(syncGit, input);
+    return createSessionWorktreeAsync(poolGit, { engineRoot: input.engineRoot, projectRoot: input.projectRoot, plan, baseSha: baseSha! });
   }
   return { poolGit, cutWorktree };
 }

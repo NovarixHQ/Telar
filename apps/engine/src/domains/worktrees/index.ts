@@ -15,6 +15,7 @@ export {
   derivedBranchFor,
   prepareSessionWorktree,
   removeSessionWorktreeAsync,
+  resolveWorktreeBaseAsync,
   type WorktreePlan,
   type WorktreeQueue,
 } from "./session-worktree";

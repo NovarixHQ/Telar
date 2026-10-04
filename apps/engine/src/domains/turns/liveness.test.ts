@@ -27,7 +27,7 @@ import os from "node:os";
 import path from "node:path";
 import { STALLED_AFTER_MS, type Turn } from "@telar/engine-client";
 import { EngineStore } from "../../state";
-import { GIT_TIMEOUT_STATUS, type AsyncGitRunner } from "../../platform/git/runner";
+import { GIT_TIMEOUT_STATUS, type AsyncGitRunner, type GitResult } from "../../platform/git/runner";
 import { worktreeReady } from "../../../test/worktree-ready";
 
 const roots: string[] = [];
@@ -75,23 +75,18 @@ function clock(from = 1_000_000) {
 
 // ── step 3: a cut that failed fails the turn, and one still running does not ─
 
+/** What every fake below answers that is not the cut: a repository, at commit `abc123`. */
+const agreeing = (args: string[]): GitResult => ({ status: 0, stdout: args.includes("--is-inside-work-tree") ? "true\n" : "abc123\n", stderr: "" });
+
 /**
- * A GIT THAT REFUSES TO CUT, and refuses in git's own words.
- *
- * `worktree add` is the ONLY command that fails: `prepareSessionWorktree` still
- * has to get past "is this a repository" and resolve a base, and a runner that
- * failed everything would refuse the session at creation instead of producing
- * the state under test — which is a session that EXISTS and has no checkout.
- *
- * It answers on the ASYNC runner because that is the one the cut uses
- * (`EngineStore.worktreeGit`); the synchronous probes run against the real
- * repository above.
+ * A GIT THAT REFUSES TO CUT, and refuses in git's own words. `worktree add` is the only
+ * command that fails, so the session exists and has no checkout.
  */
 const CUT_FAILURE = "fatal: could not create work tree dir: No space left on device";
 const refusingCut: AsyncGitRunner = async (_cwd, args) =>
   args[0] === "worktree" && args[1] === "add"
     ? { status: GIT_TIMEOUT_STATUS, stdout: "", stderr: CUT_FAILURE, timedOut: true }
-    : { status: 0, stdout: "", stderr: "" };
+    : agreeing(args);
 
 /** A cut that never answers at all, so the session stays `preparing` for as
  *  long as the test wants it to. The promise is deliberately never resolved;
@@ -99,7 +94,7 @@ const refusingCut: AsyncGitRunner = async (_cwd, args) =>
 const hangingCut: AsyncGitRunner = (_cwd, args) =>
   args[0] === "worktree" && args[1] === "add"
     ? new Promise(() => {})
-    : Promise.resolve({ status: 0, stdout: "", stderr: "" });
+    : Promise.resolve(agreeing(args));
 
 function worktreeSession(git: AsyncGitRunner, now: () => number) {
   const projectRoot = repo();
@@ -159,7 +154,7 @@ test("and a session with a checkout is unaffected: its turn is claimed like any 
   const time = clock();
   // A git that agrees to everything, so the cut settles clean and the row's
   // `preparation` is cleared rather than failed.
-  const { store, sessionId } = worktreeSession(async () => ({ status: 0, stdout: "", stderr: "" }), time.now);
+  const { store, sessionId } = worktreeSession(async (_cwd, args) => agreeing(args), time.now);
   await worktreeReady(store, sessionId);
   store.intake.submitTurn(sessionId, { runId: "run_one", input: "start" });
   // Non-vacuity for the two tests above: the same fixture, the same ticks, and

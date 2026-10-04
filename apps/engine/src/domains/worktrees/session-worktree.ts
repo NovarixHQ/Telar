@@ -4,7 +4,8 @@ import path from "node:path";
 import { unreachableSentence, type ProjectAvailability } from "../../platform/fs/volumes";
 import { defaultWorktreesRoot, readWorktreesRoot, rootOf, worktreesRootBlocker, type WorktreesRootState } from "./location";
 import { detectCacheDedup, type CacheDedupVerdict } from "../storage";
-import type { GitRunner, AsyncGitRunner } from "../../platform/git/runner";
+import type { GitResult, GitRunner, AsyncGitRunner } from "../../platform/git/runner";
+import { prefetchableRef } from "../../platform/git/prefetch";
 import { WORKTREE_TREE_TIMEOUT_MS, WorktreeError, lockSessionWorktree, unlockWorktree, isGitWorkTree } from "./checkout";
 
 /** Serialise work under a key; see `createWorktreeQueue`. */
@@ -52,13 +53,21 @@ function sanitizeBranchName(name: string): string {
   return trimmed;
 }
 
-function resolveWorktreeBase(git: GitRunner, projectRoot: string, baseRef?: string): string {
-  const requested = baseRef ?? "HEAD";
-  const head = git(projectRoot, ["rev-parse", requested]);
-  if (head.status !== 0) {
-    throw new WorktreeError(`cannot resolve base ref "${requested}": ${head.stderr.trim() || head.stdout.trim()}`);
-  }
+const notARepository = (projectRoot: string): WorktreeError =>
+  new WorktreeError(`worktree sessions need a git repository; ${projectRoot} is not one. Use envMode "local" for an unversioned project.`);
+
+function baseOf(head: GitResult, requested: string): string {
+  if (head.status !== 0) throw new WorktreeError(`cannot resolve base ref "${requested}": ${head.stderr.trim() || head.stdout.trim()}`);
   return head.stdout.trim();
+}
+
+/** A cut planned without git learns its base here, through the pool, before `createSessionWorktreeAsync`. */
+export async function resolveWorktreeBaseAsync(git: AsyncGitRunner, projectRoot: string, baseRef?: string): Promise<string> {
+  const requested = baseRef ?? "HEAD";
+  if (prefetchableRef(requested) === undefined) throw new WorktreeError(`cannot resolve base ref "${requested}": not a usable git ref name`);
+  const inside = await git(projectRoot, ["rev-parse", "--is-inside-work-tree"]);
+  if (inside.status !== 0 || inside.stdout.trim() !== "true") throw notARepository(projectRoot);
+  return baseOf(await git(projectRoot, ["rev-parse", requested]), requested);
 }
 
 export type WorktreePlan = {
@@ -90,8 +99,9 @@ function planSessionWorktree(input: {
   return { path: target, branch, named: named !== undefined };
 }
 
+/** `git` undefined plans the cut without asking git; the cut resolves the base with `resolveWorktreeBaseAsync`. */
 export function prepareSessionWorktree(
-  git: GitRunner,
+  git: GitRunner | undefined,
   input: {
     engineRoot: string;
     projectRoot: string;
@@ -109,7 +119,7 @@ export function prepareSessionWorktree(
      *  when absent; injected by tests and by a caller that already asked. */
     worktreesRoot?: WorktreesRootState;
   },
-): { plan: WorktreePlan; baseSha: string } {
+): { plan: WorktreePlan; baseSha?: string } {
   const location = input.worktreesRoot ?? readWorktreesRoot(input.engineRoot);
   const blocked = worktreesRootBlocker(location);
   if (blocked) throw new WorktreeError(blocked);
@@ -124,19 +134,16 @@ export function prepareSessionWorktree(
   if (input.availability === "denied" || input.availability === "unresponsive") {
     throw new WorktreeError(unreachableSentence(input.projectName ?? input.projectRoot, input.availability));
   }
-  if (!isGitWorkTree(git, input.projectRoot)) {
-    throw new WorktreeError(
-      `worktree sessions need a git repository; ${input.projectRoot} is not one. Use envMode "local" for an unversioned project.`,
-    );
-  }
+  if (git && !isGitWorkTree(git, input.projectRoot)) throw notARepository(input.projectRoot);
   // The name before the base: a branch the engine will not create is a refusal
   // that costs no git at all, and ordering it first keeps a bad request cheap.
   const { worktreesRoot: _asked, ...rest } = input;
   const root = rootOf(location);
   const plan = planSessionWorktree({ ...rest, ...(root ? { worktreesRoot: root } : {}) });
+  const requested = input.baseRef ?? "HEAD";
   return {
     plan,
-    baseSha: resolveWorktreeBase(git, input.projectRoot, input.baseRef),
+    ...(git ? { baseSha: baseOf(git(input.projectRoot, ["rev-parse", requested]), requested) } : {}),
     ...(root ? { caches: cacheDedupNotice(root) } : {}),
   };
 }

@@ -35,8 +35,7 @@ type IngestDeps = {
   items: SessionItems;
   tasks: SessionTasks;
   prefixes: OpenPrefixes;
-  readQueue: (sessionId: string) => SessionQueue;
-  scanQueue: (sessionId: string) => SessionQueue;
+  readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   requireRunningClaimFromQueue: (queue: SessionQueue, runId: string, claimToken: string) => Turn;
   filesChanged: (sessionId: string) => void;
@@ -57,9 +56,8 @@ export class TurnIngest {
 
   // A delta-only batch writes no row, so it skips the transaction, the task read and the queue parse; same events, same order.
   private ingestDeltas(sessionId: string, runId: string, claimToken: string, observations: unknown[]): { accepted: number } {
-    // First, and against the shared copy: the claim is checked before the batch
-    // is validated, exactly as the command path checks it before parsing.
-    const turn = this.deps.requireRunningClaimFromQueue(this.deps.scanQueue(sessionId), runId, claimToken);
+    // The claim is checked before the batch is validated, exactly as the command path checks it before parsing.
+    const turn = this.deps.requireRunningClaimFromQueue(this.deps.readQueue(sessionId, [runId]), runId, claimToken);
     // THE SAME SCHEMA THE COMMAND PATH USES, not a narrower copy of the delta
     // member: one definition, so the two paths cannot drift on what they accept.
     const parsed = TurnObservationSchema.array().safeParse(observations);
@@ -82,7 +80,7 @@ export class TurnIngest {
   }
 
   private ingestBatch(sessionId: string, runId: string, claimToken: string, observations: unknown[]): { accepted: number } {
-    const queue = this.deps.readQueue(sessionId);
+    const queue = this.deps.readQueue(sessionId, [runId]);
     const turn = this.deps.requireRunningClaimFromQueue(queue, runId, claimToken);
     const parsed = TurnObservationSchema.array().safeParse(observations);
     if (!parsed.success) throw new EngineStateError("invalid_request", "turn observations are invalid");

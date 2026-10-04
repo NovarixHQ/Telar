@@ -22,9 +22,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { sessionFilePatchAsync } from ".";
-import { createAsyncGitRunner, createGitRunner, type AsyncGitRunner, type GitRunner } from "../../platform/git/runner";
-
-const toAsync = (git: GitRunner): AsyncGitRunner => async (cwd, args, options) => git(cwd, args, options);
+import { createAsyncGitRunner } from "../../platform/git/runner";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -58,7 +56,6 @@ function repo(
 }
 
 const async = createAsyncGitRunner();
-const sync = createGitRunner();
 
 /**
  * A PATCH LARGER THAN THE RUNNER'S OUTPUT BOUND IS NOT A PATCH — §2.1, and the
@@ -74,11 +71,9 @@ const sync = createGitRunner();
  * be set by a fix that also threw the hunks away, and a length alone proves
  * nothing without git's own figure to measure it against. Both, or neither.
  */
-test("a patch cut at the engine's output bound says so, on both runners (#694)", async () => {
+test("a patch cut at the engine's output bound says so (#694)", async () => {
   // ~64 chars a line over 30,000 lines ≈ 1.9 MB, rewritten end to end, so git's
-  // patch is both sides at once — past the async runner's 1 MiB bound and past
-  // the 1.5 MiB at which `spawnSync` stops collecting under Bun, so BOTH
-  // runners are genuinely short of the answer rather than one of them.
+  // patch is both sides at once, past the runner's 1 MiB bound.
   const lines = 30_000;
   const before = Array.from({ length: lines }, (_, index) => `line ${index} ${"a".repeat(50)}`).join("\n");
   const after = Array.from({ length: lines }, (_, index) => `LINE ${index} ${"b".repeat(50)}`).join("\n");
@@ -105,7 +100,6 @@ test("a patch cut at the engine's output bound says so, on both runners (#694)",
 
   for (const [runner, answer] of [
     ["async", await sessionFilePatchAsync(async, { cwd: root, path: "big.txt" })],
-    ["sync", await sessionFilePatchAsync(toAsync(sync), { cwd: root, path: "big.txt" })],
   ] as const) {
     expect(answer.incomplete, `${runner} runner reports the bound`).toBe("truncated");
     // What arrived is KEPT (#650) and is a real prefix of a real answer...

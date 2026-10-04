@@ -103,14 +103,14 @@ test("a legacy session whose queue document is missing reads as empty", () => {
 
 // ── a write stores the turns it changed, and nothing else ────────────────────
 
-/** The turn rows each `writeTurnRows` call stored or deleted during `action`. */
+/** The turn rows each `writeTurnRows` call stored during `action`. */
 function rowWrites(store: EngineStore, action: () => void): number[] {
   const execution = store.kernel.executionStore;
   const original = execution.writeTurnRows.bind(execution);
   const writes: number[] = [];
-  execution.writeTurnRows = (sessionId, next, rows, removed) => {
-    writes.push(rows.length + removed.length);
-    original(sessionId, next, rows, removed);
+  execution.writeTurnRows = (sessionId, next, rows) => {
+    writes.push(rows.length);
+    original(sessionId, next, rows);
   };
   try { action(); } finally { execution.writeTurnRows = original; }
   return writes;
@@ -212,13 +212,13 @@ test("a malformed turn is read, but a write that changes it is refused", () => {
   const store = open(directory);
   expect(store.queries.turns("session_one").map((turn) => turn.runId)).toEqual(["run_seed_0", "run_seed_1", "run_bad"]);
   const queues = bareQueues(store);
-  const touched = queues.read("session_one");
-  touched.turns[2]!.updatedAt = 2;
+  const touched = queues.read("session_one", ["run_bad"]);
+  touched.turns[0]!.updatedAt = 2;
   expect(() => queues.write("session_one", touched)).toThrow(/invalid session queue/);
-  const fixed = queues.read("session_one");
-  fixed.turns[2] = { ...seededTurns[0]!, runId: "run_bad", sequence: 8 };
+  const fixed = queues.read("session_one", ["run_bad"]);
+  fixed.turns[0] = { ...seededTurns[0]!, runId: "run_bad", sequence: 8 };
   queues.write("session_one", fixed);
-  expect(open(directory).queries.turns("session_one")[2]).toEqual(fixed.turns[2]!);
+  expect(open(directory).queries.turns("session_one")[2]).toEqual(fixed.turns[0]!);
 });
 
 test("a structurally broken turn is refused on read", () => {
@@ -358,4 +358,55 @@ test("a snapshot of a 5,000-turn session reads the window and the live turns, no
   // 20 settled + 2 active for the window, and the activity fold's live and last-ended rows.
   expect(rows).toBeLessThanOrEqual(30);
   expect(cold.kernel.readAccounting.queueParses).toBe(0);
+}, 60_000);
+
+// ── a mutation reads the open turns and the one it names, not the history ────
+
+type Costs = Record<string, { rows: number; parses: number }>;
+
+/** Turn rows read and whole queues parsed by each mutation, on a cold store over `length` settled turns. */
+function mutationCosts(length: number): { costs: Costs; states: string[][] } {
+  const directory = root();
+  const first = seeded(open(directory), 1);
+  const { claim: _claim, ...shape } = first.queries.turns("session_one")[0]!;
+  reopen(first);
+  const history = Array.from({ length }, (_, n) => ({
+    ...shape, runId: `run_${n}`, sequence: n + 1, input: `message ${n}`, resultText: `answer ${n}`, completedAt: 2_000 + n, updatedAt: 2_000 + n,
+  }));
+  injectQueue(directory, "session_one", { version: 2, sessionId: "session_one", nextSequence: length + 1, turns: history });
+  const migrating = open(directory);
+  migrating.queries.turns("session_one");
+  reopen(migrating);
+
+  const store = open(directory);
+  const costs: Costs = {};
+  const measure = (name: string, action: () => void): void => {
+    const parses = store.kernel.readAccounting.queueParses;
+    costs[name] = { rows: rowsRead(store, action), parses: store.kernel.readAccounting.queueParses - parses };
+  };
+  const claim = (): string => store.claims.claimTurn("session_one", "worker_one")!.claim!.token;
+  let token = "";
+  measure("submit", () => store.intake.submitTurn("session_one", { runId: "run_a", input: "a" }));
+  measure("claim", () => { token = claim(); });
+  measure("submit behind a claim", () => store.intake.submitTurn("session_one", { runId: "run_c", input: "c" }));
+  measure("cancel a queued turn", () => store.turnLifecycle.stopTurn("session_one", "run_c"));
+  measure("start", () => store.turnLifecycle.markRunning("session_one", "run_a", token));
+  measure("steer", () => store.intake.submitTurn("session_one", { runId: "run_b", input: "b" }));
+  measure("ack the steer", () => store.turnLifecycle.ackSteer("session_one", "run_b", token));
+  measure("complete", () => store.turnLifecycle.completeTurn("session_one", "run_a", token, { text: "done" }));
+  measure("mark read", () => store.records.markRead("session_one", "run_a"));
+  store.intake.submitTurn("session_one", { runId: "run_d", input: "d" });
+  token = claim();
+  store.turnLifecycle.markRunning("session_one", "run_d", token);
+  measure("fail", () => store.turnLifecycle.failTurn("session_one", "run_d", token, { code: "rate_limited", message: "limit", resumeAt: 1 }));
+  measure("retry", () => store.turnLifecycle.resumeRateLimitedTurn("session_one", "run_d"));
+  measure("stop the session", () => store.turnLifecycle.stopSession("session_one"));
+  return { costs, states: store.queries.turns("session_one").slice(length).map((turn) => [turn.runId, turn.state]) };
+}
+
+test("a queue mutation costs the same on a 5,000-turn session as on a 10-turn one, and parses no whole queue", () => {
+  const long = mutationCosts(5_000);
+  expect(long.costs).toEqual(mutationCosts(10).costs);
+  expect(Object.values(long.costs).every((cost) => cost.parses === 0 && cost.rows <= 30)).toBe(true);
+  expect(long.states).toEqual([["run_a", "completed"], ["run_c", "stopped"], ["run_b", "steered"], ["run_d", "stopped"]]);
 }, 60_000);

@@ -217,12 +217,15 @@ export class WorktreeMaintenance {
   }
 
   /** Records how a cut ended on the row as it is now, since the session may have changed while git ran. */
-  settle(sessionId: string, failure: string | undefined): void {
+  settle(sessionId: string, failure: string | undefined, baseSha?: string): void {
     const existing = this.kernel.readDocument(sessionMetadataFile(this.kernel.paths, sessionId));
     if (existing === undefined) return;
     const session = parseSession(existing);
     const updated: Session = {
       ...session,
+      ...(baseSha !== undefined && session.workspace.mode !== "none" && session.workspace.baseRef === undefined
+        ? { workspace: { ...session.workspace, baseRef: baseSha } }
+        : {}),
       // Absent is READY. A success clears the key rather than writing a third
       // state, so every reader's "is this ready" is one question.
       ...(failure === undefined ? {} : { preparation: { state: "failed" as const, error: failure, at: this.kernel.now() } }),

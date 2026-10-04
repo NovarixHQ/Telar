@@ -24,7 +24,7 @@ import type { ProjectAvailability } from "../../platform/fs/volumes";
 import { assertId, EngineStateError, type JournalEntry, type Kernel } from "../../platform/kernel";
 import { removeTelarVenv, telarVenvDir } from "../plugins";
 import { RUNTIME_MODES } from "../settings";
-import { createSessionWorktreeAsync, derivedBranchFor, isGitWorkTree, prepareSessionWorktree, pruneBuildOutputs, removeSessionWorktreeAsync, type WorktreePlan, type WorktreeQueue } from "../worktrees";
+import { createSessionWorktreeAsync, derivedBranchFor, isGitWorkTree, prepareSessionWorktree, pruneBuildOutputs, removeSessionWorktreeAsync, resolveWorktreeBaseAsync, type WorktreePlan, type WorktreeQueue } from "../worktrees";
 import { parseSession, releaseDelegationSettle, sessionDir, sessionMetadataFile, storedSession } from "./metadata";
 import { emptyQueue, type SessionQueue } from "./queue";
 import type { SessionRecords } from "./records";
@@ -74,10 +74,12 @@ type LifecycleHost = {
   requireInstance(instanceId: string): ProviderInstance;
   cachedModels(driver: ProviderDriverKind): ModelCatalogue["models"] | undefined;
   chooseModel(driver: ProviderDriverKind, instanceId: string, choice: AgentModelChoice): ModelSelectionValue | undefined;
-  readQueue(sessionId: string): SessionQueue;
+  readQueue(sessionId: string, runIds?: readonly string[]): SessionQueue;
+  assignedTurns(sessionId: string): Turn[];
   writeQueue(sessionId: string, queue: SessionQueue): void;
   appendEvent(sessionId: string, event: JournalEntry, runId?: string): EngineEvent;
-  settleWorktree(sessionId: string, error: string | undefined): void;
+  settleWorktree(sessionId: string, error: string | undefined, baseSha?: string): void;
+  gitAnswersCut(projectRoot: string, baseRef: string | undefined): boolean;
   forgetGitReadsUnder(root: string): void;
   /** Runs the project's `setup.command` in the new checkout, in the background; best-effort. */
   startSetup(sessionId: string, worktree: string): Promise<void>;
@@ -118,8 +120,10 @@ export class SessionLifecycle {
       const ceiling = input.ceilingFrom === undefined ? undefined : this.records.get(input.ceilingFrom).runtimeMode;
       const availability = project === undefined ? undefined : this.host.projectAvailability(project);
       const preferred = project === undefined ? "local" : (project.envMode ?? this.host.sessionDefaults().envMode);
-      const envMode =
-        project === undefined ? "local" : (input.envMode ?? (preferred === "worktree" && isGitWorkTree(this.host.git, project.root) ? "worktree" : "local"));
+      // Not read ahead (a caller off the request path): the cut and the base are asked through the pool afterwards.
+      const git = project !== undefined && this.host.gitAnswersCut(project.root, input.baseRef) ? this.host.git : undefined;
+      const repository = project !== undefined && (git ? isGitWorkTree(git, project.root) : availability === "available");
+      const envMode = project === undefined ? "local" : (input.envMode ?? (preferred === "worktree" && repository ? "worktree" : "local"));
       if (input.baseRef !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._/@{}-]{0,200}$/.test(input.baseRef)) {
         throw new EngineStateError("invalid_request", "base ref is not a usable git ref name");
       }
@@ -135,7 +139,7 @@ export class SessionLifecycle {
         envMode === "worktree" && !input.draft && project !== undefined
           ? (() => {
               const branchSlug = input.branchSlug ?? derivedBranchFor(input.title ?? "", id);
-              return prepareSessionWorktree(this.host.git, {
+              return prepareSessionWorktree(git, {
                 engineRoot: this.kernel.paths.root,
                 projectRoot: project.root,
                 projectName: project.name,
@@ -152,15 +156,15 @@ export class SessionLifecycle {
           ? // `baseRef` is stored NOW rather than when the cut lands: it is the
             // commit the checkout will start from, so a reader asking "what has
             // this session done" has its anchor from the first instant.
-            { mode: "worktree" as const, path: cut.plan.path, branch: cut.plan.branch, baseRef: cut.baseSha }
+            { mode: "worktree" as const, path: cut.plan.path, branch: cut.plan.branch, ...(cut.baseSha ? { baseRef: cut.baseSha } : {}) }
           : project === undefined
             ? // NO PROJECT MEANS NO DIRECTORY — see `SessionWorkspace`'s `none`
               // variant. There is nothing to resolve a base against either: a
               // base is a commit, and there is no repository here.
               { mode: "none" as const }
             : (() => {
-              const head = this.host.git(project.root, ["rev-parse", "HEAD"]);
-              const baseRef = head.status === 0 ? head.stdout.trim() : "";
+              const head = git?.(project.root, ["rev-parse", "HEAD"]);
+              const baseRef = head?.status === 0 ? head.stdout.trim() : "";
               return { mode: "local" as const, path: project.root, ...(baseRef ? { baseRef } : {}) };
             })();
       const session: Session = {
@@ -220,7 +224,8 @@ export class SessionLifecycle {
       // AFTER the document, never before: the flip this schedules writes the same
       // record, and a cut that finished first would be overwritten by the row that
       // said it had not started.
-      if (cut !== undefined && project !== undefined) this.prepareWorktree(id, project.root, cut.plan, cut.baseSha);
+      if (cut !== undefined && project !== undefined) this.prepareWorktree(id, project.root, cut.plan, cut.baseSha, input.baseRef);
+      else if (workspace.mode === "local" && !input.draft && git === undefined && availability === "available") this.recordLocalBase(id, workspace.path);
       return structuredClone(session);
     });
   }
@@ -245,12 +250,20 @@ export class SessionLifecycle {
     return named ? kept : undefined;
   }
 
+  // A local session created off the request path learns the commit it started from once the pool answers.
+  private recordLocalBase(sessionId: string, root: string): void {
+    void this.host.worktreeGit(root, ["rev-parse", "HEAD"]).then((head) => {
+      if (head.status === 0) this.host.settleWorktree(sessionId, undefined, head.stdout.trim());
+    }).catch(() => undefined);
+  }
+
   /** Cuts the checkout a `preparing` session waits for, then flips its row; not awaited, and serialised per project. */
-  prepareWorktree(sessionId: string, projectRoot: string, plan: WorktreePlan, baseSha: string): void {
+  prepareWorktree(sessionId: string, projectRoot: string, plan: WorktreePlan, baseSha: string | undefined, baseRef?: string): void {
     void this.host.worktreeQueue(projectRoot, async () => {
       try {
-        await createSessionWorktreeAsync(this.host.worktreeGit, { engineRoot: this.kernel.paths.root, projectRoot, plan, baseSha });
-        this.host.settleWorktree(sessionId, undefined);
+        const base = baseSha ?? (await resolveWorktreeBaseAsync(this.host.worktreeGit, projectRoot, baseRef));
+        await createSessionWorktreeAsync(this.host.worktreeGit, { engineRoot: this.kernel.paths.root, projectRoot, plan, baseSha: base });
+        this.host.settleWorktree(sessionId, undefined, baseSha === undefined ? base : undefined);
         void this.host.startSetup(sessionId, plan.path);
       } catch (error) {
         // Git's own words, not ours — see `SessionPreparation.error`.
@@ -468,7 +481,7 @@ export class SessionLifecycle {
   detachAssignments(sessionId: string, runId?: string): Turn[] {
     const session = this.records.get(sessionId);
     const at = this.kernel.now();
-    const queue = this.host.readQueue(session.id);
+    const queue = this.host.readQueue(session.id, this.host.assignedTurns(session.id).map((turn) => turn.runId));
     const detached: Turn[] = [];
     for (const turn of queue.turns) {
       if (turn.origin !== "session" || turn.agentIntent !== "task") continue;

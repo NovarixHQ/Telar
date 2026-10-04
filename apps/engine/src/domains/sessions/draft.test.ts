@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { EngineStore } from "../../state";
 import { worktreeReady } from "../../../test/worktree-ready";
-import type { GitRunner } from "../../platform/git/runner";
+import type { AsyncGitRunner, GitResult, GitRunner } from "../../platform/git/runner";
 
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
@@ -112,4 +112,59 @@ test("an archived or compact-only draft cannot allocate a workspace or start an 
   expect(() => store.intake.submitTurn(draft.id, { runId: "run_archived", input: "Start" })).toThrow(/archived/);
   expect(calls.some((args) => args[0] === "worktree")).toBe(false);
   expect(store.queries.turns(draft.id)).toHaveLength(0);
+});
+
+test("a first send nobody read git ahead for plans the cut without git and asks the base through the pool", async () => {
+  const { store, calls } = fixture();
+  const draft = store.lifecycle.createSession({ projectId: "project_draft", draft: true, envMode: "worktree", baseRef: "main" });
+  store.intake.submitTurn(draft.id, { runId: "run_first", input: "From a schedule" });
+  expect(store.records.get(draft.id)).toMatchObject({ workspace: { mode: "worktree" }, preparation: { state: "preparing" } });
+  expect(store.records.get(draft.id).workspace).not.toHaveProperty("baseRef");
+
+  await settled(store, draft.id);
+  expect(store.records.get(draft.id)).toMatchObject({ workspace: { mode: "worktree", baseRef: "abc123" } });
+  expect(store.records.get(draft.id).preparation).toBeUndefined();
+  expect(calls.filter((args) => args.join(" ") !== "rev-parse HEAD").slice(0, 3)).toEqual([
+    ["rev-parse", "--is-inside-work-tree"],
+    ["rev-parse", "main"],
+    expect.arrayContaining(["worktree", "add", "abc123"]),
+  ]);
+});
+
+test("a deferred cut in a folder that is not a repository fails on the row, in the words the send used to throw", async () => {
+  const { store } = fixture();
+  const notGit: GitRunner = () => ({ status: 128, stdout: "", stderr: "fatal: not a git repository" });
+  const plain = new EngineStore(path.join(fs.mkdtempSync(path.join(os.tmpdir(), "telar-draft-plain-")), "engine"), () => 100, { git: notGit });
+  plain.projectRegistry.register(store.projectRegistry.get("project_draft"));
+  const draft = plain.lifecycle.createSession({ projectId: "project_draft", draft: true, envMode: "worktree" });
+  plain.intake.submitTurn(draft.id, { runId: "run_first", input: "Try work" });
+  await settled(plain, draft.id);
+  expect(plain.records.get(draft.id).preparation).toMatchObject({ state: "failed", error: expect.stringContaining("worktree sessions need a git repository") });
+});
+
+test("a slow git behind a deferred cut holds up no other command", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "telar-draft-slow-"));
+  roots.push(root);
+  const waiting: Array<{ args: string[]; release: () => void }> = [];
+  const asyncGit: AsyncGitRunner = (_cwd, args) => new Promise<GitResult>((resolve) => {
+    if (args[0] === "worktree" && args[1] === "add") fs.mkdirSync(args[4]!, { recursive: true });
+    waiting.push({ args, release: () => resolve({ status: 0, stdout: args.includes("--is-inside-work-tree") ? "true\n" : "abc123\n", stderr: "" }) });
+  });
+  const store = new EngineStore(path.join(root, "engine"), () => 100, { asyncGit });
+  store.projectRegistry.register({ id: "project_draft", name: "Draft", root });
+  const draft = store.lifecycle.createSession({ projectId: "project_draft", draft: true, envMode: "worktree" });
+  const other = store.lifecycle.createSession({ projectId: "project_draft" });
+
+  store.intake.submitTurn(draft.id, { runId: "run_first", input: "From a wake" });
+  await Promise.resolve();
+  expect(waiting.map((call) => call.args)).toContainEqual(["rev-parse", "--is-inside-work-tree"]);
+  expect(store.intake.submitTurn(other.id, { runId: "run_other", input: "meanwhile" }).turn.state).toBe("queued");
+  expect(store.claims.claimTurn(other.id, "worker_one")?.runId).toBe("run_other");
+  expect(store.records.get(draft.id).preparation?.state).toBe("preparing");
+
+  while (store.records.get(draft.id).preparation?.state === "preparing") {
+    for (const call of waiting.splice(0)) call.release();
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  expect(store.records.get(draft.id)).toMatchObject({ workspace: { mode: "worktree", baseRef: "abc123" } });
 });

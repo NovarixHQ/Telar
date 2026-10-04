@@ -30,7 +30,7 @@ async function ready() {
 }
 
 function settle(store: EngineDaemon["store"], sessionId: string, runId: string) {
-  const queue = (store as never as { sessionQueues: { read(id: string): { turns: { runId: string; state: string; completedAt?: number }[] } } }).sessionQueues.read(sessionId);
+  const queue = (store as never as { sessionQueues: { read(id: string, runIds: string[]): { turns: { runId: string; state: string; completedAt?: number }[] } } }).sessionQueues.read(sessionId, [runId]);
   const turn = queue.turns.find((candidate) => candidate.runId === runId)!;
   turn.state = "completed";
   turn.completedAt = 5_000;

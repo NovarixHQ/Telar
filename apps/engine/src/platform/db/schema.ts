@@ -131,6 +131,7 @@ export function openDatabase(root: string): { db: Database; searchIndex: "fts5" 
       CREATE INDEX IF NOT EXISTS turns_order ON turns(session_id, sequence);
       CREATE INDEX IF NOT EXISTS turns_ended ON turns(session_id, completed_at, sequence) WHERE completed_at IS NOT NULL;
       CREATE INDEX IF NOT EXISTS turns_live ON turns(session_id, sequence) WHERE live=1;
+      CREATE INDEX IF NOT EXISTS turns_open ON turns(session_id, sequence) WHERE live=1 OR state='ambiguous';
       CREATE INDEX IF NOT EXISTS turns_assigned ON turns(session_id, sequence) WHERE assigned=1;`);
     // usage_* is the SUM of a turn's usage rows plus their count: Codex rows are per call, Claude's last row is the total.
     addColumns(db, "turn_summaries", [

@@ -45,10 +45,9 @@ export function migrateQueueToRows(store: ExecutionStore, sessionId: string, nex
   });
 }
 
-export function writeTurnRows(store: ExecutionStore, sessionId: string, nextSequence: number, rows: readonly TurnRow[], removed: readonly string[]): void {
+export function writeTurnRows(store: ExecutionStore, sessionId: string, nextSequence: number, rows: readonly TurnRow[]): void {
   store.atomically(() => {
     for (const row of rows) upsert(store, sessionId, row);
-    for (const runId of removed) store.statement("DELETE FROM turns WHERE session_id=? AND run_id=?").run(sessionId, runId);
     store.setMetadata(`${QUEUE_ROWS_PREFIX}${sessionId}`, String(nextSequence));
   });
 }
@@ -58,6 +57,15 @@ const values = (rows: Array<Record<string, unknown>>): Array<{ runId: string; va
 
 export function allTurnRows(store: ExecutionStore, sessionId: string): Array<{ runId: string; value: string }> {
   return values(store.statement("SELECT run_id,value FROM turns WHERE session_id=? ORDER BY sequence").all(sessionId));
+}
+
+/** What a command edits: every unfinished turn (live, or ambiguous until a person decides) and the named ones. */
+export function openTurnRows(store: ExecutionStore, sessionId: string, runIds: readonly string[]): Array<{ runId: string; value: string }> {
+  return values(store.statement(
+    `SELECT run_id,sequence,value FROM turns WHERE session_id=?1 AND (live=1 OR state='ambiguous')
+     UNION SELECT t.run_id,t.sequence,t.value FROM json_each(?2) AS j CROSS JOIN turns AS t ON t.session_id=?1 AND t.run_id=j.value
+     ORDER BY 2`,
+  ).all(sessionId, JSON.stringify(runIds)));
 }
 
 export function liveTurnRows(store: ExecutionStore, sessionId: string): string[] {
@@ -76,6 +84,12 @@ export function turnRowsFor(store: ExecutionStore, sessionId: string, runIds: re
 /** Handed-over tasks; a steered one's outcome lives in the run it joined, which `turnRowsFor` adds. */
 export function assignedTurnRows(store: ExecutionStore, sessionId: string): string[] {
   return store.statement("SELECT value FROM turns WHERE session_id=? AND assigned=1 ORDER BY sequence").all(sessionId).map((row) => String(row.value));
+}
+
+/** Sessions holding a task `coordinatorSessionId` handed over. */
+export function delegatesOf(store: ExecutionStore, coordinatorSessionId: string): string[] {
+  return store.statement("SELECT DISTINCT session_id FROM turns WHERE assigned=1 AND json_extract(value,'$.sender.sessionId')=?")
+    .all(coordinatorSessionId).map((row) => String(row.session_id));
 }
 
 /** What the activity fold reads: the live turns, the last to end and the last with a result. */

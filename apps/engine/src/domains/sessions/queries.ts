@@ -251,7 +251,7 @@ export class SessionQueries {
 
   turns(sessionId: string): Turn[] {
     this.deps.records.require(sessionId);
-    return structuredClone(this.deps.queues.read(sessionId).turns);
+    return structuredClone(this.deps.queues.scan(sessionId).turns);
   }
 
   items(sessionId: string): Item[] {

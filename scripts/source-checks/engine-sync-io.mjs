@@ -17,7 +17,6 @@ const ALLOWED = {
   "apps/engine/src/domains/storage/measure.ts": { count: 1, reason: "existence of execution.sqlite under the engine's own directory" },
   "apps/engine/src/domains/storage/node-modules-reap.ts": { count: 3, reason: "the reap of archived checkouts' node_modules, at most once a day" },
   "apps/engine/src/domains/storage/package-caches.ts": { count: 1, reason: "default stat for the package-cache dedup probe; tests inject their own" },
-  "apps/engine/src/platform/git/runner.ts": { count: 1, reason: "the bounded synchronous git runner, killed at its timeout" },
 };
 
 const strip = (text) =>

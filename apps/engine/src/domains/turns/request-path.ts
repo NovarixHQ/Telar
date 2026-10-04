@@ -1,5 +1,5 @@
 import type { Project, ProjectAvailability, Session } from "@telar/engine-client";
-import { prefetchableRef, type PrefetchedGit } from "../../platform/git/prefetch";
+import { cutQuestions, type PrefetchedGit } from "../../platform/git/prefetch";
 import type { SessionLifecycle, SessionRecords } from "../sessions";
 import type { SenderProof, TurnIntake } from "./intake";
 
@@ -14,11 +14,6 @@ type RequestPathDeps = {
 };
 
 type CreateSessionRequest = Parameters<SessionLifecycle["createSession"]>[0] & { brief?: { runId: string; input: string } };
-
-const cutQuestions = (baseRef: string | undefined): string[][] => {
-  const base = prefetchableRef(baseRef);
-  return [["rev-parse", "--is-inside-work-tree"], ...(base ? [["rev-parse", base]] : [])];
-};
 
 /** The synchronous commands an HTTP request runs, with their git questions read through the pool first. */
 export class RequestPath {

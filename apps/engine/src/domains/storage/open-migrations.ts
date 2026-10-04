@@ -121,7 +121,7 @@ export function backfillTurnSummaries(kernel: Kernel, items: SessionItems, queue
     for (const sessionId of missing) {
       try {
         kernel.command("backfillTurnSummaries", () => {
-          const queue = queues.read(sessionId);
+          const queue = queues.scan(sessionId);
           if (queue.turns.length === 0) return;
           const byRun = new Map<string, Item[]>();
           for (const item of items.values(sessionId)) {

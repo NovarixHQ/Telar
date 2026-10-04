@@ -26,7 +26,7 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 export type JournalEntry = DistributiveOmit<EngineEvent, "id" | "at" | "sessionId" | "runId">;
 
 /** Wraps every document write; `written` is what an indexed write carries along for its reader. */
-type WriteRoute = (file: string, write: () => void, written?: unknown) => void;
+type WriteRoute = (file: string, write: () => void) => void;
 
 type KernelOptions<Notifier> = {
   paths: EngineStatePaths;
@@ -120,8 +120,8 @@ export class Kernel<Notifier = unknown> {
   }
 
   /** Rows stored under a document's name, so the write route sees them as that document's write. */
-  writeRows(file: string, write: () => void, written?: unknown): void {
-    this.route(file, write, written);
+  writeRows(file: string, write: () => void): void {
+    this.route(file, write);
   }
 
   /** The index beside `file`, or `undefined` when none still describes it. */

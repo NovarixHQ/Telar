@@ -21,7 +21,7 @@ type LifecycleDeps = {
   items: SessionItems;
   tasks: SessionTasks;
   requests: SessionRequests;
-  readQueue: (sessionId: string) => SessionQueue;
+  readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   requireRunningClaimFromQueue: (queue: SessionQueue, runId: string, claimToken: string) => Turn;
   assertProjectAvailable: (projectId: string) => void;
@@ -62,7 +62,7 @@ export class TurnLifecycle {
 
   markRunning(sessionId: string, runId: string, claimToken: string): Turn {
     return this.kernel.command("markRunning", () => {
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [runId]);
       const turn = queue.turns.find((candidate) => candidate.runId === runId);
       if (!turn) throw new EngineStateError("not_found", "turn does not exist");
       if (turn.state !== "claimed" || turn.claim?.token !== claimToken) {
@@ -96,7 +96,7 @@ export class TurnLifecycle {
       if (typeof input.text !== "string" || input.text.length > MAX_TEXT_LENGTH) {
         throw new EngineStateError("invalid_request", "final text exceeds the allowed size");
       }
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [runId]);
       const turn = this.deps.requireRunningClaimFromQueue(queue, runId, claimToken);
       const at = this.kernel.now();
       turn.state = "completed";
@@ -143,7 +143,7 @@ export class TurnLifecycle {
     assertId(runId, "run id");
     const session = this.deps.records.get(sessionId);
     if (session.projectId !== undefined) this.deps.assertProjectAvailable(session.projectId);
-    const queue = this.deps.readQueue(sessionId);
+    const queue = this.deps.readQueue(sessionId, [runId]);
     const turn = queue.turns.find((candidate) => candidate.runId === runId);
     if (!turn) throw new EngineStateError("not_found", "turn does not exist");
     if (turn.state !== "failed" || turn.failure?.code !== "rate_limited") {
@@ -186,7 +186,7 @@ export class TurnLifecycle {
       if (failure.code === "rate_limited" && resumeAt === undefined) {
         throw new EngineStateError("invalid_request", "a rate-limited failure must say when the limit resets");
       }
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [runId]);
       const turn = this.deps.requireRunningClaimFromQueue(queue, runId, claimToken);
       const at = this.kernel.now();
       turn.state = "failed";
@@ -285,7 +285,7 @@ export class TurnLifecycle {
   /** Stops one run; the next queued message is claimed as usual and subscribers are woken. */
   stopTurn(sessionId: string, requestedRunId?: string): { turn?: Turn; stopped: boolean } {
     return this.kernel.command("stopTurn", () => {
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, requestedRunId ? [requestedRunId] : []);
       const turn = requestedRunId
         ? queue.turns.find((candidate) => candidate.runId === requestedRunId)
         : queue.turns.find((candidate) => candidate.state === "queued" || candidate.state === "claimed" || candidate.state === "running");
@@ -349,7 +349,7 @@ export class TurnLifecycle {
   promoteTurn(sessionId: string, runId: string): Turn {
     return this.kernel.command("promoteTurn", () => {
       assertId(runId, "run id");
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [runId]);
       const turn = queue.turns.find((candidate) => candidate.runId === runId);
       if (!turn) throw new EngineStateError("not_found", "turn does not exist");
       // Checked here as well as inside, to keep the refusals in the order this
@@ -370,7 +370,7 @@ export class TurnLifecycle {
   ackSteer(sessionId: string, steerRunId: string, claimToken: string): Turn {
     return this.kernel.command("ackSteer", () => {
       assertId(steerRunId, "run id");
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [steerRunId]);
       const turn = queue.turns.find((candidate) => candidate.runId === steerRunId);
       if (!turn) throw new EngineStateError("not_found", "turn does not exist");
       if (turn.state === "steered") return structuredClone(turn);
@@ -412,7 +412,7 @@ export class TurnLifecycle {
       assertId(runId, "run id");
       const session = this.deps.records.get(sessionId);
       if (session.projectId !== undefined) this.deps.assertProjectAvailable(session.projectId);
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [runId]);
       const turn = queue.turns.find((candidate) => candidate.runId === runId);
       if (!turn) throw new EngineStateError("not_found", "turn does not exist");
       if (turn.state !== "queued") throw new EngineStateError("conflict", "only a queued turn can be released");
@@ -438,7 +438,7 @@ export class TurnLifecycle {
   discardAmbiguousTurn(sessionId: string, runId: string): Turn {
     return this.kernel.command("discardAmbiguousTurn", () => {
       assertId(runId, "run id");
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [runId]);
       const turn = queue.turns.find((candidate) => candidate.runId === runId);
       if (!turn) throw new EngineStateError("not_found", "turn does not exist");
       if (turn.state !== "ambiguous") {

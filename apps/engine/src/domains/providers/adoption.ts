@@ -67,7 +67,7 @@ export class ConversationAdoption {
       throw new EngineStateError("invalid_request", "only a Claude session can adopt a Claude Code conversation");
     }
     const queue = this.host.readQueue(sessionId);
-    if (queue.turns.length > 0 || session.resumeCursor) {
+    if (queue.nextSequence > 1 || queue.turns.length > 0 || session.resumeCursor) {
       throw new EngineStateError("conflict", "this session has already started a conversation — adopt into a new session instead");
     }
     let adoption: Adoption;

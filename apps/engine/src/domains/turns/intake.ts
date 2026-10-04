@@ -77,13 +77,15 @@ type IntakeDeps = {
   mailbox: SessionMailbox;
   attachments: SessionAttachments;
   git: GitRunner;
-  readQueue: (sessionId: string) => SessionQueue;
+  readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
+  assignedTurns: (sessionId: string) => Turn[];
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   getProject: (projectId: string) => Project;
   availability: (project: Project) => ProjectAvailability;
   assertProjectAvailable: (projectId: string) => void;
   reopenWorktree: (sessionId: string) => void;
-  prepareWorktree: (sessionId: string, projectRoot: string, plan: WorktreePlan, baseSha: string) => void;
+  prepareWorktree: (sessionId: string, projectRoot: string, plan: WorktreePlan, baseSha: string | undefined, baseRef?: string) => void;
+  gitAnswersCut: (projectRoot: string, baseRef: string | undefined) => boolean;
   // Injected rather than imported: the worktrees domain reaches agent-tools, which reads the sessions index at load.
   planWorktree: typeof prepareSessionWorktree;
   derivedBranchFor: (title: string, sessionId: string) => string | undefined;
@@ -117,7 +119,7 @@ export class TurnIntake {
       if (session.workspace.mode === "worktree") this.deps.reopenWorktree(sessionId);
       if (kind === "compact" && !PROVIDER_CAPABILITIES[session.driver].compaction)
         throw new EngineStateError("conflict", "this provider does not support manual compaction");
-      const queue = this.deps.readQueue(sessionId);
+      const queue = this.deps.readQueue(sessionId, [input.runId]);
       const known = queue.turns.find((turn) => turn.runId === input.runId);
       if (known) {
         if (known.input !== input.input) throw new EngineStateError("conflict", "run id was already submitted with different text");
@@ -192,7 +194,7 @@ export class TurnIntake {
       if ((intent === "result" || intent === "blocker") && sender.sessionId) this.assertAnswersAnAssignment(sessionId, sender.sessionId, intent);
       const spent = intent === "result" && proof && sender.sessionId ? spendPhrase(this.deps.runSpend(sender.sessionId, proof.runId)) : undefined;
       const waiting = intent === "result" && sender.sessionId ? this.deps.waitingSubscription(sessionId, sender.sessionId) : false;
-      const correction = input.corrects && !this.deps.readQueue(sessionId).turns.some((turn) => turn.runId === input.runId)
+      const correction = input.corrects && !this.deps.readQueue(sessionId, [input.runId]).turns.some((turn) => turn.runId === input.runId)
         ? this.correctionOf(sessionId, input.corrects, sender.sessionId)
         : undefined;
       const cohortHeld = intent === "result" && sender.sessionId !== undefined && this.deps.cohortHolds(sessionId, sender.sessionId);
@@ -212,7 +214,7 @@ export class TurnIntake {
         ? this.waitingMessageFrom(sessionId, sender.sessionId, proof.runId, input.runId)
         : undefined;
       const joins = !folds && !correction && delivery === "wake" && FOLDING_INTENTS.has(intent) && !this.deps.hasLiveTurn(sessionId) &&
-        !this.deps.readQueue(sessionId).turns.some((turn) => turn.runId === input.runId)
+        !this.deps.readQueue(sessionId, [input.runId]).turns.some((turn) => turn.runId === input.runId)
         ? this.deps.waitingNotificationTurn(sessionId)
         : undefined;
       const result = this.submitTurn(sessionId, {
@@ -239,7 +241,7 @@ export class TurnIntake {
   }
 
   private assertAnswersAnAssignment(recipientSessionId: string, senderSessionId: string, intent: "result" | "blocker"): void {
-    const assignments = assignmentsOf(this.deps.readQueue(senderSessionId).turns as AssignmentTurn[]);
+    const assignments = assignmentsOf(this.deps.assignedTurns(senderSessionId) as AssignmentTurn[]);
     if (assignments.length === 0) return;
     const parent = this.deps.records.require(senderSessionId).startedFrom?.sessionId;
     const assigners = [...new Set([...assignments.filter((each) => each.outcome !== "detached").map((each) => each.fromSessionId), ...(parent ? [parent] : [])])];
@@ -337,13 +339,13 @@ export class TurnIntake {
   // The first message turns a draft into a session: its worktree is planned now and cut after the document is written.
   private promoteDraft(sessionId: string, session: Session, turn: Turn, text: string, kind: "compact" | undefined, at: number): void {
     const draft = session.draft!;
-    let cut: { projectRoot: string; plan: WorktreePlan; baseSha: string } | undefined;
+    let cut: { projectRoot: string; plan: WorktreePlan; baseSha?: string } | undefined;
     if (session.state === "archived") throw new EngineStateError("conflict", "session is archived");
     if (kind === "compact") throw new EngineStateError("conflict", "a browser draft has no conversation to compact");
     if (session.envMode === "worktree") {
       if (!session.projectId) throw new EngineStateError("conflict", "a worktree draft requires a project");
       const project = this.deps.getProject(session.projectId);
-      const planned = this.deps.planWorktree(this.deps.git, {
+      const planned = this.deps.planWorktree(this.deps.gitAnswersCut(project.root, draft.baseRef) ? this.deps.git : undefined, {
         engineRoot: this.kernel.paths.root, projectRoot: project.root, projectName: project.name, sessionId,
         // The send already went through `assertProjectAvailable`; this is that reading, not a second one.
         availability: this.deps.availability(project),
@@ -351,7 +353,7 @@ export class TurnIntake {
         ...(draft.baseRef ? { baseRef: draft.baseRef } : {}),
         ...(draft.branchName ? { branchName: draft.branchName } : {}),
       });
-      session.workspace = { mode: "worktree", path: planned.plan.path, branch: planned.plan.branch, baseRef: planned.baseSha };
+      session.workspace = { mode: "worktree", path: planned.plan.path, branch: planned.plan.branch, ...(planned.baseSha ? { baseRef: planned.baseSha } : {}) };
       session.preparation = { state: "preparing", at };
       cut = { projectRoot: project.root, ...planned };
     }
@@ -361,12 +363,12 @@ export class TurnIntake {
     }
     delete session.draft;
     this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(session));
-    if (cut) this.deps.prepareWorktree(sessionId, cut.projectRoot, cut.plan, cut.baseSha);
+    if (cut) this.deps.prepareWorktree(sessionId, cut.projectRoot, cut.plan, cut.baseSha, draft.baseRef);
   }
 
   /** Where a corrected message stands for this recipient; refused when it names nothing this sender sent here. */
   private correctionOf(sessionId: string, correctedRunId: string, senderSessionId: string | undefined): "queued" | "held" | "read" {
-    const corrected = this.deps.readQueue(sessionId).turns.find((turn) => turn.runId === correctedRunId);
+    const corrected = this.deps.readQueue(sessionId, [correctedRunId]).turns.find((turn) => turn.runId === correctedRunId);
     if (!corrected || corrected.origin !== "session" || !senderSessionId || corrected.sender?.sessionId !== senderSessionId || corrected.notification?.kind !== "peer_message") {
       throw new EngineStateError("invalid_request", `corrects must name an earlier message you sent to this session; ${correctedRunId} is not one`);
     }
@@ -381,7 +383,7 @@ export class TurnIntake {
       this.deps.mailbox.withdrawPeer(sessionId, correctedRunId);
       return;
     }
-    const queue = this.deps.readQueue(sessionId);
+    const queue = this.deps.readQueue(sessionId, [correctedRunId]);
     const turn = queue.turns.find((candidate) => candidate.runId === correctedRunId && candidate.state === "queued");
     if (!turn) return;
     const at = this.kernel.now();
@@ -395,7 +397,7 @@ export class TurnIntake {
 
   /** The queued, unread wake an earlier message from this same run waits in; past the delivery cap, none. */
   private waitingMessageFrom(sessionId: string, senderSessionId: string, sourceRunId: string, runId: string): string | undefined {
-    const turns = this.deps.readQueue(sessionId).turns;
+    const turns = this.deps.readQueue(sessionId, [runId]).turns;
     // The same run id again is a retried call, not a second message.
     if (turns.some((candidate) => candidate.runId === runId)) return undefined;
     const waiting = turns.find(
@@ -415,7 +417,7 @@ export class TurnIntake {
   }
 
   private foldIntoWaitingMessage(sessionId: string, waitingRunId: string, notification: NotificationDetail): void {
-    const queue = this.deps.readQueue(sessionId);
+    const queue = this.deps.readQueue(sessionId, [waitingRunId]);
     const waiting = queue.turns.find((candidate) => candidate.runId === waitingRunId);
     if (!waiting?.notification || waiting.state !== "queued") return;
     const at = this.kernel.now();

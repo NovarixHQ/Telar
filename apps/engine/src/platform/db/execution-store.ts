@@ -13,7 +13,7 @@ import { exportLegacy, fenceLegacy, importLegacy, sweepLegacyBackup } from "./le
 import { exportSession, JOURNAL_FLOOR_PREFIX, retentionPreview, retireJournal, retireSession } from "./retention";
 import { openDatabase, type Database, type Statement } from "./schema";
 import * as tables from "./tables";
-import { deleteTurnRows, migrateQueueToRows, queueNextSequence, writeTurnRows, type TurnRow } from "./turn-rows";
+import { delegatesOf, deleteTurnRows, migrateQueueToRows, queueNextSequence, writeTurnRows, type TurnRow } from "./turn-rows";
 
 /** A delta may sit in memory for this many events or this long; readers see it at once, only durability waits. */
 const FLUSH_COUNT = 32;
@@ -179,7 +179,8 @@ export class ExecutionStore {
   itemRowsForRuns(sessionId: string, runIds: readonly string[]): string[] { return tables.itemRowsForRuns(this, sessionId, runIds); }
   queueNextSequence(sessionId: string): number | undefined { return queueNextSequence(this, sessionId); }
   migrateQueueToRows(sessionId: string, nextSequence: number, rows: readonly TurnRow[], documents: string[]): void { migrateQueueToRows(this, sessionId, nextSequence, rows, documents); }
-  writeTurnRows(sessionId: string, nextSequence: number, rows: readonly TurnRow[], removed: readonly string[]): void { writeTurnRows(this, sessionId, nextSequence, rows, removed); }
+  writeTurnRows(sessionId: string, nextSequence: number, rows: readonly TurnRow[]): void { writeTurnRows(this, sessionId, nextSequence, rows); }
+  delegatesOf(coordinatorSessionId: string): string[] { return delegatesOf(this, coordinatorSessionId); }
   sessionIds(): string[] { return tables.sessionIds(this); }
   sessionRowGaps() { return tables.sessionRowGaps(this); }
   liveSessionRows(): tables.SessionIndexRow[] { return tables.liveSessionRows(this); }
@@ -200,7 +201,7 @@ export class ExecutionStore {
   readSchedule(id: string): tables.ScheduleRow | undefined { return tables.readSchedule(this, id); }
   writeSchedule(row: tables.ScheduleRow): void { tables.writeSchedule(this, row); }
   deleteSchedule(id: string): boolean { return tables.deleteSchedule(this, id); }
-  turnSummaryStates(sessionId: string) { return tables.turnSummaryStates(this, sessionId); }
+  turnSummaryStatesFor(sessionId: string, runIds: readonly string[]) { return tables.turnSummaryStatesFor(this, sessionId, runIds); }
   writeTurnSummary(row: TurnSummary): void { tables.writeTurnSummary(this, row); }
   deleteTurnSummary(sessionId: string, runId: string): void { tables.deleteTurnSummary(this, sessionId, runId); }
   outlineRows(sessionId: string, before: number | undefined, limit: number): TurnSummary[] { return tables.outlineRows(this, sessionId, before, limit); }

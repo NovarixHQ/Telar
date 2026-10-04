@@ -49,7 +49,6 @@ type ClaimDeps = {
   computerUse: () => ResolvedComputerUse | undefined;
   readQueue: (sessionId: string) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
-  scanQueue: (sessionId: string) => SessionQueue;
   liveQueueSessionIds: () => Set<string>;
   requeueUndeliveredSteers: (queue: { turns: Turn[] }, runId: string, at: number) => Turn[];
   fireSubscriptions: (sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"]; request?: EngineRequest }) => void;
@@ -189,10 +188,10 @@ export class TurnClaims {
    * Nothing is journalled here: an event would count as the run's own progress and clear the flag.
    */
   private sweepStalledTurns(sessionId: string): void {
-    const scan = this.deps.scanQueue(sessionId);
-    if (!scan.turns.some((turn) => turn.state === "running")) return;
+    const own = this.deps.readQueue(sessionId);
+    if (!own.turns.some((turn) => turn.state === "running")) return;
     const at = this.kernel.now();
-    const verdicts = scan.turns
+    const verdicts = own.turns
       .filter((turn) => turn.state === "running")
       .map((turn) => {
         const since = this.lastProgressOf(sessionId, turn);
@@ -205,15 +204,8 @@ export class TurnClaims {
         };
       });
     if (!verdicts.some((verdict) => verdict.stalled !== verdict.was || verdict.drifted)) return;
-    // Writes, so a queue of its own rather than the copy every other reader is
-    // sharing — `sweepRateLimited` immediately above does the same.
-    const own = this.deps.readQueue(sessionId);
     for (const verdict of verdicts) {
-      const turn = own.turns.find((candidate) => candidate.runId === verdict.runId);
-      // Re-read rather than trusted: the scan copy was taken before this call
-      // and a turn that has settled since must not be marked stalled on its way
-      // out. The same argument `settleWorktree`'s header makes.
-      if (!turn || turn.state !== "running") continue;
+      const turn = own.turns.find((candidate) => candidate.runId === verdict.runId)!;
       turn.lastProgressAt = verdict.since;
       if (verdict.stalled) turn.stalled = { since: verdict.since, noticedAt: turn.stalled?.noticedAt ?? at };
       else delete turn.stalled;
@@ -225,12 +217,12 @@ export class TurnClaims {
   private sweepRateLimited(sessionId: string): void {
     const at = this.kernel.now();
     const due = (turn: Turn): boolean => awaitsRateLimitSweep(turn) && turn.failure!.resumeAt! <= at;
-    if (!this.deps.scanQueue(sessionId).turns.some(due)) return;
+    const queue = this.deps.readQueue(sessionId);
+    if (!queue.turns.some(due)) return;
 
     const session = this.deps.records.get(sessionId);
     if (session.paused || session.state === "archived") return;
 
-    const queue = this.deps.readQueue(sessionId);
     const resuming = this.resumesAfterRateLimit(session);
     const requeued: Turn[] = [];
     for (const turn of queue.turns) {
@@ -304,9 +296,8 @@ export class TurnClaims {
   private nextClaimable(sessionId: string): Turn | undefined {
     this.sweepRateLimited(sessionId);
     this.sweepStalledTurns(sessionId);
-    // A SCAN, so the shared copy: the one session that wins is claimed
-    // through `claimTurn`, which reads a queue of its own to write.
-    const queue = this.deps.scanQueue(sessionId);
+    // The one session that wins is claimed through `claimTurn`, which reads again to write.
+    const queue = this.deps.readQueue(sessionId);
     // One turn per session at a time — the engine's own invariant, checked
     // here so a busy session costs nothing further.
     if (queue.turns.some((candidate) => candidate.state === "claimed" || candidate.state === "running")) return undefined;
@@ -325,25 +316,16 @@ export class TurnClaims {
     // way, and a turn must never run in a directory that is not there.
     if (session.workspace.mode === "worktree" && session.workspace.released) return undefined;
     if (session.preparation?.state === "failed") {
-      // Writes, so it takes a queue of its own rather than editing the copy
-      // every other reader is sharing — see the `selection === "failed"`
-      // branch below, which is the same shape for the same reason.
-      const own = this.deps.readQueue(sessionId);
-      const failing = own.turns.find((candidate) => candidate.runId === next.runId);
-      if (failing) {
-        this.failQueuedTurn(
-          sessionId,
-          own,
-          failing,
-          // GIT'S OWN WORDS FIRST. `preparation.error` is what the cut said
-          // and it is the only part of this a person can act on; the rest
-          // says what the engine did and did not do with it.
-          `This session's checkout could not be created, so nothing can run in it. Git said: ${
-            session.preparation.error ?? "no reason was recorded"
-          }. Nothing was sent to a provider. Fix the checkout — or make a new session — and send again.`,
-          "workspace_unavailable",
-        );
-      }
+      this.failQueuedTurn(
+        sessionId,
+        queue,
+        next,
+        // Git's own words first: they are the only part a person can act on.
+        `This session's checkout could not be created, so nothing can run in it. Git said: ${
+          session.preparation.error ?? "no reason was recorded"
+        }. Nothing was sent to a provider. Fix the checkout — or make a new session — and send again.`,
+        "workspace_unavailable",
+      );
       return undefined;
     }
     const selection = this.deps.catalogues.claudeSelectionState(session.driver, next.model ?? session.model);
@@ -353,18 +335,12 @@ export class TurnClaims {
       return undefined;
     }
     if (selection === "failed") {
-      // The one branch of this scan that WRITES, so it takes a queue of its
-      // own rather than editing the copy every other reader is sharing.
-      const own = this.deps.readQueue(sessionId);
-      const failing = own.turns.find((candidate) => candidate.runId === next.runId);
-      if (failing) {
-        this.failQueuedTurn(
-          sessionId,
-          own,
-          failing,
-          "Telar could not resolve a long-context Claude model, so it cannot tell which context window this session would run. Nothing was sent to the provider. Pick a model for this session from the composer's model picker, or send again to retry.",
-        );
-      }
+      this.failQueuedTurn(
+        sessionId,
+        queue,
+        next,
+        "Telar could not resolve a long-context Claude model, so it cannot tell which context window this session would run. Nothing was sent to the provider. Pick a model for this session from the composer's model picker, or send again to retry.",
+      );
       return undefined;
     }
     return next;

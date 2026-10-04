@@ -3,17 +3,10 @@
 import { PlusIcon, RotateCwIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import { RunGlyph } from "../run/icons";
-import { isOpenTerminal, statusDetail, statusLabel, statusTone, type RunTone } from "../run/presentation";
+import { isOpenTerminal, statusDetail, statusLabel, statusTone } from "../run/presentation";
 import { activateShell, addShell, shellLabel, type TerminalShell } from "../workspace";
 import type { ShellStrip } from "../hooks/use-shell-strip";
-
-// The masthead pill's five-tone vocabulary, so the two never disagree about what green means.
-const RUN_TONE_DOT: Record<RunTone, string> = {
-  idle: "bg-muted-foreground/40",
-  working: "bg-warning",
-  good: "bg-success",
-  bad: "bg-destructive",
-};
+import { TONE_DOT } from "./run-header-menu";
 
 const chipButton = "shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground";
 
@@ -35,7 +28,7 @@ function ShellChip({ strip, shell, sessionId }: { strip: ShellStrip; shell: Term
     >
       {shell.run && (
         <>
-          <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", RUN_TONE_DOT[run ? statusTone(run.status) : "idle"])} />
+          <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", TONE_DOT[run ? statusTone(run) : "idle"])} />
           <RunGlyph icon={icon} className="size-3 shrink-0 opacity-80" />
         </>
       )}
@@ -58,8 +51,8 @@ function ShellChip({ strip, shell, sessionId }: { strip: ShellStrip; shell: Term
       {shell.run && run && (
         <button
           type="button"
-          aria-label={`Restart ${label}`}
-          title="Restart — end this and start the same command again"
+          aria-label={`Run ${label} again`}
+          title="Run again — runs the last command again in this shell"
           className={chipButton}
           onClick={(event) => {
             event.stopPropagation();

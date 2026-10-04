@@ -124,11 +124,12 @@ describe("smoke: every migrated domain through the typed client", () => {
     expect((await client.deleteSchedule(schedule.id)).deleted).toBe(true);
   });
 
-  test("terminal: a saved configuration runs to its exit", async () => {
+  test("terminal: a saved configuration runs until it finishes, and its shell stays open", async () => {
     const config = await client.createRunConfiguration(WORKTREE, { name: "Echo", command: "echo smoke-run" });
     const run = await client.startRun(WORKTREE, { configId: config.id });
     const waited = await client.runWait(WORKTREE, { terminalId: run.terminalId, exit: true, timeoutMs: 15_000 });
-    expect(waited.fired).toBe("exit");
+    expect(waited.fired).toBe("finished");
+    expect(waited.exitCode).toBe(0);
     const output = await client.runOutput(WORKTREE, { terminalId: run.terminalId });
     expect(output.lines.map((line) => line.text).join("\n")).toContain("smoke-run");
     expect((await client.runStatus(WORKTREE)).terminals.map((row) => row.terminalId)).toContain(run.terminalId);

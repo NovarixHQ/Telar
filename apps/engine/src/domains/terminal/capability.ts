@@ -1,4 +1,4 @@
-import type { RunClosedBy, RunOpenInput, RunOutputFilter, RunOutputLine, RunStatusAnswer, RunStopSignal, RunView, RunWaitAnswer } from "@telar/engine-client";
+import type { RunClosedBy, RunCommandInput, RunOpenInput, RunOutputFilter, RunOutputLine, RunStatusAnswer, RunStopSignal, RunView, RunWaitAnswer } from "@telar/engine-client";
 import type { RunConfigurationInput, RunConfigurationView } from "./types";
 
 export type RunTarget = { terminalId?: string; runId?: string };
@@ -10,8 +10,9 @@ export type RunCapability = {
   removeConfiguration(configId: string): Promise<void>;
 
   status(): Promise<RunStatusAnswer>;
-  start(input: { configId: string; replace?: boolean; openedBy?: "person" | "agent" }): Promise<RunView>;
+  start(input: { configId: string; openedBy?: "person" | "agent" }): Promise<RunView>;
   open(input: RunOpenInput): Promise<RunView>;
+  command(input: RunCommandInput): Promise<RunView>;
   stop(input?: RunTarget & { signal?: RunStopSignal; closedBy?: RunClosedBy }): Promise<RunView>;
   restart(input?: RunTarget & { closedBy?: RunClosedBy }): Promise<RunView>;
   output(input?: RunTarget & { after?: number } & RunOutputFilter): Promise<{ lines: RunOutputLine[]; cursor: number; dropped: number }>;

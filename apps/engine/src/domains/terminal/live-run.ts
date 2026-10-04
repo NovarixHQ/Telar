@@ -2,6 +2,7 @@ import { type RunClosedBy, type RunOrigin, type RunOutputLine, type RunReadiness
 import type { RunJournal } from "./journal";
 import type { RunHandle, RunLauncher } from "./launcher";
 import type { RunKill, RunProcessGroup } from "./platform";
+import type { ShellKind } from "./shell";
 import { type RunConfiguration, RunError, type RunProbe } from "./types";
 
 export const MAX_LINES = 2000;
@@ -12,6 +13,7 @@ export const CLOSE_SETTLE_MS = 2000;
 export const READY_POLL_MS = 500;
 export const KEEP_FINISHED = 10;
 export const WAIT_TICK_MS = 50;
+export const PROMPT_WAIT_MS = 5000;
 
 export function compile(source: string, field: string): RegExp {
   try {
@@ -68,6 +70,14 @@ export type LiveRun = {
   secrets: string[];
   readyTimer?: ReturnType<typeof setInterval>;
   waiters: Array<() => void>;
+  shell: { kind: ShellKind; integrated: boolean };
+  activity: "idle" | "busy";
+  prompted: boolean;
+  typed: boolean;
+  queued?: string;
+  promptTimer?: ReturnType<typeof setTimeout>;
+  lastExit?: { exitCode?: number; at: number };
+  idleWaiters: Array<() => void>;
 };
 
 export type RunManagerOptions = {
@@ -82,6 +92,9 @@ export type RunManagerOptions = {
   closeSettleMs?: number;
   readyPollMs?: number;
   personClosed?: (run: RunView) => void;
+  shellDir?: string;
+  env?: NodeJS.ProcessEnv;
+  promptWaitMs?: number;
 };
 
 export const defaultProbe: RunProbe = async (url) => {

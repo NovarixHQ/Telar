@@ -9,9 +9,9 @@ import { runSummary } from "../run/presentation";
 import type { RunApi } from "../run/api";
 import type { RunView } from "../run/types";
 import { headerMode, useRunHeader } from "../hooks/use-run-header";
-import { RunHeaderEditor, RunHeaderMenu, TONE_DOT } from "./run-header-menu";
+import { RunHeaderEditor, RunHeaderMenu } from "./run-header-menu";
 
-/** The masthead's run pill: setup, start and end. Watching output lives in the panel's Terminal tab. */
+/** The masthead's run pill: setup and run. Watching output lives in the panel's Terminal tab. */
 export function RunHeaderControl({
   sessionId,
   hostId,
@@ -41,7 +41,7 @@ export function RunHeaderControl({
     ? "Run — set up a configuration"
     : terminals.length === 0
       ? "Run this project"
-      : `Run: ${summary.label}${summary.detail ? `, ${summary.detail}` : ""}${warned ? ", with a warning" : ""}`;
+      : `Run: ${summary}${warned ? ", with a warning" : ""}`;
 
   return (
     <Popover
@@ -63,9 +63,8 @@ export function RunHeaderControl({
               </>
             ) : (
               <>
-                <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", TONE_DOT[summary.tone])} />
-                {onlyConfig && <RunGlyph icon={onlyConfig.icon} className="size-3.5 shrink-0 opacity-80" />}
-                <span className="max-w-32 truncate">{summary.label}</span>
+                <RunGlyph icon={onlyConfig?.icon} className="size-3.5 shrink-0 opacity-80" />
+                <span className="max-w-32 truncate">{summary}</span>
                 {warned && <TriangleAlertIcon aria-hidden className="size-3 shrink-0 text-warning" />}
                 <ChevronDownIcon className="size-3 shrink-0 opacity-60" />
               </>

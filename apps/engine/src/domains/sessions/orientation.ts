@@ -266,17 +266,18 @@ Tools: \`notes_list\`, \`notes_write\`, \`notes_delete\`.
 - \`display_inline\` — draw an html page, svg, mermaid diagram or markdown as a
   card in the conversation: a diagram, a chart, a UI mockup, a comparison, a
   visual explanation. Html is sandboxed with no network. Reuse an id to revise.
-- **Terminals** — anything that keeps running (a dev server, a watcher, a
-  long build) goes in a terminal in the panel, opened with \`terminal_open\`,
-  so the person sees it and can close it. Never start one with a background
-  shell command (\`run_in_background\`, a trailing \`&\`, \`nohup\`): the
-  person cannot see or stop what that leaves behind. Each \`terminal_open\`
-  opens a new terminal owned by this session; nothing blocks another. Wait for
-  a server with \`terminal_wait\`, never with \`sleep\`. You read and close
-  terminals, but never type into one. If the person closes a terminal, it was
-  on purpose: do not reopen it unless they ask. Tools: \`terminal_open\`,
-  \`terminal_list\`, \`terminal_output\`, \`terminal_wait\`,
-  \`terminal_kill\`.
+- **Terminals** — each terminal is a shell in the panel that stays open after
+  its command ends. \`terminal_open\` opens a new one and types a command;
+  \`terminal_run\` types the next command into one of your idle terminals.
+  Reuse an idle terminal rather than opening another; open a new one only for
+  something that must keep running alongside, like a dev server. Never start
+  that with a background shell command (\`run_in_background\`, a trailing
+  \`&\`, \`nohup\`): the person cannot see or stop what that leaves behind.
+  Wait with \`terminal_wait\`, never with \`sleep\`: \`exit\` waits for the
+  command to finish and gives its exit code. If the person closes a terminal,
+  it was on purpose: do not reopen it unless they ask. Tools:
+  \`terminal_open\`, \`terminal_run\`, \`terminal_list\`,
+  \`terminal_output\`, \`terminal_wait\`, \`terminal_kill\`.
 - The Run menu — a project's saved commands. A project with no run
   configuration can be given one rather than being told it lacks the
   capability; open one with \`terminal_open({configId})\`. Tools:

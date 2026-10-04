@@ -71,7 +71,7 @@ const route = (method: string, tail: string) => {
 test("every tool on this wall is terminal_- or run_-prefixed", () => {
   const tools = surface(() => ({ sessionId: "s", projectId: "p", worktreePath: temp("tree") })).tools;
 
-  expect(tools.size).toBe(7);
+  expect(tools.size).toBe(8);
   for (const name of tools.keys()) {
     expect(name).toMatch(/^(terminal|run)_[a-z_]+$/);
   }
@@ -114,7 +114,7 @@ test("terminal_list lists THIS session's terminals, each with its id", async () 
 
   const started = await tools.get("terminal_open")!.call({ configId: config.id });
   expect(started.isError).toBe(false);
-  expect(started.text).toContain("running");
+  expect(started.text).toContain('Busy with "sleep 30"');
   const id = terminalIn(started.text);
 
   const seen = await tools.get("terminal_list")!.call();
@@ -246,16 +246,18 @@ test("a wait that times out says so first, rather than burying it under the log"
   expect(waited.text).toContain("do not assume it is up");
 }, 20_000);
 
-test("terminal_wait exit waits a build out, and fires once the terminal has ended", async () => {
+test("terminal_wait exit waits a build out and answers its exit code, while the shell stays open", async () => {
   const tree = temp("tree");
   const { store, tools, manager } = surface(() => ({ sessionId: "s", projectId: "p", worktreePath: tree }));
-  const config = store.create("p", chatty("echo building; sleep 0.2; echo done"));
+  const config = store.create("p", chatty("echo building; sleep 0.2; echo done; false"));
   const started = await tools.get("terminal_open")!.call({ configId: config.id });
   const id = terminalIn(started.text);
 
   const waited = await tools.get("terminal_wait")!.call({ terminalId: id, exit: true, timeoutMs: 10_000 });
-  expect(waited.text).toContain("ENDED");
-  expect(manager.run(id).status).toBe("exited");
+  expect(waited.text).toContain("FINISHED — the command exited 1");
+  expect(waited.text).toContain("done");
+  expect(manager.run(id).status).toBe("running");
+  expect(manager.run(id).activity).toBe("idle");
 }, 20_000);
 
 test("waiting for readiness on a recipe with no readiness URL is refused, not waited out", async () => {

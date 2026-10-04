@@ -23,6 +23,7 @@ const view = (overrides: Partial<RunView> = {}): RunView => ({
   worktreePath: "/tmp/tree",
   cwd: "/tmp/tree",
   status: "running",
+  activity: "idle",
   readiness: { kind: "none" },
   startedAt: 100,
   env: [],

@@ -1,4 +1,4 @@
-import { RunOpenInput, RunClosedBy } from "@telar/engine-client";
+import { RunClosedBy, RunCommandInput, RunOpenInput } from "@telar/engine-client";
 import { z } from "zod";
 import type { RunCapability } from "./capability";
 import { RunConfigurationInput, RunError } from "./types";
@@ -60,13 +60,18 @@ const runRoutes: RunRoute[] = [
     pattern: /^\/run\/start$/,
     handle: async ({ capability, input }) =>
       await capability.start(
-        parse(z.object({ configId: z.string().min(1), replace: z.boolean().optional(), openedBy: z.enum(["person", "agent"]).optional() }), input),
+        parse(z.object({ configId: z.string().min(1), openedBy: z.enum(["person", "agent"]).optional() }), input),
       ),
   },
   {
     method: "POST",
     pattern: /^\/run\/open$/,
     handle: async ({ capability, input }) => await capability.open(parse(RunOpenInput, input)),
+  },
+  {
+    method: "POST",
+    pattern: /^\/run\/command$/,
+    handle: async ({ capability, input }) => await capability.command(parse(RunCommandInput, input)),
   },
   {
     method: "POST",

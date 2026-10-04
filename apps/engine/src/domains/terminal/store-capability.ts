@@ -113,6 +113,13 @@ export function storeRunCapability(deps: RunDeps): RunCapability {
       });
     },
 
+    async command(input) {
+      return manager.command(target(input, "act").terminalId, input.command, {
+        ...(input.readinessUrl ? { readinessUrl: input.readinessUrl } : {}),
+        ...(input.readyPattern ? { readyPattern: input.readyPattern } : {}),
+      });
+    },
+
     async stop(input) {
       return await manager.close(target(input, "act").terminalId, input?.closedBy ?? "person", input?.signal);
     },

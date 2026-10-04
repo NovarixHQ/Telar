@@ -10,6 +10,7 @@ export type RunClient = Pick<
   | "runStatus"
   | "startRun"
   | "openTerminal"
+  | "runCommand"
   | "stopRun"
   | "restartRun"
   | "runOutput"
@@ -32,6 +33,7 @@ export function clientRunCapability(client: RunClient, sessionId: string): RunCa
     status: () => client.runStatus(sessionId),
     start: (input) => client.startRun(sessionId, input),
     open: (input) => client.openTerminal(sessionId, input),
+    command: (input) => client.runCommand(sessionId, input),
     stop: (input) =>
       client.stopRun(sessionId, idOf(input), input?.signal, ...(input?.closedBy ? [{ closedBy: input.closedBy }] : [])),
     restart: (input) => client.restartRun(sessionId, idOf(input), ...(input?.closedBy ? [{ closedBy: input.closedBy }] : [])),

@@ -2,6 +2,7 @@ import { type RunOrigin } from "@telar/engine-client";
 import fs from "node:fs";
 import path from "node:path";
 import { atomicWrite } from "../../platform/fs/atomic";
+import type { ShellKind } from "./shell";
 
 export type RunRecord = {
   terminalId: string;
@@ -17,6 +18,8 @@ export type RunRecord = {
   cwd: string;
   readinessUrl?: string;
   startedAt: number;
+  shellKind?: ShellKind;
+  integrated?: boolean;
 };
 
 export type RunJournal = {

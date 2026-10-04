@@ -1,34 +1,16 @@
-import { afterAll, afterEach, expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { RunManager } from "./manager";
-import { type StartRunInput } from "./live-run";
-import { resolveShell } from "./shell";
+import { interactiveShell, resolveShell, splitMarkers, typedCommand } from "./shell";
 import { RunStore } from "./store";
 import { redactConfiguration, type RunConfiguration } from "./types";
 
-const managers: RunManager[] = [];
 const tempDirs: string[] = [];
 
 const track = (dir: string): string => (tempDirs.push(dir), dir);
 const worktree = () => track(fs.mkdtempSync(path.join(os.tmpdir(), "telar-run-shape-tree-")));
 const storeDir = () => track(fs.mkdtempSync(path.join(os.tmpdir(), "telar-run-shape-store-")));
-
-function runManager(...args: ConstructorParameters<typeof RunManager>): RunManager {
-  const manager = new RunManager(...args);
-  managers.push(manager);
-  return manager;
-}
-
-afterEach(async () => {
-  while (managers.length) {
-    try {
-      await managers.pop()!.shutdown();
-    } catch {
-    }
-  }
-});
 
 afterAll(() => {
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
@@ -38,109 +20,112 @@ function config(command: string, extra: Partial<RunConfiguration> = {}): RunConf
   return { id: "runcfg_test", projectId: "proj_1", name: "fixture", command, createdAt: 1, updatedAt: 1, ...extra };
 }
 
-function input(tree: string, cfg: RunConfiguration, extra: Partial<StartRunInput> = {}): StartRunInput {
-  return { projectId: "proj_1", config: cfg, worktreePath: tree, sessionId: "sess_a", ...extra };
-}
-
-async function until(predicate: () => boolean, ms = 6_000): Promise<boolean> {
-  const started = Date.now();
-  while (Date.now() - started < ms) {
-    if (predicate()) return true;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  return predicate();
-}
-
-test("a recipe with no shell resolves to this platform's own, with the command last and nothing split", () => {
-  const posix = resolveShell(config("bun run dev && echo done"), "darwin", {});
+test("a one-shot command resolves to this platform's own shell, with the command last and nothing split", () => {
+  const posix = resolveShell({ command: "bun run dev && echo done" }, "darwin", {});
   expect(posix.file).toBe("/bin/sh");
   expect(posix.args).toEqual(["-c", "bun run dev && echo done"]);
-  expect(posix.args.at(-1)).toBe("bun run dev && echo done");
   expect(posix.windowsVerbatimArguments).toBe(false);
 });
 
-test("on win32 the command goes to ComSpec, quoted the way cmd.exe expects and verbatim so node does not quote it twice", () => {
-  const spec = resolveShell(config("bun run dev && echo done"), "win32", { ComSpec: "C:\\Windows\\System32\\cmd.exe" });
-  expect(spec.file).toBe("C:\\Windows\\System32\\cmd.exe");
+test("on win32 a one-shot command goes to ComSpec, quoted the way cmd.exe expects and verbatim", () => {
+  const spec = resolveShell({ command: "bun run dev && echo done" }, "win32", { ComSpec: "C:\\Windows\\System32\\cmd.exe" });
   expect(spec.args).toEqual(["/d", "/s", "/c", '"bun run dev && echo done"']);
   expect(spec.windowsVerbatimArguments).toBe(true);
+  expect(resolveShell({ command: "x" }, "win32", {}).file).toBe("cmd.exe");
 });
 
-test("win32 without a ComSpec still names a program rather than leaving one to be guessed", () => {
-  expect(resolveShell(config("bun run dev"), "win32", {}).file).toBe("cmd.exe");
+test("a terminal holds the person's login shell, with hooks for the shells that can report", () => {
+  const dir = worktree();
+  const zsh = interactiveShell({ pty: true, platform: "darwin", env: { SHELL: "/bin/zsh", ZDOTDIR: "/Users/me/.config/zsh" }, integrationDir: dir });
+  expect([zsh.file, zsh.args, zsh.integrated]).toEqual(["/bin/zsh", ["-l", "-i"], true]);
+  expect(zsh.env.TELAR_USER_ZDOTDIR).toBe("/Users/me/.config/zsh");
+  expect(fs.readFileSync(path.join(zsh.env.ZDOTDIR!, ".zshrc"), "utf8")).toContain("133;D");
+
+  const bash = interactiveShell({ pty: true, platform: "linux", env: { SHELL: "/usr/bin/bash" }, integrationDir: dir });
+  expect(bash.args[0]).toBe("--init-file");
+  expect(bash.integrated).toBe(true);
+
+  const fish = interactiveShell({ pty: true, platform: "darwin", env: { SHELL: "/opt/homebrew/bin/fish" }, integrationDir: dir });
+  expect(fish.args.slice(0, 3)).toEqual(["-l", "-i", "--init-command"]);
+
+  const dash = interactiveShell({ pty: true, platform: "linux", env: { SHELL: "/bin/dash" }, integrationDir: dir });
+  expect([dash.args, dash.integrated]).toEqual([["-l"], false]);
+
+  expect(interactiveShell({ pty: true, platform: "darwin", env: {}, integrationDir: dir }).file).toBe("/bin/zsh");
+  expect(interactiveShell({ program: "/bin/bash", pty: true, platform: "darwin", env: { SHELL: "/bin/zsh" }, integrationDir: dir }).file).toBe("/bin/bash");
 });
 
-test("a win32 ComSpec that is not cmd gets -c and no cmd quoting", () => {
-  const spec = resolveShell(config("bun run dev"), "win32", { ComSpec: "C:\\Program Files\\PowerShell\\7\\pwsh.exe" });
-  expect(spec.args).toEqual(["-c", "bun run dev"]);
-  expect(spec.windowsVerbatimArguments).toBe(false);
+test("without a terminal the shell reads commands from its stdin, and each is followed by a sentinel", () => {
+  const shell = interactiveShell({ pty: false, platform: "darwin", env: { SHELL: "/bin/zsh" }, integrationDir: worktree() });
+  expect([shell.file, shell.args, shell.integrated]).toEqual(["/bin/sh", [], false]);
+  expect(typedCommand("bun test", shell, false)).toBe("bun test\nprintf '\\033]133;D;%s\\007' \"$?\"\n");
+  expect(typedCommand("bun test", { kind: "zsh", integrated: true }, true)).toBe("bun test\r");
+  expect(typedCommand("a\nb", { kind: "zsh", integrated: true }, true)).toBe("\x1b[200~a\nb\x1b[201~\r");
 });
 
-test("a pinned shell is taken literally on every platform: its argv, then the command, and no quoting added", () => {
-  const pinned = config("a && b", { shell: { program: "/bin/bash", args: ["-l", "-c"] } });
-  for (const platform of ["darwin", "linux", "win32"] as const) {
-    const spec = resolveShell(pinned, platform, { ComSpec: "cmd.exe" });
-    expect(spec.file).toBe("/bin/bash");
-    expect(spec.args).toEqual(["-l", "-c", "a && b"]);
-    expect(spec.windowsVerbatimArguments).toBe(false);
-  }
+test("the marks a shell prints are split from its text, with the finished command's exit code", () => {
+  expect(splitMarkers("out\r\n\x1b]133;D;3\x07\x1b]133;A\x07% ")).toEqual(["out\r\n", { kind: "done", exitCode: 3 }, { kind: "prompt" }, "% "]);
+  expect(splitMarkers("\x1b]133;C\x1b\\")).toEqual([{ kind: "busy" }]);
+  expect(splitMarkers("\x1b]133;D\x07")).toEqual([{ kind: "done" }]);
+  expect(splitMarkers("plain")).toEqual(["plain"]);
 });
 
-test("a pinned shell with no args still puts the command last", () => {
-  expect(resolveShell(config("app.exe", { shell: { program: "runner" } }), "win32", {}).args).toEqual(["app.exe"]);
-});
+async function hooked(program: string, typed: string): Promise<string> {
+  const home = worktree();
+  const shell = interactiveShell({ pty: true, platform: process.platform, env: { SHELL: program }, integrationDir: worktree() });
+  const child = Bun.spawn([shell.file, ...shell.args], {
+    cwd: home,
+    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: home, TERM: "dumb", ...shell.env },
+    stdin: new TextEncoder().encode(typed),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [out, err] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text()]);
+  await child.exited;
+  return out + err;
+}
 
-test("a pinned shell is what actually gets spawned, not merely what is stored", async () => {
-  const manager = runManager();
-  const pinned = config("the-command-as-an-argument", { shell: { program: "/bin/echo", args: ["ran-the-pinned-program"] } });
-  const run = await manager.start(input(worktree(), pinned));
-  expect(await until(() => manager.run(run.runId).status === "exited")).toBe(true);
-  expect(manager.output(run.runId).lines.map((line) => line.text)).toEqual(["ran-the-pinned-program the-command-as-an-argument"]);
-}, 15_000);
+for (const program of ["/bin/zsh", "/bin/bash"]) {
+  test.skipIf(!fs.existsSync(program))(`${path.basename(program)}'s hooks mark each prompt and the exit code of each finished command`, async () => {
+    const out = await hooked(program, "false\ntrue\nexit\n");
+    expect(out).toContain("\x1b]133;A\x07");
+    expect(out).toContain("\x1b]133;D;1\x07");
+    expect(out).toContain("\x1b]133;D;0\x07");
+  }, 15_000);
+}
 
-test("a recipe saved before shells were stored still reads, and still runs, with nothing rewritten", async () => {
+test("a recipe saved with shell arguments still reads, and its program becomes the terminal's shell", () => {
   const dir = storeDir();
   const old = {
     configurations: [
-      { id: "runcfg_old", projectId: "proj_1", name: "web dev", command: "echo legacy && echo ok", createdAt: 1, updatedAt: 1 },
+      { id: "runcfg_old", projectId: "proj_1", name: "web dev", command: "echo ok", shell: { program: "/bin/bash", args: ["-lc"] }, createdAt: 1, updatedAt: 1 },
+      { id: "runcfg_older", projectId: "proj_1", name: "api", command: "echo legacy", createdAt: 1, updatedAt: 1 },
     ],
   };
   fs.writeFileSync(path.join(dir, "proj_1.json"), JSON.stringify(old));
 
-  const stored = new RunStore(dir).get("proj_1", "runcfg_old");
-  expect(stored.shell).toBeUndefined();
-  expect(resolveShell(stored, "darwin", {}).args).toEqual(["-c", "echo legacy && echo ok"]);
-
-  const manager = runManager();
-  const run = await manager.start(input(worktree(), stored));
-  expect(await until(() => manager.run(run.runId).status === "exited")).toBe(true);
-  const output = manager.output(run.runId).lines.map((line) => line.text);
-  expect(output).toContain("legacy");
-  expect(output).toContain("ok");
-
+  const store = new RunStore(dir);
+  expect(store.get("proj_1", "runcfg_old").shell).toEqual({ program: "/bin/bash" });
+  expect(store.get("proj_1", "runcfg_older").shell).toBeUndefined();
   expect(JSON.parse(fs.readFileSync(path.join(dir, "proj_1.json"), "utf8"))).toEqual(old);
-}, 15_000);
+});
 
 test("a pinned shell round-trips through the store, and a patch that does not mention it leaves it alone", () => {
-  const dir = storeDir();
-  const store = new RunStore(dir);
-  const created = store.create("proj_1", { name: "web dev", command: "bun run dev", shell: { program: "/bin/bash", args: ["-lc"] } });
-  expect(created.shell).toEqual({ program: "/bin/bash", args: ["-lc"] });
-  expect(new RunStore(dir).get("proj_1", created.id).shell).toEqual({ program: "/bin/bash", args: ["-lc"] });
-
+  const store = new RunStore(storeDir());
+  const created = store.create("proj_1", { name: "web dev", command: "bun run dev", shell: { program: "/bin/bash" } });
   const updated = store.update("proj_1", created.id, { name: "web dev", command: "bun run start", cwd: "apps/web" });
-  expect(updated.shell).toEqual({ program: "/bin/bash", args: ["-lc"] });
+  expect(updated.shell).toEqual({ program: "/bin/bash" });
   expect(updated.command).toBe("bun run start");
 });
 
 test("a shell is not a hole in the redaction promise — a secret pasted into one is scrubbed like every other field", () => {
   const view = redactConfiguration(
     config("bun run dev", {
-      shell: { program: "/opt/sk_live_abcdef/bash", args: ["-c", "--token=sk_live_abcdef"] },
+      shell: { program: "/opt/sk_live_abcdef/bash" },
       env: [{ key: "TOKEN", value: "sk_live_abcdef", secret: true }],
     }),
   );
-  expect(view.shell).toEqual({ program: "/opt/«redacted»/bash", args: ["-c", "--token=«redacted»"] });
+  expect(view.shell).toEqual({ program: "/opt/«redacted»/bash" });
   expect(JSON.stringify(view)).not.toContain("sk_live_abcdef");
 });
 

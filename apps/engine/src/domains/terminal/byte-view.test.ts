@@ -162,7 +162,7 @@ test("a pipe-launched run still fills the byte view, interleaved and CRLF-termin
   const started = await manager.start(
     input(temp("pipes"), { config: config({ command: "printf 'one\\n'; printf 'two\\n' 1>&2" }) }),
   );
-  expect(await until(() => manager.run(started.runId).status === "exited")).toBe(true);
+  expect(await until(() => manager.run(started.runId).activity === "idle" && manager.output(started.runId).lines.length === 2)).toBe(true);
 
   const drawn = manager.bytes(started.runId).chunks.join("");
   expect(drawn).toContain("one\r\n");

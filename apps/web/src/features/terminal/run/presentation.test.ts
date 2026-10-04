@@ -10,7 +10,6 @@ import {
   describeReadiness,
   isOpenTerminal,
   latestOpenTerminal,
-  openCount,
   openTerminals,
   recentRuns,
   runSummary,
@@ -37,6 +36,7 @@ function run(overrides: Partial<RunView> = {}): RunView {
     cwd: "/trees/main",
     startedAt: 1000,
     status: "running",
+    activity: "idle",
     readiness: { kind: "none" },
     env: [],
     ...overrides,
@@ -62,11 +62,6 @@ describe("the session's terminals", () => {
   });
 });
 
-/**
- * RUN = A NEW TERMINAL: a session holds a LIST, and pressing a configuration
- * again opens another instance. What the masthead says has to be true of the
- * whole list, not of whichever one happened to be newest.
- */
 describe("several instances", () => {
   const first = run({ terminalId: "term_1", title: "web dev", startedAt: 1000, status: "ready" });
   const second = run({ terminalId: "term_2", title: "web dev #2", startedAt: 2000, status: "running" });
@@ -87,31 +82,36 @@ describe("several instances", () => {
     expect(terminalTitle(run({ title: "", configName: "web dev" }))).toBe("web dev");
   });
 
-  test("each configuration knows how many of it are open", () => {
-    const open = [first, second, other];
-    expect(openCount(open, "cfg_1")).toBe(2);
-    expect(openCount(open, "cfg_api")).toBe(1);
-    expect(openCount(open, "cfg_none")).toBe(0);
-  });
-
   test("the masthead says Run over nothing, the one's name over one, and a count over several", () => {
-    expect(runSummary([])).toEqual({ label: "Run", tone: "idle" });
-    expect(runSummary([first])).toEqual({ label: "web dev", tone: "good", detail: "Ready" });
-    expect(runSummary([first, other]).label).toBe("2 terminals");
-  });
-
-  test("several are green only when every one is — the summary never outranks a chip", () => {
-    expect(runSummary([first, other]).tone).toBe("good");
-    expect(runSummary([first, second, other]).tone).toBe("working");
+    expect(runSummary([])).toBe("Run");
+    expect(runSummary([first])).toBe("web dev");
+    expect(runSummary([first, second, other])).toBe("3 terminals");
   });
 });
 
 describe("status", () => {
-  test("tone separates failed from a terminal somebody closed", () => {
-    expect(statusTone("failed")).toBe("bad");
-    expect(statusTone("ready")).toBe("good");
-    expect(statusTone("exited")).toBe("idle");
-    expect(statusTone("closed")).toBe("idle");
+  test("an open shell reads Idle until a command runs in it, then Running", () => {
+    const idle = run({ activity: "idle" });
+    const busy = run({ activity: "busy" });
+    expect([statusLabel(idle), statusTone(idle)]).toEqual(["Idle", "idle"]);
+    expect([statusLabel(busy), statusTone(busy)]).toEqual(["Running", "working"]);
+  });
+
+  test("a busy shell whose readiness check answered is good, and goes idle when its command ends", () => {
+    expect([statusLabel(run({ status: "ready", activity: "busy" })), statusTone(run({ status: "ready", activity: "busy" }))]).toEqual(["Ready", "good"]);
+    expect(statusTone(run({ status: "ready", activity: "idle" }))).toBe("idle");
+  });
+
+  test("an idle shell names a failed last command, and stays quiet about a clean one", () => {
+    expect(statusLabel(run({ lastExit: { exitCode: 1, at: 2000 } }))).toBe("Idle · exit 1");
+    expect(statusLabel(run({ lastExit: { exitCode: 0, at: 2000 } }))).toBe("Idle");
+    expect(statusLabel(run({ activity: "busy", lastExit: { exitCode: 1, at: 2000 } }))).toBe("Running");
+  });
+
+  test("tone separates a shell that failed from one somebody closed", () => {
+    expect(statusTone(run({ status: "failed" }))).toBe("bad");
+    expect(statusTone(run({ status: "exited", exitCode: 0 }))).toBe("idle");
+    expect(statusTone(run({ status: "closed", activity: "busy" }))).toBe("idle");
   });
 
   test("an ended terminal is never labelled as still running", () => {

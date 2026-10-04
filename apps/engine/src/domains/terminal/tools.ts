@@ -1,4 +1,4 @@
-import { RunIcon, RunShell, type RunStopSignal, type RunView } from "@telar/engine-client";
+import { RunIcon, RunShell, type RunStopSignal, type RunView, type RunWaitAnswer } from "@telar/engine-client";
 import { z } from "zod";
 import { err, failure, json, ok, type ToolFactory } from "../agent-tools";
 import type { RunCapability, RunTarget } from "./capability";
@@ -23,9 +23,11 @@ function describe(run: RunView): string {
           ? ` — readiness cannot be attributed to this process (${run.readiness.reason})`
           : "";
   const closed = closedPhrase(run);
-  const ended = closed ? ` ${closed}` : run.endedAt ? ` exit ${run.exitCode ?? run.signal ?? "?"}.` : "";
+  const ended = closed ? ` ${closed}` : run.endedAt ? ` The shell ended, exit ${run.exitCode ?? run.signal ?? "?"}.` : "";
+  const last = run.lastExit ? `; the last command exited ${run.lastExit.exitCode ?? "with an unknown code"}` : "";
+  const activity = run.endedAt ? "" : run.activity === "busy" ? ` Busy with "${run.command}".` : ` Idle at the prompt${last}.`;
   const warning = run.warning ? ` Warning: ${run.warning}.` : "";
-  return `"${run.title}" is ${run.status} (terminal ${run.terminalId}) from ${where}, cwd ${run.cwd}.${readiness}${ended}${warning}${run.error ? ` ${run.error}` : ""}`;
+  return `"${run.title}" (terminal ${run.terminalId}) from ${where}, cwd ${run.cwd}.${activity}${readiness}${ended}${warning}${run.error ? ` ${run.error}` : ""}`;
 }
 
 const lineText = (lines: { stream: string; text: string }[]) => lines.map((line) => (line.stream === "stderr" ? `! ${line.text}` : line.text)).join("\n");
@@ -61,7 +63,7 @@ function runToolsContext(tool: ToolFactory, capability: RunCapability) {
     }
   };
   const opened = (run: RunView) =>
-    ok(`Opened ${describe(run)}\nterminalId: ${run.terminalId}. Read it with terminal_output; wait on it with terminal_wait.`);
+    ok(`Typed into ${describe(run)}\nterminalId: ${run.terminalId}. Read it with terminal_output; wait for it with terminal_wait; run the next command here with terminal_run.`);
   const openFromConfig = async (configId: string) => {
     try {
       return opened(await capability.start({ configId, openedBy: "agent" }));
@@ -101,29 +103,28 @@ function runToolsContext(tool: ToolFactory, capability: RunCapability) {
     if (args.pattern === undefined && args.ready !== true && args.exit !== true) {
       return err("Give something to wait FOR: pattern, ready or exit. Waiting for nothing is a sleep, which is what this tool replaces.");
     }
+    let result: RunWaitAnswer;
     try {
-      const result = await capability.wait({
+      result = await capability.wait({
         ...target(terminalId),
         ...(typeof args.pattern === "string" ? { pattern: args.pattern } : {}),
         ...(args.ready === true ? { ready: true } : {}),
         ...(args.exit === true ? { exit: true } : {}),
         timeoutMs: Number(args.timeoutMs),
       });
-      const closed = result.fired === "exit" ? await personClosed(terminalId) : undefined;
-      const verdict =
-        result.fired === "timeout"
-          ? "TIMED OUT — the condition did not happen in the time given. It may still be starting; do not assume it is up."
-          : result.fired === "ready"
-            ? "READY — it reported ready."
-            : result.fired === "exit"
-              ? closed
-                ? `ENDED — ${closed}`
-                : "ENDED — the terminal is no longer running; terminal_list says how."
-              : "MATCHED — a line matched your pattern.";
-      return ok(`${verdict}\n${lineText(result.lines) || "(nothing was printed while waiting)"}\n[cursor ${result.cursor}]`);
     } catch (error) {
       return err(`Could not wait on that terminal: ${failure(error)}`);
     }
+    const closed = result.fired === "exit" ? await personClosed(terminalId) : undefined;
+    const ended = `ENDED — the terminal itself closed${result.exitCode === undefined ? "" : ` (exit ${result.exitCode})`}; terminal_list says how.`;
+    const verdicts: Record<RunWaitAnswer["fired"], string> = {
+      timeout: "TIMED OUT — the condition did not happen in the time given. It may still be starting; do not assume it is up.",
+      ready: "READY — it reported ready.",
+      finished: `FINISHED — the command exited ${result.exitCode ?? "with an unknown code"}. The shell is still open: run the next command in it with terminal_run.`,
+      exit: closed ? `ENDED — ${closed}` : ended,
+      pattern: "MATCHED — a line matched your pattern.",
+    };
+    return ok(`${verdicts[result.fired]}\n${lineText(result.lines) || "(nothing was printed while waiting)"}\n[cursor ${result.cursor}]`);
   };
   const OUTPUT_SHAPE = {
     after: z.number().int().min(0).optional().describe("Cursor from an earlier call."),
@@ -134,10 +135,15 @@ function runToolsContext(tool: ToolFactory, capability: RunCapability) {
   const WAIT_SHAPE = {
     pattern: z.string().min(1).max(500).optional().describe("Regex over new lines, e.g. 'Listening on'."),
     ready: z.boolean().optional().describe("Wait for its ready URL or pattern."),
-    exit: z.boolean().optional().describe("Wait for it to exit."),
+    exit: z.boolean().optional().describe("Wait for the command to finish; answers its exit code."),
     timeoutMs: z.number().int().min(0).max(60_000).describe("At most 60000."),
   };
-  return { idOf, list, opened, openFromConfig, kill, output, wait, OUTPUT_SHAPE, WAIT_SHAPE };
+  const ready = (value: unknown) => {
+    if (typeof value !== "string") return {};
+    return /^https?:\/\//i.test(value) ? { readinessUrl: value } : { readyPattern: value };
+  };
+  const READY = z.string().min(1).max(500).optional().describe("A URL that answers, or a regex printed, once it is up.");
+  return { idOf, list, opened, openFromConfig, kill, output, wait, ready, READY, OUTPUT_SHAPE, WAIT_SHAPE };
 }
 
 export function runTools(tool: ToolFactory, capability: RunCapability): unknown[] {
@@ -149,21 +155,16 @@ export function runTools(tool: ToolFactory, capability: RunCapability): unknown[
 }
 
 function terminalTools(tool: ToolFactory, capability: RunCapability, h: ReturnType<typeof runToolsContext>): unknown[] {
-  const { idOf, list, opened, openFromConfig, kill, output, wait, OUTPUT_SHAPE, WAIT_SHAPE } = h;
+  const { idOf, list, opened, openFromConfig, kill, output, wait, ready, READY, OUTPUT_SHAPE, WAIT_SHAPE } = h;
   return [
     tool(
       "terminal_open",
-      "Open a terminal in the panel running a command (dev server, watcher, long build) or a saved configId. Use this, never '&' or a background shell, for anything long-running.",
+      "Open a new shell terminal in the panel and type a command (or a saved configId) into it. The shell stays open after the command ends. Reuse an idle terminal with terminal_run instead; open a new one only for something that must keep running alongside, like a dev server. Never use '&' or a background shell for that.",
       {
         command: z.string().min(1).max(4000).optional().describe("e.g. 'bun run dev'."),
         cwd: z.string().max(1024).optional().describe("Relative to the worktree."),
         name: z.string().min(1).max(120).optional().describe("Tab title."),
-        ready: z
-          .string()
-          .min(1)
-          .max(500)
-          .optional()
-          .describe("A URL that answers, or a regex printed, once it is up."),
+        ready: READY,
         configId: z.string().min(1).optional().describe("A saved run configuration."),
       },
       async (args) => {
@@ -172,14 +173,12 @@ function terminalTools(tool: ToolFactory, capability: RunCapability, h: ReturnTy
         if (configId && command) return err("Give a command or a configId, not both.");
         if (configId) return await openFromConfig(configId);
         if (!command) return err("terminal_open needs a command, or the configId of a saved run configuration.");
-        const ready = typeof args.ready === "string" ? args.ready : undefined;
-        const url = ready !== undefined && /^https?:\/\//i.test(ready);
         try {
           const run = await capability.open({
             command,
             ...(typeof args.cwd === "string" ? { cwd: args.cwd } : {}),
             ...(typeof args.name === "string" ? { name: args.name } : {}),
-            ...(ready === undefined ? {} : url ? { readinessUrl: ready } : { readyPattern: ready }),
+            ...ready(args.ready),
           });
           return opened(run);
         } catch (error) {
@@ -189,8 +188,27 @@ function terminalTools(tool: ToolFactory, capability: RunCapability, h: ReturnTy
     ),
 
     tool(
+      "terminal_run",
+      "Type a command into one of this session's idle terminals; its shell keeps its directory and environment. Prefer this to opening another terminal.",
+      {
+        terminalId: z.string().min(1).describe("An idle terminal from terminal_list."),
+        command: z.string().min(1).max(4000).describe("e.g. 'bun test'."),
+        ready: READY,
+      },
+      async (args) => {
+        const terminalId = idOf(args.terminalId);
+        if (!terminalId || typeof args.command !== "string") return err("terminal_run needs a terminalId and a command.");
+        try {
+          return opened(await capability.command({ terminalId, command: args.command, ...ready(args.ready) }));
+        } catch (error) {
+          return err(`Did not run: ${failure(error)}`);
+        }
+      },
+    ),
+
+    tool(
       "terminal_list",
-      "This session's terminals, newest first, with status and who closed each. Don't reopen one the person closed unless they ask.",
+      "This session's terminals, newest first: idle at the prompt or busy with a command, and who closed each. Don't reopen one the person closed unless they ask.",
       {},
       async () => await list(),
     ),
@@ -204,14 +222,14 @@ function terminalTools(tool: ToolFactory, capability: RunCapability, h: ReturnTy
 
     tool(
       "terminal_wait",
-      "Wait until a terminal prints a pattern, is ready, or exits; never sleep instead. Says which fired or that it timed out.",
+      "Wait until a terminal prints a pattern, is ready, or its command finishes (with the exit code); never sleep instead. Says which fired or that it timed out.",
       { terminalId: z.string().min(1).describe("From terminal_open or terminal_list."), ...WAIT_SHAPE },
       async (args) => await wait(idOf(args.terminalId), args),
     ),
 
     tool(
       "terminal_kill",
-      "Close a terminal and everything running in it. The only way to stop one: never pkill, killall or kill.",
+      "Close a terminal, its shell and everything running in it. The only way to stop one: never pkill, killall or kill.",
       { terminalId: z.string().min(1).describe("From terminal_open or terminal_list."), signal: SIGNAL },
       async (args) => await kill(idOf(args.terminalId), args.signal),
     ),
@@ -253,9 +271,7 @@ function configTools(tool: ToolFactory, capability: RunCapability): unknown[] {
         name: z.string().min(1).max(120).optional().describe("Menu label, e.g. 'web dev'."),
         icon: RunIcon.optional().describe("Default 'play'."),
         command: z.string().min(1).optional().describe("e.g. 'bun run dev'."),
-        shell: RunShell.strict().optional().describe(
-          "Only if it needs a specific shell, e.g. {program:'/bin/bash', args:['-lc']}.",
-        ),
+        shell: RunShell.strict().optional().describe("Only if it needs a specific shell, e.g. {program:'/bin/bash'}."),
         cwd: z.string().optional().describe("Relative to the worktree root."),
         env: z
           .array(z.strictObject({ key: z.string().min(1), value: z.string(), secret: z.boolean().optional() }))

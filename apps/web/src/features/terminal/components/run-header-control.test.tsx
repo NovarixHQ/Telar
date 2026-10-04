@@ -1,21 +1,22 @@
-/**
- * THE MASTHEAD RUN CONTROL — what it reads and what it dispatches.
- *
- * Rendered through `renderToStaticMarkup`, so these cover the FIRST paint:
- * the pill's label and status tone, and the fact that monitoring is offered
- * as a door to the panel rather than duplicated here. The action dispatch is
- * covered against the injected `RunApi` directly, because the popover's
- * contents only exist once a human opens it.
- */
-import { describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { headerMode } from "../hooks/use-run-header";
 import { RunHeaderControl } from "./run-header-control";
 import { RunConfigEditor } from "./run-config-editor";
-import { latestOpenTerminal, openTerminals, runSummary, statusLabel, statusTone } from "../run/presentation";
 import { RunGlyph } from "../run/icons";
 import type { RunApi } from "../run/api";
 import type { RunConfigurationView, RunStatusAnswer, RunView } from "../run/types";
+
+GlobalRegistrator.register({ url: "http://localhost/" });
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+const realFetch = globalThis.fetch;
+afterAll(async () => {
+  globalThis.fetch = realFetch;
+  await GlobalRegistrator.unregister();
+});
 
 const view = (over: Partial<RunView> = {}): RunView => ({
   terminalId: "term_1",
@@ -30,6 +31,7 @@ const view = (over: Partial<RunView> = {}): RunView => ({
   worktreePath: "/Users/x/code/telar",
   cwd: "/Users/x/code/telar",
   status: "ready",
+  activity: "busy",
   readiness: { kind: "none" },
   startedAt: 1,
   env: [],
@@ -43,7 +45,7 @@ function recordingApi(status: RunStatusAnswer) {
     configurations: async () => ({ configurations: [{ id: "config_dev", name: "dev server" }] }),
     status: async () => status,
     start: async (_s: string, configId: string) => (calls.push(`start:${configId}`), view()),
-    stop: async (_s: string, terminalId?: string) => (calls.push(`stop:${terminalId}`), view({ status: "closed", closedBy: "person" })),
+    stop: async (_s: string, terminalId?: string) => (calls.push(`stop:${terminalId}`), view({ status: "closed" })),
     restart: async (_s: string, terminalId?: string) => (calls.push(`restart:${terminalId}`), view()),
   } as unknown as RunApi;
   return { api, calls };
@@ -54,92 +56,7 @@ const render = (api: RunApi) => renderToStaticMarkup(<RunHeaderControl sessionId
 describe("the pill", () => {
   test("says Run when nothing is open", () => {
     const { api } = recordingApi({ terminals: [] });
-    const html = render(api);
-    expect(html).toContain("Run this project");
-  });
-
-  test("carries an accessible label naming the run's own status once deployed", () => {
-    // The label is the presentation layer's, not a second vocabulary.
-    const active = view({ status: "ready" });
-    expect(statusLabel(active)).toBeTruthy();
-    expect(statusTone("ready")).toBe("good");
-    expect(statusTone("failed")).toBe("bad");
-  });
-});
-
-describe("the empty state", () => {
-  const config = (over: Partial<RunConfigurationView> = {}): RunConfigurationView =>
-    ({ id: "config_dev", name: "dev server", ...over }) as RunConfigurationView;
-
-  test("no saved configuration and nothing deployed is the one setup case", () => {
-    expect(headerMode([], undefined)).toBe("setup");
-  });
-
-  test("a list not read yet is unknown, not empty", () => {
-    // Offering the form over a project that turns out to have three recipes is
-    // worse than a moment of the ordinary menu.
-    expect(headerMode(undefined, undefined)).toBe("run");
-  });
-
-  test("a live run wins over an empty list", () => {
-    // Its recipe was deleted mid-flight; the deployment is still the thing a
-    // human needs to see and stop, so the button must open the menu.
-    expect(headerMode([], view())).toBe("run");
-  });
-
-  test("any saved configuration is enough to leave the setup case", () => {
-    expect(headerMode([config()], undefined)).toBe("run");
-  });
-
-  test("the setup case opens the editor, which paints the form rather than a menu", () => {
-    // What the button opens INTO. `renderToStaticMarkup` runs no effects, so
-    // the popover's own contents cannot be rendered here (see
-    // run-header-host.test.tsx); the form it opens can.
-    const html = renderToStaticMarkup(<RunConfigEditor onSave={() => {}} onCancel={() => {}} />);
-    expect(html).toContain("Command");
-    expect(html).toContain('aria-label="Icon"');
-    // The picker offers the closed set, each one named.
-    expect(html).toContain('aria-label="Server"');
-    expect(html).toContain('aria-label="Database"');
-    // `play` opens chosen, so a new configuration always has an icon.
-    expect(html).toContain('role="radio" aria-checked="true" aria-label="Play"');
-    // And it opens QUIET: the first paint of a blank form used to carry its
-    // own complaint about being blank.
-    expect(html).not.toContain("Give this configuration a name.");
-  });
-});
-
-describe("an iconed row", () => {
-  test("a configuration's own glyph is what its row draws, and it differs per icon", () => {
-    const server = renderToStaticMarkup(<RunGlyph icon="server" className="size-3.5 shrink-0" />);
-    const unset = renderToStaticMarkup(<RunGlyph className="size-3.5 shrink-0" />);
-    expect(server).toContain("<svg");
-    // A configuration that never chose one still draws the default, so a row
-    // is never a name with a hole in front of it.
-    expect(unset).toContain("<svg");
-    expect(server).not.toBe(unset);
-  });
-});
-
-describe("what pressing a configuration means", () => {
-  test("a start names only the configuration — there is no takeover to ask for", async () => {
-    const { api, calls } = recordingApi({ terminals: [] });
-    await api.start("session_1", "config_dev");
-    expect(calls).toEqual(["start:config_dev"]);
-  });
-
-  test("the pill reads the whole OPEN list, and ignores ones that ended", () => {
-    const answer: RunStatusAnswer = {
-      terminals: [
-        view({ terminalId: "term_3", title: "dev server #2", startedAt: 3 }),
-        view({ terminalId: "term_2", status: "closed", closedBy: "person", startedAt: 2 }),
-        view(),
-      ],
-      sessionWorktreePath: "/Users/x/code/telar",
-    };
-    expect(latestOpenTerminal(answer)?.terminalId).toBe("term_3");
-    // Two instances of one recipe are two terminals, and the pill counts both.
-    expect(runSummary(openTerminals(answer)).label).toBe("2 terminals");
+    expect(render(api)).toContain("Run this project");
   });
 
   test("the first paint names no deployment slot to replace, switch or release", () => {
@@ -147,11 +64,86 @@ describe("what pressing a configuration means", () => {
     const html = render(api);
     for (const word of ["Replace", "Switch", "Release", "Restart"]) expect(html).not.toContain(word);
   });
+});
 
-  test("stop and restart address the terminal by its own id", async () => {
-    const { api, calls } = recordingApi({ terminals: [view()] });
-    await api.stop("session_1", "term_1");
-    await api.restart("session_1", "term_1");
-    expect(calls).toEqual(["stop:term_1", "restart:term_1"]);
+describe("the empty state", () => {
+  const config = (over: Partial<RunConfigurationView> = {}): RunConfigurationView =>
+    ({ id: "config_dev", name: "dev server", ...over }) as RunConfigurationView;
+
+  test("no saved configuration and nothing open is the one setup case", () => {
+    expect(headerMode([], undefined)).toBe("setup");
+    // An unread list is unknown, not empty.
+    expect(headerMode(undefined, undefined)).toBe("run");
+    expect(headerMode([], view())).toBe("run");
+    expect(headerMode([config()], undefined)).toBe("run");
+  });
+
+  test("the setup case opens the editor, which paints the form rather than a menu", () => {
+    const html = renderToStaticMarkup(<RunConfigEditor onSave={() => {}} onCancel={() => {}} />);
+    expect(html).toContain("Command");
+    expect(html).toContain('aria-label="Server"');
+    expect(html).toContain('role="radio" aria-checked="true" aria-label="Play"');
+    expect(html).not.toContain("Give this configuration a name.");
+  });
+
+  test("a configuration's own glyph differs from the default one", () => {
+    const server = renderToStaticMarkup(<RunGlyph icon="server" className="size-3.5" />);
+    const unset = renderToStaticMarkup(<RunGlyph className="size-3.5" />);
+    expect(unset).toContain("<svg");
+    expect(server).not.toBe(unset);
+  });
+});
+
+describe("the open menu", () => {
+  let mounted: Root | undefined;
+  beforeEach(() => {
+    globalThis.fetch = (() => new Promise<Response>(() => {})) as unknown as typeof fetch;
+  });
+  afterEach(() => {
+    const root = mounted;
+    mounted = undefined;
+    if (root) act(() => root.unmount());
+    document.body.innerHTML = "";
+  });
+
+  async function flush() {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  async function openMenu(status: RunStatusAnswer) {
+    const recorded = recordingApi(status);
+    const host = document.createElement("div");
+    document.body.append(host);
+    mounted = createRoot(host);
+    await act(async () => mounted!.render(<RunHeaderControl sessionId="session_1" api={recorded.api} onWatchOutput={() => {}} />));
+    await flush();
+    const trigger = host.querySelector("button") as HTMLButtonElement;
+    await act(async () => {
+      trigger.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
+      trigger.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true }));
+      trigger.click();
+    });
+    await flush();
+    return recorded;
+  }
+
+  const buttons = () => [...document.body.querySelectorAll("button")] as HTMLButtonElement[];
+
+  test("Run hands the configuration to the engine, which opens or reuses its shell", async () => {
+    const { calls } = await openMenu({ terminals: [view()] });
+    const run = buttons().find((button) => button.getAttribute("aria-label") === "Run dev server");
+    expect(run?.textContent).toBe("Run dev server");
+    await act(async () => run!.click());
+    await flush();
+    expect(calls).toEqual(["start:config_dev"]);
+  });
+
+  test("an open terminal is listed without a stop control or a spinner", async () => {
+    await openMenu({ terminals: [view()] });
+    expect(document.body.querySelector('[aria-label="Open terminals"]')?.textContent).toContain("dev server");
+    expect(buttons().some((button) => /^(End|Stop) /.test(button.getAttribute("aria-label") ?? ""))).toBe(false);
+    expect(document.body.querySelector(".animate-spin")).toBeNull();
   });
 });

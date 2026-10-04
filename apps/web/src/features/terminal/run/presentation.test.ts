@@ -9,14 +9,10 @@ import {
   draftProblems,
   describeReadiness,
   isOpenTerminal,
-  latestOpenTerminal,
-  openTerminals,
   recentRuns,
-  runSummary,
   statusDetail,
   statusLabel,
   statusTone,
-  terminalTitle,
   worktreeLabel,
 } from "./presentation";
 import type { RunConfigurationDraft, RunStatusAnswer, RunView } from "./types";
@@ -45,47 +41,10 @@ function run(overrides: Partial<RunView> = {}): RunView {
 
 const answer = (overrides: Partial<RunStatusAnswer> = {}): RunStatusAnswer => ({ terminals: [], ...overrides });
 
-describe("the session's terminals", () => {
-  test("nothing open is nothing to summarise", () => {
-    expect(latestOpenTerminal(answer())).toBeUndefined();
-    expect(latestOpenTerminal(undefined)).toBeUndefined();
-  });
-
-  test("the newest OPEN terminal is summarised, and an ended one is not", () => {
-    // The list is newest first; the one that just closed must not stand in
-    // for the one still serving.
-    const closed = run({ terminalId: "term_2", startedAt: 2000, status: "closed", closedBy: "person" });
-    const open = run({ terminalId: "term_1", startedAt: 1000 });
-    expect(latestOpenTerminal(answer({ terminals: [closed, open] }))?.terminalId).toBe("term_1");
-    expect(isOpenTerminal(closed)).toBe(false);
-    expect(isOpenTerminal(open)).toBe(true);
-  });
-});
-
-describe("several instances", () => {
-  const first = run({ terminalId: "term_1", title: "web dev", startedAt: 1000, status: "ready" });
-  const second = run({ terminalId: "term_2", title: "web dev #2", startedAt: 2000, status: "running" });
-  const other = run({ terminalId: "term_3", title: "api", configId: "cfg_api", configName: "api", startedAt: 3000, status: "ready" });
-  const ended = run({ terminalId: "term_0", title: "web dev", startedAt: 500, status: "exited", exitCode: 0 });
-
-  test("the open list is oldest first, the order the strip reads in, and drops the ended", () => {
-    const list = openTerminals(answer({ terminals: [other, second, ended, first] }));
-    expect(list.map((view) => view.terminalId)).toEqual(["term_1", "term_2", "term_3"]);
-    expect(openTerminals(undefined)).toEqual([]);
-    // A paired Mac on an older engine answers without the list.
-    expect(openTerminals({} as RunStatusAnswer)).toEqual([]);
-  });
-
-  test("an instance is named by the engine's title, never by a number made up here", () => {
-    expect(terminalTitle(second)).toBe("web dev #2");
-    // An engine older than titles still names it after its recipe.
-    expect(terminalTitle(run({ title: "", configName: "web dev" }))).toBe("web dev");
-  });
-
-  test("the masthead says Run over nothing, the one's name over one, and a count over several", () => {
-    expect(runSummary([])).toBe("Run");
-    expect(runSummary([first])).toBe("web dev");
-    expect(runSummary([first, second, other])).toBe("3 terminals");
+describe("isOpenTerminal", () => {
+  test("a closed terminal is not open, a running one is", () => {
+    expect(isOpenTerminal(run({ status: "closed", closedBy: "person" }))).toBe(false);
+    expect(isOpenTerminal(run())).toBe(true);
   });
 });
 

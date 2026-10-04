@@ -286,7 +286,7 @@ describe("the solo route carries no masthead", () => {
     // `WorkspaceInspector`: the only place a note can be written anywhere in
     // the app. The composer's `@` reads the same notebook and cannot write one.
     expect(notes()).not.toBeNull();
-    // `RunHeaderControl`: setup, start and stop live here or nowhere.
+    // `RunHeaderControl`: setup and start live here or nowhere.
     expect(runControl()).not.toBeNull();
   });
 

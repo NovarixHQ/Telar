@@ -216,6 +216,21 @@ export function setShellTerminal(state: TerminalWorkspace, id: string, terminalI
   return { ...state, shells: state.shells.map((shell) => (shell.id === id ? { ...shell, terminalId } : shell)) };
 }
 
+/** Drops the chips of runs that ended; with `dropMissing`, also those of runs the engine no longer lists. */
+export function dropEndedRuns(
+  state: TerminalWorkspace,
+  terminals: readonly { runId: string; status: string }[],
+  options: { dropMissing?: boolean } = {},
+): TerminalWorkspace {
+  let next = state;
+  for (const shell of runShells(state)) {
+    const view = terminals.find((run) => run.runId === shell.run!.runId);
+    const ended = view ? view.status !== "running" && view.status !== "ready" : options.dropMissing === true;
+    if (ended) next = closeShell(next, shell.id);
+  }
+  return next;
+}
+
 /** Every chip that is a run, in strip order. */
 export function runShells(state: TerminalWorkspace): TerminalShell[] {
   return state.shells.filter((shell) => shell.run !== undefined);

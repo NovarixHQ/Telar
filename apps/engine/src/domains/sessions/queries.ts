@@ -280,7 +280,7 @@ export class SessionQueries {
 
   /** Every assignment the session holds, folded over its whole queue: a client's page cannot tell "finished" from "not in this window". */
   assignments(sessionId: string): SessionAssignment[] {
-    return assignmentsOf(this.deps.queues.read(sessionId).turns as AssignmentTurn[]);
+    return assignmentsOf(this.deps.queues.assigned(sessionId) as AssignmentTurn[]);
   }
 
   /** Something running or that might be: `ambiguous` counts as busy, and so do live backgrounded tasks. */

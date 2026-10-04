@@ -11,6 +11,7 @@ import { EngineStore } from "../../state";
 import { ExecutionStore } from "../../platform/db/execution-store";
 import { toLegacyHome } from "../../../test/store-internals";
 import type { Turn } from "@telar/engine-client";
+import { sessionSnapshot } from "./bootstrap";
 import { SessionQueues } from "./queue";
 
 const roots: string[] = [];
@@ -123,6 +124,12 @@ test("each turn transition writes one row, however long the queue", () => {
   expect(rowWrites(store, () => store.turnLifecycle.markRunning("session_one", "run_x", token))).toEqual([1]);
   expect(rowWrites(store, () => store.turnLifecycle.completeTurn("session_one", "run_x", token, { text: "done" }))).toEqual([1]);
   expect(store.queries.turns("session_one")).toHaveLength(41);
+});
+
+test("a metadata write reads no whole queue to refold the row", () => {
+  const store = seeded(open(root()), 5);
+  expect(queueParses(store, () => store.lifecycle.updateSession("session_one", { title: "Renamed" }))).toBe(0);
+  expect(rowWrites(store, () => store.lifecycle.updateSession("session_one", { title: "Again" }))).toEqual([]);
 });
 
 test("the carried queue is the one the command wrote, at every transition", () => {
@@ -334,3 +341,21 @@ test("migrating a queue.json keeps every turn, its state and the next sequence, 
   reopen(store);
   expect(open(directory).queries.turns("session_one")).toHaveLength(turns.length + 1);
 });
+
+test("a snapshot of a 5,000-turn session reads the window and the live turns, not the history", () => {
+  const directory = root();
+  const { turns } = longHistory(directory, 5_000);
+  const store = open(directory);
+  store.queries.turns("session_one");
+  reopen(store);
+
+  const cold = open(directory);
+  let snapshot!: ReturnType<typeof sessionSnapshot>;
+  const rows = rowsRead(cold, () => { snapshot = sessionSnapshot(cold, "session_one", { turns: 20 }); });
+  expect(snapshot.turns.map((turn) => turn.runId)).toEqual([...turns.slice(4_980, 5_000), ...turns.slice(5_000)].map((turn) => turn.runId));
+  expect(snapshot.session.activity).toBe("working");
+  expect(snapshot.session.lastTurnEndedAt).toBe(2_000 + 4_999);
+  // 20 settled + 2 active for the window, and the activity fold's live and last-ended rows.
+  expect(rows).toBeLessThanOrEqual(30);
+  expect(cold.kernel.readAccounting.queueParses).toBe(0);
+}, 60_000);

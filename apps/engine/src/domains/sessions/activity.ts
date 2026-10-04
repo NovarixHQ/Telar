@@ -21,7 +21,10 @@ import { isResultTurn } from "./records";
 import { rowIsShelved } from "./session-index";
 
 type ActivityDeps = {
-  readQueue: (sessionId: string) => { turns: Turn[] };
+  /** The live turns, the last ended and last answered, and the named runs. */
+  activityTurns: (sessionId: string, runIds: readonly string[]) => Turn[];
+  assignedTurns: (sessionId: string) => Turn[];
+  liveTurns: (sessionId: string) => Turn[];
   liveRequests: (sessionId: string) => ReadonlyMap<string, EngineRequest>;
   peekRun: (sessionId: string, runId: string) => Item[];
   readTasks: (sessionId: string) => Map<string, Task>;
@@ -61,7 +64,13 @@ export class SessionActivity {
   ) {}
 
   of(session: Session): Session {
-    return this.from(session, this.deps.readQueue(session.id).turns);
+    return this.from(session, this.turnsFor(session.id));
+  }
+
+  /** Every turn `from` reads, without the history it doesn't: open requests name the settled runs it checks. */
+  turnsFor(sessionId: string): Turn[] {
+    const asked = [...this.deps.liveRequests(sessionId).values()].filter((request) => request.state === "open").map((request) => request.runId);
+    return this.deps.activityTurns(sessionId, asked);
   }
 
   /**
@@ -131,8 +140,8 @@ export class SessionActivity {
   }
 
   /**
-   * One pass over the live sessions, reading each queue once for both the
-   * activity and the assignments. `only` narrows it to rows already chosen.
+   * One pass over the live sessions, reading only the turns the activity and
+   * the assignments fold. `only` narrows it to rows already chosen.
    */
   foldLive(only?: Iterable<string>): Folded {
     const sessions: Session[] = [];
@@ -147,9 +156,8 @@ export class SessionActivity {
         continue;
       }
       if (record.state !== "active") continue;
-      const turns = this.deps.readQueue(id).turns;
-      sessions.push(this.from(structuredClone(record), turns));
-      const held = assignmentsOf(turns as AssignmentTurn[]);
+      sessions.push(this.from(structuredClone(record), this.turnsFor(id)));
+      const held = assignmentsOf(this.deps.assignedTurns(id) as AssignmentTurn[]);
       if (held.length > 0) assignments[id] = held;
     }
     sessions.sort(newestFirst);
@@ -212,7 +220,7 @@ export class SessionActivity {
     let turns: Turn[];
     try {
       if (this.deps.require(sessionId).state !== "active") return undefined;
-      turns = this.deps.readQueue(sessionId).turns;
+      turns = this.deps.liveTurns(sessionId);
     } catch {
       return undefined;
     }

@@ -254,7 +254,7 @@ export class SessionLifecycle {
   private recordLocalBase(sessionId: string, root: string): void {
     void this.host.worktreeGit(root, ["rev-parse", "HEAD"]).then((head) => {
       if (head.status === 0) this.host.settleWorktree(sessionId, undefined, head.stdout.trim());
-    }, () => undefined);
+    }).catch(() => undefined);
   }
 
   /** Cuts the checkout a `preparing` session waits for, then flips its row; not awaited, and serialised per project. */

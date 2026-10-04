@@ -17,8 +17,13 @@ private actor HeadAPI: EngineAPI {
     func recorded() -> [String] { calls }
 
     func session(_ id: EngineID, window: SnapshotWindow?) async throws -> SessionSnapshot {
+        try await sessionRead(id, window: window).snapshot
+    }
+
+    func sessionRead(_ id: EngineID, window: SnapshotWindow?) async throws -> SessionRead {
         calls.append("session")
-        return try JSONDecoder().decode(SessionSnapshot.self, from: Data(snapshotJSON.utf8))
+        let data = Data(snapshotJSON.utf8)
+        return SessionRead(snapshot: try JSONDecoder().decode(SessionSnapshot.self, from: data), data: data)
     }
 
     func events(_ id: EngineID, after: Int) async throws -> EventPage {

@@ -29,7 +29,7 @@ const sharedOf = (args: Record<string, unknown>): Shared => ({
   ...(args.driver === "claude" || args.driver === "codex" ? { driver: args.driver } : {}),
 });
 
-const SINGLE_ONLY = ["title", "task", "model", "effort", "wait"] as const;
+const SINGLE_ONLY = ["title", "task", "model", "effort", "wait", "owner"] as const;
 
 export function createTool(tool: ToolFactory, capability: SessionsCapability): unknown {
   return tool(
@@ -53,6 +53,10 @@ export function createTool(tool: ToolFactory, capability: SessionsCapability): u
       effort: z.string().min(1).optional().describe(EFFORT),
       task: z.string().min(1).optional().describe("A self-contained brief; it cannot see this conversation."),
       wait: WAIT,
+      owner: z
+        .literal("person")
+        .optional()
+        .describe("person: the session is the person's own, top level, not filed under you; task is their opening message and you are not subscribed."),
       tasks: z
         .array(
           z.strictObject({
@@ -80,6 +84,9 @@ export function createTool(tool: ToolFactory, capability: SessionsCapability): u
 
 async function createOne(capability: SessionsCapability, args: Record<string, unknown>, toolCallId: string | undefined) {
   const shared = sharedOf(args);
+  const person = args.owner === "person";
+  const briefRunId = runIdFor("sessions_create", toolCallId);
+  if (typeof args.wait === "number" && person) return err("wait does not apply to a person's session: it will never report back to you.");
   if (typeof args.wait === "number" && (typeof args.task !== "string" || !args.task)) return err("wait needs a task: there is nothing to wait for.");
   let session: Session;
   try {
@@ -87,9 +94,20 @@ async function createOne(capability: SessionsCapability, args: Record<string, un
       ...shared,
       ...(typeof args.title === "string" && args.title.trim() ? { title: args.title } : {}),
       ...modelChoice(args),
+      ...(person ? { owner: "person" as const, ...(typeof args.task === "string" && args.task ? { brief: { runId: briefRunId, input: args.task } } : {}) } : {}),
     });
   } catch (error) {
     return err(`Could not create a session on "${shared.projectId}": ${failure(error)}`);
+  }
+  if (person) {
+    const note = "Created as the person's own top-level session: it is not filed under you, you are not subscribed, and it will not report back. Do not send it work.";
+    const briefed = typeof args.task === "string" && args.task;
+    return json({
+      ...summariseOne(session, new Map<string, string>()),
+      ...runsOn(session),
+      ...(briefed ? { runId: briefRunId } : {}),
+      note: briefed ? `${note} Your text is queued in it as the person's opening message; end your turn.` : note,
+    });
   }
   const where = session.workspace.mode === "worktree"
     ? `Created with a checkout of its own on branch ${session.workspace.branch}.`

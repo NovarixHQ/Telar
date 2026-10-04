@@ -173,6 +173,51 @@ describe("a session created by a session", () => {
     expect(created.json!.taskState).toBe("queued");
   });
 
+  test("owner person makes a top-level session the caller neither parents nor waits on", async () => {
+    const { store, projectId } = engine();
+    const { parent, tools } = orchestrator(store, projectId);
+    const created = await call(tools, "sessions_create", { projectId, envMode: "local", title: "for the person", owner: "person" });
+    const id = created.json!.id as string;
+
+    expect(store.records.get(id).startedFrom).toBeUndefined();
+    expect(store.handoff.parentOf(id)).toBeUndefined();
+    expect(store.live.all().sessions.find((row) => row.id === id)?.startedFrom).toBeUndefined();
+    expect(store.subscriptions.subscriptionsFor(parent.id)).toEqual([]);
+    expect(store.subscriptions.cohortsFor(parent.id)).toEqual([]);
+    expect(store.queries.turns(id)).toEqual([]);
+    expect(String(created.json!.note)).toContain("not filed under you");
+  });
+
+  test("owner person with a task queues it as the person's own message, with no agent wrapper", async () => {
+    const { store, projectId } = engine();
+    const { parent, tools } = orchestrator(store, projectId);
+    const created = await call(tools, "sessions_create", { projectId, envMode: "local", title: "for the person", owner: "person", task: "How do I work better with AI?" });
+    const id = created.json!.id as string;
+
+    const [turn, ...rest] = store.queries.turns(id);
+    expect(rest).toEqual([]);
+    expect(turn).toMatchObject({ runId: created.json!.runId, input: "How do I work better with AI?", state: "queued" });
+    expect(turn!.origin).toBeUndefined();
+    expect(turn!.sender).toBeUndefined();
+    expect(turn!.agentIntent).toBeUndefined();
+    expect(turn!.agentNotice).toBeUndefined();
+    expect(turn!.notification).toBeUndefined();
+    expect(store.queries.assignments(id)).toEqual([]);
+    expect(store.subscriptions.subscriptionsFor(parent.id)).toEqual([]);
+    expect(store.subscriptions.cohortsFor(parent.id)).toEqual([]);
+  });
+
+  test("owner person cannot be waited on or batched", async () => {
+    const { store, projectId } = engine();
+    const { tools } = orchestrator(store, projectId);
+    const waited = await call(tools, "sessions_create", { projectId, envMode: "local", owner: "person", task: "hi", wait: 5 });
+    const batched = await call(tools, "sessions_create", { projectId, envMode: "local", owner: "person", tasks: [{ title: "a", task: "b" }] });
+
+    expect(waited.isError).toBe(true);
+    expect(batched.isError).toBe(true);
+    expect(store.live.all().sessions).toHaveLength(1);
+  });
+
   test("without a task, nothing is assigned or queued", async () => {
     const { store, projectId } = engine();
     const { tools } = orchestrator(store, projectId);

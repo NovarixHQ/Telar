@@ -11,6 +11,13 @@ function modelChoice(value: unknown): AgentModelChoice {
   return parsed.data;
 }
 
+function briefOf(value: unknown): { runId: string; input: string } {
+  const brief = (value ?? {}) as Record<string, unknown>;
+  const input = stringValue(brief.input, "brief input")!;
+  if (!input.trim()) throw new HttpError(400, "invalid_request", "brief input is empty");
+  return { runId: stringValue(brief.runId, "brief run id")!, input };
+}
+
 function senderProof(value: unknown): AgentTurnInput["proof"] {
   if (value === undefined) return undefined;
   const parsed = AgentTurnInput.shape.proof.safeParse(value);
@@ -110,6 +117,7 @@ export function sessionsRoutes(store: EngineStore, { daemonId, openStreams, mcpI
             ...(body.origin === "session" ? { origin: "session" as const } : {}),
             ...(typeof body.ceilingFrom === "string" ? { ceilingFrom: body.ceilingFrom } : {}),
             ...(body.model === undefined ? {} : { model: modelChoice(body.model) }),
+            ...(body.brief === undefined ? {} : { brief: briefOf(body.brief) }),
           }, senderProof(body.proof)),
         },
       }),

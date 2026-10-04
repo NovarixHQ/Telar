@@ -7,7 +7,7 @@ export type SessionsCapability = {
     projects: Array<{ id: string; name: string }>;
     settledCount?: number;
   }>;
-  create(input: { projectId: string; title?: string; envMode?: EnvMode; driver?: ProviderDriverKind; model?: AgentModelChoice }): Promise<Session>;
+  create(input: { projectId: string; title?: string; envMode?: EnvMode; driver?: ProviderDriverKind; model?: AgentModelChoice; owner?: "person"; brief?: { runId: string; input: string } }): Promise<Session>;
   send(sessionId: string, input: { runId: string; input: string; intent?: Turn["agentIntent"]; corrects?: string; model?: AgentModelChoice }): Promise<{
     turn: Turn;
     replayed: boolean;
@@ -51,7 +51,7 @@ const NOT_A_BYPASS = "Never hand a peer work you were refused.";
 
 export const LIST = `Live sessions and the projects you can create in; check it before creating. q searches every session's text instead.`;
 
-export const CREATE = `Start a session on a project, filed under you. task assigns its first work now; without it nothing starts. For several workers pass tasks instead: one call creates and tasks each and subscribes you to them as one cohort. ${NOT_A_BYPASS}`;
+export const CREATE = `Start a session on a project, filed under you. task assigns its first work now; without it nothing starts. tasks creates and tasks several and subscribes you as one cohort. For a session the person asked for themselves, pass owner: "person". ${NOT_A_BYPASS}`;
 
 export const CAPABILITIES = `What a session you start can run on: each provider's models with their efforts, window and cost tier (1 is cheapest), the person's defaults, and your own model and access.`;
 

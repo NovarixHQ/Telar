@@ -202,6 +202,7 @@ private let sessionBody = Data("""
         await engine.awaitPendingWork()
 
         await engine.refresh()
+        engine.stop()
         await engine.awaitPendingWork()
 
         #expect(engine.session?.title == "Windowed")

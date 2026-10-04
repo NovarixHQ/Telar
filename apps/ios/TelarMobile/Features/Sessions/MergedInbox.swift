@@ -150,6 +150,10 @@ func createdNewestFirst(_ a: HostedSession, _ b: HostedSession) -> Bool {
                 next[host.id] = existing
             } else if let api = settings.api(for: host.id) {
                 stores[host.id]?.stop()
+                if fingerprints[host.id] != nil {
+                    SessionHeads.shared.forget(host: host.id)
+                    settings.snapshotCache(for: host.id)?.dropSessions()
+                }
                 let store = InboxStore(api: api, hostId: host.id, cache: settings.snapshotCache(for: host.id))
                 if active { store.start() }
                 next[host.id] = store
@@ -159,7 +163,7 @@ func createdNewestFirst(_ a: HostedSession, _ b: HostedSession) -> Bool {
         for (id, store) in stores where next[id] == nil {
             store.stop()
             fingerprints[id] = nil
-
+            SessionHeads.shared.forget(host: id)
             settings.snapshotCache(for: id)?.cache.dropHost(id)
         }
         stores = next

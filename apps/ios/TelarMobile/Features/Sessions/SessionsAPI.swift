@@ -7,6 +7,7 @@ protocol SessionsAPI: Sendable {
     func session(_ id: EngineID, window: SnapshotWindow?) async throws -> SessionSnapshot
     func sessionRead(_ id: EngineID, window: SnapshotWindow?) async throws -> SessionRead
     func events(_ id: EngineID, after: Int) async throws -> EventPage
+    func sessionDelta(_ id: EngineID, after: Int) async throws -> SessionDelta
     func stopSession(_ id: EngineID) async throws
     func patchSession(_ id: EngineID, patch: SessionPatch) async throws
     func deleteSession(_ id: EngineID) async throws
@@ -35,6 +36,8 @@ extension SessionsAPI {
         SessionRead(snapshot: try await session(id, window: window), data: nil)
     }
 
+    func sessionDelta(_ id: EngineID, after: Int) async throws -> SessionDelta { .reset }
+
     func settledShelf(matching etag: String?) async throws -> LiveSessionsRead {
         try await liveSessions(matching: etag, since: nil, all: true)
     }
@@ -57,6 +60,23 @@ struct LiveSessionsRead: Sendable {
     var etag: String?
 
     var data: Data?
+}
+
+enum SessionDelta: Decodable {
+    case reset
+    case events([EngineEvent], cursor: Int)
+
+    private enum CodingKeys: String, CodingKey { case reset, events, cursor }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if try c.decode(Bool.self, forKey: .reset) {
+            self = .reset
+            return
+        }
+        let events = try c.decode([Skippable<EngineEvent>].self, forKey: .events).compactMap(\.value)
+        self = .events(events, cursor: try c.decode(Int.self, forKey: .cursor))
+    }
 }
 
 struct SessionRead: Sendable {
@@ -153,6 +173,10 @@ extension HTTPEngineAPI: SessionsAPI {
 
     func events(_ id: EngineID, after: Int) async throws -> EventPage {
         try await get("api/sessions/\(escape(id))/events", query: [URLQueryItem(name: "after", value: String(after))])
+    }
+
+    func sessionDelta(_ id: EngineID, after: Int) async throws -> SessionDelta {
+        try await get("api/sessions/\(escape(id))/delta", query: [URLQueryItem(name: "after", value: String(after))])
     }
 
     func stopSession(_ id: EngineID) async throws {

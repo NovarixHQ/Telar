@@ -58,7 +58,7 @@ struct SessionView: View {
         self.onRead = onRead
         if let hostId { _draft = State(initialValue: UserDefaults.standard.string(forKey: "telar.draft.\(hostId).\(sessionId)") ?? "") }
 
-        _store = State(initialValue: SessionStore(api: api, sessionId: sessionId, hostId: hostId, cache: cache))
+        _store = State(initialValue: SessionStore(api: api, sessionId: sessionId, hostId: hostId, cache: cache, heads: cache == nil ? nil : .shared))
         _panel = State(initialValue: PanelModel(hostId: hostId, sessionId: sessionId))
     }
 

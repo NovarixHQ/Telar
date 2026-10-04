@@ -41,6 +41,7 @@ enum SyncConnectionState: Equatable {
     private let api: any EngineAPI
     private let sessionId: EngineID
     private let cache: HostSnapshotCache?
+    private let heads: SessionHeads?
     private var snapshot: SessionSnapshot?
 
     private var page: SnapshotPage?
@@ -54,6 +55,7 @@ enum SyncConnectionState: Equatable {
     private var foldGeneration = 0
 
     private var lastSnapshotData: Data?
+    private var unsaved = false
 
     private var recording: Task<Void, Never>?
 
@@ -66,12 +68,15 @@ enum SyncConnectionState: Equatable {
     }
     private var backoff: Duration = .seconds(1)
 
-    init(api: any EngineAPI, sessionId: EngineID, cache: HostSnapshotCache? = nil) {
+    init(api: any EngineAPI, sessionId: EngineID, cache: HostSnapshotCache? = nil, heads: SessionHeads? = nil) {
         self.api = api
         self.sessionId = sessionId
         self.cache = cache
-        restore()
+        self.heads = heads
+        if let key = headKey, let head = heads?.head(key) { paint(head) } else { restore() }
     }
+
+    private var headKey: ScopedSessionID? { cache.map { ScopedSessionID(hostId: $0.hostId, sessionId: sessionId) } }
 
     func start() {
         guard loop == nil else { return }
@@ -83,6 +88,7 @@ enum SyncConnectionState: Equatable {
     func stop() {
         loop?.cancel()
         loop = nil
+        stash()
     }
 
     func refresh() async {
@@ -95,8 +101,13 @@ enum SyncConnectionState: Equatable {
         session = current
     }
 
+    func open() async {
+        await restoring?.value
+        if snapshot != nil, cursor > 0 { await reconcile() } else { await hydrate() }
+    }
+
     private func run() async {
-        await hydrate()
+        await open()
         while !Task.isCancelled {
             try? await Task.sleep(for: interval)
             if Task.isCancelled { break }
@@ -119,11 +130,38 @@ enum SyncConnectionState: Equatable {
     private func applyRestored(_ restored: SessionSnapshot, entry: SnapshotCache.Entry, folded: Folded) {
         guard snapshot == nil, connection != .gone else { return }
         snapshot = restored
+        page = restored.page
+        cursor = restored.cursor ?? 0
         lastSnapshotData = entry.data
         recordedAt = entry.savedAt
         session = restored.session
         foldGeneration += 1
         apply(folded, generation: foldGeneration)
+    }
+
+    private func paint(_ head: SessionHead) {
+        snapshot = head.snapshot
+        page = head.page
+        events = head.events
+        cursor = head.cursor
+        lastSnapshotData = head.snapshotData
+        recordedAt = head.savedAt
+        session = head.snapshot.session
+        foldGeneration += 1
+        apply(head.folded, generation: foldGeneration)
+    }
+
+    private func stash() {
+        guard let snapshot, let key = headKey, connection != .gone else { return }
+        let folded = Folded(turns: turns, openRequests: openRequests, displayOpens: displayOpens, kernelSignals: kernelSignals)
+        heads?.put(key, SessionHead(
+            snapshot: snapshot, events: events, cursor: cursor, page: page, folded: folded,
+            snapshotData: lastSnapshotData, savedAt: recordedAt ?? Timestamp(Date().timeIntervalSince1970 * 1000)
+        ))
+        guard unsaved, let cache, let data = lastSnapshotData else { return }
+        unsaved = false
+        let id = sessionId
+        recording = Task.detached(priority: .utility) { cache.writeSession(id, data) }
     }
 
     func awaitPendingWork() async {
@@ -154,33 +192,50 @@ enum SyncConnectionState: Equatable {
         do {
             let tail = try await tailSession(api, sessionId, after: cursor, window: SnapshotWindow(turns: initialTurns))
             try Task.checkCancellation()
-            if let fresh = tail.snapshot {
-                if var held = snapshot {
-                    held.cursor = fresh.cursor
-                    held.session = fresh.session
-                    held.requests = fresh.requests
-                    held.turns = mergeRows(older: held.turns, fresh: fresh.turns) { $0.runId }
-                    held.items = mergeRows(older: held.items, fresh: fresh.items) { $0.id }
-                    held.tasks = mergeRows(older: held.tasks, fresh: fresh.tasks) { $0.id }
-                    snapshot = held
-                } else {
-                    snapshot = fresh
-                    page = fresh.page
-                }
-            }
-            if !tail.events.isEmpty || tail.snapshot != nil {
-                events = appendJournalEvents(events, tail.events)
-                if let reflected = tail.snapshot?.cursor { events.removeAll { $0.id <= reflected } }
-                refold()
-            }
-            cursor = max(tail.cursor, tail.snapshot?.cursor ?? 0)
-            connection = .live
-            recordedAt = nil
-            backoff = .seconds(1)
-            if tail.snapshot != nil { remember(tail.snapshotData) }
+            absorb(tail)
         } catch {
             fail(error)
         }
+    }
+
+    private func reconcile() async {
+        do {
+            guard case .events(let events, let next) = try await api.sessionDelta(sessionId, after: cursor) else {
+                return await hydrate()
+            }
+            let read = needsSessionSnapshot(events) ? try await api.sessionRead(sessionId, window: SnapshotWindow(turns: initialTurns)) : nil
+            try Task.checkCancellation()
+            absorb(TailResult(events: events, cursor: max(cursor, next), snapshot: read?.snapshot, snapshotData: read?.data))
+        } catch {
+            fail(error)
+        }
+    }
+
+    private func absorb(_ tail: TailResult) {
+        if let fresh = tail.snapshot {
+            if var held = snapshot {
+                held.cursor = fresh.cursor
+                held.session = fresh.session
+                held.requests = fresh.requests
+                held.turns = mergeRows(older: held.turns, fresh: fresh.turns) { $0.runId }
+                held.items = mergeRows(older: held.items, fresh: fresh.items) { $0.id }
+                held.tasks = mergeRows(older: held.tasks, fresh: fresh.tasks) { $0.id }
+                snapshot = held
+            } else {
+                snapshot = fresh
+                page = fresh.page
+            }
+        }
+        if !tail.events.isEmpty || tail.snapshot != nil {
+            events = appendJournalEvents(events, tail.events)
+            if let reflected = tail.snapshot?.cursor { events.removeAll { $0.id <= reflected } }
+            refold()
+        }
+        cursor = max(tail.cursor, tail.snapshot?.cursor ?? 0)
+        connection = .live
+        recordedAt = nil
+        backoff = .seconds(1)
+        if tail.snapshot != nil { remember(tail.snapshotData) }
     }
 
     func loadOlderTurns() async {
@@ -204,6 +259,7 @@ enum SyncConnectionState: Equatable {
             connection = .gone
 
             cache?.dropSession(sessionId)
+            if let key = headKey { heads?.drop(key) }
             stop()
             return
         }
@@ -213,10 +269,9 @@ enum SyncConnectionState: Equatable {
     }
 
     private func remember(_ data: Data?) {
-        guard let cache, let data, data != lastSnapshotData else { return }
+        guard let data, data != lastSnapshotData else { return }
         lastSnapshotData = data
-        let id = sessionId
-        recording = Task.detached(priority: .utility) { cache.writeSession(id, data) }
+        unsaved = true
     }
 
     private func refold() {
@@ -240,14 +295,14 @@ enum SyncConnectionState: Equatable {
     }
 }
 
-private struct Folded {
+struct Folded {
     var turns: [JournalTurn]
     var openRequests: [EngineRequest]
     var displayOpens: [SessionSyncEngine.DisplayOpen]
     var kernelSignals: KernelSignals
 }
 
-private func fold(_ snapshot: SessionSnapshot, events: [EngineEvent]) -> Folded {
+func fold(_ snapshot: SessionSnapshot, events: [EngineEvent]) -> Folded {
     let turns = projectJournal(
         turns: snapshot.turns, items: snapshot.items,
         events: events, tasks: snapshot.tasks

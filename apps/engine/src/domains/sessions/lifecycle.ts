@@ -1,4 +1,5 @@
-import { WakeKind as WakeKindSchema, type ModelSelection, type RuntimeMode, type WakeKind } from "@telar/engine-client";
+import { AgentTurnInput, WakeKind as WakeKindSchema, type ModelSelection, type RuntimeMode, type WakeKind } from "@telar/engine-client";
+import { HttpError } from "../../platform/http/http";
 import { stringValue } from "../../platform/http/params";
 import { ok, sessionRoute, type Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
@@ -37,6 +38,18 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
         const answer = ok({ session: store.records.markRead(sessionId!, stringValue(body.runId, "run id")!) });
         dismiss(sessionId!);
         return answer;
+      },
+    },
+    {
+      method: "POST",
+      path: sessionRoute("/handoff"),
+      auth: "engine",
+      handle({ params: [sessionId], body }) {
+        const proof = body.proof === undefined ? undefined : AgentTurnInput.shape.proof.safeParse(body.proof);
+        if (proof && (!proof.success || !proof.data)) throw new HttpError(400, "invalid_request", "proof is invalid");
+        const by = proof?.data ? store.worker.requireSenderClaim(proof.data).sessionId : undefined;
+        const to = stringValue(body.to, "target session id", true);
+        return ok({ session: store.handoff.handOff(sessionId!, { ...(to ? { to } : {}), ...(by ? { by } : {}) }) });
       },
     },
     { method: "POST", path: sessionRoute("/archive"), auth: "engine", handle: ({ params }) => ok({ session: store.lifecycle.archiveSession(params[0]!) }) },

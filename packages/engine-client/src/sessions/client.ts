@@ -95,6 +95,10 @@ export const sessionsClient = {
     return this.request("PATCH", sessionPath(sessionId), patch);
   },
 
+  handOffSession(this: EngineTransport, sessionId: string, input: { to?: string; proof?: AgentTurnInput["proof"] } = {}): Promise<{ session: Session }> {
+    return this.request("POST", `${sessionPath(sessionId)}/handoff`, input);
+  },
+
   regenerateSessionTitle(this: EngineTransport, sessionId: string): Promise<{ session: Session; changed: boolean }> {
     return this.request("POST", `${sessionPath(sessionId)}/regenerate-title`, {});
   },

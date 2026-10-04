@@ -195,6 +195,33 @@ export class SessionSubscriptions {
     this.reviewCohorts();
   }
 
+  handOver(memberSessionId: string, fromSessionId: string, toSessionId: string | undefined): void {
+    const all = this.readSubscriptions();
+    const moved = all.filter((each) => each.subscriberSessionId === fromSessionId && each.targetSessionId === memberSessionId);
+    const cohorts = this.readCohorts();
+    const touched: string[] = [];
+    let pendingInCohort = false;
+    const kept = cohorts.flatMap((cohort) => {
+      if (cohort.subscriberSessionId !== fromSessionId || cohort.ready) return [cohort];
+      const member = cohort.members.find((each) => each.sessionId === memberSessionId);
+      if (!member) return [cohort];
+      if (!member.outcome) pendingInCohort = true;
+      const rest = cohort.members.filter((each) => each !== member);
+      if (rest.length === 0) return [];
+      touched.push(cohort.id);
+      return [{ ...cohort, members: rest }];
+    });
+    if (moved.length > 0) this.writeSubscriptions(all.filter((each) => !moved.includes(each)));
+    if (kept.length !== cohorts.length || touched.length > 0) this.writeCohorts(kept);
+    this.host.discardQueuedWakes(fromSessionId, memberSessionId);
+    this.closeDoneCohorts(touched);
+    if (toSessionId === undefined) return;
+    for (const each of moved) {
+      this.subscribe(toSessionId, { targetSessionId: memberSessionId, events: each.events, ...(each.once ? { once: true } : {}), ...(each.completionWake ? { completionWake: each.completionWake } : {}) });
+    }
+    if (pendingInCohort) this.subscribe(toSessionId, { targetSessionId: memberSessionId, events: [...TERMINAL_WAKE_KINDS], once: true });
+  }
+
   /** Removes what will never fire: a target settled, archived or deleted, or an ongoing watch past `MAX_WATCH_MS`. */
   sweepSubscriptions(): string[] {
     const all = this.readSubscriptions();

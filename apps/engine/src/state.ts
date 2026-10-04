@@ -18,7 +18,7 @@ import { McpOAuthStore, McpServers } from "./domains/agent-tools";
 import { chosenModel, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
 import { DataScienceOps, LatexOps, PluginToolchains } from "./domains/plugins";
 import { UsageLimitSources } from "./domains/usage";
-import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionSubscriptions, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
+import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
 import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, RequestPath } from "./domains/turns";
 import { Dictation } from "./domains/dictation";
 import { type ResolvedComputerUse } from "./domains/computer-use";
@@ -110,6 +110,7 @@ export class EngineStore {
   private readonly activity: SessionActivity;
   readonly subscriptions: SessionSubscriptions;
   readonly lifecycle: SessionLifecycle;
+  readonly handoff: SessionHandoff;
   readonly schedules: ScheduleBook;
   private readonly anchors: TurnAnchors;
   readonly pluginDoors: PluginDoors;
@@ -251,6 +252,13 @@ export class EngineStore {
     });
     this.subscriptions = this.createSubscriptions();
     this.lifecycle = this.createLifecycle();
+    this.handoff = new SessionHandoff(this.kernel, {
+      records: this.records,
+      lifecycle: this.lifecycle,
+      subscriptions: this.subscriptions,
+      assignments: (id) => this.queries.assignments(id),
+      appendEvent: (id, event) => this.kernel.appendEvent(id, event),
+    });
     this.intake = this.createIntake();
     this.turnLifecycle = this.createTurnLifecycle();
     this.claims = this.createClaims();

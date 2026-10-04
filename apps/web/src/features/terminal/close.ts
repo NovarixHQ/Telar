@@ -19,7 +19,9 @@
  * means — is tested as a function, without a host or a dialog.
  */
 import { terminalBridge, type TerminalActivity, type TerminalBridge } from "./bridge";
-import { readWorkspace, shellLabel } from "./workspace";
+import { isOpenTerminal } from "./run/presentation";
+import type { RunView } from "./run/types";
+import { readWorkspace, shellLabel, type TerminalWorkspace } from "./workspace";
 
 /** One terminal a close would end. */
 export type CloseTarget = {
@@ -177,12 +179,6 @@ export async function endTerminal(
  * that can tell a tab switch from a tab closing; it hands this the tab's
  * params, and the workspace in them names every terminal the strip held.
  *
- * A RUN IS ON THIS LIST NOW. It used to be spared — a run belonged to the
- * project and outlived the conversation — but a run is a terminal the SESSION
- * owns, and the Terminal tab is where it lives. Closing the tab and leaving
- * its servers running with nothing on screen attached to them is exactly the
- * orphan "the terminal owns the process" removed.
- *
  * A chip with no terminal id has nothing to end: a shell whose spawn never
  * answered, or a run whose terminal had already ended when the tab was last
  * written.
@@ -209,4 +205,23 @@ export async function closeTerminalTab(
     ),
   );
   return true;
+}
+
+/** Runs that ended or sit idle, and shells the host says run nothing; unread activity (undefined) counts as busy. */
+export function idleChips(
+  workspace: TerminalWorkspace,
+  runs: ReadonlyMap<string, RunView> | undefined,
+  activity: readonly TerminalActivity[] | undefined,
+): string[] {
+  return workspace.shells
+    .filter((shell) => {
+      if (shell.run) {
+        if (!runs) return false;
+        const view = runs.get(shell.run.runId);
+        return !isOpenTerminal(view) || view!.activity === "idle";
+      }
+      if (!shell.terminalId || !activity) return false;
+      return activity.find((entry) => entry.id === shell.terminalId)?.active !== true;
+    })
+    .map((shell) => shell.id);
 }

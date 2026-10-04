@@ -581,6 +581,25 @@ describe("closing a chip ends its terminal", () => {
     }
     expect(tabs(host).map((tab) => tab.textContent)).toEqual(["Shell 1"]);
   });
+
+  test("Close idle terminals ends the idle shells, without asking, and keeps the busy one", async () => {
+    const bridge = installBridge({
+      live: [{ id: "t1" }, { id: "t2" }, { id: "t3" }],
+      activity: [
+        { id: "t1", active: true, processes: 2, command: "bun run dev" },
+        { id: "t2", active: false, processes: 0 },
+        { id: "t3", active: false, processes: 0 },
+      ],
+    });
+    const asked = stubConfirm(false);
+    const host = await mount({ sessionId: "session_a", params: restored("t1", "t2", "t3") });
+
+    await click(host.querySelector('button[aria-label="Close idle terminals"]') as HTMLButtonElement);
+
+    expect(asked).toEqual([]);
+    expect(bridge.closes.sort()).toEqual(["t2", "t3"]);
+    expect(tabs(host).length).toBe(1);
+  });
 });
 
 describe("a run's chip", () => {

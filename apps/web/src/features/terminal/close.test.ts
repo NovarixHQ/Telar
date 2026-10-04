@@ -9,7 +9,8 @@
  */
 import { describe, expect, test } from "bun:test";
 import type { TerminalActivity, TerminalBridge } from "./bridge";
-import { closeTerminalTab, decideClose, endTerminal, mayClose } from "./close";
+import { closeTerminalTab, decideClose, endTerminal, idleChips, mayClose } from "./close";
+import type { RunView } from "./run/types";
 import {
   addShell,
   emptyWorkspace,
@@ -253,5 +254,29 @@ describe("closeTerminalTab", () => {
     expect(await closeTerminalTab({ [TERMINAL_WORKSPACE_PARAM]: "not json" }, { bridge })).toBe(true);
     expect(asked).toEqual([]);
     expect(closed).toEqual([]);
+  });
+});
+
+describe("idleChips", () => {
+  const view = (runId: string, status: RunView["status"], activity: RunView["activity"]) => ({ runId, terminalId: runId, status, activity }) as RunView;
+  const strip = () => {
+    let workspace = setShellTerminal(addShell(emptyWorkspace()), "shell", "pty_idle");
+    workspace = setShellTerminal(addShell(workspace), nextShellId(workspace), "pty_busy");
+    for (const runId of ["run_idle", "run_busy", "run_ended"]) workspace = upsertRunShell(workspace, { runId, configId: "", terminalId: runId });
+    return workspace;
+  };
+  const runs = new Map([
+    ["run_idle", view("run_idle", "running", "idle")],
+    ["run_busy", view("run_busy", "running", "busy")],
+    ["run_ended", view("run_ended", "closed", "idle")],
+  ]);
+
+  test("idle and ended terminals are picked; busy ones are kept", () => {
+    expect(idleChips(strip(), runs, [idle("pty_idle"), busy("pty_busy", 2)])).toEqual(["shell", "run", "run#3"]);
+  });
+
+  test("activity nobody could read keeps that kind of terminal", () => {
+    expect(idleChips(strip(), undefined, [idle("pty_idle"), busy("pty_busy", 2)])).toEqual(["shell"]);
+    expect(idleChips(strip(), runs, undefined)).toEqual(["run", "run#3"]);
   });
 });

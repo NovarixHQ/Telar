@@ -1,9 +1,9 @@
 import Foundation
 
-enum SidebarMode: String, CaseIterable, Identifiable {
+enum SidebarMode: String, CaseIterable, Identifiable, Decodable, Sendable {
     case grouped, flat
 
-    static let storageKey = "telar.sidebar.mode"
+    static let fallback: SidebarMode = .flat
 
     var id: String { rawValue }
 

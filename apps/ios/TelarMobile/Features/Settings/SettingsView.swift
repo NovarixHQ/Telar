@@ -2,9 +2,20 @@ import SwiftUI
 
 struct SettingsView: View {
     let settings: AppSettings
+    let inbox: MergedInbox
     @State private var pushTarget: PushTarget?
     @State private var openDevicesSeed = UserDefaults.standard.bool(forKey: "openDevices")
-    @AppStorage(SidebarMode.storageKey) private var sidebarMode: SidebarMode = .grouped
+    @State private var modeFailed = false
+
+    private var sidebarMode: Binding<SidebarMode> {
+        Binding(get: { inbox.mode }, set: { next in
+            Task {
+                modeFailed = !(await inbox.setMode(next) { host, mode in
+                    try await settings.api(for: host)?.setSidebarLayout(mode: mode)
+                })
+            }
+        })
+    }
 
     enum PushTarget: Hashable {
         case host(HostID)
@@ -25,14 +36,16 @@ struct SettingsView: View {
                     SettingsSectionLabel("Session list")
                     SettingsCard {
                         CardRow(icon: "list.bullet.indent", title: "Group by") {
-                            Picker("Group by", selection: $sidebarMode) {
+                            Picker("Group by", selection: sidebarMode) {
                                 ForEach(SidebarMode.allCases) { Text($0.label).tag($0) }
                             }
                             .pickerStyle(.segmented)
                             .fixedSize()
                         }
                     }
-                    SettingsFootnote("Project groups conversations under their project; None lists them newest first, with spawned ones under their parent.")
+                    SettingsFootnote(modeFailed
+                        ? "Couldn't save on every computer. Try again when they are connected."
+                        : "None lists sessions newest first, with spawned ones under their parent. Each computer's rail follows this too.")
                 }
 
                 VStack(spacing: 0) {

@@ -25,7 +25,6 @@ struct SessionSidebar: View {
     @State private var deleting: HostedSession?
     @AppStorage("telar.sidebar.collapsed") private var savedCollapsed = ""
     @AppStorage("telar.sidebar.expandedParents") private var savedExpanded = ""
-    @AppStorage(SidebarMode.storageKey) private var mode: SidebarMode = .grouped
 
     @ScaledMetric(relativeTo: .footnote) private var groupMark: CGFloat = 16
     @ScaledMetric(relativeTo: .caption2) private var rowProjectMark: CGFloat = 12
@@ -185,7 +184,7 @@ struct SessionSidebar: View {
                 }
             } else {
                 draftRows
-                if mode == .flat {
+                if inbox.mode == .flat {
                     flatBands
                 } else {
                     attentionBand

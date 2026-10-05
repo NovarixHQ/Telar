@@ -223,10 +223,12 @@ extension HTTPEngineAPI: SessionsAPI {
     func setSidebarLayout(
         projectOrder: [String]? = nil,
         sessionOrder: [String: [String]]? = nil,
-        pinnedOrder: [String]? = nil
+        pinnedOrder: [String]? = nil,
+        mode: SidebarMode? = nil
     ) async throws -> SidebarLayout {
         struct Reply: Decodable { var layout: SidebarLayout }
         var patch: [String: JSONValue] = [:]
+        if let mode { patch["mode"] = .string(mode.rawValue) }
         if let projectOrder { patch["projectOrder"] = .array(projectOrder.map { .string($0) }) }
         if let sessionOrder {
             patch["sessionOrder"] = .object(sessionOrder.mapValues { .array($0.map { .string($0) }) })

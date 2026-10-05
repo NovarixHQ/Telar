@@ -141,6 +141,28 @@ func createdNewestFirst(_ a: HostedSession, _ b: HostedSession) -> Bool {
         stores[hostId]?.applyLayout(next)
     }
 
+    var mode: SidebarMode {
+        let host = filter ?? order.first { stores[$0] != nil }
+        return host.flatMap { stores[$0]?.layout.mode } ?? .fallback
+    }
+
+    func setMode(_ mode: SidebarMode, through write: (HostID, SidebarMode) async throws -> SidebarLayout?) async -> Bool {
+        var saved = true
+        for hostId in order {
+            guard let previous = stores[hostId]?.layout, previous.mode != mode else { continue }
+            var optimistic = previous
+            optimistic.mode = mode
+            applyLayout(hostId, optimistic)
+            if let written = try? await write(hostId, mode) {
+                applyLayout(hostId, written)
+            } else {
+                applyLayout(hostId, previous)
+                saved = false
+            }
+        }
+        return saved
+    }
+
     func sync(hosts: [Host], settings: AppSettings, active: Bool) {
         order = hosts.map(\.id)
         var next: [HostID: InboxStore] = [:]

@@ -212,14 +212,23 @@ export class SettingsStore {
     return { ...next };
   }
 
-  /** The empty default reads as "alphabetical, nobody has moved anything". */
+  /** Grouped was the old default, so a layout without the marker moves to one list once; a later choice is kept. */
   sidebarLayout(): SidebarLayout {
     try {
-      const parsed = SidebarLayoutSchema.safeParse(this.kernel.readDocument(this.kernel.paths.sidebarLayout));
-      return parsed.success ? parsed.data : blankSidebarLayout();
+      const stored = this.kernel.readDocument(this.kernel.paths.sidebarLayout);
+      const parsed = SidebarLayoutSchema.safeParse(stored);
+      if (!parsed.success) return blankSidebarLayout();
+      if ((stored as { flatDefault?: unknown }).flatDefault === true) return parsed.data;
+      const migrated = { ...parsed.data, mode: "flat" as const };
+      this.writeSidebarLayout(migrated);
+      return migrated;
     } catch {
       return blankSidebarLayout();
     }
+  }
+
+  private writeSidebarLayout(layout: SidebarLayout): void {
+    this.kernel.writeDocument(this.kernel.paths.sidebarLayout, { version: STATE_VERSION, flatDefault: true, ...layout });
   }
 
   /** Each field is its own patch, and a key listed twice is kept once, at its first position. */
@@ -254,7 +263,7 @@ export class SettingsStore {
       if (!parsed.success) throw new EngineStateError("invalid_request", 'mode must be "grouped" or "flat"');
       next.mode = parsed.data;
     }
-    this.kernel.writeDocument(this.kernel.paths.sidebarLayout, { version: STATE_VERSION, ...next });
+    this.writeSidebarLayout(next);
     return cloneSidebarLayout(next);
   }
 

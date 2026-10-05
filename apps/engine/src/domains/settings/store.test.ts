@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EngineStateError } from "../../platform/kernel";
 import { useTempStores } from "../../../test/temp-store";
+import { EngineStore } from "../../state";
 
 const { readyStore } = useTempStores();
 
@@ -190,4 +191,21 @@ test("a malformed inbox document costs the preference, never the sidebar", () =>
   expect(store.settings.inbox()).toEqual(whole);
   fs.writeFileSync(path.join(stateRoot, "inbox.json"), "not json at all");
   expect(store.settings.inbox()).toEqual(whole);
+});
+
+test("a layout stored as grouped moves to one list once, and a later choice of grouped survives a restart", () => {
+  const { store, root: stateRoot } = readyStore();
+  const file = path.join(stateRoot, "sidebar-layout.json");
+  fs.writeFileSync(file, JSON.stringify({ version: 2, projectOrder: ["b"], sessionOrder: {}, pinnedOrder: [], mode: "grouped" }));
+  expect(store.settings.sidebarLayout()).toMatchObject({ projectOrder: ["b"], mode: "flat" });
+
+  store.settings.setSidebarLayout({ mode: "grouped" });
+  store.kernel.executionStore.close();
+  const reopened = new EngineStore(stateRoot, () => 100);
+  try {
+    expect(reopened.settings.sidebarLayout()).toMatchObject({ projectOrder: ["b"], mode: "grouped" });
+    expect(reopened.settings.sidebarLayout().mode).toBe("grouped");
+  } finally {
+    reopened.kernel.executionStore.close();
+  }
 });

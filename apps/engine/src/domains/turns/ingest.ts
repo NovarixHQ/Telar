@@ -246,7 +246,8 @@ export class TurnIngest {
     const settled = known !== undefined && (known.state === "completed" || known.state === "failed" || known.state === "stopped");
     // The first ending is the ending, unless nobody stated it (`isUnstatedEnding`): then only a worse outcome may replace it.
     const corrected = settled && isUnstatedEnding(known) && (seed.state === "failed" || seed.state === "stopped");
-    const kept = settled && !corrected;
+    const resumed = settled && observation.kind === "task.started" && (seed.state === "running" || seed.state === "pending");
+    const kept = settled && !corrected && !resumed;
     const state = kept ? known.state : seed.state;
     const terminal = state === "completed" || state === "failed" || state === "stopped";
     // A settled task is re-announced only when a report adds something; a summary arriving after the close is folded in silently.
@@ -263,8 +264,9 @@ export class TurnIngest {
         return;
       }
     }
+    const { resultText: _result, failure: _failure, completedAt: _completed, ...reopened } = known ?? {};
     const task: Task = {
-      ...known,
+      ...(resumed ? reopened : known),
       ...definedOnly(seed),
       // The row's own id, when a provider-id match found one: the later
       // turn's minted id names the same shell and must not open a second row.
@@ -278,7 +280,7 @@ export class TurnIngest {
       runId: known?.runId ?? turn.runId,
       startedAt: known?.startedAt ?? at,
       updatedAt: at,
-      ...(settled ? { completedAt: known.completedAt ?? at } : terminal ? { completedAt: at } : {}),
+      ...(settled && !resumed ? { completedAt: known.completedAt ?? at } : terminal ? { completedAt: at } : {}),
     };
     projection.tasks.set(task.id, task);
     projection.tasksTouched = true;

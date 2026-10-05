@@ -4,6 +4,7 @@ struct SessionFamily {
     var parent: HostedSession
     var children: [HostedSession]
     var needsYou: Int
+    var working = 0
 }
 
 struct FlatRail {
@@ -61,6 +62,7 @@ enum SessionNesting {
         return order.compactMap { key in
             guard var family = families[key] else { return nil }
             family.needsYou = family.children.filter { $0.session.activity == .blocked }.count
+            family.working = family.children.filter { [.working, .queued, .monitoring].contains($0.session.activity) }.count
             return family
         }
     }

@@ -27,12 +27,6 @@ struct SessionSidebar: View {
     @AppStorage("telar.sidebar.expandedParents") private var savedExpanded = ""
 
     @ScaledMetric(relativeTo: .footnote) private var groupMark: CGFloat = 16
-    @ScaledMetric(relativeTo: .caption2) private var rowProjectMark: CGFloat = 12
-    @ScaledMetric(relativeTo: .subheadline) private var titleProviderMark: CGFloat = 11
-    @ScaledMetric(relativeTo: .caption) private var branchProviderMark: CGFloat = 11
-
-    @ScaledMetric(relativeTo: .footnote) private var slimProjectMark: CGFloat = 13
-    @ScaledMetric(relativeTo: .footnote) private var slimProviderMark: CGFloat = 12
 
     private var model: SidebarModel {
         SidebarModel(
@@ -334,7 +328,7 @@ struct SessionSidebar: View {
         if !rail.pinned.isEmpty {
             Section {
                 ForEach(rail.pinned) { item in
-                    sessionRow(item.row, family: item.family, nested: item.nested, outlined: rail.pinned.contains { $0.family != nil })
+                    sessionRow(item.row, family: item.family, nested: item.nested)
                         .moveDisabled(item.nested)
                 }
                 .onMove { offsets, destination in
@@ -345,7 +339,7 @@ struct SessionSidebar: View {
         if !rail.rows.isEmpty {
             Section {
                 ForEach(rail.rows) { item in
-                    sessionRow(item.row, variant: .slim, family: item.family, nested: item.nested, outlined: rail.rows.contains { $0.family != nil })
+                    sessionRow(item.row, family: item.family, nested: item.nested)
                 }
             }
         }
@@ -431,28 +425,25 @@ struct SessionSidebar: View {
     private enum RowVariant { case card, slim }
 
     private func sessionRow(
-        _ row: HostedSession, variant: RowVariant = .card, showsProject: Bool = true,
-        family: SessionFamily? = nil, nested: Bool = false, outlined: Bool = false
+        _ row: HostedSession, variant: RowVariant = .card, family: SessionFamily? = nil, nested: Bool = false
     ) -> some View {
         let host = HostLabel.header(name: settings.host(row.hostId)?.name, hostCount: settings.hosts.count)
+        let project = inbox.project(row)
+        let api = settings.api(for: row.hostId)
         return NavigationLink(value: row.id) {
-            HStack(spacing: 4) {
-                if outlined && !nested { familyToggle(family).frame(width: 18) }
-                if nested {
-                    SessionChildRow(session: row.session)
+            Group {
+                if variant == .slim || nested {
+                    SessionSlimBody(row: row, host: host, project: project, api: api, settledHint: settledHint(row))
                 } else {
-                    switch variant {
-                    case .card: cardBody(row, showsProject: showsProject, host: host)
-                    case .slim: slimBody(row, host: host)
-                    }
+                    SessionCardBody(row: row, host: host, project: project, api: api) { familyToggle(family) }
                 }
             }
-            .padding(.leading, nested ? 22 : 0)
+            .padding(.leading, nested ? 12 : 0)
             .opacity(inbox.staleHosts.contains(row.hostId) ? 0.6 : 1)
             .warmsHead(row.id) { settings.api(for: row.hostId) }
 
             .overlay(alignment: .leading) {
-                if variant == .card, let tone = accentTone(row.session) {
+                if variant == .card, !nested, let tone = accentTone(row.session) {
                     Capsule().fill(tone).frame(width: 2).padding(.vertical, 2).offset(x: -8)
                 }
             }
@@ -537,76 +528,6 @@ struct SessionSidebar: View {
             deleting = row
         case nil:
             break
-        }
-    }
-
-    @ViewBuilder private func cardBody(_ row: HostedSession, showsProject: Bool, host: String?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                if let host { HostMark(hostId: row.hostId, name: host, size: rowProjectMark) }
-                if row.session.settledOverride == "active" {
-                    Image(systemName: "pin.fill").font(.system(Theme.captionTiny)).foregroundStyle(Theme.textMuted.opacity(0.7))
-                }
-
-                if showsProject, let project = inbox.project(row) {
-                    ProjectAvatar(name: project.name, projectId: project.id, hostId: row.hostId, mark: project.mark, api: settings.api(for: row.hostId), size: rowProjectMark)
-                    Text(project.name).font(.caption2).foregroundStyle(Theme.textMuted.opacity(0.75)).lineLimit(1)
-                }
-                Spacer(minLength: 4)
-                SessionStatusSlot(session: row.session)
-            }
-            HStack(spacing: 6) {
-                UnreadDot(session: row.session)
-
-                Text(row.session.title.isEmpty ? "Untitled session" : row.session.title)
-                    .font(Theme.rowTitle).foregroundStyle(Theme.text).lineLimit(1).truncationMode(.tail)
-                Spacer(minLength: 0)
-
-                if row.session.workspace.branch == nil {
-                    ProviderIconView(driver: row.session.driver, size: titleProviderMark).opacity(0.5)
-                }
-            }
-
-            if let branch = row.session.workspace.branch {
-                HStack(spacing: 5) {
-                    Image(systemName: "arrow.triangle.branch").font(.system(Theme.captionTiny))
-                    Text(branch).font(.system(Theme.caption)).lineLimit(1).truncationMode(.middle)
-                    Spacer(minLength: 4)
-                    ProviderIconView(driver: row.session.driver, size: branchProviderMark).opacity(0.6)
-                }
-                .foregroundStyle(Theme.textMuted.opacity(0.7))
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    @ViewBuilder private func slimBody(_ row: HostedSession, host: String?) -> some View {
-        HStack(spacing: 6) {
-            if let host { HostMark(hostId: row.hostId, name: host, size: slimProjectMark) }
-            if row.session.settledOverride == "active" {
-                Image(systemName: "pin.fill").font(.system(Theme.captionTiny)).foregroundStyle(Theme.textMuted.opacity(0.7))
-            }
-            if let project = inbox.project(row) {
-                ProjectAvatar(name: project.name, projectId: project.id, hostId: row.hostId, mark: project.mark, api: settings.api(for: row.hostId), size: slimProjectMark)
-                    .opacity(0.8)
-            } else {
-                ProviderIconView(driver: row.session.driver, size: slimProviderMark).opacity(0.6)
-            }
-            UnreadDot(session: row.session)
-            Text(row.session.title.isEmpty ? "Untitled session" : row.session.title)
-
-                .font(Settling.showsUnreadMark(row.session) ? Theme.rowTitleSlim.weight(.medium) : Theme.rowTitleSlim)
-                .foregroundStyle(Settling.showsUnreadMark(row.session) ? Theme.text : Theme.text.opacity(0.7))
-                .lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: 4)
-
-            if let hint = settledHint(row), row.session.activity == .idle, row.session.snoozedUntil == nil {
-                Text(hint).font(.caption2).foregroundStyle(Theme.textMuted.opacity(0.7))
-                    .lineLimit(1).truncationMode(.tail)
-                    .layoutPriority(-1)
-            } else {
-                SessionStatusSlot(session: row.session)
-            }
         }
     }
 

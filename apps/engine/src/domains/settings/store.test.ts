@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EngineStateError } from "../../platform/kernel";
 import { useTempStores } from "../../../test/temp-store";
+import { EngineStore } from "../../state";
 
 const { readyStore } = useTempStores();
 
@@ -94,7 +95,7 @@ test("the sidebar layout round-trips, dedupes, and refuses a shape that is not a
   // "alphabetical, nobody has moved anything" — and on the engine so the
   // desktop shell, a browser tab and a paired phone draw one arrangement.
   const { store } = readyStore();
-  const blank = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "grouped" as const };
+  const blank = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "flat" as const };
   expect(store.settings.sidebarLayout()).toEqual(blank);
 
   expect(store.settings.setSidebarLayout({ projectOrder: ["b", "h1:a", "a"] })).toEqual({ ...blank, projectOrder: ["b", "h1:a", "a"] });
@@ -122,14 +123,14 @@ test("the rows inside a group and inside pinned are arranged by their own fields
     projectOrder: ["p1"],
     sessionOrder: { p1: ["s2", "s1"] },
     pinnedOrder: [],
-    mode: "grouped",
+    mode: "flat",
   });
   // The pinned write leaves the group arrangement — and the project one — alone.
   expect(store.settings.setSidebarLayout({ pinnedOrder: ["h1:s9", "s8", "s8"] })).toEqual({
     projectOrder: ["p1"],
     sessionOrder: { p1: ["s2", "s1"] },
     pinnedOrder: ["h1:s9", "s8"],
-    mode: "grouped",
+    mode: "flat",
   });
   // A key said twice inside a group list is kept once too.
   expect(store.settings.setSidebarLayout({ sessionOrder: { p1: ["s1", "s2", "s1"] } }).sessionOrder).toEqual({ p1: ["s1", "s2"] });
@@ -140,25 +141,25 @@ test("the rows inside a group and inside pinned are arranged by their own fields
   for (const bad of ["a", [1], [""], Array.from({ length: 1001 }, (_, i) => `s${i}`)]) {
     expect(() => store.settings.setSidebarLayout({ pinnedOrder: bad })).toThrow(EngineStateError);
   }
-  expect(store.settings.sidebarLayout()).toEqual({ projectOrder: ["p1"], sessionOrder: { p1: ["s1", "s2"] }, pinnedOrder: ["h1:s9", "s8"], mode: "grouped" });
+  expect(store.settings.sidebarLayout()).toEqual({ projectOrder: ["p1"], sessionOrder: { p1: ["s1", "s2"] }, pinnedOrder: ["h1:s9", "s8"], mode: "flat" });
 });
 
-test("the rail mode defaults to grouped, persists on its own, and refuses anything else", () => {
+test("the rail mode defaults to one list, persists on its own, and refuses anything else", () => {
   const { store } = readyStore();
   store.settings.setSidebarLayout({ pinnedOrder: ["s1"] });
-  expect(store.settings.sidebarLayout().mode).toBe("grouped");
+  expect(store.settings.sidebarLayout().mode).toBe("flat");
   // The mode write leaves every arrangement alone, and they leave it alone.
-  expect(store.settings.setSidebarLayout({ mode: "flat" })).toMatchObject({ pinnedOrder: ["s1"], mode: "flat" });
-  expect(store.settings.setSidebarLayout({ pinnedOrder: ["s2"] }).mode).toBe("flat");
+  expect(store.settings.setSidebarLayout({ mode: "grouped" })).toMatchObject({ pinnedOrder: ["s1"], mode: "grouped" });
+  expect(store.settings.setSidebarLayout({ pinnedOrder: ["s2"] }).mode).toBe("grouped");
   for (const bad of ["tree", null, 1, ""]) {
     expect(() => store.settings.setSidebarLayout({ mode: bad })).toThrow(EngineStateError);
   }
-  expect(store.settings.sidebarLayout().mode).toBe("flat");
+  expect(store.settings.sidebarLayout().mode).toBe("grouped");
 });
 
 test("a malformed sidebar-layout document costs the arrangement, never the list", () => {
   const { store, root: stateRoot } = readyStore();
-  const blank = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "grouped" as const };
+  const blank = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "flat" as const };
   fs.writeFileSync(path.join(stateRoot, "sidebar-layout.json"), '{"version":2,"projectOrder":"b,a"}');
   expect(store.settings.sidebarLayout()).toEqual(blank);
   fs.writeFileSync(path.join(stateRoot, "sidebar-layout.json"), "not json at all");
@@ -190,4 +191,21 @@ test("a malformed inbox document costs the preference, never the sidebar", () =>
   expect(store.settings.inbox()).toEqual(whole);
   fs.writeFileSync(path.join(stateRoot, "inbox.json"), "not json at all");
   expect(store.settings.inbox()).toEqual(whole);
+});
+
+test("a layout stored as grouped moves to one list once, and a later choice of grouped survives a restart", () => {
+  const { store, root: stateRoot } = readyStore();
+  const file = path.join(stateRoot, "sidebar-layout.json");
+  fs.writeFileSync(file, JSON.stringify({ version: 2, projectOrder: ["b"], sessionOrder: {}, pinnedOrder: [], mode: "grouped" }));
+  expect(store.settings.sidebarLayout()).toMatchObject({ projectOrder: ["b"], mode: "flat" });
+
+  store.settings.setSidebarLayout({ mode: "grouped" });
+  store.kernel.executionStore.close();
+  const reopened = new EngineStore(stateRoot, () => 100);
+  try {
+    expect(reopened.settings.sidebarLayout()).toMatchObject({ projectOrder: ["b"], mode: "grouped" });
+    expect(reopened.settings.sidebarLayout().mode).toBe("grouped");
+  } finally {
+    reopened.kernel.executionStore.close();
+  }
 });

@@ -16,7 +16,7 @@ function announce(layout: SidebarLayout): void {
 export function sameSidebarLayout(left: SidebarLayout, right: SidebarLayout): boolean {
   const same = (a: readonly string[] = [], b: readonly string[] = []) => a.length === b.length && a.every((key, at) => key === b[at]);
   if (!same(left.projectOrder, right.projectOrder) || !same(left.pinnedOrder, right.pinnedOrder)) return false;
-  if ((left.mode ?? "grouped") !== (right.mode ?? "grouped")) return false;
+  if ((left.mode ?? DEFAULT_SIDEBAR_LAYOUT.mode) !== (right.mode ?? DEFAULT_SIDEBAR_LAYOUT.mode)) return false;
   const groups = left.sessionOrder ?? {};
   const others = right.sessionOrder ?? {};
   const keys = new Set([...Object.keys(groups), ...Object.keys(others)]);
@@ -101,7 +101,7 @@ export function useSidebarLayout(): SidebarLayoutHandle {
     setOrder,
     setSessionOrder,
     setPinnedOrder,
-    mode: layout.mode ?? "grouped",
+    mode: layout.mode ?? DEFAULT_SIDEBAR_LAYOUT.mode,
     setMode,
   };
 }

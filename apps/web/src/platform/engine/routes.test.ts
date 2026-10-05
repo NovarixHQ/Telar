@@ -86,7 +86,7 @@ describe("engine route adapters", () => {
     // propagation costs no second request and no connection of its own.
     await client.setSidebarLayout({ projectOrder: ["project_two", "project_one"] });
     await client.setSidebarLayout({ pinnedOrder: ["session_plain"] });
-    await client.setSidebarLayout({ mode: "flat" });
+    await client.setSidebarLayout({ mode: "grouped" });
 
     const response = await liveGet(new Request("http://cockpit.test/api/sessions/live"));
     expect(response.status).toBe(200);
@@ -97,7 +97,7 @@ describe("engine route adapters", () => {
       projectOrder: ["project_two", "project_one"],
       sessionOrder: {},
       pinnedOrder: ["session_plain"],
-      mode: "flat",
+      mode: "grouped",
     });
   });
 

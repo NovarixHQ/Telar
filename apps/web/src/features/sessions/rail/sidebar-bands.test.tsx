@@ -5,7 +5,7 @@ import { liveRow, mountRail, project, stubRail } from "@/test/rail";
 installTestDom();
 
 async function railWith(sessions: unknown[], extra: Record<string, unknown> = {}) {
-  stubRail(() => ({ body: { projects: [project("p1", "One")], sessions, ...extra } }));
+  stubRail(() => ({ body: { projects: [project("p1", "One")], sessions, layout: GROUPED, ...extra } }));
   const host = await mountRail();
   return {
     host,
@@ -14,6 +14,8 @@ async function railWith(sessions: unknown[], extra: Record<string, unknown> = {}
     rowTitled: (title: string) => [...host.querySelectorAll("*")].find((node) => node.childElementCount === 0 && node.textContent === title),
   };
 }
+
+const GROUPED = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "grouped" };
 
 const follows = (first: Node, second: Node) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
 

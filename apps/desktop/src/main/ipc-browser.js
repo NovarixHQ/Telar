@@ -72,7 +72,7 @@ function registerProfileIpc() {
     if (input?.scopeKey) manager.setScopeProfile(input.scopeKey, profile.id);
     if (input?.scopeKey && input?.assignProject) {
       const projectKey = manager.profileOf(input.scopeKey);
-      if (projectKey) manager.profiles.assign(projectKey, profile.id);
+      if (projectKey) manager.assignProjectProfile(projectKey, profile.id);
     }
 
     manager.emitAllStates();
@@ -111,7 +111,7 @@ function registerProfileIpc() {
     const manager = requireBrowserManager(event);
     const projectKey = input?.projectKey || manager.profileOf(input?.scopeKey);
     if (!projectKey) throw new Error("This session has no project to assign a browser profile to.");
-    manager.profiles.assign(projectKey, input?.profileId ?? null);
+    manager.assignProjectProfile(projectKey, input?.profileId ?? null);
     manager.emitAllStates();
     return { profiles: manager.listProfiles() };
   });

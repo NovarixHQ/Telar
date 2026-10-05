@@ -31,6 +31,32 @@ module.exports = {
     return this.describeProfileBinding(scope, profile, this.scopeProjects.get(scope) ?? null);
   },
 
+  assignProjectProfile(projectKey, profileId) {
+    const key = requireProjectKey(projectKey);
+    this.profiles.assign(key, profileId);
+    const profile = this.profiles.resolve(key);
+    this.drainProfileMigrations();
+    for (const [scope, project] of this.scopeProjects) {
+      if (project !== key) continue;
+      const override = this.scopeProfileOverrides.get(scope);
+      if (override === profile.id) this.scopeProfileOverrides.delete(scope);
+      else if (override) continue;
+      this.scopeProfiles.set(scope, profile.id);
+      this.rehomeTabs(this.scopeTabs(scope).filter((tab) => tab.profileId !== profile.id), profile);
+    }
+    this.persist();
+    return profile;
+  },
+
+  rehomeTabs(tabs, profile) {
+    for (const tab of tabs) {
+      this.hibernateTab(tab);
+      tab.profileId = profile.id;
+      tab.partition = profile.partition;
+    }
+    return tabs.length;
+  },
+
   describeProfileBinding(scope, profile, projectKey) {
     return {
       scopeKey: scope,
@@ -91,14 +117,7 @@ module.exports = {
       this.scopeProfileOverrides.delete(scope);
       this.scopeProfiles.set(scope, fallback.id);
     }
-    let tabs = 0;
-    for (const tab of this.tabs) {
-      if (tab.profileId !== removed.id) continue;
-      this.hibernateTab(tab);
-      tab.profileId = fallback.id;
-      tab.partition = fallback.partition;
-      tabs += 1;
-    }
+    const tabs = this.rehomeTabs(this.tabs.filter((tab) => tab.profileId === removed.id), fallback);
     this.profiles.eraseData(removed.partition);
     this.persist();
     return { ...removed, sessions: scopes.size, tabs };

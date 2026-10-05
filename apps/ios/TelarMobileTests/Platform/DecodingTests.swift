@@ -100,6 +100,14 @@ func fixture(_ name: String) throws -> Data {
         #expect(try decode(#"{"sessions":[],"projects":[],"layout":"b,a"}"#).layout == nil)
     }
 
+    @Test func theArrangementCarriesTheRailModeAndFallsBackToNone() throws {
+        let decode = { (json: String) in try JSONDecoder().decode(SidebarLayout.self, from: Data(json.utf8)) }
+        #expect(try decode(#"{"projectOrder":[],"mode":"grouped"}"#).mode == .grouped)
+        #expect(try decode(#"{"projectOrder":[],"mode":"flat"}"#).mode == .flat)
+        #expect(try decode(#"{"projectOrder":[]}"#).mode == .flat)
+        #expect(try decode(#"{"projectOrder":[],"mode":"tree"}"#).mode == .flat)
+    }
+
     @Test func projectRefsCarryTheRepositoryTheyAreACheckoutOf() throws {
         let decode = { (json: String) in try JSONDecoder().decode(LiveSessions.self, from: Data(json.utf8)) }
         let live = try decode(#"""

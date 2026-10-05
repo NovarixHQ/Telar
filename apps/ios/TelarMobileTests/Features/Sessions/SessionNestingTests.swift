@@ -58,6 +58,7 @@ import Testing
         #expect(families[0].needsYou == 1)
         let folded = SessionNesting.visible(families, expanded: [], selected: key("open"))
         #expect(ids(folded) == ["parent", "  stuck", "  open"])
+        #expect(SessionFamilyToggle.summary(families[0]) == "3 sessions · 1 needs you")
         #expect(folded[0].family?.children.count == 3)
     }
 
@@ -125,6 +126,13 @@ import Testing
     @Test func aProjectlessSessionIsListedInTheFlatRail() throws {
         let rows = try [row("loose", project: "")]
         #expect(ids(SessionNesting.flat(rows, assignments: [:], expanded: [], selected: nil).rows) == ["loose"])
+    }
+
+    @Test func aFoldedParentSaysHowManyChildrenAreWorking() throws {
+        let rows = try [row("parent"), row("busy", activity: "working", startedFrom: "parent"),
+                        row("queued", activity: "queued", startedFrom: "parent")]
+        let family = try #require(SessionNesting.families(rows, assignments: [:]).first)
+        #expect(SessionFamilyToggle.summary(family) == "2 sessions · 2 working")
     }
 
     @Test func theModesReadProjectAndNone() {

@@ -89,7 +89,7 @@ struct RootView: View {
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
-                SettingsView(settings: settings)
+                SettingsView(settings: settings, inbox: inbox)
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showSettings = false } } }
             }
         }

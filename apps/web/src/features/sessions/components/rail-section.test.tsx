@@ -5,9 +5,9 @@ import { RailSection } from "./rail-section";
 
 installTestDom();
 
-function stubLayout(mode: "grouped" | "flat") {
+function stubLayout(mode?: "grouped" | "flat") {
   const patches: unknown[] = [];
-  let layout = { mode };
+  let layout: { mode?: string } = mode ? { mode } : {};
   stubRail(() => ({ body: { projects: [project("p1", "One"), project("p2", "Two")], sessions: [liveRow("a"), liveRow("b", { projectId: "p2" })] } }));
   const railFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -24,6 +24,18 @@ function stubLayout(mode: "grouped" | "flat") {
 
 const toggle = () => document.querySelector<HTMLElement>('[aria-label="Group sessions by project"]')!;
 const projectHeads = (host: HTMLElement) => host.querySelectorAll('[aria-label^="New conversation in "]').length;
+
+test("with no mode chosen, the rail is one list and the switch is off", async () => {
+  const patches = stubLayout();
+  const rail = await mountRail();
+  await mount(<RailSection />);
+  await flush();
+  expect(projectHeads(rail)).toBe(0);
+  expect(rail.textContent).toContain("Title a");
+  expect(rail.textContent).toContain("Title b");
+  expect(toggle().getAttribute("aria-checked")).toBe("false");
+  expect(patches).toEqual([]);
+});
 
 test("turning grouping off in settings flattens the rail, and back on regroups it", async () => {
   const patches = stubLayout("grouped");

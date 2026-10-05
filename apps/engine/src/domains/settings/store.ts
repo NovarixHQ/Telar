@@ -37,7 +37,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const RUNTIME_MODES = new Set<RuntimeMode>(["approval-required", "auto-accept-edits", "auto", "full-access"]);
 
-const blankSidebarLayout = (): SidebarLayout => ({ ...DEFAULT_SIDEBAR_LAYOUT, projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "grouped" });
+const blankSidebarLayout = (): SidebarLayout => ({ ...DEFAULT_SIDEBAR_LAYOUT, projectOrder: [], sessionOrder: {}, pinnedOrder: [] });
 
 /** Copied out, so a caller never holds a reference into the next write. */
 const cloneSidebarLayout = (layout: SidebarLayout): SidebarLayout => ({

@@ -64,11 +64,11 @@ export const SidebarLayout = z.object({
   projectOrder: z.array(sidebarKey).max(MAX_SIDEBAR_PROJECT_ORDER),
   sessionOrder: z.record(sidebarKey, z.array(sidebarKey).max(MAX_SIDEBAR_SESSION_ORDER)).default({}),
   pinnedOrder: z.array(sidebarKey).max(MAX_SIDEBAR_SESSION_ORDER).default([]),
-  mode: SidebarMode.default("grouped"),
+  mode: SidebarMode.default("flat"),
 });
 export type SidebarLayout = z.infer<typeof SidebarLayout>;
 
-export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "grouped" };
+export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "flat" };
 
 export const TextGenEffort = z.enum(["low", "medium", "high"]);
 export type TextGenEffort = z.infer<typeof TextGenEffort>;

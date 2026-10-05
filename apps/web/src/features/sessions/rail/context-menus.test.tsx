@@ -46,10 +46,11 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
+const GROUPED = { projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "grouped" };
 const HEADER_VERBS = ["Collapse others", "Move up", "Move down", "Reveal in Finder"];
 
 async function railWith(projects: ReturnType<typeof project>[], sessions: ReturnType<typeof liveRow>[]) {
-  stubRail(() => ({ body: { projects, sessions } }));
+  stubRail(() => ({ body: { projects, sessions, layout: GROUPED } }));
   const host = await mountRail();
   const header = (name: string) =>
     [...host.querySelectorAll<HTMLButtonElement>('button[id^="project-group-"]')].find((node) => node.textContent?.includes(name))!;

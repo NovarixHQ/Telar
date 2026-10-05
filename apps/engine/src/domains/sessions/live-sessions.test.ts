@@ -8,7 +8,7 @@ const { root, readyStore } = useTempStores();
 test("the live-session read carries the arrangement, so a drag on one device reaches the others", () => {
   // Every rail already polls this route, so the layout riding it reaches other devices with no new request.
   const { store } = readyStore();
-  expect(store.live.all().layout).toEqual({ projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "grouped" });
+  expect(store.live.all().layout).toEqual({ projectOrder: [], sessionOrder: {}, pinnedOrder: [], mode: "flat" });
 
   store.settings.setSidebarLayout({ projectOrder: ["p2", "p1"] });
   store.settings.setSidebarLayout({ sessionOrder: { p1: ["s2", "s1"] } });
@@ -17,7 +17,7 @@ test("the live-session read carries the arrangement, so a drag on one device rea
     projectOrder: ["p2", "p1"],
     sessionOrder: { p1: ["s2", "s1"] },
     pinnedOrder: ["s9"],
-    mode: "grouped",
+    mode: "flat",
   });
 });
 

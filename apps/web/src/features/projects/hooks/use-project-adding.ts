@@ -1,23 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { chooseDirectory } from "@/platform/desktop/choose-directory";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
+import { hostFetcher } from "@/platform/engine/host-client";
 import { announceProjectsChanged } from "../projects";
 import { folderName, type Registered } from "../palette-model";
 
-const api = createEngineApi();
-
 export function useProjectAdding({
+  hostId,
   onClose,
   onRegistered,
   setNotice,
 }: {
+  hostId: string;
   onClose: () => void;
   onRegistered: (registered: Registered) => void;
   setNotice: (notice: string | undefined) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const api = useMemo(() => createEngineApi(hostFetcher(hostId)), [hostId]);
 
   const settle = async (project: { id: string; name: string }) => {
     announceProjectsChanged();
@@ -28,7 +30,7 @@ export function useProjectAdding({
       ignored = false;
     }
     onClose();
-    onRegistered({ projectId: project.id, name: project.name, ignored });
+    onRegistered({ projectId: project.id, name: project.name, ignored, hostId });
   };
 
   const register = async (send: () => Promise<{ project: { id: string; name: string } }>) => {
@@ -57,5 +59,5 @@ export function useProjectAdding({
     });
   };
 
-  return { busy, setBusy, addLocalFolder, cloneInto, pickWithSystem };
+  return { api, busy, setBusy, addLocalFolder, cloneInto, pickWithSystem };
 }

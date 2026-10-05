@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeftIcon, Undo2Icon, XIcon } from "lucide-react";
 import { DirectoryBrowser } from "@/features/files";
 import { PaletteListPage } from "./palette-list-page";
@@ -8,13 +8,13 @@ import { useProjectPalette, type ProjectPalettePage } from "../hooks/use-project
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/ui/dialog";
 import { useNativeViewOverlay } from "@/platform/desktop/native-view-overlay";
 import { createEngineApi } from "@/platform/engine";
+import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import type { NewConversationTarget, PalettePage, Registered } from "../palette-model";
-
-const api = createEngineApi();
 
 const PAGE_TITLES: Record<ProjectPalettePage, string> = {
   projects: "New conversation",
   sources: "Add a project",
+  hosts: "Choose the computer",
   local: "Choose a project folder",
   "clone-url": "Clone a repository",
   "clone-parent": "Choose where to clone",
@@ -23,6 +23,7 @@ const PAGE_TITLES: Record<ProjectPalettePage, string> = {
 const PAGE_SENTENCES: Record<ProjectPalettePage, string> = {
   projects: "Choose the project this conversation belongs to.",
   sources: "Choose where the project comes from.",
+  hosts: "Choose the computer the project lives on.",
   local: "Browse for the folder that holds the project.",
   "clone-url": "Enter the repository to clone.",
   "clone-parent": "Browse for the folder to clone into.",
@@ -86,7 +87,12 @@ export function ProjectPalettePages({
   onBack?: () => void;
 }) {
   const palette = useProjectPalette({ open, openOn, targets, onClose, onChoose, onRegistered, onBack });
-  const { page, query, notice, busy, count, index, go } = palette;
+  const { page, query, notice, busy, count, index, go, host } = palette;
+  const remote = host.id !== LOCAL_HOST_ID;
+  const list = useMemo(() => {
+    const api = createEngineApi(hostFetcher(host.id));
+    return (input: Parameters<typeof api.fsDirs>[0]) => api.fsDirs(input);
+  }, [host.id]);
 
   return (
     <div className="contents" onKeyDown={palette.onKeyDown}>
@@ -95,6 +101,9 @@ export function ProjectPalettePages({
 
       {page === "local" || page === "clone-parent" ? (
         <DirectoryBrowser
+          key={host.id}
+          hostId={host.id}
+          list={list}
           {...(page === "local" && palette.startAt ? { startAt: palette.startAt } : {})}
           actionLabel={page === "local" ? "Add" : "Clone here"}
           busy={busy}
@@ -118,13 +127,16 @@ export function ProjectPalettePages({
           targets={targets}
           matches={palette.matches}
           rows={palette.rows}
+          choices={palette.choices}
+          {...(remote ? { hostName: host.name } : {})}
           notice={notice}
           backsTo={palette.backsTo}
-          showBack={page === "sources" || Boolean(onBack)}
+          showBack={page !== "projects" || Boolean(onBack)}
           onBack={palette.goBack}
           onChoose={palette.choose}
-          onAdd={() => go("sources")}
+          onAdd={palette.goAdd}
           onPickSource={palette.pickSource}
+          onPickHost={palette.pickHost}
           onHover={palette.setIndex}
         />
       )}
@@ -204,7 +216,7 @@ export function RegisteredToast({
   onDismiss,
   onChanged,
 }: {
-  toast: { projectId: string; name: string; ignored: boolean } | undefined;
+  toast: Registered | undefined;
   onDismiss: () => void;
   onChanged: () => void;
 }) {
@@ -223,7 +235,7 @@ export function RegisteredToast({
 
   const undo = () => {
     setUndone(toast.projectId);
-    void api
+    void createEngineApi(hostFetcher(toast.hostId ?? LOCAL_HOST_ID))
       .undoProjectGitignore(toast.projectId)
       .then(() => onChanged())
       .catch(() => setUndone(undefined));

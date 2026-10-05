@@ -32,11 +32,9 @@ export const reportLostBackgroundWork = (ctx: TaskCtx): void => {
 };
 
 export const taskIdFor = (ctx: TaskCtx, sdkTaskId: string | undefined, toolUseId: string | undefined): string => {
-  if (toolUseId) return `task_${toolUseId}`;
+  // A resumed sub-agent (SendMessage) keeps its SDK id but names the resuming call: it is still the first row.
   if (sdkTaskId && ctx.turn.taskIdsBySdkId.has(sdkTaskId)) return ctx.turn.taskIdsBySdkId.get(sdkTaskId)!;
-  // A task this process never launched and the store never told it
-  // about: the SDK id is the only handle, and the row it mints is
-  // anonymous. Named so the journal says which case produced it.
+  if (toolUseId) return `task_${toolUseId}`;
   return `task_${sdkTaskId ?? crypto.randomUUID().replaceAll("-", "")}`;
 };
 
@@ -56,11 +54,13 @@ export const emitTask = (ctx: TaskCtx,
   // …except an ending nobody stated, which a stated worse one corrects —
   // see `isUnstatedEnding`, and the store's copy of this rule.
   const corrected = known !== undefined && isUnstatedEnding(known) && (patch.state === "failed" || patch.state === "stopped");
-  const state = known && isTerminalTaskState(known.state) && !corrected ? known.state : patch.state;
+  const resumed = kind === "task.started" && known !== undefined && isTerminalTaskState(known.state);
+  const state = known && isTerminalTaskState(known.state) && !corrected && !resumed ? known.state : patch.state;
   const pendingOutput = sdkTaskId ? ctx.turn.pendingOutputFiles.get(sdkTaskId) : undefined;
   if (sdkTaskId) ctx.turn.pendingOutputFiles.delete(sdkTaskId);
+  const { resultText: _result, failure: _failure, ...reopened } = known ?? {};
   const task: TaskSeed = {
-    ...known,
+    ...(resumed ? reopened : known),
     ...(pendingOutput ? { outputFile: pendingOutput } : {}),
     ...patch,
     id,

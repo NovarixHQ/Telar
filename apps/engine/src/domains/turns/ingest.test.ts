@@ -172,3 +172,33 @@ test("an artifact published under one id again, even a turn later, journals as t
     { item: "artifact_other_v1", run: "run_two", id: "other", version: 1, attachmentId: "att_4" },
   ]);
 });
+
+test("a settled sub-agent resumed by a later turn runs again on its own row, then settles", () => {
+  const { store } = readyStore();
+  const turn = (runId: string) => {
+    store.intake.submitTurn("session_one", { runId, input: runId });
+    const token = store.claims.claimTurn("session_one", "worker_one")!.claim!.token;
+    store.turnLifecycle.markRunning("session_one", runId, token);
+    return token;
+  };
+  const first = turn("run_launch");
+  store.ingest.ingestObservations("session_one", "run_launch", first, [
+    { kind: "task.started", task: { id: "task_toolu_agent", kind: "agent", state: "running", title: "Memory research", backgrounded: true, providerTaskId: "a4ab" } },
+    { kind: "task.completed", task: { id: "task_toolu_agent", kind: "agent", state: "completed", resultText: "hi", providerTaskId: "a4ab" } },
+  ]);
+  store.turnLifecycle.completeTurn("session_one", "run_launch", first, { text: "launched" });
+
+  const second = turn("run_resume");
+  store.ingest.ingestObservations("session_one", "run_resume", second, [
+    { kind: "task.started", task: { id: "task_toolu_send", kind: "agent", state: "running", backgrounded: true, providerTaskId: "a4ab" } },
+  ]);
+  expect(store.queries.tasks("session_one")).toMatchObject([{ id: "task_toolu_agent", runId: "run_launch", state: "running", title: "Memory research" }]);
+  const reopened = store.queries.tasks("session_one")[0]!;
+  expect(reopened.resultText).toBeUndefined();
+  expect(reopened.completedAt).toBeUndefined();
+
+  store.ingest.ingestObservations("session_one", "run_resume", second, [
+    { kind: "task.completed", task: { id: "task_toolu_send", kind: "agent", state: "completed", resultText: "bye", providerTaskId: "a4ab" } },
+  ]);
+  expect(store.queries.tasks("session_one")).toMatchObject([{ id: "task_toolu_agent", state: "completed", resultText: "bye" }]);
+});

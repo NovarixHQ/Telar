@@ -543,3 +543,31 @@ test("a SEEDED row carrying the wrong kind is corrected by the stated type", asy
   const task = rows.at(-1);
   expect(task?.kind === "task.progress" && task.task.kind).toBe("agent");
 });
+
+test("a finished background sub-agent RESUMED by SendMessage runs again on its first row", async () => {
+  const driver = createClaudeDriver(async () => ({
+    async *query() {
+      yield { type: "assistant", parent_tool_use_id: null, message: { content: [{ type: "tool_use", id: "toolu_agent", name: "Agent", input: { description: "Say hi", run_in_background: true } }] } };
+      yield { type: "system", subtype: "task_started", task_id: "a4ab", tool_use_id: "toolu_agent", task_type: "local_agent", is_backgrounded: true, description: "Say hi" };
+      yield { type: "system", subtype: "task_updated", task_id: "a4ab", patch: { status: "completed" } };
+      yield { type: "system", subtype: "task_notification", task_id: "a4ab", tool_use_id: "toolu_agent", status: "completed", summary: "hi" };
+      yield { type: "assistant", parent_tool_use_id: null, message: { content: [{ type: "tool_use", id: "toolu_send", name: "SendMessage", input: { to: "a4ab", message: "Now say bye" } }] } };
+      yield { type: "system", subtype: "task_started", task_id: "a4ab", tool_use_id: "toolu_send", task_type: "local_agent", is_backgrounded: true, description: "Say hi" };
+      yield { type: "system", subtype: "task_progress", task_id: "a4ab", tool_use_id: "toolu_send", usage: { total_tokens: 12, tool_uses: 0, duration_ms: 5 } };
+      yield { type: "assistant", parent_tool_use_id: "toolu_agent", message: { content: [{ type: "text", text: "bye" }] } };
+      yield { type: "system", subtype: "task_notification", task_id: "a4ab", tool_use_id: "toolu_send", status: "completed", summary: "bye" };
+      yield { type: "result", subtype: "success" };
+    },
+  }));
+  const { sink, result } = run(driver);
+  await result;
+  const tasks = sink.observations.flatMap((o) => (o.kind === "task.started" || o.kind === "task.progress" || o.kind === "task.completed" ? [o] : []));
+  expect(new Set(tasks.map((o) => o.task.id))).toEqual(new Set(["task_toolu_agent"]));
+  const resumed = tasks.filter((o) => o.kind === "task.started").at(-1);
+  expect(resumed?.task).toMatchObject({ state: "running", title: "Say hi" });
+  expect(resumed?.task.resultText).toBeUndefined();
+  expect(tasks.at(-2)?.task).toMatchObject({ state: "running", usage: { tokens: { output: 12 } } });
+  expect(tasks.at(-1)?.task).toMatchObject({ state: "completed", resultText: "bye" });
+  const step = sink.observations.find((o) => o.kind === "item.started" && o.item.detail.type === "assistant_message" && o.item.detail.text === "bye");
+  expect(step?.kind === "item.started" && step.item.taskId).toBe("task_toolu_agent");
+});

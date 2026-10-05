@@ -1,4 +1,5 @@
 import { BoxesIcon, CloudIcon, FolderOpenIcon, GitBranchIcon, LinkIcon, ServerIcon } from "lucide-react";
+import { LOCAL_HOST_ID, type PublicHost } from "@telar/engine-client";
 
 export type NewConversationTarget = {
   id: string;
@@ -98,7 +99,17 @@ export function folderName(root: string): string {
   );
 }
 
-export type Registered = { projectId: string; name: string; ignored: boolean };
+export type Registered = { projectId: string; name: string; ignored: boolean; hostId?: string };
+
+export type HostChoice = { id: string; name: string; hint: string };
+
+export const THIS_COMPUTER: HostChoice = { id: LOCAL_HOST_ID, name: "This computer", hint: "Where this Telar runs" };
+
+export function hostChoices(hosts: readonly PublicHost[], query: string): HostChoice[] {
+  const all = [THIS_COMPUTER, ...hosts.map((host) => ({ id: host.id, name: host.name, hint: host.baseUrl }))];
+  const needle = query.trim().toLocaleLowerCase();
+  return needle ? all.filter((host) => `${host.name} ${host.hint}`.toLocaleLowerCase().includes(needle)) : all;
+}
 
 export function paletteBack(page: PalettePage, query: string, root: PalettePage): PalettePage | "root" | undefined {
   if (query !== "") return undefined;

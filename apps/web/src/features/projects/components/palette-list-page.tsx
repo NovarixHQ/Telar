@@ -1,10 +1,11 @@
 "use client";
 
 import type { RefObject } from "react";
-import { ArrowLeftIcon, FolderPlusIcon, SearchIcon } from "lucide-react";
+import { ArrowLeftIcon, FolderPlusIcon, MonitorIcon, SearchIcon, ServerIcon } from "lucide-react";
+import { LOCAL_HOST_ID } from "@telar/engine-client";
 import { ProjectAvatar } from "./project-avatar";
 import { PaletteRow } from "./palette-row";
-import { paletteBack, QUICK_PICK_LIMIT, targetPlace, type NewConversationTarget, type ProjectSource } from "../palette-model";
+import { paletteBack, QUICK_PICK_LIMIT, targetPlace, type HostChoice, type NewConversationTarget, type ProjectSource } from "../palette-model";
 
 function ProjectMatches({
   targets,
@@ -58,8 +59,32 @@ function ProjectMatches({
         onHover={() => onHover(matches.length)}
         glyph={<FolderPlusIcon className="size-4 text-muted-foreground" />}
         title="Add a project…"
-        hint="A folder on this computer, or a repository to clone"
+        hint="A folder, or a repository to clone"
       />
+    </>
+  );
+}
+
+function HostRows({ choices, at, onPick, onHover }: { choices: readonly HostChoice[]; at: number; onPick: (host: HostChoice) => void; onHover: (row: number) => void }) {
+  return (
+    <>
+      {choices.length === 0 && <p className="px-2 py-6 text-center text-xs text-muted-foreground">No computer matches that.</p>}
+      {choices.map((host, row) => {
+        const Glyph = host.id === LOCAL_HOST_ID ? MonitorIcon : ServerIcon;
+        return (
+          <PaletteRow
+            key={host.id}
+            id={`project-palette-hosts-${row}`}
+            on={row === at}
+            onPick={() => onPick(host)}
+            onHover={() => onHover(row)}
+            glyph={<Glyph className="size-4 text-muted-foreground" />}
+            title={host.name}
+            hint={host.hint}
+            {...(row < QUICK_PICK_LIMIT ? { key9: row + 1 } : {})}
+          />
+        );
+      })}
     </>
   );
 }
@@ -111,6 +136,8 @@ export function PaletteListPage({
   targets,
   matches,
   rows,
+  choices,
+  hostName,
   notice,
   backsTo,
   showBack,
@@ -118,9 +145,10 @@ export function PaletteListPage({
   onChoose,
   onAdd,
   onPickSource,
+  onPickHost,
   onHover,
 }: {
-  page: "projects" | "sources";
+  page: "projects" | "sources" | "hosts";
   query: string;
   onQuery: (query: string) => void;
   composingRef: RefObject<boolean>;
@@ -129,18 +157,22 @@ export function PaletteListPage({
   targets: readonly NewConversationTarget[];
   matches: readonly NewConversationTarget[];
   rows: readonly ProjectSource[];
+  choices: readonly HostChoice[];
+  hostName?: string;
   notice: string | undefined;
-  backsTo: ReturnType<typeof paletteBack>;
+  backsTo: ReturnType<typeof paletteBack> | "hosts";
   showBack: boolean;
   onBack: () => void;
   onChoose: (target: NewConversationTarget) => void;
   onAdd: () => void;
   onPickSource: (source: ProjectSource) => void;
+  onPickHost: (host: HostChoice) => void;
   onHover: (row: number) => void;
 }) {
   const sources = page === "sources";
-  const search = sources ? "Search sources, or paste a URL or folder path" : "Search projects";
-  const backLabel = backsTo === "projects" ? "Back to projects" : "Back";
+  const search = page === "hosts" ? "Search computers" : sources ? "Search sources, or paste a URL or folder path" : "Search projects";
+  const backLabel = backsTo === "projects" ? "Back to projects" : backsTo === "hosts" ? "Back to computers" : "Back";
+  const heading = page === "hosts" ? "Computers" : sources ? (hostName ? `Sources on ${hostName}` : "Sources") : "Projects";
   return (
     <>
       <div className="flex items-center gap-2 border-b px-3 py-2.5">
@@ -177,11 +209,13 @@ export function PaletteListPage({
         />
       </div>
 
-      <div id="project-palette-results" role="listbox" aria-label={sources ? "Sources" : "Projects"} className="max-h-80 overflow-y-auto p-1.5">
+      <div id="project-palette-results" role="listbox" aria-label={heading} className="max-h-80 overflow-y-auto p-1.5">
         <p aria-hidden className="px-2 pt-1 pb-1.5 text-2xs font-medium text-muted-foreground">
-          {sources ? "Sources" : "Projects"}
+          {heading}
         </p>
-        {sources ? (
+        {page === "hosts" ? (
+          <HostRows choices={choices} at={at} onPick={onPickHost} onHover={onHover} />
+        ) : sources ? (
           <SourceRows rows={rows} at={at} onPick={onPickSource} onHover={onHover} />
         ) : (
           <ProjectMatches targets={targets} matches={matches} at={at} onChoose={onChoose} onAdd={onAdd} onHover={onHover} />

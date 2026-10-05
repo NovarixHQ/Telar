@@ -100,7 +100,7 @@ test("every project row is name · place · ⌘digit, and a paired Mac's same-na
     "TTelarLocal · /Users/someone/code/telar⌘1",
     "NNotesLocal · /Users/someone/code/notes⌘2",
     "TTelarmini⌘3",
-    "Add a project…A folder on this computer, or a repository to clone",
+    "Add a project…A folder, or a repository to clone",
   ]);
   expect(document.querySelector('[role="listbox"]')?.getAttribute("aria-label")).toBe("Projects");
 });
@@ -325,12 +325,12 @@ test("Local folder with a pasted path opens the browser at it, and Add registers
 
   await click(buttonLabelled("Add⌘↵"));
   await flush(() => log.includes("registered"));
-  expect(calls.map((call) => call.route)).toEqual([
+  expect(calls.map((call) => call.route).filter((route) => route !== "GET /api/hosts")).toEqual([
     "GET /api/fs",
     "POST /api/projects",
     "POST /api/projects/project_new/gitignore",
   ]);
-  expect(calls[1]!.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
+  expect(calls.find((call) => call.route === "POST /api/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
   expect(log).toEqual(["open:false", "registered"]);
   window.removeEventListener(PROJECTS_CHANGED_EVENT, count);
   expect(announced).toBe(1);
@@ -474,4 +474,55 @@ test("the registered toast takes the native browser view down while it shows", a
   expect(nativeViewOverlayHidden()).toBe(true);
   unmount();
   expect(nativeViewOverlayHidden()).toBe(false);
+});
+
+describe("with another computer paired", () => {
+  const mini = { id: "host_mini", name: "mini", baseUrl: "http://mini.tail:3000", addedAt: 1 };
+  const remoteRoutes = {
+    ...registerRoutes(),
+    "GET /api/hosts": () => ({ hosts: [mini] }),
+    "GET /api/hosts/host_mini/fs": () => listing("/Users/mini/code/site"),
+    "POST /api/hosts/host_mini/projects": (body: unknown) => ({ project: { id: "project_far", name: (body as { name: string }).name } }),
+    "POST /api/hosts/host_mini/projects/project_far/gitignore": () => ({ gitignore: {} }),
+  };
+  afterEach(() => delete (window as { telarDesktop?: unknown }).telarDesktop);
+
+  test("adding a project asks which computer first, then browses and registers on that one", async () => {
+    (window as { telarDesktop?: unknown }).telarDesktop = { dialog: { chooseDirectory: async () => ({ cancelled: true }) } };
+    const { calls } = engine(remoteRoutes);
+    const { log } = await openPalette({ page: "sources" });
+    await flush(() => page().includes("Computers"));
+    expect(options().map((row) => row.textContent)).toEqual(["This computerWhere this Telar runs⌘1", "minihttp://mini.tail:3000⌘2"]);
+
+    await key({ key: "ArrowDown" });
+    await key({ key: "Enter" });
+    expect(page()).toContain("Sources on mini");
+    await key({ key: "Enter" });
+    await flush(() => Boolean(buttonLabelled("Add⌘↵")));
+    expect(buttonLabelled("Choose in Finder…")).toBeUndefined();
+
+    await click(buttonLabelled("Add⌘↵"));
+    await flush(() => log.includes("registered"));
+    expect(calls.find((call) => call.route === "POST /api/hosts/host_mini/projects")?.body).toEqual({ name: "site", root: "/Users/mini/code/site" });
+    expect(calls.some((call) => call.route === "POST /api/projects")).toBe(false);
+    expect(calls.some((call) => call.route === "POST /api/hosts/host_mini/projects/project_far/gitignore")).toBe(true);
+  });
+
+  test("this computer keeps the local engine, and Backspace on its sources goes back to the computers", async () => {
+    const { calls } = engine(remoteRoutes);
+    const { log } = await openPalette({ page: "sources" });
+    await flush(() => page().includes("Computers"));
+    await key({ key: "Enter" });
+    expect(page()).toContain("Sources");
+    expect(buttonLabelled("Back to computers") ?? document.querySelector('[aria-label="Back to computers"]')).toBeTruthy();
+    await key({ key: "Backspace" });
+    expect(page()).toContain("Computers");
+
+    await key({ key: "Enter" });
+    await key({ key: "Enter" });
+    await flush(() => Boolean(buttonLabelled("Add⌘↵")));
+    await click(buttonLabelled("Add⌘↵"));
+    await flush(() => log.includes("registered"));
+    expect(calls.find((call) => call.route === "POST /api/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
+  });
 });

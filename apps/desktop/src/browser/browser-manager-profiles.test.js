@@ -386,3 +386,34 @@ describe("the agent's scope finds its own window's browser", () => {
     expect(one.scopeClaim(null)).toBe(0);
   });
 });
+
+describe("a project's profile reaches all of its sessions", () => {
+  const P = "project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+  test("subsessions, existing and new, follow the project's profile; a session's own pick stays", async () => {
+    const { manager } = makeHarness();
+    manager.declareProfile("parent", P);
+    manager.declareProfile("sub", P);
+    manager.declareProfile("picked", P);
+    await manager.createTab("sub", "https://school.example/");
+    const school = manager.profiles.create({ label: "School" });
+    const work = manager.profiles.create({ label: "Work" });
+    manager.setScopeProfile("picked", work.id);
+
+    manager.setScopeProfile("parent", school.id);
+    manager.assignProjectProfile(P, school.id);
+    expect(manager.activeProfile("sub").label).toBe("School");
+    expect(manager.scopeTabs("sub").map((tab) => tab.partition)).toEqual([school.partition]);
+    manager.declareProfile("later", P);
+    expect(manager.activeProfile("later").label).toBe("School");
+    expect(manager.activeProfile("picked").label).toBe("Work");
+
+    const home = manager.profiles.create({ label: "Home" });
+    manager.assignProjectProfile(P, home.id);
+    expect(manager.activeProfile("parent").label).toBe("Home");
+    expect(manager.activeProfile("sub").label).toBe("Home");
+    manager.declareProfile("sub", P);
+    expect(manager.activeProfile("sub").label).toBe("Home");
+    expect(manager.activeProfile("picked").label).toBe("Work");
+  });
+});

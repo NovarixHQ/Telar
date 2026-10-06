@@ -23,9 +23,16 @@ import Observation
 
     func api(for id: HostID) -> HTTPEngineAPI? {
         guard let url = book.host(id)?.baseURL else { return nil }
-        return HTTPEngineAPI(baseURL: url, deviceToken: token(for: id)) { [weak self] failed in
+        return HTTPEngineAPI(baseURL: url, deviceToken: token(for: id), onUnauthorized: { [weak self] in
+            await self?.clearRevokedToken(id)
+        }) { [weak self] failed in
             await self?.failover(id, from: failed)
         }
+    }
+
+    func clearRevokedToken(_ id: HostID) {
+        guard token(for: id) != nil else { return }
+        setToken(nil, for: id)
     }
 
     @ObservationIgnored var probe: @Sendable (URL) async -> Bool = { await HTTPEngineAPI.probe($0) }

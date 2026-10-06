@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ListIcon, SmartphoneIcon, XIcon } from "lucide-react";
+import { ListIcon, XIcon } from "lucide-react";
 import type { SimulatorSummary } from "@telar/engine-client";
 import { cn } from "@/ui/utils";
 import { createSimulatorsApi, type SimulatorsApi } from "../api";
 import { useSimulators } from "../hooks/use-simulators";
 import { openSimulators } from "../tabs";
-import { SimulatorList } from "./simulator-list";
+import { SimulatorIcon, SimulatorList } from "./simulator-list";
 import { SimulatorSettings } from "./simulator-settings";
 import { SimulatorView } from "./simulator-view";
 
@@ -72,7 +72,7 @@ export function SimulatorSurface({ hostId, visible, params, onParams, api: injec
         {open.map((id) => (
           <span key={id} className={cn("flex items-center gap-1 rounded-md pr-1 text-xs hover:bg-muted", active === id && "bg-muted")}>
             <button type="button" role="tab" aria-selected={active === id} onClick={() => remember(open, id)} className="flex min-w-0 items-center gap-1.5 py-1 pl-2">
-              <SmartphoneIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <SimulatorIcon simulator={named(id)} className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="max-w-32 truncate">{named(id)?.name ?? "Simulator"}</span>
             </button>
             <button type="button" aria-label={`Close ${named(id)?.name ?? "simulator"}`} onClick={() => close(id)} className="rounded p-0.5 text-muted-foreground hover:text-foreground">

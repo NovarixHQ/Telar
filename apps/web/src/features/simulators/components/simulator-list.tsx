@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { InfoIcon, PowerIcon, SmartphoneIcon } from "lucide-react";
+import { InfoIcon, PowerIcon, SmartphoneIcon, WatchIcon } from "lucide-react";
 import type { SimulatorPlatformAvailability, SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { Button } from "@/ui/button";
 import { PanelEmpty, PanelRow, PanelSectionLabel } from "@/ui/panel";
@@ -17,6 +17,9 @@ type ListProps = {
   onStart: (simulator: SimulatorSummary) => Promise<void>;
   onShutdown: (simulator: SimulatorSummary) => Promise<void>;
 };
+
+export const SimulatorIcon = ({ simulator, className }: { simulator: SimulatorSummary | undefined; className?: string }) =>
+  simulator?.pairedWith ? <WatchIcon aria-label="Apple Watch" className={className} /> : <SmartphoneIcon className={className} />;
 
 function Setup({ state, error, onTurnOn, onRetry }: Pick<ListProps, "state" | "error" | "onTurnOn" | "onRetry">) {
   const [turning, setTurning] = useState(false);
@@ -69,8 +72,8 @@ function SimulatorRow({ simulator, onOpen, onStart, onShutdown }: { simulator: S
     await action().finally(() => setBusy(undefined));
   };
   return (
-    <PanelRow>
-      <SmartphoneIcon className="size-3.5 shrink-0 text-muted-foreground" />
+    <PanelRow className={simulator.pairedWith ? "pl-8" : undefined}>
+      <SimulatorIcon simulator={simulator} className="size-3.5 shrink-0 text-muted-foreground" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{simulator.name}</span>
         <span className="truncate text-3xs text-muted-foreground">

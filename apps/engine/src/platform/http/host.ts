@@ -8,10 +8,7 @@ function hostName(header: string): string | undefined {
   return (match?.[1] ?? match?.[2])?.toLowerCase().replace(/\.$/, "") || undefined;
 }
 
-/**
- * Whether a Host header names this machine, so a DNS-rebinding page is refused. A missing header passes: browsers always send one.
- * IP literals pass because a rebinding page always reaches us under a name; `.ts.net` names are issued only by Tailscale.
- */
+// Rebinding pages reach us under a DNS name, so IP literals pass; only Tailscale issues `.ts.net` names; browsers always send a Host.
 export function hostIsAllowed(header: string | null | undefined): boolean {
   if (header === undefined || header === null) return true;
   const name = hostName(header);

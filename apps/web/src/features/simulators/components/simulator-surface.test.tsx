@@ -151,6 +151,8 @@ test("a fresh ticket keeps the playing stream", async () => {
   const fake = fakeApi(ready([iPhone(true)]));
   let minted = 0;
   fake.api.simulatorStreamTicket = async () => ({ ticket: `stk_${++minted}`, expiresAt: 0 });
+  const loaded = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth");
+  Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => 1206 });
   jest.useFakeTimers();
   try {
     const { host } = await mount(<SimulatorSurface api={fake.api} visible params={{ open: "A1B2", active: "A1B2" }} onParams={() => undefined} />);
@@ -163,5 +165,6 @@ test("a fresh ticket keeps the playing stream", async () => {
     expect(host.querySelector("img")?.getAttribute("src")).toBe(src!);
   } finally {
     jest.useRealTimers();
+    if (loaded) Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", loaded);
   }
 });

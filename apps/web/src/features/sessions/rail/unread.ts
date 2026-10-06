@@ -10,7 +10,6 @@ export function showsUnreadMark(session: SidebarSession, open: boolean): boolean
   return hasUnreadResult(session);
 }
 
-/** Rows in the active rail that carry the unread mark; the open one is reported apart, since it shows no mark. */
 export function railUnread(
   sessions: readonly SidebarSession[],
   openKey: string | undefined,
@@ -28,7 +27,6 @@ export function railUnread(
   return { count, openUnread };
 }
 
-/** Mirrors the rail's unread marks onto the desktop app's Dock badge. */
 export function useDockUnread(sessions: readonly SidebarSession[], openKey: string | undefined, bandFor: (session: SidebarSession) => SessionBand): void {
   const { count, openUnread } = railUnread(sessions, openKey, bandFor);
   useEffect(() => {

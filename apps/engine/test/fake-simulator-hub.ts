@@ -53,7 +53,7 @@ export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string | (() =
 
 type HubRequest = { method: string; path: string; search: string; headers: Record<string, string>; body?: Record<string, unknown>; text?: string };
 
-export function fakeHub(devices: SimulatorSummary[], options: { bootError?: string; ready?: boolean } = {}) {
+export function fakeHub(devices: SimulatorSummary[], options: { bootError?: string; ready?: boolean; video?: () => ReadableStream<Uint8Array> } = {}) {
   const requests: HubRequest[] = [];
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
@@ -87,6 +87,7 @@ export function fakeHub(devices: SimulatorSummary[], options: { bootError?: stri
         return json({ ok: true });
       }
       default:
+        if (url.pathname.endsWith("/stream.avcc") && options.video) return new Response(options.video(), { headers: { "content-type": "application/octet-stream" } });
         if (url.pathname.endsWith("/stream.mjpeg")) {
           return new Response(new Blob(["--frame\r\n", "jpeg"]).stream(), { headers: { "content-type": "multipart/x-mixed-replace; boundary=frame", "content-encoding": "identity", "cache-control": "max-age=60" } });
         }
@@ -94,6 +95,15 @@ export function fakeHub(devices: SimulatorSummary[], options: { bootError?: stri
     }
   }) as typeof fetch;
   return { fetch: fetchImpl, requests };
+}
+
+export function hubVideo(first: Uint8Array) {
+  let controller!: ReadableStreamDefaultController<Uint8Array>;
+  const video = () => new ReadableStream<Uint8Array>({ start: (c) => {
+    controller = c;
+    c.enqueue(first);
+  } });
+  return { video, write: (bytes: Uint8Array) => controller.enqueue(bytes), end: () => controller.close() };
 }
 
 export const iPhone = (): SimulatorSummary => ({ id: "A1B2-UDID", platform: "ios", name: "iPhone 16", version: "iOS 18.0", booted: false, physical: false });
@@ -130,10 +140,10 @@ export function fakeActionDeps(answers: Record<string, Partial<ProcessResult>> =
   return { deps: value, runs, commands: () => runs.map((run) => [run.file, ...run.args].join(" ")) };
 }
 
-export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string; driver?: TurnDriver } = {}) {
+export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string; driver?: TurnDriver; video?: () => ReadableStream<Uint8Array> } = {}) {
   const engineRoot = options.engineRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-http-"));
   const fake = fakeRunner();
-  const hub = fakeHub(options.devices ?? [iPhone()]);
+  const hub = fakeHub(options.devices ?? [iPhone()], options.video ? { video: options.video } : {});
   const daemon = await startEngine({
     models: stubModels,
     engineRoot,

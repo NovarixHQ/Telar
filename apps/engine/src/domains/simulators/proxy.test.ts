@@ -1,13 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
-import { simulatorEngine } from "../../../test/fake-simulator-hub";
+import { hubVideo, simulatorEngine } from "../../../test/fake-simulator-hub";
 
 const closers: Array<() => Promise<void>> = [];
 afterEach(async () => {
   for (const close of closers.splice(0)) await close();
 });
 
-async function engine(ready = true) {
-  const running = await simulatorEngine({ ready });
+async function engine(ready = true, video?: () => ReadableStream<Uint8Array>) {
+  const running = await simulatorEngine({ ready, ...(video ? { video } : {}) });
   closers.push(running.close);
   return running;
 }
@@ -25,6 +25,17 @@ test("a stream is piped from the hub without the ticket, the caller's credential
   const seen = hub.requests.at(-1)!;
   expect(seen.search).toBe("?fps=30");
   expect(seen.headers).toEqual({ accept: "multipart/x-mixed-replace", origin: "http://127.0.0.1:4321" });
+});
+
+test("each video chunk reaches the caller as soon as the hub writes it", async () => {
+  const hub = hubVideo(new Uint8Array([0, 0, 0, 2, 2, 7]));
+  const { request } = await engine(true, hub.video);
+  const reader = (await request("/v2/simulators/hub/vendor/serve-sim/helper/A1B2-UDID/stream.avcc")).body!.getReader();
+  expect((await reader.read()).value).toEqual(new Uint8Array([0, 0, 0, 2, 2, 7]));
+  hub.write(new Uint8Array([0, 0, 0, 2, 3, 8]));
+  expect((await reader.read()).value).toEqual(new Uint8Array([0, 0, 0, 2, 3, 8]));
+  hub.end();
+  expect((await reader.read()).done).toBe(true);
 });
 
 test("the hub's shell, dashboard and any other unlisted route are never reached", async () => {

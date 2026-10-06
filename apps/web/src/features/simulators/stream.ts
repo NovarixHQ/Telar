@@ -6,6 +6,8 @@ const SOFT_DECODE_QUEUE = 8;
 const WATCHDOG_MS = 15_000;
 const RETRY_MS = 1_000;
 const PRIME_MS = 2_000;
+const BACKLOG_LIMIT = 3;
+const BACKLOG_WINDOW_MS = 30_000;
 
 export class AvccDemuxer {
   private buffer = new Uint8Array(0);
@@ -38,6 +40,35 @@ export function canDecodeH264(scope: { isSecureContext?: boolean; VideoDecoder?:
   return scope.isSecureContext === true && typeof scope.VideoDecoder === "function" && typeof scope.EncodedVideoChunk === "function";
 }
 
+function latestFrame(paint: (frame: VideoFrame) => void) {
+  let latest: VideoFrame | undefined;
+  let scheduled = 0;
+  const present = () => {
+    scheduled = 0;
+    const frame = latest;
+    latest = undefined;
+    if (!frame) return;
+    try {
+      paint(frame);
+    } finally {
+      frame.close();
+    }
+  };
+  return {
+    show(frame: VideoFrame) {
+      latest?.close();
+      latest = frame;
+      scheduled ||= requestAnimationFrame(present);
+    },
+    drop() {
+      cancelAnimationFrame(scheduled);
+      scheduled = 0;
+      latest?.close();
+      latest = undefined;
+    },
+  };
+}
+
 export type StreamStatus = { state: "connecting" | "streaming" | "error"; detail?: string };
 
 type StreamOptions = {
@@ -57,6 +88,7 @@ export function startStream(options: StreamOptions): { stop: () => void; mjpegLo
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let streaming = false;
+  let backlogs: number[] = [];
 
   const arm = (detail: string) => {
     clearTimeout(watchdog);
@@ -80,10 +112,12 @@ export function startStream(options: StreamOptions): { stop: () => void; mjpegLo
     context.drawImage(source, 0, 0, width, height);
     painted(width, height);
   };
+  const frames = latestFrame((frame) => paint(frame, frame.displayWidth, frame.displayHeight));
   const closeDecoder = () => {
     if (decoder && decoder.state !== "closed") decoder.close();
     decoder = undefined;
     awaitingKeyframe = true;
+    frames.drop();
   };
   const fallBack = () => {
     controller?.abort();
@@ -91,20 +125,22 @@ export function startStream(options: StreamOptions): { stop: () => void; mjpegLo
     arm("No video arrived from the simulator.");
     options.onMjpeg(options.url("stream.mjpeg"));
   };
+  const catchUp = () => {
+    const now = Date.now();
+    backlogs = [...backlogs.filter((at) => now - at < BACKLOG_WINDOW_MS), now];
+    if (backlogs.length >= BACKLOG_LIMIT) return fallBack();
+    controller?.abort();
+    closeDecoder();
+    void readAvcc();
+  };
   const configure = async (description: Uint8Array): Promise<boolean> => {
     const config: VideoDecoderConfig = { codec: avcCodecString(description), description, optimizeForLatency: true };
     const support = await VideoDecoder.isConfigSupported(config).catch(() => ({ supported: false }));
     if (stopped || !support.supported) return false;
     closeDecoder();
     decoder = new VideoDecoder({
-      output: (frame) => {
-        try {
-          paint(frame, frame.displayWidth, frame.displayHeight);
-        } finally {
-          frame.close();
-        }
-      },
-      error: () => !stopped && fallBack(),
+      output: frames.show,
+      error: () => !stopped && catchUp(),
     });
     decoder.configure(config);
     return true;
@@ -113,7 +149,7 @@ export function startStream(options: StreamOptions): { stop: () => void; mjpegLo
     if (!decoder || decoder.state !== "configured") return;
     if (awaitingKeyframe && !key) return;
     awaitingKeyframe = false;
-    if (decoder.decodeQueueSize > SOFT_DECODE_QUEUE) return fallBack();
+    if (decoder.decodeQueueSize > SOFT_DECODE_QUEUE) return catchUp();
     decoder.decode(new EncodedVideoChunk({ type: key ? "key" : "delta", timestamp, data }));
     timestamp += FRAME_DURATION_US;
   };
@@ -129,29 +165,35 @@ export function startStream(options: StreamOptions): { stop: () => void; mjpegLo
       priming.abort();
     }
   };
+  const seed = (payload: Uint8Array, own: AbortController) =>
+    void createImageBitmap(new Blob([payload as BlobPart], { type: "image/jpeg" }))
+      .then((bitmap) => {
+        if (!own.signal.aborted) paint(bitmap, bitmap.width, bitmap.height);
+        bitmap.close();
+      })
+      .catch(() => undefined);
   const readAvcc = async () => {
-    controller = new AbortController();
+    const own = new AbortController();
+    controller = own;
     const demuxer = new AvccDemuxer();
     arm("No video arrived from the simulator.");
     try {
-      const response = await fetch(options.url("stream.avcc"), { signal: controller.signal });
+      const response = await fetch(options.url("stream.avcc"), { signal: own.signal });
       if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
       const reader = response.body.getReader();
       for (;;) {
         const { done, value } = await reader.read();
-        if (done || stopped) break;
+        if (done || stopped || own.signal.aborted) break;
         for (const chunk of demuxer.push(value)) {
-          if (chunk.type === "seed") {
-            const bitmap = await createImageBitmap(new Blob([chunk.payload as BlobPart], { type: "image/jpeg" }));
-            paint(bitmap, bitmap.width, bitmap.height);
-            bitmap.close();
-          } else if (chunk.type === "description") {
+          if (own.signal.aborted) break;
+          if (chunk.type === "seed") seed(chunk.payload, own);
+          else if (chunk.type === "description") {
             if (!(await configure(chunk.payload))) return fallBack();
           } else decode(chunk.type === "keyframe", chunk.payload);
         }
       }
     } catch {}
-    if (stopped || controller.signal.aborted) return;
+    if (stopped || own.signal.aborted) return;
     closeDecoder();
     options.onStatus({ state: "connecting" });
     retry = setTimeout(() => void readAvcc(), RETRY_MS);

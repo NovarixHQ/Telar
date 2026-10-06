@@ -21,6 +21,7 @@ import { useSessionDefaults } from "@/features/sessions";
 import { Badge } from "@/ui/badge";
 import { Input } from "@/ui/input";
 import { AgentControl, modelOptionsOf, ReasoningControl } from "@/features/composer";
+import { ChooseProjectFolder } from "./choose-project-folder";
 import { ProjectIconPicker } from "./project-icon-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { McpSection } from "@/features/agent-tools";
@@ -73,10 +74,11 @@ const ALL_PROJECTS = "__all-projects";
 
 export type ScopedProject = Project & { hostId?: string; hostName?: string };
 
-export function ProjectIdentityRows({ project, writer }: { project?: ScopedProject; writer?: ProjectWriter }) {
+export function ProjectIdentityRows({ project, writer, onMoved }: { project?: ScopedProject; writer?: ProjectWriter; onMoved?: (project: Project) => void }) {
   const errorFor = (field: string) => (writer?.error?.field === field ? writer.error.message : undefined);
   const savingFor = (field: string) => (writer?.busy === field ? <Badge variant="outline">Saving</Badge> : undefined);
   const picked = Boolean(project?.iconName ?? project?.iconEmoji);
+  const gone = project?.availability === "missing" && !project.hostId && project.removedAt === undefined;
 
   return (
     <SettingsGroup title="Identity">
@@ -124,8 +126,13 @@ export function ProjectIdentityRows({ project, writer }: { project?: ScopedProje
         <Row
           label="Checkout"
           icon={FolderGitIcon}
-          hint="Sessions run here, or in a worktree cut from it."
-          control={<code className="rounded bg-muted px-1.5 py-0.5 font-mono text-2xs">{project.root}</code>}
+          hint={gone ? "This folder is gone. Choose where it is now, and its sessions and settings follow." : "Sessions run here, or in a worktree cut from it."}
+          control={
+            <span className="flex items-center gap-2">
+              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-2xs">{project.root}</code>
+              {gone && <ChooseProjectFolder project={project} onMoved={onMoved} />}
+            </span>
+          }
         />
       )}
     </SettingsGroup>
@@ -441,7 +448,7 @@ export function ProjectsPage() {
         unreachable={unreachable}
       />
 
-      <ProjectIdentityRows {...(project ? { project } : {})} writer={writer} />
+      <ProjectIdentityRows {...(project ? { project } : {})} writer={writer} onMoved={replaceProject} />
       <ProjectConversationRows
         {...(project ? { project } : {})}
         envMode={defaults.envMode}

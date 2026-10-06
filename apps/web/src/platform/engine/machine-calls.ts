@@ -111,6 +111,8 @@ export function machineCalls(fetcher: Fetcher) {
     /** Put a removed project back: same id, same settings, same sessions. */
     restoreProject: (projectId: string) =>
       request<{ project: Project }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/restore`, {}),
+    relocateProject: (projectId: string, root: string) =>
+      request<{ project: Project }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/root`, { root }),
     /** Spawns each interpreter it finds — open a page, never poll. */
     dataScienceEnvironments: (projectId: string) =>
       request<DataScienceEnvironments>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/data-science/environments`),

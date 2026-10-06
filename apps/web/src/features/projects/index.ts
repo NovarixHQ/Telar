@@ -7,4 +7,5 @@ export { appliedProjectFilter, filterSessionsToProjects, projectFilterKey, usePr
 export { projectSettingsHref } from "./project-settings-link";
 export { PROJECTS_CHANGED_EVENT } from "./projects";
 export { FirstRun } from "./components/first-run";
+export { ChooseProjectFolder } from "./components/choose-project-folder";
 export { awayLabel, awayReason, awayTitle, isAway, type Away } from "./availability";

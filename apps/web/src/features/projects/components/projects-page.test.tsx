@@ -409,3 +409,79 @@ test("the pane's rows are findable by search before the pane has ever been opene
   expect(first("unregister")?.pageId).toBe("projects");
   expect(first("all projects")?.pageId).toBe("projects");
 });
+
+describe("a project whose folder is gone", () => {
+  const bridge = (path: string) => {
+    (window as unknown as { telarDesktop?: unknown }).telarDesktop = { dialog: { chooseDirectory: async () => ({ path }) } };
+  };
+  afterEach(() => {
+    delete (window as unknown as { telarDesktop?: unknown }).telarDesktop;
+  });
+
+  test("offers Choose folder… only while the folder is missing", async () => {
+    local = [project({ availability: "available" })];
+    const here = await mount(<ProjectsPage />);
+    expect(here.button("Choose folder…")).toBeUndefined();
+    here.done();
+
+    local = [project({ availability: "missing" })];
+    const gone = await mount(<ProjectsPage />);
+    expect(gone.button("Choose folder…")).toBeDefined();
+    expect(gone.host.textContent).toContain("This folder is gone.");
+    gone.done();
+  });
+
+  test("choosing the new folder repoints it and it reads as available", async () => {
+    local = [project({ availability: "missing" })];
+    bridge("/Users/someone/elsewhere/telar");
+    const mocked = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/projects/project_abc/root" && init?.method === "POST") {
+        const { root } = JSON.parse(String(init.body)) as { root: string };
+        calls.push({ method: "POST", url: String(input), body: { root } });
+        return json({ project: { ...local[0], root, availability: "available" } });
+      }
+      return mocked(input, init);
+    }) as typeof fetch;
+
+    const view = await mount(<ProjectsPage />);
+    await press(view.button("Choose folder…"));
+    await flush();
+
+    expect(calls.find((call) => call.url === "/api/projects/project_abc/root")?.body).toEqual({ root: "/Users/someone/elsewhere/telar" });
+    expect(view.host.textContent).toContain("/Users/someone/elsewhere/telar");
+    expect(view.host.textContent).not.toContain("This folder is gone.");
+    expect(view.button("Choose folder…")).toBeUndefined();
+    view.done();
+  });
+
+  test("without the desktop picker it opens a folder browser to type or pick a path", async () => {
+    local = [project({ availability: "missing" })];
+    const view = await mount(<ProjectsPage />);
+    await press(view.button("Choose folder…"));
+    await flush();
+
+    expect(document.querySelector('[aria-label="Folder path"]')).not.toBeNull();
+    view.done();
+  });
+
+  test("a refusal is shown beside the button and the project stays gone", async () => {
+    local = [project({ availability: "missing" })];
+    bridge("/Users/someone/other-clone");
+    const mocked = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/projects/project_abc/root") {
+        return json({ error: { code: "conflict", message: "Other already uses that folder" } }, 409);
+      }
+      return mocked(input, init);
+    }) as typeof fetch;
+
+    const view = await mount(<ProjectsPage />);
+    await press(view.button("Choose folder…"));
+    await flush();
+
+    expect(view.host.querySelector('[role="alert"]')?.textContent).toBe("Other already uses that folder");
+    expect(view.button("Choose folder…")).toBeDefined();
+    view.done();
+  });
+});

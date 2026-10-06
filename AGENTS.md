@@ -40,7 +40,7 @@ Use these words. When you name things in code, use them too.
 - `packages/engine-client`: the engine's protocol (zod schemas) and typed HTTP client. It is the only contract between the apps.
 - `workers/push-relay`, `workers/updates-proxy`: Cloudflare Workers for push and desktop updates.
 
-Every feature belongs to a **domain**: one folder, with the same name in every app. The domains are `sessions turns projects worktrees providers agent-tools plugins computer-use files git github terminal browser remote hosts push appearance settings dictation notes prompts usage schedules storage updates`.
+Every feature belongs to a **domain**: one folder, with the same name in every app. The domains are `sessions turns projects worktrees providers agent-tools plugins computer-use files git github terminal browser simulators remote hosts push appearance settings dictation notes prompts usage schedules storage updates`.
 - Engine: `src/domains/<name>/`.
 - Web: `src/features/<name>/`.
 - Contract: `packages/engine-client/src/<name>/`.

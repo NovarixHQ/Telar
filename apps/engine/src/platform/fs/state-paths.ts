@@ -25,6 +25,7 @@ export type EngineStatePaths = {
   cohorts: string;
   textGen: string;
   sessionDefaults: string;
+  simulatorSettings: string;
   plannedRestart: string;
   workspace: string;
   cleanup: string;
@@ -73,6 +74,7 @@ export function statePaths(root: string): EngineStatePaths {
     cohorts: path.join(resolved, "cohorts.json"),
     textGen: path.join(resolved, "text-generation.json"),
     sessionDefaults: path.join(resolved, "session-defaults.json"),
+    simulatorSettings: path.join(resolved, "simulator-settings.json"),
     plannedRestart: path.join(resolved, "planned-restart.json"),
     workspace: path.join(resolved, "workspace.json"),
     cleanup: path.join(resolved, "cleanup.json"),

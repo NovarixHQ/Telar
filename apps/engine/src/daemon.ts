@@ -22,6 +22,7 @@ import { createRemoteStore, remoteDirFor, remoteRoutes } from "./domains/remote"
 import { schedulesRoutes } from "./domains/schedules";
 import { sessionAttachmentRoutes, sessionLifecycleRoutes, sessionReadRoutes, sessionsRoutes, sessionsSocketDoor, syncTelarSkill, type OpenStream } from "./domains/sessions";
 import { settingsRoutes } from "./domains/settings";
+import { Simulators, simulatorsRoutes, type SimulatorsDeps } from "./domains/simulators";
 import { createStorageMeter, reportBootHousekeeping, storageRoutes, sweepCheckoutsAfterBoot, type CheckoutSizesOptions } from "./domains/storage";
 import { createRunMount, runRoutes } from "./domains/terminal";
 import { sessionTurnRoutes, turnRoutes, workerRoutes } from "./domains/turns";
@@ -98,6 +99,7 @@ export type EngineDaemonOptions = {
   computerUseGate?: ComputerUseGate;
   resetComputerUse?: () => Promise<{ reset: boolean; message?: string }>;
   grantComputerUse?: () => Promise<ComputerUseGrant>;
+  simulators?: Omit<SimulatorsDeps, "root" | "enabled">;
 };
 
 export type EngineDaemon = {
@@ -186,6 +188,7 @@ type RouteContext = {
   push: ReturnType<typeof createPushService>;
   syncOrientationSkill: (policy: ReturnType<EngineStore["settings"]["orientation"]>) => Promise<unknown>;
   computerUseGate: ComputerUseGate;
+  simulators: Simulators;
   storageMeter: ReturnType<typeof createStorageMeter>;
   notesDoor: ReturnType<typeof notesSocketDoor>;
   sessionsDoor: ReturnType<typeof sessionsSocketDoor>;
@@ -200,7 +203,7 @@ type RouteContext = {
 };
 
 function engineRoutes(ctx: RouteContext): Route[] {
-  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, storageMeter, notesDoor, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, port } = ctx;
+  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, notesDoor, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, port } = ctx;
   return [
     sessionsDoor.route,
     notesDoor.route,
@@ -211,7 +214,8 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...mcpOAuthRoutes(store, now),
     ...aboutRoutes(root),
     ...push.routes,
-    ...settingsRoutes(store, syncOrientationSkill),
+    ...settingsRoutes(store, syncOrientationSkill, (settings) => simulators.settingsChanged(settings)),
+    ...simulatorsRoutes(simulators),
     ...dictationRoutes(store.dictation, options.dictationFetch),
     ...browserRoutes(store.paths.root),
     ...computerUseRoutes(computerUseGate, { ...(options.grantComputerUse ? { grant: options.grantComputerUse } : {}), ...(options.resetComputerUse ? { reset: options.resetComputerUse } : {}) }),
@@ -329,7 +333,8 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const authorize = (auth: Route["auth"], request: http.IncomingMessage): void => {
     if (!bearerIsValid(request.headers.authorization, secrets[auth]())) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
   };
-  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, storageMeter, notesDoor, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, port: () => port });
+  const simulators = new Simulators({ root: store.paths.root, enabled: () => store.settings.simulators().enabled, ...options.simulators });
+  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, notesDoor, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, port: () => port });
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run }));
 
   try {
@@ -372,6 +377,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
         await plugins.host.disposeAll("shutdown");
         // Only the pipe fallback's children close; a run on the desktop's terminal host is the person's to keep.
         await runMount.shutdown();
+        await simulators.stop();
         await embedded?.closeBrowser();
         // Streams before the server: `server.close()` waits for open connections, and an SSE stream never ends itself.
         for (const stream of openStreams) (stream.end ?? stream)();

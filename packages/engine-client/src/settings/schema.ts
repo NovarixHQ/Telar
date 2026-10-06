@@ -84,3 +84,11 @@ export const TextGenPolicy = z.object({
 export type TextGenPolicy = z.infer<typeof TextGenPolicy>;
 
 export const DEFAULT_TEXT_GEN_POLICY: TextGenPolicy = { titles: true, renameBranches: true, driver: "claude", model: "haiku" };
+
+export const SimulatorSettings = z.object({
+  enabled: z.boolean(),
+  agentAccess: z.boolean(),
+});
+export type SimulatorSettings = z.infer<typeof SimulatorSettings>;
+
+export const DEFAULT_SIMULATOR_SETTINGS: SimulatorSettings = { enabled: false, agentAccess: false };

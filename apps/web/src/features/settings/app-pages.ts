@@ -22,6 +22,7 @@ import {
   RefreshCwIcon,
   ServerIcon,
   ShieldCheckIcon,
+  SmartphoneIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
   StethoscopeIcon,
@@ -495,6 +496,17 @@ export const APP_PAGES: SettingsPageSpec[] = [
               "grant",
             ],
             icon: MonitorIcon,
+          },
+        ],
+      },
+      {
+        title: "Simulators",
+        rows: [
+          {
+            title: "Use simulators",
+            hint: "Lets Telar list, start and stop the simulators on this Mac.",
+            keywords: ["simulator", "emulator", "iphone", "ios", "android", "device", "xcode", "hub"],
+            icon: SmartphoneIcon,
           },
         ],
       },

@@ -509,7 +509,7 @@ test("a member cut off by a restart is pending when subscribed to, not stopped",
   const after = restart();
   const cohort = after.subscriptions.subscribeCohort("session_host", { sessionIds: ["session_a"] });
   expect(cohort.members[0]!.outcome).toBeUndefined();
-  expect(woken(after).filter((turn) => turn.notification?.cohortId)).toHaveLength(0);
+  expect(woken(after).filter((turn) => turn.notification?.cohortId === cohort.id)).toHaveLength(0);
 });
 
 test("a turn failed as interrupted by a worker shutting down does not end the member's wait", () => {

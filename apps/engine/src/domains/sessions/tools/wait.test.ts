@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { EngineStore } from "../../../state";
-import { cleanUp, call, capabilityOver, engine, wall } from "./test-helpers";
+import { cleanUp, call, capabilityOver, engine, orchestrator, wall } from "./test-helpers";
 import { delegationAnswer, waitForDelegation } from "./wait";
 
 afterEach(cleanUp);
@@ -50,14 +50,16 @@ describe("waiting on a delegated task", () => {
     expect(runnable().filter((turn) => turn.state !== "completed")).toEqual([]);
   });
 
-  test("a timeout cancels nothing and leaves the caller subscribed", async () => {
+  test("a timeout cancels nothing and leaves the caller subscribed, in the cohort its task opened", async () => {
     const { store, host, child, capability, after, elapsed } = orchestration();
+    const [opened] = store.subscriptions.cohortsFor(host.id);
     const waited = await waitForDelegation(capability, child.id, 5, after(() => undefined));
 
     expect(waited).toMatchObject({ timedOut: true });
     expect(elapsed()).toBe(5_000);
     const [cohort] = store.subscriptions.cohortsFor(host.id);
     expect(cohort!.id).toBe("timedOut" in waited ? waited.cohortId : "");
+    expect(cohort!.id).toBe(opened!.id);
     expect(cohort!.members.map((member) => member.sessionId)).toEqual([child.id]);
   });
 
@@ -87,6 +89,19 @@ describe("the wait parameter", () => {
     const refused = await call(wall(store, { sessionId: host.id }), "sessions_send", { sessionId: child.id, input: "fyi", wait: 30 });
     expect(refused.isError).toBe(true);
     expect(store.queries.turns(child.id)).toEqual([]);
+  });
+
+  test("wait is refused while the sender waits on others, so their cohort is not split", async () => {
+    const { store, projectId } = engine();
+    const { parent, tools } = orchestrator(store, projectId);
+    const [a, b] = ["a", "b"].map((title) => store.lifecycle.createSession({ projectId, title }).id);
+    await call(tools, "sessions_send", { intent: "task", sessionId: a!, input: "one" });
+    const refused = await call(tools, "sessions_send", { intent: "task", sessionId: b!, input: "two", wait: 30 });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain(`you are subscribed to ${a}`);
+    expect(refused.text).toContain("woken once, when all are done");
+    expect(store.queries.turns(b!)).toHaveLength(0);
+    expect(store.subscriptions.cohortsFor(parent.id).map((cohort) => cohort.members.map((member) => member.sessionId))).toEqual([[a]]);
   });
 
   test("sessions_create refuses wait without a task, before creating anything", async () => {

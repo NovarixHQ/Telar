@@ -25,6 +25,16 @@ type Clock = { now?: () => number; pause?: (ms: number) => Promise<void> };
 const POLL_MS = 1_000;
 const pauseFor = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+export async function waitRefusal(capability: SessionsCapability, sessionId: string | undefined): Promise<string | undefined> {
+  const self = capability.self?.sessionId;
+  if (!self || !capability.cohorts) return undefined;
+  const others = (await capability.cohorts(self))
+    .filter((cohort) => !cohort.ready)
+    .flatMap((cohort) => cohort.members.filter((member) => member.sessionId !== sessionId).map((member) => member.sessionId));
+  if (others.length === 0) return undefined;
+  return `wait is refused while you are subscribed to ${others.join(", ")}: send without wait, end your turn, and you will be woken once, when all are done.`;
+}
+
 export async function waitForDelegation(capability: SessionsCapability, sessionId: string, seconds: number, clock: Clock = {}): Promise<Delegation> {
   const self = capability.self;
   if (!self || !capability.subscribeCohort || !capability.cohorts) return { unsupported: "this session cannot wait on another here" };
@@ -33,7 +43,8 @@ export async function waitForDelegation(capability: SessionsCapability, sessionI
   const deadline = now() + seconds * 1_000;
   let cohortId: string;
   try {
-    cohortId = (await capability.subscribeCohort(self.sessionId, { sessionIds: [sessionId] })).id;
+    const holding = (await capability.cohorts(self.sessionId)).find((cohort) => !cohort.ready && cohort.members.some((member) => member.sessionId === sessionId));
+    cohortId = holding?.id ?? (await capability.subscribeCohort(self.sessionId, { sessionIds: [sessionId] })).id;
   } catch (error) {
     return { unsupported: failure(error) };
   }
@@ -86,5 +97,5 @@ export function delegationAnswer(delegation: Delegation): Record<string, unknown
     return { timedOut: true, cohortId: delegation.cohortId, note: "Still working; nothing was cancelled. You are subscribed and will be woken when it is done. End your turn now." };
   }
   if ("delivered" in delegation) return { done: true, note: "Done; its result reached you as a notification." };
-  return { waited: false, note: `Did not wait: ${delegation.unsupported}. Subscribe and end your turn.` };
+  return { waited: false, note: `Did not wait: ${delegation.unsupported}. End your turn.` };
 }

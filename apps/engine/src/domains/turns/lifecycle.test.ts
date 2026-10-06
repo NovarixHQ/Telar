@@ -6,6 +6,7 @@ import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
 import { editSessionDocument } from "../../../test/store-internals";
 import { useTempStores } from "../../../test/temp-store";
+import { orchestration } from "../../../test/orchestration";
 
 const { readyStore } = useTempStores();
 
@@ -321,4 +322,33 @@ test("releasing checks the turn's state before its hold, and refuses a removed p
   expect(() => awayBoot.turnLifecycle.releaseHeldTurn("session_one", "run_held")).toThrow(/removed from Telar/);
   // ...and it is still held afterwards, rather than half-released by a throw.
   expect(awayBoot.queries.turns("session_one")[0]?.held).toBeDefined();
+});
+
+test("withdrawing a builder's queued message leaves its cohort waiting", () => {
+  const { store } = readyStore();
+  const { turn, cohortWakes, cohorts } = orchestration(store);
+  const host = turn("session_one");
+  host.task("session_a", "port the parser");
+  host.end();
+  const a = turn("session_a");
+  store.intake.submitTurn("session_a", { runId: "run_later", input: "/compact", kind: "compact" });
+  expect(store.turnLifecycle.stopTurn("session_a", "run_later").stopped).toBe(true);
+  expect(cohortWakes()).toHaveLength(0);
+  expect(store.subscriptions.cohortsFor("session_one")[0]!.members[0]!.outcome).toBeUndefined();
+
+  a.result("Parser ported.");
+  a.end();
+  expect(cohorts()).toEqual([]);
+  expect(cohortWakes()).toHaveLength(1);
+  expect(cohortWakes()[0]!.notification!.body).toContain("Parser ported.");
+});
+
+test("stopping an orchestrator's turn ends its open cohorts", () => {
+  const { store } = readyStore();
+  const { turn, cohorts } = orchestration(store);
+  const host = turn("session_one");
+  host.task("session_a", "port the parser");
+  expect(cohorts()).toEqual([["session_a"]]);
+  host.stop();
+  expect(cohorts()).toEqual([]);
 });

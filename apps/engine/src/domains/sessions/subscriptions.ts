@@ -116,9 +116,6 @@ export class SessionSubscriptions {
         targetSessionId: input.targetSessionId,
         events,
         ...(input.once ? { once: true } : {}),
-        // ABSENT MEANS `settled_only`. Stored only when explicitly asked for, so
-        // the default stays a reading of the contract rather than a value written
-        // into every subscription ever made.
         ...(input.completionWake ? { completionWake: input.completionWake } : {}),
         createdAt: this.kernel.now(),
       };
@@ -334,7 +331,7 @@ export class SessionSubscriptions {
       (turn) => turn.sender?.sessionId === target.id && turn.acceptedAt >= errand.acceptedAt && (turn.agentIntent === "result" || turn.agentIntent === "blocker"),
     ).at(-1);
     if (said?.agentIntent === "blocker") return { ...base, blocked: true };
-    if (said) return { ...base, outcome: "result", fetch: { sessionId: subscriberSessionId, runId: said.runId }, firstLine: firstLineOf(said.input), ...excerptOf(said.input), at };
+    if (said) return { ...base, ...this.resultOf(target.id), fetch: { sessionId: subscriberSessionId, runId: said.runId }, firstLine: firstLineOf(said.input), ...excerptOf(said.input), at };
     // A restart cut-off was interrupted, not stopped.
     if (cutOffByTelar(last) || (last.state === "completed" && this.runsAgain(target.id, last.runId))) return base;
     const kind: WakeKind = last.state === "completed" ? "turn_completed" : last.state === "failed" ? "turn_failed" : "turn_stopped";
@@ -345,10 +342,16 @@ export class SessionSubscriptions {
   /** Telar will run this session again: a turn is waiting, a schedule is set, or it waits on sessions of its own. */
   private runsAgain(sessionId: string, endedRunId: string): boolean {
     const open = this.host.turnsOf(sessionId).some((turn) => turn.runId !== endedRunId && turn.agentDelivery !== "passive" && !ENDED_STATES.has(turn.state));
-    return open
-      || this.host.hasScheduledWake(sessionId)
-      || this.readCohorts().some((cohort) => cohort.subscriberSessionId === sessionId)
+    return open || this.host.hasScheduledWake(sessionId) || this.waitsOnOwn(sessionId);
+  }
+
+  private waitsOnOwn(sessionId: string): boolean {
+    return this.readCohorts().some((cohort) => cohort.subscriberSessionId === sessionId)
       || this.readSubscriptions().some((each) => each.subscriberSessionId === sessionId && each.once === true);
+  }
+
+  private resultOf(senderSessionId: string): Pick<CohortMember, "outcome" | "awaiting"> {
+    return this.waitsOnOwn(senderSessionId) ? { awaiting: true } : { outcome: "result" };
   }
 
   private cohortOutcome(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): Pick<CohortMember, "outcome" | "fetch" | "firstLine" | "excerpt" | "chars"> {
@@ -361,9 +364,9 @@ export class SessionSubscriptions {
   }
 
   /**
-   * Done is the errand's end, not a turn's: on an errand this subscriber gave it, a member is done by its `result`,
-   * a failed or stopped turn, being put away, or a completed turn after which Telar will not run it again (`unreported`).
-   * Otherwise any turn's end counts, but never a background-task turn or a wake.
+   * Done is the errand's end, not a turn's: on an errand this subscriber gave it, a member is done by its `result` once its
+   * own builders are, a failed or stopped turn, being put away, or a completed turn after which Telar will not run it again
+   * (`unreported`). Otherwise any turn's end counts, but never a background-task turn or a wake.
    */
   advanceCohortMember(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): void {
     if (!TERMINAL_WAKE_KINDS.includes(kind)) return;
@@ -385,6 +388,11 @@ export class SessionSubscriptions {
     };
     this.updateCohortMembers(sessionId, undefined, (member, subscriberSessionId) => {
       if (member.outcome || (completed && member.blocked)) return undefined;
+      if (member.awaiting) {
+        if ((runsAgain ??= this.runsAgain(sessionId, turn.runId))) return undefined;
+        const { awaiting: _held, blocked: _ended, ...rest } = member;
+        return { ...rest, outcome: "result" as const };
+      }
       const errand = onErrand(subscriberSessionId);
       if (woken && !errand) return undefined;
       const unreported = completed && errand;
@@ -412,25 +420,57 @@ export class SessionSubscriptions {
 
   /**
    * From a member, a `result` makes it done and a `blocker` holds it pending until answered;
-   * from the subscriber to a member, only a `task` answers it, since nothing else wakes the member.
+   * from a session to another, a `task` makes the recipient a pending member of the sender's cohort.
    */
   recordCohortMessage(recipientSessionId: string, senderSessionId: string, intent: NonNullable<Turn["agentIntent"]>, runId: string, body: string, spent?: string): void {
     if (intent === "result") {
       const line = firstLineOf(body);
+      const result = this.resultOf(senderSessionId);
       this.updateCohortMembers(senderSessionId, recipientSessionId, (member) =>
         !takesResult(member)
           ? undefined
-          : { sessionId: member.sessionId, ...(member.title ? { title: member.title } : {}), outcome: "result", fetch: { sessionId: recipientSessionId, runId }, ...(line ? { firstLine: line } : {}), ...excerptOf(body), ...(spent ? { spent: spent.slice(0, 300) } : {}), at: this.kernel.now() },
+          : { sessionId: member.sessionId, ...(member.title ? { title: member.title } : {}), ...result, fetch: { sessionId: recipientSessionId, runId }, ...(line ? { firstLine: line } : {}), ...excerptOf(body), ...(spent ? { spent: spent.slice(0, 300) } : {}), at: this.kernel.now() },
       );
     } else if (intent === "blocker") {
       this.updateCohortMembers(senderSessionId, recipientSessionId, (member) => (member.outcome || member.blocked ? undefined : { ...member, blocked: true }));
+    } else if (intent === "task") {
+      this.joinCohort(senderSessionId, recipientSessionId);
     }
-    if (intent !== "task") return;
-    this.updateCohortMembers(recipientSessionId, senderSessionId, (member) => {
-      if (!member.blocked) return undefined;
-      const { blocked: _answered, ...rest } = member;
-      return rest;
-    });
+  }
+
+  private joinCohort(subscriberSessionId: string, memberSessionId: string): void {
+    if (subscriberSessionId === memberSessionId || this.host.find(subscriberSessionId)?.state !== "active") return;
+    const all = this.readCohorts();
+    // A task back to the session waiting on this one would make each wait on the other.
+    if (all.some((cohort) => cohort.subscriberSessionId === memberSessionId && cohort.members.some((member) => member.sessionId === subscriberSessionId))) return;
+    const mine = all.filter((cohort) => cohort.subscriberSessionId === subscriberSessionId);
+    const open = mine.filter((cohort) => !cohort.ready);
+    const title = this.host.find(memberSessionId)?.title;
+    const pending: CohortMember = { sessionId: memberSessionId, ...(title ? { title: title.slice(0, 200) } : {}) };
+    const at = this.kernel.now();
+    const holding = open.find((cohort) => cohort.members.some((member) => member.sessionId === memberSessionId));
+    const joined = holding ?? open.filter((cohort) => cohort.members.length < MAX_COHORT_MEMBERS).at(-1);
+    if (holding) holding.members = holding.members.map((member) => (member.sessionId === memberSessionId ? pending : member));
+    else if (joined) joined.members.push(pending);
+    else if (mine.length < MAX_COHORTS_PER_SESSION) {
+      all.push({ id: `coh_${crypto.randomUUID().replaceAll("-", "")}`, subscriberSessionId, members: [pending], createdAt: at, expiresAt: at + DEFAULT_COHORT_MINUTES * 60_000 });
+    } else {
+      this.host.warn(subscriberSessionId, `${memberSessionId} was tasked outside any cohort: ${mine.length} are open, the most a session may have`);
+      return;
+    }
+    if (joined) joined.expiresAt = Math.max(joined.expiresAt, at + (joined.expiresAt - joined.createdAt));
+    this.writeCohorts(all);
+  }
+
+  disposeCohortsOf(subscriberSessionId: string): void {
+    const all = this.readCohorts();
+    const kept = all.filter((cohort) => cohort.subscriberSessionId !== subscriberSessionId || cohort.ready);
+    if (kept.length !== all.length) this.writeCohorts(kept);
+  }
+
+  settled(sessionId: string): void {
+    this.disposeCohortsOf(sessionId);
+    this.reviewCohorts();
   }
 
   /** Rewrites every matching member (`update` returns undefined to leave one alone), then delivers the cohorts now complete. */
@@ -471,7 +511,8 @@ export class SessionSubscriptions {
         const outcome = !session ? "deleted" : session.state !== "active" ? "archived" : session.settledOverride === "settled" ? "settled" : undefined;
         if (!outcome) return member;
         touched.push(cohort.id);
-        return { ...member, outcome, at };
+        const { awaiting: _held, ...rest } = member;
+        return { ...rest, outcome, at };
       });
       return true;
     });

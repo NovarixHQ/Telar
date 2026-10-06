@@ -50,16 +50,14 @@ describe("driving a session", () => {
     expect(tools.get("sessions_send")!.shape).not.toHaveProperty("runId");
   });
 
-  test("after a task the sender is told to end its turn, and how it will be woken", async () => {
+  test("a task subscribes its sender, and the sender is told to end its turn", async () => {
     const { store, projectId } = engine();
-    const { tools } = orchestrator(store, projectId);
+    const { parent, tools } = orchestrator(store, projectId);
     const lone = store.lifecycle.createSession({ projectId, title: "lone" }).id;
     const sent = await call(tools, "sessions_send", { intent: "task", sessionId: lone, input: "look into it" });
-    expect(String(sent.json!.note)).toContain(`sessions_subscribe({ sessionIds: ["${lone}"] }), then end your turn`);
-
-    await call(tools, "sessions_subscribe", { sessionIds: [lone] });
-    const again = await call(tools, "sessions_send", { intent: "task", sessionId: lone, input: "and this too" });
-    expect(String(again.json!.note)).toContain("You are subscribed: end your turn, and you will be woken when it is done.");
+    expect(String(sent.json!.note)).toContain("End your turn: you will be woken once");
+    expect(String(sent.json!.note)).not.toContain("sessions_subscribe");
+    expect(store.subscriptions.cohortsFor(parent.id).map((cohort) => cohort.members.map((member) => member.sessionId))).toEqual([[lone]]);
   });
 
   test("status answers the question it exists for as a boolean, not an inference", async () => {

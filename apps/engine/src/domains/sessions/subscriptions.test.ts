@@ -5,6 +5,7 @@ import path from "node:path";
 import type { Turn } from "@telar/engine-client";
 import { EngineStore } from "../../state";
 import { INLINE_CHARS, RELAY_RULE } from "../turns";
+import { orchestration } from "../../../test/orchestration";
 
 const roots: string[] = [];
 
@@ -422,4 +423,92 @@ test("a request answered by a session is journaled as such", () => {
   const answered = store.requestGate.resolve("session_two", "req_q", { decision: "accept", resolvedBy: "session", answers: { db: "postgres" } });
   expect(answered.resolvedBy).toBe("session");
   expect(store.queries.readEvents("session_two").at(-1)).toMatchObject({ type: "request.resolved", resolvedBy: "session" });
+});
+
+test("a task followed by a second task to another builder wakes the orchestrator once, with both results", () => {
+  const { store } = readyStore();
+  const { turn, cohortWakes, cohorts } = orchestration(store);
+  const first = turn("session_one");
+  first.task("session_a", "port the parser");
+  first.end();
+  const second = turn("session_one");
+  second.task("session_b", "review the parser");
+  second.end();
+  expect(cohorts()).toEqual([["session_a", "session_b"]]);
+
+  const a = turn("session_a");
+  a.result("Parser ported.");
+  a.end();
+  expect(cohortWakes()).toHaveLength(0);
+  const b = turn("session_b");
+  b.result("Review clean.");
+  b.end();
+
+  const wakes = cohortWakes();
+  expect(wakes).toHaveLength(1);
+  expect(wakes[0]!.notification!.body).toContain("Parser ported.");
+  expect(wakes[0]!.notification!.body).toContain("Review clean.");
+});
+
+test("a builder tasked again after its cohort closed wakes the orchestrator with its new result", () => {
+  const { store } = readyStore();
+  const { turn, cohortWakes } = orchestration(store);
+  const first = turn("session_one");
+  first.task("session_a", "port the parser");
+  first.end();
+  const a = turn("session_a");
+  a.result("Parser ported.");
+  a.end();
+  expect(cohortWakes()).toHaveLength(1);
+
+  const woken = turn("session_one");
+  woken.task("session_a", "now the lexer");
+  woken.end();
+  const again = turn("session_a");
+  again.result("Lexer ported.");
+  again.end();
+
+  const wakes = cohortWakes();
+  expect(wakes).toHaveLength(2);
+  expect(wakes[1]!.notification!.body).toContain("Lexer ported.");
+});
+
+test("a builder's result counts only once its own builders are done", () => {
+  const { store } = readyStore();
+  const { turn, cohortWakes } = orchestration(store);
+  const host = turn("session_one");
+  host.task("session_a", "fan out the port");
+  host.end();
+  const a = turn("session_a");
+  a.task("session_b", "port the lexer");
+  a.result("Dispatched the lexer; the parser is done.");
+  a.end();
+  expect(cohortWakes()).toHaveLength(0);
+
+  const b = turn("session_b");
+  b.result("Lexer ported.", "session_a");
+  b.end();
+  expect(cohortWakes()).toHaveLength(0);
+
+  const woken = turn("session_a");
+  expect(store.queries.turns("session_a").find((each) => each.runId === woken.runId)!.notification?.cohortId).toBeDefined();
+  woken.end();
+  const wakes = cohortWakes();
+  expect(wakes).toHaveLength(1);
+  expect(wakes[0]!.notification!.body).toContain("Dispatched the lexer; the parser is done.");
+});
+
+test("settling an orchestrator ends its open cohorts, so a later result does not wake it", () => {
+  const { store } = readyStore();
+  const { turn, cohortWakes, cohorts } = orchestration(store);
+  const host = turn("session_one");
+  host.task("session_a", "port the parser");
+  host.end();
+  store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
+  expect(cohorts()).toEqual([]);
+
+  const a = turn("session_a");
+  a.result("Parser ported.");
+  a.end();
+  expect(cohortWakes()).toHaveLength(0);
 });

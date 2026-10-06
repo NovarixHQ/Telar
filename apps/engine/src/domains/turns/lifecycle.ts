@@ -31,6 +31,7 @@ type LifecycleDeps = {
   evaluateDelegationSettling: (sessionId: string) => void;
   stopBackgroundTasks: (sessionId: string) => number;
   announceStoppedClaims: (cancellations: StoppedClaim[]) => void;
+  disposeCohorts: (sessionId: string) => void;
 };
 
 /** A turn from running to its end: start, complete, fail, stop, steer, release and discard. */
@@ -275,7 +276,7 @@ export class TurnLifecycle {
         ),
       );
       // One wake for the live turn, not one per cancelled backlog message.
-      if (live) this.deps.fireSubscriptions(sessionId, "turn_stopped", live, {});
+      if (live) this.stopped(sessionId, live);
       this.deps.flushPendingNotifications(sessionId);
       this.deps.evaluateDelegationSettling(sessionId);
       return { stopped: stopped.map((turn) => structuredClone(turn)), ...(live ? { live: structuredClone(live) } : {}) };
@@ -294,6 +295,7 @@ export class TurnLifecycle {
         return { ...(turn ? { turn: structuredClone(turn) } : {}), stopped: swept > 0 };
       }
       const at = this.kernel.now();
+      const live = turn.state !== "queued";
       turn.state = "stopped";
       turn.completedAt = at;
       turn.updatedAt = at;
@@ -309,13 +311,19 @@ export class TurnLifecycle {
       this.deps.records.touch(sessionId, at);
       this.kernel.appendEvent(sessionId, { type: "turn.stopped" }, turn.runId);
       for (const reverted of requeued) this.kernel.appendEvent(sessionId, { type: "turn.requeued", reason: "steer_undelivered" }, reverted.runId);
-      this.deps.fireSubscriptions(sessionId, "turn_stopped", turn, {});
+      // A message withdrawn before it ran ended nothing anyone waits on.
+      if (live) this.stopped(sessionId, turn);
       this.deps.flushPendingNotifications(sessionId);
       // A stopped assignment IS finished (clause 1 takes it), so a Stop is one of
       // the moments a delegate can become settleable.
       this.deps.evaluateDelegationSettling(sessionId);
       return { turn: structuredClone(turn), stopped: true };
     });
+  }
+
+  private stopped(sessionId: string, turn: Turn): void {
+    this.deps.disposeCohorts(sessionId);
+    this.deps.fireSubscriptions(sessionId, "turn_stopped", turn, {});
   }
 
   // The steering eligibility rules in one place, so `promoteTurn` and `markRunning` cannot disagree. The caller writes the queue.

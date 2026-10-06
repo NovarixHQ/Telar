@@ -17,6 +17,7 @@ const RailSection = dynamic(() => import("@/features/sessions/components/rail-se
 const LinksSection = dynamic(() => import("./links-section").then((mod) => mod.LinksSection));
 const DictationSection = dynamic(() => import("@/features/dictation/components/dictation-section").then((mod) => mod.DictationSection));
 const McpSection = dynamic(() => import("@/features/agent-tools/components/mcp-section").then((mod) => mod.McpSection));
+const SimulatorsSection = dynamic(() => import("@/features/simulators/components/simulators-section").then((mod) => mod.SimulatorsSection));
 const OrientationSection = dynamic(() => import("@/features/agent-tools/components/orientation-section").then((mod) => mod.OrientationSection));
 const IntegrationsPage = dynamic(() => import("@/features/browser/panes/integrations-page").then((mod) => mod.IntegrationsPage));
 const KeybindingsPage = dynamic(() => import("@/features/commands/components/keybindings-page").then((mod) => mod.KeybindingsPage));
@@ -176,6 +177,7 @@ export function SettingsPage() {
             <OrientationSection />
             <McpSection />
             <PermissionsSection />
+            <SimulatorsSection />
           </>
         )}
       </Suspense>

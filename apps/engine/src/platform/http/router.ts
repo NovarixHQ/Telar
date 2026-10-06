@@ -1,4 +1,5 @@
 import type http from "node:http";
+import { hostIsAllowed } from "./host";
 import { body, HttpError, writeError, writeJson } from "./http";
 import type { Route } from "./route";
 
@@ -33,6 +34,7 @@ export function router(routes: readonly Route[], options: RouterOptions): http.R
     });
   return async (request, response) => {
     try {
+      if (!hostIsAllowed(request.headers.host)) throw new HttpError(421, "invalid_request", "this engine answers only to this machine's own host names", true);
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
       const matched = matchRoute(routes, request.method ?? "GET", url.pathname);
       if (!matched) return await fallback(request, response, url);

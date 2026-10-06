@@ -110,6 +110,15 @@ describe("pairing proxy", () => {
     expect(await proxy(new NextRequest("http://cockpit.test/settings", { headers: { authorization: `Bearer ${raw}` } }))).toBeUndefined();
   });
 
+  test("a page reached under a rebinding name is refused even while requireAuth is off", async () => {
+    await freshHome();
+    setRequireAuth(false);
+    const rebound = await proxy(new NextRequest("http://evil.example/api/health", { headers: { host: "evil.example:3000" } }));
+    expect(rebound?.status).toBe(421);
+    expect(((await rebound?.json()) as { error: { code: string } }).error.code).toBe("cockpit_misdirected");
+    expect(await proxy(new NextRequest("http://127.0.0.1:3000/api/health", { headers: { host: "127.0.0.1:3000" } }))).toBeUndefined();
+  });
+
   test("an engine that cannot answer denies rather than letting the request through", async () => {
     delete process.env.TELAR_COCKPIT;
     const response = await proxy(new NextRequest("http://cockpit.test/api/health"));

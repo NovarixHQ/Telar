@@ -22,7 +22,7 @@ struct SimulatorPill: View {
     @State private var shown = false
 
     private var title: String {
-        running.count == 1 ? "\(running[0].name) is running" : "\(running.count) simulators running"
+        running.count == 1 ? "\(running[0].name) is running" : "\(running[0].name) and \(running.count - 1) more running"
     }
 
     var body: some View {
@@ -40,7 +40,7 @@ struct SimulatorPill: View {
         .buttonStyle(.plain)
         .accessibilityHint("Watch and control the simulator")
         .fullScreenCover(isPresented: $shown) {
-            SimulatorViewer(api: api, simulators: running)
+            SimulatorViewer(api: api, simulators: running, selectedId: running.first?.id)
         }
     }
 }

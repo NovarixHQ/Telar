@@ -522,7 +522,7 @@ struct SessionView: View {
                 }
             }
             if let simulatorsAPI, !simulatorWatch.running.isEmpty {
-                SimulatorPill(api: simulatorsAPI, running: simulatorWatch.running)
+                SimulatorPill(api: simulatorsAPI, running: preferringAgent(simulatorWatch.running, store.sync.agentSimulatorId))
             }
             ComposerView(
                 draft: $draft,

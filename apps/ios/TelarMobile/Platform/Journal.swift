@@ -339,7 +339,7 @@ func projectJournal(
                 ),
                 openedBy: event.id
             )
-        case .requestOpened, .requestResolved, .sessionUpdated, .displayOpened,
+        case .requestOpened, .requestResolved, .sessionUpdated, .displayOpened, .simulatorOpened, .simulatorClosed,
              .kernelStateChanged, .notebookCellOutput:
 
             break

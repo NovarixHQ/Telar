@@ -30,6 +30,9 @@ struct EngineEvent {
 
         case displayOpened(path: String, title: String?)
 
+        case simulatorOpened(simulator: SimulatorSummary)
+        case simulatorClosed(simulatorId: String)
+
         case kernelStateChanged(state: KernelState, reason: String?)
 
         case notebookCellOutput(execId: String, cellId: String?, producer: String?, output: CellOutput?)
@@ -45,6 +48,7 @@ extension EngineEvent: Decodable {
         case item, itemId, stream, text, request, requestId, decision
         case task, session, controller, path, title
         case state, execId, cellId, producer, output
+        case simulator, simulatorId
     }
 
     init(from decoder: Decoder) throws {
@@ -109,6 +113,10 @@ extension EngineEvent: Decodable {
             payload = (try? c.decode(String.self, forKey: .controller)).map { .browserControlChanged(controller: $0) } ?? .none
         case "display.opened":
             payload = (try? c.decode(String.self, forKey: .path)).map { .displayOpened(path: $0, title: try? c.decodeIfPresent(String.self, forKey: .title)) } ?? .none
+        case "simulator.opened":
+            payload = (try? c.decode(SimulatorSummary.self, forKey: .simulator)).map { .simulatorOpened(simulator: $0) } ?? .none
+        case "simulator.closed":
+            payload = (try? c.decode(String.self, forKey: .simulatorId)).map { .simulatorClosed(simulatorId: $0) } ?? .none
         case "kernel.state.changed":
 
             payload = (try? c.decode(KernelState.self, forKey: .state))

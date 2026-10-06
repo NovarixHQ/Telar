@@ -7,7 +7,6 @@ import type { ActionDeps } from "./actions";
 
 const DEVICE_FILE = "/data/local/tmp/telar-screenshot.png";
 
-/** Captured to a temp file: the runner reads a child's output as text, which would mangle the PNG. */
 export async function takeScreenshot(deps: ActionDeps, device: SimulatorSummary): Promise<Uint8Array> {
   if (!device.booted) throw new HttpError(409, "conflict", "The simulator is not running. Open it first.");
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "telar-screenshot-"));

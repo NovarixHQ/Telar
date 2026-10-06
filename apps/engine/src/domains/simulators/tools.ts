@@ -22,7 +22,6 @@ async function attempt<T>(what: string, run: () => Promise<T>, answer: (value: T
   }
 }
 
-/** Driving instructions ride on the open, so a turn that never opens a simulator pays nothing for them. */
 function quickStart(simulator: SimulatorSummary, command: string | undefined): string {
   const opened = `${simulator.name} (${simulator.version}) is running, and the person can watch it in this conversation. Its id is ${simulator.id}.`;
   if (!command) return `${opened}\nThe agent-device command is still installing; until then use simulator_screenshot to look, and xcrun simctl or adb to act.`;

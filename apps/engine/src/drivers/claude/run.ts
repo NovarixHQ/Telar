@@ -195,7 +195,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
 
 // The query options and the reuse fingerprint are computed together so they cannot disagree.
 function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void {
-  const { signal, fastMode, ultracode, mcpServers: userMcpServers, env, binaryPath, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, notes, prompts, display, usageDiagnosis } = input;
+  const { signal, fastMode, ultracode, mcpServers: userMcpServers, env, binaryPath, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, notes, prompts, display, simulators, usageDiagnosis } = input;
   const { resolveExecutable } = deps;
   /** The `claude` binary this turn runs on, resolved once: the query below
    *  takes it as `pathToClaudeCodeExecutable`, and the fingerprint records
@@ -211,6 +211,7 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     notes,
     prompts,
     display,
+    simulators,
     run,
     plugins,
     usageDiagnosis,
@@ -247,6 +248,7 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     // Same rule again: the prompt wall is baked into the query at creation.
     prompts: Boolean(prompts),
     display: Boolean(display),
+    simulators: Boolean(simulators),
     /** Same rule, and here it is the system prompt rather than a toolkit:
      *  `RUN_BRIEFING` is appended at creation, so a project-less session
      *  that gains a project must cold-start to be told about it. */

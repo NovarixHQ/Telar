@@ -5,13 +5,15 @@ import { processRunner, type ProcessRunner } from "../../platform/process/runner
 import { reserveLoopbackPort, SimulatorHub, type HubDeps } from "./hub";
 import { runAction, type ActionDeps } from "./actions";
 import { readDetail } from "./detail";
+import { takeScreenshot } from "./screenshot";
 import { InputRelay, type OpenSocket } from "./input";
 import { StreamTickets } from "./tickets";
-import { HUB_VERSION, hubHelpers, HubToolchain, installedHubVersions } from "./toolchain";
+import { AGENT_DEVICE, HUB, HUB_VERSION, hubHelpers, installedVersions, NpmToolchain, toolBinDir } from "./toolchain";
 
 export type SimulatorsDeps = {
   root: string;
   enabled: () => boolean;
+  agentAccess?: () => boolean;
   runner?: ProcessRunner;
   fetch?: typeof fetch;
   platform?: NodeJS.Platform;
@@ -47,7 +49,8 @@ export class Simulators {
   private readonly runner: ProcessRunner;
   private readonly fetch: typeof fetch;
   private readonly now: () => number;
-  private readonly toolchain: HubToolchain;
+  private readonly toolchain: NpmToolchain;
+  private readonly agentDevice: NpmToolchain;
   private readonly hub: SimulatorHub;
   private readying?: Promise<string>;
   private installing = false;
@@ -63,7 +66,8 @@ export class Simulators {
     this.fetch = deps.fetch ?? fetch;
     this.now = deps.now ?? Date.now;
     const env = () => agentEnv();
-    this.toolchain = new HubToolchain({ root: deps.root, runner: this.runner, env });
+    this.toolchain = new NpmToolchain(HUB, { root: deps.root, runner: this.runner, env });
+    this.agentDevice = new NpmToolchain(AGENT_DEVICE, { root: deps.root, runner: this.runner, env });
     this.input = new InputRelay(deps.openSocket);
     this.tickets = new StreamTickets(this.now);
     this.actionDeps = { run: (file, args, options) => this.runner.run(file, args, { ...options, env: env() }), helpers: () => hubHelpers(deps.root) };
@@ -79,7 +83,7 @@ export class Simulators {
   }
 
   async state(): Promise<SimulatorsState> {
-    const hub = (origin?: string) => ({ requiredVersion: HUB_VERSION, installedVersions: installedHubVersions(this.deps.root), runningVersion: origin ? HUB_VERSION : null });
+    const hub = (origin?: string) => ({ requiredVersion: HUB_VERSION, installedVersions: installedVersions(this.deps.root, HUB), runningVersion: origin ? HUB_VERSION : null });
     if (!this.deps.enabled()) return { status: "disabled", hub: hub(), platforms: [], simulators: [], errors: [] };
     const platforms = await this.availability();
     const origin = this.hub.origin();
@@ -133,6 +137,20 @@ export class Simulators {
     return readDetail(this.actionDeps, device, this.now());
   }
 
+  async screenshot(id: string): Promise<Uint8Array> {
+    this.requireReady();
+    return takeScreenshot(this.actionDeps, await this.find(id));
+  }
+
+  agentTools(): { binDir?: string } | undefined {
+    if (!this.deps.enabled() || !this.deps.agentAccess?.()) return undefined;
+    if (!this.agentDevice.installed()) {
+      this.agentDevice.install().catch(() => undefined);
+      return {};
+    }
+    return { binDir: toolBinDir(this.deps.root, AGENT_DEVICE) };
+  }
+
   async sendInput(id: string, events: readonly SimulatorInput[]): Promise<void> {
     const origin = this.requireReady();
     const device = await this.find(id);
@@ -146,6 +164,7 @@ export class Simulators {
     this.failure = undefined;
     if (settings.enabled) {
       this.ensureReady().catch(() => undefined);
+      if (settings.agentAccess) this.agentDevice.install().catch(() => undefined);
       return;
     }
     this.devices = [];

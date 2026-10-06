@@ -7,8 +7,11 @@ import type { OpenSocket } from "../src/domains/simulators/input";
 import { stubModels } from "./stub-models";
 import type { ProcessHandle, ProcessOptions, ProcessResult, ProcessRunner } from "../src/platform/process/runner";
 import type { ActionDeps } from "../src/domains/simulators/actions";
+import type { TurnDriver } from "../src/drivers";
 
 type Call = { file: string; args: readonly string[]; options?: ProcessOptions };
+
+export const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?: number } = {}) {
   const runs: Call[] = [];
@@ -20,13 +23,17 @@ export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?
       if (file === "npm") {
         if (overrides.npm) return overrides.npm;
         const prefix = args[args.indexOf("--prefix") + 1]!;
-        const entry = path.join(prefix, "node_modules", "expo-device-hub", "dist", "server", "cli.mjs");
+        const name = args.at(-1)!.split("@")[0]!;
+        const entry = path.join(prefix, "node_modules", name, name === "agent-device" ? "bin/agent-device.mjs" : "dist/server/cli.mjs");
         fs.mkdirSync(path.dirname(entry), { recursive: true });
         fs.writeFileSync(entry, "");
         return { code: 0, stdout: "", stderr: "" };
       }
       if (file === "ps") return { code: 0, stdout: overrides.ps ?? "", stderr: "" };
-      if (file === "xcrun") return { code: overrides.xcrun ?? 0, stdout: "", stderr: "" };
+      if (file === "xcrun") {
+        if (args[1] === "io" && args[3] === "screenshot") fs.writeFileSync(args.at(-1)!, PNG);
+        return { code: overrides.xcrun ?? 0, stdout: "", stderr: "" };
+      }
       return { code: 127, stdout: "", stderr: "" };
     },
     start(file, args, options) {
@@ -104,13 +111,14 @@ export function fakeActionDeps(answers: Record<string, Partial<ProcessResult>> =
   return { deps: value, runs, commands: () => runs.map((run) => [run.file, ...run.args].join(" ")) };
 }
 
-export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string } = {}) {
+export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string; driver?: TurnDriver } = {}) {
   const engineRoot = options.engineRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-http-"));
   const fake = fakeRunner();
   const hub = fakeHub(options.devices ?? [iPhone()]);
   const daemon = await startEngine({
     models: stubModels,
     engineRoot,
+    ...(options.driver ? { embeddedWorker: { createDriver: () => options.driver!, pollMs: 20 } } : {}),
     simulators: { runner: fake.runner, fetch: hub.fetch, platform: "darwin", reservePort: async () => 4321, sleep: async () => undefined, ...(options.openSocket ? { openSocket: options.openSocket } : {}) },
   });
   const client = new EngineClient(daemon.discovery);

@@ -5,6 +5,7 @@ import { sessionsCapability, windowedReads } from "../domains/sessions";
 import { promptsForComposer, type PromptsCapability } from "../domains/prompts";
 import { createDisplayCapability } from "../domains/agent-tools";
 import { clientRunCapability } from "../domains/terminal";
+import { clientSimulatorCapability } from "../domains/simulators";
 import type { SessionsCapability } from "../drivers";
 import type { UsageDiagnosisCapability } from "../domains/usage";
 import type { WorkerClient } from "./options";
@@ -81,12 +82,14 @@ export function telarCapabilities(host: TurnHost, claim: WorkerClaim, runId: str
           upload: async (file) => (await client.uploadAttachment(sessionId, file)).attachment,
         });
   const run = projectId && cwd ? clientRunCapability(client, sessionId) : undefined;
+  const simulators = claim.simulators ? clientSimulatorCapability(client, (observation) => report([observation]), claim.simulators.binDir) : undefined;
   return {
     sessions,
     ...(notes ? { notes } : {}),
     ...(prompts ? { prompts } : {}),
     ...(display ? { display } : {}),
     ...(run ? { run } : {}),
+    ...(simulators ? { simulators } : {}),
     ...(Object.keys(plugins).length > 0 ? { plugins } : {}),
   };
 }

@@ -99,7 +99,7 @@ export type EngineDaemonOptions = {
   computerUseGate?: ComputerUseGate;
   resetComputerUse?: () => Promise<{ reset: boolean; message?: string }>;
   grantComputerUse?: () => Promise<ComputerUseGrant>;
-  simulators?: Omit<SimulatorsDeps, "root" | "enabled">;
+  simulators?: Omit<SimulatorsDeps, "root" | "enabled" | "agentAccess">;
 };
 
 export type EngineDaemon = {
@@ -123,7 +123,7 @@ function domainError(error: unknown): HttpError | undefined {
 const errorFor = (error: unknown): HttpError => httpErrorFor(error, domainError);
 const say = (line: string) => process.stdout.write(`${line}\n`);
 
-function openStore(root: string, options: EngineDaemonOptions, doorbell: EmbeddedDoorbell, computerUseGate: ComputerUseGate): EngineStore {
+function openStore(root: string, options: EngineDaemonOptions, doorbell: EmbeddedDoorbell, computerUseGate: ComputerUseGate, simulators: Simulators): EngineStore {
   return new EngineStore(root, options.now, {
     onQueueChanged: () => doorbell.wake?.(),
     onTurnsStopped: (cancellations) => doorbell.cancel?.(cancellations),
@@ -142,6 +142,7 @@ function openStore(root: string, options: EngineDaemonOptions, doorbell: Embedde
     ...(options.ambientEnv ? { ambientEnv: options.ambientEnv } : {}),
     // From the gate's last probe, never probed per claim, so only a measured `granted` injects the tools.
     computerUse: () => computerUseGate.forClaim(),
+    simulatorAccess: () => simulators.agentTools(),
   });
 }
 
@@ -265,8 +266,10 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const loopLag = createLoopLag();
   loopLag.start();
   let store: EngineStore;
+  const simulatorSettings = () => store.settings.simulators();
+  const simulators = new Simulators({ root: statePaths(root).root, enabled: () => simulatorSettings().enabled, agentAccess: () => simulatorSettings().agentAccess, ...options.simulators });
   try {
-    store = loopLag.run("boot: open store", () => openStore(root, options, doorbell, computerUseGate));
+    store = loopLag.run("boot: open store", () => openStore(root, options, doorbell, computerUseGate, simulators));
   } catch (error) {
     loopLag.stop();
     lock.release();
@@ -333,7 +336,6 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const authorize = (auth: Route["auth"], request: http.IncomingMessage): void => {
     if (!bearerIsValid(request.headers.authorization, secrets[auth]())) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
   };
-  const simulators = new Simulators({ root: store.paths.root, enabled: () => store.settings.simulators().enabled, ...options.simulators });
   const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, notesDoor, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, port: () => port });
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run }));
 

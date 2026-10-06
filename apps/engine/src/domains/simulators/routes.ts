@@ -26,6 +26,12 @@ export function simulatorsRoutes(simulators: Simulators, fetchImpl?: typeof fetc
     },
     { method: "POST", path: simulatorRoute("boot"), auth: "engine", handle: async ({ params }) => ok({ simulator: await simulators.boot(params[0]!) }) },
     { method: "POST", path: simulatorRoute("shutdown"), auth: "engine", handle: async ({ params }) => ok({ simulator: await simulators.shutdown(params[0]!) }) },
+    {
+      method: "GET",
+      path: simulatorRoute("screenshot"),
+      auth: "engine",
+      handle: async ({ params }) => ({ status: 200, body: null, bytes: await simulators.screenshot(params[0]!), headers: { "content-type": "image/png", "cache-control": "no-store" } }),
+    },
     { method: "GET", path: simulatorRoute("detail"), auth: "engine", handle: async ({ params }) => ok({ detail: await simulators.detail(params[0]!) }) },
     {
       method: "POST",

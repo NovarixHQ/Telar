@@ -171,6 +171,14 @@ export class TurnIngest {
       );
       return;
     }
+    if (observation.kind === "simulator.opened") {
+      this.kernel.appendEvent(sessionId, { type: "simulator.opened", simulator: observation.simulator }, turn.runId);
+      return;
+    }
+    if (observation.kind === "simulator.closed") {
+      this.kernel.appendEvent(sessionId, { type: "simulator.closed", simulatorId: observation.simulatorId }, turn.runId);
+      return;
+    }
     if (observation.kind === "artifact.published") {
       const published = observation.artifact;
       let version = 1;

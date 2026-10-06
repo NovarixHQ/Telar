@@ -77,7 +77,7 @@ function Presence({ device }: { device: RemoteDevice }) {
   if (device.connected) {
     return (
       <span className="flex items-center gap-1.5 text-foreground" title={device.lastSeenAt ? `Last request ${fmtAgo(device.lastSeenAt)}` : undefined}>
-        <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
+        <span aria-hidden className="size-1.5 rounded-full bg-success" />
         Connected
       </span>
     );

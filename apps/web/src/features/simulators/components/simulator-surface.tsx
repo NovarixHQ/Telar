@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ListIcon, XIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "lucide-react";
 import type { SimulatorSummary } from "@telar/engine-client";
 import { cn } from "@/ui/utils";
 import { createSimulatorsApi, type SimulatorsApi } from "../api";
@@ -66,9 +66,6 @@ export function SimulatorSurface({ hostId, visible, params, onParams, api: injec
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div role="tablist" aria-label="Simulators" className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border px-2 py-1">
-        <button type="button" role="tab" aria-selected={active === LIST} aria-label="All simulators" onClick={() => remember(open, LIST)} className={cn("flex items-center rounded-md p-1.5 text-muted-foreground hover:bg-muted", active === LIST && "bg-muted text-foreground")}>
-          <ListIcon className="size-3.5" />
-        </button>
         {open.map((id) => (
           <span key={id} className={cn("flex items-center gap-1 rounded-md pr-1 text-xs hover:bg-muted", active === id && "bg-muted")}>
             <button type="button" role="tab" aria-selected={active === id} onClick={() => remember(open, id)} className="flex min-w-0 items-center gap-1.5 py-1 pl-2">
@@ -80,6 +77,9 @@ export function SimulatorSurface({ hostId, visible, params, onParams, api: injec
             </button>
           </span>
         ))}
+        <button type="button" role="tab" aria-selected={active === LIST} aria-label="All simulators" onClick={() => remember(open, LIST)} className={cn("flex items-center rounded-md p-1.5 text-muted-foreground hover:bg-muted", active === LIST && "bg-muted text-foreground")}>
+          <PlusIcon className="size-3.5" />
+        </button>
       </div>
       {failure && <p role="alert" className="border-b border-border px-3 py-1.5 text-2xs text-destructive">{failure}</p>}
       <div className="flex min-h-0 flex-1">

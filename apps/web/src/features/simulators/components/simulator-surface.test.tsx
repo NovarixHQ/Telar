@@ -89,12 +89,14 @@ test("Start boots the simulator and opens it in a tab that streams from the hub 
   expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg?ticket=stk_1");
 });
 
-test("the toolbar sends Home and Rotate as input, and Power off shuts the simulator down and closes its tab", async () => {
+test("the toolbar sends Home and Rotate as input, each Rotate turns one step further, and Power off shuts the simulator down and closes its tab", async () => {
   const { host, calls, sent } = await surface(ready([iPhone(true)]));
   await click(text("Open"));
   await click(button("Home")!);
   await click(button("Rotate")!);
-  expect(sent()).toEqual([{ type: "button", button: "home" }, { type: "orientation", orientation: "landscape_left" }]);
+  await click(button("Rotate")!);
+  await flush(() => sent().length >= 3);
+  expect(sent()).toEqual([{ type: "button", button: "home" }, { type: "orientation", orientation: "landscape_left" }, { type: "orientation", orientation: "portrait_upside_down" }]);
   await click(button("Power off")!);
   await flush(() => !button("Simulator controls"));
   expect(calls.at(-1)).toEqual(["shutdownSimulator", "A1B2"]);

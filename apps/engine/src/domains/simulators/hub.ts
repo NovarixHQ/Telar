@@ -32,6 +32,10 @@ export function reserveLoopbackPort(): Promise<number> {
   });
 }
 
+function logHubOutput(text: string): void {
+  for (const line of text.split("\n")) if (line.trim()) console.error(`[simulators] ${line.trimEnd()}`);
+}
+
 const alive = (pid: number) => {
   try {
     process.kill(pid, 0);
@@ -100,6 +104,7 @@ export class SimulatorHub {
     const origin = `http://127.0.0.1:${port}`;
     const handle = this.deps.runner.start("node", [entry, "--port", String(port), "--host", "127.0.0.1", "--hide-sidebar", "--hide-boot-device"], {
       env: { ...this.deps.env(), FORCE_COLOR: "0", NO_COLOR: "1" },
+      onStderr: logHubOutput,
     });
     let exited = false;
     void handle.exited.then(() => (exited = true));

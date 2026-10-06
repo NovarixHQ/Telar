@@ -23,6 +23,11 @@ test("start answers the pid and resolves exited once stopped", async () => {
   expect(await child.exited).toBeNull();
 });
 
+test("start hands the child's stderr to onStderr", async () => {
+  const text = await new Promise<string>((resolve) => processRunner.start("sh", ["-c", "echo '[hid] input failed' >&2"], { onStderr: resolve }));
+  expect(text).toBe("[hid] input failed\n");
+});
+
 test("start resolves exited with null for a missing binary", async () => {
   expect(await processRunner.start("/nonexistent/telar-test-binary", []).exited).toBeNull();
 });

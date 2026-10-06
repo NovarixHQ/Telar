@@ -6,6 +6,7 @@ import type { SimulatorSummary } from "@telar/engine-client";
 import { cn } from "@/ui/utils";
 import { createSimulatorsApi, type SimulatorsApi } from "../api";
 import { useSimulators } from "../hooks/use-simulators";
+import { openSimulators } from "../tabs";
 import { SimulatorList } from "./simulator-list";
 import { SimulatorSettings } from "./simulator-settings";
 import { SimulatorView } from "./simulator-view";
@@ -20,22 +21,20 @@ type SurfaceProps = {
 
 const LIST = "";
 
-function readOpen(params: SurfaceProps["params"]): string[] {
-  return (params?.open ?? "").split(",").filter(Boolean);
-}
-
 export function SimulatorSurface({ hostId, visible, params, onParams, api: injected }: SurfaceProps) {
   const api = useMemo(() => injected ?? createSimulatorsApi(hostId), [injected, hostId]);
   const { state, error, refresh } = useSimulators(api, visible);
-  const [open, setOpenState] = useState<string[]>(() => readOpen(params));
-  const [active, setActiveState] = useState(params?.active ?? LIST);
+  const [local, setLocal] = useState<Readonly<Record<string, string>>>(() => params ?? {});
+  const shown = onParams ? (params ?? {}) : local;
+  const open = openSimulators(shown);
+  const active = shown.active ?? LIST;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [failure, setFailure] = useState<string>();
 
   const remember = (nextOpen: string[], nextActive: string) => {
-    setOpenState(nextOpen);
-    setActiveState(nextActive);
-    onParams?.({ open: nextOpen.join(","), active: nextActive });
+    const next = { open: nextOpen.join(","), active: nextActive };
+    if (onParams) onParams(next);
+    else setLocal(next);
   };
   const show = (id: string) => remember(open.includes(id) ? open : [...open, id], id);
   const close = (id: string) => remember(open.filter((entry) => entry !== id), active === id ? LIST : active);

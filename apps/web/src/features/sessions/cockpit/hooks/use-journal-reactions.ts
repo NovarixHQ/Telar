@@ -9,14 +9,16 @@ import {
   openPanelTab,
   panelTabForPath,
   revealPanelTab,
+  setPanelTabParams,
   type latestBrowserState,
 } from "@/features/panel";
+import { agentSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped, withSimulatorShown } from "@/features/simulators";
 import { freshTerminals, revealTerminal, type RunView } from "@/features/terminal";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 import type { useSessionSync } from "./use-session-sync";
 
-/** What the panel does when the journal says the agent opened a page, a display, a terminal or a prompt draft. */
+/** What the panel does when the journal says the agent opened a page, a display, a simulator, a terminal or a prompt draft. */
 export function useJournalReactions({ sync: { events }, browser, enabledPlugins, panel: { showPanelTab, updatePanel } }: {
   sync: ReturnType<typeof useSessionSync>;
   browser: ReturnType<typeof latestBrowserState>;
@@ -54,6 +56,18 @@ export function useJournalReactions({ sync: { events }, browser, enabledPlugins,
     const display = fresh.filter((event) => event.type === "display.opened").at(-1);
     if (display?.type === "display.opened") showPanelTab(panelTabForPath(display.path, enabledPlugins));
     if (fresh.some((event) => event.type === "prompt.drafted")) announcePromptShelfChanged();
+    for (const change of agentSimulatorChanges(events, mountedAt.current, seenEvents.current)) {
+      updatePanel((current) => {
+        if ("shown" in change) {
+          const opened = openPanelTab(current, SIMULATOR_SURFACE);
+          const tab = opened.tabs.find((entry) => entry.id === opened.activeTab)!;
+          return setPanelTabParams(opened, tab.id, withSimulatorShown(tab.params, change.shown));
+        }
+        return current.tabs
+          .filter((tab) => tab.kind === SIMULATOR_SURFACE)
+          .reduce((state, tab) => setPanelTabParams(state, tab.id, withSimulatorDropped(tab.params, change.dropped)), current);
+      });
+    }
   }, [events, enabledPlugins, showPanelTab, updatePanel]);
 
   const seenTerminals = useRef<Set<string>>(new Set());

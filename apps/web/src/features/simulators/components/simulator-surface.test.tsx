@@ -113,3 +113,11 @@ test("a press on the screen is a touch at its place in the frame, and a key is i
     { type: "key", phase: "down", usage: 0x04 },
   ]);
 });
+
+test("the surface follows its tab params, so a simulator the agent opened shows without a click", async () => {
+  globalThis.fetch = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch;
+  const fake = fakeApi(ready([iPhone(true)]));
+  const { host } = await mount(<SimulatorSurface api={fake.api} visible params={{ open: "A1B2", active: "A1B2" }} onParams={() => undefined} />);
+  await flush(() => Boolean(button("Simulator controls")));
+  expect([...host.querySelectorAll('[role="tab"]')].map((tab) => tab.getAttribute("aria-selected"))).toEqual(["false", "true"]);
+});

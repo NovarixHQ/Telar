@@ -1,1 +1,1 @@
-export { SimulatorSurface } from "./components/simulator-surface";
+export { agentSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped, withSimulatorShown } from "./tabs";

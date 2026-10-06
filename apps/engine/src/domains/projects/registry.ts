@@ -46,6 +46,27 @@ function parseRegistry(value: unknown): ProjectRegistryDocument {
   return { version: STATE_VERSION, projects: projects.data };
 }
 
+/** The real path of a readable directory, or a refusal saying why it is not one. */
+export function existingDirectory(root: unknown): string {
+  assertAbsolutePath(root, "project root");
+  let resolved: string;
+  let directory: boolean;
+  try {
+    resolved = fs.realpathSync.native(root);
+    directory = fs.statSync(resolved).isDirectory();
+    if (directory) fs.accessSync(resolved, fs.constants.R_OK);
+  } catch (cause) {
+    const code = (cause as NodeJS.ErrnoException | null)?.code;
+    if (code === "ENOENT" || code === "ENOTDIR") throw new EngineStateError("invalid_request", "project root must be an existing directory");
+    throw new EngineStateError(
+      "invalid_request",
+      `project root could not be read${code ? ` (${code})` : ""}: check that Telar is allowed into that folder, and for a cloud folder that its sync app is running`,
+    );
+  }
+  if (!directory) throw new EngineStateError("invalid_request", "project root must be an existing directory");
+  return resolved;
+}
+
 type RegistryDeps = {
   probes: ProjectProbes;
   volumes: VolumeDeps;
@@ -96,7 +117,6 @@ export class ProjectRegistry {
     return structuredClone(project);
   }
 
-  /** Registers a folder; one a removed project had restores that project, same id. The disk's volume is recorded here, once. */
   /** Refuses new work on a removed project or an unplugged drive; reads stay open. A missing folder is the worker's to refuse. */
   assertAvailable(projectId: string): void {
     const project = this.get(projectId);
@@ -120,21 +140,7 @@ export class ProjectRegistry {
   register(input: { id?: string; name: string; root: string }): Project {
     if (input.id !== undefined) assertId(input.id, "project id");
     if (typeof input.name !== "string" || input.name.trim() === "") throw new EngineStateError("invalid_request", "project name must be non-empty");
-    assertAbsolutePath(input.root, "project root");
-    let projectRoot: string;
-    let directory: boolean;
-    try {
-      projectRoot = fs.realpathSync.native(input.root);
-      directory = fs.statSync(projectRoot).isDirectory();
-    } catch (cause) {
-      const code = (cause as NodeJS.ErrnoException | null)?.code;
-      if (code === "ENOENT" || code === "ENOTDIR") throw new EngineStateError("invalid_request", "project root must be an existing directory");
-      throw new EngineStateError(
-        "invalid_request",
-        `project root could not be read${code ? ` (${code})` : ""}: check that Telar is allowed into that folder, and for a cloud folder that its sync app is running`,
-      );
-    }
-    if (!directory) throw new EngineStateError("invalid_request", "project root must be an existing directory");
+    const projectRoot = existingDirectory(input.root);
     const parsed = this.read();
     const id = input.id ?? `project_${crypto.randomUUID().replaceAll("-", "")}`;
     const volume = volumeForRoot(projectRoot, this.deps.volumes);
@@ -173,7 +179,7 @@ export class ProjectRegistry {
     return structuredClone(project);
   }
 
-  private recordVolumeLater(projectId: string, root: string, known: VolumeIdentity | undefined): void {
+  recordVolumeLater(projectId: string, root: string, known: VolumeIdentity | undefined): void {
     if (known !== undefined) return;
     void volumeForRootAsync(root, this.deps.volumes).then((volume) => {
       if (volume === undefined) return;

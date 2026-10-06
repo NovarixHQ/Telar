@@ -27,6 +27,10 @@ export const projectsClient = {
     return this.request("POST", `${projectPath(projectId)}/restore`, {});
   },
 
+  relocateProject(this: EngineTransport, projectId: string, root: string): Promise<{ project: Project }> {
+    return this.request("POST", `${projectPath(projectId)}/root`, { root });
+  },
+
   updateProject(
     this: EngineTransport,
     projectId: string,

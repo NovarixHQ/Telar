@@ -73,6 +73,18 @@ function DeviceName({ device, isSelf, onRename }: { device: RemoteDevice; isSelf
   );
 }
 
+function Presence({ device }: { device: RemoteDevice }) {
+  if (device.connected) {
+    return (
+      <span className="flex items-center gap-1.5 text-foreground" title={device.lastSeenAt ? `Last request ${fmtAgo(device.lastSeenAt)}` : undefined}>
+        <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
+        Connected
+      </span>
+    );
+  }
+  return <span>{device.lastSeenAt ? fmtAgo(device.lastSeenAt) : `paired ${fmtAgo(device.createdAt)}`}</span>;
+}
+
 type DeviceActions = {
   busy: boolean;
   onRename: (id: string, name: string) => void;
@@ -92,7 +104,7 @@ function DeviceRow({ device, isSelf, busy, onRename, onRole, onRevoke }: { devic
       </td>
       <td className="py-2 pr-3 text-muted-foreground">{source ?? kind ?? "—"}</td>
       <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
-        {device.lastSeenAt ? fmtAgo(device.lastSeenAt) : `paired ${fmtAgo(device.createdAt)}`}
+        <Presence device={device} />
       </td>
       <td className="py-2 pr-4">
         <div className="flex items-center justify-end gap-1.5">
@@ -150,7 +162,7 @@ export function RemoteDevicesGroup({ status, ...actions }: { status: RemoteStatu
               <tr className="border-b border-border/40 text-2xs font-normal tracking-wide text-muted-foreground uppercase">
                 <th scope="col" className="py-1.5 pr-3 pl-4 font-normal">Device</th>
                 <th scope="col" className="py-1.5 pr-3 font-normal">Kind</th>
-                <th scope="col" className="py-1.5 pr-3 font-normal">Last seen</th>
+                <th scope="col" className="py-1.5 pr-3 font-normal">Status</th>
                 <th scope="col" className="py-1.5 pr-4 text-right font-normal">Actions</th>
               </tr>
             </thead>

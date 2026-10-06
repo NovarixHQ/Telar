@@ -111,7 +111,7 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
   // Keyed by checkout and instance: a session switch replaces the surface, and two instances never share state or PTYs.
   const instanceKey = `${hostId ?? "local"}:${sessionId ?? projectId ?? "none"}:${tab.id}`;
   const notebookPath = model.notebookPanelPath(kind);
-  if (notebookPath !== undefined) return <NotebookSurface path={notebookPath} {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} onOpenImage={onOpenImage} />;
+  if (notebookPath !== undefined) return <NotebookSurface path={notebookPath} {...(sessionId ? { sessionId } : {})} {...(hostId ? { hostId } : {})} {...(active ? { active } : {})} onOpenImage={onOpenImage} />;
   const tablePath = model.tablePanelPath(kind);
   if (tablePath !== undefined) return <TableSurface path={tablePath} {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} />;
   const pdfPath = model.pdfPanelPath(kind);
@@ -138,6 +138,7 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
       <PluginSurface
         id={kind}
         {...scoped}
+        {...(hostId ? { hostId } : {})}
         {...(active ? { active } : {})}
         events={props.events ?? []}
         onOpenImage={onOpenImage}

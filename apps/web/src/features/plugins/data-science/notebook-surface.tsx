@@ -58,6 +58,7 @@ function NotebookCells({
   drafts,
   running,
   sessionId,
+  hostId,
   onEdit,
   onRun,
   onEditStructure,
@@ -67,6 +68,7 @@ function NotebookCells({
   drafts: ReadonlyMap<string, string>;
   running: ReadonlySet<string>;
   sessionId: string;
+  hostId: string | undefined;
   onEdit: (cellId: string, source: string) => void;
   onRun: (cellId?: string) => void;
   onEditStructure: (edit: NotebookEdit) => void;
@@ -83,6 +85,7 @@ function NotebookCells({
             draft={drafts.get(cell.id)}
             running={running.has(cell.id) || running.has("*")}
             sessionId={sessionId}
+            hostId={hostId}
             onEdit={(source) => onEdit(cell.id, source)}
             onRun={() => onRun(cell.id)}
             onRunAll={() => onRun()}
@@ -148,6 +151,7 @@ export function NotebookSurface({ path, sessionId, hostId, active, onOpenImage }
           drafts={notebook.drafts}
           running={running}
           sessionId={sessionId}
+          hostId={hostId}
           onEdit={notebook.edit}
           onRun={(cellId) => void notebook.run(cellId)}
           onEditStructure={(edit) => void notebook.structural(edit)}
@@ -244,13 +248,14 @@ function CellMenu({
 }
 
 function Cell({
-  cell, count, draft, running, sessionId, onEdit, onRun, onRunAll, onInsert, onMove, onClearOutputs, onDelete, onType, onOpenImage,
+  cell, count, draft, running, sessionId, hostId, onEdit, onRun, onRunAll, onInsert, onMove, onClearOutputs, onDelete, onType, onOpenImage,
 }: {
   cell: NotebookCell;
   count: number;
   draft?: string;
   running: boolean;
   sessionId: string;
+  hostId: string | undefined;
   onEdit: (source: string) => void;
   onRun: () => void;
   onRunAll: () => void;
@@ -340,7 +345,7 @@ function Cell({
             {collapsed ? <ChevronRightIcon className="size-2.5" /> : <ChevronDownIcon className="size-2.5" />}
             {outputs.length} output{outputs.length === 1 ? "" : "s"}
           </button>
-          {!collapsed && outputs.map((output, index) => <CellOutputView key={index} output={output} sessionId={sessionId} {...(onOpenImage ? { onOpenImage } : {})} />)}
+          {!collapsed && outputs.map((output, index) => <CellOutputView key={index} output={output} sessionId={sessionId} hostId={hostId} {...(onOpenImage ? { onOpenImage } : {})} />)}
         </div>
       )}
     </div>

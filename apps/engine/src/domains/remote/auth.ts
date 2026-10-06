@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { fail, ok, type Route } from "../../platform/http/route";
 import type { DeviceRole } from "@telar/engine-client";
+import type { Presence } from "./presence";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
 export const EXEMPT_PATHS = new Set(["/api/ping", "/api/pair"]);
@@ -41,7 +42,7 @@ const credentialsOf = (body: Record<string, unknown>): Credentials => ({
   hostHeader: text(body.hostHeader),
 });
 
-export function authRoutes(store: RemoteStore, hostSecret: () => string | undefined = () => process.env.TELAR_HOST_TOKEN): Route[] {
+export function authRoutes(store: RemoteStore, presence: Presence, hostSecret: () => string | undefined = () => process.env.TELAR_HOST_TOKEN): Route[] {
   return [
     {
       method: "POST",
@@ -52,7 +53,10 @@ export function authRoutes(store: RemoteStore, hostSecret: () => string | undefi
         const method = text(body.method);
         if (!pathname || !method) return fail(400, "invalid_request", "pathname and method are required.");
         const decision = decideAccess(store.read(), { ...credentialsOf(body), pathname, method }, hostSecret());
-        if (decision.allow && decision.deviceId) store.touchDevice(decision.deviceId);
+        if (decision.allow && decision.deviceId) {
+          presence.seen(decision.deviceId);
+          store.touchDevice(decision.deviceId);
+        }
         return ok(decision);
       },
     },

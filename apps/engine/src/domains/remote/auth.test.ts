@@ -6,6 +6,7 @@ import path from "node:path";
 import type { DeviceRole } from "@telar/engine-client";
 import { matchRoute } from "../../platform/http/router";
 import { authRoutes, decideAccess, EXEMPT_PATHS, type Credentials } from "./auth";
+import { createPresence } from "./presence";
 import { createRemoteStore, hashToken, type RemoteFile } from "./store";
 
 const RAW = "tlr_" + "a".repeat(43);
@@ -183,7 +184,7 @@ describe("the routes the cockpit asks", () => {
     const raw = "tlr_" + "p".repeat(43);
     const device = store.addDevice("Phone", raw);
     store.setRequireAuth(true);
-    const table = authRoutes(store, () => HOST);
+    const table = authRoutes(store, createPresence(), () => HOST);
     const call = async (route: string, body: Record<string, unknown>) =>
       (await matchRoute(table, "POST", route)!.route.handle({ body, params: [], query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse }))!;
     return { store, device, raw, call, cleanup: () => fs.rmSync(home, { recursive: true, force: true }) };

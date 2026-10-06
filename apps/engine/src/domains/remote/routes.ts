@@ -3,6 +3,7 @@ import type { DeviceIdentity, DevicePlatform, PairingRefusal, RemoteDevice, Remo
 import { mintDeviceToken, RemoteStoreError, type PairedDevice, type RemoteStore } from "./store";
 import { fail, ok, type Route } from "../../platform/http/route";
 import { authRoutes } from "./auth";
+import { createPresence, type Presence } from "./presence";
 
 type Body = Record<string, unknown>;
 
@@ -37,7 +38,7 @@ const publicDevice = ({ id, name, createdAt, lastSeenAt, role, platform, identit
   identity,
 });
 
-export function remoteRoutes(store: RemoteStore): Route[] {
+export function remoteRoutes(store: RemoteStore, presence: Presence = createPresence()): Route[] {
   const routes: Route[] = [
     {
       method: "GET",
@@ -55,7 +56,7 @@ export function remoteRoutes(store: RemoteStore): Route[] {
           requireAuth: file.requireAuth,
           exposure: file.exposure ?? "local-only",
           tailscaleServe: file.tailscaleServe === true,
-          devices: file.devices.map(publicDevice),
+          devices: file.devices.map((device) => ({ ...publicDevice(device), ...presence.of(device.id, device.lastSeenAt) })),
           ...(file.pairing ? { pairing: { expiresAt: file.pairing.expiresAt } } : {}),
         };
         return ok(state);
@@ -162,7 +163,7 @@ export function remoteRoutes(store: RemoteStore): Route[] {
       handle: ({ params: [id] }) => (store.revokeDevice(id!) ? ok({ ok: true }) : fail(404, "not_found", "No such device.")),
     },
   ];
-  return [...routes, ...authRoutes(store)].map((route) => ({ ...route, handle: (input) => refusalsAsBadRequest(() => route.handle(input)) }));
+  return [...routes, ...authRoutes(store, presence)].map((route) => ({ ...route, handle: (input) => refusalsAsBadRequest(() => route.handle(input)) }));
 }
 
 function refusalsAsBadRequest(run: () => ReturnType<Route["handle"]>): ReturnType<Route["handle"]> {

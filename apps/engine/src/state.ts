@@ -354,6 +354,8 @@ export class EngineStore {
       liveQueueSessionIds: () => this.sessionQueues.liveSessionIds(),
       getSessionDefaults: () => this.settings.sessionDefaults(),
       submitTurn: (id, input) => this.intake.submitTurn(id, input),
+      reportStopped: (id, turn) => this.wakes.fireSubscriptions(id, "turn_stopped", turn, {}),
+      flushPendingNotifications: (id) => this.wakes.flushPendingNotifications(id),
     });
     const ingest = new TurnIngest(this.kernel, {
       records: this.records,

@@ -353,7 +353,9 @@ export class SessionSubscriptions {
 
   private cohortOutcome(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): Pick<CohortMember, "outcome" | "fetch" | "firstLine" | "excerpt" | "chars"> {
     const outcome = kind === "turn_completed" ? "completed" : kind === "turn_failed" ? "failed" : "stopped";
-    const text = kind === "turn_failed" ? [context.failure?.code, context.failure?.message].filter(Boolean).join(": ") : context.resultText ?? "";
+    const text = kind === "turn_failed"
+      ? [context.failure?.code, context.failure?.message].filter(Boolean).join(": ")
+      : turn.stopReason === "engine_restart" ? "cut off when the engine restarted" : context.resultText ?? "";
     const line = firstLineOf(text);
     return { outcome, fetch: { sessionId, runId: turn.runId }, ...(line ? { firstLine: line } : {}), ...excerptOf(text) };
   }
@@ -366,8 +368,8 @@ export class SessionSubscriptions {
   advanceCohortMember(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): void {
     if (!TERMINAL_WAKE_KINDS.includes(kind)) return;
     if (turn.origin === "provider" && turn.providerReason?.kind === "background_task") return;
-    // A worker shutting down fails its turn as `interrupted`; the member stays pending.
-    if (cutOffByTelar(turn)) return;
+    // A worker shutting down fails its turn as `interrupted`; the member stays pending. A boot reports only what it will not continue.
+    if (cutOffByTelar(turn) && turn.stopReason !== "engine_restart") return;
     const completed = kind === "turn_completed";
     const woken = turn.origin === "session" && turn.wakeReason !== undefined;
     let runsAgain: boolean | undefined;
@@ -487,8 +489,8 @@ export class SessionSubscriptions {
   }
 
   /**
-   * Delivers one cohort as one notification. Under `settled_only` (the default) a subscriber mid-turn is not
-   * interrupted: the cohort is marked `ready` and delivered, as its own turn, when that turn ends.
+   * Delivers one cohort as one notification. It stays stored as `ready` until a turn holds its notice: a subscriber
+   * mid-turn under `settled_only` (the default) takes it when that turn ends, a full queue from the sweep.
    */
   private closeCohort(cohort: Cohort, reason: "all" | "expired"): void {
     const subscriberId = cohort.subscriberSessionId;
@@ -498,15 +500,18 @@ export class SessionSubscriptions {
       this.writeCohorts(remaining);
       return;
     }
+    const ready: Cohort = { ...cohort, ready: reason };
     if ((cohort.completionWake ?? "settled_only") === "settled_only" && this.host.hasLiveTurn(subscriberId)) {
-      this.writeCohorts([...remaining, { ...cohort, ready: reason }]);
+      this.writeCohorts([...remaining, ready]);
       return;
     }
-    this.writeCohorts(remaining);
     // Never the same ending twice: a (session, run) an earlier cohort notice already named is left out.
     const told = this.cohortEndingsDeliveredTo(subscriberId);
     const fresh = cohort.members.filter((member) => !(member.outcome && member.fetch && told.has(`${member.sessionId} ${member.fetch.runId}`)));
-    if (fresh.length === 0) return;
+    if (fresh.length === 0) {
+      this.writeCohorts(remaining);
+      return;
+    }
     const members = fresh.map((member) => {
       if (member.fetch) return member;
       // A member with no read of its own is given its latest turn, if it has one.
@@ -540,8 +545,11 @@ export class SessionSubscriptions {
       });
     } catch (error) {
       if (!(error instanceof EngineStateError && error.code === "conflict")) throw error;
-      this.host.warn(subscriberId, `cohort ${cohort.id} could not be delivered: ${error.message}`);
+      if (!cohort.ready) this.host.warn(subscriberId, `cohort ${cohort.id} is held until it can be delivered: ${error.message}`);
+      this.writeCohorts([...remaining, ready]);
+      return;
     }
+    this.writeCohorts(remaining);
   }
 
   /** Every "session run" a cohort notice on this subscriber has already named. */
@@ -557,7 +565,7 @@ export class SessionSubscriptions {
   /** The subscriber came up for air: deliver the cohorts that closed meanwhile. */
   deliverReadyCohorts(subscriberId: string): void {
     const ready = this.readCohorts().filter((cohort) => cohort.subscriberSessionId === subscriberId && cohort.ready);
-    for (const cohort of ready) this.closeCohort({ ...cohort, ready: undefined }, cohort.ready!);
+    for (const cohort of ready) this.closeCohort(cohort, cohort.ready!);
   }
 
   /** Every cohort past its expiry, delivered with what it has; also where a member put away unseen is noticed. */
@@ -568,7 +576,7 @@ export class SessionSubscriptions {
     for (const cohort of this.readCohorts()) {
       if (cohort.ready) {
         if (!this.host.hasLiveTurn(cohort.subscriberSessionId)) {
-          this.closeCohort({ ...cohort, ready: undefined }, cohort.ready);
+          this.closeCohort(cohort, cohort.ready);
           closed.push(cohort.id);
         }
         continue;

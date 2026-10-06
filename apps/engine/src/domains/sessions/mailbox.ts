@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { NotificationDetail } from "@telar/engine-client";
 import { MAX_COHORT_ENTRIES, mergeNotifications } from "../turns";
@@ -19,8 +20,19 @@ function notificationsFile(paths: EngineStatePaths, sessionId: string): string {
  */
 export class SessionMailbox {
   private readonly nextTurnNotes = new Map<string, string[]>();
+  private holders: Set<string> | undefined;
 
-  constructor(private readonly kernel: Kernel) {}
+  constructor(private readonly kernel: Kernel) {
+    kernel.onSessionDeleted((sessionId) => this.holders?.delete(sessionId));
+  }
+
+  /** Sessions whose box holds something: found on disk once, then kept as boxes change. */
+  heldSessionIds(): string[] {
+    this.holders ??= new Set(
+      this.kernel.executionStore.sessionIds().filter((sessionId) => fs.existsSync(notificationsFile(this.kernel.paths, sessionId)) && this.pending(sessionId).length > 0),
+    );
+    return [...this.holders];
+  }
 
   /** An absent or torn box reads as empty; every fact in it is readable at its source. */
   pending(sessionId: string): NotificationDetail[] {
@@ -36,6 +48,8 @@ export class SessionMailbox {
       pending,
       ...(heldSince === undefined ? {} : { heldSince }),
     });
+    if (pending.length > 0) this.holders?.add(sessionId);
+    else this.holders?.delete(sessionId);
   }
 
   /** When the box became non-empty: the report window's clock. Absent on older boxes, which read as due. */

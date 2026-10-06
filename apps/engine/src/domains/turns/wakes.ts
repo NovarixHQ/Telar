@@ -44,7 +44,11 @@ function wakeMessage(
       );
       break;
     case "turn_stopped":
-      lines.push(`[wake: stopped] ${who} — turn ${turn.runId} was stopped.`);
+      lines.push(
+        turn.stopReason === "engine_restart"
+          ? `[wake: stopped] ${who} — turn ${turn.runId} was cut off when the engine restarted, and nothing will continue it. Send it a task with sessions_send to resume it.`
+          : `[wake: stopped] ${who} — turn ${turn.runId} was stopped.`,
+      );
       break;
     case "request_opened": {
       const request = context.request!;
@@ -58,8 +62,6 @@ function wakeMessage(
   }
   lines.push(
     "—",
-    // THE RETRIEVAL IS DIRECTLY USABLE, and scoped to this run: a coordinator
-    // that wants the outcome should not have to page a journal to find it.
     `Fetch it with sessions_read(sessionId: "${target.id}", runId: "${turn.runId}") — that run's events and its final answer, bounded. Its diff with sessions_read(sessionId: "${target.id}", view: "diff").`,
   );
   return lines.join("\n");
@@ -232,13 +234,14 @@ export class TurnWakes {
         // is finished, and a subscription spent there never fired again.
         if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);
       } catch (error) {
-        // A full backlog or an ambiguous turn on the subscriber is that
-        // session's own state, and a wake is not worth breaking it for. Said
-        // on the subscriber's journal, where the person reading it will look.
+        // A full backlog on the subscriber is its own state, not worth breaking: the wake is held,
+        // and the next turn to end there or the mailbox sweep delivers it.
         if (error instanceof EngineStateError && error.code === "conflict") {
+          this.deps.mailbox.hold(subscriberId, notification);
+          if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);
           this.kernel.appendEvent(subscriberId, {
             type: "runtime.warning",
-            message: `a wake from session ${targetSessionId} (${kind}) was dropped: ${error.message}`,
+            message: `a wake from session ${targetSessionId} (${kind}) is held until it can be delivered: ${error.message}`,
           });
           continue;
         }
@@ -338,16 +341,11 @@ export class TurnWakes {
     const at = this.kernel.now();
     const merged: NotificationDetail = { ...mergeRunOutcome(waiting.notification, notification), deliveries };
     waiting.notification = merged;
-    // THE NOTICE AND THE NOTIFICATION ARE ONE STRING (#550). `agentNotice` is
-    // derived from the body and nothing else, so a merge that moved one and
-    // left the other is the drift that field exists to prevent.
     waiting.agentNotice = merged.body;
     waiting.updatedAt = at;
     this.deps.writeQueue(subscriberId, queue);
     this.deps.records.touch(subscriberId, at);
     this.rewriteNotificationItem(subscriberId, waiting);
-    // The strip redraws from `turn.accepted`; re-announcing the same run id
-    // with `replayed: true` is how a client learns the words changed.
     this.kernel.appendEvent(subscriberId, { type: "turn.accepted", turn: structuredClone(waiting), replayed: true }, waiting.runId);
     return true;
   }
@@ -403,12 +401,10 @@ export class TurnWakes {
     // Peer mail alone is not a reason for a turn: it rides with the next one.
     if (pending.every(isPeerMail)) return;
     const merged = heldDelivery(mergeNotifications(pending));
-    // CLEARED BEFORE THE SUBMIT, so a submit that throws cannot be retried into
-    // a duplicate — and after it, the facts live on the turn, which is durable.
-    this.deps.mailbox.setPending(sessionId, []);
     // A notification turn already queued takes the held mail with it.
     const waiting = this.waitingNotificationTurn(sessionId);
     if (waiting) {
+      this.deps.mailbox.setPending(sessionId, []);
       this.joinWaitingNotification(sessionId, waiting, merged);
       return;
     }
@@ -431,14 +427,12 @@ export class TurnWakes {
         notification: delivered,
       });
     } catch (error) {
-      // Same contract as `fireSubscriptions`: the recipient's own state is not
-      // worth breaking a delivery for, and the reason goes where a person looks.
-      if (error instanceof EngineStateError && error.code === "conflict") {
-        this.kernel.appendEvent(sessionId, { type: "runtime.warning", message: `held notifications could not be delivered: ${error.message}` });
-        return;
-      }
+      // The box stays as it is: the next turn to end here or the mailbox sweep tries again.
+      if (error instanceof EngineStateError && error.code === "conflict") return;
       throw error;
     }
+    // Cleared only once a turn holds it, in the same command, so a failed submit loses nothing.
+    this.deps.mailbox.setPending(sessionId, []);
   }
 
   /** What the cap kept from being pushed again, for `sessions_status`. */
@@ -461,6 +455,18 @@ export class TurnWakes {
     items.set(item.id, item);
     this.deps.items.write(sessionId, items, new Set([item.id]));
     this.kernel.appendEvent(sessionId, { type: "item.updated", item }, turn.runId);
+  }
+
+  /** Retries every box a restart, a lost worker or a full queue left undelivered. */
+  sweepMailboxes(): void {
+    for (const sessionId of this.deps.mailbox.heldSessionIds()) {
+      try {
+        if (this.deps.records.require(sessionId).state !== "active") continue;
+        this.kernel.command("flushMailbox", () => this.flushPendingNotifications(sessionId));
+      } catch (error) {
+        console.warn(`[engine] could not deliver the held notifications of ${sessionId}:`, error);
+      }
+    }
   }
 
   /** Withdraws queued wakes (from one source, or all); a turn other sessions' news joined keeps the rest. */

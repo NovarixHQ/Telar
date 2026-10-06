@@ -64,21 +64,23 @@ struct RemoteDevice: Decodable, Identifiable, Equatable {
     var name: String
     var createdAt: Timestamp?
     var lastSeenAt: Timestamp?
+    var connected: Bool
 
     var role: String
 
     var platform: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, createdAt, lastSeenAt, role, platform
+        case id, name, createdAt, lastSeenAt, connected, role, platform
     }
 
     init(id: String, name: String, createdAt: Timestamp? = nil, lastSeenAt: Timestamp? = nil,
-         role: String = "full", platform: String? = nil) {
+         connected: Bool = false, role: String = "full", platform: String? = nil) {
         self.id = id
         self.name = name
         self.createdAt = createdAt
         self.lastSeenAt = lastSeenAt
+        self.connected = connected
         self.role = role
         self.platform = platform
     }
@@ -89,6 +91,7 @@ struct RemoteDevice: Decodable, Identifiable, Equatable {
         name = try container.decode(String.self, forKey: .name)
         createdAt = try container.decodeIfPresent(Timestamp.self, forKey: .createdAt)
         lastSeenAt = try container.decodeIfPresent(Timestamp.self, forKey: .lastSeenAt)
+        connected = try container.decodeIfPresent(Bool.self, forKey: .connected) ?? false
         role = try container.decodeIfPresent(String.self, forKey: .role) ?? "full"
         platform = try container.decodeIfPresent(String.self, forKey: .platform)
     }

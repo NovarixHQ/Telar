@@ -226,6 +226,9 @@ struct DevicesView: View {
     }
 
     private func subtitle(_ device: RemoteDevice) -> String {
+        if device.connected {
+            return "Connected"
+        }
         if let seen = device.lastSeenAt {
             return "Last seen \(ago(seen))"
         }

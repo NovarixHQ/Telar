@@ -46,7 +46,7 @@ private func stubAPI() -> HTTPEngineAPI {
         let json = """
         {"requireAuth":true,
          "devices":[
-          {"id":"dev_1","name":"Phone","createdAt":1000,"lastSeenAt":2000,"role":"full","platform":"ios"},
+          {"id":"dev_1","name":"Phone","createdAt":1000,"lastSeenAt":2000,"connected":true,"role":"full","platform":"ios"},
           {"id":"dev_2","name":"Browser","createdAt":1000,"role":"observer","platform":"browser"},
           {"id":"dev_3","name":"Old","createdAt":1000,"role":"full"}],
          "callerDeviceId":"dev_1","callerRole":"full"}
@@ -59,6 +59,8 @@ private func stubAPI() -> HTTPEngineAPI {
         #expect(status.requireAuth)
         #expect(status.callerDeviceId == "dev_1")
         #expect(status.devices.count == 3)
+        #expect(status.devices[0].connected)
+        #expect(!status.devices[1].connected)
         #expect(status.devices[1].role == "observer")
         #expect(status.devices[2].platform == nil)
     }

@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { OWN_GROUP, stopGroup } from "./group";
 
-export type ProcessOptions = { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number };
+export type ProcessOptions = { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; input?: string };
 export type ProcessResult = { code: number | null; stdout: string; stderr: string };
 
 export type ProcessHandle = {
@@ -12,7 +12,7 @@ export type ProcessHandle = {
 
 export type ProcessRunner = {
   run(file: string, args: readonly string[], options?: ProcessOptions): Promise<ProcessResult>;
-  start(file: string, args: readonly string[], options?: Omit<ProcessOptions, "timeoutMs">): ProcessHandle;
+  start(file: string, args: readonly string[], options?: Omit<ProcessOptions, "timeoutMs" | "input">): ProcessHandle;
 };
 
 const OUTPUT_LIMIT = 4_000_000;
@@ -22,7 +22,9 @@ export const processRunner: ProcessRunner = {
     return new Promise((resolve) => {
       let stdout = "";
       let stderr = "";
-      const child = spawn(file, [...args], { cwd: options.cwd, env: options.env, detached: OWN_GROUP, stdio: ["ignore", "pipe", "pipe"] });
+      const child = spawn(file, [...args], { cwd: options.cwd, env: options.env, detached: OWN_GROUP, stdio: ["pipe", "pipe", "pipe"] });
+      child.stdin.on("error", () => undefined);
+      child.stdin.end(options.input);
       const timer = options.timeoutMs ? setTimeout(() => stopGroup(child, 500), options.timeoutMs) : undefined;
       child.stdout.on("data", (chunk: Buffer) => (stdout = (stdout + chunk.toString("utf8")).slice(-OUTPUT_LIMIT)));
       child.stderr.on("data", (chunk: Buffer) => (stderr = (stderr + chunk.toString("utf8")).slice(-OUTPUT_LIMIT)));

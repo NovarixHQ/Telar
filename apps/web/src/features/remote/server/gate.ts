@@ -17,5 +17,5 @@ export async function identifyCaller(request: Request): Promise<Caller> {
 }
 
 export async function decideAccess(request: Request, pathname: string): Promise<GateDecision> {
-  return (await engineCall("POST", "/v2/auth/decide", { ...credentialsOf(request), pathname, method: request.method, host: request.headers.get("host") })).body as GateDecision;
+  return (await engineCall("POST", "/v2/auth/decide", { ...credentialsOf(request), pathname, method: request.method, host: request.headers.get("host"), ticket: new URL(request.url).searchParams.get("ticket") })).body as GateDecision;
 }

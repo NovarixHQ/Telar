@@ -1,7 +1,12 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import type { SimulatorSummary } from "@telar/engine-client";
+import { EngineClient, type SimulatorSummary } from "@telar/engine-client";
+import { startEngine } from "../src/daemon";
+import type { OpenSocket } from "../src/domains/simulators/input";
+import { stubModels } from "./stub-models";
 import type { ProcessHandle, ProcessOptions, ProcessResult, ProcessRunner } from "../src/platform/process/runner";
+import type { ActionDeps } from "../src/domains/simulators/actions";
 
 type Call = { file: string; args: readonly string[]; options?: ProcessOptions };
 
@@ -38,15 +43,17 @@ export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?
   return { runner, runs, starts, started };
 }
 
-type HubRequest = { method: string; path: string; body?: Record<string, unknown> };
+type HubRequest = { method: string; path: string; search: string; headers: Record<string, string>; body?: Record<string, unknown>; text?: string };
 
 export function fakeHub(devices: SimulatorSummary[], options: { bootError?: string; ready?: boolean } = {}) {
   const requests: HubRequest[] = [];
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input));
-    const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined;
-    requests.push({ method: init?.method ?? "GET", path: url.pathname, ...(body ? { body } : {}) });
+    const text = init?.body instanceof ReadableStream ? await new Response(init.body).text() : undefined;
+    const body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : undefined;
+    const headers = Object.fromEntries(new Headers(init?.headers).entries());
+    requests.push({ method: init?.method ?? "GET", path: url.pathname, search: url.search, headers, ...(body ? { body } : {}), ...(text !== undefined ? { text } : {}) });
     const find = (id: unknown) => devices.find((device) => device.id === id);
     switch (url.pathname) {
       case "/readyz":
@@ -70,7 +77,10 @@ export function fakeHub(devices: SimulatorSummary[], options: { bootError?: stri
         return json({ ok: true });
       }
       default:
-        return json({ error: "not found" }, 404);
+        if (url.pathname.endsWith("/stream.mjpeg")) {
+          return new Response(new Blob(["--frame\r\n", "jpeg"]).stream(), { headers: { "content-type": "multipart/x-mixed-replace; boundary=frame", "content-encoding": "identity", "cache-control": "max-age=60" } });
+        }
+        return json({ hub: url.pathname });
     }
   }) as typeof fetch;
   return { fetch: fetchImpl, requests };
@@ -78,3 +88,42 @@ export function fakeHub(devices: SimulatorSummary[], options: { bootError?: stri
 
 export const iPhone = (): SimulatorSummary => ({ id: "A1B2-UDID", platform: "ios", name: "iPhone 16", version: "iOS 18.0", booted: false, physical: false });
 export const pixel = (): SimulatorSummary => ({ id: "Pixel_8", platform: "android", name: "Pixel 8", version: "Android 15", booted: false, physical: false });
+
+type Run = { file: string; args: readonly string[]; input?: string };
+
+export function fakeActionDeps(answers: Record<string, Partial<ProcessResult>> = {}, helpers = { axSettings: "/hub/ax", serveSimCli: "/hub/serve-sim.js" }) {
+  const runs: Run[] = [];
+  const value: ActionDeps = {
+    async run(file: string, args: readonly string[], options?: ProcessOptions) {
+      runs.push({ file, args, ...(options?.input !== undefined ? { input: options.input } : {}) });
+      const answer = answers[[file, ...args].join(" ")] ?? {};
+      return { code: 0, stdout: "", stderr: "", ...answer };
+    },
+    helpers: () => helpers,
+  };
+  return { deps: value, runs, commands: () => runs.map((run) => [run.file, ...run.args].join(" ")) };
+}
+
+export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string } = {}) {
+  const engineRoot = options.engineRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-http-"));
+  const fake = fakeRunner();
+  const hub = fakeHub(options.devices ?? [iPhone()]);
+  const daemon = await startEngine({
+    models: stubModels,
+    engineRoot,
+    simulators: { runner: fake.runner, fetch: hub.fetch, platform: "darwin", reservePort: async () => 4321, sleep: async () => undefined, ...(options.openSocket ? { openSocket: options.openSocket } : {}) },
+  });
+  const client = new EngineClient(daemon.discovery);
+  const close = async () => {
+    await daemon.close();
+    fs.rmSync(engineRoot, { recursive: true, force: true });
+  };
+  if (options.ready) {
+    await client.setSimulatorSettings({ enabled: true });
+    let state = (await client.simulators()).simulators;
+    for (let reads = 0; state.status !== "ready" && reads < 50; reads += 1) state = (await client.simulators()).simulators;
+  }
+  const request = (pathname: string, init: RequestInit = {}) =>
+    fetch(`http://127.0.0.1:${daemon.discovery.port}${pathname}`, { ...init, headers: { authorization: `Bearer ${daemon.discovery.token}`, ...init.headers } });
+  return { daemon, client, engineRoot, hub, close, request, ...fake };
+}

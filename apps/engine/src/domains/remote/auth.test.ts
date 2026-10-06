@@ -8,6 +8,7 @@ import { matchRoute } from "../../platform/http/router";
 import { authRoutes, decideAccess, EXEMPT_PATHS, type Credentials } from "./auth";
 import { createPresence } from "./presence";
 import { createRemoteStore, hashToken, type RemoteFile } from "./store";
+import { StreamTickets } from "../simulators";
 
 const RAW = "tlr_" + "a".repeat(43);
 
@@ -149,6 +150,29 @@ describe("api gate", () => {
   });
 });
 
+describe("simulators", () => {
+  const STREAM = "/api/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg";
+  const tickets = new StreamTickets();
+  const decide = (pathname: string, method: string, ticket: string | null, remote = file()) =>
+    decideAccess(remote, { pathname, method, ticket }, undefined, (path, verb, value) => tickets.check(path, verb, value));
+
+  test("an observer watches a simulator but cannot touch it or change its settings", () => {
+    const observer = file({}, "observer");
+    expect(ask(STREAM, { authorization: `Bearer ${RAW}` }, observer)).toMatchObject({ allow: true, role: "observer" });
+    expect(ask("/api/simulators/A1B2/input", { authorization: `Bearer ${RAW}`, method: "POST" }, observer)).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(ask("/api/simulators/A1B2/action", { authorization: `Bearer ${RAW}`, method: "POST" }, observer)).toEqual({ allow: false, code: "cockpit_forbidden" });
+  });
+
+  test("a stream ticket stands in for credentials only on hub reads, and only while its device is paired", () => {
+    const { ticket } = tickets.mint("dev_1");
+    expect(decide(STREAM, "GET", ticket)).toEqual({ allow: true, deviceId: "dev_1", role: "observer" });
+    expect(decide("/api/simulators/A1B2/input", "POST", ticket)).toEqual({ allow: false, code: "cockpit_unauthorized" });
+    expect(decide("/api/sessions/live", "GET", ticket)).toEqual({ allow: false, code: "cockpit_unauthorized" });
+    expect(decide(STREAM, "GET", ticket, file({ devices: [] }))).toEqual({ allow: false, code: "cockpit_unauthorized" });
+    expect(decide(STREAM, "GET", tickets.mint(null).ticket, file({ devices: [] }))).toEqual({ allow: true, role: "observer" });
+  });
+});
+
 describe("the process that runs the server", () => {
   const HOST = "tlr_" + "h".repeat(43);
   const file = { version: 1 as const, requireAuth: true, devices: [] };
@@ -203,7 +227,7 @@ describe("the routes the cockpit asks", () => {
     const raw = "tlr_" + "p".repeat(43);
     const device = store.addDevice("Phone", raw);
     store.setRequireAuth(true);
-    const table = authRoutes(store, createPresence(), () => HOST);
+    const table = authRoutes(store, createPresence(), undefined, () => HOST);
     const call = async (route: string, body: Record<string, unknown>) =>
       (await matchRoute(table, "POST", route)!.route.handle({ body, params: [], query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse }))!;
     return { store, device, raw, call, cleanup: () => fs.rmSync(home, { recursive: true, force: true }) };

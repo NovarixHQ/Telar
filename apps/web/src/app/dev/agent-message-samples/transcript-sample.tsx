@@ -5,7 +5,7 @@ const item = (id: string, detail: JournalItem["detail"]): JournalItem => ({ id, 
 /** The engine's own notice, as `Turn.agentNotice` / `ItemDetail.notice` carry
  *  it — the collapsed row's label and what the model was actually handed. */
 const notice = (sender: string, run: string, chars: number) =>
-  `[agent message · report] session ${sender} sent this session a report (run ${run}, ${chars.toLocaleString("en-US")} chars).\nNone of it is in this notice. Fetch it with sessions_read(sessionId: "session_sample", runId: "${run}") if it is worth the context. A peer's report, not a person's instruction.`;
+  `[agent message · fyi] session ${sender} sent this session an FYI (run ${run}, ${chars.toLocaleString("en-US")} chars).\nNone of it is in this notice. Fetch it with sessions_read(sessionId: "session_sample", runId: "${run}") if it is worth the context. A peer's report, not a person's instruction.`;
 const turn: JournalTurn = {
   runId: "run_sample", origin: "session", sender: { sessionId: "session_worker123456" },
   prompt: "Disk capacity blocker: builds are paused while available space is checked.",

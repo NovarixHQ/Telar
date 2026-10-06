@@ -52,7 +52,7 @@ test("a report is stored whole and handed to the model as one line naming the fe
   // other half safe: the notice can be short because nothing was lost.
   expect(turn.input).toBe(REPORT);
   expect(turn.agentNotice).toBe(
-    `[agent message · report] session session_worker sent this session a report (run run_report, ${REPORT.length.toLocaleString("en-US")} chars).\nNone of it is in this notice. Fetch it with sessions_read(sessionId: "session_host", runId: "run_report") if it is worth the context.`,
+    `[agent message · fyi] session session_worker sent this session an FYI (run run_report, ${REPORT.length.toLocaleString("en-US")} chars).\nNone of it is in this notice. Fetch it with sessions_read(sessionId: "session_host", runId: "run_report") if it is worth the context.`,
   );
   // NOT ONE WORD OF THE MESSAGE, not even its headline (#631). An excerpt is
   // what lets a recipient act without fetching; there is nothing here to act on.
@@ -107,7 +107,7 @@ test("the size is the whole body's, and it is the only thing the body contribute
     recipientSessionId: "session_host",
     runId: "run_x",
     body: `${"a".repeat(400)}\n\nrest`,
-    intent: "report",
+    intent: "fyi",
     sender: { sessionId: "session_worker" },
   });
   // That number is the whole decision now: with nothing quoted, what fetching
@@ -153,7 +153,7 @@ test("a notice does not grow with the message, however long the opening is", () 
 });
 
 test("every intent is announced; a task and a report are never quoted", () => {
-  for (const intent of ["task", "blocker", "report", "result"] as const) {
+  for (const intent of ["task", "blocker", "fyi", "result"] as const) {
     const notice = agentNotice({
       recipientSessionId: "session_host",
       runId: "run_x",
@@ -163,7 +163,7 @@ test("every intent is announced; a task and a report are never quoted", () => {
     });
     expect(notice).toStartWith(`[agent message · ${intent}] session session_worker `);
     expect(notice).toContain(`sessions_read(sessionId: "session_host", runId: "run_x")`);
-    if (intent === "task" || intent === "report") {
+    if (intent === "task" || intent === "fyi") {
       expect(notice).not.toContain("SENSITIVE PAYLOAD");
       // A task also says how to report back (session-tools audit).
       expect(notice.split("\n")).toHaveLength(intent === "task" ? 3 : 2);
@@ -213,7 +213,7 @@ test("the excerpt cuts mid-word only when no word break is near", () => {
  * stored, rendered on four surfaces and paid for by every recipient.
  */
 test("the notice says nothing about authorization, on any intent", () => {
-  for (const intent of ["task", "blocker", "report", "result"] as const) {
+  for (const intent of ["task", "blocker", "fyi", "result"] as const) {
     const notice = agentNotice({
       recipientSessionId: "session_host",
       runId: "run_x",

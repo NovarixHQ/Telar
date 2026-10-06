@@ -254,10 +254,10 @@ const NOTIFICATION = {
   kind: "peer_message" as const,
   sessionId: "session_peer",
   runId: "run_x",
-  intent: "report" as const,
-  summary: "[agent message · report] from session session_peer",
+  intent: "fyi" as const,
+  summary: "[agent message · fyi] from session session_peer",
   fetch: { sessionId: "session_one", runId: "run_one" },
-  body: "[agent message · report] from session session_peer (run run_x, 9 chars)",
+  body: "[agent message · fyi] from session session_peer (run run_x, 9 chars)",
 };
 
 test("an image-only message sends the file part and no text part", async () => {

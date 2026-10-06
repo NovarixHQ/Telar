@@ -13,7 +13,7 @@ function verbPhrase(intent: NonNullable<Turn["agentIntent"]>): string {
     case "result":
       return "sent this session a result";
     default:
-      return "sent this session a report";
+      return "sent this session an FYI";
   }
 }
 

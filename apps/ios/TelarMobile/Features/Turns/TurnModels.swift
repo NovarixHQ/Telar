@@ -127,7 +127,7 @@ func describeProviderWake(_ reason: ProviderReason?) -> String {
 
 func notificationVerb(kind: String, intent: String? = nil, wakeKind: String? = nil) -> String {
     if kind == "peer_message" {
-        switch intent ?? "report" {
+        switch intent ?? "fyi" {
         case "task": return "A session assigned work"
         case "blocker": return "A session reported a blocker"
         case "result": return "A session sent a result"

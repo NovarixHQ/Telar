@@ -1,14 +1,4 @@
-/**
- * PEER MAIL NEVER OPENS A TURN — the session-tools audit.
- *
- * A report, or a result nobody subscribed to, used to wake an idle recipient
- * (#631 part 2), and a report window (#723, #784) was the knob for holding them
- * instead. The coordinator paid for it either way: it finished its reply and
- * was woken again to read a progress note and answer "noted". Now peer mail is
- * always held and handed over with the recipient's next turn, whatever starts
- * it — a real wake, or the person's own message. A task, a blocker and an
- * awaited result still arrive at once; the window is retired.
- */
+/** Peer mail (an fyi, or a result nobody awaits) is held for the recipient's next turn; a task, a blocker and an awaited result arrive at once. */
 import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
@@ -43,12 +33,12 @@ function setup() {
 
 type Proof = Parameters<EngineStore["intake"]["submitAgentTurn"]>[2];
 const queued = (store: EngineStore) => store.queries.turns("session_host").filter((turn) => turn.state === "queued");
-const send = (store: EngineStore, proof: Proof, runId: string, intent: "report" | "result" | "blocker" | "task", input = "progress") =>
+const send = (store: EngineStore, proof: Proof, runId: string, intent: "fyi" | "result" | "blocker" | "task", input = "progress") =>
   store.intake.submitAgentTurn("session_host", { runId, input, intent }, proof);
 
-test("a report to an IDLE recipient is held, and opens no turn", () => {
+test("an fyi to an IDLE recipient is held, and opens no turn", () => {
   const { store, proof } = setup();
-  const held = send(store, proof, "run_report", "report");
+  const held = send(store, proof, "run_report", "fyi");
   expect(held.turn).toMatchObject({ state: "completed", agentDelivery: "passive" });
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(1);
   expect(queued(store)).toHaveLength(0);
@@ -63,8 +53,8 @@ test("a result nobody subscribed to is mail too", () => {
 
 test("the person's next message carries the held mail, as a note, in the same turn", () => {
   const { store, proof } = setup();
-  send(store, proof, "run_one", "report", "tests written");
-  send(store, proof, "run_two", "report", "CI running");
+  send(store, proof, "run_one", "fyi", "tests written");
+  send(store, proof, "run_two", "fyi", "CI running");
   store.intake.submitTurn("session_host", { runId: "run_person", input: "how is it going?" });
   // The worker's claim is what the driver is handed; the notes ride on it.
   const claim = store.claims.claimNextTurn("worker_two")!;
@@ -82,7 +72,7 @@ test("the end of the host's own turn does not turn held mail into a turn", () =>
   store.intake.submitTurn("session_host", { runId: "run_think", input: "a long think" });
   const token = store.claims.claimTurn("session_host", "worker_two")!.claim!.token;
   store.turnLifecycle.markRunning("session_host", "run_think", token);
-  send(store, proof, "run_report", "report");
+  send(store, proof, "run_report", "fyi");
   store.turnLifecycle.completeTurn("session_host", "run_think", token, { text: "done thinking" });
   // The complaint: finishing a reply, then being woken just to read "progress".
   expect(queued(store)).toHaveLength(0);
@@ -91,7 +81,7 @@ test("the end of the host's own turn does not turn held mail into a turn", () =>
 
 test("held mail rides with the next real wake, as one notification", () => {
   const { store, proof } = setup();
-  send(store, proof, "run_report", "report", "halfway");
+  send(store, proof, "run_report", "fyi", "halfway");
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_worker" });
   store.turnLifecycle.completeTurn("session_worker", "run_source", proof.claimToken, { text: "Stopped without a result." });
   const woken = queued(store);
@@ -127,7 +117,7 @@ test("only a task or a blocker steers into the host's running turn", () => {
  * earlier message is withdrawn and the correction takes its place; read, the
  * correction arrives at once.
  */
-const correct = (store: EngineStore, proof: Proof, runId: string, corrects: string, intent: "report" | "result" = "report") =>
+const correct = (store: EngineStore, proof: Proof, runId: string, corrects: string, intent: "fyi" | "result" = "fyi") =>
   store.intake.submitAgentTurn("session_host", { runId, input: "the figure is 12, not 21", intent, corrects }, proof);
 
 test("a correction to a message still WAITING as a wake replaces it", () => {
@@ -143,7 +133,7 @@ test("a correction to a message still WAITING as a wake replaces it", () => {
 
 test("a correction to a message still HELD in the mailbox replaces it there", () => {
   const { store, proof } = setup();
-  send(store, proof, "run_wrong", "report");
+  send(store, proof, "run_wrong", "fyi");
   expect(store.wakes.pendingNotifications("session_host").map((each) => each.runId)).toEqual(["run_wrong"]);
   correct(store, proof, "run_fixed", "run_wrong");
   expect(store.wakes.pendingNotifications("session_host").map((each) => each.runId)).toEqual(["run_fixed"]);
@@ -167,7 +157,7 @@ test("a correction can only name the sender's own earlier message to this sessio
   store.intake.submitTurn("session_host", { runId: "run_human", input: "a person's message" });
   expect(() => correct(store, proof, "run_fixed", "run_human")).toThrow(EngineStateError);
   expect(() => correct(store, proof, "run_fixed", "run_nothing")).toThrow("corrects must name an earlier message you sent to this session");
-  send(store, proof, "run_wrong", "report");
+  send(store, proof, "run_wrong", "fyi");
   correct(store, proof, "run_fixed", "run_wrong");
   expect(correct(store, proof, "run_fixed", "run_wrong").replayed).toBe(true);
 });

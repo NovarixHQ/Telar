@@ -122,7 +122,7 @@ describe("driving a session", () => {
     store.intake.submitTurn(worker.id, { runId: "run_source", input: "work" });
     const token = store.claims.claimTurn(worker.id, "worker_one")!.claim!.token;
     store.turnLifecycle.markRunning(worker.id, "run_source", token);
-    store.intake.submitAgentTurn(host.id, { runId: "run_report", input: "progress", intent: "report" }, { sessionId: worker.id, runId: "run_source", claimToken: token });
+    store.intake.submitAgentTurn(host.id, { runId: "run_report", input: "progress", intent: "fyi" }, { sessionId: worker.id, runId: "run_source", claimToken: token });
 
     const status = await call(tools, "sessions_read", { view: "status", sessionId: host.id });
     expect((status.json!.pendingNotifications as string[]).length).toBe(1);

@@ -203,7 +203,7 @@ test("a peer's report to an idle host rides the wake already queued there, as a 
   store.intake.submitTurn("session_b", { runId: "run_b", input: "work" });
   const claim = store.claims.claimTurn("session_b", "worker_child")!.claim!;
   store.turnLifecycle.markRunning("session_b", "run_b", claim.token);
-  const sent = store.intake.submitAgentTurn("session_host", { runId: "run_msg", input: "found the bug", intent: "report" }, { sessionId: "session_b", runId: "run_b", claimToken: claim.token });
+  const sent = store.intake.submitAgentTurn("session_host", { runId: "run_msg", input: "found the bug", intent: "fyi" }, { sessionId: "session_b", runId: "run_b", claimToken: claim.token });
   expect(sent.turn.agentDelivery).toBe("passive");
 
   const woken = notifications(store).filter((turn) => turn.agentDelivery !== "passive");

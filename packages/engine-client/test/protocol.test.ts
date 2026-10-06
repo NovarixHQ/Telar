@@ -181,9 +181,9 @@ describe("Turn", () => {
       input: "the whole report",
       origin: "session",
       sender: { sessionId: "session_worker" },
-      agentIntent: "report",
+      agentIntent: "fyi",
       agentDelivery: "passive",
-      agentNotice: '[agent message · report] from session session_worker (run r1, 16 chars): "the whole report"',
+      agentNotice: '[agent message · fyi] from session session_worker (run r1, 16 chars): "the whole report"',
     });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
@@ -220,7 +220,7 @@ describe("ItemDetail", () => {
       type: "user_message",
       text: "the whole report",
       sender: { sessionId: "session_worker" },
-      notice: '[agent message · report] from session session_worker (run r1, 16 chars): "the whole report"',
+      notice: '[agent message · fyi] from session session_worker (run r1, 16 chars): "the whole report"',
     });
     expect(parsed.success).toBe(true);
     if (parsed.success && parsed.data.type === "user_message") {

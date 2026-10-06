@@ -48,7 +48,7 @@ export type NotificationVerbs = {
 
 export function notificationVerbs(subject: NotificationSubject): NotificationVerbs {
   if (subject.kind === "peer_message") {
-    switch (subject.intent ?? "report") {
+    switch (subject.intent ?? "fyi") {
       case "task":
         return { verb: "A session assigned work", tone: "muted" };
       case "blocker":

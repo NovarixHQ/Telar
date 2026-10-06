@@ -37,7 +37,7 @@ test("a task from a peer is an assignment; a report from the same peer is not", 
   // would make a session look like somebody's employee.
   const turns: AssignmentTurn[] = [
     task("run_task", "session_coord"),
-    { runId: "run_report", origin: "session", state: "completed", sender: { sessionId: "session_coord" }, agentIntent: "report", acceptedAt: 2 },
+    { runId: "run_report", origin: "session", state: "completed", sender: { sessionId: "session_coord" }, agentIntent: "fyi", acceptedAt: 2 },
   ];
   expect(activeAssignments(turns).map((a) => a.taskRunId)).toEqual(["run_task"]);
 });

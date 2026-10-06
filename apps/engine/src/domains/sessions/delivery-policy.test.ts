@@ -36,7 +36,7 @@ test("routine reports are durable activity, never a claimed run or a notificatio
   // this: a routine report must not steer, claim, or cascade into one.
   busy(store);
   const report = store.intake.submitAgentTurn("session_host", { runId: "run_report", input: "routine progress" }, proof);
-  expect(report.turn).toMatchObject({ state: "completed", agentIntent: "report", agentDelivery: "passive" });
+  expect(report.turn).toMatchObject({ state: "completed", agentIntent: "fyi", agentDelivery: "passive" });
   expect(store.claims.claimTurn("session_host", "worker_three")).toBeUndefined();
   expect(store.queries.turns("session_observer")).toHaveLength(0);
   expect(store.subscriptions.subscriptionsFor("session_host")).toHaveLength(1);
@@ -55,7 +55,7 @@ test("routine reports are durable activity, never a claimed run or a notificatio
 test("a report to an IDLE session is held, and rides the next turn as a note", () => {
   const { store, proof } = setup();
   const report = store.intake.submitAgentTurn("session_host", { runId: "run_report", input: "routine progress" }, proof);
-  expect(report.turn).toMatchObject({ state: "completed", agentIntent: "report", agentDelivery: "passive" });
+  expect(report.turn).toMatchObject({ state: "completed", agentIntent: "fyi", agentDelivery: "passive" });
   expect(report.turn.sender).toEqual({ sessionId: "session_worker" });
   // Nothing to claim: no turn was opened for it.
   expect(store.claims.claimTurn("session_host", "worker_two")).toBeUndefined();
@@ -78,7 +78,7 @@ test("messages held during a long turn stay held when it ends, and arrive togeth
   const { store, proof } = setup();
   const token = busy(store);
   for (const n of [1, 2, 3]) {
-    const held = store.intake.submitAgentTurn("session_host", { runId: `run_report_${n}`, input: `progress ${n}`, intent: "report" }, proof);
+    const held = store.intake.submitAgentTurn("session_host", { runId: `run_report_${n}`, input: `progress ${n}`, intent: "fyi" }, proof);
     expect(held.turn.agentDelivery).toBe("passive");
   }
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(3);
@@ -98,7 +98,7 @@ test("messages held during a long turn stay held when it ends, and arrive togeth
 test("a single held message says it was held, and the message row itself is untouched", () => {
   const { store, proof } = setup();
   const token = busy(store);
-  store.intake.submitAgentTurn("session_host", { runId: "run_one", input: "progress", intent: "report" }, proof);
+  store.intake.submitAgentTurn("session_host", { runId: "run_one", input: "progress", intent: "fyi" }, proof);
   store.turnLifecycle.completeTurn("session_host", "run_host", token, { text: "done" });
   store.intake.submitTurn("session_host", { runId: "run_person", input: "next" });
   const notes = store.claims.claimNextTurn("worker_two")!.notes!;
@@ -127,7 +127,7 @@ test("a routine report never steers an already running coordinator", () => {
   store.intake.submitTurn("session_host", { runId: "run_host", input: "coordinate" });
   const token = store.claims.claimTurn("session_host", "worker_two")!.claim!.token;
   store.turnLifecycle.markRunning("session_host", "run_host", token);
-  store.intake.submitAgentTurn("session_host", { runId: "run_report", input: "progress", intent: "report" }, proof);
+  store.intake.submitAgentTurn("session_host", { runId: "run_report", input: "progress", intent: "fyi" }, proof);
   expect(store.worker.steerForWorker("worker_two")).toHaveLength(0);
   expect(store.queries.turns("session_host").find(t => t.runId === "run_host")?.state).toBe("running");
 });

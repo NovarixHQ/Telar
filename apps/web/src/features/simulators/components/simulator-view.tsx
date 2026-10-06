@@ -1,18 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { HomeIcon, PowerIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 import type { SimulatorInput, SimulatorSummary } from "@telar/engine-client";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
 import { cn } from "@/ui/utils";
 import { hubUrl, type SimulatorsApi } from "../api";
+import { DeviceFrame, deviceShape, fitDevice } from "./device-frame";
+import { SimulatorToolbar } from "./simulator-toolbar";
 import { hidUsage, inputQueue, NEXT_ORIENTATION, rawPoint, readScreenConfig, ROTATION_DEGREES, type Orientation, type ScreenConfig } from "../input";
 import { startStream, type StreamStatus } from "../stream";
 
 const TICKET_REFRESH_MS = 4 * 60_000;
 const CONFIG_POLL_MS = 2_000;
-const IOS_ASPECT = 9 / 19.5;
+const STAGE_PADDING = 24;
+const COPIED_MS = 1_500;
 
 type ViewProps = {
   simulator: SimulatorSummary;
@@ -23,11 +25,6 @@ type ViewProps = {
   onToggleSettings: () => void;
   onPowerOff: () => Promise<void>;
 };
-
-function fitFrame(aspect: number, width: number, height: number): { width: number; height: number } {
-  if (width <= 0 || height <= 0) return { width: 0, height: 0 };
-  return height * aspect <= width ? { width: height * aspect, height } : { width, height: width / aspect };
-}
 
 const clamp01 = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0);
 
@@ -85,31 +82,6 @@ function useBox(element: HTMLElement | null): { width: number; height: number } 
   return box;
 }
 
-type ToolbarProps = { ios: boolean; powering: boolean; settingsOpen: boolean; onPress: (event: SimulatorInput) => void; onRotate: () => void; onToggleSettings: () => void; onPowerOff: () => void };
-
-function SimulatorToolbar({ ios, powering, settingsOpen, onPress, onRotate, onToggleSettings, onPowerOff }: ToolbarProps) {
-  return (
-    <div role="toolbar" aria-label="Simulator controls" className="flex shrink-0 items-center gap-0.5 border-b border-border px-2 py-1">
-      {ios && (
-        <>
-          <Button size="icon-sm" variant="ghost" aria-label="Home" onClick={() => onPress({ type: "button", button: "home" })}>
-            <HomeIcon />
-          </Button>
-          <Button size="icon-sm" variant="ghost" aria-label="Rotate" onClick={onRotate}>
-            <RotateCcwIcon />
-          </Button>
-        </>
-      )}
-      <Button size="icon-sm" variant={settingsOpen ? "secondary" : "ghost"} aria-label="Simulator settings" aria-pressed={settingsOpen} onClick={onToggleSettings}>
-        <SlidersHorizontalIcon />
-      </Button>
-      <Button size="icon-sm" variant="ghost" className="ml-auto" aria-label="Power off" disabled={powering} onClick={onPowerOff}>
-        {powering ? <Spinner /> : <PowerIcon />}
-      </Button>
-    </div>
-  );
-}
-
 function useMjpegProbe(image: HTMLImageElement | null, url: string | undefined, loaded: (width: number, height: number) => void) {
   useEffect(() => {
     if (!image || !url) return;
@@ -120,6 +92,48 @@ function useMjpegProbe(image: HTMLImageElement | null, url: string | undefined, 
     }, 250);
     return () => clearInterval(timer);
   }, [image, url, loaded]);
+}
+
+function useScreenshotCopy(api: SimulatorsApi, id: string, onError: (message: string | undefined) => void) {
+  const [capture, setCapture] = useState<"idle" | "copying" | "copied">("idle");
+  useEffect(() => {
+    if (capture !== "copied") return;
+    const timer = setTimeout(() => setCapture("idle"), COPIED_MS);
+    return () => clearTimeout(timer);
+  }, [capture]);
+  const screenshot = async () => {
+    onError(undefined);
+    setCapture("copying");
+    try {
+      const { data, contentType } = await api.simulatorScreenshot(id);
+      await navigator.clipboard.write([new ClipboardItem({ [contentType]: new Blob([data as BlobPart], { type: contentType }) })]);
+      setCapture("copied");
+    } catch {
+      setCapture("idle");
+      onError("The screenshot could not be copied.");
+    }
+  };
+  return { capture, screenshot };
+}
+
+function StreamOverlay({ status, onReconnect }: { status: StreamStatus; onReconnect: () => void }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80 text-xs text-muted-foreground">
+      {status.state === "error" ? (
+        <>
+          <p>{status.detail ?? "The simulator's video stopped."}</p>
+          <Button size="xs" variant="outline" onClick={onReconnect}>
+            Reconnect
+          </Button>
+        </>
+      ) : (
+        <>
+          <Spinner />
+          <p>Connecting to the simulator…</p>
+        </>
+      )}
+    </div>
+  );
 }
 
 export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, onToggleSettings, onPowerOff }: ViewProps) {
@@ -166,11 +180,13 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
     press({ type: "orientation", orientation: next });
   };
 
+  const shape = deviceShape(simulator);
   const portraitFrames = !screen || screen.width <= screen.height;
-  const turned = screen ? Math.abs(ROTATION_DEGREES[screen.orientation]) === 90 : false;
-  const aspect = screen ? (turned ? Math.max(screen.width, screen.height) / Math.min(screen.width, screen.height) : Math.min(screen.width, screen.height) / Math.max(screen.width, screen.height)) : IOS_ASPECT;
-  const frame = fitFrame(aspect, box.width, box.height);
-  const degrees = screen && portraitFrames ? ROTATION_DEGREES[screen.orientation] : 0;
+  const turnedBy = screen ? ROTATION_DEGREES[screen.orientation] : 0;
+  const turned = Math.abs(turnedBy) === 90;
+  const aspect = screen ? (turned ? Math.max(screen.width, screen.height) / Math.min(screen.width, screen.height) : Math.min(screen.width, screen.height) / Math.max(screen.width, screen.height)) : shape.aspect;
+  const frame = fitDevice(shape, aspect, { width: box.width - 2 * STAGE_PADDING, height: box.height - 2 * STAGE_PADDING });
+  const degrees = screen && portraitFrames ? turnedBy : 0;
   const media: CSSProperties =
     Math.abs(degrees) === 90
       ? { width: frame.height, height: frame.width, left: (frame.width - frame.height) / 2, top: (frame.height - frame.width) / 2, transform: `rotate(${degrees}deg)` }
@@ -187,84 +203,83 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
     setPowering(true);
     await onPowerOff().finally(() => setPowering(false));
   };
+  const { capture, screenshot } = useScreenshotCopy(api, simulator.id, setInputError);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <SimulatorToolbar ios={ios && !simulator.pairedWith} powering={powering} settingsOpen={settingsOpen} onPress={press} onRotate={rotate} onToggleSettings={onToggleSettings} onPowerOff={() => void powerOff()} />
       {inputError && <p role="alert" className="border-b border-border px-3 py-1.5 text-2xs text-destructive">{inputError}</p>}
-      {!ios ? (
-        <p className="px-4 py-6 text-center text-xs text-muted-foreground">Emulators can be started, stopped and set up here, but not shown yet.</p>
-      ) : (
-        <div
-          ref={setHost}
-          tabIndex={0}
-          role="application"
-          aria-label={`${simulator.name} screen`}
-          className="relative flex min-h-0 flex-1 items-center justify-center bg-background outline-none"
-          onKeyDown={(event) => {
-            const usage = hidUsage(event.code);
-            if (usage === undefined || event.target !== event.currentTarget || (event.metaKey && event.key.toLowerCase() !== "r")) return;
-            event.preventDefault();
-            press({ type: "key", phase: "down", usage });
-          }}
-          onKeyUp={(event) => {
-            const usage = hidUsage(event.code);
-            if (usage !== undefined && event.target === event.currentTarget) press({ type: "key", phase: "up", usage });
-          }}
-        >
+      <div className="flex min-h-0 flex-1">
+        {!ios ? (
+          <p className="min-w-0 flex-1 px-4 py-6 text-center text-xs text-muted-foreground">Emulators can be started, stopped and set up here, but not shown yet.</p>
+        ) : (
           <div
-            data-testid="simulator-frame"
-            className="relative touch-none select-none"
-            style={{ width: frame.width, height: frame.height }}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture?.(event.pointerId);
-              host?.focus();
-              pointing.current = true;
-              touch("begin", event);
+            ref={setHost}
+            tabIndex={0}
+            role="application"
+            aria-label={`${simulator.name} screen`}
+            className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center bg-background outline-none"
+            onKeyDown={(event) => {
+              const usage = hidUsage(event.code);
+              if (usage === undefined || event.target !== event.currentTarget || (event.metaKey && event.key.toLowerCase() !== "r")) return;
+              event.preventDefault();
+              press({ type: "key", phase: "down", usage });
             }}
-            onPointerMove={(event) => pointing.current && touch("move", event)}
-            onPointerUp={(event) => {
-              if (!pointing.current) return;
-              pointing.current = false;
-              touch("end", event);
-            }}
-            onPointerCancel={(event) => {
-              if (!pointing.current) return;
-              pointing.current = false;
-              touch("end", event);
+            onKeyUp={(event) => {
+              const usage = hidUsage(event.code);
+              if (usage !== undefined && event.target === event.currentTarget) press({ type: "key", phase: "up", usage });
             }}
           >
-            <canvas ref={canvas} className={cn("absolute top-0 left-0", mjpeg && "hidden")} style={media} />
-            {mjpeg && (
-              <img
-                ref={setImage}
-                alt=""
-                src={mjpeg}
-                className="absolute top-0 left-0 object-contain"
-                style={media}
-                onError={() => setStatus({ state: "error", detail: "The simulator's video stopped." })}
-              />
-            )}
+            <DeviceFrame shape={shape} screen={frame} unit={frame.unit} degrees={turnedBy}>
+              <div
+                data-testid="simulator-frame"
+                className="relative touch-none select-none"
+                style={{ width: frame.width, height: frame.height }}
+                onPointerDown={(event) => {
+                  event.currentTarget.setPointerCapture?.(event.pointerId);
+                  host?.focus();
+                  pointing.current = true;
+                  touch("begin", event);
+                }}
+                onPointerMove={(event) => pointing.current && touch("move", event)}
+                onPointerUp={(event) => {
+                  if (!pointing.current) return;
+                  pointing.current = false;
+                  touch("end", event);
+                }}
+                onPointerCancel={(event) => {
+                  if (!pointing.current) return;
+                  pointing.current = false;
+                  touch("end", event);
+                }}
+              >
+                <canvas ref={canvas} className={cn("absolute top-0 left-0", mjpeg && "hidden")} style={media} />
+                {mjpeg && (
+                  <img
+                    ref={setImage}
+                    alt=""
+                    src={mjpeg}
+                    className="absolute top-0 left-0 object-contain"
+                    style={media}
+                    onError={() => setStatus({ state: "error", detail: "The simulator's video stopped." })}
+                  />
+                )}
+              </div>
+            </DeviceFrame>
+            {status.state !== "streaming" && <StreamOverlay status={status} onReconnect={() => setAttempt((count) => count + 1)} />}
           </div>
-          {status.state !== "streaming" && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80 text-xs text-muted-foreground">
-              {status.state === "error" ? (
-                <>
-                  <p>{status.detail ?? "The simulator's video stopped."}</p>
-                  <Button size="xs" variant="outline" onClick={() => setAttempt((count) => count + 1)}>
-                    Reconnect
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Spinner />
-                  <p>Connecting to the simulator…</p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+        <SimulatorToolbar
+          phone={ios && shape.kind !== "watch"}
+          powering={powering}
+          capture={capture}
+          settingsOpen={settingsOpen}
+          onHome={() => press({ type: "button", button: "home" })}
+          onRotate={rotate}
+          {...(ios ? { onScreenshot: () => void screenshot() } : {})}
+          onToggleSettings={onToggleSettings}
+          onPowerOff={() => void powerOff()}
+        />
+      </div>
     </div>
   );
 }

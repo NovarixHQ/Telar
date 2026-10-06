@@ -9,7 +9,7 @@ Telar runs agents that can execute commands and write files, so whoever can reac
 - Device tokens are stored only as sha256 hashes and compared in constant time. Deleting `remote/remote.json` is the lockout recovery.
 - Pairing codes are 8 digits, valid 5 minutes, allow 5 tries, work once, and travel only in the URL fragment.
 - Roles: `full` or `observer`. Observers get GET and HEAD only, with an empty write allowlist, and cannot change their own role. The last full-access device cannot be demoted. Fresh installs require pairing.
-- A network listener sends no permissive CORS headers and checks the Host header, to block DNS rebinding.
+- A network listener sends no permissive CORS headers. The engine and the cockpit gate answer 421 to a Host that is not an IP literal, `localhost`, this Mac's name or `.local` name, or a `.ts.net` name, to block DNS rebinding. A request with no Host passes.
 - Another Mac's token stays on this Mac; a browser only ever sees our own origin.
 
 ## Agents

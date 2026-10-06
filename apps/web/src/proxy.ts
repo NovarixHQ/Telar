@@ -8,6 +8,7 @@ export const config = {
 const DENIALS = {
   cockpit_forbidden: { status: 403, message: "This device is paired for viewing only. Give it full access from Remote access on the computer." },
   cockpit_unauthorized: { status: 401, message: "Pair this device with the Telar cockpit to use it." },
+  cockpit_misdirected: { status: 421, message: "This address is not one of this computer's names. Open the cockpit by its IP, .local or Tailscale address." },
 } as const;
 
 /** The engine decides; an engine that cannot answer denies. */

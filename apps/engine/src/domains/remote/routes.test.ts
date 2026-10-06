@@ -113,3 +113,16 @@ test("network exposure needs pairing on, and turning pairing off closes it", asy
   expect(on.body).toMatchObject({ requireAuth: true, device: { name: "This Mac" } });
   expect(on.body.deviceToken).toMatch(/^tlr_/);
 });
+
+test("the device list says which devices are connected now", async () => {
+  const { call, pair } = await engine();
+  const phone = await pair("Phone");
+  const laptop = await pair("Laptop");
+  await call("PATCH", "/v2/remote", { requireAuth: true, device: { name: "Mac" } });
+  await call("POST", "/v2/auth/decide", { pathname: "/api/projects", method: "GET", authorization: `Bearer ${phone.deviceToken}` });
+
+  const devices = (await call("GET", "/v2/remote")).body.devices as Array<{ id: string; connected: boolean; lastSeenAt?: number }>;
+  expect(devices.find((device) => device.id === phone.deviceId)).toMatchObject({ connected: true, lastSeenAt: expect.any(Number) });
+  expect(devices.find((device) => device.id === laptop.deviceId)).toMatchObject({ connected: false });
+  expect(devices.find((device) => device.id === laptop.deviceId)!.lastSeenAt).toBeUndefined();
+});

@@ -9,6 +9,7 @@ export type RemoteDevice = {
   name: string;
   createdAt: number;
   lastSeenAt?: number;
+  connected?: boolean;
   role: DeviceRole;
   platform?: DevicePlatform;
   identity?: DeviceIdentity;

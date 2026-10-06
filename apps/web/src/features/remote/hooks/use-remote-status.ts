@@ -5,6 +5,8 @@ import { hostVisible, subscribeHostVisibility } from "@/platform/desktop/host-vi
 import { EngineApiError } from "@/platform/engine";
 import { mintPairing, remoteStatus, revokeDevice, revokeOtherDevices, setRemote, updateDevice, type MintedPairing, type RemoteStatus } from "../api";
 
+const PRESENCE_REFRESH_MS = 10_000;
+
 export function useRemoteStatus() {
   const [status, setStatus] = useState<RemoteStatus | null>(null);
   const [minted, setMinted] = useState<MintedPairing | null>(null);
@@ -104,13 +106,18 @@ export function useRemoteStatus() {
     await load();
   }, [load]);
 
-  useEffect(
-    () =>
-      subscribeHostVisibility(() => {
-        if (hostVisible()) void load();
-      }),
-    [load],
-  );
+  useEffect(() => {
+    const refresh = window.setInterval(() => {
+      if (hostVisible()) void load();
+    }, PRESENCE_REFRESH_MS);
+    const unsubscribe = subscribeHostVisibility(() => {
+      if (hostVisible()) void load();
+    });
+    return () => {
+      window.clearInterval(refresh);
+      unsubscribe();
+    };
+  }, [load]);
 
   return { status, minted, busy, restartNeeded, error, toggle, setExposure, setTailscaleServe, mint, revoke, patchDevice, revokeOthers };
 }

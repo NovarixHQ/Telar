@@ -1,6 +1,6 @@
 import type { ProviderDriverKind } from "../protocol/common";
 import type { EngineTransport } from "../platform/transport";
-import type { AgentOrientation, InboxPolicy, SessionDefaults, SessionDefaultsPatch, SidebarLayout, SidebarMode, TextGenEffort, TextGenPolicy } from "./schema";
+import type { AgentOrientation, InboxPolicy, SessionDefaults, SessionDefaultsPatch, SidebarLayout, SimulatorSettings, SidebarMode, TextGenEffort, TextGenPolicy } from "./schema";
 
 type OrientationAnswer = { orientation: AgentOrientation; text: string };
 
@@ -44,6 +44,14 @@ export const settingsClient = {
     patch: { projectOrder?: string[]; sessionOrder?: Record<string, string[]>; pinnedOrder?: string[]; mode?: SidebarMode },
   ): Promise<{ layout: SidebarLayout }> {
     return this.request("PATCH", "/v2/sidebar-layout", patch);
+  },
+
+  simulatorSettings(this: EngineTransport): Promise<{ simulatorSettings: SimulatorSettings }> {
+    return this.request("GET", "/v2/simulator-settings");
+  },
+
+  setSimulatorSettings(this: EngineTransport, patch: Partial<SimulatorSettings>): Promise<{ simulatorSettings: SimulatorSettings }> {
+    return this.request("PATCH", "/v2/simulator-settings", patch);
   },
 
   textGenPolicy(this: EngineTransport): Promise<{ textGen: TextGenPolicy }> {

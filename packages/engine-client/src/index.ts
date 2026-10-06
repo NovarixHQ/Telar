@@ -21,6 +21,7 @@ export * from "./remote/schema";
 export * from "./schedules/schema";
 export * from "./sessions/schema";
 export * from "./settings/schema";
+export * from "./simulators/schema";
 export * from "./storage/schema";
 export * from "./terminal/schema";
 export * from "./turns/schema";

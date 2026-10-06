@@ -29,7 +29,7 @@ A domain is one feature, and it has the same name in every app:
 | --- | --- |
 | Core | `sessions` `turns` `projects` `worktrees` |
 | Agents | `providers` `agent-tools` `plugins` `computer-use` |
-| Workspace | `files` `git` `github` `terminal` `browser` |
+| Workspace | `files` `git` `github` `terminal` `browser` `simulators` |
 | Access | `remote` `hosts` `push` |
 | Experience | `appearance` `settings` `dictation` `notes` `prompts` |
 | Operations | `usage` `schedules` `storage` `updates` |

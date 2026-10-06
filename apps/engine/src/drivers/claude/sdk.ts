@@ -3,6 +3,7 @@ import type { McpServer, NotificationDetail, TurnAttachment } from "@telar/engin
 import { claudeFixedWindowOf } from "../../domains/providers";
 import type { RunCapability } from "../../domains/terminal";
 import type { DisplayCapability } from "../../domains/agent-tools";
+import type { SimulatorCapability } from "../../domains/simulators";
 import { RELAY_RULE } from "../../domains/turns";
 import type { SessionsCapability } from "../../domains/sessions";
 import type { NotesCapability } from "../../domains/notes";
@@ -100,6 +101,7 @@ export type ClaudeTurnBindings = {
   /** The project's prompt shelf, scoped to this turn's project AND session. */
   prompts: PromptsCapability | undefined;
   display: DisplayCapability | undefined;
+  simulators: SimulatorCapability | undefined;
   /** The project's runs, when the turn carries them. See `run/capability.ts`. */
   run: RunCapability | undefined;
   /** Every enabled plugin's capability, by id — Data Science and LaTeX included. */

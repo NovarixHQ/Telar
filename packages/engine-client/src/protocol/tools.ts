@@ -22,7 +22,7 @@ export function isTelarMcpServer(server: string | undefined): boolean {
   return server !== undefined && (TELAR_MCP_SERVERS as readonly string[]).includes(server);
 }
 
-export const TELAR_CORE_CAPABILITIES = ["browser", "sessions", "display", "run", "terminal", "prompt"] as const;
+export const TELAR_CORE_CAPABILITIES = ["browser", "sessions", "display", "run", "terminal", "prompt", "simulator"] as const;
 
 export const TELAR_CAPABILITIES = [...TELAR_CORE_CAPABILITIES, ...BUNDLED_PLUGIN_TOOL_PREFIXES] as const;
 export type TelarCapability = (typeof TELAR_CAPABILITIES)[number];

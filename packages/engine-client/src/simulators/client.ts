@@ -16,6 +16,10 @@ export const simulatorsClient = {
     return this.request("POST", simulatorPath(id, "shutdown"), {});
   },
 
+  simulatorScreenshot(this: EngineTransport, id: string): Promise<{ data: Uint8Array; contentType: string }> {
+    return this.readBytes(simulatorPath(id, "screenshot"));
+  },
+
   simulatorDetail(this: EngineTransport, id: string): Promise<{ detail: SimulatorDetail }> {
     return this.request("GET", simulatorPath(id, "detail"));
   },

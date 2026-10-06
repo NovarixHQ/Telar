@@ -4,6 +4,7 @@ import type { NotesCapability } from "../domains/notes";
 import type { PromptsCapability } from "../domains/prompts";
 import type { DisplayCapability } from "../domains/agent-tools";
 import type { RunCapability } from "../domains/terminal";
+import type { SimulatorCapability } from "../domains/simulators";
 import type { SteerMailbox } from "../domains/turns";
 import type { UsageDiagnosisCapability } from "../domains/usage";
 
@@ -39,6 +40,7 @@ export type DriverRun = {
   run?: RunCapability;
   plugins?: Record<string, unknown>;
   display?: DisplayCapability;
+  simulators?: SimulatorCapability;
   model?: string;
   effort?: string;
   fastMode?: boolean;

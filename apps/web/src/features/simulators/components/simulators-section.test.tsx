@@ -19,7 +19,7 @@ async function mountSection(initial: SimulatorSettings, refuse?: string) {
   const { host } = await mount(<SimulatorsSection />);
   await flush(() => calls.some((call) => call.route === "GET /api/simulator-settings"));
   await flush();
-  return { host, calls, toggle: () => host.querySelector('[aria-label="Use simulators"]')! };
+  return { host, calls, toggle: () => host.querySelector('[aria-label="Use simulators"]')!, agents: () => host.querySelector('[aria-label="Let agents use simulators"]')! };
 }
 
 test("the switch shows the engine's answer and turning it on is one patch", async () => {
@@ -38,4 +38,20 @@ test("a refused change shows the engine's reason and keeps the switch where it w
   await flush();
   expect(host.textContent).toContain("simulators are not available");
   expect(toggle().getAttribute("aria-checked")).toBe("false");
+});
+
+test("agents get access only once simulators are on, and turning simulators off takes it back", async () => {
+  const { calls, toggle, agents } = await mountSection({ enabled: false, agentAccess: false });
+  await press(agents());
+  await flush();
+  expect(agents().getAttribute("aria-checked")).toBe("false");
+  await press(toggle());
+  await flush();
+  await press(agents());
+  await flush();
+  expect(agents().getAttribute("aria-checked")).toBe("true");
+  await press(toggle());
+  await flush();
+  expect(agents().getAttribute("aria-checked")).toBe("false");
+  expect(calls.filter((call) => call.route === "PATCH /api/simulator-settings").map((call) => call.body)).toEqual([{ enabled: true }, { agentAccess: true }, { enabled: false }]);
 });

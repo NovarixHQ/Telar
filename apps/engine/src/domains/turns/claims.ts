@@ -61,6 +61,7 @@ type ClaimDeps = {
   resolveLatex: (session: Session) => unknown;
   enabledPluginIds: (session: Session) => string[];
   getAgentOrientation: () => AgentOrientation;
+  simulatorAccess: () => { binDir?: string } | undefined;
 };
 
 /** Handing queued turns to workers: claiming, the sweeps a claim poll runs, and what the worker is handed. */
@@ -407,6 +408,10 @@ export class TurnClaims {
         return live.length > 0 ? { tasks: live } : {};
       })(),
       ...(this.deps.getAgentOrientation().preamble ? { orientation: TELAR_ORIENTATION } : {}),
+      ...(() => {
+        const simulators = this.deps.simulatorAccess();
+        return simulators ? { simulators } : {};
+      })(),
       ...(() => {
         const notes = [...this.deps.mailbox.takeNextTurnNotes(session.id), ...this.deps.mailbox.takeHeldMail(session.id)];
         return notes.length > 0 ? { notes } : {};

@@ -18,6 +18,7 @@ import { AgentMessageIntent, NotificationDetail, Turn, WakeReason } from "./enti
 import { ContentStream, ItemDetail, ItemStatus } from "./items";
 import { RequestDecision, RequestDefault, RequestDetail, RequestKind, RequestResolver } from "./requests";
 import { TaskSeed } from "./tasks";
+import { SimulatorId, SimulatorSummary } from "../simulators/schema";
 
 /** An item as the worker knows it, before the engine stamps ownership on it. */
 export const ItemSeed = z.object({
@@ -59,6 +60,9 @@ export const TurnObservation = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("browser.state"), provider: BrowserProvider, tabs: z.array(BrowserTab) }),
 
   z.object({ kind: z.literal("display.opened"), path: z.string().min(1), title: z.string().optional() }),
+
+  z.object({ kind: z.literal("simulator.opened"), simulator: SimulatorSummary }),
+  z.object({ kind: z.literal("simulator.closed"), simulatorId: SimulatorId }),
 
   /** The engine numbers the version, so a redraw in a later turn follows the last one. */
   z.object({ kind: z.literal("artifact.published"), artifact: Artifact.omit({ version: true }) }),
@@ -107,6 +111,7 @@ export const WorkerClaim = z.object({
   orientation: z.string().min(1).optional(),
   notes: z.array(z.string().min(1)).optional(),
   readOnly: z.literal(true).optional(),
+  simulators: z.object({ binDir: z.string().min(1).optional() }).optional(),
   turn: Turn,
 });
 export type WorkerClaim = z.infer<typeof WorkerClaim>;

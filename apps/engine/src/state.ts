@@ -61,6 +61,7 @@ type EngineStoreOptions = {
   gh?: GhRunner;
   /** The daemon's computer-use gate; absent means no computer use. */
   computerUse?: () => ResolvedComputerUse | undefined;
+  simulatorAccess?: () => { binDir?: string } | undefined;
   models?: typeof readModelCatalogue;
   cliVersion?: (driver: ProviderDriverKind) => Promise<InstalledCli>;
   manifest?: ModelManifest;
@@ -139,6 +140,7 @@ export class EngineStore {
   readonly cleanup: CleanupStore;
   private readonly onTurnsStopped?: (cancellations: StoppedClaim[]) => void;
   private readonly computerUse?: (() => ResolvedComputerUse | undefined) | undefined;
+  private readonly simulatorAccess?: (() => { binDir?: string } | undefined) | undefined;
   private readonly prefetch: PrefetchedGit;
   private readonly asyncGit: AsyncGitRunner;
   /** The cuts and removals, on a pool the rail's polls do not share. */
@@ -184,6 +186,7 @@ export class EngineStore {
   ) {
     this.onTurnsStopped = options.onTurnsStopped;
     this.computerUse = options.computerUse;
+    this.simulatorAccess = options.simulatorAccess;
     this.asyncGit = options.asyncGit ?? (options.git ? async (cwd, args, opts) => options.git!(cwd, args, opts) : defaultAsyncGitRunner);
     this.prefetch = new PrefetchedGit(this.asyncGit);
     this.workspaceReads = new WorkspaceReads(this.asyncGit, {
@@ -602,6 +605,7 @@ export class EngineStore {
       resolveLatex: (session) => this.toolchains.resolveLatex(session),
       enabledPluginIds: (session) => this.toolchains.enabledIds(session),
       getAgentOrientation: () => this.settings.orientation(),
+      simulatorAccess: () => this.simulatorAccess?.(),
     });
   }
 

@@ -5,6 +5,7 @@ import { Item, ContentStream } from "./items";
 import { Runtime, RuntimeState, Session, SessionSettledBy, Turn, TurnFailure } from "./entities";
 import { EngineRequest, RequestDecision, RequestResolver } from "./requests";
 import { Task } from "./tasks";
+import { SimulatorId, SimulatorSummary } from "../simulators/schema";
 
 export const EventEnvelope = z.object({
   id: z.number().int().positive(),
@@ -112,6 +113,9 @@ const DisplayOpened = event("display.opened", {
   title: z.string().optional(),
 });
 
+const SimulatorOpened = event("simulator.opened", { simulator: SimulatorSummary });
+const SimulatorClosed = event("simulator.closed", { simulatorId: SimulatorId });
+
 const PromptDrafted = event("prompt.drafted", {
   promptId: Id,
   title: z.string().min(1),
@@ -199,6 +203,8 @@ export const EngineEvent = z.discriminatedUnion("type", [
   BrowserStateChanged,
   BrowserControlChanged,
   DisplayOpened,
+  SimulatorOpened,
+  SimulatorClosed,
   PromptDrafted,
   UsageUpdated,
   McpStatusUpdated,

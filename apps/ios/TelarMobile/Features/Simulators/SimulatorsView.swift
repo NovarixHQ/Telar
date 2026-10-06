@@ -80,7 +80,7 @@ struct SimulatorsView: View {
     }
 
     private func row(_ simulator: SimulatorSummary) -> some View {
-        CardRow(icon: "iphone", iconColor: simulator.booted ? Theme.statusEmerald : Theme.textMuted,
+        CardRow(icon: simulator.icon, iconColor: simulator.booted ? Theme.statusEmerald : Theme.textMuted,
                 title: simulator.name, subtitle: [simulator.version, simulator.booted ? "Running" : nil].compactMap { $0 }.joined(separator: " · ")) {
             HStack(spacing: 8) {
                 if busy.contains(simulator.id) {

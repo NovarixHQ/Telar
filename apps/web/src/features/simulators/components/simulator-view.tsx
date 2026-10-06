@@ -190,7 +190,7 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <SimulatorToolbar ios={ios} powering={powering} settingsOpen={settingsOpen} onPress={press} onRotate={rotate} onToggleSettings={onToggleSettings} onPowerOff={() => void powerOff()} />
+      <SimulatorToolbar ios={ios && !simulator.pairedWith} powering={powering} settingsOpen={settingsOpen} onPress={press} onRotate={rotate} onToggleSettings={onToggleSettings} onPowerOff={() => void powerOff()} />
       {inputError && <p role="alert" className="border-b border-border px-3 py-1.5 text-2xs text-destructive">{inputError}</p>}
       {!ios ? (
         <p className="px-4 py-6 text-center text-xs text-muted-foreground">Emulators can be started, stopped and set up here, but not shown yet.</p>

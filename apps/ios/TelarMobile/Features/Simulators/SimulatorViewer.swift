@@ -48,7 +48,7 @@ struct SimulatorViewer: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            if model.canDrive {
+            if model.canDrive && model.selected?.isWatch != true {
                 controlButton("house", label: "Home") { model.press(.home) }
                 controlButton("rotate.right", label: "Rotate") { model.rotate() }
             }
@@ -70,7 +70,9 @@ struct SimulatorViewer: View {
             }
             Button("Reload stream", systemImage: "arrow.clockwise") { model.reload() }
             if model.canDrive {
-                Button("App switcher", systemImage: "square.on.square") { model.press(.appSwitcher) }
+                if model.selected?.isWatch != true {
+                    Button("App switcher", systemImage: "square.on.square") { model.press(.appSwitcher) }
+                }
                 Button(model.shuttingDown ? "Shutting down…" : "Shut down", systemImage: "power", role: .destructive) {
                     Task { await model.shutDown() }
                 }

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
-import { fakeHub, fakeRunner, iPhone, pixel } from "../../../test/fake-simulator-hub";
+import { fakeHub, fakeRunner, iPhone, pixel, simctlWithPair, WATCH_ID } from "../../../test/fake-simulator-hub";
 import { bootFailure, Simulators } from "./service";
 import { HUB_VERSION } from "./toolchain";
 
@@ -16,11 +16,11 @@ afterEach(async () => {
 
 const XCODE = "/Applications/Xcode.app/Contents/Developer";
 
-function setup(devices: SimulatorSummary[], options: { enabled?: boolean; bootError?: string; xcrun?: number; files?: string[]; ps?: () => string } = {}) {
+function setup(devices: SimulatorSummary[], options: { enabled?: boolean; bootError?: string; xcrun?: number; files?: string[]; ps?: () => string; simctlList?: () => string } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-"));
   roots.push(root);
   let enabled = options.enabled ?? true;
-  const fake = fakeRunner({ ...(options.xcrun === undefined ? {} : { xcrun: options.xcrun }), ...(options.ps ? { ps: options.ps } : {}) });
+  const fake = fakeRunner({ ...(options.xcrun === undefined ? {} : { xcrun: options.xcrun }), ...(options.ps ? { ps: options.ps } : {}), ...(options.simctlList ? { simctlList: options.simctlList } : {}) });
   const hub = fakeHub(devices, options.bootError ? { bootError: options.bootError } : {});
   const simulators = new Simulators({
     root,
@@ -134,6 +134,26 @@ test("a Mac without Xcode reports iOS unavailable and forces no developer dir", 
   expect(simulators.agentTools()).not.toHaveProperty("developerDir");
 });
 
+test("a watch paired with an iPhone is listed right under it, and starts and stops by its own id", async () => {
+  let watchState = "Shutdown";
+  const { simulators, hub } = setup([iPhone(), pixel()], { simctlList: () => simctlWithPair("A1B2-UDID", watchState) });
+  const state = await ready(simulators);
+  expect(state.simulators.map((s) => [s.name, s.pairedWith])).toEqual([["iPhone 16", undefined], ["Pulso Watch", "A1B2-UDID"], ["Pixel 8", undefined]]);
+  hub.requests.length = 0;
+  watchState = "Booted";
+  expect(await simulators.boot(WATCH_ID)).toMatchObject({ id: WATCH_ID, booted: true, pairedWith: "A1B2-UDID" });
+  watchState = "Shutdown";
+  expect(await simulators.shutdown(WATCH_ID)).toMatchObject({ id: WATCH_ID, booted: false });
+  const posts = hub.requests.filter((r) => r.method === "POST").map((r) => [r.path, r.body?.id ?? r.body?.udid]);
+  expect(posts).toEqual([["/api/devices/boot", WATCH_ID], ["/vendor/serve-sim/grid/api/start", WATCH_ID], ["/vendor/serve-sim/grid/api/shutdown", WATCH_ID]]);
+});
+
+test("without Xcode no watch lookup runs", async () => {
+  const { simulators, runs } = setup([], { xcrun: 72, simctlList: simctlWithPair });
+  expect((await ready(simulators)).simulators).toEqual([]);
+  expect(runs.some((run) => run.args[1] === "list")).toBe(false);
+});
+
 const UDID = "616B0EE9-3502-48DD-8FBE-6DF76466E6C9";
 const launchdSim = (pid: number) => `  ${pid} launchd_sim /Users/someone/Library/Developer/CoreSimulator/Devices/${UDID}/data/var/run/launchd_bootstrap.plist\n    7 /sbin/launchd\n`;
 const gridStarts = (hub: ReturnType<typeof fakeHub>) => hub.requests.filter((r) => r.path === "/vendor/serve-sim/grid/api/start").map((r) => r.body?.udid);
@@ -168,4 +188,12 @@ test("a simulator Telar shut down and booted again keeps the hub running", async
   await simulators.boot(UDID);
   expect((await simulators.state()).status).toBe("ready");
   expect(starts).toHaveLength(1);
+});
+
+test("a paired watch that was already booted is attached to serve-sim like its iPhone", async () => {
+  const watchSim = `  303 launchd_sim /Users/someone/Library/Developer/CoreSimulator/Devices/${WATCH_ID}/data/var/run/launchd_bootstrap.plist\n`;
+  const { simulators, hub } = setup([iPhone()], { ps: () => watchSim, simctlList: () => simctlWithPair("A1B2-UDID", "Booted") });
+  await ready(simulators);
+  await simulators.state();
+  expect(gridStarts(hub)).toEqual([WATCH_ID]);
 });

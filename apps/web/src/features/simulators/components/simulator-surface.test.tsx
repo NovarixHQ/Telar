@@ -131,3 +131,17 @@ test("the surface follows its tab params, so a simulator the agent opened shows 
   await flush(() => Boolean(button("Simulator controls")));
   expect([...host.querySelectorAll('[role="tab"]')].map((tab) => tab.getAttribute("aria-selected"))).toEqual(["false", "true"]);
 });
+
+test("a watch paired with an iPhone shows under it, and opens to a stream of its own without the iPhone's Home and Rotate", async () => {
+  const watch: SimulatorSummary = { id: "W1", platform: "ios", name: "Pulso Watch", version: "watchOS 27.0", booted: true, physical: false, pairedWith: "A1B2" };
+  const { host } = await surface(ready([iPhone(true), watch]));
+  expect(host.textContent).toMatch(/iPhone 16.*Pulso Watch/);
+  expect(host.querySelector('[aria-label="Apple Watch"]')).not.toBeNull();
+  const opens = [...document.querySelectorAll("button")].filter((node) => node.textContent?.trim() === "Open");
+  await click(opens[1]!);
+  await flush(() => Boolean(button("Simulator controls")));
+  expect(button("Home")).toBeNull();
+  expect(button("Rotate")).toBeNull();
+  await flush(() => Boolean(host.querySelector("img")));
+  expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/simulators/hub/vendor/serve-sim/helper/W1/stream.mjpeg?ticket=stk_1");
+});

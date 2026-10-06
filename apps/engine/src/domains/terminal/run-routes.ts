@@ -8,7 +8,10 @@ import { holdEventStream, type OpenStream } from "../sessions";
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
-/** `/run/stream` feeds this session's terminals only; every other `/run…` tail is `runMount`'s, or the engine's 404. */
+const refusal = (error: unknown): unknown =>
+  error instanceof RunError ? new HttpError(error.code === "not_found" ? 404 : error.code === "conflict" ? 409 : 400, error.code, error.message) : error;
+
+/** `/run/stream` feeds this session's terminals' status, `/run/bytes/stream` one terminal's bytes; every other `/run…` tail is `runMount`'s, or a 404. */
 export function runRoutes(store: EngineStore, runMount: RunMount, openStreams: Set<OpenStream>): Route[] {
   const context = (sessionId: string) => () => {
     const record = store.records.get(sessionId);
@@ -33,6 +36,21 @@ export function runRoutes(store: EngineStore, runMount: RunMount, openStreams: S
       return undefined;
     },
   };
+  const bytes: Route = {
+    method: "GET",
+    path: sessionRoute("/run/bytes/stream"),
+    auth: "engine",
+    handle({ params: [sessionId], query, request, response }) {
+      let subscribe: ReturnType<RunMount["attach"]>;
+      try {
+        subscribe = runMount.attach(Object.fromEntries(query), context(sessionId!));
+      } catch (error) {
+        throw refusal(error);
+      }
+      holdEventStream(request, response, openStreams, subscribe);
+      return undefined;
+    },
+  };
   const door = (method: (typeof METHODS)[number]): Route => ({
     method,
     path: sessionRoute("/run(?:/.*)?"),
@@ -46,10 +64,9 @@ export function runRoutes(store: EngineStore, runMount: RunMount, openStreams: S
       try {
         return ok((await answer) ?? {});
       } catch (error) {
-        if (error instanceof RunError) throw new HttpError(error.code === "not_found" ? 404 : error.code === "conflict" ? 409 : 400, error.code, error.message);
-        throw error;
+        throw refusal(error);
       }
     },
   });
-  return [stream, ...METHODS.map(door)];
+  return [stream, bytes, ...METHODS.map(door)];
 }

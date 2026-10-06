@@ -49,6 +49,16 @@ describe("api gate", () => {
     expect(ask("/api/health")).toEqual({ allow: false, code: "cockpit_unauthorized" });
   });
 
+  test("a rebinding Host is refused before anything else, even with auth off; loopback and LAN pass", () => {
+    const decide = (host: string | null, remote = file()) =>
+      decideAccess(remote, { pathname: "/api/pair", method: "GET", authorization: `Bearer ${RAW}`, host }, undefined);
+    expect(decide("evil.example:3000", file({ requireAuth: false }))).toEqual({ allow: false, code: "cockpit_misdirected" });
+    expect(decide("evil.example")).toEqual({ allow: false, code: "cockpit_misdirected" });
+    for (const host of ["127.0.0.1:3000", "[::1]:3000", "192.168.1.20:3000", "mac.tail1234.ts.net", null]) {
+      expect(decide(host)).toEqual({ allow: true });
+    }
+  });
+
   test("the exemptions answer strangers", () => {
     for (const pathname of EXEMPT_PATHS) {
       expect(ask(pathname)).toEqual({ allow: true });
@@ -115,6 +125,15 @@ describe("api gate", () => {
         code: "cockpit_forbidden",
       });
     }
+  });
+
+  test("an observer watches a terminal's stream but cannot type into it or resize it", () => {
+    const observer = file({}, "observer");
+    const as = (pathname: string, method: string) => ask(pathname, { authorization: `Bearer ${RAW}`, method }, observer);
+    expect(as("/api/sessions/s1/run/bytes/stream?terminalId=t1", "GET")).toEqual({ allow: true, deviceId: "dev_1", role: "observer" });
+    expect(as("/api/sessions/s1/run/write", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(as("/api/sessions/s1/run/resize", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(ask("/api/sessions/s1/run/write", { authorization: `Bearer ${RAW}`, method: "POST" })).toEqual({ allow: true, deviceId: "dev_1", role: "full" });
   });
 
   test("an observer cannot escalate itself — the device routes are writes too", () => {

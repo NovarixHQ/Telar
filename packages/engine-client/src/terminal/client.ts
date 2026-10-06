@@ -6,8 +6,7 @@ import type {
 
 export type RunTargetInput = { terminalId?: string; runId?: string };
 
-/** Project-scoped answers still live under the asking session's path. */
-export const runBase = (sessionId: string) => `/v2/sessions/${encodeURIComponent(sessionId)}/run`;
+const runBase = (sessionId: string) => `/v2/sessions/${encodeURIComponent(sessionId)}/run`;
 
 function runTarget(input: RunTargetInput): { terminalId?: string } {
   const terminalId = input.terminalId ?? input.runId;
@@ -31,7 +30,10 @@ function runCursor(input: RunTargetInput & { after?: number } & RunOutputFilter)
   return query.size === 0 ? "" : `?${query.toString()}`;
 }
 
-const defined = (fields: Record<string, unknown>) => Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+export const runBytesStreamPath = (sessionId: string, input: RunTargetInput & { after?: number } = {}) =>
+  `${runBase(sessionId)}/bytes/stream${runCursor(input)}`;
+
+const defined =(fields: Record<string, unknown>) => Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
 
 export const terminalClient = {
   runConfigurations(this: EngineTransport, sessionId: string): Promise<RunConfigurationsAnswer> {

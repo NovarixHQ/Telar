@@ -3,7 +3,7 @@ import { readDeviceCookie } from "./cookie";
 import { HOST_HEADER } from "./host-token";
 
 export type Caller = { host: boolean; device?: { id: string; role: "full" | "observer" } };
-export type GateDecision = { allow: true; deviceId?: string; role?: "full" | "observer" } | { allow: false; code: "cockpit_unauthorized" | "cockpit_forbidden" };
+export type GateDecision = { allow: true; deviceId?: string; role?: "full" | "observer" } | { allow: false; code: "cockpit_unauthorized" | "cockpit_forbidden" | "cockpit_misdirected" };
 
 const credentialsOf = (request: Request) => ({
   authorization: request.headers.get("authorization"),
@@ -17,5 +17,5 @@ export async function identifyCaller(request: Request): Promise<Caller> {
 }
 
 export async function decideAccess(request: Request, pathname: string): Promise<GateDecision> {
-  return (await engineCall("POST", "/v2/auth/decide", { ...credentialsOf(request), pathname, method: request.method })).body as GateDecision;
+  return (await engineCall("POST", "/v2/auth/decide", { ...credentialsOf(request), pathname, method: request.method, host: request.headers.get("host") })).body as GateDecision;
 }

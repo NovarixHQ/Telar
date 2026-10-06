@@ -1,9 +1,10 @@
-import { type RunStatusEvent, type RunView } from "@telar/engine-client";
+import { type RunStatusEvent, type RunStreamFrame, type RunView } from "@telar/engine-client";
 import fs from "node:fs";
 import path from "node:path";
 import { RunJournalFile } from "./journal";
 import { terminalLauncher } from "./launcher";
 import { RunManager } from "./manager";
+import { attachTerminal } from "./attach";
 import { matchRunRoute } from "./routes";
 import { RunStore } from "./store";
 import { storeRunCapability, type RunSessionContext } from "./store-capability";
@@ -14,6 +15,7 @@ export type RunMount = {
   manager: RunManager;
   handle(method: string, tail: string, input: Record<string, unknown>, context: () => RunSessionContext): Promise<unknown> | undefined;
   watch(sessionId: string, listener: (event: RunStatusEvent) => void): () => void;
+  attach(input: Record<string, unknown>, context: () => RunSessionContext): (send: (frame: RunStreamFrame) => void) => () => void;
   recovered: Promise<RunView[]>;
   terminalChannel: boolean;
   shutdown(): Promise<void>;
@@ -71,6 +73,7 @@ export function createRunMount(options: {
         if (event.sessionId === sessionId) listener(event);
       });
     },
+    attach: (input, context) => attachTerminal(manager, context().sessionId, input),
     shutdown: () => manager.shutdown(),
   };
 }

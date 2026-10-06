@@ -153,11 +153,22 @@ describe("deriveSessionList", () => {
     const rows = [...FIXTURE, row("s4", "Keep this", { settledOverride: "active", createdAt: NOW - 4_000 })];
     const list = deriveSessionList({ sessions: rows, now: NOW, limit: 1 });
     expect(titles(list.pinned)).toEqual(["Keep this"]);
-    // A pin is not a row in the list it was lifted out of.
     expect(titles(list.sessions)).not.toContain("Keep this");
-    // `limit: 1` pages the live list and leaves the pin whole.
-    expect(list.sessions).toHaveLength(1);
-    expect(list.hasMoreSessions).toBe(true);
+  });
+
+  test("live sessions are never hidden behind show more; the settled shelf still pages", () => {
+    const rows = [
+      row("s1", "Live one", { createdAt: NOW - 1_000 }),
+      row("s2", "Live two", { createdAt: NOW - 2_000 }),
+      row("s3", "Live three", { createdAt: NOW - 3_000 }),
+      row("s4", "Old one", { archived: true, createdAt: NOW - 4_000 }),
+      row("s5", "Old two", { archived: true, createdAt: NOW - 5_000 }),
+    ];
+    const list = deriveSessionList({ sessions: rows, now: NOW, limit: 1, settledLimit: 1 });
+    expect(titles(list.sessions)).toEqual(["Live one", "Live two", "Live three"]);
+    expect(list.hasMoreSessions).toBe(false);
+    expect(titles(list.settled)).toEqual(["Old one"]);
+    expect(list.hasMoreSettled).toBe(true);
   });
 
   test("the snoozed shelf is sorted by what comes back FIRST", () => {
@@ -439,7 +450,7 @@ describe("sessions on another Mac", () => {
 
   test("the row you are reading survives paging on its own host only", () => {
     const rows = [row("s1", "Local one"), row("s1", "Remote one", { hostId: "host_ab", hostName: "Mini" })];
-    const list = deriveSessionList({ sessions: rows, activeSessionId: "host_ab:s1", now: NOW, limit: 1 });
+    const list = deriveSessionList({ sessions: rows, query: "one", activeSessionId: "host_ab:s1", now: NOW, limit: 1 });
     // Page size one: the local s1 fills the page, and the remote s1 is pulled
     // in as the survivor — by its scoped key, not by a bare id that both share.
     expect(list.sessions.map((session) => sessionKey(session))).toEqual(["s1", "host_ab:s1"]);

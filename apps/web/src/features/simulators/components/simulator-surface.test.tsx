@@ -182,3 +182,18 @@ test("the toolbar copies a screenshot and opens the settings drawer", async () =
   await click(button("Simulator settings")!);
   expect(host.querySelector('aside[aria-label="Simulator settings"]')).not.toBeNull();
 });
+
+test("a fresh ticket keeps the playing stream", async () => {
+  globalThis.fetch = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch;
+  const fake = fakeApi(ready([iPhone(true)]));
+  let minted = 0;
+  fake.api.simulatorStreamTicket = async () => ({ ticket: `stk_${++minted}`, expiresAt: minted === 1 ? Date.now() + 20 : Date.now() + 300_000 });
+  const { host } = await mount(<SimulatorSurface api={fake.api} visible params={{ open: "A1B2", active: "A1B2" }} onParams={() => undefined} />);
+  await flush(() => Boolean(host.querySelector("img")));
+  const src = host.querySelector("img")?.getAttribute("src");
+  expect(src).toEndWith("ticket=stk_1");
+  for (let turn = 0; turn < 50 && minted < 2; turn += 1) await flush(() => minted >= 2);
+  await flush();
+  expect(minted).toBe(2);
+  expect(host.querySelector("img")?.getAttribute("src")).toBe(src!);
+});

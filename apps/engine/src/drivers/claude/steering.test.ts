@@ -142,10 +142,10 @@ describe("a notification is delivered as system-authored, stamped with its real 
     kind: "peer_message" as const,
     sessionId: "session_peer",
     runId: "run_x",
-    intent: "report" as const,
-    summary: "[agent message · report] from session session_peer",
+    intent: "fyi" as const,
+    summary: "[agent message · fyi] from session session_peer",
     fetch: { sessionId: "session_me", runId: "run_x" },
-    body: "[agent message · report] from session session_peer (run run_x, 12 chars)",
+    body: "[agent message · fyi] from session session_peer (run run_x, 12 chars)",
   };
   const wake = { ...peer, kind: "wake" as const, wakeKind: "turn_completed" as const, body: "[wake: completed] Session session_peer — turn run_x completed." };
 

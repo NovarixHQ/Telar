@@ -75,7 +75,7 @@ test("a mid-turn direct report is collapsed too", () => {
 // ── the notice on the row ───────────────────────────────────────────────────
 
 /** The engine's own string, the one its model was handed — see `Turn.agentNotice`. */
-const NOTICE = `[agent message · report] from session session_worker (run run_peer, 2,400 chars): "Capacity report"\n—\nThe message itself is not in this notice.`;
+const NOTICE = `[agent message · fyi] from session session_worker (run run_peer, 2,400 chars): "Capacity report"\n—\nThe message itself is not in this notice.`;
 
 test("a collapsed report labels itself with the notice its model was handed", () => {
   const html = render({ ...machine, agentNotice: NOTICE, prompt: "Capacity report\n\nbody nobody needs up front" });

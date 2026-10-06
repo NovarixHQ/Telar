@@ -399,7 +399,7 @@ export type Cohort = z.infer<typeof Cohort>;
 
 export type SubscribedCohort = Cohort & { alreadySubscribed?: true; movedFrom?: string[] };
 
-export const AgentMessageIntent = z.enum(["task", "report", "result", "blocker"]);
+export const AgentMessageIntent = z.enum(["task", "fyi", "result", "blocker"]);
 export type AgentMessageIntent = z.infer<typeof AgentMessageIntent>;
 
 export const NotificationKind = z.enum(["wake", "peer_message", "request"]);

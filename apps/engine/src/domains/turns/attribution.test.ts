@@ -24,7 +24,7 @@ test("an agent's message stays a peer's report, and a person's stays bare", () =
 
 test("a notice is framed as the ENGINE's, because that is who wrote it", () => {
   const fromAgent = { sessionId: "session_boss" };
-  const notice = `[agent message · report] from session session_boss (run run_x, 12 chars): "ship it"`;
+  const notice = `[agent message · fyi] from session session_boss (run run_x, 12 chars): "ship it"`;
   const framed = framedTurnInput({ input: "ship it", origin: "session", sender: fromAgent, agentNotice: notice });
   expect(framed).toBe(frameAgentNotice(notice, fromAgent));
   expect(framed).toEndWith(notice);

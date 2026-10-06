@@ -6,7 +6,7 @@ afterEach(closeStores);
 test("a held report, then the run's clean ending: one wake naming both", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a" });
-  const worker = reports(store, { intent: "report" });
+  const worker = reports(store, { intent: "fyi" });
   expect(worker.sent.agentDelivery).toBe("passive");
   expect(notifications(store).filter((turn) => turn.state === "queued")).toHaveLength(0);
 
@@ -25,7 +25,7 @@ test("a held report, then the run's clean ending: one wake naming both", () => {
 test("a run that FAILS after a held report still wakes the host, carrying the report", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a" });
-  const worker = reports(store, { intent: "report" });
+  const worker = reports(store, { intent: "fyi" });
 
   store.turnLifecycle.failTurn("session_a", worker.runId, worker.token, { code: "driver_failed", message: "the CLI died" });
 
@@ -64,7 +64,7 @@ test("a completion that said nothing — the background-claim turn — is record
 test("a report and a result from one run, before the host has started: one delivery, the report as its note", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a" });
-  const worker = reports(store, { intent: "report", sent: "Parser done; tests next." });
+  const worker = reports(store, { intent: "fyi", sent: "Parser done; tests next." });
   expect(worker.sent).toMatchObject({ state: "completed", agentDelivery: "passive" });
   const result = store.intake.submitAgentTurn(
     "session_host",

@@ -39,6 +39,7 @@ function noticeLine(notice: string): string {
 }
 
 function intentLabel(intent?: string): string {
+  if (intent === "fyi") return "FYI";
   return intent ? intent.charAt(0).toUpperCase() + intent.slice(1) : "Agent message";
 }
 

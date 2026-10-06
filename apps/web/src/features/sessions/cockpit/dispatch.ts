@@ -83,7 +83,7 @@ function happeningsOf(detail: NotificationDetail, message?: string): Happening[]
   if (!detail.sessionId) return [];
   const peer = detail.kind === "peer_message";
   const said = peer ? (message ?? quotedMessage(detail.body)) : undefined;
-  const state = entryState(detail) ?? (peer && detail.intent === "report" ? "working" : undefined);
+  const state = entryState(detail) ?? (peer && detail.intent === "fyi" ? "working" : undefined);
   return [{
     sessionId: detail.sessionId,
     ...(state ? { state } : {}),

@@ -82,7 +82,7 @@ export function delegationAnswer(delegation: Delegation): Record<string, unknown
     return {
       blocked: true,
       cohortId: delegation.cohortId,
-      note: 'It sent a blocker. Its decision belongs to the person unless the brief settled it. Answer with sessions_send intent "task" (a report does not wake it), then end your turn: you stay subscribed until it is done.',
+      note: 'It sent a blocker. Its decision belongs to the person unless the brief settled it. Answer with sessions_send intent "task" (an fyi does not wake it), then end your turn: you stay subscribed until it is done.',
     };
   }
   if ("parked" in delegation) {

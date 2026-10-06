@@ -407,7 +407,7 @@ describe("sessions_read returns the message a notice stands in for", () => {
     expect(read.json!.message).toBe(body);
     expect(read.json!.messageChars).toBe(body.length);
     expect(read.json!.messageMore).toBe(false);
-    expect(read.json!.messageIntent).toBe("report");
+    expect(read.json!.messageIntent).toBe("fyi");
     const accepted = (read.json!.events as Array<{ type: string; turn?: { input: string; agentNotice?: string } }>).find(
       (event) => event.type === "turn.accepted",
     );

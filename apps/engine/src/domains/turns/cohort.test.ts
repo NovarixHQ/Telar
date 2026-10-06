@@ -47,7 +47,7 @@ function start(store: EngineStore, sessionId: string, runId: string) {
   store.turnLifecycle.markRunning(sessionId, runId, token);
   const proof = { sessionId, runId, claimToken: token };
   return {
-    send: (intent: "result" | "blocker" | "report", text: string) =>
+    send: (intent: "result" | "blocker" | "fyi", text: string) =>
       store.intake.submitAgentTurn("session_host", { runId: `run_msg_${runId}_${intent}`, input: text, intent }, proof),
     complete: (text = "done") => store.turnLifecycle.completeTurn(sessionId, runId, token, { text }),
     fail: () => store.turnLifecycle.failTurn(sessionId, runId, token, { code: "driver_failed", message: "the CLI died" }),
@@ -345,7 +345,7 @@ test("only a task answers a blocker: a report to the blocked member is refused a
   const proof = { sessionId: "session_host", runId: host.runId, claimToken: host.claim!.token };
   const blocked = () => store.subscriptions.cohortsFor("session_host")[0]!.members[0]!.blocked;
 
-  expect(() => store.intake.submitAgentTurn("session_a", { runId: "run_report", input: "postgres", intent: "report" }, proof)).toThrow('Answer with intent: "task"');
+  expect(() => store.intake.submitAgentTurn("session_a", { runId: "run_report", input: "postgres", intent: "fyi" }, proof)).toThrow('Answer with intent: "task"');
   expect(store.queries.turns("session_a").some((turn) => turn.runId === "run_report")).toBe(false);
   expect(blocked()).toBe(true);
 

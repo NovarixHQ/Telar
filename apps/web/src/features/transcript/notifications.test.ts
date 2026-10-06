@@ -14,7 +14,7 @@ describe("what a happening is called", () => {
     expect(notificationVerbs({ kind: "peer_message", intent: "task" })).toEqual({ verb: "A session assigned work", tone: "muted" });
     expect(notificationVerbs({ kind: "peer_message", intent: "blocker" })).toEqual({ verb: "A session reported a blocker", tone: "warning" });
     expect(notificationVerbs({ kind: "peer_message", intent: "result" })).toEqual({ verb: "A session sent a result", tone: "muted" });
-    expect(notificationVerbs({ kind: "peer_message", intent: "report" })).toEqual({ verb: "A session sent a message", tone: "muted" });
+    expect(notificationVerbs({ kind: "peer_message", intent: "fyi" })).toEqual({ verb: "A session sent a message", tone: "muted" });
     // NO INTENT IS `report`, not a wake — the fall-through that started #572.
     expect(notificationVerbs({ kind: "peer_message" }).verb).toBe("A session sent a message");
   });

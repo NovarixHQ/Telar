@@ -40,7 +40,7 @@ export type JournalTurn = {
    *  as an agent's bubble, never as the person's — the words are a peer's. */
   sender?: Turn["sender"];
   agentDelivery?: Turn["agentDelivery"];
-  /** `task` renders as a full message; a report stays collapsed. */
+  /** `task` renders as a full message; an fyi stays collapsed. */
   agentIntent?: Turn["agentIntent"];
   /** The engine's one-line announcement of that message — the collapsed row's
    *  label, and what the recipient's model was handed instead of `prompt`. */

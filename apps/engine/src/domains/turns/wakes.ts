@@ -284,7 +284,7 @@ export class TurnWakes {
     return true;
   }
 
-  /** The queued notification turn still waiting to be read: a wake, or a peer's report, result or blocker. */
+  /** The queued notification turn still waiting to be read: a wake, or a peer's fyi, result or blocker. */
   waitingNotificationTurn(sessionId: string): string | undefined {
     return this.deps.readQueue(sessionId).turns.find(
       (turn) =>
@@ -374,7 +374,7 @@ export class TurnWakes {
     );
   }
 
-  // A report, result or blocker from this run already reached the subscriber's model as a wake.
+  // An fyi, result or blocker from this run already reached the subscriber's model as a wake.
   private messageDeliveredTo(subscriberId: string, targetSessionId: string, runId: string): boolean {
     return this.deps.scanQueue(subscriberId).turns.some(
       (candidate) =>

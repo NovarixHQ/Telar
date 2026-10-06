@@ -36,7 +36,7 @@ const MAX_QUEUED_TURNS = 16;
 // Per turn, so one message cannot carry 16 × 20 MB past the per-file cap.
 const MAX_TURN_ATTACHMENTS = 16;
 /** The intents that speak for the run that sent them — see `messageDeliveredTo`. */
-export const FOLDING_INTENTS: ReadonlySet<NonNullable<Turn["agentIntent"]>> = new Set(["report", "result", "blocker"]);
+export const FOLDING_INTENTS: ReadonlySet<NonNullable<Turn["agentIntent"]>> = new Set(["fyi", "result", "blocker"]);
 
 function assertText(value: unknown): asserts value is string {
   if (typeof value !== "string" || value.trim() === "" || value.length > MAX_TEXT_LENGTH) {
@@ -189,10 +189,10 @@ export class TurnIntake {
         const claimed = this.deps.requireSenderClaim(proof);
         sender = { sessionId: claimed.sessionId };
       }
-      const intent = input.intent ?? (sender.sessionId && this.assignedBy(sessionId, sender.sessionId) ? "task" : "report");
-      if (input.model && intent !== "task") throw new EngineStateError("invalid_request", "model and effort go with a task; a report, result or blocker runs nothing.");
-      if (intent === "report" && sender.sessionId && this.deps.cohortBlocked(sender.sessionId, sessionId)) {
-        throw new EngineStateError("conflict", `${sessionId} is waiting on your answer to its blocker, and a report does not wake it. Answer with intent: "task".`);
+      const intent = input.intent ?? (sender.sessionId && this.assignedBy(sessionId, sender.sessionId) ? "task" : "fyi");
+      if (input.model && intent !== "task") throw new EngineStateError("invalid_request", "model and effort go with a task; an fyi, result or blocker runs nothing.");
+      if (intent === "fyi" && sender.sessionId && this.deps.cohortBlocked(sender.sessionId, sessionId)) {
+        throw new EngineStateError("conflict", `${sessionId} is waiting on your answer to its blocker, and an fyi does not wake it. Answer with intent: "task".`);
       }
       const model = input.model ? this.deps.agentTurnModel(sessionId, input.model) : undefined;
       if ((intent === "result" || intent === "blocker") && sender.sessionId) this.assertAnswersAnAssignment(sessionId, sender.sessionId, intent);
@@ -232,7 +232,7 @@ export class TurnIntake {
         ...(input.corrects ? { corrects: input.corrects } : {}),
         notification,
         agentNotice: notification.body,
-        // Only a task carries a scope; a report that named one would read as an assignment.
+        // Only a task carries a scope; an fyi that named one would read as an assignment.
         ...(scope ? { assignmentScope: scope } : {}),
       });
       if (folds && !result.replayed) this.foldIntoWaitingMessage(sessionId, folds, notification);
@@ -256,7 +256,7 @@ export class TurnIntake {
     if (assigners.length === 0 || assigners.includes(recipientSessionId)) return;
     throw new EngineStateError(
       "conflict",
-      `${recipientSessionId} never assigned you work, so it cannot take your ${intent}. Send it to the session that assigned the work you are answering (${assigners.join(", ")}), or send ${recipientSessionId} a report.`,
+      `${recipientSessionId} never assigned you work, so it cannot take your ${intent}. Send it to the session that assigned the work you are answering (${assigners.join(", ")}), or send ${recipientSessionId} an fyi.`,
     );
   }
 

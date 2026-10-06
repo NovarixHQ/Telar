@@ -464,7 +464,7 @@ describe("an agent's message that names no intent", () => {
   test("is a report to a session the sender never tasked, and opens no turn", () => {
     const { store } = setup();
     const sent = store.intake.submitAgentTurn("session_b", { runId: "run_note", input: "the parser moved" }, hostRunning(store));
-    expect(sent.turn).toMatchObject({ agentIntent: "report", agentDelivery: "passive", state: "completed" });
+    expect(sent.turn).toMatchObject({ agentIntent: "fyi", agentDelivery: "passive", state: "completed" });
   });
 
   test("is a report from a builder back to the session that tasked it", () => {
@@ -473,6 +473,6 @@ describe("an agent's message that names no intent", () => {
     const token = store.claims.claimTurn("session_a", "worker_a")!.claim!.token;
     store.turnLifecycle.markRunning("session_a", "run_brief", token);
     const sent = store.intake.submitAgentTurn("session_host", { runId: "run_note", input: "halfway" }, { sessionId: "session_a", runId: "run_brief", claimToken: token });
-    expect(sent.turn).toMatchObject({ agentIntent: "report", agentDelivery: "passive" });
+    expect(sent.turn).toMatchObject({ agentIntent: "fyi", agentDelivery: "passive" });
   });
 });

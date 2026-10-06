@@ -87,9 +87,9 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
       {
         sessionId: z.string().min(1),
         intent: z
-          .enum(["task", "report", "result", "blocker"])
+          .enum(["task", "fyi", "result", "blocker"])
           .optional()
-          .describe("task (assigns work or changes what a running session does; the default to a session you tasked), report (passive, read only with its next turn; the default otherwise), result (your final answer, sent last), blocker (needs a decision)."),
+          .describe("task (assigns work or changes what a running session does; the default to a session you tasked), fyi (passive, read only with its next turn; the default otherwise), result (your final answer, sent last), blocker (needs a decision)."),
         input: z.string().min(1).describe("The whole message; it cannot see this conversation."),
         corrects: z.string().min(1).optional().describe("runId of your earlier message this corrects; replaced if still unread."),
         model: z.string().min(1).optional().describe(`With intent task, this turn only. ${MODEL}`),
@@ -103,7 +103,7 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
         const runId = runIdFor("sessions_send", context?.toolCallId);
         const wait = typeof args.wait === "number" ? args.wait : undefined;
         const chosen = modelChoice(args);
-        const intent = args.intent === "task" || args.intent === "report" || args.intent === "result" || args.intent === "blocker" ? args.intent : undefined;
+        const intent = args.intent === "task" || args.intent === "fyi" || args.intent === "result" || args.intent === "blocker" ? args.intent : undefined;
         if (wait !== undefined && intent !== "task") return err("wait applies only to intent: task — the one that asks for a result.");
         if (chosen.model && intent !== "task") return err("model and effort apply only to intent: task — the message that runs something.");
         try {

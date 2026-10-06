@@ -33,12 +33,12 @@ import Testing
         {"id":"item_2","runId":"run_1","sessionId":"s","status":"completed",
          "detail":{"type":"user_message","text":"the whole 3 KB report",
           "sender":{"sessionId":"session_worker123456"},
-          "notice":"[agent message · report] session session_worker123456 (run run_peer, 3,012 chars).\nThe message itself is not in this notice."},
+          "notice":"[agent message · fyi] session session_worker123456 (run run_peer, 3,012 chars).\nThe message itself is not in this notice."},
          "startedAt":1}
         """#)
         let message = try message(item)
         #expect(message.sender?.sessionId == "session_worker123456")
-        #expect(message.notice?.hasPrefix("[agent message · report]") == true)
+        #expect(message.notice?.hasPrefix("[agent message · fyi]") == true)
         #expect(message.wakeReason == nil)
 
         #expect(message.text == "the whole 3 KB report")

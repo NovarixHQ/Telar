@@ -25,10 +25,10 @@ test("a TASK collapses, labelled by its intent with the scope on the header", ()
   expect(html).not.toContain("Task from another session");
 });
 
-test("a REPORT stays collapsed and keeps its payload out of the chat view", () => {
-  const html = renderToStaticMarkup(<AgentMessageBubble text="Checkpoint reached" sender={sender} intent="report" />);
+test("an FYI stays collapsed and keeps its payload out of the chat view", () => {
+  const html = renderToStaticMarkup(<AgentMessageBubble text="Checkpoint reached" sender={sender} intent="fyi" />);
   expect(html).toContain('aria-expanded="false"');
-  expect(html).toContain(">Report<");
+  expect(html).toContain(">FYI<");
   expect(html).not.toContain("Checkpoint reached");
 });
 
@@ -51,7 +51,7 @@ test("a task from OUTSIDE any session is attributed truthfully and not linked", 
 test("the collapsed row never carries the body, however long the body is", () => {
   // The bug in the issue, as a size: a 3 KB report is a row, not a wall.
   const body = "## Implementation checkpoint\n".repeat(200);
-  for (const intent of ["task", "report", "result", "blocker", undefined]) {
+  for (const intent of ["task", "fyi", "result", "blocker", undefined]) {
     const html = renderToStaticMarkup(
       <AgentMessageBubble text={body} sender={sender} {...(intent ? { intent } : {})} />,
     );

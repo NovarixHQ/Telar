@@ -262,7 +262,7 @@ struct AgentNoticeRow: View {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.left.arrow.right")
                         .font(.system(Theme.caption)).foregroundStyle(Theme.textMuted)
-                    Text(intent.map { $0.capitalized } ?? "Agent message")
+                    Text(intent.map { $0 == "fyi" ? "FYI" : $0.capitalized } ?? "Agent message")
                         .font(Theme.meta).foregroundStyle(Theme.textMuted)
                     Text(summary)
                         .font(Theme.meta).foregroundStyle(Theme.textMuted)

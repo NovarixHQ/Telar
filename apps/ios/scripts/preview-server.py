@@ -109,7 +109,7 @@ AGENT_TURNS = [
          input='PART 2 done.\n\nPorted `splitAtMessageBoundaries` and `turnRenderOrder`, plus `renderable` and '
                '`cutAroundLiveAgents`.\n\n- unit 170/170\n- UI 4/4\n\nThe view assembly is where the desktop’s own '
                'review found the bug, so there is a test that reads the source.',
-         origin='session', sender=dict(sessionId='sess_9f21c4a1b2c3'), agentIntent='report',
+         origin='session', sender=dict(sessionId='sess_9f21c4a1b2c3'), agentIntent='fyi',
          agentDelivery='passive', agentNotice='Ported the transcript rules; 170 unit tests green.',
          acceptedAt=NOW - 40000, updatedAt=NOW - 38000),
     dict(runId='run_wake', sessionId='design', sequence=4, state='completed',

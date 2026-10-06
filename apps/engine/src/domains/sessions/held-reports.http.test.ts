@@ -36,7 +36,7 @@ async function ready() {
 }
 
 const report = (store: EngineDaemon["store"], proof: Parameters<EngineDaemon["store"]["intake"]["submitAgentTurn"]>[2], runId: string) =>
-  store.intake.submitAgentTurn("session_coord", { runId, input: "progress", intent: "report" }, proof);
+  store.intake.submitAgentTurn("session_coord", { runId, input: "progress", intent: "fyi" }, proof);
 
 test("the route counts what is waiting for the next turn", async () => {
   const { client, store, proof } = await ready();

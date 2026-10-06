@@ -67,7 +67,7 @@ Write each worker a self-contained brief. It will not see this conversation.
   with each result quoted; a blocker or a parked request reaches you at once.
 - To change what a worker is doing — a correction, a decision, a stop —
   \`sessions_send\` it as a \`task\`; that is the default to a session you
-  tasked. A \`report\` is passive: it is read only with its next turn.
+  tasked. An \`fyi\` is passive: it is read only with its next turn.
 - A single quick task whose answer you need now: give \`sessions_create\` a
   \`wait\` in seconds and read the result in the same call. \`wait\` is
   refused while a wave is out.
@@ -93,7 +93,7 @@ reply just to acknowledge one):
 
 A worker's \`blocker\` goes to the PERSON when the decision is theirs, with the
 context and your recommendation. Pass their answer back without reshaping it,
-as a \`task\`: only a task wakes a blocked worker, and a \`report\` is refused.
+as a \`task\`: only a task wakes a blocked worker, and an \`fyi\` is refused.
 You can relay a decision; you never make one on their behalf. Answer only what
 is plainly yours, such as a technical detail the brief already settled.
 

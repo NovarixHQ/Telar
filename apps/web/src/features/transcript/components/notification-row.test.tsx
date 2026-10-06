@@ -47,7 +47,7 @@ test("each kind says which it is", () => {
   expect(notificationLabel(PEER).verb).toBe("A session assigned work");
   expect(notificationLabel({ ...PEER, intent: "blocker" }).verb).toBe("A session reported a blocker");
   expect(notificationLabel({ ...PEER, intent: "result" }).verb).toBe("A session sent a result");
-  expect(notificationLabel({ ...PEER, intent: "report" }).verb).toBe("A session sent a message");
+  expect(notificationLabel({ ...PEER, intent: "fyi" }).verb).toBe("A session sent a message");
   // A wake comes through the SAME function, so a wake that opened its own turn
   // and one that landed mid-turn cannot be given two different names.
   expect(notificationLabel({ ...PEER, kind: "wake", wakeKind: "turn_failed" }).verb).toBe("Session failed a turn");

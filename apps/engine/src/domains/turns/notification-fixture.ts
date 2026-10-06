@@ -52,7 +52,7 @@ export function busy(store: EngineStore, runId = "run_host"): { runId: string; t
 export const notifications = (store: EngineStore) => store.queries.turns("session_host").filter((turn) => turn.notification !== undefined);
 
 /** A worker's run that sends its coordinator a result and then ends. */
-export function reports(store: EngineStore, opts: { runId?: string; intent?: "result" | "report"; sent?: string } = {}) {
+export function reports(store: EngineStore, opts: { runId?: string; intent?: "result" | "fyi"; sent?: string } = {}) {
   const runId = opts.runId ?? "run_src";
   store.intake.submitTurn("session_a", { runId, input: "work" });
   const token = store.claims.claimTurn("session_a", "worker_child")!.claim!.token;

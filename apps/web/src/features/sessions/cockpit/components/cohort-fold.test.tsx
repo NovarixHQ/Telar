@@ -20,7 +20,7 @@ const detail = (over: Partial<NotificationDetail> & Pick<NotificationDetail, "ki
 const wake = detail({ kind: "wake", wakeKind: "turn_completed" });
 const blocker = detail({ kind: "peer_message", intent: "blocker", sessionId: "session_b" });
 const result = detail({ kind: "peer_message", intent: "result" });
-const report = detail({ kind: "peer_message", intent: "report" });
+const report = detail({ kind: "peer_message", intent: "fyi" });
 const close = detail({
   kind: "wake",
   wakeKind: "turn_completed",

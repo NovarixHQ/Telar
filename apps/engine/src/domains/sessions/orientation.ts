@@ -69,7 +69,7 @@ It is not this CLI's own notion of a session, and not a chat thread.
   one that tasked you nothing is refused it — then end your turn with one short line
   ("Result sent."). The result IS your answer; do not write it out a second
   time. Need a decision: intent \`blocker\`. Do not send progress
-  \`report\`s: they never wake anyone, and they only arrive with the other
+  \`fyi\`s: they never wake anyone, and they only arrive with the other
   session's next turn. A result silences your run's completion, so the
   session you report to is woken once, not twice. To fix something you
   already sent, send the correction with \`corrects\` naming that message's
@@ -87,7 +87,7 @@ It is not this CLI's own notion of a session, and not a chat thread.
   yours: sessions do not clean themselves up — one you start stays live until a
   human archives it — and every worktree session is a whole checkout on their
   disk. Create what the work needs and nothing more.
-- **Do not acknowledge acknowledgements.** A \`report\` back saying "received" is
+- **Do not acknowledge acknowledgements.** An \`fyi\` back saying "received" is
   a turn somebody pays for. Completion already arrives on its own — and a
   coordinator that has your \`result\` is told your run ended on its transcript,
   not in a second turn.
@@ -156,7 +156,7 @@ sleep.
   said: whole when it fits, otherwise its start and how much was cut.
 - A \`blocker\` or a parked request reaches you at once, even mid-turn. Its
   decision belongs to the person unless the brief settled it. Answer a blocker
-  with \`sessions_send\` intent \`task\`: a \`report\` does not wake it. The
+  with \`sessions_send\` intent \`task\`: an \`fyi\` does not wake it. The
   session stays in the wait until it finishes.
 - It expires after \`timeoutMinutes\` (default 240), naming who never sent a
   result. \`sessions_subscribe({ cancel: id })\` stops it; with no arguments it
@@ -168,7 +168,7 @@ sleep.
 
 ### Nothing interrupts you but a person, a task or a blocker
 
-Everything else waits for your turn to end. Peer \`report\`s, and a
+Everything else waits for your turn to end. Peer \`fyi\`s, and a
 \`result\` nobody subscribed to, never open a turn of their own: they are
 held, and handed to you with your next turn, whatever starts it — a wake, or
 the person's next message. \`view: "status"\` lists what is held.

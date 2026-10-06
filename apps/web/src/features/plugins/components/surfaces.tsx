@@ -13,6 +13,7 @@ const PluginPanelsSurface = dynamic(() => import("./plugin-panels-surface").then
 export type PluginSurfaceProps = {
   sessionId?: string;
   projectId?: string;
+  hostId?: string;
   active?: TurnState;
   events: readonly EngineEvent[];
   onOpenImage?: (attachmentId: string) => void;
@@ -21,10 +22,11 @@ export type PluginSurfaceProps = {
 };
 
 const SURFACES: Record<PluginSurfaceId, (props: PluginSurfaceProps) => ReactNode> = {
-  data: ({ sessionId, projectId, active, events, onOpenImage }) => (
+  data: ({ sessionId, projectId, hostId, active, events, onOpenImage }) => (
     <DataSurface
       {...(sessionId ? { sessionId } : {})}
       {...(projectId ? { projectId } : {})}
+      {...(hostId ? { hostId } : {})}
       {...(active ? { active } : {})}
       events={events}
       {...(onOpenImage ? { onOpenImage } : {})}

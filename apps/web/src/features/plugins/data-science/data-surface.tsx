@@ -30,12 +30,14 @@ function readSubTab(): SubTab {
 export function DataSurface({
   sessionId,
   projectId,
+  hostId,
   active,
   events = [],
   onOpenImage,
 }: {
   sessionId?: string;
   projectId?: string;
+  hostId?: string;
   active?: TurnState;
   events?: readonly EngineEvent[];
   onOpenImage?: (attachmentId: string) => void;
@@ -113,7 +115,7 @@ export function DataSurface({
         </span>
       </div>
       <div className="min-h-0 flex-1">
-        {sub === "plots" && <PlotsSurface {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} {...(onOpenImage ? { onOpenImage } : {})} embedded />}
+        {sub === "plots" && <PlotsSurface {...(sessionId ? { sessionId } : {})} {...(hostId ? { hostId } : {})} {...(active ? { active } : {})} {...(onOpenImage ? { onOpenImage } : {})} embedded />}
         {sub === "variables" && <VariablesSurface {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} embedded />}
         {sub === "environment" && <EnvironmentSurface {...(sessionId ? { sessionId } : {})} {...(projectId ? { projectId } : {})} kernel={kernel} onRestart={() => void act("restart")} />}
       </div>

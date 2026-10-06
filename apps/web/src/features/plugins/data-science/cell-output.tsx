@@ -4,7 +4,7 @@ import { useState } from "react";
 import { attachmentUrl, stripAnsi, type CellOutput } from "./ds";
 import { cn } from "@/ui/utils";
 
-export function CellOutputView({ output, sessionId, onOpenImage }: { output: CellOutput; sessionId: string; onOpenImage?: (attachmentId: string) => void }) {
+export function CellOutputView({ output, sessionId, hostId, onOpenImage }: { output: CellOutput; sessionId: string; hostId?: string | undefined; onOpenImage?: (attachmentId: string) => void }) {
   switch (output.kind) {
     case "text":
       return (
@@ -22,7 +22,7 @@ export function CellOutputView({ output, sessionId, onOpenImage }: { output: Cel
         </pre>
       );
     case "image": {
-      const src = output.attachmentId ? attachmentUrl(sessionId, output.attachmentId) : output.dataB64 ? `data:${output.mediaType};base64,${output.dataB64}` : undefined;
+      const src = output.attachmentId ? attachmentUrl(sessionId, output.attachmentId, hostId ? { hostId } : {}) : output.dataB64 ? `data:${output.mediaType};base64,${output.dataB64}` : undefined;
       if (!src) return <p className="px-3 py-1 text-2xs text-muted-foreground">[image]</p>;
       return (
         // eslint-disable-next-line @next/next/no-img-element

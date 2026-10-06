@@ -46,7 +46,7 @@ export function stackPlots(plots: readonly TurnAttachment[]): PlotStack[] {
   );
 }
 
-export function PlotsSurface({ sessionId, active, onOpenImage, embedded }: { sessionId?: string; active?: TurnState; onOpenImage?: (attachmentId: string) => void; embedded?: boolean }) {
+export function PlotsSurface({ sessionId, hostId, active, onOpenImage, embedded }: { sessionId?: string; hostId?: string; active?: TurnState; onOpenImage?: (attachmentId: string) => void; embedded?: boolean }) {
   const [plots, setPlots] = useState<TurnAttachment[]>();
   const [refreshing, setRefreshing] = useState(false);
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
@@ -104,6 +104,7 @@ export function PlotsSurface({ sessionId, active, onOpenImage, embedded }: { ses
               <div key={stack.key} className="flex min-w-0 flex-col gap-1">
                 <PlotCard
                   sessionId={sessionId}
+                  {...(hostId ? { hostId } : {})}
                   plot={stack.latest}
                   pinned={stack.pinned}
                   {...(onOpenImage ? { onOpen: onOpenImage } : {})}
@@ -126,6 +127,7 @@ export function PlotsSurface({ sessionId, active, onOpenImage, embedded }: { ses
                     <PlotCard
                       key={plot.id}
                       sessionId={sessionId}
+                      {...(hostId ? { hostId } : {})}
                       plot={plot}
                       pinned={plot.tags?.includes("pinned") ?? false}
                       {...(onOpenImage ? { onOpen: onOpenImage } : {})}
@@ -144,6 +146,7 @@ export function PlotsSurface({ sessionId, active, onOpenImage, embedded }: { ses
 
 function PlotCard({
   sessionId,
+  hostId,
   plot,
   pinned,
   onOpen,
@@ -154,6 +157,7 @@ function PlotCard({
   superseded,
 }: {
   sessionId: string;
+  hostId?: string | undefined;
   plot: TurnAttachment;
   pinned: boolean;
   onOpen?: (attachmentId: string) => void;
@@ -173,7 +177,7 @@ function PlotCard({
       )}
     >
       <img
-        src={attachmentUrl(sessionId, plot.id)}
+        src={attachmentUrl(sessionId, plot.id, hostId ? { hostId } : {})}
         alt={label}
         className="block w-full cursor-zoom-in object-contain"
         onClick={() => onOpen?.(plot.id)}

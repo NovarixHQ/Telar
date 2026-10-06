@@ -12,7 +12,6 @@ import { announceProjectsChanged } from "../projects";
 
 const api = createEngineApi();
 
-/** Points a project whose folder moved at where it is now. Without the desktop picker the path is typed or browsed. */
 export function ChooseProjectFolder({
   project,
   onMoved,

@@ -23,7 +23,6 @@ async function belongsTo(commonDir: string, worktree: string): Promise<boolean> 
   }
 }
 
-/** The worktrees to re-link; a clone their admin entries are not in is refused, since a worktree only follows the repository it was cut from. */
 export async function planRelocation(
   git: AsyncGitRunner,
   input: { name: string; previousRoot: string; root: string; sessions: readonly Session[] },

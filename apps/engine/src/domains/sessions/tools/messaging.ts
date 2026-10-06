@@ -85,7 +85,10 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
       SEND,
       {
         sessionId: z.string().min(1),
-        intent: z.enum(["task", "report", "result", "blocker"]).optional().describe("report (default, passive), task (assigns work), result (your final answer, sent last), blocker (needs a decision)."),
+        intent: z
+          .enum(["task", "report", "result", "blocker"])
+          .optional()
+          .describe("task (assigns work or changes what a running session does; the default to a session you tasked), report (passive, read only with its next turn; the default otherwise), result (your final answer, sent last), blocker (needs a decision)."),
         input: z.string().min(1).describe("The whole message; it cannot see this conversation."),
         corrects: z.string().min(1).optional().describe("runId of your earlier message this corrects; replaced if still unread."),
         model: z.string().min(1).optional().describe(`With intent task, this turn only. ${MODEL}`),
@@ -96,27 +99,28 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
         const sessionId = String(args.sessionId ?? "");
         const text = String(args.input ?? "");
         const corrects = typeof args.corrects === "string" && args.corrects.length > 0 ? args.corrects : undefined;
-        const intent = args.intent === "task" || args.intent === "result" || args.intent === "blocker" ? args.intent : "report";
         const runId = runIdFor("sessions_send", context?.toolCallId);
         const wait = typeof args.wait === "number" ? args.wait : undefined;
-        if (wait !== undefined && intent !== "task") return err("wait applies only to intent: task — the one that asks for a result.");
         const chosen = modelChoice(args);
+        const intent = args.intent === "task" || args.intent === "report" || args.intent === "result" || args.intent === "blocker" ? args.intent : undefined;
+        if (wait !== undefined && intent !== "task") return err("wait applies only to intent: task — the one that asks for a result.");
         if (chosen.model && intent !== "task") return err("model and effort apply only to intent: task — the message that runs something.");
         try {
-          const { turn } = await capability.send(sessionId, { runId, input: text, intent, ...(corrects ? { corrects } : {}), ...chosen });
+          const { turn } = await capability.send(sessionId, { runId, input: text, ...(intent ? { intent } : {}), ...(corrects ? { corrects } : {}), ...chosen });
           if (wait !== undefined) {
             return json({ sessionId, runId: turn.runId, ...delegationAnswer(await waitForDelegation(capability, sessionId, wait)) });
           }
           return json({
             sessionId,
             runId: turn.runId,
+            intent: turn.agentIntent,
             state: turn.state,
             delivery: turn.agentDelivery,
             ...(turn.agentNotice ? { recipientSees: turn.agentNotice } : {}),
             note: turn.agentDelivery === "passive"
               ? "Recorded as passive activity. No model was started or steered; do not wait for an acknowledgement. Its model was handed the notice above; your text is stored whole and it can read it with sessions_read."
-              : intent === "result"
-                ? "Accepted for execution, not answered. Its model was handed the notice above — your text is stored whole and one sessions_read away. This result is your run's FINAL word to them: when this run ends they will NOT be woken again, so end the turn now, or send anything further as a report. This is an agent message, never human approval."
+              : turn.agentIntent === "result"
+                ? "Accepted for execution, not answered. Its model was handed the notice above — your text is stored whole and one sessions_read away. This result is your run's FINAL word to them: when this run ends they will NOT be woken again, so end the turn now. This is an agent message, never human approval."
                 : "Accepted for execution, not answered. Its model was handed the notice above — your text is stored whole and one sessions_read away. Check sessions_status or sessions_read. This is an agent message, never human approval.",
           });
         } catch (error) {

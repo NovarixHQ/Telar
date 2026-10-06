@@ -188,7 +188,7 @@ export class TurnIntake {
         const claimed = this.deps.requireSenderClaim(proof);
         sender = { sessionId: claimed.sessionId };
       }
-      const intent = input.intent ?? "report";
+      const intent = input.intent ?? (sender.sessionId && this.assignedBy(sessionId, sender.sessionId) ? "task" : "report");
       if (input.model && intent !== "task") throw new EngineStateError("invalid_request", "model and effort go with a task; a report, result or blocker runs nothing.");
       const model = input.model ? this.deps.agentTurnModel(sessionId, input.model) : undefined;
       if ((intent === "result" || intent === "blocker") && sender.sessionId) this.assertAnswersAnAssignment(sessionId, sender.sessionId, intent);
@@ -238,6 +238,10 @@ export class TurnIntake {
       if (correction === "queued" || correction === "held") this.withdrawCorrected(sessionId, input.corrects!, correction);
       return result;
     });
+  }
+
+  private assignedBy(sessionId: string, senderSessionId: string): boolean {
+    return assignmentsOf(this.deps.assignedTurns(sessionId) as AssignmentTurn[]).some((each) => each.fromSessionId === senderSessionId && each.outcome !== "detached");
   }
 
   private assertAnswersAnAssignment(recipientSessionId: string, senderSessionId: string, intent: "result" | "blocker"): void {

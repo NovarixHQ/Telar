@@ -135,6 +135,12 @@ struct HostSettingsView: View {
                                 title: "Dictation",
                                 subtitle: "Speak into the message box"
                             ) { pushDictation = true }
+                            CardDivider()
+                            CardNavRow(
+                                icon: "iphone",
+                                title: "Simulators",
+                                subtitle: "Watch and drive this computer's simulators"
+                            ) { pushSimulators = true }
                         }
                     }
                 }
@@ -171,6 +177,11 @@ struct HostSettingsView: View {
                 DictationSettingsView(api: api)
             }
         }
+        .navigationDestination(isPresented: $pushSimulators) {
+            if let api = settings.api(for: hostId) {
+                SimulatorsView(api: api)
+            }
+        }
         .onAppear { nameDraft = host?.name ?? "" }
         .onChange(of: nameDraft) {
             guard host != nil else { return }
@@ -189,4 +200,5 @@ struct HostSettingsView: View {
     @State private var pushConnect = false
     @State private var pushDevices = false
     @State private var pushDictation = false
+    @State private var pushSimulators = false
 }

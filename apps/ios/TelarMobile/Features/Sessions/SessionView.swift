@@ -12,6 +12,7 @@ struct SessionView: View {
     @State private var projectName: String?
 
     @State private var panel: PanelModel
+    @State private var simulatorWatch = SimulatorWatch()
 
     @State private var inspectorShown = false
     @State private var pushShown = false
@@ -63,6 +64,8 @@ struct SessionView: View {
     }
 
     private var panelAPI: (any PanelAPI)? { api as? any PanelAPI }
+
+    private var simulatorsAPI: (any SimulatorsAPI)? { api as? any SimulatorsAPI }
 
     private var attachmentSource: AttachmentSource? {
         panelAPI.map { panelAPI in
@@ -228,6 +231,9 @@ struct SessionView: View {
 
             .onChange(of: wantsColumn) { raisePanel(panel.isOpen) }
             .task(id: "\(sessionId):plugins") { await readPlugins() }
+            .task(id: scenePhase == .active) {
+                if scenePhase == .active, let simulatorsAPI { await simulatorWatch.watch(simulatorsAPI) }
+            }
             .onChange(of: panel.generation) {
                 guard panel.isOpen else { return }
                 raisePanel(true)
@@ -514,6 +520,9 @@ struct SessionView: View {
                             .buttonStyle(.plain)
                     }
                 }
+            }
+            if let simulatorsAPI, !simulatorWatch.running.isEmpty {
+                SimulatorPill(api: simulatorsAPI, running: simulatorWatch.running)
             }
             ComposerView(
                 draft: $draft,

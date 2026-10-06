@@ -172,7 +172,7 @@ describe("the capability list", () => {
     }
     expect(TELAR_CAPABILITIES).not.toContain("spool");
     expect<string[]>([...TELAR_CAPABILITIES].sort()).toEqual(
-      ["browser", "sessions", "notebook", "ds", "latex", "display", "run", "terminal", "prompt", "hello"].sort(),
+      ["browser", "sessions", "notebook", "ds", "latex", "display", "run", "terminal", "prompt", "simulator", "hello"].sort(),
     );
   });
 

@@ -81,3 +81,11 @@ test("the root export is browser-safe: no node builtins reachable from it", asyn
   const offenders = files.filter((name) => /from\s+"node:|require\("node:/.test(fs.readFileSync(path.join(dir, name), "utf8")));
   expect(offenders).toEqual([]);
 });
+
+test("a terminal's byte stream resumes the ring from the cursor it is given", () => {
+  const client = new EngineClient({ version: 2, daemonId: "daemon", host: "127.0.0.1", port: 4010, token: "x".repeat(32), startedAt: 1 });
+  expect(client.runBytesStream("session one", { runId: "term_1", after: 12 })).toEqual({
+    url: "http://127.0.0.1:4010/v2/sessions/session%20one/run/bytes/stream?terminalId=term_1&after=12",
+    headers: { authorization: `Bearer ${"x".repeat(32)}` },
+  });
+});

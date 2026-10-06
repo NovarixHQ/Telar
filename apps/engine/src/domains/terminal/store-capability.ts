@@ -22,36 +22,36 @@ function titleOf(command: string): string {
   return words.length > 40 ? `${words.slice(0, 39)}…` : words;
 }
 
+export function targetRun(manager: RunManager, sessionId: string, input: RunTarget | undefined, mode: "read" | "act"): RunView {
+  const id = input?.terminalId ?? input?.runId;
+  if (id) {
+    let run: RunView;
+    try {
+      run = manager.run(id);
+    } catch {
+      throw new RunError("not_found", `this session has no terminal ${id}`);
+    }
+    if (run.sessionId !== sessionId) throw new RunError("not_found", `this session has no terminal ${id}`);
+    return run;
+  }
+  const terminals = manager.terminals(sessionId);
+  const open = terminals.filter((run) => !isTerminal(run.status));
+  if (open.length === 1) return open[0]!;
+  if (open.length > 1) {
+    throw new RunError(
+      "invalid_request",
+      `this session has ${open.length} open terminals — ${open.map((run) => `"${run.title}" (${run.terminalId})`).join(", ")} — so say which one`,
+      { terminals: open.map((run) => ({ terminalId: run.terminalId, title: run.title })) },
+    );
+  }
+  const latest = mode === "read" ? terminals[0] : undefined;
+  if (!latest) throw new RunError("not_found", "this session has no open terminal");
+  return latest;
+}
+
 export function storeRunCapability(deps: RunDeps): RunCapability {
   const { store, manager } = deps;
-
-  const target = (input: RunTarget | undefined, mode: "read" | "act"): RunView => {
-    const { sessionId } = deps.context();
-    const id = input?.terminalId ?? input?.runId;
-    if (id) {
-      let run: RunView;
-      try {
-        run = manager.run(id);
-      } catch {
-        throw new RunError("not_found", `this session has no terminal ${id}`);
-      }
-      if (run.sessionId !== sessionId) throw new RunError("not_found", `this session has no terminal ${id}`);
-      return run;
-    }
-    const terminals = manager.terminals(sessionId);
-    const open = terminals.filter((run) => !isTerminal(run.status));
-    if (open.length === 1) return open[0]!;
-    if (open.length > 1) {
-      throw new RunError(
-        "invalid_request",
-        `this session has ${open.length} open terminals — ${open.map((run) => `"${run.title}" (${run.terminalId})`).join(", ")} — so say which one`,
-        { terminals: open.map((run) => ({ terminalId: run.terminalId, title: run.title })) },
-      );
-    }
-    const latest = mode === "read" ? terminals[0] : undefined;
-    if (!latest) throw new RunError("not_found", "this session has no open terminal");
-    return latest;
-  };
+  const target = (input: RunTarget | undefined, mode: "read" | "act"): RunView => targetRun(manager, deps.context().sessionId, input, mode);
 
   return {
     async configurations() {

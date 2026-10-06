@@ -127,6 +127,15 @@ describe("api gate", () => {
     }
   });
 
+  test("an observer watches a terminal's stream but cannot type into it or resize it", () => {
+    const observer = file({}, "observer");
+    const as = (pathname: string, method: string) => ask(pathname, { authorization: `Bearer ${RAW}`, method }, observer);
+    expect(as("/api/sessions/s1/run/bytes/stream?terminalId=t1", "GET")).toEqual({ allow: true, deviceId: "dev_1", role: "observer" });
+    expect(as("/api/sessions/s1/run/write", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(as("/api/sessions/s1/run/resize", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(ask("/api/sessions/s1/run/write", { authorization: `Bearer ${RAW}`, method: "POST" })).toEqual({ allow: true, deviceId: "dev_1", role: "full" });
+  });
+
   test("an observer cannot escalate itself — the device routes are writes too", () => {
     expect(ask("/api/remote/devices/dev_1", { authorization: `Bearer ${RAW}`, method: "PATCH" }, file({}, "observer"))).toEqual({
       allow: false,

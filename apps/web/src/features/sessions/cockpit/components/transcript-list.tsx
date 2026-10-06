@@ -12,7 +12,7 @@ import { ArtifactShelf } from "@/features/agent-tools";
 import { artifactPanelTab } from "@/features/panel";
 import type { useSessionSync } from "../hooks/use-session-sync";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
-import { transcriptRows } from "../model";
+import { markerRowOf, transcriptRows } from "../model";
 import { planDispatches } from "../dispatch";
 import { useSessionDirectory } from "../hooks/use-session-directory";
 import { SessionProblem } from "./masthead";
@@ -41,8 +41,9 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const newestResultRunId = receipt.newestResult?.runId;
   const { shown, hostOf } = transcriptRows(model.transcript);
   const hostRun = (request: EngineRequest) => hostOf.get(request.runId) ?? request.runId;
+  const markerRow = markerRowOf(newestResultRunId, hostOf);
   // A cohort folds, except a turn with a request (open or decided) and the newest answer, whose marker must show.
-  const keep = new Set([...sync.requests.map(hostRun), ...(newestResultRunId ? [newestResultRunId] : [])]);
+  const keep = new Set([...sync.requests.map(hostRun), ...(markerRow ? [markerRow] : [])]);
   const plan = planDispatches(shown, active?.runId);
   const directory = useSessionDirectory(props.hostId, plan.sessionIds);
   const items = useMemo(() => shown.flatMap((turn) => turn.items), [shown]);
@@ -64,7 +65,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
           {...(turn.failureCode === "rate_limited" && turn.state === "failed" ? { onResumeNow: () => props.onResumeNow(turn.runId) } : {})}
         />
       </TurnFrame>}
-      {turn.runId === newestResultRunId && <ReadReceiptMarker markerRef={receipt.markerRefFor(turn.runId)} />}
+      {newestResultRunId && turn.runId === markerRow && <ReadReceiptMarker markerRef={receipt.markerRefFor(newestResultRunId)} />}
     </Fragment>
   );
   return (

@@ -62,6 +62,10 @@ export function transcriptRows<T extends RowTurn>(transcript: readonly T[]): { s
   return { shown: visible.filter((turn) => !turn.decidedForBackgroundWork || !hostOf.has(turn.runId)), hostOf };
 }
 
+export function markerRowOf(runId: string | undefined, hostOf: ReadonlyMap<string, string>): string | undefined {
+  return runId === undefined ? undefined : (hostOf.get(runId) ?? runId);
+}
+
 export function wakeUpLabel(task: JournalTask | undefined): { verb: string; Icon: typeof ClockIcon } {
   if (!task) return { verb: "Woke up on a background task", Icon: ClockIcon };
   const subject = task.kind === "agent" ? (task.role ? `${task.role} agent` : "Sub-agent") : "Background command";

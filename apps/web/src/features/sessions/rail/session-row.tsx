@@ -234,7 +234,7 @@ export function SessionRow({
   const statusSlot = <RowStatus session={session} band={band} renderedAt={renderedAt} />;
   const trailingSlot = jumpSlot ? <KeyHintOverlay command={`jump-${jumpSlot}`}>{statusSlot}</KeyHintOverlay> : statusSlot;
   const heldTerminals = unsettles && !session.archived ? (session.terminals ?? 0) : 0;
-  const marks = <RowMarks session={session} band={band} renderedAt={renderedAt} heldTerminals={heldTerminals} />;
+  const marks = <RowMarks session={session} band={band} renderedAt={renderedAt} heldTerminals={heldTerminals} open={active} />;
   const rowBody =
     variant === "card" ? (
       <CardBody session={session} showProject={showProject} marks={marks} trailing={trailingSlot} reserve={disclosure !== undefined} />

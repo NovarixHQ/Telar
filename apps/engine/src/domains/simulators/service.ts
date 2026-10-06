@@ -7,6 +7,7 @@ import { runAction, type ActionDeps } from "./actions";
 import { readDetail } from "./detail";
 import { takeScreenshot } from "./screenshot";
 import { InputRelay, type OpenSocket } from "./input";
+import { listPairedWatches, withWatches } from "./pairs";
 import { hostPlatforms, hubErrors, type HostPlatforms } from "./platforms";
 import { StreamTickets } from "./tickets";
 import { AGENT_DEVICE, HUB, HUB_VERSION, hubHelpers, installedVersions, NpmToolchain, toolBinDir } from "./toolchain";
@@ -47,7 +48,7 @@ export function bootFailure(error: string | undefined): SimulatorBootFailure {
   return "launch_failed";
 }
 
-const summary = ({ id, platform, name, version, booted, physical }: HubDevice): SimulatorSummary => ({ id, platform, name, version, booted, physical });
+const summary = ({ id, platform, name, version, booted, physical, pairedWith }: HubDevice): SimulatorSummary => ({ id, platform, name, version, booted, physical, ...(pairedWith ? { pairedWith } : {}) });
 
 export class Simulators {
   private readonly runner: ProcessRunner;
@@ -97,8 +98,12 @@ export class Simulators {
       this.ensureReady().catch(() => undefined);
       return { ...this.pending(), hub: hub(), platforms, simulators: [], errors: [] };
     }
-    const list = await this.call<HubDeviceList>(origin, "GET", "/api/devices", undefined, LIST_TIMEOUT_MS);
-    this.devices = [...(list.simulators ?? []), ...(list.emulators ?? [])];
+    const ios = platforms.some((entry) => entry.platform === "ios" && entry.available);
+    const [list, watches] = await Promise.all([
+      this.call<HubDeviceList>(origin, "GET", "/api/devices", undefined, LIST_TIMEOUT_MS),
+      ios ? listPairedWatches(this.actionDeps.run) : [],
+    ]);
+    this.devices = [...withWatches(list.simulators ?? [], watches), ...(list.emulators ?? [])];
     return { status: "ready", hub: hub(origin), platforms, simulators: this.devices.map(summary), errors: hubErrors(list.errors ?? [], host) };
   }
 

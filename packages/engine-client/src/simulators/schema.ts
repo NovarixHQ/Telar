@@ -12,6 +12,7 @@ export const SimulatorSummary = z.object({
   version: z.string(),
   booted: z.boolean(),
   physical: z.boolean(),
+  pairedWith: SimulatorId.optional(),
 });
 export type SimulatorSummary = z.infer<typeof SimulatorSummary>;
 

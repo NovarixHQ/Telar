@@ -13,7 +13,7 @@ type Call = { file: string; args: readonly string[]; options?: ProcessOptions };
 
 export const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?: number } = {}) {
+export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?: number; simctlList?: () => string } = {}) {
   const runs: Call[] = [];
   const starts: Array<Call & { handle: ProcessHandle; exit(code?: number): void }> = [];
   const waiting: Array<{ count: number; resolve: () => void }> = [];
@@ -32,7 +32,8 @@ export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?
       if (file === "ps") return { code: 0, stdout: overrides.ps ?? "", stderr: "" };
       if (file === "xcrun") {
         if (args[1] === "io" && args[3] === "screenshot") fs.writeFileSync(args.at(-1)!, PNG);
-        return { code: overrides.xcrun ?? 0, stdout: "", stderr: "" };
+        const stdout = args[1] === "list" ? (overrides.simctlList?.() ?? "") : "";
+        return { code: overrides.xcrun ?? 0, stdout, stderr: "" };
       }
       return { code: 127, stdout: "", stderr: "" };
     },
@@ -69,7 +70,8 @@ export function fakeHub(devices: SimulatorSummary[], options: { bootError?: stri
         return json({ simulators: devices.filter((d) => d.platform === "ios"), emulators: devices.filter((d) => d.platform === "android") });
       case "/api/devices/boot": {
         if (options.bootError) return json({ ok: false, error: options.bootError }, 500);
-        const device = find(body?.id)!;
+        const device = find(body?.id);
+        if (!device) return json({ ok: true, id: body?.id });
         device.booted = true;
         if (device.platform === "android") device.id = "emulator-5554";
         return json({ ok: true, ...(device.platform === "android" ? { serial: device.id } : { id: device.id }) });
@@ -78,7 +80,8 @@ export function fakeHub(devices: SimulatorSummary[], options: { bootError?: stri
         return json({ ok: true });
       case "/vendor/serve-sim/grid/api/shutdown":
       case "/api/devices/shutdown": {
-        const device = find(body?.udid ?? body?.id)!;
+        const device = find(body?.udid ?? body?.id);
+        if (!device) return json({ ok: true });
         if (!device.booted) return json({ ok: false, error: "already shut down" }, 500);
         device.booted = false;
         return json({ ok: true });
@@ -94,6 +97,22 @@ export function fakeHub(devices: SimulatorSummary[], options: { bootError?: stri
 }
 
 export const iPhone = (): SimulatorSummary => ({ id: "A1B2-UDID", platform: "ios", name: "iPhone 16", version: "iOS 18.0", booted: false, physical: false });
+export const WATCH_ID = "DA92D4A4-E32E-412B-9946-BC7F8AD44DD1";
+
+export const simctlWithPair = (phoneId = "A1B2-UDID", watchState = "Booted") =>
+  JSON.stringify({
+    devices: {
+      "com.apple.CoreSimulator.SimRuntime.iOS-27-0": [
+        { lastUsedAt: "2026-10-06T20:05:12Z", dataPath: "/tmp/phone/data", udid: phoneId, isAvailable: true, deviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro", state: "Booted", name: "iPhone 16" },
+      ],
+      "com.apple.CoreSimulator.SimRuntime.watchOS-27-0": [
+        { lastUsedAt: "2026-10-06T20:05:12Z", dataPath: "/tmp/watch/data", udid: WATCH_ID, isAvailable: true, deviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.Apple-Watch-Series-12-46mm", state: watchState, name: "Pulso Watch" },
+        { dataPath: "/tmp/lonely/data", udid: "0000-LONELY", isAvailable: true, deviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.Apple-Watch-SE-40mm", state: "Shutdown", name: "Apple Watch SE" },
+      ],
+    },
+    pairs: { "C55015BD-A9B3-4CDF-A7FB-81A5949BD581": { watch: { name: "Pulso Watch", udid: WATCH_ID, state: watchState }, phone: { name: "iPhone 16", udid: phoneId, state: "Booted" }, state: "(active, connected)" } },
+  });
+
 export const pixel = (): SimulatorSummary => ({ id: "Pixel_8", platform: "android", name: "Pixel 8", version: "Android 15", booted: false, physical: false });
 
 type Run = { file: string; args: readonly string[]; input?: string };

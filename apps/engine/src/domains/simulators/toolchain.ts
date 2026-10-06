@@ -13,6 +13,13 @@ const installDir = (root: string, version: string) => path.join(toolDir(root), v
 export const hubEntry = (root: string, version = HUB_VERSION) =>
   path.join(installDir(root, version), "node_modules", HUB_PACKAGE, "dist", "server", "cli.mjs");
 
+export function hubHelpers(root: string): { axSettings?: string; serveSimCli?: string } {
+  const dist = path.join(installDir(root, HUB_VERSION), "node_modules", HUB_PACKAGE, "vendor", "serve-sim", "dist");
+  const axSettings = path.join(dist, "simax", "serve-sim-ax-settings");
+  const serveSimCli = path.join(dist, "serve-sim.js");
+  return { ...(fs.existsSync(axSettings) ? { axSettings } : {}), ...(fs.existsSync(serveSimCli) ? { serveSimCli } : {}) };
+}
+
 /** Never carries npm's output: it can hold a registry URL with credentials in it. */
 class HubInstallError extends Error {
   constructor(

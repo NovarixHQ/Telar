@@ -1,9 +1,13 @@
-import type { SimulatorBootFailure, SimulatorPlatformAvailability, SimulatorSettings, SimulatorSummary, SimulatorsState } from "@telar/engine-client";
+import type { SimulatorAction, SimulatorBootFailure, SimulatorDetail, SimulatorInput, SimulatorPlatformAvailability, SimulatorSettings, SimulatorSummary, SimulatorsState } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
 import { agentEnv } from "../../platform/process/agent-env";
 import { processRunner, type ProcessRunner } from "../../platform/process/runner";
 import { reserveLoopbackPort, SimulatorHub, type HubDeps } from "./hub";
-import { HUB_VERSION, HubToolchain, installedHubVersions } from "./toolchain";
+import { runAction, type ActionDeps } from "./actions";
+import { readDetail } from "./detail";
+import { InputRelay, type OpenSocket } from "./input";
+import { StreamTickets } from "./tickets";
+import { HUB_VERSION, hubHelpers, HubToolchain, installedHubVersions } from "./toolchain";
 
 export type SimulatorsDeps = {
   root: string;
@@ -14,6 +18,7 @@ export type SimulatorsDeps = {
   reservePort?: HubDeps["reservePort"];
   sleep?: HubDeps["sleep"];
   now?: () => number;
+  openSocket?: OpenSocket;
 };
 
 type HubDevice = SimulatorSummary;
@@ -49,6 +54,9 @@ export class Simulators {
   private failure?: { message: string; at: number };
   private platforms?: Promise<SimulatorPlatformAvailability[]>;
   private devices: HubDevice[] = [];
+  private readonly input: InputRelay;
+  private readonly actionDeps: ActionDeps;
+  readonly tickets: StreamTickets;
 
   constructor(private readonly deps: SimulatorsDeps) {
     this.runner = deps.runner ?? processRunner;
@@ -56,6 +64,9 @@ export class Simulators {
     this.now = deps.now ?? Date.now;
     const env = () => agentEnv();
     this.toolchain = new HubToolchain({ root: deps.root, runner: this.runner, env });
+    this.input = new InputRelay(deps.openSocket);
+    this.tickets = new StreamTickets(this.now);
+    this.actionDeps = { run: (file, args, options) => this.runner.run(file, args, { ...options, env: env() }), helpers: () => hubHelpers(deps.root) };
     this.hub = new SimulatorHub({
       root: deps.root,
       runner: this.runner,
@@ -106,6 +117,31 @@ export class Simulators {
     return summary(after ?? { ...device, booted: false });
   }
 
+  origin(): string | undefined {
+    return this.deps.enabled() ? this.hub.origin() : undefined;
+  }
+
+  async detail(id: string): Promise<SimulatorDetail> {
+    this.requireReady();
+    return readDetail(this.actionDeps, await this.find(id), this.now());
+  }
+
+  async action(id: string, action: SimulatorAction): Promise<SimulatorDetail> {
+    this.requireReady();
+    const device = await this.find(id);
+    await runAction(this.actionDeps, device, action);
+    return readDetail(this.actionDeps, device, this.now());
+  }
+
+  async sendInput(id: string, events: readonly SimulatorInput[]): Promise<void> {
+    const origin = this.requireReady();
+    const device = await this.find(id);
+    if (device.platform !== "ios") throw new HttpError(400, "invalid_request", "Input reaches only iOS Simulators for now.");
+    await this.input.send(origin, device.id, events).catch(() => {
+      throw new HttpError(502, "provider_unavailable", "The simulator hub did not take the input.");
+    });
+  }
+
   async settingsChanged(settings: SimulatorSettings): Promise<void> {
     this.failure = undefined;
     if (settings.enabled) {
@@ -113,10 +149,12 @@ export class Simulators {
       return;
     }
     this.devices = [];
+    this.input.closeAll();
     await this.hub.stop();
   }
 
   stop(): Promise<void> {
+    this.input.closeAll();
     return this.hub.stop();
   }
 

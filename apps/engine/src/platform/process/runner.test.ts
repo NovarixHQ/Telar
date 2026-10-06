@@ -6,6 +6,10 @@ test("run answers the exit code and both streams", async () => {
   expect(result).toEqual({ code: 3, stdout: "out\n", stderr: "err\n" });
 });
 
+test("run writes its input to the child's stdin", async () => {
+  expect((await processRunner.run("cat", [], { input: "payload" })).stdout).toBe("payload");
+});
+
 test("run answers a missing binary instead of throwing", async () => {
   const result = await processRunner.run("/nonexistent/telar-test-binary", []);
   expect(result.code).toBeNull();

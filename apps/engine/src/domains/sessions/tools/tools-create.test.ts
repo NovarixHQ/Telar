@@ -96,9 +96,9 @@ describe("a session whose checkout failed", () => {
     return { store, tools, id };
   }
 
-  test("sessions_status says it is NOT running, and names git's reason", async () => {
+  test("a status read says it is NOT running, and names git's reason", async () => {
     const { tools, id } = await broken();
-    const status = await call(tools, "sessions_status", { sessionId: id });
+    const status = await call(tools, "sessions_read", { view: "status", sessionId: id });
 
     expect(status.json!.running).toBe(false);
     expect(status.json!.preparation).toMatchObject({ state: "failed" });
@@ -119,7 +119,7 @@ describe("a session whose checkout failed", () => {
     const { store, projectId } = engine();
     const tools = wall(store);
     const id = (await call(tools, "sessions_create", { projectId, envMode: "local" })).json!.id as string;
-    const status = await call(tools, "sessions_status", { sessionId: id });
+    const status = await call(tools, "sessions_read", { view: "status", sessionId: id });
     expect(status.json!.preparation).toBeUndefined();
     expect(status.json!.running).toBe(false);
     expect(String(status.json!.note)).toContain("Nothing is running.");
@@ -136,7 +136,7 @@ describe("a session whose checkout failed", () => {
     const id = (await call(tools, "sessions_create", { projectId, envMode: "worktree" })).json!.id as string;
     store.intake.submitTurn(id, { runId: "run_one", input: "start" });
 
-    const status = await call(tools, "sessions_status", { sessionId: id });
+    const status = await call(tools, "sessions_read", { view: "status", sessionId: id });
     expect(status.json!.running).toBe(false);
     expect(status.json!.preparation).toMatchObject({ state: "preparing" });
     const note = String(status.json!.note);

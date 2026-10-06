@@ -67,7 +67,7 @@ const SLICE_MAX_CHARS = CHARS_MAX + 2_000;
 
 const ANSWER_MISSES: Readonly<Record<string, string>> = {
   [TURN_ANSWER_NONE]:
-    'this session has never left an answer. There is nothing here to read and no runId will produce one, so do not ask it again — sessions_status says what it is doing, sessions_read view: "outline" what its turns were.',
+    'this session has never left an answer. There is nothing here to read and no runId will produce one, so do not ask it again — view: "status" says what it is doing, sessions_read view: "outline" what its turns were.',
   [TURN_ANSWER_NO_SUCH_RUN]:
     'no turn with that runId is in this session. Do not guess another — omit runId for the latest turn that said something, or sessions_read view: "outline" to see which turns there are.',
 };

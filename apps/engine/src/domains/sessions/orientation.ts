@@ -93,9 +93,8 @@ It is not this CLI's own notion of a session, and not a chat thread.
   not in a second turn.
 
 Tools: \`sessions_list\`, \`sessions_create\`, \`sessions_send\`, \`sessions_read\`,
-\`sessions_status\`, \`sessions_stop\`, \`sessions_settle\`, \`sessions_subscribe\`,
-\`sessions_requests\`, \`sessions_resolve_request\`, \`sessions_schedule\`,
-\`sessions_capabilities\`, \`sessions_handoff\`.
+\`sessions_stop\`, \`sessions_settle\`, \`sessions_subscribe\`, \`sessions_requests\`,
+\`sessions_schedule\`, \`sessions_capabilities\`, \`sessions_handoff\`.
 
 ### Reading a peer without spending your context on it
 
@@ -108,9 +107,9 @@ name the exact next call.
   of conversations is ordinary and almost all of them are shelved. With \`q\` it
   SEARCHES every session instead — lexical, each hit quoting the line that
   matched: the cheap first step when you have a phrase and no id.
-- \`sessions_status\` is the cheap "is it finished yet": an activity, a turn
-  count, and the last few turns. Ask it before you read anything — but never
-  poll it to wait for a peer; subscribe and end your turn instead.
+- \`sessions_read\` \`view: "status"\` is the cheap "is it finished yet": an
+  activity, a turn count, and the last few turns. Never poll it to wait for a
+  peer; subscribe and end your turn instead.
 - \`sessions_read\` FOLDS by default: recent turns, a line each — what it was
   asked, what it did, how it answered — which is what "what has it been doing"
   means, and a fifth of the size of the journal it stands in for.
@@ -147,8 +146,8 @@ journal to answer — so reach for them before the raw trace.
 Starting several workers, \`sessions_create({ tasks: [...] })\` creates, tasks
 and subscribes them in one call. Otherwise send every task first, then ONE
 \`sessions_subscribe({ sessionIds: [...] })\` — one id or many, the same call.
-Then END YOUR TURN. Do not subscribe per session, do not poll
-\`sessions_status\`, and do not sleep.
+Then END YOUR TURN. Do not subscribe per session, do not poll, and do not
+sleep.
 
 - You are woken ONCE, when every session is done: it sent its \`result\`, a
   turn failed or was stopped, or it was settled, archived or deleted. A turn
@@ -172,7 +171,7 @@ Then END YOUR TURN. Do not subscribe per session, do not poll
 Everything else waits for your turn to end. Peer \`report\`s, and a
 \`result\` nobody subscribed to, never open a turn of their own: they are
 held, and handed to you with your next turn, whatever starts it — a wake, or
-the person's next message. \`sessions_status\` lists what is held.
+the person's next message. \`view: "status"\` lists what is held.
 
 ### Being woken on a clock, days from now
 
@@ -217,7 +216,7 @@ not sure, leave it out and let it wait.
 
 CAN: create peers, assign them work, read their journals and diffs, subscribe
 to be woken when they finish, answer an approval another session parked
-(\`sessions_resolve_request\`), and stop a session that is going wrong.
+(\`sessions_requests\` with its \`requestId\`), and stop a session that is going wrong.
 
 CANNOT: merge, land or approve anybody's work; archive or delete a session;
 answer a secret-access request; or do — through a peer — anything that was

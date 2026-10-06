@@ -79,7 +79,7 @@ export function delegationAnswer(delegation: Delegation): Record<string, unknown
     return {
       waitingOnRequest: { requestId: parked.id, kind: parked.detail.kind, title: requestTitle(parked.detail).slice(0, 240) },
       cohortId: delegation.cohortId,
-      note: "It is stuck on a permission request. Answer it with sessions_resolve_request only if the answer is plainly yours; otherwise ask the person. You stay subscribed until it is done.",
+      note: "It is stuck on a permission request. Answer it with sessions_requests (requestId, decision) only if the answer is plainly yours; otherwise ask the person. You stay subscribed until it is done.",
     };
   }
   if ("timedOut" in delegation) {

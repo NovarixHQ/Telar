@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { EngineRequest } from "@telar/engine-client";
 import { err, failure, fillWithin, json, type ToolFactory } from "../../agent-tools";
-import { NO_SELF, REQUESTS, REQUESTS_CHARS, REQUESTS_LIMIT, RESOLVE_REQUEST, type SessionsCapability, SUBSCRIBE, SUBSCRIPTIONS_CHARS, SUBSCRIPTIONS_LIMIT } from "./shared";
+import { NO_SELF, REQUESTS, REQUESTS_CHARS, REQUESTS_LIMIT, type SessionsCapability, SUBSCRIBE, SUBSCRIPTIONS_CHARS, SUBSCRIPTIONS_LIMIT } from "./shared";
 
 export function wakeTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
   return [...subscriptionTools(tool, capability), ...requestTools(tool, capability)];
@@ -111,77 +111,81 @@ function requestTools(tool: ToolFactory, capability: SessionsCapability): unknow
     tool(
       "sessions_requests",
       REQUESTS,
-      { sessionId: z.string().min(1) },
-      async (args) => {
-        const sessionId = String(args.sessionId ?? "");
-        let requests: EngineRequest[];
-        try {
-          requests = (await capability.requests(sessionId)).filter((request) => request.state === "open");
-        } catch (error) {
-          return err(`Could not read requests of "${sessionId}": ${failure(error)}`);
-        }
-        const { rows } = fillWithin(requests, describeRequest, { limit: REQUESTS_LIMIT, chars: REQUESTS_CHARS });
-        return json({
-          sessionId,
-          requests: rows,
-          ...(requests.length > rows.length ? { total: requests.length, notShown: requests.length - rows.length } : {}),
-          ...(requests.length === 0
-            ? { note: "This session is not waiting on anything." }
-            : requests.length > rows.length
-              ? { note: `The first ${rows.length} of ${requests.length} open requests. Answering these makes room for the rest.` }
-              : {}),
-        });
-      },
-    ),
-    tool(
-      "sessions_resolve_request",
-      RESOLVE_REQUEST,
       {
         sessionId: z.string().min(1),
-        requestId: z.string().min(1).describe("From sessions_requests or a wake."),
+        requestId: z.string().min(1).optional().describe("Answer this one; omit to list them."),
         decision: z
           .enum(["accept", "acceptForSession", "decline"])
-          .describe('acceptForSession also accepts later ones of that kind.'),
+          .optional()
+          .describe("With requestId. acceptForSession also accepts later ones of that kind."),
         answers: z
           .record(z.string(), z.string())
           .optional()
-          .describe("Keyed as sessions_requests listed them."),
+          .describe("Keyed as the list named its fields."),
         reason: z.string().optional().describe("One sentence."),
       },
       async (args) => {
         const sessionId = String(args.sessionId ?? "");
-        const requestId = String(args.requestId ?? "");
-        const decision = args.decision === "acceptForSession" ? "acceptForSession" : args.decision === "decline" ? "decline" : "accept";
-        try {
-          const open = (await capability.requests(sessionId)).find((request) => request.id === requestId);
-          if (open && open.detail.kind === "secret_access") {
-            return err(`Request "${requestId}" is a secret-access request. Choosing a vault item is the user's alone; leave it for them.`);
-          }
-        } catch (error) {
-          return err(`Could not read requests of "${sessionId}": ${failure(error)}`);
+        if (typeof args.requestId === "string") return resolveRequest(capability, sessionId, args.requestId, args);
+        if (args.decision !== undefined || args.answers !== undefined || args.reason !== undefined) {
+          return err("decision, answers and reason answer one request: pass its requestId too.");
         }
-        const answers =
-          args.answers && typeof args.answers === "object"
-            ? Object.fromEntries(Object.entries(args.answers as Record<string, unknown>).map(([key, value]) => [key, String(value)]))
-            : undefined;
-        try {
-          const request = await capability.resolveRequest(sessionId, requestId, {
-            decision,
-            ...(typeof args.reason === "string" && args.reason.trim() ? { reason: args.reason } : {}),
-            ...(answers ? { answers } : {}),
-          });
-          return json({
-            ...describeRequest(request),
-            decision: request.decision,
-            resolvedBy: request.resolvedBy,
-            note: "Recorded as answered by a session. The session that asked continues with this answer.",
-          });
-        } catch (error) {
-          return err(`Could not resolve request "${requestId}" on "${sessionId}": ${failure(error)}`);
-        }
+        return listRequests(capability, sessionId);
       },
     ),
   ];
+}
+
+async function listRequests(capability: SessionsCapability, sessionId: string) {
+  let requests: EngineRequest[];
+  try {
+    requests = (await capability.requests(sessionId)).filter((request) => request.state === "open");
+  } catch (error) {
+    return err(`Could not read requests of "${sessionId}": ${failure(error)}`);
+  }
+  const { rows } = fillWithin(requests, describeRequest, { limit: REQUESTS_LIMIT, chars: REQUESTS_CHARS });
+  return json({
+    sessionId,
+    requests: rows,
+    ...(requests.length > rows.length ? { total: requests.length, notShown: requests.length - rows.length } : {}),
+    ...(requests.length === 0
+      ? { note: "This session is not waiting on anything." }
+      : requests.length > rows.length
+        ? { note: `The first ${rows.length} of ${requests.length} open requests. Answering these makes room for the rest.` }
+        : {}),
+  });
+}
+
+async function resolveRequest(capability: SessionsCapability, sessionId: string, requestId: string, args: Record<string, unknown>) {
+  if (args.decision === undefined) return err(`To answer "${requestId}", pass a decision: accept, acceptForSession or decline.`);
+  const decision = args.decision === "acceptForSession" ? "acceptForSession" : args.decision === "decline" ? "decline" : "accept";
+  try {
+    const open = (await capability.requests(sessionId)).find((request) => request.id === requestId);
+    if (open && open.detail.kind === "secret_access") {
+      return err(`Request "${requestId}" is a secret-access request. Choosing a vault item is the user's alone; leave it for them.`);
+    }
+  } catch (error) {
+    return err(`Could not read requests of "${sessionId}": ${failure(error)}`);
+  }
+  const answers =
+    args.answers && typeof args.answers === "object"
+      ? Object.fromEntries(Object.entries(args.answers as Record<string, unknown>).map(([key, value]) => [key, String(value)]))
+      : undefined;
+  try {
+    const request = await capability.resolveRequest(sessionId, requestId, {
+      decision,
+      ...(typeof args.reason === "string" && args.reason.trim() ? { reason: args.reason } : {}),
+      ...(answers ? { answers } : {}),
+    });
+    return json({
+      ...describeRequest(request),
+      decision: request.decision,
+      resolvedBy: request.resolvedBy,
+      note: "Recorded as answered by a session. The session that asked continues with this answer.",
+    });
+  } catch (error) {
+    return err(`Could not resolve request "${requestId}" on "${sessionId}": ${failure(error)}`);
+  }
 }
 
 function describeRequest(request: EngineRequest): Record<string, unknown> {
@@ -209,6 +213,6 @@ function describeRequest(request: EngineRequest): Record<string, unknown> {
     case "tool_call":
       return { ...base, tool: detail.call.name };
     case "secret_access":
-      return { ...base, origin: detail.secret.origin, note: "A vault pick — the user's alone. sessions_resolve_request refuses it." };
+      return { ...base, origin: detail.secret.origin, note: "A vault pick — the user's alone; answering it here is refused." };
   }
 }

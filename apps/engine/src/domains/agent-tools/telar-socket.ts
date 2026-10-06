@@ -11,7 +11,7 @@ import { notesTools } from "../notes";
 import { pluginToolModules } from "../plugins";
 import { promptsTools } from "../prompts";
 import { runTools } from "../terminal";
-import { sessionsTools } from "../sessions";
+import { RETIRED_TOOLS, sessionsTools } from "../sessions";
 import { usageDiagnosisTools } from "../usage";
 
 export type TelarSocketLease = {
@@ -182,7 +182,7 @@ export class TelarToolSocket {
         writeJson(400, { error: { code: "invalid_request", message: "request body must be a JSON object under 1MB" } });
         return;
       }
-      const answer = await handleSocketMessage(tools(), message, TELAR_SERVER);
+      const answer = await handleSocketMessage(tools(), message, { ...TELAR_SERVER, retired: RETIRED_TOOLS });
       if (answer === undefined) {
         response.writeHead(202).end();
         return;

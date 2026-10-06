@@ -91,6 +91,15 @@ test("an unknown tool fails closed", async () => {
   expect(JSON.stringify(answer.body)).not.toContain('"result":{"content":[]}');
 });
 
+test("a retired name fails closed with the call that replaced it", async () => {
+  const { lease } = await bound([{ name: "latex", build: latexTools, capability: () => latexLike("x") }]);
+  const answer = await mcp(lease, "tools/call", { name: "sessions_status", arguments: { sessionId: "session_x" } });
+  expect(answer.body.result).toEqual({
+    content: [{ type: "text", text: 'sessions_status was retired: use sessions_read with view: "status".' }],
+    isError: true,
+  });
+});
+
 test("two sessions get two tokens, each reaching only its own wall, and a released one dies", async () => {
   const socket = new TelarToolSocket();
   sockets.push(socket);

@@ -130,7 +130,7 @@ async function createOne(capability: SessionsCapability, args: Record<string, un
       runId: turn.runId,
       taskState: turn.state,
       ...(turn.agentNotice ? { recipientSees: turn.agentNotice } : {}),
-      note: `${where} Your task is queued as ${turn.runId}; its model was handed the notice above. Subscribe and end your turn.`,
+      note: `${where} Your task is queued as ${turn.runId}; its model was handed the notice above. To be woken when it is done, sessions_subscribe({ sessionIds: ["${session.id}"] }), then end your turn.`,
     });
   } catch (error) {
     return err(`Created ${session.id}, but the task was not delivered: ${failure(error)}. Send it with sessions_send intent task.`);
@@ -178,7 +178,7 @@ async function createMany(capability: SessionsCapability, shared: Shared, tasks:
 }
 
 async function subscribeAll(capability: SessionsCapability, sessionIds: string[]): Promise<{ cohort: { id: string; expiresAt: number } } | { unsubscribed: string }> {
-  if (!capability.self || !capability.subscribeCohort) return { unsubscribed: "this client is not a session that can be woken, so poll sessions_status" };
+  if (!capability.self || !capability.subscribeCohort) return { unsubscribed: "this client is not a session that can be woken" };
   try {
     const cohort = await capability.subscribeCohort(capability.self.sessionId, { sessionIds });
     return { cohort: { id: cohort.id, expiresAt: cohort.expiresAt } };

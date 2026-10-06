@@ -12,19 +12,17 @@ const WALL_NAMES = [
   "sessions_create",
   "sessions_send",
   "sessions_read",
-  "sessions_status",
   "sessions_stop",
   "sessions_settle",
   "sessions_subscribe",
   "sessions_requests",
-  "sessions_resolve_request",
   "sessions_schedule",
   "sessions_capabilities",
   "sessions_handoff",
 ];
 
 describe("what the wall is", () => {
-  test("exactly thirteen tools, every one declaring the `sessions` capability in its name", () => {
+  test("exactly eleven tools, every one declaring the `sessions` capability in its name", () => {
     const { store } = engine();
     const names = [...wall(store).keys()];
     // Pinned as a set: the socket's parity test then requires each on the socket too.
@@ -49,7 +47,7 @@ describe("what the wall is", () => {
   test("the prose says what no check here can enforce: this is not a way around a refusal", () => {
     const { store } = engine();
     const tools = wall(store);
-    for (const name of ["sessions_create", "sessions_send", "sessions_resolve_request"]) {
+    for (const name of ["sessions_create", "sessions_send", "sessions_requests"]) {
       expect(tools.get(name)!.description).toContain("Never hand a peer work you were refused");
     }
     expect(tools.get("sessions_list")!.description).not.toContain("refused");
@@ -58,18 +56,18 @@ describe("what the wall is", () => {
   test("the journal read names its cheaper views, and its view parameter offers each one", () => {
     const { store } = engine();
     const read = wall(store).get("sessions_read")!;
-    for (const cheaper of ["outline", "answer", "steps", "step", "grep"]) {
+    for (const cheaper of ["status", "outline", "answer", "steps", "step", "grep"]) {
       expect(read.description).toContain(cheaper);
     }
     expect(read.description).toContain("raw journal");
-    expect(JSON.stringify(toolInputSchema(read.shape))).toContain('"enum":["summary","outline","answer","steps","step","events","grep","diff"]');
+    expect(JSON.stringify(toolInputSchema(read.shape))).toContain('"enum":["summary","status","outline","answer","steps","step","events","grep","diff"]');
   });
 });
 
 describe("the shape of the wall", () => {
-  test("thirteen tools, every one of them a `sessions_` verb", () => {
+  test("eleven tools, every one of them a `sessions_` verb", () => {
     const names = collectSessionsWallTools({} as SessionsCapability).map((tool) => tool.name);
-    expect(names.length).toBe(13);
+    expect(names.length).toBe(11);
     for (const name of names) {
       expect(name.startsWith("sessions_")).toBe(true);
       expect(qualifyTelarTool(name)).toBe(`mcp__telar__${name}`);

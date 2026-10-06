@@ -2,7 +2,7 @@ import { z } from "zod";
 import { err, failure, json, type ToolFactory } from "../../agent-tools";
 import { controlTools, handoffTool } from "./control";
 import { messagingTools } from "./messaging";
-import { readTools, statusTools } from "./read";
+import { readTools } from "./read";
 import { CAPABILITIES, NO_SESSION_TO_SCHEDULE, type SessionsCapability } from "./shared";
 import { wakeTools } from "./wakes";
 
@@ -10,7 +10,6 @@ export function sessionsTools(tool: ToolFactory, capability: SessionsCapability)
   return [
     ...messagingTools(tool, capability),
     ...readTools(tool, capability),
-    ...statusTools(tool, capability),
     ...controlTools(tool, capability),
     ...wakeTools(tool, capability),
     tool(

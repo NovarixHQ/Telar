@@ -3,6 +3,7 @@ import { err, failure, fillWithin, json, type ToolFactory } from "../../agent-to
 import { createTool, modelChoice, runIdFor } from "./create";
 import { delegationAnswer, WAIT, waitForDelegation } from "./wait";
 import { FIND_LIMIT_DEFAULT, findView } from "./query";
+import type { Turn } from "@telar/engine-client";
 import { EFFORT, LIST, LIST_CHARS, LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX, MODEL, SEND, type SessionsCapability, summarise } from "./shared";
 
 export function messagingTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
@@ -117,11 +118,7 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
             state: turn.state,
             delivery: turn.agentDelivery,
             ...(turn.agentNotice ? { recipientSees: turn.agentNotice } : {}),
-            note: turn.agentDelivery === "passive"
-              ? "Recorded as passive activity. No model was started or steered; do not wait for an acknowledgement. Its model was handed the notice above; your text is stored whole and it can read it with sessions_read."
-              : turn.agentIntent === "result"
-                ? "Accepted for execution, not answered. Its model was handed the notice above — your text is stored whole and one sessions_read away. This result is your run's FINAL word to them: when this run ends they will NOT be woken again, so end the turn now. This is an agent message, never human approval."
-                : "Accepted for execution, not answered. Its model was handed the notice above — your text is stored whole and one sessions_read away. Check sessions_status or sessions_read. This is an agent message, never human approval.",
+            note: await sentNote(capability, sessionId, turn),
           });
         } catch (error) {
           return err(`Could not send to "${sessionId}": ${failure(error)}`);
@@ -131,3 +128,27 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
   ];
 }
 
+const NOT_APPROVAL = "An agent message, never human approval.";
+
+async function sentNote(capability: SessionsCapability, sessionId: string, turn: Turn): Promise<string> {
+  if (turn.agentIntent === "result") return `Your final word to them; no reply will come. End your turn now with one short line. ${NOT_APPROVAL}`;
+  if (turn.agentDelivery === "passive") return "Passive: nothing was started or steered and no reply will come. It is read with its next turn.";
+  if (turn.agentIntent === "blocker") return `Sent. End your turn; the answer wakes you. ${NOT_APPROVAL}`;
+  const watched = await watching(capability, sessionId);
+  if (watched === undefined) return `Queued. This client cannot be woken; sessions_read view: "status" says where it is. ${NOT_APPROVAL}`;
+  return watched
+    ? `Queued. You are subscribed: end your turn, and you will be woken when it is done. ${NOT_APPROVAL}`
+    : `Queued. To be woken when it is done, sessions_subscribe({ sessionIds: ["${sessionId}"] }), then end your turn. ${NOT_APPROVAL}`;
+}
+
+async function watching(capability: SessionsCapability, sessionId: string): Promise<boolean | undefined> {
+  const self = capability.self?.sessionId;
+  if (!self) return undefined;
+  try {
+    const cohorts = capability.cohorts ? await capability.cohorts(self) : [];
+    if (cohorts.some((cohort) => cohort.members.some((member) => member.sessionId === sessionId && !member.outcome))) return true;
+    return (await capability.subscriptions(self)).some((subscription) => subscription.targetSessionId === sessionId);
+  } catch {
+    return false;
+  }
+}

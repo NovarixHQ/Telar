@@ -144,15 +144,15 @@ describe("sessions_read is bounded", () => {
     const live = store.queries.turns(id).at(-1)!.runId;
 
     for (const [name, args] of [
-      ["sessions_status", { sessionId: id, turns: 3 }],
-      ["sessions_status", { sessionId: id }],
+      ["sessions_read", { sessionId: id, view: "status", turns: 3 }],
+      ["sessions_read", { sessionId: id, view: "status" }],
       ["sessions_read", { sessionId: id, view: "summary", turns: 4 }],
       ["sessions_read", { sessionId: id, runId: live }],
     ] as const) {
       expect((await call(windowed, name, args)).json).toEqual((await call(whole, name, args)).json!);
     }
     expect(asked).toEqual([3, 5, 4]);
-    const status = (await call(windowed, "sessions_status", { sessionId: id, turns: 3 })).json!;
+    const status = (await call(windowed, "sessions_read", { view: "status", sessionId: id, turns: 3 })).json!;
     expect(status.turnCount).toBe(10);
     expect(status.turnsNotShown).toBe(7);
   });
@@ -461,7 +461,7 @@ describe("sessions_read returns the message a notice stands in for", () => {
   test("the descriptions say: never poll, and a tasked worker ends with one result", () => {
     const { store } = engine();
     const tools = wall(store);
-    expect(tools.get("sessions_status")!.description).toContain("Never poll it to wait");
+    expect(tools.get("sessions_read")!.description).toContain("Never poll it to wait");
     expect(tools.get("sessions_send")!.description).toContain("End with one result");
     expect(tools.get("sessions_send")!.description).toContain("no progress reports");
   });

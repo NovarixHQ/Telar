@@ -1,10 +1,10 @@
 import path from "node:path";
 import { collectTools, connectCard, ensureSecretFile, handleSocketMessage as handleMessage, type SocketTool } from "../../agent-tools";
-import type { SessionsCapability } from "./shared";
+import { RETIRED_TOOLS, type SessionsCapability } from "./shared";
 import { sessionsTools } from "./tools";
 import type { EngineStatePaths } from "../../../platform/fs/state-paths";
 
-const SESSIONS_SERVER = { name: "telar-sessions", version: "1.0.0" };
+const SESSIONS_SERVER = { name: "telar-sessions", version: "1.0.0", retired: RETIRED_TOOLS };
 
 export function collectSessionsWallTools(capability: SessionsCapability): SocketTool[] {
   return collectTools(sessionsTools, capability);

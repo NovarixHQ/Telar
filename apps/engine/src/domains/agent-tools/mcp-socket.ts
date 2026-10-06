@@ -114,7 +114,7 @@ const rpcError = (id: JsonRpcId, code: number, message: string) => ({ jsonrpc: "
 export async function handleSocketMessage(
   tools: readonly SocketTool[],
   message: unknown,
-  server: { name: string; version: string },
+  server: { name: string; version: string; retired?: Readonly<Record<string, string>> },
 ): Promise<unknown | undefined> {
   const record = message as Record<string, unknown> | null;
   const id: JsonRpcId =
@@ -148,6 +148,8 @@ export async function handleSocketMessage(
     const params = record.params as Record<string, unknown> | undefined;
     const name = typeof params?.name === "string" ? params.name : "";
     const tool = tools.find((candidate) => candidate.name === name);
+    const replacement = server.retired && Object.hasOwn(server.retired, name) ? server.retired[name] : undefined;
+    if (!tool && replacement) return rpcResult(id, { content: [{ type: "text", text: `${name} was retired: use ${replacement}.` }], isError: true });
     if (!tool) return rpcError(id, -32602, `no tool named "${name}" — tools/list names what this socket serves`);
     const args = params?.arguments && typeof params.arguments === "object" ? (params.arguments as Record<string, unknown>) : {};
     const checked = checkArgs(tool.name, tool.shape, args);

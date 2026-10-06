@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { JournalItem } from "@/platform/engine";
 import { cutAroundStandingRows, segmentActivity, transcriptTasks, turnActivity } from "@/features/transcript";
-import { cockpitPlugins, describeTurnState, pinToggleOverride, transcriptRows } from "./model";
+import { cockpitPlugins, describeTurnState, markerRowOf, pinToggleOverride, transcriptRows } from "./model";
 import { SessionTurn } from "./components/session-turn";
 
 const rendered = { runId: "run_1", sessionId: "session_1", status: "completed", startedAt: 1, completedAt: 2, streamedText: "", openedBy: 0 } as const;
@@ -368,6 +368,22 @@ describe("a sub-agent's background claim is not a row in the main chat", () => {
     ]);
     expect(shown.map((turn) => turn.runId)).toEqual(["run_claim"]);
     expect(hostOf.size).toBe(0);
+  });
+
+  test("a claim that is the newest answer puts its read marker on its host row, so opening the session can read it", () => {
+    const { shown, hostOf } = transcriptRows([
+      { runId: "run_ask", state: "completed", tasks: [] },
+      { runId: "run_claim", state: "completed", decidedForBackgroundWork: true, tasks: [] },
+    ]);
+    const row = markerRowOf("run_claim", hostOf);
+    expect(row).toBe("run_ask");
+    expect(shown.some((turn) => turn.runId === row)).toBe(true);
+  });
+
+  test("a shown answer carries its own read marker", () => {
+    const { hostOf } = transcriptRows([{ runId: "run_ask", state: "completed", tasks: [] }]);
+    expect(markerRowOf("run_ask", hostOf)).toBe("run_ask");
+    expect(markerRowOf(undefined, hostOf)).toBeUndefined();
   });
 });
 

@@ -508,6 +508,12 @@ export const APP_PAGES: SettingsPageSpec[] = [
             keywords: ["simulator", "emulator", "iphone", "ios", "android", "device", "xcode", "hub"],
             icon: SmartphoneIcon,
           },
+          {
+            title: "Let agents use simulators",
+            hint: "Agents can open a simulator, look at it and use its apps.",
+            keywords: ["simulator", "agent", "agent-device", "screenshot", "tap", "automation"],
+            icon: SmartphoneIcon,
+          },
         ],
       },
     ],

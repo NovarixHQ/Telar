@@ -26,6 +26,12 @@ function endedByShutdown(turn: Turn): boolean {
   return turn.state === "failed" && turn.failure?.code === "interrupted";
 }
 
+// A notice from another session that never reached a model outlives the restart; a parked request's does not, as the boot cancels it.
+function deliversNotice(turn: Turn): boolean {
+  if (turn.state !== "queued" && turn.state !== "steering") return false;
+  return turn.origin === "session" && turn.notification !== undefined && turn.agentDelivery !== "passive" && turn.wakeReason?.kind !== "request_opened";
+}
+
 type RecoveryDeps = {
   records: SessionRecords;
   items: SessionItems;
@@ -37,9 +43,11 @@ type RecoveryDeps = {
   liveQueueSessionIds: () => Set<string>;
   getSessionDefaults: () => SessionDefaults;
   submitTurn: (sessionId: string, input: TurnSubmission) => { turn: Turn; replayed: boolean };
+  reportStopped: (sessionId: string, turn: Turn) => void;
+  flushPendingNotifications: (sessionId: string) => void;
 };
 
-/** Settling what a previous process or a lost worker left in flight. Nothing here requeues work or wakes a subscriber. */
+/** Settling what a previous process or a lost worker left in flight. Work is never requeued; a notice to a session is. */
 export class TurnRecovery {
   constructor(
     private readonly kernel: Kernel,
@@ -47,8 +55,8 @@ export class TurnRecovery {
   ) {}
 
   /**
-   * Boot: every turn the last process left live is stopped, and nobody is summoned by it.
-   * A planned update restart may then continue what it cut off, once per session.
+   * Boot: every live turn is stopped except a notice from another session. A planned update restart may continue what it
+   * cut off, once per session; what nothing continues is reported to its waiters, and mail held for a stopped turn is delivered.
    */
   recover(): { stopped: string[] } {
     return this.kernel.command("recover", () => {
@@ -65,14 +73,32 @@ export class TurnRecovery {
         const freed = pruned.bytes >= 1e6 ? `${(pruned.bytes / 1e6).toFixed(1)} MB` : `${Math.round(pruned.bytes / 1e3)} KB`;
         console.log(`[engine] trimmed ${pruned.dropped} resolved requests out of ${pruned.sessions} session${pruned.sessions === 1 ? "" : "s"} (${freed}); the journal still holds them, except policy-resolved pairs of settled turns.`);
       }
-      // Last, once every queue is terminal: nothing above may see the turn this opens.
+      // Once every cut-off turn is stopped: nothing above may see the turn this opens.
+      let resumed = new Set<string>();
       try {
-        this.resumeAfterPlannedRestart(cutOff);
+        resumed = new Set(this.resumeAfterPlannedRestart(cutOff));
       } catch (error) {
         console.warn("[engine] could not continue sessions after the restart:", error);
       }
+      for (const [sessionId, runIds] of cutOff) {
+        if (!resumed.has(sessionId)) this.settleOne(sessionId, "report what the restart cut off", () => this.reportCutOff(sessionId, runIds));
+      }
+      for (const sessionId of unfinished) this.settleOne(sessionId, "deliver the notifications held", () => this.deps.flushPendingNotifications(sessionId));
       return { stopped };
     });
+  }
+
+  private settleOne(sessionId: string, what: string, step: () => void): void {
+    try {
+      step();
+    } catch (error) {
+      console.warn(`[engine] could not ${what} for ${sessionId} after the restart:`, error);
+    }
+  }
+
+  private reportCutOff(sessionId: string, runIds: string[]): void {
+    const last = this.deps.readQueue(sessionId, runIds).turns.filter((turn) => runIds.includes(turn.runId)).sort((a, b) => b.sequence - a.sequence)[0];
+    if (last) this.deps.reportStopped(sessionId, last);
   }
 
   /** A registration retired: only this worker's own claims end, recorded as stopped, never requeued. */
@@ -146,6 +172,7 @@ export class TurnRecovery {
     // Retiring a dead claim rewrites the queue but must not bump the session and reorder a sidebar.
     let claimsRetired = false;
     const recoveryEvents: Array<{ type: "turn.stopped"; runId: string }> = [];
+    const requeued: string[] = [];
     const at = this.kernel.now();
     const recoveredProviderSessionId = latestProviderSessionId(history);
     let metadataChanged = false;
@@ -156,6 +183,17 @@ export class TurnRecovery {
     }
     for (const turn of queue.turns) {
       if (turn.state !== "queued" && turn.state !== "claimed" && turn.state !== "running" && turn.state !== "steering") continue;
+      if (deliversNotice(turn)) {
+        if (turn.state === "steering") requeued.push(turn.runId);
+        if (turn.state === "steering" || turn.held) {
+          turn.state = "queued";
+          turn.updatedAt = at;
+          delete turn.steer;
+          delete turn.held;
+          changed = true;
+        }
+        continue;
+      }
       const wasLive = turn.state === "running";
       if ((wasLive || turn.state === "claimed") && turn.kind !== "compact") {
         cutOff.set(session.id, [...(cutOff.get(session.id) ?? []), turn.runId]);
@@ -208,11 +246,12 @@ export class TurnRecovery {
     if (changed) {
       for (const event of recoveryEvents) this.kernel.appendEvent(session.id, { type: event.type, reason: "engine_restart" }, event.runId);
     }
+    for (const runId of requeued) this.kernel.appendEvent(session.id, { type: "turn.requeued", reason: "steer_undelivered" }, runId);
   }
 
   /**
-   * Continues what a planned update restart cut off. The shell's fresh marker is the whole permission (a crash writes
-   * none), it is deleted on every path, and the run id derives from it so a second boot cannot open a second turn.
+   * Continues what a planned update restart cut off and returns those sessions. The shell's fresh marker is the whole permission
+   * (a crash writes none), it is deleted on every path, and the run id derives from it so a second boot cannot open a second turn.
    */
   private resumeAfterPlannedRestart(cutOff: Map<string, string[]>): string[] {
     const file = this.kernel.paths.plannedRestart;
@@ -256,7 +295,7 @@ export class TurnRecovery {
           const last = turns.filter((turn) => runIds.includes(turn.runId)).sort((a, b) => b.sequence - a.sequence)[0];
           // A turn the person stopped is theirs to restart, not ours.
           if (!last || last.stopReason === "user" || last.stopReason === "agent") continue;
-          const { turn } = this.deps.submitTurn(sessionId, {
+          this.deps.submitTurn(sessionId, {
             runId: `run_restart_${plannedAt}_${sessionId}`.slice(0, 200),
             input: PLANNED_RESTART_CONTINUATION,
             origin: "restart",
@@ -264,7 +303,7 @@ export class TurnRecovery {
             // The same model and effort the cut-off turn was running on.
             ...(last.model ? { model: (({ instanceId: _instanceId, ...selection }) => selection)(last.model) } : {}),
           });
-          resumed.push(turn.runId);
+          resumed.push(sessionId);
         } catch (error) {
           console.warn(`[engine] could not continue ${sessionId} after the restart:`, error);
         }

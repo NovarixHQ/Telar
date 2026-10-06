@@ -76,6 +76,10 @@ describe("deliveryOf — the two ways a coordinator can have taken it", () => {
     expect(deliveryOf(assignment(), DELEGATE, [wakeTurn("run_task", "completed", NOW - 2 * HOUR)])).toBe(NOW - 2 * HOUR);
   });
 
+  test("a wake withdrawn because the coordinator read the run itself counts, dated by the withdrawal", () => {
+    expect(deliveryOf(assignment(), DELEGATE, [wakeTurn("run_task", "discarded", NOW - 2 * HOUR)])).toBe(NOW - 2 * HOUR);
+  });
+
   test("a wake still queued, or one whose turn failed, is not delivery", () => {
     expect(deliveryOf(assignment(), DELEGATE, [wakeTurn("run_task", "queued")])).toBeUndefined();
     expect(deliveryOf(assignment(), DELEGATE, [wakeTurn("run_task", "failed", NOW - 2 * HOUR)])).toBeUndefined();

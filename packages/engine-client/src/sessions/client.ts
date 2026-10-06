@@ -221,6 +221,10 @@ export const sessionsClient = {
     return this.request("GET", `${sessionPath(sessionId)}/cohorts`);
   },
 
+  acknowledgeRead(this: EngineTransport, readerSessionId: string, input: { sessionId: string; runId: string }): Promise<{ acknowledged: true }> {
+    return this.request("POST", `${sessionPath(readerSessionId)}/reads`, input);
+  },
+
   /** `subscriberSessionId` limits the delete to that session's own subscription. */
   unsubscribe(this: EngineTransport, subscriptionId: string, input: { subscriberSessionId?: string } = {}): Promise<{ removed: boolean }> {
     return this.request("DELETE", `/v2/subscriptions/${encodeURIComponent(subscriptionId)}`, input);

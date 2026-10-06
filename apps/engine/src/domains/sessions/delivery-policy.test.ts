@@ -118,7 +118,7 @@ test("a shelved or snoozed session is not un-shelved by a peer's routine report"
   expect(shelved.turn.agentDelivery).toBe("passive");
   expect(store.records.get("session_host").settledOverride).toBe("settled");
   expect(store.claims.claimTurn("session_host", "worker_two")).toBeUndefined();
-  // And it is not lost either — it waits in the mailbox where `sessions_status`
+  // And it is not lost either — it waits in the mailbox where `sessions_read` view "status"
   // reports it, rather than being dropped.
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(1);
 });

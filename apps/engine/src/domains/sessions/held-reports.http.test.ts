@@ -45,3 +45,15 @@ test("the route counts what is waiting for the next turn", async () => {
   report(store, proof, "run_two");
   expect(await client.sessionHeldReports("session_coord")).toEqual({ held: 2 });
 });
+
+test("a read the coordinator acknowledges takes the wake about that run out of the count", async () => {
+  const { client, store, proof } = await ready();
+  await client.subscribe("session_coord", { targetSessionId: "session_worker", once: true });
+  store.intake.submitTurn("session_coord", { runId: "run_busy", input: "think" });
+  const busy = store.claims.claimTurn("session_coord", "worker_two")!.claim!.token;
+  store.turnLifecycle.markRunning("session_coord", "run_busy", busy);
+  store.turnLifecycle.completeTurn("session_worker", "run_source", proof.claimToken, { text: "done" });
+  expect(await client.sessionHeldReports("session_coord")).toEqual({ held: 1 });
+  expect(await client.acknowledgeRead("session_coord", { sessionId: "session_worker", runId: "run_source" })).toEqual({ acknowledged: true });
+  expect(await client.sessionHeldReports("session_coord")).toEqual({ held: 0 });
+});

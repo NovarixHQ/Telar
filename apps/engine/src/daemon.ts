@@ -165,6 +165,7 @@ function engineSweeps(store: EngineStore, options: EngineDaemonOptions, pruneWor
         }
       },
     },
+    { name: "mailboxes", every: options.cohortSweepIntervalMs ?? 30_000, run: () => store.wakes.sweepMailboxes() },
     { name: "snooze-wakes", every: options.snoozeWakeSweepIntervalMs ?? 60_000, run: () => store.settler.sweepSnoozeWakes() },
     { name: "schedules", every: options.scheduleSweepIntervalMs ?? 30_000, run: () => store.schedules.sweep() },
     // Finer than the rest: a tick coarser than the shortest deadline someone sets would become the deadline.

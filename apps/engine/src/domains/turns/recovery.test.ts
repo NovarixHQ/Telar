@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import type { Turn } from "@telar/engine-client";
@@ -6,8 +6,10 @@ import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
 import { editSessionDocument } from "../../../test/store-internals";
 import { useTempStores } from "../../../test/temp-store";
+import { busy, closeStores, reopenStore, runTurn, setup } from "./notification-fixture";
 
 const { root, readyStore } = useTempStores();
+afterEach(closeStores);
 
 test("a request left open on an already-ended turn is retired at boot; one on an ambiguous turn is kept", () => {
   // Persisted histories from before requests were retired with their turn.
@@ -417,4 +419,69 @@ test("boot recovery reads the queues of unfinished sessions only, however long t
   expect(reopened.recovery.recover().stopped).toEqual(["run_live"]);
   expect(reopened.kernel.readAccounting.queueParses - before).toBeLessThanOrEqual(3);
   expect(reopened.queries.turns("session_one")[0]).toMatchObject({ state: "stopped", stopReason: "engine_restart" });
+});
+
+function restarted(store: EngineStore): EngineStore {
+  const after = reopenStore(store.paths.root);
+  after.recovery.recover();
+  return after;
+}
+
+const hostNotices = (store: EngineStore) => store.queries.turns("session_host").filter((turn) => turn.origin === "session" && turn.notification);
+
+test("a wake queued when the engine restarts is still delivered after it", () => {
+  const { store } = setup();
+  store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: true });
+  runTurn(store, "session_a", "run_a");
+  const [wake] = hostNotices(store);
+  expect(wake).toMatchObject({ state: "queued", wakeReason: { kind: "turn_completed", runId: "run_a" } });
+
+  const after = restarted(store);
+  expect(after.queries.turns("session_host").find((turn) => turn.runId === wake!.runId)!.state).toBe("queued");
+  expect(after.claims.claimTurn("session_host", "worker_host")!.runId).toBe(wake!.runId);
+});
+
+test("a notice steering into a turn the restart cut off is queued for the next one", () => {
+  const { store } = setup();
+  busy(store);
+  store.intake.submitTurn("session_a", { runId: "run_a", input: "work" });
+  const token = store.claims.claimTurn("session_a", "worker_child")!.claim!.token;
+  store.turnLifecycle.markRunning("session_a", "run_a", token);
+  const blocker = store.intake.submitAgentTurn("session_host", { runId: "run_blocker", input: "Which branch?", intent: "blocker" }, { sessionId: "session_a", runId: "run_a", claimToken: token });
+  expect(blocker.turn.state).toBe("steering");
+
+  const after = restarted(store);
+  const turns = after.queries.turns("session_host");
+  expect(turns.find((turn) => turn.runId === "run_host")).toMatchObject({ state: "stopped", stopReason: "engine_restart" });
+  expect(turns.find((turn) => turn.runId === "run_blocker")).toMatchObject({ state: "queued" });
+  expect(turns.find((turn) => turn.runId === "run_blocker")!.steer).toBeUndefined();
+});
+
+test("mail held for a turn the restart cut off is delivered at boot", () => {
+  const { store } = setup();
+  store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: true });
+  busy(store);
+  runTurn(store, "session_a", "run_a");
+  expect(store.wakes.pendingNotifications("session_host")).toHaveLength(1);
+
+  const after = restarted(store);
+  expect(after.wakes.pendingNotifications("session_host")).toEqual([]);
+  expect(hostNotices(after).filter((turn) => turn.state === "queued").map((turn) => turn.wakeReason?.runId)).toEqual(["run_a"]);
+});
+
+test("a builder mid-turn at a restart is reported to the session waiting on it, and its parked request is not", () => {
+  const { store } = setup();
+  store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: true });
+  store.intake.submitTurn("session_a", { runId: "run_a", input: "work" });
+  const token = store.claims.claimTurn("session_a", "worker_child")!.claim!.token;
+  store.turnLifecycle.markRunning("session_a", "run_a", token);
+  store.lifecycle.updateSession("session_a", { runtimeMode: "approval-required" });
+  store.requestGate.open("session_a", "run_a", token, { requestId: "req_q", kind: "user_input", detail: { kind: "user_input", prompt: "Which?", fields: [] } });
+  expect(hostNotices(store).map((turn) => turn.wakeReason?.kind)).toEqual(["request_opened"]);
+
+  const after = restarted(store);
+  const queued = hostNotices(after).filter((turn) => turn.state === "queued");
+  expect(queued.map((turn) => turn.wakeReason)).toEqual([{ kind: "turn_stopped", sessionId: "session_a", runId: "run_a" }]);
+  expect(queued[0]!.notification!.body).toContain("was cut off when the engine restarted");
+  expect(after.subscriptions.subscriptionsFor("session_host")).toEqual([]);
 });

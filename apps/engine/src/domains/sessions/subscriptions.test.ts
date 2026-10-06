@@ -163,7 +163,7 @@ test("failed, stopped and parked each wake with their own reason; a policy-resol
   expect(failed!.notification!.kind).toBe("wake");
   expect(notice(parked!)).not.toContain("- db (choice)");
   expect(notice(parked!)).toContain('sessions_read(sessionId: "session_two", runId: "run_p")');
-  expect(notice(parked!)).toContain("sessions_resolve_request");
+  expect(notice(parked!)).toContain("sessions_requests(");
 
   // Under `auto`, a command resolves itself — nothing parked, nothing to wake for.
   store.lifecycle.updateSession("session_two", { runtimeMode: "auto" });
@@ -213,7 +213,7 @@ test("a parked request's notice carries NO fields — only what it is, and the t
   expect(notice(parked!)).not.toContain("c".repeat(300));
   // Both calls, and a notice that stays one however big the request was.
   expect(notice(parked!)).toContain('sessions_read(sessionId: "session_two", runId: "run_many")');
-  expect(notice(parked!)).toContain("sessions_resolve_request");
+  expect(notice(parked!)).toContain("sessions_requests(");
   expect(notice(parked!).length).toBeLessThan(800);
 
   // The length does not follow the payload: ten times the fields gives the same notice, to the character.
@@ -365,7 +365,7 @@ test("a wake's own ending wakes nobody, so two sessions subscribed to each other
   expect(wakes(store, "session_two")).toHaveLength(0);
 });
 
-test("an archived subscriber is dropped; a full backlog drops the wake with a warning; the target's transition still succeeds", () => {
+test("an archived subscriber is dropped; a full backlog holds the wake until there is room; the target's transition still succeeds", () => {
   const { store } = pair();
   store.lifecycle.createSession({ id: "session_three", projectId: "project_one" });
   store.subscriptions.subscribe("session_one", { targetSessionId: "session_two" });
@@ -380,7 +380,17 @@ test("an archived subscriber is dropped; a full backlog drops the wake with a wa
   expect(store.queries.turns("session_two").at(-1)!.state).toBe("completed");
   expect(wakes(store, "session_one")).toHaveLength(0);
   expect(store.queries.readEvents("session_one").at(-1)).toMatchObject({ type: "runtime.warning" });
-  expect(String((store.queries.readEvents("session_one").at(-1) as { message: string }).message)).toContain("was dropped");
+  expect(String((store.queries.readEvents("session_one").at(-1) as { message: string }).message)).toContain("is held until it can be delivered");
+  expect(store.wakes.pendingNotifications("session_one").map((each) => each.runId)).toEqual(["run_w"]);
+
+  store.wakes.sweepMailboxes();
+  expect(store.wakes.pendingNotifications("session_one")).toHaveLength(1);
+
+  const fill = store.claims.claimTurn("session_one", "worker_one")!;
+  store.turnLifecycle.markRunning("session_one", fill.runId, fill.claim!.token);
+  store.turnLifecycle.completeTurn("session_one", fill.runId, fill.claim!.token, { text: "ok" });
+  expect(wakes(store, "session_one").map((turn) => turn.wakeReason?.runId)).toEqual(["run_w"]);
+  expect(store.wakes.pendingNotifications("session_one")).toHaveLength(0);
 });
 
 test("the rules: no self-subscribe, no archived target, a wake must carry its reason, and origin cannot be forged through submitTurn alone", () => {

@@ -99,10 +99,12 @@ export const SimulatorAction = z.discriminatedUnion("type", [
 export type SimulatorAction = z.infer<typeof SimulatorAction>;
 
 const unit = z.number().min(0).max(1);
+export const MAX_CROWN_DELTA = 200;
 
 export const SimulatorInput = z.discriminatedUnion("type", [
   z.object({ type: z.literal("touch"), phase: z.enum(["begin", "move", "end"]), x: unit, y: unit }),
-  z.object({ type: z.literal("button"), button: z.enum(["home", "app_switcher", "lock"]) }),
+  z.object({ type: z.literal("button"), button: z.enum(["home", "app_switcher", "lock", "digital_crown", "side_button"]) }),
+  z.object({ type: z.literal("crown"), delta: z.number().min(-MAX_CROWN_DELTA).max(MAX_CROWN_DELTA) }),
   z.object({ type: z.literal("key"), phase: z.enum(["down", "up"]), usage: z.number().int().min(0).max(0xffff) }),
   z.object({ type: z.literal("orientation"), orientation: SimulatorOrientation }),
   z.object({ type: z.literal("keyboard"), enabled: z.boolean() }),

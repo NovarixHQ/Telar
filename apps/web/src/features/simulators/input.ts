@@ -1,4 +1,4 @@
-import type { SimulatorInput } from "@telar/engine-client";
+import { MAX_CROWN_DELTA, type SimulatorInput } from "@telar/engine-client";
 
 export type Orientation = "portrait" | "landscape_left" | "portrait_upside_down" | "landscape_right";
 export type ScreenConfig = { width: number; height: number; orientation: Orientation };
@@ -49,6 +49,15 @@ export function readScreenConfig(value: unknown): ScreenConfig | undefined {
   return { width: config.width, height: config.height, orientation };
 }
 
+const WHEEL_LINE_PX = 16;
+const clampCrown = (delta: number) => Math.min(MAX_CROWN_DELTA, Math.max(-MAX_CROWN_DELTA, delta));
+
+export function crownDelta(deltaY: number, deltaMode: number, pageHeight: number): number | undefined {
+  const pixels = deltaMode === 1 ? deltaY * WHEEL_LINE_PX : deltaMode === 2 ? deltaY * pageHeight : deltaY;
+  const delta = clampCrown(pixels);
+  return Number.isFinite(delta) && delta !== 0 ? delta : undefined;
+}
+
 export function inputQueue(send: (events: SimulatorInput[]) => Promise<unknown>, onError: (error: unknown) => void) {
   let pending: SimulatorInput[] = [];
   let busy = false;
@@ -69,6 +78,7 @@ export function inputQueue(send: (events: SimulatorInput[]) => Promise<unknown>,
   return (event: SimulatorInput) => {
     const last = pending.at(-1);
     if (event.type === "touch" && event.phase === "move" && last?.type === "touch" && last.phase === "move") pending[pending.length - 1] = event;
+    else if (event.type === "crown" && last?.type === "crown") pending[pending.length - 1] = { type: "crown", delta: clampCrown(last.delta + event.delta) };
     else pending.push(event);
     void flush();
   };

@@ -11,6 +11,12 @@ test("each input is one tag byte and its JSON, as serve-sim's helper reads it", 
   expect(decode(encodeInput({ type: "keyboard", enabled: false }))).toEqual({ tag: 0x0d, body: { enabled: false } });
 });
 
+test("a watch's crown turns by its delta, and its crown and side button are pressed as HID usages", () => {
+  expect(decode(encodeInput({ type: "crown", delta: -12.5 }))).toEqual({ tag: 0x0a, body: { delta: -12.5 } });
+  expect(decode(encodeInput({ type: "button", button: "digital_crown" }))).toEqual({ tag: 0x04, body: { button: "digital_crown", page: 12, usage: 64, phase: "press" } });
+  expect(decode(encodeInput({ type: "button", button: "side_button" }))).toEqual({ tag: 0x04, body: { button: "side_button", page: 12, usage: 149, phase: "press" } });
+});
+
 function sockets() {
   const opened: Array<{ url: string; frames: Uint8Array[]; open: boolean; closed: boolean }> = [];
   const relay = new InputRelay(async (url) => {

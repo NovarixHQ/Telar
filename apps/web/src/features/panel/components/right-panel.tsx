@@ -42,6 +42,7 @@ const TableSurface = dynamic(() => import("@/features/files/components/table-sur
 const GitHubSurface = dynamic(() => import("@/features/github").then((mod) => mod.GitHubSurface));
 const ArtifactSurface = dynamic(() => import("@/features/agent-tools").then((mod) => mod.ArtifactSurface));
 const TerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.TerminalSurface));
+const SimulatorSurface = dynamic(() => import("@/features/simulators").then((mod) => mod.SimulatorSurface));
 const ImageLightbox = dynamic(() => import("@/features/plugins/data-science/image-lightbox").then((mod) => mod.ImageLightbox));
 
 export type RightPanelProps = {
@@ -156,6 +157,8 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
         visible={props.visible}
       />
     );
+  if (kind === "simulator")
+    return <SimulatorSurface key={instanceKey} {...(hostId ? { hostId } : {})} visible={props.visible} params={tab.params} {...(onTabParams ? { onParams: onTabParams } : {})} />;
   const filePath = model.filePanelPath(kind);
   if (filePath !== undefined) return <FileViewSurface path={filePath} {...scoped} {...(active ? { active } : {})} />;
   return undefined;

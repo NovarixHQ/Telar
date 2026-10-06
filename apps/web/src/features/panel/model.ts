@@ -1,4 +1,4 @@
-import { BotIcon, CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, ShapesIcon, SquareTerminalIcon, TableIcon, TerminalIcon, type LucideIcon } from "lucide-react";
+import { BotIcon, CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, ShapesIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, TerminalIcon, type LucideIcon } from "lucide-react";
 import type { Artifact, BrowserProvider, BrowserTab } from "@telar/engine-client";
 import { fileKind } from "@/features/files";
 import { isPluginSurface, PLUGIN_SURFACES, pluginSurfaces, viewerAvailable, type PluginSurfaceId, type PluginPanelSource } from "@/features/plugins";
@@ -11,6 +11,7 @@ const SURFACES = [
   { id: "editor", label: "Editor", icon: FileCode2Icon, blurb: "Files, with the tree beside them" },
   { id: "issues", label: "Issues", icon: CircleDotIcon, blurb: "Open issues" },
   { id: "pulls", label: "Pull requests", icon: GitPullRequestIcon, blurb: "Open pull requests" },
+  { id: "simulator", label: "Simulator", icon: SmartphoneIcon, blurb: "This Mac's simulators, live and controllable" },
   { id: "terminal", label: "Terminal", icon: SquareTerminalIcon, blurb: "Shells in this session's checkout, and what the project is running" },
 ] as const;
 
@@ -153,6 +154,7 @@ export function ownsItsHeight(tab: PanelTab): boolean {
     tab === "issues" ||
     tab === "pulls" ||
     tab === "editor" ||
+    tab === "simulator" ||
     isPluginSurface(tab) ||
     tab === "terminal"
   );

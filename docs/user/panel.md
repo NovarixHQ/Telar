@@ -13,6 +13,7 @@ Press ⌘\ to show or hide it. ⌥⌘→ and ⌥⌘← move between its tabs, an
 - **Agents**: sub-agents, and the sessions working for this one.
 - **Processes**: work the agent left running in the background.
 - **Issues** and **Pull requests**: the project's open ones on GitHub.
+- **Simulator**: this Mac's iOS Simulators, live. See [Simulator](#simulator).
 - **Data** and **LaTeX**: only in projects that turned on those plugins. See [Plugins](plugins.md).
 
 You can open a second Diff, Editor, Terminal or Browser tab when you want two side by side.
@@ -32,6 +33,14 @@ Click a file in the tree to open it. A single click opens it as a preview that t
 Edits save on their own shortly after you stop typing, and ⌘S saves right away. If the agent changed the file while you were editing, Telar doesn't overwrite it. It tells you, and keeps your text unsaved until you reload.
 
 The editor highlights code, but it's not an IDE: there's no code completion or project-wide search.
+
+## Simulator
+
+The first time, the surface offers **Turn on simulators**. That installs a helper and starts it on this Mac only. You can also turn it on in Settings → Agent tools. The list shows every simulator. **Start** boots one and opens it in a tab of its own; **Open** opens one that is already running. Click and drag on the screen to touch, and type while it has focus. The toolbar has Home, Rotate, the settings drawer (appearance, text size, accessibility, apps, permissions, location, a test notification) and Power off.
+
+- Only the tab on screen streams. Hiding the panel stops the video.
+- Over plain http on another device the video is a lower-quality fallback. Smooth video needs localhost or a Tailscale https address.
+- Android emulators can be started, stopped and configured here, but not shown yet.
 
 ## Agents and Processes
 

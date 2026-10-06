@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import { EngineClientError } from "@telar/engine-client";
-import { iPhone, pixel, simulatorEngine } from "../../../test/fake-simulator-hub";
+import { iPhone, pixel, simctlWithPair, simulatorEngine, WATCH_ID } from "../../../test/fake-simulator-hub";
 import type { HubSocket } from "./input";
 
 const closers: Array<() => Promise<void>> = [];
@@ -70,6 +70,24 @@ test("input reaches the hub's socket for an iOS simulator, and is refused for an
   expect(await codeOf(client.sendSimulatorInput("emulator-5554", [{ type: "button", button: "home" }]))).toBe("invalid_request");
   expect(await codeOf(client.sendSimulatorInput("A1B2-UDID", [{ type: "touch", phase: "begin", x: 2, y: 0 }]))).toBe("invalid_request");
   expect(frames).toHaveLength(2);
+});
+
+test("a paired watch's crown and side button reach the hub's socket for that watch", async () => {
+  const frames: Array<{ url: string; tag: number; body: unknown }> = [];
+  const openSocket = async (url: string): Promise<HubSocket> => ({
+    send: (data) => void frames.push({ url, tag: data[0]!, body: JSON.parse(new TextDecoder().decode(data.subarray(1))) }),
+    close: () => undefined,
+    open: true,
+  });
+  const { client } = await engine({ ready: true, devices: [{ ...iPhone(), booted: true }], simctlList: () => simctlWithPair(), openSocket });
+  expect((await client.simulators()).simulators.simulators.map((device) => device.id)).toContain(WATCH_ID);
+  expect(await client.sendSimulatorInput(WATCH_ID, [{ type: "crown", delta: 40 }, { type: "button", button: "side_button" }])).toEqual({ sent: 2 });
+  const url = `ws://127.0.0.1:4321/vendor/serve-sim/helper/ws?device=${WATCH_ID}`;
+  expect(frames).toEqual([
+    { url, tag: 0x0a, body: { delta: 40 } },
+    { url, tag: 0x04, body: { button: "side_button", page: 12, usage: 149, phase: "press" } },
+  ]);
+  expect(await codeOf(client.sendSimulatorInput(WATCH_ID, [{ type: "crown", delta: 500 }]))).toBe("invalid_request");
 });
 
 test("a minted ticket admits a hub read at the gate, and only while the device that asked is paired", async () => {

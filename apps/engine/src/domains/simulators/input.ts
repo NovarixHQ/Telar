@@ -24,14 +24,17 @@ const openWebSocket: OpenSocket = (url) =>
     };
   });
 
-const TAGS = { touch: 0x03, button: 0x04, key: 0x06, orientation: 0x07, keyboard: 0x0d } as const;
+const TAGS = { touch: 0x03, button: 0x04, key: 0x06, orientation: 0x07, crown: 0x0a, keyboard: 0x0d } as const;
+const HID_BUTTONS: Partial<Record<string, { page: number; usage: number }>> = { digital_crown: { page: 12, usage: 64 }, side_button: { page: 12, usage: 149 } };
 
 export function encodeInput(event: SimulatorInput): Uint8Array<ArrayBuffer> {
+  const hid = event.type === "button" ? HID_BUTTONS[event.button] : undefined;
   const payload =
     event.type === "touch" ? { type: event.phase, x: event.x, y: event.y }
-    : event.type === "button" ? { button: event.button }
+    : event.type === "button" ? { button: event.button, ...(hid && { ...hid, phase: "press" }) }
     : event.type === "key" ? { type: event.phase, usage: event.usage }
     : event.type === "orientation" ? { orientation: event.orientation }
+    : event.type === "crown" ? { delta: event.delta }
     : { enabled: event.enabled };
   const json = new TextEncoder().encode(JSON.stringify(payload));
   const frame = new Uint8Array(json.length + 1);

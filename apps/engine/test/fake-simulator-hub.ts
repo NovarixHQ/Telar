@@ -140,9 +140,9 @@ export function fakeActionDeps(answers: Record<string, Partial<ProcessResult>> =
   return { deps: value, runs, commands: () => runs.map((run) => [run.file, ...run.args].join(" ")) };
 }
 
-export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string; driver?: TurnDriver; video?: () => ReadableStream<Uint8Array> } = {}) {
+export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string; driver?: TurnDriver; video?: () => ReadableStream<Uint8Array>; simctlList?: () => string } = {}) {
   const engineRoot = options.engineRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-http-"));
-  const fake = fakeRunner();
+  const fake = fakeRunner(options.simctlList ? { simctlList: options.simctlList } : {});
   const hub = fakeHub(options.devices ?? [iPhone()], options.video ? { video: options.video } : {});
   const daemon = await startEngine({
     models: stubModels,

@@ -56,7 +56,7 @@ export function deliveryOf(
     if (
       turn.wakeReason?.sessionId === delegateSessionId &&
       turn.wakeReason.runId === assignment.runId &&
-      turn.state === "completed" &&
+      (turn.state === "completed" || turn.state === "discarded") &&
       turn.completedAt !== undefined
     ) {
       return turn.completedAt;

@@ -83,6 +83,12 @@ export class SessionMailbox {
     if (kept.length !== pending.length) this.setPending(sessionId, kept, kept.length > 0 ? this.heldSince(sessionId) : undefined);
   }
 
+  forgetWake(sessionId: string, targetSessionId: string, runId: string): void {
+    const pending = this.pending(sessionId);
+    const kept = pending.filter((each) => !(each.kind === "wake" && !each.cohortId && each.sessionId === targetSessionId && each.runId === runId));
+    if (kept.length !== pending.length) this.setPending(sessionId, kept, kept.length > 0 ? this.heldSince(sessionId) : undefined);
+  }
+
   /** A box of peer mail alone rides ahead of the next turn's input; anything else waits for the flush. */
   takeHeldMail(sessionId: string): string[] {
     const pending = this.pending(sessionId);

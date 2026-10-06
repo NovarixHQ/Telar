@@ -3,6 +3,7 @@ import {
   type EngineRequest,
   type Item,
   type NotificationDetail,
+  type NotificationEntry,
   type Session,
   type Subscription,
   type Turn,
@@ -14,7 +15,7 @@ import { isPeerMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionItems, type 
 import { quotedExcerpt } from "./agent-notice";
 import { RELAY_RULE } from "./attribution";
 import { FOLDING_INTENTS, type TurnSubmission } from "./intake";
-import { heldDelivery, MAX_DELIVERIES, mergeNotifications, mergeRunOutcome, notificationLabel, wakeNotification, withoutWakesFrom } from "./notification";
+import { heldDelivery, MAX_DELIVERIES, mergeNotifications, mergeRunOutcome, notificationLabel, wakeNotification, withoutEntries } from "./notification";
 
 // The engine's one sentence about a transition: a summons naming where to read, never the result itself.
 function wakeMessage(
@@ -457,6 +458,15 @@ export class TurnWakes {
     this.kernel.appendEvent(sessionId, { type: "item.updated", item }, turn.runId);
   }
 
+  /** The reader read this run itself, so a queued or held wake about its ending has nothing left to say. */
+  acknowledgeRead(readerId: string, targetSessionId: string, runId: string): void {
+    this.kernel.command("acknowledgeRead", () => {
+      this.deps.records.require(readerId);
+      this.discardQueuedWakes(readerId, targetSessionId, runId);
+      this.deps.mailbox.forgetWake(readerId, targetSessionId, runId);
+    });
+  }
+
   /** Retries every box a restart, a lost worker or a full queue left undelivered. */
   sweepMailboxes(): void {
     for (const sessionId of this.deps.mailbox.heldSessionIds()) {
@@ -469,21 +479,27 @@ export class TurnWakes {
     }
   }
 
-  /** Withdraws queued wakes (from one source, or all); a turn other sessions' news joined keeps the rest. */
-  discardQueuedWakes(subscriberId: string, targetSessionId?: string): number {
+  /** Withdraws queued wakes (all, from one source, or about one run's ending); a turn other news joined keeps the rest. */
+  discardQueuedWakes(subscriberId: string, targetSessionId?: string, runId?: string): number {
     const queue = this.deps.readQueue(subscriberId);
     const at = this.kernel.now();
     const candidates = queue.turns.filter((turn) => turn.state === "queued" && turn.origin === "session" && turn.wakeReason !== undefined);
     const dropped: Turn[] = [];
     const trimmed: Turn[] = [];
+    const drops = (entry: NotificationEntry) =>
+      entry.sessionId === targetSessionId && (runId === undefined ? entry.kind !== "peer_message" : entry.kind === "wake" && entry.runId === runId);
     for (const turn of candidates) {
-      // A cohort's notification is about all its members, not the one that led it.
-      if (targetSessionId !== undefined && turn.notification?.cohortId) continue;
-      if (targetSessionId === undefined || !turn.notification?.entries) {
-        if (targetSessionId === undefined || turn.wakeReason!.sessionId === targetSessionId) dropped.push(turn);
+      if (targetSessionId === undefined) {
+        dropped.push(turn);
         continue;
       }
-      const kept = withoutWakesFrom(turn.notification, targetSessionId, subscriberId);
+      // A cohort's notification is about all its members, not the one that led it.
+      if (turn.notification?.cohortId) continue;
+      if (!turn.notification) {
+        if (runId === undefined && turn.wakeReason!.sessionId === targetSessionId) dropped.push(turn);
+        continue;
+      }
+      const kept = withoutEntries(turn.notification, drops, subscriberId);
       if (!kept) dropped.push(turn);
       else if (kept !== turn.notification) {
         turn.notification = { ...kept, deliveries: turn.notification.deliveries ?? 1 };

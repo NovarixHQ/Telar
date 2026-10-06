@@ -1,4 +1,4 @@
-import type { EngineClient, EngineEvent, Session, SessionCapabilities, SessionDiff, SessionSettleEnded, Subscription } from "@telar/engine-client";
+import type { EngineClient, EngineEvent, Session, SessionCapabilities, SessionDiff, SessionSettleEnded, Subscription, Turn } from "@telar/engine-client";
 import type { SessionsCapability } from "./tools/shared";
 import type { EngineStore } from "../../state";
 
@@ -39,6 +39,7 @@ export type SessionsPort = {
     requestId: string,
     input: Parameters<Capability["resolveRequest"]>[2] & { resolvedBy: "session" },
   ): Promise<{ request: Result<Capability["resolveRequest"]> }>;
+  acknowledgeRead(readerSessionId: string, input: { sessionId: string; runId: string }): Promise<unknown>;
   findSessions: Query["find"];
   sessionOutline: Query["outline"];
   turnAnswer: Query["answer"];
@@ -49,6 +50,8 @@ export type SessionsPort = {
 
 /** The reads each deployment answers its own way, kept as they are pending an owner decision. */
 export type SessionsReads = Pick<Capability, "status" | "requests" | "turn" | "putSchedule"> & { cursor: NonNullable<Capability["cursor"]> };
+
+const ENDED_STATES: ReadonlySet<Turn["state"]> = new Set(["completed", "failed", "stopped"]);
 
 /** How many settled turns a run lookup searches before reading the whole history. */
 const RECENT_TURN_LOOKUP = 20;
@@ -112,6 +115,7 @@ export function storeSessionsPort(store: EngineStore): SessionsPort {
     subscribeCohort: async (subscriber, input) => ({ cohort: store.subscriptions.subscribeCohort(subscriber, input) }),
     cohorts: async (subscriber) => ({ cohorts: store.subscriptions.cohortsFor(subscriber) }),
     resolveRequest: async (id, requestId, input) => ({ request: store.requestGate.resolve(id, requestId, input) }),
+    acknowledgeRead: async (reader, { sessionId, runId }) => store.wakes.acknowledgeRead(reader, sessionId, runId),
     findSessions: async (query) => store.queries.findSessions(query),
     sessionOutline: async (id, window) => store.queries.turnOutline(id, window),
     turnAnswer: async (id, options) => store.queries.turnAnswer(id, options),
@@ -129,6 +133,11 @@ export function sessionsCapability(port: SessionsPort, identity: SessionIdentity
   return {
     ...(identity ? { self: { sessionId: identity.sessionId } } : {}),
     ...reads,
+    turn: async (id, runId) => {
+      const turn = reads.turn ? await reads.turn(id, runId) : (await reads.status(id)).turns.find((candidate) => candidate.runId === runId);
+      if (identity && turn && ENDED_STATES.has(turn.state)) await port.acknowledgeRead(identity.sessionId, { sessionId: id, runId });
+      return turn;
+    },
     list: (options) => port.liveSessions({ all: options?.settled === true }),
     create: async ({ owner, ...input }) =>
       (await port.createSession(

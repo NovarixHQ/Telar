@@ -99,6 +99,15 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
     },
     { method: "GET", path: sessionRoute("/cohorts"), auth: "engine", handle: ({ params }) => ok({ cohorts: store.subscriptions.cohortsFor(params[0]!) }) },
     { method: "GET", path: sessionRoute("/held-reports"), auth: "engine", handle: ({ params }) => ok({ held: store.wakes.pendingNotifications(params[0]!).length }) },
+    {
+      method: "POST",
+      path: sessionRoute("/reads"),
+      auth: "engine",
+      handle({ params: [readerId], body }) {
+        store.wakes.acknowledgeRead(readerId!, stringValue(body.sessionId, "session id")!, stringValue(body.runId, "run id")!);
+        return ok({ acknowledged: true });
+      },
+    },
     // A background task outlives its turn, so this names no run.
     { method: "POST", path: sessionRoute("/stop-background"), auth: "engine", handle: ({ params }) => ok({ stopped: store.worker.stopBackgroundTasks(params[0]!) }) },
     { method: "GET", path: sessionRoute("/terminals"), auth: "engine", handle: async ({ params }) => ok({ open: await store.sessionTerminals.countNow(params[0]!) }) },

@@ -94,13 +94,13 @@ function listed(entries: NotificationEntry[], newest: NotificationDetail): Notif
   };
 }
 
-export function withoutWakesFrom(detail: NotificationDetail, sessionId: string, recipientSessionId: string): NotificationDetail | undefined {
+export function withoutEntries(detail: NotificationDetail, drops: (entry: NotificationEntry) => boolean, recipientSessionId: string): NotificationDetail | undefined {
   const all = detail.entries ?? [asEntry(detail)];
-  const kept = all.filter((entry) => entry.kind === "peer_message" || entry.sessionId !== sessionId);
+  const kept = all.filter((entry) => !drops(entry));
   if (kept.length === all.length) return detail;
   if (kept.length === 0) return undefined;
   const newest = kept[kept.length - 1]!;
-  const leadIsKept = detail.kind === "peer_message" || detail.sessionId !== sessionId;
+  const leadIsKept = !drops(asEntry(detail));
   const lead: NotificationDetail = leadIsKept
     ? detail
     : {

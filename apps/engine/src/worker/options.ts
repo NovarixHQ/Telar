@@ -66,6 +66,7 @@ export type WorkerClient = Pick<
   | "subscribeCohort"
   | "cohorts"
   | "resolveRequest"
+  | "acknowledgeRead"
   | "findSessions"
   | "sessionOutline"
   | "runItems"

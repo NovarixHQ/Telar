@@ -4,6 +4,8 @@ import { OWN_GROUP, stopGroup } from "./group";
 export type ProcessOptions = { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; input?: string };
 export type ProcessResult = { code: number | null; stdout: string; stderr: string };
 
+type StartOptions = Omit<ProcessOptions, "timeoutMs" | "input"> & { onStderr?: (text: string) => void };
+
 export type ProcessHandle = {
   pid: number | undefined;
   exited: Promise<number | null>;
@@ -12,7 +14,7 @@ export type ProcessHandle = {
 
 export type ProcessRunner = {
   run(file: string, args: readonly string[], options?: ProcessOptions): Promise<ProcessResult>;
-  start(file: string, args: readonly string[], options?: Omit<ProcessOptions, "timeoutMs" | "input">): ProcessHandle;
+  start(file: string, args: readonly string[], options?: StartOptions): ProcessHandle;
 };
 
 const OUTPUT_LIMIT = 4_000_000;
@@ -40,7 +42,9 @@ export const processRunner: ProcessRunner = {
   },
 
   start(file, args, options = {}) {
-    const child = spawn(file, [...args], { cwd: options.cwd, env: options.env, detached: OWN_GROUP, stdio: "ignore" });
+    const { onStderr } = options;
+    const child = spawn(file, [...args], { cwd: options.cwd, env: options.env, detached: OWN_GROUP, stdio: ["ignore", "ignore", onStderr ? "pipe" : "ignore"] });
+    child.stderr?.on("data", (chunk: Buffer) => onStderr?.(chunk.toString("utf8")));
     const exited = new Promise<number | null>((resolve) => {
       child.once("error", () => resolve(null));
       child.once("exit", (code) => resolve(code));

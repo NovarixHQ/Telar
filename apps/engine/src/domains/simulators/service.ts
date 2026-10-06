@@ -4,6 +4,7 @@ import { agentEnv } from "../../platform/process/agent-env";
 import { processRunner, type ProcessRunner } from "../../platform/process/runner";
 import { reserveLoopbackPort, SimulatorHub, type HubDeps } from "./hub";
 import { runAction, type ActionDeps } from "./actions";
+import { BootWatch } from "./boots";
 import { readDetail } from "./detail";
 import { takeScreenshot } from "./screenshot";
 import { InputRelay, type OpenSocket } from "./input";
@@ -63,6 +64,8 @@ export class Simulators {
   private developerDir?: string;
   private devices: HubDevice[] = [];
   private readonly input: InputRelay;
+  private readonly boots: BootWatch;
+  private restarting?: Promise<void>;
   private readonly actionDeps: ActionDeps;
   readonly tickets: StreamTickets;
 
@@ -74,6 +77,7 @@ export class Simulators {
     this.toolchain = new NpmToolchain(HUB, { root: deps.root, runner: this.runner, env });
     this.agentDevice = new NpmToolchain(AGENT_DEVICE, { root: deps.root, runner: this.runner, env });
     this.input = new InputRelay(deps.openSocket);
+    this.boots = new BootWatch((file, args, options) => this.runner.run(file, args, options));
     this.tickets = new StreamTickets(this.now);
     this.actionDeps = { run: (file, args, options) => this.runner.run(file, args, { ...options, env: env() }), helpers: () => hubHelpers(deps.root) };
     this.hub = new SimulatorHub({
@@ -99,6 +103,12 @@ export class Simulators {
     }
     const list = await this.call<HubDeviceList>(origin, "GET", "/api/devices", undefined, LIST_TIMEOUT_MS);
     this.devices = [...(list.simulators ?? []), ...(list.emulators ?? [])];
+    const { rebooted, attach } = await this.boots.check(this.devices);
+    if (rebooted) {
+      await this.restartHub();
+      return { ...this.pending(), hub: hub(), platforms, simulators: [], errors: [] };
+    }
+    for (const udid of attach) void this.attach(origin, udid).catch(() => undefined);
     return { status: "ready", hub: hub(origin), platforms, simulators: this.devices.map(summary), errors: hubErrors(list.errors ?? [], host) };
   }
 
@@ -107,7 +117,10 @@ export class Simulators {
     const device = await this.find(id);
     const result = await this.call<HubActionResult>(origin, "POST", "/api/devices/boot", { platform: device.platform, id: device.id, name: device.name }, BOOT_TIMEOUT_MS);
     if (!result.ok) throw new HttpError(502, "provider_unavailable", BOOT_FAILURES[bootFailure(result.error)]);
-    if (device.platform === "ios") await this.call(origin, "POST", "/vendor/serve-sim/grid/api/start", { udid: device.id }, LIST_TIMEOUT_MS).catch(() => undefined);
+    if (device.platform === "ios") {
+      this.boots.attachedBy(device.id);
+      await this.attach(origin, device.id).catch(() => undefined);
+    }
     await this.state();
     const bootedId = result.serial ?? result.id ?? device.id;
     return summary(this.devices.find((candidate) => candidate.id === bootedId) ?? { ...device, id: bootedId, booted: true });
@@ -120,6 +133,7 @@ export class Simulators {
     const [route, body] =
       device.platform === "ios" ? ["/vendor/serve-sim/grid/api/shutdown", { udid: device.id }] : ["/api/devices/shutdown", { platform: device.platform, id: device.id }];
     await this.call(origin, "POST", route, body, LIST_TIMEOUT_MS).catch(() => undefined);
+    if (device.platform === "ios") this.boots.forget(device.id);
     await this.state().catch(() => undefined);
     const after = this.devices.find((candidate) => candidate.id === device.id);
     if (after?.booted) throw new HttpError(502, "provider_unavailable", "The simulator did not shut down.");
@@ -175,6 +189,7 @@ export class Simulators {
       return;
     }
     this.devices = [];
+    this.boots.reset();
     this.input.closeAll();
     await this.hub.stop();
   }
@@ -182,6 +197,20 @@ export class Simulators {
   stop(): Promise<void> {
     this.input.closeAll();
     return this.hub.stop();
+  }
+
+  private attach(origin: string, udid: string): Promise<unknown> {
+    return this.call(origin, "POST", "/vendor/serve-sim/grid/api/start", { udid }, LIST_TIMEOUT_MS);
+  }
+
+  private restartHub(): Promise<void> {
+    this.restarting ??= (async () => {
+      this.boots.reset();
+      this.input.closeAll();
+      await this.hub.stop();
+      this.ensureReady().catch(() => undefined);
+    })().finally(() => (this.restarting = undefined));
+    return this.restarting;
   }
 
   private pending(): Pick<SimulatorsState, "status" | "detail"> {

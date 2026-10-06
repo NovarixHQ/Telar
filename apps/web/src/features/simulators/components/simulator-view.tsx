@@ -7,7 +7,7 @@ import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
 import { cn } from "@/ui/utils";
 import { hubUrl, type SimulatorsApi } from "../api";
-import { hidUsage, inputQueue, NEXT_ORIENTATION, rawPoint, readScreenConfig, ROTATION_DEGREES, type ScreenConfig } from "../input";
+import { hidUsage, inputQueue, NEXT_ORIENTATION, rawPoint, readScreenConfig, ROTATION_DEGREES, type Orientation, type ScreenConfig } from "../input";
 import { startStream, type StreamStatus } from "../stream";
 
 const TICKET_REFRESH_MS = 4 * 60_000;
@@ -158,6 +158,13 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
     setInputError(undefined);
     send(event);
   };
+  const [rotation, setRotation] = useState<{ from?: Orientation; sent: Orientation }>();
+  const rotate = () => {
+    const current = rotation && rotation.from === screen?.orientation ? rotation.sent : screen?.orientation;
+    const next = NEXT_ORIENTATION[current ?? "portrait"];
+    setRotation({ ...(screen ? { from: screen.orientation } : {}), sent: next });
+    press({ type: "orientation", orientation: next });
+  };
 
   const portraitFrames = !screen || screen.width <= screen.height;
   const turned = screen ? Math.abs(ROTATION_DEGREES[screen.orientation]) === 90 : false;
@@ -183,7 +190,7 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <SimulatorToolbar ios={ios} powering={powering} settingsOpen={settingsOpen} onPress={press} onRotate={() => press({ type: "orientation", orientation: NEXT_ORIENTATION[screen?.orientation ?? "portrait"] })} onToggleSettings={onToggleSettings} onPowerOff={() => void powerOff()} />
+      <SimulatorToolbar ios={ios} powering={powering} settingsOpen={settingsOpen} onPress={press} onRotate={rotate} onToggleSettings={onToggleSettings} onPowerOff={() => void powerOff()} />
       {inputError && <p role="alert" className="border-b border-border px-3 py-1.5 text-2xs text-destructive">{inputError}</p>}
       {!ios ? (
         <p className="px-4 py-6 text-center text-xs text-muted-foreground">Emulators can be started, stopped and set up here, but not shown yet.</p>

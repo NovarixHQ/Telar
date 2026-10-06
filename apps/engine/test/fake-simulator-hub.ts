@@ -13,7 +13,7 @@ type Call = { file: string; args: readonly string[]; options?: ProcessOptions };
 
 export const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?: number } = {}) {
+export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string | (() => string); xcrun?: number } = {}) {
   const runs: Call[] = [];
   const starts: Array<Call & { handle: ProcessHandle; exit(code?: number): void }> = [];
   const waiting: Array<{ count: number; resolve: () => void }> = [];
@@ -29,7 +29,7 @@ export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string; xcrun?
         fs.writeFileSync(entry, "");
         return { code: 0, stdout: "", stderr: "" };
       }
-      if (file === "ps") return { code: 0, stdout: overrides.ps ?? "", stderr: "" };
+      if (file === "ps") return { code: 0, stdout: (typeof overrides.ps === "function" ? overrides.ps() : overrides.ps) ?? "", stderr: "" };
       if (file === "xcrun") {
         if (args[1] === "io" && args[3] === "screenshot") fs.writeFileSync(args.at(-1)!, PNG);
         return { code: overrides.xcrun ?? 0, stdout: "", stderr: "" };

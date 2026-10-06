@@ -16,11 +16,11 @@ afterEach(async () => {
 
 const XCODE = "/Applications/Xcode.app/Contents/Developer";
 
-function setup(devices: SimulatorSummary[], options: { enabled?: boolean; bootError?: string; xcrun?: number; files?: string[] } = {}) {
+function setup(devices: SimulatorSummary[], options: { enabled?: boolean; bootError?: string; xcrun?: number; files?: string[]; ps?: () => string } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-"));
   roots.push(root);
   let enabled = options.enabled ?? true;
-  const fake = fakeRunner(options.xcrun === undefined ? {} : { xcrun: options.xcrun });
+  const fake = fakeRunner({ ...(options.xcrun === undefined ? {} : { xcrun: options.xcrun }), ...(options.ps ? { ps: options.ps } : {}) });
   const hub = fakeHub(devices, options.bootError ? { bootError: options.bootError } : {});
   const simulators = new Simulators({
     root,
@@ -89,7 +89,7 @@ test("shutting down an iOS simulator goes through serve-sim, and one already off
   await ready(simulators);
   expect(await simulators.shutdown("A1B2-UDID")).toMatchObject({ booted: false });
   expect(await simulators.shutdown("A1B2-UDID")).toMatchObject({ booted: false });
-  expect(hub.requests.filter((r) => r.method === "POST").map((r) => r.path)).toEqual(["/vendor/serve-sim/grid/api/shutdown", "/vendor/serve-sim/grid/api/shutdown"]);
+  expect(hub.requests.filter((r) => r.method === "POST").map((r) => r.path)).toEqual(["/vendor/serve-sim/grid/api/start", "/vendor/serve-sim/grid/api/shutdown", "/vendor/serve-sim/grid/api/shutdown"]);
 });
 
 test("an unknown id is not found, and actions refuse while simulators are off", async () => {
@@ -132,4 +132,40 @@ test("a Mac without Xcode reports iOS unavailable and forces no developer dir", 
   expect(state.platforms).toEqual([expect.objectContaining({ platform: "ios", available: false, reason: "Install Xcode to use iOS Simulators." })]);
   expect(starts[0]!.options?.env?.DEVELOPER_DIR).toBeUndefined();
   expect(simulators.agentTools()).not.toHaveProperty("developerDir");
+});
+
+const UDID = "616B0EE9-3502-48DD-8FBE-6DF76466E6C9";
+const launchdSim = (pid: number) => `  ${pid} launchd_sim /Users/someone/Library/Developer/CoreSimulator/Devices/${UDID}/data/var/run/launchd_bootstrap.plist\n    7 /sbin/launchd\n`;
+const gridStarts = (hub: ReturnType<typeof fakeHub>) => hub.requests.filter((r) => r.path === "/vendor/serve-sim/grid/api/start").map((r) => r.body?.udid);
+
+test("a simulator that was already booted is attached to serve-sim once", async () => {
+  let pid = 101;
+  const { simulators, hub } = setup([{ ...iPhone(), id: UDID, booted: true }], { ps: () => launchdSim(pid) });
+  await ready(simulators);
+  await simulators.state();
+  expect(gridStarts(hub)).toEqual([UDID]);
+});
+
+test("a simulator that boots again outside Telar restarts the hub, since its old session would drop input and video", async () => {
+  let pid = 101;
+  const { simulators, starts, started } = setup([{ ...iPhone(), id: UDID, booted: true }], { ps: () => launchdSim(pid) });
+  await ready(simulators);
+  await simulators.state();
+  pid = 202;
+  expect((await simulators.state()).status).not.toBe("ready");
+  expect(await starts[0]!.handle.exited).toBeNull();
+  await started(2);
+  expect((await ready(simulators)).status).toBe("ready");
+  expect(starts).toHaveLength(2);
+});
+
+test("a simulator Telar shut down and booted again keeps the hub running", async () => {
+  let pid = 101;
+  const { simulators, starts } = setup([{ ...iPhone(), id: UDID, booted: true }], { ps: () => launchdSim(pid) });
+  await ready(simulators);
+  await simulators.shutdown(UDID);
+  pid = 202;
+  await simulators.boot(UDID);
+  expect((await simulators.state()).status).toBe("ready");
+  expect(starts).toHaveLength(1);
 });

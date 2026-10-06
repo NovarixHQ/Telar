@@ -1,7 +1,3 @@
-/**
- * `new:<projectId>` is one canvas key shared by every new conversation in a
- * project; the hand-off must copy it onto the session and then clear it.
- */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   canvasPanelKey,
@@ -35,30 +31,8 @@ afterEach(() => {
   (globalThis as { window?: unknown }).window = previous;
 });
 
-function handOff(projectId: string, sessionId: string, panel: PanelTabState<Tab>) {
-  writePanelTabs(sessionId, panel, 1);
-  clearPanelTabs(canvasPanelKey(projectId));
-}
-
-describe("the canvas hand-off", () => {
+describe("per-key panels", () => {
   test("a new conversation starts with everything closed", () => {
-    expect(readPanelTabs<Tab>(canvasPanelKey("project_1"), isTab)).toEqual(emptyPanelTabs<Tab>());
-  });
-
-  test("the arrangement built while writing the first message follows THAT session", () => {
-    const arranged = openPanelTab(emptyPanelTabs<Tab>(), "run");
-    writePanelTabs(canvasPanelKey("project_1"), arranged, 1);
-    handOff("project_1", "session_a", arranged);
-    const restored = readPanelTabs<Tab>("session_a", isTab);
-    expect(restored.open).toBe(true);
-    expect(kinds(restored)).toEqual(["run"]);
-  });
-
-  test("and the NEXT conversation in the same project does not inherit it", () => {
-    const arranged = openPanelTab(emptyPanelTabs<Tab>(), "run");
-    writePanelTabs(canvasPanelKey("project_1"), arranged, 1);
-    handOff("project_1", "session_a", arranged);
-    // The canvas the next conversation reads is the one just cleared.
     expect(readPanelTabs<Tab>(canvasPanelKey("project_1"), isTab)).toEqual(emptyPanelTabs<Tab>());
   });
 

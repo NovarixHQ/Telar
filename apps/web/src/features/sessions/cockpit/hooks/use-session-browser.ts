@@ -91,7 +91,7 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
       writeDraft(undefined, projectId, "");
       writeDraftFiles(id, projectId, composer.draftFiles.current);
       writeDraftFiles(undefined, projectId, []);
-      handOffCanvas(id, projectId, panel, { clearCanvas: true });
+      handOffCanvas(id, projectId, panel);
       composer.claim({ sessionId: id, projectId });
       sync.setSession(patched.session);
       setCreatedSessionId(id);

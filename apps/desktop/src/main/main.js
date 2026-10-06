@@ -308,9 +308,9 @@ app.on("will-quit", (event) => {
   stopComputerUseHelper();
   closeBrowserControl();
 
-  unpublishTailscaleServe();
+  const unpublished = unpublishTailscaleServe();
   event.preventDefault();
-  void engineStopped.finally(() => app.exit(0));
+  void Promise.allSettled([engineStopped, unpublished]).finally(() => app.exit(0));
 });
 
 process.on("exit", killServer);

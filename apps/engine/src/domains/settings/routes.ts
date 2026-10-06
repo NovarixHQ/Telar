@@ -4,12 +4,17 @@ import { TELAR_ORIENTATION } from "../sessions";
 import type { EngineStore } from "../../state";
 
 type AgentOrientation = ReturnType<EngineStore["settings"]["orientation"]>;
+type SimulatorSettings = ReturnType<EngineStore["settings"]["simulators"]>;
 
 const present = (input: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> =>
   Object.fromEntries(keys.filter((key) => key in input).map((key) => [key, input[key]]));
 
 /** Machine-wide documents every client reads alike. A PATCH changes only the keys it names; `null` is a value. */
-export function settingsRoutes(store: EngineStore, syncOrientationSkill: (policy: AgentOrientation) => Promise<unknown>): Route[] {
+export function settingsRoutes(
+  store: EngineStore,
+  syncOrientationSkill: (policy: AgentOrientation) => Promise<unknown>,
+  simulatorSettingsChanged: (settings: SimulatorSettings) => Promise<unknown>,
+): Route[] {
   return [
     { method: "GET", path: "/v2/inbox", auth: "engine", handle: () => ok({ inbox: store.settings.inbox() }) },
     {
@@ -65,6 +70,17 @@ export function settingsRoutes(store: EngineStore, syncOrientationSkill: (policy
         const saved = store.workspace.setOverrides(project.id, body.overrides);
         if (!saved.ok) throw new EngineStateError("invalid_request", saved.message);
         return ok({ workspace: await store.workspace.view(project) });
+      },
+    },
+    { method: "GET", path: "/v2/simulator-settings", auth: "engine", handle: () => ok({ simulatorSettings: store.settings.simulators() }) },
+    {
+      method: "PATCH",
+      path: "/v2/simulator-settings",
+      auth: "engine",
+      async handle({ body }) {
+        const simulatorSettings = store.settings.setSimulators(present(body, ["enabled", "agentAccess"]));
+        await simulatorSettingsChanged(simulatorSettings);
+        return ok({ simulatorSettings });
       },
     },
     { method: "GET", path: "/v2/sidebar-layout", auth: "engine", handle: () => ok({ layout: store.settings.sidebarLayout() }) },

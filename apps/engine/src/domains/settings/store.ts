@@ -6,6 +6,7 @@ import {
   DEFAULT_RETENTION_POLICY,
   DEFAULT_SESSION_DEFAULTS,
   DEFAULT_SIDEBAR_LAYOUT,
+  DEFAULT_SIMULATOR_SETTINGS,
   DEFAULT_TEXT_GEN_POLICY,
   InboxPolicy as InboxPolicySchema,
   MAX_AUTO_SETTLE_HOURS,
@@ -20,6 +21,7 @@ import {
   SessionDefaults as SessionDefaultsSchema,
   SidebarLayout as SidebarLayoutSchema,
   SidebarMode,
+  SimulatorSettings as SimulatorSettingsSchema,
   TextGenPolicy as TextGenPolicySchema,
   type AgentOrientation,
   type InboxPolicy,
@@ -29,6 +31,7 @@ import {
   type RuntimeMode,
   type SessionDefaults,
   type SidebarLayout,
+  type SimulatorSettings,
   type TextGenPolicy,
 } from "@telar/engine-client";
 import { EngineStateError, STATE_VERSION, type Kernel } from "../../platform/kernel";
@@ -52,12 +55,7 @@ function boolean(value: unknown, message: string): boolean {
   return value;
 }
 
-/**
- * The machine-wide preference documents. Every getter falls back to the shipped
- * default on a missing or malformed file: a broken preference costs the
- * preference, never the list, session or turn it configures. Every setter takes
- * `unknown`, validates against the schema, and patches only the keys present.
- */
+/** A broken file costs only its preference: getters fall back to the shipped default, setters patch only the keys present. */
 export class SettingsStore {
   constructor(
     private readonly kernel: Kernel,
@@ -209,6 +207,27 @@ export class SettingsStore {
       next.resumeAfterRateLimit = boolean(patch.resumeAfterRateLimit, "resumeAfterRateLimit must be true or false");
     }
     this.kernel.writeDocument(this.kernel.paths.sessionDefaults, { version: STATE_VERSION, ...next });
+    return { ...next };
+  }
+
+  simulators(): SimulatorSettings {
+    try {
+      const parsed = SimulatorSettingsSchema.safeParse(this.kernel.readDocument(this.kernel.paths.simulatorSettings));
+      return parsed.success ? parsed.data : { ...DEFAULT_SIMULATOR_SETTINGS };
+    } catch {
+      return { ...DEFAULT_SIMULATOR_SETTINGS };
+    }
+  }
+
+  setSimulators(patch: { enabled?: unknown; agentAccess?: unknown }): SimulatorSettings {
+    const next: SimulatorSettings = { ...this.simulators() };
+    if (patch.enabled !== undefined) next.enabled = boolean(patch.enabled, "enabled must be true or false");
+    if (patch.agentAccess !== undefined) next.agentAccess = boolean(patch.agentAccess, "agentAccess must be true or false");
+    if (!next.enabled) {
+      if (patch.agentAccess === true) throw new EngineStateError("invalid_request", "turn simulators on before giving agents access to them");
+      next.agentAccess = false;
+    }
+    this.kernel.writeDocument(this.kernel.paths.simulatorSettings, { version: STATE_VERSION, ...next });
     return { ...next };
   }
 

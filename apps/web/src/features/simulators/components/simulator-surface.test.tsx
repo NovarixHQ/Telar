@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, jest, test } from "bun:test";
 import { act } from "react";
 import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { click, flush, installTestDom, mount } from "@/test/dom";
@@ -144,4 +144,24 @@ test("a watch paired with an iPhone shows under it, and opens to a stream of its
   expect(button("Rotate")).toBeNull();
   await flush(() => Boolean(host.querySelector("img")));
   expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/simulators/hub/vendor/serve-sim/helper/W1/stream.mjpeg?ticket=stk_1");
+});
+
+test("a fresh ticket keeps the playing stream", async () => {
+  globalThis.fetch = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch;
+  const fake = fakeApi(ready([iPhone(true)]));
+  let minted = 0;
+  fake.api.simulatorStreamTicket = async () => ({ ticket: `stk_${++minted}`, expiresAt: 0 });
+  jest.useFakeTimers();
+  try {
+    const { host } = await mount(<SimulatorSurface api={fake.api} visible params={{ open: "A1B2", active: "A1B2" }} onParams={() => undefined} />);
+    const tick = async (ms: number) => act(async () => void jest.advanceTimersByTime(ms));
+    for (let turn = 0; turn < 20 && !host.querySelector("img"); turn += 1) await tick(10);
+    const src = host.querySelector("img")?.getAttribute("src");
+    expect(src).toEndWith("ticket=stk_1");
+    await tick(4 * 60_000);
+    expect(minted).toBe(2);
+    expect(host.querySelector("img")?.getAttribute("src")).toBe(src!);
+  } finally {
+    jest.useRealTimers();
+  }
 });

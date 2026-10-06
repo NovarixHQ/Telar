@@ -31,16 +31,22 @@ function fitFrame(aspect: number, width: number, height: number): { width: numbe
 
 const clamp01 = (value: number) => (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0);
 
-function useTicket(api: SimulatorsApi, visible: boolean): string | undefined {
-  const [ticket, setTicket] = useState<string>();
+function useTicket(api: SimulatorsApi, visible: boolean): (() => string) | undefined {
+  const latest = useRef("");
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
+    const keep = (ticket: string) => {
+      if (cancelled) return;
+      latest.current = ticket;
+      setReady(true);
+    };
     const mint = () =>
       void api
         .simulatorStreamTicket()
-        .then((answer) => !cancelled && setTicket(answer.ticket))
-        .catch(() => !cancelled && setTicket(""));
+        .then((answer) => keep(answer.ticket))
+        .catch(() => keep(""));
     mint();
     const timer = setInterval(mint, TICKET_REFRESH_MS);
     return () => {
@@ -48,16 +54,16 @@ function useTicket(api: SimulatorsApi, visible: boolean): string | undefined {
       clearInterval(timer);
     };
   }, [api, visible]);
-  return ticket;
+  return useMemo(() => (ready ? () => latest.current : undefined), [ready]);
 }
 
-function useScreenConfig(url: string | undefined): ScreenConfig | undefined {
+function useScreenConfig(url: (() => string) | undefined): ScreenConfig | undefined {
   const [screen, setScreen] = useState<ScreenConfig>();
   useEffect(() => {
     if (!url) return;
     let cancelled = false;
     const read = () =>
-      void fetch(url)
+      void fetch(url())
         .then((response) => (response.ok ? response.json() : undefined))
         .then((value) => {
           const config = readScreenConfig(value);
@@ -126,10 +132,11 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
   const ios = simulator.platform === "ios";
   const ticket = useTicket(api, visible && ios);
   const url = useMemo(
-    () => (ticket === undefined ? undefined : (file: string) => hubUrl(`/vendor/serve-sim/helper/${encodeURIComponent(simulator.id)}/${file}`, { hostId, ticket })),
+    () => ticket && ((file: string) => hubUrl(`/vendor/serve-sim/helper/${encodeURIComponent(simulator.id)}/${file}`, { hostId, ticket: ticket() })),
     [hostId, simulator.id, ticket],
   );
-  const screen = useScreenConfig(visible && url ? url("config") : undefined);
+  const config = useMemo(() => (visible && url ? () => url("config") : undefined), [visible, url]);
+  const screen = useScreenConfig(config);
   const [status, setStatus] = useState<StreamStatus>({ state: "connecting" });
   const [mjpeg, setMjpeg] = useState<string>();
   const [attempt, setAttempt] = useState(0);

@@ -155,8 +155,10 @@ Then END YOUR TURN. Do not subscribe per session, do not poll
   that merely ends is not done — a worker waiting on CI ends turns mid-errand.
 - The notice has a line per session with how it ended, and quotes what each
   said: whole when it fits, otherwise its start and how much was cut.
-- A \`blocker\` or a parked request reaches you at once. Answer it; the session
-  stays in the wait until it finishes.
+- A \`blocker\` or a parked request reaches you at once, even mid-turn. Its
+  decision belongs to the person unless the brief settled it. Answer a blocker
+  with \`sessions_send\` intent \`task\`: a \`report\` does not wake it. The
+  session stays in the wait until it finishes.
 - It expires after \`timeoutMinutes\` (default 240), naming who never sent a
   result. \`sessions_subscribe({ cancel: id })\` stops it; with no arguments it
   lists what you hold.

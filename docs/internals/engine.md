@@ -16,7 +16,7 @@
 
 ## Sessions talking to sessions
 
-- Today: `sessions_send` with an intent (`task`, `report`, `result`, `blocker`), plus `sessions_subscribe` cohorts that deliver one notice when every member is done. A `task` links the child to the sender. Reports never open a turn. Blockers and parked requests interrupt.
+- Today: `sessions_send` with an intent (`task`, `report`, `result`, `blocker`), plus `sessions_subscribe` cohorts that deliver one notice when every member is done. A `task` links the child to the sender. With no intent, a send to a session the sender tasked is a `task`; anything else is a `report`. A `report` never opens a turn, and is refused by a member whose blocker is unanswered: only a `task` releases it. Blockers and parked requests interrupt, a busy subscriber included.
 - Planned (migration phase 6): `create` takes a mode, `child` (a sub-agent whose final message is its result, with one notice to the parent each time it stops) or `handoff` (the owner's session, with no link and no notices). The intents and cohorts go away.
 
 ## HTTP

@@ -24,7 +24,7 @@ Each message has an intent:
 - **Blocker**: the worker needs a decision before it can go on.
 - **Report**: progress along the way.
 
-A task, a result or a blocker wakes the session it's sent to. Reports never start a turn. They are held, and they reach the session with its next turn.
+A task, a result or a blocker wakes the session it's sent to. Reports never start a turn. They are held, and they reach the session with its next turn. A message from a coordinator to a worker it tasked is a task unless it says otherwise, so a correction or a "stop" is never left unread. A worker waiting on a blocker accepts only a task as its answer.
 
 The coordinator doesn't poll. It sends the tasks, subscribes to the whole group of workers, and ends its turn. Telar wakes it once, when every worker has sent its result, failed, been stopped or been settled. A blocker, or a worker stuck waiting on a request, reaches it right away.
 

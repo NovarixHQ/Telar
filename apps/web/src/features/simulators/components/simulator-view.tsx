@@ -37,21 +37,23 @@ function useTicket(api: SimulatorsApi, visible: boolean): (() => string) | undef
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
-    const keep = (ticket: string) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const keep = (ticket: string, expiresAt = 0) => {
       if (cancelled) return;
       latest.current = ticket;
       setReady(true);
+      const left = expiresAt - Date.now();
+      timer = setTimeout(mint, left > 0 ? Math.min(left / 2, TICKET_REFRESH_MS) : TICKET_REFRESH_MS);
     };
     const mint = () =>
       void api
         .simulatorStreamTicket()
-        .then((answer) => keep(answer.ticket))
+        .then((answer) => keep(answer.ticket, answer.expiresAt))
         .catch(() => keep(""));
     mint();
-    const timer = setInterval(mint, TICKET_REFRESH_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, [api, visible]);
   return useMemo(() => (ready ? () => latest.current : undefined), [ready]);

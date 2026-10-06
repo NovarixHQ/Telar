@@ -1,4 +1,4 @@
-import { expect, jest, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { act } from "react";
 import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { click, flush, installTestDom, mount } from "@/test/dom";
@@ -150,21 +150,13 @@ test("a fresh ticket keeps the playing stream", async () => {
   globalThis.fetch = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch;
   const fake = fakeApi(ready([iPhone(true)]));
   let minted = 0;
-  fake.api.simulatorStreamTicket = async () => ({ ticket: `stk_${++minted}`, expiresAt: 0 });
-  const loaded = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "naturalWidth");
-  Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => 1206 });
-  jest.useFakeTimers();
-  try {
-    const { host } = await mount(<SimulatorSurface api={fake.api} visible params={{ open: "A1B2", active: "A1B2" }} onParams={() => undefined} />);
-    const tick = async (ms: number) => act(async () => void jest.advanceTimersByTime(ms));
-    for (let turn = 0; turn < 20 && !host.querySelector("img"); turn += 1) await tick(10);
-    const src = host.querySelector("img")?.getAttribute("src");
-    expect(src).toEndWith("ticket=stk_1");
-    await tick(4 * 60_000);
-    expect(minted).toBe(2);
-    expect(host.querySelector("img")?.getAttribute("src")).toBe(src!);
-  } finally {
-    jest.useRealTimers();
-    if (loaded) Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", loaded);
-  }
+  fake.api.simulatorStreamTicket = async () => ({ ticket: `stk_${++minted}`, expiresAt: minted === 1 ? Date.now() + 20 : Date.now() + 300_000 });
+  const { host } = await mount(<SimulatorSurface api={fake.api} visible params={{ open: "A1B2", active: "A1B2" }} onParams={() => undefined} />);
+  await flush(() => Boolean(host.querySelector("img")));
+  const src = host.querySelector("img")?.getAttribute("src");
+  expect(src).toEndWith("ticket=stk_1");
+  for (let turn = 0; turn < 50 && minted < 2; turn += 1) await flush(() => minted >= 2);
+  await flush();
+  expect(minted).toBe(2);
+  expect(host.querySelector("img")?.getAttribute("src")).toBe(src!);
 });

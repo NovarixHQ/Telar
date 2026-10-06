@@ -62,11 +62,14 @@ struct HTTPEngineAPI: Sendable {
     let session: URLSession
 
     let failover: (@Sendable (URL) async -> URL?)?
+    let onUnauthorized: (@Sendable () async -> Void)?
 
     init(baseURL: URL, deviceToken: String? = nil, session: URLSession? = nil,
+         onUnauthorized: (@Sendable () async -> Void)? = nil,
          failover: (@Sendable (URL) async -> URL?)? = nil) {
         self.baseURL = baseURL
         self.deviceToken = deviceToken
+        self.onUnauthorized = onUnauthorized
         self.failover = failover
         if let session {
             self.session = session
@@ -147,7 +150,11 @@ struct HTTPEngineAPI: Sendable {
         let (data, response) = try await exchange(request)
         let http = response as? HTTPURLResponse
         let status = http?.statusCode ?? 0
-        guard (200..<300).contains(status) else { throw EngineAPIError.failure(data, status: status) }
+        guard (200..<300).contains(status) else {
+            let error = EngineAPIError.failure(data, status: status)
+            if error.isUnauthorized { await onUnauthorized?() }
+            throw error
+        }
         return RawFile(data: data, contentType: http?.value(forHTTPHeaderField: "content-type"))
     }
 
@@ -169,7 +176,11 @@ struct HTTPEngineAPI: Sendable {
     func raw(_ request: URLRequest) async throws -> (Data, Int) {
         let (data, response) = try await exchange(request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else { throw EngineAPIError.failure(data, status: status) }
+        guard (200..<300).contains(status) else {
+            let error = EngineAPIError.failure(data, status: status)
+            if error.isUnauthorized { await onUnauthorized?() }
+            throw error
+        }
         return (data, status)
     }
 }

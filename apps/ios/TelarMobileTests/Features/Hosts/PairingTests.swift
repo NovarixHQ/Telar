@@ -156,4 +156,65 @@ final class PairingStubURLProtocol: URLProtocol {
             Issue.record("unexpected error type")
         }
     }
+
+    @Test func aGatedApiCallFiresOnUnauthorized() async {
+        PairingStubURLProtocol.handler = { _ in
+            (401, Data(#"{"error":{"code":"cockpit_unauthorized","message":"Pair this device with the Telar cockpit to use it."}}"#.utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PairingStubURLProtocol.self]
+        let flagged = Flagged()
+        let api = HTTPEngineAPI(
+            baseURL: URL(string: "http://stub.test:3000")!,
+            deviceToken: "tlr_revoked",
+            session: URLSession(configuration: config),
+            onUnauthorized: { await flagged.set() }
+        )
+        _ = try? await api.health()
+        #expect(await flagged.value)
+    }
+
+    @Test func aForbiddenCallDoesNotFireOnUnauthorized() async {
+        PairingStubURLProtocol.handler = { _ in
+            (403, Data(#"{"error":{"code":"cockpit_forbidden","message":"This phone is paired for viewing only."}}"#.utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PairingStubURLProtocol.self]
+        let flagged = Flagged()
+        let api = HTTPEngineAPI(
+            baseURL: URL(string: "http://stub.test:3000")!,
+            deviceToken: "tlr_observer",
+            session: URLSession(configuration: config),
+            onUnauthorized: { await flagged.set() }
+        )
+        _ = try? await api.health()
+        #expect(await flagged.value == false)
+    }
+
+    @MainActor
+    @Test func aRevokedTokenIsClearedTheNextTimeThatHostsApiIsUsed() async {
+        PairingStubURLProtocol.handler = { _ in
+            (401, Data(#"{"error":{"code":"cockpit_unauthorized","message":"Pair this device with the Telar cockpit to use it."}}"#.utf8))
+        }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PairingStubURLProtocol.self]
+        let defaults = UserDefaults(suiteName: "telar.test.appsettings.\(UUID().uuidString)")!
+        let settings = AppSettings(defaults: defaults, vault: MemoryVault())
+        let id = settings.upsert(baseURLString: "http://stub.test:3000", token: "tlr_revoked")
+        let api = HTTPEngineAPI(
+            baseURL: URL(string: "http://stub.test:3000")!,
+            deviceToken: settings.token(for: id),
+            session: URLSession(configuration: config),
+            onUnauthorized: { [weak settings] in await settings?.clearRevokedToken(id) }
+        )
+
+        _ = try? await api.health()
+
+        #expect(settings.token(for: id) == nil)
+    }
+}
+
+private actor Flagged {
+    private(set) var value = false
+    func set() { value = true }
 }

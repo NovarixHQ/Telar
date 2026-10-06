@@ -147,12 +147,13 @@ export function notificationLabel(detail: NotificationDetail): string {
 
 function wakeKindOf(member: CohortMember): WakeKind {
   if (member.outcome === "failed") return "turn_failed";
-  if (member.outcome === "result" || member.outcome === "completed") return "turn_completed";
+  if (member.outcome === "result" || member.outcome === "unreported" || member.outcome === "completed") return "turn_completed";
   return "turn_stopped";
 }
 
 const OUTCOME_PHRASE: Record<NonNullable<CohortMember["outcome"]>, string> = {
   result: "result",
+  unreported: "ended without a result",
   completed: "completed",
   failed: "FAILED",
   stopped: "stopped",

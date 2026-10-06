@@ -371,7 +371,7 @@ export type Subscription = z.infer<typeof Subscription>;
 export const CohortMember = z.object({
   sessionId: Id,
   title: z.string().max(200).optional(),
-  outcome: z.enum(["result", "completed", "failed", "stopped", "settled", "archived", "deleted"]).optional(),
+  outcome: z.enum(["result", "unreported", "completed", "failed", "stopped", "settled", "archived", "deleted"]).optional(),
   /** It sent a `blocker` and has not been answered: it stays pending whatever its turns do. */
   blocked: z.boolean().optional(),
   fetch: z.object({ sessionId: Id, runId: Id }).optional(),

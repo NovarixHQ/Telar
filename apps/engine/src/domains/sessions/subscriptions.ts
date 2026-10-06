@@ -35,6 +35,11 @@ function cutOffByTelar(turn: Turn): boolean {
   return turn.state === "failed" && turn.failure?.code === "interrupted";
 }
 
+const ENDED_STATES: ReadonlySet<Turn["state"]> = new Set(["completed", "failed", "stopped", "ambiguous", "discarded"]);
+
+/** A later `result` replaces an earlier one, or the last answer that stood in for it. */
+const takesResult = (member: CohortMember): boolean => !member.outcome || member.outcome === "result" || member.outcome === "unreported";
+
 function excerptOf(text: string): Pick<CohortMember, "excerpt" | "chars"> {
   const trimmed = text.trim();
   return trimmed ? { excerpt: inlineExcerpt(trimmed).shown, chars: trimmed.length } : {};
@@ -53,6 +58,7 @@ type SubscriptionHost = {
   find(sessionId: string): Session | undefined;
   turnsOf(sessionId: string): Turn[];
   hasLiveTurn(sessionId: string): boolean;
+  hasScheduledWake(sessionId: string): boolean;
   discardQueuedWakes(subscriberId: string, targetSessionId: string): void;
   submitTurn(sessionId: string, input: WakeTurn): unknown;
   warn(sessionId: string, message: string): void;
@@ -329,11 +335,20 @@ export class SessionSubscriptions {
     ).at(-1);
     if (said?.agentIntent === "blocker") return { ...base, blocked: true };
     if (said) return { ...base, outcome: "result", fetch: { sessionId: subscriberSessionId, runId: said.runId }, firstLine: firstLineOf(said.input), ...excerptOf(said.input), at };
-    // A turn that merely completed is not the errand's end; only its result is.
-    // Nor is one a restart cut off: it was not stopped, it was interrupted.
-    if (last.state === "completed" || cutOffByTelar(last)) return base;
-    const kind: WakeKind = last.state === "failed" ? "turn_failed" : "turn_stopped";
-    return { ...base, ...this.cohortOutcome(target.id, kind, last, { ...(last.resultText ? { resultText: last.resultText } : {}), ...(last.failure ? { failure: last.failure } : {}) }), at };
+    // A restart cut-off was interrupted, not stopped.
+    if (cutOffByTelar(last) || (last.state === "completed" && this.runsAgain(target.id, last.runId))) return base;
+    const kind: WakeKind = last.state === "completed" ? "turn_completed" : last.state === "failed" ? "turn_failed" : "turn_stopped";
+    const outcome = this.cohortOutcome(target.id, kind, last, { ...(last.resultText ? { resultText: last.resultText } : {}), ...(last.failure ? { failure: last.failure } : {}) });
+    return { ...base, ...outcome, ...(kind === "turn_completed" ? { outcome: "unreported" as const } : {}), at };
+  }
+
+  /** Telar will run this session again: a turn is waiting, a schedule is set, or it waits on sessions of its own. */
+  private runsAgain(sessionId: string, endedRunId: string): boolean {
+    const open = this.host.turnsOf(sessionId).some((turn) => turn.runId !== endedRunId && turn.agentDelivery !== "passive" && !ENDED_STATES.has(turn.state));
+    return open
+      || this.host.hasScheduledWake(sessionId)
+      || this.readCohorts().some((cohort) => cohort.subscriberSessionId === sessionId)
+      || this.readSubscriptions().some((each) => each.subscriberSessionId === sessionId && each.once === true);
   }
 
   private cohortOutcome(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): Pick<CohortMember, "outcome" | "fetch" | "firstLine" | "excerpt" | "chars"> {
@@ -345,7 +360,8 @@ export class SessionSubscriptions {
 
   /**
    * Done is the errand's end, not a turn's: on an errand this subscriber gave it, a member is done by its `result`,
-   * a failed or stopped turn, or being put away. Otherwise any turn's end counts, but never a background-task turn.
+   * a failed or stopped turn, being put away, or a completed turn after which Telar will not run it again (`unreported`).
+   * Otherwise any turn's end counts, but never a background-task turn or a wake.
    */
   advanceCohortMember(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): void {
     if (!TERMINAL_WAKE_KINDS.includes(kind)) return;
@@ -353,6 +369,8 @@ export class SessionSubscriptions {
     // A worker shutting down fails its turn as `interrupted`; the member stays pending.
     if (cutOffByTelar(turn)) return;
     const completed = kind === "turn_completed";
+    const woken = turn.origin === "session" && turn.wakeReason !== undefined;
+    let runsAgain: boolean | undefined;
     const errandFrom = new Map<string, boolean>();
     const onErrand = (subscriberSessionId: string): boolean => {
       if (!errandFrom.has(subscriberSessionId)) {
@@ -364,10 +382,13 @@ export class SessionSubscriptions {
       return errandFrom.get(subscriberSessionId)!;
     };
     this.updateCohortMembers(sessionId, undefined, (member, subscriberSessionId) => {
-      if (member.outcome) return undefined;
-      if (completed && (member.blocked || onErrand(subscriberSessionId))) return undefined;
+      if (member.outcome || (completed && member.blocked)) return undefined;
+      const errand = onErrand(subscriberSessionId);
+      if (woken && !errand) return undefined;
+      const unreported = completed && errand;
+      if (unreported && (runsAgain ??= this.runsAgain(sessionId, turn.runId))) return undefined;
       const { blocked: _ended, ...rest } = member;
-      return { ...rest, ...this.cohortOutcome(sessionId, kind, turn, context), at: this.kernel.now() };
+      return { ...rest, ...this.cohortOutcome(sessionId, kind, turn, context), ...(unreported ? { outcome: "unreported" as const } : {}), at: this.kernel.now() };
     });
   }
 
@@ -377,7 +398,7 @@ export class SessionSubscriptions {
       (cohort) =>
         !cohort.ready &&
         cohort.subscriberSessionId === subscriberSessionId &&
-        cohort.members.some((member) => member.sessionId === memberSessionId && (!member.outcome || member.outcome === "result")),
+        cohort.members.some((member) => member.sessionId === memberSessionId && takesResult(member)),
     );
   }
 
@@ -389,7 +410,7 @@ export class SessionSubscriptions {
     if (intent === "result") {
       const line = firstLineOf(body);
       this.updateCohortMembers(senderSessionId, recipientSessionId, (member) =>
-        member.outcome && member.outcome !== "result"
+        !takesResult(member)
           ? undefined
           : { sessionId: member.sessionId, ...(member.title ? { title: member.title } : {}), outcome: "result", fetch: { sessionId: recipientSessionId, runId }, ...(line ? { firstLine: line } : {}), ...excerptOf(body), ...(spent ? { spent: spent.slice(0, 300) } : {}), at: this.kernel.now() },
       );

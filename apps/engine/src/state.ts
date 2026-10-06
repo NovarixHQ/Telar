@@ -498,6 +498,7 @@ export class EngineStore {
       },
       turnsOf: (sessionId) => this.sessionQueues.scan(sessionId).turns,
       hasLiveTurn: (sessionId) => this.wakes.hasLiveTurn(sessionId),
+      hasScheduledWake: (sessionId) => this.schedules.nextWake(sessionId) !== undefined,
       discardQueuedWakes: (subscriberId, targetSessionId) => void this.wakes.discardQueuedWakes(subscriberId, targetSessionId),
       submitTurn: (sessionId, input) => this.intake.submitTurn(sessionId, input),
       warn: (sessionId, message) => void this.kernel.appendEvent(sessionId, { type: "runtime.warning", message }),

@@ -7,8 +7,11 @@ struct SimulatorSummary: Decodable, Equatable, Identifiable, Sendable {
     var version: String
     var booted: Bool
     var physical: Bool
+    var pairedWith: String?
 
     var viewable: Bool { booted && platform == "ios" && !physical }
+    var isWatch: Bool { pairedWith != nil }
+    var icon: String { isWatch ? "applewatch" : "iphone" }
 }
 
 struct SimulatorPlatformAvailability: Decodable, Equatable, Sendable {

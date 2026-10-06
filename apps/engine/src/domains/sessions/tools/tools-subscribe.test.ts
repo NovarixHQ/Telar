@@ -142,10 +142,23 @@ describe("subscribing and answering", () => {
     expect(request).toMatchObject({ id: "req_q", kind: "user_input", prompt: "Which database?" });
     expect((request!.fields as Array<Record<string, unknown>>)[0]).toMatchObject({ key: "db", choices: ["postgres", "sqlite"] });
 
-    const answered = await call(tools, "sessions_resolve_request", { sessionId: target.id, requestId: "req_q", decision: "accept", answers: { db: "postgres" } });
+    const answered = await call(tools, "sessions_requests", { sessionId: target.id, requestId: "req_q", decision: "accept", answers: { db: "postgres" } });
     expect(answered.isError).toBe(false);
     expect(answered.json!.resolvedBy).toBe("session");
     expect(store.requestGate.list(target.id)[0]).toMatchObject({ state: "resolved", decision: "accept", resolvedBy: "session", answers: { db: "postgres" } });
+  });
+
+  test("answering needs both halves: a decision without a requestId, or a requestId without a decision, is refused", async () => {
+    const { store, projectId } = engine();
+    const tools = wall(store);
+    const target = store.lifecycle.createSession({ projectId, title: "a worker" });
+
+    const orphan = await call(tools, "sessions_requests", { sessionId: target.id, decision: "accept" });
+    expect(orphan.isError).toBe(true);
+    expect(orphan.text).toContain("pass its requestId");
+    const undecided = await call(tools, "sessions_requests", { sessionId: target.id, requestId: "req_q" });
+    expect(undecided.isError).toBe(true);
+    expect(undecided.text).toContain("pass a decision");
   });
 
   test("a secret pick is the user's alone — listed by origin only, refused to resolve", async () => {
@@ -168,7 +181,7 @@ describe("subscribing and answering", () => {
     const listed = await call(tools, "sessions_requests", { sessionId: target.id });
     expect(listed.text).toContain("https://github.com");
     expect(listed.text).not.toContain("item_1");
-    const refused = await call(tools, "sessions_resolve_request", { sessionId: target.id, requestId: "req_s", decision: "accept" });
+    const refused = await call(tools, "sessions_requests", { sessionId: target.id, requestId: "req_s", decision: "accept" });
     expect(refused.isError).toBe(true);
     expect(refused.text).toContain("user's alone");
     expect(store.requestGate.list(target.id)[0]!.state).toBe("open");

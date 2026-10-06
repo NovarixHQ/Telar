@@ -4,9 +4,9 @@ import { STALLED_AFTER_MS } from "@telar/engine-client";
 import { err, failure, json, type ToolFactory } from "../../agent-tools";
 import { diffView } from "./control";
 import { answerView, CHARS_DEFAULT, CHARS_MAX, grepView, outlineView, stepsView, STEPS_LIMIT_MAX, stepView } from "./query";
-import { LIVE_TURN_STATES, MAX_EVENTS, MAX_RESULT_CHARS, MAX_RUN_ANSWER_CHARS, MAX_RUN_EVENT_CHARS, pageEvents, pageEventsFromEnd, quietNote, READ, readable, type SessionsCapability, STATUS, STATUS_TURNS_DEFAULT, STATUS_TURNS_MAX, summariseOne, summariseTurns, SUMMARY_TURNS_DEFAULT, SUMMARY_TURNS_MAX, TAIL_WINDOW, tailEvents, turnLine, WAITING_PHRASE, wholeNumber, withoutDuplicateBody } from "./shared";
+import { LIVE_TURN_STATES, MAX_EVENTS, MAX_RESULT_CHARS, MAX_RUN_ANSWER_CHARS, MAX_RUN_EVENT_CHARS, pageEvents, pageEventsFromEnd, quietNote, READ, readable, type SessionsCapability, summariseOne, summariseTurns, SUMMARY_TURNS_DEFAULT, SUMMARY_TURNS_MAX, TAIL_WINDOW, tailEvents, turnLine, WAITING_PHRASE, wholeNumber, withoutDuplicateBody } from "./shared";
 
-const VIEWS = ["summary", "outline", "answer", "steps", "step", "events", "grep", "diff"] as const;
+const VIEWS = ["summary", "status", "outline", "answer", "steps", "step", "events", "grep", "diff"] as const;
 
 export function readTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
   return [
@@ -53,7 +53,7 @@ export function readTools(tool: ToolFactory, capability: SessionsCapability): un
           .min(1)
           .max(SUMMARY_TURNS_MAX)
           .optional()
-          .describe(`summary: default ${SUMMARY_TURNS_DEFAULT}.`),
+          .describe(`summary, status: default ${SUMMARY_TURNS_DEFAULT}.`),
         verbose: z
           .boolean()
           .optional()
@@ -90,6 +90,8 @@ export function readTools(tool: ToolFactory, capability: SessionsCapability): un
       async (args) => {
         const sessionId = String(args.sessionId ?? "");
         switch (args.view) {
+          case "status":
+            return statusView(capability, sessionId, args);
           case "outline":
             return outlineView(capability.query, sessionId, args);
           case "answer":
@@ -184,7 +186,7 @@ async function journalView(capability: SessionsCapability, sessionId: string, ar
     note: wantsTail
       ? page.length === 0
         ? "This session's journal is empty."
-        : `The LATEST ${page.length} events${paged.earlier ? " — there is more behind them" : " (the whole journal)"}. Poll for what happens next with sessions_read(view: "events", after: ${cursor}); read from the beginning with from: "start"; get a turn-by-turn fold with view: "summary". Long strings inside an event are clamped and marked where that happened.`
+        : `The LATEST ${page.length} events${paged.earlier ? " — there is more behind them" : " (the whole journal)"}. Continue with sessions_read(view: "events", after: ${cursor}); read from the beginning with from: "start"; get a turn-by-turn fold with view: "summary". Long strings inside an event are clamped and marked where that happened.`
       : more
         ? `A PAGE, not the whole journal: ${page.length} events past cursor ${after}, with more behind them. Call sessions_read again with view: "events", after: ${cursor}. Long strings inside an event are clamped and marked where that happened.`
         : page.length === 0
@@ -259,7 +261,7 @@ async function readOneRun(
       events: page,
       ...(quiet > 0 ? { quietEvents: quiet } : {}),
       note: turn === undefined
-        ? `No turn ${runId} on this session. Its events, if any, are above; sessions_status lists the turns this session has.`
+        ? `No turn ${runId} on this session. Its events, if any, are above; view: "status" lists the turns this session has.`
         : continuation.length > 0
           ? `That run: ${page.length} events${more ? ` of ${mine.length} past cursor ${after}` : " (no more events)"}${
               wantsResult ? `, answer characters ${from}-${nextResult} of ${answer.length}` : answer ? `, answer not on this page (${answer.length} characters)` : ""
@@ -273,68 +275,49 @@ async function readOneRun(
     MAX_RUN_ANSWER_CHARS);
 }
 
-export function statusTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
-  return [
-    tool(
-      "sessions_status",
-      STATUS,
-      {
-        sessionId: z.string().min(1),
-        turns: z
-          .number()
-          .int()
-          .min(1)
-          .max(STATUS_TURNS_MAX)
-          .optional()
-          .describe(`Default ${STATUS_TURNS_DEFAULT}.`),
-      },
-      async (args) => {
-        const sessionId = String(args.sessionId ?? "");
-        const wanted =
-          typeof args.turns === "number" && Number.isSafeInteger(args.turns) && args.turns >= 1
-            ? Math.min(args.turns, STATUS_TURNS_MAX)
-            : STATUS_TURNS_DEFAULT;
-        let answer: { session: Session; turns: Turn[]; turnCount?: number; pendingNotifications?: NotificationDetail[] };
-        try {
-          answer = await capability.status(sessionId, { recent: wanted });
-        } catch (error) {
-          return err(`Could not read the status of "${sessionId}": ${failure(error)}`);
-        }
-        const { session, turns } = answer;
-        const pending = answer.pendingNotifications ?? [];
-        const live = turns.filter((turn) => LIVE_TURN_STATES.has(turn.state));
-        const withLive = turns.slice(-wanted);
-        for (const turn of live) if (!withLive.some((candidate) => candidate.runId === turn.runId)) withLive.push(turn);
-        withLive.sort((left, right) => left.sequence - right.sequence);
-        const turnCount = answer.turnCount ?? turns.length;
-        const dropped = turnCount - withLive.length;
-        const unclaimable = session.preparation !== undefined;
-        return json({
-          ...summariseOne(session, new Map()),
-          running: live.length > 0 && !unclaimable,
-          turnCount,
-          turns: withLive.map(turnLine),
-          ...(dropped > 0 ? { turnsNotShown: dropped } : {}),
-          ...(pending.length > 0 ? { pendingNotifications: pending.map((detail) => detail.summary) } : {}),
-          ...(session.activityDetail ? { activityDetail: session.activityDetail } : {}),
-          note: session.preparation?.state === "failed"
-            ? `It has NO CHECKOUT — creating one failed, so nothing in its queue can run and nothing you send will start. Git said: ${
-                session.preparation.error ?? "no reason was recorded"
-              }`
-            : session.preparation?.state === "preparing"
-              ? "Its checkout is still being made. Nothing has started yet; anything queued runs once the checkout lands."
-              : session.activity === "blocked"
-              ? "It is WAITING ON A PERSON — a request is open and only a human can answer it. Nothing you send will unblock it."
-              : live.some((turn) => turn.stalled)
-                ?
-                  `A turn is in flight but has journalled NOTHING for over ${Math.round(STALLED_AFTER_MS / 60_000)} minutes. That may be a long command and may be a wedge — read it with sessions_read before deciding. Nothing has been stopped.`
-              : live.length > 0
-                ? `${session.activityDetail?.kind === "tool" ? `A turn is in flight, but it is only waiting ${WAITING_PHRASE[session.activityDetail.waitingOn]}.` : "A turn is in flight."} Read it with sessions_read, or stop it with sessions_stop.${pending.length > 0 ? ` ${pending.length} notification${pending.length === 1 ? "" : "s"} are waiting for it to finish.` : ""}`
-                : pending.length > 0
-                  ? `Nothing is running, and ${pending.length} notification${pending.length === 1 ? "" : "s"} are waiting to be delivered.`
-                  : quietNote(session),
-        });
-      },
-    ),
-  ];
+async function statusView(capability: SessionsCapability, sessionId: string, args: Record<string, unknown>) {
+  const wanted =
+    typeof args.turns === "number" && Number.isSafeInteger(args.turns) && args.turns >= 1
+      ? Math.min(args.turns, SUMMARY_TURNS_MAX)
+      : SUMMARY_TURNS_DEFAULT;
+  let answer: { session: Session; turns: Turn[]; turnCount?: number; pendingNotifications?: NotificationDetail[] };
+  try {
+    answer = await capability.status(sessionId, { recent: wanted });
+  } catch (error) {
+    return err(`Could not read the status of "${sessionId}": ${failure(error)}`);
+  }
+  const { session, turns } = answer;
+  const pending = answer.pendingNotifications ?? [];
+  const live = turns.filter((turn) => LIVE_TURN_STATES.has(turn.state));
+  const withLive = turns.slice(-wanted);
+  for (const turn of live) if (!withLive.some((candidate) => candidate.runId === turn.runId)) withLive.push(turn);
+  withLive.sort((left, right) => left.sequence - right.sequence);
+  const turnCount = answer.turnCount ?? turns.length;
+  const dropped = turnCount - withLive.length;
+  const unclaimable = session.preparation !== undefined;
+  return json({
+    ...summariseOne(session, new Map()),
+    running: live.length > 0 && !unclaimable,
+    turnCount,
+    turns: withLive.map(turnLine),
+    ...(dropped > 0 ? { turnsNotShown: dropped } : {}),
+    ...(pending.length > 0 ? { pendingNotifications: pending.map((detail) => detail.summary) } : {}),
+    ...(session.activityDetail ? { activityDetail: session.activityDetail } : {}),
+    note: session.preparation?.state === "failed"
+      ? `It has NO CHECKOUT — creating one failed, so nothing in its queue can run and nothing you send will start. Git said: ${
+          session.preparation.error ?? "no reason was recorded"
+        }`
+      : session.preparation?.state === "preparing"
+        ? "Its checkout is still being made. Nothing has started yet; anything queued runs once the checkout lands."
+        : session.activity === "blocked"
+        ? "It is WAITING ON A PERSON — a request is open and only a human can answer it. Nothing you send will unblock it."
+        : live.some((turn) => turn.stalled)
+          ?
+            `A turn is in flight but has journalled NOTHING for over ${Math.round(STALLED_AFTER_MS / 60_000)} minutes. That may be a long command and may be a wedge — read it with sessions_read before deciding. Nothing has been stopped.`
+        : live.length > 0
+          ? `${session.activityDetail?.kind === "tool" ? `A turn is in flight, but it is only waiting ${WAITING_PHRASE[session.activityDetail.waitingOn]}.` : "A turn is in flight."} Read it with sessions_read, or stop it with sessions_stop.${pending.length > 0 ? ` ${pending.length} notification${pending.length === 1 ? "" : "s"} are waiting for it to finish.` : ""}`
+          : pending.length > 0
+            ? `Nothing is running, and ${pending.length} notification${pending.length === 1 ? "" : "s"} are waiting to be delivered.`
+            : quietNote(session),
+  });
 }

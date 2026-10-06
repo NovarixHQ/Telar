@@ -169,7 +169,7 @@ describe("the protocol surface", () => {
     // so a tool added to the toolkit appears here in the same change or this
     // fails.
     expect(result.tools.map((tool) => tool.name)).toEqual(wallNames);
-    expect(result.tools.length).toBe(13);
+    expect(result.tools.length).toBe(11);
     for (const tool of result.tools) {
       expect(tool.name).not.toMatch(/accept|approve|merge|land|archive|delete|promote|finish|complete/);
       expect(tool.description.length).toBeGreaterThan(0);
@@ -217,6 +217,15 @@ describe("the protocol surface", () => {
       params: { name: "sessions_archive", arguments: { sessionId: made.id } },
     });
     expect(((await missing.json()) as { error: { code: number } }).error.code).toBe(-32602);
+  });
+
+  test("a retired tool name is answered with the call that replaced it", async () => {
+    const daemon = await engine();
+    const { mcp } = await new EngineClient(daemon.discovery).sessionsMcpInfo();
+    const status = await callTool(daemon, mcp.secret, "sessions_status", { sessionId: "session_x" });
+    expect(status).toEqual({ isError: true, text: 'sessions_status was retired: use sessions_read with view: "status".' });
+    const resolve = await callTool(daemon, mcp.secret, "sessions_resolve_request", { sessionId: "session_x", requestId: "req_1", decision: "accept" });
+    expect(resolve).toEqual({ isError: true, text: "sessions_resolve_request was retired: use sessions_requests with requestId and decision." });
   });
 
   test("a chat client has no session to wake: the subscription tools refuse, in words, and the rest still work", async () => {

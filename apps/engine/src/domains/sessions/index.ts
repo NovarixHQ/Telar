@@ -12,7 +12,7 @@ export { createSessionModules } from "./modules";
 export { sessionSnapshot } from "./bootstrap";
 export { ORIENTATION_VERSION, syncTelarSkill, TELAR_ORIENTATION, TELAR_SKILL, TELAR_SKILL_NAME, writeOrientationInstructions } from "./orientation";
 export { collectSessionsWallTools } from "./tools/socket";
-export { pageEvents, type SessionsCapability } from "./tools/shared";
+export { pageEvents, RETIRED_TOOLS, type SessionsCapability } from "./tools/shared";
 export { sessionsTools } from "./tools/tools";
 export { sessionsRoutes } from "./routes";
 export { sessionReadRoutes } from "./reads";

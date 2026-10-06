@@ -384,8 +384,8 @@ const CASES: Array<{ tool: string; args?: Record<string, unknown>; ceiling: numb
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "events" }, ceiling: 14_000, why: "the latest page, at the 12 KB event budget" },
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "events", from: "start" }, ceiling: 14_000, why: "the first page, same budget" },
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "events", verbose: true }, ceiling: 14_000, why: "nothing dropped, same budget" },
-  { tool: "sessions_status", args: { sessionId: SESSION_ID }, ceiling: 2_000, why: "five turns of 685, plus the live one" },
-  { tool: "sessions_status", args: { sessionId: SESSION_ID, turns: 20 }, ceiling: 4_000, why: "the most a caller may ask for" },
+  { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "status" }, ceiling: 2_000, why: "five turns of 685, plus the live one" },
+  { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "status", turns: 20 }, ceiling: 4_000, why: "the most a caller may ask for" },
   { tool: "sessions_stop", args: { sessionId: SESSION_ID }, ceiling: 2_000, why: "a count and a sentence, never the turns" },
   { tool: "sessions_settle", args: { sessionId: SESSION_ID }, ceiling: 1_000, why: "a title and a sentence" },
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "diff" }, ceiling: MAX_ANSWER_CHARS, why: "500 files and 60 commits" },
@@ -393,7 +393,7 @@ const CASES: Array<{ tool: string; args?: Record<string, unknown>; ceiling: numb
   { tool: "sessions_subscribe", args: { cancel: "sub_1" }, ceiling: 500, why: "a boolean" },
   { tool: "sessions_subscribe", ceiling: MAX_ANSWER_CHARS, why: "200 subscriptions" },
   { tool: "sessions_requests", args: { sessionId: SESSION_ID }, ceiling: MAX_ANSWER_CHARS, why: "200 open questions with their fields" },
-  { tool: "sessions_resolve_request", args: { sessionId: SESSION_ID, requestId: "req_1", decision: "accept" }, ceiling: 1_000, why: "one request and a sentence" },
+  { tool: "sessions_requests", args: { sessionId: SESSION_ID, requestId: "req_1", decision: "accept" }, ceiling: 1_000, why: "one request and a sentence" },
   /**
    * #516'S SIX, AT THE ARGUMENTS THAT COST THE MOST.
    *
@@ -495,9 +495,9 @@ describe("every tool description is short enough to carry", () => {
   });
 
   // The count and `warp`'s absence are asserted together, so a re-add cannot pass by replacing something else.
-  test("`warp` is not on the wall, and the wall is sixteen tools", () => {
+  test("`warp` is not on the wall, and the wall is fourteen tools", () => {
     const names = wall().registered.map((entry) => entry.name);
-    expect(names.length).toBe(16);
+    expect(names.length).toBe(14);
     expect(names).not.toContain("warp");
     expect(names.every((name) => name.startsWith("sessions_") || name.startsWith("notes_"))).toBe(true);
   });

@@ -62,20 +62,25 @@ export const EFFORT = "One the model lists in sessions_capabilities; omit for it
 export const SEND = `Message another session. It gets a notice naming sessions_read, not your text; a result or blocker quotes your first ~1,500 chars, so lead with the point. Tasked? End with one result or a blocker, no progress reports. ${NOT_A_BYPASS}`;
 
 export const NO_SELF =
-  "This door has no session to wake: subscriptions need a calling session, and this client is not one. Poll with sessions_status instead.";
+  "This door has no session to wake: subscriptions need a calling session, and this client is not one. sessions_read view: \"status\" says where a session is when you need to know.";
 
 export const NO_SESSION_TO_SCHEDULE =
   "This door has no session to schedule: a scheduled run is submitted INTO a conversation, and this client is not one. Ask a session to schedule itself.";
 
 export const SUBSCRIBE = `Be woken once when the sessions you tasked are done (result sent, failed, stopped or settled); blockers still arrive at once. Send the tasks, subscribe once, end your turn; sessions_create tasks does this for you. cancel stops one; no arguments lists yours.`;
 
-export const REQUESTS = `A session's open requests, with the ids sessions_resolve_request takes. They are meant for a human; answering one makes it yours.`;
+export const REQUESTS = `A session's open requests, meant for a human. With requestId and decision, answer one for the user, recorded as answered by a session: only what you know; secret picks are refused. ${NOT_A_BYPASS}`;
 
-export const RESOLVE_REQUEST = `Answer a session's open request for the user, recorded as answered by a session. Only answer what you know; secret picks are refused. ${NOT_A_BYPASS}`;
+export const READ = `What a session has done. Prefer the cheap views: status (working, waiting or idle), outline, answer, steps then step, grep. events is the long raw journal; diff is what it changed. Read-only, never an acceptance. Never poll it to wait: subscribe and end your turn.`;
 
-export const READ = `What a session has done. Prefer the cheap views: outline, answer, steps then step, grep. events is the long raw journal; diff is what it changed. Read-only, never an acceptance.`;
-
-export const STATUS = `Whether a session is working, waiting, scheduled or idle, and how recent turns ended. Never poll it to wait: subscribe and end your turn.`;
+export const RETIRED_TOOLS: Readonly<Record<string, string>> = {
+  sessions_status: 'sessions_read with view: "status"',
+  sessions_resolve_request: "sessions_requests with requestId and decision",
+  sessions_answer: 'sessions_read with view: "answer"',
+  sessions_step: 'sessions_read with view: "step"',
+  sessions_find: "sessions_list with q",
+  sessions_unsubscribe: "sessions_subscribe with cancel",
+};
 
 export const STOP = `Stop a session's work now: the running turn ends and its queue is cleared. Nothing is undone.`;
 
@@ -311,9 +316,6 @@ export const DIFF_COMMITS_LIMIT = 30;
 export const DIFF_COMMITS_CHARS = 4_000;
 
 export const LIVE_TURN_STATES = new Set(["queued", "claimed", "running"]);
-
-export const STATUS_TURNS_DEFAULT = 5;
-export const STATUS_TURNS_MAX = 20;
 
 export function turnLine(turn: Turn) {
   return {

@@ -40,8 +40,8 @@ Write each worker a self-contained brief. It will not see this conversation.
 - **Out of scope** — what not to touch.
 - **Tests** — what to add, and which to run.
 - **Reporting** — the engine already tells every worker to end with one
-  \`result\` and a one-line answer. Say what the result must contain: PR,
-  head SHA, what changed, what you tested — under ~800 characters.
+  \`result\`. Say what it must contain, under ~800 characters: what changed and
+  what was tested, plus the PR and head SHA for a worktree worker.
 - Point at the shared rules note instead of repeating it.
 
 ## 3. Dispatch

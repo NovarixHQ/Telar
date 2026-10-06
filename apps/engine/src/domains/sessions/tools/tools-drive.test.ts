@@ -6,7 +6,7 @@ import { STALLED_AFTER_MS, workspacePath } from "@telar/engine-client";
 import { EngineStore } from "../../../state";
 import { sessionDiffAsync } from "../../git";
 import { GIT_TIMEOUT_STATUS, type GitRunner } from "../../../platform/git/runner";
-import { cleanUp, tmp, repo, openStores, wall, engine, call } from "./test-helpers";
+import { cleanUp, tmp, repo, openStores, wall, engine, call, orchestrator } from "./test-helpers";
 
 afterEach(cleanUp);
 
@@ -21,7 +21,7 @@ describe("driving a session", () => {
     const sent = await call(tools, "sessions_send", { sessionId: id, input: "routine checkpoint" });
     expect(sent.isError).toBe(false);
     expect(sent.json!.delivery).toBe("passive");
-    expect(String(sent.json!.note)).toContain("No model was started or steered");
+    expect(String(sent.json!.note)).toContain("nothing was started or steered");
     expect(store.claims.claimTurn(id, "worker_test")).toBeUndefined();
   });
 
@@ -44,9 +44,22 @@ describe("driving a session", () => {
     const sent = await call(tools, "sessions_send", { intent: "task", sessionId: id, input: "read the parser and report" });
     expect(sent.isError).toBe(false);
     expect(sent.json!.state).toBe("queued");
-    expect(String(sent.json!.note)).toContain("Accepted for execution, not answered");
+    expect(String(sent.json!.note)).toMatch(/^Queued\./);
+    expect(String(sent.json!.note)).not.toMatch(/poll|Check sessions/i);
     expect(store.queries.turns(id).map((turn) => turn.input)).toEqual(["read the parser and report"]);
     expect(tools.get("sessions_send")!.shape).not.toHaveProperty("runId");
+  });
+
+  test("after a task the sender is told to end its turn, and how it will be woken", async () => {
+    const { store, projectId } = engine();
+    const { tools } = orchestrator(store, projectId);
+    const lone = store.lifecycle.createSession({ projectId, title: "lone" }).id;
+    const sent = await call(tools, "sessions_send", { intent: "task", sessionId: lone, input: "look into it" });
+    expect(String(sent.json!.note)).toContain(`sessions_subscribe({ sessionIds: ["${lone}"] }), then end your turn`);
+
+    await call(tools, "sessions_subscribe", { sessionIds: [lone] });
+    const again = await call(tools, "sessions_send", { intent: "task", sessionId: lone, input: "and this too" });
+    expect(String(again.json!.note)).toContain("You are subscribed: end your turn, and you will be woken when it is done.");
   });
 
   test("status answers the question it exists for as a boolean, not an inference", async () => {
@@ -54,12 +67,12 @@ describe("driving a session", () => {
     const tools = wall(store);
     const id = (await call(tools, "sessions_create", { projectId, envMode: "local" })).json!.id as string;
 
-    const idle = await call(tools, "sessions_status", { sessionId: id });
+    const idle = await call(tools, "sessions_read", { view: "status", sessionId: id });
     expect(idle.json!.running).toBe(false);
     expect(String(idle.json!.note)).toContain("Nothing is running");
 
     await call(tools, "sessions_send", { intent: "task", sessionId: id, input: "go" });
-    const busy = await call(tools, "sessions_status", { sessionId: id });
+    const busy = await call(tools, "sessions_read", { view: "status", sessionId: id });
     expect(busy.json!.running).toBe(true);
     expect((busy.json!.turns as unknown[]).length).toBe(1);
   });
@@ -113,7 +126,7 @@ describe("driving a session", () => {
     store.turnLifecycle.markRunning(worker.id, "run_source", token);
     store.intake.submitAgentTurn(host.id, { runId: "run_report", input: "progress", intent: "report" }, { sessionId: worker.id, runId: "run_source", claimToken: token });
 
-    const status = await call(tools, "sessions_status", { sessionId: host.id });
+    const status = await call(tools, "sessions_read", { view: "status", sessionId: host.id });
     expect((status.json!.pendingNotifications as string[]).length).toBe(1);
     expect(status.json!.running).toBe(false);
   });
@@ -185,7 +198,7 @@ describe("driving a session", () => {
   test("a session that does not exist refuses identically on every verb", async () => {
     const { store } = engine();
     const tools = wall(store);
-    for (const [name, view] of [["sessions_send"], ["sessions_read"], ["sessions_status"], ["sessions_read", "diff"]] as const) {
+    for (const [name, view] of [["sessions_send"], ["sessions_read"], ["sessions_read", "status"], ["sessions_read", "diff"]] as const) {
       const refused = await call(tools, name, { sessionId: "session_nope", input: "x", ...(view ? { view } : {}) });
       expect(refused.isError).toBe(true);
       expect(refused.text).toContain("session does not exist");
@@ -210,7 +223,7 @@ describe("driving a session", () => {
   });
 });
 
-describe("sessions_status reports a stalled turn", () => {
+describe("a status read reports a stalled turn", () => {
   test("it names the silence, keeps the turn running, and tells nobody to stop it", async () => {
     let now = 1_000_000;
     const timed = new EngineStore(tmp("telar-stall-wall-"), () => now);
@@ -222,14 +235,14 @@ describe("sessions_status reports a stalled turn", () => {
     timed.turnLifecycle.markRunning(session.id, "run_one", claim.turn.claim!.token);
 
     const tools = wall(timed);
-    const healthy = await call(tools, "sessions_status", { sessionId: session.id });
+    const healthy = await call(tools, "sessions_read", { view: "status", sessionId: session.id });
     expect(healthy.json!.running).toBe(true);
     expect((healthy.json!.turns as Array<Record<string, unknown>>)[0]!.stalled).toBeUndefined();
 
     now += STALLED_AFTER_MS + 60_000;
     timed.claims.claimNextTurn("worker_one");
 
-    const stalled = await call(tools, "sessions_status", { sessionId: session.id });
+    const stalled = await call(tools, "sessions_read", { view: "status", sessionId: session.id });
     const turns = stalled.json!.turns as Array<{ state: string; stalled?: { since: number }; lastProgressAt?: number }>;
     expect(turns).toHaveLength(1);
     expect(turns[0]!.state).toBe("running");
@@ -243,7 +256,7 @@ describe("sessions_status reports a stalled turn", () => {
   });
 });
 
-describe("sessions_status says what a session with no turn is still doing", () => {
+describe("a status read says what a session with no turn is still doing", () => {
   test("background work is counted and will report", async () => {
     const { store, projectId } = engine();
     const tools = wall(store);
@@ -258,7 +271,7 @@ describe("sessions_status says what a session with no turn is still doing", () =
     ]);
     store.turnLifecycle.completeTurn(id, "run_bg", token, { text: "Launched" });
 
-    const status = await call(tools, "sessions_status", { sessionId: id });
+    const status = await call(tools, "sessions_read", { view: "status", sessionId: id });
     expect(status.json!.running).toBe(false);
     expect(status.json!.activityDetail).toEqual({ kind: "background", tasks: 2, agents: 1 });
     expect(String(status.json!.note)).toBe("Its turn has ended, but 2 background tasks (1 of them agent) still run. A report from them will wake it; subscribe rather than poll.");
@@ -272,7 +285,7 @@ describe("sessions_status says what a session with no turn is still doing", () =
     store.subscriptions.subscribe(waiter, { targetSessionId: worker });
     store.intake.submitTurn(worker, { runId: "run_w", input: "go" });
 
-    const status = await call(tools, "sessions_status", { sessionId: waiter });
+    const status = await call(tools, "sessions_read", { view: "status", sessionId: waiter });
     expect(status.json!.activity).toBe("waiting");
     expect(String(status.json!.note)).toBe(`Nothing is running. It is waiting on “port the parser” (${worker}), and their answer will wake it.`);
   });

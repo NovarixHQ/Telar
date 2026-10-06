@@ -30,7 +30,6 @@ export function parseWatches(json: string): SimulatorSummary[] {
   });
 }
 
-/** The hub lists only iOS runtimes, so paired watches come from simctl and sit right after their iPhone. */
 export async function listPairedWatches(run: ProcessRunner["run"]): Promise<SimulatorSummary[]> {
   const { code, stdout } = await run("xcrun", ["simctl", "list", "--json", "devices", "pairs"], { timeoutMs: 15_000 }).catch(() => ({ code: 1, stdout: "" }));
   return code === 0 ? parseWatches(stdout) : [];

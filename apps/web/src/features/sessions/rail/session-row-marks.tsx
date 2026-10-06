@@ -88,7 +88,7 @@ export function RowStatus({ session, band, renderedAt }: { session: SidebarSessi
   );
 }
 
-export function showsUnreadMark(session: SidebarSession, open: boolean): boolean {
+function showsUnreadMark(session: SidebarSession, open: boolean): boolean {
   if (open || parentKeyOf(session) !== undefined) return false;
   if (session.activity === "blocked" || session.activity === "working" || session.activity === "queued") return false;
   return hasUnreadResult(session);

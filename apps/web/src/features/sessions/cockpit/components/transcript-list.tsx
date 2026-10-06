@@ -59,6 +59,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
           covered={covered}
           {...(peerTitle ? { peerTitle } : {})}
           requests={openRequests.filter((request) => hostRun(request) === turn.runId && request.id !== composerQuestion?.id)}
+          awaiting={openRequests.some((request) => hostRun(request) === turn.runId)}
           {...props.turn}
           {...(turn.failureCode === "rate_limited" && turn.state === "failed" ? { onResumeNow: () => props.onResumeNow(turn.runId) } : {})}
         />

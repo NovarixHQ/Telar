@@ -98,6 +98,7 @@ export function WorkingIndicator({
   lastActivityAt,
   delegated,
   compacting,
+  awaiting,
 }: {
   label: string;
   startedAt?: number;
@@ -109,17 +110,15 @@ export function WorkingIndicator({
   /** The provider is squeezing its context. Silence is what a compaction IS —
    *  see `isCompacting`. */
   compacting?: boolean;
+  /** A person owes the turn an answer, so its silence is theirs, not the agent's. */
+  awaiting?: boolean;
 }) {
   const now = useNow(1_000);
   const elapsed = startedAt ? Math.max(0, Math.floor((now - startedAt) / 1000)) : 0;
   const quiet = lastActivityAt ? Math.max(0, Math.floor((now - lastActivityAt) / 1000)) : elapsed;
-  // A fan-out mid-flight is the loudest thing in the session; the main loop is
-  // silent because it is waiting on purpose, which is not a warning. A
-  // compaction is the same case with nothing to show at all: it emits no items
-  // by construction and routinely runs past thirty seconds, so warning on it
-  // would mean warning on every compaction — the readout would be noise exactly
-  // where it is supposed to mean "stuck".
-  const silent = !delegated && !compacting && quiet >= SILENCE_THRESHOLD;
+  // Delegation, compaction and an open question are all silences on purpose;
+  // warning on them would make the readout noise where it should mean "stuck".
+  const silent = !delegated && !compacting && !awaiting && quiet >= SILENCE_THRESHOLD;
 
   return (
     <div className={cn("flex items-center gap-2 text-2xs text-muted-foreground/70", silent && "text-warning/80")}>

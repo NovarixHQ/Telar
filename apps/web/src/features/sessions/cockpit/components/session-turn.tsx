@@ -90,6 +90,8 @@ type SessionTurnProps = {
   onResumeNow?: () => void;
   peerTitle?: string;
   covered?: boolean;
+  /** An open request on this turn, including the question the composer is asking. */
+  awaiting?: boolean;
 };
 
 // Presence of a gesture changes the render; identity does not (the cockpit passes inline arrows).
@@ -98,7 +100,7 @@ const TURN_GESTURES = ["onOpenAgent", "onOpenTab", "onInsert", "onOpenFile", "on
 // Compares what a turn draws, not object identity: every tail snapshot rebuilds turns as fresh objects.
 // `prompt` is not compared; the engine writes it once and the runId key pins the turn.
 function sameTurnRender(prev: SessionTurnProps, next: SessionTurnProps): boolean {
-  if (prev.live !== next.live || prev.sending !== next.sending || prev.peerTitle !== next.peerTitle || prev.covered !== next.covered) return false;
+  if (prev.live !== next.live || prev.sending !== next.sending || prev.peerTitle !== next.peerTitle || prev.covered !== next.covered || prev.awaiting !== next.awaiting) return false;
   for (const gesture of TURN_GESTURES) if (Boolean(prev[gesture]) !== Boolean(next[gesture])) return false;
   if (!sameEach(prev.requests, next.requests, (a, b) => a.id === b.id && a.state === b.state && a.decision === b.decision)) return false;
   // Only the wake-up row reads the roster, and only on a turn that names the task that woke it.
@@ -189,6 +191,7 @@ function SessionTurnBody({
   roster = [],
   peerTitle,
   covered = false,
+  awaiting = false,
 }: SessionTurnProps) {
   const doing = turnActivity(turn);
   const rowGestures = {
@@ -280,6 +283,7 @@ function SessionTurnBody({
               label={doing.label}
               delegated={doing.delegated}
               compacting={isCompacting(turn)}
+              awaiting={awaiting}
               startedAt={turn.startedAt}
               {...(turn.lastActivityAt ? { lastActivityAt: turn.lastActivityAt } : {})}
             />

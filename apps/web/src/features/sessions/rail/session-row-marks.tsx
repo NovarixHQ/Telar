@@ -6,7 +6,8 @@ import { fmtAgo } from "@/ui/format";
 import { awayLabel, awayReason, isAway, type Away } from "@/features/projects";
 import { ACTIVITY_TONE, fmtDuration, rowStatusText } from "../session-activity";
 import type { SessionBand, SidebarSession } from "../session-list";
-import { settledTerminalsHint, wakeLabel } from "../session-settling";
+import { hasUnreadResult, settledTerminalsHint, wakeLabel } from "../session-settling";
+import { parentKeyOf } from "./flat-rail";
 
 const yieldOnHover = "transition-opacity group-hover/session:opacity-0 group-focus-within/session:opacity-0";
 
@@ -87,26 +88,37 @@ export function RowStatus({ session, band, renderedAt }: { session: SidebarSessi
   );
 }
 
+export function showsUnreadMark(session: SidebarSession, open: boolean): boolean {
+  if (open || parentKeyOf(session) !== undefined) return false;
+  if (session.activity === "blocked" || session.activity === "working" || session.activity === "queued") return false;
+  return hasUnreadResult(session);
+}
+
 export function RowMarks({
   session,
   band,
   renderedAt,
   heldTerminals,
+  open,
 }: {
   session: SidebarSession;
   band: SessionBand;
   renderedAt: number;
   heldTerminals: number;
+  open: boolean;
 }) {
+  const woke = session.wokeAt !== undefined && Number.isFinite(session.wokeAt);
   return (
     <>
-      {session.wokeAt !== undefined && Number.isFinite(session.wokeAt) ? (
+      {woke ? (
         <span
           role="img"
           aria-label="Woke up"
-          title={`Woke ${fmtAgo(session.wokeAt, renderedAt)}`}
+          title={`Woke ${fmtAgo(session.wokeAt!, renderedAt)}`}
           className="size-1.5 shrink-0 rounded-full bg-primary"
         />
+      ) : showsUnreadMark(session, open) ? (
+        <span role="img" aria-label="Unread answer" title="Unread answer" className="size-1.5 shrink-0 rounded-full bg-primary" />
       ) : null}
       {band === "pinned" ? (
         <span role="img" aria-label="Pinned" title="Pinned" className="shrink-0 text-sidebar-foreground/45">

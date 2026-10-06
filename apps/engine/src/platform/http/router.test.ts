@@ -117,3 +117,24 @@ test("a handler that fails after its headers went out drops the connection inste
   expect(unserialisable.status).toBe(500);
   expect((await Promise.allSettled(handled)).map((outcome) => outcome.status)).toEqual(["fulfilled", "fulfilled"]);
 });
+
+test("a request under a name that is not this machine's is refused before any route runs", async () => {
+  let ran = 0;
+  const counted: Route = { method: "GET", path: "/v2/counted", auth: "engine", handle: () => (ran++, ok({})) };
+  const { port } = new URL(await serve([counted]));
+  const get = (host: string) =>
+    new Promise<{ status: number; body: string }>((resolve, reject) => {
+      http
+        .get({ host: "127.0.0.1", port, path: "/v2/counted", headers: { host, authorization: "Bearer ok" } }, (answer) => {
+          let body = "";
+          answer.on("data", (chunk) => (body += chunk)).on("end", () => resolve({ status: answer.statusCode ?? 0, body }));
+        })
+        .on("error", reject);
+    });
+
+  const rebound = await get(`evil.example:${port}`);
+  expect([rebound.status, JSON.parse(rebound.body).error.code, ran]).toEqual([421, "invalid_request", 0]);
+  expect((await get(`localhost:${port}`)).status).toBe(200);
+  expect((await get(`[::1]:${port}`)).status).toBe(200);
+  expect(ran).toBe(2);
+});

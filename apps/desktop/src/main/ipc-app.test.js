@@ -71,3 +71,43 @@ describe("telar:links:set-routing", () => {
     expect(linkRouting.claims(win.webContents)).toBe(false);
   });
 });
+
+describe("telar:app:unread", () => {
+  test("the Dock badge shows the count and clears at zero", async () => {
+    const win = cockpitAt("http://127.0.0.1:42731/");
+    await electron.ipcMain.invoke("telar:app:unread", eventFrom(win), { count: 3 });
+    expect(electron.app.badgeCount).toBe(3);
+    await electron.ipcMain.invoke("telar:app:unread", eventFrom(win), { count: 0 });
+    expect(electron.app.badgeCount).toBe(0);
+  });
+
+  test("a malformed count clears the badge", async () => {
+    const win = cockpitAt("http://127.0.0.1:42731/");
+    await electron.ipcMain.invoke("telar:app:unread", eventFrom(win), { count: 2 });
+    await electron.ipcMain.invoke("telar:app:unread", eventFrom(win), { count: "7" });
+    expect(electron.app.badgeCount).toBe(0);
+  });
+
+  test("with two windows the larger count shows, and a closed window's count goes with it", async () => {
+    const first = cockpitAt("http://127.0.0.1:42731/");
+    const second = cockpitAt("http://127.0.0.1:42731/");
+    await electron.ipcMain.invoke("telar:app:unread", eventFrom(first), { count: 1 });
+    await electron.ipcMain.invoke("telar:app:unread", eventFrom(second), { count: 2 });
+    expect(electron.app.badgeCount).toBe(2);
+    second.webContents.emit("destroyed");
+    expect(electron.app.badgeCount).toBe(1);
+  });
+
+  test("the open session counts only while its window is not focused", async () => {
+    const win = cockpitAt("http://127.0.0.1:42731/");
+    win.focus();
+    await electron.ipcMain.invoke("telar:app:unread", eventFrom(win), { count: 1, openUnread: true });
+    expect(electron.app.badgeCount).toBe(1);
+    FakeBrowserWindow.focused = null;
+    electron.app.emit("browser-window-blur");
+    expect(electron.app.badgeCount).toBe(2);
+    win.focus();
+    electron.app.emit("browser-window-focus");
+    expect(electron.app.badgeCount).toBe(1);
+  });
+});

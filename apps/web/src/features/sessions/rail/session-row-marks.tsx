@@ -6,8 +6,8 @@ import { fmtAgo } from "@/ui/format";
 import { awayLabel, awayReason, isAway, type Away } from "@/features/projects";
 import { ACTIVITY_TONE, fmtDuration, rowStatusText } from "../session-activity";
 import type { SessionBand, SidebarSession } from "../session-list";
-import { hasUnreadResult, settledTerminalsHint, wakeLabel } from "../session-settling";
-import { parentKeyOf } from "./flat-rail";
+import { settledTerminalsHint, wakeLabel } from "../session-settling";
+import { showsUnreadMark } from "./unread";
 
 const yieldOnHover = "transition-opacity group-hover/session:opacity-0 group-focus-within/session:opacity-0";
 
@@ -86,12 +86,6 @@ export function RowStatus({ session, band, renderedAt }: { session: SidebarSessi
       {badge.ticking && session.activityAt !== undefined ? <TickingDuration startedAt={session.activityAt} /> : null}
     </span>
   );
-}
-
-function showsUnreadMark(session: SidebarSession, open: boolean): boolean {
-  if (open || parentKeyOf(session) !== undefined) return false;
-  if (session.activity === "blocked" || session.activity === "working" || session.activity === "queued") return false;
-  return hasUnreadResult(session);
 }
 
 export function RowMarks({

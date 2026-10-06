@@ -25,6 +25,7 @@ import { AttentionRows, RailSessionList, RailShelves } from "./rail-list";
 import { TelarSidebarHeader } from "./rail-parts";
 import { RailSearch } from "./rail-search";
 import { SidebarProjectFilter } from "./sidebar-project-filter";
+import { useDockUnread } from "./unread";
 import { type RailData, useRailData, type RemoteProject } from "./use-rail-data";
 import { useRailView } from "./use-rail-view";
 
@@ -102,6 +103,7 @@ function SidebarBody() {
 
   const activeSessionId = activeSessionFromPathname(pathname);
   const view = useRailView(data, { query, activeSessionId, sessionLimit, settledLimit });
+  useDockUnread(data.sessions, activeSessionId, view.env.bandFor);
   const run = useCommandKeys(view.jumpRows, {
     "new-conversation": () => newConversation(),
     "new-conversation-in": () => openPalette("projects"),

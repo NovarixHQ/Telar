@@ -136,6 +136,7 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     relaunch: () => ipcRenderer.invoke("telar:app:relaunch"),
 
     openWindow: (path) => ipcRenderer.invoke("telar:app:open-window", { path }),
+    setUnread: (count, openUnread) => ipcRenderer.invoke("telar:app:unread", { count, openUnread }),
   },
 
   metrics: {

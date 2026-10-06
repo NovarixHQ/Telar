@@ -7,9 +7,25 @@ const { lastRunawayNotice, processMetricsReader } = require("./renderer-watch");
 const { lastEngineRestart } = require("./engine-child");
 
 function registerAppIpc({ createWindow, testNotification }) {
+  const unreadByWindow = new Map();
+  const showUnread = () => {
+    const counts = [...unreadByWindow].map(([sender, { count, openUnread }]) =>
+      count + (openUnread && !BrowserWindow.fromWebContents(sender)?.isFocused() ? 1 : 0));
+    app.setBadgeCount(Math.max(0, ...counts));
+  };
+  app.on("browser-window-focus", showUnread);
+  app.on("browser-window-blur", showUnread);
+
   ipcMain.handle("telar:app:relaunch", () => {
     app.relaunch();
     app.quit();
+  });
+
+  ipcMain.handle("telar:app:unread", (event, input) => {
+    const count = Number.isSafeInteger(input?.count) && input.count > 0 ? input.count : 0;
+    if (!unreadByWindow.has(event.sender)) event.sender.once("destroyed", () => { unreadByWindow.delete(event.sender); showUnread(); });
+    unreadByWindow.set(event.sender, { count, openUnread: input?.openUnread === true });
+    showUnread();
   });
 
   ipcMain.handle("telar:notifications:test", (_event, input) => testNotification(input?.sounds));

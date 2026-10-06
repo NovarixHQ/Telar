@@ -4,7 +4,7 @@ import type { BrowserSocketLease, BrowserToolSocket } from "../domains/browser";
 import { RateLimitedError } from "../drivers/claude";
 import { ProviderUnavailableError, type DriverResult, type DriverRun, type DriverSessionHooks, type ProviderTurnBinding } from "../drivers";
 import { providerProcessEnv } from "../domains/providers";
-import { withAgentDevice } from "../domains/simulators";
+import { withSimulatorTools } from "../domains/simulators";
 import { webImageOf } from "../domains/sessions";
 import { framedTurnInput, SteerMailbox, withTurnNotes } from "../domains/turns";
 import { UnsupportedDriverError } from "./options";
@@ -178,7 +178,7 @@ function driverRun(
 ): DriverRun {
   const { client } = host.options;
   const { model, providerInstance } = claim;
-  const env = withAgentDevice(providerInstance ? providerProcessEnv(providerInstance) : undefined, claim.simulators?.binDir);
+  const env = withSimulatorTools(providerInstance ? providerProcessEnv(providerInstance) : undefined, claim.simulators);
   return {
     runId,
     prompt,

@@ -8,6 +8,7 @@ import {
   type ProviderDriverKind,
   type RequestKind,
   type SessionCapabilities,
+  type WorkerClaim,
   workspacePath,
 } from "@telar/engine-client";
 import { ProjectProbes, ProjectRegistry, ProjectRemounts, WorkspaceConfigStore } from "./domains/projects";
@@ -61,7 +62,7 @@ type EngineStoreOptions = {
   gh?: GhRunner;
   /** The daemon's computer-use gate; absent means no computer use. */
   computerUse?: () => ResolvedComputerUse | undefined;
-  simulatorAccess?: () => { binDir?: string } | undefined;
+  simulatorAccess?: () => WorkerClaim["simulators"];
   models?: typeof readModelCatalogue;
   cliVersion?: (driver: ProviderDriverKind) => Promise<InstalledCli>;
   manifest?: ModelManifest;
@@ -140,7 +141,7 @@ export class EngineStore {
   readonly cleanup: CleanupStore;
   private readonly onTurnsStopped?: (cancellations: StoppedClaim[]) => void;
   private readonly computerUse?: (() => ResolvedComputerUse | undefined) | undefined;
-  private readonly simulatorAccess?: (() => { binDir?: string } | undefined) | undefined;
+  private readonly simulatorAccess?: (() => WorkerClaim["simulators"]) | undefined;
   private readonly prefetch: PrefetchedGit;
   private readonly asyncGit: AsyncGitRunner;
   /** The cuts and removals, on a pool the rail's polls do not share. */

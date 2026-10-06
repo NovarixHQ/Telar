@@ -69,6 +69,14 @@ test("a setup that failed says why", async () => {
   expect(host.textContent).toContain("npm exited 1");
 });
 
+test("a Mac without Xcode shows one actionable state, with the details behind the info button", async () => {
+  const detail = "Telar uses the Xcode in Applications.";
+  const { host } = await surface({ ...ready([]), platforms: [{ platform: "ios", available: false, reason: "Install Xcode to use iOS Simulators.", detail }] });
+  expect(host.textContent).toContain("No simulators on this Mac");
+  expect(host.textContent?.match(/Install Xcode to use iOS Simulators\./g)).toHaveLength(1);
+  expect(button("Why")?.getAttribute("data-info")).toBe(detail);
+});
+
 test("Start boots the simulator and opens it in a tab that streams from the hub with a ticket", async () => {
   const { host, calls } = await surface(ready([iPhone(false)]));
   expect(host.textContent).toContain("iPhone 16");

@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { EngineClient, SimulatorSummary } from "@telar/engine-client";
+import type { EngineClient, SimulatorSummary, WorkerClaim } from "@telar/engine-client";
 import type { SimulatorCapability } from "./tools";
 
 type SimulatorClient = Pick<EngineClient, "simulators" | "bootSimulator" | "shutdownSimulator" | "simulatorScreenshot">;
@@ -26,8 +26,13 @@ export function clientSimulatorCapability(client: SimulatorClient, report: (obse
   };
 }
 
-export function withAgentDevice(env: Record<string, string | undefined> | undefined, binDir: string | undefined): Record<string, string | undefined> | undefined {
-  if (!binDir) return env;
+export function withSimulatorTools(env: Record<string, string | undefined> | undefined, access: WorkerClaim["simulators"]): Record<string, string | undefined> | undefined {
+  const { binDir, developerDir } = access ?? {};
+  if (!binDir && !developerDir) return env;
   const inherited = env?.PATH ?? process.env.PATH;
-  return { ...env, PATH: inherited ? `${binDir}${path.delimiter}${inherited}` : binDir };
+  return {
+    ...env,
+    ...(binDir ? { PATH: inherited ? `${binDir}${path.delimiter}${inherited}` : binDir } : {}),
+    ...(developerDir ? { DEVELOPER_DIR: developerDir } : {}),
+  };
 }

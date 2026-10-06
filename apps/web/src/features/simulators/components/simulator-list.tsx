@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { PowerIcon, SmartphoneIcon } from "lucide-react";
-import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
+import { InfoIcon, PowerIcon, SmartphoneIcon } from "lucide-react";
+import type { SimulatorPlatformAvailability, SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { Button } from "@/ui/button";
 import { PanelEmpty, PanelRow, PanelSectionLabel } from "@/ui/panel";
 import { Spinner } from "@/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 
 type ListProps = {
   state: SimulatorsState | undefined;
@@ -96,21 +97,49 @@ function SimulatorRow({ simulator, onOpen, onStart, onShutdown }: { simulator: S
   );
 }
 
+function Unavailable({ platform }: { platform: SimulatorPlatformAvailability }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {platform.reason ?? `${platform.platform} is not available on this Mac.`}
+      {platform.detail && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button type="button" aria-label="Why" data-info={platform.detail} className="text-muted-foreground/60 hover:text-foreground">
+                <InfoIcon className="size-3" />
+              </button>
+            }
+          />
+          <TooltipContent side="top" className="max-w-72 text-xs leading-snug">
+            {platform.detail}
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </span>
+  );
+}
+
 export function SimulatorList(props: ListProps) {
   const { state, error } = props;
   if (state?.status !== "ready") return <Setup {...props} />;
   const unavailable = state.platforms.filter((platform) => !platform.available);
+  const empty = state.simulators.length === 0;
   return (
     <div className="flex flex-col">
       {error && <p className="px-4 pt-2 text-2xs text-destructive">{error}</p>}
-      {[...unavailable.map((platform) => platform.reason ?? `${platform.platform} is not available on this Mac.`), ...state.errors].map((note) => (
+      {!empty && unavailable.map((platform) => (
+        <p key={platform.platform} className="px-4 pt-2 text-2xs text-muted-foreground">
+          <Unavailable platform={platform} />
+        </p>
+      ))}
+      {state.errors.map((note) => (
         <p key={note} className="px-4 pt-2 text-2xs text-muted-foreground">
           {note}
         </p>
       ))}
-      {state.simulators.length === 0 ? (
+      {empty ? (
         <PanelEmpty icon={<SmartphoneIcon />} title="No simulators on this Mac">
-          A simulator appears here once one is installed.
+          {unavailable[0] ? <Unavailable platform={unavailable[0]} /> : "A simulator appears here once one is installed."}
         </PanelEmpty>
       ) : (
         <>

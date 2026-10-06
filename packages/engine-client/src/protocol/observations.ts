@@ -111,7 +111,7 @@ export const WorkerClaim = z.object({
   orientation: z.string().min(1).optional(),
   notes: z.array(z.string().min(1)).optional(),
   readOnly: z.literal(true).optional(),
-  simulators: z.object({ binDir: z.string().min(1).optional() }).optional(),
+  simulators: z.object({ binDir: z.string().min(1).optional(), developerDir: z.string().min(1).optional() }).optional(),
   turn: Turn,
 });
 export type WorkerClaim = z.infer<typeof WorkerClaim>;

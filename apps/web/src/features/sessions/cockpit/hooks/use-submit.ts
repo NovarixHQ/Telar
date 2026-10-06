@@ -41,7 +41,7 @@ export function useSubmit(args: Args) {
   const { session, setSession, setError } = sync;
 
   const landOn = (target: string, projectId: string) => {
-    handOffCanvas(target, projectId, args.panel, { clearCanvas: false });
+    handOffCanvas(target, projectId, args.panel);
     sync.clearTranscript();
     composer.claim({ sessionId: target, projectId });
     args.setCreatedSessionId(target);

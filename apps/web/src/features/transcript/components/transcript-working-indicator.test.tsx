@@ -100,4 +100,13 @@ describe("the working indicator on a turn quiet for a minute", () => {
     );
     expect(html).toContain("no output");
   });
+
+  test("says nothing about no output while the turn waits on a person's answer", () => {
+    const subject = quietTurn("completed");
+    const html = renderToStaticMarkup(
+      <WorkingIndicator label="Working" awaiting startedAt={subject.startedAt} lastActivityAt={subject.lastActivityAt} />,
+    );
+    expect(html).not.toContain("no output");
+    expect(html).not.toContain("bg-warning");
+  });
 });

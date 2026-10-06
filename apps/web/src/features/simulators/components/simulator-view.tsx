@@ -226,7 +226,7 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
             tabIndex={0}
             role="application"
             aria-label={`${simulator.name} screen`}
-            className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center bg-background outline-none"
+            className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center outline-none"
             onKeyDown={(event) => {
               const usage = hidUsage(event.code);
               if (usage === undefined || event.target !== event.currentTarget || (event.metaKey && event.key.toLowerCase() !== "r")) return;

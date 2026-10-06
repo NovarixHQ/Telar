@@ -19,6 +19,7 @@ export const SimulatorPlatformAvailability = z.object({
   platform: SimulatorPlatform,
   available: z.boolean(),
   reason: z.string().optional(),
+  detail: z.string().optional(),
 });
 export type SimulatorPlatformAvailability = z.infer<typeof SimulatorPlatformAvailability>;
 

@@ -1,4 +1,4 @@
-export { clientSimulatorCapability, withAgentDevice } from "./capability";
+export { clientSimulatorCapability, withSimulatorTools } from "./capability";
 export { simulatorsRoutes } from "./routes";
 export { Simulators, type SimulatorsDeps } from "./service";
 export { StreamTickets } from "./tickets";

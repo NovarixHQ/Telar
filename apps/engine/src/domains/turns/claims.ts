@@ -61,7 +61,7 @@ type ClaimDeps = {
   resolveLatex: (session: Session) => unknown;
   enabledPluginIds: (session: Session) => string[];
   getAgentOrientation: () => AgentOrientation;
-  simulatorAccess: () => { binDir?: string } | undefined;
+  simulatorAccess: () => WorkerClaim["simulators"];
 };
 
 /** Handing queued turns to workers: claiming, the sweeps a claim poll runs, and what the worker is handed. */

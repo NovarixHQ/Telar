@@ -1,4 +1,4 @@
-import type { SimulatorAction, SimulatorBootFailure, SimulatorDetail, SimulatorInput, SimulatorPlatformAvailability, SimulatorSettings, SimulatorSummary, SimulatorsState } from "@telar/engine-client";
+import type { SimulatorAction, SimulatorBootFailure, SimulatorDetail, SimulatorInput, SimulatorSettings, SimulatorSummary, SimulatorsState, WorkerClaim } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
 import { agentEnv } from "../../platform/process/agent-env";
 import { processRunner, type ProcessRunner } from "../../platform/process/runner";
@@ -7,6 +7,7 @@ import { runAction, type ActionDeps } from "./actions";
 import { readDetail } from "./detail";
 import { takeScreenshot } from "./screenshot";
 import { InputRelay, type OpenSocket } from "./input";
+import { hostPlatforms, hubErrors, type HostPlatforms } from "./platforms";
 import { StreamTickets } from "./tickets";
 import { AGENT_DEVICE, HUB, HUB_VERSION, hubHelpers, installedVersions, NpmToolchain, toolBinDir } from "./toolchain";
 
@@ -17,6 +18,9 @@ export type SimulatorsDeps = {
   runner?: ProcessRunner;
   fetch?: typeof fetch;
   platform?: NodeJS.Platform;
+  home?: string;
+  exists?: (file: string) => boolean;
+  list?: (dir: string) => string[];
   reservePort?: HubDeps["reservePort"];
   sleep?: HubDeps["sleep"];
   now?: () => number;
@@ -55,7 +59,8 @@ export class Simulators {
   private readying?: Promise<string>;
   private installing = false;
   private failure?: { message: string; at: number };
-  private platforms?: Promise<SimulatorPlatformAvailability[]>;
+  private host?: Promise<HostPlatforms>;
+  private developerDir?: string;
   private devices: HubDevice[] = [];
   private readonly input: InputRelay;
   private readonly actionDeps: ActionDeps;
@@ -65,7 +70,7 @@ export class Simulators {
     this.runner = deps.runner ?? processRunner;
     this.fetch = deps.fetch ?? fetch;
     this.now = deps.now ?? Date.now;
-    const env = () => agentEnv();
+    const env = () => ({ ...agentEnv(), ...(this.developerDir ? { DEVELOPER_DIR: this.developerDir } : {}) });
     this.toolchain = new NpmToolchain(HUB, { root: deps.root, runner: this.runner, env });
     this.agentDevice = new NpmToolchain(AGENT_DEVICE, { root: deps.root, runner: this.runner, env });
     this.input = new InputRelay(deps.openSocket);
@@ -85,7 +90,8 @@ export class Simulators {
   async state(): Promise<SimulatorsState> {
     const hub = (origin?: string) => ({ requiredVersion: HUB_VERSION, installedVersions: installedVersions(this.deps.root, HUB), runningVersion: origin ? HUB_VERSION : null });
     if (!this.deps.enabled()) return { status: "disabled", hub: hub(), platforms: [], simulators: [], errors: [] };
-    const platforms = await this.availability();
+    const host = await this.platforms();
+    const platforms = host.availability;
     const origin = this.hub.origin();
     if (!origin) {
       this.ensureReady().catch(() => undefined);
@@ -93,8 +99,7 @@ export class Simulators {
     }
     const list = await this.call<HubDeviceList>(origin, "GET", "/api/devices", undefined, LIST_TIMEOUT_MS);
     this.devices = [...(list.simulators ?? []), ...(list.emulators ?? [])];
-    const errors = (list.errors ?? []).flatMap((error) => (error.message ? [error.message] : []));
-    return { status: "ready", hub: hub(origin), platforms, simulators: this.devices.map(summary), errors };
+    return { status: "ready", hub: hub(origin), platforms, simulators: this.devices.map(summary), errors: hubErrors(list.errors ?? [], host) };
   }
 
   async boot(id: string): Promise<SimulatorSummary> {
@@ -142,13 +147,14 @@ export class Simulators {
     return takeScreenshot(this.actionDeps, await this.find(id));
   }
 
-  agentTools(): { binDir?: string } | undefined {
+  agentTools(): WorkerClaim["simulators"] {
     if (!this.deps.enabled() || !this.deps.agentAccess?.()) return undefined;
+    const developerDir = this.developerDir ? { developerDir: this.developerDir } : {};
     if (!this.agentDevice.installed()) {
       this.agentDevice.install().catch(() => undefined);
-      return {};
+      return developerDir;
     }
-    return { binDir: toolBinDir(this.deps.root, AGENT_DEVICE) };
+    return { binDir: toolBinDir(this.deps.root, AGENT_DEVICE), ...developerDir };
   }
 
   async sendInput(id: string, events: readonly SimulatorInput[]): Promise<void> {
@@ -162,6 +168,7 @@ export class Simulators {
 
   async settingsChanged(settings: SimulatorSettings): Promise<void> {
     this.failure = undefined;
+    this.host = undefined;
     if (settings.enabled) {
       this.ensureReady().catch(() => undefined);
       if (settings.agentAccess) this.agentDevice.install().catch(() => undefined);
@@ -190,6 +197,7 @@ export class Simulators {
       try {
         this.installing = !this.toolchain.installed();
         const entry = await this.toolchain.install().finally(() => (this.installing = false));
+        await this.platforms();
         if (!this.deps.enabled()) throw new Error("Simulators are off.");
         const origin = await this.hub.start(entry);
         this.failure = undefined;
@@ -220,13 +228,13 @@ export class Simulators {
     return device;
   }
 
-  private availability(): Promise<SimulatorPlatformAvailability[]> {
-    this.platforms ??= (async (): Promise<SimulatorPlatformAvailability[]> => {
-      if ((this.deps.platform ?? process.platform) !== "darwin") return [{ platform: "ios", available: false, reason: "iOS Simulators need macOS." }];
-      const { code } = await this.runner.run("xcrun", ["--find", "simctl"], { timeoutMs: 10_000 });
-      return [code === 0 ? { platform: "ios", available: true } : { platform: "ios", available: false, reason: "The Xcode command line tools were not found." }];
-    })();
-    return this.platforms;
+  private platforms(): Promise<HostPlatforms> {
+    const { platform = process.platform, home, exists, list } = this.deps;
+    this.host ??= hostPlatforms({ platform, run: this.runner.run.bind(this.runner), env: agentEnv(), ...(home ? { home } : {}), ...(exists ? { exists } : {}), ...(list ? { list } : {}) }).then((host) => {
+      this.developerDir = host.developerDir;
+      return host;
+    });
+    return this.host;
   }
 
   private async call<T>(origin: string, method: "GET" | "POST", route: string, body: unknown, timeoutMs: number): Promise<T> {

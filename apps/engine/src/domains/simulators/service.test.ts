@@ -14,11 +14,13 @@ afterEach(async () => {
   for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-function setup(devices: SimulatorSummary[], options: { enabled?: boolean; bootError?: string } = {}) {
+const XCODE = "/Applications/Xcode.app/Contents/Developer";
+
+function setup(devices: SimulatorSummary[], options: { enabled?: boolean; bootError?: string; xcrun?: number; files?: string[] } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-"));
   roots.push(root);
   let enabled = options.enabled ?? true;
-  const fake = fakeRunner();
+  const fake = fakeRunner(options.xcrun === undefined ? {} : { xcrun: options.xcrun });
   const hub = fakeHub(devices, options.bootError ? { bootError: options.bootError } : {});
   const simulators = new Simulators({
     root,
@@ -26,6 +28,9 @@ function setup(devices: SimulatorSummary[], options: { enabled?: boolean; bootEr
     runner: fake.runner,
     fetch: hub.fetch,
     platform: "darwin",
+    exists: (file) => (options.files ?? []).includes(file),
+    list: () => ["Xcode.app"],
+    agentAccess: () => true,
     reservePort: async () => 4321,
     sleep: async () => undefined,
   });
@@ -108,4 +113,23 @@ test("boot failures are classified the way the hub words them", () => {
   expect(bootFailure("Insufficient disk space")).toBe("disk_space");
   expect(bootFailure("Operation timed out")).toBe("timeout");
   expect(bootFailure(undefined)).toBe("launch_failed");
+});
+
+test("with the command line tools selected, the hub, simctl calls and agents all run under the Xcode in Applications", async () => {
+  const { simulators, starts, runs } = setup([{ ...iPhone(), booted: true }], { xcrun: 72, files: [`${XCODE}/usr/bin/simctl`] });
+  expect((await ready(simulators)).platforms).toEqual([{ platform: "ios", available: true }]);
+  expect(starts[0]!.options?.env?.DEVELOPER_DIR).toBe(XCODE);
+  await simulators.detail("A1B2-UDID");
+  const simctl = runs.filter((run) => run.file === "xcrun" && run.args[0] === "simctl");
+  expect(simctl.length).toBeGreaterThan(0);
+  expect(simctl.map((run) => run.options?.env?.DEVELOPER_DIR)).toEqual(simctl.map(() => XCODE));
+  expect(simulators.agentTools()).toMatchObject({ developerDir: XCODE });
+});
+
+test("a Mac without Xcode reports iOS unavailable and forces no developer dir", async () => {
+  const { simulators, starts } = setup([], { xcrun: 72 });
+  const state = await ready(simulators);
+  expect(state.platforms).toEqual([expect.objectContaining({ platform: "ios", available: false, reason: "Install Xcode to use iOS Simulators." })]);
+  expect(starts[0]!.options?.env?.DEVELOPER_DIR).toBeUndefined();
+  expect(simulators.agentTools()).not.toHaveProperty("developerDir");
 });

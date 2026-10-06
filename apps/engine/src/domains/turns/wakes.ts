@@ -98,7 +98,7 @@ export class TurnWakes {
 
   /**
    * The wake, after a terminal transition or a parked request has been written, so it can never fail that transition.
-   * A wake is a turn on the subscriber through `submitTurn`; a wake's own ending wakes nobody.
+   * A wake is a turn on the subscriber through `submitTurn`; a wake's own ending wakes nobody, but may end an errand.
    */
   fireSubscriptions(
     targetSessionId: string,
@@ -106,8 +106,8 @@ export class TurnWakes {
     turn: Turn,
     context: { resultText?: string; failure?: Turn["failure"]; request?: EngineRequest },
   ): void {
-    if (turn.origin === "session" && turn.wakeReason) return;
     this.deps.subscriptions.advanceCohortMember(targetSessionId, kind, turn, context);
+    if (turn.origin === "session" && turn.wakeReason) return;
     const all = this.deps.subscriptions.readSubscriptions();
     const hits = all.filter((each) => each.targetSessionId === targetSessionId && each.events.includes(kind));
     if (kind === "request_opened") {

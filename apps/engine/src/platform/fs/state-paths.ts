@@ -7,6 +7,7 @@ export type EngineStatePaths = {
   claudeDefault: string;
   claudeLongWindowMigration: string;
   claudeCompactionMigration: string;
+  fyiIntentMigration: string;
   sessions: string;
   mcpServers: string;
   providerInstances: string;
@@ -54,6 +55,7 @@ export function statePaths(root: string): EngineStatePaths {
     claudeDefault: path.join(resolved, "claude-default-model.json"),
     claudeLongWindowMigration: path.join(resolved, "claude-long-window-migration.json"),
     claudeCompactionMigration: path.join(resolved, "claude-compaction-migration.json"),
+    fyiIntentMigration: path.join(resolved, "fyi-intent-migration.json"),
     sessions: path.join(resolved, "sessions"),
     mcpServers: path.join(resolved, "mcp-servers.json"),
     providerInstances: path.join(resolved, "provider-instances.json"),

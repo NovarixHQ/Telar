@@ -1,3 +1,4 @@
+import path from "node:path";
 import { CLAUDE_COMPACTION_ENV_NAMES, defaultInstanceIdForDriver, migrateClaudeCompaction, migrateLegacyPluginFields, type Item, type ProviderInstanceEnvVar } from "@telar/engine-client";
 import type { Kernel } from "../../platform/kernel";
 import { legacyLongSpelling, type ModelManifest } from "../providers";
@@ -104,6 +105,57 @@ export function migrateBareClaudeIds(kernel: Kernel, sessionIds: () => string[],
     }
     kernel.writeDocument(kernel.paths.claudeLongWindowMigration, { version: 1, at: kernel.now(), sessions, projects });
     return { sessions, projects };
+  });
+}
+
+function renameReportIntent(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+  let changed = false;
+  for (const [key, entry] of Object.entries(value)) {
+    if ((key === "intent" || key === "agentIntent") && entry === "report") {
+      (value as Record<string, unknown>)[key] = "fyi";
+      changed = true;
+    } else if (renameReportIntent(entry)) changed = true;
+  }
+  return changed;
+}
+
+function withFyiIntent(text: unknown): unknown {
+  try {
+    const value: unknown = JSON.parse(String(text));
+    return renameReportIntent(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const REPORT_INTENT = `%intent":"report"%`;
+
+/** Once, marked, before anything reads items (they are validated): intent `report` became `fyi`, in rows and in documents. */
+export function migrateReportIntent(kernel: Kernel): number | undefined {
+  if (kernel.readDocument(kernel.paths.fyiIntentMigration) !== undefined) return undefined;
+  return kernel.command("migrateReportIntent", () => {
+    const store = kernel.executionStore;
+    let rewritten = 0;
+    for (const [table, key] of [["items", "item_id"], ["turns", "run_id"]] as const) {
+      const update = store.statement(`UPDATE ${table} SET value=? WHERE session_id=? AND ${key}=?`);
+      for (const row of store.statement(`SELECT session_id, ${key} AS id, value FROM ${table} WHERE value LIKE ?`).all(REPORT_INTENT)) {
+        const value = withFyiIntent(row.value);
+        if (value === undefined) continue;
+        update.run(JSON.stringify(value), row.session_id, row.id);
+        rewritten += 1;
+      }
+    }
+    const documents = store.statement(`SELECT key, value FROM documents WHERE (key LIKE '%/items.json' OR key LIKE '%/queue.json') AND value LIKE ?`);
+    for (const row of documents.all(REPORT_INTENT)) {
+      const value = withFyiIntent(row.value);
+      if (value === undefined) continue;
+      // The new length invalidates the document's offset index, so readers fall back to the whole document.
+      kernel.writeDocument(path.join(store.root, String(row.key)), value);
+      rewritten += 1;
+    }
+    kernel.writeDocument(kernel.paths.fyiIntentMigration, { version: 1, at: kernel.now(), rewritten });
+    return rewritten;
   });
 }
 

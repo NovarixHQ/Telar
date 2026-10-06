@@ -33,7 +33,7 @@ import { ScheduleBook } from "./domains/schedules";
 import { derivedBranchFor, liveCheckouts, prepareSessionWorktree, WorktreeMaintenance, createWorktreeQueue, defaultWorktreeGitRunner, type WorktreeQueue, SETUP_STOP_GRACE_MS, WorktreeSetups } from "./domains/worktrees";
 import { defaultAsyncGitRunner, type AsyncGitRunner, type GitRunner } from "./platform/git/runner";
 import { PrefetchedGit } from "./platform/git/prefetch";
-import { backfillTurnSummaries, CheckoutSizes, CleanupStore, migrateBareClaudeIds, migrateClaudeCompactionToLimits, migrateLegacyPluginFieldsOnOpen, type CheckoutSizesOptions } from "./domains/storage";
+import { backfillTurnSummaries, CheckoutSizes, CleanupStore, migrateBareClaudeIds, migrateClaudeCompactionToLimits, migrateLegacyPluginFieldsOnOpen, migrateReportIntent, type CheckoutSizesOptions } from "./domains/storage";
 import { pipeLauncher, processGroupFor, SessionTerminals } from "./domains/terminal";
 import { type VolumeDeps } from "./platform/fs/volumes";
 
@@ -299,6 +299,7 @@ export class EngineStore {
       requireSenderClaim: (proof) => this.worker.requireSenderClaim(proof),
     });
     this.registerCacheHooks();
+    this.fyiIntentMigration = migrateReportIntent(this.kernel);
     // The backfill's writes go through one transaction rather than one per row.
     this.sessionIndexBackfill = this.sessionIndex.backfill();
     this.turnSummaryBackfill = backfillTurnSummaries(this.kernel, this.sessionItems, this.sessionQueues);
@@ -553,6 +554,8 @@ export class EngineStore {
   readonly pluginFieldMigration: number;
   /** How many logins the one-time compaction rewrite changed on this open, or nothing when it had already run. */
   readonly claudeCompactionMigration?: number;
+  /** How many rows and documents the one-time `report` → `fyi` rewrite changed on this open, or nothing when it had already run. */
+  readonly fyiIntentMigration?: number;
   /** What the one-time `[1m]` rewrite changed on this open, or nothing when it had already run. */
   readonly claudeLongWindowMigration?: { sessions: number; projects: number };
   /** What the index backfill built on open, for the daemon to report; zero on every open after the first. */

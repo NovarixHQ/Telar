@@ -27,15 +27,17 @@ test("H.264 is used only on a secure origin that has WebCodecs", () => {
 type Frame = { displayWidth: number; displayHeight: number; closed: boolean; close: () => void };
 
 class FakeDecoder {
-  static supported = true;
+  static supported = (_config: VideoDecoderConfig) => true;
   static all: FakeDecoder[] = [];
-  static isConfigSupported = async () => ({ supported: FakeDecoder.supported });
+  static isConfigSupported = async (config: VideoDecoderConfig) => ({ supported: FakeDecoder.supported(config) });
   state = "unconfigured";
   decodeQueueSize = 0;
+  config: VideoDecoderConfig | undefined;
   constructor(readonly init: { output: (frame: Frame) => void }) {
     FakeDecoder.all.push(this);
   }
-  configure() {
+  configure(config: VideoDecoderConfig) {
+    this.config = config;
     this.state = "configured";
   }
   decode() {
@@ -52,24 +54,20 @@ class FakeDecoder {
   }
 }
 
-const globals = ["isSecureContext", "VideoDecoder", "EncodedVideoChunk", "requestAnimationFrame", "cancelAnimationFrame", "fetch"] as const;
+const globals = ["isSecureContext", "VideoDecoder", "EncodedVideoChunk", "fetch"] as const;
 const saved = Object.fromEntries(globals.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
-let frames: Array<() => void> = [];
 let opened: Array<{ file: string; write: (bytes: number[]) => void }> = [];
 let waiting: Array<() => void> = [];
 
 beforeEach(() => {
-  FakeDecoder.supported = true;
+  FakeDecoder.supported = () => true;
   FakeDecoder.all = [];
-  frames = [];
   opened = [];
   waiting = [];
   const set = (name: string, value: unknown) => Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
   set("isSecureContext", true);
   set("VideoDecoder", FakeDecoder);
   set("EncodedVideoChunk", class {});
-  set("requestAnimationFrame", (callback: () => void) => frames.push(callback));
-  set("cancelAnimationFrame", () => undefined);
   set("fetch", async (url: string, init: { signal: AbortSignal }) => {
     const file = url.split("/").pop()!;
     let controller!: ReadableStreamDefaultController<Uint8Array>;
@@ -120,7 +118,7 @@ test("an origin that cannot decode H.264 plays MJPEG and never opens the H.264 s
 });
 
 test("a simulator profile the decoder rejects plays MJPEG", async () => {
-  FakeDecoder.supported = false;
+  FakeDecoder.supported = () => false;
   const { mjpeg, stop } = player();
   (await avccOpened(1)).write(opening);
   while (mjpeg.length === 0) await settle();
@@ -128,17 +126,31 @@ test("a simulator profile the decoder rejects plays MJPEG", async () => {
   stop();
 });
 
-test("decoded frames that land together paint once, as the newest, and the older ones are released", async () => {
+test("each decoded frame paints as soon as the decoder outputs it, then is released", async () => {
   const { drawn, stop } = player();
   (await avccOpened(1)).write([...opening, ...deltas(2)]);
   const decoder = await decoderReady(1);
-  const early = [decoder.emit(1), decoder.emit(2)];
-  decoder.emit(3);
-  expect(frames).toHaveLength(1);
-  frames.splice(0).forEach((paint) => paint());
-  expect(drawn).toEqual([3]);
-  expect(early.every((frame) => frame.closed)).toBe(true);
+  const first = decoder.emit(1);
+  expect(drawn).toEqual([1]);
+  decoder.emit(2);
+  expect(drawn).toEqual([1, 2]);
+  expect(first.closed).toBe(true);
   stop();
+});
+
+test("the stream decodes in software, which skips the hardware decoder's 14-frame reorder delay, and in hardware only where software is refused", async () => {
+  const first = player();
+  (await avccOpened(1)).write(opening);
+  expect((await decoderReady(1)).config?.hardwareAcceleration).toBe("prefer-software");
+  first.stop();
+
+  FakeDecoder.supported = (config) => config.hardwareAcceleration !== "prefer-software";
+  const second = player();
+  (await avccOpened(2)).write(opening);
+  const decoder = await decoderReady(2);
+  expect(decoder.config?.hardwareAcceleration).toBeUndefined();
+  expect(second.mjpeg).toEqual([]);
+  second.stop();
 });
 
 test("a decode backlog reopens the H.264 stream instead of switching to MJPEG, until it keeps happening", async () => {

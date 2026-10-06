@@ -40,33 +40,13 @@ export function canDecodeH264(scope: { isSecureContext?: boolean; VideoDecoder?:
   return scope.isSecureContext === true && typeof scope.VideoDecoder === "function" && typeof scope.EncodedVideoChunk === "function";
 }
 
-function latestFrame(paint: (frame: VideoFrame) => void) {
-  let latest: VideoFrame | undefined;
-  let scheduled = 0;
-  const present = () => {
-    scheduled = 0;
-    const frame = latest;
-    latest = undefined;
-    if (!frame) return;
-    try {
-      paint(frame);
-    } finally {
-      frame.close();
-    }
-  };
-  return {
-    show(frame: VideoFrame) {
-      latest?.close();
-      latest = frame;
-      scheduled ||= requestAnimationFrame(present);
-    },
-    drop() {
-      cancelAnimationFrame(scheduled);
-      scheduled = 0;
-      latest?.close();
-      latest = undefined;
-    },
-  };
+const supported = (config: VideoDecoderConfig) => VideoDecoder.isConfigSupported(config).then((answer) => answer.supported === true, () => false);
+
+async function decoderConfig(description: Uint8Array): Promise<VideoDecoderConfig | undefined> {
+  const config: VideoDecoderConfig = { codec: avcCodecString(description), description, optimizeForLatency: true };
+  const software: VideoDecoderConfig = { ...config, hardwareAcceleration: "prefer-software" };
+  if (await supported(software)) return software;
+  return (await supported(config)) ? config : undefined;
 }
 
 export type StreamStatus = { state: "connecting" | "streaming" | "error"; detail?: string };
@@ -112,12 +92,17 @@ export function startStream(options: StreamOptions): { stop: () => void; mjpegLo
     context.drawImage(source, 0, 0, width, height);
     painted(width, height);
   };
-  const frames = latestFrame((frame) => paint(frame, frame.displayWidth, frame.displayHeight));
+  const show = (frame: VideoFrame) => {
+    try {
+      paint(frame, frame.displayWidth, frame.displayHeight);
+    } finally {
+      frame.close();
+    }
+  };
   const closeDecoder = () => {
     if (decoder && decoder.state !== "closed") decoder.close();
     decoder = undefined;
     awaitingKeyframe = true;
-    frames.drop();
   };
   const fallBack = () => {
     controller?.abort();
@@ -134,12 +119,11 @@ export function startStream(options: StreamOptions): { stop: () => void; mjpegLo
     void readAvcc();
   };
   const configure = async (description: Uint8Array): Promise<boolean> => {
-    const config: VideoDecoderConfig = { codec: avcCodecString(description), description, optimizeForLatency: true };
-    const support = await VideoDecoder.isConfigSupported(config).catch(() => ({ supported: false }));
-    if (stopped || !support.supported) return false;
+    const config = await decoderConfig(description);
+    if (stopped || !config) return false;
     closeDecoder();
     decoder = new VideoDecoder({
-      output: frames.show,
+      output: show,
       error: () => !stopped && catchUp(),
     });
     decoder.configure(config);

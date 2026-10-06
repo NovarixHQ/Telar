@@ -539,7 +539,9 @@ export class EngineStore {
       registry: projectRegistry,
       probes: projectProbes,
       volumes: this.volumes,
+      asyncGit: this.asyncGit,
       sessions: () => this.records.read(),
+      hasWorkInFlight: (sessionId) => this.queries.hasWorkInFlight(sessionId),
       prepareWorktree: (sessionId, root, plan, baseSha) => this.lifecycle.prepareWorktree(sessionId, root, plan, baseSha),
     });
     const browser = new SessionBrowser(this.kernel, {

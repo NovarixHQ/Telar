@@ -17,7 +17,7 @@ import { createEngineApi } from "@/platform/engine";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { cn } from "@/ui/utils";
 import { usePoll } from "@/ui/hooks/use-poll";
-import { awayLabel, awayReason, isAway, type Away } from "@/features/projects";
+import { awayLabel, awayReason, ChooseProjectFolder, isAway, type Away } from "@/features/projects";
 
 const api = createEngineApi();
 
@@ -279,13 +279,24 @@ function WhereThisLands({
   );
 }
 
-function AwayNotice({ away, projectName, onRetry }: { away: Away; projectName?: string | undefined; onRetry?: (() => void | Promise<void>) | undefined }) {
+function AwayNotice({
+  away,
+  projectId,
+  projectName,
+  onRetry,
+}: {
+  away: Away;
+  projectId: string;
+  projectName?: string | undefined;
+  onRetry?: (() => void | Promise<void>) | undefined;
+}) {
   return (
     <div role="status" className="flex items-start gap-2 border-b border-border/40 px-3 py-2 text-2xs text-muted-foreground">
       <HardDriveIcon className="mt-px size-3.5 shrink-0" />
       <span className="min-w-0 flex-1">
         <strong className="font-medium text-foreground">Folder unreachable:</strong> {awayReason(away, projectName)} Nothing can run here until it is back.
       </span>
+      {away === "missing" && <ChooseProjectFolder project={{ id: projectId, name: projectName ?? "this project" }} onMoved={() => void onRetry?.()} />}
       {onRetry && (
         <button
           type="button"
@@ -384,6 +395,7 @@ function BranchPopover({
 }
 
 export function EnvironmentStrip({
+  projectId,
   projectName,
   session,
   git,
@@ -418,7 +430,7 @@ export function EnvironmentStrip({
   return (
     <div className="mx-3 -mt-px">
       <div className="overflow-hidden rounded-b-2xl border border-t-0 border-border/80 bg-card/95 shadow-1 backdrop-blur-xl">
-        {away && <AwayNotice away={away} projectName={projectName} onRetry={onRetry} />}
+        {away && <AwayNotice away={away} projectId={projectId} projectName={projectName} onRetry={onRetry} />}
         <div className="flex min-h-8 w-full items-center gap-1 px-2 text-2xs text-muted-foreground">
         {choosing && onEnvMode ? (
           <WhereThisLands

@@ -67,7 +67,7 @@ export const NO_SELF =
 export const NO_SESSION_TO_SCHEDULE =
   "This door has no session to schedule: a scheduled run is submitted INTO a conversation, and this client is not one. Ask a session to schedule itself.";
 
-export const SUBSCRIBE = `Be woken once when the sessions you tasked are done (result sent, failed, stopped or settled); blockers still arrive at once. Send the tasks, subscribe once, end your turn; sessions_create tasks does this for you. cancel stops one; no arguments lists yours.`;
+export const SUBSCRIBE = `Be woken once when the sessions you tasked are done (result sent, failed, stopped or settled); blockers still arrive at once. Every task you send already subscribes you; this is for sessions you did not task. cancel stops one; no arguments lists yours.`;
 
 export const REQUESTS = `A session's open requests, meant for a human. With requestId and decision, answer one for the user, recorded as answered by a session: only what you know; secret picks are refused. ${NOT_A_BYPASS}`;
 

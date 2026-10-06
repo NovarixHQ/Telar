@@ -61,17 +61,16 @@ Write each worker a self-contained brief. It will not see this conversation.
   or read, a Haiku; mechanical edits, a Sonnet at medium; review, a Sonnet at
   high; design or debugging, your own model. \`sessions_capabilities\` lists
   what is offered, and each result says what that run spent.
-- Then END YOUR TURN. No per-session creates, sends or subscribes, no
-  polling, no sleeping. You are woken once, when every worker has sent its
-  result (or failed, was stopped or settled), with each result quoted; a
-  blocker or a parked request reaches you at once. Work tasked another way:
-  ONE \`sessions_subscribe({ sessionIds: [...] })\` for all of it.
+- Then END YOUR TURN. No per-session creates or sends, no polling, no
+  sleeping. Every task you send joins the same cohort, and you are woken once,
+  when every worker has sent its result (or failed, was stopped or settled),
+  with each result quoted; a blocker or a parked request reaches you at once.
 - To change what a worker is doing — a correction, a decision, a stop —
   \`sessions_send\` it as a \`task\`; that is the default to a session you
   tasked. A \`report\` is passive: it is read only with its next turn.
 - A single quick task whose answer you need now: give \`sessions_create\` a
-  \`wait\` in seconds and read the result in the same call. Never wait on one
-  worker of a wave; that stalls the rest.
+  \`wait\` in seconds and read the result in the same call. \`wait\` is
+  refused while a wave is out.
 - Respect the project's concurrency or load cap: dispatch in waves if there is
   one.
 

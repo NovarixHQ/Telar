@@ -8,7 +8,7 @@ import { cn } from "@/ui/utils";
 import { hubUrl, type SimulatorsApi } from "../api";
 import { DeviceFrame, deviceShape, fitDevice } from "./device-frame";
 import { SimulatorToolbar } from "./simulator-toolbar";
-import { hidUsage, inputQueue, NEXT_ORIENTATION, rawPoint, readScreenConfig, ROTATION_DEGREES, type Orientation, type ScreenConfig } from "../input";
+import { crownDelta, hidUsage, inputQueue, NEXT_ORIENTATION, rawPoint, readScreenConfig, ROTATION_DEGREES, type Orientation, type ScreenConfig } from "../input";
 import { startStream, type StreamStatus } from "../stream";
 
 const TICKET_REFRESH_MS = 4 * 60_000;
@@ -144,6 +144,16 @@ function StreamOverlay({ status, onReconnect }: { status: StreamStatus; onReconn
   );
 }
 
+function useRotate(screen: ScreenConfig | undefined, press: (event: SimulatorInput) => void) {
+  const [rotation, setRotation] = useState<{ from?: Orientation; sent: Orientation }>();
+  return () => {
+    const current = rotation && rotation.from === screen?.orientation ? rotation.sent : screen?.orientation;
+    const next = NEXT_ORIENTATION[current ?? "portrait"];
+    setRotation({ ...(screen ? { from: screen.orientation } : {}), sent: next });
+    press({ type: "orientation", orientation: next });
+  };
+}
+
 export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, onToggleSettings, onPowerOff }: ViewProps) {
   const ios = simulator.platform === "ios";
   const ticket = useTicket(api, visible && ios);
@@ -181,15 +191,10 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
     setInputError(undefined);
     send(event);
   };
-  const [rotation, setRotation] = useState<{ from?: Orientation; sent: Orientation }>();
-  const rotate = () => {
-    const current = rotation && rotation.from === screen?.orientation ? rotation.sent : screen?.orientation;
-    const next = NEXT_ORIENTATION[current ?? "portrait"];
-    setRotation({ ...(screen ? { from: screen.orientation } : {}), sent: next });
-    press({ type: "orientation", orientation: next });
-  };
+  const rotate = useRotate(screen, press);
 
   const shape = deviceShape(simulator);
+  const watch = shape.kind === "watch";
   const portraitFrames = !screen || screen.width <= screen.height;
   const turnedBy = screen ? ROTATION_DEGREES[screen.orientation] : 0;
   const turned = Math.abs(turnedBy) === 90;
@@ -260,6 +265,10 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
                   pointing.current = false;
                   touch("end", event);
                 }}
+                onWheel={(event) => {
+                  const delta = watch ? crownDelta(event.deltaY, event.deltaMode, frame.height) : undefined;
+                  if (delta !== undefined) press({ type: "crown", delta });
+                }}
               >
                 <canvas ref={canvas} className={cn("absolute top-0 left-0", mjpeg && "hidden")} style={media} />
                 {mjpeg && (
@@ -274,17 +283,19 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
                 )}
               </div>
             </DeviceFrame>
+            {watch && <p className="pointer-events-none absolute inset-x-0 bottom-2 px-4 text-center text-2xs text-muted-foreground">Touch doesn't reach watch simulators; scroll over the screen to turn the Digital Crown.</p>}
             {status.state !== "streaming" && <StreamOverlay status={status} onReconnect={() => setAttempt((count) => count + 1)} />}
           </div>
         )}
         <SimulatorToolbar
-          phone={ios && shape.kind !== "watch"}
+          phone={ios && !watch}
           powering={powering}
           capture={capture}
           settingsOpen={settingsOpen}
           onHome={() => press({ type: "button", button: "home" })}
           onRotate={rotate}
           {...(ios ? { onScreenshot: () => void screenshot() } : {})}
+          {...(watch ? { onCrown: () => press({ type: "button", button: "digital_crown" }), onSide: () => press({ type: "button", button: "side_button" }) } : {})}
           onToggleSettings={onToggleSettings}
           onPowerOff={() => void powerOff()}
         />

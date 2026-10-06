@@ -1,4 +1,4 @@
-import { CameraIcon, CheckIcon, HomeIcon, PowerIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
+import { CameraIcon, CheckIcon, CircleDotIcon, HomeIcon, PowerIcon, RectangleVerticalIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
 
@@ -9,12 +9,14 @@ type ToolbarProps = {
   settingsOpen: boolean;
   onHome: () => void;
   onRotate: () => void;
+  onCrown?: () => void;
+  onSide?: () => void;
   onScreenshot?: () => void;
   onToggleSettings: () => void;
   onPowerOff: () => void;
 };
 
-export function SimulatorToolbar({ phone, powering, capture, settingsOpen, onHome, onRotate, onScreenshot, onToggleSettings, onPowerOff }: ToolbarProps) {
+export function SimulatorToolbar({ phone, powering, capture, settingsOpen, onHome, onRotate, onCrown, onSide, onScreenshot, onToggleSettings, onPowerOff }: ToolbarProps) {
   return (
     <div role="toolbar" aria-label="Simulator controls" aria-orientation="vertical" className="flex w-11 shrink-0 flex-col items-center gap-1 py-3">
       {phone && (
@@ -26,6 +28,16 @@ export function SimulatorToolbar({ phone, powering, capture, settingsOpen, onHom
             <RotateCcwIcon />
           </Button>
         </>
+      )}
+      {onCrown && (
+        <Button size="icon-sm" variant="ghost" aria-label="Press Digital Crown" onClick={onCrown}>
+          <CircleDotIcon />
+        </Button>
+      )}
+      {onSide && (
+        <Button size="icon-sm" variant="ghost" aria-label="Press side button" onClick={onSide}>
+          <RectangleVerticalIcon />
+        </Button>
       )}
       {onScreenshot && (
         <Button size="icon-sm" variant="ghost" aria-label="Copy screenshot" disabled={capture === "copying"} onClick={onScreenshot}>

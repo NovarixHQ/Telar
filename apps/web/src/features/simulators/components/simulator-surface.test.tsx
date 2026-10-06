@@ -150,6 +150,30 @@ test("a watch paired with an iPhone shows under it, and opens to a stream of its
   expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/simulators/hub/vendor/serve-sim/helper/W1/stream.mjpeg?ticket=stk_1");
 });
 
+test("on a watch, scrolling turns the crown, the toolbar presses the crown and side button, and the screen says touch doesn't reach it", async () => {
+  const watch: SimulatorSummary = { id: "W1", platform: "ios", name: "Pulso Watch", version: "watchOS 27.0", booted: true, physical: false, pairedWith: "A1B2" };
+  const { host, sent } = await surface(ready([watch]), { width: 416, height: 496, orientation: "portrait" });
+  await click(text("Open"));
+  expect(host.textContent).toContain("Touch doesn't reach watch simulators");
+  const frame = document.querySelector('[data-testid="device-frame"] [data-testid="simulator-frame"]') as HTMLElement;
+  frame.getBoundingClientRect = () => ({ left: 40, top: 20, width: 208, height: 248, right: 248, bottom: 268, x: 40, y: 20, toJSON: () => ({}) });
+  await act(async () => {
+    frame.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 92, clientY: 82, pointerId: 1 }));
+    frame.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 92, clientY: 82, pointerId: 1 }));
+    frame.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 2, deltaMode: 1 }));
+  });
+  await click(button("Press Digital Crown")!);
+  await click(button("Press side button")!);
+  await flush(() => sent().length >= 5);
+  expect(sent()).toEqual([
+    { type: "touch", phase: "begin", x: 0.25, y: 0.25 },
+    { type: "touch", phase: "end", x: 0.25, y: 0.25 },
+    { type: "crown", delta: 32 },
+    { type: "button", button: "digital_crown" },
+    { type: "button", button: "side_button" },
+  ]);
+});
+
 test("the stream is drawn inside a device frame", async () => {
   const { host } = await surface(ready([iPhone(true)]));
   await click(text("Open"));

@@ -172,6 +172,18 @@ export const RunBytesAnswer = z.object({
 });
 export type RunBytesAnswer = z.infer<typeof RunBytesAnswer>;
 
+export const RunBytesFrame = z.object({
+  type: z.literal("run.bytes"),
+  data: z.string(),
+  cursor: z.number(),
+  dropped: z.number(),
+});
+export type RunBytesFrame = z.infer<typeof RunBytesFrame>;
+
+/** One terminal's byte stream: its status, the ring after `after` in one frame, then live bytes and status changes. */
+export const RunStreamFrame = z.discriminatedUnion("type", [RunBytesFrame, RunStatusEvent]);
+export type RunStreamFrame = z.infer<typeof RunStreamFrame>;
+
 export const RunWriteAnswer = z.object({ delivered: z.boolean() });
 export type RunWriteAnswer = z.infer<typeof RunWriteAnswer>;
 

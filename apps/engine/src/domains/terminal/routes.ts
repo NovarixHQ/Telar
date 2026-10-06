@@ -25,6 +25,9 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
 }
 
 const Target = z.object({ terminalId: z.string().min(1).optional(), runId: z.string().min(1).optional() });
+const ByteCursor = Target.extend({ after: z.coerce.number().int().min(0).optional() });
+
+export const parseByteCursor = (input: unknown) => parse(ByteCursor, input);
 
 const runRoutes: RunRoute[] = [
   {
@@ -120,7 +123,7 @@ const runRoutes: RunRoute[] = [
     method: "GET",
     pattern: /^\/run\/bytes$/,
     handle: async ({ capability, input }) =>
-      await capability.bytes(parse(Target.extend({ after: z.coerce.number().int().min(0).optional() }), input)),
+      await capability.bytes(parseByteCursor(input)),
   },
   {
     method: "POST",

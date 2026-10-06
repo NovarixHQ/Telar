@@ -2,7 +2,7 @@ import type { TurnAttachment } from "../protocol/common";
 import type { EngineDiscovery, EngineErrorBody, EngineHealth, EventPage } from "../protocol/events";
 import { queryOf, sessionPath } from "../sessions/client";
 import type { LiveSessionsAnswer } from "../sessions/schema";
-import { runBase } from "../terminal/client";
+import { runBytesStreamPath, type RunTargetInput } from "../terminal/client";
 import { domainClients, type EngineDomainMethods } from "./domains";
 import { EngineClientError, sanitizeTransportCause } from "./errors";
 import type { Conditional, EngineTransport } from "./transport";
@@ -41,8 +41,8 @@ export class EngineClient implements EngineTransport {
     return this.stream("/v2/sessions/stream");
   }
 
-  runStream(sessionId: string): Stream {
-    return this.stream(`${runBase(sessionId)}/stream`);
+  runBytesStream(sessionId: string, input: RunTargetInput & { after?: number } = {}): Stream {
+    return this.stream(runBytesStreamPath(sessionId, input));
   }
 
   ds<T>(sessionId: string, method: string, body?: unknown): Promise<T> {

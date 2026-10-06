@@ -1,4 +1,4 @@
-import { type RunClosedBy, type RunOutputFilter, type RunOutputLine, type RunStatusEvent, type RunView, type RunWaitAnswer } from "@telar/engine-client";
+import { type RunBytesFrame, type RunClosedBy, type RunOutputFilter, type RunOutputLine, type RunStatusEvent, type RunView, type RunWaitAnswer } from "@telar/engine-client";
 import os from "node:os";
 import path from "node:path";
 import { nullRunJournal, type RunJournal, type RunRecord } from "./journal";
@@ -20,6 +20,7 @@ export class RunManager {
   private readonly runs = new Map<string, LiveRun>();
   private readonly opening = new Set<LiveRun>();
   private readonly watchers = new Set<(event: RunStatusEvent) => void>();
+  private readonly byteWatchers = new Set<(terminalId: string, frame: RunBytesFrame) => void>();
   private readonly pending = new Set<Promise<unknown>>();
   private shuttingDown = false;
   private readonly now: () => number;
@@ -147,6 +148,13 @@ export class RunManager {
     this.watchers.add(listener);
     return () => {
       this.watchers.delete(listener);
+    };
+  }
+
+  watchBytes(listener: (terminalId: string, frame: RunBytesFrame) => void): () => void {
+    this.byteWatchers.add(listener);
+    return () => {
+      this.byteWatchers.delete(listener);
     };
   }
 
@@ -529,7 +537,14 @@ export class RunManager {
       run.byteChars -= gone.length;
       run.bytesDropped += 1;
     }
-    return run.bytesDropped + run.bytes.length;
+    const cursor = run.bytesDropped + run.bytes.length;
+    for (const watcher of this.byteWatchers) {
+      try {
+        watcher(run.terminalId, { type: "run.bytes", data: text, cursor, dropped: run.bytesDropped });
+      } catch {
+      }
+    }
+    return cursor;
   }
 
   private pollReadiness(run: LiveRun): void {

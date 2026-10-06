@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { hostIsAllowed } from "../../platform/http/host";
 import { fail, ok, type Route } from "../../platform/http/route";
 import type { DeviceRole } from "@telar/engine-client";
 import type { Presence } from "./presence";
@@ -10,7 +11,7 @@ const OBSERVER_METHODS = new Set(["GET", "HEAD"]);
 export type Credentials = { authorization?: string | null; deviceCookie?: string | null; hostHeader?: string | null };
 export type AccessDecision =
   | { allow: true; deviceId?: string; role?: DeviceRole }
-  | { allow: false; code: "cockpit_unauthorized" | "cockpit_forbidden" };
+  | { allow: false; code: "cockpit_unauthorized" | "cockpit_forbidden" | "cockpit_misdirected" };
 
 function isHostSecret(candidate: string | null | undefined, secret: string | undefined): boolean {
   if (!secret || typeof candidate !== "string" || candidate.length !== secret.length) return false;
@@ -26,7 +27,12 @@ function identifyDevice(file: RemoteFile, credentials: Credentials): PairedDevic
 const isHostCaller = (credentials: Credentials, secret: string | undefined): boolean =>
   isHostSecret(credentials.hostHeader, secret) || isHostSecret(credentials.deviceCookie, secret);
 
-export function decideAccess(file: RemoteFile, request: Credentials & { pathname: string; method: string }, hostSecret: string | undefined): AccessDecision {
+export function decideAccess(
+  file: RemoteFile,
+  request: Credentials & { pathname: string; method: string; host?: string | null },
+  hostSecret: string | undefined,
+): AccessDecision {
+  if (!hostIsAllowed(request.host)) return { allow: false, code: "cockpit_misdirected" };
   if (!file.requireAuth || EXEMPT_PATHS.has(request.pathname)) return { allow: true };
   if (isHostCaller(request, hostSecret)) return { allow: true, role: "full" };
   const device = identifyDevice(file, request);
@@ -52,7 +58,7 @@ export function authRoutes(store: RemoteStore, presence: Presence, hostSecret: (
         const pathname = text(body.pathname);
         const method = text(body.method);
         if (!pathname || !method) return fail(400, "invalid_request", "pathname and method are required.");
-        const decision = decideAccess(store.read(), { ...credentialsOf(body), pathname, method }, hostSecret());
+        const decision = decideAccess(store.read(), { ...credentialsOf(body), pathname, method, host: text(body.host) }, hostSecret());
         if (decision.allow && decision.deviceId) {
           presence.seen(decision.deviceId);
           store.touchDevice(decision.deviceId);

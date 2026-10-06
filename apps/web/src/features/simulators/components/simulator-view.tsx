@@ -283,7 +283,7 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
                 )}
               </div>
             </DeviceFrame>
-            {watch && <p className="pointer-events-none absolute inset-x-0 bottom-2 px-4 text-center text-2xs text-muted-foreground">Touch doesn't reach watch simulators; scroll over the screen to turn the Digital Crown.</p>}
+            {watch && <p className="pointer-events-none absolute inset-x-0 bottom-2 px-4 text-center text-2xs text-muted-foreground">{"Touch doesn't reach watch simulators; scroll over the screen to turn the Digital Crown."}</p>}
             {status.state !== "streaming" && <StreamOverlay status={status} onReconnect={() => setAttempt((count) => count + 1)} />}
           </div>
         )}

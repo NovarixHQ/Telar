@@ -1,6 +1,7 @@
 type DesktopApp = {
   relaunch: () => Promise<void>;
   openWindow?: (path: string) => Promise<{ ok: boolean; error?: string }>;
+  setUnread?: (count: number, openUnread: boolean) => Promise<void>;
 };
 
 export function desktopApp(): DesktopApp | undefined {

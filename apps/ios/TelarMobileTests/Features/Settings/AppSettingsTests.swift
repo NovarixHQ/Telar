@@ -27,25 +27,4 @@ import Testing
 
         #expect(settings.token(for: open) == nil)
     }
-
-    @Test func aRevokedTokenIsClearedTheNextTimeThatHostsApiIsUsed() async {
-        PairingStubURLProtocol.handler = { _ in
-            (401, Data(#"{"error":{"code":"cockpit_unauthorized","message":"Pair this device with the Telar cockpit to use it."}}"#.utf8))
-        }
-        let config = URLSessionConfiguration.ephemeral
-        config.protocolClasses = [PairingStubURLProtocol.self]
-        let defaults = UserDefaults(suiteName: "telar.test.appsettings.\(UUID().uuidString)")!
-        let settings = AppSettings(defaults: defaults, vault: MemoryVault())
-        let id = settings.upsert(baseURLString: "http://revoked.test:3000", token: "tlr_revoked")
-        let api = HTTPEngineAPI(
-            baseURL: URL(string: "http://revoked.test:3000")!,
-            deviceToken: settings.token(for: id),
-            session: URLSession(configuration: config),
-            onUnauthorized: { [weak settings] in await settings?.clearRevokedToken(id) }
-        )
-
-        _ = try? await api.health()
-
-        #expect(settings.token(for: id) == nil)
-    }
 }

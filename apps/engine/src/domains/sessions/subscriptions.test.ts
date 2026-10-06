@@ -163,7 +163,7 @@ test("failed, stopped and parked each wake with their own reason; a policy-resol
   expect(failed!.notification!.kind).toBe("wake");
   expect(notice(parked!)).not.toContain("- db (choice)");
   expect(notice(parked!)).toContain('sessions_read(sessionId: "session_two", runId: "run_p")');
-  expect(notice(parked!)).toContain("sessions_resolve_request");
+  expect(notice(parked!)).toContain("sessions_requests(");
 
   // Under `auto`, a command resolves itself — nothing parked, nothing to wake for.
   store.lifecycle.updateSession("session_two", { runtimeMode: "auto" });
@@ -213,7 +213,7 @@ test("a parked request's notice carries NO fields — only what it is, and the t
   expect(notice(parked!)).not.toContain("c".repeat(300));
   // Both calls, and a notice that stays one however big the request was.
   expect(notice(parked!)).toContain('sessions_read(sessionId: "session_two", runId: "run_many")');
-  expect(notice(parked!)).toContain("sessions_resolve_request");
+  expect(notice(parked!)).toContain("sessions_requests(");
   expect(notice(parked!).length).toBeLessThan(800);
 
   // The length does not follow the payload: ten times the fields gives the same notice, to the character.

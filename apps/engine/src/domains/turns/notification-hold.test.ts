@@ -113,7 +113,7 @@ test("a waiting notification is re-announced at most twice; the third stays pend
   expect(rewritten.notification!.requestId).toBe("req_c");
   expect(store.queries.turns("session_host").filter((turn) => turn.notification !== undefined)).toHaveLength(1);
 
-  // A third goes to the mailbox, where `sessions_status` reports it.
+  // A third goes to the mailbox, where `sessions_read` view "status" reports it.
   store.requestGate.resolve("session_a", "req_b", { decision: "accept", answers: { req_b: "a" } });
   store.requestGate.resolve("session_a", "req_c", { decision: "accept", answers: { req_c: "a" } });
   store.turnLifecycle.completeTurn("session_a", "run_b", token, { text: "done" });

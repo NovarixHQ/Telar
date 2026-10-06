@@ -56,7 +56,7 @@ function wakeMessage(
       lines.push(
         `[wake: waiting] ${who} — is WAITING on a request (request ${request.id}, kind ${request.detail.kind}): ${clampWake(requestTitle(request.detail))}`,
         "—",
-        `Read it with sessions_read(sessionId: "${target.id}", runId: "${turn.runId}") — the request's own fields are there. Answer with sessions_resolve_request(sessionId: "${target.id}", requestId: "${request.id}", decision, answers?). Only answer what you actually know; decline or leave it for the user otherwise.`,
+        `Read it with sessions_read(sessionId: "${target.id}", runId: "${turn.runId}") — the request's own fields are there. Answer with sessions_requests(sessionId: "${target.id}", requestId: "${request.id}", decision, answers?). Only answer what you actually know; decline or leave it for the user otherwise.`,
       );
       return lines.join("\n");
     }
@@ -436,7 +436,7 @@ export class TurnWakes {
     this.deps.mailbox.setPending(sessionId, []);
   }
 
-  /** What the cap kept from being pushed again, for `sessions_status`. */
+  /** What the cap kept from being pushed again, for `sessions_read` view "status". */
   pendingNotifications(sessionId: string): NotificationDetail[] {
     this.deps.records.require(sessionId);
     return structuredClone(this.deps.mailbox.pending(sessionId));

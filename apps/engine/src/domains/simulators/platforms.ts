@@ -31,7 +31,6 @@ const listDir = (dir: string) => {
   }
 };
 
-/** Undefined when no Xcode has simctl; a developerDir when the selected one lacks it and an Xcode in Applications has it. */
 export async function findXcode(deps: PlatformDeps): Promise<{ developerDir?: string } | undefined> {
   const { code } = await deps.run("xcrun", ["--find", "simctl"], { env: deps.env, timeoutMs: 10_000 });
   if (code === 0) return {};
@@ -46,7 +45,6 @@ export async function findXcode(deps: PlatformDeps): Promise<{ developerDir?: st
   return undefined;
 }
 
-/** Mirrors where the hub looks for the Android SDK. */
 function hasAndroidSdk(deps: PlatformDeps): boolean {
   const root = deps.env.ANDROID_HOME || deps.env.ANDROID_SDK_ROOT || path.join(deps.home ?? os.homedir(), "Library", "Android", "sdk");
   return (deps.exists ?? fs.existsSync)(root);
@@ -60,7 +58,6 @@ export async function hostPlatforms(deps: PlatformDeps): Promise<HostPlatforms> 
   return { availability: [{ platform: "ios", available: true }], android, ...xcode };
 }
 
-/** Missing-toolchain errors from the hub repeat what availability already says. */
 export function hubErrors(errors: ReadonlyArray<{ message?: string }>, host: HostPlatforms): string[] {
   const ios = host.availability.some((entry) => entry.platform === "ios" && entry.available);
   return errors.flatMap(({ message }) => {

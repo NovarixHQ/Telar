@@ -48,7 +48,6 @@ export function deviceShape(simulator: Pick<SimulatorSummary, "name" | "version"
 
 const depthOf = (shape: DeviceShape) => Math.max(...shape.buttons.map((button) => button.depth));
 
-/** The largest screen at `aspect` whose device, buttons included, fits `room`; `unit` is its short side. */
 export function fitDevice(shape: DeviceShape, aspect: number, room: Box): Box & { unit: number } {
   if (room.width <= 0 || room.height <= 0 || aspect <= 0) return { width: 0, height: 0, unit: 0 };
   const across = aspect >= 1 ? aspect : 1;

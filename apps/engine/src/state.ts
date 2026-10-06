@@ -643,6 +643,7 @@ export class EngineStore {
       waitingSubscription: (subscriber, target) =>
         this.subscriptions.readSubscriptions().some((sub) => sub.subscriberSessionId === subscriber && sub.targetSessionId === target && sub.events.includes("turn_completed")),
       cohortHolds: (id, sender) => this.subscriptions.cohortHolds(id, sender),
+      cohortBlocked: (subscriber, member) => this.subscriptions.cohortBlocked(subscriber, member),
       recordCohortMessage: (id, sender, intent, runId, text, spent) => this.subscriptions.recordCohortMessage(id, sender, intent, runId, text, spent),
       agentTurnModel: (id, choice) => {
         const session = this.records.get(id);

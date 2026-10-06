@@ -381,9 +381,15 @@ export class SessionSubscriptions {
     );
   }
 
+  cohortBlocked(subscriberSessionId: string, memberSessionId: string): boolean {
+    return this.readCohorts().some(
+      (cohort) => !cohort.ready && cohort.subscriberSessionId === subscriberSessionId && cohort.members.some((member) => member.sessionId === memberSessionId && member.blocked),
+    );
+  }
+
   /**
    * From a member, a `result` makes it done and a `blocker` holds it pending until answered;
-   * from the subscriber to a member, that answer releases the blocker.
+   * from the subscriber to a member, only a `task` answers it, since nothing else wakes the member.
    */
   recordCohortMessage(recipientSessionId: string, senderSessionId: string, intent: NonNullable<Turn["agentIntent"]>, runId: string, body: string, spent?: string): void {
     if (intent === "result") {
@@ -396,6 +402,7 @@ export class SessionSubscriptions {
     } else if (intent === "blocker") {
       this.updateCohortMembers(senderSessionId, recipientSessionId, (member) => (member.outcome || member.blocked ? undefined : { ...member, blocked: true }));
     }
+    if (intent !== "task") return;
     this.updateCohortMembers(recipientSessionId, senderSessionId, (member) => {
       if (!member.blocked) return undefined;
       const { blocked: _answered, ...rest } = member;

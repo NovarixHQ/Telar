@@ -253,6 +253,26 @@ test("on an errand, done is a result, a failure or a stop — never a turn that 
   expect(turn!.notification!.body).toContain('session_b "worker b" — FAILED');
 });
 
+test("only a task answers a blocker: a report to the blocked member is refused and leaves it blocked", () => {
+  const { store } = setup();
+  const a = start(store, "session_a", "run_a");
+  store.subscriptions.subscribeCohort("session_host", { sessionIds: ["session_a"] });
+  a.send("blocker", "Which database?");
+  a.complete("waiting on the host");
+  const host = store.claims.claimTurn("session_host", "worker_host")!;
+  store.turnLifecycle.markRunning("session_host", host.runId, host.claim!.token);
+  const proof = { sessionId: "session_host", runId: host.runId, claimToken: host.claim!.token };
+  const blocked = () => store.subscriptions.cohortsFor("session_host")[0]!.members[0]!.blocked;
+
+  expect(() => store.intake.submitAgentTurn("session_a", { runId: "run_report", input: "postgres", intent: "report" }, proof)).toThrow('Answer with intent: "task"');
+  expect(store.queries.turns("session_a").some((turn) => turn.runId === "run_report")).toBe(false);
+  expect(blocked()).toBe(true);
+
+  const answer = store.intake.submitAgentTurn("session_a", { runId: "run_task", input: "postgres", intent: "task" }, proof);
+  expect(answer.turn).toMatchObject({ agentDelivery: "wake", state: "queued" });
+  expect(blocked()).toBeUndefined();
+});
+
 test("a failed turn ends even a blocked member's wait", () => {
   const { store } = setup();
   const a = start(store, "session_a", "run_a");

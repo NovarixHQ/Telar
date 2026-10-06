@@ -97,6 +97,7 @@ type IntakeDeps = {
   rewriteNotificationItem: (sessionId: string, turn: Turn) => void;
   waitingSubscription: (subscriberSessionId: string, targetSessionId: string) => boolean;
   cohortHolds: (sessionId: string, senderSessionId: string) => boolean;
+  cohortBlocked: (subscriberSessionId: string, memberSessionId: string) => boolean;
   recordCohortMessage: (sessionId: string, senderSessionId: string, intent: NonNullable<Turn["agentIntent"]>, runId: string, text: string, spent?: string) => void;
   agentTurnModel: (sessionId: string, choice: AgentModelChoice) => TurnModelSelection | undefined;
   runSpend: (sessionId: string, runId: string) => RunSpend | undefined;
@@ -190,6 +191,9 @@ export class TurnIntake {
       }
       const intent = input.intent ?? (sender.sessionId && this.assignedBy(sessionId, sender.sessionId) ? "task" : "report");
       if (input.model && intent !== "task") throw new EngineStateError("invalid_request", "model and effort go with a task; a report, result or blocker runs nothing.");
+      if (intent === "report" && sender.sessionId && this.deps.cohortBlocked(sender.sessionId, sessionId)) {
+        throw new EngineStateError("conflict", `${sessionId} is waiting on your answer to its blocker, and a report does not wake it. Answer with intent: "task".`);
+      }
       const model = input.model ? this.deps.agentTurnModel(sessionId, input.model) : undefined;
       if ((intent === "result" || intent === "blocker") && sender.sessionId) this.assertAnswersAnAssignment(sessionId, sender.sessionId, intent);
       const spent = intent === "result" && proof && sender.sessionId ? spendPhrase(this.deps.runSpend(sender.sessionId, proof.runId)) : undefined;

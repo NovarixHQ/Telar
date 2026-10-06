@@ -167,7 +167,9 @@ export class TurnWakes {
         runId: turn.runId,
         ...(context.request ? { requestId: context.request.id } : {}),
       };
-      const interrupting = (subscription.completionWake ?? "settled_only") === "always" && this.hasLiveTurn(subscriberId);
+      // The target is stuck until someone answers, so a parked request goes into a busy subscriber's turn, not its mailbox.
+      const steering = kind === "request_opened" && this.hasLiveTurn(subscriberId);
+      const interrupting = steering || ((subscription.completionWake ?? "settled_only") === "always" && this.hasLiveTurn(subscriberId));
       if (!interrupting && this.mergeIntoWaitingResult(subscriberId, targetSessionId, notification, kind)) {
         if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);
         continue;
@@ -200,12 +202,12 @@ export class TurnWakes {
         if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);
         continue;
       }
-      if ((subscription.completionWake ?? "settled_only") === "settled_only" && this.hasLiveTurn(subscriberId)) {
+      if (!steering && (subscription.completionWake ?? "settled_only") === "settled_only" && this.hasLiveTurn(subscriberId)) {
         this.deps.mailbox.hold(subscriberId, notification);
         if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);
         continue;
       }
-      if (this.deps.mailbox.pending(subscriberId).length > 0) {
+      if (!steering && this.deps.mailbox.pending(subscriberId).length > 0) {
         this.deps.mailbox.hold(subscriberId, notification);
         this.flushPendingNotifications(subscriberId);
         if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);

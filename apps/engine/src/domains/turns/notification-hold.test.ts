@@ -85,33 +85,6 @@ test("everything held for one session arrives as ONE notification listing it", (
   expect((row.detail as Extract<typeof row.detail, { type: "notification" }>).notification).toEqual(detail);
 });
 
-test("two facts about ONE run collapse to the newest rather than piling up", () => {
-  const { store } = setup();
-  store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: false });
-  const host = busy(store);
-
-  // Two events about one run: a request parks, then the turn ends.
-  store.intake.submitTurn("session_a", { runId: "run_a", input: "work" });
-  const token = store.claims.claimTurn("session_a", "worker_child")!.claim!.token;
-  store.turnLifecycle.markRunning("session_a", "run_a", token);
-  store.lifecycle.updateSession("session_a", { runtimeMode: "approval-required" });
-  store.requestGate.open("session_a", "run_a", token, {
-    requestId: "req_one",
-    kind: "user_input",
-    detail: { kind: "user_input", prompt: "Which database?", fields: [{ key: "db", label: "Database", kind: "choice", choices: ["postgres"] }] },
-  });
-  expect(store.wakes.pendingNotifications("session_host")).toHaveLength(1);
-  store.requestGate.resolve("session_a", "req_one", { decision: "accept", answers: { db: "postgres" } });
-  store.turnLifecycle.completeTurn("session_a", "run_a", token, { text: "done" });
-
-  // Different kinds of one run stay separate entries, so this asserts on the ending.
-  const pending = store.wakes.pendingNotifications("session_host");
-  expect(pending.some((each) => each.wakeKind === "turn_completed" && each.runId === "run_a")).toBe(true);
-
-  store.turnLifecycle.completeTurn("session_host", host.runId, host.token, { text: "ok" });
-  expect(notifications(store)).toHaveLength(1);
-});
-
 test("a waiting notification is re-announced at most twice; the third stays pending and pollable", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: false });

@@ -163,7 +163,7 @@ export class TurnIntake {
         return { turn: structuredClone(turn), replayed: false };
       }
       // A compaction is a gesture on the session, not words for the running model; it always waits its turn.
-      const interrupts = turn.origin !== "session" || turn.agentIntent === "task" || turn.agentIntent === "blocker";
+      const interrupts = turn.origin !== "session" || turn.agentIntent === "task" || turn.agentIntent === "blocker" || turn.wakeReason?.kind === "request_opened";
       if (kind !== "compact" && interrupts && !session.paused && PROVIDER_CAPABILITIES[session.driver].liveSteering) {
         const steered = this.steerIfRunning(sessionId, turn.runId);
         if (steered) return { turn: steered, replayed: false };

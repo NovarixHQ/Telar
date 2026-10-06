@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { EngineStore } from "../../../state";
 import { cleanUp, call, capabilityOver, engine, wall } from "./test-helpers";
-import { waitForDelegation } from "./wait";
+import { delegationAnswer, waitForDelegation } from "./wait";
 
 afterEach(cleanUp);
 
@@ -24,7 +24,15 @@ function orchestration() {
     void store.intake.submitAgentTurn(host.id, { runId: `run_${intent}`, input, intent }, { sessionId: child.id, runId: "run_task", claimToken: childToken });
   let clock = 0;
   const after = (act: () => void) => ({ now: () => clock, pause: async (ms: number) => void ((clock += ms), act()) });
-  return { store, host, child, capability: capabilityOver(store, { sessionId: host.id }), reply, after, elapsed: () => clock, endTurn };
+  const park = () => {
+    store.lifecycle.updateSession(child.id, { runtimeMode: "approval-required" });
+    store.requestGate.open(child.id, "run_task", childToken, {
+      requestId: "req_db",
+      kind: "user_input",
+      detail: { kind: "user_input", prompt: "Which database?", fields: [{ key: "db", label: "Database", kind: "choice", choices: ["postgres"] }] },
+    });
+  };
+  return { store, host, child, capability: capabilityOver(store, { sessionId: host.id }), reply, park, after, elapsed: () => clock, endTurn };
 }
 
 describe("waiting on a delegated task", () => {
@@ -58,6 +66,16 @@ describe("waiting on a delegated task", () => {
     const waited = await waitForDelegation(capability, child.id, 60, after(() => reply("blocker", "Which parser version?")));
     expect(waited).toMatchObject({ blocked: true });
     expect(elapsed()).toBe(1_000);
+  });
+
+  test("a parked request ends the wait at once and names it, so it is not left waiting out the clock", async () => {
+    const { store, host, child, capability, park, after, elapsed } = orchestration();
+    const waited = await waitForDelegation(capability, child.id, 600, after(park));
+
+    expect(waited).toMatchObject({ parked: { id: "req_db", state: "open" } });
+    expect(elapsed()).toBe(1_000);
+    expect(delegationAnswer(waited)).toMatchObject({ waitingOnRequest: { requestId: "req_db", kind: "user_input", title: "Which database?" } });
+    expect(store.subscriptions.cohortsFor(host.id).map((cohort) => cohort.members[0]!.sessionId)).toEqual([child.id]);
   });
 });
 

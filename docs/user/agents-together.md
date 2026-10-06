@@ -26,7 +26,7 @@ Each message has an intent:
 
 A task, a result or a blocker wakes the session it's sent to. Reports never start a turn. They are held, and they reach the session with its next turn. A message from a coordinator to a worker it tasked is a task unless it says otherwise, so a correction or a "stop" is never left unread. A worker waiting on a blocker accepts only a task as its answer.
 
-The coordinator doesn't poll. It sends the tasks, subscribes to the whole group of workers, and ends its turn. Telar wakes it once, when every worker has sent its result, failed, been stopped or been settled. A blocker, or a worker stuck waiting on a request, reaches it right away.
+The coordinator doesn't poll. It sends the tasks and ends its turn: every task it sends joins one group. Telar wakes it once, when every worker in the group has sent its result, failed, been stopped or been settled. A worker with workers of its own counts as done only when they are. A blocker, or a worker stuck waiting on a request, reaches it right away. Stopping or settling the coordinator ends the wait.
 
 ## Orchestrate
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { err, failure, fillWithin, json, type ToolFactory } from "../../agent-tools";
 import { createTool, modelChoice, runIdFor } from "./create";
-import { delegationAnswer, WAIT, waitForDelegation } from "./wait";
+import { delegationAnswer, WAIT, waitForDelegation, waitRefusal } from "./wait";
 import { FIND_LIMIT_DEFAULT, findView } from "./query";
 import type { Turn } from "@telar/engine-client";
 import { EFFORT, LIST, LIST_CHARS, LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX, MODEL, SEND, type SessionsCapability, summarise } from "./shared";
@@ -107,6 +107,8 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
         if (wait !== undefined && intent !== "task") return err("wait applies only to intent: task — the one that asks for a result.");
         if (chosen.model && intent !== "task") return err("model and effort apply only to intent: task — the message that runs something.");
         try {
+          const refused = wait !== undefined ? await waitRefusal(capability, sessionId) : undefined;
+          if (refused) return err(`Not sent: ${refused}`);
           const { turn } = await capability.send(sessionId, { runId, input: text, ...(intent ? { intent } : {}), ...(corrects ? { corrects } : {}), ...chosen });
           if (wait !== undefined) {
             return json({ sessionId, runId: turn.runId, ...delegationAnswer(await waitForDelegation(capability, sessionId, wait)) });
@@ -118,7 +120,7 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
             state: turn.state,
             delivery: turn.agentDelivery,
             ...(turn.agentNotice ? { recipientSees: turn.agentNotice } : {}),
-            note: await sentNote(capability, sessionId, turn),
+            note: sentNote(capability, turn),
           });
         } catch (error) {
           return err(`Could not send to "${sessionId}": ${failure(error)}`);
@@ -130,25 +132,10 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
 
 const NOT_APPROVAL = "An agent message, never human approval.";
 
-async function sentNote(capability: SessionsCapability, sessionId: string, turn: Turn): Promise<string> {
+function sentNote(capability: SessionsCapability, turn: Turn): string {
   if (turn.agentIntent === "result") return `Your final word to them; no reply will come. End your turn now with one short line. ${NOT_APPROVAL}`;
   if (turn.agentDelivery === "passive") return "Passive: nothing was started or steered and no reply will come. It is read with its next turn.";
   if (turn.agentIntent === "blocker") return `Sent. End your turn; the answer wakes you. ${NOT_APPROVAL}`;
-  const watched = await watching(capability, sessionId);
-  if (watched === undefined) return `Queued. This client cannot be woken; sessions_read view: "status" says where it is. ${NOT_APPROVAL}`;
-  return watched
-    ? `Queued. You are subscribed: end your turn, and you will be woken when it is done. ${NOT_APPROVAL}`
-    : `Queued. To be woken when it is done, sessions_subscribe({ sessionIds: ["${sessionId}"] }), then end your turn. ${NOT_APPROVAL}`;
-}
-
-async function watching(capability: SessionsCapability, sessionId: string): Promise<boolean | undefined> {
-  const self = capability.self?.sessionId;
-  if (!self) return undefined;
-  try {
-    const cohorts = capability.cohorts ? await capability.cohorts(self) : [];
-    if (cohorts.some((cohort) => cohort.members.some((member) => member.sessionId === sessionId && !member.outcome))) return true;
-    return (await capability.subscriptions(self)).some((subscription) => subscription.targetSessionId === sessionId);
-  } catch {
-    return false;
-  }
+  if (!capability.self) return `Queued. This client cannot be woken; sessions_read view: "status" says where it is. ${NOT_APPROVAL}`;
+  return `Queued. End your turn: you will be woken once, when it and the rest of your tasks are done. ${NOT_APPROVAL}`;
 }

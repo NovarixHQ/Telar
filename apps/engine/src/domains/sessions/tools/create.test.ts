@@ -71,13 +71,13 @@ describe("sessions_create with tasks", () => {
     expect(store.live.all().sessions.length).toBe(before);
   });
 
-  test("a caller that is not a session gets its workers tasked, and is told it is not subscribed", async () => {
+  test("a caller that is not a session gets its workers tasked, and is told it cannot be woken", async () => {
     const { store, projectId } = engine();
     const created = await call(wall(store), "sessions_create", { projectId, envMode: "local", tasks: [{ title: "a", task: "Do a." }] });
 
     expect(created.json!.cohort).toBeUndefined();
     expect((created.json!.workers as Worker[])[0]!.runId).toBeDefined();
-    expect(String(created.json!.note)).toContain("not subscribed");
+    expect(String(created.json!.note)).toContain("cannot be woken");
   });
 });
 

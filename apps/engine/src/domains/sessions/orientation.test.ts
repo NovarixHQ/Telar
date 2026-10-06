@@ -494,7 +494,7 @@ test("the orchestrate skill is a provider-readable skill that names no repo or p
   const text = ORCHESTRATE_SKILL.replace(/\s+/g, " ");
   expect(text).toContain("the whole wave in ONE call");
   expect(text).toContain("subscribes you to all of them as one cohort");
-  expect(text).toContain("Then END YOUR TURN. No per-session creates, sends or subscribes");
+  expect(text).toContain("Every task you send joins the same cohort");
   expect(text).toContain("never reply just to acknowledge one");
   expect(text).toContain("`sessions_send` it as a `task`; that is the default to a session you tasked");
   expect(text).toContain("Never stack PRs");

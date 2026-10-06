@@ -326,7 +326,7 @@ export class EngineStore {
       delegatesOf: (id) => this.kernel.executionStore.delegatesOf(id),
       assignedTurns: (id) => this.sessionQueues.assigned(id),
       settleDelegatedAfterHours: () => this.settings.inbox().settleDelegatedAfterHours,
-      reviewCohorts: () => this.subscriptions.reviewCohorts(),
+      settled: (id) => this.subscriptions.settled(id),
       onShelfGrew: () => this.enforceTerminalLimitSoon(),
       stopBackgroundTasks: (id, reason) => this.worker.stopBackgroundTasks(id, reason),
       releaseBrowser: (id, reason) => this.browser.release(id, reason),
@@ -615,6 +615,7 @@ export class EngineStore {
       flushPendingNotifications: (id) => this.wakes.flushPendingNotifications(id),
       evaluateDelegationSettling: (id) => this.settler.evaluate(id),
       stopBackgroundTasks: (id) => this.worker.stopBackgroundTasks(id),
+      disposeCohorts: (id) => this.subscriptions.disposeCohortsOf(id),
       announceStoppedClaims: (cancellations) => this.announceStoppedClaims(cancellations),
     });
   }

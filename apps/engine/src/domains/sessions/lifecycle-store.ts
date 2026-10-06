@@ -383,8 +383,7 @@ export class SessionLifecycle {
       next.updatedAt = this.kernel.now();
       this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(next));
       this.host.appendEvent(sessionId, { type: "session.updated", session: next });
-      // A member settled before it reported ends its cohort's wait (`reviewCohorts`).
-      if (next.settledOverride === "settled" && session.settledOverride !== "settled") this.subscriptions.reviewCohorts();
+      if (next.settledOverride === "settled" && session.settledOverride !== "settled") this.subscriptions.settled(sessionId);
       return structuredClone(next);
     });
   }

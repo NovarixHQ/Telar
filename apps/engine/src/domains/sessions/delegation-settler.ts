@@ -20,7 +20,7 @@ type SettlerDeps = {
   delegatesOf: (coordinatorSessionId: string) => string[];
   assignedTurns: (sessionId: string) => Turn[];
   settleDelegatedAfterHours: () => number | null;
-  reviewCohorts: () => void;
+  settled: (sessionId: string) => void;
   onShelfGrew: () => void;
   stopBackgroundTasks: (sessionId: string, reason: string) => number;
   releaseBrowser: (sessionId: string, reason: string) => Promise<unknown> | undefined;
@@ -135,7 +135,7 @@ export class SessionSettler {
     this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(next));
     this.kernel.appendEvent(sessionId, { type: "session.settled", settledBy });
     this.kernel.appendEvent(sessionId, { type: "session.updated", session: next });
-    this.deps.reviewCohorts();
+    this.deps.settled(sessionId);
     this.deps.onShelfGrew();
   }
 

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import type { Session } from "@telar/engine-client";
 import { err, failure, json, type ToolFactory } from "../../agent-tools";
-import { delegationAnswer, WAIT, waitForDelegation } from "./wait";
+import { delegationAnswer, WAIT, waitForDelegation, waitRefusal } from "./wait";
 import { CREATE, EFFORT, MODEL, type SessionsCapability, summariseOne } from "./shared";
 
 const MAX_BATCH = 20;
@@ -88,6 +88,8 @@ async function createOne(capability: SessionsCapability, args: Record<string, un
   const briefRunId = runIdFor("sessions_create", toolCallId);
   if (typeof args.wait === "number" && person) return err("wait does not apply to a person's session: it will never report back to you.");
   if (typeof args.wait === "number" && (typeof args.task !== "string" || !args.task)) return err("wait needs a task: there is nothing to wait for.");
+  const refused = typeof args.wait === "number" ? await waitRefusal(capability, undefined) : undefined;
+  if (refused) return err(`Not created: ${refused}`);
   let session: Session;
   try {
     session = await capability.create({
@@ -130,7 +132,7 @@ async function createOne(capability: SessionsCapability, args: Record<string, un
       runId: turn.runId,
       taskState: turn.state,
       ...(turn.agentNotice ? { recipientSees: turn.agentNotice } : {}),
-      note: `${where} Your task is queued as ${turn.runId}; its model was handed the notice above. To be woken when it is done, sessions_subscribe({ sessionIds: ["${session.id}"] }), then end your turn.`,
+      note: `${where} Your task is queued as ${turn.runId}; its model was handed the notice above. End your turn: you will be woken when it is done.`,
     });
   } catch (error) {
     return err(`Created ${session.id}, but the task was not delivered: ${failure(error)}. Send it with sessions_send intent task.`);
@@ -167,22 +169,18 @@ async function createMany(capability: SessionsCapability, shared: Shared, tasks:
   const failed = workers.length - tasked.length;
   const failedNote = failed > 0 ? ` ${failed} of ${workers.length} did not start; each says why.` : "";
   if (tasked.length === 0) return json({ workers, note: `Nothing started.${failedNote}` });
-  const subscribed = await subscribeAll(capability, tasked);
+  const cohort = await cohortOf(capability, tasked);
   return json({
     workers,
-    ...("cohort" in subscribed ? { cohort: subscribed.cohort } : {}),
-    note: "cohort" in subscribed
+    ...(cohort ? { cohort } : {}),
+    note: cohort
       ? `${tasked.length} tasked and subscribed as one cohort: ONE notification when all are done, quoting each result; a blocker reaches you at once.${failedNote} End your turn now.`
-      : `${tasked.length} tasked, but not subscribed: ${subscribed.unsubscribed}.${failedNote}`,
+      : `${tasked.length} tasked, but this client cannot be woken.${failedNote}`,
   });
 }
 
-async function subscribeAll(capability: SessionsCapability, sessionIds: string[]): Promise<{ cohort: { id: string; expiresAt: number } } | { unsubscribed: string }> {
-  if (!capability.self || !capability.subscribeCohort) return { unsubscribed: "this client is not a session that can be woken" };
-  try {
-    const cohort = await capability.subscribeCohort(capability.self.sessionId, { sessionIds });
-    return { cohort: { id: cohort.id, expiresAt: cohort.expiresAt } };
-  } catch (error) {
-    return { unsubscribed: `${failure(error)} — call sessions_subscribe with their ids` };
-  }
+async function cohortOf(capability: SessionsCapability, sessionIds: string[]): Promise<{ id: string; expiresAt: number } | undefined> {
+  if (!capability.self || !capability.cohorts) return undefined;
+  const cohort = (await capability.cohorts(capability.self.sessionId)).find((each) => !each.ready && each.members.some((member) => sessionIds.includes(member.sessionId)));
+  return cohort ? { id: cohort.id, expiresAt: cohort.expiresAt } : undefined;
 }

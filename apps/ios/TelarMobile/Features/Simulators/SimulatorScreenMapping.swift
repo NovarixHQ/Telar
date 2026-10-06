@@ -1,6 +1,5 @@
 import CoreGraphics
 
-/// Places the hub's portrait framebuffer on screen and maps touches back into it.
 struct SimulatorScreenMapping: Equatable {
     var frame: CGSize
     var orientation: SimulatorOrientation
@@ -33,7 +32,6 @@ struct SimulatorScreenMapping: Equatable {
                       width: size.width, height: size.height)
     }
 
-    /// A point in the container, as 0…1 framebuffer coordinates the hub's touch input expects.
     func devicePoint(_ location: CGPoint, in container: CGSize) -> CGPoint? {
         let rect = fitted(in: container)
         guard rect.width > 0, rect.height > 0 else { return nil }

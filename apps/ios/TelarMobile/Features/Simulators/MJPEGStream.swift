@@ -1,6 +1,5 @@
 import UIKit
 
-/// One streaming GET of an MJPEG body; decodes frames off the main thread and hands over only the newest.
 final class MJPEGStream: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     enum Ending: Sendable {
         case failed(Error)

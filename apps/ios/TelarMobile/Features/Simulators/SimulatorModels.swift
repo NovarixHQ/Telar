@@ -39,7 +39,6 @@ enum SimulatorOrientation: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// The hub's raw framebuffer size and the orientation the device reports; the framebuffer stays portrait when rotated.
 struct SimulatorScreen: Decodable, Equatable, Sendable {
     var width: Double
     var height: Double
@@ -86,7 +85,6 @@ enum SimulatorInput: Encodable, Equatable, Sendable {
 
     static let maxBatch = 64
 
-    /// Drops every move that a later move in the same run supersedes, keeping order and every begin and end.
     static func coalesce(_ events: [SimulatorInput]) -> [SimulatorInput] {
         events.enumerated().compactMap { index, event in
             event.isMove && index + 1 < events.count && events[index + 1].isMove ? nil : event

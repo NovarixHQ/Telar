@@ -197,7 +197,6 @@ import UIKit
 }
 
 enum SimulatorAccess {
-    /// A view-only phone may watch, but the cockpit refuses its input, so its controls are hidden.
     static func canDrive(_ api: any SimulatorsAPI) async -> Bool {
         (try? await api.remoteStatus())?.callerRole != "observer"
     }

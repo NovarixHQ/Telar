@@ -1,6 +1,5 @@
 import Foundation
 
-/// Splits a `multipart/x-mixed-replace` body into JPEG frames, using each part's Content-Length when it has one.
 struct MJPEGParser {
     private let marker: Data
     private var buffer = Data()

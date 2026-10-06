@@ -35,6 +35,10 @@ function fakeApi(initial: SimulatorsState) {
       return { sent: events.length };
     },
     simulatorStreamTicket: async () => ({ ticket: "stk_1", expiresAt: 0 }),
+    simulatorScreenshot: async (id) => {
+      calls.push(["simulatorScreenshot", id]);
+      return { data: new Uint8Array([0x89, 0x50]), contentType: "image/png" };
+    },
     simulatorDetail: async (id) => ({ detail: { id, configuration: {}, foregroundApp: null, readAt: 0 } }),
     simulatorAction: async (id, action) => {
       calls.push(["simulatorAction", id, action]);
@@ -48,8 +52,8 @@ const ready = (simulators: SimulatorSummary[]): SimulatorsState => ({ status: "r
 const button = (label: string) => document.querySelector(`[aria-label="${label}"]`) as HTMLElement | null;
 const text = (label: string) => [...document.querySelectorAll("button")].find((node) => node.textContent?.trim() === label);
 
-async function surface(state: SimulatorsState) {
-  globalThis.fetch = (async () => new Response("{}", { status: 404 })) as unknown as typeof fetch;
+async function surface(state: SimulatorsState, config?: Record<string, unknown>) {
+  globalThis.fetch = (async (url: string) => (config && String(url).includes("/config") ? Response.json(config) : new Response("{}", { status: 404 }))) as unknown as typeof fetch;
   const fake = fakeApi(state);
   const { host } = await mount(<SimulatorSurface api={fake.api} visible />);
   await flush(() => !host.textContent?.includes("Looking for simulators"));
@@ -84,7 +88,7 @@ test("Start boots the simulator and opens it in a tab that streams from the hub 
   await click(text("Start"));
   await flush(() => Boolean(button("Simulator controls")));
   expect(calls[0]).toEqual(["bootSimulator", "A1B2"]);
-  expect([...host.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual(["", "iPhone 16"]);
+  expect([...host.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual(["iPhone 16", ""]);
   await flush(() => Boolean(host.querySelector("img")));
   expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg?ticket=stk_1");
 });
@@ -129,7 +133,7 @@ test("the surface follows its tab params, so a simulator the agent opened shows 
   const fake = fakeApi(ready([iPhone(true)]));
   const { host } = await mount(<SimulatorSurface api={fake.api} visible params={{ open: "A1B2", active: "A1B2" }} onParams={() => undefined} />);
   await flush(() => Boolean(button("Simulator controls")));
-  expect([...host.querySelectorAll('[role="tab"]')].map((tab) => tab.getAttribute("aria-selected"))).toEqual(["false", "true"]);
+  expect([...host.querySelectorAll('[role="tab"]')].map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false"]);
 });
 
 test("a watch paired with an iPhone shows under it, and opens to a stream of its own without the iPhone's Home and Rotate", async () => {
@@ -144,6 +148,39 @@ test("a watch paired with an iPhone shows under it, and opens to a stream of its
   expect(button("Rotate")).toBeNull();
   await flush(() => Boolean(host.querySelector("img")));
   expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/simulators/hub/vendor/serve-sim/helper/W1/stream.mjpeg?ticket=stk_1");
+});
+
+test("the stream is drawn inside a device frame", async () => {
+  const { host } = await surface(ready([iPhone(true)]));
+  await click(text("Open"));
+  expect(host.querySelector('[data-testid="device-frame"] [data-testid="simulator-frame"] canvas')).not.toBeNull();
+});
+
+test("a press on a turned device lands where it shows on the simulator's own screen", async () => {
+  const { sent } = await surface(ready([iPhone(true)]), { width: 1206, height: 2622, orientation: "landscape_left" });
+  await click(text("Open"));
+  const frame = document.querySelector('[data-testid="simulator-frame"]') as HTMLElement;
+  frame.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200, x: 0, y: 0, toJSON: () => ({}) });
+  await flush(() => document.querySelector("canvas")?.getAttribute("style")?.includes("rotate(90deg)") === true);
+  await act(async () => {
+    frame.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 100, clientY: 50, pointerId: 1 }));
+  });
+  await flush(() => sent().length >= 1);
+  expect(sent()).toEqual([{ type: "touch", phase: "begin", x: 0.25, y: 0.75 }]);
+});
+
+test("the toolbar copies a screenshot and opens the settings drawer", async () => {
+  const copied: unknown[] = [];
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { write: async (items: unknown[]) => void copied.push(...items) } });
+  Object.defineProperty(globalThis, "ClipboardItem", { configurable: true, writable: true, value: class { constructor(readonly items: Record<string, Blob>) {} } });
+  const { host, calls } = await surface(ready([iPhone(true)]));
+  await click(text("Open"));
+  await click(button("Copy screenshot")!);
+  await flush(() => copied.length > 0);
+  expect(calls).toContainEqual(["simulatorScreenshot", "A1B2"]);
+  expect(Object.keys((copied[0] as { items: Record<string, Blob> }).items)).toEqual(["image/png"]);
+  await click(button("Simulator settings")!);
+  expect(host.querySelector('aside[aria-label="Simulator settings"]')).not.toBeNull();
 });
 
 test("a fresh ticket keeps the playing stream", async () => {

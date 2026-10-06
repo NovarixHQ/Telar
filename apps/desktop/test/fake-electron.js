@@ -72,6 +72,9 @@ class FakeBrowserWindow extends Emitter {
   isMinimized() {
     return false;
   }
+  isFocused() {
+    return FakeBrowserWindow.focused === this;
+  }
   setTitle(title) {
     this.title = title;
   }
@@ -131,6 +134,8 @@ const electron = {
     getName: () => "Telar",
     getVersion: () => "0.0.0-test",
     quit: () => { electron.app.quits += 1; },
+    badgeCount: 0,
+    setBadgeCount: (count) => { electron.app.badgeCount = count; return true; },
   }),
   BrowserWindow: FakeBrowserWindow,
   contextBridge: { exposed: {}, exposeInMainWorld: (name, api) => { electron.contextBridge.exposed[name] = api; } },
@@ -172,6 +177,7 @@ function resetElectron() {
   electron.app.paths = {};
   electron.app.name = "Telar";
   electron.app.isPackaged = false;
+  electron.app.badgeCount = 0;
   electron.nativeTheme.shouldUseDarkColors = false;
   for (const emitter of [electron.app, electron.nativeTheme, electron.powerMonitor]) emitter.listeners.clear();
 }

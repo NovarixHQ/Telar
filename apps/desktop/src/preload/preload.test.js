@@ -19,6 +19,10 @@ describe("the bridge sends what the main process checks", () => {
     expect(lastInvoke(() => desktop.app.openWindow("/spool"))).toEqual(["telar:app:open-window", { path: "/spool" }]);
   });
 
+  test("the unread count goes to the shell as a count", () => {
+    expect(lastInvoke(() => desktop.app.setUnread(4, true))).toEqual(["telar:app:unread", { count: 4, openUnread: true }]);
+  });
+
   test("the page claims links through set-routing, and hears them on the open channel", () => {
     expect(lastInvoke(() => desktop.links.setRouting(true))).toEqual(["telar:links:set-routing", { on: true }]);
     const heard = [];

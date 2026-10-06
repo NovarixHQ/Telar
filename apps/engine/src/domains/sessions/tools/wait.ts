@@ -1,6 +1,7 @@
 import { z } from "zod";
-import type { CohortMember } from "@telar/engine-client";
+import type { CohortMember, EngineRequest } from "@telar/engine-client";
 import { DELEGATION_WAIT_MAX_SECONDS, failure } from "../../agent-tools";
+import { requestTitle } from "../request-gate";
 import type { SessionsCapability } from "./shared";
 
 export const WAIT = z
@@ -14,6 +15,7 @@ export const WAIT = z
 export type Delegation =
   | { done: true; member: CohortMember }
   | { blocked: true; cohortId: string }
+  | { parked: EngineRequest; cohortId: string }
   | { timedOut: true; cohortId: string }
   | { delivered: true }
   | { unsupported: string };
@@ -44,6 +46,8 @@ export async function waitForDelegation(capability: SessionsCapability, sessionI
       return { done: true, member };
     }
     if (member?.blocked) return { blocked: true, cohortId };
+    const parked = (await capability.requests(sessionId)).find((request) => request.state === "open");
+    if (parked) return { parked, cohortId };
     if (now() >= deadline) return { timedOut: true, cohortId };
     await pause(Math.min(POLL_MS, Math.max(0, deadline - now())));
   }
@@ -64,7 +68,19 @@ export function delegationAnswer(delegation: Delegation): Record<string, unknown
     };
   }
   if ("blocked" in delegation) {
-    return { blocked: true, cohortId: delegation.cohortId, note: "It sent a blocker. Read it, answer it, then end your turn: you stay subscribed until it is done." };
+    return {
+      blocked: true,
+      cohortId: delegation.cohortId,
+      note: 'It sent a blocker. Its decision belongs to the person unless the brief settled it. Answer with sessions_send intent "task" (a report does not wake it), then end your turn: you stay subscribed until it is done.',
+    };
+  }
+  if ("parked" in delegation) {
+    const { parked } = delegation;
+    return {
+      waitingOnRequest: { requestId: parked.id, kind: parked.detail.kind, title: requestTitle(parked.detail).slice(0, 240) },
+      cohortId: delegation.cohortId,
+      note: "It is stuck on a permission request. Answer it with sessions_resolve_request only if the answer is plainly yours; otherwise ask the person. You stay subscribed until it is done.",
+    };
   }
   if ("timedOut" in delegation) {
     return { timedOut: true, cohortId: delegation.cohortId, note: "Still working; nothing was cancelled. You are subscribed and will be woken when it is done. End your turn now." };

@@ -64,9 +64,11 @@ Write each worker a self-contained brief. It will not see this conversation.
 - Then END YOUR TURN. No per-session creates, sends or subscribes, no
   polling, no sleeping. You are woken once, when every worker has sent its
   result (or failed, was stopped or settled), with each result quoted; a
-  blocker reaches you at once. Their progress reports never interrupt you —
-  they arrive with your next turn. Work tasked another way: ONE
-  \`sessions_subscribe({ sessionIds: [...] })\` for all of it.
+  blocker or a parked request reaches you at once. Work tasked another way:
+  ONE \`sessions_subscribe({ sessionIds: [...] })\` for all of it.
+- To change what a worker is doing — a correction, a decision, a stop —
+  \`sessions_send\` it as a \`task\`; that is the default to a session you
+  tasked. A \`report\` is passive: it is read only with its next turn.
 - A single quick task whose answer you need now: give \`sessions_create\` a
   \`wait\` in seconds and read the result in the same call. Never wait on one
   worker of a wave; that stalls the rest.
@@ -91,7 +93,8 @@ reply just to acknowledge one):
 ## 5. Relay decisions
 
 A worker's \`blocker\` goes to the PERSON when the decision is theirs, with the
-context and your recommendation. Pass their answer back without reshaping it.
+context and your recommendation. Pass their answer back without reshaping it,
+as a \`task\`: only a task wakes a blocked worker, and a \`report\` is refused.
 You can relay a decision; you never make one on their behalf. Answer only what
 is plainly yours, such as a technical detail the brief already settled.
 

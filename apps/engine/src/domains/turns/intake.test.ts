@@ -436,3 +436,43 @@ describe("a worker tasked by two sessions", () => {
     expect(heard).not.toContain("secret sauce");
   });
 });
+
+describe("an agent's message that names no intent", () => {
+  afterEach(closeStores);
+
+  function hostRunning(store: EngineStore) {
+    store.intake.submitTurn("session_host", { runId: "run_host", input: "orchestrate" });
+    const claimToken = store.claims.claimTurn("session_host", "worker_host")!.claim!.token;
+    store.turnLifecycle.markRunning("session_host", "run_host", claimToken);
+    return { sessionId: "session_host", runId: "run_host", claimToken };
+  }
+
+  test("is a task to a session the sender tasked, so a correction wakes its builder", () => {
+    const { store } = setup();
+    const host = hostRunning(store);
+    store.intake.submitAgentTurn("session_a", { runId: "run_brief", input: "port the parser", intent: "task" }, host);
+    const builder = store.claims.claimTurn("session_a", "worker_a")!.claim!.token;
+    store.turnLifecycle.markRunning("session_a", "run_brief", builder);
+    store.turnLifecycle.completeTurn("session_a", "run_brief", builder, { text: "waiting on CI" });
+
+    const stop = store.intake.submitAgentTurn("session_a", { runId: "run_stop", input: "Stop: the owner wants the old parser kept." }, host);
+
+    expect(stop.turn).toMatchObject({ agentIntent: "task", agentDelivery: "wake", state: "queued" });
+    expect(store.claims.claimTurn("session_a", "worker_a")?.runId).toBe("run_stop");
+  });
+
+  test("is a report to a session the sender never tasked, and opens no turn", () => {
+    const { store } = setup();
+    const sent = store.intake.submitAgentTurn("session_b", { runId: "run_note", input: "the parser moved" }, hostRunning(store));
+    expect(sent.turn).toMatchObject({ agentIntent: "report", agentDelivery: "passive", state: "completed" });
+  });
+
+  test("is a report from a builder back to the session that tasked it", () => {
+    const { store } = setup();
+    store.intake.submitAgentTurn("session_a", { runId: "run_brief", input: "port the parser", intent: "task" }, hostRunning(store));
+    const token = store.claims.claimTurn("session_a", "worker_a")!.claim!.token;
+    store.turnLifecycle.markRunning("session_a", "run_brief", token);
+    const sent = store.intake.submitAgentTurn("session_host", { runId: "run_note", input: "halfway" }, { sessionId: "session_a", runId: "run_brief", claimToken: token });
+    expect(sent.turn).toMatchObject({ agentIntent: "report", agentDelivery: "passive" });
+  });
+});

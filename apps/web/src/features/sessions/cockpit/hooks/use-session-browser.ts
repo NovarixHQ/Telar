@@ -7,7 +7,7 @@ import { writeDraft, writeDraftFiles } from "@/features/composer";
 import { sessionModelSelection, type ModelChoice } from "@/features/providers";
 import { browserPanelTab, describeBrowserStart, latestBrowserState, type BrowserStartState } from "@/features/panel";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
-import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
+import { hostFetcher } from "@/platform/engine/host-client";
 import { sessionHref } from "../../session-list";
 import { newSessionId } from "../../session-mutations";
 import { handOffCanvas } from "../canvas-handoff";
@@ -45,8 +45,9 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
     // Deferred: a synchronous setState in an effect body is a cascading render.
     const task = window.setTimeout(() => {
       setBrowserCanStart(false);
+      if (!desktopBrowserBridge()) return;
       if (!sessionId) {
-        setBrowserCanStart(Boolean(projectId && (hostId !== LOCAL_HOST_ID || desktopBrowserBridge())));
+        setBrowserCanStart(Boolean(projectId));
         return;
       }
       createEngineApi(hostFetcher(hostId)).browserState(sessionId).then(

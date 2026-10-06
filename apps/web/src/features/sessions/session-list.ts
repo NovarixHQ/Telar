@@ -289,17 +289,16 @@ export function deriveSessionList({
   const currentWithSurvivor = activeSnoozed ? [...current, activeSnoozed].sort(newestFirst) : current;
   const snoozedRest = activeSnoozed ? snoozed.filter((session) => sessionKey(session) !== sessionKey(activeSnoozed)) : snoozed;
 
-  const currentPage = pageWithActive(currentWithSurvivor, limit, activeSessionId);
   const settledPage = pageWithActive(settled, settledLimit, activeSessionId);
 
   return {
     pinned,
-    sessions: currentPage.rows,
+    sessions: currentWithSurvivor,
     snoozed: snoozedRest.slice().sort((left, right) => (left.snoozedUntil ?? 0) - (right.snoozedUntil ?? 0)),
     snoozedCount: snoozedRest.length,
     settled: settledPage.rows,
     settledCount: settled.length,
-    hasMoreSessions: currentPage.hasMore,
+    hasMoreSessions: false,
     hasMoreSettled: settledPage.hasMore,
     flat: false,
   };

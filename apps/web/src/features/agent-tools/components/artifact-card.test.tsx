@@ -1,9 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 import type { Artifact, ArtifactKind, Item } from "@telar/engine-client";
-import { buttonLabelled, click, flush, installTestDom, mount, stubBoxSize } from "@/test/dom";
-import { RightPanel } from "@/features/panel";
+import { buttonLabelled, click as clickOn, flush, installTestDom, mount, stubBoxSize } from "@/test/dom";
+import "@/features/panel";
 import { act } from "react";
-import { MAX_FRAME_HEIGHT } from "../artifacts";
 import { ArtifactCard, ArtifactShelf } from "./artifact-card";
 
 installTestDom();
@@ -23,6 +22,9 @@ void mock.module("@streamdown/mermaid", () => ({
 
 const SOURCES: Record<string, string> = {
   att_html: "<h1>Revenue</h1><script>document.title='x'</script>",
+  att_sized: "<h1>Sized</h1>",
+  att_unsized: "<h1>Unsized</h1>",
+  att_remembered: "<h1>Remembered</h1>",
   att_svg: '<svg xmlns="http://www.w3.org/2000/svg"><circle id="agent-dot" r="4"/></svg>',
   att_md: "# Plan\n\n- ship it",
   att_mermaid: "graph TD; A-->B",
@@ -33,18 +35,19 @@ function serveAttachments() {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const path = new URL(String(input), "http://localhost").pathname;
     asked.push(path);
+    if (path.endsWith("/att_pending")) return new Promise<Response>(() => {});
     const source = SOURCES[path.split("/").at(-1)!];
     return source === undefined ? new Response("missing", { status: 404 }) : new Response(source, { headers: { "content-type": "text/plain" } });
   }) as typeof fetch;
   return asked;
 }
 
-const artifact = (kind: ArtifactKind, attachmentId: string, version = 1): Artifact => ({ id: "art_1", kind, title: `A ${kind}`, attachmentId, version });
+const artifact = (kind: ArtifactKind, attachmentId: string, version = 1, height?: number): Artifact => ({ id: "art_1", kind, title: `A ${kind}`, attachmentId, version, ...(height ? { height } : {}) });
 const item = (value: Artifact): Pick<Item, "detail"> => ({ detail: { type: "artifact", artifact: value } });
 
-async function card(value: Artifact, shelf: { items?: Pick<Item, "detail">[]; onOpen?: (id: string) => void } = {}) {
+async function card(value: Artifact, items: Pick<Item, "detail">[] = [item(value)]) {
   const { host } = await mount(
-    <ArtifactShelf items={shelf.items ?? [item(value)]} {...(shelf.onOpen ? { onOpen: shelf.onOpen } : {})}>
+    <ArtifactShelf items={items}>
       <ArtifactCard sessionId="session_1" artifact={value} />
     </ArtifactShelf>,
   );
@@ -64,23 +67,50 @@ describe("an artifact card", () => {
     expect(doc.indexOf("Content-Security-Policy")).toBeLessThan(doc.indexOf("<h1>Revenue</h1>"));
   });
 
-  test("an html card takes the height its content reports, and a long one stops at the cap and scrolls inside", async () => {
-    serveAttachments();
-    const host = await card(artifact("html", "att_html"));
-    await flush(() => host.querySelector("iframe") !== null);
-    const frame = host.querySelector("iframe")!;
+  const reporter = (frame: HTMLIFrameElement) => {
     const id = JSON.parse(/artifactFrame:("[^"]*")/.exec(frame.getAttribute("srcdoc")!)![1]!) as string;
-    const report = async (height: number) => {
+    return async (height: number) => {
       await act(async () => window.dispatchEvent(new MessageEvent("message", { data: { artifactFrame: id, height }, source: frame.contentWindow })));
     };
-    await report(312.4);
-    expect(frame.style.height).toBe("313px");
+  };
+
+  test("the agent's height is held before the page arrives, so nothing below it moves", async () => {
+    serveAttachments();
+    const host = await card(artifact("html", "att_pending", 1, 420));
+    await flush(() => host.querySelector("figure > div") !== null);
+    expect((host.querySelector("figure > div") as HTMLElement).style.height).toBe("420px");
+  });
+
+  test("an html frame fits the height its page reports, capped by the agent's height", async () => {
+    serveAttachments();
+    const host = await card(artifact("html", "att_sized", 1, 420));
+    await flush(() => host.querySelector("iframe") !== null);
+    const frame = host.querySelector("iframe")!;
+    expect(frame.style.height).toBe("420px");
+    const report = reporter(frame);
     await report(312.4);
     expect(frame.style.height).toBe("313px");
     await report(4000);
-    expect(frame.style.height).toBe(`${MAX_FRAME_HEIGHT}px`);
-    await report(120);
-    expect(frame.style.height).toBe("120px");
+    expect(frame.style.height).toBe("420px");
+  });
+
+  test("without a height from the agent, a long page grows the frame to the limit", async () => {
+    serveAttachments();
+    const host = await card(artifact("html", "att_unsized"));
+    await flush(() => host.querySelector("iframe") !== null);
+    const frame = host.querySelector("iframe")!;
+    await reporter(frame)(4000);
+    expect(frame.style.height).toBe("2000px");
+  });
+
+  test("a frame drawn again opens at the height its page last reported", async () => {
+    serveAttachments();
+    const first = await card(artifact("html", "att_remembered"));
+    await flush(() => first.querySelector("iframe") !== null);
+    await reporter(first.querySelector("iframe")!)(256);
+    const again = await card(artifact("html", "att_remembered"));
+    await flush(() => again.querySelector("iframe") !== null);
+    expect(again.querySelector("iframe")!.style.height).toBe("256px");
   });
 
   test("an html frame wears the Look in hex, with --background as the canvas painted around it", async () => {
@@ -158,18 +188,11 @@ describe("an artifact card", () => {
     expect(host.querySelector("iframe")).toBeNull();
   });
 
-  test("in a dark Look an svg sits on a dark checkerboard, never on white", async () => {
+  test("an svg sits straight on the reply's canvas, with no box or ground of its own", async () => {
     serveAttachments();
-    document.documentElement.classList.add("dark");
-    try {
-      const host = await card(artifact("svg", "att_svg"));
-      await flush(() => host.querySelector("[role=img]") !== null);
-      const ground = (host.querySelector("[role=group]") as HTMLElement).style.background;
-      expect(ground).toContain("#3d3d3d");
-      expect(ground).not.toMatch(/#fff\b|#ffffff|white/i);
-    } finally {
-      document.documentElement.classList.remove("dark");
-    }
+    const host = await card(artifact("svg", "att_svg"));
+    await flush(() => host.querySelector("[role=img]") !== null);
+    expect((host.querySelector("[role=group]") as HTMLElement).style.background).toBe("");
   });
 
   test("markdown renders as the transcript renders it", async () => {
@@ -212,33 +235,44 @@ describe("an artifact card", () => {
     }
   });
 
-  test("an earlier version folds to its header and names the newest", async () => {
+  test("an earlier version folds to a quiet line, and only the newest is drawn", async () => {
     serveAttachments();
     const first = artifact("markdown", "att_md", 1);
-    const host = await card(first, { items: [item(first), item(artifact("markdown", "att_md", 2))] });
+    const host = await card(first, [item(first), item(artifact("markdown", "att_md", 2))]);
     await flush();
-    expect(host.textContent).toContain("v1 · now v2");
+    expect(host.textContent).toBe("A markdown · updated below");
     expect(host.querySelector("h1")).toBeNull();
   });
 
-  test("Open in panel asks for this artifact", async () => {
+  test("inline there is no header, title or panel button: the page is part of the reply", async () => {
     serveAttachments();
-    const opened: string[] = [];
-    const host = await card(artifact("markdown", "att_md"), { onOpen: (id) => opened.push(id) });
-    await click(buttonLabelled("Open in panel", host));
-    expect(opened).toEqual(["art_1"]);
+    const host = await card(artifact("html", "att_html"));
+    await flush(() => host.querySelector("iframe") !== null);
+    expect(host.querySelector("figure")?.getAttribute("aria-label")).toBe("A html");
+    expect(host.querySelector("figcaption")).toBeNull();
+    expect(host.textContent).not.toContain("A html");
+    expect([...host.querySelectorAll("button")].map((button) => button.textContent)).toEqual(["Copy source", "Save"]);
   });
-});
 
-test("the panel draws an artifact tab from the newest version in the conversation", async () => {
-  serveAttachments();
-  const items = [artifact("html", "att_html", 1), artifact("markdown", "att_md", 2)].map(
-    (value, index) => ({ id: `artifact_art_1_v${index + 1}`, runId: "run_1", sessionId: "session_1", status: "completed", startedAt: 1, ...item(value) }) as Item,
-  );
-  const { host } = await mount(
-    <RightPanel sessionId="session_1" items={items} tabs={[{ id: "t1", kind: "artifact:art_1", params: {} }]} tab="t1" onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />,
-  );
-  await flush(() => host.querySelector("h1") !== null);
-  expect(host.querySelector("h1")?.textContent).toBe("Plan");
-  expect(host.querySelector("[role=tab]")?.textContent).toBe("A markdown");
+  test("the hover controls copy the source and save it under the artifact's title", async () => {
+    serveAttachments();
+    const copied: string[] = [];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (text: string) => void copied.push(text) } });
+    const saved: string[] = [];
+    const click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+      saved.push(this.download);
+    };
+    try {
+      const host = await card(artifact("markdown", "att_md"));
+      await flush(() => host.querySelector("h1") !== null);
+      await clickOn(buttonLabelled("Copy source", host));
+      expect(copied).toEqual(["# Plan\n\n- ship it"]);
+      expect(buttonLabelled("Copied", host)).toBeDefined();
+      await clickOn(buttonLabelled("Save", host));
+      expect(saved).toEqual(["A markdown.md"]);
+    } finally {
+      HTMLAnchorElement.prototype.click = click;
+    }
+  });
 });

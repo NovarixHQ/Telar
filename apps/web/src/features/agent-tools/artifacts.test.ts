@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { artifactTheme, type ArtifactTheme } from "@telar/engine-client";
-import { artifactDocument, clampFrameHeight, contentHeight, hostContextMessage, latestArtifacts, MAX_FRAME_HEIGHT, MIN_FRAME_HEIGHT } from "./artifacts";
+import { artifactDocument, contentHeight, frameHeight, hostContextMessage, latestArtifacts, measuredHeight, savedFileName } from "./artifacts";
 
 const LOOK: Record<string, string> = { "--background": "oklch(0.975 0.002 286)", "--foreground": "oklch(0.274 0.006 286)", "--chart-1": "oklch(0.56 0.16 264)", "--app-font-sans": "ui-sans-serif" };
 const look: ArtifactTheme = artifactTheme("dark", (token) => LOOK[token] ?? "");
@@ -50,12 +50,25 @@ test("a Look change posted into the frame restyles it in place, and only its par
   expect(frame.getElementById("kept")).toBe(kept);
 });
 
-test("a reported height is clamped, and anything that is not a number is ignored", () => {
-  expect(clampFrameHeight(10)).toBe(MIN_FRAME_HEIGHT);
-  expect(clampFrameHeight(99_999)).toBe(MAX_FRAME_HEIGHT);
-  expect(clampFrameHeight(300.2)).toBe(301);
-  expect(clampFrameHeight("300")).toBeUndefined();
-  expect(clampFrameHeight(Number.NaN)).toBeUndefined();
+test("a reported height is rounded up and bounded, and anything that is not a number is ignored", () => {
+  expect(measuredHeight(10)).toBe(48);
+  expect(measuredHeight(99_999)).toBe(2000);
+  expect(measuredHeight(300.2)).toBe(301);
+  expect(measuredHeight("300")).toBeUndefined();
+  expect(measuredHeight(Number.NaN)).toBeUndefined();
+});
+
+test("the frame holds the agent's height until the page measures itself, and that height caps it", () => {
+  expect(frameHeight(undefined, undefined)).toBe(160);
+  expect(frameHeight(420, undefined)).toBe(420);
+  expect(frameHeight(420, 300)).toBe(300);
+  expect(frameHeight(420, 900)).toBe(420);
+  expect(frameHeight(undefined, 900)).toBe(900);
+});
+
+test("a saved artifact is named after its title, with the extension of its kind", () => {
+  expect(savedFileName({ title: "Q3: revenue/cost?", kind: "html" })).toBe("Q3 revenue cost.html");
+  expect(savedFileName({ title: "  ", kind: "mermaid" })).toBe("Artifact.mmd");
 });
 
 test("the newest version of each artifact wins, in any order", () => {

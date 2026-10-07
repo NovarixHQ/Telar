@@ -46,7 +46,7 @@ function fakeCockpit({ spends = true } = {}) {
 
 const base = { port: 62051, env: {}, exists: (file) => file === `${XCODE}/usr/bin/simctl`, list: () => ["Xcode.app"], wait: async () => {} };
 
-test("each booted iPhone or iPad with Telar gets its own code as a telar://pair link, under the Xcode in Applications", async () => {
+test("each booted iPhone or iPad with Telar is relaunched with its own pairing link, under the Xcode in Applications", async () => {
   const { run, runs } = fakeRunner({
     xcrunFound: false,
     devices: {
@@ -61,10 +61,10 @@ test("each booted iPhone or iPad with Telar gets its own code as a telar://pair 
 
   expect(result).toEqual({ paired: ["Telar iPhone", "Telar iPad"], failed: [] });
   expect(calls).toEqual(["mint", "mint"]);
-  const opened = runs.filter((entry) => entry.command.includes("openurl"));
-  expect(opened.map((entry) => entry.command)).toEqual([
-    `xcrun simctl openurl PHONE telar://pair?link=${encodeURIComponent("http://localhost:62051/pair#token=10000001")}`,
-    `xcrun simctl openurl PAD telar://pair?link=${encodeURIComponent("http://localhost:62051/pair#token=10000002")}`,
+  const launched = runs.filter((entry) => entry.command.includes("simctl launch"));
+  expect(launched.map((entry) => entry.command)).toEqual([
+    "xcrun simctl launch --terminate-running-process PHONE io.github.novarix.telar -addHostLink http://localhost:62051/pair#token=10000001",
+    "xcrun simctl launch --terminate-running-process PAD io.github.novarix.telar -addHostLink http://localhost:62051/pair#token=10000002",
   ]);
   expect(runs.filter((entry) => entry.command.startsWith("xcrun simctl")).every((entry) => entry.developerDir === XCODE)).toBe(true);
 });
@@ -87,7 +87,7 @@ test("with no booted simulator that has Telar, no code is minted", async () => {
 
   expect(result.error).toBe("No booted simulator has Telar installed.");
   expect(calls).toEqual([]);
-  expect(runs.some((entry) => entry.command.includes("openurl"))).toBe(false);
+  expect(runs.some((entry) => entry.command.includes("simctl launch"))).toBe(false);
 });
 
 test("a release build registers neither the verb nor the menu item; a dev build registers both", async () => {

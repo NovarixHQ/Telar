@@ -200,7 +200,7 @@ xcodebuild -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
 
 A simulator build made with `CODE_SIGNING_ALLOWED=NO` has no entitlements, so the simulator's Keychain refuses it (`-34018`). The app then keeps device tokens in `UserDefaults`, on the simulator only; otherwise it would pair and drop the token straight away.
 
-To pair the booted simulators with Telar Dev, use File ▸ Pair Booted Simulators or Settings ▸ Remote access ▸ Pair a device (dev builds only). It sends each simulator that has Telar a fresh code as `telar://pair?link=…`.
+To pair the booted simulators with Telar Dev, use File ▸ Pair Booted Simulators or Settings ▸ Remote access ▸ Pair a device (dev builds only). It relaunches Telar on each booted simulator with a fresh pairing link (`-addHostLink`). It does not use `simctl openurl`, because iOS asks "Open in Telar?" first.
 
 `apps/ios/scripts/preview-server.py` serves a fixture for `-mobilePreviewURL http://127.0.0.1:8743`. Both the server and the app accept loopback only, so the fixture works in a simulator and not on a phone.
 

@@ -44,7 +44,8 @@ function bootedIos(json) {
   }
 }
 
-const pairingDeepLink = (port, code) => `telar://pair?link=${encodeURIComponent(`http://localhost:${port}/pair#token=${code}`)}`;
+const relaunchWithLink = (udid, port, code) =>
+  ["simctl", "launch", "--terminate-running-process", udid, APP_ID, "-addHostLink", `http://localhost:${port}/pair#token=${code}`];
 
 async function waitForConsumed(cockpit, wait, timeoutMs) {
   for (let waited = 0; waited < timeoutMs; waited += POLL_MS) {
@@ -68,7 +69,7 @@ async function pairBootedSimulators({ port, cockpit, run = execRun, env = proces
   const failed = [];
   for (const device of targets) {
     const { code } = await cockpit.mint();
-    const opened = await run("xcrun", ["simctl", "openurl", device.udid, pairingDeepLink(port, code)], { env: simEnv });
+    const opened = await run("xcrun", relaunchWithLink(device.udid, port, code), { env: simEnv });
     if (opened.code === 0 && (await waitForConsumed(cockpit, wait, timeoutMs))) paired.push(device.name);
     else failed.push(device.name);
   }

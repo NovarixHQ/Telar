@@ -26,7 +26,7 @@ import { Message, MessageContent, MessageMenu, MessageResponse } from "@/ui/mess
 import { CodeSurface } from "@/ui/code-surface";
 import { describeTurnState, wakeUpLabel } from "../model";
 
-function WakeUpRow({ turn, roster, onOpen }: { turn: JournalTurn; roster: readonly JournalTask[]; onOpen?: (taskId: string) => void }) {
+function WakeUpRow({ turn, roster }: { turn: JournalTurn; roster: readonly JournalTask[] }) {
   const [open, setOpen] = useState(false);
   const namedTask = turn.askedBy ?? turn.wokenBy;
   const task = namedTask ? roster.find((candidate) => candidate.id === namedTask) : undefined;
@@ -54,16 +54,6 @@ function WakeUpRow({ turn, roster, onOpen }: { turn: JournalTurn; roster: readon
           {label && <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">{label}</span>}
           {body && <ChevronRightIcon className={cn("size-3 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />}
         </button>
-        {onOpen && task && (
-          <button
-            type="button"
-            onClick={() => onOpen(task.id)}
-            title={task.kind === "background" ? "Open in the Processes panel" : "Open in the Agents panel"}
-            className="shrink-0 rounded px-1 text-3xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-          >
-            Open ▸
-          </button>
-        )}
       </div>
       {open && body && (
         <div className="ml-3 border-l border-border/70 py-1 pr-1.5 pl-3">
@@ -77,7 +67,6 @@ function WakeUpRow({ turn, roster, onOpen }: { turn: JournalTurn; roster: readon
 type SessionTurnProps = {
   requests: EngineRequest[];
   onDecide: (requestId: string, decision: RequestDecision, extra?: { answers?: Record<string, unknown> }) => void;
-  onOpenAgent?: (taskId: string) => void;
   onOpenTab?: (tab: PanelTab) => void;
   onInsert?: (text: string) => void;
   onOpenFile?: (path: string) => void;
@@ -94,7 +83,7 @@ type SessionTurnProps = {
 };
 
 // Presence of a gesture changes the render; identity does not (the cockpit passes inline arrows).
-const TURN_GESTURES = ["onOpenAgent", "onOpenTab", "onInsert", "onOpenFile", "onOpenFileInNewTab", "onResumeNow"] as const;
+const TURN_GESTURES = ["onOpenTab", "onInsert", "onOpenFile", "onOpenFileInNewTab", "onResumeNow"] as const;
 
 // Compares what a turn draws, not object identity: every tail snapshot rebuilds turns as fresh objects.
 // `prompt` is not compared; the engine writes it once and the runId key pins the turn.
@@ -181,7 +170,6 @@ function SessionTurnBody({
   sending,
   live,
   onDecide,
-  onOpenAgent,
   onOpenTab,
   onResumeNow,
   onInsert,
@@ -193,7 +181,6 @@ function SessionTurnBody({
 }: SessionTurnProps) {
   const doing = turnActivity(turn);
   const rowGestures = {
-    ...(onOpenAgent ? { onOpenAgent } : {}),
     ...(onInsert ? { onInsert } : {}),
     ...(onOpenFile ? { onOpenFile } : {}),
     ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}),
@@ -299,7 +286,7 @@ function SessionTurnBody({
   );
 }
 
-type RowGestures = Pick<SessionTurnProps, "onOpenAgent" | "onInsert" | "onOpenFile" | "onOpenFileInNewTab">;
+type RowGestures = Pick<SessionTurnProps, "onInsert" | "onOpenFile" | "onOpenFileInNewTab">;
 
 // A compaction is one quiet system line, not a "/compact" bubble with an empty reply.
 function CompactTurn({ turn, rowGestures }: { turn: JournalTurn; rowGestures: RowGestures }) {
@@ -330,7 +317,6 @@ function TurnOpening({
   roster,
   onInsert,
   onOpenTab,
-  onOpenAgent,
   peerTitle,
 }: RowGestures & { turn: JournalTurn; roster: readonly JournalTask[]; onOpenTab?: (tab: PanelTab) => void; peerTitle?: string }) {
   return (
@@ -352,7 +338,7 @@ function TurnOpening({
           ) : turn.origin === "session" && turn.sender ? (
             <AgentMessageBubble text={turn.prompt} sender={turn.sender} {...(turn.agentNotice ? { notice: turn.agentNotice } : {})} {...(turn.agentIntent ? { intent: turn.agentIntent } : {})} {...(turn.assignmentScope ? { scope: turn.assignmentScope } : {})} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
           ) : (
-            <WakeUpRow turn={turn} roster={roster} {...(onOpenAgent ? { onOpen: onOpenAgent } : {})} />
+            <WakeUpRow turn={turn} roster={roster} />
           )}
         </MessageContent></Message>
       )}

@@ -8,13 +8,12 @@ import { desktopBrowserBridge } from "@/features/browser";
 import { diffTabParams, readDiffTab, type DiffTab, diffTurns, type DiffTurn } from "@/features/git";
 import type { TelarReference } from "@/features/composer";
 import type { EditorState, OpenIntent } from "@/features/files";
-import type { JournalTask } from "@/platform/engine";
 import { forgeParams, readForgeOpen, type ForgeOpen } from "@/features/github";
 import { useSuspendSidebar } from "@/ui/sidebar";
 import { useSidebarPrefs } from "@/ui/sidebar-width";
 import { useCommandHandlers } from "@/features/commands";
 import { cn } from "@/ui/utils";
-import { journalWrites, latestBrowserState, type BrowserStartState, type TaskFocus } from "../folds";
+import { journalWrites, latestBrowserState, type BrowserStartState } from "../folds";
 import { useKeptTerminals } from "../hooks/use-kept-terminals";
 import { defaultRightPanelWidth, RIGHT_PANEL_WIDTH_STORAGE_KEY } from "../layout";
 import * as model from "../model";
@@ -24,7 +23,6 @@ import { BrowserScreenshotSurface } from "./browser-screenshot-surface";
 import { PanelEmptyState } from "./panel-empty-state";
 import { RightPanelResizeHandle } from "./resize-handle";
 import { TabStrip } from "./tab-strip";
-import { AgentsSurface, ProcessesSurface } from "./task-surfaces";
 
 /*
  * Every surface is its own chunk, so a conversation whose panel is shut loads none of them. No `ssr: false`: tests
@@ -53,8 +51,6 @@ export type RightPanelProps = {
   branch?: string;
   items?: readonly Item[];
   turns?: readonly Turn[];
-  tasks?: readonly JournalTask[];
-  focusedTask?: TaskFocus;
   /** Starts the session's browser, or shows its last page when one runs. Absent hides the Browser row. */
   onOpenBrowser?: () => void;
   /** Why the Browser row is dimmed: nothing runs and nothing can start here. */
@@ -83,14 +79,13 @@ export type RightPanelProps = {
   open?: boolean;
 };
 
-type Forwarded = "sessionId" | "sessionTitle" | "projectId" | "branch" | "focusedTask" | "onOpenTab" | "onOpenNewTab" | "onOpenFileInNewTab" | "onInsertReference" | "onAttach" | "active" | "enabledPlugins" | "pluginPanels" | "events" | "hostId";
+type Forwarded = "sessionId" | "sessionTitle" | "projectId" | "branch" | "onOpenTab" | "onOpenNewTab" | "onOpenFileInNewTab" | "onInsertReference" | "onAttach" | "active" | "enabledPlugins" | "pluginPanels" | "events" | "hostId";
 
 /** One instance's surface, every callback already bound to that instance. */
 type SurfaceProps = Pick<RightPanelProps, Forwarded> & {
   tab: PanelTabItem;
   writes: ReadonlyMap<string, number>;
   diffTurnList: readonly DiffTurn[];
-  tasks: readonly JournalTask[];
   browser: BrowserState | undefined;
   onTabParams: ((params: PanelTabParams) => void) | undefined;
   onCloseSelf: () => void;
@@ -204,9 +199,6 @@ function recordSurface(props: SurfaceProps): ReactNode {
         onOpenForge={(one, number) => onOpenTab(one === "issue" ? model.issuePanelTab(number) : model.pullPanelTab(number))}
       />
     );
-  const roster = { tasks: props.tasks, ...(props.focusedTask ? { focused: props.focusedTask } : {}), ...(sessionId ? { sessionId } : {}), ...(hostId ? { hostId } : {}), visible: props.visible };
-  if (kind === "agents") return <AgentsSurface {...roster} />;
-  if (kind === "processes") return <ProcessesSurface {...roster} />;
   return null;
 }
 
@@ -216,7 +208,7 @@ function PanelSurface(props: SurfaceProps) {
 }
 
 export function RightPanel(props: RightPanelProps) {
-  const { active, sessionId, tabs, tab, onCloseTab, onTabParams, editors, onEditorChange, onOpenTab, onOpenNewTab, onOpenBrowser, browserUnavailable, open = true, items = [], turns = [], tasks = [], events = [] } = props;
+  const { active, sessionId, tabs, tab, onCloseTab, onTabParams, editors, onEditorChange, onOpenTab, onOpenNewTab, onOpenBrowser, browserUnavailable, open = true, items = [], turns = [], events = [] } = props;
   const { browserStart = { status: "idle" }, enabledPlugins = model.NO_PLUGINS, pluginPanels = model.NO_PANELS } = props;
   const [fullscreen, setFullscreen] = useState(false);
   const toggleFullscreen = () => setFullscreen((current) => !current);
@@ -251,7 +243,6 @@ export function RightPanel(props: RightPanelProps) {
       tab={entry}
       writes={writes}
       diffTurnList={diffTurnList}
-      tasks={tasks}
       browser={browser}
       onTabParams={onTabParams ? (params) => onTabParams(entry.id, params) : undefined}
       onCloseSelf={() => onCloseTab(entry.id)}

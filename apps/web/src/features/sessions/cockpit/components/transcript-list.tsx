@@ -31,7 +31,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   projectId: string | undefined;
   hostId: string;
   fresh: boolean;
-  turn: Pick<TurnProps, "roster" | "sending" | "onInsert" | "onOpenAgent" | "onOpenTab" | "onOpenFile" | "onOpenFileInNewTab" | "onDecide">;
+  turn: Pick<TurnProps, "roster" | "sending" | "onInsert" | "onOpenTab" | "onOpenFile" | "onOpenFileInNewTab" | "onDecide">;
   onResumeNow: (runId: string) => void;
 }) {
   const { session, error, loadingOlder, loadOlder } = sync;

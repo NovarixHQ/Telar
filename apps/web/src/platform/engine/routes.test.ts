@@ -131,14 +131,6 @@ describe("engine route adapters", () => {
     expect((await wide.json()).sessions.map((s: { id: string }) => s.id)).toEqual(["session_one"]);
   });
 
-  /**
-   * ISSUE #316. The engine folds every session's assignments onto this list so
-   * the rail learns who is working for whom without a history read per row —
-   * and this adapter dropped the field on the floor. `result.assignments` was
-   * therefore undefined for every LOCAL row, which is not a missing badge but a
-   * silently empty `relatedWork`: nothing was ever `active` or `review`, so the
-   * elbow tree (#324) drew each delegate as a sibling of its coordinator.
-   */
   test("the folder listing is the engine's, refusals included", async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-web-route-"));
     roots.push(home);
@@ -180,7 +172,6 @@ describe("engine route adapters", () => {
     expect(body.assignments.session_worker).toMatchObject([
       { taskRunId: "run_task", fromSessionId: "session_coord", runId: "run_task" },
     ]);
-    // Outstanding, which is the whole distinction `relatedWork` draws on.
     expect(body.assignments.session_worker[0].outcome).toBeUndefined();
   });
 

@@ -293,7 +293,7 @@ describe("browser pages are their own tabs", () => {
     // longer reports is still a tab you opened — the surface says it is gone
     // rather than the tab silently vanishing on restore.
     expect(isPanelTab("browser:whatever")).toBe(true);
-    expect(isPanelTab("agents")).toBe(true);
+    expect(isPanelTab("diff")).toBe(true);
     expect(isPanelTab("not-a-tab")).toBe(false);
   });
 });
@@ -357,21 +357,21 @@ describe("movePanelTab", () => {
     tabs: [
       { id: "issues", kind: "issues", params: {} },
       { id: "diff", kind: "diff", params: {} },
-      { id: "processes", kind: "processes", params: {} },
+      { id: "terminal", kind: "terminal", params: {} },
     ],
     activeTab: "diff",
     open: true,
   };
 
   test("`toIndex` is where the tab lands in the strip once it has left its old place", () => {
-    expect(kinds(movePanelTab(strip, "issues", 2))).toEqual(["diff", "processes", "issues"]);
-    expect(kinds(movePanelTab(strip, "processes", 0))).toEqual(["processes", "issues", "diff"]);
-    expect(kinds(movePanelTab(strip, "issues", 1))).toEqual(["diff", "issues", "processes"]);
+    expect(kinds(movePanelTab(strip, "issues", 2))).toEqual(["diff", "terminal", "issues"]);
+    expect(kinds(movePanelTab(strip, "terminal", 0))).toEqual(["terminal", "issues", "diff"]);
+    expect(kinds(movePanelTab(strip, "issues", 1))).toEqual(["diff", "issues", "terminal"]);
   });
 
   test("past either end means that end, because that is what the pointer said", () => {
-    expect(kinds(movePanelTab(strip, "issues", 99))).toEqual(["diff", "processes", "issues"]);
-    expect(kinds(movePanelTab(strip, "processes", -4))).toEqual(["processes", "issues", "diff"]);
+    expect(kinds(movePanelTab(strip, "issues", 99))).toEqual(["diff", "terminal", "issues"]);
+    expect(kinds(movePanelTab(strip, "terminal", -4))).toEqual(["terminal", "issues", "diff"]);
   });
 
   test("a move to where it already is, or of a tab that is not open, changes nothing", () => {
@@ -382,7 +382,7 @@ describe("movePanelTab", () => {
   test("neither the active tab nor the panel's openness moves with it", () => {
     // Reordering says where a tab SITS. A strip that also switched what you
     // were reading would be answering a question nobody asked.
-    const out = movePanelTab(strip, "processes", 0);
+    const out = movePanelTab(strip, "terminal", 0);
     expect(out.activeTab).toBe("diff");
     expect(out.open).toBe(true);
   });
@@ -473,7 +473,16 @@ describe("round-trips instances", () => {
   test("a stored instance whose kind this build dropped goes, and its siblings stay", () => {
     writePanelTabs(
       "session_a",
-      { tabs: [{ id: "usage", kind: "usage" as PanelTab, params: {} }, { id: "diff", kind: "diff", params: {} }], activeTab: "usage", open: true },
+      {
+        tabs: [
+          { id: "usage", kind: "usage" as PanelTab, params: {} },
+          { id: "agents", kind: "agents" as PanelTab, params: {} },
+          { id: "diff", kind: "diff", params: {} },
+          { id: "processes", kind: "processes" as PanelTab, params: {} },
+        ],
+        activeTab: "agents",
+        open: true,
+      },
       1,
     );
     const restored = readPanelTabs<PanelTab>("session_a", isKnown);

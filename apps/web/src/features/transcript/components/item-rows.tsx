@@ -15,7 +15,6 @@ import { itemLabel, itemText, type JournalItem, type JournalTask, type JournalTu
 import { fmtTokens } from "@/ui/format";
 import { attachmentUrl } from "@/features/plugins";
 import { MessageMenu, MessageResponse } from "@/ui/message";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/ui/context-menu";
 import { Shimmer } from "@/ui/shimmer";
 import { ROW } from "./transcript-fold";
 import { AgentMessageBubble, ConversationMessage, type OpenTab } from "./conversation-message";
@@ -129,7 +128,7 @@ export function PlanRow({ item }: { item: JournalItem }) {
   );
 }
 
-export function AgentRow({ item, task, onOpen, onInsert }: { item: JournalItem; task: JournalTask | undefined; onOpen?: (taskId: string) => void } & Pick<RowGestures, "onInsert">) {
+export function AgentRow({ item, task, onInsert }: { item: JournalItem; task: JournalTask | undefined } & Pick<RowGestures, "onInsert">) {
   const [open, setOpen] = useState(false);
   const state = task?.state ?? (item.status === "inProgress" ? "running" : item.status === "failed" ? "failed" : "completed");
   const live = state === "running" || state === "pending" || state === "waiting";
@@ -139,7 +138,6 @@ export function AgentRow({ item, task, onOpen, onInsert }: { item: JournalItem; 
   const body = task?.resultText ?? task?.failure;
   const tokens = task?.usage ? task.usage.tokens.input + task.usage.tokens.output : undefined;
   const status = AGENT_STATE[state];
-  const taskId = item.detail.type === "task" ? item.detail.taskId : task?.id;
 
   const row = (
     <div className={cn("rounded-md", isError && "bg-destructive/10")}>
@@ -170,16 +168,6 @@ export function AgentRow({ item, task, onOpen, onInsert }: { item: JournalItem; 
           {status}
           {tokens ? ` · ${fmtTokens(tokens)}` : ""}
         </span>
-        {onOpen && taskId && (
-          <button
-            type="button"
-            onClick={() => onOpen(taskId)}
-            title="Open in the Agents panel"
-            className="shrink-0 rounded px-1 text-3xs text-muted-foreground outline-none hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Open ▸
-          </button>
-        )}
       </div>
       {open && body && (
         <div className="ml-3 border-l border-border/70 py-1 pr-1.5 pl-3">
@@ -193,25 +181,15 @@ export function AgentRow({ item, task, onOpen, onInsert }: { item: JournalItem; 
     </div>
   );
 
-  const jump =
-    onOpen && taskId ? <ContextMenuItem onClick={() => onOpen(taskId)}>Open in the Agents panel</ContextMenuItem> : undefined;
-  if (!body && !jump) return row;
-  if (!body && jump) {
-    return (
-      <ContextMenu>
-        <ContextMenuTrigger>{row}</ContextMenuTrigger>
-        <ContextMenuContent className="w-auto">{jump}</ContextMenuContent>
-      </ContextMenu>
-    );
-  }
+  if (!body) return row;
   return (
-    <MessageMenu text={body ?? ""} {...(onInsert ? { onQuote: onInsert } : {})} {...(jump ? { items: jump } : {})}>
+    <MessageMenu text={body} {...(onInsert ? { onQuote: onInsert } : {})}>
       {row}
     </MessageMenu>
   );
 }
 
-/** The agent row's state word — the same six the Agents panel uses. */
+/** The agent row's state word. */
 const AGENT_STATE: Record<JournalTask["state"], string> = {
   pending: "queued",
   running: "running",

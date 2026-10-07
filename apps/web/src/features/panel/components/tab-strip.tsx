@@ -5,7 +5,6 @@ import { Maximize2Icon, Minimize2Icon, PanelRightCloseIcon, XIcon } from "lucide
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { KeyHint } from "@/features/commands";
 import { cn } from "@/ui/utils";
-import { splitRoster, tabBadge, type TabBadge } from "../folds";
 import { useLivePages } from "../hooks/use-live-pages";
 import { useTabDrag } from "../hooks/use-tab-drag";
 import { browserScopeKey, browserTabId, describePanelTabInstance, type BrowserState, type LauncherRow, type LivePage, type PanelTabItem } from "../model";
@@ -13,7 +12,7 @@ import type { RightPanelProps } from "./right-panel";
 import type { LauncherActions } from "./launcher";
 import { SurfaceChooser } from "./surface-chooser";
 
-type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "tasks" | "onTabChange" | "onCloseTab" | "onMoveTab" | "browserStart" | "onClose"> & {
+type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "onTabChange" | "onCloseTab" | "onMoveTab" | "browserStart" | "onClose"> & {
   browser: BrowserState | undefined;
   launcher: readonly LauncherRow[];
   actions: LauncherActions;
@@ -22,20 +21,6 @@ type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "tasks" |
 };
 
 const CONTROL = "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
-
-function CountBadge({ badge }: { badge: TabBadge }) {
-  return (
-    <span
-      className={cn(
-        "ml-auto inline-flex min-w-4 shrink-0 items-center justify-center rounded-full px-1 font-mono text-4xs leading-4",
-        badge.failed > 0 ? "bg-destructive/15 text-destructive" : badge.running > 0 ? "bg-primary/15 text-primary" : "bg-muted-foreground/15 text-muted-foreground",
-      )}
-      title={badge.running > 0 ? `${badge.running} running` : undefined}
-    >
-      {badge.count}
-    </span>
-  );
-}
 
 /**
  * One tab. The chip is the drag handle; its context menu's trigger is a child row so a grab and a right-press never
@@ -46,7 +31,6 @@ function TabChip({
   strip,
   live,
   duplicate,
-  badge,
   drag,
   menu,
 }: {
@@ -54,7 +38,6 @@ function TabChip({
   strip: StripProps;
   live: readonly LivePage[] | undefined;
   duplicate: boolean;
-  badge: TabBadge | undefined;
   drag: ReturnType<typeof useTabDrag>;
   menu: [string | undefined, (id: string | undefined) => void];
 }) {
@@ -94,7 +77,6 @@ function TabChip({
           >
             <Icon className="size-3.5 shrink-0" />
             <span className="truncate">{label}</span>
-            {badge ? <CountBadge badge={badge} /> : null}
           </button>
           <button
             type="button"
@@ -122,7 +104,7 @@ function TabChip({
 
 /** The panel's top bar: the tabs, the "+" chooser, and the panel's own controls. In fullscreen it is the window's titlebar. */
 export function TabStrip(strip: StripProps) {
-  const { tabs, sessionId, fullscreen, launcher, tasks = [], browserStart = { status: "idle" } } = strip;
+  const { tabs, sessionId, fullscreen, launcher, browserStart = { status: "idle" } } = strip;
   const menu = useState<string>();
   const drag = useTabDrag(tabs, strip.onMoveTab);
   const browserScopes = useMemo(
@@ -135,7 +117,6 @@ export function TabStrip(strip: StripProps) {
     for (const entry of tabs) counted.set(entry.kind, (counted.get(entry.kind) ?? 0) + 1);
     return new Set([...counted].filter(([, count]) => count > 1).map(([kind]) => kind));
   }, [tabs]);
-  const roster = useMemo(() => splitRoster(tasks), [tasks]);
 
   return (
     <div
@@ -152,7 +133,6 @@ export function TabStrip(strip: StripProps) {
             strip={strip}
             live={sessionId ? livePages?.get(browserScopeKey(sessionId, entry.id)) : undefined}
             duplicate={duplicated.has(entry.kind)}
-            badge={tabBadge(entry.kind, roster)}
             drag={drag}
             menu={menu}
           />

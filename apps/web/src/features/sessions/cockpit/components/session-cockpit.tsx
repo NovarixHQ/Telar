@@ -84,7 +84,7 @@ export function SessionCockpit({
   });
   const onConversationClick = useLinkRouting({ hostId, projectId, sessionId, solo, panel: panelState });
   const revealNewTerminals = useJournalReactions({ sessionId, sync, browser: browser.browser, enabledPlugins, panel: panelState });
-  const model = useTranscriptModel(sessionId, sync, showPanelTab);
+  const model = useTranscriptModel(sessionId, sync);
   const { active } = model;
   const settling = useSettling(hostId, sessionId, sync);
   const actions = useSessionActions(sessionId, sync);
@@ -98,7 +98,7 @@ export function SessionCockpit({
   const floating = useSimulatorFloat(sessionId && !solo ? floatKey(hostId, sessionId) : undefined).simulator;
   const panelGestures = solo
     ? {}
-    : { onOpenAgent: model.showAgent, onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
+    : { onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
 
   return (
     <main data-surfaces className="group/surfaces flex min-h-0 flex-1 overflow-hidden md:overflow-visible md:gap-2">

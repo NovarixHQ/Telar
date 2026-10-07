@@ -75,7 +75,6 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
     onSubmit: () => void submit.submit(),
     onStop: () => void actions.stop(),
     onStopBackground: () => void actions.stopBackground(),
-    ...(solo ? {} : { onViewBackground: model.showProcesses }),
     // Before a session exists both choices are held locally and applied by the patch that follows creation.
     onRuntimeMode: fresh ? draft.chooseRuntimeMode : (mode) => void actions.setRuntimeMode(mode),
     ...(fresh ? {} : { onResumeAfterRateLimit: (next: boolean) => void actions.setResumeAfterRateLimit(next) }),

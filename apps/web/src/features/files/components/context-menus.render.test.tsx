@@ -314,7 +314,7 @@ describe("the file view's menu", () => {
 
 describe("the right panel's tab strip", () => {
   const tab = (id: string, kind: string): PanelTabItem => ({ id, kind, params: {} }) as PanelTabItem;
-  const TABS = [tab("t1", "agents"), tab("t2", "processes"), tab("t3", "diff")];
+  const TABS = [tab("t1", "editor"), tab("t2", "issues"), tab("t3", "diff")];
 
   async function mountPanel(tabs: PanelTabItem[] = TABS, extra: Partial<React.ComponentProps<typeof RightPanel>> = {}) {
     const closed: string[] = [];

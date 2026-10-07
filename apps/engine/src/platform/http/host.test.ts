@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import os from "node:os";
-import { hostIsAllowed } from "./host";
+import { hostIsAllowed, machineNames } from "./host";
 
 const machine = os.hostname().toLowerCase().replace(/\.local$/, "");
 
@@ -20,6 +20,20 @@ test("a rebinding name, another .local name and a malformed header are refused",
   for (const host of ["evil.example", "evil.example:3000", "127.0.0.1.evil.example", "localhost.evil.example", "not-this-mac-xyz.local", "ts.net.evil.example", "::1", "", "[::1"]) {
     expect(hostIsAllowed(host)).toBe(false);
   }
+});
+
+test("a Mac whose hostname is its DHCP name still answers to its Bonjour and computer names", () => {
+  const names = machineNames("mac.lan", "MINI-FBARBERA\n", "Facundo’s Mac mini");
+  for (const host of ["mac.lan:3000", "mac.lan.local", "mini-fbarbera.local", "MINI-FBARBERA.local:4100", "mini-fbarbera", "facundos-mac-mini.local"]) {
+    expect(hostIsAllowed(host, names)).toBe(true);
+  }
+  for (const host of ["evil.example", "mini-fbarbera.local.evil.example", "other-mac.local", "mini-fbarbera.lan.evil"]) {
+    expect(hostIsAllowed(host, names)).toBe(false);
+  }
+});
+
+test("without scutil, only the hostname's own names pass", () => {
+  expect([...machineNames("Studio.local")]).toEqual(["studio", "studio.local"]);
 });
 
 test("no Host header passes, as from the desktop or the worker", () => {

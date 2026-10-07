@@ -60,7 +60,7 @@ describe("the display toolkit", () => {
 
   test("a deferred-tool keyword search for what it draws finds display_inline", () => {
     const { registered } = build();
-    for (const keyword of ["artifact", "diagram", "chart", "visual"]) {
+    for (const keyword of ["artifact", "diagram", "chart", "visual", "table", "collage", "mockup"]) {
       const hits = registered.filter((tool) => `${tool.name} ${tool.description}`.toLowerCase().includes(keyword));
       expect(hits.map((tool) => tool.name)).toContain("display_inline");
     }

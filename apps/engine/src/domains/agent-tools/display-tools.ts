@@ -18,7 +18,7 @@ export type DisplayCapability = {
 
 const OPEN = `Show the human a file from this checkout in the panel, rendered (markdown, PDF, image, video, code). For something you made for them to look at now.`;
 
-const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or markdown (a chart is html or svg). Best for a status, overview, comparison, diagram or chart; otherwise reply in plain text, and honour a preference for md or html files. Html has no network: inline every script, style and image. Check it with display_preview first. Same id revises.`;
+const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or markdown (a chart is html or svg). Use it when a chart, table, diagram, image collage, or mockup would say more than prose; honour a preference for md or html files. Html has no network: inline every script, style and image. Check it with display_preview first. Same id revises.`;
 
 const PREVIEW = `Check before display_inline: renders html, svg or mermaid offscreen in the Look and returns a screenshot, the content height, console errors with stacks, and failed loads. Use contentHeight for display_inline's height and fix console errors, then publish. If it says the desktop app is needed or it timed out, publish anyway, once.`;
 
@@ -40,7 +40,7 @@ const THEME_GUIDE = [
 ].join(" ");
 
 export const DISPLAY_BRIEFING =
-  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Build the page, check it with display_preview — use contentHeight for display_inline's height and fix console errors — then publish with display_inline before your final reply, without restating what the page shows. If the preview says the desktop app is needed or it timed out, publish anyway, once, without retrying. The page is part of your reply: no outer card or title.";
+  "When a chart, table, diagram, image collage, or mockup would say more than prose, show it with display_inline (tool search loads it); honour a preference for md or html files. Build the page, check it with display_preview — use contentHeight for display_inline's height and fix console errors — then publish with display_inline before your final reply, without restating what the page shows. If the preview says the desktop app is needed or it timed out, publish anyway, once, without retrying. The page is part of your reply: no outer card or title.";
 
 function sourceOf(args: Record<string, unknown>): { content?: string; path?: string } | undefined {
   const content = typeof args.content === "string" && args.content.length > 0 ? args.content : undefined;

@@ -4,7 +4,7 @@ import { RELAY_RULE } from "../../domains/turns";
 import { BROWSER_BRIEFING } from "../../domains/browser";
 import { claimHasComputerUse } from "../../domains/computer-use";
 import { pluginBriefings } from "../../domains/plugins";
-import type { DriverRun } from "../contract";
+import { type DriverRun, withAttachedFiles } from "../contract";
 import { RUN_BRIEFING } from "../../domains/terminal";
 import { DISPLAY_BRIEFING, TELAR_TOOL_CALL_TIMEOUT_MS } from "../../domains/agent-tools";
 
@@ -21,19 +21,12 @@ export function defaultThreadConfig(gated: boolean): CodexThreadConfig {
     : { approvalPolicy: "never", sandbox: "danger-full-access", approvalsReviewer: "user" };
 }
 
-const isImage = (attachment: TurnAttachment): boolean => attachment.mediaType.startsWith("image/");
-
-export const attachedFilesText = (files: TurnAttachment[]): string =>
-  `Attached files:\n${files.map((file) => `- ${file.name} (${file.mediaType}) at ${file.path}`).join("\n")}`;
-
-// `text_elements` is required and snake_case on this wire; images go by path, other files are named in the text.
+// `text_elements` is required and snake_case on this wire; every file is named in the text, and images also go by path.
 export function codexTurnInput(prompt: string, attachments: TurnAttachment[] = []): Array<Record<string, unknown>> {
-  const images = attachments.filter(isImage);
-  const others = attachments.filter((attachment) => !isImage(attachment));
-  const text = others.length === 0 ? prompt : `${prompt}\n\n${attachedFilesText(others)}`;
+  const text = withAttachedFiles(prompt, attachments);
   return [
     ...(text.trim() ? [{ type: "text", text, text_elements: [] }] : []),
-    ...images.map((attachment) => ({ type: "localImage", path: attachment.path })),
+    ...attachments.filter((file) => file.mediaType.startsWith("image/")).map((attachment) => ({ type: "localImage", path: attachment.path })),
   ];
 }
 

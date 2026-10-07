@@ -171,6 +171,22 @@ describe("display_preview", () => {
     }
   });
 
+  test("renders local images inlined and lists the ones it could not read", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "telar-preview-"));
+    try {
+      const shot = path.join(cwd, "shot.png");
+      const absent = path.join(cwd, "absent.png");
+      fs.writeFileSync(shot, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+      const { run, requests } = preview({ cwd });
+      const result = await run({ kind: "html", content: `<img src="${shot}"><img src="${absent}">` });
+      expect(requests[0]!.html).toContain('<img src="data:image/png;base64,iVBORw0KGgo=">');
+      expect(requests[0]!.html).toContain(`<img src="${absent}">`);
+      expect(textOf(result)).toContain(`Missing images, shown broken (display_inline refuses them): ${absent}.`);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   test("without the desktop app it says so plainly, and the capability has no preview", async () => {
     const { run, capability } = preview({ desktop: false });
     const result = await run({ kind: "html", content: "<p>hi</p>" });

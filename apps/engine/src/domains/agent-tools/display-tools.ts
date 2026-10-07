@@ -5,6 +5,7 @@ import path from "node:path";
 import { z } from "zod";
 import { type Artifact, ARTIFACT_HEIGHT, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES, type PublishedAppearance } from "@telar/engine-client";
 import { NEEDS_DESKTOP, PREVIEW_TIMEOUT_MS, PREVIEW_WIDTH, PreviewAppearance, previewDocument, PreviewKind, previewTheme, type PreviewRenderer, type PreviewRendering, previewReport, withinTimeout } from "./display-preview";
+import { imagesNotFound, inlineLocalImages } from "./local-images";
 import { err, failure, ok, type ToolFactory } from "./tool-kit";
 
 type InlineInput = { kind: ArtifactKind; title: string; id?: string; height?: number; content?: string; path?: string };
@@ -13,18 +14,19 @@ type PreviewInput = { kind: PreviewKind; width: number; appearance?: PreviewAppe
 export type DisplayCapability = {
   open(input: { path: string; title?: string }): Promise<{ path: string }>;
   inline(input: InlineInput): Promise<{ id: string }>;
-  preview?(input: PreviewInput): Promise<PreviewRendering & { appearance: PreviewAppearance }>;
+  preview?(input: PreviewInput): Promise<PreviewRendering & { appearance: PreviewAppearance; missingImages: string[] }>;
 };
 
 const OPEN = `Show the human a file from this checkout in the panel, rendered (markdown, PDF, image, video, code). For something you made for them to look at now.`;
 
-const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or markdown (a chart is html or svg). Use it when a chart, table, diagram, image collage, or mockup would say more than prose; honour a preference for md or html files. Html has no network: inline every script, style and image. Check it with display_preview first. Same id revises.`;
+const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or markdown (a chart is html or svg). Use it when a chart, table, diagram, image collage, or mockup would say more than prose; honour a preference for md or html files. Html has no network: inline every script and style. Check it with display_preview first. Same id revises.`;
 
-const PREVIEW = `Check before display_inline: renders html, svg or mermaid offscreen in the Look and returns a screenshot, the content height, console errors with stacks, and failed loads. Use contentHeight for display_inline's height and fix console errors, then publish. If it says the desktop app is needed or it timed out, publish anyway, once.`;
+const PREVIEW = `Check before display_inline: renders html, svg or mermaid offscreen in the Look and returns a screenshot, the content height, console errors with stacks, failed loads and unreadable local images. Use contentHeight as display_inline's height, fix console errors, then publish. If it says the desktop app is needed or timed out, publish anyway, once.`;
 
 const THEME_GUIDE = [
   "The source. Give this or path. Html and svg get the person's Look as CSS variables on :root, in hex with alpha kept, following Look changes live.",
   "Never redeclare them or guess fallbacks: a :root rule of yours replaces the Look.",
+  "Html has no network. Local images written as absolute file paths (src=\"/abs/shot.png\", CSS url(/abs/bg.webp), or a JS string) are inlined automatically.",
   "The scheme is explicit: data-scheme=\"dark\" or \"light\" on <html>, and color-scheme and --scheme on :root. Read it there, never from a colour's luminance; dark styles key off [data-scheme=dark].",
   "--background (the canvas behind the frame; transparent on a see-through Look), --foreground, --muted, --muted-foreground,",
   "--card, --card-foreground, --popover, --popover-foreground (raised surfaces), --border, --input (field borders and dark field fills), --ring (focus),",
@@ -211,7 +213,12 @@ export function createDisplayCapability(input: {
       return { path: relative };
     },
     async inline({ kind, title, id = `art_${crypto.randomUUID().slice(0, 8)}`, height, content, path: target }) {
-      const data = await sourceBytes(input.cwd, { content, path: target });
+      let data = await sourceBytes(input.cwd, { content, path: target });
+      if (kind === "html" || kind === "svg") {
+        const page = await inlineLocalImages(new TextDecoder().decode(data));
+        if (page.missing.length > 0) throw new Error(imagesNotFound(page.missing));
+        data = new TextEncoder().encode(page.html);
+      }
       // Stored as plain text whatever the kind, so the bytes route can never serve it as a page.
       const attachment = await input.upload({ name: `${id}.txt`, mediaType: "text/plain", data });
       await input.report({ kind: "artifact.published", artifact: { id, kind, title, attachmentId: attachment.id, ...(height !== undefined ? { height } : {}) } });
@@ -220,12 +227,13 @@ export function createDisplayCapability(input: {
     ...(renderer
       ? {
           async preview({ kind, width, appearance, content, path: target }: PreviewInput) {
-            const source = new TextDecoder().decode(await sourceBytes(input.cwd, { content, path: target }));
+            const decoded = new TextDecoder().decode(await sourceBytes(input.cwd, { content, path: target }));
+            const { html: source, missing: missingImages } = kind === "mermaid" ? { html: decoded, missing: [] } : await inlineLocalImages(decoded);
             const published = await input.look?.().catch(() => null);
             const scheme = appearance ?? (published?.scheme === "dark" ? "dark" : "light");
             const html = previewDocument(kind, source, previewTheme(scheme, published));
             const rendering = await withinTimeout(renderer.render({ html, width, appearance: scheme, timeoutMs: Math.max(1, previewTimeoutMs - 2_000) }), previewTimeoutMs);
-            return { ...rendering, appearance: scheme };
+            return { ...rendering, appearance: scheme, missingImages };
           },
         }
       : {}),

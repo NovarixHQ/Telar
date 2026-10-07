@@ -113,6 +113,11 @@ export function questionChoices(question: Record<string, unknown>): { choices: s
   };
 }
 
+export const withAttachedFiles = (prompt: string, files: TurnAttachment[]): string =>
+  files.length === 0
+    ? prompt
+    : `${prompt.trim() ? `${prompt}\n\n` : ""}Attached files:\n${files.map((file) => `- ${file.name} (${file.mediaType}) at ${file.path}`).join("\n")}`;
+
 export function requireCwd(cwd: string | undefined, provider: string): string {
   if (cwd === undefined) {
     throw new Error(`${provider} runs inside a working directory, and this session has none. Sessions with no checkout run on Telar's own driver.`);

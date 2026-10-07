@@ -6,8 +6,8 @@ import { assertId, EngineStateError, STATE_VERSION, type Kernel } from "../../pl
 import type { EngineStatePaths } from "../../platform/fs/state-paths";
 import { sessionDir } from "./metadata";
 
-// Held in memory to be written, so the cap sits here as well as on the HTTP edge.
-const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+// Held in memory to be written. Above the HTTP edge's 20 MiB so an html artifact with inlined images (25 MiB) fits.
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 function indexFile(paths: EngineStatePaths, sessionId: string): string {
   return path.join(sessionDir(paths, sessionId), "attachments.json");

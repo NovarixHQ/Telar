@@ -7,6 +7,7 @@ import { CopyCommand } from "@/ui/copy-command";
 import { cn } from "@/ui/utils";
 import { Row, SettingsGroup } from "@/features/settings";
 import { QrCodeView } from "./qr-code";
+import { PairSimulatorsButton } from "./pair-simulators-button";
 import type { MintedPairing, RemoteStatus } from "../api";
 
 type RemoteEndpoint = RemoteStatus["endpoints"][number];
@@ -137,9 +138,12 @@ export function RemotePairGroup({
       title="Pair a device"
       description="One code, one device."
       action={
-        <Button variant="outline" size="sm" disabled={busy} onClick={onMint}>
-          {minted && !expired ? "New code" : "Show pairing code"}
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <PairSimulatorsButton />
+          <Button variant="outline" size="sm" disabled={busy} onClick={onMint}>
+            {minted && !expired ? "New code" : "Show pairing code"}
+          </Button>
+        </div>
       }
     >
       {minted && !expired ? (

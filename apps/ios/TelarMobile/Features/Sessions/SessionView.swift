@@ -33,7 +33,6 @@ struct SessionView: View {
     private let hostId: HostID?
 
     private let hostName: String?
-    private let hostCount: Int
     private let cockpitBaseURL: URL?
 
     @State private var receipt: ReadReceiptCourier?
@@ -46,7 +45,7 @@ struct SessionView: View {
 
     init(
         api: any EngineAPI, sessionId: EngineID, hostId: HostID? = nil,
-        hostName: String? = nil, hostCount: Int = 1,
+        hostName: String? = nil,
         cockpitBaseURL: URL? = nil, cache: HostSnapshotCache? = nil,
         onRead: ((Session) -> Void)? = nil
     ) {
@@ -54,7 +53,6 @@ struct SessionView: View {
         self.sessionId = sessionId
         self.hostId = hostId
         self.hostName = hostName
-        self.hostCount = hostCount
         self.cockpitBaseURL = cockpitBaseURL
         self.onRead = onRead
         if let hostId { _draft = State(initialValue: UserDefaults.standard.string(forKey: "telar.draft.\(hostId).\(sessionId)") ?? "") }
@@ -72,8 +70,6 @@ struct SessionView: View {
             AttachmentSource(host: hostId, session: sessionId) { try await panelAPI.attachmentBytes($0, attachmentId: $1) }
         }
     }
-
-    private var hostLabel: String? { HostLabel.header(name: hostName, hostCount: hostCount) }
 
     private var turnActive: Bool { store.hasActiveTurn }
 
@@ -323,37 +319,10 @@ struct SessionView: View {
     }
 
     private var stack: some View {
-        VStack(spacing: 0) {
-            statusStrip
-            transcript
-                .floatingComposer(height: $footerHeight, onFirstLayout: { DispatchQueue.main.async { pinToTail() } }) { footer }
-        }
-        .background(Theme.canvas)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
-    }
-
-    @ViewBuilder private var statusStrip: some View {
-        if let session = store.sync.session {
-            HStack(spacing: 6) {
-                ActivityBadge(activity: session.activity)
-                Text(session.activity == .blocked ? "Needs you" : session.activity.rawValue.capitalized)
-                Spacer()
-
-                if let hostLabel {
-                    HStack(spacing: 3) {
-                        Image(systemName: "desktopcomputer").font(.system(Theme.captionTiny))
-                        Text(hostLabel).lineLimit(1).truncationMode(.tail)
-                    }
-                    .padding(.horizontal, 4)
-                    .background(Theme.subtle, in: RoundedRectangle(cornerRadius: 3))
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("On \(hostLabel)")
-                }
-                Text(session.workspace.branch ?? session.driver).lineLimit(1)
-            }
-            .font(.caption).foregroundStyle(Theme.textMuted).padding(.vertical, 8)
-            .readingColumn(margins: 16)
-        }
+        transcript
+            .floatingComposer(height: $footerHeight, onFirstLayout: { DispatchQueue.main.async { pinToTail() } }) { footer }
+            .background(Theme.canvas)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
     }
 
     private var transcript: some View {

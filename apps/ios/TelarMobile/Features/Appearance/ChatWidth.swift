@@ -17,8 +17,6 @@ enum ChatWidth: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The widest the conversation lane may grow inside `available` points less `margins` on each side.
-    /// The setting applies only on an iPad at regular width; elsewhere the lane is Comfortable.
     static func lane(_ setting: ChatWidth, available: CGFloat, margins: CGFloat, pad: Bool, sizeClass: UserInterfaceSizeClass?) -> CGFloat {
         let chosen = pad && sizeClass == .regular ? setting : .comfortable
         return max(0, min(chosen.measure, available - 2 * margins))
@@ -42,7 +40,6 @@ private struct ReadingColumn: ViewModifier {
 }
 
 extension View {
-    /// Centres the conversation lane at the chosen Chat width, keeping `margins` clear on each side.
     func readingColumn(margins: CGFloat = 0) -> some View {
         modifier(ReadingColumn(margins: margins))
     }

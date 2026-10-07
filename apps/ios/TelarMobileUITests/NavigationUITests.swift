@@ -49,18 +49,28 @@ extension NavigationUITests {
         app.launch()
         let composer = app.textViews["Ask the agent, or run a command…"]
         XCTAssertTrue(composer.waitForExistence(timeout: 15))
+        if app.buttons["Hide panel"].exists { app.buttons["Hide panel"].tap() }
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 5))
 
-        let toggle = app.buttons["ToggleSidebar"].exists ? app.buttons["ToggleSidebar"] : app.buttons["Hide Sidebar"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "system sidebar toggle")
-        toggle.tap()
+        let toggles = app.buttons.matching(NSPredicate(format: "identifier == 'ToggleSidebar' OR label ==[c] 'Hide Sidebar' OR label ==[c] 'Show Sidebar'"))
+        XCTAssertTrue(toggles.firstMatch.waitForExistence(timeout: 5), "system sidebar toggle")
+        XCTAssertEqual(toggles.count, 1, "one rail toggle while the rail shows")
+        toggles.firstMatch.tap()
         XCTAssertTrue(search.waitForNonExistence(timeout: 5), "sidebar should be gone once hidden")
 
-        let show = app.buttons["Show sidebar"]
-        XCTAssertTrue(show.waitForExistence(timeout: 5), "detail must offer Show sidebar while hidden")
-        show.tap()
+        XCTAssertTrue(toggles.firstMatch.waitForExistence(timeout: 5), "detail must offer a way back while hidden")
+        let hidden = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        hidden.name = "Sidebar hidden"; hidden.lifetime = .keepAlways; add(hidden)
+        XCTAssertEqual(toggles.count, 1, "one rail toggle while the rail is hidden")
+        toggles.firstMatch.tap()
         XCTAssertTrue(search.waitForExistence(timeout: 5), "sidebar should return")
+
+        XCUIDevice.shared.orientation = .portrait
+        app.buttons["Show panel"].tap()
+        XCTAssertTrue(search.waitForNonExistence(timeout: 5), "the rail stands aside for the panel in portrait")
+        XCTAssertEqual(toggles.count, 1, "one rail toggle while the panel holds the rail aside")
+        app.buttons["Hide panel"].tap()
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "Sidebar restored"; screenshot.lifetime = .keepAlways; add(screenshot)
     }

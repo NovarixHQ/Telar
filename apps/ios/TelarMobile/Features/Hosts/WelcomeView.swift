@@ -117,13 +117,7 @@ struct WelcomeView: View {
         busy = true
         defer { busy = false }
         do {
-            let paired = try await Pairing.exchange(
-                base: parsed.base, token: parsed.token,
-                deviceName: UIDevice.current.name
-            )
-
-            settings.upsert(baseURLString: parsed.base.absoluteString, token: paired.deviceToken, addresses: paired.addresses ?? [])
-
+            try await Pairing.complete(parsed, settings: settings, deviceName: UIDevice.current.name)
             await MobileNotifications.shared.promptAfterPairing()
             error = nil
         } catch let apiError as EngineAPIError {

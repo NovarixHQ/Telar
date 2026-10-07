@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { AgentMessageIntent, NotificationDetail } from "@telar/engine-client";
+import type { AgentMessageIntent, NotificationDetail, SessionChild } from "@telar/engine-client";
 import type { JournalItem, JournalTurn } from "@/platform/engine";
 import { SessionTurn } from "./session-turn";
 import { TranscriptTurns } from "./transcript-turns";
@@ -62,5 +62,55 @@ describe("arrivals outside any cohort", () => {
     const html = render([arrival("run_s1", "session_stranger_ffffff", "result", "Hello.")], {});
     expect(html).toContain("A session sent a result");
     expect(visibleText(html)).not.toContain("ffffff");
+  });
+});
+
+const child = (sessionId: string, over: Partial<SessionChild> = {}): SessionChild => ({ sessionId, parentSessionId: HOST, parentRunId: "run_dispatch", state: "working", startedAt: 1_000, ...over });
+
+const dispatch = turn({ runId: "run_dispatch", prompt: "Fan these out" });
+const later = turn({ runId: "run_later", prompt: "Anything else?" });
+
+const withAgents = (turns: JournalTurn[], agents: SessionChild[]) =>
+  renderToStaticMarkup(
+    <TranscriptTurns
+      turns={turns}
+      directory={new Map()}
+      agents={agents}
+      projectId="proj"
+      renderTurn={(each) => <p>{`turn:${each.runId}`}</p>}
+    />,
+  );
+
+describe("children under the turn that tasked them", () => {
+  test("a working child is a row after its turn, with what it is doing and a link to it", () => {
+    const text = visibleText(withAgents([dispatch, later], [child("s_a", { title: "Fix the rail", progress: "Running tests", provider: "codex" })]));
+    expect(text.indexOf("Fix the rail")).toBeGreaterThan(text.indexOf("turn:run_dispatch"));
+    expect(text.indexOf("Fix the rail")).toBeLessThan(text.indexOf("turn:run_later"));
+    expect(text).toContain("Running tests");
+    expect(withAgents([dispatch], [child("s_a", { title: "Fix the rail" })])).toContain('href="/projects/proj/sessions/s_a"');
+  });
+
+  test("a waiting child says so, an ended one gives its summary", () => {
+    expect(visibleText(withAgents([dispatch], [child("s_a", { state: "waiting" })]))).toContain("waiting on you");
+    expect(visibleText(withAgents([dispatch], [child("s_a", { state: "done", summary: "Merged it", endedAt: 2_000 })]))).toContain("Merged it");
+  });
+
+  test("several from one turn share a header that counts them, open while any works", () => {
+    const html = withAgents([dispatch], [child("s_a", { title: "One" }), child("s_b", { title: "Two" }), child("s_c", { title: "Three", state: "done", endedAt: 2_000 })]);
+    expect(visibleText(html)).toContain("3 agents · 2 working · 1 done");
+    expect(visibleText(html)).toContain("Three");
+  });
+
+  test("once every one has ended the group starts closed", () => {
+    const html = withAgents([dispatch], [child("s_a", { title: "One", state: "done" }), child("s_b", { title: "Two", state: "failed" })]);
+    expect(visibleText(html)).toContain("2 agents · 1 done · 1 failed");
+    expect(visibleText(html)).not.toContain("One");
+  });
+
+  test("a child whose turn is not loaded shows under the newest turn while it is out, and not once it has ended", () => {
+    const stray = child("s_a", { title: "Older errand", parentRunId: "run_unloaded" });
+    const text = visibleText(withAgents([dispatch, later], [stray]));
+    expect(text.indexOf("Older errand")).toBeGreaterThan(text.indexOf("turn:run_later"));
+    expect(withAgents([dispatch, later], [{ ...stray, state: "done" }])).not.toContain("Older errand");
   });
 });

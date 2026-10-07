@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { SessionChild } from "@telar/engine-client";
-import { createEngineApi } from "@/platform/engine";
+import { displayToolName, type SessionChild } from "@telar/engine-client";
+import { createEngineApi, type JournalTurn } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
 
@@ -17,7 +17,7 @@ export const childPending = (child: Pick<SessionChild, "state">): boolean => chi
 export function useSessionChildren(hostId: string, sessionId: string | undefined, growth: unknown): readonly SessionChild[] {
   const owner = sessionId ? `${hostId}:${sessionId}` : undefined;
   const [held, setHeld] = useState<{ owner: string; children: SessionChild[] }>();
-  const children = owner && held?.owner === owner ? held.children : NONE;
+  const children = held && held.owner === owner ? held.children : NONE;
   const lastRead = useRef<{ key: string; at: number }>(undefined);
   const key = `${owner}:${String(growth)}`;
   usePoll(
@@ -27,10 +27,18 @@ export function useSessionChildren(hostId: string, sessionId: string | undefined
       if (quiet && lastRead.current?.key === key && Date.now() - lastRead.current.at < CHILDREN_IDLE_MS) return;
       lastRead.current = { key, at: Date.now() };
       const answer = await createEngineApi(hostFetcher(hostId)).children(sessionId).catch(() => undefined);
-      if (answer && !signal.aborted) setHeld({ owner, children: answer.children });
+      if (Array.isArray(answer?.children) && !signal.aborted) setHeld({ owner, children: answer.children });
     },
     owner ? CHILDREN_LIVE_MS : null,
     { key },
   );
   return children;
+}
+
+/** Changes when the transcript gains a turn or a sessions tool call finishes: the moments a child may have appeared. */
+export function childrenGrowth(turns: readonly JournalTurn[]): string {
+  const calls = (turns.at(-1)?.items ?? []).filter(
+    (item) => item.detail.type === "mcp_tool_call" && item.status !== "inProgress" && displayToolName(item.detail.call.name).startsWith("sessions_"),
+  ).length;
+  return `${turns.length}:${calls}`;
 }

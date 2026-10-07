@@ -25,6 +25,7 @@ import { useLinkRouting } from "../hooks/use-link-routing";
 import { useNavigationMarks } from "../hooks/use-navigation-marks";
 import { useSessionActions } from "../hooks/use-session-actions";
 import { useSessionBrowser } from "../hooks/use-session-browser";
+import { childrenGrowth, useSessionChildren } from "../hooks/use-session-children";
 import { useSessionSync } from "../hooks/use-session-sync";
 import { useSettling } from "../hooks/use-settling";
 import { useSubmit } from "../hooks/use-submit";
@@ -86,6 +87,7 @@ export function SessionCockpit({
   const revealNewTerminals = useJournalReactions({ sessionId, sync, browser: browser.browser, enabledPlugins, panel: panelState });
   const model = useTranscriptModel(sessionId, sync, showPanelTab);
   const { active } = model;
+  const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));
   const settling = useSettling(hostId, sessionId, sync);
   const actions = useSessionActions(sessionId, sync);
   const submit = useSubmit({
@@ -139,6 +141,7 @@ export function SessionCockpit({
             projectId={projectId}
             hostId={hostId}
             fresh={fresh}
+            agents={agents}
             turn={{
               roster: model.roster,
               sending: actions.sending,

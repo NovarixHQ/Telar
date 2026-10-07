@@ -10,6 +10,7 @@ import { Row, SettingsGroup, SettingsShell } from "./settings-shell";
 import { SECTION_IDS, SECTIONS, settingsSearchIndex } from "../settings-sections";
 import { projectPaneFor } from "@/features/plugins";
 import { useSectionFromUrl } from "../use-section-from-url";
+import { useSettingsReturnPath } from "../return-path";
 
 const AppearanceSection = dynamic(() => import("@/features/appearance/components/appearance-section").then((mod) => mod.AppearanceSection));
 const InboxSection = dynamic(() => import("@/features/sessions/components/inbox-section").then((mod) => mod.InboxSection));
@@ -77,6 +78,7 @@ function AboutSection({
 
 export function SettingsPage() {
   const [active, setActive] = useSectionFromUrl("general", SECTION_IDS);
+  const backHref = useSettingsReturnPath();
   const [about, setAbout] = useState<{ appVersion: string; stateRoot?: string }>();
   const [health, setHealth] = useState<EngineHealth>();
   const [unreachable, setUnreachable] = useState(false);
@@ -113,7 +115,7 @@ export function SettingsPage() {
       sections={SECTIONS}
       active={active}
       onSelect={setActive}
-      backHref="/"
+      backHref={backHref}
       search={search}
     >
       <Suspense fallback={null}>

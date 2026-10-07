@@ -57,7 +57,6 @@ struct AgentsTally: Equatable {
     var total: Int
 }
 
-/// Counts only batches (one parent run each) that still have an agent out; nil when none are out.
 func agentsTally(_ children: [ChildAgent]) -> AgentsTally? {
     let live = Set(children.filter(\.isOut).map { $0.parentRunId ?? "" })
     guard !live.isEmpty else { return nil }

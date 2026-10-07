@@ -32,6 +32,10 @@ const THEME_GUIDE = [
   "The page sits borderless on the reply's canvas, as wide as the reply column, with no frame or header around it: it is part of your reply.",
   "Use a fluid width with no outer card, border, banner title or horizontal padding on the outermost element. Give charts fixed pixel heights.",
   "Let content set the page's height: no 100vh or height:100% on html or body.",
+  "House style, matching the reply: 14px text and 12px muted labels. Head each section with a short line stating the finding, then a muted one-line subtitle.",
+  "Stat tiles are a row of large tabular numbers over muted labels, split by 1px var(--border) hairlines, not filled boxes.",
+  "Charts are inline SVG in full-strength --chart-N colours with no heavy gridlines: label key points directly, keep a small square-swatch legend, 11px muted axis text.",
+  "Tables have hairline rows, right-aligned tabular numbers, and --font-mono for code and paths.",
 ].join(" ");
 
 export const DISPLAY_BRIEFING =

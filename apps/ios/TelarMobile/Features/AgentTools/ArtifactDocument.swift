@@ -43,8 +43,11 @@ enum ArtifactLook {
     static let fontSans = "-apple-system, system-ui, sans-serif"
     static let fontMono = "ui-monospace, SFMono-Regular, Menlo, monospace"
 
-    private static let chart1 = UIColor { UIColor(rgb: $0.userInterfaceStyle == .dark ? 0x81A9FD : 0x436ED1) }
-    private static let chart2 = UIColor { UIColor(rgb: $0.userInterfaceStyle == .dark ? 0xE584CF : 0xA84D95) }
+    private static let charts: [(String, UIColor)] = ([
+        (0x81A9FD, 0x436ED1), (0xE584CF, 0xA84D95), (0x55C483, 0x1A8A51), (0xF89A56, 0xB75F0B), (0x4FBEC4, 0x01858A), (0xE4B33F, 0x9B7300),
+    ] as [(UInt32, UInt32)]).enumerated().map { index, pair in
+        ("chart-\(index + 1)", UIColor { UIColor(rgb: $0.userInterfaceStyle == .dark ? pair.0 : pair.1) })
+    }
 
     private static let palette: [(String, UIColor)] = [
         ("background", UIColor(Theme.canvas)),
@@ -59,9 +62,7 @@ enum ArtifactLook {
         ("warning", UIColor(Theme.statusAmber)),
         ("info", UIColor(Theme.statusSky)),
         ("destructive", UIColor(Theme.statusRed)),
-        ("chart-1", chart1),
-        ("chart-2", chart2),
-    ]
+    ] + charts
 
     static func tokens(dark: Bool) -> [(name: String, value: String)] {
         let traits = UITraitCollection(userInterfaceStyle: dark ? .dark : .light)
@@ -104,13 +105,22 @@ enum ArtifactDocument {
         const body = document.body;
         if (!body) return 0;
         const style = getComputedStyle(body);
-        let last = body.lastElementChild;
-        while (last && last.tagName === "SCRIPT") last = last.previousElementSibling;
-        const range = document.createRange();
-        range.selectNodeContents(body);
+        let bottom = 0, last = null;
+        for (const child of body.children) {
+          if (child.tagName === "SCRIPT" || child.tagName === "STYLE") continue;
+          if (child.checkVisibility && !child.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+          const edge = child.getBoundingClientRect().bottom;
+          if (edge >= bottom) { bottom = edge; last = child; }
+        }
+        for (const node of body.childNodes) {
+          if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+          const range = document.createRange();
+          range.selectNode(node);
+          bottom = Math.max(bottom, range.getBoundingClientRect().bottom);
+        }
         const tail = [last ? getComputedStyle(last).marginBottom : "0", style.paddingBottom, style.borderBottomWidth, style.marginBottom]
           .reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
-        return range.getBoundingClientRect().bottom + scrollY + tail;
+        return bottom + scrollY + tail;
       };
       const post = () => {
         const root = document.documentElement;

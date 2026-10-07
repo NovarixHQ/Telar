@@ -45,6 +45,8 @@ The device toolbar resizes the page to a preset: phones, tablets, desktops and f
 
 Browser options → **Open in its own window** moves the session's browser, with all its tabs, into a window of its own. The pages keep running and nothing reloads; the agent keeps working in them. The panel says where the browser went, with **Show** and **Bring back**. Closing the window also brings it back. A window still open when you quit reopens at launch, where you left it.
 
+In that window, Browser options → **Keep on top** shrinks it to a small window that floats above other apps and full-screen spaces. The page stays live and the agent keeps working in it. Hover its top strip for back, reload, bring back and **Turn off on top**.
+
 ## Annotating a page
 
 Use the pen to mark up what you see. Telar freezes the page and gives you a rectangle, an arrow, freehand, text labels, and a picker that names the element you click. Undo removes the last mark. When you're done, the marked-up picture goes into the composer, with a note of any elements you picked. The agent then knows exactly which button you mean. The camera attaches a plain screenshot, of the viewport or, with a right-click, the full page.

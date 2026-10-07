@@ -69,6 +69,7 @@ export type DesktopBrowserPanelState = {
   profileKey?: string | null;
   /** Drawn in a window of its own; the panel has no page to show meanwhile. */
   popped?: boolean;
+  compact?: boolean;
   // An event on exactly one push, never on a `getState` read: "no tabs" alone
   // cannot tell a closed browser from one that has not opened a page yet.
   ended?: boolean;

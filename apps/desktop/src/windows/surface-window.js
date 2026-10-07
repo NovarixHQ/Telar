@@ -4,6 +4,7 @@ const { createExternalLinkPolicy } = require("../browser/browser-manager");
 const { backdropWindowOptions } = require("../main/window-material");
 const { applyExternalLinkPolicy } = require("../main/window-links");
 const { placeOnDisplays } = require("./surface-window-store");
+const { FULL_MIN, compactPlace, setCompact } = require("./compact-window");
 
 const TITLES = { browser: "Browser" };
 
@@ -23,9 +24,9 @@ function trackPlace(win, store, kind, key) {
   const record = () => {
     if (win.isDestroyed()) return;
     const bounds = win.getNormalBounds();
-    store.remember(kind, key, { bounds, displayId: screen.getDisplayMatching(bounds).id, fullscreen: win.isFullScreen() });
+    store.remember(kind, key, { bounds, displayId: screen.getDisplayMatching(bounds).id, fullscreen: win.isFullScreen(), ...compactPlace(win) });
   };
-  for (const event of ["resize", "move", "enter-full-screen", "leave-full-screen"]) win.on(event, record);
+  for (const event of ["resize", "move", "enter-full-screen", "leave-full-screen", "compact-changed"]) win.on(event, record);
   record();
 }
 
@@ -34,8 +35,8 @@ function openSurfaceWindow({ appUrl, kind, key, params, store }) {
   const { saved, bounds } = rememberedPlace(store, kind, key);
   const win = new BrowserWindow({
     ...bounds,
-    minWidth: 360,
-    minHeight: 240,
+    minWidth: FULL_MIN.width,
+    minHeight: FULL_MIN.height,
     show: false,
     title,
     ...backdropWindowOptions({ dark: nativeTheme.shouldUseDarkColors, supported: false }),
@@ -54,8 +55,9 @@ function openSurfaceWindow({ appUrl, kind, key, params, store }) {
   });
   win.once("ready-to-show", () => {
     win.show();
-    if (saved?.fullscreen) win.setFullScreen(true);
+    if (saved?.fullscreen && !saved.compact) win.setFullScreen(true);
   });
+  if (saved?.compact) setCompact(win, true, { place: false, expanded: saved.expanded ? placeOnDisplays({ bounds: saved.expanded }, screen.getAllDisplays(), screen.getPrimaryDisplay()) : null });
   if (store) trackPlace(win, store, kind, key);
   win.loadURL(surfaceUrl(appUrl, kind, params));
   return win;

@@ -42,6 +42,7 @@ const { cockpitFocus, createPresence } = require("./presence");
 const { pinUserData } = require("./user-data");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
 const { createSurfaceWindowStore } = require("../windows/surface-window-store");
+const { isCompact, setCompact } = require("../windows/compact-window");
 
 pinUserData();
 
@@ -196,6 +197,9 @@ function createWindow(url) {
           openSurfaceWindow({ appUrl: url, kind: "browser", key: scope, params: { scope, project }, store: requireSurfaceWindows() }),
 
         onStageClosed: (scope) => requireSurfaceWindows().forget("browser", scope),
+
+        compactStageWindow: (stageWindow, on) => setCompact(stageWindow, on),
+        stageWindowCompact: isCompact,
 
         onChordScope,
       });

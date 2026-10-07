@@ -445,6 +445,36 @@ describe("a browser popped out into its own window", () => {
     expect(host.textContent).not.toContain("In its own window");
   });
 
+  test("only its own window offers to keep it on top", async () => {
+    const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
+    await mouseClick(optionsTrigger(own.host));
+    await mouseClick(menuRow("Keep on top"));
+    expect(own.actions.at(-1)).toEqual({ action: "compact", on: true });
+    own.unmount();
+
+    const panel = await mount(panelState());
+    await mouseClick(optionsTrigger(panel.host));
+    expect(menuRows()).not.toContain("Keep on top");
+  });
+
+  test("floating on top, the window is the page with a slim pill: back, reload, bring back, turn off on top", async () => {
+    const { actions, host } = await mount(panelState({ popped: true, compact: true, tabs: [tab({ canGoBack: true })] }), {}, undefined, { inWindow: true });
+    expect(host.querySelector('[role="tab"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Address"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Live browser viewport"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Floating browser controls"]')?.textContent).toContain("example.com");
+
+    const pill = (label: string) => host.querySelector(`[aria-label="Floating browser controls"] [aria-label="${label}"]`)!;
+    await mouseClick(pill("Go back"));
+    expect(actions.at(-1)).toEqual({ action: "back" });
+    await mouseClick(pill("Reload"));
+    expect(actions.at(-1)).toEqual({ action: "reload" });
+    await mouseClick(pill("Bring back to the panel"));
+    expect(actions.at(-1)).toEqual({ action: "bring-back" });
+    await mouseClick(pill("Turn off on top"));
+    expect(actions.at(-1)).toEqual({ action: "compact", on: false });
+  });
+
   test("a browser that ends while popped closes the panel's tab", async () => {
     const { onState, push } = pushing();
     let ended = 0;

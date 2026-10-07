@@ -74,6 +74,25 @@ class FakeBrowserWindow extends Emitter {
   setFullScreen(on) {
     this.fullscreen = on;
   }
+  getContentSize() {
+    return [this.bounds.width, this.bounds.height];
+  }
+  setBounds(bounds) {
+    this.bounds = { ...this.bounds, ...bounds };
+  }
+  setMinimumSize(width, height) {
+    this.minimumSize = [width, height];
+  }
+  setAspectRatio(ratio) {
+    this.aspectRatio = ratio;
+  }
+  setAlwaysOnTop(on, level) {
+    this.onTop = on ? level : false;
+  }
+  setVisibleOnAllWorkspaces(on, options) {
+    this.allWorkspaces = on ? options : false;
+    this.allWorkspacesOptions = options;
+  }
   isDestroyed() {
     return this.destroyed;
   }

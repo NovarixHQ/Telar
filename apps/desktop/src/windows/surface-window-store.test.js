@@ -29,7 +29,7 @@ describe("the surface window store", () => {
     store.remember("browser", "session-1", place);
     expect(fs.existsSync(store.file)).toBe(false);
     clock.timers.shift()();
-    expect(createSurfaceWindowStore(dir).list("browser")).toEqual([{ kind: "browser", key: "session-1", ...place }]);
+    expect(createSurfaceWindowStore(dir).list("browser")).toEqual([{ kind: "browser", key: "session-1", ...place, compact: false }]);
     expect(fs.readdirSync(dir)).toEqual(["surface-windows.json"]);
   });
 

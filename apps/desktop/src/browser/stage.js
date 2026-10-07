@@ -124,6 +124,21 @@ module.exports = {
     return this.state(scope);
   },
 
+  isCompactStage(scopeKey) {
+    const win = this.poppedStages.get(scopeKey)?.window;
+    return Boolean(win && !win.isDestroyed() && this.stageWindowCompact(win));
+  },
+
+  setStageCompact(scopeKey, on) {
+    const scope = this.requireScope(scopeKey);
+    const win = this.poppedStages.get(scope)?.window;
+    if (!win) throw new Error("Only a browser in its own window can float on top.");
+    if (!this.compactStageWindow) throw new Error("This build cannot float the browser on top.");
+    this.compactStageWindow(win, on);
+    this.emitState(scope);
+    return this.state(scope);
+  },
+
   bringBack(scopeKey) {
     const scope = this.requireScope(scopeKey);
     const stage = this.poppedStages.get(scope);

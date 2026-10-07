@@ -66,7 +66,7 @@ const bridge: UpdatesBridge = {
 (globalThis as { window: { telarDesktop?: unknown } }).window.telarDesktop = { updates: bridge };
 
 const { AppSidebarFooterRow } = await import("@/features/sessions/rail/app-sidebar-footer");
-const { UpdatesSection } = await import("./updates-section");
+const { AboutSection } = await import("./about-section");
 const { UPDATE_TOAST_MS } = await import("./update-toast");
 
 // The restart question asks the engine what is running, and Settings reads the
@@ -107,7 +107,7 @@ function mountSurface(element: React.ReactElement): Surface {
 /** Both surfaces, live, plus the push that drives them. */
 function mountBoth() {
   const footer = mountSurface(<AppSidebarFooterRow onNavigate={() => {}} />);
-  const settings = mountSurface(<UpdatesSection />);
+  const settings = mountSurface(<AboutSection />);
   const settle = async () => {
     await act(async () => {
       await Promise.resolve();

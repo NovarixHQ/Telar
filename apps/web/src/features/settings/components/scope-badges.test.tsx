@@ -5,7 +5,7 @@ import { BrowserLoginsSection } from "@/features/browser/panes/browser-logins-se
 import { BrowserProfilesSection } from "@/features/browser/panes/browser-profiles-section";
 import { DictationMicrophoneSection } from "@/features/dictation/components/dictation-microphone-section";
 import { DictationSection } from "@/features/dictation/components/dictation-section";
-import { InboxSection } from "@/features/sessions/components/inbox-section";
+import { OrganizationSection } from "@/features/sessions/components/organization-section";
 import { LinksSection } from "./links-section";
 import { SECTIONS } from "../settings-sections";
 import { Row, SettingsGroup, ToggleRow } from "./settings-shell";
@@ -34,17 +34,14 @@ test("panes that share one scope say it once, in the nav", () => {
     general: undefined,
     appearance: "browser",
     keybindings: "browser",
-    integrations: undefined,
-    dictation: undefined,
     providers: "mac",
-    tools: "mac",
+    integrations: undefined,
     plugins: "mac",
     projects: "project",
-    remote: "mac",
-    storage: "mac",
-    about: "mac",
-    updates: "mac",
+    notifications: "mac",
     "source-control": "mac",
+    storage: "mac",
+    connections: "mac",
   });
 });
 
@@ -53,7 +50,7 @@ test("the mixed panes mark each group by where it is stored", () => {
   expect(scopes(LinksSection)).toEqual(["browser"]);
   expect(scopes(DictationMicrophoneSection)).toEqual(["browser"]);
   // Off the address bar's host this reads "host"; the local engine is this Mac.
-  expect(scopes(InboxSection)).toEqual(["mac"]);
+  expect(scopes(OrganizationSection)).toEqual(["mac"]);
   for (const Section of [WorkspaceSection, TextGenSection, DictationSection, BrowserLoginsSection, BrowserProfilesSection]) {
     expect(scopes(Section)).toEqual(["mac"]);
   }

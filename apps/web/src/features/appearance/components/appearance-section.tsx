@@ -90,7 +90,7 @@ export function AppearanceSection() {
       <LooksSection onWear={wear} />
 
       <SettingsGroup
-        title="Composer"
+        title="Background"
         description="What the app looks like: a base colour the surfaces are derived from, and the layers over it. Light and dark are two states of one composition — you edit the one the window wears, set under Window below."
       >
         <Row

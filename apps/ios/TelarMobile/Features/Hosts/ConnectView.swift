@@ -94,7 +94,7 @@ struct ConnectView: View {
                         }
                     }
                     SettingsFootnote(targetToken == nil
-                        ? "When the cockpit requires pairing: Settings → Remote access → show the code, then copy the link under the QR."
+                        ? "When the cockpit requires pairing: Settings → Connections → show the code, then copy the link under the QR."
                         : "Forget removes the credential from this phone only — revoke the device on the computer to kill it everywhere.")
                 }
 

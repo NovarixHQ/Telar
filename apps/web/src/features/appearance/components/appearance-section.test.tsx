@@ -73,7 +73,7 @@ describe("the pane is a stack of settings groups", () => {
   test("every group is on the page at once, in reading order", () => {
     // Start from something whole, compose it, then its type, and last the
     // window — the only group that is not part of a look.
-    expect(captions()).toEqual(["Looks", "Composer", "Type and surfaces", "Window"]);
+    expect(captions()).toEqual(["Looks", "Background", "Type and surfaces", "Window"]);
   });
 
   test("there is no tab strip left anywhere on it", () => {
@@ -117,7 +117,7 @@ describe("the rows settings search points at", () => {
     expect(ids).toContain("settings-row-appearance-window-glass");
     expect(ids).toContain("settings-row-appearance-window-layers-through-canvas-and-rail");
     expect(ids).toContain("settings-row-appearance-type-and-surfaces-accent");
-    expect(ids).toContain("settings-row-appearance-composer-base");
+    expect(ids).toContain("settings-row-appearance-background-base");
   });
 
   test("the rows on the page derive the GROUP half of those ids", () => {
@@ -135,7 +135,7 @@ describe("the rows settings search points at", () => {
      */
     expect(host.querySelector("#settings-row-window-layers-through-canvas-and-rail")).not.toBeNull();
     expect(host.querySelector("#settings-row-type-and-surfaces-accent")).not.toBeNull();
-    expect(host.querySelector("#settings-row-composer-base")).not.toBeNull();
+    expect(host.querySelector("#settings-row-background-base")).not.toBeNull();
   });
 
   test("no row claims an anchor twice", () => {
@@ -230,9 +230,9 @@ describe("the Looks gallery reads as a table", () => {
  * colour, a stack of layers over it, and the sixteen tokens folded away as
  * OVERRIDES of what the base derived.
  */
-describe("the Composer group", () => {
+describe("the Background group", () => {
   function composerGroup(): HTMLElement | null {
-    return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Composer") ?? null;
+    return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Background") ?? null;
   }
 
   test("it carries no light/dark switch of its own: Window ▸ Colour scheme is the one", () => {
@@ -244,7 +244,7 @@ describe("the Composer group", () => {
 
   test("the base leads, and the layers follow it", () => {
     const group = composerGroup();
-    expect(group?.querySelector("#settings-row-composer-base")).not.toBeNull();
+    expect(group?.querySelector("#settings-row-background-base")).not.toBeNull();
     const html = group?.innerHTML ?? "";
     expect(html.indexOf("Base")).toBeGreaterThan(-1);
     expect(html.indexOf("Base")).toBeLessThan(html.indexOf("Layers"));

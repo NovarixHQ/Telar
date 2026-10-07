@@ -29,7 +29,7 @@ describe("Notify on", () => {
   });
 
   test("the row shows the stored choice where search points, and reverting writes the default", async () => {
-    expect(SETTINGS_SEARCH_INDEX.entries.find((entry) => entry.title === "Notify on")?.id).toBe("settings-row-remote-push-notifications-notify-on");
+    expect(SETTINGS_SEARCH_INDEX.entries.find((entry) => entry.title === "Notify on")?.id).toBe("settings-row-notifications-push-notifications-notify-on");
     for (const saves of [true, false]) {
       const { host, calls, unmount } = await mountPane({ configured: true, devices: [] }, "both", saves);
       expect(host.querySelector('[id$="push-notifications-notify-on"]')?.textContent).toContain("Both");

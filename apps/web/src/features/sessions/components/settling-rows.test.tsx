@@ -4,7 +4,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { DEFAULT_INBOX_POLICY, DEFAULT_SETTLE_DELEGATED_AFTER_HOURS, type InboxPolicy } from "@telar/engine-client";
 import { forgetInboxPolicies } from "../inbox-policy";
-import { InboxSection } from "./inbox-section";
+import { SettingsGroup } from "@/features/settings";
+import { SettlingRows } from "./settling-rows";
 
 GlobalRegistrator.register({ url: "http://localhost/settings" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -48,7 +49,11 @@ async function mount() {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  await act(async () => root.render(<InboxSection />));
+  await act(async () => root.render(
+      <SettingsGroup title="Organization">
+        <SettlingRows />
+      </SettingsGroup>,
+    ));
   await flush();
   const labelled = (label: string) => host.querySelector<HTMLInputElement>(`[aria-label="${label}"]`);
   return {
@@ -94,7 +99,7 @@ test("each duration appears only while its own switch is on, under its own ancho
   await view.click(view.labelled(DELEGATED));
   expect(view.labelled(DELEGATED_WINDOW)).toBeNull();
   await view.click(view.labelled(QUIET));
-  expect(view.host.querySelector(`#settings-row-settling-settle-quiet-sessions-after [aria-label="${QUIET_WINDOW}"]`)).not.toBeNull();
+  expect(view.host.querySelector(`#settings-row-organization-settle-quiet-sessions-after [aria-label="${QUIET_WINDOW}"]`)).not.toBeNull();
   view.done();
 });
 
@@ -104,7 +109,7 @@ test("the delegated window reverts to the protocol's default, an hour", async ()
   expect(DEFAULT_INBOX_POLICY.autoSettleAfterHours).not.toBe(DEFAULT_SETTLE_DELEGATED_AFTER_HOURS);
   policy = { ...policy, settleDelegatedAfterHours: 5 };
   const view = await mount();
-  await view.click(view.host.querySelector('#settings-row-settling-settle-delegated-conversations-after [aria-label="Revert to the default"]'));
+  await view.click(view.host.querySelector('#settings-row-organization-settle-delegated-conversations-after [aria-label="Revert to the default"]'));
   expect(patches).toEqual([{ settleDelegatedAfterHours: DEFAULT_SETTLE_DELEGATED_AFTER_HOURS }]);
   view.done();
 });
@@ -113,14 +118,5 @@ test("typing a duration patches that window alone", async () => {
   const view = await mount();
   await view.type(DELEGATED_WINDOW, "3");
   expect(patches).toEqual([{ settleDelegatedAfterHours: 3 }]);
-  view.done();
-});
-
-test("the settled terminal limit is one count, patched alone", async () => {
-  expect(DEFAULT_INBOX_POLICY.settledTerminalLimit).toBe(5);
-  const view = await mount();
-  expect(view.host.textContent).toContain("Terminals settled sessions may keep open");
-  await view.type("How many terminals settled sessions may keep open", "2");
-  expect(patches).toEqual([{ settledTerminalLimit: 2 }]);
   view.done();
 });

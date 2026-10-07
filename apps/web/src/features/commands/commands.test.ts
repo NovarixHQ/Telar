@@ -269,7 +269,7 @@ describe("what a command means here", () => {
     expect(commandDestination("settings", [])).toEqual({ kind: "navigate", href: "/settings" });
     expect(commandDestination("appearance", [])).toEqual({ kind: "navigate", href: "/settings?section=appearance" });
     expect(commandDestination("open-plugins", [])).toEqual({ kind: "navigate", href: "/settings?section=plugins" });
-    expect(commandDestination("check-for-updates", [])).toEqual({ kind: "navigate", href: "/settings?section=updates" });
+    expect(commandDestination("check-for-updates", [])).toEqual({ kind: "navigate", href: "/settings?section=general" });
     expect(commandDestination("open-usage", [])).toEqual({ kind: "navigate", href: "/usage" });
     expect(commandDestination("project-settings", [])).toEqual({ kind: "noop" });
     expect(commandDestination("panel-fullscreen", [])).toEqual({ kind: "noop" });

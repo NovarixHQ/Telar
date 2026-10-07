@@ -35,7 +35,7 @@ async function mcpOAuthStatuses(store: EngineStore, servers: McpServer[]): Promi
 }
 
 function settingsUrl(projectId: string | undefined, params: Record<string, string>): string {
-  const query = new URLSearchParams(projectId ? { section: "projects", project: projectId, ...params } : { section: "tools", ...params });
+  const query = new URLSearchParams(projectId ? { section: "projects", project: projectId, ...params } : { section: "integrations", ...params });
   return `/settings?${query}`;
 }
 

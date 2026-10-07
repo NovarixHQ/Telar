@@ -36,7 +36,7 @@ The editor highlights code, but it's not an IDE: there's no code completion or p
 
 ## Simulator
 
-The first time, the surface offers **Turn on simulators**. That installs a helper and starts it on this Mac only. You can also turn it on in Settings → Agent tools. The list shows every simulator. **Start** boots one and opens it in a tab of its own; **Open** opens one that is already running. Click and drag on the screen to touch, and type while it has focus. The toolbar has Home, Rotate, the settings drawer (appearance, text size, accessibility, apps, permissions, location, a test notification) and Power off.
+The first time, the surface offers **Turn on simulators**. That installs a helper and starts it on this Mac only. You can also turn it on in Settings → Integrations. The list shows every simulator. **Start** boots one and opens it in a tab of its own; **Open** opens one that is already running. Click and drag on the screen to touch, and type while it has focus. The toolbar has Home, Rotate, the settings drawer (appearance, text size, accessibility, apps, permissions, location, a test notification) and Power off.
 
 - Only the tab on screen streams. Hiding the panel stops the video.
 - Over plain http on another device the video is a lower-quality fallback. Smooth video needs localhost or a Tailscale https address.

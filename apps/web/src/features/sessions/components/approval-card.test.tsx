@@ -87,7 +87,7 @@ describe("the kinds it must not disturb", () => {
   });
 });
 
-test("a login approval points to Settings → Browser to revoke what it remembers", () => {
+test("a login approval points to Settings → Integrations to revoke what it remembers", () => {
   const html = renderToStaticMarkup(
     <ApprovalCard
       request={
@@ -108,6 +108,6 @@ test("a login approval points to Settings → Browser to revoke what it remember
       onDecide={() => {}}
     />,
   );
-  expect(html).toContain("Revoke in Settings → Browser.");
+  expect(html).toContain("Revoke in Settings → Integrations.");
   expect(html).not.toContain("Agent tools");
 });

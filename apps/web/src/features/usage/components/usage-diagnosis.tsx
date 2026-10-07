@@ -27,7 +27,7 @@ const FIX_LABEL: Record<UsageDiagnosisReport["findings"][number]["fix"]["setting
   "new-sessions-effort": "Settings → New sessions → Effort",
   "continue-after-reset": "Settings → New sessions → Continue after a reset",
   "settle-delegated": "Settings → Settling",
-  "generated-text-model": "Settings → Generated text → Model",
+  "generated-text-model": "Settings → General → Text generation → Model",
   compaction: "Settings → Providers → Compaction",
   schedules: "The session's schedule",
   "mcp-servers": "Settings → Tools → MCP servers",

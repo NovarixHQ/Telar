@@ -4,7 +4,7 @@ The Telar iPhone app follows your agents while you're away from the Mac. You can
 
 ## Getting connected
 
-1. On the Mac, go to Settings → Remote access. Make sure your phone can reach the Mac: use the same Wi-Fi, or Tailscale on both devices (see [Remote access](remote-access.md)).
+1. On the Mac, go to Settings → Connections. Make sure your phone can reach the Mac: use the same Wi-Fi, or Tailscale on both devices (see [Remote access](remote-access.md)).
 2. Show a pairing code, and pick an address the phone can reach.
 3. In the app, choose **Scan pairing code** and point the camera at the QR code. You can also paste the pairing link, or choose **Connect manually** and enter the address.
 
@@ -34,7 +34,7 @@ In the app, go to Settings → Notifications & activities and turn on Notificati
 - To mute a single conversation, use its menu.
 - Some alerts let you approve a request right from the notification.
 
-There's nothing to set up on the Mac. The phone registers itself when you turn notifications on. The Mac then sends a test notification, and Settings → Remote access → Push notifications on the Mac shows whether it arrived. If the phone shows as not registered, open Telar on it.
+There's nothing to set up on the Mac. The phone registers itself when you turn notifications on. The Mac then sends a test notification, and Settings → Notifications on the Mac shows whether it arrived. If the phone shows as not registered, open Telar on it.
 
 **Notify on** (on the Mac) chooses where alerts go. The default sends them to the Mac while Telar is the window in front and you've used the Mac in the last minute, and to the phone otherwise. You can also choose iPhone only, or Both. Neither device alerts you about a conversation you're looking at.
 

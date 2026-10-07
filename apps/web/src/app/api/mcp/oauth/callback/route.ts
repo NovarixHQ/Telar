@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     target = (await (await engineClient()).mcpOAuthCallback(query.toString())).redirect;
   } catch (error) {
     const message = error instanceof Error ? error.message : "The sign-in could not be completed.";
-    target = `/settings?${new URLSearchParams({ section: "tools", mcpOAuthError: message })}`;
+    target = `/settings?${new URLSearchParams({ section: "integrations", mcpOAuthError: message })}`;
   }
   redirect(target);
 }

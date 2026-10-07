@@ -28,7 +28,7 @@ export function StoreSection() {
     <SettingsGroup title="Store">
       <Row
         icon={HardDriveIcon}
-        label="Location"
+        label="Data folder"
         hint={status?.pinnedByEnvironment ? `${status.path} (pinned by TELAR_HOME).` : where}
         {...(status?.volume ? { info: REMOVABLE_DRIVE_WARNING } : {})}
         {...(failure ? { error: failure } : {})}

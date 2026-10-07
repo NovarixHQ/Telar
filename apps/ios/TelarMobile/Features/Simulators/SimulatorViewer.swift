@@ -6,7 +6,10 @@ struct SimulatorViewer: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
-    init(api: any SimulatorsAPI, simulators: [SimulatorSummary], selectedId: String? = nil) {
+    private let embedded: Bool
+
+    init(api: any SimulatorsAPI, simulators: [SimulatorSummary], selectedId: String? = nil, embedded: Bool = false) {
+        self.embedded = embedded
         _model = State(initialValue: SimulatorViewerModel(api: api, simulators: simulators, selectedId: selectedId))
     }
 
@@ -24,8 +27,8 @@ struct SimulatorViewer: View {
         }
         .padding(.bottom, 8)
         .background(Color.black.ignoresSafeArea())
-        .preferredColorScheme(.dark)
-        .statusBarHidden()
+        .preferredColorScheme(embedded ? nil : .dark)
+        .statusBarHidden(!embedded)
         .onAppear { model.start() }
         .onDisappear { model.stop() }
         .onChange(of: scenePhase) { _, phase in
@@ -38,7 +41,7 @@ struct SimulatorViewer: View {
 
     private var controls: some View {
         HStack(spacing: 4) {
-            controlButton("xmark", label: "Close") { dismiss() }
+            if !embedded { controlButton("xmark", label: "Close") { dismiss() } }
             VStack(spacing: 0) {
                 Text(model.selected?.name ?? "Simulator")
                     .font(.system(Theme.subhead, weight: .semibold))

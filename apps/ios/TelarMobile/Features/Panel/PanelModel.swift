@@ -10,17 +10,19 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
     static let diff = PanelTab(rawValue: "diff")
     static let files = PanelTab(rawValue: "files")
     static let agents = PanelTab(rawValue: "agents")
+    static let simulator = PanelTab(rawValue: "simulator")
 
     static let data = PanelTab(rawValue: "data")
     static let latex = PanelTab(rawValue: "latex")
 
-    static let always: [PanelTab] = [.diff, .files, .agents]
+    static let always: [PanelTab] = [.diff, .files, .agents, .simulator]
 
     var label: String {
         switch self {
         case .diff: "Diff"
         case .files: "Files"
         case .agents: "Agents"
+        case .simulator: "Simulator"
         default: PluginUI.surface(for: self)?.label ?? rawValue
         }
     }
@@ -30,6 +32,7 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
         case .diff: "plus.forwardslash.minus"
         case .files: "folder"
         case .agents: "person.2"
+        case .simulator: "iphone"
         default: PluginUI.surface(for: self)?.icon ?? "puzzlepiece"
         }
     }

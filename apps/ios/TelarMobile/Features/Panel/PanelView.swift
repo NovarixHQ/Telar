@@ -11,6 +11,8 @@ struct PanelView: View {
     let panelAPI: (any PanelAPI)?
     let sessionId: EngineID
     let hostId: HostID?
+    var simulators: [SimulatorSummary] = []
+    var agentSimulatorId: String?
 
     let active: Bool
     let panel: PanelModel
@@ -72,6 +74,12 @@ struct PanelView: View {
         case .diff:
             DiffView(api: api, sessionId: sessionId)
 
+        case .simulator:
+            if let simulatorsAPI = api as? any SimulatorsAPI {
+                SimulatorSurface(api: simulatorsAPI, running: simulators, preferred: agentSimulatorId)
+            } else {
+                unavailable
+            }
         case .agents:
             AgentsSurface(api: api, sessionId: sessionId, hostId: hostId, active: active)
         case .files:

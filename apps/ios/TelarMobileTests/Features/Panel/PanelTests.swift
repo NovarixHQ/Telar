@@ -135,7 +135,7 @@ import Testing
         let panel = PanelModel(hostId: UUID(), sessionId: "s", defaults: defaults)
         panel.select(.data)
         panel.setPlugins([.latex])
-        #expect(panel.tabs == [.diff, .files, .agents, .latex])
+        #expect(panel.tabs == [.diff, .files, .agents, .simulator, .latex])
         #expect(panel.active == .diff)
     }
 
@@ -145,7 +145,7 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
         let panel = PanelModel(hostId: UUID(), sessionId: "s", defaults: defaults)
         panel.setPlugins([PluginID("hello")])
-        #expect(panel.tabs == [.diff, .files, .agents])
+        #expect(panel.tabs == [.diff, .files, .agents, .simulator])
         #expect(panelView(for: "nb.ipynb", enabled: [PluginID("hello")]) == .notebookReadOnly)
         #expect(panelView(for: "rows.csv", enabled: [PluginID("hello")]) == .code)
         #expect(PluginUI.surfaces(enabled: [PluginID("hello")]).isEmpty)
@@ -154,6 +154,12 @@ import Testing
         panel.select(PanelTab(rawValue: "someday"))
         panel.setPlugins([PluginID("hello")])
         #expect(panel.active == .diff)
+    }
+
+    @Test func theSimulatorSurfaceUsesTheDesktopsId() throws {
+        #expect(PanelTab.simulator.rawValue == "simulator")
+        #expect(PanelTab.simulator.label == "Simulator" && PanelTab.simulator.icon == "iphone")
+        #expect(try JSONDecoder().decode(PanelTab.self, from: Data("\"simulator\"".utf8)) == .simulator)
     }
 
     @Test func theBundledPluginsContributeWhatTheyAlwaysDid() throws {
@@ -177,10 +183,10 @@ import Testing
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let panel = PanelModel(hostId: UUID(), sessionId: "s", defaults: defaults)
-        #expect(panel.tabs == [.diff, .files, .agents])
+        #expect(panel.tabs == [.diff, .files, .agents, .simulator])
         panel.select(.agents)
         panel.setPlugins([.dataScience, .latex])
-        #expect(panel.tabs == [.diff, .files, .agents, .data, .latex])
+        #expect(panel.tabs == [.diff, .files, .agents, .simulator, .data, .latex])
         #expect(panel.active == .agents)
         panel.setPlugins([])
         #expect(panel.active == .agents)

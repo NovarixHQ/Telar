@@ -42,7 +42,6 @@ describe("a rejected device token is dropped, never retried", () => {
       { status: 503 },
       { status: 400, relay: true },
       { status: 401, relay: true },
-      { status: 409, relay: true },
     ] as DeliveryResult[]) {
       expect(isDeadToken(result)).toBe(false);
       const next = await deliverRecord(record(), [blocked], async () => result, 5000);
@@ -50,6 +49,11 @@ describe("a rejected device token is dropped, never retried", () => {
       expect(next!.failures).toBe(1);
       expect(next!.parked).toBeUndefined();
     }
+  });
+
+  test("a relay that has no such token answers 409, which backs nothing off", async () => {
+    const next = await deliverRecord(record(), [blocked], async () => ({ status: 409, relay: true, reason: "not_registered" }), 5000);
+    expect([next!.failures, next!.retryAt, next!.lastStatus]).toEqual([0, undefined, 409]);
   });
 
   test("backoff runs 30s to an hour, and the last status is kept for Settings", async () => {

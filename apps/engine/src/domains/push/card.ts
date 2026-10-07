@@ -14,6 +14,8 @@ const REFERENCE_EPOCH = 978307200;
 export type CardRow = { id: string; status: string; title?: string; project?: string; workers?: number };
 export type CardAlert = { title: string; body: string; sound?: string };
 export type CardEvent = "start" | "update" | "end";
+export type CardPost = { kind: "card"; host: { id: string; name: string }; active: number; rows: CardRow[]; alert?: CardAlert };
+const RELAY_CARD_ROWS = 5;
 
 function clip(text: string, max: number): string {
   const trimmed = text.trim();
@@ -54,7 +56,7 @@ function activeRoots(sessions: SessionSignal[]): SessionSignal[] {
   return families(sessions).filter(family => automaticSessions(family).length).map(([root]) => root!);
 }
 
-export function cardRows(sessions: SessionSignal[], now: number, previews: boolean): CardRow[] {
+export function cardRows(sessions: SessionSignal[], now: number, previews: boolean, limit = CARD_ROWS): CardRow[] {
   const at = (s: SessionSignal) => Math.max(s.activityAt ?? 0, s.lastTurnEndedAt ?? 0);
   return families(sessions).flatMap(([root, ...children]) => {
     const shown = [root!, ...children].flatMap(session => { const status = rowStatus(session, now); return status ? [{ session, status }] : []; });
@@ -64,7 +66,7 @@ export function cardRows(sessions: SessionSignal[], now: number, previews: boole
     const project = root!.project ?? children.find(c => c.project)?.project;
     return [{ root: root!, status: lead.status, waitingOn: lead.session.waitingOn, at: Math.max(...shown.map(s => at(s.session))), workers, project }];
   }).sort((a, b) => ROW_RANK[a.status]! - ROW_RANK[b.status]! || b.at - a.at || a.root.id.localeCompare(b.root.id))
-    .slice(0, CARD_ROWS)
+    .slice(0, limit)
     .map(({ root, status, waitingOn, workers, project }) => ({ id: root.id, status: status === "Waiting" ? waitingLabel(waitingOn) : status,
       ...(previews && root.title.trim() ? { title: clip(root.title, 60) } : {}), ...(project ? { project: clip(project, 40) } : {}),
       ...(workers ? { workers } : {}) }));
@@ -79,6 +81,11 @@ export function cardAlert(record: MobileRegistration, blocked: SessionSignal[]):
   const sound = alertSound(record, "blocked");
   return { title: !one ? `${blocked.length} sessions need you` : record.previews ? clip(one.title, 160) : "Telar",
     body: one ? ALERT_BODY.blocked : "Open Telar to answer them.", ...(sound ? { sound } : {}) };
+}
+
+export function cardPost(record: MobileRegistration, sessions: SessionSignal[], now: number, shown: boolean, alert?: CardAlert): CardPost {
+  return { kind: "card", host: { id: record.hostId, name: clip(cardHostName(record.hostName), 60) },
+    active: shown ? activeRoots(sessions).length : 0, rows: shown ? cardRows(sessions, now, record.previews, RELAY_CARD_ROWS) : [], ...(alert ? { alert } : {}) };
 }
 
 export function automaticActivityDelivery(record: MobileRegistration, sessions: SessionSignal[], token: string, startedAt: number, now: number, event: CardEvent = "update", alert?: CardAlert): Delivery {

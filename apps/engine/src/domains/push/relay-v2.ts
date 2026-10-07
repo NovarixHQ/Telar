@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import type { Delivery, DeliveryResult, PushRecord, RelayCredential } from "./push";
+import type { CardPost } from "./card";
+import { tokenFingerprint, type Delivery, type DeliveryResult, type PushRecord, type RelayCredential } from "./push";
 
 export const RELAY_V2_URL = process.env.TELAR_PUSH_RELAY_URL ?? "https://telar-push-relay.facundo-barbera.workers.dev";
 
@@ -25,14 +26,16 @@ function signV2(sendKey: string, stamp: string, path: string, body: string): str
   return crypto.createHmac("sha256", Buffer.from(sendKey, "base64url")).update(`${stamp}\nPOST\n${path}\n${body}`).digest("hex");
 }
 
-export function v2Body(delivery: Delivery): Record<string, unknown> | undefined {
+export function v2Body(delivery: Delivery | CardPost): Record<string, unknown> | undefined {
+  if (delivery.kind === "card") return delivery;
   const base = { kind: delivery.kind, collapseId: delivery.collapseId, payload: delivery.payload };
   if (delivery.kind === "alert" || delivery.kind === "background") return base;
   if (delivery.payload.aps.event === "start") return { ...base, start: true };
-  return delivery.activityId !== undefined && ACTIVITY.test(delivery.activityId) ? { ...base, activity: delivery.activityId, ...(delivery.urgent ? { urgent: true } : {}) } : undefined;
+  if (delivery.activityId === undefined || !ACTIVITY.test(delivery.activityId)) return undefined;
+  return { ...base, activity: delivery.activityId, fingerprint: tokenFingerprint(delivery.token), ...(delivery.urgent ? { urgent: true } : {}) };
 }
 
-export async function relayV2Delivery(credential: RelayCredential, delivery: Delivery, fetchImpl: typeof fetch = fetch): Promise<DeliveryResult> {
+export async function relayV2Delivery(credential: RelayCredential, delivery: Delivery | CardPost, fetchImpl: typeof fetch = fetch): Promise<DeliveryResult> {
   const payload = v2Body(delivery);
   if (!payload) return { status: 400, relay: true };
   const path = `/v2/devices/${credential.handle}/push`;
@@ -43,9 +46,9 @@ export async function relayV2Delivery(credential: RelayCredential, delivery: Del
     headers: { "content-type": "application/json", "x-telar-key": credential.keyId, "x-telar-timestamp": stamp, "x-telar-signature": signV2(credential.sendKey, stamp, path, body) },
   });
   if (!response.ok) return relayRefusal(response, await relayErrorWord(response));
-  const result = await response.json() as { status?: number; reason?: string };
+  const result = await response.json() as { status?: number; reason?: string; alerted?: boolean };
   if (typeof result.status !== "number") return { status: 503, relay: true };
-  return { status: result.status, ...(typeof result.reason === "string" ? { reason: result.reason } : {}) };
+  return { status: result.status, ...(typeof result.reason === "string" ? { reason: result.reason } : {}), ...(result.alerted === true ? { alerted: true } : {}) };
 }
 
 async function relayErrorWord(response: Response): Promise<string | undefined> {

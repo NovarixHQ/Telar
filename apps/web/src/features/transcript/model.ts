@@ -7,9 +7,12 @@ import { notificationHead, notificationVerbs, quotedMessage, type NotificationSu
 import { CONSULT_TALLY_LABEL, harnessConsult } from "./harness-paths";
 import { toolInputSummary } from "./tool-input-summary";
 import { rowPath } from "./components/tool-row";
+import { sessionsActionLabel, sessionsLabelSaysAll, sessionsTally } from "./sessions-tools";
 
 /** The verb a row leads with. Past tense: the transcript is a record. */
 export function actionLabel(item: JournalItem): string {
+  const sessions = sessionsActionLabel(item, false);
+  if (sessions) return sessions;
   switch (item.detail.type) {
     case "command_execution":
       return "Ran command";
@@ -34,6 +37,8 @@ export function actionLabel(item: JournalItem): string {
 
 /** The verb a RUNNING row leads with. Present tense: it has not happened yet. */
 export function liveActionLabel(item: JournalItem): string {
+  const sessions = sessionsActionLabel(item, true);
+  if (sessions) return sessions;
   switch (item.detail.type) {
     case "command_execution":
       return "Running command";
@@ -55,6 +60,7 @@ export function liveActionLabel(item: JournalItem): string {
 }
 
 export function preview(item: JournalItem): string {
+  if (sessionsLabelSaysAll(item)) return "";
   const raw =
     item.detail.type === "command_execution"
       ? item.detail.command.command
@@ -101,8 +107,9 @@ export function notificationLabel(
  *  summary re-states the noise the fold just removed — "Read file ×3 · Ran
  *  command" over a line that says the harness consulted a skill (#354). */
 export function tallyParts(items: readonly JournalItem[], workspace?: string): string[] {
-  const counts = new Map<string, number>();
+  const counts = new Map<string, { count: number; label: (count: number) => string }>();
   for (const item of items) {
+    const sessions = sessionsTally(item);
     const action = harnessConsult(item, workspace)
       ? CONSULT_TALLY_LABEL
       : item.detail.type === "reasoning"
@@ -110,10 +117,12 @@ export function tallyParts(items: readonly JournalItem[], workspace?: string): s
         : item.detail.type === "task"
           ? "Ran agent"
           : actionLabel(item);
-    const label = /^Reconnecting(?:\.{3}|…)\s*\d+\/\d+$/i.test(action.trim()) ? "Reconnect attempt" : action;
-    counts.set(label, (counts.get(label) ?? 0) + 1);
+    const plain = /^Reconnecting(?:\.{3}|…)\s*\d+\/\d+$/i.test(action.trim()) ? "Reconnect attempt" : action;
+    const key = sessions?.key ?? plain;
+    const label = sessions?.label ?? ((count: number) => (count > 1 ? `${plain} ×${count}` : plain));
+    counts.set(key, { count: (counts.get(key)?.count ?? 0) + 1, label: counts.get(key)?.label ?? label });
   }
-  return [...counts].map(([label, count]) => (count > 1 ? `${label} ×${count}` : label));
+  return [...counts.values()].map(({ count, label }) => label(count));
 }
 
 export function renderable(items: JournalItem[], tasks: readonly JournalTask[] = []): JournalItem[] {

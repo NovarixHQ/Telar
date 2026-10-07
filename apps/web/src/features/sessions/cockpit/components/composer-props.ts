@@ -10,7 +10,7 @@ import type { useSettling } from "../hooks/use-settling";
 import type { useSubmit } from "../hooks/use-submit";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
 
-export function composerProps({ fresh, solo, session, projectId, projectName, compact, contextNoticePercent, composer, draft, actions, settling, model, submit, showPanelTab }: {
+export function composerProps({ fresh, solo, session, projectId, projectName, compact, contextNoticePercent, builders, composer, draft, actions, settling, model, submit, showPanelTab }: {
   fresh: boolean;
   solo: boolean;
   session: Session | undefined;
@@ -18,6 +18,7 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
   projectName: string | undefined;
   compact: boolean;
   contextNoticePercent: ComponentProps<typeof Composer>["contextNoticePercent"];
+  builders: ComponentProps<typeof Composer>["builders"];
   composer: ReturnType<typeof useComposerDraft>;
   draft: ReturnType<typeof useDraftConfig>;
   actions: ReturnType<typeof useSessionActions>;
@@ -61,6 +62,7 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
     onUnsettle: () => void settling.unsettle(),
     ...(settling.snoozedUntil === undefined ? {} : { snoozeWakeIn: wakeLabel(settling.snoozedUntil, settling.now) }),
     onWake: () => void settling.snooze(null),
+    ...(builders ? { builders } : {}),
     ...(session?.driver === "claude" ? { onCompact: () => void actions.compact() } : {}),
     compacting: model.compacting,
     contextNoticePercent,

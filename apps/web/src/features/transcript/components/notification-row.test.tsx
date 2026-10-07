@@ -102,7 +102,7 @@ test("a result and the completion that follows it render as two different rows",
   expect(first).toContain("Three commits landed");
 });
 
-test("a cohort says how many things it is, and stays one row", () => {
+test("a merged notification says how many things it is, and stays one row", () => {
   const merged: NotificationDetail = {
     ...PEER,
     kind: "wake",

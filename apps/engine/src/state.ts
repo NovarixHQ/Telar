@@ -7,6 +7,7 @@ import fs from "node:fs";
 import {
   type ProviderDriverKind,
   type RequestKind,
+  type Session,
   type SessionCapabilities,
   type WorkerClaim,
   workspacePath,
@@ -19,7 +20,7 @@ import { McpOAuthStore, McpServers } from "./domains/agent-tools";
 import { chosenModel, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
 import { DataScienceOps, LatexOps, PluginToolchains } from "./domains/plugins";
 import { UsageLimitSources } from "./domains/usage";
-import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
+import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionChildren, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
 import { driverCapabilities } from "./drivers/capabilities";
 import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, RequestPath } from "./domains/turns";
 import { Dictation } from "./domains/dictation";
@@ -112,6 +113,7 @@ export class EngineStore {
   private readonly sessionIndex: SessionIndex;
   private readonly activity: SessionActivity;
   readonly subscriptions: SessionSubscriptions;
+  readonly children: SessionChildren;
   readonly lifecycle: SessionLifecycle;
   readonly handoff: SessionHandoff;
   readonly schedules: ScheduleBook;
@@ -130,7 +132,10 @@ export class EngineStore {
   private registerCacheHooks(): void {
     this.kernel.onRollback(() => this.kernel.runProgress.clear());
     this.kernel.onSessionDeleted((id) => this.kernel.runProgress.delete(id));
-    this.kernel.onSessionDeleted((id) => this.subscriptions.dropSubscriptionsOf(id));
+    this.kernel.onSessionDeleted((id) => {
+      this.subscriptions.dropSubscriptionsOf(id);
+      this.children.review();
+    });
   }
 
   readonly paths: EngineStatePaths;
@@ -239,7 +244,7 @@ export class EngineStore {
       records: this.records, items: this.sessionItems, requests: this.sessionRequests, tasks: this.sessionTasks, mailbox: this.mailbox,
       activity: this.activity, index: this.sessionIndex, queues: this.sessionQueues, prefixes: this.prefixes, attachments: this.attachments, queries: this.queries,
     } = createSessionModules(this.kernel, {
-      subscriptionsOf: (sessionId) => this.subscriptions.subscriptionsOf(sessionId),
+      subscriptionsOf: (sessionId) => [...this.subscriptions.subscriptionsOf(sessionId), ...this.children.awaitedBy(sessionId)],
       nextWake: (sessionId) => this.schedules.nextWake(sessionId),
       autoSettleAfterHours: () => this.settings.inbox().autoSettleAfterHours,
       ...(options.onQueueChanged ? { onQueueChanged: options.onQueueChanged } : {}),
@@ -256,11 +261,13 @@ export class EngineStore {
       terminalCounts: (ids) => this.sessionTerminals.countsFor(ids),
     });
     this.subscriptions = this.createSubscriptions();
+    this.children = this.createChildren();
     this.lifecycle = this.createLifecycle();
     this.handoff = new SessionHandoff(this.kernel, {
       records: this.records,
       lifecycle: this.lifecycle,
       subscriptions: this.subscriptions,
+      children: this.children,
       assignments: (id) => this.queries.assignments(id),
       appendEvent: (id, event) => this.kernel.appendEvent(id, event),
     });
@@ -332,7 +339,7 @@ export class EngineStore {
       delegatesOf: (id) => this.kernel.executionStore.delegatesOf(id),
       assignedTurns: (id) => this.sessionQueues.assigned(id),
       settleDelegatedAfterHours: () => this.settings.inbox().settleDelegatedAfterHours,
-      settled: (id) => this.subscriptions.settled(id),
+      settled: () => this.children.review(),
       onShelfGrew: () => this.enforceTerminalLimitSoon(),
       stopBackgroundTasks: (id, reason) => this.worker.stopBackgroundTasks(id, reason),
       releaseBrowser: (id, reason) => this.browser.release(id, reason),
@@ -343,6 +350,7 @@ export class EngineStore {
       items: this.sessionItems,
       mailbox: this.mailbox,
       subscriptions: this.subscriptions,
+      children: this.children,
       readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       scanQueue: (id) => this.sessionQueues.scan(id),
@@ -491,25 +499,35 @@ export class EngineStore {
       releaseBrowser: (sessionId, reason) => this.browser.release(sessionId, reason),
       releasePlugins: (sessionId, reason) => this.pluginDoors.release(sessionId, reason),
       releasesArchivedCheckouts: () => this.cleanup.policy().archived,
+      reviewChildren: () => this.children.review(),
     });
+  }
+
+  private findSession(sessionId: string): Session | undefined {
+    try {
+      return this.records.require(sessionId);
+    } catch {
+      return undefined;
+    }
   }
 
   private createSubscriptions(): SessionSubscriptions {
     return new SessionSubscriptions(this.kernel, {
       require: (sessionId) => this.records.get(sessionId),
-      find: (sessionId) => {
-        try {
-          return this.records.get(sessionId);
-        } catch {
-          return undefined;
-        }
-      },
-      turnsOf: (sessionId) => this.sessionQueues.scan(sessionId).turns,
-      hasLiveTurn: (sessionId) => this.wakes.hasLiveTurn(sessionId),
-      hasScheduledWake: (sessionId) => this.schedules.nextWake(sessionId) !== undefined,
+      find: (sessionId) => this.findSession(sessionId),
       discardQueuedWakes: (subscriberId, targetSessionId) => void this.wakes.discardQueuedWakes(subscriberId, targetSessionId),
-      submitTurn: (sessionId, input) => this.intake.submitTurn(sessionId, input),
-      warn: (sessionId, message) => void this.kernel.appendEvent(sessionId, { type: "runtime.warning", message }),
+    });
+  }
+
+  private createChildren(): SessionChildren {
+    return new SessionChildren(this.kernel, {
+      find: (sessionId) => this.findSession(sessionId),
+      turnsOf: (sessionId) => this.sessionQueues.scan(sessionId).turns,
+      liveTurns: (sessionId) => this.sessionQueues.live(sessionId),
+      runItems: (sessionId, runId) => this.sessionItems.peekRun(sessionId, runId),
+      hasScheduledWake: (sessionId) => this.schedules.nextWake(sessionId) !== undefined,
+      waitsOnSubscription: (sessionId) => this.subscriptions.subscriptionsOf(sessionId).some((each) => each.once === true),
+      announce: (parentId, notification) => this.wakes.announceChildEnding(parentId, notification),
     });
   }
 
@@ -627,7 +645,6 @@ export class EngineStore {
       flushPendingNotifications: (id) => this.wakes.flushPendingNotifications(id),
       evaluateDelegationSettling: (id) => this.settler.evaluate(id),
       stopBackgroundTasks: (id) => this.worker.stopBackgroundTasks(id),
-      disposeCohorts: (id) => this.subscriptions.disposeCohortsOf(id),
       announceStoppedClaims: (cancellations) => this.announceStoppedClaims(cancellations),
     });
   }
@@ -659,9 +676,9 @@ export class EngineStore {
       rewriteNotificationItem: (id, turn) => this.wakes.rewriteNotificationItem(id, turn),
       waitingSubscription: (subscriber, target) =>
         this.subscriptions.readSubscriptions().some((sub) => sub.subscriberSessionId === subscriber && sub.targetSessionId === target && sub.events.includes("turn_completed")),
-      cohortHolds: (id, sender) => this.subscriptions.cohortHolds(id, sender),
-      cohortBlocked: (subscriber, member) => this.subscriptions.cohortBlocked(subscriber, member),
-      recordCohortMessage: (id, sender, intent, runId, text, spent) => this.subscriptions.recordCohortMessage(id, sender, intent, runId, text, spent),
+      holdsChild: (parent, child) => this.children.holds(parent, child),
+      childWaitingOn: (parent, child) => this.children.waitingOn(parent, child),
+      recordChildMessage: (recipient, sender, intent, message) => this.children.recordMessage(recipient, sender, intent, message),
       agentTurnModel: (id, choice) => {
         const session = this.records.get(id);
         return turnModelChoice(session, choice, this.catalogues.cachedRows(session.driver));

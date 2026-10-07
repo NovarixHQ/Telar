@@ -42,7 +42,7 @@ describe("creating a session", () => {
     expect(made.origin).toBe("session");
     expect(made.startedFrom).toBeUndefined();
     expect(Object.keys(capabilityOver(store)).sort()).toEqual([
-      "capabilities", "cohorts", "create", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "send", "settle", "status", "stop", "subscribe", "subscribeCohort", "subscriptions", "unsubscribe",
+      "capabilities", "create", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "send", "settle", "status", "stop", "subscribe", "subscriptions", "unsubscribe",
     ]);
   });
 
@@ -183,7 +183,7 @@ describe("a session created by a session", () => {
     expect(store.handoff.parentOf(id)).toBeUndefined();
     expect(store.live.all().sessions.find((row) => row.id === id)?.startedFrom).toBeUndefined();
     expect(store.subscriptions.subscriptionsFor(parent.id)).toEqual([]);
-    expect(store.subscriptions.cohortsFor(parent.id)).toEqual([]);
+    expect(store.children.childrenOf(parent.id)).toEqual([]);
     expect(store.queries.turns(id)).toEqual([]);
     expect(String(created.json!.note)).toContain("not filed under you");
   });
@@ -204,18 +204,7 @@ describe("a session created by a session", () => {
     expect(turn!.notification).toBeUndefined();
     expect(store.queries.assignments(id)).toEqual([]);
     expect(store.subscriptions.subscriptionsFor(parent.id)).toEqual([]);
-    expect(store.subscriptions.cohortsFor(parent.id)).toEqual([]);
-  });
-
-  test("owner person cannot be waited on or batched", async () => {
-    const { store, projectId } = engine();
-    const { tools } = orchestrator(store, projectId);
-    const waited = await call(tools, "sessions_create", { projectId, envMode: "local", owner: "person", task: "hi", wait: 5 });
-    const batched = await call(tools, "sessions_create", { projectId, envMode: "local", owner: "person", tasks: [{ title: "a", task: "b" }] });
-
-    expect(waited.isError).toBe(true);
-    expect(batched.isError).toBe(true);
-    expect(store.live.all().sessions).toHaveLength(1);
+    expect(store.children.childrenOf(parent.id)).toEqual([]);
   });
 
   test("without a task, nothing is assigned or queued", async () => {

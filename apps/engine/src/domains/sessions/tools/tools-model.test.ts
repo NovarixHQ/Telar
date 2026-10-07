@@ -88,20 +88,3 @@ describe("what a worker's run cost reaches its coordinator", () => {
     expect(turn.agentNotice).toContain("Its run so far: claude-sonnet-5 at medium effort, 1.2M tokens (1.2M cache read, 4k cache write, 2k in, 10k out).");
   });
 });
-
-test("a cohort's closing notice carries each worker's spend on its line", async () => {
-  const { store, projectId } = engine();
-  withCatalogue(store);
-  const host = store.lifecycle.createSession({ projectId, title: "host" });
-  const tools = wall(store, { sessionId: host.id });
-  const worker = (await call(tools, "sessions_create", { projectId, envMode: "local", model: "haiku", task: "find the callers" })).json!.id as string;
-  await call(tools, "sessions_subscribe", { sessionIds: [worker] });
-  const run = store.queries.turns(worker).at(-1)!.runId;
-  const claimToken = store.claims.claimTurn(worker, "worker_cost")!.claim!.token;
-  store.turnLifecycle.markRunning(worker, run, claimToken);
-  store.ingest.ingestObservations(worker, run, claimToken, [{ kind: "usage", usage: { tokens: { input: 300, output: 700, cacheRead: 9_000, cacheCreate: 0 } } }]);
-
-  store.intake.submitAgentTurn(host.id, { runId: "run_found", input: "Three callers.", intent: "result" }, { sessionId: worker, runId: run, claimToken });
-  const closing = store.queries.turns(host.id).map((turn) => turn.notification?.body ?? "").find((body) => body.startsWith("[cohort done"));
-  expect(closing).toContain(`${worker} "New session" — result (claude-haiku-4-5, 10k tokens (9k cache read, 0 cache write, 300 in, 700 out)): Three callers.`);
-});

@@ -1,4 +1,4 @@
-import type { AgentModelChoice, EngineEvent, EngineRequest, EnvMode, LiveSessionRow, NotificationDetail, ProviderDriverKind, Session, SessionCapabilities, SessionDiff, SessionSettleEnded, Subscription, Cohort, SubscribedCohort, Turn, WaitingOn, WakeKind } from "@telar/engine-client";
+import { type AgentModelChoice, type EngineEvent, type EngineRequest, type EnvMode, type LiveSessionRow, type NotificationDetail, type ProviderDriverKind, type Session, type SessionCapabilities, type SessionDiff, type SessionSettleEnded, type Subscription, type Turn, type WaitingOn, type WakeKind } from "@telar/engine-client";
 import type { SessionsQueryCapability } from "./query";
 
 export type SessionsCapability = {
@@ -32,11 +32,6 @@ export type SessionsCapability = {
   ): Promise<Subscription>;
   unsubscribe(subscriptionId: string, subscriberSessionId: string): Promise<boolean>;
   subscriptions(subscriberSessionId: string): Promise<Subscription[]>;
-  subscribeCohort?(
-    subscriberSessionId: string,
-    input: { sessionIds: string[]; timeoutMinutes?: number; completionWake?: Cohort["completionWake"] },
-  ): Promise<SubscribedCohort>;
-  cohorts?(subscriberSessionId: string): Promise<Cohort[]>;
   requests(sessionId: string): Promise<EngineRequest[]>;
   resolveRequest(
     sessionId: string,
@@ -51,7 +46,7 @@ const NOT_A_BYPASS = "Never hand a peer work you were refused.";
 
 export const LIST = `Live sessions and the projects you can create in; check it before creating. q searches every session's text instead.`;
 
-export const CREATE = `Start a session on a project, filed under you. task assigns its first work now; without it nothing starts. tasks creates and tasks several and subscribes you as one cohort. For a session the person asked for themselves, pass owner: "person". ${NOT_A_BYPASS}`;
+export const CREATE = `Start a session on a project, filed under you. task assigns its first work now; without it nothing starts. Several tasks: one call each, in one message, then end your turn; each reports back as one line. For a session the person asked for themselves, pass owner: "person". ${NOT_A_BYPASS}`;
 
 export const CAPABILITIES = `What a session you start can run on: each provider's models with their efforts, window and cost tier (1 is cheapest), the person's defaults, and your own model and access.`;
 
@@ -59,7 +54,7 @@ export const MODEL = `Omit for the person's default. By task: search or read, a 
 
 export const EFFORT = "One the model lists in sessions_capabilities; omit for its default.";
 
-export const SEND = `Message another session. It gets a notice naming sessions_read, not your text; a result or blocker quotes your first ~1,500 chars, so lead with the point. Tasked? End with one result or a blocker, no progress reports. ${NOT_A_BYPASS}`;
+export const SEND = `Message another session. It gets a notice naming sessions_read, not your text; a result or blocker shows only your first line, so lead with the point. Tasked? End with one result or a blocker, no progress reports. ${NOT_A_BYPASS}`;
 
 export const NO_SELF =
   "This door has no session to wake: subscriptions need a calling session, and this client is not one. sessions_read view: \"status\" says where a session is when you need to know.";
@@ -67,7 +62,7 @@ export const NO_SELF =
 export const NO_SESSION_TO_SCHEDULE =
   "This door has no session to schedule: a scheduled run is submitted INTO a conversation, and this client is not one. Ask a session to schedule itself.";
 
-export const SUBSCRIBE = `Be woken once when the sessions you tasked are done (result sent, failed, stopped or settled); blockers still arrive at once. Every task you send already subscribes you; this is for sessions you did not task. cancel stops one; no arguments lists yours.`;
+export const SUBSCRIBE = `Be woken once when a session you did not task ends its turn. Sessions you task report back on their own. cancel stops one; no arguments lists yours.`;
 
 export const REQUESTS = `A session's open requests, meant for a human. With requestId and decision, answer one for the user, recorded as answered by a session: only what you know; secret picks are refused. ${NOT_A_BYPASS}`;
 

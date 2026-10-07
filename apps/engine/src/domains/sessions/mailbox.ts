@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NotificationDetail } from "@telar/engine-client";
-import { MAX_COHORT_ENTRIES, mergeNotifications } from "../turns";
+import { MAX_ENTRIES, mergeNotifications } from "../turns";
 import { STATE_VERSION, type Kernel } from "../../platform/kernel";
 import type { EngineStatePaths } from "../../platform/fs/state-paths";
 import { sessionDir } from "./metadata";
@@ -73,7 +73,7 @@ export class SessionMailbox {
     if (index >= 0) pending[index] = detail;
     else pending.push(detail);
     const heldSince = this.heldSince(sessionId) ?? this.kernel.now();
-    this.setPending(sessionId, pending.slice(-MAX_COHORT_ENTRIES), heldSince);
+    this.setPending(sessionId, pending.slice(-MAX_ENTRIES), heldSince);
   }
 
   /** Removes a held peer message that was corrected before it was read. */
@@ -85,7 +85,7 @@ export class SessionMailbox {
 
   forgetWake(sessionId: string, targetSessionId: string, runId: string): void {
     const pending = this.pending(sessionId);
-    const kept = pending.filter((each) => !(each.kind === "wake" && !each.cohortId && each.sessionId === targetSessionId && each.runId === runId));
+    const kept = pending.filter((each) => !(each.kind === "wake" && each.sessionId === targetSessionId && each.runId === runId));
     if (kept.length !== pending.length) this.setPending(sessionId, kept, kept.length > 0 ? this.heldSince(sessionId) : undefined);
   }
 

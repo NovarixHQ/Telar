@@ -63,7 +63,7 @@ export type EngineDaemonOptions = {
   workerPruneIntervalMs?: number;
   delegationSweepIntervalMs?: number;
   settledTerminalSweepIntervalMs?: number;
-  cohortSweepIntervalMs?: number;
+  mailboxSweepIntervalMs?: number;
   snoozeWakeSweepIntervalMs?: number;
   scheduleSweepIntervalMs?: number;
   requestDeadlineSweepIntervalMs?: number;
@@ -156,19 +156,19 @@ function engineSweeps(store: EngineStore, options: EngineDaemonOptions, pruneWor
     { name: "delegations", every: options.delegationSweepIntervalMs ?? 5 * 60_000, run: () => store.settler.sweepDelegated() },
     { name: "settled-terminals", every: options.settledTerminalSweepIntervalMs ?? 5 * 60_000, run: () => store.sessionTerminals.sweepSettled() },
     { name: "idle-terminals", every: options.settledTerminalSweepIntervalMs ?? 60_000, run: closeIdleTerminals },
-    // A minute is the shortest cohort timeout, so this ticks faster than that.
+    // Also where a child put away unseen is noticed.
     {
-      name: "cohorts",
-      every: options.cohortSweepIntervalMs ?? 30_000,
+      name: "subscriptions",
+      every: options.mailboxSweepIntervalMs ?? 30_000,
       run: () => {
         try {
-          store.subscriptions.sweepCohorts();
+          store.children.review();
         } finally {
           store.subscriptions.sweepSubscriptions();
         }
       },
     },
-    { name: "mailboxes", every: options.cohortSweepIntervalMs ?? 30_000, run: () => store.wakes.sweepMailboxes() },
+    { name: "mailboxes", every: options.mailboxSweepIntervalMs ?? 30_000, run: () => store.wakes.sweepMailboxes() },
     { name: "snooze-wakes", every: options.snoozeWakeSweepIntervalMs ?? 60_000, run: () => store.settler.sweepSnoozeWakes() },
     { name: "schedules", every: options.scheduleSweepIntervalMs ?? 30_000, run: () => store.schedules.sweep() },
     // Finer than the rest: a tick coarser than the shortest deadline someone sets would become the deadline.

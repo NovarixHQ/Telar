@@ -87,6 +87,8 @@ type LifecycleHost = {
   releaseBrowser(sessionId: string, reason: string): Promise<unknown> | void;
   releasePlugins(sessionId: string, reason: string): void;
   releasesArchivedCheckouts(): boolean;
+  /** A session was settled or archived: the children it held, and its own record, change. */
+  reviewChildren(): void;
 };
 
 /** Creating, updating, archiving and deleting a session, with the checkout each of those cuts or gives back. */
@@ -384,7 +386,7 @@ export class SessionLifecycle {
       next.updatedAt = this.kernel.now();
       this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(next));
       this.host.appendEvent(sessionId, { type: "session.updated", session: next });
-      if (next.settledOverride === "settled" && session.settledOverride !== "settled") this.subscriptions.settled(sessionId);
+      if (next.settledOverride === "settled" && session.settledOverride !== "settled") this.host.reviewChildren();
       return structuredClone(next);
     });
   }
@@ -449,6 +451,7 @@ export class SessionLifecycle {
     this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(session));
     this.host.appendEvent(sessionId, { type: "session.archived" });
     this.subscriptions.dropSubscriptionsOf(sessionId);
+    this.host.reviewChildren();
     return structuredClone(session);
   }
 

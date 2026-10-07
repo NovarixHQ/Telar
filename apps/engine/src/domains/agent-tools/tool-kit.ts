@@ -9,8 +9,7 @@ export type ToolFactory = (
 
 export const MAX_ANSWER_CHARS = 16_000;
 
-export const DELEGATION_WAIT_MAX_SECONDS = 600;
-export const TELAR_TOOL_CALL_TIMEOUT_MS = (DELEGATION_WAIT_MAX_SECONDS + 60) * 1_000;
+export const TELAR_TOOL_CALL_TIMEOUT_MS = 660_000;
 
 function bounded(text: string, max: number = MAX_ANSWER_CHARS): string {
   if (text.length <= max) return text;

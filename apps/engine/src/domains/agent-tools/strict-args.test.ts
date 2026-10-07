@@ -48,14 +48,6 @@ test("an unknown argument is refused in-process too, and nothing runs", async ()
   expect(calls).toEqual([]);
 });
 
-test("an unknown key inside a batch item is refused with that item's accepted keys", async () => {
-  const { caps, calls } = recordingCaps();
-  const result = await socketCall(caps, "sessions_create", { projectId: "p", envMode: "worktree", tasks: [{ title: "a", task: "b", priority: 1 }] });
-  expect(result.isError).toBe(true);
-  expect(result.content[0]!.text).toBe("sessions_create `tasks.0` does not take `priority`. It takes: title, task, model, effort.");
-  expect(calls).toEqual([]);
-});
-
 test("known arguments still reach the tool", async () => {
   const { caps, calls } = recordingCaps();
   await socketCall(caps, "notes_list", { projects: true });

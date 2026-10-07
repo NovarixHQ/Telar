@@ -32,7 +32,6 @@ type LifecycleDeps = {
   evaluateDelegationSettling: (sessionId: string) => void;
   stopBackgroundTasks: (sessionId: string) => number;
   announceStoppedClaims: (cancellations: StoppedClaim[]) => void;
-  disposeCohorts: (sessionId: string) => void;
 };
 
 /** A turn from running to its end: start, complete, fail, stop, steer, release and discard. */
@@ -323,7 +322,6 @@ export class TurnLifecycle {
   }
 
   private stopped(sessionId: string, turn: Turn): void {
-    this.deps.disposeCohorts(sessionId);
     this.deps.fireSubscriptions(sessionId, "turn_stopped", turn, {});
   }
 

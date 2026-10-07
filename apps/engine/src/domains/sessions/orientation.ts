@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-export const ORIENTATION_VERSION = 11;
+export const ORIENTATION_VERSION = 12;
 
 export const TELAR_SKILL_NAME = "telar";
 
@@ -56,7 +56,7 @@ It is not this CLI's own notion of a session, and not a chat thread.
   you learn what it did by asking.
 - **Assignment** — \`intent: "task"\` is what starts work: pass \`task\` to
   \`sessions_create\`, or \`sessions_send\` it later. Creating alone starts none.
-  Several workers: \`sessions_create\` with \`tasks\`, one brief each.
+  Several workers: one \`sessions_create\` per task, all in one message.
 - **Choosing a model** — \`sessions_create\` and a \`sessions_send\` task take
   \`model\` and \`effort\`; omitted, the person's default runs, often the
   priciest. By task: search or read, a Haiku; mechanical edits, a Sonnet at
@@ -76,9 +76,11 @@ It is not this CLI's own notion of a session, and not a chat thread.
   runId: unread, it is replaced; already read, it arrives at once.
 - **A message arrives as a NOTICE.** The recipient is handed who sent it,
   which run holds it and how long it is; a \`result\` or \`blocker\` also
-  carries up to about 1,500 characters of its text, and a finished turn's wake
-  the start of its answer. That excerpt is inline: call \`sessions_read\` only
-  when it says it was cut. A result needs no reply to acknowledge it.
+  carries its first line, and a finished turn's wake the start of its answer.
+  Call \`sessions_read\` only when you need the rest. A result needs no reply
+  to acknowledge it.
+- **Links.** Every session row carries a \`link\`, its place in the cockpit.
+  Paste it when you mention a session to the person.
 - **Settling** is shelving, not acceptance. A settled session is still live and
   resumable; nothing is deleted, and nothing about the work is approved by it.
   Whether work is good enough to keep is a human's decision, made elsewhere:
@@ -113,8 +115,8 @@ name the exact next call.
 - \`sessions_read\` FOLDS by default: recent turns, a line each — what it was
   asked, what it did, how it answered — which is what "what has it been doing"
   means, and a fifth of the size of the journal it stands in for.
-- **A wake or a peer's message names a session and a run**, with an excerpt
-  inline when there is one. When the excerpt says it was cut,
+- **A wake or a peer's message names a session and a run**, with its first
+  line or an excerpt inline. When you need more,
   \`sessions_read(sessionId, runId)\` fetches the whole thing — the answer, and a
   peer's message in full — and long ones come back in verbatim slices on
   \`resultAfter\` / \`messageAfter\` that concatenate exactly.
@@ -141,35 +143,31 @@ journal to answer — so reach for them before the raw trace.
   cursor, and \`verbose: true\` restores the token counts and auto-approved
   requests that are dropped by default.
 
-### Waiting for the sessions you tasked: one subscribe, then end your turn
+### Waiting for the sessions you tasked: end your turn
 
-Starting several workers, \`sessions_create({ tasks: [...] })\` creates, tasks
-and subscribes them in one call. Otherwise send every task first, then ONE
-\`sessions_subscribe({ sessionIds: [...] })\` — one id or many, the same call.
-Then END YOUR TURN. Do not subscribe per session, do not poll, and do not
-sleep.
+Give each task its own \`sessions_create\` (or \`sessions_send\` intent \`task\`),
+several in one message. Then END YOUR TURN. Do not subscribe, do not poll,
+and do not sleep: every task you send already files that session as your
+builder.
 
-- You are woken ONCE, when every session is done: it sent its \`result\`, a
-  turn failed or was stopped, or it was settled, archived or deleted. A turn
-  that merely ends is not done — a worker waiting on CI ends turns mid-errand.
-- The notice has a line per session with how it ended, and quotes what each
-  said: whole when it fits, otherwise its start and how much was cut.
+- Each builder reaches you as ONE line when it is done: it sent its
+  \`result\`, a turn failed or was stopped, or it was settled, archived or
+  deleted. A turn that merely ends is not done — a worker waiting on CI ends
+  turns mid-errand.
+- The line says how it ended and names the \`sessions_read\` call for the
+  rest; read it only when you need more. Builders that finish while you are
+  busy reach you together, one line each, when your turn ends.
 - A \`blocker\` or a parked request reaches you at once, even mid-turn. Its
   decision belongs to the person unless the brief settled it. Answer a blocker
-  with \`sessions_send\` intent \`task\`: an \`fyi\` does not wake it. The
-  session stays in the wait until it finishes.
-- It expires after \`timeoutMinutes\` (default 240), naming who never sent a
-  result. \`sessions_subscribe({ cancel: id })\` stops it; with no arguments it
-  lists what you hold.
-- ONE task whose answer you need before you can go on: pass \`wait\` (seconds)
-  to \`sessions_create\` or \`sessions_send\` instead. Its result comes back in
-  the same call; on a timeout nothing is cancelled and you are subscribed, so
-  end your turn. Several tasks: the cohort above, never one wait each.
+  with \`sessions_send\` intent \`task\`: an \`fyi\` does not wake it.
+- \`sessions_subscribe({ sessionId })\` is for a session you did not task: it
+  wakes you once, when its turn ends. \`sessions_subscribe({ cancel: id })\`
+  stops it; with no arguments it lists what you hold.
 
 ### Nothing interrupts you but a person, a task or a blocker
 
 Everything else waits for your turn to end. Peer \`fyi\`s, and a
-\`result\` nobody subscribed to, never open a turn of their own: they are
+\`result\` from a session you did not task, never open a turn of their own: they are
 held, and handed to you with your next turn, whatever starts it — a wake, or
 the person's next message. \`view: "status"\` lists what is held.
 

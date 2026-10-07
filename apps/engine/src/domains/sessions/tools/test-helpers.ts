@@ -77,8 +77,6 @@ export function capabilityOver(store: EngineStore, self?: { sessionId: string })
     subscribe: async (subscriber, input) => store.subscriptions.subscribe(subscriber, input),
     unsubscribe: async (id, subscriber) => store.subscriptions.unsubscribe(id, subscriber),
     subscriptions: async (subscriber) => store.subscriptions.subscriptionsFor(subscriber),
-    subscribeCohort: async (subscriber, input) => store.subscriptions.subscribeCohort(subscriber, input),
-    cohorts: async (subscriber) => store.subscriptions.cohortsFor(subscriber),
     requests: async (sessionId) => store.requestGate.list(sessionId),
     resolveRequest: async (sessionId, requestId, input) => store.requestGate.resolve(sessionId, requestId, { ...input, resolvedBy: "session" }),
     query: {

@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { err, failure, fillWithin, json, type ToolFactory } from "../../agent-tools";
 import { createTool, modelChoice, runIdFor } from "./create";
-import { delegationAnswer, WAIT, waitForDelegation, waitRefusal } from "./wait";
 import { FIND_LIMIT_DEFAULT, findView } from "./query";
 import type { Turn } from "@telar/engine-client";
 import { EFFORT, LIST, LIST_CHARS, LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX, MODEL, SEND, type SessionsCapability, summarise } from "./shared";
@@ -94,25 +93,17 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
         corrects: z.string().min(1).optional().describe("runId of your earlier message this corrects; replaced if still unread."),
         model: z.string().min(1).optional().describe(`With intent task, this turn only. ${MODEL}`),
         effort: z.string().min(1).optional().describe(EFFORT),
-        wait: WAIT,
       },
       async (args, context) => {
         const sessionId = String(args.sessionId ?? "");
         const text = String(args.input ?? "");
         const corrects = typeof args.corrects === "string" && args.corrects.length > 0 ? args.corrects : undefined;
         const runId = runIdFor("sessions_send", context?.toolCallId);
-        const wait = typeof args.wait === "number" ? args.wait : undefined;
         const chosen = modelChoice(args);
         const intent = args.intent === "task" || args.intent === "fyi" || args.intent === "result" || args.intent === "blocker" ? args.intent : undefined;
-        if (wait !== undefined && intent !== "task") return err("wait applies only to intent: task — the one that asks for a result.");
         if (chosen.model && intent !== "task") return err("model and effort apply only to intent: task — the message that runs something.");
         try {
-          const refused = wait !== undefined ? await waitRefusal(capability, sessionId) : undefined;
-          if (refused) return err(`Not sent: ${refused}`);
           const { turn } = await capability.send(sessionId, { runId, input: text, ...(intent ? { intent } : {}), ...(corrects ? { corrects } : {}), ...chosen });
-          if (wait !== undefined) {
-            return json({ sessionId, runId: turn.runId, ...delegationAnswer(await waitForDelegation(capability, sessionId, wait)) });
-          }
           return json({
             sessionId,
             runId: turn.runId,
@@ -137,5 +128,5 @@ function sentNote(capability: SessionsCapability, turn: Turn): string {
   if (turn.agentDelivery === "passive") return "Passive: nothing was started or steered and no reply will come. It is read with its next turn.";
   if (turn.agentIntent === "blocker") return `Sent. End your turn; the answer wakes you. ${NOT_APPROVAL}`;
   if (!capability.self) return `Queued. This client cannot be woken; sessions_read view: "status" says where it is. ${NOT_APPROVAL}`;
-  return `Queued. End your turn: you will be woken once, when it and the rest of your tasks are done. ${NOT_APPROVAL}`;
+  return `Queued. End your turn: one line reaches you when it finishes, merged with the others if you are busy. ${NOT_APPROVAL}`;
 }

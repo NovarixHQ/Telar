@@ -238,7 +238,7 @@ describe("the protocol surface", () => {
     const { project } = await client.registerProject({ name: "aurora", root: repo() });
     const { session } = await client.createSession({ projectId: project.id, title: "a target" });
 
-    for (const args of [{ sessionIds: [session.id] }, { cancel: "sub_x" }, {}]) {
+    for (const args of [{ sessionId: session.id }, { cancel: "sub_x" }, {}]) {
       const refused = await callTool(daemon, mcp.secret, "sessions_subscribe", args);
       expect(refused.isError).toBe(true);
       expect(refused.text).toContain("no session to wake");

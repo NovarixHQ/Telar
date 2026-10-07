@@ -366,6 +366,12 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
             icon: ArchiveIcon,
           },
           {
+            title: "Clean up",
+            hint: "When the rules above last ran, and a button to run them now.",
+            keywords: ["clean up now", "cleanup", "sweep", "free space", "disk", "run"],
+            icon: SparklesIcon,
+          },
+          {
             title: "Worktree folder",
             hint: "Where new worktrees are made; the summary below moves the ones already made.",
             keywords: ["worktree", "checkout", "external", "drive", "move", "space", "disk", "relocate", "worktree folder", "how many", "size"],

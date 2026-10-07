@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { SimulatorSettings } from "@telar/engine-client";
-import { flush, installTestDom, mount, press, stubFetch } from "@/test/dom";
+import { buttonLabelled, flush, installTestDom, mount, press, stubFetch } from "@/test/dom";
 import { SimulatorsSection } from "./simulators-section";
 
 installTestDom();
@@ -12,46 +12,41 @@ async function mountSection(initial: SimulatorSettings, refuse?: string) {
     "PATCH /api/simulator-settings": (body) => {
       if (refuse) throw new Error(refuse);
       settings = { ...settings, ...(body as Partial<SimulatorSettings>) };
-      if (!settings.enabled) settings.agentAccess = false;
       return { simulatorSettings: settings };
     },
   });
   const { host } = await mount(<SimulatorsSection />);
   await flush(() => calls.some((call) => call.route === "GET /api/simulator-settings"));
   await flush();
-  return { host, calls, toggle: () => host.querySelector('[aria-label="Use simulators"]')!, agents: () => host.querySelector('[aria-label="Let agents use simulators"]')! };
+  const option = (label: string) => buttonLabelled(label, host)!;
+  const chosen = () => host.querySelector('[aria-pressed="true"]')?.textContent;
+  const patches = () => calls.filter((call) => call.route === "PATCH /api/simulator-settings").map((call) => call.body);
+  return { host, option, chosen, patches };
 }
 
-test("the switch shows the engine's answer and turning it on is one patch", async () => {
-  const { host, calls, toggle } = await mountSection({ enabled: false, agentAccess: false });
-  expect(toggle().getAttribute("aria-checked")).toBe("false");
-  await press(toggle());
-  await flush();
-  expect(calls.filter((call) => call.route === "PATCH /api/simulator-settings").map((call) => call.body)).toEqual([{ enabled: true }]);
-  expect(toggle().getAttribute("aria-checked")).toBe("true");
-  expect(host.textContent).toContain("Lets Telar list, start and stop the simulators on this Mac.");
+test("one row says who may use simulators, from the engine's answer", async () => {
+  const { host, chosen } = await mountSection({ enabled: true, agentAccess: true });
+  expect(chosen()).toBe("You and agents");
+  expect(host.querySelector('[role="switch"]')).toBeNull();
 });
 
-test("a refused change shows the engine's reason and keeps the switch where it was", async () => {
-  const { host, toggle } = await mountSection({ enabled: false, agentAccess: false }, "simulators are not available");
-  await press(toggle());
-  await flush();
-  expect(host.textContent).toContain("simulators are not available");
-  expect(toggle().getAttribute("aria-checked")).toBe("false");
+test("each choice is one patch that sets both keys", async () => {
+  const { option, chosen, patches } = await mountSection({ enabled: false, agentAccess: false });
+  expect(chosen()).toBe("Off");
+  await press(option("You and agents"));
+  await press(option("You"));
+  await press(option("Off"));
+  expect(patches()).toEqual([
+    { enabled: true, agentAccess: true },
+    { enabled: true, agentAccess: false },
+    { enabled: false, agentAccess: false },
+  ]);
+  expect(chosen()).toBe("Off");
 });
 
-test("agents get access only once simulators are on, and turning simulators off takes it back", async () => {
-  const { calls, toggle, agents } = await mountSection({ enabled: false, agentAccess: false });
-  await press(agents());
-  await flush();
-  expect(agents().getAttribute("aria-checked")).toBe("false");
-  await press(toggle());
-  await flush();
-  await press(agents());
-  await flush();
-  expect(agents().getAttribute("aria-checked")).toBe("true");
-  await press(toggle());
-  await flush();
-  expect(agents().getAttribute("aria-checked")).toBe("false");
-  expect(calls.filter((call) => call.route === "PATCH /api/simulator-settings").map((call) => call.body)).toEqual([{ enabled: true }, { agentAccess: true }, { enabled: false }]);
+test("a refused change shows the engine's reason in the row and keeps the choice where it was", async () => {
+  const { host, option, chosen } = await mountSection({ enabled: false, agentAccess: false }, "simulators are not available");
+  await press(option("You"));
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain("simulators are not available");
+  expect(chosen()).toBe("Off");
 });

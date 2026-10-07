@@ -28,6 +28,7 @@ export const ProviderInstance = z.object({
   enabled: z.boolean(),
   configDir: z.string().min(1).optional(),
   binaryPath: z.string().min(1).optional(),
+  extraArgs: z.string().min(1).max(2000).optional(),
   env: z.array(ProviderInstanceEnvVar),
   createdAt: Timestamp,
   updatedAt: Timestamp,

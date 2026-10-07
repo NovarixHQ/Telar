@@ -55,7 +55,9 @@ export type DriverRun = {
   mcpServers?: McpServer[];
   env?: Record<string, string | undefined>;
   binaryPath?: string;
+  extraArgs?: string[];
   autoCompact?: AutoCompact;
+  compact?: boolean;
   providerInstanceId?: string;
   browserSocket?: { url: string; token: string };
   telarSocketLease?: { url: string; token: string; generation: string };

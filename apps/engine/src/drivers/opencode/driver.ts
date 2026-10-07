@@ -98,7 +98,7 @@ function usageOf(messages: AssistantMessage[]) {
 }
 
 export function openCodeServerIdentity(input: DriverRun): string {
-  return JSON.stringify([input.cwd, input.binaryPath, input.providerInstanceId, input.env, input.orientation ?? null,
+  return JSON.stringify([input.cwd, input.binaryPath, input.extraArgs ?? null, input.providerInstanceId, input.env, input.orientation ?? null,
     input.autoCompact ?? null, input.autoCompact?.mode === "limits" ? input.model ?? null : null,
     Object.keys(input.plugins ?? {}).sort()]);
 }

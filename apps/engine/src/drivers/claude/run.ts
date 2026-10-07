@@ -37,6 +37,7 @@ import { onEndTurnGrace } from "./turn-result";
 import { agentEnv } from "../../platform/process/agent-env";
 import { CLAUDE_CAPABILITIES } from "../capabilities";
 import { driverBriefings } from "../briefings";
+import { cliFlags } from "../../platform/process/cli-args";
 
 function defaultClaudeExecutable(binaryPath?: string): string {
   try {
@@ -194,12 +195,13 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
 
 // The query options and the reuse fingerprint are computed together so they cannot disagree.
 function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void {
-  const { signal, fastMode, ultracode, mcpServers: userMcpServers, env, binaryPath, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, notes, prompts, display, simulators, usageDiagnosis } = input;
+  const { signal, fastMode, ultracode, mcpServers: userMcpServers, env, binaryPath, extraArgs, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, notes, prompts, display, simulators, usageDiagnosis } = input;
   const { resolveExecutable } = deps;
   /** The `claude` binary this turn runs on, resolved once: the query below
    *  takes it as `pathToClaudeCodeExecutable`, and the fingerprint records
    *  it so a turn on a different binary does not reuse the query. */
   turn.executable = resolveExecutable(binaryPath);
+  turn.extraArgs = extraArgs?.length ? cliFlags(extraArgs) : undefined;
 
   /** This turn's half of the runtime, swapped in whole below whether the
    *  runtime is fresh or reused — see `ClaudeTurnBindings`. */
@@ -228,6 +230,7 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     fastMode: fastMode ?? null,
     ultracode: ultracode ?? null,
     executable: turn.executable ?? null,
+    extraArgs: extraArgs ?? null,
     servers: canonicalServers(userMcpServers),
     browser: browserSocket ?? null,
     sessions: Boolean(sessions),

@@ -195,6 +195,7 @@ export type ClaudeSdk = {
       mcpServers?: Record<string, SdkMcpServer>;
       env?: Record<string, string | undefined>;
       pathToClaudeCodeExecutable?: string;
+      extraArgs?: Record<string, string | null>;
     };
   }): AsyncIterable<unknown>;
   /** OPTIONAL because the fake SDKs the tests inject only implement `query`.

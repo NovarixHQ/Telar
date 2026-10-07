@@ -57,9 +57,9 @@ export class CodexAppServer {
   // Returning false answers -32601, because an unanswered server request hangs the turn.
   onServerRequest?: (request: CodexServerRequest) => boolean;
 
-  constructor(bin: string, env: Record<string, string | undefined>, maxLineBytes = MAX_LINE_BYTES) {
-    // Exactly one argument: argv is readable through `ps` by every process of this user.
-    this.child = spawn(bin, ["app-server"], {
+  // argv is readable through `ps` by every process of this user, so only what the person typed as extra arguments goes there.
+  constructor(bin: string, env: Record<string, string | undefined>, maxLineBytes = MAX_LINE_BYTES, extraArgs: readonly string[] = []) {
+    this.child = spawn(bin, ["app-server", ...extraArgs], {
       env: Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined)) as NodeJS.ProcessEnv,
       stdio: ["pipe", "pipe", "pipe"],
       detached: OWN_GROUP,

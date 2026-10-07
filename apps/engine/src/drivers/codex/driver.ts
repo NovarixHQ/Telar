@@ -1,7 +1,7 @@
 import type { TurnObservation } from "@telar/engine-client";
 import { requireCwd, type DriverResult, type DriverRun, type TurnDriver } from "../contract";
 import { CodexAppServer, resolveCodexBinary } from "./app-server";
-import { str } from "./items";
+import { record, str } from "./items";
 import { answerCodexRequests } from "./requests";
 import { pumpCodexSteers } from "./steer";
 import { codexSandboxPolicy, codexThreadParams, codexTurnInput, defaultThreadConfig, type CodexThreadConfig } from "./thread";
@@ -50,7 +50,7 @@ async function runCodexTurn(options: CodexDriverOptions, run: DriverRun): Promis
   const { model, config: windowConfig } = codexWindowConfig(requestedModel, windows, run.autoCompact);
   const threadConfig = options.threadConfig ?? defaultThreadConfig(Boolean(onRequest));
   // The turn's login env wins over the worker's; a variable patched to undefined is removed.
-  const client = new CodexAppServer(bin, { ...agentEnv(), ...options.env, ...run.env });
+  const client = new CodexAppServer(bin, { ...agentEnv(), ...options.env, ...run.env }, undefined, run.extraArgs);
 
   let cancelled = false;
   const pending: TurnObservation[] = [];
@@ -94,27 +94,14 @@ async function runCodexTurn(options: CodexDriverOptions, run: DriverRun): Promis
       }
     }
 
-    const effort = run.effort ?? options.effort;
-    const startedTurn = await client.request<{ turn?: { id?: string } }>("turn/start", {
-      threadId: turn.threadId,
-      input: codexTurnInput(run.notification ? run.notification.summary : run.prompt, run.attachments ?? []),
-      ...(effort ? { effort } : {}),
-      model,
-      approvalPolicy: threadConfig.approvalPolicy,
-      approvalsReviewer: threadConfig.approvalsReviewer,
-      sandboxPolicy: codexSandboxPolicy(threadConfig.sandbox, cwd),
-      ...(options.serviceTier ? { serviceTier: options.serviceTier } : {}),
-      ...(run.serviceTier ? { serviceTierForTurn: run.serviceTier } : {}),
-    });
-    turn.turnId = str(startedTurn.turn?.id) ?? "";
-
-    if (run.steer) void pumpCodexSteers(run.steer, client, turn, emit);
+    if (run.compact) await client.request("thread/compact/start", { threadId: turn.threadId });
+    else await startTurn(client, run, turn, emit, { cwd, model, threadConfig, effort: run.effort ?? options.effort, serviceTier: options.serviceTier });
 
     for (;;) {
       const { value: notification, done } = await client.notifications.next();
       if (done) throw new Error("codex app-server closed the connection mid-turn");
       if (notification.method === CANCEL_SENTINEL) throw new CodexTurnCancelled();
-      const finished = turn.handle(notification.method, notification.params);
+      const finished = turn.handle(notification.method, notification.params) || (run.compact === true && compactionCompleted(notification));
       await flush();
       if (!finished) continue;
       if (signal.aborted) throw signal.reason ?? new Error("driver cancelled");
@@ -129,4 +116,28 @@ async function runCodexTurn(options: CodexDriverOptions, run: DriverRun): Promis
     signal.removeEventListener("abort", abort);
     client.kill();
   }
+}
+
+// The completed item is the signal: `thread/compacted` is deprecated and a compaction may not end in `turn/completed`.
+function compactionCompleted(notification: { method: string; params: Record<string, unknown> }): boolean {
+  return notification.method === "item/completed" && record(notification.params.item).type === "contextCompaction";
+}
+
+type TurnSettings = { cwd: string; model: string; threadConfig: CodexThreadConfig; effort: string | undefined; serviceTier: string | undefined };
+
+async function startTurn(client: CodexAppServer, run: DriverRun, turn: CodexTurn, emit: (observation: TurnObservation) => void, settings: TurnSettings): Promise<void> {
+  const { cwd, model, threadConfig, effort, serviceTier } = settings;
+  const startedTurn = await client.request<{ turn?: { id?: string } }>("turn/start", {
+    threadId: turn.threadId,
+    input: codexTurnInput(run.notification ? run.notification.summary : run.prompt, run.attachments ?? []),
+    ...(effort ? { effort } : {}),
+    model,
+    approvalPolicy: threadConfig.approvalPolicy,
+    approvalsReviewer: threadConfig.approvalsReviewer,
+    sandboxPolicy: codexSandboxPolicy(threadConfig.sandbox, cwd),
+    ...(serviceTier ? { serviceTier } : {}),
+    ...(run.serviceTier ? { serviceTierForTurn: run.serviceTier } : {}),
+  });
+  turn.turnId = str(startedTurn.turn?.id) ?? "";
+  if (run.steer) void pumpCodexSteers(run.steer, client, turn, emit);
 }

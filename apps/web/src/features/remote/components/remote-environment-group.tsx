@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { GlobeIcon, LockIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { desktopApp } from "@/platform/desktop/desktop-app";
-import { Row, ToggleRow } from "@/features/settings";
+import { Row } from "@/features/settings";
+import { Switch } from "@/ui/switch";
 import { describeServeError } from "../tailscale-serve";
 import type { RemoteStatus } from "../api";
 
@@ -53,36 +55,54 @@ export function RemoteEnvironmentRows({
   onExposure: (next: "local-only" | "network-accessible") => void;
   onTailscaleServe: (next: boolean) => void;
 }) {
+  const [changed, setChanged] = useState<"network" | "https">("network");
   const relaunch = desktopApp();
+  const restart = restartNeeded && (
+    <div className="mt-1.5 flex items-center gap-2 text-xs text-warning">
+      <span>Takes effect when Telar restarts.</span>
+      {relaunch && (
+        <Button variant="outline" size="sm" onClick={() => void relaunch.relaunch()}>
+          Restart Telar
+        </Button>
+      )}
+    </div>
+  );
   return (
     <>
-      <ToggleRow
+      <Row
         label="Network access"
         icon={GlobeIcon}
         hint={<ExposureHint status={status} />}
-        checked={status.exposure === "network-accessible"}
-        onCheckedChange={(next) => onExposure(next ? "network-accessible" : "local-only")}
-      />
-      <ToggleRow
+        control={
+          <Switch
+            aria-label="Network access"
+            checked={status.exposure === "network-accessible"}
+            onCheckedChange={(next) => {
+              setChanged("network");
+              onExposure(next ? "network-accessible" : "local-only");
+            }}
+          />
+        }
+      >
+        {changed === "network" && restart}
+      </Row>
+      <Row
         label="HTTPS on your private network"
         icon={LockIcon}
         hint={<TailscaleHint status={status} />}
-        checked={status.tailscaleServe === true}
-        onCheckedChange={onTailscaleServe}
-      />
-      {restartNeeded && (
-        <Row
-          label="Restart to apply"
-          hint="The server chooses its addresses when it starts, so this takes effect at the next launch."
-          control={
-            relaunch ? (
-              <Button variant="outline" size="sm" onClick={() => void relaunch.relaunch()}>
-                Restart Telar
-              </Button>
-            ) : null
-          }
-        />
-      )}
+        control={
+          <Switch
+            aria-label="HTTPS on your private network"
+            checked={status.tailscaleServe === true}
+            onCheckedChange={(next) => {
+              setChanged("https");
+              onTailscaleServe(next);
+            }}
+          />
+        }
+      >
+        {changed === "https" && restart}
+      </Row>
     </>
   );
 }

@@ -265,8 +265,9 @@ Tools: \`notes_list\`, \`notes_write\`, \`notes_delete\`.
 - \`display_open\` — show one file from this session's checkout in the panel,
   rendered. At most once or twice a turn.
 - \`display_inline\` — draw an html page, svg, mermaid diagram or markdown as a
-  card in the conversation: a diagram, a chart, a UI mockup, a comparison, a
-  visual explanation. Html is sandboxed with no network. Reuse an id to revise.
+  card in the conversation when a chart, table, diagram, image collage, or
+  mockup would say more than prose. Html is sandboxed with no network. Reuse an
+  id to revise.
 - \`display_preview\` — render html, svg or mermaid offscreen before publishing it: a
   screenshot, its height, console errors with stacks and failed loads. Use
   contentHeight for display_inline's height and fix console errors, then publish

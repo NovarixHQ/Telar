@@ -58,7 +58,7 @@ struct RootView: View {
                             .id(composing.id)
                         } else if let ref = selection, let api = settings.api(for: ref.hostId) {
                             SessionView(api: api, sessionId: ref.sessionId, hostId: ref.hostId,
-                                        hostName: settings.host(ref.hostId)?.name, hostCount: settings.hosts.count,
+                                        hostName: settings.host(ref.hostId)?.name,
                                         cockpitBaseURL: settings.host(ref.hostId)?.baseURL, cache: settings.snapshotCache(for: ref.hostId),
                                         onRead: { answer in inbox.applyRead(ref, answer: answer) })
                                 .id("\(settings.apiFingerprint(ref.hostId)):\(ref.sessionId)")

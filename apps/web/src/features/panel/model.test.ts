@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { defaultKeymap, resolveCommandForEvent } from "@/features/commands";
 import {
+  BROWSER_SURFACE,
+  launcherRows,
+  surfaceCommands,
   browserPanelTab,
   describePanelTab,
   filePanelTabPath,
@@ -200,5 +204,25 @@ describe("the Agents surface", () => {
     expect(blurb).toContain("conversations working for this one");
     expect(blurb).not.toBe("Sub-agents");
     expect(blurb.toLowerCase()).not.toContain("warp");
+  });
+});
+
+describe("a surface's letter", () => {
+  test("its ⌘⇧ chord opens the same surface from anywhere, plugins included", () => {
+    const rows = launcherRows([], { enabledPlugins: ["data-science", "latex"], pluginPanels: [], canOpenNew: true, browser: {} });
+    const commands = new Map<string, string>([["browser", BROWSER_SURFACE.command], ...surfaceCommands(["data-science", "latex"]).map(({ command, tab }) => [tab, command] as [string, string])]);
+    const keyed = rows.filter((row) => row.key);
+    expect(keyed.map((row) => row.key)).toEqual(["b", "t", "e", "d", "s", "i", "u", "a", "x"]);
+    for (const row of keyed) {
+      const chord = { key: row.key!.toUpperCase(), code: `Key${row.key!.toUpperCase()}`, metaKey: true, shiftKey: true };
+      expect(resolveCommandForEvent(defaultKeymap(), chord)).toBe(commands.get(row.id)!);
+    }
+  });
+
+  test("an open singleton leaves the launcher; a second Diff stays as another", () => {
+    const rows = launcherRows([{ id: "terminal", kind: "terminal", params: {} }, { id: "diff", kind: "diff", params: {} }], { enabledPlugins: [], pluginPanels: [], canOpenNew: true });
+    expect(rows.some((row) => row.id === "terminal")).toBe(false);
+    expect(rows.find((row) => row.id === "diff")?.another).toBe(true);
+    expect(rows.some((row) => row.id === "browser")).toBe(false);
   });
 });

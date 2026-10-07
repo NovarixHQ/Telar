@@ -9,7 +9,6 @@ export { type PluginPanelSource } from "./panels";
 export {
   isPluginSurface,
   PLUGIN_SURFACES,
-  pluginCommands,
   type PluginSurfaceId,
   pluginSurfaces,
   viewerAvailable,

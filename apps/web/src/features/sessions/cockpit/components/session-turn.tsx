@@ -223,7 +223,7 @@ function SessionTurnBody({
 
   if (turn.kind === "compact") return <CompactTurn turn={turn} rowGestures={rowGestures} />;
   const boundary = (item: JournalItem) => (
-    <div className={cn("mx-auto w-full min-w-0 max-w-[50rem]", item.detail.type === "user_message" && !item.detail.sender && !item.detail.wakeReason && "my-6")}>
+    <div className={cn("mx-auto w-full min-w-0 max-w-(--chat-content-max-width)", item.detail.type === "user_message" && !item.detail.sender && !item.detail.wakeReason && "my-6")}>
       <TranscriptItem item={item} tasks={turn.tasks} {...rowGestures} {...(onOpenTab ? { onOpenTab } : {})} />
     </div>
   );

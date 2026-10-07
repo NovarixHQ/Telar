@@ -74,6 +74,13 @@ describe("parseAppearance", () => {
     expect(parseAppearance(JSON.stringify({ depth: 3 })).depth).toBe("soft");
     expect(parseAppearance(null).depth).toBe("soft");
   });
+
+  test("keeps a chat width it recognises and reads anything else as comfortable", () => {
+    expect(parseAppearance(JSON.stringify({ chatWidth: "wide" })).chatWidth).toBe("wide");
+    expect(parseAppearance(JSON.stringify({ chatWidth: "full" })).chatWidth).toBe("full");
+    expect(parseAppearance(JSON.stringify({ chatWidth: "huge" })).chatWidth).toBe("comfortable");
+    expect(parseAppearance("{}").chatWidth).toBe("comfortable");
+  });
 });
 
 /** The pre-paint script is a separate dependency-free parser inlined in <head>; these run it and read the attributes back. */

@@ -14,7 +14,7 @@ export type MessageRole = "user" | "assistant";
 
 export const Message = ({ className, from, ...props }: HTMLAttributes<HTMLDivElement> & { from: MessageRole }) => (
   <div
-    className={cn("mx-auto flex w-full max-w-[50rem] flex-col gap-2", className)}
+    className={cn("mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-2", className)}
     data-role={from}
     {...props}
   />

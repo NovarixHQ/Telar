@@ -10,6 +10,7 @@ import { EngineWorker } from ".";
 import { stubModels } from "../../test/stub-models";
 import { eventually } from "../../test/wait";
 import { daemons, root, setup, teardown, workers } from "../../test/worker-daemon";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 afterEach(teardown);
 
@@ -25,7 +26,7 @@ async function failureOf(client: EngineClient, sessionId: string) {
 
 const countingDriver = (onRun: () => Promise<{ text: string }> = async () => ({ text: "" })) => {
   const calls = { count: 0 };
-  const driver: TurnDriver = { run: () => ((calls.count += 1), onRun()) };
+  const driver: TurnDriver = { capabilities: STUB_CAPABILITIES, run: () => ((calls.count += 1), onRun()) };
   return { driver, calls };
 };
 

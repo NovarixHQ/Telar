@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/ui/sidebar";
 import { APP_SIDEBAR_STORAGE_KEY } from "@/ui/sidebar-width";
 import { installNavigationMarks, isMeasuredHref, markNavigation, startNavigation } from "@/platform/perf-marks";
 import { installPageApi } from "@/features/composer";
+import { rememberSettingsReturn } from "@/features/settings";
 import { useRouteSwap } from "./route-swap";
 
 const AppSidebar = dynamic(() => import("@/features/sessions/rail/app-sidebar").then((mod) => mod.AppSidebar));
@@ -32,6 +33,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     installPageApi();
   }, []);
+  useEffect(() => {
+    if (!settings) rememberSettingsReturn(`${window.location.pathname}${window.location.search}`);
+  }, [pathname, settings]);
   useEffect(() => {
     installNavigationMarks();
     if (!isMeasuredHref(pathname)) return;

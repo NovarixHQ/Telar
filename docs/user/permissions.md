@@ -45,4 +45,4 @@ A session that another session creates never gets a wider access mode than its c
 
 ## Computer use
 
-Letting agents operate other apps on the Mac is a separate matter. It needs macOS permissions (Accessibility and Screen Recording), which you grant and test under Settings → Agent tools → Computer use.
+Letting agents operate other apps on the Mac is a separate matter. It needs macOS permissions (Accessibility and Screen Recording), which you grant and test under Settings → Integrations → Computer use.

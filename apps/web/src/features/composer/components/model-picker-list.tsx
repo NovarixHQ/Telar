@@ -2,7 +2,7 @@
 
 import { ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
-import { type ModelChoice, ProviderIcon, PROVIDER_LABEL } from "@/features/providers";
+import { type ModelChoice, ProviderIcon, driverLabel } from "@/features/providers";
 import { cn } from "@/ui/utils";
 import type { ModelPicker } from "../hooks/use-model-picker";
 import { PROVIDERS } from "../model-options";
@@ -41,8 +41,8 @@ export function ModelPickerRail({
             picker.showView(option);
             if (option !== driver) onDriverChange?.(option);
           }}
-          aria-label={PROVIDER_LABEL[option]}
-          title={onDriverChange || option === driver ? PROVIDER_LABEL[option] : `${PROVIDER_LABEL[option]} — fixed for this session`}
+          aria-label={driverLabel(option)}
+          title={onDriverChange || option === driver ? driverLabel(option) : `${driverLabel(option)} — fixed for this session`}
           className={cn(railClass(option === picker.view), "disabled:cursor-default", option !== driver && !onDriverChange && "opacity-40")}
         >
           <ProviderIcon provider={option} size={15} />
@@ -65,7 +65,7 @@ function SearchField({ picker, driver, canSwitch }: { picker: ModelPicker; drive
             document.getElementById(MODEL_LIST_ID)?.querySelector("button")?.focus();
           }
         }}
-        placeholder={canSwitch ? "Search every provider…" : `Search ${PROVIDER_LABEL[driver]} models…`}
+        placeholder={canSwitch ? "Search every provider…" : `Search ${driverLabel(driver)} models…`}
         aria-label="Search models by name or connection"
         className="h-6 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
       />
@@ -137,15 +137,15 @@ export function ModelPickerList({
         {browsing && choice.model && models.length > 0 && !picker.selectedFamily && (
           <CompactRow label={choice.model} hint="external" selected disabled onSelect={() => undefined} />
         )}
-        {asking && <p className="px-2 py-1.5 text-2xs text-muted-foreground">Asking {PROVIDER_LABEL[asking]}…</p>}
+        {asking && <p className="px-2 py-1.5 text-2xs text-muted-foreground">Asking {driverLabel(asking)}…</p>}
         {searching && listed.length === 0 && (
           <Note>
             Nothing matches “{picker.query.trim()}”
-            {picker.crossProvider ? " on any provider" : ` in ${PROVIDER_LABEL[driver]}, the provider this session is fixed to`} — names, ids and connections are searched.
+            {picker.crossProvider ? " on any provider" : ` in ${driverLabel(driver)}, the provider this session is fixed to`} — names, ids and connections are searched.
           </Note>
         )}
         {view === "favorites" && !asking && !searching && listed.length === 0 && <Note>Star a model to keep it here.</Note>}
-        {browsing && catalogue && models.length === 0 && <Note>{catalogue.message ?? `${PROVIDER_LABEL[driver]} did not report any models.`}</Note>}
+        {browsing && catalogue && models.length === 0 && <Note>{catalogue.message ?? `${driverLabel(driver)} did not report any models.`}</Note>}
       </div>
     </div>
   );

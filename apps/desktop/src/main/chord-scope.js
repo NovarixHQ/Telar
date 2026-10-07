@@ -1,18 +1,15 @@
 class ChordScopes {
   constructor() {
-    this.renderer = [];
-
     this.byOwner = new Map();
   }
 
-  setRenderer(chords) {
-    this.renderer = onlyStrings(chords);
-    return this.renderer;
+  get(owner) {
+    return this.byOwner.get(owner) ?? [];
   }
 
   setOwner(owner, chords) {
     const next = onlyStrings(chords);
-    const previous = this.byOwner.get(owner) ?? [];
+    const previous = this.get(owner);
     if (same(previous, next)) return false;
     if (next.length === 0) this.byOwner.delete(owner);
     else this.byOwner.set(owner, next);
@@ -23,16 +20,12 @@ class ChordScopes {
     return this.byOwner.delete(owner);
   }
 
-  all() {
+  of(owners) {
     const chords = [];
-    for (const chord of [...this.renderer, ...[...this.byOwner.values()].flat()]) {
+    for (const chord of owners.flatMap((owner) => this.get(owner))) {
       if (!chords.includes(chord)) chords.push(chord);
     }
     return chords;
-  }
-
-  get empty() {
-    return this.renderer.length === 0 && this.byOwner.size === 0;
   }
 }
 

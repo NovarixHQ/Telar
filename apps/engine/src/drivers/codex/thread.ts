@@ -1,12 +1,10 @@
 import type { McpServer, NotificationDetail, TurnAttachment } from "@telar/engine-client";
 import { TELAR_BROWSER_MCP_SERVER, TELAR_MCP_SERVER } from "@telar/engine-client";
 import { RELAY_RULE } from "../../domains/turns";
-import { BROWSER_BRIEFING } from "../../domains/browser";
 import { claimHasComputerUse } from "../../domains/computer-use";
-import { pluginBriefings } from "../../domains/plugins";
 import { type DriverRun, withAttachedFiles } from "../contract";
-import { RUN_BRIEFING } from "../../domains/terminal";
-import { DISPLAY_BRIEFING, TELAR_TOOL_CALL_TIMEOUT_MS } from "../../domains/agent-tools";
+import { TELAR_TOOL_CALL_TIMEOUT_MS } from "../../domains/agent-tools";
+import { driverBriefings } from "../briefings";
 
 export type CodexThreadConfig = {
   approvalPolicy: "untrusted" | "on-request" | "never";
@@ -101,16 +99,9 @@ function codexConfigOverlay(run: DriverRun, windowConfig: Record<string, number>
 
 // Sent on every thread/start and thread/resume, so the thread-level field is the per-turn developer channel.
 function codexBriefings(run: DriverRun): string[] {
-  return [
-    ...(run.orientation ? [run.orientation] : []),
-    ...(run.mainBriefing ? [run.mainBriefing] : []),
-    ...(run.browserSocket ? [BROWSER_BRIEFING] : []),
-    ...(run.run ? [RUN_BRIEFING] : []),
-    ...(run.display ? [DISPLAY_BRIEFING] : []),
-    ...pluginBriefings(Object.keys(run.plugins ?? {})),
-    ...(run.notification ? [codexNotificationInstruction(run.notification, run.prompt)] : []),
-  ];
+  return [...driverBriefings(run), ...(run.notification ? [codexNotificationInstruction(run.notification, run.prompt)] : [])];
 }
+
 
 /** The params shared by `thread/start` and `thread/resume`. */
 export function codexThreadParams(

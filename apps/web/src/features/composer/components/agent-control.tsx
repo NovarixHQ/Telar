@@ -1,6 +1,6 @@
 "use client";
 
-import { effortLabel, ProviderIcon, PROVIDER_LABEL } from "@/features/providers";
+import { effortLabel, ProviderIcon, driverLabel } from "@/features/providers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { useModelPicker, type ModelPickerProps } from "../hooks/use-model-picker";
 import { ControlTrigger } from "./control-primitives";
@@ -23,7 +23,7 @@ export function AgentControl(props: ModelPickerProps) {
             icon={<ProviderIcon provider={driver} size={14} />}
             label={label}
             {...(effort ? { detail: effortLabel(effort) } : {})}
-            ariaLabel={`Model: ${label} on ${PROVIDER_LABEL[driver]}`}
+            ariaLabel={`Model: ${label} on ${driverLabel(driver)}`}
             className="min-w-0 max-w-56 justify-start"
           />
         }

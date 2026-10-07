@@ -7,6 +7,7 @@ import { TELAR_MCP_SERVER, TELAR_BROWSER_MCP_SERVER, type ItemDetail, type TurnO
 import { TELAR_TOOL_CALL_TIMEOUT_MS } from "../../domains/agent-tools";
 import { normalizeOutcome, type DriverRun, type TurnDriver, withAttachedFiles } from "../contract";
 import { startOpenCodeRuntime, type OpenCodeRuntime } from "./runtime";
+import { OPENCODE_CAPABILITIES } from "../capabilities";
 
 type Client = OpenCodeRuntime["client"];
 type Options = { start?: typeof startOpenCodeRuntime; pollMs?: number };
@@ -105,6 +106,7 @@ export function openCodeServerIdentity(input: DriverRun): string {
 export function createOpenCodeDriver(options: Options = {}): TurnDriver {
   const runtimes = new Map<string, { identity: string; runtime: OpenCodeRuntime; mcpNames: Set<string>; idle?: ReturnType<typeof setTimeout> }>();
   return {
+    capabilities: OPENCODE_CAPABILITIES,
     dispose() { for (const entry of runtimes.values()) { clearTimeout(entry.idle); entry.runtime.close(); } runtimes.clear(); },
     async run(input) {
       const identity = openCodeServerIdentity(input);

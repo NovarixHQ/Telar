@@ -7,6 +7,7 @@ import { EngineWorker } from ".";
 import { stubModels } from "../../test/stub-models";
 import { eventually, until } from "../../test/wait";
 import { daemons, root, setup, teardown, workers } from "../../test/worker-daemon";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 afterEach(teardown);
 
@@ -40,7 +41,7 @@ test("stop reaches the active fake driver and remains the durable terminal state
   let ready!: () => void;
   const providerReady = new Promise<void>(resolve => { ready = resolve; });
   const driver: TurnDriver = {
-    async run({ onObservations, signal }) {
+    capabilities: STUB_CAPABILITIES, async run({ onObservations, signal }) {
       await onObservations([
         { kind: "item.started", item: { id: "i1", detail: { type: "assistant_message", text: "" } } },
       ]);
@@ -74,7 +75,7 @@ test("engine connectivity loss aborts active provider execution — once it outl
   // The engine's lease is the budget: a 1s lease here, and a genuinely closed daemon.
   let sawAbort = false;
   const driver: TurnDriver = {
-    async run({ signal }) {
+    capabilities: STUB_CAPABILITIES, async run({ signal }) {
       await new Promise<void>((_resolve, reject) => signal.addEventListener("abort", () => {
         sawAbort = true;
         reject(signal.reason);
@@ -107,7 +108,7 @@ test("a STOPPED first turn keeps the provider session — continuity survives th
     identified = resolve;
   });
   const driver: TurnDriver = {
-    async run({ providerSessionId, signal, onObservations }) {
+    capabilities: STUB_CAPABILITIES, async run({ providerSessionId, signal, onObservations }) {
       seenCursor.push(providerSessionId);
       if (seenCursor.length === 1) {
         // First turn: report the provider session early, then park until the
@@ -140,7 +141,7 @@ test("a Stop that lands DURING setup stops, and the provider is never started", 
   // Claimed, mid-setup, no provider yet: blocked on the profile binding, not on timing.
   let ran = 0;
   const driver: TurnDriver = {
-    async run() {
+    capabilities: STUB_CAPABILITIES, async run() {
       ran += 1;
       return { text: "should not happen" };
     },
@@ -190,7 +191,7 @@ test("a shutdown landing inside an in-flight claim leaves the turn claimed, neve
   // `claimTurn` is wrapped so it does, deterministically.
   const spawned: string[] = [];
   const driver: TurnDriver = {
-    async run({ prompt }) {
+    capabilities: STUB_CAPABILITIES, async run({ prompt }) {
       spawned.push(prompt);
       return { text: "should never run" };
     },
@@ -239,7 +240,7 @@ test("a STOP makes no further provider call: the live turn ends, the backlog is 
   let killAttempts = 0;
   let release: (() => void) | undefined;
   const driver: TurnDriver = {
-    async stopTask(sessionId, providerTaskId) {
+    capabilities: STUB_CAPABILITIES, async stopTask(sessionId, providerTaskId) {
       if (++killAttempts === 1) throw new Error("temporary provider control failure");
       killedTasks.push(`${sessionId}:${providerTaskId}`);
       return true;
@@ -313,7 +314,7 @@ test("a claim already granted when Stop lands never reaches the driver; a new me
   // turn `stopped` and the driver is never constructed.
   const spawned: string[] = [];
   const driver: TurnDriver = {
-    async run({ prompt }) {
+    capabilities: STUB_CAPABILITIES, async run({ prompt }) {
       spawned.push(prompt);
       return { text: "must not run" };
     },
@@ -368,7 +369,7 @@ test("a Stop reaches an embedded worker's provider in-process, without waiting f
   // Held open by the test, not by a clock.
   let providerMayReturn = false;
   const driver: TurnDriver = {
-    async run({ signal, onObservations }) {
+    capabilities: STUB_CAPABILITIES, async run({ signal, onObservations }) {
       await onObservations([{ kind: "item.started", item: { id: "i1", detail: { type: "assistant_message", text: "" } } }]);
       ready();
       signal.addEventListener("abort", () => { abortedAt = Date.now(); }, { once: true });
@@ -406,7 +407,7 @@ test("a provider that ignores a Stop never delays the turn's stopped state", asy
   // Held open by the test, not by a clock.
   let providerMayReturn = false;
   const driver: TurnDriver = {
-    async run({ onObservations }) {
+    capabilities: STUB_CAPABILITIES, async run({ onObservations }) {
       await onObservations([{ kind: "item.started", item: { id: "i1", detail: { type: "assistant_message", text: "" } } }]);
       ready();
       await until("the test to release the provider", () => providerMayReturn);
@@ -452,7 +453,7 @@ test("a Stop for another worker's claim is ignored, and the claim it does hold i
   let ready!: () => void;
   const running = new Promise<void>((resolve) => { ready = resolve; });
   const driver: TurnDriver = {
-    async run({ signal, onObservations }) {
+    capabilities: STUB_CAPABILITIES, async run({ signal, onObservations }) {
       await onObservations([{ kind: "item.started", item: { id: "i1", detail: { type: "assistant_message", text: "" } } }]);
       ready();
       await new Promise<void>((resolve) => {

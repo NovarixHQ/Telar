@@ -13,7 +13,7 @@
  * Long-window rows, because that is what the store requires before it will
  * claim a model-less Claude turn (see `claudeSelectionState`).
  */
-import type { ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
+import type { BuiltInDriver, ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
 
 const row = (id: string, isDefault = false): ProviderModel => ({
   id,
@@ -27,7 +27,7 @@ const row = (id: string, isDefault = false): ProviderModel => ({
   source: "provider",
 });
 
-const LISTS: Record<ProviderDriverKind, ProviderModel[]> = {
+const LISTS: Record<BuiltInDriver, ProviderModel[]> = {
   claude: [row("claude-opus-5", true), row("claude-sonnet-5")],
   codex: [row("gpt-5-codex", true)],
   opencode: [row("anthropic/claude-sonnet-5", true)],
@@ -38,5 +38,5 @@ export const stubModels = async (driver: ProviderDriverKind, now: () => number):
   instanceId: driver,
   source: "provider",
   readAt: now(),
-  models: LISTS[driver] ?? [],
+  models: LISTS[driver as BuiltInDriver] ?? [],
 });

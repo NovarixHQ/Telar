@@ -53,10 +53,6 @@ struct PushStatus: Decodable {
         Task { await syncRegistrations() }
         Task { await ReadSync.reconcile(settings: settings) }
     }
-    var liveActivityDiagnosis: [String] {
-        LiveActivityDiagnosis.lines(systemAllowed: ActivityAuthorizationInfo().areActivitiesEnabled, toggle: liveActivities, report: cardReport,
-                                    macs: (settings?.hosts ?? []).map { ($0.id.uuidString, $0.name) })
-    }
     func refreshCardReport() async { cardReport = await PushRelayClient.shared.cardReport() }
     func setLiveActivities(_ enabled: Bool) async {
         liveActivities = enabled

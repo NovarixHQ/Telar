@@ -16,8 +16,8 @@ enum EngineAPIError: Error, LocalizedError {
         switch self {
         case .engine(let code, let message, _):
             switch code {
-            case "cockpit_unauthorized": "This phone is not paired with the cockpit — get a pairing code from Settings → Remote access."
-            case "cockpit_forbidden": "This phone is paired for viewing only — give it full access from Remote access on the computer."
+            case "cockpit_unauthorized": "This phone is not paired with the cockpit — get a pairing code from Settings → Connections."
+            case "cockpit_forbidden": "This phone is paired for viewing only — give it full access from Connections on the computer."
             case "engine_unavailable": "The computer's engine is down — the cockpit is up but can't reach it."
             case "worker_unavailable": "No worker is running on the computer to take the turn."
             case "not_found": "That no longer exists on the engine."

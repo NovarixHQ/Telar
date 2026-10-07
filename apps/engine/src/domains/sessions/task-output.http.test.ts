@@ -12,6 +12,7 @@ import type { TurnDriver } from "../../drivers";
 import { EngineWorker } from "../../worker";
 import { stubModels } from "../../../test/stub-models";
 import { until } from "../../../test/wait";
+import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 const roots: string[] = [];
 const daemons: EngineDaemon[] = [];
@@ -38,7 +39,7 @@ test("a background task's log is read from the path its driver stored, and nothi
   fs.writeFileSync(elsewhere, "secret\n");
 
   const driver: TurnDriver = {
-    run: async ({ onObservations }) => {
+    capabilities: STUB_CAPABILITIES, run: async ({ onObservations }) => {
       await onObservations([
         { kind: "task.started", task: { id: "task_shell", providerTaskId: "bsh1", kind: "background", state: "running", title: "dev", outputFile: log } },
         { kind: "task.started", task: { id: "task_stray", providerTaskId: "not-a-log", kind: "background", state: "running", title: "x", outputFile: elsewhere } },

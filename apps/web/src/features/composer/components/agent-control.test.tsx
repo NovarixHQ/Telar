@@ -52,7 +52,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:tes
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
+import type { BuiltInDriver, ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
 import { searchScope } from "../model-options";
 import { AgentControl } from "./agent-control";
 import { forgetModelCatalogues } from "@/features/providers/model-catalogue-cache";
@@ -83,7 +83,7 @@ function model(id: string, label: string, over: Partial<ProviderModel> = {}): Pr
  * current and no Legacy fold stands between these tests and the rows.
  */
 const CLAUDE_BASE = [model("claude-opus-5", "Opus 5"), model("claude-haiku-4-5", "Haiku 4.5")];
-const CATALOGUES: Record<ProviderDriverKind, ProviderModel[]> = {
+const CATALOGUES: Record<BuiltInDriver, ProviderModel[]> = {
   claude: CLAUDE_BASE,
   codex: [model("gpt-6-astra", "GPT-6 Astra")],
   opencode: [model("opencode-go/gpt-5.6-luna", "gpt-5.6-luna"), model("openai/gpt-5.6-luna", "gpt-5.6-luna")],
@@ -104,7 +104,7 @@ beforeEach(() => {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("/api/models")) {
-      const driver = new URL(url, "http://localhost").searchParams.get("driver") as ProviderDriverKind;
+      const driver = new URL(url, "http://localhost").searchParams.get("driver") as BuiltInDriver;
       asked.push(driver);
       const catalogue: ModelCatalogue = { driver, models: CATALOGUES[driver], source: "provider", readAt: 0 };
       return Response.json({ catalogue });

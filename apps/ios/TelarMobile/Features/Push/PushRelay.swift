@@ -21,7 +21,7 @@ struct PushReadiness: Equatable {
         if !notSending.isEmpty {
             return deviceUnsupported
                 ? Self.unsupportedLine
-                :"Notifications couldn't be set up just now; tap Check connection to try again."
+                : "Notifications couldn't be set up just now."
         }
         if !unreachable.isEmpty {
             let count = unreachable.count

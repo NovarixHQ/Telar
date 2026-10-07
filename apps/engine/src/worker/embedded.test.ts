@@ -15,6 +15,7 @@ import type { TurnDriver } from "../drivers";
 import { TurnRecovery } from "../domains/turns";
 import { stubModels } from "../../test/stub-models";
 import { forgetOpenPrefixes } from "../../test/store-internals";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 /**
  * A Claude default this temp home already knows, so a claim is not withheld
@@ -57,7 +58,7 @@ async function eventually(assertion: () => void | Promise<void>, timeoutMs = 15_
   throw last;
 }
 
-const echo: TurnDriver = { run: async ({ prompt }) => ({ text: `echo:${prompt}` }) };
+const echo: TurnDriver = { capabilities: STUB_CAPABILITIES, run: async ({ prompt }) => ({ text: `echo:${prompt}` }) };
 
 test("a daemon with an embedded worker executes a turn with no second process", async () => {
   const daemon = await startEngine({ models: stubModels,
@@ -144,7 +145,7 @@ test("a stalled daemon preserves its embedded worker and all active turns past t
       createDriver: () => {
         drivers += 1;
         return {
-          run: async ({ prompt }) => {
+          capabilities: STUB_CAPABILITIES, run: async ({ prompt }) => {
             await new Promise<void>((resolve) => releases.push(resolve));
             return { text: prompt };
           },
@@ -225,7 +226,7 @@ test("a daemon started WITHOUT an embedded worker never loads the provider SDK",
  * never finishes on its own — the shape of a real turn caught mid-work.
  */
 const workingForever: TurnDriver = {
-  run: async ({ onObservations, signal }) => {
+  capabilities: STUB_CAPABILITIES, run: async ({ onObservations, signal }) => {
     await onObservations?.([
       { kind: "provider.session", providerSessionId: "provider-thread-xyz" },
       { kind: "item.started", item: { id: "msg_1", detail: { type: "assistant_message", text: "Working on it…" } } },
@@ -302,7 +303,7 @@ test("a real event-loop stall preserves the embedded generation and streamed sna
     engineRoot: root(),
     workerLeaseMs: 150,
     embeddedWorker: { pollMs: 10, createDriver: () => ({
-      run: async ({ onObservations, signal }) => {
+      capabilities: STUB_CAPABILITIES, run: async ({ onObservations, signal }) => {
         runs += 1;
         signal.addEventListener("abort", () => { aborted = true; finish?.(); }, { once: true });
         await onObservations?.([
@@ -344,7 +345,7 @@ test("embedded execution does not depend on the HTTP lifecycle transport", async
   try {
     const daemon = await startEngine({ models: stubModels, engineRoot: root(), embeddedWorker: {
       pollMs: 10,
-      createDriver: () => ({ run: async ({ onObservations }) => {
+      createDriver: () => ({ capabilities: STUB_CAPABILITIES, run: async ({ onObservations }) => {
         await onObservations([{ kind: "item.started", item: { id: "i_direct", detail: { type: "assistant_message", text: "" } } }]);
         return { text: "direct" };
       } }),
@@ -363,7 +364,7 @@ test("embedded execution does not depend on the HTTP lifecycle transport", async
 test("shutdown disposes the selected OpenCode adapter and its session-lived runtime", async () => {
   let disposed = 0;
   const daemon = await startEngine({ models: stubModels, engineRoot: root(), embeddedWorker: {
-    pollMs: 10, createDriver: () => (kind) => kind === "opencode" ? { run: async () => ({ text: "fixture" }), dispose: () => { disposed++; } } : undefined,
+    pollMs: 10, createDriver: () => (kind) => kind === "opencode" ? { capabilities: STUB_CAPABILITIES, run: async () => ({ text: "fixture" }), dispose: () => { disposed++; } } : undefined,
   } });
   daemon.store.projectRegistry.register({ id: "project_dispose", name: "Dispose", root: "/tmp" });
   daemon.store.providers.save({ id: "opencode", driver: "opencode", enabled: true });

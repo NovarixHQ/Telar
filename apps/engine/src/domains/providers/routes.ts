@@ -1,4 +1,4 @@
-import { resolveMcpServers, type ProviderDriverKind } from "@telar/engine-client";
+import { isBuiltInDriver, resolveMcpServers, type BuiltInDriver, type ProviderDriverKind } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
 import { positiveParam, stringValue } from "../../platform/http/params";
 import { ok, type Route } from "../../platform/http/route";
@@ -10,7 +10,7 @@ import { runStructuredForPolicy } from "./textgen";
 type ProviderRouteDeps = {
   now: () => number;
   probeVersion?: (driver: ProviderDriverKind, binaryPath: string | undefined, force: boolean) => Promise<VersionProbe>;
-  runUpdate?: (driver: ProviderDriverKind, binaryPath: string | undefined) => Promise<CliUpdateRun>;
+  runUpdate?: (driver: BuiltInDriver, binaryPath: string | undefined) => Promise<CliUpdateRun>;
 };
 
 const only = (input: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> =>
@@ -161,6 +161,7 @@ function providerInstanceRoutes(store: EngineStore, deps: ProviderRouteDeps): Ro
         const id = params[0]!;
         const instance = store.providers.list().find((entry) => entry.id === id);
         if (!instance) throw new HttpError(404, "not_found", `unknown provider instance ${id}`);
+        if (!isBuiltInDriver(instance.driver)) throw new HttpError(409, "conflict", `${instance.driver} is not updated by Telar`);
         const result = await updateProvider(instance.driver, instance.binaryPath);
         const providerInstances = store.providers.list();
         return ok({ result, providerInstances, probes: await probeProviders(providerInstances, { force: true }) });

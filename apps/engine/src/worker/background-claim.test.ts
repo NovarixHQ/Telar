@@ -27,6 +27,7 @@ import type { DriverRun, DriverSessionHooks, ProviderTurnBinding, TurnDriver } f
 import { EngineWorker } from ".";
 import { stubModels } from "../../test/stub-models";
 import { until } from "../../test/wait";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 const roots: string[] = [];
 const daemons: EngineDaemon[] = [];
@@ -55,7 +56,7 @@ function dispatchingDriver(): { driver: TurnDriver; dispatched: Promise<Dispatch
   let announce!: (value: Dispatched) => void;
   const dispatched = new Promise<Dispatched>((resolve) => { announce = resolve; });
   const driver: TurnDriver = {
-    run: async ({ onObservations, onRequest, session }) => {
+    capabilities: STUB_CAPABILITIES, run: async ({ onObservations, onRequest, session }) => {
       await onObservations([
         {
           kind: "task.started",

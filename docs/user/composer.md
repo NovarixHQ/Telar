@@ -51,4 +51,4 @@ When the agent asks you something, the question opens right above the composer, 
 
 ## Dictation
 
-Dictation is off until you choose a speech provider in Settings → Dictation. That needs your own key for the provider, and audio goes straight from your device to it, not through the Mac. Then press ⌘D, or use the microphone, to dictate. Add names Telar can't guess (people, products) under Vocabulary.
+Dictation is off until you choose a speech provider in Settings → Integrations → Dictation. That needs your own key for the provider, and audio goes straight from your device to it, not through the Mac. Then press ⌘D, or use the microphone, to dictate. Add names Telar can't guess (people, products) under Vocabulary.

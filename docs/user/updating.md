@@ -4,18 +4,18 @@ The Telar desktop app updates itself. The agent CLIs it drives (Claude Code, Cod
 
 ## How Telar updates
 
-Telar checks for a new build at launch and every six hours after that. When it finds one, it downloads it in the background and tells you it's ready. The update control at the bottom of the rail changes to install and restart, and Settings → Updates says the same.
+Telar checks for a new build at launch and every six hours after that. When it finds one, it downloads it in the background and tells you it's ready. The update control at the bottom of the rail changes to install and restart, and Settings → General → About says the same.
 
 Nothing installs until you choose to. You can install in one of two ways:
 
 - **Install and restart** now. Telar asks first and tells you what the restart will interrupt: sessions that are working, and terminals whose commands will be ended.
-- **Install on quit** (Settings → Updates). A downloaded update installs the next time you quit Telar.
+- **Install on quit** (Settings → General → About). A downloaded update installs the next time you quit Telar.
 
-To check by hand, use the update control in the rail, Settings → Updates, or Check for Updates… in the command palette.
+To check by hand, use the update control in the rail, Settings → General → About, or Check for Updates… in the command palette.
 
 ## Sessions across a restart
 
-With **Continue sessions after restarting** on (Settings → Updates), sessions stopped by an update restart pick up where they left off. Each one gets a single message saying Telar restarted.
+With **Continue after Telar restarts** on (Settings → General), sessions stopped by an update restart pick up where they left off. Each one gets a single message saying Telar restarted.
 
 - This only happens when restarting to install an update. A crash never resumes anything.
 - Terminals and running processes don't come back.
@@ -23,7 +23,7 @@ With **Continue sessions after restarting** on (Settings → Updates), sessions 
 
 ## Channels
 
-Settings → Updates → Channel picks which builds you get:
+Settings → General → About → Channel picks which builds you get:
 
 - **Beta**: tested builds, released on purpose. This is the default and the safe choice.
 - **Nightly**: every build from the main branch as soon as it lands. You get fixes first, and you should expect things to break.
@@ -31,7 +31,7 @@ Settings → Updates → Channel picks which builds you get:
 ## When it doesn't update
 
 - If a download stops making progress, Telar cancels it and says so. Check again to retry.
-- A build packaged on your own machine has no update feed, so it never checks. Settings → Updates says so.
+- A build packaged on your own machine has no update feed, so it never checks. Settings → General → About says so.
 - In a browser tab there's no updater. Only the desktop app updates.
 
 ## The iPhone app

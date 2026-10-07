@@ -1,10 +1,12 @@
 "use client";
 
+import { driverLabel } from "./provider-icon";
+
 import { useState } from "react";
 import { MonitorIcon } from "lucide-react";
 import { driverTakesComputerUse, type ComputerUseStatus } from "@telar/engine-client";
 import { useComputerUse } from "../hooks/use-computer-use";
-import { DRIVER_LABEL, DRIVERS } from "../provider-instances";
+import { DRIVERS } from "../provider-instances";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
@@ -71,11 +73,11 @@ export function ComputerUseProviders() {
     <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
       {supplied.map((driver) => (
         <Badge key={driver} variant="secondary" className="font-normal">
-          {DRIVER_LABEL[driver]}
+          {driverLabel(driver)}
         </Badge>
       ))}
       {theirOwn.map((driver) => (
-        <span key={driver}>{DRIVER_LABEL[driver]} uses its own</span>
+        <span key={driver}>{driverLabel(driver)} uses its own</span>
       ))}
     </p>
   );

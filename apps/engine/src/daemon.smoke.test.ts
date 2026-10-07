@@ -12,6 +12,7 @@ import { EngineWorker } from "./worker";
 import { stubModels } from "../test/stub-models";
 import { eventually } from "../test/wait";
 import { engineHome, removeTmp, repo } from "../test/worktree-fixtures";
+import { STUB_CAPABILITIES } from "../test/stub-driver";
 
 let daemon: EngineDaemon;
 let worker: EngineWorker;
@@ -22,7 +23,7 @@ const LOCAL = "session_local";
 const WORKTREE = "session_worktree";
 
 const driver: TurnDriver = {
-  async run({ prompt, onObservations, onRequest }) {
+  capabilities: STUB_CAPABILITIES, async run({ prompt, onObservations, onRequest }) {
     await onObservations([
       { kind: "item.started", item: { id: "answer", detail: { type: "assistant_message", text: "" } } },
       { kind: "content.delta", itemId: "answer", stream: "assistant_text", text: `echo:${prompt}` },

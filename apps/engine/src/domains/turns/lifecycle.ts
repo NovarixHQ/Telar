@@ -1,5 +1,4 @@
 import {
-  PROVIDER_CAPABILITIES,
   WorkerTurnFailureCode as WorkerTurnFailureCodeSchema,
   type EngineRequest,
   type Turn,
@@ -8,6 +7,7 @@ import {
   type UsageSnapshot,
   type WakeKind,
 } from "@telar/engine-client";
+import type { DriverCapabilities } from "../../drivers/capabilities";
 import { assertId, EngineStateError, type Kernel } from "../../platform/kernel";
 import { sessionMetadataFile, storedSession, type SessionItems, type SessionQueue, type SessionRecords, type SessionRequests, type SessionTasks } from "../sessions";
 import { MAX_TEXT_LENGTH } from "./intake";
@@ -18,6 +18,7 @@ export type StoppedClaim = { sessionId: string; runId: string; claimToken: strin
 
 type LifecycleDeps = {
   records: SessionRecords;
+  capabilities: (driver: string) => DriverCapabilities;
   items: SessionItems;
   tasks: SessionTasks;
   requests: SessionRequests;
@@ -328,7 +329,7 @@ export class TurnLifecycle {
 
   // The steering eligibility rules in one place, so `promoteTurn` and `markRunning` cannot disagree. The caller writes the queue.
   private promoteInQueue(sessionId: string, queue: SessionQueue, turn: Turn, running: Turn, at: number): void {
-    if (!PROVIDER_CAPABILITIES[this.deps.records.get(sessionId).driver].liveSteering)
+    if (!this.deps.capabilities(this.deps.records.get(sessionId).driver).liveSteering)
       throw new EngineStateError("conflict", "this provider queues follow-up messages until the active turn ends");
     if (turn.state !== "queued") throw new EngineStateError("conflict", "only a queued turn can be sent now");
     // A HOLD IS SOMEBODY'S DECISION about this message — a pause, or a

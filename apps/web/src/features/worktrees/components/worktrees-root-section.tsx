@@ -71,7 +71,7 @@ export function WorktreesRootRow({ onChanged }: { onChanged?: () => void }) {
   return (
     <Row
       icon={FolderGitIcon}
-      label="Location"
+      label="Worktree folder"
       hint={
         state ? (
           <>

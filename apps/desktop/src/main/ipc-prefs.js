@@ -1,7 +1,13 @@
-const { ipcMain, nativeTheme } = require("electron");
+const { BrowserWindow, ipcMain, nativeTheme } = require("electron");
 const { keymapOverrides, mergeKeymap } = require("./command-keys");
 const { applyTranslucency, readUiPrefs, supportsTranslucency, writeUiPrefs } = require("./appearance");
-const { buildApplicationMenu, chords, readKeybindingOverrides, writeKeybindingOverrides } = require("./app-menu");
+const {
+  buildApplicationMenu,
+  readKeybindingOverrides,
+  setChordCapture,
+  setRendererChordScope,
+  writeKeybindingOverrides,
+} = require("./app-menu");
 
 function registerPrefsIpc() {
   ipcMain.handle("telar:appearance:setTheme", (_event, theme) => {
@@ -10,17 +16,14 @@ function registerPrefsIpc() {
 
   ipcMain.handle("telar:keybindings:get", () => readKeybindingOverrides());
 
-  ipcMain.handle("telar:keybindings:capture", (_event, capturing) => {
-    chords.capturing = Boolean(capturing);
-    buildApplicationMenu();
-    return chords.capturing;
+  ipcMain.handle("telar:keybindings:capture", (event, capturing) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? setChordCapture(win, Boolean(capturing)) : false;
   });
 
-  ipcMain.handle("telar:keybindings:scope", (_event, requested) => {
-    const accepted = chords.scopes.setRenderer(requested);
-    buildApplicationMenu();
-
-    return accepted;
+  ipcMain.handle("telar:keybindings:scope", (event, requested) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? setRendererChordScope(win, requested) : [];
   });
 
   ipcMain.handle("telar:keybindings:set", (_event, overrides) => {

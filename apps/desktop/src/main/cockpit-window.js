@@ -1,4 +1,5 @@
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const { BrowserWindow, nativeTheme } = require("electron");
 const { createExternalLinkPolicy } = require("../browser/browser-manager");
 const { macWindowChrome } = require("./window-chrome");
@@ -8,7 +9,7 @@ const { seatHostCookie, seatHostHeader } = require("./ui-server");
 const { developmentIconPath, windowTitle } = require("./bundle-paths");
 const { watchForUnpairing } = require("./shell-log");
 const { readUiPrefs, supportsTranslucency } = require("./appearance");
-const { buildApplicationMenu, chords, setBrowserChordScope } = require("./app-menu");
+const { forgetBrowserChordScope, setBrowserChordScope } = require("./app-menu");
 const { applyExternalLinkPolicy, linkRouting } = require("./window-links");
 const { addHost, rememberWindowUrl, removeHost } = require("./browser-hosts");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
@@ -41,12 +42,6 @@ function onCockpitReload(win, manager) {
   manager.hideVisibleScope();
 
   linkRouting.set(win.webContents, false);
-
-  if (!chords.scopes.empty || chords.capturing) {
-    chords.scopes.setRenderer([]);
-    chords.capturing = false;
-    buildApplicationMenu();
-  }
 }
 
 function retryFailedLoads(win, url) {
@@ -62,9 +57,21 @@ function retryFailedLoads(win, url) {
   win.on("closed", () => clearTimeout(retryTimer));
 }
 
-function createCockpitWindow(url, { createManager, onInPageNavigation, main = false }) {
+const MAIN_WINDOW_ID = "main";
+const openWindowIds = new Set();
+
+function claimWindowUrl(appUrl) {
+  const id = openWindowIds.has(MAIN_WINDOW_ID) ? randomUUID() : MAIN_WINDOW_ID;
+  openWindowIds.add(id);
+  const url = new URL(appUrl);
+  url.searchParams.set("w", id);
+  return { id, url: url.href };
+}
+
+function createCockpitWindow(appUrl, { createManager, onInPageNavigation, main = false }) {
   const title = windowTitle();
-  rememberWindowUrl(url);
+  rememberWindowUrl(appUrl);
+  const { id, url } = claimWindowUrl(appUrl);
 
   const place = windowPlace(main);
   const win = new BrowserWindow({ ...cockpitWindowOptions(title), ...place.bounds });
@@ -74,7 +81,7 @@ function createCockpitWindow(url, { createManager, onInPageNavigation, main = fa
   const manager = createManager(win, { onChordScope: (owned) => setBrowserChordScope(manager, owned) });
   addHost(win, manager);
 
-  applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl: url }));
+  applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl }));
   win.webContents.on("did-start-loading", () => onCockpitReload(win, manager));
   win.webContents.on("did-navigate-in-page", () => onInPageNavigation());
   win.webContents.on("did-finish-load", () => {
@@ -84,10 +91,11 @@ function createCockpitWindow(url, { createManager, onInPageNavigation, main = fa
     for (const [partition, host] of manager.extensionHosts) win.webContents.send("telar:browser:extension", { partition, ...host.status() });
   });
   win.on("closed", () => {
+    openWindowIds.delete(id);
     manager.destroy();
     removeHost(manager);
 
-    if (chords.scopes.forget(manager)) buildApplicationMenu();
+    forgetBrowserChordScope(manager);
   });
 
   win.on("page-title-updated", (e) => {
@@ -101,8 +109,8 @@ function createCockpitWindow(url, { createManager, onInPageNavigation, main = fa
   win.once("ready-to-show", () => win.show());
   win.setTitle(title);
 
-  seatHostHeader(url);
-  seatHostCookie(url).finally(() => {
+  seatHostHeader(appUrl);
+  seatHostCookie(appUrl).finally(() => {
     if (!win.isDestroyed()) win.loadURL(url);
   });
   return win;

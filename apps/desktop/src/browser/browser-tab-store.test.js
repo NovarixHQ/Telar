@@ -3,7 +3,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { describe, expect, test } = require("bun:test");
 
-const { createTabStore, serializeInventory, parseInventory, rememberableUrl, INVENTORY_VERSION } = require("./browser-tab-store");
+const { createSharedTabStore, createTabStore, serializeInventory, parseInventory, rememberableUrl, INVENTORY_VERSION } = require("./browser-tab-store");
 
 const { ProfileRegistry } = require("./browser-profiles");
 
@@ -297,6 +297,41 @@ describe("the on-disk store", () => {
     expect(store.load().savedAt).toBe(1);
     fs.writeFileSync(store.file, "{not json");
     expect(store.load()).toBeNull();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("one file shared by every window", () => {
+  const scope = (id) => ({ profileId: P1, activeTabId: id, tabs: [{ id, url: `https://${id}.example/`, title: id, openedBy: "human" }] });
+  const doc = (scopes) => ({ version: INVENTORY_VERSION, savedAt: 1, scopes });
+
+  test("two windows saving their tabs keep each other's scopes", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "telar-tab-store-"));
+    const shared = createSharedTabStore(dir, { writeDelayMs: 60_000 });
+    const main = shared.forWindow();
+    const second = shared.forWindow();
+
+    main.save(doc({ s1: scope("a") }));
+    second.save(doc({ s2: scope("b") }));
+    await second.flush();
+    expect(Object.keys(createTabStore(dir).load().scopes).sort()).toEqual(["s1", "s2"]);
+
+    main.flushSync(doc({}));
+    expect(Object.keys(createTabStore(dir).load().scopes)).toEqual(["s2"]);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("a launch restores the saved tabs into the first window only, and keeps them until it saves", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "telar-tab-store-"));
+    createTabStore(dir).flushSync(doc({ s1: scope("a") }));
+    const shared = createSharedTabStore(dir, { writeDelayMs: 60_000 });
+    const main = shared.forWindow();
+    const second = shared.forWindow();
+
+    expect(Object.keys(main.load().scopes)).toEqual(["s1"]);
+    expect(second.load()).toBeNull();
+    second.flushSync(doc({ s2: scope("b") }));
+    expect(Object.keys(createTabStore(dir).load().scopes).sort()).toEqual(["s1", "s2"]);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

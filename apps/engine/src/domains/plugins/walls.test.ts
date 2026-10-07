@@ -23,7 +23,7 @@ import type { DriverRun, TurnDriver } from "../../drivers";
 import { bundledPluginToolModules, pluginBriefings, setPluginToolModules } from "./bundled";
 import { dataScienceMeta } from "./data-science/plugin";
 import { latexMeta } from "./latex/plugin";
-import { openCodeBriefings } from "../../drivers/opencode";
+import { driverBriefings } from "../../drivers/briefings";
 import { dsTools } from "./data-science/ds-tools";
 import { notebookTools } from "./data-science/notebook-tools";
 import { latexTools } from "./latex/latex-tools";
@@ -31,6 +31,7 @@ import type { ToolFactory } from "../agent-tools";
 import { TELAR_SKILL } from "../sessions";
 import { stubModels } from "../../../test/stub-models";
 import { allowCliInThisFile, pinFakeClaudeInThisFile } from "../../../test/allow-cli";
+import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 allowCliInThisFile();
 pinFakeClaudeInThisFile();
@@ -132,7 +133,7 @@ for (const scenario of CASES) {
 
   test(`briefings, ${scenario.label}: a plugin's paragraph only where it is enabled`, async () => {
     const { append } = await claudeTurn(capabilities(scenario.plugins));
-    const opencode = openCodeBriefings({ plugins: capabilities(scenario.plugins) } as unknown as DriverRun);
+    const opencode = driverBriefings({ plugins: capabilities(scenario.plugins) } as unknown as DriverRun);
     for (const meta of [dataScienceMeta, latexMeta]) {
       const on = scenario.plugins.includes(meta.id as never);
       expect(append?.includes(meta.briefing!) ?? false).toBe(on);
@@ -153,7 +154,7 @@ function recordingDriver(): { driver: TurnDriver; runs: Map<string, DriverRun> }
   return {
     runs,
     driver: {
-      run: async (input: DriverRun) => {
+      capabilities: STUB_CAPABILITIES, run: async (input: DriverRun) => {
         runs.set(input.sessionId, input);
         return { text: "ok" };
       },
@@ -215,7 +216,7 @@ test("the worker path: Codex gets exactly the enabled walls on its lease, and th
     const lease = run.telarSocketLease!;
     const names = await advertised({ url: lease.url, headers: { authorization: `Bearer ${lease.token}` } });
     expect(pluginNames(names)).toEqual([...setup.expected]);
-    const briefings = openCodeBriefings(run);
+    const briefings = driverBriefings(run);
     expect(briefings.includes(dataScienceMeta.briefing!)).toBe(setup.plugins.includes("data-science"));
     expect(briefings.includes(latexMeta.briefing!)).toBe(setup.plugins.includes("latex"));
   }

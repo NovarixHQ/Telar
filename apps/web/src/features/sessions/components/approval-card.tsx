@@ -232,7 +232,7 @@ function SecretAccessCard({
             </span>
             <span id={`secret-remember-scope-${request.id}`} className="text-muted-foreground">
               Only “{secret.candidates.find((candidate) => candidate.id === itemId)?.title ?? "the item you pick"}”, only {kinds}, only this
-              profile and this exact address. 1Password still asks to unlock. Revoke in Settings → Browser.
+              profile and this exact address. 1Password still asks to unlock. Revoke in Settings → Integrations.
             </span>
           </span>
         </label>

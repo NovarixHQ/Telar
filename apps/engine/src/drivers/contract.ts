@@ -1,5 +1,6 @@
 import type { AutoCompact, Item, McpServer, NotificationDetail, TaskSeed, TurnAttachment, RequestDecision, RequestDefault, RequestDetail, RequestKind, TurnObservation, UsageSnapshot, UserInputField } from "@telar/engine-client";
 import type { SessionsCapability } from "../domains/sessions";
+import type { DriverCapabilities } from "./capabilities";
 import type { NotesCapability } from "../domains/notes";
 import type { PromptsCapability } from "../domains/prompts";
 import type { DisplayCapability } from "../domains/agent-tools";
@@ -89,6 +90,7 @@ export type DriverSessionHooks = {
 };
 
 export type TurnDriver = {
+  capabilities: DriverCapabilities;
   run(input: DriverRun): Promise<DriverResult>;
   dispose?(): void;
   stopTask?(sessionId: string, providerTaskId: string): Promise<boolean>;

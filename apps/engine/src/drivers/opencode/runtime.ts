@@ -4,27 +4,13 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { createOpencodeClient, type OpencodeClient } from "@opencode-ai/sdk/v2";
 import { autoCompactLimitFor, type AutoCompact } from "@telar/engine-client";
-import { BROWSER_BRIEFING } from "../../domains/browser";
-import { DISPLAY_BRIEFING } from "../../domains/agent-tools";
-import { RUN_BRIEFING } from "../../domains/terminal";
-import { pluginBriefings } from "../../domains/plugins";
 import { writeOrientationInstructions } from "../../domains/sessions";
 import type { DriverRun } from "../contract";
 import { agentEnv } from "../../platform/process/agent-env";
 import { OWN_GROUP, stopGroup } from "../../platform/process/group";
+import { driverBriefings } from "../briefings";
 
 export type OpenCodeRuntime = { client: OpencodeClient; closed: boolean; close(): void };
-
-export function openCodeBriefings(input: DriverRun): string[] {
-  return [
-    ...(input.orientation ? [input.orientation] : []),
-    ...(input.mainBriefing ? [input.mainBriefing] : []),
-    ...(input.browserSocket ? [BROWSER_BRIEFING] : []),
-    ...(input.run ? [RUN_BRIEFING] : []),
-    ...(input.display ? [DISPLAY_BRIEFING] : []),
-    ...pluginBriefings(Object.keys(input.plugins ?? {})),
-  ];
-}
 
 export function openCodeConfigContent(input: DriverRun, instructionsFile?: string, limits?: OpenCodeModelLimits): string {
   const inherited = JSON.parse(input.env?.OPENCODE_CONFIG_CONTENT ?? process.env.OPENCODE_CONFIG_CONTENT ?? "{}") as {
@@ -133,7 +119,7 @@ export async function openCodeModelLimits(
 
 export async function startOpenCodeRuntime(input: DriverRun): Promise<OpenCodeRuntime> {
   const password = crypto.randomBytes(32).toString("base64url");
-  const briefings = openCodeBriefings(input);
+  const briefings = driverBriefings(input);
   const instructionsFile = briefings.length
     ? await writeOrientationInstructions(briefings.join("\n\n")).catch(() => undefined)
     : undefined;

@@ -1,5 +1,6 @@
 import path from "node:path";
 import {
+  isBuiltInDriver,
   AgentOrientation as AgentOrientationSchema,
   DEFAULT_AGENT_ORIENTATION,
   DEFAULT_INBOX_POLICY,
@@ -301,7 +302,7 @@ export class SettingsStore {
     if (patch.titles !== undefined) next.titles = boolean(patch.titles, "titles must be a boolean");
     if (patch.renameBranches !== undefined) next.renameBranches = boolean(patch.renameBranches, "renameBranches must be a boolean");
     if (patch.driver !== undefined) {
-      if (patch.driver !== "claude" && patch.driver !== "codex" && patch.driver !== "opencode") {
+      if (!isBuiltInDriver(patch.driver)) {
         throw new EngineStateError("invalid_request", "text generation driver must be claude, codex or opencode");
       }
       if (patch.driver !== next.driver) delete next.model;

@@ -1,19 +1,19 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { ProviderDriverKind, ProviderInstance, ProviderProbe, ProviderSignIn, ProviderUpdate } from "@telar/engine-client";
+import { isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type ProviderProbe, type ProviderSignIn, type ProviderUpdate } from "@telar/engine-client";
 import { cliUsable, resolveCliAsync, type CliId } from "./cli";
 import { cliUpdateFor } from "./cli-updates";
 
 const VERSION_CACHE_MS = 60_000;
 
-const LOGIN_ARTIFACT: Record<ProviderDriverKind, string> = {
+const LOGIN_ARTIFACT: Record<BuiltInDriver, string> = {
   opencode: "auth.json",
   claude: ".credentials.json",
   codex: "auth.json",
 };
 
-const CONFIG_DIR_ENV: Record<ProviderDriverKind, string> = {
+const CONFIG_DIR_ENV: Record<BuiltInDriver, string> = {
   opencode: "OPENCODE_CONFIG_DIR",
   claude: "CLAUDE_CONFIG_DIR",
   codex: "CODEX_HOME",
@@ -23,7 +23,7 @@ function expandHome(target: string): string {
   return target.startsWith("~") ? path.join(os.homedir(), target.slice(1)) : target;
 }
 
-const OWNED_ENV: Record<ProviderDriverKind, readonly string[]> = {
+const OWNED_ENV: Record<BuiltInDriver, readonly string[]> = {
   opencode: ["OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG", "OPENCODE_CONFIG_CONTENT"],
   claude: [
     "CLAUDE_CONFIG_DIR",
@@ -55,11 +55,14 @@ function providerInstanceConfigured(instance: { configDir?: string | undefined; 
   return instance.configDir !== undefined || instance.env.length > 0;
 }
 
+const ownedEnv = (driver: ProviderDriverKind): readonly string[] => (isBuiltInDriver(driver) ? OWNED_ENV[driver] : []);
+const configDirEnvOf = (driver: ProviderDriverKind): string | undefined => (isBuiltInDriver(driver) ? CONFIG_DIR_ENV[driver] : undefined);
+
 export function inheritedOwnedEnv(
   driver: ProviderDriverKind,
   ambient: Record<string, string | undefined> = process.env,
 ): string[] {
-  return OWNED_ENV[driver].filter((name) => (ambient[name] ?? "").trim() !== "");
+  return ownedEnv(driver).filter((name) => (ambient[name] ?? "").trim() !== "");
 }
 
 export function providerEnvIsCredential(name: string): boolean {
@@ -67,7 +70,7 @@ export function providerEnvIsCredential(name: string): boolean {
 }
 
 export function providerOwnsEnv(driver: ProviderDriverKind, name: string): boolean {
-  return OWNED_ENV[driver].includes(name);
+  return ownedEnv(driver).includes(name);
 }
 
 export function stoppedInheriting(input: {
@@ -78,7 +81,8 @@ export function stoppedInheriting(input: {
   if (input.before && providerInstanceConfigured(input.before)) return [];
   if (!providerInstanceConfigured(input.after)) return [];
   const supplied = new Set(input.after.env.map((variable) => variable.name));
-  if (input.after.configDir !== undefined) supplied.add(CONFIG_DIR_ENV[input.after.driver]);
+  const configDirEnv = configDirEnvOf(input.after.driver);
+  if (input.after.configDir !== undefined && configDirEnv) supplied.add(configDirEnv);
   return inheritedOwnedEnv(input.after.driver, input.ambient ?? process.env).filter((name) => !supplied.has(name));
 }
 
@@ -87,8 +91,9 @@ type EnvSource = { driver: ProviderDriverKind; configDir?: string | undefined; e
 export function providerProcessEnv<T extends EnvSource>(instance: T): Record<string, string | undefined> {
   const configured = providerInstanceConfigured(instance);
   const patch: Record<string, string | undefined> = {};
-  if (configured) for (const name of OWNED_ENV[instance.driver]) patch[name] = undefined;
-  if (instance.configDir) patch[CONFIG_DIR_ENV[instance.driver]] = expandHome(instance.configDir);
+  if (configured) for (const name of ownedEnv(instance.driver)) patch[name] = undefined;
+  const configDirEnv = configDirEnvOf(instance.driver);
+  if (instance.configDir && configDirEnv) patch[configDirEnv] = expandHome(instance.configDir);
   for (const variable of instance.env) patch[variable.name] = variable.value;
   return patch;
 }
@@ -120,6 +125,7 @@ export function signInOf(instance: Pick<ProviderInstance, "driver" | "configDir"
   if (!instance.configDir) {
     return { signIn: "unknown", message: "Base login — sign-in state cannot be verified from disk." };
   }
+  if (!isBuiltInDriver(instance.driver)) return { signIn: "unknown" };
   const dir = expandHome(instance.configDir);
   if (!fs.existsSync(dir)) {
     return { signIn: "missing-config-dir", message: "Config directory not found on this machine." };
@@ -165,6 +171,7 @@ export function createProviderProber(deps: ProviderProbeDeps = {}) {
     const key = keyFor(driver, binaryPath);
     const hit = cache.get(key);
     if (!force && hit && now() - hit.at < VERSION_CACHE_MS) return hit.probe;
+    if (!isBuiltInDriver(driver)) return { installed: true };
     const probe = await version(driver, binaryPath, force);
     cache.set(key, { at: now(), probe });
     return probe;

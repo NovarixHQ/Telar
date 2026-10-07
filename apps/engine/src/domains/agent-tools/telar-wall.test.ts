@@ -13,6 +13,7 @@ import { startEngine, type EngineDaemon } from "../../daemon";
 import type { DriverRun, TurnDriver } from "../../drivers";
 import { collectTelarWall, type TelarCapabilities, telarWall, type ToolFactory, toSdkTools } from ".";
 import { stubModels } from "../../../test/stub-models";
+import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 const roots: string[] = [];
 const daemons: EngineDaemon[] = [];
@@ -59,7 +60,7 @@ async function leaseNames(run: DriverRun): Promise<string[]> {
 test("Claude, Codex and OpenCode are handed the same `telar` wall, once", async () => {
   const runs = new Map<string, DriverRun>();
   const driver: TurnDriver = {
-    run: async (input) => {
+    capabilities: STUB_CAPABILITIES, run: async (input) => {
       runs.set(input.sessionId, input);
       return { text: "ok" };
     },

@@ -5,7 +5,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { accentPrimary } from "../accent-colours";
 import { detachFromHost, useFollowNotice } from "../host-follow";
 import { useTheme } from "./theme-provider";
-import { useAppearance } from "../appearance";
+import { useAppearance, type Appearance } from "../appearance";
 import { applyLook, readLooks as readLooksNow, writeLooks, type Look } from "../looks";
 import {
   compositionHalf,
@@ -76,6 +76,11 @@ export function AppearanceSection() {
     setNotice(applyLook(look, setAppearance));
   };
 
+  const change = (patch: Partial<Appearance>) => {
+    detachFromHost();
+    setAppearance(patch);
+  };
+
   const compose = (ok: boolean) => {
     detachFromHost();
     setNotice(ok ? undefined : "That change would not fit in browser storage — its layer images are large.");
@@ -90,7 +95,7 @@ export function AppearanceSection() {
       <LooksSection onWear={wear} />
 
       <SettingsGroup
-        title="Composer"
+        title="Background"
         description="What the app looks like: a base colour the surfaces are derived from, and the layers over it. Light and dark are two states of one composition — you edit the one the window wears, set under Window below."
       >
         <Row
@@ -147,11 +152,11 @@ export function AppearanceSection() {
       </SettingsGroup>
 
       <SettingsGroup title="Type and surfaces" description="The accent, the two typefaces, the sizes they run at, and how far surfaces lift off the canvas.">
-        <TypeTool appearance={appearance} onChange={setAppearance} />
-        <DepthControl value={appearance.depth} onChange={(depth) => setAppearance({ depth })} />
+        <TypeTool appearance={appearance} onChange={change} />
+        <DepthControl value={appearance.depth} onChange={(depth) => change({ depth })} />
       </SettingsGroup>
 
-      <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} />
+      <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} onChange={change} />
     </div>
   );
 }

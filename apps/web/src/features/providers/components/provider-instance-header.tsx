@@ -1,11 +1,13 @@
 "use client";
 
+import { driverLabel } from "./provider-icon";
+
 import { ArrowUpCircleIcon, Trash2Icon } from "lucide-react";
 import type { ProviderInstance, ProviderProbe } from "@telar/engine-client";
 import { cn } from "@/ui/utils";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
-import { displayNameOf, DRIVER_LABEL, isDefaultInstance, providerSummary, STATUS_DOT, STATUS_LABEL, updateAdvisory, versionLabel } from "../provider-instances";
+import { displayNameOf, isDefaultInstance, providerSummary, STATUS_DOT, STATUS_LABEL, updateAdvisory, versionLabel } from "../provider-instances";
 import { ProviderIcon } from "./provider-icon";
 
 export function ProviderInstanceHeader({
@@ -22,7 +24,7 @@ export function ProviderInstanceHeader({
   const summary = providerSummary(probe);
   const version = versionLabel(probe?.version);
   const isDefault = isDefaultInstance(instance);
-  const advisory = updateAdvisory(probe, DRIVER_LABEL[instance.driver]);
+  const advisory = updateAdvisory(probe, driverLabel(instance.driver));
 
   return (
     <div>

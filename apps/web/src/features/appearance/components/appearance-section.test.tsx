@@ -73,7 +73,7 @@ describe("the pane is a stack of settings groups", () => {
   test("every group is on the page at once, in reading order", () => {
     // Start from something whole, compose it, then its type, and last the
     // window — the only group that is not part of a look.
-    expect(captions()).toEqual(["Looks", "Composer", "Type and surfaces", "Window"]);
+    expect(captions()).toEqual(["Looks", "Background", "Type and surfaces", "Window"]);
   });
 
   test("there is no tab strip left anywhere on it", () => {
@@ -114,10 +114,9 @@ describe("the rows settings search points at", () => {
     const indexed = SETTINGS_SEARCH_INDEX.entries.filter((entry: { pageId: string }) => entry.pageId === "appearance");
     const ids = indexed.map((entry: { id: string }) => entry.id);
     expect(ids).toContain("settings-row-appearance-window-translucency");
-    expect(ids).toContain("settings-row-appearance-window-glass");
     expect(ids).toContain("settings-row-appearance-window-layers-through-canvas-and-rail");
     expect(ids).toContain("settings-row-appearance-type-and-surfaces-accent");
-    expect(ids).toContain("settings-row-appearance-composer-base");
+    expect(ids).toContain("settings-row-appearance-background-base");
   });
 
   test("the rows on the page derive the GROUP half of those ids", () => {
@@ -135,7 +134,7 @@ describe("the rows settings search points at", () => {
      */
     expect(host.querySelector("#settings-row-window-layers-through-canvas-and-rail")).not.toBeNull();
     expect(host.querySelector("#settings-row-type-and-surfaces-accent")).not.toBeNull();
-    expect(host.querySelector("#settings-row-composer-base")).not.toBeNull();
+    expect(host.querySelector("#settings-row-background-base")).not.toBeNull();
   });
 
   test("no row claims an anchor twice", () => {
@@ -230,9 +229,9 @@ describe("the Looks gallery reads as a table", () => {
  * colour, a stack of layers over it, and the sixteen tokens folded away as
  * OVERRIDES of what the base derived.
  */
-describe("the Composer group", () => {
+describe("the Background group", () => {
   function composerGroup(): HTMLElement | null {
-    return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Composer") ?? null;
+    return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Background") ?? null;
   }
 
   test("it carries no light/dark switch of its own: Window ▸ Colour scheme is the one", () => {
@@ -244,7 +243,7 @@ describe("the Composer group", () => {
 
   test("the base leads, and the layers follow it", () => {
     const group = composerGroup();
-    expect(group?.querySelector("#settings-row-composer-base")).not.toBeNull();
+    expect(group?.querySelector("#settings-row-background-base")).not.toBeNull();
     const html = group?.innerHTML ?? "";
     expect(html.indexOf("Base")).toBeGreaterThan(-1);
     expect(html.indexOf("Base")).toBeLessThan(html.indexOf("Layers"));
@@ -513,5 +512,22 @@ describe("there is no draft, and nothing to apply", () => {
     // Which half this window wears is a fact about the window, and it is also
     // the half every colour control on the pane edits.
     expect(host.querySelector("#settings-row-window-colour-scheme")).not.toBeNull();
+  });
+});
+
+describe("following the Mac's look", () => {
+  const following = () => window.localStorage.getItem("telar-follow-host") !== "detached";
+  const press = async (label: string) => {
+    const button = [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
+    await act(async () => button.click());
+  };
+
+  test("any appearance change stops it, not only a new scheme or look", async () => {
+    for (const label of ["Wide", "Full"]) {
+      window.localStorage.removeItem("telar-follow-host");
+      expect(following()).toBe(true);
+      await press(label);
+      expect(following()).toBe(false);
+    }
   });
 });

@@ -1,5 +1,5 @@
 import path from "node:path";
-import { parseFilePatchQuery, ProviderDriverKind } from "@telar/engine-client";
+import { isBuiltInDriver, parseFilePatchQuery } from "@telar/engine-client";
 import { body, HttpError } from "../../platform/http/http";
 import { stringValue } from "../../platform/http/params";
 import { ok, type Route } from "../../platform/http/route";
@@ -88,12 +88,12 @@ export function projectCheckoutRoutes(store: EngineStore, providerSkills: Provid
       async handle({ params, query }) {
         const project = store.projectRegistry.get(params[0]!);
         const asked = query.get("driver");
-        const driver = ProviderDriverKind.safeParse(asked ?? "claude");
-        if (!driver.success) throw new HttpError(400, "invalid_request", `unknown provider driver ${JSON.stringify(asked)}`);
+        const driver = asked ?? "claude";
+        if (!isBuiltInDriver(driver)) throw new HttpError(400, "invalid_request", `unknown provider driver ${JSON.stringify(asked)}`);
         return ok(
           await readProviderSkillsCached({
-            cacheKey: `project:${project.id}:${driver.data}`,
-            driver: driver.data,
+            cacheKey: `project:${project.id}:${driver}`,
+            driver,
             checkout: project.root,
             ...(providerSkills?.env ? { env: providerSkills.env } : {}),
             ...(providerSkills?.loadProviderCommands ? { loadProviderCommands: providerSkills.loadProviderCommands } : {}),

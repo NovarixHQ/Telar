@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  isBuiltInDriver,
   DEFAULT_ATTENDED_RUNTIME_MODE,
   DEFAULT_DETACHED_RUNTIME_MODE,
   defaultInstanceIdForDriver,
@@ -129,7 +130,7 @@ export class SessionLifecycle {
       }
       const chosen = input.providerInstanceId === undefined ? undefined : this.host.requireInstance(input.providerInstanceId);
       const driver = chosen?.driver ?? input.driver ?? "claude";
-      if (driver !== "claude" && driver !== "codex" && driver !== "opencode") {
+      if (!isBuiltInDriver(driver)) {
         throw new EngineStateError("invalid_request", "unknown provider driver");
       }
       if (chosen && !chosen.enabled) throw new EngineStateError("conflict", "that provider instance is switched off");

@@ -94,7 +94,7 @@ struct SessionView: View {
         guard sizeClass == .regular, let visibility = columnVisibility else { return }
         let width = UIScreen.main.bounds.width
 
-        let roomForThree = width >= 300 + Theme.readingMeasure + 440
+        let roomForThree = width >= 300 + ChatWidth.comfortable.measure + 440
 
         let motion = Animation.easeInOut(duration: 0.28)
         if open, !roomForThree, visibility.wrappedValue != .detailOnly {
@@ -351,8 +351,8 @@ struct SessionView: View {
                 }
                 Text(session.workspace.branch ?? session.driver).lineLimit(1)
             }
-            .font(.caption).foregroundStyle(Theme.textMuted).padding(.horizontal, 16).padding(.vertical, 8)
-            .readingColumn(gutter: Theme.readingGutter)
+            .font(.caption).foregroundStyle(Theme.textMuted).padding(.vertical, 8)
+            .readingColumn(margins: 16)
         }
     }
 
@@ -537,8 +537,7 @@ struct SessionView: View {
                 onSend: { pinToTail() }
             )
         }
-        .padding(.horizontal, 16)
-        .readingColumn(gutter: Theme.readingGutter)
+        .readingColumn(margins: 16)
         .padding(.top, 8)
         .padding(.bottom, 8)
         .background(alignment: .bottom) { ComposerScrim() }

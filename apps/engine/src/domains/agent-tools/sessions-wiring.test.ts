@@ -622,10 +622,18 @@ test("sessions_send from a turn is stamped with the sender over the wire, and th
   // The peer's own worker runs it: the provider hears the frame, the record
   // keeps the bare words.
   const prompts: string[] = [];
+  let hostWoken!: () => void;
+  const woken = new Promise<void>((resolve) => (hostWoken = resolve));
   const worker = new EngineWorker({
     client,
     workerId: "worker_peer",
-    driver: { async run({ prompt }) { prompts.push(prompt); return { text: "reviewed" }; } },
+    driver: {
+      async run({ prompt, sessionId }) {
+        if (sessionId === hostId) hostWoken();
+        else prompts.push(prompt);
+        return { text: "reviewed" };
+      },
+    },
     pollMs: 60_000,
   });
   workers.push(worker);
@@ -635,10 +643,10 @@ test("sessions_send from a turn is stamped with the sender over the wire, and th
     if ((await client.session(made!.id)).turns[0]?.state === "completed") break;
     await Bun.sleep(5);
   }
+  // A worker serves every session: once the peer settles, a later tick also claims the host's cohort wake.
+  await worker.tick();
+  await woken;
   expect(prompts).toHaveLength(1);
-  // #550: the prose frame that used to precede this was standing in for a role
-  // the channel could not express. The notice goes over as written, and the
-  // role rides the notification item and the driver's own channel.
   expect(prompts[0]).toStartWith("[agent message · task]");
   /**
    * AND THE PROVIDER IS HANDED THE NOTICE, NOT THE BODY — end to end, over the
@@ -673,7 +681,7 @@ test("a LONG task is handed to the provider as the assignment notice, with the b
   const worker = new EngineWorker({
     client,
     workerId: "worker_assignee",
-    driver: { async run({ prompt }) { prompts.push(prompt); return { text: "on it" }; } },
+    driver: { async run({ prompt, sessionId }) { if (sessionId === made!.id) prompts.push(prompt); return { text: "on it" }; } },
     pollMs: 60_000,
   });
   workers.push(worker);

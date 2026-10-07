@@ -3,14 +3,12 @@ import type { ItemDetail, TurnObservation } from "@telar/engine-client";
 import { framedSteerText, steerRowTitle } from "../../domains/turns";
 import type { SteerMailbox, SteerMessage } from "../../domains/turns";
 import type { CodexAppServer } from "./app-server";
-import { attachedFilesText, codexNotificationInstruction, codexTurnInput } from "./thread";
+import { codexNotificationInstruction, codexTurnInput } from "./thread";
 import { codexRowId, type CodexTurn } from "./turn";
 
 // `turn/steer` has no developer channel, so a steered notification carries its header in the text.
 function steerText(message: SteerMessage): string {
-  const words = message.notification ? codexNotificationInstruction(message.notification, framedSteerText(message)) : framedSteerText(message);
-  const files = (message.attachments ?? []).filter((file) => !file.mediaType.startsWith("image/"));
-  return files.length === 0 ? words : `${words}\n\n${attachedFilesText(files)}`;
+  return message.notification ? codexNotificationInstruction(message.notification, framedSteerText(message)) : framedSteerText(message);
 }
 
 function steerRow(message: SteerMessage): ItemDetail {
@@ -40,7 +38,7 @@ export async function pumpCodexSteers(
       if (steer.isClosed) return;
       continue;
     }
-    const images = queued.flatMap((message) => (message.attachments ?? []).filter((file) => file.mediaType.startsWith("image/")));
+    const files = queued.flatMap((message) => message.attachments ?? []);
     const text = queued.map(steerText).join("\n\n");
     for (const message of queued) {
       const rowId = codexRowId(`steer-${crypto.randomUUID().slice(0, 8)}`);
@@ -48,7 +46,7 @@ export async function pumpCodexSteers(
       emit({ kind: "item.completed", itemId: rowId, status: "completed" });
     }
     try {
-      await client.request("turn/steer", { threadId: turn.threadId, expectedTurnId: turn.turnId, input: codexTurnInput(text, images) });
+      await client.request("turn/steer", { threadId: turn.threadId, expectedTurnId: turn.turnId, input: codexTurnInput(text, files) });
     } catch (error) {
       const errorId = codexRowId(`steer-error-${crypto.randomUUID().slice(0, 8)}`);
       const message = `The sent-now message could not reach the running turn: ${error instanceof Error ? error.message : String(error)}`;

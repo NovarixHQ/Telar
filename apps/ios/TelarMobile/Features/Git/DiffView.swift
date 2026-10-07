@@ -68,8 +68,6 @@ struct DiffView: View {
             }
         }
         .background(Theme.canvas)
-        .navigationTitle("Changes")
-        .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: GitFileChange.self) { file in
             PatchView(api: api, sessionId: sessionId, file: file)
         }

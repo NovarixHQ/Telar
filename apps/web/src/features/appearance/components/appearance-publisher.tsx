@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import type { AppFont, PublishedAppearance } from "@telar/engine-client";
+import type { AppFont, PublishedAppearance, PublishedResolved } from "@telar/engine-client";
 import { ACCENT_COLOURS, LIGHT_PRIMARY_FOREGROUND } from "../accent-colours";
 import { useAppearance } from "../appearance";
 import { useComposition } from "../composition";
 import { createEngineApi } from "@/platform/engine";
 import { isHostWindow } from "@/platform/desktop/host-window";
+import { fontFaceCss } from "../font-faces";
 import { captureLook } from "../looks";
 import { readTheme, useTheme } from "./theme-provider";
 
@@ -72,23 +73,24 @@ export function AppearancePublisher(): null {
     if (!isHostWindow()) return;
 
     const accent = ACCENT_COLOURS[appearance.accent];
+    const resolved: PublishedResolved = {
+      accent: {
+        name: appearance.accent,
+        light: { primary: accent.light, primaryForeground: LIGHT_PRIMARY_FOREGROUND },
+        dark: accent.dark,
+      },
+      fontStacks: {
+        sans: stack(appearance.fontSans, appearance.fontSansCustom, SANS_STACKS[appearance.fontSans]),
+        mono: stack(appearance.fontMono, appearance.fontMonoCustom, MONO_STACKS[appearance.fontMono]),
+      },
+    };
     const payload: PublishedAppearance = {
       version: 2,
       updatedAtHint: Date.now(),
       scheme: readTheme(),
       translucent: appearance.translucent,
       frost: appearance.frost,
-      resolved: {
-        accent: {
-          name: appearance.accent,
-          light: { primary: accent.light, primaryForeground: LIGHT_PRIMARY_FOREGROUND },
-          dark: accent.dark,
-        },
-        fontStacks: {
-          sans: stack(appearance.fontSans, appearance.fontSansCustom, SANS_STACKS[appearance.fontSans]),
-          mono: stack(appearance.fontMono, appearance.fontMonoCustom, MONO_STACKS[appearance.fontMono]),
-        },
-      },
+      resolved,
       look: { ...captureLook("Published look"), id: "published" },
     };
 
@@ -97,8 +99,9 @@ export function AppearancePublisher(): null {
     if (fingerprint === published) return;
 
     const timer = setTimeout(() => {
-      void api
-        .setAppearance(payload)
+      void fontFaceCss([resolved.fontStacks.sans, resolved.fontStacks.mono])
+        .catch(() => "")
+        .then((fontFaces) => api.setAppearance(fontFaces ? { ...payload, resolved: { ...resolved, fontFaces } } : payload))
         .then(() => {
           published = fingerprint;
         })

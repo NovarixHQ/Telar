@@ -731,6 +731,7 @@ export type PublishedResolved = {
   /** Real `font-family` values, not `var(--font-geist-sans)` — the publisher
    *  resolves the cockpit's font variables into stacks a client can set. */
   fontStacks: { sans: string; mono: string };
+  fontFaces?: string;
 };
 
 export type PublishedAppearance = {
@@ -749,6 +750,11 @@ function isSafeCssValue(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 512 && !/[;{}<>]/.test(value);
 }
 
+const MAX_FONT_FACES_CHARS = 1024 * 1024;
+
+const isFontFaceCss = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0 && value.length <= MAX_FONT_FACES_CHARS && /^(?:@font-face\{[^{}<]*\})+$/.test(value);
+
 function parseAccentColours(value: unknown): PublishedAccentColours | undefined {
   if (!isRecord(value) || !isSafeColour(value.primary) || !isSafeColour(value.primaryForeground)) return undefined;
   return { primary: value.primary, primaryForeground: value.primaryForeground };
@@ -764,6 +770,7 @@ function parseResolved(value: unknown): PublishedResolved | undefined {
   return {
     accent: { name: oneOf<Accent>(accent?.name, ACCENTS, DEFAULT_ACCENT), light, dark },
     fontStacks: { sans: stacks.sans, mono: stacks.mono },
+    ...(isFontFaceCss(value.fontFaces) ? { fontFaces: value.fontFaces } : {}),
   };
 }
 

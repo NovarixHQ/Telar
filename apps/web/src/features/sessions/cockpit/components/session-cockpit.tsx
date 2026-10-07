@@ -128,38 +128,40 @@ export function SessionCockpit({
             }
           />
         )}
-        <TranscriptList
-          sync={sync}
-          model={model}
-          receipt={receipt}
-          follow={follow}
-          onAtBottomChange={onAtBottomChange}
-          onConversationClick={onConversationClick}
-          projectId={projectId}
-          hostId={hostId}
-          fresh={fresh}
-          turn={{
-            roster: model.roster,
-            sending: actions.sending,
-            onInsert: composer.insertIntoComposer,
-            ...panelGestures,
-            onDecide: (requestId, decision, extra) => void actions.decideRequest(requestId, decision, extra),
-          }}
-          onResumeNow={(runId) => void actions.resumeNow(runId)}
-        />
-        <Composer
-          {...composerProps({
-            fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit, showPanelTab,
-            // Not while a conversation is opening: a composer changing height would move the viewport again.
-            compact: readingBack && transcriptLanded,
-            contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
-          })}
-        />
-        {floating && sessionId && (
-          <Suspense fallback={null}>
-            <FloatingSimulator sessionId={sessionId} hostId={hostId} onOpenInPanel={(id) => panelState.updatePanel((current) => showSimulatorTab(current, id))} />
-          </Suspense>
-        )}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <TranscriptList
+            sync={sync}
+            model={model}
+            receipt={receipt}
+            follow={follow}
+            onAtBottomChange={onAtBottomChange}
+            onConversationClick={onConversationClick}
+            projectId={projectId}
+            hostId={hostId}
+            fresh={fresh}
+            turn={{
+              roster: model.roster,
+              sending: actions.sending,
+              onInsert: composer.insertIntoComposer,
+              ...panelGestures,
+              onDecide: (requestId, decision, extra) => void actions.decideRequest(requestId, decision, extra),
+            }}
+            onResumeNow={(runId) => void actions.resumeNow(runId)}
+          />
+          <Composer
+            {...composerProps({
+              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit, showPanelTab,
+              // Not while a conversation is opening: a composer changing height would move the viewport again.
+              compact: readingBack && transcriptLanded,
+              contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
+            })}
+          />
+          {floating && sessionId && (
+            <Suspense fallback={null}>
+              <FloatingSimulator sessionId={sessionId} hostId={hostId} onOpenInPanel={(id) => panelState.updatePanel((current) => showSimulatorTab(current, id))} />
+            </Suspense>
+          )}
+        </div>
       </div>
       {panelPresence.mounted && (
         <RightPanel

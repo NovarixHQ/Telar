@@ -101,7 +101,8 @@ export function previewTheme(scheme: PreviewAppearance, published: PublishedAppe
   for (const [alias, token] of Object.entries(ALIASES)) tokens[alias] ??= tokens[token] ?? "";
   const [ink, canvas] = [cssColorToHex(tokens["--foreground"] ?? ""), cssColorToHex(tokens["--background"] ?? "")];
   if (ink && canvas) Object.assign(tokens, depth(scheme, ink.slice(0, 7), canvas.slice(0, 7)));
-  return artifactTheme(scheme, (token) => tokens[token] ?? "");
+  const fonts = published?.resolved?.fontFaces;
+  return { ...artifactTheme(scheme, (token) => tokens[token] ?? ""), ...(fonts ? { fonts } : {}) };
 }
 
 const MERMAID_MODULE = "https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs";
@@ -118,7 +119,7 @@ function mermaidBody(source: string, theme: ArtifactTheme): string {
 
 export function previewDocument(kind: PreviewKind, content: string, theme: ArtifactTheme): string {
   const body = kind === "svg" ? svgImage(content) : kind === "mermaid" ? mermaidBody(content, theme) : content.replace(/^\s*<!doctype[^>]*>/i, "");
-  return `<!doctype html>${artifactRootTag(theme)}<meta charset="utf-8"><style>${artifactThemeCss(theme)}${ARTIFACT_BASE_CSS}</style>${body}`;
+  return `<!doctype html>${artifactRootTag(theme)}<meta charset="utf-8"><style>${theme.fonts ?? ""}${artifactThemeCss(theme)}${ARTIFACT_BASE_CSS}</style>${body}`;
 }
 
 export async function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
@@ -136,7 +137,7 @@ export async function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T>
 const MAX_CONSOLE_ROWS = 20;
 const MAX_STACK_CHARS = 1_200;
 
-export function previewReport(rendering: PreviewRendering, input: { width: number; appearance: PreviewAppearance }): string {
+export function previewReport(rendering: PreviewRendering & { missingImages?: string[] }, input: { width: number; appearance: PreviewAppearance }): string {
   const height =
     rendering.capturedHeight < rendering.contentHeight
       ? `${rendering.contentHeight} px tall; the screenshot shows the first ${rendering.capturedHeight} px`
@@ -151,6 +152,8 @@ export function previewReport(rendering: PreviewRendering, input: { width: numbe
   if (rendering.console.length > shown.length) lines.push(`- … ${rendering.console.length - shown.length} more`);
   lines.push(rendering.failedLoads.length === 0 ? "Failed loads: none." : "Failed loads:");
   for (const load of rendering.failedLoads.slice(0, MAX_CONSOLE_ROWS)) lines.push(`- ${load.url.slice(0, 200)}: ${load.reason}`);
+  const missing = rendering.missingImages ?? [];
+  if (missing.length > 0) lines.push(`Missing images, shown broken (display_inline refuses them): ${missing.slice(0, MAX_CONSOLE_ROWS).join(", ")}.`);
   lines.push("Nothing is published yet. When it looks right, call display_inline with the same source.");
   return lines.join("\n").slice(0, MAX_ANSWER_CHARS);
 }

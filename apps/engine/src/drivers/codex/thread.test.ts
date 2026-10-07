@@ -3,20 +3,23 @@ import type { DriverRun } from "../contract";
 import { mcp, PEER } from "../../../test/codex-harness";
 import { codexMcpServers, codexNotificationInstruction, codexSandboxPolicy, codexThreadParams, codexTurnInput, defaultThreadConfig } from "./thread";
 
-test("an image attachment becomes a localImage element; anything else is named in the text", () => {
+test("an image attachment becomes a localImage element, and every file is named in the text with its path", () => {
   const input = codexTurnInput("look", [
     { id: "att_1", name: "shot.png", mediaType: "image/png", bytes: 4, path: "/tmp/shot.png" },
     { id: "att_2", name: "notes.md", mediaType: "text/markdown", bytes: 9, path: "/tmp/notes.md" },
   ]);
   expect(input[1]).toEqual({ type: "localImage", path: "/tmp/shot.png" });
+  expect(String((input[0] as { text: string }).text)).toContain("shot.png (image/png) at /tmp/shot.png");
   expect(String((input[0] as { text: string }).text)).toContain("notes.md (text/markdown) at /tmp/notes.md");
   expect(input[0]).toMatchObject({ type: "text", text_elements: [] });
 });
 
-test("an image-only message is one localImage and no text item", () => {
+test("an image-only message is the image's path in the text, then the localImage", () => {
   const shot = { id: "att_1", name: "shot.png", mediaType: "image/png", bytes: 4, path: "/tmp/shot.png" };
-  expect(codexTurnInput("", [shot])).toEqual([{ type: "localImage", path: "/tmp/shot.png" }]);
-  expect(codexTurnInput(" \n", [shot])).toEqual([{ type: "localImage", path: "/tmp/shot.png" }]);
+  expect(codexTurnInput("", [shot])).toEqual([
+    { type: "text", text: "Attached files:\n- shot.png (image/png) at /tmp/shot.png", text_elements: [] },
+    { type: "localImage", path: "/tmp/shot.png" },
+  ]);
 });
 
 test("the translation names Codex's fields, not the contract's", () => {

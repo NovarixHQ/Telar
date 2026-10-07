@@ -164,7 +164,7 @@ import Testing
         #expect(entry.unresolved)
         #expect(coordinatorState(entry) == ("Unknown", .quiet))
         #expect(coordinatorDetail(entry)?.hasPrefix("gone · state unknown") == true)
-        #expect(coordinatorState(RelatedCoordinator(sessionId: "c", outstanding: true, unresolved: false, id: "0:c")) == ("Working for", .live))
+        #expect(coordinatorState(RelatedCoordinator(sessionId: "c", outstanding: true, unresolved: false, id: "0:c")) == ("Assigned", .live))
     }
 
     @Test func aConversationWithNoRelationshipsHasNoRows() throws {

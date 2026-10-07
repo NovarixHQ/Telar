@@ -13,6 +13,12 @@ import Testing
         #expect(PanelRaise.flags(open: false, wantsColumn: false, fullScreen: false) == (column: false, push: false))
     }
 
+    @Test func onlyAPushedPageLeavesClosingToBack() {
+        #expect(!PanelView.showsClose(.page, canFillWindow: false))
+        #expect(PanelView.showsClose(.page, canFillWindow: true))
+        #expect(PanelView.showsClose(.column, canFillWindow: true))
+    }
+
     @Test func onlyAFlagGoingDownIsTheReader() {
         #expect(PanelRaise.isDismissal(false))
         #expect(!PanelRaise.isDismissal(true))

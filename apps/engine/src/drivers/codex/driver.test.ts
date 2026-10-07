@@ -399,7 +399,7 @@ test("a steered image with no words rides turn/steer as pixels, and its row stil
   const { result, observations } = runTurn("steer", { steer });
   steer.push({ text: "", attachments: [{ id: "att_1", name: "shot.png", mediaType: "image/png", bytes: 4, path: "/tmp/shot.png" }] });
   await expect(result).resolves.toMatchObject({ text: "steered" });
-  expect(sent("turn/steer")).toMatchObject({ input: [{ type: "localImage", path: "/tmp/shot.png" }] });
+  expect(sent("turn/steer")).toMatchObject({ input: [{ type: "text", text: expect.stringContaining("shot.png (image/png) at /tmp/shot.png") }, { type: "localImage", path: "/tmp/shot.png" }] });
   const row = started(observations).find((o) => o.kind === "item.started" && o.item.detail.type === "user_message");
   expect(row?.kind === "item.started" && row.item.detail.type === "user_message" ? row.item.detail.attachments?.[0]?.name : undefined).toBe("shot.png");
 });

@@ -5,7 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { AssistantMessage, Message, SessionStatus, Part, PermissionRequest, QuestionRequest, Config } from "@opencode-ai/sdk/v2";
 import { TELAR_MCP_SERVER, TELAR_BROWSER_MCP_SERVER, type ItemDetail, type TurnObservation, type UserInputField } from "@telar/engine-client";
 import { TELAR_TOOL_CALL_TIMEOUT_MS } from "../../domains/agent-tools";
-import { normalizeOutcome, type DriverRun, type TurnDriver } from "../contract";
+import { normalizeOutcome, type DriverRun, type TurnDriver, withAttachedFiles } from "../contract";
 import { startOpenCodeRuntime, type OpenCodeRuntime } from "./runtime";
 
 type Client = OpenCodeRuntime["client"];
@@ -163,7 +163,9 @@ export function createOpenCodeDriver(options: Options = {}): TurnDriver {
       };
       try {
         input.signal.throwIfAborted();
-        const parts = [...(input.prompt.trim() || input.notification ? [{ type: "text" as const, text: input.prompt, ...(input.notification ? { synthetic: true } : {}) }] : []), ...(input.attachments ?? []).map((attachment) => ({
+        const attachments = input.attachments ?? [];
+        const text = withAttachedFiles(input.prompt, attachments);
+        const parts = [...(text.trim() || input.notification ? [{ type: "text" as const, text, ...(input.notification ? { synthetic: true } : {}) }] : []), ...attachments.map((attachment) => ({
           type: "file" as const, mime: attachment.mediaType, filename: attachment.name,
           url: `data:${attachment.mediaType};base64,${fs.readFileSync(attachment.path).toString("base64")}`,
         }))];

@@ -127,7 +127,7 @@ export function SvgViewer({ image, title, minScale, actions }: { image: SvgImage
           style={{ width: image.width, height: image.height, backgroundImage: `url("${image.url}")`, backgroundSize: "100% 100%", transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
         />
       )}
-      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-md border border-border bg-background/90 p-0.5 opacity-0 shadow-1 transition-opacity duration-150 group-hover/viewer:opacity-100 group-focus-within/viewer:opacity-100 pointer-coarse:opacity-100">
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-md border border-border bg-popover p-0.5 opacity-0 shadow-1 transition-opacity duration-150 group-hover/viewer:opacity-100 group-focus-within/viewer:opacity-100 pointer-coarse:opacity-100">
         <button type="button" aria-label="Zoom out" onClick={() => zoom(1 / STEP)} className={BUTTON}>
           <MinusIcon className="size-3" />
         </button>
@@ -143,7 +143,7 @@ export function SvgViewer({ image, title, minScale, actions }: { image: SvgImage
         </button>
         {actions}
       </div>
-      {card.clipped && <p className="pointer-events-none absolute bottom-1.5 left-2 rounded bg-background/90 px-1.5 py-0.5 text-3xs text-muted-foreground opacity-0 transition-opacity group-hover/viewer:opacity-100">Drag to see the rest</p>}
+      {card.clipped && <p className="pointer-events-none absolute bottom-1.5 left-2 rounded bg-popover px-1.5 py-0.5 text-3xs text-muted-foreground opacity-0 transition-opacity group-hover/viewer:opacity-100">Drag to see the rest</p>}
     </div>
   );
 }

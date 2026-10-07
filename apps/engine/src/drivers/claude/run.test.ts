@@ -255,7 +255,7 @@ test("an image-only message reaches Claude as the image and a note naming it —
   expect(content[0]).toMatchObject({ type: "image" });
   // Verified against the SDK: [image, this note] is accepted and the model
   // describes the picture.
-  expect(content[1]).toEqual({ type: "text", text: "Attached files:\n- shot.png (image, shown above)" });
+  expect(content[1]).toEqual({ type: "text", text: `Attached files:\n- shot.png (image, shown above) at ${file}` });
 });
 
 test("the user's MCP servers reach the SDK, and Telar's own key wins a collision", async () => {

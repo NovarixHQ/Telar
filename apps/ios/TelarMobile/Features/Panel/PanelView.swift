@@ -26,29 +26,18 @@ struct PanelView: View {
             surface
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .enclosure(presentation)
+        .background(presentation == .column ? Theme.sheet : Theme.canvas)
+        .navigationTitle(panel.active.label)
         .environment(\.panel, panel)
+    }
+
+    static func showsClose(_ presentation: PanelPresentation, canFillWindow: Bool) -> Bool {
+        presentation == .column || canFillWindow
     }
 
     private var strip: some View {
         HStack(spacing: 4) {
-            ForEach(panel.tabs) { tab in
-                Button {
-                    panel.select(tab)
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: tab.icon).font(.system(Theme.footnote, weight: .medium))
-                        Text(tab.label).font(.system(Theme.footnote, weight: .medium))
-                    }
-                    .foregroundStyle(panel.active == tab ? Theme.text : Theme.textMuted)
-                    .padding(.horizontal, 10)
-                    .scaledHeight(30, relativeTo: .footnote)
-                    .background(panel.active == tab ? Theme.subtleStrong : .clear, in: RoundedRectangle(cornerRadius: Theme.radiusControl))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(tab.label) tab")
-                .accessibilityAddTraits(panel.active == tab ? .isSelected : [])
-            }
+            PanelTabStrip(tabs: panel.tabs, active: panel.active) { panel.select($0) }
             Spacer(minLength: 0)
 
             if canFillWindow {
@@ -64,16 +53,18 @@ struct PanelView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(panel.isFullScreen ? "Leave full screen" : "Fill the window")
             }
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .foregroundStyle(Theme.textMuted)
-                    .scaledGlyphBox(30, glyph: 12, weight: .semibold)
+            if Self.showsClose(presentation, canFillWindow: canFillWindow) {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .foregroundStyle(Theme.textMuted)
+                        .scaledGlyphBox(30, glyph: 12, weight: .semibold)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close panel")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close panel")
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     @ViewBuilder private var surface: some View {
@@ -101,24 +92,6 @@ struct PanelView: View {
 
     private var unavailable: some View {
         ContentUnavailableView("Not available here", systemImage: "wifi.slash", description: Text("This surface needs a paired computer."))
-    }
-}
-
-private extension View {
-    @ViewBuilder func enclosure(_ presentation: PanelPresentation) -> some View {
-        switch presentation {
-        case .page:
-            self.background(Theme.canvas)
-        case .column:
-            let shape = RoundedRectangle(cornerRadius: Theme.radiusDrawer, style: .continuous)
-            self
-                .background(Theme.sheet)
-                .clipShape(shape)
-                .overlay(shape.strokeBorder(Theme.borderSubtle, lineWidth: 1))
-                .padding(.leading, 4)
-                .padding(.trailing, 10)
-                .padding(.bottom, 10)
-        }
     }
 }
 

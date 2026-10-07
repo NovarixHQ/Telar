@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { mermaid } from "@streamdown/mermaid";
 import { artifactThemeCss, mermaidThemeVariables, type Artifact, type ArtifactTheme } from "@telar/engine-client";
-import { useAppearance } from "@/features/appearance";
+import { useAppearance, useFontFaces } from "@/features/appearance";
 import { attachmentUrl } from "@/features/plugins";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { MessageResponse } from "@/ui/message";
@@ -82,7 +82,9 @@ function HtmlFrame({ content, title, attachmentId, hint }: { content: string; ti
   const key = useMeasureKey(attachmentId);
   const [reported, setReported] = useState<{ key: string; height: number }>();
   const height = reported?.key === key ? reported.height : (measured.get(key) ?? reported?.height);
-  const theme = useArtifactTheme(ref);
+  const look = useArtifactTheme(ref);
+  const fonts = useFontFaces([look.variables["--font-sans"], look.variables["--font-mono"]]);
+  const theme = useMemo(() => (fonts ? { ...look, fonts } : look), [look, fonts]);
   const [doc, setDoc] = useState(() => ({ content, srcDoc: artifactDocument(content, frame, theme) }));
   if (doc.content !== content) setDoc({ content, srcDoc: artifactDocument(content, frame, theme) });
   const [loaded, setLoaded] = useState(false);
@@ -146,7 +148,7 @@ function ArtifactActions({ artifact, text }: { artifact: Artifact; text: string 
 
 const ACTION = "inline-flex h-6 items-center gap-1 rounded px-1.5 text-3xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
 
-const HOVER_BAR = "absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5 rounded-md border border-border bg-background/90 p-0.5 opacity-0 shadow-1 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-within/artifact:opacity-100 pointer-coarse:opacity-100";
+const HOVER_BAR = "absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5 rounded-md border border-border bg-popover p-0.5 opacity-0 shadow-1 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-within/artifact:opacity-100 pointer-coarse:opacity-100";
 
 export function ArtifactView({ hostId = LOCAL_HOST_ID, sessionId, artifact }: { hostId?: string; sessionId: string; artifact: Artifact }) {
   const { text, failed } = useArtifactText(hostId, sessionId, artifact.attachmentId);

@@ -260,13 +260,16 @@ const NOTIFICATION = {
   body: "[agent message · fyi] from session session_peer (run run_x, 9 chars)",
 };
 
-test("an image-only message sends the file part and no text part", async () => {
+test("an image-only message sends the image's path as text, then the file part", async () => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "telar-oc-")), "shot.png");
   fs.writeFileSync(file, Buffer.from([137, 80, 78, 71]));
   const f = fixture();
   await f.driver.run({ ...f.input, prompt: "", attachments: [{ id: "att_1", name: "shot.png", mediaType: "image/png", bytes: 4, path: file }] });
   const parts = f.calls.find((c) => c.path.endsWith("/prompt_async"))?.body.parts as Array<Record<string, unknown>>;
-  expect(parts).toEqual([{ type: "file", mime: "image/png", filename: "shot.png", url: "data:image/png;base64,iVBORw==" }]);
+  expect(parts).toEqual([
+    { type: "text", text: `Attached files:\n- shot.png (image/png) at ${file}` },
+    { type: "file", mime: "image/png", filename: "shot.png", url: "data:image/png;base64,iVBORw==" },
+  ]);
   f.driver.dispose?.();
 });
 

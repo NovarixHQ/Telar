@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ARTIFACT_THEME_TOKENS, artifactTheme, artifactThemeCss, cssColorToHex, mermaidThemeVariables } from "./artifact-theme";
+import { ARTIFACT_THEME_TOKENS, artifactTheme, artifactThemeCss, contrastRatio, cssColorToHex, mermaidThemeVariables } from "./artifact-theme";
 
 test("every colour form a Look or a browser produces comes out as hex", () => {
   expect(cssColorToHex("oklch(1 0 0)")).toBe("#ffffff");
@@ -19,9 +19,9 @@ test("what is not a colour it can read is refused rather than guessed", () => {
   for (const value of ["", "red", "color-mix(in oklab, red, blue)", "var(--x)", "oklch(a b c)", "color(display-p3 1 0 0)"]) expect(cssColorToHex(value)).toBeUndefined();
 });
 
-test("the theme reads every token, converts the colours, and resolves what it cannot convert", () => {
+test("the theme reads every token, converts the colours, and takes what the host paints over what it can parse", () => {
   const look: Record<string, string> = { "--background": "oklch(0.975 0.002 286)", "--primary": "color-mix(in oklab, red, blue)", "--radius": "0.625rem", "--app-font-sans": '"Geist", ui-sans-serif' };
-  const theme = artifactTheme("dark", (token) => look[token] ?? "", () => "rgb(128, 0, 128)");
+  const theme = artifactTheme("dark", (token) => look[token] ?? "", { paint: (token) => (token === "--primary" ? "#800080" : undefined) });
   expect(theme.scheme).toBe("dark");
   expect(theme.variables["--background"]).toMatch(/^#[0-9a-f]{6}$/);
   expect(theme.variables["--primary"]).toBe("#800080");
@@ -48,4 +48,19 @@ test("mermaid is themed from the Look's colours, not only light or dark", () => 
   const theme = artifactTheme("dark", (token) => ({ "--card": "#222222", "--primary": "#3366ff", "--chart-1": "#ff8800", "--muted-foreground": "#999999" })[token] ?? "");
   expect(mermaidThemeVariables(theme)).toMatchObject({ darkMode: true, primaryColor: "#222222", mainBkg: "#222222", primaryBorderColor: "#3366ff", lineColor: "#999999", pie1: "#ff8800" });
   expect(mermaidThemeVariables(theme)).not.toHaveProperty("textColor");
+});
+
+test("the canvas the frame sits on replaces --background, so a see-through Look stays see-through", () => {
+  const look: Record<string, string> = { "--background": "#0a0a0a", "--card": "#161616", "--foreground": "#f5f5f5" };
+  const theme = artifactTheme("dark", (token) => look[token] ?? "", { canvas: "transparent" });
+  expect(theme.variables["--background"]).toBe("transparent");
+  expect(theme.variables["--card"]).toBe("#161616");
+  expect(mermaidThemeVariables(theme)).toMatchObject({ background: "#161616" });
+});
+
+test("a chart colour too close to the surfaces it is drawn on is pulled toward the ink until it reads", () => {
+  const look: Record<string, string> = { "--background": "#0a0a0a", "--card": "#161616", "--foreground": "#f5f5f5", "--chart-1": "#1a1a2a", "--chart-2": "#81a9fd" };
+  const theme = artifactTheme("dark", (token) => look[token] ?? "");
+  expect(theme.variables["--chart-2"]).toBe("#81a9fd");
+  for (const ground of ["#0a0a0a", "#161616"]) expect(contrastRatio(theme.variables["--chart-1"]!, ground)).toBeGreaterThanOrEqual(3);
 });

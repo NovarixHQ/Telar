@@ -77,10 +77,14 @@ function HtmlFrame({ content, title, fill }: { content: string; title: string; f
   const frame = useId();
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState<number>();
-  const theme = useArtifactTheme();
+  const theme = useArtifactTheme(ref);
   const [doc, setDoc] = useState(() => ({ content, srcDoc: artifactDocument(content, frame, theme) }));
   if (doc.content !== content) setDoc({ content, srcDoc: artifactDocument(content, frame, theme) });
-  const pushTheme = () => ref.current?.contentWindow?.postMessage(hostContextMessage(theme), "*");
+  const [loaded, setLoaded] = useState(false);
+  const onLoad = () => {
+    setLoaded(true);
+    ref.current?.contentWindow?.postMessage(hostContextMessage(theme), "*");
+  };
   useEffect(() => {
     ref.current?.contentWindow?.postMessage(hostContextMessage(theme), "*");
   }, [theme]);
@@ -103,9 +107,9 @@ function HtmlFrame({ content, title, fill }: { content: string; title: string; f
       sandbox={ARTIFACT_SANDBOX}
       srcDoc={doc.srcDoc}
       referrerPolicy="no-referrer"
-      onLoad={pushTheme}
+      onLoad={onLoad}
       className={cn("block w-full border-0 bg-transparent", fill && "h-full")}
-      style={{ colorScheme: theme.scheme, ...(fill ? {} : { height: height ?? 160 }) }}
+      style={{ colorScheme: loaded ? theme.scheme : "light", ...(fill ? {} : { height: height ?? 160 }) }}
     />
   );
 }

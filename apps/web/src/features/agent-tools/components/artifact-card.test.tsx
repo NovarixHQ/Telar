@@ -83,12 +83,13 @@ describe("an artifact card", () => {
     expect(frame.style.height).toBe("120px");
   });
 
-  test("an html frame wears the Look in hex: its colours and colour scheme", async () => {
+  test("an html frame wears the Look in hex, with --background as the canvas painted around it", async () => {
     serveAttachments();
     const root = document.documentElement;
     root.classList.add("dark");
     root.style.setProperty("--background", "oklch(0 0 0)");
     root.style.setProperty("--primary", "rgb(9, 8, 7)");
+    document.body.style.backgroundColor = "rgb(20, 20, 20)";
     try {
       const host = await card(artifact("html", "att_html"));
       await flush(() => host.querySelector("iframe") !== null);
@@ -96,14 +97,27 @@ describe("an artifact card", () => {
       const doc = frame.getAttribute("srcdoc")!;
       expect(frame.style.colorScheme).toBe("dark");
       expect(doc).toContain("color-scheme:dark");
-      expect(doc).toContain("--background:#000000;");
+      expect(doc).toContain("--background:#141414;");
       expect(doc).toContain("--primary:#090807;");
     } finally {
+      document.body.style.removeProperty("background-color");
       await act(async () => {
         root.classList.remove("dark");
         root.style.removeProperty("--background");
         root.style.removeProperty("--primary");
       });
+    }
+  });
+
+  test("on a see-through Look the frame's --background is transparent, so the page shows the same glass as the reply", async () => {
+    serveAttachments();
+    document.body.style.backgroundColor = "rgba(10, 10, 10, 0.55)";
+    try {
+      const host = await card(artifact("html", "att_html"));
+      await flush(() => host.querySelector("iframe") !== null);
+      expect(host.querySelector("iframe")!.getAttribute("srcdoc")).toContain("--background:transparent;");
+    } finally {
+      document.body.style.removeProperty("background-color");
     }
   });
 

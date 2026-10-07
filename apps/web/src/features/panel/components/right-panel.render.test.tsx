@@ -85,10 +85,8 @@ describe("a tab wears a suffix only when it has a sibling of its kind", () => {
     expect(labels(markup)).toEqual(["Diff", "Editor · a.ts", "Editor · b.ts"]);
   });
 
-  test("two Diffs with nothing to tell them apart stay readable rather than growing a dangling separator", () => {
-    // The Diff surface has no filter to put in `params` yet; a label ending in
-    // " · " would be worse than the same word twice.
-    expect(labels(strip([tab("diff", "diff"), tab("diff#2", "diff")], "diff"))).toEqual(["Diff", "Diff"]);
+  test("two Diffs with nothing else to tell them apart are numbered", () => {
+    expect(labels(strip([tab("diff", "diff"), tab("diff#2", "diff")], "diff"))).toEqual(["Diff · 1", "Diff · 2"]);
   });
 });
 

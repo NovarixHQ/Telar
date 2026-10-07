@@ -17,7 +17,6 @@ import {
   type PanelTabState,
 } from "./tabs";
 import { browserPanelTab, browserTabId, browserTabLabel, describePanelTab, describePanelTabInstance, isPanelTab, LIVE_BROWSER_TAB, panelTabSuffix, type PanelTab } from "./model";
-import { foldTerminalParams, readWorkspace, terminalIds, TERMINAL_ID_PARAM } from "@/features/terminal";
 
 /** The strip as kinds, which is what every assertion below is actually about —
  *  ids are an implementation detail except where a test says otherwise. */
@@ -47,74 +46,6 @@ describe("collapsePanelTabs, for browser pages (desktop upgrade path)", () => {
   test("the collapsed tab describes as a single Browser surface", () => {
     expect(describePanelTab(LIVE_BROWSER_TAB).label).toBe("Browser");
     expect(describePanelTab(LIVE_BROWSER_TAB).missing).toBeUndefined();
-  });
-});
-
-/**
- * THE SAME UPGRADE, ONE SURFACE LATER. A shell used to be its own outer tab, so
- * a session persisted before the Terminal grew an inner strip still has
- * "Terminal", "Terminal", "Terminal" in storage — each with a LIVE PTY id on
- * it. Folding them must keep every one of those ids, or the upgrade orphans
- * somebody's running shells.
- */
-describe("collapsePanelTabs, for terminals (the inner-strip upgrade path)", () => {
-  const isTerminal = (kind: PanelTab) => kind === "terminal";
-  const terminal = (id: string, pty?: string): PanelTabInstance<PanelTab> => ({
-    id,
-    kind: "terminal",
-    params: pty ? { [TERMINAL_ID_PARAM]: pty } : {},
-  });
-  const instance = (kind: PanelTab): PanelTabInstance<PanelTab> => ({ id: kind, kind, params: {} });
-
-  test("three outer terminal tabs fold into one, keeping order, active and all three PTYs", () => {
-    const state: PanelTabState<PanelTab> = {
-      tabs: [
-        instance("issues"),
-        terminal("terminal", "term_1"),
-        instance("diff"),
-        terminal("terminal#2", "term_2"),
-        terminal("terminal#3", "term_3"),
-      ],
-      activeTab: "terminal#2",
-      open: true,
-    };
-    const collapsed = collapsePanelTabs(state, isTerminal, "terminal", foldTerminalParams);
-
-    // ONE Terminal, at the position of the first, and the other tabs keep both
-    // their order and their own ids.
-    expect(kinds(collapsed)).toEqual(["issues", "terminal", "diff"]);
-    expect(ids(collapsed)).toEqual(["issues", "terminal", "diff"]);
-    // The active tab was a terminal, so the selection follows it into the one
-    // that replaced it rather than falling back to the first tab.
-    expect(collapsed.activeTab).toBe("terminal");
-    expect(collapsed.open).toBe(true);
-
-    // The load-bearing half: nobody's shells are orphaned by the upgrade.
-    const workspace = readWorkspace(collapsed.tabs[1]!.params);
-    expect(terminalIds(workspace)).toEqual(["term_1", "term_2", "term_3"]);
-    expect(workspace.shells.length).toBe(3);
-  });
-
-  test("a state with no terminal tabs is left exactly as it was", () => {
-    const state: PanelTabState<PanelTab> = { tabs: [instance("issues"), instance("diff")], activeTab: "diff", open: true };
-    expect(collapsePanelTabs(state, isTerminal, "terminal", foldTerminalParams)).toBe(state);
-  });
-
-  test("a non-terminal active tab keeps the selection", () => {
-    const state: PanelTabState<PanelTab> = { tabs: [terminal("terminal", "term_1"), instance("editor")], activeTab: "editor", open: true };
-    expect(collapsePanelTabs(state, isTerminal, "terminal", foldTerminalParams).activeTab).toBe("editor");
-  });
-
-  test("a session already migrated is handed back its own state, not a copy", () => {
-    // This runs on every restore, not only the one after the upgrade — a new
-    // object each time would write the panel back to storage for no reason.
-    const once = collapsePanelTabs(
-      { tabs: [terminal("terminal", "term_1")], activeTab: "terminal", open: true },
-      isTerminal,
-      "terminal",
-      foldTerminalParams,
-    );
-    expect(collapsePanelTabs(once, isTerminal, "terminal", foldTerminalParams)).toBe(once);
   });
 });
 
@@ -339,8 +270,14 @@ describe("the suffix that tells two tabs of a kind apart", () => {
     expect(second.label).toBe("Editor · utils.ts");
   });
 
-  test("a duplicate with nothing to say keeps the bare label rather than a dangling separator", () => {
-    expect(describePanelTabInstance({ id: "editor#2", kind: "editor", params: {} }, { duplicate: true }).label).toBe("Editor");
+  test("a duplicate with nothing to say is told apart by its ordinal", () => {
+    expect(describePanelTabInstance({ id: "editor", kind: "editor", params: {} }, { duplicate: true }).label).toBe("Editor · 1");
+    expect(describePanelTabInstance({ id: "editor#2", kind: "editor", params: {} }, { duplicate: true }).label).toBe("Editor · 2");
+  });
+
+  test("a title param names the tab outright, sibling or not", () => {
+    expect(describePanelTabInstance({ id: "terminal#2", kind: "terminal", params: { title: "vim" } }, { duplicate: true }).label).toBe("vim");
+    expect(describePanelTabInstance({ id: "terminal", kind: "terminal", params: { title: "vim" } }).label).toBe("vim");
   });
 
   test("a second Browser is named by the page it is actually showing", () => {
@@ -467,7 +404,7 @@ describe("round-trips instances", () => {
     writePanelTabs("session_a", panel, 1);
     const restored = readPanelTabs<PanelTab>("session_a", isKnown);
     expect(restored.tabs).toEqual([{ id: "diff", kind: "diff", params: {} }]);
-    expect(describePanelTabInstance(restored.tabs[0]!, { duplicate: true }).label).toBe("Diff");
+    expect(describePanelTabInstance(restored.tabs[0]!).label).toBe("Diff");
   });
 
   test("a stored instance whose kind this build dropped goes, and its siblings stay", () => {

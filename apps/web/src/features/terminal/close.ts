@@ -2,9 +2,8 @@
  * CLOSING A TERMINAL ENDS WHAT RUNS IN IT — and whether to ASK first.
  *
  * "Run = a new terminal" made the terminal the owner of its process: closing a
- * chip, the whole Terminal tab, or an entry in the masthead's Run menu ends the
- * process group inside it. There is no "close the chip, the run keeps going"
- * any more, so a close is a real kill, and a kill of somebody's dev server or a
+ * Terminal tab, or an entry in the masthead's Run menu, ends the process group
+ * inside it. There is no "close the tab, the run keeps going", so a close is a real kill, and a kill of somebody's dev server or a
  * half-finished `git rebase` deserves a question.
  *
  * ONLY WHEN SOMETHING IS ACTUALLY RUNNING. An idle shell at its prompt loses
@@ -19,15 +18,13 @@
  * means — is tested as a function, without a host or a dialog.
  */
 import { terminalBridge, type TerminalActivity, type TerminalBridge } from "./bridge";
-import { isOpenTerminal } from "./run/presentation";
-import type { RunView } from "./run/types";
-import { readWorkspace, shellLabel, type TerminalWorkspace } from "./workspace";
+import { readTerminalTab } from "./tab";
 
 /** One terminal a close would end. */
 export type CloseTarget = {
   /** The host's terminal id — a run's `terminalId`, or a shell's PTY id. */
   id: string;
-  /** What the strip calls it: "web dev #2", "Shell 1". */
+  /** What the tab calls it: "web dev #2", "this shell". */
   label: string;
   /**
    * WHAT THE PERSON LAUNCHED, when we know it better than the process table
@@ -70,19 +67,14 @@ function describeBusy(target: CloseTarget, activity: TerminalActivity | undefine
  * A TERMINAL THE HOST DOES NOT MENTION HAS ALREADY ENDED. The host answers for
  * the terminals it still holds, and one it has let go has nothing left to lose.
  *
- * `scope` is what the person pressed: one terminal, or the whole Terminal tab.
  */
-export function decideClose(
-  targets: readonly CloseTarget[],
-  activity: readonly TerminalActivity[] | undefined,
-  scope: "terminal" | "tab" = "terminal",
-): CloseDecision {
+export function decideClose(targets: readonly CloseTarget[], activity: readonly TerminalActivity[] | undefined): CloseDecision {
   const busy = targets
     .map((target) => ({ target, activity: activity?.find((entry) => entry.id === target.id) }))
     .filter((entry) => (activity === undefined ? true : entry.activity?.active === true));
   if (busy.length === 0) return { action: "close" };
 
-  if (busy.length === 1 && scope === "terminal") {
+  if (busy.length === 1) {
     const { target, activity: one } = busy[0]!;
     return {
       action: "confirm",
@@ -92,10 +84,9 @@ export function decideClose(
 
   const lines = busy.slice(0, 5).map(({ target, activity: one }) => `• ${describeBusy(target, one)}`);
   if (busy.length > lines.length) lines.push(`…and ${busy.length - lines.length} more`);
-  const head = busy.length === 1 ? "End the command still running in this Terminal?" : `End ${busy.length} commands still running in this Terminal?`;
   return {
     action: "confirm",
-    message: `${head}\n\n${lines.join("\n")}\n\nClosing the Terminal closes every terminal in it and stops what runs there.`,
+    message: `End ${busy.length} commands still running?\n\n${lines.join("\n")}\n\nClosing stops them, and anything they have not saved or finished is lost.`,
   };
 }
 
@@ -116,7 +107,6 @@ export function decideClose(
 export async function mayClose(
   targets: readonly CloseTarget[],
   options: {
-    scope?: "terminal" | "tab";
     bridge?: TerminalBridge | undefined;
     confirm?: (message: string) => boolean;
   } = {},
@@ -130,7 +120,7 @@ export async function mayClose(
   } catch {
     activity = undefined;
   }
-  const decision = decideClose(targets, activity, options.scope ?? "terminal");
+  const decision = decideClose(targets, activity);
   if (decision.action === "close") return true;
   const confirm = options.confirm ?? ((message: string) => window.confirm(message));
   return confirm(decision.message);
@@ -169,19 +159,8 @@ export async function endTerminal(
 }
 
 /**
- * CLOSING THE TERMINAL TAB CLOSES EVERY TERMINAL IN IT — shells and runs alike,
- * with ONE question if any of them is busy. Answers false when the person said
- * no, and the tab stays open with everything still running.
- *
- * WHY HERE AND NOT IN THE SURFACE: the surface unmounts every time another tab
- * is looked at, so "the component went away" is not "the person is done with
- * these terminals". The COCKPIT owns the panel's tabs and is the only place
- * that can tell a tab switch from a tab closing; it hands this the tab's
- * params, and the workspace in them names every terminal the strip held.
- *
- * A chip with no terminal id has nothing to end: a shell whose spawn never
- * answered, or a run whose terminal had already ended when the tab was last
- * written.
+ * Closing a Terminal tab ends its shell or run, asking first if something runs in it; false when the person said no.
+ * The cockpit calls this, since only it can tell a tab closing from a tab switch that unmounts the surface.
  */
 export async function closeTerminalTab(
   params: Readonly<Record<string, string>>,
@@ -191,37 +170,11 @@ export async function closeTerminalTab(
     confirm?: (message: string) => boolean;
   } = {},
 ): Promise<boolean> {
-  const workspace = readWorkspace(params);
-  const held = workspace.shells.filter((shell): shell is typeof shell & { terminalId: string } => Boolean(shell.terminalId));
-  const targets = held.map((shell) => ({ id: shell.terminalId, label: shellLabel(workspace, shell.id) }));
+  const tab = readTerminalTab(params);
   const bridge = "bridge" in options ? options.bridge : terminalBridge();
-  if (!(await mayClose(targets, { scope: "tab", bridge, ...(options.confirm ? { confirm: options.confirm } : {}) }))) return false;
-  await Promise.all(
-    held.map((shell) =>
-      endTerminal(
-        { terminalId: shell.run ? shell.run.runId : shell.terminalId, run: Boolean(shell.run) },
-        { bridge, ...(options.stopRun ? { stopRun: options.stopRun } : {}) },
-      ),
-    ),
-  );
+  const targets = tab.terminalId ? [{ id: tab.terminalId, label: tab.title ?? (tab.run ? "this run" : "this shell") }] : [];
+  if (!(await mayClose(targets, { bridge, ...(options.confirm ? { confirm: options.confirm } : {}) }))) return false;
+  const terminalId = tab.run?.runId ?? tab.terminalId;
+  if (terminalId) await endTerminal({ terminalId, run: Boolean(tab.run) }, { bridge, ...(options.stopRun ? { stopRun: options.stopRun } : {}) });
   return true;
-}
-
-/** Runs that ended or sit idle, and shells the host says run nothing; unread activity (undefined) counts as busy. */
-export function idleChips(
-  workspace: TerminalWorkspace,
-  runs: ReadonlyMap<string, RunView> | undefined,
-  activity: readonly TerminalActivity[] | undefined,
-): string[] {
-  return workspace.shells
-    .filter((shell) => {
-      if (shell.run) {
-        if (!runs) return false;
-        const view = runs.get(shell.run.runId);
-        return !isOpenTerminal(view) || view!.activity === "idle";
-      }
-      if (!shell.terminalId || !activity) return false;
-      return activity.find((entry) => entry.id === shell.terminalId)?.active !== true;
-    })
-    .map((shell) => shell.id);
 }

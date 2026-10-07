@@ -109,12 +109,12 @@ struct RootView: View {
             await MobileNotifications.shared.syncRegistrations()
         }
         .onChange(of: inbox.onCards) { _, sessions in
-            if scenePhase == .active { MobileNotifications.shared.startAutomaticCards(sessions, projectName: inbox.projectName) }
+            if scenePhase == .active { MobileNotifications.shared.startCard(sessions, projectName: inbox.projectName) }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 inbox.start()
-                MobileNotifications.shared.startAutomaticCards(inbox.onCards, projectName: inbox.projectName)
+                MobileNotifications.shared.startCard(inbox.onCards, projectName: inbox.projectName)
                 Task { await MobileNotifications.shared.syncRegistrations() }
                 Task { await settings.refreshAddresses() }
             } else { inbox.stop() }

@@ -28,7 +28,7 @@ function expectDecodable(state: Record<string, unknown>) {
 
 test("the Swift type was read, so the checks below compare against something", () => {
   expect(contentState.required).toEqual(["ended", "startedAt", "status", "title", "updatedAt"]);
-  expect(contentState.all).toEqual(["activeCount", "ended", "rows", "sessionId", "startedAt", "status", "title", "updatedAt"]);
+  expect(contentState.all).toEqual(["activeCount", "ended", "hostId", "rows", "sessionId", "startedAt", "status", "title", "updatedAt"]);
   expect(attributes.all).toEqual(["hostId", "hostName", "sessionId"]);
 });
 

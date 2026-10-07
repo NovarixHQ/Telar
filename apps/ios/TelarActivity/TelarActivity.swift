@@ -22,7 +22,7 @@ struct SessionLiveActivity: Widget {
                 }
                 if let rows = context.state.rows, !rows.isEmpty {
                     ForEach(rows) { row in
-                        Link(destination: context.attributes.url(sessionId: row.id)) { RowView(row: row, color: statusColor(row.status)) }
+                        Link(destination: context.attributes.url(sessionId: row.id, hostId: row.hostId)) { RowView(row: row, color: statusColor(row.status)) }
                     }
                 } else {
                     Text(context.state.title).font(.headline).lineLimit(2).privacySensitive()
@@ -32,7 +32,7 @@ struct SessionLiveActivity: Widget {
             .activityBackgroundTint(Color(white: 0.10))
             .activitySystemActionForegroundColor(.white)
             .foregroundStyle(.white)
-            .widgetURL(context.attributes.url(sessionId: context.state.sessionId))
+            .widgetURL(context.attributes.url(sessionId: context.state.sessionId, hostId: context.state.hostId))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -45,7 +45,7 @@ struct SessionLiveActivity: Widget {
                     VStack(alignment: .leading, spacing: 6) {
                         if let rows = context.state.rows, !rows.isEmpty {
                             ForEach(rows.prefix(3)) { row in
-                                Link(destination: context.attributes.url(sessionId: row.id)) { RowView(row: row, color: statusColor(row.status), compact: true) }
+                                Link(destination: context.attributes.url(sessionId: row.id, hostId: row.hostId)) { RowView(row: row, color: statusColor(row.status), compact: true) }
                             }
                         } else {
                             Text(context.state.title).font(.headline).lineLimit(1).privacySensitive()
@@ -60,7 +60,7 @@ struct SessionLiveActivity: Widget {
             } minimal: {
                 Image(systemName: statusSymbol(context.state.status, ended: context.state.ended, stale: context.isStale)).foregroundStyle(color(context.state))
             }
-            .widgetURL(context.attributes.url(sessionId: context.state.sessionId))
+            .widgetURL(context.attributes.url(sessionId: context.state.sessionId, hostId: context.state.hostId))
             .keylineTint(color(context.state))
         }
     }

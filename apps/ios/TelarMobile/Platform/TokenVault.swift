@@ -6,12 +6,6 @@ protocol TokenVault: Sendable {
     func delete(account: String)
 }
 
-struct KeychainVault: TokenVault {
-    func read(account: String) -> String? { KeychainStore.read(account: account) }
-    func write(_ token: String, account: String) { KeychainStore.write(token, account: account) }
-    func delete(account: String) { KeychainStore.delete(account: account) }
-}
-
 final class MemoryVault: TokenVault, @unchecked Sendable {
     private var storage: [String: String]
 

@@ -1,0 +1,21 @@
+srcs=[l.strip() for l in open('/tmp/telar-spm/srcs.txt') if l.strip()]
+import os
+tests=[l.strip() for l in open('/tmp/telar-spm/tests.txt') if l.strip()] if os.path.exists('/tmp/telar-spm/tests.txt') else None
+fmt=lambda xs: "\n".join(f'            "{s}",' for s in sorted(xs))
+tt = f'.testTarget(name: "TelarMobileTests", dependencies: ["TelarMobile"], path: "TelarMobileTests", sources: [\n{fmt(tests)}\n        ]),' if tests is not None else '.testTarget(name: "TelarMobileTests", dependencies: ["TelarMobile"], path: "TelarMobileTests"),'
+body=f'''// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: "TelarMobileLogic",
+    platforms: [.macOS(.v15)],
+    targets: [
+        .target(name: "TelarMobile", path: ".", sources: [
+{fmt(srcs)}
+        ]),
+        {tt}
+    ],
+    swiftLanguageModes: [.v5]
+)
+'''
+open('/Volumes/Taller/worktrees/perf-ios-make-the-ios-test-suite-fast-b45b44-f26fb3d9/apps/ios/Package.swift','w').write(body)

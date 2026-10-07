@@ -212,4 +212,41 @@ function createTabStore(userDataDir, { fsImpl = fs, writeDelayMs = 150, setTimer
   };
 }
 
-module.exports = { createTabStore, serializeInventory, parseInventory, rememberableUrl, INVENTORY_VERSION };
+function createSharedTabStore(userDataDir, options) {
+  const store = createTabStore(userDataDir, options);
+  const parts = new Map();
+  let restored = false;
+
+  function merged() {
+    const scopes = {};
+    for (const part of parts.values()) for (const [scopeKey, scope] of Object.entries(part)) scopes[scopeKey] ??= scope;
+    return { version: INVENTORY_VERSION, savedAt: Date.now(), scopes };
+  }
+
+  return {
+    forWindow() {
+      const view = {};
+      const keep = (document) => parts.set(view, document?.scopes ?? {});
+      return Object.assign(view, {
+        load() {
+          if (restored) return null;
+          restored = true;
+          const document = store.load();
+          if (document?.version === INVENTORY_VERSION) keep(document);
+          return document;
+        },
+        save(document) {
+          keep(document);
+          store.save(merged());
+        },
+        flush: () => store.flush(),
+        flushSync(document) {
+          if (document !== undefined) keep(document);
+          store.flushSync(merged());
+        },
+      });
+    },
+  };
+}
+
+module.exports = { createSharedTabStore, createTabStore, serializeInventory, parseInventory, rememberableUrl, INVENTORY_VERSION };

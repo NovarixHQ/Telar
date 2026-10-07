@@ -591,6 +591,7 @@ jobs:
           # deliberately, so a suite that quietly stopped running half of itself
           # cannot keep reporting the same string.
           run_case pty             "PTY_HOST_OK 11/11 pty=tty pipe=not-a-tty"
+          run_case preview         PREVIEW_RENDERER_OK
 
           # THE THREE THAT ARE NOT HERE, AND WHY — all one reason: they need
           # 1Password's official extension package, which is proprietary, is not

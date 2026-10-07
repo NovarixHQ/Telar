@@ -9,7 +9,6 @@ import { Button } from "@/ui/button";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
 import { TranscriptSession, TranscriptWorkspace } from "@/features/transcript";
 import { ArtifactShelf } from "@/features/agent-tools";
-import { artifactPanelTab } from "@/features/panel";
 import type { useSessionSync } from "../hooks/use-session-sync";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
 import { markerRowOf, transcriptRows } from "../model";
@@ -47,8 +46,6 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const plan = planDispatches(shown, active?.runId);
   const directory = useSessionDirectory(props.hostId, plan.sessionIds);
   const items = useMemo(() => shown.flatMap((turn) => turn.items), [shown]);
-  const openTab = props.turn.onOpenTab;
-  const openArtifact = useMemo(() => (openTab ? (artifactId: string) => openTab(artifactPanelTab(artifactId)) : undefined), [openTab]);
   const sessionId = session?.id;
   const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId } : undefined), [sessionId, props.hostId]);
   const turnRow = (turn: JournalTurn, { absorbed, covered, peerTitle }: TurnView) => (
@@ -99,7 +96,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
           </ConversationTopEdge>
           <TranscriptSession.Provider value={transcriptSource}>
           <TranscriptWorkspace path={session ? workspacePath(session.workspace) : undefined}>
-            <ArtifactShelf items={items} hostId={props.hostId} {...(openArtifact ? { onOpen: openArtifact } : {})}>
+            <ArtifactShelf items={items} hostId={props.hostId}>
             <TranscriptTurns
               turns={shown}
               plan={plan}

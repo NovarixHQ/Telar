@@ -2,10 +2,10 @@ import Foundation
 import Testing
 @testable import TelarMobile
 
-private func artifactItem(_ id: String, artifactId: String = "chart", version: Int, kind: String = "html") -> Item {
+private func artifactItem(_ id: String, artifactId: String = "chart", version: Int, kind: String = "html", extra: String = "") -> Item {
     try! JSONDecoder().decode(Item.self, from: Data("""
     {"id":"\(id)","runId":"run_1","sessionId":"s","status":"completed","startedAt":100,
-     "detail":{"type":"artifact","artifact":{"id":"\(artifactId)","kind":"\(kind)","title":"Load by hour","attachmentId":"att_\(id)","version":\(version)}}}
+     "detail":{"type":"artifact","artifact":{"id":"\(artifactId)","kind":"\(kind)","title":"Load by hour","attachmentId":"att_\(id)","version":\(version)\(extra)}}}
     """.utf8))
 }
 
@@ -13,6 +13,14 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
     @Test func decodesAnArtifactItem() {
         let item = artifactItem("artifact_chart_v2", version: 2)
         #expect(item.detail == .artifact(Artifact(id: "chart", kind: .html, title: "Load by hour", attachmentId: "att_artifact_chart_v2", version: 2)))
+    }
+
+    @Test func decodesTheAgentsHeight() {
+        guard case .artifact(let artifact) = artifactItem("a", version: 1, extra: #","height":420"#).detail else {
+            Issue.record("expected an artifact")
+            return
+        }
+        #expect(artifact.height == 420)
     }
 
     @Test func anUnknownKindStillDecodes() {
@@ -45,13 +53,6 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
         let first = projectJournal(turns: [makeTurn("run_1")], items: [artifactItem("v1", version: 1), artifactItem("v3", version: 3)], events: [])
         #expect(latestArtifactVersions(first) == ["chart": 3])
     }
-
-    @Test func olderVersionsFoldWithTheNewestNamed() {
-        let old = Artifact(id: "chart", kind: .html, title: "t", attachmentId: "a", version: 1)
-        #expect(artifactVersionLabel(old, newest: 3) == "v1 · now v3")
-        #expect(artifactVersionLabel(Artifact(id: "chart", kind: .html, title: "t", attachmentId: "a", version: 3), newest: 3) == "v3")
-        #expect(artifactVersionLabel(old, newest: 1) == nil)
-    }
 }
 
 @Suite struct ArtifactFrameTests {
@@ -61,6 +62,15 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
         #expect(ArtifactFrame.height(measured: 240.2) == 241)
         #expect(ArtifactFrame.height(measured: 5000) == ArtifactFrame.maxHeight)
         #expect(ArtifactFrame.height(measured: .infinity) == ArtifactFrame.restingHeight)
+    }
+
+    @Test func theAgentsHeightIsHeldUntilThePageMeasuresItselfAndCapsIt() {
+        #expect(ArtifactFrame.height(measured: nil, hint: 420) == 420)
+        #expect(ArtifactFrame.height(measured: 300, hint: 420) == 300)
+        #expect(ArtifactFrame.height(measured: 900, hint: 420) == 420)
+        #expect(ArtifactFrame.height(measured: nil, hint: 5000) == ArtifactFrame.maxHeight)
+        #expect(ArtifactFrame.scrolls(ArtifactProbe(height: 421, wide: false), hint: 420))
+        #expect(!ArtifactFrame.scrolls(ArtifactProbe(height: 420, wide: false), hint: 420))
     }
 
     @Test func theFrameScrollsOnlyWhenThePageOverflows() {

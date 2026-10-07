@@ -16,3 +16,10 @@ test("a worker publishes an artifact without a version, and a bad kind or id is 
   expect(TurnObservation.safeParse({ kind: "artifact.published", artifact: { ...published, kind: "pdf" } }).success).toBe(false);
   expect(TurnObservation.safeParse({ kind: "artifact.published", artifact: { ...published, id: "../x" } }).success).toBe(false);
 });
+
+test("an artifact may carry the page's height, within the frame's bounds", () => {
+  const { version: _version, ...published } = artifact;
+  expect(TurnObservation.parse({ kind: "artifact.published", artifact: { ...published, height: 420 } })).toEqual({ kind: "artifact.published", artifact: { ...published, height: 420 } });
+  expect(TurnObservation.safeParse({ kind: "artifact.published", artifact: { ...published, height: 5000 } }).success).toBe(false);
+  expect(TurnObservation.safeParse({ kind: "artifact.published", artifact: { ...published, height: 12.5 } }).success).toBe(false);
+});

@@ -18,16 +18,16 @@ async function press(host: HTMLElement, key: string) {
   });
 }
 
-describe("in a card", () => {
+describe("inline", () => {
   test("a wide drawing stays readable, clipped, with a way to see the rest", async () => {
-    const { host } = await mount(<SvgViewer image={image(3000, 400)} title="Flow" minScale={0.6875} fill={false} />);
+    const { host } = await mount(<SvgViewer image={image(3000, 400)} title="Flow" minScale={0.6875} />);
     await flush(() => percent(host) !== "");
     expect(percent(host)).toBe("69%");
-    expect(host.textContent).toContain("open it in the panel");
+    expect(host.textContent).toContain("Drag to see the rest");
   });
 
   test("the buttons and keys zoom, fit and return to actual size", async () => {
-    const { host } = await mount(<SvgViewer image={image(300, 200)} title="Logo" minScale={0.6875} fill={false} />);
+    const { host } = await mount(<SvgViewer image={image(300, 200)} title="Logo" minScale={0.6875} />);
     await flush(() => percent(host) === "100%");
     await click(host.querySelector("[aria-label='Zoom in']")!);
     expect(percent(host)).toBe("125%");
@@ -39,7 +39,7 @@ describe("in a card", () => {
   });
 
   test("a plain wheel is left to the conversation; ⌘ or ctrl with the wheel zooms", async () => {
-    const { host } = await mount(<SvgViewer image={image(300, 200)} title="Logo" minScale={0.6875} fill={false} />);
+    const { host } = await mount(<SvgViewer image={image(300, 200)} title="Logo" minScale={0.6875} />);
     await flush(() => percent(host) === "100%");
     const plain = new WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true });
     await act(async () => void viewer(host).dispatchEvent(plain));
@@ -53,36 +53,39 @@ describe("in a card", () => {
   });
 });
 
-describe("in the panel", () => {
+describe("across versions", () => {
   function Versions() {
     const [current, setCurrent] = useState(image(1000, 500));
     return (
       <>
         <button type="button" onClick={() => setCurrent(image(1040, 520))}>similar</button>
         <button type="button" onClick={() => setCurrent(image(200, 2000))}>different</button>
-        <SvgViewer image={current} title="Flow" minScale={0.6875} fill />
+        <SvgViewer image={current} title="Flow" minScale={0.6875} />
       </>
     );
   }
 
-  test("it fits on open, keeps the zoom for a similar version, and refits a different one", async () => {
+  test("it keeps the zoom for a similar version, and lays out a different one afresh", async () => {
     const { host } = await mount(<Versions />);
     await flush(() => percent(host) !== "");
-    expect(percent(host)).toBe("55%");
+    const opened = percent(host);
     await click(host.querySelector("[aria-label='Zoom in']")!);
-    expect(percent(host)).toBe("69%");
+    const zoomed = percent(host);
+    expect(zoomed).not.toBe(opened);
     await click(buttonLabelled("similar", host));
-    expect(percent(host)).toBe("69%");
+    expect(percent(host)).toBe(zoomed);
     await click(buttonLabelled("different", host));
-    expect(percent(host)).toBe("18%");
+    expect(percent(host)).not.toBe(zoomed);
   });
 
-  test("double-click fits again", async () => {
-    const { host } = await mount(<SvgViewer image={image(1000, 500)} title="Flow" minScale={0.6875} fill />);
+  test("double-click fits, as the Fit button does", async () => {
+    const { host } = await mount(<SvgViewer image={image(1000, 500)} title="Flow" minScale={0.6875} />);
     await flush(() => percent(host) !== "");
+    await click(buttonLabelled("Fit", host));
+    const fitted = percent(host);
     await press(host, "+");
-    expect(percent(host)).not.toBe("55%");
+    expect(percent(host)).not.toBe(fitted);
     await act(async () => void viewer(host).dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-    expect(percent(host)).toBe("55%");
+    expect(percent(host)).toBe(fitted);
   });
 });

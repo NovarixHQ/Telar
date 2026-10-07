@@ -6,14 +6,18 @@ enum ArtifactFrame {
     static let maxHeight: CGFloat = 560
     static let restingHeight: CGFloat = 160
 
-    static func height(measured: CGFloat?) -> CGFloat {
-        guard let measured, measured.isFinite else { return restingHeight }
-        return min(maxHeight, max(minHeight, measured.rounded(.up)))
+    static func cap(hint: Int?) -> CGFloat {
+        hint.map { min(maxHeight, max(minHeight, CGFloat($0))) } ?? maxHeight
     }
 
-    static func scrolls(_ probe: ArtifactProbe?) -> Bool {
+    static func height(measured: CGFloat?, hint: Int? = nil) -> CGFloat {
+        guard let measured, measured.isFinite else { return hint == nil ? restingHeight : cap(hint: hint) }
+        return min(cap(hint: hint), max(minHeight, measured.rounded(.up)))
+    }
+
+    static func scrolls(_ probe: ArtifactProbe?, hint: Int? = nil) -> Bool {
         guard let probe else { return false }
-        return probe.wide || probe.height > maxHeight
+        return probe.wide || probe.height > cap(hint: hint)
     }
 }
 
@@ -68,7 +72,7 @@ enum ArtifactLook {
     static func style(dark: Bool) -> String {
         let variables = tokens(dark: dark).map { "--\($0.name):\($0.value);" }.joined()
         return ":where(:root){color-scheme:\(dark ? "dark" : "light");\(variables)}"
-            + ":where(body){margin:0;padding:12px 14px;font:15px/1.5 var(--font-sans);color:var(--foreground);background:transparent;-webkit-text-size-adjust:100%}"
+            + ":where(html){background:var(--background);color:var(--foreground);font:15px/1.5 var(--font-sans);-webkit-text-size-adjust:100%}:where(body){margin:0}"
     }
 
     static func hex(_ color: UIColor) -> String {
@@ -159,7 +163,3 @@ func latestArtifactVersions(_ turns: [JournalTurn]) -> [String: Int] {
     return latest
 }
 
-func artifactVersionLabel(_ artifact: Artifact, newest: Int) -> String? {
-    guard newest > 1 || artifact.version > 1 else { return nil }
-    return newest > artifact.version ? "v\(artifact.version) · now v\(newest)" : "v\(max(newest, artifact.version))"
-}

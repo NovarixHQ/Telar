@@ -1,5 +1,5 @@
-import { BotIcon, CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, ShapesIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, TerminalIcon, type LucideIcon } from "lucide-react";
-import type { Artifact, BrowserProvider, BrowserTab } from "@telar/engine-client";
+import { BotIcon, CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, TerminalIcon, type LucideIcon } from "lucide-react";
+import type { BrowserProvider, BrowserTab } from "@telar/engine-client";
 import { fileKind } from "@/features/files";
 import { isPluginSurface, PLUGIN_SURFACES, pluginSurfaces, viewerAvailable, type PluginSurfaceId, type PluginPanelSource } from "@/features/plugins";
 import type { PanelTabInstance, PanelTabParams } from "./tabs";
@@ -31,7 +31,7 @@ export function surfacesFor(enabledPlugins: readonly string[], pluginPanels: rea
 }
 
 /** File, issue and pull ids are requests to open something inside a surface, never tabs of their own. */
-export type PanelTab = SurfaceId | `browser:${string}` | `artifact:${string}` | `file:${string}` | `notebook:${string}` | `table:${string}` | `pdf:${string}` | `issue:${number}` | `pull:${number}`;
+export type PanelTab = SurfaceId | `browser:${string}` | `file:${string}` | `notebook:${string}` | `table:${string}` | `pdf:${string}` | `issue:${number}` | `pull:${number}`;
 
 export type PanelTabItem = PanelTabInstance<PanelTab>;
 
@@ -48,7 +48,6 @@ const TABLE_PREFIX = "table:";
 const PDF_PREFIX = "pdf:";
 const ISSUE_PREFIX = "issue:";
 const PULL_PREFIX = "pull:";
-const ARTIFACT_PREFIX = "artifact:";
 const FILE_TAB_PREFIXES = [FILE_PREFIX, NOTEBOOK_PREFIX, TABLE_PREFIX, PDF_PREFIX] as const;
 
 const MULTI_INSTANCE: ReadonlySet<string> = new Set<string>(["editor", "diff"]);
@@ -64,7 +63,6 @@ export const tablePanelPath = suffixed(TABLE_PREFIX);
 export const pdfPanelPath = suffixed(PDF_PREFIX);
 export const filePanelPath = suffixed(FILE_PREFIX);
 export const browserTabId = suffixed(BROWSER_PREFIX);
-export const artifactPanelId = suffixed(ARTIFACT_PREFIX);
 
 /** The path behind a file-shaped tab id, or nothing for a surface. A path may contain a colon. */
 export function filePanelTabPath(value: string): string | undefined {
@@ -77,7 +75,7 @@ export function isFilePanelTab(value: string): boolean {
 }
 
 export function isRestorablePanelTab(value: string): value is PanelTab {
-  return isPanelTab(value) && !isFilePanelTab(value) && artifactPanelId(value) === undefined && issuePanelNumber(value) === undefined && pullPanelNumber(value) === undefined;
+  return isPanelTab(value) && !isFilePanelTab(value) && issuePanelNumber(value) === undefined && pullPanelNumber(value) === undefined;
 }
 
 export function isMultiInstancePanelTab(kind: PanelTab): boolean {
@@ -90,10 +88,6 @@ export function filePanelTab(path: string): PanelTab {
 
 export function pdfPanelTab(path: string): PanelTab {
   return `${PDF_PREFIX}${path}`;
-}
-
-export function artifactPanelTab(artifactId: string): PanelTab {
-  return `${ARTIFACT_PREFIX}${artifactId}`;
 }
 
 export function browserPanelTab(tabId: string): PanelTab {
@@ -150,7 +144,6 @@ export function ownsItsHeight(tab: PanelTab): boolean {
     notebookPanelPath(tab) !== undefined ||
     tablePanelPath(tab) !== undefined ||
     pdfPanelPath(tab) !== undefined ||
-    artifactPanelId(tab) !== undefined ||
     tab === "issues" ||
     tab === "pulls" ||
     tab === "editor" ||
@@ -163,7 +156,6 @@ export function ownsItsHeight(tab: PanelTab): boolean {
 /** Validates what comes back out of localStorage; a closed page or a deleted file is still a known tab. */
 export function isPanelTab(value: string): value is PanelTab {
   if (value.startsWith(BROWSER_PREFIX)) return true;
-  if (value.startsWith(ARTIFACT_PREFIX)) return value.length > ARTIFACT_PREFIX.length;
   for (const prefix of FILE_TAB_PREFIXES) if (value.startsWith(prefix)) return value.length > prefix.length;
   if (value.startsWith(ISSUE_PREFIX)) return forgeNumber(value, ISSUE_PREFIX) !== undefined;
   if (value.startsWith(PULL_PREFIX)) return forgeNumber(value, PULL_PREFIX) !== undefined;
@@ -190,8 +182,6 @@ export function describePanelTab(tab: PanelTab, browser?: BrowserState, live?: r
   if (tablePath !== undefined) return { label: basename(tablePath), icon: TableIcon, blurb: tablePath };
   const pdfPath = pdfPanelPath(tab);
   if (pdfPath !== undefined) return { label: basename(pdfPath), icon: FileIcon, blurb: pdfPath };
-  const artifactId = artifactPanelId(tab);
-  if (artifactId !== undefined) return { label: "Artifact", icon: ShapesIcon, blurb: artifactId };
   const issueNumber = issuePanelNumber(tab);
   if (issueNumber !== undefined) return { label: `#${issueNumber}`, icon: CircleDotIcon, blurb: `Issue #${issueNumber}` };
   const pullNumber = pullPanelNumber(tab);
@@ -238,11 +228,9 @@ function livePageSuffix(live?: readonly LivePage[]): string | undefined {
 /** The suffix appears only while a sibling of the same kind is open (`duplicate`). */
 export function describePanelTabInstance(
   tab: PanelTabItem,
-  options: { browser?: BrowserState; live?: readonly LivePage[]; duplicate?: boolean; artifacts?: ReadonlyMap<string, Artifact> } = {},
+  options: { browser?: BrowserState; live?: readonly LivePage[]; duplicate?: boolean} = {},
 ): TabDescription {
-  const artifact = options.artifacts?.get(artifactPanelId(tab.kind) ?? "");
-  const named = describePanelTab(tab.kind, options.browser, options.live);
-  const described = artifact ? { ...named, label: artifact.title, blurb: artifact.title } : named;
+  const described = describePanelTab(tab.kind, options.browser, options.live);
   if (!options.duplicate) return described;
   const suffix = panelTabSuffix(tab.params) ?? (tab.kind === LIVE_BROWSER_TAB ? livePageSuffix(options.live) : undefined);
   if (!suffix) return described;

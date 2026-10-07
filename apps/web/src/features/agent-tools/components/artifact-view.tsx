@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { mermaid } from "@streamdown/mermaid";
 import { artifactThemeCss, mermaidThemeVariables, type Artifact, type ArtifactTheme } from "@telar/engine-client";
 import { attachmentUrl } from "@/features/plugins";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { MessageResponse } from "@/ui/message";
-import { cn } from "@/ui/utils";
-import { ARTIFACT_SANDBOX, artifactDocument, clampFrameHeight, hostContextMessage, type ArtifactHeight } from "../artifacts";
+import { ARTIFACT_SANDBOX, artifactDocument, frameHeight, hostContextMessage, measuredHeight, savedFileName, type ArtifactHeight } from "../artifacts";
 import { useArtifactTheme } from "../artifact-theme";
 import { svgImage } from "../svg-image";
 import { readableScale } from "../viewport";
@@ -33,27 +33,23 @@ function useMermaidSvg(source: string, theme: ArtifactTheme): Diagram {
   return diagram.source === source && diagram.look === look ? diagram : { source, look };
 }
 
-function MermaidDiagram({ source, title, fill }: { source: string; title: string; fill: boolean }) {
+function MermaidDiagram({ source, title, actions }: { source: string; title: string; actions: React.ReactNode }) {
   const theme = useArtifactTheme();
   const { svg, error } = useMermaidSvg(source, theme);
-  if (error) return <p className="px-3 py-2 text-xs text-muted-foreground">This diagram could not be drawn: {error}</p>;
-  if (svg === undefined) return <p className="px-3 py-2 text-xs text-muted-foreground">Drawing…</p>;
-  return <Drawing source={svg} title={title} fill={fill} theme={theme} />;
+  if (error) return <p className="py-2 text-xs text-muted-foreground">This diagram could not be drawn: {error}</p>;
+  if (svg === undefined) return null;
+  return <Drawing source={svg} title={title} theme={theme} actions={actions} />;
 }
 
-const checkerboard = (a: string, b: string): React.CSSProperties => ({ background: `repeating-conic-gradient(${a} 0% 25%, ${b} 0% 50%) 0 0 / 16px 16px` });
-
-function Drawing({ source, title, fill, theme, ground }: { source: string; title: string; fill: boolean; theme: ArtifactTheme; ground?: React.CSSProperties }) {
+function Drawing({ source, title, theme, actions }: { source: string; title: string; theme: ArtifactTheme; actions: React.ReactNode }) {
   const image = useMemo(() => svgImage(source, artifactThemeCss(theme)), [source, theme]);
   const minScale = useMemo(() => readableScale(source), [source]);
-  if (!image) return <p className="px-3 py-2 text-xs text-muted-foreground">This drawing is not a valid svg.</p>;
-  return <SvgViewer image={image} title={title} minScale={minScale} fill={fill} {...(ground ? { ground } : {})} />;
+  if (!image) return <p className="py-2 text-xs text-muted-foreground">This drawing is not a valid svg.</p>;
+  return <SvgViewer image={image} title={title} minScale={minScale} actions={actions} />;
 }
 
-function SvgDrawing({ source, title, fill }: { source: string; title: string; fill: boolean }) {
-  const theme = useArtifactTheme();
-  const ground = theme.scheme === "dark" ? checkerboard("#3d3d3d", "#343434") : checkerboard("#f3f3f3", "#e8e8e8");
-  return <Drawing source={source} title={title} fill={fill} theme={theme} ground={ground} />;
+function SvgDrawing({ source, title, actions }: { source: string; title: string; actions: React.ReactNode }) {
+  return <Drawing source={source} title={title} theme={useArtifactTheme()} actions={actions} />;
 }
 
 type Loaded = { attachmentId: string; text?: string; failed?: boolean };
@@ -73,10 +69,12 @@ function useArtifactText(hostId: string, sessionId: string, attachmentId: string
   return loaded.attachmentId === attachmentId ? loaded : { attachmentId };
 }
 
-function HtmlFrame({ content, title, fill }: { content: string; title: string; fill: boolean }) {
+const measured = new Map<string, number>();
+
+function HtmlFrame({ content, title, attachmentId, hint }: { content: string; title: string; attachmentId: string; hint: number | undefined }) {
   const frame = useId();
   const ref = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState<number>();
+  const [height, setHeight] = useState(() => measured.get(attachmentId));
   const theme = useArtifactTheme(ref);
   const [doc, setDoc] = useState(() => ({ content, srcDoc: artifactDocument(content, frame, theme) }));
   if (doc.content !== content) setDoc({ content, srcDoc: artifactDocument(content, frame, theme) });
@@ -88,18 +86,19 @@ function HtmlFrame({ content, title, fill }: { content: string; title: string; f
   useEffect(() => {
     ref.current?.contentWindow?.postMessage(hostContextMessage(theme), "*");
   }, [theme]);
-  useEffect(() => {
-    if (fill) return;
+  useLayoutEffect(() => {
     const listen = (event: MessageEvent) => {
       if (event.source !== ref.current?.contentWindow) return;
       const data = event.data as Partial<ArtifactHeight> | null;
       if (data?.artifactFrame !== frame) return;
-      const next = clampFrameHeight(data.height);
-      if (next !== undefined) setHeight(next);
+      const next = measuredHeight(data.height);
+      if (next === undefined) return;
+      measured.set(attachmentId, next);
+      setHeight(next);
     };
     window.addEventListener("message", listen);
     return () => window.removeEventListener("message", listen);
-  }, [fill, frame]);
+  }, [frame, attachmentId]);
   return (
     <iframe
       ref={ref}
@@ -108,18 +107,51 @@ function HtmlFrame({ content, title, fill }: { content: string; title: string; f
       srcDoc={doc.srcDoc}
       referrerPolicy="no-referrer"
       onLoad={onLoad}
-      className={cn("block w-full border-0 bg-transparent", fill && "h-full")}
-      style={{ colorScheme: loaded ? theme.scheme : "light", ...(fill ? {} : { height: height ?? 160 }) }}
+      className="block w-full border-0 bg-transparent"
+      style={{ colorScheme: loaded ? theme.scheme : "light", height: frameHeight(hint, height) }}
     />
   );
 }
 
-export function ArtifactView({ hostId = LOCAL_HOST_ID, sessionId, artifact, fill = false }: { hostId?: string; sessionId: string; artifact: Artifact; fill?: boolean }) {
+function ArtifactActions({ artifact, text }: { artifact: Artifact; text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => void navigator.clipboard.writeText(text).then(() => setCopied(true));
+  const save = () => {
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+    link.download = savedFileName(artifact);
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+  return (
+    <>
+      <button type="button" onClick={copy} onPointerLeave={() => setCopied(false)} className={ACTION}>
+        {copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+        {copied ? "Copied" : "Copy source"}
+      </button>
+      <button type="button" onClick={save} className={ACTION}>
+        <DownloadIcon className="size-3" />
+        Save
+      </button>
+    </>
+  );
+}
+
+const ACTION = "inline-flex h-6 items-center gap-1 rounded px-1.5 text-3xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
+
+const HOVER_BAR = "absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5 rounded-md border border-border bg-background/90 p-0.5 opacity-0 shadow-1 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-within/artifact:opacity-100 pointer-coarse:opacity-100";
+
+export function ArtifactView({ hostId = LOCAL_HOST_ID, sessionId, artifact }: { hostId?: string; sessionId: string; artifact: Artifact }) {
   const { text, failed } = useArtifactText(hostId, sessionId, artifact.attachmentId);
-  if (failed) return <p className="px-3 py-2 text-xs text-muted-foreground">This artifact could not be loaded.</p>;
-  if (text === undefined) return <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>;
-  if (artifact.kind === "html") return <HtmlFrame content={text} title={artifact.title} fill={fill} />;
-  if (artifact.kind === "svg") return <SvgDrawing source={text} title={artifact.title} fill={fill} />;
-  if (artifact.kind === "mermaid") return <MermaidDiagram source={text} title={artifact.title} fill={fill} />;
-  return <MessageResponse className="px-3 py-2">{text}</MessageResponse>;
+  if (failed) return <p className="py-2 text-xs text-muted-foreground">Unable to load {artifact.title}.</p>;
+  if (text === undefined) return artifact.kind === "html" ? <div style={{ height: frameHeight(artifact.height, measured.get(artifact.attachmentId)) }} /> : null;
+  const actions = <ArtifactActions artifact={artifact} text={text} />;
+  if (artifact.kind === "svg") return <SvgDrawing source={text} title={artifact.title} actions={actions} />;
+  if (artifact.kind === "mermaid") return <MermaidDiagram source={text} title={artifact.title} actions={actions} />;
+  return (
+    <div className="group/artifact relative">
+      {artifact.kind === "html" ? <HtmlFrame content={text} title={artifact.title} attachmentId={artifact.attachmentId} hint={artifact.height} /> : <MessageResponse>{text}</MessageResponse>}
+      <div className={HOVER_BAR}>{actions}</div>
+    </div>
+  );
 }

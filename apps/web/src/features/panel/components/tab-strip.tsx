@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Artifact } from "@telar/engine-client";
 import { Maximize2Icon, Minimize2Icon, PanelRightCloseIcon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { KeyHint } from "@/features/commands";
@@ -14,7 +13,7 @@ import { browserScopeKey, browserTabId, describePanelTabInstance, NO_PANELS, NO_
 import type { RightPanelProps } from "./right-panel";
 import { SurfaceChooser } from "./surface-chooser";
 
-type StripProps = { artifacts: ReadonlyMap<string, Artifact> } & Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "tasks" | "onTabChange" | "onCloseTab" | "onMoveTab" | "onOpenTab" | "onOpenNewTab" | "onOpenBrowser" | "browserStart" | "enabledPlugins" | "pluginPanels" | "onClose"> & {
+type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "tasks" | "onTabChange" | "onCloseTab" | "onMoveTab" | "onOpenTab" | "onOpenNewTab" | "onOpenBrowser" | "browserStart" | "enabledPlugins" | "pluginPanels" | "onClose"> & {
   browser: BrowserState | undefined;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -60,7 +59,7 @@ function TabChip({
   const { id } = entry;
   const { tabs, onCloseTab, fullscreen, onToggleFullscreen } = strip;
   const on = id === strip.tab;
-  const { label, icon: Icon, missing } = describePanelTabInstance(entry, { ...(strip.browser ? { browser: strip.browser } : {}), ...(live ? { live } : {}), duplicate, artifacts: strip.artifacts });
+  const { label, icon: Icon, missing } = describePanelTabInstance(entry, { ...(strip.browser ? { browser: strip.browser } : {}), ...(live ? { live } : {}), duplicate });
   const insert = drag.insert?.id === id ? drag.insert.side : undefined;
   return (
     <span

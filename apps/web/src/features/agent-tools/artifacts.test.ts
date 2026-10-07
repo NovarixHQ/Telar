@@ -52,6 +52,20 @@ test("a Look change posted into the frame restyles it in place, and only its par
   expect(frame.getElementById("kept")).toBe(kept);
 });
 
+test("the Look's font faces lead the frame, and faces posted later replace them", () => {
+  const geist = '@font-face{font-family:"Geist";src:url(data:font/woff2;base64,d09GMg==)}';
+  const mono = '@font-face{font-family:"Geist Mono";src:url(data:font/woff2;base64,d09GMg==)}';
+  const doc = artifactDocument("<p>x</p>", "f1", { ...look, fonts: geist });
+  expect(doc.indexOf(geist)).toBeLessThan(doc.indexOf("<p>x</p>"));
+  const frame = runFrame(doc);
+  const faces = frame.querySelectorAll("style")[1]!;
+  expect(faces.textContent).toBe(geist);
+  window.dispatchEvent(new MessageEvent("message", { data: hostContextMessage({ ...look, fonts: mono }), source: window.parent }));
+  expect(faces.textContent).toBe(mono);
+  window.dispatchEvent(new MessageEvent("message", { data: hostContextMessage(look), source: window.parent }));
+  expect(faces.textContent).toBe(mono);
+});
+
 test("a reported height is rounded up and bounded, and anything that is not a number is ignored", () => {
   expect(measuredHeight(10)).toBe(48);
   expect(measuredHeight(99_999)).toBe(2000);

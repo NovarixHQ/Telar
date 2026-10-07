@@ -101,7 +101,8 @@ export function previewTheme(scheme: PreviewAppearance, published: PublishedAppe
   for (const [alias, token] of Object.entries(ALIASES)) tokens[alias] ??= tokens[token] ?? "";
   const [ink, canvas] = [cssColorToHex(tokens["--foreground"] ?? ""), cssColorToHex(tokens["--background"] ?? "")];
   if (ink && canvas) Object.assign(tokens, depth(scheme, ink.slice(0, 7), canvas.slice(0, 7)));
-  return artifactTheme(scheme, (token) => tokens[token] ?? "");
+  const fonts = published?.resolved?.fontFaces;
+  return { ...artifactTheme(scheme, (token) => tokens[token] ?? ""), ...(fonts ? { fonts } : {}) };
 }
 
 const MERMAID_MODULE = "https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs";
@@ -118,7 +119,7 @@ function mermaidBody(source: string, theme: ArtifactTheme): string {
 
 export function previewDocument(kind: PreviewKind, content: string, theme: ArtifactTheme): string {
   const body = kind === "svg" ? svgImage(content) : kind === "mermaid" ? mermaidBody(content, theme) : content.replace(/^\s*<!doctype[^>]*>/i, "");
-  return `<!doctype html>${artifactRootTag(theme)}<meta charset="utf-8"><style>${artifactThemeCss(theme)}${ARTIFACT_BASE_CSS}</style>${body}`;
+  return `<!doctype html>${artifactRootTag(theme)}<meta charset="utf-8"><style>${theme.fonts ?? ""}${artifactThemeCss(theme)}${ARTIFACT_BASE_CSS}</style>${body}`;
 }
 
 export async function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T> {

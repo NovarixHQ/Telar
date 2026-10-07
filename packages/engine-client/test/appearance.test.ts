@@ -298,3 +298,16 @@ test("a published appearance is total, gated, and fatal only in its look", () =>
   });
   expect(hostile?.resolved).toBeUndefined();
 });
+
+test("published font faces are kept only as data: @font-face rules that cannot leave a style element", () => {
+  const resolved = {
+    accent: { name: "sea", light: { primary: "#000000", primaryForeground: "#ffffff" }, dark: { primary: "#ffffff", primaryForeground: "#000000" } },
+    fontStacks: { sans: '"Geist", sans-serif', mono: "monospace" },
+  };
+  const faces = (fontFaces: string) => parsePublishedAppearance({ look: look(), resolved: { ...resolved, fontFaces } })?.resolved?.fontFaces;
+  const face = '@font-face{font-family:"Geist";src:url(data:font/woff2;base64,d09GMg==);font-style:normal}';
+  expect(faces(face + face)).toBe(face + face);
+  expect(faces(`${face}</style><script>alert(1)</script>`)).toBeUndefined();
+  expect(faces("html{display:none}")).toBeUndefined();
+  expect(faces(`@font-face{src:url(data:x)}}html{display:none}`)).toBeUndefined();
+});

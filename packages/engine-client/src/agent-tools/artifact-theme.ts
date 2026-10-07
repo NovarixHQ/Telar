@@ -1,4 +1,4 @@
-export type ArtifactTheme = { scheme: "light" | "dark"; variables: Record<string, string> };
+export type ArtifactTheme = { scheme: "light" | "dark"; variables: Record<string, string>; fonts?: string };
 
 export const ARTIFACT_THEME_TOKENS = [
   ["background", "--background"],

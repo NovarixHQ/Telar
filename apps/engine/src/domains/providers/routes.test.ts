@@ -1,0 +1,47 @@
+import { afterEach, expect, test } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { EngineClient, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
+import { startEngine, type EngineDaemon } from "../../daemon";
+import { stubModels } from "../../../test/stub-models";
+
+const roots: string[] = [];
+const daemons: EngineDaemon[] = [];
+
+afterEach(async () => {
+  for (const daemon of daemons.splice(0)) await daemon.close();
+  for (const directory of roots.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
+});
+
+async function engine(readProviderLimits?: (instance: ProviderInstance) => Promise<UsageLimitWindow[]>) {
+  const engineRoot = fs.mkdtempSync(path.join(os.tmpdir(), "telar-provider-routes-"));
+  roots.push(engineRoot);
+  const daemon = await startEngine({ models: stubModels, engineRoot, ...(readProviderLimits ? { readProviderLimits } : {}) });
+  daemons.push(daemon);
+  return new EngineClient(daemon.discovery);
+}
+
+test("a Codex login's usage limits are read with its secrets, and other drivers are refused", async () => {
+  const asked: ProviderInstance[] = [];
+  const client = await engine(async (instance) => {
+    asked.push(instance);
+    return [{ key: "primary", label: "5 h", usedPercent: 42 }];
+  });
+  await client.saveProviderInstance({ id: "codex", env: [{ name: "OPENAI_API_KEY", value: "sk-test", sensitive: true }] });
+
+  await expect(client.providerLimits("codex")).resolves.toEqual({ windows: [{ key: "primary", label: "5 h", usedPercent: 42 }] });
+  expect(asked[0]?.env).toContainEqual({ name: "OPENAI_API_KEY", value: "sk-test", sensitive: true });
+  await expect(client.providerLimits("claude")).rejects.toMatchObject({ status: 409 });
+  await expect(client.providerLimits("nobody")).rejects.toMatchObject({ status: 404 });
+});
+
+test("extra arguments are kept as typed, cleared by null, and an unclosed quote is refused", async () => {
+  const client = await engine();
+  const saved = await client.saveProviderInstance({ id: "codex", extraArgs: '  -c model_verbosity="low" ' });
+  expect(saved.providerInstance.extraArgs).toBe('-c model_verbosity="low"');
+
+  await expect(client.saveProviderInstance({ id: "codex", extraArgs: '--name "open' })).rejects.toMatchObject({ status: 400 });
+  const cleared = await client.saveProviderInstance({ id: "codex", extraArgs: null });
+  expect(cleared.providerInstance.extraArgs).toBeUndefined();
+});

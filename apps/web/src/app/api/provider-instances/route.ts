@@ -40,6 +40,7 @@ export const PUT = engineRoute(async (request: Request) => {
     ...(body.autoCompact === undefined ? {} : { autoCompact: body.autoCompact as AutoCompact | null }),
     ...(body.configDir === undefined ? {} : { configDir: body.configDir as string | null }),
     ...(body.binaryPath === undefined ? {} : { binaryPath: body.binaryPath as string | null }),
+    ...(body.extraArgs === undefined ? {} : { extraArgs: body.extraArgs as string | null }),
     ...(typeof body.enabled === "boolean" ? { enabled: body.enabled } : {}),
     ...(body.env === undefined ? {} : { env: body.env as never }),
     // NAMES OF INHERITED VARIABLES TO KEEP (#594). Forwarded as given and

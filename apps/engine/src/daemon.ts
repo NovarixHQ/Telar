@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { ENGINE_PROTOCOL_VERSION, ProviderDriverKind, type ComputerUseGrant, type EngineDiscovery, type EngineHealth } from "@telar/engine-client";
+import { ENGINE_PROTOCOL_VERSION, ProviderDriverKind, type ComputerUseGrant, type EngineDiscovery, type EngineHealth, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
 import { BUNDLED_SKILLS, mcpOAuthRoutes } from "./domains/agent-tools";
 import { appearanceRoutes } from "./domains/appearance";
 import { browserRoutes, browserSessionRoutes } from "./domains/browser";
@@ -94,6 +94,7 @@ export type EngineDaemonOptions = {
   probeProviderVersion?: (driver: ProviderDriverKind, binaryPath: string | undefined, force: boolean) => Promise<VersionProbe>;
   /** A test must never actually run a global install. */
   runProviderUpdate?: (driver: ProviderDriverKind, binaryPath: string | undefined) => Promise<CliUpdateRun>;
+  readProviderLimits?: (instance: ProviderInstance) => Promise<UsageLimitWindow[]>;
   providerSkills?: ProviderSkillsOptions;
   /** The real gate probes cua-driver, which can put a permissions panel on screen. */
   computerUseGate?: ComputerUseGate;
@@ -223,7 +224,7 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...storageRoutes(store, storageMeter),
     ...worktreesRoutes(store, storageMeter.checkoutsChanged),
     ...usageRoutes(store),
-    ...providersRoutes(store, { now, ...(options.probeProviderVersion ? { probeVersion: options.probeProviderVersion } : {}), ...(options.runProviderUpdate ? { runUpdate: options.runProviderUpdate } : {}) }),
+    ...providersRoutes(store, { now, ...(options.probeProviderVersion ? { probeVersion: options.probeProviderVersion } : {}), ...(options.runProviderUpdate ? { runUpdate: options.runProviderUpdate } : {}), ...(options.readProviderLimits ? { readLimits: options.readProviderLimits } : {}) }),
     ...appearanceRoutes(store),
     ...promptsRoutes(store),
     ...notesRoutes(store, { port, secret: notesDoor.secret }),

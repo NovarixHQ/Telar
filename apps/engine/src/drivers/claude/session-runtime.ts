@@ -98,6 +98,7 @@ export const buildRuntime = (ctx: RuntimeCtx): ClaudeSessionRuntime<ClaudeTurnBi
       // Part of the fingerprint: a CLI that upgraded itself between two
       // turns changes the resolved path, and the runtime is recreated.
       ...(ctx.turn.executable ? { pathToClaudeCodeExecutable: ctx.turn.executable } : {}),
+      ...(ctx.turn.extraArgs ? { extraArgs: ctx.turn.extraArgs } : {}),
     },
   }) as RuntimeQuery;
 

@@ -10,6 +10,7 @@ import { framedTurnInput, SteerMailbox, withTurnNotes } from "../domains/turns";
 import { UnsupportedDriverError } from "./options";
 import { isConnectivityLoss } from "./lease";
 import { assertProjectRoot, unreachableReason, WorkspaceUnreachableError } from "./project-root";
+import { tokenizeCliArgs } from "../platform/process/cli-args";
 import { telarCapabilities } from "./capabilities";
 import { bindTurn, repointBrowser, type TurnGate } from "./turn-gate";
 import type { PendingSteerAck, TurnHost } from "./host";
@@ -199,7 +200,9 @@ function driverRun(
     ...(claim.readOnly ? { readOnly: true } : {}),
     ...(env ? { env } : {}),
     ...(providerInstance?.binaryPath ? { binaryPath: providerInstance.binaryPath } : {}),
+    ...(providerInstance?.extraArgs ? { extraArgs: tokenizeCliArgs(providerInstance.extraArgs) } : {}),
     ...(providerInstance?.autoCompact ? { autoCompact: providerInstance.autoCompact } : {}),
+    ...(claim.turn.kind === "compact" ? { compact: true } : {}),
     providerInstanceId: claim.providerInstanceId,
     providerSessionId: claim.resumeCursor,
     steer,

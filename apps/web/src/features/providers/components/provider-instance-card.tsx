@@ -18,6 +18,7 @@ export type InstancePatch = {
   autoCompact?: AutoCompact | null;
   configDir?: string | null;
   binaryPath?: string | null;
+  extraArgs?: string | null;
   enabled?: boolean;
   env?: ProviderInstanceEnvVar[];
 };

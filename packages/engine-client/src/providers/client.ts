@@ -2,6 +2,7 @@ import type { ProviderDriverKind } from "../protocol/common";
 import type { ClaudeConversation, ProviderSkills, Session, Turn } from "../protocol/entities";
 import type { ConversationImportDetail } from "../protocol/items";
 import type { EngineTransport } from "../platform/transport";
+import type { UsageLimitWindow } from "../usage/schema";
 import type { AutoCompact, CustomProviderModel, ModelCatalogue, ModelOverlay, ProviderInstance, ProviderInstanceEnvVar, ProviderProbe, ProviderUpdateRun } from "./schema";
 
 type ProviderInstances = { providerInstances: ProviderInstance[]; probes: ProviderProbe[] };
@@ -29,6 +30,7 @@ export const providersClient = {
       autoCompact?: AutoCompact | null;
       configDir?: string | null;
       binaryPath?: string | null;
+      extraArgs?: string | null;
       enabled?: boolean;
       env?: ProviderInstanceEnvVar[];
       carryOverInherited?: string[];
@@ -36,6 +38,10 @@ export const providersClient = {
   ): Promise<{ providerInstance: ProviderInstance; stoppedInheriting?: string[] }> {
     const { id, ...patch } = input;
     return this.request("PUT", instancePath(id), patch);
+  },
+
+  providerLimits(this: EngineTransport, id: string): Promise<{ windows: UsageLimitWindow[] }> {
+    return this.request("GET", `${instancePath(id)}/limits`);
   },
 
   /** Refused for a driver's built-in slot. */

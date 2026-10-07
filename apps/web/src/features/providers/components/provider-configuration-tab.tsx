@@ -1,7 +1,5 @@
 "use client";
 
-import { driverLabel } from "./provider-icon";
-
 import { DownloadIcon } from "lucide-react";
 import type { ProviderInstance, ProviderProbe } from "@telar/engine-client";
 import { normaliseContextNoticePercent } from "@/features/composer";
@@ -10,6 +8,8 @@ import { Spinner } from "@/ui/spinner";
 import { CopyCommand } from "@/ui/copy-command";
 import { displayNameOf, isDefaultInstance, updateAdvisory } from "../provider-instances";
 import { AccentPicker, BlurInput, CompactionField, EnvEditor } from "./provider-instance-fields";
+import { driverLabel } from "./provider-icon";
+import { ExtraArgsField, UsageLimitsField } from "./provider-option-fields";
 import type { InstancePatch } from "./provider-instance-card";
 
 type Advisory = NonNullable<ReturnType<typeof updateAdvisory>>;
@@ -185,6 +185,8 @@ export function ProviderConfigurationTab({
       <ContextNoticeField instance={instance} onPatch={onPatch} />
       <ConfigDirField instance={instance} onPatch={onPatch} />
       <BinaryPathField instance={instance} onPatch={onPatch} />
+      <ExtraArgsField instance={instance} onPatch={onPatch} />
+      {instance.driver === "codex" && <UsageLimitsField instance={instance} />}
 
       <CompactionField driver={instance.driver} value={instance.autoCompact} onChange={(autoCompact) => onPatch({ autoCompact })} />
 

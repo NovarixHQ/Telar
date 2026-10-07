@@ -110,4 +110,5 @@ test("the server identity changes with the compaction setting, and with the mode
   expect(openCodeServerIdentity(run({ ...base, autoCompact: LIMITS })))
     .not.toBe(openCodeServerIdentity(run({ ...base, model: "opencode/b", autoCompact: LIMITS })));
   expect(openCodeServerIdentity(base)).toBe(openCodeServerIdentity(run({ ...base, model: "opencode/b" })));
+  expect(openCodeServerIdentity(run({ ...base, extraArgs: ["--print-logs"] }))).not.toBe(openCodeServerIdentity(base));
 });

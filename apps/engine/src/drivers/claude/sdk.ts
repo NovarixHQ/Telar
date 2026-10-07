@@ -48,7 +48,7 @@ export function claudeInitialContent(prompt: string, attachments: TurnAttachment
           type: "image",
           source: { type: "base64", media_type: attachment.mediaType, data: fs.readFileSync(attachment.path).toString("base64") },
         });
-        notes.push(`- ${attachment.name} (image, shown above)`);
+        notes.push(`- ${attachment.name} (image, shown above) at ${attachment.path}`);
         continue;
       } catch {
         notes.push(`- ${attachment.name} — attached but could not be read from ${attachment.path}`);

@@ -28,12 +28,21 @@ export function savedFileName(artifact: Pick<Artifact, "title" | "kind">): strin
 export function contentHeight(doc: Document): number {
   const body = doc.body;
   const style = getComputedStyle(body);
-  let last = body.lastElementChild;
-  while (last?.tagName === "SCRIPT") last = last.previousElementSibling;
-  const range = doc.createRange();
-  range.selectNodeContents(body);
+  let bottom = 0;
+  let last: Element | undefined;
+  for (const child of body.children) {
+    if (child.tagName === "SCRIPT" || child.tagName === "STYLE" || child.checkVisibility?.({ opacityProperty: true, visibilityProperty: true }) === false) continue;
+    const edge = child.getBoundingClientRect().bottom;
+    if (edge >= bottom) [bottom, last] = [edge, child];
+  }
+  const text = [...body.childNodes].filter((node) => node.nodeType === 3 && node.textContent?.trim());
+  for (const node of text) {
+    const range = doc.createRange();
+    range.selectNode(node);
+    bottom = Math.max(bottom, range.getBoundingClientRect().bottom);
+  }
   const tail = [last ? getComputedStyle(last).marginBottom : "0", style.paddingBottom, style.borderBottomWidth, style.marginBottom].reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
-  return range.getBoundingClientRect().bottom + (doc.defaultView?.scrollY ?? 0) + tail;
+  return bottom + (doc.defaultView?.scrollY ?? 0) + tail;
 }
 
 const escapeScript = (value: string) => JSON.stringify(value).replaceAll("<", "\\u003c");

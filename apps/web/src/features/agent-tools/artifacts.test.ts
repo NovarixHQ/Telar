@@ -83,14 +83,25 @@ afterEach(async () => {
 
 function frameWithContentEndingAt(bottom: number) {
   GlobalRegistrator.register({ url: "http://localhost/" });
-  document.body.innerHTML = '<div class="kpis">18</div><div style="margin-bottom: 8px">last row</div><script style="margin-bottom: 99px"></script>';
+  document.body.innerHTML = '<div class="kpis">18</div><div id="last" style="margin-bottom: 8px">last row</div><details id="data"><summary>Data</summary><table></table></details><script style="margin-bottom: 99px"></script>';
   document.body.style.padding = "20px";
-  Range.prototype.getBoundingClientRect = () => new DOMRect(0, 0, 600, bottom);
+  const at = (id: string, edge: number, visible = true) => {
+    const element = document.getElementById(id)!;
+    element.getBoundingClientRect = () => new DOMRect(0, 0, 600, edge);
+    element.checkVisibility = () => visible;
+  };
+  at("last", bottom);
+  at("data", bottom + 900, false);
   return document;
 }
 
-test("the measured height is where the content ends, plus the body's own padding and the last margin", () => {
+test("the measured height is where the visible content ends, plus the body's own padding and the last margin", () => {
   expect(contentHeight(frameWithContentEndingAt(300))).toBe(328);
+});
+
+test("content the page hides, like a closed details table, does not stretch the frame", () => {
+  const doc = frameWithContentEndingAt(300);
+  expect(contentHeight(doc)).toBeLessThan(400);
 });
 
 test("re-measuring after the frame grows gives the same height, even for a body that fills the viewport", () => {

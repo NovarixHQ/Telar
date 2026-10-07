@@ -364,3 +364,25 @@ test("the router asks the desktop only when it is reachable; a headless engine h
   const port = await fakeHost(({ url }) => ({ status: 200, payload: url.pathname === "/password-manager" ? { enabled: false } : { tabs: [] } }));
   expect(await new BrowserRouter(headless, new DesktopBrowserClient({ port, token: "t" })).passwordManagerEnabled()).toBe(false);
 });
+
+test("render() posts the preview to /preview with the token and checks what comes back", async () => {
+  const rendering = { png: "iVBORw0KGgo=", contentHeight: 120, capturedHeight: 120, console: [], failedLoads: [] };
+  const seen: Array<{ path: string; auth: string | undefined; body: Record<string, unknown> }> = [];
+  const port = await fakeHost(({ url, auth, body }) => {
+    seen.push({ path: url.pathname, auth, body });
+    if (body.html === "refuse") return { status: 400, payload: { error: "The preview is too large." } };
+    if (body.html === "odd") return { status: 200, payload: { png: "" } };
+    return { status: 200, payload: rendering };
+  });
+  const client = new DesktopBrowserClient({ port, token: "secret" });
+  const request = { html: "<p>hi</p>", width: 728, appearance: "light" as const, timeoutMs: 1_000 };
+  expect(await client.render(request)).toEqual(rendering);
+  expect(seen[0]).toEqual({ path: "/preview", auth: "Bearer secret", body: request });
+  await expect(client.render({ ...request, html: "refuse" })).rejects.toThrow("The preview is too large.");
+  await expect(client.render({ ...request, html: "odd" })).rejects.toThrow("unexpected shape");
+});
+
+test("render() against a desktop that is gone says so", async () => {
+  const client = new DesktopBrowserClient({ port: 1, token: "t", fetchImpl: (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch });
+  await expect(client.render({ html: "<p/>", width: 728, appearance: "light", timeoutMs: 1_000 })).rejects.toThrow("the desktop app did not answer");
+});

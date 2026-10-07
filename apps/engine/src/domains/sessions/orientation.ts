@@ -267,6 +267,9 @@ Tools: \`notes_list\`, \`notes_write\`, \`notes_delete\`.
 - \`display_inline\` — draw an html page, svg, mermaid diagram or markdown as a
   card in the conversation: a diagram, a chart, a UI mockup, a comparison, a
   visual explanation. Html is sandboxed with no network. Reuse an id to revise.
+- \`display_preview\` — render html or svg offscreen before publishing it: a
+  screenshot, its height, console errors with stacks and failed loads. Preview,
+  then publish, then reply without restating the page. Needs the desktop app.
 - **Terminals** — each terminal is a shell in the panel that stays open after
   its command ends. \`terminal_open\` types a command into your idle terminal
   in the same directory, opening one only when none is idle (\`fresh: true\`

@@ -1,5 +1,5 @@
 import type { EngineClient, ProviderDriverKind } from "@telar/engine-client";
-import type { TelarToolSocket } from "../domains/agent-tools";
+import type { PreviewRenderer, TelarToolSocket } from "../domains/agent-tools";
 import type { BrowserToolSocket, LoginGrantStore, SecretsProvider } from "../domains/browser";
 import type { TurnDriver } from "../drivers";
 import type { FolderCheck } from "./project-root";
@@ -101,6 +101,7 @@ export type EngineWorkerOptions = {
   /** Serves the `telar` wall to providers that take MCP servers as config (Codex, OpenCode). */
   telarSocket?: TelarToolSocket;
   secrets?: SecretsProvider;
+  previewer?: PreviewRenderer;
   /** Absent means every secret fill asks. */
   loginGrants?: LoginGrantStore;
   /** Turns run at once, counted over claims only. Absent means `defaultWorkerConcurrency()`. */

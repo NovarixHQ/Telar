@@ -38,7 +38,8 @@ export async function startEmbeddedWorker(config: EmbeddedWorkerConfig, { store,
   const { createWorkerDiagnostics } = await import("./diagnostics");
   // The engine owns the browser and both sockets: they outlive any turn and close exactly once.
   const browser = new BrowserRuntime({ profileRoot: store.paths.browserProfiles });
-  const routed = new BrowserRouter(browser, desktopBrowserFromEnv());
+  const desktop = desktopBrowserFromEnv();
+  const routed = new BrowserRouter(browser, desktop);
   store.browser.attach(routed);
   const browserSocket = createBrowserToolSocket(routed);
   const telarSocket = new TelarToolSocket();
@@ -81,6 +82,7 @@ export async function startEmbeddedWorker(config: EmbeddedWorkerConfig, { store,
         browserSocket,
         loginGrants: createLoginGrantStore(store.paths.root),
         telarSocket,
+        ...(desktop ? { previewer: desktop } : {}),
         ...(concurrency === undefined ? {} : { concurrency }),
         // In-process and trusted: the registry exempts this registration from the lease, so the worker must not expire itself.
         leaseExempt: true,

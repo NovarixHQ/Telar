@@ -1,4 +1,5 @@
 import type { BrowserTab } from "@telar/engine-client";
+import { PreviewRendering, type PreviewRenderer, type PreviewRequest } from "../agent-tools";
 import { browserOperation } from "./helpers";
 import { BrowserToolInputError, BrowserToolResult, parseBrowserToolInput } from "./tools";
 
@@ -38,7 +39,10 @@ function errorResult(text: string): BrowserToolResult {
   return { content: [{ type: "text", text }], isError: true };
 }
 
-export class DesktopBrowserClient {
+const errorOf = (payload: unknown, status: number) =>
+  payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string" ? (payload as { error: string }).error : `The desktop browser host answered ${status}.`;
+
+export class DesktopBrowserClient implements PreviewRenderer {
   private readonly fetchImpl: typeof fetch;
   private readonly probeTtlMs: number;
   private probe: { at: number; ok: boolean } | undefined;
@@ -99,11 +103,7 @@ export class DesktopBrowserClient {
       });
       const payload: unknown = await response.json().catch(() => undefined);
       if (!response.ok) {
-        const message =
-          payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string"
-            ? (payload as { error: string }).error
-            : `The desktop browser host answered ${response.status}.`;
-        return errorResult(message);
+        return errorResult(errorOf(payload, response.status));
       }
       const parsed = BrowserToolResult.safeParse(payload);
       return parsed.success ? parsed.data : errorResult("The desktop browser host answered with an unexpected shape.");
@@ -111,6 +111,20 @@ export class DesktopBrowserClient {
       this.probe = { at: Date.now(), ok: false };
       return errorResult("The desktop browser host did not answer.");
     }
+  }
+
+  async render(request: PreviewRequest): Promise<PreviewRendering> {
+    let response: Response;
+    try {
+      response = await this.fetchImpl(this.url("/preview"), { method: "POST", headers: this.headers(), body: JSON.stringify(request) });
+    } catch {
+      throw new Error("the desktop app did not answer");
+    }
+    const payload: unknown = await response.json().catch(() => undefined);
+    if (!response.ok) throw new Error(errorOf(payload, response.status));
+    const parsed = PreviewRendering.safeParse(payload);
+    if (!parsed.success) throw new Error("the desktop app answered with an unexpected shape");
+    return parsed.data;
   }
 
   async bind(scopeKey: string, profileKey: string): Promise<DesktopProfileBinding> {
@@ -121,8 +135,7 @@ export class DesktopBrowserClient {
     });
     const payload: unknown = await response.json().catch(() => undefined);
     if (!response.ok) {
-      const message = payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string" ? (payload as { error: string }).error : `The desktop browser host answered ${response.status}.`;
-      throw new Error(message);
+      throw new Error(errorOf(payload, response.status));
     }
     return payload as DesktopProfileBinding;
   }
@@ -157,8 +170,7 @@ export class DesktopBrowserClient {
   private async parseState(response: Response): Promise<DesktopBrowserState> {
     if (!response.ok) {
       const payload: unknown = await response.json().catch(() => undefined);
-      const message = payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string" ? (payload as { error: string }).error : undefined;
-      throw new Error(message ?? `The desktop browser host answered ${response.status}.`);
+      throw new Error(errorOf(payload, response.status));
     }
     const payload = (await response.json()) as {
       running?: unknown;

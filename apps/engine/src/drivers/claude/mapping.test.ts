@@ -42,6 +42,7 @@ describe("Telar's own reads are reads", () => {
     expect(requestKindForTool(qualifyTelarTool("display_open"))).toBe("file_read");
     expect(requiresHuman("approval-required", requestKindForTool(qualifyTelarTool("display_open")))).toBe(false);
     expect(requestKindForTool(qualifyTelarTool("display_inline"))).toBe("file_read");
+    expect(requestKindForTool(qualifyTelarTool("display_preview"))).toBe("file_read");
   });
 
   test("everything that writes or spends still parks, in every attended mode", () => {

@@ -3,12 +3,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { announcePromptShelfChanged } from "@/features/prompts";
 import {
-  agentBrowserActivity,
   browserPanelTab,
-  LIVE_BROWSER_TAB,
   openPanelTab,
   panelTabForPath,
-  revealPanelTab,
   setPanelTabParams,
   type latestBrowserState,
 } from "@/features/panel";
@@ -20,8 +17,7 @@ import type { useCockpitPanel } from "./use-cockpit-panel";
 import type { useSessionSync } from "./use-session-sync";
 
 /** What the panel does when the journal says the agent opened a page, a display, a simulator, a terminal or a prompt draft. */
-export function useJournalReactions({ sessionId, sync: { events }, browser, enabledPlugins, panel: { showPanelTab, updatePanel } }: {
-  sessionId: string | undefined;
+export function useJournalReactions({ sync: { events }, browser, enabledPlugins, panel: { showPanelTab, updatePanel } }: {
   sync: ReturnType<typeof useSessionSync>;
   browser: ReturnType<typeof latestBrowserState>;
   enabledPlugins: readonly string[];
@@ -42,17 +38,9 @@ export function useJournalReactions({ sessionId, sync: { events }, browser, enab
 
   // Stamped in an effect, not at render: reading the clock during render is impure.
   const mountedAt = useRef(0);
-  const browserEventsThrough = useRef(0);
   const seenEvents = useRef<Set<number>>(new Set());
   useEffect(() => {
     if (mountedAt.current === 0) mountedAt.current = Date.now();
-    const bridge = desktopBrowserBridge();
-    if (bridge) {
-      const { acted, through } = agentBrowserActivity(events, mountedAt.current, browserEventsThrough.current);
-      browserEventsThrough.current = through;
-      const popped = acted && sessionId ? bridge.getState(sessionId).then((state) => Boolean(state.popped), () => false) : Promise.resolve(false);
-      if (acted) void popped.then((inWindow) => { if (!inWindow) updatePanel((current) => revealPanelTab(current, { id: LIVE_BROWSER_TAB, kind: LIVE_BROWSER_TAB, params: {} })); });
-    }
     const fresh = events.filter(
       (event) => (event.type === "display.opened" || event.type === "prompt.drafted") && event.at >= mountedAt.current && !seenEvents.current.has(event.id),
     );
@@ -68,7 +56,7 @@ export function useJournalReactions({ sessionId, sync: { events }, browser, enab
           .reduce((state, tab) => setPanelTabParams(state, tab.id, withSimulatorDropped(tab.params, change.dropped)), current);
       });
     }
-  }, [events, enabledPlugins, sessionId, showPanelTab, updatePanel]);
+  }, [events, enabledPlugins, showPanelTab, updatePanel]);
 
   // Every open run gets a tab once; a run whose tab the person closed is not brought back by the frame reporting the close.
   const seenTerminals = useRef<Set<string>>(new Set());

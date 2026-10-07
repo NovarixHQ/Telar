@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { EngineEvent, Item, Task } from "@telar/engine-client";
-import { agentBrowserActivity, browserScopeToRelease, describeBrowserStart, isLiveTask, journalWrites, latestBrowserState, splitRoster, tabBadge } from "./folds";
-import { LIVE_BROWSER_TAB } from "./model";
-import { revealPanelTab, type PanelTabState } from "./tabs";
+import { describeBrowserStart, isLiveTask, journalWrites, latestBrowserState, splitRoster, syncPageTabs, tabBadge } from "./folds";
+import type { PanelTabState } from "./tabs";
 
 function fileChange(overrides: {
   path: string;
@@ -68,65 +67,54 @@ describe("latestBrowserState", () => {
   });
 });
 
-describe("agentBrowserActivity", () => {
-  const browsed = (id: number, at: number, pages: number) =>
-    ({ id, at, type: "browser.state.changed", provider: "desktop", tabs: Array.from({ length: pages }, (_, n) => ({ id: `p${n}` })) }) as unknown as EngineEvent;
+describe("syncPageTabs", () => {
+  type Strip = PanelTabState<string>;
+  const tab = (kind: string) => ({ id: kind, kind, params: {} });
+  const page = (id: string, active = false) => ({ id, active });
+  const ids = (state: Strip) => state.tabs.map((entry) => entry.id);
 
-  test("acts on an agent's browsing from after the mount, once", () => {
-    const events = [browsed(1, 100, 1), browsed(2, 200, 2)];
-    expect(agentBrowserActivity(events, 150, 0)).toEqual({ acted: true, through: 2 });
-    // The same array again, resumed where it stopped: nothing new to act on.
-    expect(agentBrowserActivity(events, 150, 2)).toEqual({ acted: false, through: 2 });
-  });
-
-  test("a replayed event from before the mount never brings the tab back", () => {
-    // The journal replays from zero on every load; a Browser tab the person
-    // closed last week must stay closed.
-    expect(agentBrowserActivity([browsed(1, 100, 3)], 150, 0)).toEqual({ acted: false, through: 0 });
-  });
-
-  test("a browser with no pages is not a reason to show one", () => {
-    expect(agentBrowserActivity([browsed(4, 200, 0)], 150, 0)).toEqual({ acted: false, through: 4 });
-  });
-
-  test("a browser call the agent completed counts even when no state report followed", () => {
-    // The state report is best effort; the call's own row is always journalled.
-    const call = (id: number, status: string) =>
-      ({ id, at: 200, type: "item.completed", item: { id: `i${id}`, status, detail: { type: "browser_action", call: { name: "mcp__telar__browser_navigate" } } } }) as unknown as EngineEvent;
-    expect(agentBrowserActivity([call(6, "completed")], 150, 0)).toEqual({ acted: true, through: 6 });
-    // A refused call — the person closed the browser — must not bring the tab back.
-    expect(agentBrowserActivity([call(7, "failed")], 150, 0)).toEqual({ acted: false, through: 7 });
-  });
-
-  test("an agent's browse adds the Browser tab without changing the active tab", () => {
-    const call = { id: 8, at: 200, type: "item.completed", item: { id: "i8", status: "completed", detail: { type: "browser_action", call: { name: "mcp__telar__browser_snapshot" } } } } as unknown as EngineEvent;
-    expect(agentBrowserActivity([call], 150, 0).acted).toBe(true);
-    const state: PanelTabState<string> = { tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: true };
-    const next = revealPanelTab(state, { id: LIVE_BROWSER_TAB, kind: LIVE_BROWSER_TAB, params: {} });
-    expect(next.tabs.map((tab) => tab.id)).toEqual(["diff", LIVE_BROWSER_TAB]);
+  test("a new page gets a tab, unselected, and the panel stays as it was", () => {
+    const state: Strip = { tabs: [tab("diff")], activeTab: "diff", open: false };
+    const next = syncPageTabs(state, { tabs: [page("a", true)] }, "a");
+    expect(ids(next)).toEqual(["diff", "browser:a"]);
     expect(next.activeTab).toBe("diff");
-    expect(next.open).toBe(true);
+    expect(next.open).toBe(false);
   });
 
-  test("ignores everything that is not the browser", () => {
-    const other = { id: 5, at: 200, type: "display.opened", path: "a.md" } as unknown as EngineEvent;
-    expect(agentBrowserActivity([other], 150, 0)).toEqual({ acted: false, through: 0 });
-  });
-});
-
-describe("browserScopeToRelease", () => {
-  test("the first Browser tab releases the bare session scope the agent drives", () => {
-    expect(browserScopeToRelease("s1", { id: LIVE_BROWSER_TAB, kind: LIVE_BROWSER_TAB, params: {} })).toBe("s1");
+  test("a change of the native active page is followed while a page tab is in front", () => {
+    const state: Strip = { tabs: [tab("browser:a")], activeTab: "browser:a", open: true };
+    const next = syncPageTabs(state, { tabs: [page("a"), page("b", true)] }, "a");
+    expect(ids(next)).toEqual(["browser:a", "browser:b"]);
+    expect(next.activeTab).toBe("browser:b");
   });
 
-  test("a second Browser releases its own scope, not the agent's", () => {
-    const id = `${LIVE_BROWSER_TAB}#2`;
-    expect(browserScopeToRelease("s1", { id, kind: LIVE_BROWSER_TAB, params: {} })).toBe(`s1#${id}`);
+  test("but not while another surface is in front, nor when the active page did not change", () => {
+    const onDiff: Strip = { tabs: [tab("diff"), tab("browser:a")], activeTab: "diff", open: true };
+    expect(syncPageTabs(onDiff, { tabs: [page("a"), page("b", true)] }, "a").activeTab).toBe("diff");
+    const onA: Strip = { tabs: [tab("browser:a"), tab("browser:b")], activeTab: "browser:a", open: true };
+    expect(syncPageTabs(onA, { tabs: [page("a"), page("b", true)] }, "b")).toBe(onA);
   });
 
-  test("any other tab releases nothing", () => {
-    expect(browserScopeToRelease("s1", { id: "diff", kind: "diff", params: {} })).toBeUndefined();
-    expect(browserScopeToRelease("s1", undefined)).toBeUndefined();
+  test("a page that closed loses its tab", () => {
+    const state: Strip = { tabs: [tab("diff"), tab("browser:a"), tab("browser:b")], activeTab: "diff", open: true };
+    expect(ids(syncPageTabs(state, { tabs: [page("b", true)] }, "b"))).toEqual(["diff", "browser:b"]);
+  });
+
+  test("an ended browser closes every page tab", () => {
+    const state: Strip = { tabs: [tab("browser:a"), tab("diff"), tab("browser:b")], activeTab: "browser:a", open: true };
+    const next = syncPageTabs(state, { tabs: [], ended: true });
+    expect(ids(next)).toEqual(["diff"]);
+    expect(next.activeTab).toBe("diff");
+  });
+
+  test("nothing is added while the browser is in its own window", () => {
+    const state: Strip = { tabs: [tab("diff")], activeTab: "diff", open: true };
+    expect(syncPageTabs(state, { tabs: [page("a", true)], popped: true })).toBe(state);
+  });
+
+  test("returns the same object when nothing changes", () => {
+    const state: Strip = { tabs: [tab("diff"), tab("browser:a")], activeTab: "diff", open: true };
+    expect(syncPageTabs(state, { tabs: [page("a", true)] }, "a")).toBe(state);
   });
 });
 

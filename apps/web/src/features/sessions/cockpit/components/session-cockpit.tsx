@@ -16,6 +16,7 @@ import { hostFromPathname } from "@/platform/engine/host-client";
 import { canvasHref } from "../../session-list";
 import { pinToggleOverride, showSimulatorTab } from "../model";
 import { useCockpitCommands } from "../hooks/use-cockpit-commands";
+import { useBrowserPageTabs } from "../hooks/use-browser-page-tabs";
 import { useCockpitPanel } from "../hooks/use-cockpit-panel";
 import { useCockpitProject } from "../hooks/use-cockpit-project";
 import { useComposerDraft } from "../hooks/use-composer-draft";
@@ -74,6 +75,7 @@ export function SessionCockpit({
   const pluginPanels = usePluginPanels(hostId, enabledPlugins);
   const panelKey = sessionId ?? (projectId === undefined ? "main" : canvasPanelKey(projectId));
   const panelState = useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId });
+  useBrowserPageTabs(sessionId, panelState);
   const { panel, showPanelTab } = panelState;
   const panelPresence = usePanelPresence(!solo && panel.open);
   const browser = useSessionBrowser({ hostId, sessionId, projectId, sync, draft: draftConfig, composer, panel: panelState, setCreatedSessionId });
@@ -85,7 +87,7 @@ export function SessionCockpit({
     },
   });
   const onConversationClick = useLinkRouting({ hostId, projectId, sessionId, solo, panel: panelState });
-  const revealNewTerminals = useJournalReactions({ sessionId, sync, browser: browser.browser, enabledPlugins, panel: panelState });
+  const revealNewTerminals = useJournalReactions({ sync, browser: browser.browser, enabledPlugins, panel: panelState });
   const model = useTranscriptModel(sessionId, sync, showPanelTab);
   const { active } = model;
   const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));

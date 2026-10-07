@@ -169,10 +169,9 @@ function recordSurface(props: SurfaceProps): ReactNode {
   const pageId = model.browserTabId(kind);
   if (pageId !== undefined) {
     const bridge = desktopBrowserBridge();
-    const scope = sessionId ? model.browserScopeKey(sessionId, tab.id) : undefined;
-    // Keyed by scope: two Browser tabs are two native browsers and must not share bounds or tab lists.
-    if (bridge && scope)
-      return <DesktopBrowserSurface key={scope} bridge={bridge} scopeKey={scope} {...(projectId ? { projectId } : {})} onEnded={props.onCloseSelf} {...(props.onAttach ? { onAttach: props.onAttach } : {})} />;
+    // Keyed by the session's one native scope, so moving between its page tabs keeps the surface mounted.
+    if (bridge && sessionId)
+      return <DesktopBrowserSurface key={sessionId} bridge={bridge} scopeKey={sessionId} pageId={pageId} {...(projectId ? { projectId } : {})} {...(props.onAttach ? { onAttach: props.onAttach } : {})} />;
     return <BrowserScreenshotSurface pageId={pageId} {...(browser ? { state: browser } : {})} {...(sessionId ? { sessionId } : {})} />;
   }
   if (kind === "diff")

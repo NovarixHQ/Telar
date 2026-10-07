@@ -60,10 +60,6 @@ const FILE_TAB_PREFIXES = [FILE_PREFIX, NOTEBOOK_PREFIX, TABLE_PREFIX, PDF_PREFI
 
 const MULTI_INSTANCE: ReadonlySet<string> = new Set<string>(["editor", "diff", "terminal"]);
 
-const LIVE_BROWSER_PAGE_ID = "__integrated__";
-/** The desktop shell's one Browser tab: the native view draws its own per-page strip. */
-export const LIVE_BROWSER_TAB: PanelTab = `${BROWSER_PREFIX}${LIVE_BROWSER_PAGE_ID}`;
-
 const suffixed = (prefix: string) => (tab: string) => (tab.startsWith(prefix) ? tab.slice(prefix.length) : undefined);
 
 export const notebookPanelPath = suffixed(NOTEBOOK_PREFIX);
@@ -84,10 +80,6 @@ export function isFilePanelTab(value: string): boolean {
 
 export function isRestorablePanelTab(value: string): value is PanelTab {
   return isPanelTab(value) && !isFilePanelTab(value) && issuePanelNumber(value) === undefined && pullPanelNumber(value) === undefined;
-}
-
-export function isMultiInstancePanelTab(kind: PanelTab): boolean {
-  return MULTI_INSTANCE.has(kind) || kind === LIVE_BROWSER_TAB;
 }
 
 export function filePanelTab(path: string): PanelTab {
@@ -117,11 +109,6 @@ export function panelTabForPath(path: string, enabledPlugins: readonly string[])
   if (viewer === "notebook") return `${NOTEBOOK_PREFIX}${path}`;
   if (viewer === "table") return `${TABLE_PREFIX}${path}`;
   return pdfPanelTab(path);
-}
-
-/** The first Browser keeps the bare session id: that is the scope the engine drives when the agent browses. */
-export function browserScopeKey(sessionId: string, instanceId: string): string {
-  return instanceId === LIVE_BROWSER_TAB ? sessionId : `${sessionId}#${instanceId}`;
 }
 
 export function editorInstanceKey(panelKey: string, instanceId: string): string {
@@ -199,9 +186,8 @@ export function describePanelTab(tab: PanelTab, browser?: BrowserState, live?: r
     const surface = ALL_SURFACES.find((entry) => entry.id === tab)!;
     return { label: surface.label, icon: surface.icon, blurb: surface.blurb };
   }
-  if (pageId === LIVE_BROWSER_PAGE_ID) return { label: "Browser", icon: GlobeIcon, blurb: "Integrated browser" };
   // The native browser's own list wins over the journal's, which lags or never names the native tab.
-  const livePage = live?.find((entry) => entry.id === pageId) ?? (live && live.length > 0 ? (live.find((entry) => entry.active) ?? live[0]) : undefined);
+  const livePage = live?.find((entry) => entry.id === pageId);
   if (livePage) return { label: browserTabLabel(livePage), icon: GlobeIcon, blurb: livePage.url };
   const page = browser?.tabs.find((entry) => entry.id === pageId);
   if (!page) return { label: "Closed page", icon: GlobeIcon, blurb: "This page is no longer open.", missing: true };
@@ -223,16 +209,6 @@ export function panelTabSuffix(params: PanelTabParams): string | undefined {
   return params.filter || undefined;
 }
 
-function livePageSuffix(live?: readonly LivePage[]): string | undefined {
-  const page = live?.find((entry) => entry.active) ?? live?.[0];
-  if (!page) return undefined;
-  try {
-    return new URL(page.url).host || browserTabLabel(page);
-  } catch {
-    return browserTabLabel(page);
-  }
-}
-
 /** `terminal#3` is the third; the first instance's id is its bare kind. Shells have nothing else to tell them apart. */
 function instanceOrdinal(id: string): string {
   const match = /#(\d+)$/.exec(id);
@@ -248,7 +224,7 @@ export function describePanelTabInstance(
   const title = tab.params.title;
   const described = title ? { ...base, label: title, blurb: title } : base;
   if (!options.duplicate || title) return described;
-  const suffix = panelTabSuffix(tab.params) ?? (tab.kind === LIVE_BROWSER_TAB ? livePageSuffix(options.live) : undefined) ?? (tab.kind === "terminal" ? instanceOrdinal(tab.id) : undefined);
+  const suffix = panelTabSuffix(tab.params) ?? (tab.kind === "terminal" ? instanceOrdinal(tab.id) : undefined);
   if (!suffix) return described;
   return { ...described, label: `${described.label} · ${suffix}`, blurb: `${described.blurb} — ${suffix}` };
 }

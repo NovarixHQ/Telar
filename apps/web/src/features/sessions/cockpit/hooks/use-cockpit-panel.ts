@@ -4,22 +4,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSidebar } from "@/ui/sidebar";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
+import { closeNativePage } from "@/features/browser/native-pages";
 import { editorFileForPath, emptyEditor, openInEditor, readEditor, writeEditor, type EditorState, type OpenIntent } from "@/features/files";
 import { forgeParams, openForge, readForgeOpen } from "@/features/github";
 import {
   activePanelTab,
   addPanelTab,
-  browserScopeToRelease,
   browserTabId,
   closePanelTab,
-  collapsePanelTabs,
   editorInstanceKey,
   emptyPanelTabs,
   filePanelTabPath,
   findPanelTab,
   isRestorablePanelTab,
   issuePanelNumber,
-  LIVE_BROWSER_TAB,
   movePanelTab,
   nextPanelTabId,
   openNewPanelTab,
@@ -40,9 +38,7 @@ const NARROW_WINDOW = 1280;
 type Strip = PanelTabState<PanelTab>;
 
 function restorePanel(panelKey: string): { panel: Strip; editors: Record<string, EditorState> } {
-  const restored = readPanelTabs<PanelTab>(panelKey, isRestorablePanelTab);
-  const browsers = desktopBrowserBridge() ? collapsePanelTabs(restored, (tab) => browserTabId(tab) !== undefined, LIVE_BROWSER_TAB) : restored;
-  const panel = splitTerminalTabs(browsers);
+  const panel = splitTerminalTabs(readPanelTabs<PanelTab>(panelKey, isRestorablePanelTab));
   const editors: Record<string, EditorState> = { editor: readEditor(panelKey) };
   for (const entry of panel.tabs) {
     if (entry.kind === "editor" && !(entry.id in editors)) editors[entry.id] = readEditor(editorInstanceKey(panelKey, entry.id));
@@ -96,8 +92,9 @@ function closeTab(panel: Strip, id: string, { hostId, sessionId, updatePanel }: 
     });
     return;
   }
-  const releasing = sessionId ? browserScopeToRelease(sessionId, closing) : undefined;
-  if (releasing) void desktopBrowserBridge()?.releaseScope?.(releasing, true, { closedByPerson: true }).catch(() => undefined);
+  const pageId = closing ? browserTabId(closing.kind) : undefined;
+  const bridge = desktopBrowserBridge();
+  if (bridge && sessionId && pageId !== undefined) void closeNativePage(bridge, sessionId, pageId);
   updatePanel((current) => closePanelTab(current, id));
 }
 
@@ -219,11 +216,6 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
     updatePanel((current) => ({ ...current, open }));
   };
 
-  const showSessionBrowser = useCallback(() => {
-    makeRoomForPanel();
-    updatePanel((current) => addPanelTab(current, { id: LIVE_BROWSER_TAB, kind: LIVE_BROWSER_TAB, params: {} }));
-  }, [makeRoomForPanel, updatePanel]);
-
   const tabHandlers = {
     onTabChange: (id: string) => updatePanel((current) => ({ ...current, activeTab: id })),
     onCloseTab: (id: string) => closeTab(panel, id, { hostId, sessionId, updatePanel }),
@@ -234,6 +226,6 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
 
   return {
     panel, editors, updatePanel, updateEditor, showPanelTab, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
-    openPanel: () => setOpen(true), togglePanel: () => setOpen(!panelNow.current.open), showSessionBrowser, tabHandlers,
+    openPanel: () => setOpen(true), togglePanel: () => setOpen(!panelNow.current.open), tabHandlers,
   };
 }

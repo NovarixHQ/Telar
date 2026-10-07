@@ -110,30 +110,6 @@ export function movePanelTab<Kind extends string>(state: PanelTabState<Kind>, id
   return { ...state, tabs: [...rest.slice(0, to), moved, ...rest.slice(to)] };
 }
 
-/** Collapse every tab of a kind into ONE at the first one's position. Idempotent by identity: it runs on every restore. */
-export function collapsePanelTabs<Kind extends string>(
-  state: PanelTabState<Kind>,
-  isCollapsed: (kind: Kind) => boolean,
-  single: Kind,
-): PanelTabState<Kind> {
-  const folded = state.tabs.filter((tab) => isCollapsed(tab.kind));
-  if (folded.length === 0) return state;
-  const collapsed: PanelTabInstance<Kind> = { id: single, kind: single, params: {} };
-  const tabs: PanelTabInstance<Kind>[] = [];
-  for (const tab of state.tabs) {
-    if (!isCollapsed(tab.kind)) tabs.push(tab);
-    else if (!tabs.some((entry) => entry.id === collapsed.id)) tabs.push(collapsed);
-  }
-  const previous = activePanelTab(state);
-  const activeTab = previous && isCollapsed(previous.kind) ? collapsed.id : state.activeTab;
-  const next = { tabs, ...(activeTab ? { activeTab } : {}), open: state.open };
-  return sameTabs(state.tabs, next.tabs) && next.activeTab === state.activeTab ? state : next;
-}
-
-function sameTabs<Kind extends string>(a: readonly PanelTabInstance<Kind>[], b: readonly PanelTabInstance<Kind>[]): boolean {
-  return a.length === b.length && a.every((tab, index) => tab.id === b[index]!.id && tab.kind === b[index]!.kind && sameParams(tab.params, b[index]!.params));
-}
-
 type StoredInstance = { id: string; kind: string; params?: Record<string, string> };
 type StoredPanel = { version: number; sessions: Record<string, { tabs: StoredInstance[]; activeTab?: string; open: boolean; touchedAt: number }> };
 

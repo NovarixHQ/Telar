@@ -27,6 +27,7 @@ import { removeTelarVenv, telarVenvDir } from "../plugins";
 import { RUNTIME_MODES } from "../settings";
 import { createSessionWorktreeAsync, derivedBranchFor, isGitWorkTree, prepareSessionWorktree, pruneBuildOutputs, removeSessionWorktreeAsync, resolveWorktreeBaseAsync, type WorktreePlan, type WorktreeQueue } from "../worktrees";
 import { parseSession, releaseDelegationSettle, sessionDir, sessionMetadataFile, storedSession } from "./metadata";
+import { switchProvider } from "./provider-switch";
 import { emptyQueue, type SessionQueue } from "./queue";
 import type { SessionRecords } from "./records";
 import type { SessionSubscriptions } from "./subscriptions";
@@ -330,7 +331,9 @@ export class SessionLifecycle {
           const parsed = ModelSelection.safeParse(patch.model);
           if (!parsed.success) throw new EngineStateError("invalid_request", "model selection is malformed");
           if (parsed.data.instanceId !== session.providerInstanceId) {
-            throw new EngineStateError("invalid_request", "model must belong to the session's provider instance");
+            const history = this.records.history(sessionId);
+            const queue = this.host.readQueue(sessionId, history.filter((turn) => !turn.providerInstanceId).map((turn) => turn.runId));
+            if (switchProvider(next, this.host.requireInstance(parsed.data.instanceId), queue.turns, history)) this.host.writeQueue(sessionId, queue);
           }
           next.model = parsed.data;
         }

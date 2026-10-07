@@ -4,6 +4,7 @@ import { createClaudeDriver } from "./claude";
 import type { DriverSelector } from "../worker";
 import { createCodexDriver } from "./codex";
 import type { TurnDriver } from "./contract";
+export { withCarriedContext } from "./carried-context";
 import { createOpenCodeDriver } from "./opencode";
 
 export {

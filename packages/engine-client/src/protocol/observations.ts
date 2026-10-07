@@ -107,6 +107,7 @@ export const WorkerClaim = z.object({
     .optional(),
   /** Provider continuity from the last completed turn, if any. */
   resumeCursor: z.string().min(1).optional(),
+  carriedContext: z.string().min(1).optional(),
   tasks: z.array(TaskSeed).optional(),
   orientation: z.string().min(1).optional(),
   notes: z.array(z.string().min(1)).optional(),

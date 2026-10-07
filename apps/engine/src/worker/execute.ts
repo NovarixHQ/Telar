@@ -2,7 +2,7 @@ import { EngineClientError, type WorkerClaim, type WorkerTurnFailure } from "@te
 import { collectTelarWall, type TelarCapabilities, type TelarSocketLease, type TelarToolSocket, telarWall } from "../domains/agent-tools";
 import type { BrowserSocketLease, BrowserToolSocket } from "../domains/browser";
 import { RateLimitedError } from "../drivers/claude";
-import { ProviderUnavailableError, type DriverResult, type DriverRun, type DriverSessionHooks, type ProviderTurnBinding } from "../drivers";
+import { ProviderUnavailableError, withCarriedContext, type DriverResult, type DriverRun, type DriverSessionHooks, type ProviderTurnBinding } from "../drivers";
 import { providerProcessEnv } from "../domains/providers";
 import { withSimulatorTools } from "../domains/simulators";
 import { webImageOf } from "../domains/sessions";
@@ -62,7 +62,7 @@ export async function executeClaim(host: TurnHost, claim: WorkerClaim): Promise<
     running = true;
     const unreachable = await folder;
     if (unreachable !== undefined) throw unreachable;
-    const result = await driver.run({ ...driverRun(host, turn, lease, telarLease), ...capabilities });
+    const result = await driver.run({ ...withCarriedContext(driverRun(host, turn, lease, telarLease), claim.carriedContext, driver.capabilities), ...capabilities });
     // Drained before settling, or a late state read reports against a closed turn.
     await lease?.drain();
     if (!controller.signal.aborted) {

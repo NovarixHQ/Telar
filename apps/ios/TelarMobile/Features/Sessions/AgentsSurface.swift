@@ -168,7 +168,7 @@ func delegateDetail(_ entry: RelatedDelegate, now: Timestamp) -> String? {
 func coordinatorState(_ entry: RelatedCoordinator) -> (label: String, tone: AgentTone) {
     if let outcome = entry.outcome { return (outcomeLabel(outcome), outcomeTone(outcome)) }
     if entry.unresolved { return ("Unknown", .quiet) }
-    return ("Working for", entry.outstanding ? .live : .quiet)
+    return ("Assigned", entry.outstanding ? .live : .quiet)
 }
 
 func coordinatorDetail(_ entry: RelatedCoordinator) -> String? {
@@ -194,7 +194,6 @@ struct AgentsSurface: View {
     @State private var failed = false
 
     @State private var etag: String?
-    @Environment(\.openURL) private var openURL
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -211,19 +210,22 @@ struct AgentsSurface: View {
         ScrollView {
             let delegates = delegates, employers = employers
             if delegates.isEmpty && employers.isEmpty {
-                empty
+                if loaded { AgentsEmpty(failed: failed) }
             } else {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 20) {
                     if !delegates.isEmpty {
-                        section("Working for this conversation", count: delegates.count)
-                        ForEach(delegates) { entry in delegateRow(entry) }
+                        AgentSection(label: "Working for this conversation", count: delegates.count) {
+                            ForEach(delegates) { entry in delegateRow(entry, last: entry.id == delegates.last?.id) }
+                        }
                     }
                     if !employers.isEmpty {
-                        section("Working for", count: employers.count)
-                        ForEach(employers) { entry in employerRow(entry) }
+                        AgentSection(label: "Working for", count: employers.count) {
+                            ForEach(employers) { entry in employerRow(entry, last: entry.id == employers.last?.id) }
+                        }
                     }
                 }
-                .padding(.bottom, 12)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 14)
             }
         }
         .refreshable { await read() }
@@ -237,99 +239,32 @@ struct AgentsSurface: View {
         }
     }
 
-    @ViewBuilder private var empty: some View {
-        if loaded {
-            ContentUnavailableView(
-                "No other conversation is involved",
-                systemImage: "person.2",
-                description: Text(failed
-                    ? "The computer did not answer — retrying."
-                    : "Conversations this one hands work to appear here, with what they were asked for and how it went.")
-            )
-            .padding(.top, 24)
-        }
-    }
-
-    private func section(_ label: String, count: Int) -> some View {
-        HStack(spacing: 6) {
-            Text(label)
-            Text("\(count)").monospacedDigit()
-        }
-        .bandCaption()
-        .padding(.horizontal, 12)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label), \(count)")
-    }
-
-    @ViewBuilder private func delegateRow(_ entry: RelatedDelegate) -> some View {
-        let state = delegateState(entry)
-        row(
+    private func delegateRow(_ entry: RelatedDelegate, last: Bool) -> AgentRow {
+        AgentRow(
             title: entry.session.title.isEmpty ? "Untitled session" : entry.session.title,
             detail: delegateDetail(entry, now: now),
-            state: state,
+            state: delegateState(entry),
             activity: entry.kind == .finished && entry.outcome != nil ? nil : entry.session.activity,
-            open: destination(entry.session.id)
+            open: destination(entry.session.id),
+            last: last
         )
     }
 
-    @ViewBuilder private func employerRow(_ entry: RelatedCoordinator) -> some View {
+    private func employerRow(_ entry: RelatedCoordinator, last: Bool) -> AgentRow {
         let title = entry.session?.title.isEmpty == false
             ? entry.session!.title
             : "Conversation \(entry.sessionId.prefix(8))"
 
         let detail = [coordinatorDetail(entry), entry.session == nil ? "no longer listed" : nil]
             .compactMap { $0 }.joined(separator: " · ")
-        row(
+        return AgentRow(
             title: title,
             detail: detail.isEmpty ? nil : detail,
             state: coordinatorState(entry),
             activity: entry.session?.activity,
-            open: entry.session.flatMap { destination($0.id) }
+            open: entry.session.flatMap { destination($0.id) },
+            last: last
         )
-    }
-
-    @ViewBuilder private func row(
-        title: String, detail: String?, state: (label: String, tone: AgentTone),
-        activity: SessionActivity?, open: URL?
-    ) -> some View {
-        let body = HStack(alignment: .top, spacing: 8) {
-            if let activity {
-                ActivityBadge(activity: activity).padding(.top, 4)
-            } else {
-                Circle().fill(color(state.tone)).frame(width: 7, height: 7).padding(.top, 4)
-                    .accessibilityHidden(true)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(Theme.footnote)).foregroundStyle(Theme.text)
-                    .lineLimit(1).truncationMode(.tail)
-                if let detail {
-                    Text(detail).font(.system(Theme.caption)).foregroundStyle(Theme.textMuted)
-                        .lineLimit(1).truncationMode(.tail)
-                }
-            }
-            Spacer(minLength: 4)
-            Text(state.label)
-                .font(.system(Theme.caption, design: .monospaced, weight: .medium))
-                .foregroundStyle(color(state.tone))
-                .layoutPriority(-1)
-            if open != nil {
-                Image(systemName: "arrow.up.right").font(.system(Theme.captionTiny)).foregroundStyle(Theme.textMuted)
-                    .padding(.top, 2)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
-
-        if let open {
-            Button { openURL(open) } label: { body }
-                .buttonStyle(.plain)
-                .accessibilityHint("Opens this conversation")
-        } else {
-            body
-        }
     }
 
     private func destination(_ id: EngineID) -> URL? {
@@ -337,16 +272,6 @@ struct AgentsSurface: View {
     }
 
     private var now: Timestamp { Timestamp(Date().timeIntervalSince1970 * 1000) }
-
-    private func color(_ tone: AgentTone) -> Color {
-        switch tone {
-        case .live: Theme.statusSky
-        case .attention: Theme.statusAmber
-        case .done: Theme.statusEmerald
-        case .danger: Theme.statusRed
-        case .quiet: Theme.textMuted
-        }
-    }
 
     private func read() async {
         let answer = try? await api.liveSessions(matching: etag, since: nil, all: true)

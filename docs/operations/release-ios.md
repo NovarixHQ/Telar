@@ -143,13 +143,9 @@ cd apps/desktop && bun test testflight-external.test.js
 
 ## Pull request gate
 
-`verify.yml`'s `ios` job runs on a Mac only when `ios-paths.sh` matches a changed path: `apps/ios/**` or `ios-paths.sh`. Changes to `verify.yml`, `nightly-ios.yml` and `ios-export-probe.yml` do not trigger it; to prove an edit to the job itself, touch a file under `apps/ios`. The job:
+`verify.yml`'s `ios` job runs on a Mac only when `ios-paths.sh` matches a changed path: `apps/ios/**` or `ios-paths.sh`. Changes to `verify.yml`, `nightly-ios.yml` and `ios-export-probe.yml` do not trigger it; to prove an edit to the job itself, touch a file under `apps/ios`. The job builds the app unsigned for the simulator (`generic/platform=iOS Simulator`, Debug) and runs no tests.
 
-1. Archives Release unsigned and asserts that both the app and the extension are Mach-O binaries.
-2. Reports the Swift expressions over the 500 ms type-check floor. This step never fails on slow expressions.
-3. Runs `-only-testing:TelarMobileTests` on `iPhone 17` in the simulator, with a minimum count of passed tests.
-
-A green pull request does not prove that signing or export works. Only the probe or a nightly does.
+A green pull request proves the app compiles. It does not prove that a Release archive, signing or export works; only the probe or a nightly does.
 
 ## Common failures
 

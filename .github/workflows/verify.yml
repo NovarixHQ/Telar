@@ -35,7 +35,7 @@ name: Verify
 # REQUEST, which is what the paragraph above is about — but it reports
 # `skipped` to `verify-passed`, and that job fails on anything but `success`.
 # So the `if:` route works for a job outside the aggregate and not for one
-# inside it. The path-scoped iOS archive (#767) is inside it, and gets its
+# inside it. The path-scoped iOS build (#767) is inside it, and gets its
 # scoping from `runs-on` instead: it always runs, on a free Linux runner that
 # compiles nothing when no iOS path changed. See the `ios` job below.
 
@@ -611,329 +611,48 @@ jobs:
           [ "$failed" -eq 0 ] || exit 1
           echo "every Electron test ran to its end and passed"
 
-  # THE ARCHIVE THAT WAS MISSING — an iOS build break, caught on the pull
-  # request that causes it rather than on the night it takes TestFlight dark.
-  # #767, and #758 is the class of thing it is for: a Swift type-check
-  # regression is CUMULATIVE, so no single PR looks like the cause and a
-  # per-PR signal is worth more here than it would be in most places.
-  #
-  # THIS JOB ALWAYS RUNS, AND `runs-on` IS WHAT MAKES THAT AFFORDABLE. When
-  # nothing iOS changed it takes a free Linux runner and compiles nothing, in
-  # about ten seconds; when something did, it takes a Mac and archives. The
-  # alternative — skipping the job outright — would have meant teaching
-  # `verify-passed` below to accept `skipped` for one named job, which is the
-  # one rule in this file it cannot afford to relax. A job that always reports
-  # `success` leaves that rule untouched, and the cost of the difference is a
-  # Linux runner boot on the ~95% of pull requests that touch no iOS file.
-  #
-  # NO SECRETS, and the archive is what makes that possible: signing lives in
-  # the EXPORT (nightly.sh re-signs to Apple Distribution on the way to an
-  # IPA), so `CODE_SIGNING_ALLOWED=NO` archives with no certificate, no
-  # profile and no App Store Connect key. Probe run 35490217749 established
-  # this. It also means a red here is a COMPILE failure and never an expired
-  # certificate, which is the difference between a gate people read and a gate
-  # people learn to re-run.
-  #
-  # WHY NOT `nightly.sh --no-upload`, which would archive the same app: that
-  # script is the PUBLISHING path — unique build numbers, export options,
-  # altool — and coupling the pull-request gate to it means a change to how
-  # Telar publishes can redden every iOS pull request. What is copied from it
-  # is the set of settings that decide what COMPILES, listed below; if those
-  # drift apart this gate stops guarding the nightly, which is the one way
-  # this can rot.
-  #
+  # Always runs so `verify-passed` never sees a skip: on a Mac when an iOS path
+  # changed, otherwise on Linux doing nothing. A compile check only; the nightly
+  # and ios-export-probe.yml cover the Release archive and signing.
   ios:
-    name: Build and test iOS
+    name: Build iOS
     needs: [source]
     runs-on: ${{ needs.source.outputs.ios == 'true' && 'macos-latest' || 'ubuntu-latest' }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    # 30 → 45 with the simulator leg (#755). The job now does a Release archive
-    # AND a Debug test build plus a simulator boot, so the ceiling has to cover
-    # both; the archive alone measured 3m48s–4m08s. A timeout is not a budget —
-    # if this job ever approaches 45 minutes something is wrong rather than
-    # slow, and the `IOS_TESTS_SECONDS` line below is what to read first.
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         if: needs.source.outputs.ios == 'true'
 
-      - name: Confirm the Xcode
-        if: needs.source.outputs.ios == 'true'
-        run: xcodebuild -version
-
-      # THE FIVE SETTINGS COPIED FROM nightly.sh, because they are the ones
-      # that decide what the compiler sees: project, scheme, `Release`,
-      # `generic/platform=iOS`, `DEVELOPMENT_TEAM`. Everything else there is
-      # about publishing and is deliberately absent — no `-allowProvisioningUpdates`
-      # (it exists for cloud signing, which needs the keys this job does not
-      # have), no build number, no display name.
-      #
-      # THE MEASUREMENT, which is the half of #767 that turns this from binary
-      # into a number: #758 was a THRESHOLD, not a break — an expression that
-      # fit on the maintainer's Mac and not on a hosted runner — so an archive
-      # that merely passes today can be one modifier from failing. 500 ms is
-      # the bar #768 settled on; it left the worst layer at 79 ms, six times
-      # under it. `$(inherited)` keeps whatever the project sets: a bare
-      # assignment on the command line is the highest level there is and would
-      # otherwise erase the target's own flags.
-      #
-      # THE LOG GOES TO A FILE, not the console, and not through `-quiet`.
-      # `-quiet` would drop the swiftc command lines, and those are the only
-      # evidence that the flags above reached the compiler at all — which the
-      # step after next asserts rather than assumes.
-      - name: Archive TelarMobile, unsigned
+      - name: Build TelarMobile for the simulator, unsigned
         if: needs.source.outputs.ios == 'true'
         env:
           DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
         run: |
           set -euo pipefail
-          xcodebuild \
-            -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            -archivePath "$RUNNER_TEMP/TelarMobile.xcarchive" \
-            DEVELOPMENT_TEAM=MM74W7WGAM \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -warn-long-expression-type-checking=500 -Xfrontend -warn-long-function-bodies=500' \
-            archive > "$RUNNER_TEMP/archive.log" 2>&1 || {
-              status=$?
-              echo "::group::the archive log, last 300 lines"
-              tail -300 "$RUNNER_TEMP/archive.log"
-              echo "::endgroup::"
-              echo "::error::xcodebuild archive failed (exit $status) — the iOS app does not build from this branch"
-              exit "$status"
-            }
-          echo "xcodebuild exited 0; $(wc -l < "$RUNNER_TEMP/archive.log") lines of log"
-
-      # EXIT 0 IS NOT AN ARCHIVE. This repository has been bitten by
-      # instruments that cannot fail — its own macOS job once "proved the
-      # macOS block ran" by grepping a describe name, and a SKIPPED test
-      # prints its own name, so the string was present exactly when the thing
-      # it guarded against had happened.
-      #
-      # So this asserts on something the failure state cannot produce: Mach-O
-      # binaries inside the `.xcarchive`. An archive that did not happen leaves
-      # no directory; one that half-happened leaves a directory with nothing
-      # executable in it; a job that short-circuited prints no count at all.
-      # The count is 2 because the app embeds the TelarActivity extension —
-      # if the extension ever stops building, this reads 1/2 and goes red
-      # rather than quietly archiving half the product.
-      - name: Assert the archive holds a built app and its extension
-        if: needs.source.outputs.ios == 'true'
-        run: |
-          set -euo pipefail
-          ARCHIVE="$RUNNER_TEMP/TelarMobile.xcarchive"
-          APP="$ARCHIVE/Products/Applications/TelarMobile.app"
-          if [ ! -d "$ARCHIVE" ]; then
-            echo "::error::xcodebuild exited 0 but produced no .xcarchive at $ARCHIVE"
-            exit 1
-          fi
-
-          found=0
-          report=""
-          for binary in "$APP/TelarMobile" "$(find "$APP" -maxdepth 2 -name '*.appex' -print -quit 2>/dev/null)/TelarActivity"; do
-            name=$(basename "$binary")
-            if [ ! -f "$binary" ]; then
-              echo "::error::$name is missing from the archive"
-              continue
-            fi
-            # `file` says Mach-O only of something that actually linked.
-            if ! /usr/bin/file -b "$binary" | /usr/bin/grep -q 'Mach-O'; then
-              echo "::error::$name exists in the archive but is not a Mach-O executable"
-              continue
-            fi
-            found=$((found + 1))
-            report="$report $name=$(/usr/bin/stat -f%z "$binary")B/$(/usr/bin/lipo -archs "$binary")"
-          done
-
-          if [ "$found" -ne 2 ]; then
-            echo "::error::the archive carries $found of the 2 expected Mach-O products"
-            find "$ARCHIVE/Products" -maxdepth 4 2>/dev/null | head -30
-            exit 1
-          fi
-          echo "IOS_ARCHIVE_OK 2/2$report"
-
-      # A NUMBER, NOT A VERDICT — this step does not fail on a slow expression.
-      # Whether a 900 ms view should stop a pull request is a policy nobody has
-      # chosen yet (#764 tracks the views nearest the bar); reporting it is
-      # what #767 asked for. The ARCHIVE above is the thing that fails.
-      #
-      # WHAT IT DOES FAIL ON is its own wiring. If no swiftc command line
-      # carries the floor, every number below is an absence of evidence rather
-      # than evidence of absence, and "no warnings" would read as good news
-      # from an instrument that was never switched on.
-      #
-      # TWO TRAPS FROM #768, BOTH REPRODUCED THERE AND BOTH AVOIDED HERE: this
-      # runs with errexit explicitly OFF, because `grep` exiting 1 on no match
-      # is the SUCCESS case and killed that probe on the run where the fix
-      # worked; and nothing here filters by an unanchored filename, which
-      # silently credited `SessionView.swift` with `NewSessionView.swift`'s
-      # 171 ms.
-      - name: How much type-checker budget is left?
-        if: needs.source.outputs.ios == 'true'
-        run: |
-          # `+e` rather than a missing `-e`: GitHub hands this block to
-          # `bash -e`, so errexit is on unless something turns it off. Every
-          # `|| true` below would still be needed without this, and this would
-          # still be needed with them — belt and braces, on the step whose
-          # whole job is to report a zero as a zero.
-          set +e
-          set -uo pipefail
-          LOG="$RUNNER_TEMP/archive.log"
-          FLOOR=500
-
-          carriers=$(/usr/bin/grep -ac -- "-warn-long-expression-type-checking=$FLOOR" "$LOG" || true)
-          if [ "${carriers:-0}" -eq 0 ]; then
-            echo "::error::no swiftc command line in the archive log carries -warn-long-expression-type-checking=$FLOOR. The measurement is not wired up, so it has nothing to report — this is not a clean bill of health."
-            exit 1
-          fi
-
-          over=$(/usr/bin/grep -aE 'took [0-9]+ms to type-check' "$LOG" | sed 's|^.*/||' | sort -u || true)
-          count=$(printf '%s\n' "$over" | /usr/bin/grep -c . || true)
-
-          echo "TYPE_CHECK_FLOOR ${FLOOR}ms carriers=$carriers over=$count"
-          {
-            echo "### iOS type-check budget"
-            echo
-            echo "\`$carriers\` swiftc invocation(s) carried the ${FLOOR}ms floor; **$count** expression(s) or function body(ies) exceeded it."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "${count:-0}" -gt 0 ]; then
-            # Worst first, and deduplicated by line rather than averaged:
-            # #768 saw the same declaration reported twice per archive with
-            # different numbers. A Release archive compiles each module in one
-            # whole-module swiftc invocation — `carriers` above is 2, one per
-            # module — and the first run of this step reported each
-            # declaration once. If duplicates do appear, both are shown; the
-            # worst is the figure that matters.
-            echo "::warning::$count expression(s) or function body(ies) are over the ${FLOOR}ms floor"
-            printf '%s\n' "$over" \
-              | sed -E 's/.*took ([0-9]+)ms.*/\1 &/' | sort -rn | cut -d' ' -f2- | head -20 \
-              | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
-
-      # `-only-testing` fences out TelarMobileUITests, which would hang here
-      # without apps/ios/scripts/preview-server.py running.
-      - name: Run TelarMobileTests on a simulator
-        if: needs.source.outputs.ios == 'true'
-        env:
-          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
-        run: |
-          set -euo pipefail
-          RESULT_BUNDLE="$RUNNER_TEMP/TelarMobileTests.xcresult"
-          rm -rf "$RESULT_BUNDLE"
+          xcodebuild -version
           started=$(date +%s)
-          xcodebuild \
+          xcodebuild build \
             -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
-            -destination-timeout 120 \
-            -derivedDataPath "$RUNNER_TEMP/DerivedDataTests" \
-            -resultBundlePath "$RESULT_BUNDLE" \
-            -only-testing:TelarMobileTests \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            ARCHS=arm64 \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            test > "$RUNNER_TEMP/test.log" 2>&1 || {
+            CODE_SIGNING_REQUIRED=NO > "$RUNNER_TEMP/build.log" 2>&1 || {
               status=$?
-              echo "::group::the test log, last 400 lines"
-              tail -400 "$RUNNER_TEMP/test.log"
+              echo "::group::the build log, last 300 lines"
+              tail -300 "$RUNNER_TEMP/build.log"
               echo "::endgroup::"
-              echo "::error::xcodebuild test failed (exit $status) — see the step after this one for which tests, if any, ran"
-              echo "IOS_TESTS_SECONDS $(( $(date +%s) - started ))"
+              echo "::error::xcodebuild build failed (exit $status) — the iOS app does not compile from this branch"
               exit "$status"
             }
-          echo "IOS_TESTS_SECONDS $(( $(date +%s) - started ))"
-          echo "xcodebuild exited 0; $(wc -l < "$RUNNER_TEMP/test.log") lines of log"
+          echo "IOS_BUILD_SECONDS $(( $(date +%s) - started ))"
 
-      # EXIT 0 IS NOT A TEST RUN, and this repository already owns both halves
-      # of that lesson: its macOS job once "proved the macOS block ran" by
-      # grepping a describe name, and a SKIPPED test prints its own name — the
-      # string was present exactly when the thing it guarded against had
-      # happened. `xcodebuild test` can exit 0 having executed nothing: a
-      # destination that resolved to something empty, a filter matching no
-      # target, a plan that skipped every suite.
-      #
-      # A FLOOR ON `passedTests`, NOT `totalTestCount > 0`. The step this is
-      # lifted from failed on `total == 0` and on `failed`, and so exited 0 when
-      # every test was SKIPPED and none failed — the same wound in a new
-      # costume. 562 is the count of `@Test` cases in the tree (none
-      # parameterised, so one case per declaration). It was 661 when written and
-      # was LOWERED ONCE, deliberately, by #908: removing the integrated Agent
-      # deleted its iOS suites, about a hundred cases that test nothing left. And
-      # a floor rather than an equality so that adding tests never reddens this
-      # and removing a suite always does. It also makes it irrelevant whether
-      # `totalTestCount` counts skipped cases, which is the more robust
-      # instrument either way — and is why that question was deliberately not
-      # looked up and relied on.
-      #
-      # RAISE THE FLOOR WHEN TESTS ARE ADDED, but only deliberately: it is the
-      # one number here that a human has to maintain, and lowering it to make a
-      # red go away is the failure this step exists to prevent.
-      #
-      # `environmentDescription` IS PRINTED because it names the runtime the
-      # run actually landed on, which is the cheap way to notice an image
-      # change before it becomes a mystery.
-      #
-      # always(), so a red suite still gets its failures named here rather than
-      # leaving a bare xcodebuild exit code above. That also covers the
-      # compile-failure case, where no bundle is written at all.
-      - name: Require that the tests actually ran
-        if: always() && needs.source.outputs.ios == 'true'
-        run: |
-          set -euo pipefail
-          RESULT_BUNDLE="$RUNNER_TEMP/TelarMobileTests.xcresult"
-          FLOOR=562
-
-          if [ ! -e "$RESULT_BUNDLE" ]; then
-            echo "::error::xcodebuild produced no result bundle at $RESULT_BUNDLE, so no test was executed. If the archive or the test build failed above, that is the cause; if neither did, the destination resolved to nothing."
-            exit 1
-          fi
-
-          xcrun xcresulttool get test-results summary --path "$RESULT_BUNDLE" --compact > "$RUNNER_TEMP/summary.json"
-          FLOOR="$FLOOR" python3 - "$RUNNER_TEMP/summary.json" <<'PY'
-          import json, os, sys
-
-          s = json.load(open(sys.argv[1]))
-          floor = int(os.environ["FLOOR"])
-          total = s.get("totalTestCount") or 0
-          passed = s.get("passedTests") or 0
-          failed = s.get("failedTests") or 0
-          skipped = s.get("skippedTests") or 0
-          where = s.get("environmentDescription", "unknown environment")
-
-          print(f"IOS_TESTS {passed} passed, {failed} failed, {skipped} skipped "
-                f"of {total} ({where})")
-
-          for f in s.get("testFailures") or []:
-              name = f.get("testName") or f.get("targetName") or "unknown test"
-              print(f"::error::{name}: {f.get('failureText', '').strip()}")
-
-          bad = False
-          if passed < floor:
-              print(f"::error::{passed} tests passed, under the floor of {floor}. Either a suite "
-                    f"was skipped or disabled, or the destination ran less than the whole target. "
-                    f"A run that executes nothing exits 0 from xcodebuild, which is why this "
-                    f"floor exists rather than a check that some tests ran.")
-              bad = True
-          if failed:
-              print(f"::error::{failed} test(s) failed.")
-              bad = True
-
-          sys.exit(1 if bad else 0)
-          PY
-
-      # THE OTHER BRANCH, and it must not be able to print what the branch
-      # above prints. `IOS_ARCHIVE_NOT_NEEDED` and `IOS_ARCHIVE_OK 2/2 …` are
-      # different strings on purpose: a reader who greps the log for either one
-      # learns which of the two things happened, and neither can be mistaken
-      # for the other.
       - name: Nothing here reaches the iOS build
         if: needs.source.outputs.ios != 'true'
-        run: |
-          echo "IOS_ARCHIVE_NOT_NEEDED — no path under apps/ios/ and no change to the gate itself"
-          echo "This job took a ${RUNNER_OS} runner and compiled nothing."
+        run: echo "IOS_BUILD_NOT_NEEDED — no path under apps/ios/ and no change to the gate itself"
 
   # THE SINGLE CHECK, so the set above can change without renaming a required
   # check every time.
@@ -961,7 +680,7 @@ jobs:
   # loop that a skip is sometimes fine. That is the rule above, weakened, for
   # one job, for ever. Instead `ios` always runs and always reports `success`:
   # on a Linux runner doing nothing when no iOS path changed, on a Mac
-  # archiving when one did. So the line below gains two jobs and the rule it
+  # building when one did. So the line below gains two jobs and the rule it
   # enforces is unchanged — which is the point, and the reason the extra Linux
   # runner boot is worth paying for.
   #

@@ -186,16 +186,10 @@ xcodebuild -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
   -derivedDataPath apps/ios/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
-Install "Telar Dev" on a phone connected by cable, and run the unit suite on it. Set `TELAR_IPHONE_UDID` to your device. Always pass the `.dev` bundle id, or the test host replaces the TestFlight app:
+Install "Telar Dev" beside the TestFlight app on a phone connected by cable. Set `TELAR_IPHONE_UDID` to your device:
 
 ```sh
 TELAR_IPHONE_UDID=<udid> apps/ios/phone.sh
-
-xcodebuild -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
-  -destination "platform=iOS,id=$TELAR_IPHONE_UDID" \
-  -derivedDataPath apps/ios/DerivedData \
-  -allowProvisioningUpdates DEVELOPMENT_TEAM=MM74W7WGAM \
-  TELAR_APP_BUNDLE_ID=io.github.novarix.telar.dev test
 ```
 
 A simulator build made with `CODE_SIGNING_ALLOWED=NO` has no entitlements, so the simulator's Keychain refuses it (`-34018`). The app then keeps device tokens in `UserDefaults`, on the simulator only; otherwise it would pair and drop the token straight away.

@@ -13,6 +13,7 @@ struct PanelView: View {
     let hostId: HostID?
     var simulators: [SimulatorSummary] = []
     var agentSimulatorId: String?
+    var hostName: String?
 
     let active: Bool
     let panel: PanelModel
@@ -86,7 +87,7 @@ struct PanelView: View {
                 unavailable
             }
         case .agents:
-            AgentsSurface(api: api, sessionId: sessionId, hostId: hostId, active: active)
+            AgentsSurface(api: api, sessionId: sessionId, hostId: hostId, hostName: hostName, active: active)
         case .editor:
             if let panelAPI {
                 FilesSurface(api: panelAPI, sessionId: sessionId, hostId: hostId, active: active, panel: panel)

@@ -55,7 +55,6 @@ async function waitForConsumed(cockpit, wait, timeoutMs) {
   return false;
 }
 
-/** Mints one code per booted iOS simulator that has Telar, and opens its pairing link there. Codes are single-use, so each waits to be spent. */
 async function pairBootedSimulators({ port, cockpit, run = execRun, env = process.env, exists = fs.existsSync, list = listDir, wait = sleep, timeoutMs = 20_000 }) {
   const simEnv = await simctlEnv({ run, env, exists, list });
   if (!simEnv) return { paired: [], failed: [], error: "Xcode is not installed." };
@@ -76,7 +75,6 @@ async function pairBootedSimulators({ port, cockpit, run = execRun, env = proces
   return { paired, failed };
 }
 
-/** The cockpit's own pairing endpoints, called as the host app. */
 function cockpitClient(baseUrl, hostToken, fetchImpl = fetch) {
   const call = async (method, route) => {
     const response = await fetchImpl(new URL(route, baseUrl), { method, headers: { "x-telar-host": hostToken } });
@@ -97,7 +95,6 @@ function summary({ paired, failed, error }) {
 
 let pairFromHost = null;
 
-/** Dev builds only: the IPC verb and the menu item exist once this ran with `dev`. */
 function registerDevPairing({ dev, appUrl, hostToken, ipcMain, notify, pair = pairBootedSimulators }) {
   if (!dev) return false;
   const port = Number(new URL(appUrl).port);

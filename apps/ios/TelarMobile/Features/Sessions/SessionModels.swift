@@ -39,6 +39,18 @@ struct SessionWorkspace: Codable, Equatable {
     var baseRef: String?
 }
 
+struct SessionChild: Decodable, Identifiable, Equatable {
+    var sessionId: EngineID
+    var title: String?
+    var state: String
+    var progress: String?
+    var summary: String?
+    var startedAt: Timestamp
+    var endedAt: Timestamp?
+
+    var id: EngineID { sessionId }
+}
+
 struct SessionProvenance: Codable, Equatable {
     var sessionId: EngineID
     var runId: EngineID?
@@ -176,6 +188,7 @@ struct Session: Codable, Identifiable, Equatable {
     struct ActivityDetail: Codable, Equatable {
         var kind: String
         var sessions: Int?
+        var tasks: Int?
     }
 
     var waitingOn: Int? { activityDetail?.kind == "session" ? activityDetail?.sessions ?? 1 : nil }

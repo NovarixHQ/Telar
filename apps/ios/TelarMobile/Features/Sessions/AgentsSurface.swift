@@ -165,6 +165,22 @@ func delegateDetail(_ entry: RelatedDelegate, now: Timestamp) -> String? {
     return parts.isEmpty ? nil : parts.joined(separator: " · ")
 }
 
+func childState(_ child: SessionChild) -> (label: String, tone: AgentTone) {
+    switch child.state {
+    case "working": ("Working", .live)
+    case "waiting": ("Asking", .attention)
+    case "done": ("Done", .done)
+    case "failed": ("Failed", .danger)
+    default: ("Stopped", .quiet)
+    }
+}
+
+func childDetail(_ child: SessionChild) -> String? {
+    let line = child.endedAt == nil ? child.progress : child.summary
+    let parts = [line?.isEmpty == false ? line : nil, relativeTime(child.endedAt ?? child.startedAt)]
+    return parts.compactMap { $0 }.joined(separator: " · ")
+}
+
 func coordinatorState(_ entry: RelatedCoordinator) -> (label: String, tone: AgentTone) {
     if let outcome = entry.outcome { return (outcomeLabel(outcome), outcomeTone(outcome)) }
     if entry.unresolved { return ("Unknown", .quiet) }
@@ -192,6 +208,10 @@ struct AgentsSurface: View {
     @State private var projects: [ProjectRef] = []
     @State private var assignments: [EngineID: [SessionAssignment]] = [:]
     @State private var following: [Subscription] = []
+    @State private var children: [SessionChild] = []
+    @State private var diff: SessionDiff?
+    @State private var configs: [RunConfiguration] = []
+    @State private var terminals: [RunTerminal] = []
     @State private var loaded = false
     @State private var failed = false
 
@@ -202,7 +222,9 @@ struct AgentsSurface: View {
     private static let poll = Duration.seconds(10)
 
     private var delegates: [RelatedDelegate] {
-        delegatesOf(sessions, assignments: assignments, coordinator: sessionId, following: following)
+        let tasked = Set(children.map(\.id))
+        return delegatesOf(sessions, assignments: assignments, coordinator: sessionId, following: following)
+            .filter { !tasked.contains($0.id) }
     }
     private var employers: [RelatedCoordinator] {
         coordinatorsOf(sessions, assignments: assignments, of: sessionId)
@@ -214,12 +236,22 @@ struct AgentsSurface: View {
             VStack(alignment: .leading, spacing: 20) {
                 if let session = sessions.first(where: { $0.id == sessionId }) {
                     SessionFactsCard(session: session, project: projects.first { $0.id == session.projectId }?.name, host: hostName)
+                    WorkspaceSection(session: session, diff: diff, processes: workspaceProcesses(
+                        configs: configs, terminals: terminals,
+                        backgroundTasks: session.activityDetail?.kind == "background" ? session.activityDetail?.tasks : nil
+                    ))
+                    if session.workspace.branch != nil || diff?.repository == true {
+                        VersionControlSection(branch: diff?.branch ?? session.workspace.branch, diff: diff)
+                    }
                 }
-                if delegates.isEmpty && employers.isEmpty {
+                if children.isEmpty && delegates.isEmpty && employers.isEmpty {
                     if loaded { AgentsEmpty(failed: failed) }
                 } else {
-                    if !delegates.isEmpty {
-                        AgentSection(label: "Working for this conversation", count: delegates.count) {
+                    if !children.isEmpty || !delegates.isEmpty {
+                        AgentSection(label: "Agents", count: children.count + delegates.count) {
+                            ForEach(children) { child in
+                                childRow(child, last: delegates.isEmpty && child.id == children.last?.id)
+                            }
                             ForEach(delegates) { entry in delegateRow(entry, last: entry.id == delegates.last?.id) }
                         }
                     }
@@ -242,6 +274,20 @@ struct AgentsSurface: View {
                 try? await Task.sleep(for: Self.poll)
             }
         }
+    }
+
+    private func childRow(_ child: SessionChild, last: Bool) -> AgentRow {
+        let session = sessions.first { $0.id == child.sessionId }
+        let title = child.title ?? session?.title ?? ""
+        let live = child.state == "working" || child.state == "waiting"
+        return AgentRow(
+            title: title.isEmpty ? "Untitled session" : title,
+            detail: childDetail(child),
+            state: childState(child),
+            activity: live ? session?.activity : nil,
+            open: destination(child.sessionId),
+            last: last
+        )
     }
 
     private func delegateRow(_ entry: RelatedDelegate, last: Bool) -> AgentRow {
@@ -279,8 +325,13 @@ struct AgentsSurface: View {
     private var now: Timestamp { Timestamp(Date().timeIntervalSince1970 * 1000) }
 
     private func read() async {
+        let (api, id) = (api, sessionId)
+        async let subscriptions = try? api.sessionSubscriptions(id)
+        async let tasked = try? api.sessionChildren(id)
+        async let changes = try? api.sessionDiff(id)
+        async let saved = try? api.runConfigurations(id)
+        async let open = try? api.runStatus(id)
         let answer = try? await api.liveSessions(matching: etag, since: nil, all: true)
-        let subscriptions = try? await api.sessionSubscriptions(sessionId)
         if let answer {
             etag = answer.etag
             if let list = answer.live {
@@ -289,7 +340,11 @@ struct AgentsSurface: View {
                 assignments = list.assignments
             }
         }
-        if let subscriptions { following = subscriptions }
+        if let subscriptions = await subscriptions { following = subscriptions }
+        if let tasked = await tasked { children = tasked }
+        if let changes = await changes { diff = changes }
+        if let saved = await saved { configs = saved }
+        if let open = await open { terminals = open }
         failed = answer == nil
         loaded = true
     }

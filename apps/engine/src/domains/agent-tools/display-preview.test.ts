@@ -43,6 +43,8 @@ function preview(options: { render?: (request: PreviewRequest) => Promise<Previe
   return { run: run!, requests, capability };
 }
 
+const FACES = '@font-face{font-family:"Inter";src:url(data:font/woff2;base64,d09GMg==)}';
+
 const textOf = (result: Result) => result.content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
 
 describe("display_preview", () => {
@@ -79,12 +81,12 @@ describe("display_preview", () => {
     expect(html.endsWith("<p>hi</p>")).toBe(true);
   });
 
-  test("wears the person's published Look and its scheme when no appearance is asked for", async () => {
+  test("wears the person's published Look, its font faces and its scheme when no appearance is asked for", async () => {
     const look = parsePublishedAppearance({
       scheme: "dark",
       translucent: false,
       frost: "clear",
-      resolved: { accent: { name: "rose", light: { primary: "#cc0044", primaryForeground: "#ffffff" }, dark: { primary: "#ff5588", primaryForeground: "#110000" } }, fontStacks: { sans: "Inter, sans-serif", mono: "Menlo, monospace" } },
+      resolved: { accent: { name: "rose", light: { primary: "#cc0044", primaryForeground: "#ffffff" }, dark: { primary: "#ff5588", primaryForeground: "#110000" } }, fontStacks: { sans: "Inter, sans-serif", mono: "Menlo, monospace" }, fontFaces: FACES },
       look: { version: 2, id: "mine", label: "Mine", composition: { light: { base: "#f8f8f9", layers: [], overrides: {} }, dark: { base: "#252525", layers: [], overrides: { card: "#123456" } } } },
     })!;
     const { run, requests } = preview({ look });
@@ -93,6 +95,7 @@ describe("display_preview", () => {
     const { html, appearance } = requests[0]!;
     expect(appearance).toBe("dark");
     for (const token of ["--card:#123456;", "--primary:#ff5588;", "--primary-foreground:#110000;", "--font-sans:Inter, sans-serif;", "--font-mono:Menlo, monospace;"]) expect(html).toContain(token);
+    expect(html.indexOf(FACES)).toBeLessThan(html.indexOf("<p>hi</p>"));
   });
 
   test("a Look the engine cannot read leaves Telar's own, in light", async () => {

@@ -49,14 +49,18 @@ const escapeScript = (value: string) => JSON.stringify(value).replaceAll("<", "\
 
 const HOST_CONTEXT_CHANGED = "ui/notifications/host-context-changed";
 
-export const hostContextMessage = (theme: ArtifactTheme) => ({ jsonrpc: "2.0", method: HOST_CONTEXT_CHANGED, params: { theme: theme.scheme, styles: { variables: theme.variables } } });
+export const hostContextMessage = (theme: ArtifactTheme) => ({
+  jsonrpc: "2.0",
+  method: HOST_CONTEXT_CHANGED,
+  params: { theme: theme.scheme, styles: { variables: theme.variables, ...(theme.fonts ? { css: { fonts: theme.fonts } } : {}) } },
+});
 
-const themeListener = `<script>(()=>{const sheet=document.currentScript.previousElementSibling;document.currentScript.remove();const css=${artifactThemeCss.toString()};addEventListener("message",(event)=>{const data=event.data;if(event.source!==parent||data?.method!==${escapeScript(HOST_CONTEXT_CHANGED)})return;const scheme=data.params?.theme==="dark"?"dark":"light";sheet.textContent=css({scheme,variables:data.params?.styles?.variables});document.documentElement.dataset.scheme=scheme;});})()</script>`;
+const themeListener = `<script>(()=>{const faces=document.currentScript.previousElementSibling;const sheet=faces.previousElementSibling;document.currentScript.remove();const css=${artifactThemeCss.toString()};addEventListener("message",(event)=>{const data=event.data;if(event.source!==parent||data?.method!==${escapeScript(HOST_CONTEXT_CHANGED)})return;const scheme=data.params?.theme==="dark"?"dark":"light";sheet.textContent=css({scheme,variables:data.params?.styles?.variables});document.documentElement.dataset.scheme=scheme;const fonts=data.params?.styles?.css?.fonts;if(typeof fonts==="string")faces.textContent=fonts;});})()</script>`;
 
 export function artifactDocument(content: string, frame: string, theme: ArtifactTheme): string {
   const body = content.replace(/^\s*<!doctype[^>]*>/i, "");
   const report = `<script>(()=>{document.currentScript.remove();const measure=${contentHeight.toString()};const post=()=>parent.postMessage({artifactFrame:${escapeScript(frame)},height:measure(document)},"*");const watch=new ResizeObserver(post);watch.observe(document.documentElement);watch.observe(document.body);new MutationObserver(post).observe(document.body,{childList:true,subtree:true,characterData:true});addEventListener("load",post);document.fonts.ready.then(post);post();})()</script>`;
-  return `<!doctype html>${artifactRootTag(theme)}<meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta charset="utf-8"><style>${artifactThemeCss(theme)}</style>${themeListener}<style>${ARTIFACT_BASE_CSS}</style>${body}${report}`;
+  return `<!doctype html>${artifactRootTag(theme)}<meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta charset="utf-8"><style>${artifactThemeCss(theme)}</style><style>${(theme.fonts ?? "").replaceAll("<", "")}</style>${themeListener}<style>${ARTIFACT_BASE_CSS}</style>${body}${report}`;
 }
 
 export function latestArtifacts(items: Iterable<Pick<Item, "detail">>): Map<string, Artifact> {

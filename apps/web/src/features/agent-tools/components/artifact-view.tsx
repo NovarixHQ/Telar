@@ -4,7 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { mermaid } from "@streamdown/mermaid";
 import { artifactThemeCss, mermaidThemeVariables, type Artifact, type ArtifactTheme } from "@telar/engine-client";
-import { useAppearance } from "@/features/appearance";
+import { useAppearance, useFontFaces } from "@/features/appearance";
 import { attachmentUrl } from "@/features/plugins";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { MessageResponse } from "@/ui/message";
@@ -82,7 +82,9 @@ function HtmlFrame({ content, title, attachmentId, hint }: { content: string; ti
   const key = useMeasureKey(attachmentId);
   const [reported, setReported] = useState<{ key: string; height: number }>();
   const height = reported?.key === key ? reported.height : (measured.get(key) ?? reported?.height);
-  const theme = useArtifactTheme(ref);
+  const look = useArtifactTheme(ref);
+  const fonts = useFontFaces([look.variables["--font-sans"], look.variables["--font-mono"]]);
+  const theme = useMemo(() => (fonts ? { ...look, fonts } : look), [look, fonts]);
   const [doc, setDoc] = useState(() => ({ content, srcDoc: artifactDocument(content, frame, theme) }));
   if (doc.content !== content) setDoc({ content, srcDoc: artifactDocument(content, frame, theme) });
   const [loaded, setLoaded] = useState(false);

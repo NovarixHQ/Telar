@@ -16,7 +16,7 @@ struct SessionView: View {
 
     @State private var inspectorShown = false
     @State private var pushShown = false
-    @State private var fullScreenShown = false
+    @AppStorage(PanelWidth.key) private var panelWidth = PanelWidth.ideal
 
     @State private var sidebarWasVisible = false
 
@@ -76,7 +76,7 @@ struct SessionView: View {
     private var wantsColumn: Bool { sizeClass == .regular }
 
     private func raisePanel(_ open: Bool) {
-        let (column, push) = PanelRaise.flags(open: open, wantsColumn: wantsColumn, fullScreen: panel.isFullScreen)
+        let (column, push) = PanelRaise.flags(open: open, wantsColumn: wantsColumn)
         if inspectorShown != column { inspectorShown = column }
         if pushShown != push { pushShown = push }
     }
@@ -90,13 +90,14 @@ struct SessionView: View {
         guard sizeClass == .regular, let visibility = columnVisibility else { return }
         let width = UIScreen.main.bounds.width
 
-        let roomForThree = width >= 300 + ChatWidth.comfortable.measure + 440
+        let roomForThree = width >= 300 + ChatWidth.comfortable.measure + PanelWidth.clamp(panelWidth, total: width)
+        let standAside = open && (panel.isFullScreen || !roomForThree)
 
         let motion = Animation.easeInOut(duration: 0.28)
-        if open, !roomForThree, visibility.wrappedValue != .detailOnly {
+        if standAside, visibility.wrappedValue != .detailOnly {
             sidebarWasVisible = true
             withAnimation(motion) { visibility.wrappedValue = .detailOnly }
-        } else if !open, sidebarWasVisible {
+        } else if !standAside, sidebarWasVisible {
             sidebarWasVisible = false
             withAnimation(motion) { visibility.wrappedValue = .all }
         }
@@ -175,36 +176,23 @@ struct SessionView: View {
         presence
             .environment(\.panel, panel)
             .environment(\.kernelSignals, store.sync.kernelSignals)
-            .inspector(isPresented: $inspectorShown) {
+            .panelColumn(shown: inspectorShown, full: panel.isFullScreen, width: $panelWidth) {
                 NavigationStack {
                     panelView(.column, canFillWindow: true)
                         .toolbar(.hidden, for: .navigationBar)
-                }
-
-                .background(Theme.sheet)
-                .inspectorColumnWidth(min: 360, ideal: 440, max: 640)
-            }
-
-            .fullScreenCover(isPresented: $fullScreenShown) {
-                NavigationStack {
-                    panelView(.page, canFillWindow: true)
-                        .toolbar(.hidden, for: .navigationBar)
                         .background {
-                            Button("") { panel.setFullScreen(false) }
-                                .keyboardShortcut(.escape, modifiers: [])
-                                .opacity(0)
-                                .accessibilityHidden(true)
+                            if panel.isFullScreen {
+                                Button("") { panel.setFullScreen(false) }
+                                    .keyboardShortcut(.escape, modifiers: [])
+                                    .opacity(0)
+                                    .accessibilityHidden(true)
+                            }
                         }
                 }
             }
-            .onChange(of: panel.isFullScreen, initial: true) { _, full in
-                let wanted = full && wantsColumn
-                if fullScreenShown != wanted { fullScreenShown = wanted }
+            .onChange(of: panel.isFullScreen) {
                 raisePanel(panel.isOpen)
-            }
-            .onChange(of: fullScreenShown) { _, shown in
-
-                if !shown, panel.isFullScreen { panel.setFullScreen(false) }
+                syncSidebar(open: panel.isOpen)
             }
             .navigationDestination(isPresented: $pushShown) {
                 panelView(.page, canFillWindow: false)
@@ -216,11 +204,6 @@ struct SessionView: View {
             }
             .onChange(of: panel.isOpen) { syncSidebar(open: panel.isOpen) }
             .onAppear { DispatchQueue.main.async { syncSidebar(open: panel.isOpen) } }
-            .onChange(of: inspectorShown) { _, open in
-
-                guard wantsColumn, !panel.isFullScreen, PanelRaise.isDismissal(open) else { return }
-                panelDismissed()
-            }
             .onChange(of: pushShown) { _, open in
                 if !wantsColumn, PanelRaise.isDismissal(open) { panelDismissed() }
             }

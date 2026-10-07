@@ -4,13 +4,12 @@ import Testing
 
 @Suite struct PanelRaiseTests {
     @Test func oneWidthRaisesOnePresentation() {
-        let column = PanelRaise.flags(open: true, wantsColumn: true, fullScreen: false)
+        let column = PanelRaise.flags(open: true, wantsColumn: true)
         #expect(column == (column: true, push: false))
-        let push = PanelRaise.flags(open: true, wantsColumn: false, fullScreen: false)
+        let push = PanelRaise.flags(open: true, wantsColumn: false)
         #expect(push == (column: false, push: true))
-        #expect(PanelRaise.flags(open: true, wantsColumn: true, fullScreen: true) == (column: false, push: false))
-        #expect(PanelRaise.flags(open: false, wantsColumn: true, fullScreen: false) == (column: false, push: false))
-        #expect(PanelRaise.flags(open: false, wantsColumn: false, fullScreen: false) == (column: false, push: false))
+        #expect(PanelRaise.flags(open: false, wantsColumn: true) == (column: false, push: false))
+        #expect(PanelRaise.flags(open: false, wantsColumn: false) == (column: false, push: false))
     }
 
     @Test func onlyAPushedPageLeavesClosingToBack() {
@@ -34,7 +33,7 @@ import Testing
         if PanelRaise.isDismissal(false) { panel.close() }
         #expect(!panel.isOpen)
 
-        let (_, push) = PanelRaise.flags(open: true, wantsColumn: false, fullScreen: false)
+        let (_, push) = PanelRaise.flags(open: true, wantsColumn: false)
         #expect(push)
         if PanelRaise.isDismissal(push) { panel.close() }
         #expect(!panel.isOpen)
@@ -71,7 +70,7 @@ import Testing
         #expect(panel.isOpen)
         #expect(panel.generation > generation)
         #expect(panel.editor.activePath == "second.md")
-        #expect(PanelRaise.flags(open: panel.isOpen, wantsColumn: false, fullScreen: panel.isFullScreen).push)
+        #expect(PanelRaise.flags(open: panel.isOpen, wantsColumn: false).push)
     }
 
     @Test @MainActor func openingAFileSelectsTheFilesTab() {

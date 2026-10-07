@@ -1,4 +1,4 @@
-import { type AgentModelChoice, type EngineEvent, type EngineRequest, type EnvMode, type LiveSessionRow, type NotificationDetail, type ProviderDriverKind, type Session, type SessionCapabilities, type SessionDiff, type SessionSettleEnded, type Subscription, type Turn, type WaitingOn, type WakeKind } from "@telar/engine-client";
+import { cockpitSessionHref, type AgentModelChoice, type EngineEvent, type EngineRequest, type EnvMode, type LiveSessionRow, type NotificationDetail, type ProviderDriverKind, type Session, type SessionCapabilities, type SessionDiff, type SessionSettleEnded, type Subscription, type Turn, type WaitingOn, type WakeKind } from "@telar/engine-client";
 import type { SessionsQueryCapability } from "./query";
 
 export type SessionsCapability = {
@@ -261,6 +261,7 @@ export function summarise(session: LiveSessionRow, projects: Map<string, string>
     project: session.projectId ? (projects.get(session.projectId) ?? session.projectId) : "no project",
     ...(session.projectId ? { projectId: session.projectId } : {}),
     title: session.title,
+    link: cockpitSessionHref(session),
     envMode: session.envMode,
     activity: session.activity,
     ...(options.driver ? { driver: session.driver } : {}),

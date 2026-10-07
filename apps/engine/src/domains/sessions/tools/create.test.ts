@@ -5,7 +5,7 @@ import { call, cleanUp, engine, orchestrator, wall, withModelCatalogue } from ".
 afterEach(cleanUp);
 
 describe("sessions_create with a task", () => {
-  test("the new session is tasked and filed as the caller's child", async () => {
+  test("the new session is tasked, filed as the caller's child, and comes back with its link", async () => {
     const { store, projectId } = engine();
     withModelCatalogue(store);
     const { parent, tools } = orchestrator(store, projectId);
@@ -13,6 +13,7 @@ describe("sessions_create with a task", () => {
 
     expect(created.isError).toBe(false);
     const id = created.json!.id as string;
+    expect(created.json!.link).toBe(`/projects/${projectId}/sessions/${id}`);
     expect(created.json!.model).toBe("claude-sonnet-5 at high");
     expect(store.queries.turns(id).map((turn) => ({ runId: turn.runId, intent: turn.agentIntent, sender: turn.sender }))).toEqual([
       { runId: created.json!.runId as string, intent: "task", sender: { sessionId: parent.id } },

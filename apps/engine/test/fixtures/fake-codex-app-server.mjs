@@ -2,11 +2,8 @@
 // A scripted stand-in for `codex app-server`, driven through a REAL subprocess
 // boundary by drivers/codex tests via CODEX_BIN.
 //
-// COPIED FROM apps/web_old/lib/fixtures/fake-codex-app-server.mjs and extended.
-// The value carried over is the part that cannot be re-derived: every method
-// name, item.type spelling and field name below was taken from a live trace
-// against a real `codex app-server` 0.145.0. `thread/compact/start` plays as a
-// turn whose only item is the compaction.
+// Every method name, item.type spelling and field name below was taken from a
+// live trace against a real `codex app-server` 0.145.0.
 //
 // WHAT WAS ADDED, and why each one is a test that could not otherwise exist:
 //   · server→client REQUESTS with real correlation (`ask`), so an approval is

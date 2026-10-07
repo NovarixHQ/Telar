@@ -34,7 +34,7 @@ export const OPENCODE_CAPABILITIES: DriverCapabilities = {
   usageLimits: false,
 };
 
-const NO_CAPABILITIES: DriverCapabilities = {
+export const ACP_CAPABILITIES: DriverCapabilities = {
   liveSteering: false,
   compaction: "none",
   backgroundTaskStop: false,
@@ -43,7 +43,7 @@ const NO_CAPABILITIES: DriverCapabilities = {
   usageLimits: false,
 };
 
-const BY_DRIVER: Record<string, DriverCapabilities> = { claude: CLAUDE_CAPABILITIES, codex: CODEX_CAPABILITIES, opencode: OPENCODE_CAPABILITIES };
+const BY_DRIVER: Record<string, DriverCapabilities> = { claude: CLAUDE_CAPABILITIES, codex: CODEX_CAPABILITIES, opencode: OPENCODE_CAPABILITIES, acp: ACP_CAPABILITIES };
 
 /** For the engine, which never loads the drivers themselves. */
-export const driverCapabilities = (driver: string): DriverCapabilities => BY_DRIVER[driver] ?? NO_CAPABILITIES;
+export const driverCapabilities = (driver: string): DriverCapabilities => BY_DRIVER[driver] ?? ACP_CAPABILITIES;

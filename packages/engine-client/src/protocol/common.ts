@@ -24,6 +24,8 @@ export type ProviderDriverKind = z.infer<typeof ProviderDriverKind>;
 export const BUILT_IN_DRIVERS = ["claude", "codex", "opencode"] as const;
 export type BuiltInDriver = (typeof BUILT_IN_DRIVERS)[number];
 export const isBuiltInDriver = (driver: unknown): driver is BuiltInDriver => (BUILT_IN_DRIVERS as readonly unknown[]).includes(driver);
+export const ACP_DRIVER = "acp";
+export const isKnownDriver = (driver: unknown): driver is string => isBuiltInDriver(driver) || driver === ACP_DRIVER;
 
 export const ProviderInstanceId = Id;
 export type ProviderInstanceId = z.infer<typeof ProviderInstanceId>;

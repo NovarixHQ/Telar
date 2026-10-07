@@ -6,6 +6,9 @@ import { engineRootFromEnv } from "./platform/fs/engine-root";
 import { ENGINE_EXIT_LOCK_HELD } from "./platform/process/daemon-lock";
 import { installLastResortHandlers } from "./platform/process/last-resort";
 import { statePaths } from "./platform/fs/state-paths";
+import { isMcpBridgeProcess, runMcpBridge } from "./drivers/acp/mcp-bridge";
+
+if (isMcpBridgeProcess()) process.exit(await runMcpBridge().then(() => 0));
 
 /**
  * BEFORE ANYTHING RESOLVES A BINARY, and therefore the first statement here.

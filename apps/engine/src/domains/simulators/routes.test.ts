@@ -1,8 +1,9 @@
 import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { EngineClientError } from "@telar/engine-client";
-import { iPhone, pixel, simctlWithPair, simulatorEngine, WATCH_ID } from "../../../test/fake-simulator-hub";
+import { fakeDeviceType, iPhone, pixel, simctlWithPair, simulatorEngine, WATCH_ID } from "../../../test/fake-simulator-hub";
 import type { HubSocket } from "./input";
 
 const closers: Array<() => Promise<void>> = [];
@@ -88,6 +89,18 @@ test("a paired watch's crown and side button reach the hub's socket for that wat
     { url, tag: 0x04, body: { button: "side_button", page: 12, usage: 149, phase: "press" } },
   ]);
   expect(await codeOf(client.sendSimulatorInput(WATCH_ID, [{ type: "crown", delta: 500 }]))).toBe("invalid_request");
+});
+
+test("the chrome route serves an iOS Simulator's screen geometry and art from its device type, and nothing for an emulator", async () => {
+  const fixtures = fs.mkdtempSync(path.join(os.tmpdir(), "telar-chrome-route-"));
+  closers.push(async () => fs.rmSync(fixtures, { recursive: true, force: true }));
+  const { chromeDir, simctl } = fakeDeviceType(fixtures);
+  const { client } = await engine({ ready: true, devices: [iPhone(), pixel()], simctlList: () => simctl("A1B2-UDID"), chromeDir });
+  const { chrome } = await client.simulatorChrome("A1B2-UDID");
+  expect(chrome?.screen).toEqual({ width: 400, height: 800, cornerRadius: 60 });
+  expect(chrome?.frame).toMatchObject({ width: 440, height: 840, screen: { x: 20, y: 20 } });
+  expect(await client.simulatorChrome("Pixel_8")).toEqual({ chrome: null });
+  expect(await codeOf(client.simulatorChrome("nope"))).toBe("not_found");
 });
 
 test("a minted ticket admits a hub read at the gate, and only while the device that asked is paired", async () => {

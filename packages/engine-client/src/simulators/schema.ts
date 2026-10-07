@@ -113,5 +113,22 @@ export type SimulatorInput = z.infer<typeof SimulatorInput>;
 
 export const MAX_SIMULATOR_INPUT_EVENTS = 64;
 
-export const SimulatorStreamTicket = z.object({ ticket: z.string(), expiresAt: z.number() });
+const points = z.number().finite();
+const ChromeImage = z.object({ src: z.string(), width: points, height: points });
+
+export const SimulatorChrome = z.object({
+  screen: z.object({ width: points, height: points, cornerRadius: points }),
+  frame: z
+    .object({
+      width: points,
+      height: points,
+      screen: z.object({ x: points, y: points }),
+      slices: z.object({ topLeft: ChromeImage, top: ChromeImage, topRight: ChromeImage, left: ChromeImage, right: ChromeImage, bottomLeft: ChromeImage, bottom: ChromeImage, bottomRight: ChromeImage }),
+      buttons: z.array(ChromeImage.extend({ x: points, y: points, onTop: z.boolean() })),
+    })
+    .nullable(),
+});
+export type SimulatorChrome = z.infer<typeof SimulatorChrome>;
+
+export const SimulatorStreamTicket =z.object({ ticket: z.string(), expiresAt: z.number() });
 export type SimulatorStreamTicket = z.infer<typeof SimulatorStreamTicket>;

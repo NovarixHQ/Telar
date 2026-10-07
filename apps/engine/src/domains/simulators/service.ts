@@ -1,10 +1,11 @@
-import type { SimulatorAction, SimulatorBootFailure, SimulatorDetail, SimulatorInput, SimulatorSettings, SimulatorSummary, SimulatorsState, WorkerClaim } from "@telar/engine-client";
+import type { SimulatorAction, SimulatorBootFailure, SimulatorChrome, SimulatorDetail, SimulatorInput, SimulatorSettings, SimulatorSummary, SimulatorsState, WorkerClaim } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
 import { agentEnv } from "../../platform/process/agent-env";
 import { processRunner, type ProcessRunner } from "../../platform/process/runner";
 import { reserveLoopbackPort, SimulatorHub, type HubDeps } from "./hub";
 import { runAction, type ActionDeps } from "./actions";
 import { BootWatch } from "./boots";
+import { DeviceChrome } from "./chrome";
 import { readDetail } from "./detail";
 import { takeScreenshot } from "./screenshot";
 import { InputRelay, type OpenSocket } from "./input";
@@ -27,6 +28,7 @@ export type SimulatorsDeps = {
   sleep?: HubDeps["sleep"];
   now?: () => number;
   openSocket?: OpenSocket;
+  chromeDir?: string;
 };
 
 type HubDevice = SimulatorSummary;
@@ -68,6 +70,7 @@ export class Simulators {
   private readonly boots: BootWatch;
   private restarting?: Promise<void>;
   private readonly actionDeps: ActionDeps;
+  private readonly deviceChrome: DeviceChrome;
   readonly tickets: StreamTickets;
 
   constructor(private readonly deps: SimulatorsDeps) {
@@ -81,6 +84,7 @@ export class Simulators {
     this.boots = new BootWatch((file, args, options) => this.runner.run(file, args, options));
     this.tickets = new StreamTickets(this.now);
     this.actionDeps = { run: (file, args, options) => this.runner.run(file, args, { ...options, env: env() }), helpers: () => hubHelpers(deps.root) };
+    this.deviceChrome = new DeviceChrome({ run: this.actionDeps.run, ...(deps.chromeDir ? { chromeDir: deps.chromeDir } : {}) });
     this.hub = new SimulatorHub({
       root: deps.root,
       runner: this.runner,
@@ -152,6 +156,12 @@ export class Simulators {
   async detail(id: string): Promise<SimulatorDetail> {
     this.requireReady();
     return readDetail(this.actionDeps, await this.find(id), this.now());
+  }
+
+  async chrome(id: string): Promise<SimulatorChrome | null> {
+    this.requireReady();
+    const device = await this.find(id);
+    return device.platform === "ios" && !device.physical ? this.deviceChrome.read(device.id) : null;
   }
 
   async action(id: string, action: SimulatorAction): Promise<SimulatorDetail> {

@@ -5,7 +5,7 @@ type EngineApi = ReturnType<typeof createEngineApi>;
 
 export type SimulatorsApi = Pick<
   EngineApi,
-  "simulators" | "bootSimulator" | "shutdownSimulator" | "simulatorScreenshot" | "simulatorDetail" | "simulatorAction" | "sendSimulatorInput" | "simulatorStreamTicket" | "setSimulatorSettings"
+  "simulators" | "bootSimulator" | "shutdownSimulator" | "simulatorScreenshot" | "simulatorDetail" | "simulatorChrome" | "simulatorAction" | "sendSimulatorInput" | "simulatorStreamTicket" | "setSimulatorSettings"
 >;
 
 export function createSimulatorsApi(hostId: string | undefined): SimulatorsApi {

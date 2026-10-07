@@ -32,6 +32,7 @@ export function simulatorsRoutes(simulators: Simulators, fetchImpl?: typeof fetc
       auth: "engine",
       handle: async ({ params }) => ({ status: 200, body: null, bytes: await simulators.screenshot(params[0]!), headers: { "content-type": "image/png", "cache-control": "no-store" } }),
     },
+    { method: "GET", path: simulatorRoute("chrome"), auth: "engine", handle: async ({ params }) => ok({ chrome: await simulators.chrome(params[0]!) }) },
     { method: "GET", path: simulatorRoute("detail"), auth: "engine", handle: async ({ params }) => ok({ detail: await simulators.detail(params[0]!) }) },
     {
       method: "POST",

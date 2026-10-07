@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { act } from "react";
-import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
+import type { SimulatorChrome, SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { click, flush, installTestDom, mount } from "@/test/dom";
 import type { SimulatorsApi } from "../api";
 import { SimulatorSurface } from "./simulator-surface";
@@ -10,7 +10,7 @@ installTestDom();
 const iPhone = (booted = false): SimulatorSummary => ({ id: "A1B2", platform: "ios", name: "iPhone 16", version: "iOS 18.0", booted, physical: false });
 const hub = { requiredVersion: "0.12.0", installedVersions: ["0.12.0"], runningVersion: "0.12.0" };
 
-function fakeApi(initial: SimulatorsState) {
+function fakeApi(initial: SimulatorsState, chrome: SimulatorChrome | null = null) {
   let state = initial;
   const calls: Array<[string, ...unknown[]]> = [];
   const api: SimulatorsApi = {
@@ -39,6 +39,7 @@ function fakeApi(initial: SimulatorsState) {
       calls.push(["simulatorScreenshot", id]);
       return { data: new Uint8Array([0x89, 0x50]), contentType: "image/png" };
     },
+    simulatorChrome: async () => ({ chrome }),
     simulatorDetail: async (id) => ({ detail: { id, configuration: {}, foregroundApp: null, readAt: 0 } }),
     simulatorAction: async (id, action) => {
       calls.push(["simulatorAction", id, action]);
@@ -52,9 +53,9 @@ const ready = (simulators: SimulatorSummary[]): SimulatorsState => ({ status: "r
 const button = (label: string) => document.querySelector(`[aria-label="${label}"]`) as HTMLElement | null;
 const text = (label: string) => [...document.querySelectorAll("button")].find((node) => node.textContent?.trim() === label);
 
-async function surface(state: SimulatorsState, config?: Record<string, unknown>) {
+async function surface(state: SimulatorsState, config?: Record<string, unknown>, chrome?: SimulatorChrome) {
   globalThis.fetch = (async (url: string) => (config && String(url).includes("/config") ? Response.json(config) : new Response("{}", { status: 404 }))) as unknown as typeof fetch;
-  const fake = fakeApi(state);
+  const fake = fakeApi(state, chrome);
   const { host } = await mount(<SimulatorSurface api={fake.api} visible />);
   await flush(() => !host.textContent?.includes("Looking for simulators"));
   return { host, ...fake };
@@ -185,12 +186,46 @@ test("a press on a turned device lands where it shows on the simulator's own scr
   await click(text("Open"));
   const frame = document.querySelector('[data-testid="simulator-frame"]') as HTMLElement;
   frame.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200, x: 0, y: 0, toJSON: () => ({}) });
-  await flush(() => document.querySelector("canvas")?.getAttribute("style")?.includes("rotate(90deg)") === true);
+  await flush(() => document.querySelector('[data-testid="device-frame"] > div')?.getAttribute("style")?.includes("rotate(90deg)") === true);
   await act(async () => {
     frame.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 100, clientY: 50, pointerId: 1 }));
   });
   await flush(() => sent().length >= 1);
   expect(sent()).toEqual([{ type: "touch", phase: "begin", x: 0.25, y: 0.75 }]);
+});
+
+test("with Simulator's chrome, the stream fills the device's screen rect, clipped to its corner radius, and a press maps inside it", async () => {
+  const art = { src: "data:image/png;base64,", width: 110, height: 110 };
+  const chrome: SimulatorChrome = {
+    screen: { width: 402, height: 874, cornerRadius: 62 },
+    frame: { width: 438, height: 910, screen: { x: 18, y: 18 }, slices: { topLeft: art, top: art, topRight: art, left: art, right: art, bottomLeft: art, bottom: art, bottomRight: art }, buttons: [] },
+  };
+  const realObserver = globalThis.ResizeObserver;
+  globalThis.ResizeObserver = class {
+    constructor(private readonly report: ResizeObserverCallback) {}
+    observe() {
+      this.report([{ contentRect: { width: 438 / 2 + 48, height: 910 / 2 + 48 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+    }
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+  try {
+    const { sent } = await surface(ready([iPhone(true)]), { width: 1206, height: 2622, orientation: "portrait" }, chrome);
+    await click(text("Open"));
+    await flush(() => (document.querySelector('[data-testid="simulator-frame"]') as HTMLElement | null)?.style.width === "201px");
+    const frame = document.querySelector('[data-testid="simulator-frame"]') as HTMLElement;
+    const screen = frame.parentElement!;
+    expect([frame.style.width, frame.style.height]).toEqual(["201px", "437px"]);
+    expect([screen.style.left, screen.style.top, screen.style.borderRadius]).toEqual(["9px", "9px", "31px"]);
+    frame.getBoundingClientRect = () => ({ left: 33, top: 33, width: 201, height: 437, right: 234, bottom: 470, x: 33, y: 33, toJSON: () => ({}) });
+    await act(async () => {
+      frame.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 33 + 201 / 4, clientY: 33 + 437 / 2, pointerId: 1 }));
+    });
+    await flush(() => sent().length >= 1);
+    expect(sent()).toEqual([{ type: "touch", phase: "begin", x: 0.25, y: 0.5 }]);
+  } finally {
+    globalThis.ResizeObserver = realObserver;
+  }
 });
 
 test("the toolbar copies a screenshot and opens the settings drawer", async () => {

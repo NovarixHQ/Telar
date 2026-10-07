@@ -32,9 +32,7 @@ export type SdkUserMessage = {
   origin?: { kind: "human" };
 };
 
-/** The image types the Anthropic API accepts as an image block. Anything else
- *  is offered as a PATH instead — the agent has a Read tool, and a file it can
- *  open beats a block the API rejects. */
+// The image types the API accepts as a block; anything else goes by path alone.
 const CLAUDE_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
 export function claudeInitialContent(prompt: string, attachments: TurnAttachment[]): string | Array<Record<string, unknown>> {

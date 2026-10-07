@@ -277,4 +277,20 @@ describe("the worker's inline capability", () => {
       fs.rmSync(cwd, { recursive: true, force: true });
     }
   });
+
+  test("stores html with its local images inlined, and refuses a page naming one it cannot read", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "telar-inline-"));
+    try {
+      const shot = path.join(cwd, "shot.png");
+      fs.writeFileSync(shot, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+      const { capability, uploads } = inline(cwd);
+      await capability.inline({ kind: "html", title: "Mock", content: `<img src="${shot}">`, id: "mock" });
+      expect(uploads.map((upload) => upload.data)).toEqual(['<img src="data:image/png;base64,iVBORw0KGgo=">']);
+      const absent = path.join(cwd, "absent.png");
+      await expect(capability.inline({ kind: "html", title: "Mock", content: `<img src="${absent}">` })).rejects.toThrow(`These local images could not be read: ${absent}`);
+      expect(uploads).toHaveLength(1);
+    } finally {
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
 });

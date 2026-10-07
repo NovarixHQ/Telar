@@ -1,5 +1,4 @@
 const { expect, test } = require("bun:test");
-const { electron } = require("../../test/fake-electron");
 const { devMenuItem, pairBootedSimulators, registerDevPairing } = require("./pair-simulators");
 
 const XCODE = "/Applications/Xcode.app/Contents/Developer";
@@ -92,15 +91,17 @@ test("with no booted simulator that has Telar, no code is minted", async () => {
 });
 
 test("a release build registers neither the verb nor the menu item; a dev build registers both", async () => {
+  const handlers = new Map();
+  const ipcMain = { handle: (channel, handler) => handlers.set(channel, handler) };
   const appUrl = "http://127.0.0.1:62051/";
   const pair = async ({ port }) => ({ paired: [`port ${port}`], failed: [] });
 
-  expect(registerDevPairing({ dev: false, appUrl, hostToken: "tlr_x", ipcMain: electron.ipcMain, pair })).toBe(false);
-  expect(electron.ipcMain.handlers.has("telar:dev:pair-simulators")).toBe(false);
+  expect(registerDevPairing({ dev: false, appUrl, hostToken: "tlr_x", ipcMain, pair })).toBe(false);
+  expect(handlers.has("telar:dev:pair-simulators")).toBe(false);
   expect(devMenuItem()).toBeNull();
 
   const notices = [];
-  expect(registerDevPairing({ dev: true, appUrl, hostToken: "tlr_x", ipcMain: electron.ipcMain, notify: (body) => notices.push(body), pair })).toBe(true);
-  expect(await electron.ipcMain.invoke("telar:dev:pair-simulators", {})).toEqual({ paired: ["port 62051"], failed: [], message: "Paired port 62051." });
+  expect(registerDevPairing({ dev: true, appUrl, hostToken: "tlr_x", ipcMain, notify: (body) => notices.push(body), pair })).toBe(true);
+  expect(await handlers.get("telar:dev:pair-simulators")()).toEqual({ paired: ["port 62051"], failed: [], message: "Paired port 62051." });
   expect(devMenuItem().label).toBe("Pair Booted Simulators");
 });

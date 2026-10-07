@@ -85,6 +85,6 @@ describe("what a worker's run cost reaches its coordinator", () => {
     store.ingest.ingestObservations(worker, run, claimToken, [usage(1_000, 4_000, 600_000), usage(500, 6_000, 590_000)]);
 
     const { turn } = store.intake.submitAgentTurn(host.id, { runId: "run_result", input: "Lint fixed.", intent: "result" }, { sessionId: worker, runId: run, claimToken });
-    expect(turn.agentNotice).toContain("Its run so far: claude-sonnet-5 at medium effort, 1.2M tokens (1.2M cache read, 4k cache write, 2k in, 10k out).");
+    expect(turn.agentNotice).toContain(" · its run: claude-sonnet-5 at medium effort, 1.2M tokens (1.2M cache read, 4k cache write, 2k in, 10k out)");
   });
 });

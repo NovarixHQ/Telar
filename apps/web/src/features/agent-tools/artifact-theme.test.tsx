@@ -2,10 +2,11 @@ import { expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import { act } from "react";
-import { ARTIFACT_THEME_TOKENS, cssColorToHex, type ArtifactTheme } from "@telar/engine-client";
+import { ARTIFACT_NOT_COLOURS, ARTIFACT_THEME_TOKENS, cssColorToHex, type ArtifactTheme } from "@telar/engine-client";
 import { ACCENTS } from "@/features/appearance";
 import { installTestDom, mount } from "@/test/dom";
 import { useArtifactTheme } from "./artifact-theme";
+import { artifactDocument } from "./artifacts";
 
 installTestDom();
 
@@ -22,7 +23,8 @@ function lookRules(css: string): string {
     let depth = 1;
     let close = open + 1;
     for (; close < source.length && depth > 0; close++) depth += source[close] === "{" ? 1 : source[close] === "}" ? -1 : 0;
-    if (!selector.startsWith("@") && LOOK_SELECTOR.test(selector)) rules.push(`${selector}{${source.slice(open + 1, close - 1)}}`);
+    const rule = selector === "@theme" ? ":root" : selector;
+    if (!rule.startsWith("@") && LOOK_SELECTOR.test(rule)) rules.push(`${rule}{${source.slice(open + 1, close - 1)}}`);
     at = close;
   }
   return rules.join("\n");
@@ -50,9 +52,10 @@ function applyLook(setup: Setup) {
   document.body.style.backgroundColor = setup.scene ? "rgba(10, 10, 10, 0.55)" : cssColorToHex(getComputedStyle(root).getPropertyValue("--background"))!;
 }
 
-const COLOURS = ARTIFACT_THEME_TOKENS.map(([name]) => `--${name}`).filter((name) => !["--radius", "--font-sans", "--font-mono"].includes(name));
+const COLOR_MIX_ONLY = new Set(["overlay"]);
+const COLOURS = ARTIFACT_THEME_TOKENS.filter(([name]) => !ARTIFACT_NOT_COLOURS.has(name) && !COLOR_MIX_ONLY.has(name)).map(([name]) => `--${name}`);
 
-test("every Look in the stylesheet reaches an artifact as real colours, never as black it does not define", async () => {
+test("every Look reaches an artifact as real colours and shadows, with its scheme stated on the page", async () => {
   const sheet = document.createElement("style");
   sheet.textContent = GLOBALS;
   document.head.append(sheet);
@@ -63,7 +66,13 @@ test("every Look in the stylesheet reaches an artifact as real colours, never as
       await act(async () => applyLook(setup));
       const theme = JSON.parse(host.querySelector("output")!.textContent!) as ArtifactTheme;
       const label = JSON.stringify(setup);
-      expect(`${label} ${theme.scheme}`).toBe(`${label} ${setup.dark ? "dark" : "light"}`);
+      const scheme = setup.dark ? "dark" : "light";
+      expect(`${label} ${theme.scheme}`).toBe(`${label} ${scheme}`);
+      const page = new DOMParser().parseFromString(artifactDocument("<html lang='en'><p>x</p>", "f1", theme), "text/html");
+      expect(`${label} ${page.documentElement.dataset.scheme}`).toBe(`${label} ${scheme}`);
+      expect(page.querySelector("style")!.textContent).toStartWith(`:where(:root){color-scheme:${scheme};--scheme:${scheme};`);
+      for (const rung of ["--shadow-1", "--shadow-2", "--shadow-3"]) expect(`${label} ${rung}=${theme.variables[rung]}`).toMatch(/=0 \S+px .*color-mix\(.*\)$/);
+      expect(Object.values(theme.variables).join(" ")).not.toContain("var(");
       for (const name of COLOURS) {
         const value = theme.variables[name];
         expect(`${label} ${name}=${value}`).toMatch(name === "--background" && setup.scene ? /=transparent$/ : /=#[0-9a-f]{6}([0-9a-f]{2})?$/);

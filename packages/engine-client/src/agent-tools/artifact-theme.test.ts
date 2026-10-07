@@ -39,7 +39,7 @@ test("every name in the list is a distinct variable", () => {
 
 test("the css loses to the page's own rules and cannot escape its block", () => {
   const css = artifactThemeCss({ scheme: "dark", variables: { "--background": "#111111", "--font-sans": "x}</style><script>", "bad name": "#000" } });
-  expect(css).toStartWith(":where(:root){color-scheme:dark;--background:#111111;");
+  expect(css).toStartWith(":where(:root){color-scheme:dark;--scheme:dark;--background:#111111;");
   expect(css).not.toMatch(/[<>]|bad name/);
   expect(css.match(/[{}]/g)).toEqual(["{", "}"]);
 });

@@ -67,9 +67,12 @@ describe("display_preview", () => {
     await run({ kind: "html", content: "<!DOCTYPE html><p>hi</p>", width: 400, appearance: "dark" });
     const { html, width, appearance } = requests[0]!;
     expect({ width, appearance }).toEqual({ width: 400, appearance: "dark" });
-    expect(html).toContain("color-scheme:dark");
+    expect(html).toStartWith('<!doctype html><html data-scheme="dark">');
+    expect(html).toContain("color-scheme:dark;--scheme:dark;");
     expect(html).toContain("--background:#0a0a0a;");
     expect(html).toContain("--chart-1:");
+    expect(html).toMatch(/--input:#[0-9a-f]{6};--ring:#[0-9a-f]{6};/);
+    expect(html).toMatch(/--shadow-2:0 1px 2px -1px color-mix\(in oklab, color-mix\(in oklab, #0a0a0a 45%, #000\) 33%, transparent\), 0 4px 12px -7px /);
     expect(html).not.toContain("oklch");
     expect(html).not.toContain("Content-Security-Policy");
     expect(html.match(/<!doctype/gi)).toHaveLength(1);

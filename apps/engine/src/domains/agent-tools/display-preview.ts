@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ARTIFACT_BASE_CSS, artifactTheme, type ArtifactTheme, artifactThemeCss, mermaidThemeVariables, type PublishedAppearance, TELAR_DARK, TELAR_LIGHT } from "@telar/engine-client";
+import { ARTIFACT_BASE_CSS, artifactRootTag, artifactTheme, type ArtifactTheme, artifactThemeCss, cssColorToHex, mermaidThemeVariables, type PublishedAppearance, TELAR_DARK, TELAR_LIGHT } from "@telar/engine-client";
 import { MAX_ANSWER_CHARS } from "./tool-kit";
 
 export const PreviewKind = z.enum(["html", "svg", "mermaid"]);
@@ -40,6 +40,10 @@ const GLOBALS_CSS_TOKENS: Record<PreviewAppearance, Record<string, string>> = {
     "--tint-orange": "oklch(0.58 0.14 55)",
     "--tint-cyan": "oklch(0.56 0.095 200)",
     "--tint-yellow": "oklch(0.58 0.12 85)",
+    "--tint-blue": "oklch(0.56 0.15 245)",
+    "--tint-red": "oklch(0.56 0.16 20)",
+    "--tint-pink": "oklch(0.56 0.16 350)",
+    "--tint-purple": "oklch(0.56 0.16 295)",
     "--radius": "0.625rem",
   },
   dark: {
@@ -55,9 +59,34 @@ const GLOBALS_CSS_TOKENS: Record<PreviewAppearance, Record<string, string>> = {
     "--tint-orange": "oklch(0.77 0.14 55)",
     "--tint-cyan": "oklch(0.74 0.1 200)",
     "--tint-yellow": "oklch(0.79 0.14 85)",
+    "--tint-blue": "oklch(0.74 0.13 245)",
+    "--tint-red": "oklch(0.74 0.15 20)",
+    "--tint-pink": "oklch(0.74 0.15 350)",
+    "--tint-purple": "oklch(0.74 0.16 295)",
     "--radius": "0.625rem",
   },
 };
+
+const ALIASES: Record<string, string> = {
+  "--ring": "--primary",
+  "--sidebar-foreground": "--foreground",
+  "--sidebar-primary": "--primary",
+  "--sidebar-accent-foreground": "--accent-foreground",
+  "--sidebar-border": "--border",
+  "--sidebar-ring": "--primary",
+};
+
+function depth(scheme: PreviewAppearance, ink: string, canvas: string): Record<string, string> {
+  const [tint, lift, ring, ambient] = scheme === "dark" ? [`color-mix(in oklab, ${canvas} 45%, #000)`, 0.5, 33, 8] : [`color-mix(in oklab, ${ink} 92%, ${canvas})`, 1, 10, 23];
+  const layer = (alpha: number) => `color-mix(in oklab, ${tint} ${alpha}%, transparent)`;
+  const rung = (contact: string, y: number, blur: number, spread: number) => `0 ${contact} ${layer(ring)}, 0 ${y * lift}px ${blur * lift}px ${spread * lift}px ${layer(ambient)}`;
+  return {
+    "--overlay": scheme === "dark" ? `${canvas}8c` : `${ink}1a`,
+    "--shadow-1": rung("1px 1px -1px", 2, 6, -4),
+    "--shadow-2": rung("1px 2px -1px", 8, 24, -14),
+    "--shadow-3": rung("2px 4px -2px", 18, 48, -26),
+  };
+}
 
 export function previewTheme(scheme: PreviewAppearance, published: PublishedAppearance | null | undefined): ArtifactTheme {
   const surfaces: Record<string, string> = { ...(scheme === "dark" ? TELAR_DARK : TELAR_LIGHT), ...published?.look.composition[scheme].overrides };
@@ -69,6 +98,9 @@ export function previewTheme(scheme: PreviewAppearance, published: PublishedAppe
     "--app-font-sans": published?.resolved?.fontStacks.sans ?? "system-ui, -apple-system, sans-serif",
     "--app-font-mono": published?.resolved?.fontStacks.mono ?? "ui-monospace, monospace",
   };
+  for (const [alias, token] of Object.entries(ALIASES)) tokens[alias] ??= tokens[token] ?? "";
+  const [ink, canvas] = [cssColorToHex(tokens["--foreground"] ?? ""), cssColorToHex(tokens["--background"] ?? "")];
+  if (ink && canvas) Object.assign(tokens, depth(scheme, ink.slice(0, 7), canvas.slice(0, 7)));
   return artifactTheme(scheme, (token) => tokens[token] ?? "");
 }
 
@@ -86,7 +118,7 @@ function mermaidBody(source: string, theme: ArtifactTheme): string {
 
 export function previewDocument(kind: PreviewKind, content: string, theme: ArtifactTheme): string {
   const body = kind === "svg" ? svgImage(content) : kind === "mermaid" ? mermaidBody(content, theme) : content.replace(/^\s*<!doctype[^>]*>/i, "");
-  return `<!doctype html><meta charset="utf-8"><style>${artifactThemeCss(theme)}${ARTIFACT_BASE_CSS}</style>${body}`;
+  return `<!doctype html>${artifactRootTag(theme)}<meta charset="utf-8"><style>${artifactThemeCss(theme)}${ARTIFACT_BASE_CSS}</style>${body}`;
 }
 
 export async function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T> {

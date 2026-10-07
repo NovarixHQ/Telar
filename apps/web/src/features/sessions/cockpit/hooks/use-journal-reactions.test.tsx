@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { act, useState } from "react";
 import type { EngineEvent, SimulatorSummary } from "@telar/engine-client";
-import { emptyPanelTabs, type PanelTabState } from "@/features/panel";
+import { emptyPanelTabs, LIVE_BROWSER_TAB, type PanelTabState } from "@/features/panel";
 import { flush, installTestDom, mount } from "@/test/dom";
 import { useJournalReactions } from "./use-journal-reactions";
 
@@ -19,6 +19,7 @@ function harness(initial: Strip) {
     push = setEvents;
     strip = panel;
     useJournalReactions({
+      sessionId: "s",
       sync: { events } as never,
       browser: undefined,
       enabledPlugins: [],
@@ -57,4 +58,35 @@ test("events from before the cockpit mounted do nothing, so reopening a session 
   await push([{ ...(opened(1, "A") as object), at: 1 } as EngineEvent]);
   await flush();
   expect(strip().tabs).toEqual([]);
+});
+
+const browsed = (id: number) => ({ id, at: later(), sessionId: "s", type: "browser.state.changed", tabs: [{ id: "t1", url: "https://example.com/" }] }) as unknown as EngineEvent;
+
+function withDesktopBrowser(popped: boolean) {
+  const asked: string[] = [];
+  (window as { telarDesktop?: unknown }).telarDesktop = {
+    browser: { getState: async (scope: string) => { asked.push(scope); return { scopeKey: scope, tabs: [], popped }; } },
+  };
+  return asked;
+}
+
+test("the agent browsing adds the Browser tab to the panel", async () => {
+  withDesktopBrowser(false);
+  const { Probe, strip, push } = harness(emptyPanelTabs());
+  await mount(<Probe />);
+  await push([browsed(1)]);
+  await flush();
+  expect(strip().tabs).toEqual([{ id: LIVE_BROWSER_TAB, kind: LIVE_BROWSER_TAB, params: {} }]);
+  delete (window as { telarDesktop?: unknown }).telarDesktop;
+});
+
+test("but not while that browser is in a window of its own", async () => {
+  const asked = withDesktopBrowser(true);
+  const { Probe, strip, push } = harness(emptyPanelTabs());
+  await mount(<Probe />);
+  await push([browsed(1)]);
+  await flush();
+  expect(asked).toEqual(["s"]);
+  expect(strip().tabs).toEqual([]);
+  delete (window as { telarDesktop?: unknown }).telarDesktop;
 });

@@ -71,7 +71,13 @@ async function main() {
   };
 
   const window = new BrowserWindow({ show: false, width: 1000, height: 700 });
-  const manager = new DesktopBrowserManager(window);
+  const manager = new DesktopBrowserManager(window, {
+    openStageWindow: () => {
+      const stage = new BrowserWindow({ show: false, width: 900, height: 600 });
+      stage.showInactive();
+      return stage;
+    },
+  });
 
   ipcMain.on("telar:browser:human-input", (event) => {
     try { manager.noteHumanInputFromWebContents(event.sender); } catch {}
@@ -192,6 +198,29 @@ async function main() {
     await manager.callTool(scope, "browser_click", { target: ref(wokenSnap, 'button "Increment counter"') });
     assert((await evaluate(manager, tab, "document.getElementById('count').textContent")) === "1", "click after re-wake dropped");
     assert((await evaluate(manager, tab, "document.getElementById('saved').textContent")) === "Saved note: telar-browser-acceptance", "note lost across re-wake");
+
+    await evaluate(manager, tab, "window.__telarPopped = 'same page'");
+    const contentsId = tab.view.webContents.id;
+    manager.popOut(scope);
+    const stage = manager.poppedStages.get(scope).window;
+    assert(stage.contentView.children.includes(tab.view), "popping out did not move the live view into the window");
+    assert(!window.contentView.children.includes(tab.view), "the popped view is still in the cockpit");
+    assert(tab.view.webContents.id === contentsId, "popping out replaced the page's contents");
+    assert((await evaluate(manager, tab, "window.__telarPopped")) === "same page", "popping out reloaded the page");
+    manager.setBounds(scope, { x: 0, y: 0, width: 700, height: 500 }, stage.webContents);
+    await manager.setVisible(scope, true, stage.webContents);
+    const poppedSnap = textOf(await manager.callTool(scope, "browser_snapshot", {}));
+    const poppedClick = await manager.callTool(scope, "browser_click", { target: ref(poppedSnap, 'button "Increment counter"') });
+    assert(!poppedClick.isError, `click in the popped window errored: ${textOf(poppedClick)}`);
+    assert((await evaluate(manager, tab, "document.getElementById('count').textContent")) === "2", "the click in the popped window was dropped");
+    const poppedShot = await manager.callTool(scope, "browser_take_screenshot", {});
+    assert(!poppedShot.isError, `screenshot of the popped window errored: ${textOf(poppedShot)}`);
+    note(`popped window screenshot ${pngSize(poppedShot.content[0].data).width}px wide`);
+    stage.close();
+    for (let i = 0; i < 20 && !stage.isDestroyed(); i += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+    assert(window.contentView.children.includes(tab.view), "closing the window did not bring the view back");
+    assert((await evaluate(manager, tab, "window.__telarPopped")) === "same page", "bringing the page back reloaded it");
+    note("pop-out moved the live page into its own window and back without a reload");
 
     manager.releaseScope("other", true);
     await manager.callTool(scope, "browser_navigate", { url: `${base}/` });

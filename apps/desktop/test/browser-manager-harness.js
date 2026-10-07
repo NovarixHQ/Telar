@@ -228,21 +228,26 @@ class FakeView {
   }
 }
 
-class FakePreviewWindow {
+class FakeStageWindow {
   constructor(options = {}) {
     this.options = options;
     this.destroyed = false;
     this.focused = 0;
+    this.shown = 0;
     this.children = new Set();
     this.listeners = new Map();
+    this.messages = [];
+    this.zoomFactor = 1;
     this.contentView = {
       addChildView: (view) => this.children.add(view),
       removeChildView: (view) => this.children.delete(view),
     };
-  }
-
-  getContentSize() {
-    return [this.options.width, this.options.height];
+    this.webContents = {
+      send: (channel, payload) => this.messages.push({ channel, payload }),
+      getZoomFactor: () => this.zoomFactor,
+      on: () => {},
+      focus: () => {},
+    };
   }
 
   on(event, listener) {
@@ -256,12 +261,27 @@ class FakePreviewWindow {
     for (const listener of this.listeners.get(event) || []) listener();
   }
 
+  show() {
+    this.shown += 1;
+  }
+
   focus() {
     this.focused += 1;
   }
 
+  isMinimized() {
+    return false;
+  }
+
   isDestroyed() {
     return this.destroyed;
+  }
+
+  close() {
+    if (this.destroyed) return;
+    this.emit("close");
+    this.destroyed = true;
+    this.emit("closed");
   }
 
   destroy() {
@@ -277,7 +297,7 @@ function makeHarness(options = {}) {
   const waits = [];
   const children = new Set();
 
-  const previewWindows = [];
+  const stageWindows = [];
 
   const sessions = new Map();
   const sessionFor = (partition) => {
@@ -309,17 +329,10 @@ function makeHarness(options = {}) {
     clipboard,
     Menu: {
       buildFromTemplate: (template) => {
-        const menu = { template, popups: 0, popup: () => { menu.popups += 1; } };
+        const menu = { template, popups: 0, popup: (options) => { menu.popups += 1; menu.window = options?.window; } };
         menus.push(menu);
         return menu;
       },
-    },
-
-    BrowserWindow: class extends FakePreviewWindow {
-      constructor(windowOptions) {
-        super(windowOptions);
-        previewWindows.push(this);
-      }
     },
   });
 
@@ -329,10 +342,13 @@ function makeHarness(options = {}) {
   const moveWindow = () => { for (const listener of movedListeners) listener(); };
   const window = {
     isDestroyed: () => false,
+    getBounds: () => ({ x: 0, y: 0, width: 1280, height: 800 }),
     on: (event, listener) => {
       if (event === "moved") movedListeners.push(listener);
     },
     webContents: {
+      focused: 0,
+      focus() { this.focused += 1; },
       send: (channel, payload) => messages.push({ channel, payload }),
       getZoomFactor: () => cockpitZoom.factor,
       on: (event, listener) => {
@@ -360,6 +376,11 @@ function makeHarness(options = {}) {
       waits.push(milliseconds);
     }),
     maxLiveViews: options.maxLiveViews,
+    openStageWindow: (scope, details) => {
+      const win = new FakeStageWindow({ scope, ...details });
+      stageWindows.push(win);
+      return win;
+    },
     ...(options.rpcTimeoutMs ? { rpcTimeoutMs: options.rpcTimeoutMs } : {}),
     ...(options.now ? { now: options.now } : {}),
     ...(options.onControlChanged ? { onControlChanged: options.onControlChanged } : {}),
@@ -380,7 +401,7 @@ function makeHarness(options = {}) {
     if (scopeKey && !manager.profileOf(scopeKey)) manager.declareProfile(scopeKey, "none");
     return origCreate(scopeKey, ...rest);
   };
-  return { children, clipboard, manager, menus, messages, moveWindow, previewWindows, sessions, setCockpitZoom, views, waits };
+  return { children, clipboard, manager, menus, messages, moveWindow, sessions, setCockpitZoom, stageWindows, views, waits, window };
 }
 
 function textOf(result) {

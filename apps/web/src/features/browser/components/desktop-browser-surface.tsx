@@ -2,8 +2,7 @@
 
 import { Suspense, useRef } from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, ArrowRightIcon, ChevronRightIcon, EllipsisIcon, LockIcon, LockOpenIcon, MonitorSmartphoneIcon, MoonIcon, PencilIcon, RotateCwIcon, RotateCwSquareIcon, SquareArrowOutUpRightIcon, XIcon } from "lucide-react";
-import { Button } from "@/ui/button";
+import { ArrowLeftIcon, ArrowRightIcon, ChevronRightIcon, EllipsisIcon, LockIcon, LockOpenIcon, MonitorSmartphoneIcon, MoonIcon, PencilIcon, RotateCwIcon, RotateCwSquareIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { siteLabel } from "../desktop-site-permissions";
 import { useNativeViewOverlay } from "@/platform/desktop/native-view-overlay";
@@ -19,6 +18,7 @@ import { describeViewport, groupedViewportPresets, stageOf, viewportPreset, VIEW
 import { CameraButton, CheckRow, Divider, ExtensionButton, menuRow, Notices } from "./browser-chrome";
 import { OptionsMenu, ProfileMenu } from "./browser-menus";
 import { DeviceFrame } from "./device-frame";
+import { PoppedBrowser, usePoppedScope } from "./popped-browser";
 import { SitePermissionPrompt, SitePermissionsPopover, SiteSecurityIcon } from "./permission-prompt";
 import { BrowserStartPage } from "./start-page";
 import { TabStrip } from "./tab-strip";
@@ -293,7 +293,7 @@ function DeviceToolbar({ b, openOverlay }: { b: BrowserUi; openOverlay: BrowserO
 function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: ReturnType<typeof useFrozenOverlay>; hostRef: React.RefObject<HTMLDivElement | null> }) {
   const { activeTab, state, viewportMode, annotating, onAttach, act } = b;
   const blank = activeTab ? addressValue(activeTab.url) === "" : false;
-  const page = activeTab && !blank && !activeTab.sleeping && !activeTab.preview;
+  const page = activeTab && !blank && !activeTab.sleeping;
   return (
     <div
       ref={hostRef}
@@ -331,15 +331,6 @@ function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: R
           <MoonIcon className="mr-1.5 size-3.5" /> Remembered page — loading…
         </div>
       )}
-      {activeTab?.preview && (
-        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-xs text-muted-foreground">
-          <SquareArrowOutUpRightIcon aria-hidden className="size-4" />
-          <p>This tab is open in a window of its own.</p>
-          <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-2xs" onClick={() => void act({ action: "end-preview" })}>
-            Bring it back
-          </Button>
-        </div>
-      )}
       {annotating && onAttach ? (
         // The overlay is its own chunk: its first fetch must suspend here, not at the route.
         <Suspense fallback={null}>
@@ -354,15 +345,21 @@ function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: R
           />
         </Suspense>
       ) : null}
-      {b.bound && state && (state.tabs.length === 0 || (activeTab && !activeTab.sleeping && !activeTab.preview && blank && !activeTab.loading)) && (
+      {b.bound && state && (state.tabs.length === 0 || (activeTab && !activeTab.sleeping && blank && !activeTab.loading)) && (
         <BrowserStartPage scopeKey={b.scopeKey} onOpen={(url) => void act(activeTab && blank ? { action: "navigate", url } : { action: "new", url })} />
       )}
     </div>
   );
 }
 
-/** The desktop shell's native browser glued under the panel, with its tab strip, address row and tools. */
+/** The desktop shell's native browser, with its tab strip, address row and tools; the panel shows a placeholder while it has its own window. */
 export function DesktopBrowserSurface(props: BrowserProps) {
+  const popped = usePoppedScope(props.bridge, props.scopeKey, props.onEnded);
+  if (popped && !props.inWindow) return <PoppedBrowser bridge={props.bridge} scopeKey={props.scopeKey} />;
+  return <BrowserBody {...props} />;
+}
+
+function BrowserBody(props: BrowserProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const addressRowRef = useRef<HTMLFormElement>(null);
   const keyButtonRef = useRef<HTMLButtonElement>(null);

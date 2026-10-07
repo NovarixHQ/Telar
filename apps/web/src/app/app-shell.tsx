@@ -19,10 +19,14 @@ function isSoloRoute(pathname: string): boolean {
   return /^(?:\/hosts\/[^/]+)?\/projects\/[^/]+\/sessions\/[^/]+\/solo\/?$/.test(pathname);
 }
 
+function isSurfaceRoute(pathname: string): boolean {
+  return pathname.startsWith("/surface/");
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const settings = isSettingsRoute(pathname);
-  const railless = settings || isSoloRoute(pathname);
+  const railless = settings || isSoloRoute(pathname) || isSurfaceRoute(pathname);
   const shell = useRef<HTMLDivElement>(null);
   useRouteSwap(shell, settings);
   useEffect(() => {

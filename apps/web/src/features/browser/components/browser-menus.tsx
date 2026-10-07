@@ -237,12 +237,12 @@ function OptionsRows({ b }: { b: BrowserUi }) {
       <button
         type="button"
         disabled={!activeTab}
-        title={activeTab?.preview ? "Put this tab back in the panel." : "Move this tab into a window of its own. The panel has nothing to show meanwhile — it is the same page, not a copy."}
-        onClick={() => run(() => void b.act({ action: activeTab?.preview ? "end-preview" : "preview" }))}
+        title={b.inWindow ? "Put this browser back in the panel." : "Move this browser into a window of its own. The agent keeps working in it."}
+        onClick={() => run(() => void b.act({ action: b.inWindow ? "bring-back" : "pop-out" }))}
         className={row}
       >
-        <span className="min-w-0 flex-1">{activeTab?.preview ? "Bring back from separate window" : "Open separate preview window"}</span>
-        {!activeTab?.preview && <SquareArrowOutUpRightIcon aria-hidden className="size-3 shrink-0" />}
+        <span className="min-w-0 flex-1">{b.inWindow ? "Bring back to the panel" : "Open in its own window"}</span>
+        {!b.inWindow && <SquareArrowOutUpRightIcon aria-hidden className="size-3 shrink-0" />}
       </button>
       <CheckRow
         on={deviceToolbar}

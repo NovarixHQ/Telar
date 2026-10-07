@@ -21,7 +21,6 @@ const tab = (patch: Partial<DesktopBrowserTab> = {}): DesktopBrowserTab => ({
   canGoForward: false,
   zoom: 1,
   colorScheme: "system",
-  preview: false,
   viewport: { width: 1280, height: 800, preset: "default", mode: "fit" },
   ...patch,
 });
@@ -102,6 +101,7 @@ async function mount(
   state: DesktopBrowserPanelState,
   extra: Partial<DesktopBrowserBridge> = {},
   onAttach?: (files: readonly File[], caption?: string) => void,
+  surface: { inWindow?: boolean; onEnded?: () => void } = {},
 ) {
   const recorded = makeBridge(state, extra);
   const host = document.createElement("div");
@@ -114,6 +114,7 @@ async function mount(
         scopeKey="session_a"
         projectId="project_a"
         {...(onAttach ? { onAttach } : {})}
+        {...surface}
       />,
     );
     await settle();
@@ -150,7 +151,7 @@ describe("the options menu", () => {
     await mouseClick(optionsTrigger(host));
 
     const rows = menuRows();
-    const order = ["Hard reload", "Open DevTools", "Open separate preview window", "Show device toolbar", "Appearance"];
+    const order = ["Hard reload", "Open DevTools", "Open in its own window", "Show device toolbar", "Appearance"];
     const positions = order.map((label) => rows.findIndex((row) => row.startsWith(label)));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
@@ -191,17 +192,17 @@ describe("the options menu", () => {
     expect(menuRows()).not.toContain("Open DevTools");
   });
 
-  test("the preview row opens a window, and offers the way back once it is open", async () => {
+  test("the panel's row pops the browser out, and the window's own row brings it back", async () => {
     const { actions, host, unmount } = await mount(panelState());
     await mouseClick(optionsTrigger(host));
-    await mouseClick(menuRow("Open separate preview window"));
-    expect(actions.at(-1)).toEqual({ action: "preview" });
+    await mouseClick(menuRow("Open in its own window"));
+    expect(actions.at(-1)).toEqual({ action: "pop-out" });
     unmount();
 
-    const previewed = await mount(panelState({ tabs: [tab({ preview: true })] }));
-    await mouseClick(optionsTrigger(previewed.host));
-    await mouseClick(menuRow("Bring back from separate window"));
-    expect(previewed.actions.at(-1)).toEqual({ action: "end-preview" });
+    const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
+    await mouseClick(optionsTrigger(own.host));
+    await mouseClick(menuRow("Bring back to the panel"));
+    expect(own.actions.at(-1)).toEqual({ action: "bring-back" });
   });
 
   test("zoom reads the tab's own factor back, and − / + / reset step it", async () => {
@@ -401,14 +402,55 @@ describe("the frozen frame a menu opens over", () => {
   });
 });
 
-describe("a previewed tab", () => {
-  test("says where the page went, with the way back on it", async () => {
-    const { actions, host } = await mount(panelState({ tabs: [tab({ preview: true })] }));
-    expect(host.textContent).toContain("This tab is open in a window of its own.");
+describe("a browser popped out into its own window", () => {
+  const button = (host: Element, label: string) => [...host.querySelectorAll("button")].find((candidate) => candidate.textContent?.trim() === label)!;
+  const pushing = () => {
+    const listeners: ((state: DesktopBrowserPanelState) => void)[] = [];
+    const onState = (listener: (state: DesktopBrowserPanelState) => void) => {
+      listeners.push(listener);
+      return () => void listeners.splice(listeners.indexOf(listener), 1);
+    };
+    const push = (state: DesktopBrowserPanelState) => act(async () => {
+      for (const listener of [...listeners]) listener(state);
+      await settle();
+    });
+    return { onState, push };
+  };
 
-    const back = [...host.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Bring it back")!;
-    await mouseClick(back);
-    expect(actions.at(-1)).toEqual({ action: "end-preview" });
+  test("the panel says where it went, and Show and Bring back act on that window", async () => {
+    const { actions, host, visibility } = await mount(panelState({ popped: true }));
+    expect(host.textContent).toContain("In its own window");
+    expect(host.querySelector('[role="tab"]')).toBeNull();
+    expect(visibility.at(-1)).toBe(false);
+
+    await mouseClick(button(host, "Show"));
+    expect(actions.at(-1)).toEqual({ action: "show-window" });
+    await mouseClick(button(host, "Bring back"));
+    expect(actions.at(-1)).toEqual({ action: "bring-back" });
+  });
+
+  test("its own window draws the whole browser", async () => {
+    const { host } = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
+    expect(host.querySelector('[role="tab"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Address"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("In its own window");
+  });
+
+  test("when the window closes the browser comes back into the panel", async () => {
+    const { onState, push } = pushing();
+    const { host } = await mount(panelState({ popped: true }), { onState });
+    await push(panelState({ popped: false }));
+    await waitFor(() => Boolean(host.querySelector('[role="tab"]')));
+    expect(host.querySelector('[role="tab"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("In its own window");
+  });
+
+  test("a browser that ends while popped closes the panel's tab", async () => {
+    const { onState, push } = pushing();
+    let ended = 0;
+    await mount(panelState({ popped: true }), { onState }, undefined, { onEnded: () => { ended += 1; } });
+    await push(panelState({ tabs: [], popped: false, ended: true }));
+    expect(ended).toBe(1);
   });
 });
 

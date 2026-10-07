@@ -5,7 +5,14 @@ const hosts = require("./browser-hosts");
 const added = [];
 function host(name) {
   const win = new FakeBrowserWindow();
-  const manager = { name, window: win, persisted: 0, persistSync() { this.persisted += 1; } };
+  const manager = {
+    name,
+    window: win,
+    stages: [],
+    persisted: 0,
+    persistSync() { this.persisted += 1; },
+    windowOfSender(sender) { return [this.window, ...this.stages].find((own) => !own.isDestroyed() && own.webContents === sender) ?? null; },
+  };
   hosts.addHost(win, manager);
   added.push(manager);
   return { win, manager };
@@ -33,6 +40,14 @@ describe("a request is answered by its own window's host", () => {
     expect(() => hosts.requireBrowserManager({ sender: new FakeWebContents() })).toThrow("not ready");
   });
 
+  test("a popped-out browser's window is answered by the host that owns its tabs", () => {
+    const a = host("a");
+    host("b");
+    const surface = new FakeBrowserWindow();
+    a.manager.stages.push(surface);
+    expect(hosts.requireBrowserManager(eventFrom(surface))).toBe(a.manager);
+  });
+
   test("a destroyed window's renderer resolves to nothing of its own", () => {
     const a = host("a");
     const b = host("b");
@@ -45,6 +60,14 @@ describe("only the cockpit's own top frame passes the cockpit check", () => {
   test("the window's main frame passes, and gets its host back", () => {
     const a = host("a");
     expect(hosts.requireCockpitSender(eventFrom(a.win), "do it")).toBe(a.manager);
+  });
+
+  test("a popped-out browser's own top frame passes too, since it draws the same controls", () => {
+    const a = host("a");
+    const surface = new FakeBrowserWindow();
+    a.manager.stages.push(surface);
+    expect(hosts.requireCockpitSender(eventFrom(surface), "do it")).toBe(a.manager);
+    expect(() => hosts.requireCockpitSender(eventFrom(surface, { frame: { name: "sub" } }), "do it")).toThrow("Only the Telar window may do it.");
   });
 
   test("a subframe, a tab or another renderer is refused by name", () => {

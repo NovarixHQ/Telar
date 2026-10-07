@@ -172,7 +172,7 @@ module.exports = {
   attachExtensionHost(host, partition) {
     if (!partition) throw new Error("attachExtensionHost needs the partition the host serves.");
     this.extensionHosts.set(partition, host);
-    for (const tab of this.tabs) if (tab.view && tab.partition === partition) host.addTab(tab.view.webContents, this.window);
+    for (const tab of this.tabs) if (tab.view && tab.partition === partition) host.addTab(tab.view.webContents, this.stageWindow(tab.scopeKey));
   },
 
   preparePartition(partition) {
@@ -222,7 +222,7 @@ module.exports = {
       : state === "completed" ? `Downloaded ${filename} to ${path}`
       : `Download of ${filename} ${state === "cancelled" ? "was cancelled" : "failed"}; nothing was saved to ${path}`;
     if (tab) pushCapped(tab.console, { level: state === "started" || state === "completed" ? "info" : "error", text });
-    if (!this.window.isDestroyed()) this.window.webContents.send("telar:browser:download", { ...where, state, path, filename });
+    this.sendToScope(where.scopeKey, "telar:browser:download", { ...where, state, path, filename });
   },
 
   locatePermission(source) {
@@ -240,8 +240,7 @@ module.exports = {
   },
 
   deliverPermissionPrompt(record) {
-    if (this.window.isDestroyed()) return;
-    this.window.webContents.send("telar:browser:permission-request", record);
+    this.sendToScope(record.scopeKey, "telar:browser:permission-request", record);
   },
 
   answerSitePermission(requestId, answer) {
@@ -281,7 +280,6 @@ module.exports = {
   },
 
   reportPermissionDenied(context) {
-    if (this.window.isDestroyed()) return;
-    this.window.webContents.send("telar:browser:permission-denied", { origin: context.origin, kinds: context.kinds, reason: context.reason });
+    this.sendToAllStages("telar:browser:permission-denied", { origin: context.origin, kinds: context.kinds, reason: context.reason });
   },
 };

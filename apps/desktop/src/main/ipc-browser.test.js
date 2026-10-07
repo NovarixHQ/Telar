@@ -11,8 +11,9 @@ function fakeManager(win, name) {
     name,
     window: win,
     calls: [],
+    windowOfSender(sender) { return win.webContents === sender ? win : null; },
     state(scopeKey) { this.calls.push(["state", scopeKey]); return { name }; },
-    setBounds(scopeKey) { this.calls.push(["setBounds", scopeKey]); },
+    setBounds(scopeKey, _bounds, sender) { this.calls.push(["setBounds", scopeKey, sender]); },
     noteLoginEntryFromWebContents(sender) { this.calls.push(["loginEntry", sender]); },
     noteHumanInputFromWebContents(sender) { this.calls.push(["humanInput", sender]); },
     hostForScope() { return { status: () => ({ phase: "ready", name: "1Password" }) }; },
@@ -47,7 +48,7 @@ describe("a panel request is answered by its own window's host", () => {
 
   test("so does a fire-and-forget send", () => {
     electron.ipcMain.send("telar:browser:set-bounds", eventFrom(a.window), { scopeKey: "s1", bounds: {} });
-    expect(a.calls).toContainEqual(["setBounds", "s1"]);
+    expect(a.calls).toContainEqual(["setBounds", "s1", a.window.webContents]);
   });
 
   test("a tab's own report is offered to every host, since a tab resolves to no window", () => {

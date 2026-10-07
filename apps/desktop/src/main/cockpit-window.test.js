@@ -17,7 +17,16 @@ function open(url = URL_) {
   const navigations = [];
   const win = createCockpitWindow(url, {
     createManager: (window, { onChordScope }) => {
-      made.manager = { window, hidden: 0, destroyed: 0, extensionHosts: new Map(), onChordScope, hideVisibleScope() { this.hidden += 1; }, destroy() { this.destroyed += 1; } };
+      made.manager = {
+        window,
+        hidden: 0,
+        destroyed: 0,
+        extensionHosts: new Map(),
+        onChordScope,
+        windowOfSender: (sender) => (sender === window.webContents ? window : null),
+        hideVisibleScope() { this.hidden += 1; },
+        destroy() { this.destroyed += 1; },
+      };
       return made.manager;
     },
     onInPageNavigation: () => navigations.push(true),

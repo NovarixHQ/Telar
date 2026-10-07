@@ -42,7 +42,6 @@ export type RowGestures = {
   /** Open a path in the Editor — the cockpit's own `showPanelTab`, which reads
    *  a file-shaped id and routes it there. */
   onOpenFile?: (path: string) => void;
-  /** Open a path in a new Editor tab, beside whatever the Editor already holds. */
   onOpenFileInNewTab?: (path: string) => void;
 };
 

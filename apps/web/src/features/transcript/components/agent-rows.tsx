@@ -91,13 +91,11 @@ function AgentGroup({ agents }: { agents: readonly AgentRowData[] }) {
   );
 }
 
-/** One child as a row; several as a group under one header. */
 export function AgentRows({ agents }: { agents: readonly AgentRowData[] }) {
   if (agents.length === 0) return null;
   return <div aria-label="Agents">{agents.length === 1 ? <AgentRow agent={agents[0]!} /> : <AgentGroup agents={agents} />}</div>;
 }
 
-/** Builders a notification reports ended, drawn as their rows stopped at that moment. */
 export function FrozenAgentRows({ endings }: { endings: readonly BuilderEnding[] }) {
   const lookup = useContext(SessionLookup);
   const agents = endings.map((ending): AgentRowData => {

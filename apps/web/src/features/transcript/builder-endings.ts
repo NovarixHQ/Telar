@@ -14,7 +14,6 @@ function ending(entry: NotificationEntry): BuilderEnding | undefined {
   return { sessionId, state, ...(entry.title ? { title: entry.title } : {}), ...(summary ? { summary } : {}) };
 }
 
-/** The builders a notification reports ended, or nothing when anything in it is not a builder's ending. */
 export function builderEndings(detail: NotificationDetail): BuilderEnding[] | undefined {
   const entries: NotificationEntry[] = detail.entries?.length ? detail.entries : [detail];
   const endings = entries.map(ending);

@@ -32,7 +32,6 @@ function ArrivalStrip({ titles, children }: { titles: string[]; children: ReactN
   );
 }
 
-/** The sessions this transcript names: who its notifications came from, and its children. */
 export function mentionedSessions(turns: readonly JournalTurn[], children: readonly SessionChild[]): string[] {
   const notifying = turns.flatMap((turn) => [turn.notification?.sessionId, ...(turn.notification?.entries ?? []).map((entry) => entry.sessionId)]);
   return [...new Set([...notifying, ...children.map((child) => child.sessionId)].filter((id): id is string => Boolean(id)))].sort();

@@ -35,7 +35,6 @@ export function useSessionChildren(hostId: string, sessionId: string | undefined
   return children;
 }
 
-/** Changes when the transcript gains a turn or a sessions tool call finishes: the moments a child may have appeared. */
 export function childrenGrowth(turns: readonly JournalTurn[]): string {
   const calls = (turns.at(-1)?.items ?? []).filter(
     (item) => item.detail.type === "mcp_tool_call" && item.status !== "inProgress" && displayToolName(item.detail.call.name).startsWith("sessions_"),

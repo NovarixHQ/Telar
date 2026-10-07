@@ -51,12 +51,10 @@ export function sessionsActionLabel(item: JournalItem, running: boolean): string
   return found && (running ? found.words.running : found.words.done);
 }
 
-/** Calls that name their own subject in the label, so the row needs no argument beside it. */
 export function sessionsLabelSaysAll(item: JournalItem): boolean {
   return wording(item)?.title !== undefined;
 }
 
-/** How a tally names several of one sessions action ("Delegated 3 tasks"), keyed so they count together. */
 export function sessionsTally(item: JournalItem): { key: string; label: (count: number) => string } | undefined {
   const found = wording(item);
   return found && { key: found.key, label: (count) => (count === 1 ? found.words.done : found.words.many(count)) };
@@ -75,7 +73,6 @@ function parsed(output: unknown): unknown {
   return output;
 }
 
-/** The cockpit path a finished sessions call handed back for the session it touched. */
 export function sessionsLink(item: JournalItem): string | undefined {
   const call = callOf(item);
   if (!call || item.status === "inProgress" || !displayToolName(call.name).startsWith("sessions_")) return undefined;

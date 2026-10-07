@@ -131,7 +131,7 @@ export function artifactTheme(scheme: ArtifactTheme["scheme"], read: (token: str
 }
 
 export const ARTIFACT_BASE_CSS =
-  ":where(html){background:var(--background);color:var(--foreground,CanvasText);font:13px/1.5 var(--font-sans,system-ui,-apple-system,sans-serif);scrollbar-width:none}:where(html)::-webkit-scrollbar{display:none}:where(body){margin:0}:where(code,kbd,pre,samp){font-family:var(--font-mono,ui-monospace,monospace)}";
+  ":where(html){background:var(--background);color:var(--foreground,CanvasText);font:14px/1.5 var(--font-sans,system-ui,-apple-system,sans-serif);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;scrollbar-width:none}:where(html)::-webkit-scrollbar{display:none}:where(body){margin:0}:where(code,kbd,pre,samp){font-family:var(--font-mono,ui-monospace,monospace)}";
 
 export function artifactThemeCss(theme: ArtifactTheme): string {
   const variables = theme.variables || {};

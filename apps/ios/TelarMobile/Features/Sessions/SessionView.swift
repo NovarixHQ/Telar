@@ -13,6 +13,7 @@ struct SessionView: View {
 
     @State private var panel: PanelModel
     @State private var simulatorWatch = SimulatorWatch()
+    @State private var agents = AgentsWatch()
 
     @State private var inspectorShown = false
     @State private var pushShown = false
@@ -303,6 +304,9 @@ struct SessionView: View {
                 }
             }
             .onChange(of: receiptWorld) { sendReceiptIfEarned() }
+            .task(id: agentsPulse(visibleTurns, active: scenePhase == .active)) {
+                if scenePhase == .active, let agentsAPI = api as? any AgentsAPI { await agents.follow(agentsAPI, sessionId: sessionId) }
+            }
     }
 
     private var stack: some View {
@@ -482,6 +486,9 @@ struct SessionView: View {
             }
             if let simulatorsAPI, !simulatorWatch.running.isEmpty {
                 SimulatorPill(api: simulatorsAPI, running: preferringAgent(simulatorWatch.running, store.sync.agentSimulatorId))
+            }
+            if let tally = agents.tally {
+                AgentsPill(tally: tally, watch: agents, hostId: hostId)
             }
             ComposerView(
                 draft: $draft,

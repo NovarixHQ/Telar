@@ -185,7 +185,7 @@ struct SessionView: View {
                         .toolbar(.hidden, for: .navigationBar)
                 }
 
-                .background(Theme.canvas)
+                .background(Theme.sheet)
                 .inspectorColumnWidth(min: 360, ideal: 440, max: 640)
             }
 
@@ -212,7 +212,6 @@ struct SessionView: View {
             }
             .navigationDestination(isPresented: $pushShown) {
                 panelView(.page, canFillWindow: false)
-                    .navigationTitle("Panel")
                     .navigationBarTitleDisplayMode(.inline)
             }
             .onChange(of: panel.isOpen, initial: true) { _, _ in

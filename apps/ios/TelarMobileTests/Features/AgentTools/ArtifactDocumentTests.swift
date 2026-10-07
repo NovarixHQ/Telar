@@ -101,6 +101,7 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
         #expect(token("foreground", dark: true) == "#f5f5f5")
         #expect(token("border", dark: true) == "#ffffff1a")
         #expect(token("chart-1", dark: false) == "#436ed1")
+        #expect(token("chart-6", dark: true) == "#e4b33f")
         for (name, value) in ArtifactLook.tokens(dark: true) where !["radius", "font-sans", "font-mono"].contains(name) {
             #expect(value.range(of: "^#[0-9a-f]{6}([0-9a-f]{2})?$", options: .regularExpression) != nil, "\(name) is \(value)")
         }
@@ -109,7 +110,8 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
     @Test func everyCockpitVariableIsPresent() {
         let names = Set(ArtifactLook.tokens(dark: false).map(\.name))
         let expected: Set = ["background", "foreground", "muted", "card", "border", "primary", "accent", "success", "warning",
-                             "info", "destructive", "chart-1", "chart-2", "radius", "font-sans", "font-mono"]
+                             "info", "destructive", "chart-1", "chart-2", "chart-3", "chart-4", "chart-5", "chart-6",
+                             "radius", "font-sans", "font-mono"]
         #expect(expected.isSubset(of: names))
     }
 

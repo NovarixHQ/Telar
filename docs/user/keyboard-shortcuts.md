@@ -34,6 +34,7 @@ On a Mac, ⌘ is Command and ⌥ is Option. In a browser on another system, Ctrl
 | ⌘\ | Show or hide the right panel |
 | ⌥⌘→ / ⌥⌘← | Next / previous panel tab |
 | ⌥⌘F | Panel fills the window |
+| ⌥⌘P | Float the browser on top |
 | ⇧⌘D | Open Diff |
 | ⇧⌘E | Open Editor |
 | ⇧⌘B | Open Data |

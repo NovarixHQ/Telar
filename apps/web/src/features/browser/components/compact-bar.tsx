@@ -25,7 +25,7 @@ export function CompactBar({ b }: { b: BrowserUi }) {
         <button type="button" aria-label="Bring back to the panel" title="Bring back to the panel" className={GLYPH} onClick={() => void act({ action: "bring-back" })}>
           <PanelRightIcon className="size-3.5" />
         </button>
-        <button type="button" aria-label="Turn off on top" title="Turn off on top" className={GLYPH} onClick={() => void act({ action: "compact", on: false })}>
+        <button type="button" aria-label="Turn off on top" title="Turn off on top" className={GLYPH} onClick={() => void act({ action: "float", on: false })}>
           <PinOffIcon className="size-3.5" />
         </button>
       </div>

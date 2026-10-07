@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PencilIcon, PinIcon, PlusIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PencilIcon, PictureInPicture2Icon, PlusIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { siteLabel } from "../desktop-site-permissions";
 import { IdentityIcon } from "@/ui/telar-icons";
@@ -244,17 +244,16 @@ function OptionsRows({ b }: { b: BrowserUi }) {
         <span className="min-w-0 flex-1">{b.inWindow ? "Bring back to the panel" : "Open in its own window"}</span>
         {!b.inWindow && <SquareArrowOutUpRightIcon aria-hidden className="size-3 shrink-0" />}
       </button>
-      {b.inWindow ? (
-        <button
-          type="button"
-          title="Shrink to a small window that stays above other apps. The agent keeps working in it."
-          onClick={() => run(() => void b.act({ action: "compact", on: true }))}
-          className={row}
-        >
-          <span className="min-w-0 flex-1">Keep on top</span>
-          <PinIcon aria-hidden className="size-3 shrink-0" />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        disabled={!activeTab}
+        title="A small window that stays above other apps. The agent keeps working in it."
+        onClick={() => run(() => void b.act({ action: "float", on: true }))}
+        className={row}
+      >
+        <span className="min-w-0 flex-1">Float on top</span>
+        <PictureInPicture2Icon aria-hidden className="size-3 shrink-0" />
+      </button>
       <CheckRow
         on={deviceToolbar}
         disabled={!activeTab?.viewport}

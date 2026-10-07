@@ -44,6 +44,8 @@ const COMMANDS = [
   { id: "open-data", label: "Open Data", group: "Panel", icon: "table", defaultChord: "CommandOrControl+Shift+B", menu: "panel" },
   { id: "open-latex", label: "Open LaTeX", group: "Panel", icon: "sigma", defaultChord: "CommandOrControl+Shift+X", menu: "panel" },
 
+  { id: "float-browser", label: "Float Browser on Top", group: "Panel", icon: "picture-in-picture-2", defaultChord: "CommandOrControl+Alt+P", menu: "window" },
+
   { id: "toggle-devtools", label: "Developer Tools", group: "Panel", icon: "bug", defaultChord: "CommandOrControl+Alt+I", menu: "view" },
 
   { id: "go-to-file", label: "Go to File…", group: "Panel", icon: "file-search", defaultChord: "CommandOrControl+Shift+P" },

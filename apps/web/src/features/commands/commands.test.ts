@@ -54,6 +54,7 @@ const EXPECTED_IDS: CommandId[] = [
   "open-editor",
   "open-data",
   "open-latex",
+  "float-browser",
   "toggle-devtools",
   "go-to-file",
   "search-project-contents",

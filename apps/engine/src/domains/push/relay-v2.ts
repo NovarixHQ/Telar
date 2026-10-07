@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import type { Delivery, DeliveryResult, PushRecord, RelayCredential } from "./push";
+import { tokenFingerprint, type Delivery, type DeliveryResult, type PushRecord, type RelayCredential } from "./push";
 
 export const RELAY_V2_URL = process.env.TELAR_PUSH_RELAY_URL ?? "https://telar-push-relay.facundo-barbera.workers.dev";
 
@@ -29,7 +29,8 @@ export function v2Body(delivery: Delivery): Record<string, unknown> | undefined 
   const base = { kind: delivery.kind, collapseId: delivery.collapseId, payload: delivery.payload };
   if (delivery.kind === "alert" || delivery.kind === "background") return base;
   if (delivery.payload.aps.event === "start") return { ...base, start: true };
-  return delivery.activityId !== undefined && ACTIVITY.test(delivery.activityId) ? { ...base, activity: delivery.activityId, ...(delivery.urgent ? { urgent: true } : {}) } : undefined;
+  if (delivery.activityId === undefined || !ACTIVITY.test(delivery.activityId)) return undefined;
+  return { ...base, activity: delivery.activityId, fingerprint: tokenFingerprint(delivery.token), ...(delivery.urgent ? { urgent: true } : {}) };
 }
 
 export async function relayV2Delivery(credential: RelayCredential, delivery: Delivery, fetchImpl: typeof fetch = fetch): Promise<DeliveryResult> {

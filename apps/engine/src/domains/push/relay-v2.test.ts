@@ -8,7 +8,7 @@ import type { EngineClient } from "@telar/engine-client";
 import { matchRoute } from "../../platform/http/router";
 import type { Route } from "../../platform/http/route";
 import { automaticActivityDelivery } from "./card";
-import { notification, parseRegistration, pushAvailable, readPushRecords, saveRegistration, type Delivery, type MobileRegistration } from "./push";
+import { notification, parseRegistration, pushAvailable, readPushRecords, saveRegistration, tokenFingerprint, type Delivery, type MobileRegistration } from "./push";
 import { nextStamp, parseRelayCredential, RELAY_V2_URL, relayV2Delivery } from "./relay-v2";
 import { pushRoutes } from "./routes";
 import { sendRelayTest } from "./worker";
@@ -84,16 +84,16 @@ describe("a send", () => {
     expect(String(init.body)).not.toContain(registration.token);
   });
 
-  test("the host card is named by its id, a start by being one", async () => {
+  test("the host card is named by its id and its token's fingerprint, a start by being one", async () => {
     const { calls, fetchImpl } = relay();
     await relayV2Delivery(credential, automaticActivityDelivery({ ...registration, liveActivities: true }, [], "b".repeat(64), 1, 100, "start"), fetchImpl);
     await relayV2Delivery(credential, automaticActivityDelivery({ ...registration, liveActivities: true }, [], "d".repeat(64), 1, 100), fetchImpl);
     const bodies = calls.map(call => JSON.parse(String(call.init.body)));
-    expect(bodies.map(b => [b.kind, b.activity, b.start])).toEqual([
-      ["liveactivity", undefined, true],
-      ["liveactivity", "__automatic__", undefined],
+    expect(bodies.map(b => [b.kind, b.activity, b.start, b.fingerprint])).toEqual([
+      ["liveactivity", undefined, true, undefined],
+      ["liveactivity", "__automatic__", undefined, tokenFingerprint("d".repeat(64))],
     ]);
-    expect(calls.every(call => !String(call.init.body).includes("b".repeat(64)) && !String(call.init.body).includes("c".repeat(64)))).toBe(true);
+    expect(calls.every(call => !String(call.init.body).includes("b".repeat(64)) && !String(call.init.body).includes("d".repeat(64)))).toBe(true);
   });
 
   test("an activity with no name is refused here, without a request", async () => {

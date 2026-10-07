@@ -116,6 +116,35 @@ describe("the window joins the host registry", () => {
   });
 });
 
+async function windowIdOf(win) {
+  for (let tick = 0; tick < 50 && win.loaded.length === 0; tick += 1) await Promise.resolve();
+  return new URL(win.loaded[0]).searchParams.get("w");
+}
+
+describe("each window carries its own id", () => {
+  test("the first window is the main one and every other window gets a fresh id", async () => {
+    const ids = await Promise.all([open(), open(), open()].map(({ win }) => windowIdOf(win)));
+    expect(ids[0]).toBe("main");
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  test("the main id passes to the next window once the main window closes", async () => {
+    const first = open();
+    const second = open();
+    first.win.close();
+    expect(await windowIdOf(second.win)).not.toBe("main");
+    expect(await windowIdOf(open().win)).toBe("main");
+  });
+
+  test("an address copied from another window does not copy its id", async () => {
+    const main = open();
+    expect(await windowIdOf(main.win)).toBe("main");
+    const { win } = open(`${URL_}spool?w=main`);
+    expect(await windowIdOf(win)).not.toBe("main");
+    expect(new URL(win.loaded[0]).pathname).toBe("/spool");
+  });
+});
+
 describe("a reload remounts the cockpit", () => {
   test("the native browser views hide before the renderer reloads", () => {
     const { win, manager } = open();

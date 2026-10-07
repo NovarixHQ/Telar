@@ -270,9 +270,10 @@ describe("the suffix that tells two tabs of a kind apart", () => {
     expect(second.label).toBe("Editor · utils.ts");
   });
 
-  test("a duplicate with nothing to say is told apart by its ordinal", () => {
-    expect(describePanelTabInstance({ id: "editor", kind: "editor", params: {} }, { duplicate: true }).label).toBe("Editor · 1");
-    expect(describePanelTabInstance({ id: "editor#2", kind: "editor", params: {} }, { duplicate: true }).label).toBe("Editor · 2");
+  test("an editor with nothing to say keeps its bare label; shells are told apart by ordinal", () => {
+    expect(describePanelTabInstance({ id: "editor#2", kind: "editor", params: {} }, { duplicate: true }).label).toBe("Editor");
+    expect(describePanelTabInstance({ id: "terminal", kind: "terminal", params: {} }, { duplicate: true }).label).toBe("Terminal · 1");
+    expect(describePanelTabInstance({ id: "terminal#2", kind: "terminal", params: {} }, { duplicate: true }).label).toBe("Terminal · 2");
   });
 
   test("a title param names the tab outright, sibling or not", () => {

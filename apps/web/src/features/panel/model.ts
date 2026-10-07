@@ -233,7 +233,7 @@ function livePageSuffix(live?: readonly LivePage[]): string | undefined {
   }
 }
 
-/** `terminal#3` is the third; the first instance's id is its bare kind. */
+/** `terminal#3` is the third; the first instance's id is its bare kind. Shells have nothing else to tell them apart. */
 function instanceOrdinal(id: string): string {
   const match = /#(\d+)$/.exec(id);
   return match ? match[1] : "1";
@@ -248,7 +248,7 @@ export function describePanelTabInstance(
   const title = tab.params.title;
   const described = title ? { ...base, label: title, blurb: title } : base;
   if (!options.duplicate || title) return described;
-  const suffix = panelTabSuffix(tab.params) ?? (tab.kind === LIVE_BROWSER_TAB ? livePageSuffix(options.live) : undefined) ?? instanceOrdinal(tab.id);
+  const suffix = panelTabSuffix(tab.params) ?? (tab.kind === LIVE_BROWSER_TAB ? livePageSuffix(options.live) : undefined) ?? (tab.kind === "terminal" ? instanceOrdinal(tab.id) : undefined);
   if (!suffix) return described;
   return { ...described, label: `${described.label} · ${suffix}`, blurb: `${described.blurb} — ${suffix}` };
 }

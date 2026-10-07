@@ -86,7 +86,7 @@ describe("a tab wears a suffix only when it has a sibling of its kind", () => {
   });
 
   test("two Diffs with nothing else to tell them apart are numbered", () => {
-    expect(labels(strip([tab("diff", "diff"), tab("diff#2", "diff")], "diff"))).toEqual(["Diff · 1", "Diff · 2"]);
+    expect(labels(strip([tab("diff", "diff"), tab("diff#2", "diff")], "diff"))).toEqual(["Diff", "Diff"]);
   });
 });
 

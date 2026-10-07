@@ -147,7 +147,6 @@ cd apps/desktop && bun test testflight-external.test.js
 
 1. Archives Release unsigned and asserts that both the app and the extension are Mach-O binaries.
 2. Reports the Swift expressions over the 500 ms type-check floor. This step never fails on slow expressions.
-3. Runs `-only-testing:TelarMobileTests` on `iPhone 17` in the simulator, with a minimum count of passed tests.
 
 A green pull request does not prove that signing or export works. Only the probe or a nightly does.
 

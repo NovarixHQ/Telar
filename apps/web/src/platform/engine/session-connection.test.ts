@@ -66,7 +66,7 @@ test("Swift and web consume the same engine-produced OpenCode prefix fixture", a
   const { Session, Item, Turn } = await import("@telar/engine-client");
   const { projectJournal } = await import("./journal");
   const { itemText } = await import("./journal-items");
-  const raw = await import("../../../../ios/TelarMobileTests/Fixtures/engine-revision.json");
+  const raw = await import("../../../../ios/Fixtures/engine-revision.json");
   const snapshot = { ...raw.default, session: Session.parse(raw.default.session), items: raw.default.items.map((item) => Item.parse(item)), turns: raw.default.turns.map((turn) => Turn.parse(turn)) };
   expect(snapshot.session.driver).toBe("opencode");
   expect(snapshot.turns[1]?.state).toBe("queued");

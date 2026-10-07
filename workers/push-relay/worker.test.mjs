@@ -75,7 +75,7 @@ async function phone(p,{challenge,bundle='io.github.novarix.telar',environment='
   };
 }
 function relayEnv(extra={}) {
-  const namespace=(Class,env)=>{const live=new Map();return {idFromName:n=>n,get:n=>({fetch:(input,init)=>{if(!live.has(n)) live.set(n,new Class(store(),env));return live.get(n).fetch(input instanceof Request?input:new Request(input,init));}})};};
+  const namespace=(Class,env)=>{const live=new Map();const at=n=>{if(!live.has(n)) live.set(n,new Class(store(),env));return live.get(n);};return {idFromName:n=>n,instance:at,get:n=>({fetch:(input,init)=>at(n).fetch(input instanceof Request?input:new Request(input,init))})};};
   const env={APNS_KEY_BASE64:'k',APNS_KEY_ID:'KEY',APNS_TEAM_ID:TEAM,SIGNER:{idFromName:n=>n,get:()=>({fetch:async()=>new Response('jwt')})},...extra};
   env.GATE=namespace(RelayGate,env);env.DEVICE_STATE=namespace(RelayDevice,env);
   return env;
@@ -114,7 +114,7 @@ async function macSend({env,handle},{keyId,sendKey},body,{stamp=nextStamp(),tamp
 const alert={kind:'alert',collapseId:'d'.repeat(64),payload:{aps:{alert:'Session needs you'}}};
 async function withApple(answer,fn) {
   const original=globalThis.fetch, calls=[];
-  globalThis.fetch=async(url,init)=>{calls.push({url,headers:init.headers});return answer();};
+  globalThis.fetch=async(url,init)=>{calls.push({url,headers:init.headers,body:init.body});return answer(url);};
   try { await fn(calls); } finally { globalThis.fetch=original; }
 }
 
@@ -318,5 +318,159 @@ test('v2: a refresh without a start token leaves starts refused as not_registere
     assert.equal((await asPhone(enrolled,'PUT',`/v2/devices/${enrolled.handle}`,tokensOf)).status,200);
     assert.equal((await macSend(enrolled,key,start)).status,200);
     assert.equal(calls[0].url,`https://api.push.apple.com/3/device/${'b'.repeat(64)}`);
+  });
+});
+const STUDIO='11111111-1111-1111-1111-111111111111', LAPTOP='22222222-2222-2222-2222-222222222222';
+const cardToken='9'.repeat(64);
+const rowsOf=(id,name,rows,extra={})=>({kind:'card',host:{id,name},active:rows.filter(r=>!['Done','Failed'].includes(r.status)).length,rows,...extra});
+const aps=call=>JSON.parse(call.body).aps;
+async function onClock(fn) {
+  const real=Date.now; let now=real()+3600000;
+  Date.now=()=>now;
+  try { await fn(ms=>{now+=ms;}); } finally { Date.now=real; lastStamp=0; }
+}
+const alarm=enrolled=>enrolled.env.DEVICE_STATE.instance(enrolled.handle).alarm();
+const withCard=async(enrolled,card=cardToken)=>asPhone(enrolled,'PUT',`/v2/devices/${enrolled.handle}`,{...tokensOf,card});
+
+test('v2 card: two Macs\' rows reach the one card, merged, and a new card token gets them at once',async()=>{
+  await onClock(async()=>{
+    const enrolled=await enroll();
+    const studio=await pairKey(enrolled,'studio'), laptop=await pairKey(enrolled,'laptop');
+    await withApple(()=>new Response(null,{status:200}),async calls=>{
+      assert.deepEqual(await (await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Working'}]))).json(),{status:200,alerted:false},'stored, never 409, with no card yet');
+      assert.equal((await macSend(enrolled,laptop,rowsOf(LAPTOP,'Laptop',[{id:'l1',status:'Needs you',title:'Deploy'}]))).status,200);
+      assert.equal(calls.length,0);
+      assert.equal((await withCard(enrolled)).status,200);
+      assert.equal(calls.length,1);
+      assert.equal(calls[0].url,`https://api.push.apple.com/3/device/${cardToken}`);
+      assert.equal(calls[0].headers['apns-topic'],'io.github.novarix.telar.push-type.liveactivity');
+      const state=aps(calls[0])['content-state'];
+      assert.deepEqual(state.rows,[{id:'l1',status:'Needs you',title:'Deploy',hostId:LAPTOP,host:'Laptop'},{id:'s1',status:'Working',hostId:STUDIO,host:'Studio'}]);
+      assert.equal(state.activeCount,2);
+      assert.equal(aps(calls[0])['stale-date']-aps(calls[0]).timestamp,600);
+    });
+  });
+});
+
+test('v2 card: a routine change waits out 15 s; a session needing you goes at once, at priority 10, with its alert',async()=>{
+  await onClock(async advance=>{
+    const enrolled=await enroll();
+    const studio=await pairKey(enrolled,'studio');
+    await withApple(()=>new Response(null,{status:200}),async calls=>{
+      await withCard(enrolled);
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Working'}]));
+      advance(1000);
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Working',title:'Renamed'}]));
+      assert.equal(calls.length,1,'throttled');
+      advance(15000); await alarm(enrolled);
+      assert.equal(calls.length,2);
+      assert.equal(aps(calls[1])['content-state'].rows[0].title,'Renamed');
+      advance(1000);
+      const answer=await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Needs you'}],{alert:{title:'Renamed',body:'A session needs your input or approval.'}}));
+      assert.deepEqual(await answer.json(),{status:200,alerted:true});
+      assert.equal(calls.length,3);
+      assert.equal(calls[2].headers['apns-priority'],'10');
+      assert.equal(aps(calls[2]).alert.title,'Renamed');
+      advance(1000); await alarm(enrolled);
+      assert.equal(calls.length,3,'nothing changed, nothing sent');
+      advance(300000);
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Needs you'}]));
+      assert.equal(calls.length,4,'the same content again before the stale date');
+    });
+  });
+});
+
+test('v2 card: with nothing left it ends, but not in its first two minutes',async()=>{
+  await onClock(async advance=>{
+    const enrolled=await enroll();
+    const studio=await pairKey(enrolled,'studio');
+    await withApple(()=>new Response(null,{status:200}),async calls=>{
+      await withCard(enrolled);
+      await alarm(enrolled);
+      assert.equal(calls.length,0,'a fresh card waits for the Macs');
+      advance(120000); await alarm(enrolled);
+      assert.equal(aps(calls[0]).event,'end');
+      assert.equal(aps(calls[0])['dismissal-date']-aps(calls[0]).timestamp,15);
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Working'}]));
+      await withCard(enrolled);
+      assert.equal(calls.length,1,'an ended card stays ended');
+      await withCard(enrolled,'8'.repeat(64));
+      assert.equal(calls[1].url.slice(-64),'8'.repeat(64),'a new card is armed and caught up');
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[]));
+      assert.equal(calls.length,2,'still inside the new card\'s grace');
+      advance(120000);
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[]));
+      assert.equal(aps(calls[2]).event,'end');
+    });
+  });
+});
+
+test('v2 card: a Mac that stops posting drops off the card',async()=>{
+  await onClock(async advance=>{
+    const enrolled=await enroll();
+    const studio=await pairKey(enrolled,'studio'), laptop=await pairKey(enrolled,'laptop');
+    await withApple(()=>new Response(null,{status:200}),async calls=>{
+      await withCard(enrolled);
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Working'}]));
+      advance(300000);
+      await macSend(enrolled,laptop,rowsOf(LAPTOP,'Laptop',[{id:'l1',status:'Working'}]));
+      advance(300000); await alarm(enrolled);
+      assert.deepEqual(aps(calls.at(-1))['content-state'].rows.map(r=>r.id),['l1']);
+      assert.equal(aps(calls.at(-1))['content-state'].rows[0].host,undefined);
+    });
+  });
+});
+
+test('v2 card: a dead card token ends the card, and the phone can read every attempt without a token in it',async()=>{
+  await onClock(async()=>{
+    const enrolled=await enroll();
+    const studio=await pairKey(enrolled,'studio');
+    await withCard(enrolled);
+    await withApple(()=>Response.json({reason:'Unregistered'},{status:410}),async()=>{
+      assert.deepEqual(await (await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Working'}],{alert:{title:'T',body:'B'}}))).json(),{status:200,alerted:false});
+    });
+    await withApple(()=>new Response(null,{status:200}),async calls=>{
+      await macSend(enrolled,studio,rowsOf(STUDIO,'Studio',[{id:'s1',status:'Needs you'}]));
+      assert.equal(calls.length,0);
+      assert.equal((await macSend(enrolled,studio,alert)).status,200,'alerts are untouched');
+    });
+    const report=await asPhone(enrolled,'GET',`/v2/devices/${enrolled.handle}/card`);
+    const text=await report.text();
+    assert.ok(!text.includes(cardToken)&&!text.includes('s1'));
+    const {card,hosts,attempts}=JSON.parse(text);
+    assert.equal(card.ended,true);
+    assert.deepEqual(hosts.map(h=>[h.id,h.rows]),[[STUDIO,1]]);
+    assert.deepEqual(attempts.map(a=>[a.event,a.status,a.reason]),[['update',410,'Unregistered']]);
+    assert.equal((await call(enrolled.env,`/v2/devices/${enrolled.handle}/card`)).status,401,'only the phone reads it');
+  });
+});
+
+test('v2 card: a post that is not a card\'s shape is refused',async()=>{
+  const enrolled=await enroll();
+  const studio=await pairKey(enrolled,'studio');
+  assert.equal((await macSend(enrolled,studio,{kind:'card',host:{id:'mac',name:'Studio'},active:0,rows:[]})).status,400);
+  assert.equal((await asPhone(enrolled,'PUT',`/v2/devices/${enrolled.handle}`,{...tokensOf,card:'not-hex'})).status,400);
+});
+
+test('v2 legacy: each Mac\'s `__automatic__` card is reached by its own token, and only a dead one is dropped',async()=>{
+  const enrolled=await enroll();
+  const key=await pairKey(enrolled);
+  const mine='e'.repeat(64), other='f'.repeat(64);
+  assert.equal((await asPhone(enrolled,'PUT',`/v2/devices/${enrolled.handle}`,{...tokensOf,activities:[{id:'__automatic__',token:other},{id:'__automatic__',token:mine}]})).status,200);
+  const print=async t=>Buffer.from(await sha(t)).toString('hex').slice(0,16);
+  const update={...alert,kind:'liveactivity',activity:'__automatic__',payload:{aps:{event:'update'}}};
+  await withApple(()=>new Response(null,{status:200}),async calls=>{
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:await print(mine)})).status,200);
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:await print('a'.repeat(64))})).status,409);
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:'NOT-HEX'})).status,400);
+    assert.deepEqual(calls.map(c=>c.url),[`https://api.push.apple.com/3/device/${mine}`]);
+  });
+  await withApple(()=>new Response(null,{status:410}),async()=>{
+    assert.deepEqual(await (await macSend(enrolled,key,{...update,fingerprint:await print(other)})).json(),{status:410});
+  });
+  await withApple(()=>new Response(null,{status:200}),async calls=>{
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:await print(other)})).status,409);
+    assert.equal((await macSend(enrolled,key,update)).status,200);
+    assert.deepEqual(calls.map(c=>c.url),[`https://api.push.apple.com/3/device/${mine}`]);
   });
 });

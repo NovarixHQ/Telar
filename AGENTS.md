@@ -73,7 +73,6 @@ Code that is not a feature goes in `platform/` (kernel, db, http, git, process),
 - Test behaviour: what renders, what a click or keypress does, what the engine returns. Never assert on source text, class strings or wiring.
 - No real-timer sleeps. Use fake timers, or wait on the event you expect.
 - Don't start long-running processes (dev servers, Electron, simulators, watchers). The owner tests the app themselves.
-- iOS has no tests. Verify with `xcodebuild build`. Never add simulator tests, run `xcodebuild test`, or create, clone, boot or shut down simulators.
 - CI checks enforce the rules above: `check:source` (comment ratchet, invariants), `knip`, `lint:ox`, and the size limits.
 
 ## Documentation

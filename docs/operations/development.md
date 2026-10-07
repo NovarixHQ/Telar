@@ -186,7 +186,7 @@ xcodebuild -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
   -derivedDataPath apps/ios/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
-The iOS app has no test targets. Verify a change with the build above. Don't add simulator tests, run `xcodebuild test`, or create or clone simulators: each clone takes several GB and stays behind when a run is cut short.
+The iOS app has no test targets; verify a change with the build above.
 
 Install "Telar Dev" on a phone connected by cable. Set `TELAR_IPHONE_UDID` to your device:
 

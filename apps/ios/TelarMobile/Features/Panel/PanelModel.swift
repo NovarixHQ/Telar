@@ -8,18 +8,18 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
     var id: String { rawValue }
 
     static let diff = PanelTab(rawValue: "diff")
-    static let files = PanelTab(rawValue: "files")
+    static let editor = PanelTab(rawValue: "editor")
     static let agents = PanelTab(rawValue: "agents")
 
     static let data = PanelTab(rawValue: "data")
     static let latex = PanelTab(rawValue: "latex")
 
-    static let always: [PanelTab] = [.diff, .files, .agents]
+    static let core: [PanelTab] = [.diff, .editor, .agents]
 
     var label: String {
         switch self {
         case .diff: "Diff"
-        case .files: "Files"
+        case .editor: "Files"
         case .agents: "Agents"
         default: PluginUI.surface(for: self)?.label ?? rawValue
         }
@@ -28,9 +28,18 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
     var icon: String {
         switch self {
         case .diff: "plus.forwardslash.minus"
-        case .files: "folder"
+        case .editor: "folder"
         case .agents: "person.2"
         default: PluginUI.surface(for: self)?.icon ?? "puzzlepiece"
+        }
+    }
+
+    var blurb: String {
+        switch self {
+        case .diff: "What this session changed"
+        case .editor: "The checkout, file by file"
+        case .agents: "Conversations working with this one"
+        default: PluginUI.surface(for: self)?.blurb ?? ""
         }
     }
 }
@@ -115,7 +124,8 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
     private(set) var isOpen = false
 
     private(set) var isFullScreen = false
-    private(set) var active: PanelTab = .diff
+    private(set) var tabs: [PanelTab] = []
+    private(set) var active: PanelTab?
     private(set) var editor = EditorState()
 
     private(set) var enabledPlugins: Set<PluginID> = []
@@ -132,7 +142,8 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
 
     private struct Persisted: Codable {
         var isOpen: Bool
-        var active: PanelTab
+        var tabs: [PanelTab]?
+        var active: PanelTab?
         var editor: EditorState
 
         var isFullScreen: Bool?
@@ -143,22 +154,25 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
         self.sessionId = sessionId
         self.defaults = defaults
         if let data = defaults.data(forKey: key), let saved = try? JSONDecoder().decode(Persisted.self, from: data) {
-            isOpen = saved.isOpen
-            active = saved.active
+            tabs = saved.tabs ?? []
+            active = tabs.contains { $0 == saved.active } ? saved.active : tabs.first
+            isOpen = saved.isOpen && !tabs.isEmpty
             editor = saved.editor
             isFullScreen = saved.isFullScreen ?? false
         }
     }
 
-    var tabs: [PanelTab] {
-        PanelTab.always + PluginUI.surfaces(enabled: enabledPlugins).map(\.tab)
+    var offered: [PanelTab] {
+        PanelTab.core + PluginUI.surfaces(enabled: enabledPlugins).map(\.tab)
     }
+
+    var openable: [PanelTab] { offered.filter { !tabs.contains($0) } }
 
     func setPlugins(_ enabled: Set<PluginID>) {
         enabledPlugins = enabled
         pluginsRead = true
 
-        if !tabs.contains(active) { active = .diff }
+        for tab in tabs where !offered.contains(tab) { removeTab(tab) }
 
         for index in editor.files.indices {
             editor.files[index].view = panelView(for: editor.files[index].path, enabled: enabledPlugins)
@@ -167,7 +181,10 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
     }
 
     func open(_ tab: PanelTab? = nil) {
-        if let tab, active != tab { active = tab }
+        if let tab {
+            if !tabs.contains(tab) { tabs.append(tab) }
+            if active != tab { active = tab }
+        }
         if !isOpen { isOpen = true }
         generation += 1
         persist()
@@ -191,14 +208,25 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
     func toggle() { isOpen ? close() : open() }
 
     func select(_ tab: PanelTab) {
-        guard active != tab else { return }
+        guard active != tab, tabs.contains(tab) else { return }
         active = tab
         persist()
     }
 
+    func closeTab(_ tab: PanelTab) {
+        removeTab(tab)
+        persist()
+    }
+
+    private func removeTab(_ tab: PanelTab) {
+        guard let index = tabs.firstIndex(of: tab) else { return }
+        tabs.remove(at: index)
+        if active == tab { active = tabs.indices.contains(index) ? tabs[index] : tabs.last }
+    }
+
     func openFile(_ path: String, pin: Bool = true) {
         editor.open(path, view: panelView(for: path, enabled: enabledPlugins), pin: pin)
-        open(.files)
+        open(.editor)
     }
 
     func activateFile(_ path: String) {
@@ -241,7 +269,7 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
     }
 
     private func persist() {
-        if let data = try? JSONEncoder().encode(Persisted(isOpen: isOpen, active: active, editor: editor, isFullScreen: isFullScreen)) {
+        if let data = try? JSONEncoder().encode(Persisted(isOpen: isOpen, tabs: tabs, active: active, editor: editor, isFullScreen: isFullScreen)) {
             defaults.set(data, forKey: key)
         }
     }

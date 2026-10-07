@@ -1,4 +1,3 @@
-/** Splits a typed argument string the way a shell would for quotes and backslashes, without expanding anything. */
 export function tokenizeCliArgs(text: string): string[] {
   const tokens: string[] = [];
   let current = "";
@@ -30,7 +29,6 @@ export function tokenizeCliArgs(text: string): string[] {
   return tokens;
 }
 
-/** `--flag`, `--key value` and `--key=value` as a flag map; anything that is not a `--` flag is dropped. */
 export function cliFlags(args: readonly string[]): Record<string, string | null> {
   const flags: Record<string, string | null> = {};
   for (let index = 0; index < args.length; index++) {

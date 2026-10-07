@@ -60,6 +60,8 @@ export const ArtifactId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
 
 export const MAX_ARTIFACT_BYTES = 512 * 1024;
 
+export const ARTIFACT_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'";
+
 /** One version of something an agent drew inline; the content is the attachment's bytes. */
 export const Artifact = z.object({
   id: ArtifactId,

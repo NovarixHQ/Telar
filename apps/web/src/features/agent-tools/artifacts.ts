@@ -1,6 +1,4 @@
-import type { Artifact, Item } from "@telar/engine-client";
-
-const ARTIFACT_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'";
+import { type Artifact, ARTIFACT_CSP, type Item } from "@telar/engine-client";
 
 export const ARTIFACT_SANDBOX = "allow-scripts";
 

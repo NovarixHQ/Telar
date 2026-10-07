@@ -502,6 +502,6 @@ test("the orchestrate skill is a provider-readable skill that names no repo or p
   expect(text).not.toContain('envMode: "worktree"');
   expect(text).toContain("CURRENT head SHA");
   expect(text).toContain("you never make one on their behalf");
-  expect(text).toContain("Needs your decision");
+  expect(text).toContain("do not keep a list of them in chat");
   expect(ORCHESTRATE_SKILL.toLowerCase()).not.toMatch(/facundo|telar\/telar|github\.com\//);
 });

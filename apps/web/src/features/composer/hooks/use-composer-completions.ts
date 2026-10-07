@@ -11,9 +11,11 @@ import {
   providerCommandCompletions,
   rankCommands,
   rankPaths,
+  rankSessions,
   rankSkills,
   type Completion,
   type PathEntry,
+  type SessionCandidate,
 } from "../completions";
 import { detectComposerTrigger, type ComposerTrigger } from "../tokens";
 import type { ComposerEditorHandle } from "../components/composer-editor";
@@ -80,6 +82,13 @@ export function useComposerCompletions({
     ? async () => buildPathIndex((sessionId ? await api.sessionFiles(sessionId) : await api.projectFiles(projectId!)).listing.files)
     : async () => [] as PathEntry[];
   const paths = useLazyRead(trigger?.kind === "path", checkout, listPaths, [] as PathEntry[]);
+  // This engine's sessions only: a reference to another host's session would not resolve here.
+  const listSessions = async (): Promise<SessionCandidate[]> => {
+    const live = await api.liveSessions();
+    const names = new Map(live.projects.map((project) => [project.id, project.name]));
+    return live.sessions.map(({ id, title, projectId, updatedAt }) => ({ id, title, projectId, updatedAt, projectName: projectId ? names.get(projectId) : undefined }));
+  };
+  const sessions = useLazyRead(trigger?.kind === "path", checkout, listSessions, [] as SessionCandidate[]);
   const listSkills = sessionId ? () => api.sessionSkills(sessionId) : projectId ? () => api.projectSkills(projectId, menuDriver) : undefined;
   const skills = useLazyRead<ProviderSkills>(trigger?.kind === "skill" || trigger?.kind === "command", checkout, listSkills, { skills: [], commands: [] });
 
@@ -88,9 +97,10 @@ export function useComposerCompletions({
     if (!trigger || dismissed) return [];
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
     if (trigger.kind === "path") {
-      // Notes take at most four rows so a short query cannot bury the checkout.
+      // Notes and sessions take at most four rows each so a short query cannot bury the checkout.
       const noteRows = rankNotes(notes, trigger.query);
-      return [...noteRows, ...rankPaths(paths.value ?? [], trigger.query, Math.max(4, 12 - noteRows.length))];
+      const sessionRows = rankSessions(sessions.value ?? [], trigger.query, { sessionId, projectId });
+      return [...noteRows, ...rankPaths(paths.value ?? [], trigger.query, Math.max(4, 12 - noteRows.length)), ...sessionRows];
     }
     // Two ranked lists, not one: a plugin command must not outscore `/stop`.
     const own = availableCommands({
@@ -106,7 +116,7 @@ export function useComposerCompletions({
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
     return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, notes, skills.value, busy, fresh, runtimeMode, menuDriver, compacting, envMode, choices, canResume]);
+  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, notes, skills.value, busy, fresh, runtimeMode, menuDriver, compacting, envMode, choices, canResume]);
 
   // A list still fetching stays open and says so; `/` always has this box's own verbs to show.
   const loading = (trigger?.kind === "path" && paths.reading) || (trigger?.kind === "skill" && skills.reading);

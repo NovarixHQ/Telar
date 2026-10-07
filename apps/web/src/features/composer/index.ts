@@ -37,6 +37,7 @@ export {
   type LineSide,
   noteReference,
   pullReference,
+  sessionReference,
   startReferenceDrag,
   taskReference,
   type TelarReference,

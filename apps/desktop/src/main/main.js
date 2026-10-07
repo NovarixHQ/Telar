@@ -41,6 +41,7 @@ const { createCockpitWindow } = require("./cockpit-window");
 const { cockpitFocus, createPresence } = require("./presence");
 const { pinUserData } = require("./user-data");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
+const { mainWindow, windowToFocus } = require("../windows/main-window");
 const { createSurfaceWindowStore } = require("../windows/surface-window-store");
 const { isCompact, setCompact } = require("../windows/compact-window");
 const { registerDevPairing } = require("../dev/pair-simulators");
@@ -457,7 +458,7 @@ if (SMOKE) {
     app.quit();
   } else {
     app.on("second-instance", () => {
-      const [win] = BrowserWindow.getAllWindows();
+      const win = windowToFocus(mainWindow(), [...browserManagers].map((manager) => manager.window));
       if (win) {
         if (win.isMinimized()) win.restore();
         win.focus();

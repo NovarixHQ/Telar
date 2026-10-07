@@ -9,58 +9,52 @@ struct DiffView: View {
 
     @State private var expanded: Set<String> = []
 
-    @ScaledMetric(relativeTo: .footnote) private var statusColumn: CGFloat = 14
     @Environment(\.panel) private var panel
 
     var body: some View {
         Group {
             if let diff {
                 List {
-                    header(diff)
+                    DiffSummary(diff: diff, notes: notes(diff))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                        .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 10, trailing: 16))
                     ForEach(diff.files) { file in
                         NavigationLink(value: file) {
-                            fileRow(file)
+                            DiffFileRow(file: file)
                         }
                         .listRowBackground(Color.clear)
                         .listRowSeparatorTint(Theme.borderSubtle)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                         .contextMenu { fileMenu(file) }
                         if expanded.contains(file.path) {
                             InlinePatch(api: api, sessionId: sessionId, file: file)
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 8, trailing: 20))
+                                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
                     if !diff.commits.isEmpty {
                         Section {
                             ForEach(diff.commits) { commit in
-                                HStack(spacing: 10) {
-                                    Text(commit.shortSha)
-                                        .font(.system(Theme.footnote, design: .monospaced))
-                                        .foregroundStyle(Theme.textMuted)
-                                    Text(commit.subject)
-                                        .font(.system(Theme.subhead))
-                                        .foregroundStyle(Theme.text)
-                                        .lineLimit(1)
-                                }
-                                .listRowBackground(Color.clear)
-                                .listRowSeparatorTint(Theme.borderSubtle)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                                DiffCommitRow(commit: commit)
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparatorTint(Theme.borderSubtle)
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                             }
                         } header: {
-                            Text("Commits")
-                                .font(.system(Theme.footnote, weight: .medium))
-                                .foregroundStyle(Theme.textMuted)
+                            HStack(spacing: 6) {
+                                Text("Commits")
+                                Text("\(diff.commits.count)").monospacedDigit()
+                            }
+                            .bandCaption()
+                            .padding(.top, 12)
                         }
                     }
-                    if diff.files.isEmpty && diff.commits.isEmpty {
-                        Text(diff.filesIncomplete == nil ? "No changes yet." : "Nothing was listed — which is not the same as nothing having changed.")
+                    if diff.files.isEmpty && diff.commits.isEmpty && diff.filesIncomplete == nil {
+                        Label("No changes yet.", systemImage: "checkmark.circle")
                             .font(.system(Theme.subhead))
-                            .foregroundStyle(diff.filesIncomplete == nil ? Theme.textMuted : Theme.statusAmber)
+                            .foregroundStyle(Theme.textMuted)
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
@@ -92,47 +86,12 @@ struct DiffView: View {
         }
     }
 
-    private func header(_ diff: SessionDiff) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                if let branch = diff.branch {
-                    Text(branch)
-                        .font(.system(Theme.footnote, design: .monospaced))
-                        .foregroundStyle(Theme.textMuted)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                Text("+\(diff.linesAdded)")
-                    .font(.system(Theme.footnote, weight: .medium))
-                    .foregroundStyle(Theme.statusEmerald)
-                    .tabularNumbers()
-                Text("−\(diff.linesRemoved)")
-                    .font(.system(Theme.footnote, weight: .medium))
-                    .foregroundStyle(Theme.statusRed)
-                    .tabularNumbers()
-            }
-            if diff.base == nil {
-                Text("No recorded base — committed work is not included.")
-                    .font(.system(Theme.footnote))
-                    .foregroundStyle(Theme.statusAmber)
-            }
-
-            ForEach(unknowns(diff), id: \.self) { sentence in
-                Text(sentence)
-                    .font(.system(Theme.footnote))
-                    .foregroundStyle(Theme.statusAmber)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if diff.truncated {
-                Text("File list truncated.")
-                    .font(.system(Theme.footnote))
-                    .foregroundStyle(Theme.textMuted)
-            }
-        }
-    }
-
-    private func unknowns(_ diff: SessionDiff) -> [String] {
+    private func notes(_ diff: SessionDiff) -> [String] {
         var sentences: [String] = []
+        if diff.base == nil { sentences.append("No recorded base — committed work is not included.") }
+        if diff.files.isEmpty && diff.commits.isEmpty && diff.filesIncomplete != nil {
+            sentences.append("Nothing was listed — which is not the same as nothing having changed.")
+        }
         if let files = diff.filesIncomplete {
             sentences.append(
                 files == "timeout"
@@ -150,6 +109,7 @@ struct DiffView: View {
         if diff.baseUnverified != nil {
             sentences.append("Nothing confirmed the starting point — it is the one recorded when this checkout was cut.")
         }
+        if diff.truncated { sentences.append("File list truncated.") }
         return sentences
     }
 
@@ -168,58 +128,6 @@ struct DiffView: View {
         let open = expanded.contains(file.path)
         Button(open ? "Collapse patch" : "Expand patch", systemImage: open ? "chevron.up" : "chevron.down") {
             if open { expanded.remove(file.path) } else { expanded.insert(file.path) }
-        }
-    }
-
-    private func fileRow(_ file: GitFileChange) -> some View {
-        HStack(spacing: 10) {
-            Text(statusLetter(file.status))
-                .font(.system(Theme.footnote, design: .monospaced, weight: .bold))
-                .foregroundStyle(statusColor(file.status))
-                .frame(width: statusColumn)
-            Text(file.path)
-                .font(.system(Theme.footnote, design: .monospaced))
-                .foregroundStyle(Theme.text)
-                .lineLimit(1)
-                .truncationMode(.head)
-            Spacer(minLength: 8)
-            if file.binary == true {
-                Text("binary")
-                    .font(.system(Theme.caption))
-                    .foregroundStyle(Theme.textMuted)
-            } else {
-                if let added = file.linesAdded {
-                    Text("+\(added)")
-                        .font(.system(Theme.footnote))
-                        .foregroundStyle(Theme.statusEmerald)
-                        .tabularNumbers()
-                }
-                if let removed = file.linesRemoved {
-                    Text("−\(removed)")
-                        .font(.system(Theme.footnote))
-                        .foregroundStyle(Theme.statusRed)
-                        .tabularNumbers()
-                }
-            }
-        }
-        .padding(.vertical, 8)
-    }
-
-    private func statusLetter(_ status: String) -> String {
-        switch status {
-        case "added": "A"
-        case "deleted": "D"
-        case "renamed": "R"
-        case "untracked": "?"
-        default: "M"
-        }
-    }
-
-    private func statusColor(_ status: String) -> Color {
-        switch status {
-        case "added", "untracked": Theme.statusEmerald
-        case "deleted": Theme.statusRed
-        default: Theme.statusAmber
         }
     }
 }

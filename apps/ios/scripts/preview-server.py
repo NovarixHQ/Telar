@@ -212,6 +212,18 @@ LATEX_STATUS = {
     'logTail': ['! Undefined control sequence.', 'l.3 \\foo', 'Output written on report/main.pdf (1 page).'],
 }
 
+DIFF_FILES = [
+    {'path': 'notes/plan.md', 'status': 'modified', 'linesAdded': 2, 'linesRemoved': 1},
+    {'path': 'apps/ios/TelarMobile/Features/Panel/PanelTabStrip.swift', 'status': 'added', 'linesAdded': 58, 'linesRemoved': 0},
+    {'path': 'apps/ios/TelarMobile/Features/Git/DiffRows.swift', 'status': 'renamed', 'renamedFrom': 'apps/ios/TelarMobile/Features/Git/DiffParts.swift', 'linesAdded': 12, 'linesRemoved': 30},
+    {'path': 'docs/old-panel.md', 'status': 'deleted', 'linesAdded': 0, 'linesRemoved': 41},
+    {'path': 'design/panel.png', 'status': 'untracked', 'binary': True},
+]
+DIFF = {'repository': True, 'workspacePath': '/tmp/telar-preview', 'branch': 'mobile-experience', 'files': DIFF_FILES,
+        'commits': [{'sha': 'a1b2c3d4e5', 'shortSha': 'a1b2c3d', 'subject': 'feat(ios): a tab strip that never truncates', 'at': NOW - 3600000},
+                    {'sha': 'f6e5d4c3b2', 'shortSha': 'f6e5d4c', 'subject': 'fix(ios): stand the rail aside on reopen', 'at': NOW - 7200000}],
+        'linesAdded': 72, 'linesRemoved': 72, 'truncated': False}
+
 def _sha(text): 
     import hashlib
     return hashlib.sha256(text.encode() if isinstance(text, str) else text).hexdigest()
@@ -257,7 +269,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, UPLOADED[att_id], next((a['mediaType'] for a in ATTACHMENTS if a['id'] == att_id), 'application/octet-stream'))
             return self._send(200, PLOT_PNG, 'image/png')
         if route.endswith('/diff'):
-            return self._send(200, json.dumps({'diff': {'repository': True, 'workspacePath': '/tmp/telar-preview', 'branch': 'mobile-experience', 'files': [{'path': 'notes/plan.md', 'status': 'modified', 'linesAdded': 2, 'linesRemoved': 1}], 'commits': [], 'linesAdded': 2, 'linesRemoved': 1, 'truncated': False}}).encode())
+            return self._send(200, json.dumps({'diff': DIFF}).encode())
         if route == '/api/sessions/live': data = dict(sessions=SESSIONS, projects=PROJECTS)
         elif route == '/api/inbox-policy': data = dict(policy=dict(autoSettleAfterHours=72))
         elif route == '/api/sidebar-layout': data = dict(layout=dict(projectOrder=['telar', 'console']))

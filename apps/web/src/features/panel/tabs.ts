@@ -65,13 +65,14 @@ export function openNewPanelTab<Kind extends string>(state: PanelTabState<Kind>,
   return addPanelTab(state, { id: nextPanelTabId(state, kind), kind, params });
 }
 
-/**
- * Add a tab for something the agent opened. Never opens the panel and never selects the tab: both belong to the person.
- * Returns the same object when nothing changes, since callers run it on every browser event.
- */
-export function revealPanelTab<Kind extends string>(state: PanelTabState<Kind>, tab: PanelTabInstance<Kind>): PanelTabState<Kind> {
-  if (state.tabs.some((entry) => entry.id === tab.id)) return state;
-  return { ...state, tabs: [...state.tabs, tab] };
+export const PERSON_CHOICE_MS = 10_000;
+
+/** Add a tab for something an agent or Run opened; `show` also opens the panel on it. Same object when unchanged. */
+export function revealPanelTab<Kind extends string>(state: PanelTabState<Kind>, tab: PanelTabInstance<Kind>, show = false): PanelTabState<Kind> {
+  const held = state.tabs.some((entry) => entry.id === tab.id);
+  if (!show) return held ? state : { ...state, tabs: [...state.tabs, tab] };
+  if (held && state.open && state.activeTab === tab.id) return state;
+  return { tabs: held ? state.tabs : [...state.tabs, tab], activeTab: tab.id, open: true };
 }
 
 /** Replace, not merge, one instance's params: a merge would leave a key nobody can clear. */

@@ -1,4 +1,5 @@
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const { BrowserWindow, nativeTheme } = require("electron");
 const { createExternalLinkPolicy } = require("../browser/browser-manager");
 const { macWindowChrome } = require("./window-chrome");
@@ -63,9 +64,21 @@ function retryFailedLoads(win, url) {
   win.on("closed", () => clearTimeout(retryTimer));
 }
 
-function createCockpitWindow(url, { createManager, onInPageNavigation }) {
+const MAIN_WINDOW_ID = "main";
+const openWindowIds = new Set();
+
+function claimWindowUrl(appUrl) {
+  const id = openWindowIds.has(MAIN_WINDOW_ID) ? randomUUID() : MAIN_WINDOW_ID;
+  openWindowIds.add(id);
+  const url = new URL(appUrl);
+  url.searchParams.set("w", id);
+  return { id, url: url.href };
+}
+
+function createCockpitWindow(appUrl, { createManager, onInPageNavigation }) {
   const title = windowTitle();
-  rememberWindowUrl(url);
+  rememberWindowUrl(appUrl);
+  const { id, url } = claimWindowUrl(appUrl);
 
   const win = new BrowserWindow(cockpitWindowOptions(title));
   watchWindowVisibility(win);
@@ -73,7 +86,7 @@ function createCockpitWindow(url, { createManager, onInPageNavigation }) {
   const manager = createManager(win, { onChordScope: (owned) => setBrowserChordScope(manager, owned) });
   addHost(win, manager);
 
-  applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl: url }));
+  applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl }));
   win.webContents.on("did-start-loading", () => onCockpitReload(win, manager));
   win.webContents.on("did-navigate-in-page", () => onInPageNavigation());
   win.webContents.on("did-finish-load", () => {
@@ -83,6 +96,7 @@ function createCockpitWindow(url, { createManager, onInPageNavigation }) {
     for (const [partition, host] of manager.extensionHosts) win.webContents.send("telar:browser:extension", { partition, ...host.status() });
   });
   win.on("closed", () => {
+    openWindowIds.delete(id);
     manager.destroy();
     removeHost(manager);
 
@@ -100,8 +114,8 @@ function createCockpitWindow(url, { createManager, onInPageNavigation }) {
   win.once("ready-to-show", () => win.show());
   win.setTitle(title);
 
-  seatHostHeader(url);
-  seatHostCookie(url).finally(() => {
+  seatHostHeader(appUrl);
+  seatHostCookie(appUrl).finally(() => {
     if (!win.isDestroyed()) win.loadURL(url);
   });
   return win;

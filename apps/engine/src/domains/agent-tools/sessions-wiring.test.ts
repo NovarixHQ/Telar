@@ -31,6 +31,7 @@ import { TelarToolSocket } from ".";
 import { reportBack } from "../turns/agent-notice";
 import { EngineWorker } from "../../worker";
 import { stubModels } from "../../../test/stub-models";
+import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 /**
  * A Claude default this temp home already knows, so a claim is not withheld
@@ -244,7 +245,7 @@ async function turnWith(
   let sawCapability = false;
   let failed: unknown;
   const driver: TurnDriver = {
-    async run({ sessions }) {
+    capabilities: STUB_CAPABILITIES, async run({ sessions }) {
       sawCapability = sessions !== undefined;
       if (sessions) {
         try {
@@ -504,7 +505,7 @@ test("a turn's capability knows who it is, and a subscription made mid-turn wake
   const worker = new EngineWorker({
     client,
     workerId: "worker_two",
-    driver: { async run() { return { text: "all done here" }; } },
+    driver: { capabilities: STUB_CAPABILITIES, async run() { return { text: "all done here" }; } },
     pollMs: 60_000,
   });
   workers.push(worker);
@@ -551,7 +552,7 @@ test("a Codex turn is handed the `telar` wall over the socket with its own self 
 
   const handed = new Map<string, { url: string; token: string } | undefined>();
   const driver: TurnDriver = {
-    async run({ sessionId, telarSocketLease, sessions }) {
+    capabilities: STUB_CAPABILITIES, async run({ sessionId, telarSocketLease, sessions }) {
       handed.set(sessionId, telarSocketLease);
       // The in-process capability is NOT withdrawn by the socket's arrival.
       expect(sessions).toBeDefined();
@@ -628,7 +629,7 @@ test("sessions_send from a turn is stamped with the sender over the wire, and th
     client,
     workerId: "worker_peer",
     driver: {
-      async run({ prompt, sessionId }) {
+      capabilities: STUB_CAPABILITIES, async run({ prompt, sessionId }) {
         if (sessionId === hostId) hostWoken();
         else prompts.push(prompt);
         return { text: "reviewed" };
@@ -681,7 +682,7 @@ test("a LONG task is handed to the provider as the assignment notice, with the b
   const worker = new EngineWorker({
     client,
     workerId: "worker_assignee",
-    driver: { async run({ prompt, sessionId }) { if (sessionId === made!.id) prompts.push(prompt); return { text: "on it" }; } },
+    driver: { capabilities: STUB_CAPABILITIES, async run({ prompt, sessionId }) { if (sessionId === made!.id) prompts.push(prompt); return { text: "on it" }; } },
     pollMs: 60_000,
   });
   workers.push(worker);
@@ -714,7 +715,7 @@ test("a cockpit cannot forge a sender through /turns, and a bad proof on /turns/
   const client = new EngineClient(daemon.discovery);
   const { project } = await client.registerProject({ name: "aurora", root: repo() });
   const { session } = await client.createSession({ projectId: project.id, title: "target" });
-  const worker = new EngineWorker({ client, workerId: "worker_one", driver: { async run() { return { text: "" }; } }, pollMs: 60_000 });
+  const worker = new EngineWorker({ client, workerId: "worker_one", driver: { capabilities: STUB_CAPABILITIES, async run() { return { text: "" }; } }, pollMs: 60_000 });
   workers.push(worker);
   await worker.start();
 

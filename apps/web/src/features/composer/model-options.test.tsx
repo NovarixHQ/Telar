@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:tes
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
+import type { BuiltInDriver, ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
 import { hasUltrathink, modelOptionSections, toggleUltrathink, type ModelOptionSection } from "./model-options";
 import { ReasoningControl } from "./components/reasoning-control";
 import { forgetModelCatalogues } from "@/features/providers/model-catalogue-cache";
@@ -137,14 +137,14 @@ test("Ultrathink is the word in the draft, added and removed where it can be see
 describe("the popover", () => {
   let host: HTMLDivElement;
   let root: Root;
-  const CATALOGUES: Record<ProviderDriverKind, ProviderModel[]> = { claude: CLAUDE, codex: CODEX, opencode: OPENCODE };
+  const CATALOGUES: Record<BuiltInDriver, ProviderModel[]> = { claude: CLAUDE, codex: CODEX, opencode: OPENCODE };
 
   beforeEach(() => {
     forgetModelCatalogues();
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       if (url.startsWith("/api/models")) {
-        const driver = new URL(url, "http://localhost").searchParams.get("driver") as ProviderDriverKind;
+        const driver = new URL(url, "http://localhost").searchParams.get("driver") as BuiltInDriver;
         const catalogue: ModelCatalogue = { driver, instanceId: driver, models: CATALOGUES[driver], source: "provider", readAt: 0 };
         return Response.json({ catalogue });
       }

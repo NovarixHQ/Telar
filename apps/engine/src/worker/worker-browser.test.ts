@@ -3,6 +3,7 @@ import { BrowserToolSocket } from "../domains/browser";
 import type { TurnDriver } from "../drivers";
 import { eventually } from "../../test/wait";
 import { setup, teardown } from "../../test/worker-daemon";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 afterEach(teardown);
 
@@ -22,7 +23,7 @@ test("a session keeps ONE browser lease across its turns, revoked when the worke
   // per-turn authority lives in the gate, re-pointed at each turn's claim.
   const leases: Array<{ url: string; token: string }> = [];
   const driver: TurnDriver = {
-    async run({ browserSocket }) {
+    capabilities: STUB_CAPABILITIES, async run({ browserSocket }) {
       leases.push(browserSocket!);
       return { text: "done" };
     },
@@ -68,7 +69,7 @@ test("a mutating socket call journals browser.state onto the turn that made it",
   // THE WHOLE LOOP, over real HTTP: driver → socket → gate (auto-accepted by
   // the session's default mode) → browser → onNavigated → reportObservations.
   const driver: TurnDriver = {
-    async run({ browserSocket }) {
+    capabilities: STUB_CAPABILITIES, async run({ browserSocket }) {
       const response = await fetch(browserSocket!.url, {
         method: "POST",
         headers: { authorization: `Bearer ${browserSocket!.token}`, "content-type": "application/json" },
@@ -109,7 +110,7 @@ test("the claim carries the session's project id and the worker binds the browse
     bindProfile: async (scopeKey, profileKey) => { bound.push([scopeKey, profileKey]); },
   });
   const order: string[] = [];
-  const driver: TurnDriver = { run: async () => { order.push(`run:${bound.length}`); return { text: "ok" }; } };
+  const driver: TurnDriver = { capabilities: STUB_CAPABILITIES, run: async () => { order.push(`run:${bound.length}`); return { text: "ok" }; } };
   const { client, sessionId, worker } = await setup(driver, { browserSocket: socket });
   await client.submitTurn(sessionId, { runId: "run_bind", input: "Hello" });
   await worker.tick();
@@ -128,7 +129,7 @@ test("a browser profile binding the host REFUSES does not fail the turn — the 
     bindProfile: async () => { throw new Error("Not found."); },
   });
   let ran = 0;
-  const driver: TurnDriver = { run: async () => { ran += 1; return { text: "ok" }; } };
+  const driver: TurnDriver = { capabilities: STUB_CAPABILITIES, run: async () => { ran += 1; return { text: "ok" }; } };
   const { client, sessionId, worker } = await setup(driver, { browserSocket: socket });
   await client.submitTurn(sessionId, { runId: "run_bind_refused", input: "Hello" });
   await worker.tick();

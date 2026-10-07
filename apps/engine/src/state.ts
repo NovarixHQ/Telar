@@ -20,6 +20,7 @@ import { chosenModel, installedCli, ModelCatalogues, ProviderRegistry, sessionCa
 import { DataScienceOps, LatexOps, PluginToolchains } from "./domains/plugins";
 import { UsageLimitSources } from "./domains/usage";
 import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
+import { driverCapabilities } from "./drivers/capabilities";
 import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, RequestPath } from "./domains/turns";
 import { Dictation } from "./domains/dictation";
 import { type ResolvedComputerUse } from "./domains/computer-use";
@@ -613,6 +614,7 @@ export class EngineStore {
   private createTurnLifecycle(): TurnLifecycle {
     return new TurnLifecycle(this.kernel, {
       records: this.records,
+      capabilities: driverCapabilities,
       items: this.sessionItems,
       tasks: this.sessionTasks,
       requests: this.sessionRequests,
@@ -633,6 +635,7 @@ export class EngineStore {
   private createIntake(): TurnIntake {
     return new TurnIntake(this.kernel, {
       records: this.records,
+      capabilities: driverCapabilities,
       items: this.sessionItems,
       mailbox: this.mailbox,
       attachments: this.attachments,

@@ -35,7 +35,8 @@ import {
 } from "./orientation";
 import { BUNDLED_SKILLS, DISPLAY_BRIEFING, displayTools, ORCHESTRATE_SKILL, ORCHESTRATE_SKILL_NAME, type ToolFactory } from "../agent-tools";
 import { codexHome, openCodeHome, providerSkillRoot, providerSkillRoots } from "../providers";
-import { openCodeBriefings, openCodeConfigContent } from "../../drivers/opencode";
+import { driverBriefings } from "../../drivers/briefings";
+import { openCodeConfigContent } from "../../drivers/opencode";
 import { sessionsTools } from ".";
 import { notesTools } from "../notes";
 import { runTools } from "../terminal/tools";
@@ -166,7 +167,7 @@ test("an inbound OpenCode config keeps its own instructions and gains Telar's", 
 });
 
 test("orientation off means OpenCode is handed no instructions entry at all", () => {
-  expect(openCodeBriefings(run())).toEqual([]);
+  expect(driverBriefings(run())).toEqual([]);
   const config = JSON.parse(openCodeConfigContent(run(), undefined)) as { instructions?: string[] };
   expect(config.instructions).toBeUndefined();
 });
@@ -177,10 +178,10 @@ test("the orientation leads the briefings, and the per-surface ones are not gate
    * orientation is off still has to be told how to drive the browser it has —
    * turning off the app's voice must not break a capability.
    */
-  const withBoth = openCodeBriefings(run({ orientation: TELAR_ORIENTATION, browserSocket: { url: "http://x", token: "t" } }));
+  const withBoth = driverBriefings(run({ orientation: TELAR_ORIENTATION, browserSocket: { url: "http://x", token: "t" } }));
   expect(withBoth[0]).toBe(TELAR_ORIENTATION);
   expect(withBoth).toContain(BROWSER_BRIEFING);
-  const withoutOrientation = openCodeBriefings(run({ browserSocket: { url: "http://x", token: "t" }, run: {} as never }));
+  const withoutOrientation = driverBriefings(run({ browserSocket: { url: "http://x", token: "t" }, run: {} as never }));
   expect(withoutOrientation).toEqual([BROWSER_BRIEFING, RUN_BRIEFING]);
   // Once, never twice — the whole set is built in one place per driver.
   expect(withBoth.filter((entry) => entry === TELAR_ORIENTATION)).toHaveLength(1);
@@ -224,8 +225,8 @@ test("Claude's spawn options carry the paragraph exactly once, appended to its o
 
 test("a session that can draw artifacts is told when to, and one that cannot is not", async () => {
   const display = { open: async () => ({ path: "" }), inline: async () => ({ id: "a" }) };
-  expect(openCodeBriefings(run({ display }))).toContain(DISPLAY_BRIEFING);
-  expect(openCodeBriefings(run())).not.toContain(DISPLAY_BRIEFING);
+  expect(driverBriefings(run({ display }))).toContain(DISPLAY_BRIEFING);
+  expect(driverBriefings(run())).not.toContain(DISPLAY_BRIEFING);
   expect((await claudeSystemPrompt({ display }))?.append).toContain(DISPLAY_BRIEFING);
   expect(await claudeSystemPrompt({})).toBeUndefined();
 });

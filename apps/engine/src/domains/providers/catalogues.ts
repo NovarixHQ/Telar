@@ -3,6 +3,7 @@ import {
   CustomProviderModel,
   DEFAULT_MODEL_OVERLAY,
   defaultInstanceIdForDriver,
+  isBuiltInDriver,
   ModelCatalogue as ModelCatalogueSchema,
   ModelOverlay as ModelOverlaySchema,
   type ModelCatalogue,
@@ -30,6 +31,7 @@ export type InstalledCli = { installed: boolean; version?: string };
 
 /** The real version probe, cached per binary; under test it reads as "installed, version unknown". */
 export async function installedCli(driver: ProviderDriverKind): Promise<InstalledCli> {
+  if (!isBuiltInDriver(driver)) return { installed: true };
   try {
     refuseCliSpawnUnderTest(`${driver} --version`);
   } catch {
@@ -108,7 +110,7 @@ export class ModelCatalogues {
   }
 
   async catalogue(driver: ProviderDriverKind, options: { force?: boolean; instanceId?: string } = {}): Promise<ModelCatalogue> {
-    if (driver !== "claude" && driver !== "codex" && driver !== "opencode") throw new EngineStateError("invalid_request", "unknown provider driver");
+    if (!isBuiltInDriver(driver)) throw new EngineStateError("invalid_request", "unknown provider driver");
     let raw: ModelCatalogue;
     const known = this.stored().get(driver);
     if (options.force) {

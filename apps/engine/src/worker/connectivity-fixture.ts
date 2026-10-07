@@ -1,6 +1,7 @@
 import { EngineClientError } from "@telar/engine-client";
 import type { TurnDriver } from "../drivers";
 import { EngineWorker } from ".";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 /** A heartbeat reply with nothing to deliver. */
 export const idle = { cancel: [], resolved: [], steer: [], stopTask: [] };
@@ -79,7 +80,7 @@ export function workerFor(
   extras: { clock?: ReturnType<typeof fakeClock>; diagnostics?: Record<string, unknown>[] } = {},
 ) {
   const driver: TurnDriver = {
-    run: async () => ({ text: "" }),
+    capabilities: STUB_CAPABILITIES, run: async () => ({ text: "" }),
     dispose: () => {
       disposed.count += 1;
     },

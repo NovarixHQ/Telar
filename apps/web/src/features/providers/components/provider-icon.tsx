@@ -1,4 +1,4 @@
-import type { ProviderDriverKind } from "@telar/engine-client";
+import { isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind } from "@telar/engine-client";
 import { cn } from "@/ui/utils";
 import { MarkIcon, OPENCODE_MARK } from "./connection-icon";
 
@@ -53,8 +53,10 @@ export function ProviderIcon({
   );
 }
 
-export const PROVIDER_LABEL: Record<ProviderDriverKind, string> = {
+const DRIVER_LABELS: Record<BuiltInDriver, string> = {
   claude: "Claude",
   codex: "Codex",
   opencode: "OpenCode",
 };
+
+export const driverLabel = (driver: string): string => (isBuiltInDriver(driver) ? DRIVER_LABELS[driver] : driver);

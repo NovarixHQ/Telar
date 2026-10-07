@@ -1,10 +1,5 @@
-import type { ProviderDriverKind, ProviderInstance, ProviderProbe } from "@telar/engine-client";
-
-export const DRIVER_LABEL: Record<ProviderDriverKind, string> = {
-  claude: "Claude",
-  codex: "Codex",
-  opencode: "OpenCode",
-};
+import { driverLabel } from "./components/provider-icon";
+import { isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type ProviderProbe } from "@telar/engine-client";
 
 export const DRIVERS: readonly ProviderDriverKind[] = ["claude", "codex", "opencode"];
 
@@ -92,7 +87,7 @@ export function displayNameOf(instance: Pick<ProviderInstance, "id" | "driver" |
     const humanized = humanizeInstanceId(instance.id);
     if (humanized) return humanized;
   }
-  return DRIVER_LABEL[instance.driver];
+  return driverLabel(instance.driver);
 }
 
 export function sortInstances(instances: readonly ProviderInstance[]): ProviderInstance[] {
@@ -128,19 +123,20 @@ export function isValidInstanceId(id: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(id);
 }
 
-const CONFIG_DIR_ENV: Record<ProviderDriverKind, string> = {
+const CONFIG_DIR_ENV: Record<BuiltInDriver, string> = {
   claude: "CLAUDE_CONFIG_DIR",
   codex: "CODEX_HOME",
   opencode: "OPENCODE_CONFIG_DIR",
 };
 
-const LOGIN_COMMAND: Record<ProviderDriverKind, string> = {
+const LOGIN_COMMAND: Record<BuiltInDriver, string> = {
   claude: "claude auth login",
   codex: "codex login",
   opencode: "opencode auth login",
 };
 
 export function signInCommand(instance: Pick<ProviderInstance, "driver" | "configDir">): string {
+  if (!isBuiltInDriver(instance.driver)) return "";
   const command = LOGIN_COMMAND[instance.driver];
   if (instance.driver === "opencode") return command; // configDir does not isolate native OpenCode credentials.
   return instance.configDir ? `${CONFIG_DIR_ENV[instance.driver]}="${instance.configDir}" ${command}` : command;

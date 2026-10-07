@@ -6,6 +6,7 @@ import { EngineClient } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../daemon";
 import { EngineWorker } from ".";
 import { stubModels } from "../../test/stub-models";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 /**
  * A Claude default this temp home already knows, so a claim is not withheld
@@ -154,7 +155,7 @@ test("a claim delivered AFTER stop never executes, and its token cannot start a 
   const worker = new EngineWorker({
     client,
     workerId: "worker_stopped",
-    driver: { run: async ({ prompt }) => { spawned.push(prompt); return { text: "must not run" }; } },
+    driver: { capabilities: STUB_CAPABILITIES, run: async ({ prompt }) => { spawned.push(prompt); return { text: "must not run" }; } },
     pollMs: 60_000,
     onDiagnostic: () => {},
     onClaimPhase: (phase) => void phases.push(phase),

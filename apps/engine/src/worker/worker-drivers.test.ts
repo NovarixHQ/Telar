@@ -7,13 +7,14 @@ import { defaultWorkerConcurrency, EngineWorker } from ".";
 import { stubModels } from "../../test/stub-models";
 import { eventually } from "../../test/wait";
 import { daemons, root, setup, teardown, workers } from "../../test/worker-daemon";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 afterEach(teardown);
 
 test("a fake driver streams engine-owned text and completes a scheduled turn", async () => {
   const calls: string[] = [];
   const driver: TurnDriver = {
-    async run({ prompt, cwd, onObservations }) {
+    capabilities: STUB_CAPABILITIES, async run({ prompt, cwd, onObservations }) {
       calls.push(`${prompt}:${cwd}`);
       await onObservations([
         { kind: "item.started", item: { id: "i1", detail: { type: "assistant_message", text: "" } } },
@@ -44,7 +45,7 @@ test("a fake driver streams engine-owned text and completes a scheduled turn", a
 test("a turn's effort, fast mode, service tier and ultracode reach the driver from the claim", async () => {
   const seen: Record<string, unknown>[] = [];
   const driver: TurnDriver = {
-    async run({ model, effort, fastMode, serviceTier, ultracode }) {
+    capabilities: STUB_CAPABILITIES, async run({ model, effort, fastMode, serviceTier, ultracode }) {
       seen.push({ model, effort, fastMode, serviceTier, ultracode });
       return { text: "done" };
     },
@@ -62,7 +63,7 @@ test("a turn's effort, fast mode, service tier and ultracode reach the driver fr
 
 test("a whitespace-only provider delta is a valid stream observation, not an invalid user prompt", async () => {
   const driver: TurnDriver = {
-    async run({ onObservations }) {
+    capabilities: STUB_CAPABILITIES, async run({ onObservations }) {
       await onObservations([
         { kind: "item.started", item: { id: "i1", detail: { type: "assistant_message", text: "" } } },
         { kind: "content.delta", itemId: "i1", stream: "assistant_text", text: " " },
@@ -83,7 +84,7 @@ test("a whitespace-only provider delta is a valid stream observation, not an inv
 });
 
 test("an unavailable provider becomes a typed durable failure instead of a success", async () => {
-  const driver: TurnDriver = { run: async () => Promise.reject(new ProviderUnavailableError("Claude is not configured")) };
+  const driver: TurnDriver = { capabilities: STUB_CAPABILITIES, run: async () => Promise.reject(new ProviderUnavailableError("Claude is not configured")) };
   const { client, sessionId, worker } = await setup(driver);
   await client.submitTurn(sessionId, { runId: "run_one", input: "Hello" });
   await worker.tick();
@@ -99,7 +100,7 @@ test("an unavailable provider becomes a typed durable failure instead of a succe
 test("the worker routes each turn to the driver its SESSION named", async () => {
   const ran: string[] = [];
   const named = (label: string): TurnDriver => ({
-    run: async () => {
+    capabilities: STUB_CAPABILITIES, run: async () => {
       ran.push(label);
       return { text: label };
     },
@@ -139,7 +140,7 @@ test("a session whose provider this worker cannot serve fails the turn instead o
   const worker = new EngineWorker({
     client,
     workerId: "worker_one",
-    driver: (kind) => (kind === "claude" ? { run: async () => ({ text: "" }) } : undefined),
+    driver: (kind) => (kind === "claude" ? { capabilities: STUB_CAPABILITIES, run: async () => ({ text: "" }) } : undefined),
     pollMs: 60_000,
   });
   workers.push(worker);
@@ -159,7 +160,7 @@ test("a session whose provider this worker cannot serve fails the turn instead o
 test("a completed Claude session id is persisted and used for the next claimed turn", async () => {
   const seen: Array<string | undefined> = [];
   const driver: TurnDriver = {
-    async run({ providerSessionId }) {
+    capabilities: STUB_CAPABILITIES, async run({ providerSessionId }) {
       seen.push(providerSessionId);
       return { text: "done", providerSessionId: "claude-session-one" };
     },
@@ -186,7 +187,7 @@ test("turns from DIFFERENT sessions run concurrently up to the cap; one session 
     gate.release = resolve;
   });
   const driver: TurnDriver = {
-    async run({ prompt }) {
+    capabilities: STUB_CAPABILITIES, async run({ prompt }) {
       running.add(prompt);
       peak = Math.max(peak, running.size);
       await released;
@@ -235,7 +236,7 @@ test("a turn the PROVIDER opened does not hold an execution slot shut", async ()
   let openProviderTurn: (() => Promise<void>) | undefined;
 
   const driver: TurnDriver = {
-    async run({ prompt, session }) {
+    capabilities: STUB_CAPABILITIES, async run({ prompt, session }) {
       started.push(prompt);
       if (prompt === "A1" && session) {
         // The provider process OUTLIVES its turn, which is how a background

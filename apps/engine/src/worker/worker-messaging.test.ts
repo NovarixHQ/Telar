@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import type { TurnDriver } from "../drivers";
 import { eventually } from "../../test/wait";
 import { setup, teardown } from "../../test/worker-daemon";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 afterEach(teardown);
 
@@ -10,7 +11,7 @@ test("a wake-up between turns becomes a PROVIDER TURN on the engine, with its to
   // its tool request under its own claim → its rows → completeTurn.
   let door: Parameters<TurnDriver["run"]>[0]["session"] | undefined;
   const driver: TurnDriver = {
-    async run({ session }) {
+    capabilities: STUB_CAPABILITIES, async run({ session }) {
       door = session;
       return { text: "first" };
     },
@@ -58,7 +59,7 @@ test("sessions_send from a turn the CLI started on its own is proven by THAT tur
   let sessions: Parameters<TurnDriver["run"]>[0]["sessions"] | undefined;
   let door: Parameters<TurnDriver["run"]>[0]["session"] | undefined;
   const driver: TurnDriver = {
-    async run(input) {
+    capabilities: STUB_CAPABILITIES, async run(input) {
       sessions = input.sessions;
       door = input.session;
       return { text: "handed out the tasks" };
@@ -93,7 +94,7 @@ test("a message submitted mid-turn lands in the driver's mailbox and goes steere
   // and answers with what it heard — proof the text crossed submit → heartbeat
   // → mailbox → driver, and that the ack settled the steered turn.
   const driver: TurnDriver = {
-    async run({ steer }) {
+    capabilities: STUB_CAPABILITIES, async run({ steer }) {
       await steer!.wake();
       return { text: `heard:${steer!.drain().map((message) => message.text).join("|")}` };
     },
@@ -122,7 +123,7 @@ test("a wake landing on an IDLE subscriber reaches the provider exactly as a ste
   // instead of the steer path; the two must agree.
   const prompts: string[] = [];
   const driver: TurnDriver = {
-    async run({ prompt }) {
+    capabilities: STUB_CAPABILITIES, async run({ prompt }) {
       prompts.push(prompt);
       return { text: "ok" };
     },

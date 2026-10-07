@@ -8,6 +8,7 @@ import { EngineWorker } from ".";
 import { stubModels } from "../../test/stub-models";
 import { eventually } from "../../test/wait";
 import { fakeClient, fakeClock, HEARTBEAT_INTERVAL_MS, idle, workerFor } from "./connectivity-fixture";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 /** Past the worker's capped retry spacing, so a drain is due. */
 const SETTLE_SPACING_MS = 31_000;
@@ -79,7 +80,7 @@ test("a lost settlement response is retried as ITSELF, against the real engine s
       client,
       onClaimPhase: barrier.onClaimPhase,
       workerId: "worker_settle",
-      driver: { run: async () => ({ text: "the answer", usage: { tokens: { input: 5, output: 7, cacheRead: 0, cacheCreate: 0 } } }) },
+      driver: { capabilities: STUB_CAPABILITIES, run: async () => ({ text: "the answer", usage: { tokens: { input: 5, output: 7, cacheRead: 0, cacheCreate: 0 } } }) },
       pollMs: 60_000,
       pause: async () => {},
       onDiagnostic: (fields) => void diagnostics.push(fields),
@@ -134,7 +135,7 @@ test("five failures BEFORE commit, then a recovered endpoint: the turn resolves 
       now: clock.now,
       onClaimPhase: barrier.onClaimPhase,
       workerId: "worker_late",
-      driver: { run: async () => ({ text: "the answer", usage: { tokens: { input: 5, output: 7, cacheRead: 0, cacheCreate: 0 } } }) },
+      driver: { capabilities: STUB_CAPABILITIES, run: async () => ({ text: "the answer", usage: { tokens: { input: 5, output: 7, cacheRead: 0, cacheCreate: 0 } } }) },
       pollMs: 60_000,
       pause: async () => {},
       onDiagnostic: (fields) => void diagnostics.push(fields),
@@ -223,7 +224,7 @@ test("a REVOKED pre-settlement fault revokes the worker even when the settle the
       client,
       onClaimPhase: barrier.onClaimPhase,
       workerId: "worker_revoked",
-      driver: { run: async () => ({ text: "" }) },
+      driver: { capabilities: STUB_CAPABILITIES, run: async () => ({ text: "" }) },
       pollMs: 60_000,
       pause: async () => {},
       onConnectionLost: () => void (lost += 1),
@@ -271,7 +272,7 @@ test("a settlement is NEVER forgotten on a retry count: >20 rounds, then the end
       now: clock.now,
       onClaimPhase: barrier.onClaimPhase,
       workerId: "worker_forever",
-      driver: { run: async () => ({ text: "the answer", usage: { tokens: { input: 5, output: 7, cacheRead: 0, cacheCreate: 0 } } }) },
+      driver: { capabilities: STUB_CAPABILITIES, run: async () => ({ text: "the answer", usage: { tokens: { input: 5, output: 7, cacheRead: 0, cacheCreate: 0 } } }) },
       pollMs: 60_000,
       pause: async () => {},
       onDiagnostic: () => {},

@@ -8,6 +8,7 @@ import type { TurnDriver } from "../drivers";
 import { EngineStore } from "../state";
 import { EngineStateError } from "../platform/kernel";
 import { stubModels } from "../../test/stub-models";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 /**
  * CONTINUING WHAT A PLANNED RESTART CUT OFF — `resumeAfterPlannedRestart`.
@@ -114,7 +115,7 @@ test("an update restart that quits the real daemon mid-turn continues the sessio
   let started!: () => void;
   const running = new Promise<void>((resolve) => { started = resolve; });
   const workingForever: TurnDriver = {
-    run: async ({ signal }) => {
+    capabilities: STUB_CAPABILITIES, run: async ({ signal }) => {
       started();
       await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
       return { text: "" };

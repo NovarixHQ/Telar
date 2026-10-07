@@ -33,6 +33,7 @@ import { helloToolModule } from "./hello";
 import type { PluginToolModule } from "./tool-module";
 import { stubModels } from "../../../test/stub-models";
 import { allowCliInThisFile, pinFakeClaudeInThisFile } from "../../../test/allow-cli";
+import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 /** NO PROVIDER PROCESS IS SPAWNED HERE, but a binary path IS resolved —
  *  its daemon's Claude driver resolves one before every claim, against stubbed models.
@@ -98,7 +99,7 @@ function recordingDriver(options: {
   return {
     sockets,
     driver: {
-      run: async ({ prompt, telarSocketLease }: DriverRun) => {
+      capabilities: STUB_CAPABILITIES, run: async ({ prompt, telarSocketLease }: DriverRun) => {
         if (telarSocketLease && isSubject(prompt)) sockets.push(telarSocketLease);
         if (telarSocketLease && isSubject(prompt) && options.duringTurn) await options.duringTurn(telarSocketLease, prompt);
         return { text: `echo:${prompt}` };

@@ -17,6 +17,13 @@ struct ComposerCompletion: Identifiable, Equatable {
     var action: ComposerCommandAction
 }
 
+struct ComposerMentions {
+    var sessions: [Session] = []
+    var projects: [ProjectRef] = []
+    var sessionId: String?
+    var projectId: String?
+}
+
 struct ComposerCommandContext: Equatable {
     var busy = false
     var fresh = false
@@ -29,6 +36,7 @@ enum ComposerCompletions {
     static let commandsGroup = "Commands"
     static let providerGroup = "Provider commands"
     static let skillsGroup = "Skills"
+    static let sessionsGroup = "Sessions"
     static let orchestrateSkill = "orchestrate"
     static let orchestratePrompt = "Use \(skillReference(orchestrateSkill)) to coordinate this list:"
 
@@ -63,7 +71,8 @@ enum ComposerCompletions {
         return rows
     }
 
-    static func list(for trigger: ComposerTrigger, context: ComposerCommandContext, skills: ProviderSkills) -> [ComposerCompletion] {
+    static func list(for trigger: ComposerTrigger, context: ComposerCommandContext, skills: ProviderSkills, mentions: ComposerMentions) -> [ComposerCompletion] {
+        if trigger.kind == .mention { return rankSessions(mentions, query: trigger.query) }
         let ranked = rankSkills(skills.skills, query: trigger.query)
         guard trigger.kind == .command else { return ranked }
         let own = available(context, orchestrate: skills.skills.contains { $0.name == orchestrateSkill })
@@ -99,6 +108,33 @@ enum ComposerCompletions {
             }
         return picked.map { skill in
             ComposerCompletion(id: "skill:\(skill.name)", label: skill.name, detail: detail(skill), symbol: "sparkles", group: skillsGroup, action: .insert(skillReference(skill.name)))
+        }
+    }
+
+    static func rankSessions(_ mentions: ComposerMentions, query: String, limit: Int = 4) -> [ComposerCompletion] {
+        let normalized = normalize(query, dropping: "@")
+        let names = Dictionary(mentions.projects.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        let scored = mentions.sessions.compactMap { session -> (Session, Int)? in
+            guard session.id != mentions.sessionId else { return nil }
+            let match = normalized.isEmpty
+                ? 0
+                : score(session.title.lowercased(), normalized, exact: 0, prefix: 2, boundary: 8, includes: 16, fuzzy: 100, markers: [" ", "-", "_", "."])
+            guard let match else { return nil }
+            let elsewhere = mentions.projectId != nil && session.projectId == mentions.projectId ? 0 : 1
+            return (session, match + elsewhere * 1000)
+        }
+        let picked = scored.sorted { left, right in
+            left.1 != right.1 ? left.1 < right.1 : left.0.updatedAt > right.0.updatedAt
+        }
+        return picked.prefix(limit).map { session, _ in
+            ComposerCompletion(
+                id: "session:\(session.id)",
+                label: session.title.isEmpty ? "Untitled" : session.title,
+                detail: session.projectId.flatMap { names[$0] } ?? "",
+                symbol: "bubble.left.and.bubble.right",
+                group: sessionsGroup,
+                action: .insert(ComposerReference.session(id: session.id, title: session.title))
+            )
         }
     }
 

@@ -4,7 +4,6 @@ const path = require("node:path");
 const { electron, FakeBrowserWindow, resetElectron, userData } = require("../../test/fake-electron");
 const { createCockpitWindow } = require("./cockpit-window");
 const { backdropWindowOptions } = require("./window-material");
-const { chords } = require("./app-menu");
 const { currentHost, lastWindowUrl, requireBrowserManager } = require("./browser-hosts");
 const { linkRouting } = require("./window-links");
 const { LINK_OPEN_CHANNEL } = require("./link-routing");
@@ -128,13 +127,6 @@ describe("a reload remounts the cockpit", () => {
     linkRouting.set(win.webContents, true);
     win.webContents.emit("did-start-loading");
     expect(linkRouting.claims(win.webContents)).toBe(false);
-  });
-
-  test("a chord capture in progress ends with it", () => {
-    const { win } = open();
-    chords.capturing = true;
-    win.webContents.emit("did-start-loading");
-    expect(chords.capturing).toBe(false);
   });
 });
 

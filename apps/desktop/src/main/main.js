@@ -32,7 +32,7 @@ const { logShell, shellLogPath, startHeapLog } = require("./shell-log");
 const { processMetricsReader, startServiceWorkerWatchdog } = require("./renderer-watch");
 const { engineDiscoveryFile, markMainWindowShown, postToEngine, rememberEngine, reportStartupFailure, startEngineChild, stopEngineChild, waitForEngine } = require("./engine-child");
 const { keepOccludedWindowsPainting, watchSchemeForVibrancy } = require("./appearance");
-const { buildApplicationMenu } = require("./app-menu");
+const { buildApplicationMenu, followFocusedWindow } = require("./app-menu");
 const { startExtensionHost } = require("./cockpit-extensions");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
 const { adoptLegacyUpdatePrefs } = require("./update-prefs");
@@ -473,6 +473,7 @@ if (SMOKE) {
         startServiceWorkerWatchdog(browserManagers);
         applyDevelopmentAppIcon();
         buildApplicationMenu();
+        followFocusedWindow();
 
         watchSchemeForVibrancy();
 

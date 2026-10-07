@@ -20,7 +20,7 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
         switch self {
         case .diff: "Diff"
         case .editor: "Files"
-        case .agents: "Agents"
+        case .agents: "Session"
         default: PluginUI.surface(for: self)?.label ?? rawValue
         }
     }
@@ -29,7 +29,7 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
         switch self {
         case .diff: "plus.forwardslash.minus"
         case .editor: "folder"
-        case .agents: "person.2"
+        case .agents: "info.circle"
         default: PluginUI.surface(for: self)?.icon ?? "puzzlepiece"
         }
     }
@@ -38,7 +38,7 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
         switch self {
         case .diff: "What this session changed"
         case .editor: "The checkout, file by file"
-        case .agents: "Conversations working with this one"
+        case .agents: "What this session runs on, and who works with it"
         default: PluginUI.surface(for: self)?.blurb ?? ""
         }
     }

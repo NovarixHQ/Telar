@@ -11,6 +11,7 @@ struct PanelView: View {
     let panelAPI: (any PanelAPI)?
     let sessionId: EngineID
     let hostId: HostID?
+    var hostName: String?
 
     let active: Bool
     let panel: PanelModel
@@ -78,7 +79,7 @@ struct PanelView: View {
             DiffView(api: api, sessionId: sessionId)
 
         case .agents:
-            AgentsSurface(api: api, sessionId: sessionId, hostId: hostId, active: active)
+            AgentsSurface(api: api, sessionId: sessionId, hostId: hostId, hostName: hostName, active: active)
         case .editor:
             if let panelAPI {
                 FilesSurface(api: panelAPI, sessionId: sessionId, hostId: hostId, active: active, panel: panel)

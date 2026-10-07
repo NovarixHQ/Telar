@@ -54,3 +54,19 @@ test("Providers keeps usage hubs in their own section after the logins, outside 
   expect(usage.contains(list)).toBe(false);
   act(() => root.unmount());
 });
+
+test("Back returns to the page Settings was opened from", async () => {
+  const { rememberSettingsReturn } = await import("../return-path");
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  await act(async () => root.render(<SettingsPage />));
+  expect([...host.querySelectorAll("a")].find((link) => link.textContent === "Back")?.getAttribute("href")).toBe("/");
+  act(() => root.unmount());
+
+  rememberSettingsReturn("/projects/p1/sessions/s1?panel=diff");
+  const again = createRoot(host);
+  await act(async () => again.render(<SettingsPage />));
+  expect([...host.querySelectorAll("a")].find((link) => link.textContent === "Back")?.getAttribute("href")).toBe("/projects/p1/sessions/s1?panel=diff");
+  act(() => again.unmount());
+});

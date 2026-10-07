@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import { type Artifact, ARTIFACT_HEIGHT, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES, type PublishedAppearance } from "@telar/engine-client";
@@ -17,9 +18,9 @@ export type DisplayCapability = {
 
 const OPEN = `Show the human a file from this checkout in the panel, rendered (markdown, PDF, image, video, code). For something you made for them to look at now.`;
 
-const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or markdown (a chart is html or svg). Best for a status, overview, comparison, diagram or chart; otherwise reply in plain text, and honour a preference for md or html files. Html has no network: inline every script, style and image. Check it with display_preview first. Same id revises.`;
+const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or markdown (a chart is html or svg). Best for a status, overview, comparison, diagram or chart; otherwise reply in plain text, and honour a preference for md or html files. Html has no network: inline every script, style and image. display_preview is optional. Same id revises.`;
 
-const PREVIEW = `Render html, svg or mermaid offscreen in the current Look as display_inline would draw it, before publishing. Returns a screenshot, the content height, console errors and warnings with stacks, and failed loads. The person sees nothing.`;
+const PREVIEW = `Optional check before display_inline, for a complex or interactive page or one that looked wrong once published. Renders html, svg or mermaid offscreen in the Look: screenshot, height, console errors with stacks, failed loads. If it fails, publish anyway; don't retry.`;
 
 const THEME_GUIDE = [
   "The source. Give this or path. Html and svg get the person's Look as CSS variables on :root, in hex, following Look changes live:",
@@ -39,7 +40,7 @@ const THEME_GUIDE = [
 ].join(" ");
 
 export const DISPLAY_BRIEFING =
-  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Check it with display_preview, publish with display_inline, then reply without restating what the page shows. The page is part of your reply: no outer card or title.";
+  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Publish with display_inline, then reply without restating what the page shows. Publish simple charts and tables directly; display_preview is optional, for complex or interactive pages, and if it fails, publish anyway without retrying. The page is part of your reply: no outer card or title.";
 
 function sourceOf(args: Record<string, unknown>): { content?: string; path?: string } | undefined {
   const content = typeof args.content === "string" && args.content.length > 0 ? args.content : undefined;
@@ -78,7 +79,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
         kind: ArtifactKind.describe("How to render it."),
         title: z.string().min(1).max(200).describe("Names it for the person and its saved file; it is not drawn on the page."),
         content: z.string().optional().describe(THEME_GUIDE),
-        path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
+        path: z.string().optional().describe("A file holding the source: relative to the checkout, or absolute in it or in /tmp. Never copy files into the project to show them."),
         id: z.string().optional().describe("Reuse an earlier artifact's id to add a new version of it."),
         height: z
           .number()
@@ -114,7 +115,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
       {
         kind: PreviewKind.describe("How display_inline would render it."),
         content: z.string().optional().describe(THEME_GUIDE),
-        path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
+        path: z.string().optional().describe("A file holding the source: relative to the checkout, or absolute in it or in /tmp. Never copy files into the project to show them."),
         width: z.number().int().min(PREVIEW_WIDTH.min).max(PREVIEW_WIDTH.max).optional().describe(`CSS pixels; default ${PREVIEW_WIDTH.initial}, the conversation's width.`),
         appearance: PreviewAppearance.optional().describe("Default: the scheme the person's Look is in."),
       },
@@ -139,7 +140,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
             ],
           };
         } catch (error) {
-          return err(`Could not preview it: ${failure(error)}`);
+          return err(`Could not preview it: ${failure(error)}. Publish it with display_inline anyway; don't retry the preview.`);
         }
       },
     ),
@@ -153,26 +154,32 @@ type DisplayObservation =
 const tooLarge = (bytes: number) =>
   `it is ${Math.ceil(bytes / 1024)} KB and the limit is ${MAX_ARTIFACT_BYTES / 1024} KB; make it smaller, or write it to a file and use display_open`;
 
-async function checkoutFile(cwd: string, target: string): Promise<{ resolved: string; relative: string; stats: fs.Stats }> {
+const SOURCE_ROOTS = ["/tmp", os.tmpdir()];
+
+async function checkoutFile(cwd: string, target: string, alsoUnder: string[] = []): Promise<{ resolved: string; relative: string; stats: fs.Stats }> {
   const inside = (root: string, candidate: string) => candidate.startsWith(root.endsWith(path.sep) ? root : `${root}${path.sep}`);
+  const roots = [cwd, ...alsoUnder];
+  const outside = alsoUnder.length > 0 ? "the path is outside this session's checkout and the temp folder; pass the content instead" : "the path is outside this session's checkout";
   const resolved = path.resolve(cwd, target);
-  if (!inside(cwd, resolved)) throw new Error("the path is outside this session's checkout");
+  if (!roots.some((root) => inside(root, resolved))) throw new Error(outside);
   let stats: fs.Stats;
   try {
     stats = await fs.promises.stat(resolved);
   } catch {
-    throw new Error("no such file in this session's checkout — write it first, then display it");
+    throw new Error("no such file — write it first, or pass the content inline");
   }
   if (stats.isDirectory()) throw new Error("that path is a directory; name one file");
   if (!stats.isFile()) throw new Error("that path is not a regular file");
-  if (!inside(await fs.promises.realpath(cwd), await fs.promises.realpath(resolved))) throw new Error("the path is outside this session's checkout");
+  const real = await fs.promises.realpath(resolved);
+  const realRoots = await Promise.all(roots.map((root) => fs.promises.realpath(root).catch(() => undefined)));
+  if (!realRoots.some((root) => root !== undefined && inside(root, real))) throw new Error(outside);
   return { resolved, relative: path.relative(cwd, resolved).split(path.sep).join("/"), stats };
 }
 
 async function sourceBytes(cwd: string, source: { content?: string; path?: string }): Promise<Uint8Array> {
   let data: Uint8Array;
   if (source.path !== undefined) {
-    const { resolved, stats } = await checkoutFile(cwd, source.path);
+    const { resolved, stats } = await checkoutFile(cwd, source.path, SOURCE_ROOTS);
     if (stats.size > MAX_ARTIFACT_BYTES) throw new Error(tooLarge(stats.size));
     data = new Uint8Array(await fs.promises.readFile(resolved));
   } else {

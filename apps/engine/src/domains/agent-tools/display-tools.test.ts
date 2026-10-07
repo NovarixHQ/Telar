@@ -244,17 +244,17 @@ describe("the worker's inline capability", () => {
     }
   });
 
-  test("reads a checkout file, and refuses one outside it or behind a symlink out of it", async () => {
+  test("reads a checkout file, and refuses one outside it and the temp folder, or behind a symlink out of them", async () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "telar-inline-"));
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), "telar-outside-"));
     try {
       fs.writeFileSync(path.join(cwd, "flow.mmd"), "graph TD; A-->B");
       fs.writeFileSync(path.join(outside, "secret.txt"), "secret");
-      fs.symlinkSync(path.join(outside, "secret.txt"), path.join(cwd, "link.txt"));
+      fs.symlinkSync("/etc/hosts", path.join(cwd, "link.txt"));
       const { capability, uploads } = inline(cwd);
       await capability.inline({ kind: "mermaid", title: "Flow", path: "flow.mmd" });
       expect(uploads.map((upload) => upload.data)).toEqual(["graph TD; A-->B"]);
-      await expect(capability.inline({ kind: "markdown", title: "X", path: "../x.md" })).rejects.toThrow(/outside this session's checkout/);
+      await expect(capability.inline({ kind: "markdown", title: "X", path: "/etc/hosts" })).rejects.toThrow(/outside this session's checkout and the temp folder/);
       await expect(capability.inline({ kind: "markdown", title: "X", path: "link.txt" })).rejects.toThrow(/outside this session's checkout/);
       expect(uploads).toHaveLength(1);
     } finally {

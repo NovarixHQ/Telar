@@ -9,7 +9,7 @@ export const PreviewAppearance = z.enum(["light", "dark"]);
 export type PreviewAppearance = z.infer<typeof PreviewAppearance>;
 
 export const PREVIEW_WIDTH = { min: 240, max: 1600, initial: 728 } as const;
-export const PREVIEW_TIMEOUT_MS = 20_000;
+export const PREVIEW_TIMEOUT_MS = 7_000;
 
 export type PreviewRequest = { html: string; width: number; appearance: PreviewAppearance; timeoutMs: number };
 

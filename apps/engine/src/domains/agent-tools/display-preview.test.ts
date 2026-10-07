@@ -141,6 +141,20 @@ describe("display_preview", () => {
     expect(requests).toEqual([]);
   });
 
+  test("reads a source the agent left in the temp folder, so nothing is staged in the project", async () => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "telar-scratch-"));
+    const cwd = fs.mkdtempSync(path.join(os.homedir(), ".telar-preview-checkout-"));
+    try {
+      fs.writeFileSync(path.join(scratch, "chart.html"), "<h1>From tmp</h1>");
+      const { run, requests } = preview({ cwd });
+      await run({ kind: "html", path: path.join(scratch, "chart.html") });
+      expect(requests[0]!.html).toContain("<h1>From tmp</h1>");
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
   test("reads the source from a checkout file", async () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "telar-preview-"));
     try {
@@ -148,7 +162,7 @@ describe("display_preview", () => {
       const { run, requests } = preview({ cwd });
       await run({ kind: "html", path: "page.html" });
       expect(requests[0]!.html).toContain("<h1>From disk</h1>");
-      expect(textOf(await run({ kind: "html", path: "../page.html" }))).toContain("outside this session's checkout");
+      expect(textOf(await run({ kind: "html", path: "/etc/hosts" }))).toContain("outside this session's checkout and the temp folder");
     } finally {
       fs.rmSync(cwd, { recursive: true, force: true });
     }
@@ -178,6 +192,6 @@ describe("display_preview", () => {
     });
     const result = await run({ kind: "html", content: "<p>hi</p>" });
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toBe("Could not preview it: the desktop app did not answer");
+    expect(textOf(result)).toBe("Could not preview it: the desktop app did not answer. Publish it with display_inline anyway; don't retry the preview.");
   });
 });

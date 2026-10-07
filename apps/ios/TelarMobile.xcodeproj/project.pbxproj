@@ -6,16 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXContainerItemProxy section */
-		A100000000000000000000B8 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = A100000000000000000000C0 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A100000000000000000000B0;
-			remoteInfo = TelarMobile;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXBuildFile section */
         B20000000000000000000010 = {isa = PBXBuildFile; fileRef = B20000000000000000000001; settings = {ATTRIBUTES = (RemoveHeadersOnCopy,); }; };
         D40000000000000000000021 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = D40000000000000000000011; };
@@ -27,9 +17,7 @@
 /* End PBXCopyFilesBuildPhase section */
 /* Begin PBXFileReference section */
 		A100000000000000000000AE /* TelarMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TelarMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A100000000000000000000AF /* TelarMobileTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TelarMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
         B20000000000000000000001 = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = TelarActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-        C30000000000000000000001 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = TelarMobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -42,18 +30,8 @@
 			path = TelarMobile;
 			sourceTree = "<group>";
 		};
-		A100000000000000000000AC /* TelarMobileTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = TelarMobileTests;
-			sourceTree = "<group>";
-		};
         B20000000000000000000002 = {isa = PBXFileSystemSynchronizedRootGroup; path = TelarActivity; sourceTree = "<group>"; };
         B20000000000000000000003 = {isa = PBXFileSystemSynchronizedRootGroup; path = Shared; sourceTree = "<group>"; };
-        C30000000000000000000002 = {isa = PBXFileSystemSynchronizedRootGroup; path = TelarMobileUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,13 +45,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A100000000000000000000B6 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -81,10 +52,8 @@
 			isa = PBXGroup;
 			children = (
 				A100000000000000000000AB /* TelarMobile */,
-				A100000000000000000000AC /* TelarMobileTests */,
 				B20000000000000000000002,
  B20000000000000000000003,
- C30000000000000000000002,
  A100000000000000000000AD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -93,9 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				A100000000000000000000AE /* TelarMobile.app */,
-				A100000000000000000000AF /* TelarMobileTests.xctest */,
  B20000000000000000000001,
- C30000000000000000000001,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -130,29 +97,7 @@
 			productReference = A100000000000000000000AE /* TelarMobile.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A100000000000000000000B1 /* TelarMobileTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A100000000000000000000D2 /* Build configuration list for PBXNativeTarget "TelarMobileTests" */;
-			buildPhases = (
-				A100000000000000000000B5 /* Sources */,
-				A100000000000000000000B6 /* Frameworks */,
-				A100000000000000000000B7 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				A100000000000000000000B9 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				A100000000000000000000AC /* TelarMobileTests */,
-			);
-			name = TelarMobileTests;
-			productName = TelarMobileTests;
-			productReference = A100000000000000000000AF /* TelarMobileTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
         B20000000000000000000004 = {isa = PBXNativeTarget; buildConfigurationList = B20000000000000000000005; buildPhases = (B20000000000000000000006, B20000000000000000000012,); buildRules = (); dependencies = (); fileSystemSynchronizedGroups = (B20000000000000000000002, B20000000000000000000003,); name = TelarActivity; productName = TelarActivity; productReference = B20000000000000000000001; productType = "com.apple.product-type.app-extension"; };
-        C30000000000000000000004 = {isa = PBXNativeTarget; buildConfigurationList = C30000000000000000000005; buildPhases = (C30000000000000000000006,); buildRules = (); dependencies = (A100000000000000000000B9,); fileSystemSynchronizedGroups = (C30000000000000000000002,); name = TelarMobileUITests; productName = TelarMobileUITests; productReference = C30000000000000000000001; productType = "com.apple.product-type.bundle.ui-testing"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -162,13 +107,9 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
- C30000000000000000000004 = { TestTargetID = A100000000000000000000B0; };
                     A100000000000000000000B0 = {
                         SystemCapabilities = { com.apple.Push = { enabled = 1; }; };
                     };
-					A100000000000000000000B1 = {
-						TestTargetID = A100000000000000000000B0;
-					};
 				};
 			};
 			buildConfigurationList = A100000000000000000000D0 /* Build configuration list for PBXProject "TelarMobile" */;
@@ -190,23 +131,14 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
- C30000000000000000000004,
  B20000000000000000000004,
 				A100000000000000000000B0 /* TelarMobile */,
-				A100000000000000000000B1 /* TelarMobileTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A100000000000000000000B4 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A100000000000000000000B7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -224,23 +156,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A100000000000000000000B5 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
         B20000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-        C30000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A100000000000000000000B9 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A100000000000000000000B0 /* TelarMobile */;
-			targetProxy = A100000000000000000000B8 /* PBXContainerItemProxy */;
-		};
         B20000000000000000000007 = {isa = PBXTargetDependency; target = B20000000000000000000004; };
 /* End PBXTargetDependency section */
 
@@ -373,43 +292,9 @@
 			};
 			name = Release;
 		};
-		A100000000000000000000C5 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.github.novarix.telar.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TelarMobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TelarMobile";
-			};
-			name = Debug;
-		};
-		A100000000000000000000C6 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = io.github.novarix.telar.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TelarMobile.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TelarMobile";
-			};
-			name = Release;
-		};
         B20000000000000000000008 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension"; INFOPLIST_FILE = Config/ActivityInfo.plist; CURRENT_PROJECT_VERSION = 1; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = "$(TELAR_APP_BUNDLE_ID).activity"; TELAR_APP_BUNDLE_ID = io.github.novarix.telar; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; APPLICATION_EXTENSION_API_ONLY = YES; TARGETED_DEVICE_FAMILY = "1,2"; SWIFT_VERSION = 5.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks",); }; name = Debug; };
         B20000000000000000000009 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = "com.apple.widgetkit-extension"; INFOPLIST_FILE = Config/ActivityInfo.plist; CURRENT_PROJECT_VERSION = 1; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = "$(TELAR_APP_BUNDLE_ID).activity"; TELAR_APP_BUNDLE_ID = io.github.novarix.telar; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; APPLICATION_EXTENSION_API_ONLY = YES; TARGETED_DEVICE_FAMILY = "1,2"; SWIFT_VERSION = 5.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks",); }; name = Release; };
 
-        C30000000000000000000008 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = io.github.novarix.telar.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = "1,2"; SWIFT_VERSION = 5.0; TEST_TARGET_NAME = TelarMobile; }; name = Debug; };
-        C30000000000000000000009 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = io.github.novarix.telar.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = "1,2"; SWIFT_VERSION = 5.0; TEST_TARGET_NAME = TelarMobile; }; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -431,17 +316,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		A100000000000000000000D2 /* Build configuration list for PBXNativeTarget "TelarMobileTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A100000000000000000000C5 /* Debug */,
-				A100000000000000000000C6 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
         B20000000000000000000005 = {isa = XCConfigurationList; buildConfigurations = (B20000000000000000000008, B20000000000000000000009,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-        C30000000000000000000005 = {isa = XCConfigurationList; buildConfigurations = (C30000000000000000000008, C30000000000000000000009,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 	};
 	rootObject = A100000000000000000000C0 /* Project object */;

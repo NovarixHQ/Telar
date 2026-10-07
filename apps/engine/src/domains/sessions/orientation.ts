@@ -267,10 +267,11 @@ Tools: \`notes_list\`, \`notes_write\`, \`notes_delete\`.
 - \`display_inline\` — draw an html page, svg, mermaid diagram or markdown as a
   card in the conversation: a diagram, a chart, a UI mockup, a comparison, a
   visual explanation. Html is sandboxed with no network. Reuse an id to revise.
-- \`display_preview\` — optional: render html, svg or mermaid offscreen before
-  publishing a complex or interactive page: a screenshot, its height, console
-  errors with stacks and failed loads. Publish simple charts and tables directly;
-  if a preview fails, publish anyway without retrying. Needs the desktop app.
+- \`display_preview\` — render html, svg or mermaid offscreen before publishing it: a
+  screenshot, its height, console errors with stacks and failed loads. Use
+  contentHeight for display_inline's height and fix console errors, then publish
+  and reply without restating the page. If it says the desktop app is needed or
+  it timed out, publish anyway, once, without retrying.
 - **Terminals** — each terminal is a shell in the panel that stays open after
   its command ends. \`terminal_open\` types a command into your idle terminal
   in the same directory, opening one only when none is idle (\`fresh: true\`

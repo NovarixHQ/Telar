@@ -123,11 +123,9 @@ describe("the Workspace card", () => {
     expect(props.onOpenTerminal).toHaveBeenCalledWith(terminal());
   });
 
-  test("background processes are counted and open where they run", async () => {
-    const onViewBackground = mock();
-    const { host } = await mount({ backgroundTasks: 2, onViewBackground });
-    await act(async () => button(section(host, "Workspace")!, "2 background processes")!.click());
-    expect(onViewBackground).toHaveBeenCalledTimes(1);
+  test("background processes are counted", async () => {
+    const { host } = await mount({ backgroundTasks: 2 });
+    expect(section(host, "Workspace")!.textContent).toContain("2 background processes");
   });
 
   test("the close button closes it", async () => {

@@ -142,7 +142,6 @@ export function SessionCockpit({
               panel={panelState}
               onClose={workspaceCard.toggle}
               onRunTerminals={revealNewTerminals}
-              onViewBackground={model.showProcesses}
             />
           )}
           <TranscriptList

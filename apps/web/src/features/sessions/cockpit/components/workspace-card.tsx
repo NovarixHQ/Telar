@@ -47,7 +47,6 @@ export type WorkspaceCardViewProps = {
   publish?: ReactNode;
   onClose: () => void;
   onOpenTerminal: (run: RunView) => void;
-  onViewBackground?: () => void;
   onOpenChanges?: () => void;
   onOpenAgent: (agent: SessionChild) => void;
 };
@@ -81,10 +80,10 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
           </button>
         ))}
         {backgroundTasks > 0 && (
-          <button type="button" className={ACTION_ROW} disabled={!props.onViewBackground} onClick={props.onViewBackground}>
+          <div className={ROW}>
             <SquareTerminalIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate">{backgroundTasks === 1 ? "1 background process" : `${backgroundTasks} background processes`}</span>
-          </button>
+          </div>
         )}
       </Section>
       {diff?.repository && (
@@ -127,7 +126,7 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
 }
 
 /** Floats over the conversation's top right. Kept mounted while closed: the Run menu's feed is what reveals new terminals. */
-export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, panel, onClose, onRunTerminals, onViewBackground }: {
+export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, panel, onClose, onRunTerminals }: {
   hostId: string;
   session: Session;
   open: boolean;
@@ -136,7 +135,6 @@ export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, pa
   panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab">;
   onClose: () => void;
   onRunTerminals: (terminals: readonly RunView[]) => void;
-  onViewBackground?: () => void;
 }) {
   const router = useRouter();
   const path = workspacePath(session.workspace);
@@ -190,7 +188,6 @@ export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, pa
           : {})}
         onClose={onClose}
         onOpenTerminal={(run) => panel.updatePanel((current) => openTerminal(current, run, "terminal"))}
-        {...(onViewBackground ? { onViewBackground } : {})}
         onOpenChanges={() => panel.showPanelTab("diff")}
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}
       />

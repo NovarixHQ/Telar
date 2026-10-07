@@ -4,10 +4,10 @@
  */
 
 import type { ProviderDriverKind, ProviderSkill, ProviderSkillSource, RuntimeMode } from "@telar/engine-client";
-import { fileReference, directoryReference, skillReference } from "./drag-reference";
+import { fileReference, directoryReference, sessionReference, skillReference } from "./drag-reference";
 import { insertRankedSearchResult, normalizeSearchQuery, scoreQueryMatch, type RankedSearchResult } from "@/ui/search-ranking";
 
-export type CompletionGlyph = "file" | "directory" | "note" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill";
+export type CompletionGlyph = "file" | "directory" | "note" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session";
 
 type CompletionAction =
   /** Replace the trigger with this text; the only action that touches the draft. */
@@ -104,6 +104,40 @@ export function rankPaths(index: readonly PathEntry[], query: string, limit = 12
     insertRankedSearchResult(ranked, { item: entry, score: Math.min(...scores), tieBreaker: `${entry.directory ? 1 : 0}\0${entry.path}` }, limit);
   }
   return ranked.map((entry) => completionForPath(entry.item));
+}
+
+export type SessionCandidate = { id: string; title: string; projectId?: string; projectName?: string; updatedAt: number };
+
+/** The current project's sessions first, then the most recent; never the session being typed in. */
+export function rankSessions(
+  sessions: readonly SessionCandidate[],
+  query: string,
+  here: { sessionId?: string; projectId?: string },
+  limit = 4,
+): Completion[] {
+  const normalized = normalizeSearchQuery(query);
+  const ranked: RankedSearchResult<SessionCandidate>[] = [];
+  for (const session of sessions) {
+    if (session.id === here.sessionId) continue;
+    const score = normalized
+      ? scoreQueryMatch({ value: session.title.toLowerCase(), query: normalized, exactBase: 0, prefixBase: 2, boundaryBase: 8, includesBase: 16, fuzzyBase: 100, boundaryMarkers: [" ", "-", "_", "."] })
+      : 0;
+    if (score === null) continue;
+    const elsewhere = here.projectId && session.projectId === here.projectId ? 0 : 1;
+    const age = String(Number.MAX_SAFE_INTEGER - session.updatedAt).padStart(16, "0");
+    insertRankedSearchResult(ranked, { item: session, score: score + elsewhere * 1000, tieBreaker: age }, limit);
+  }
+  return ranked.map(({ item }) => {
+    const reference = sessionReference(item);
+    return {
+      id: `session:${item.id}`,
+      label: reference.label,
+      detail: item.projectName ?? "",
+      glyph: "session",
+      action: { type: "insert", text: reference.text },
+      group: "Sessions",
+    };
+  });
 }
 
 type CommandContext = {

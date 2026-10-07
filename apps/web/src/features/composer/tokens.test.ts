@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { chipBasename, chipIsDirectory, chipPath, detectComposerTrigger, replaceTextRange, segmentDraft } from "./tokens";
-import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, noteReference, pageReference, pullReference, skillReference, taskReference } from "./drag-reference";
+import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, noteReference, pageReference, pullReference, sessionReference, skillReference, taskReference } from "./drag-reference";
 
 describe("what the caret is in the middle of", () => {
   test("an at-sign opens the path menu and carries what follows it", () => {
@@ -207,6 +207,20 @@ describe("which runs of a draft draw as chips", () => {
 
   test("prose that merely mentions a project note is prose", () => {
     const draft = 'check the "Deploy" project note before you ship';
+    expect(segmentDraft(draft).filter((segment) => segment.type === "chip")).toEqual([]);
+  });
+
+  test("a session reference is one chip, instructions included, named by its title", () => {
+    const reference = sessionReference({ id: "session_1e25a0a2", title: "Study T3 Code handoff" });
+    const draft = `apply ${reference.text} here`;
+    const segments = segmentDraft(draft);
+    expect(segments.map((segment) => segment.type)).toEqual(["text", "chip", "text"]);
+    expect(segments[1]).toMatchObject({ type: "chip", reference: { kind: "session", label: "Study T3 Code handoff", text: reference.text } });
+    expect(rebuild(draft)).toBe(draft);
+  });
+
+  test("prose that merely mentions a session is prose", () => {
+    const draft = 'look at the "Deploy" session (session_abc) before you ship';
     expect(segmentDraft(draft).filter((segment) => segment.type === "chip")).toEqual([]);
   });
 

@@ -21,6 +21,7 @@ export interface MobileRegistration {
   mutedSessions: string[];
   card?: HostCard;
   relay?: RelayCredential;
+  relayCard?: boolean;
 }
 type HostCard = { token: string; startedAt: number };
 export type RelayCredential = { handle: string; keyId: string; sendKey: string };
@@ -48,6 +49,7 @@ export interface PushRecord extends MobileRegistration {
   lastReason?: string;
   relayTest?: { keyId: string; at: number; status: number; reason?: string; relay?: true };
   automaticStart?: { at: number; status: number; reason?: string; relay?: true; token?: string; carded?: true };
+  posted?: { signal: string; at: number; rows: number };
   updatedAt: number;
   readSync?: ReadSyncState;
   seen: Record<string, string>;
@@ -66,12 +68,16 @@ export type DeliveryResult = {
   reason?: string;
   relay?: true;
   retryAfter?: number;
+  alerted?: boolean;
 };
 
 const DEAD_TOKEN_REASONS = new Set(["BadDeviceToken", "DeviceTokenNotForTopic", "Unregistered", "ExpiredToken"]);
 export function isDeadToken(result: DeliveryResult): boolean {
   if (result.relay) return false;
   return result.status === 410 || (result.status === 400 && result.reason !== undefined && DEAD_TOKEN_REASONS.has(result.reason));
+}
+export function notRegistered(result: DeliveryResult): boolean {
+  return result.relay === true && result.status === 409;
 }
 export class PushInputError extends Error {}
 const LEGACY_BUNDLE_IDS = { until: "2026-11-01", ids: ["com.telar.mobile", "com.telar.mobile.dev"] };
@@ -89,6 +95,7 @@ export function parseRegistration(input: unknown): MobileRegistration {
       || (x.activities !== undefined && (!Array.isArray(x.activities) || x.activities.length > 8))) throw new PushInputError("Invalid registration");
   if ((x.liveActivities !== undefined && typeof x.liveActivities !== "boolean")
     || (x.pushToStartToken !== undefined && (typeof x.pushToStartToken !== "string" || !hex.test(x.pushToStartToken)))
+    || (x.relayCard !== undefined && typeof x.relayCard !== "boolean")
     || (x.hostName !== undefined && (typeof x.hostName !== "string" || x.hostName.length > 160))) throw new PushInputError("Invalid automatic activity registration");
   if (x.sounds !== undefined && !NOTIFICATION_SOUNDS_VALUES.includes(x.sounds as NotificationSounds)) throw new PushInputError("Invalid sounds");
   const activities = (x.activities ?? []) as (HostCard & { sessionId: string })[];
@@ -100,6 +107,7 @@ export function parseRegistration(input: unknown): MobileRegistration {
   const relay = parseRelayCredential(x.relay);
   return { ...(x.liveActivities === undefined ? {} : { liveActivities: x.liveActivities as boolean }),
     ...(relay === undefined ? {} : { relay }),
+    ...(relay !== undefined && x.relayCard === true ? { relayCard: true } : {}),
     ...(x.pushToStartToken === undefined ? {} : { pushToStartToken: x.pushToStartToken as string }),
     ...(x.hostName === undefined ? {} : { hostName: x.hostName as string }),
     ...(x.sounds === undefined ? {} : { sounds: x.sounds as NotificationSounds }),
@@ -141,7 +149,7 @@ export function saveRegistration(deviceId: string, registration: MobileRegistrat
   const records = readPushRecords(file);
   const old = records.find(r => r.deviceId === deviceId && r.topic === registration.topic);
   const sameCard = registration.card !== undefined && registration.card.token === old?.card?.token;
-  const next: PushRecord = { ...registration, deviceId, revision: crypto.randomUUID(), updatedAt: Date.now(), automaticStartedAt: old?.automaticStartedAt, cardFinishedAt: sameCard ? old?.cardFinishedAt : undefined, automaticSignal: old?.automaticSignal, lastDeliveryAt: old?.lastDeliveryAt, lastStatus: old?.lastStatus, lastReason: old?.lastReason, relayTest: old?.relayTest, automaticStart: old?.automaticStart, readSync: old?.readSync, seen: old?.seen ?? {}, baselined: old?.baselined ?? false, activitySent: old?.activitySent ?? {} };
+  const next: PushRecord = { ...registration, deviceId, revision: crypto.randomUUID(), updatedAt: Date.now(), automaticStartedAt: old?.automaticStartedAt, cardFinishedAt: sameCard || registration.relayCard ? old?.cardFinishedAt : undefined, automaticSignal: old?.automaticSignal, lastDeliveryAt: old?.lastDeliveryAt, lastStatus: old?.lastStatus, lastReason: old?.lastReason, relayTest: old?.relayTest, automaticStart: old?.automaticStart, posted: old?.posted, readSync: old?.readSync, seen: old?.seen ?? {}, baselined: old?.baselined ?? false, activitySent: old?.activitySent ?? {} };
   writePushRecords([...records.filter(r => r.deviceId !== deviceId || r.topic !== registration.topic), next], file);
 }
 export function turnIsOver(activity: SessionSignal["activity"]): boolean {
@@ -255,7 +263,8 @@ export async function sendAPNs(delivery: Delivery): Promise<DeliveryResult> {
   });
 }
 
-export const AUTOMATIC_ACTIVITY = "__automatic__";
+const PER_MAC_CARD = { until: "2026-12-01", id: "__automatic__", removeWith: "push-to-start, automaticActivityDelivery and deliverCard" };
+export const AUTOMATIC_ACTIVITY = PER_MAC_CARD.id;
 export const ACTIVITY_REFRESH_S = 120;
 export const CARD_LINGER_S = 300;
 
@@ -264,7 +273,7 @@ export function tokenFingerprint(token: string): string {
 }
 export function activityReport(record: PushRecord): ActivityReport {
   const card = record.card !== undefined;
-  const blocker = !record.liveActivities ? "off" : !record.pushToStartToken ? "no-start-token" : undefined;
+  const blocker = !record.liveActivities ? "off" : !record.relayCard && !record.pushToStartToken ? "no-start-token" : undefined;
   const start = record.automaticStart;
   return { card, ...(blocker ? { blocker } : {}),
     ...(start ? { lastStart: { at: start.at, status: start.status, ...(start.reason ? { reason: start.reason } : {}), relay: start.relay === true, ...(start.token ? { token: start.token } : {}) } } : {}) };

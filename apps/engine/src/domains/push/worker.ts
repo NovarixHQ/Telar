@@ -2,8 +2,8 @@ import type { EngineClient, LiveSessionRow, Project, SessionAssignment } from "@
 import { needsRelayTest, relayTestDelivery, relayV2Delivery } from "./relay-v2";
 import { desktopAttached, macTookAlert, notifyDesktop } from "./desktop";
 import { collectReads, noteAlert, READ_SYNC_BATCH, readSyncDelivery, readSyncDue, readSyncWanted } from "./read-sync";
-import { ACTIVITY_REFRESH_S, CARD_LINGER_S, tokenFingerprint, isDeadToken, notification, pushAvailable, pushConfigured, readPushRecords, sendAPNs, signalKey, writePushRecords, type Delivery, type DeliveryResult, type PushRecord, type SessionSignal } from "./push";
-import { automaticActivityDelivery, automaticSessions, cardAlert, cardRows, type CardAlert } from "./card";
+import { ACTIVITY_REFRESH_S, CARD_LINGER_S, tokenFingerprint, isDeadToken, notRegistered, notification, pushAvailable, pushConfigured, readPushRecords, sendAPNs, signalKey, writePushRecords, type Delivery, type DeliveryResult, type PushRecord, type RelayCredential, type SessionSignal } from "./push";
+import { automaticActivityDelivery, automaticSessions, cardAlert, cardPost, cardRows, type CardAlert, type CardPost } from "./card";
 
 const RETRY_FLOOR = 30;
 const RETRY_CEILING = 3600;
@@ -15,7 +15,7 @@ export async function deliverRecord(
   sessions: SessionSignal[],
   send: (delivery: Delivery) => Promise<DeliveryResult>,
   now = Date.now() / 1000,
-  options: { changed?: ReadonlySet<string>; macTook?: (session: SessionSignal) => boolean; readSync?: boolean } = {},
+  options: { changed?: ReadonlySet<string>; macTook?: (session: SessionSignal) => boolean; readSync?: boolean; post?: (card: CardPost) => Promise<DeliveryResult> } = {},
 ): Promise<PushRecord | undefined> {
   if (record.parked || (record.retryAt ?? 0) > now) return record;
   let failed = false;
@@ -29,7 +29,7 @@ export async function deliverRecord(
     last = result;
     if (result.retryAfter !== undefined) budgetSpent = result;
     if (result.status === 200) delivered = now;
-    else if (!isDeadToken(result)) failed = true;
+    else if (!isDeadToken(result) && !notRegistered(result)) failed = true;
     return result;
   };
   const next: PushRecord = { ...record, seen: { ...record.seen }, activitySent: { ...record.activitySent } };
@@ -40,7 +40,8 @@ export async function deliverRecord(
     if (options.readSync) next.readSync = noteAlert(next.readSync ?? { alerted: [], pending: [] }, session.id);
     return true;
   };
-  const cardLive = record.liveActivities === true && record.card !== undefined;
+  const relayCard = record.relayCard === true && options.post !== undefined;
+  const cardLive = record.liveActivities === true && (relayCard || record.card !== undefined);
   const held: [SessionSignal, Delivery][] = [];
   for (const session of sessions) {
     if (options.changed && !options.changed.has(session.id) && session.id in record.seen) continue;
@@ -57,7 +58,8 @@ export async function deliverRecord(
   }
   const ids = new Set(sessions.map(s => s.id));
   for (const id of Object.keys(next.seen)) if (!ids.has(id)) delete next.seen[id];
-  const alerted = await deliverCard(record, next, sessions, safeSend, now, held.length ? cardAlert(record, held.map(([s]) => s)) : undefined);
+  const alert = held.length ? cardAlert(record, held.map(([s]) => s)) : undefined;
+  const alerted = relayCard ? await postCard(record, next, sessions, options.post!, now, alert) : await deliverCard(record, next, sessions, safeSend, now, alert);
   if (!alerted) for (const [session, payload] of held) {
     const sent = await push(session, payload);
     if (sent === "dead") return undefined;
@@ -84,6 +86,24 @@ export async function deliverRecord(
   }
   next.baselined = true;
   return next;
+}
+
+async function postCard(record: PushRecord, next: PushRecord, sessions: SessionSignal[], post: (card: CardPost) => Promise<DeliveryResult>, now: number, alert?: CardAlert): Promise<boolean> {
+  const active = record.liveActivities ? automaticSessions(sessions).length : 0;
+  if (active) delete next.cardFinishedAt;
+  else if (record.posted?.rows) next.cardFinishedAt = record.cardFinishedAt ?? now;
+  const shown = active > 0 || (record.liveActivities === true && next.cardFinishedAt !== undefined && now - next.cardFinishedAt < CARD_LINGER_S);
+  const card = cardPost(record, sessions, now, shown, alert);
+  if (!record.posted && !card.rows.length) return false;
+  const signal = JSON.stringify([card.host, card.active, card.rows]);
+  const beat = card.rows.length > 0 && now - (record.posted?.at ?? 0) >= ACTIVITY_REFRESH_S;
+  if (signal === record.posted?.signal && !beat && !alert) return false;
+  let result: DeliveryResult;
+  try { result = await post(card); } catch { result = { status: 0 }; }
+  if (result.status !== 200) return false;
+  next.posted = { signal, at: now, rows: card.rows.length };
+  if (!card.rows.length) delete next.cardFinishedAt;
+  return result.alerted === true;
 }
 
 async function deliverCard(record: PushRecord, next: PushRecord, sessions: SessionSignal[], send: (delivery: Delivery) => Promise<DeliveryResult>, now: number, alert?: CardAlert): Promise<boolean> {
@@ -232,7 +252,8 @@ export function signals(sessions: readonly LiveSessionRow[], assignments: Record
 }
 
 export function heartbeatWanted(records: PushRecord[], sessions: SessionSignal[]): boolean {
-  return records.some(record => record.card !== undefined && (record.cardFinishedAt !== undefined || automaticSessions(sessions).length > 0));
+  return records.some(record => (record.card !== undefined || (record.relayCard === true && (record.posted?.rows ?? 0) > 0))
+    && (record.cardFinishedAt !== undefined || automaticSessions(sessions).length > 0 || record.relayCard === true));
 }
 export function readSyncPass(records: PushRecord[], sessions: SessionSignal[], now: number): { due: boolean; waiting: boolean } {
   return {
@@ -287,7 +308,7 @@ function openSessionFeed(onFrame: () => void): void {
   })();
 }
 
-export async function sendRelayTest(deviceId: string, topic: string, send = relayV2Delivery): Promise<void> {
+export async function sendRelayTest(deviceId: string, topic: string, send: (credential: RelayCredential, delivery: Delivery) => Promise<DeliveryResult> = relayV2Delivery): Promise<void> {
   const record = readPushRecords().find(r => r.deviceId === deviceId && r.topic === topic);
   if (!record?.relay || !needsRelayTest(record)) return;
   let result: DeliveryResult;
@@ -376,7 +397,8 @@ export function startMobilePushWorker(given?: PushWorkerDeps): void {
           const sent = record.relay ? await relayV2Delivery(record.relay, delivery) : await sendAPNs(delivery);
           if (sent.retryAfter !== undefined) pauseHost(sent.retryAfter);
           return sent;
-        }, Date.now() / 1000, { macTook: macTookAlert, ...(narrow === undefined ? {} : { changed: narrow }), readSync: true });
+        }, Date.now() / 1000, { macTook: macTookAlert, ...(narrow === undefined ? {} : { changed: narrow }), readSync: true,
+          ...(record.relay ? { post: (card: CardPost) => relayV2Delivery(record.relay!, card) } : {}) });
         if (result?.readSync?.pending.length) workerGlobal.telarMobilePushHeartbeat = true;
         const current = readPushRecords();
         const index = current.findIndex(r => r.revision === record.revision);

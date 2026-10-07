@@ -40,6 +40,7 @@ const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require
 const { createCockpitWindow } = require("./cockpit-window");
 const { cockpitFocus, createPresence } = require("./presence");
 const { pinUserData } = require("./user-data");
+const { createTerminalReaders } = require("./terminal-readers");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
 const { createSurfaceWindowStore } = require("../windows/surface-window-store");
 const { isCompact, setCompact } = require("../windows/compact-window");
@@ -232,13 +233,11 @@ let terminalHost = null;
 
 const { TerminalOwner } = require("../terminal/terminal-host");
 
-const terminalReaders = new Map();
-
-function deliverToTerminalReader(id, channel, payload) {
-  const reader = terminalReaders.get(id);
-  if (!reader || reader.isDestroyed()) return;
-  reader.send(channel, payload);
-}
+const terminalReaders = createTerminalReaders({
+  onOrphaned: (id) => {
+    if (terminalHost?.ownerOf(id) === RENDERER) terminalHost.close(id, RENDERER).catch(() => {});
+  },
+});
 
 function requireTerminalHost() {
   if (terminalHost) return terminalHost;
@@ -246,12 +245,12 @@ function requireTerminalHost() {
   terminalHost = new TerminalHost({
     version: app.getVersion(),
     onData: (id, data) => {
-      if (terminalHost?.ownerOf(id) !== TerminalOwner.ENGINE) deliverToTerminalReader(id, "telar:terminal:data", { id, data });
+      if (terminalHost?.ownerOf(id) !== TerminalOwner.ENGINE) terminalReaders.deliver(id, "telar:terminal:data", { id, data });
       runTerminalChannel?.onData(id, data);
     },
     onExit: (id, ending) => {
-      deliverToTerminalReader(id, "telar:terminal:exit", ending);
-      terminalReaders.delete(id);
+      terminalReaders.deliver(id, "telar:terminal:exit", ending);
+      terminalReaders.detach(id);
 
       runTerminalChannel?.onExit(id, ending);
     },
@@ -503,7 +502,7 @@ if (SMOKE) {
 
           getTerminalHost: () => requireTerminalHost(),
 
-          onMirror: (id, data, cursor) => deliverToTerminalReader(id, "telar:terminal:data", { id, data, cursor }),
+          onMirror: (id, data, cursor) => terminalReaders.deliver(id, "telar:terminal:data", { id, data, cursor }),
         });
         let url = OVERRIDE_URL;
         if (!url) {

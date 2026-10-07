@@ -21,7 +21,7 @@ function ArrivalStrip({ titles, children }: { titles: string[]; children: ReactN
   const [open, setOpen] = useState(false);
   const named = [...new Set(titles)];
   return (
-    <div className="mx-auto flex w-full max-w-[50rem] flex-col gap-0.5" data-notification-strip={titles.length}>
+    <div className="mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-0.5" data-notification-strip={titles.length}>
       <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={cn(ROW, "text-muted-foreground hover:bg-muted/50")}>
         <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
         <span className="min-w-0 truncate">{`${titles.length} updates · ${named.join(", ")}`}</span>

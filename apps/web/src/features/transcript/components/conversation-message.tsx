@@ -61,7 +61,7 @@ export function AgentMessageBubble({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[50rem] py-0.5 text-sm" aria-label="Message from another agent">
+    <div className="mx-auto w-full min-w-0 max-w-(--chat-content-max-width) py-0.5 text-sm" aria-label="Message from another agent">
       <button
         type="button"
         className="flex w-full min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"

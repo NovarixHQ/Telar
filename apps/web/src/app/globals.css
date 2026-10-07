@@ -633,6 +633,18 @@
   --depth-ink: 2.2;
 }
 
+:root {
+  --chat-content-max-width: 50rem;
+}
+
+[data-chat-width="wide"] {
+  --chat-content-max-width: 72rem;
+}
+
+[data-chat-width="full"] {
+  --chat-content-max-width: 100%;
+}
+
 @theme {
   --shadow-1:
     0 1px 1px -1px var(--shadow-ring),

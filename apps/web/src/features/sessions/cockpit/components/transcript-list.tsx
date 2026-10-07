@@ -71,13 +71,13 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
       <ConversationViewport className="min-w-0 flex-1" conversation={sync.syncKey} landed={sync.transcriptLanded} followRef={props.follow} onAtBottomChange={props.onAtBottomChange}>
         <ConversationContent>
           {props.projectId !== session?.projectId && session && (
-            <Alert variant="destructive" className="mx-auto max-w-[50rem]">
+            <Alert variant="destructive" className="mx-auto max-w-(--chat-content-max-width)">
               <TriangleAlertIcon />
               <AlertDescription>This URL’s project does not match the engine-owned session record.</AlertDescription>
             </Alert>
           )}
           {sync.stale !== undefined ? (
-            <Alert className="mx-auto max-w-[50rem]">
+            <Alert className="mx-auto max-w-(--chat-content-max-width)">
               <ClockIcon />
               <AlertTitle>Showing what was recorded at {new Date(sync.stale).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</AlertTitle>
               <AlertDescription>The engine is not answering — reconnecting…</AlertDescription>
@@ -88,7 +88,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
           {/* A fresh canvas shows nothing here: the composer is the whole interface. */}
           {!error && !props.fresh && shown.length === 0 && <EmptyTranscript loading={sync.loading} />}
           <ConversationTopEdge more={Boolean(sync.page?.more)} loading={loadingOlder} onReach={loadOlder}>
-            <div className="mx-auto w-full max-w-[50rem]">
+            <div className="mx-auto w-full max-w-(--chat-content-max-width)">
               <Button type="button" variant="ghost" className="text-muted-foreground" disabled={loadingOlder} onClick={loadOlder}>
                 {loadingOlder ? "Loading earlier turns…" : "Load earlier turns"}
               </Button>

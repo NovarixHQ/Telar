@@ -166,7 +166,7 @@ export function Composer(props: ComposerProps) {
     <div
       ref={root}
       className={cn(
-        "@container/composer relative mx-auto flex w-full max-w-[50rem] shrink-0 flex-col gap-1.5 px-4 pt-2 pb-5",
+        "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) shrink-0 flex-col gap-1.5 px-4 pt-2 pb-5",
         "transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
         fresh && "-translate-y-[calc(45dvh-7.5rem)]",
       )}

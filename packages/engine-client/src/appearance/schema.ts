@@ -113,6 +113,10 @@ export const DEPTHS = ["soft", "flat", "deep"] as const;
 export type Depth = (typeof DEPTHS)[number];
 export const DEFAULT_DEPTH: Depth = "soft";
 
+export const CHAT_WIDTHS = ["comfortable", "wide", "full"] as const;
+export type ChatWidth = (typeof CHAT_WIDTHS)[number];
+export const DEFAULT_CHAT_WIDTH: ChatWidth = "comfortable";
+
 export const DEFAULT_ACCENT: Accent = "indigo";
 export const DEFAULT_SANS_FONT: AppFont = "geist";
 export const DEFAULT_MONO_FONT: AppFont = "geist";

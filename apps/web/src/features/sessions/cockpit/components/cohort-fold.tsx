@@ -98,7 +98,7 @@ export function cohortFoldSummary(turns: readonly FoldTurn[], members: number): 
 export function CohortFold({ turns, members, children }: { turns: readonly FoldTurn[]; members: number; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mx-auto flex w-full max-w-[50rem] flex-col gap-2" data-cohort-fold={turns.length}>
+    <div className="mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-2" data-cohort-fold={turns.length}>
       <button
         type="button"
         aria-expanded={open}

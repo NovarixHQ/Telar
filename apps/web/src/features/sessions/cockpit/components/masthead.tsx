@@ -26,7 +26,7 @@ export function SessionProblem({ error }: { error: EngineApiError }) {
   const unavailable = error.code === "engine_unavailable" || error.code === "engine_locked";
   const host = refusedBy(error);
   return (
-    <Alert variant="destructive" className="mx-auto max-w-[50rem]">
+    <Alert variant="destructive" className="mx-auto max-w-(--chat-content-max-width)">
       <TriangleAlertIcon />
       <AlertTitle>
         {unavailable ? (host ? `${host} is unavailable` : "Engine unavailable") : host ? `${host} refused the request` : "Request failed"}

@@ -14,14 +14,22 @@ enum KeychainStore {
         ]
     }
 
+    private static func unsignedSimulatorStore(_ status: OSStatus) -> UserDefaults? {
+        #if targetEnvironment(simulator)
+        status == errSecMissingEntitlement ? UserDefaults(suiteName: "telar.simulator-keychain") : nil
+        #else
+        nil
+        #endif
+    }
+
     private static func read(service: String, account: String) -> String? {
         var item = query(service: service, account: account)
         item[kSecReturnData as String] = true
         item[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
-        guard SecItemCopyMatching(item as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data
-        else { return nil }
+        let status = SecItemCopyMatching(item as CFDictionary, &result)
+        if let store = unsignedSimulatorStore(status) { return store.string(forKey: "\(service)/\(account)") }
+        guard status == errSecSuccess, let data = result as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
@@ -34,11 +42,13 @@ enum KeychainStore {
         var item = query(service: service, account: account)
         item[kSecValueData as String] = Data(token.utf8)
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        SecItemAdd(item as CFDictionary, nil)
+        let status = SecItemAdd(item as CFDictionary, nil)
+        unsignedSimulatorStore(status)?.set(token, forKey: "\(service)/\(account)")
     }
 
     static func delete(account: String) {
-        SecItemDelete(query(service: service, account: account) as CFDictionary)
+        let status = SecItemDelete(query(service: service, account: account) as CFDictionary)
+        unsignedSimulatorStore(status)?.removeObject(forKey: "\(service)/\(account)")
     }
 
     static func readLegacySingle() -> String? {

@@ -204,13 +204,7 @@ struct ConnectView: View {
         probing = true
         defer { probing = false }
         do {
-            let paired = try await Pairing.exchange(
-                base: parsed.base, token: parsed.token,
-                deviceName: UIDevice.current.name
-            )
-
-            settings.upsert(baseURLString: parsed.base.absoluteString, token: paired.deviceToken, addresses: paired.addresses ?? [])
-
+            try await Pairing.complete(parsed, settings: settings, deviceName: UIDevice.current.name)
             await MobileNotifications.shared.promptAfterPairing()
             pairingLink = ""
             host = parsed.base.host() ?? host

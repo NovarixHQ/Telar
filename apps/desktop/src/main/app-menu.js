@@ -4,6 +4,7 @@ const { ChordScopes } = require("./chord-scope");
 const { jsonPrefs } = require("./prefs");
 const { DEV_BUILD } = require("./flags");
 const devUpdate = require("../dev/dev-update");
+const { devMenuItem } = require("../dev/pair-simulators");
 
 const chords = { capturing: false, scopes: new ChordScopes() };
 
@@ -59,6 +60,7 @@ function buildApplicationMenu(keymap = readKeymap()) {
           ? [
               { type: "separator" },
               { label: "Update from Local Checkout…", click: () => devUpdate.openWindow() },
+              ...[devMenuItem()].filter(Boolean),
             ]
           : []),
       ],

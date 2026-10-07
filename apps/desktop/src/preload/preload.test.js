@@ -47,3 +47,17 @@ describe("the workspace verbs share one channel, and only the file verbs send a 
     expect(lastInvoke(() => desktop.workspace.openFile("/p/a.ts", "vscode"))).toEqual(["telar:workspace:open", { path: "/p/a.ts", kind: "file", openerId: "vscode" }]);
   });
 });
+
+test("only a window launched as a dev build gets the dev verbs", () => {
+  expect(desktop.dev).toBeUndefined();
+
+  process.argv.push("--telar-dev-build");
+  try {
+    delete require.cache[require.resolve("./preload")];
+    require("./preload");
+  } finally {
+    process.argv.pop();
+  }
+  const dev = electron.contextBridge.exposed.telarDesktop.dev;
+  expect(lastInvoke(() => dev.pairSimulators())).toEqual(["telar:dev:pair-simulators", undefined]);
+});

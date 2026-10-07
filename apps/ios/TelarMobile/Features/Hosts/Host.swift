@@ -94,7 +94,8 @@ struct HostBook: Equatable {
         baseURLString: String, addresses: [String] = [], daemonId: String? = nil, name: String? = nil,
         now: Date = Date(), id: @autoclosure () -> HostID = HostID()
     ) -> Upsert {
-        if let index = hosts.firstIndex(where: { $0.isKnown(at: baseURLString) }) {
+        let byEngine = daemonId.flatMap { id in hosts.firstIndex { $0.daemonId == id } }
+        if let index = byEngine ?? hosts.firstIndex(where: { $0.isKnown(at: baseURLString) }) {
             hosts[index].baseURLString = baseURLString
             hosts[index].addresses = HostAddresses.merge(
                 preferred: baseURLString, known: hosts[index].addresses, learned: addresses

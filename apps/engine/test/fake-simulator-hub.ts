@@ -13,7 +13,7 @@ type Call = { file: string; args: readonly string[]; options?: ProcessOptions };
 
 export const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string | (() => string); xcrun?: number; simctlList?: () => string } = {}) {
+export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string | (() => string); xcrun?: number; simctlList?: (args: readonly string[]) => string } = {}) {
   const runs: Call[] = [];
   const starts: Array<Call & { handle: ProcessHandle; exit(code?: number): void }> = [];
   const waiting: Array<{ count: number; resolve: () => void }> = [];
@@ -32,9 +32,11 @@ export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string | (() =
       if (file === "ps") return { code: 0, stdout: (typeof overrides.ps === "function" ? overrides.ps() : overrides.ps) ?? "", stderr: "" };
       if (file === "xcrun") {
         if (args[1] === "io" && args[3] === "screenshot") fs.writeFileSync(args.at(-1)!, PNG);
-        const stdout = args[1] === "list" ? (overrides.simctlList?.() ?? "") : "";
+        const stdout = args[1] === "list" ? (overrides.simctlList?.(args) ?? "") : "";
         return { code: overrides.xcrun ?? 0, stdout, stderr: "" };
       }
+      if (file === "plutil") return { code: 0, stdout: fs.readFileSync(args.at(-1)!, "utf8"), stderr: "" };
+      if (file === "sips") return fakeSips(args);
       return { code: 127, stdout: "", stderr: "" };
     },
     start(file, args, options) {
@@ -49,6 +51,58 @@ export function fakeRunner(overrides: { npm?: ProcessResult; ps?: string | (() =
   const started = (count: number) =>
     starts.length >= count ? Promise.resolve() : new Promise<void>((resolve) => waiting.push({ count, resolve }));
   return { runner, runs, starts, started };
+}
+
+function fakeSips(args: readonly string[]): ProcessResult {
+  if (args[0] === "-g") {
+    const [width, height] = fs.readFileSync(args.at(-1)!, "utf8").split("x");
+    return { code: 0, stdout: `${args.at(-1)}\n  pixelWidth: ${width}\n  pixelHeight: ${height}\n`, stderr: "" };
+  }
+  fs.writeFileSync(args.at(-1)!, PNG);
+  return { code: 0, stdout: "", stderr: "" };
+}
+
+export const DEVICE_TYPE_ID = "com.apple.CoreSimulator.SimDeviceType.Pulso-Phone";
+
+export function fakeDeviceType(root: string, options: { chrome?: boolean } = {}) {
+  const bundle = path.join(root, "DeviceTypes", "Pulso Phone.simdevicetype");
+  const chromeDir = path.join(root, "Chrome");
+  const write = (file: string, content: unknown) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, typeof content === "string" ? content : JSON.stringify(content));
+  };
+  const resources = path.join(bundle, "Contents", "Resources");
+  write(path.join(resources, "profile.plist"), { chromeIdentifier: "com.apple.dt.devicekit.chrome.pulso", modelIdentifier: "Pulso1,1" });
+  write(path.join(resources, "capabilities.plist"), {
+    capabilities: {
+      DeviceCornerRadius: 50,
+      displays: [
+        { displayType: "tvOut", screenID: 2, width: 720, height: 480, scale: 1 },
+        { displayType: "integrated", screenID: 1, width: 1200, height: 2400, scale: 3, cornerRadiusUL: 60, chromeIdentifier: "com.apple.dt.devicekit.chrome.pulso" },
+      ],
+    },
+  });
+  if (options.chrome !== false) {
+    const art = path.join(chromeDir, "pulso.devicechrome", "Contents", "Resources");
+    const pieces = { topLeft: "TL", top: "Top", topRight: "TR", left: "Left", right: "Right", bottomLeft: "BL", bottom: "Base", bottomRight: "BR" };
+    write(path.join(art, "chrome.json"), {
+      identifier: "com.apple.dt.devicekit.chrome.pulso",
+      images: { ...pieces, sizing: { leftWidth: 20, rightWidth: 20, topHeight: 20, bottomHeight: 20 } },
+      inputs: [
+        { name: "power", image: "Power", anchor: "right", align: "leading", onTop: false, offsets: { normal: { x: -8, y: 200 }, rollover: { x: -3, y: 200 } } },
+        { name: "action", image: "Action", anchor: "left", align: "leading", offsets: { normal: { x: 8, y: 150 }, rollover: { x: 3, y: 150 } } },
+      ],
+    });
+    for (const name of ["TL", "TR", "BL", "BR"]) write(path.join(art, `${name}.pdf`), "100x100");
+    write(path.join(art, "Top.pdf"), "1x100");
+    write(path.join(art, "Base.pdf"), "1x100");
+    write(path.join(art, "Left.pdf"), "100x1");
+    write(path.join(art, "Right.pdf"), "100x1");
+    write(path.join(art, "Power.pdf"), "16x100");
+    write(path.join(art, "Action.pdf"), "16x30");
+  }
+  const simctl = (udid: string) => JSON.stringify({ devices: { "com.apple.CoreSimulator.SimRuntime.iOS-27-0": [{ udid, deviceTypeIdentifier: DEVICE_TYPE_ID, name: "Pulso Phone" }] }, devicetypes: [{ identifier: DEVICE_TYPE_ID, bundlePath: bundle }] });
+  return { bundle, chromeDir, simctl };
 }
 
 type HubRequest = { method: string; path: string; search: string; headers: Record<string, string>; body?: Record<string, unknown>; text?: string };
@@ -140,7 +194,7 @@ export function fakeActionDeps(answers: Record<string, Partial<ProcessResult>> =
   return { deps: value, runs, commands: () => runs.map((run) => [run.file, ...run.args].join(" ")) };
 }
 
-export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string; driver?: TurnDriver; video?: () => ReadableStream<Uint8Array>; simctlList?: () => string } = {}) {
+export async function simulatorEngine(options: { devices?: SimulatorSummary[]; ready?: boolean; openSocket?: OpenSocket; engineRoot?: string; driver?: TurnDriver; video?: () => ReadableStream<Uint8Array>; simctlList?: (args: readonly string[]) => string; chromeDir?: string } = {}) {
   const engineRoot = options.engineRoot ?? fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulators-http-"));
   const fake = fakeRunner(options.simctlList ? { simctlList: options.simctlList } : {});
   const hub = fakeHub(options.devices ?? [iPhone()], options.video ? { video: options.video } : {});
@@ -148,7 +202,7 @@ export async function simulatorEngine(options: { devices?: SimulatorSummary[]; r
     models: stubModels,
     engineRoot,
     ...(options.driver ? { embeddedWorker: { createDriver: () => options.driver!, pollMs: 20 } } : {}),
-    simulators: { runner: fake.runner, fetch: hub.fetch, platform: "darwin", reservePort: async () => 4321, sleep: async () => undefined, ...(options.openSocket ? { openSocket: options.openSocket } : {}) },
+    simulators: { runner: fake.runner, fetch: hub.fetch, platform: "darwin", reservePort: async () => 4321, sleep: async () => undefined, ...(options.openSocket ? { openSocket: options.openSocket } : {}), ...(options.chromeDir ? { chromeDir: options.chromeDir } : {}) },
   });
   const client = new EngineClient(daemon.discovery);
   const close = async () => {

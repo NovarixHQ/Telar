@@ -1,5 +1,5 @@
 import type { EngineTransport } from "../platform/transport";
-import type { SimulatorAction, SimulatorDetail, SimulatorInput, SimulatorStreamTicket, SimulatorSummary, SimulatorsState } from "./schema";
+import type { SimulatorAction, SimulatorChrome, SimulatorDetail, SimulatorInput, SimulatorStreamTicket, SimulatorSummary, SimulatorsState } from "./schema";
 
 const simulatorPath = (id: string, verb: string) => `/v2/simulators/${encodeURIComponent(id)}/${verb}`;
 
@@ -22,6 +22,10 @@ export const simulatorsClient = {
 
   simulatorDetail(this: EngineTransport, id: string): Promise<{ detail: SimulatorDetail }> {
     return this.request("GET", simulatorPath(id, "detail"));
+  },
+
+  simulatorChrome(this: EngineTransport, id: string): Promise<{ chrome: SimulatorChrome | null }> {
+    return this.request("GET", simulatorPath(id, "chrome"));
   },
 
   simulatorAction(this: EngineTransport, id: string, action: SimulatorAction): Promise<{ detail: SimulatorDetail }> {

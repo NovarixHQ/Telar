@@ -149,7 +149,7 @@ test("a watch paired with an iPhone is listed right under it, and starts and sto
 });
 
 test("without Xcode no watch lookup runs", async () => {
-  const { simulators, runs } = setup([], { xcrun: 72, simctlList: simctlWithPair });
+  const { simulators, runs } = setup([], { xcrun: 72, simctlList: () => simctlWithPair() });
   expect((await ready(simulators)).simulators).toEqual([]);
   expect(runs.some((run) => run.args[1] === "list")).toBe(false);
 });

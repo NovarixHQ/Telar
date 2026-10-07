@@ -9,7 +9,7 @@ const { seatHostCookie, seatHostHeader } = require("./ui-server");
 const { developmentIconPath, windowTitle } = require("./bundle-paths");
 const { watchForUnpairing } = require("./shell-log");
 const { readUiPrefs, supportsTranslucency } = require("./appearance");
-const { buildApplicationMenu, chords, setBrowserChordScope } = require("./app-menu");
+const { forgetBrowserChordScope, setBrowserChordScope } = require("./app-menu");
 const { applyExternalLinkPolicy, linkRouting } = require("./window-links");
 const { addHost, rememberWindowUrl, removeHost } = require("./browser-hosts");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
@@ -43,12 +43,6 @@ function onCockpitReload(win, manager) {
   manager.hideVisibleScope();
 
   linkRouting.set(win.webContents, false);
-
-  if (!chords.scopes.empty || chords.capturing) {
-    chords.scopes.setRenderer([]);
-    chords.capturing = false;
-    buildApplicationMenu();
-  }
 }
 
 function retryFailedLoads(win, url) {
@@ -100,7 +94,7 @@ function createCockpitWindow(appUrl, { createManager, onInPageNavigation }) {
     manager.destroy();
     removeHost(manager);
 
-    if (chords.scopes.forget(manager)) buildApplicationMenu();
+    forgetBrowserChordScope(manager);
   });
 
   win.on("page-title-updated", (e) => {

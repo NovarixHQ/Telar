@@ -21,7 +21,6 @@ function rangeCovers(range: string, point: number): boolean {
   });
 }
 
-// Only the Latin subset of each face, so a frame carries tens of kilobytes rather than every script the font ships.
 function faceRules(families: Set<string>): CSSFontFaceRule[] {
   const rules: CSSFontFaceRule[] = [];
   for (const sheet of document.styleSheets) {
@@ -68,7 +67,6 @@ async function faceCss(rule: CSSFontFaceRule): Promise<string> {
   return `@font-face{font-family:"${family}";src:url(${data})${descriptors.map(([name, value]) => `;${name}:${value}`).join("")}}`;
 }
 
-/** @font-face rules with data: sources for the families that open these stacks, fetched once and cached. */
 export function fontFaceCss(stacks: Array<string | undefined>): Promise<string> {
   const families = [...new Set(stacks.map(firstFamily).filter(Boolean))];
   const key = families.join("|");

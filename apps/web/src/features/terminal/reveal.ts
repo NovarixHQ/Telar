@@ -101,3 +101,12 @@ export function revealTerminal<Kind extends string>(state: PanelTabState<Kind>, 
   if (next === workspace && existing) return state;
   return setPanelTabParams(withTab, id, workspaceParams(next));
 }
+
+/** A person asked for this terminal: its chip and the Terminal tab are selected, and the panel opens. */
+export function openTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind): PanelTabState<Kind> {
+  const existing = state.tabs.find((tab) => tab.kind === kind);
+  const id = existing?.id ?? nextPanelTabId(state, kind);
+  const withTab = existing ? state : revealPanelTab(state, { id, kind, params: {} });
+  const workspace = upsertRunShell(readWorkspace(findPanelTab(withTab, id)!.params), runAsChip(run), { focus: true });
+  return { ...setPanelTabParams(withTab, id, workspaceParams(workspace)), activeTab: id, open: true };
+}

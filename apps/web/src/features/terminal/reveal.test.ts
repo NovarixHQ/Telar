@@ -9,7 +9,7 @@
 import { describe, expect, test } from "bun:test";
 import type { RunView } from "./run/types";
 import type { PanelTabInstance, PanelTabState } from "@/features/panel";
-import { freshTerminals, revealTerminal, TERMINAL_PANEL_KIND } from "./reveal";
+import { freshTerminals, openTerminal, revealTerminal, TERMINAL_PANEL_KIND } from "./reveal";
 import { addShell, emptyWorkspace, readWorkspace, runShells, shellForRun, workspaceParams } from "./workspace";
 
 const view = (over: Partial<RunView> = {}): RunView => ({
@@ -128,5 +128,18 @@ describe("freshTerminals", () => {
       view({ terminalId: "a", runId: "a", startedAt: 200, status: "ready" }),
     ];
     expect(freshTerminals(answer, mountedAt, new Set()).map((run) => run.terminalId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("openTerminal", () => {
+  test("a row in the Workspace card opens the panel on that terminal", () => {
+    const state: PanelTabState<string> = { tabs: [diff], activeTab: "diff", open: false };
+    const other = revealTerminal(state, view({ terminalId: "a", runId: "a" }), TERMINAL_PANEL_KIND);
+    const next = openTerminal(other, view({ terminalId: "b", runId: "b" }), TERMINAL_PANEL_KIND);
+    expect(next.open).toBe(true);
+    expect(next.activeTab).toBe(terminalTab(next)?.id);
+    const workspace = workspaceOf(next);
+    expect(workspace.active).toBe(shellForRun(workspace, "b")?.id);
+    expect(runShells(workspace)).toHaveLength(2);
   });
 });

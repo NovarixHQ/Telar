@@ -9,6 +9,11 @@ import type { InboxPolicy, SidebarLayout } from "../settings/schema";
 
 export type SessionSettleEnded = { terminals: number; backgroundTasks: number };
 
+/** The cockpit's route to a session, relative to its host; a session without a project lives on the main page. */
+export function cockpitSessionHref(session: { id: string; projectId?: string | undefined }): string {
+  return session.projectId ? `/projects/${encodeURIComponent(session.projectId)}/sessions/${encodeURIComponent(session.id)}` : "/main";
+}
+
 export type SnapshotPage = {
   /** Oldest settled turn on this page: the `before` for the next page up. */
   before: string | null;

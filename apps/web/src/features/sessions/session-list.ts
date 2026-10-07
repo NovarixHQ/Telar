@@ -1,4 +1,5 @@
 import {
+  cockpitSessionHref,
   DEFAULT_AUTO_SETTLE_HOURS,
   type LiveSessionRow,
   type ProjectAvailability,
@@ -305,8 +306,7 @@ export function deriveSessionList({
 }
 
 export function sessionHref(session: Pick<SidebarSession, "id" | "projectId" | "hostId">): string {
-  if (!session.projectId) return `${hostPrefix(session.hostId)}/main`;
-  return `${hostPrefix(session.hostId)}/projects/${encodeURIComponent(session.projectId)}/sessions/${encodeURIComponent(session.id)}`;
+  return `${hostPrefix(session.hostId)}${cockpitSessionHref(session)}`;
 }
 
 export function canvasHref(projectId: string, hostId?: string, options?: { baseRef?: string }): string {

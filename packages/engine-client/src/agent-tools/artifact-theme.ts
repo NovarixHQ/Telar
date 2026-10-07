@@ -10,10 +10,22 @@ export const ARTIFACT_THEME_TOKENS = [
   ["border", "--border"],
   ["primary", "--primary"],
   ["primary-foreground", "--primary-foreground"],
+  ["popover", "--popover"],
+  ["popover-foreground", "--popover-foreground"],
   ["secondary", "--secondary"],
   ["secondary-foreground", "--secondary-foreground"],
   ["accent", "--accent"],
   ["accent-foreground", "--accent-foreground"],
+  ["input", "--input"],
+  ["ring", "--ring"],
+  ["overlay", "--overlay"],
+  ["sidebar", "--sidebar"],
+  ["sidebar-foreground", "--sidebar-foreground"],
+  ["sidebar-primary", "--sidebar-primary"],
+  ["sidebar-accent", "--sidebar-accent"],
+  ["sidebar-accent-foreground", "--sidebar-accent-foreground"],
+  ["sidebar-border", "--sidebar-border"],
+  ["sidebar-ring", "--sidebar-ring"],
   ["success", "--success"],
   ["warning", "--warning"],
   ["info", "--info"],
@@ -24,6 +36,14 @@ export const ARTIFACT_THEME_TOKENS = [
   ["chart-4", "--tint-orange"],
   ["chart-5", "--tint-cyan"],
   ["chart-6", "--tint-yellow"],
+  ["tint-blue", "--tint-blue"],
+  ["tint-cyan", "--tint-cyan"],
+  ["tint-green", "--tint-green"],
+  ["tint-yellow", "--tint-yellow"],
+  ["tint-orange", "--tint-orange"],
+  ["tint-red", "--tint-red"],
+  ["tint-pink", "--tint-pink"],
+  ["tint-purple", "--tint-purple"],
   ["code-background", "--muted"],
   ["code-foreground", "--foreground"],
   ["code-comment", "--muted-foreground"],
@@ -31,12 +51,15 @@ export const ARTIFACT_THEME_TOKENS = [
   ["code-string", "--success"],
   ["code-number", "--warning"],
   ["code-function", "--info"],
+  ["shadow-1", "--shadow-1"],
+  ["shadow-2", "--shadow-2"],
+  ["shadow-3", "--shadow-3"],
   ["radius", "--radius"],
   ["font-sans", "--app-font-sans"],
   ["font-mono", "--app-font-mono"],
 ] as const;
 
-const NOT_COLOURS = new Set(["radius", "font-sans", "font-mono"]);
+export const ARTIFACT_NOT_COLOURS: ReadonlySet<string> = new Set(["shadow-1", "shadow-2", "shadow-3", "radius", "font-sans", "font-mono"]);
 
 const unsafe = /[;{}<>\\]/g;
 
@@ -114,7 +137,7 @@ type ThemeOptions = { paint?: (token: string) => string | undefined; canvas?: st
 export function artifactTheme(scheme: ArtifactTheme["scheme"], read: (token: string) => string, { paint, canvas }: ThemeOptions = {}): ArtifactTheme {
   const variables: Record<string, string> = {};
   for (const [name, token] of ARTIFACT_THEME_TOKENS) {
-    const value = NOT_COLOURS.has(name) ? read(token).trim().replace(unsafe, "") : (paint?.(token) ?? cssColorToHex(read(token)));
+    const value = ARTIFACT_NOT_COLOURS.has(name) ? read(token).replace(unsafe, "").replace(/\s+/g, " ").trim() : (paint?.(token) ?? cssColorToHex(read(token)));
     if (value) variables[`--${name}`] = value;
   }
   const ink = variables["--foreground"];
@@ -138,8 +161,11 @@ export function artifactThemeCss(theme: ArtifactTheme): string {
   const lines = Object.keys(variables)
     .filter((name) => /^--[a-z0-9-]+$/.test(name))
     .map((name) => name + ":" + String(variables[name]).replace(/[;{}<>\\]/g, "") + ";");
-  return ":where(:root){color-scheme:" + (theme.scheme === "dark" ? "dark" : "light") + ";" + lines.join("") + "}";
+  const scheme = theme.scheme === "dark" ? "dark" : "light";
+  return ":where(:root){color-scheme:" + scheme + ";--scheme:" + scheme + ";" + lines.join("") + "}";
 }
+
+export const artifactRootTag = (theme: ArtifactTheme) => `<html data-scheme="${theme.scheme === "dark" ? "dark" : "light"}">`;
 
 const MERMAID_TOKENS: Record<string, string> = {
   background: "background",

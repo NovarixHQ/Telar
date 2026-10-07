@@ -6,9 +6,9 @@ import { artifactDocument, contentHeight, frameHeight, hostContextMessage, lates
 const LOOK: Record<string, string> = { "--background": "oklch(0.975 0.002 286)", "--foreground": "oklch(0.274 0.006 286)", "--chart-1": "oklch(0.56 0.16 264)", "--app-font-sans": "ui-sans-serif" };
 const look: ArtifactTheme = artifactTheme("dark", (token) => LOOK[token] ?? "");
 
-test("the policy leads the document, ahead of an agent's own doctype and markup", () => {
+test("the scheme and the policy lead the document, ahead of an agent's own doctype and markup", () => {
   const doc = artifactDocument("<!DOCTYPE html><html><head><meta http-equiv='Content-Security-Policy' content='default-src *'></head></html>", "f1", look);
-  expect(doc.startsWith('<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src \'none\';')).toBe(true);
+  expect(doc.startsWith('<!doctype html><html data-scheme="dark"><meta http-equiv="Content-Security-Policy" content="default-src \'none\';')).toBe(true);
   expect(doc.match(/<!doctype/gi)).toHaveLength(1);
 });
 
@@ -43,9 +43,11 @@ test("a Look change posted into the frame restyles it in place, and only its par
   const next = artifactTheme("light", (token) => ({ "--background": "#000000" })[token] ?? "");
   window.dispatchEvent(new MessageEvent("message", { data: hostContextMessage(next), source: {} as Window }));
   const sheet = frame.querySelector("style")!;
-  expect(sheet.textContent).toContain("color-scheme:dark");
+  expect(sheet.textContent).toContain("color-scheme:dark;--scheme:dark;");
+  expect(frame.documentElement.dataset.scheme).toBe("dark");
   window.dispatchEvent(new MessageEvent("message", { data: hostContextMessage(next), source: window.parent }));
-  expect(sheet.textContent).toBe(":where(:root){color-scheme:light;--background:#000000;}");
+  expect(sheet.textContent).toBe(":where(:root){color-scheme:light;--scheme:light;--background:#000000;}");
+  expect(frame.documentElement.dataset.scheme).toBe("light");
   expect(frame.querySelectorAll("script")).toHaveLength(0);
   expect(frame.getElementById("kept")).toBe(kept);
 });

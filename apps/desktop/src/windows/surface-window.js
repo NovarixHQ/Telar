@@ -1,8 +1,8 @@
-const path = require("node:path");
-const { BrowserWindow, nativeTheme, screen } = require("electron");
+const { BrowserWindow, screen } = require("electron");
 const { createExternalLinkPolicy } = require("../browser/browser-manager");
-const { backdropWindowOptions } = require("../main/window-material");
+const { cockpitWindowOptions } = require("../main/cockpit-window");
 const { applyExternalLinkPolicy } = require("../main/window-links");
+const { watchWindowVisibility } = require("../main/window-visibility");
 const { placeOnDisplays } = require("./surface-window-store");
 const { FULL_MIN, compactPlace, setCompact } = require("./compact-window");
 
@@ -33,21 +33,8 @@ function trackPlace(win, store, kind, key) {
 function openSurfaceWindow({ appUrl, kind, key, params, store }) {
   const title = TITLES[kind] || "Telar";
   const { saved, bounds } = rememberedPlace(store, kind, key);
-  const win = new BrowserWindow({
-    ...bounds,
-    minWidth: FULL_MIN.width,
-    minHeight: FULL_MIN.height,
-    show: false,
-    title,
-    ...backdropWindowOptions({ dark: nativeTheme.shouldUseDarkColors, supported: false }),
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      preload: path.join(__dirname, "..", "preload", "preload.js"),
-      backgroundThrottling: false,
-    },
-  });
+  const win = new BrowserWindow({ ...cockpitWindowOptions(title), ...bounds, minWidth: FULL_MIN.width, minHeight: FULL_MIN.height });
+  watchWindowVisibility(win);
   applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl }));
   win.on("page-title-updated", (event) => {
     event.preventDefault();

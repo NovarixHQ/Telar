@@ -87,13 +87,20 @@ function TabMarks({ tab, b }: { tab: DesktopBrowserTab; b: BrowserUi }) {
 
 /** The tab strip. A tab drags into the message as a reference to the page open in this browser. */
 export function TabStrip({ b }: { b: BrowserUi }) {
-  const { act } = b;
+  const { act, inWindow } = b;
   return (
-    <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 py-1" role="tablist" aria-label="Browser tabs">
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 py-1",
+        inWindow && "app-drag min-h-[var(--titlebar-height)] pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))] md:h-[var(--titlebar-band-height)] md:min-h-[var(--titlebar-band-height)] md:py-0",
+      )}
+      role="tablist"
+      aria-label="Browser tabs"
+    >
       {(b.state?.tabs ?? []).map((tab) => (
         <div
           key={tab.id}
-          className="min-w-0"
+          className="app-no-drag min-w-0"
           draggable
           onDragStart={(event) => startReferenceDrag(event.dataTransfer, browserPageReference({ title: tab.title, url: tab.url }))}
           onAuxClick={(event) => {
@@ -140,7 +147,7 @@ export function TabStrip({ b }: { b: BrowserUi }) {
           </TabMenu>
         </div>
       ))}
-      <button type="button" aria-label="New tab" className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => void act({ action: "new" })}>
+      <button type="button" aria-label="New tab" className="app-no-drag shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => void act({ action: "new" })}>
         <PlusIcon className="size-3.5" />
       </button>
     </div>

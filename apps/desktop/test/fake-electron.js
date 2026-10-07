@@ -83,6 +83,9 @@ class FakeBrowserWindow extends Emitter {
   setMinimumSize(width, height) {
     this.minimumSize = [width, height];
   }
+  setWindowButtonVisibility(visible) {
+    this.windowButtons = visible;
+  }
   setAspectRatio(ratio) {
     this.aspectRatio = ratio;
   }

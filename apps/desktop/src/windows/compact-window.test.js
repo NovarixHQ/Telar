@@ -13,6 +13,7 @@ describe("the compact, always-on-top mode", () => {
     expect(isCompact(win)).toBe(true);
     expect(win.onTop).toBe("floating");
     expect(win.allWorkspaces).toEqual({ visibleOnFullScreen: true, skipTransformProcessType: true });
+    expect(win.windowButtons).toBe(false);
   });
 
   test("shrinks to a small window in the display's corner and keeps the page's proportions", () => {
@@ -33,6 +34,7 @@ describe("the compact, always-on-top mode", () => {
     expect(win.allWorkspaces).toBe(false);
     expect(win.allWorkspacesOptions).toMatchObject({ skipTransformProcessType: true });
     expect(win.aspectRatio).toBe(0);
+    expect(win.windowButtons).toBe(true);
   });
 
   test("a full-screen window leaves full screen first", () => {

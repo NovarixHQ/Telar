@@ -1,7 +1,10 @@
 const { afterEach, describe, expect, test } = require("bun:test");
 const path = require("node:path");
-const { FakeBrowserWindow, resetElectron } = require("../../test/fake-electron");
+const fs = require("node:fs");
+const { electron, FakeBrowserWindow, resetElectron, userData } = require("../../test/fake-electron");
 const { openSurfaceWindow, restoreBrowserWindows } = require("./surface-window");
+const { backdropWindowOptions } = require("../main/window-material");
+const { macWindowChrome } = require("../main/window-chrome");
 
 const APP = "http://127.0.0.1:42731/";
 
@@ -124,5 +127,24 @@ describe("a surface window that floats on top", () => {
     expect(again.getNormalBounds()).toEqual(store.get("browser", "s").bounds);
     setCompact(again, false);
     expect(again.getNormalBounds()).toEqual(expanded);
+  });
+});
+
+describe("it looks like a Telar window", () => {
+  const supported = process.platform === "darwin";
+  afterEach(() => fs.rmSync(path.join(userData, "ui-prefs.json"), { force: true }));
+
+  test("it wears the Look's backdrop and translucency, exactly as the cockpit does", () => {
+    for (const prefs of [{ translucent: true, frost: "blur" }, { translucent: false, frost: "blur" }]) {
+      fs.writeFileSync(path.join(userData, "ui-prefs.json"), JSON.stringify(prefs));
+      electron.nativeTheme.shouldUseDarkColors = true;
+      const win = openSurfaceWindow({ appUrl: APP, kind: "browser", params: { scope: "s" } });
+      for (const [key, value] of Object.entries(backdropWindowOptions({ ...prefs, dark: true, supported }))) expect(win.options[key]).toEqual(value);
+    }
+  });
+
+  test("its traffic lights sit inset in the page's own titlebar band", () => {
+    const win = openSurfaceWindow({ appUrl: APP, kind: "browser", params: { scope: "s" } });
+    for (const [key, value] of Object.entries(macWindowChrome())) expect(win.options[key]).toEqual(value);
   });
 });

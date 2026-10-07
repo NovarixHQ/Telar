@@ -9,12 +9,12 @@ import { ArtifactCard, ArtifactShelf } from "./artifact-card";
 installTestDom();
 stubBoxSize(600, 400);
 
-const drawn: Array<{ source: string; theme: unknown }> = [];
+const drawn: Array<{ source: string; theme: unknown; themeVariables: Record<string, unknown> | undefined }> = [];
 void mock.module("@streamdown/mermaid", () => ({
   mermaid: {
-    getMermaid: (config?: { theme?: string }) => ({
+    getMermaid: (config?: { theme?: string; themeVariables?: Record<string, unknown> }) => ({
       render: async (_id: string, source: string) => {
-        drawn.push({ source, theme: config?.theme });
+        drawn.push({ source, theme: config?.theme, themeVariables: config?.themeVariables });
         return { svg: '<svg id="drawn-diagram"><text>A to B</text></svg>' };
       },
     }),
@@ -83,11 +83,11 @@ describe("an artifact card", () => {
     expect(frame.style.height).toBe("120px");
   });
 
-  test("an html frame wears the Look: its colours and colour scheme", async () => {
+  test("an html frame wears the Look in hex: its colours and colour scheme", async () => {
     serveAttachments();
     const root = document.documentElement;
     root.classList.add("dark");
-    root.style.setProperty("--background", "rgb(1, 2, 3)");
+    root.style.setProperty("--background", "oklch(0 0 0)");
     root.style.setProperty("--primary", "rgb(9, 8, 7)");
     try {
       const host = await card(artifact("html", "att_html"));
@@ -96,13 +96,39 @@ describe("an artifact card", () => {
       const doc = frame.getAttribute("srcdoc")!;
       expect(frame.style.colorScheme).toBe("dark");
       expect(doc).toContain("color-scheme:dark");
-      expect(doc).toContain("--background:rgb(1, 2, 3)");
-      expect(doc).toContain("--accent:rgb(9, 8, 7)");
+      expect(doc).toContain("--background:#000000;");
+      expect(doc).toContain("--primary:#090807;");
     } finally {
       await act(async () => {
         root.classList.remove("dark");
         root.style.removeProperty("--background");
         root.style.removeProperty("--primary");
+      });
+    }
+  });
+
+  test("a Look change is posted into the open frame, which keeps its page instead of reloading", async () => {
+    serveAttachments();
+    const root = document.documentElement;
+    const host = await card(artifact("html", "att_html"));
+    await flush(() => host.querySelector("iframe") !== null);
+    const frame = host.querySelector("iframe")!;
+    const before = frame.getAttribute("srcdoc");
+    const posted: unknown[] = [];
+    frame.contentWindow!.postMessage = ((message: unknown) => posted.push(message)) as Window["postMessage"];
+    try {
+      await act(async () => {
+        root.classList.add("dark");
+        root.style.setProperty("--chart-1", "oklch(1 0 0)");
+      });
+      await flush(() => posted.length > 0);
+      expect(posted.at(-1)).toMatchObject({ method: "ui/notifications/host-context-changed", params: { theme: "dark", styles: { variables: { "--chart-1": "#ffffff" } } } });
+      expect(frame.getAttribute("srcdoc")).toBe(before);
+      expect(frame.style.colorScheme).toBe("dark");
+    } finally {
+      await act(async () => {
+        root.classList.remove("dark");
+        root.style.removeProperty("--chart-1");
       });
     }
   });
@@ -145,10 +171,31 @@ describe("an artifact card", () => {
     drawn.length = 0;
     const host = await card(artifact("mermaid", "att_mermaid"));
     await flush(() => host.querySelector("[role=img]") !== null);
-    expect(drawn).toEqual([{ source: "graph TD; A-->B", theme: "default" }]);
+    expect(drawn).toMatchObject([{ source: "graph TD; A-->B", theme: "base", themeVariables: { darkMode: false } }]);
     expect(decodeURIComponent((host.querySelector("[role=img]") as HTMLElement).style.backgroundImage)).toContain('id="drawn-diagram"');
     expect(buttonLabelled("Fit", host)).toBeDefined();
     expect(host.querySelector("pre, code, [data-streamdown], #drawn-diagram")).toBeNull();
+  });
+
+  test("mermaid takes the Look's own colours, and is drawn again when the Look changes", async () => {
+    serveAttachments();
+    drawn.length = 0;
+    const root = document.documentElement;
+    root.style.setProperty("--card", "oklch(1 0 0)");
+    root.style.setProperty("--primary", "rgb(51, 102, 255)");
+    try {
+      const host = await card(artifact("mermaid", "att_mermaid"));
+      await flush(() => host.querySelector("[role=img]") !== null);
+      expect(drawn.at(-1)?.themeVariables).toMatchObject({ darkMode: false, primaryColor: "#ffffff", primaryBorderColor: "#3366ff" });
+      await act(async () => root.style.setProperty("--primary", "rgb(255, 0, 0)"));
+      await flush(() => drawn.length > 1);
+      expect(drawn.at(-1)?.themeVariables).toMatchObject({ primaryBorderColor: "#ff0000" });
+    } finally {
+      await act(async () => {
+        root.style.removeProperty("--card");
+        root.style.removeProperty("--primary");
+      });
+    }
   });
 
   test("an earlier version folds to its header and names the newest", async () => {

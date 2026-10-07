@@ -1,5 +1,6 @@
 export * from "./protocol";
 export * from "./agent-tools/schema";
+export * from "./agent-tools/artifact-theme";
 export * from "./appearance/schema";
 export * from "./computer-use/schema";
 export * from "./dictation/schema";

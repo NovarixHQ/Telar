@@ -7,7 +7,7 @@ const length = (value: string | null) => {
   return parsed > 0 ? parsed : undefined;
 };
 
-export function svgImage(source: string): SvgImage | undefined {
+export function svgImage(source: string, css?: string): SvgImage | undefined {
   const parsed = new DOMParser().parseFromString(source, "image/svg+xml");
   const svg = parsed.documentElement;
   if (svg.nodeName.toLowerCase() !== "svg" || parsed.querySelector("parsererror")) return undefined;
@@ -20,6 +20,11 @@ export function svgImage(source: string): SvgImage | undefined {
   if (style) svg.setAttribute("style", style);
   else svg.removeAttribute("style");
   if (!svg.getAttribute("xmlns")) svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  if (css) {
+    const sheet = parsed.createElementNS("http://www.w3.org/2000/svg", "style");
+    sheet.textContent = css;
+    svg.prepend(sheet);
+  }
   const text = new XMLSerializer().serializeToString(svg);
-  return { width, height, url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text)}` };
+  return { width, height, url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text).replace(/[()']/g, (c) => `%${c.charCodeAt(0).toString(16)}`)}` };
 }

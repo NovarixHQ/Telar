@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES } from "@telar/engine-client";
+import { ARTIFACT_THEME_TOKENS, type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES } from "@telar/engine-client";
 import { err, failure, ok, type ToolFactory } from "./tool-kit";
 
 type InlineInput = { kind: ArtifactKind; title: string; id?: string; content?: string; path?: string };
@@ -15,6 +15,8 @@ export type DisplayCapability = {
 const OPEN = `Show the human a file from this checkout in the panel, rendered (markdown, PDF, image, video, code). For something you made for them to look at now.`;
 
 const INLINE = `Draw a visual artifact in the conversation: an html page, svg, mermaid diagram, chart or markdown. Best when asked for a status, overview, comparison, diagram or chart; otherwise reply in plain text, and honour a preference for md or html files. Pass the same id to revise it. Html has no network: inline every script, style and image.`;
+
+const CONTENT = `The source. Give this or path. Html and svg can use the Look's CSS variables, in hex and updated live when the Look changes; your own :root rules win. ${ARTIFACT_THEME_TOKENS.map(([name]) => `--${name}`).join(" ")}. Mermaid takes the Look's colours by itself.`;
 
 export const DISPLAY_BRIEFING =
   "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files.";
@@ -48,7 +50,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
       {
         kind: ArtifactKind.describe("How to render it."),
         title: z.string().min(1).max(200).describe("Shown above the artifact."),
-        content: z.string().optional().describe("The source. Give this or path."),
+        content: z.string().optional().describe(CONTENT),
         path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
         id: z.string().optional().describe("Reuse an earlier artifact's id to add a new version of it."),
       },

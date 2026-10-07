@@ -19,3 +19,10 @@ test("explicit pixel sizes win, and markup that is not an svg is refused", () =>
   expect(svgImage("<html><body>hi</body></html>")).toBeUndefined();
   expect(svgImage("<svg><unclosed></svg>")).toBeUndefined();
 });
+
+test("an svg wears the Look's variables, ahead of its own styles so they still win", () => {
+  const image = svgImage('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><style>circle{fill:red}</style><circle fill="var(--chart-1)"/></svg>', ":where(:root){--chart-1:#ff8800;}")!;
+  const text = decoded(image.url);
+  expect(text).toContain("--chart-1:#ff8800");
+  expect(text.indexOf("--chart-1:#ff8800")).toBeLessThan(text.indexOf("circle{fill:red}"));
+});

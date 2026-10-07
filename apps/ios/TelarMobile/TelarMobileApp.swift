@@ -97,6 +97,10 @@ struct RootView: View {
             if next != nil { composing = nil; preferredColumn = .detail }
         }
         .onOpenURL { url in
+            if let link = Pairing.parseDeepLink(url) {
+                Task { await pair(link) }
+                return
+            }
             guard let ref = ScopedSessionID(url: url), settings.host(ref.hostId) != nil else { return }
             selection = ref; preferredColumn = .detail
         }
@@ -126,11 +130,8 @@ struct RootView: View {
             } else { inbox.stop() }
         }
         .task {
-            if let link = UserDefaults.standard.string(forKey: "addHostLink"),
-               let parsed = Pairing.parsePairingURL(link),
-               let paired = try? await Pairing.exchange(base: parsed.base, token: parsed.token, deviceName: UIDevice.current.name) {
-                settings.upsert(baseURLString: parsed.base.absoluteString, token: paired.deviceToken, addresses: paired.addresses ?? [])
-                await MobileNotifications.shared.promptAfterPairing()
+            if let link = UserDefaults.standard.string(forKey: "addHostLink").flatMap(Pairing.parsePairingURL) {
+                await pair(link)
             }
             if let id = UserDefaults.standard.string(forKey: "openSession") {
                 selection = ScopedSessionID.resolveLaunchArg(sessionId: id,
@@ -144,6 +145,11 @@ struct RootView: View {
             }
             await settings.refreshAddresses()
         }
+    }
+
+    private func pair(_ link: (base: URL, token: String)) async {
+        guard (try? await Pairing.complete(link, settings: settings, deviceName: UIDevice.current.name)) != nil else { return }
+        await MobileNotifications.shared.promptAfterPairing()
     }
 
     private func compose(_ seed: MobileDraft?) {

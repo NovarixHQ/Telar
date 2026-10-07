@@ -59,6 +59,43 @@ final class PairingStubURLProtocol: URLProtocol {
         #expect(Pairing.parsePairingURL("not a url") == nil)
     }
 
+    @Test func aDeepLinkCarriesAPairingLink() throws {
+        let wrapped = "telar://pair?link=" + "http://localhost:62051/pair#token=12345678".addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let link = try #require(Pairing.parseDeepLink(URL(string: wrapped)!))
+        #expect(link.base.absoluteString == "http://localhost:62051")
+        #expect(link.token == "12345678")
+
+        #expect(Pairing.parseDeepLink(URL(string: "telar://pair?link=http%3A%2F%2Fmac%3A3000%2Fpair%23token%3Dnope")!) == nil)
+        #expect(Pairing.parseDeepLink(URL(string: "telar://pair")!) == nil)
+        #expect(Pairing.parseDeepLink(URL(string: "telar://session?link=http%3A%2F%2Fmac%3A3000%2Fpair%23token%3D12345678")!) == nil)
+        #expect(Pairing.parseDeepLink(URL(string: "https://pair?link=http%3A%2F%2Fmac%3A3000%2Fpair%23token%3D12345678")!) == nil)
+    }
+
+    @MainActor
+    @Test func completingAPairingRemembersTheHostWithItsToken() async throws {
+        PairingStubURLProtocol.handler = { _ in (200, Data(#"{"deviceToken":"tlr_device"}"#.utf8)) }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PairingStubURLProtocol.self]
+        let settings = AppSettings(defaults: UserDefaults(suiteName: "telar.test.appsettings.\(UUID().uuidString)")!, vault: MemoryVault())
+
+        let id = try await Pairing.complete((URL(string: "http://localhost:62051")!, "12345678"), settings: settings, deviceName: "Telar iPad", session: URLSession(configuration: config))
+
+        #expect(settings.host(id)?.baseURLString == "http://localhost:62051")
+        #expect(settings.token(for: id) == "tlr_device")
+    }
+
+    @MainActor
+    @Test func aRefusedCodeRemembersNothing() async {
+        PairingStubURLProtocol.handler = { _ in (401, Data(#"{"error":{"code":"cockpit_unauthorized","message":"That pairing code has expired."}}"#.utf8)) }
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [PairingStubURLProtocol.self]
+        let settings = AppSettings(defaults: UserDefaults(suiteName: "telar.test.appsettings.\(UUID().uuidString)")!, vault: MemoryVault())
+
+        _ = try? await Pairing.complete((URL(string: "http://localhost:62051")!, "12345678"), settings: settings, deviceName: "Telar iPad", session: URLSession(configuration: config))
+
+        #expect(settings.hosts.isEmpty)
+    }
+
     @Test func exchangePostsAndReturnsTheDeviceToken() async throws {
         PairingStubURLProtocol.handler = { request in
             #expect(request.url?.path() == "/api/pair")

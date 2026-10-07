@@ -28,7 +28,6 @@ function widthWithin(wanted: number, aspect: number, roomWidth: number, roomHeig
   return clamp(wanted, Math.min(MIN_WIDTH, most), most);
 }
 
-/** `aspect` is width over height. A fresh float sits in the top-right corner; a saved one is fitted back inside. */
 export function placeFloat(spot: FloatSpot | undefined, aspect: number, room: Box): FloatFrame {
   const width = widthWithin(spot?.width ?? FRESH_HEIGHT * aspect, aspect, room.width - 2 * FLOAT_GAP, room.height - 2 * FLOAT_GAP);
   const size = { width, height: width / aspect };
@@ -39,7 +38,6 @@ export function dragFloat(start: FloatFrame, delta: Point, room: Box): FloatFram
   return { ...start, ...inside({ x: start.x + delta.x, y: start.y + delta.y }, start, room) };
 }
 
-/** Width follows whichever axis the pointer moved further along; the opposite corner stays put. */
 export function resizeFloat(start: FloatFrame, corner: Corner, delta: Point, aspect: number, room: Box): FloatFrame {
   const east = corner.endsWith("e") ? 1 : -1;
   const south = corner.startsWith("s") ? 1 : -1;

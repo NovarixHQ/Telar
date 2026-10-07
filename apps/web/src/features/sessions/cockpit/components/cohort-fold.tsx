@@ -6,7 +6,6 @@ import type { NotificationDetail } from "@telar/engine-client";
 import type { JournalTurn } from "@/platform/engine";
 import { cn } from "@/ui/utils";
 import { ROW, tallyParts } from "@/features/transcript";
-import { sends } from "../dispatch";
 
 export type FoldTurn = Pick<JournalTurn, "runId" | "origin" | "state" | "acceptedAt" | "notification" | "agentIntent" | "items" | "failure" | "held">;
 
@@ -22,6 +21,15 @@ function happenings(detail: NotificationDetail): Pick<NotificationDetail, "kind"
 
 function mustSee(detail: NotificationDetail): boolean {
   return happenings(detail).some((each) => each.kind === "request" || each.wakeKind === "request_opened" || KEPT_INTENTS.has(each.intent));
+}
+
+function sends(items: FoldTurn["items"]): { to?: string; intent?: string }[] {
+  return items.flatMap((item) => {
+    const call = "call" in item.detail ? item.detail.call : undefined;
+    if (!call || !/(^|__|\.)sessions_send$/.test(call.name) || !call.input || typeof call.input !== "object") return [];
+    const { sessionId, intent } = call.input as Record<string, unknown>;
+    return [{ ...(typeof sessionId === "string" ? { to: sessionId } : {}), ...(typeof intent === "string" ? { intent } : {}) }];
+  });
 }
 
 function notificationsIn(turn: FoldTurn): NotificationDetail[] {

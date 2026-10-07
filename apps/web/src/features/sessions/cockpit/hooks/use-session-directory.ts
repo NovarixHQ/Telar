@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
-import type { SessionDirectory } from "../components/dispatch-block";
+
+export type SessionDirectory = ReadonlyMap<string, { title?: string }>;
 
 const EMPTY: SessionDirectory = new Map();
 
@@ -20,7 +21,7 @@ export function useSessionDirectory(hostId: string, sessionIds: readonly string[
         if (stale) return;
         setDirectory(new Map(list.sessions.filter((session) => ids.has(session.id)).map((session) => [
           session.id,
-          { title: session.title, projectId: session.projectId, ...(session.model?.model ? { model: session.model.model } : {}) },
+          { title: session.title },
         ])));
       }, () => {});
     return () => {

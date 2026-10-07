@@ -89,7 +89,6 @@ type SessionTurnProps = {
   live: boolean;
   onResumeNow?: () => void;
   peerTitle?: string;
-  covered?: boolean;
   /** An open request on this turn, including the question the composer is asking. */
   awaiting?: boolean;
 };
@@ -100,7 +99,7 @@ const TURN_GESTURES = ["onOpenAgent", "onOpenTab", "onInsert", "onOpenFile", "on
 // Compares what a turn draws, not object identity: every tail snapshot rebuilds turns as fresh objects.
 // `prompt` is not compared; the engine writes it once and the runId key pins the turn.
 function sameTurnRender(prev: SessionTurnProps, next: SessionTurnProps): boolean {
-  if (prev.live !== next.live || prev.sending !== next.sending || prev.peerTitle !== next.peerTitle || prev.covered !== next.covered || prev.awaiting !== next.awaiting) return false;
+  if (prev.live !== next.live || prev.sending !== next.sending || prev.peerTitle !== next.peerTitle || prev.awaiting !== next.awaiting) return false;
   for (const gesture of TURN_GESTURES) if (Boolean(prev[gesture]) !== Boolean(next[gesture])) return false;
   if (!sameEach(prev.requests, next.requests, (a, b) => a.id === b.id && a.state === b.state && a.decision === b.decision)) return false;
   // Only the wake-up row reads the roster, and only on a turn that names the task that woke it.
@@ -190,7 +189,6 @@ function SessionTurnBody({
   onOpenFileInNewTab,
   roster = [],
   peerTitle,
-  covered = false,
   awaiting = false,
 }: SessionTurnProps) {
   const doing = turnActivity(turn);
@@ -230,7 +228,7 @@ function SessionTurnBody({
 
   return (
     <div className="flex flex-col gap-2">
-      {!covered && <TurnOpening turn={turn} roster={roster} {...rowGestures} {...(onOpenTab ? { onOpenTab } : {})} {...(peerTitle ? { peerTitle } : {})} />}
+      <TurnOpening turn={turn} roster={roster} {...rowGestures} {...(onOpenTab ? { onOpenTab } : {})} {...(peerTitle ? { peerTitle } : {})} />
 
       {earlier.map((response) => (
         <Fragment key={response.boundary?.id ?? "opening"}>

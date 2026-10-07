@@ -21,7 +21,7 @@ The target layout is in `docs/internals/architecture.md`, and it is in place in 
 |---|---|---|
 | L3 | Take `apps/engine/src/state.ts` apart | See below. |
 | 3 | Legacy and compat | The ungated plugin aliases under `data-science` and `latex` (`domains/plugins/scoped.ts`) stay until released clients use `/plugins/<id>`. Retire the store migrations at open once every home has run them. |
-| 6 | Sessions as sub-agents | Not started. `create` takes mode `child` or `handoff`; the result is the child's last message; one notice per child; the intents and cohorts go away (21 → 10 tools). |
+| 6 | Sessions as sub-agents | In progress. Cohorts, `wait` and batch create are gone: a child registry tracks every tasked session and tells its parent one line per ending (`GET /v2/sessions/:id/children`). Left: `create` takes mode `child` or `handoff`, the result is the child's last message, and the intents go away (→ 10 tools). |
 | 9 | Headless | See below. |
 | – | Source-reading tests | 16 test files still read source files (web 3, engine 10, desktop 3). Repo-wide scans belong in `scripts/source-checks/`; rewrite the rest as behaviour tests or delete them. |
 

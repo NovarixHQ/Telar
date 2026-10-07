@@ -10,6 +10,10 @@ const PAGE_EVENTS = [
   ["Log.entryAdded", { entry: { source: "network", level: "error", text: "Failed to load resource" } }],
   ["Network.requestWillBeSent", { requestId: "r1", request: { url: "https://cdn.example.com/a.png" } }],
   ["Network.loadingFailed", { requestId: "r1", errorText: "net::ERR_BLOCKED_BY_CLIENT", blockedReason: "csp" }],
+  ["Network.requestWillBeSent", { requestId: "r2", request: { url: "http://127.0.0.1:4100/v2/sessions" } }],
+  ["Network.loadingFailed", { requestId: "r2", errorText: "net::ERR_BLOCKED_BY_CLIENT" }],
+  ["Network.responseReceived", { requestId: "r3", response: { url: "https://cdn.example.com/missing.js", status: 404, statusText: "Not Found" } }],
+  ["Network.responseReceived", { requestId: "r4", response: { url: "https://cdn.example.com/chart.js", status: 200, statusText: "OK" } }],
 ];
 
 function fakeElectron({ contentHeight = 300, broken = [], hang = false, png = Buffer.from("png") } = {}) {
@@ -99,7 +103,9 @@ describe("the offscreen preview renderer", () => {
         { level: "error", text: "Refused to load the image 'https://cdn.example.com/a.png'" },
       ],
       failedLoads: [
-        { url: "https://cdn.example.com/a.png", reason: "blocked by the artifact's content security policy" },
+        { url: "https://cdn.example.com/a.png", reason: "blocked by the page's content security policy" },
+        { url: "http://127.0.0.1:4100/v2/sessions", reason: "blocked: a preview reaches only public addresses" },
+        { url: "https://cdn.example.com/missing.js", reason: "HTTP 404 Not Found" },
         { url: "data:image/svg+xml,broken", reason: "the image did not load" },
       ],
     });
@@ -112,7 +118,7 @@ describe("the offscreen preview renderer", () => {
     expect(electron.windows[0].resizedTo).toBe(364);
   });
 
-  test("seals its partition: no network, no permissions, no popups, no navigation", async () => {
+  test("reaches only public addresses, and grants no permissions, popups or navigation", async () => {
     const electron = fakeElectron();
     await createPreviewRenderer(electron).render(request);
     const [sealed] = electron.partitions;
@@ -121,10 +127,12 @@ describe("the offscreen preview renderer", () => {
       sealed.filter({ url }, (value) => (answer = value));
       return answer;
     };
-    expect(verdict("https://cdn.example.com/chart.js")).toEqual({ cancel: true });
-    expect(verdict("http://127.0.0.1:4100/state")).toEqual({ cancel: true });
-    expect(verdict("file:///etc/hosts")).toEqual({ cancel: true });
-    expect(verdict("data:text/html;base64,PHA+")).toEqual({ cancel: false });
+    for (const url of ["https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs", "http://example.com/a.png", "data:text/html;base64,PHA+", "blob:null/1"]) {
+      expect(verdict(url)).toEqual({ cancel: false });
+    }
+    for (const url of ["http://127.0.0.1:4100/state", "http://localhost:3000", "http://[::1]:80", "http://192.168.1.4", "http://10.0.0.2", "http://172.20.0.1", "http://169.254.169.254/latest", "http://100.101.102.103", "http://mac.local", "file:///etc/hosts", "ws://example.com", "not a url"]) {
+      expect(verdict(url)).toEqual({ cancel: true });
+    }
     let granted;
     sealed.permission({}, "media", (value) => (granted = value));
     expect(granted).toBe(false);

@@ -166,7 +166,7 @@ import Testing
         let cuts = cutAroundLiveAgents(items, tasks: [task("t1", state: "running"), task("t2", state: "completed")])
         let shape = cuts.map { cut -> String in
             switch cut {
-            case .agent(let item): "<\(item.id)>"
+            case .agent(let item), .artifact(let item): "<\(item.id)>"
             case .run(let run): run.map(\.id).joined()
             }
         }

@@ -1,4 +1,6 @@
-import { type Artifact, ARTIFACT_CSP, type Item } from "@telar/engine-client";
+import { artifactThemeCss, type Artifact, type ArtifactTheme, type Item } from "@telar/engine-client";
+
+const ARTIFACT_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; form-action 'none'; base-uri 'none'";
 
 export const ARTIFACT_SANDBOX = "allow-scripts";
 
@@ -11,8 +13,6 @@ export function clampFrameHeight(height: unknown): number | undefined {
   if (typeof height !== "number" || !Number.isFinite(height)) return undefined;
   return Math.min(MAX_FRAME_HEIGHT, Math.max(MIN_FRAME_HEIGHT, Math.ceil(height)));
 }
-
-export type LookTokens = { scheme: "light" | "dark"; background: string; foreground: string; muted: string; line: string; accent: string };
 
 export function contentHeight(doc: Document): number {
   const body = doc.body;
@@ -27,17 +27,18 @@ export function contentHeight(doc: Document): number {
 
 const escapeScript = (value: string) => JSON.stringify(value).replaceAll("<", "\\u003c");
 
-const safeToken = (value: string) => value.replace(/[;{}<>]/g, "");
+const HOST_CONTEXT_CHANGED = "ui/notifications/host-context-changed";
 
-function lookStyle(look: LookTokens): string {
-  const tokens = (["background", "foreground", "muted", "line", "accent"] as const).map((name) => (look[name] ? `--${name}:${safeToken(look[name])};` : "")).join("");
-  return `<style>:where(:root){color-scheme:${look.scheme};${tokens}scrollbar-width:thin;scrollbar-color:color-mix(in oklab,currentColor 30%,transparent) transparent}:where(body){margin:0;padding:12px 14px;font:13px/1.5 system-ui,-apple-system,sans-serif;color:var(--foreground,CanvasText);background:transparent}</style>`;
-}
+export const hostContextMessage = (theme: ArtifactTheme) => ({ jsonrpc: "2.0", method: HOST_CONTEXT_CHANGED, params: { theme: theme.scheme, styles: { variables: theme.variables } } });
 
-export function artifactDocument(content: string, frame: string, look: LookTokens): string {
+const BASE_STYLE = `<style>:where(:root){scrollbar-width:thin;scrollbar-color:color-mix(in oklab,currentColor 30%,transparent) transparent}:where(body){margin:0;padding:12px 14px;font:13px/1.5 var(--font-sans,system-ui,-apple-system,sans-serif);color:var(--foreground,CanvasText);background:transparent}</style>`;
+
+const themeListener = `<script>(()=>{const sheet=document.currentScript.previousElementSibling;document.currentScript.remove();const css=${artifactThemeCss.toString()};addEventListener("message",(event)=>{const data=event.data;if(event.source!==parent||data?.method!==${escapeScript(HOST_CONTEXT_CHANGED)})return;sheet.textContent=css({scheme:data.params?.theme,variables:data.params?.styles?.variables});});})()</script>`;
+
+export function artifactDocument(content: string, frame: string, theme: ArtifactTheme): string {
   const body = content.replace(/^\s*<!doctype[^>]*>/i, "");
   const report = `<script>(()=>{document.currentScript.remove();const measure=${contentHeight.toString()};const post=()=>parent.postMessage({artifactFrame:${escapeScript(frame)},height:measure(document)},"*");const watch=new ResizeObserver(post);watch.observe(document.documentElement);watch.observe(document.body);new MutationObserver(post).observe(document.body,{childList:true,subtree:true,characterData:true});addEventListener("load",post);document.fonts.ready.then(post);post();})()</script>`;
-  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta charset="utf-8">${lookStyle(look)}${body}${report}`;
+  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta charset="utf-8"><style>${artifactThemeCss(theme)}</style>${themeListener}${BASE_STYLE}${body}${report}`;
 }
 
 export function latestArtifacts(items: Iterable<Pick<Item, "detail">>): Map<string, Artifact> {

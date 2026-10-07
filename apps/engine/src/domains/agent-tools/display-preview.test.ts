@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ARTIFACT_CSP, MAX_ARTIFACT_BYTES } from "@telar/engine-client";
+import { MAX_ARTIFACT_BYTES, parsePublishedAppearance, type PublishedAppearance } from "@telar/engine-client";
 import type { PreviewRendering, PreviewRequest } from "./display-preview";
 import { createDisplayCapability, displayTools } from "./display-tools";
 
@@ -16,7 +16,7 @@ const rendering: PreviewRendering = {
   failedLoads: [{ url: "https://cdn.example.com/chart.js", reason: "blocked by the artifact's content security policy" }],
 };
 
-function preview(options: { render?: (request: PreviewRequest) => Promise<PreviewRendering>; desktop?: boolean; timeoutMs?: number; cwd?: string } = {}) {
+function preview(options: { render?: (request: PreviewRequest) => Promise<PreviewRendering>; desktop?: boolean; timeoutMs?: number; cwd?: string; look?: PublishedAppearance | null } = {}) {
   const requests: PreviewRequest[] = [];
   const capability = createDisplayCapability({
     cwd: options.cwd ?? os.tmpdir(),
@@ -33,6 +33,7 @@ function preview(options: { render?: (request: PreviewRequest) => Promise<Previe
           },
         }),
     ...(options.timeoutMs ? { previewTimeoutMs: options.timeoutMs } : {}),
+    ...(options.look !== undefined ? { look: async () => options.look ?? null } : {}),
   });
   let run: ((args: Record<string, unknown>) => Promise<Result>) | undefined;
   displayTools((name, _description, _shape, handler) => {
@@ -61,15 +62,52 @@ describe("display_preview", () => {
     expect(requests[0]).toMatchObject({ width: 728, appearance: "light" });
   });
 
-  test("renders the page under the artifact frame's seal and a theme for the asked appearance", async () => {
+  test("renders the page in Telar's own Look for the asked appearance, open to the network", async () => {
     const { run, requests } = preview();
     await run({ kind: "html", content: "<!DOCTYPE html><p>hi</p>", width: 400, appearance: "dark" });
     const { html, width, appearance } = requests[0]!;
     expect({ width, appearance }).toEqual({ width: 400, appearance: "dark" });
-    expect(html).toContain(`content="${ARTIFACT_CSP}"`);
     expect(html).toContain("color-scheme:dark");
+    expect(html).toContain("--background:#0a0a0a;");
+    expect(html).toContain("--chart-1:");
+    expect(html).not.toContain("oklch");
+    expect(html).not.toContain("Content-Security-Policy");
     expect(html.match(/<!doctype/gi)).toHaveLength(1);
     expect(html.endsWith("<p>hi</p>")).toBe(true);
+  });
+
+  test("wears the person's published Look and its scheme when no appearance is asked for", async () => {
+    const look = parsePublishedAppearance({
+      scheme: "dark",
+      translucent: false,
+      frost: "clear",
+      resolved: { accent: { name: "rose", light: { primary: "#cc0044", primaryForeground: "#ffffff" }, dark: { primary: "#ff5588", primaryForeground: "#110000" } }, fontStacks: { sans: "Inter, sans-serif", mono: "Menlo, monospace" } },
+      look: { version: 2, id: "mine", label: "Mine", composition: { light: { base: "#f8f8f9", layers: [], overrides: {} }, dark: { base: "#252525", layers: [], overrides: { card: "#123456" } } } },
+    })!;
+    const { run, requests } = preview({ look });
+    const result = await run({ kind: "html", content: "<p>hi</p>" });
+    expect(textOf(result)).toContain("in dark");
+    const { html, appearance } = requests[0]!;
+    expect(appearance).toBe("dark");
+    for (const token of ["--card:#123456;", "--primary:#ff5588;", "--primary-foreground:#110000;", "--font-sans:Inter, sans-serif;", "--font-mono:Menlo, monospace;"]) expect(html).toContain(token);
+  });
+
+  test("a Look the engine cannot read leaves Telar's own, in light", async () => {
+    const { run, requests } = preview({ look: null });
+    await run({ kind: "html", content: "<p>hi</p>" });
+    expect(requests[0]!.appearance).toBe("light");
+    expect(requests[0]!.html).toContain("color-scheme:light");
+  });
+
+  test("mermaid is drawn by mermaid in the Look's colours, and a failure lands in the console", async () => {
+    const { run, requests } = preview();
+    await run({ kind: "mermaid", content: "graph TD; A-->B</script>", appearance: "light" });
+    const { html } = requests[0]!;
+    expect(html).toContain("cdn.jsdelivr.net/npm/mermaid@11");
+    expect(html).toContain('"theme":"base"');
+    expect(html).toContain('"primaryColor":"#ffffff"');
+    expect(html).toContain("graph TD; A-->B\\u003c/script>");
+    expect(html).toContain("This diagram could not be drawn");
   });
 
   test("an svg is drawn as an image, as the conversation draws it, so its scripts never run", async () => {
@@ -86,7 +124,7 @@ describe("display_preview", () => {
 
   test("refuses a bad kind, width, appearance or source before rendering anything", async () => {
     const { run, requests } = preview();
-    expect(textOf(await run({ kind: "mermaid", content: "graph TD; A-->B" }))).toContain("html, svg");
+    expect(textOf(await run({ kind: "markdown", content: "# hi" }))).toContain("html, svg, mermaid");
     expect(textOf(await run({ kind: "html", content: "x", width: 100 }))).toContain("240 to 1600");
     expect(textOf(await run({ kind: "html", content: "x", width: 400.5 }))).toContain("240 to 1600");
     expect(textOf(await run({ kind: "html", content: "x", appearance: "sepia" }))).toContain("light or dark");

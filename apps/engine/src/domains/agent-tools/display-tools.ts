@@ -2,27 +2,29 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES } from "@telar/engine-client";
-import { NEEDS_DESKTOP, PREVIEW_TIMEOUT_MS, PREVIEW_WIDTH, PreviewAppearance, previewDocument, PreviewKind, type PreviewRenderer, type PreviewRendering, previewReport, withinTimeout } from "./display-preview";
+import { ARTIFACT_THEME_TOKENS, type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES, type PublishedAppearance } from "@telar/engine-client";
+import { NEEDS_DESKTOP, PREVIEW_TIMEOUT_MS, PREVIEW_WIDTH, PreviewAppearance, previewDocument, PreviewKind, previewTheme, type PreviewRenderer, type PreviewRendering, previewReport, withinTimeout } from "./display-preview";
 import { err, failure, ok, type ToolFactory } from "./tool-kit";
 
 type InlineInput = { kind: ArtifactKind; title: string; id?: string; content?: string; path?: string };
-type PreviewInput = { kind: PreviewKind; width: number; appearance: PreviewAppearance; content?: string; path?: string };
+type PreviewInput = { kind: PreviewKind; width: number; appearance?: PreviewAppearance; content?: string; path?: string };
 
 export type DisplayCapability = {
   open(input: { path: string; title?: string }): Promise<{ path: string }>;
   inline(input: InlineInput): Promise<{ id: string }>;
-  preview?(input: PreviewInput): Promise<PreviewRendering>;
+  preview?(input: PreviewInput): Promise<PreviewRendering & { appearance: PreviewAppearance }>;
 };
 
 const OPEN = `Show the human a file from this checkout in the panel, rendered (markdown, PDF, image, video, code). For something you made for them to look at now.`;
 
 const INLINE = `Draw a visual artifact in the conversation: an html page, svg, mermaid diagram, chart or markdown. Best for a status, overview, comparison, diagram or chart; otherwise reply in plain text, and honour a preference for md or html files. Html has no network: inline every script, style and image. Check it with display_preview first. Same id revises.`;
 
-const PREVIEW = `Render an html page or svg offscreen as display_inline would draw it, before publishing. Returns a screenshot, the content height, console errors and warnings with stacks, and failed loads (html has no network). The person sees nothing.`;
+const PREVIEW = `Render html, svg or mermaid offscreen in the current Look as display_inline would draw it, before publishing. Returns a screenshot, the content height, console errors and warnings with stacks, and failed loads. The person sees nothing.`;
+
+const CONTENT = `The source. Give this or path. Html and svg can use the Look's CSS variables, in hex and updated live when the Look changes; your own :root rules win. ${ARTIFACT_THEME_TOKENS.map(([name]) => `--${name}`).join(" ")}. Mermaid takes the Look's colours by itself.`;
 
 export const DISPLAY_BRIEFING =
-  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Check html or svg with display_preview, publish with display_inline, then reply without restating what the page shows.";
+  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Check it with display_preview, publish with display_inline, then reply without restating what the page shows.";
 
 function sourceOf(args: Record<string, unknown>): { content?: string; path?: string } | undefined {
   const content = typeof args.content === "string" && args.content.length > 0 ? args.content : undefined;
@@ -60,7 +62,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
       {
         kind: ArtifactKind.describe("How to render it."),
         title: z.string().min(1).max(200).describe("Shown above the artifact."),
-        content: z.string().optional().describe("The source. Give this or path."),
+        content: z.string().optional().describe(CONTENT),
         path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
         id: z.string().optional().describe("Reuse an earlier artifact's id to add a new version of it."),
       },
@@ -89,7 +91,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
         content: z.string().optional().describe("The source. Give this or path."),
         path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
         width: z.number().int().min(PREVIEW_WIDTH.min).max(PREVIEW_WIDTH.max).optional().describe(`CSS pixels; default ${PREVIEW_WIDTH.initial}, the conversation's width.`),
-        appearance: PreviewAppearance.optional().describe("Default light."),
+        appearance: PreviewAppearance.optional().describe("Default: the scheme the person's Look is in."),
       },
       async (args) => {
         const kind = PreviewKind.safeParse(args.kind);
@@ -100,15 +102,15 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
         if (typeof width !== "number" || !Number.isInteger(width) || width < PREVIEW_WIDTH.min || width > PREVIEW_WIDTH.max) {
           return err(`The width is a whole number of pixels from ${PREVIEW_WIDTH.min} to ${PREVIEW_WIDTH.max}.`);
         }
-        const appearance = PreviewAppearance.safeParse(args.appearance ?? "light");
-        if (!appearance.success) return err("The appearance is light or dark.");
+        const appearance = args.appearance === undefined ? undefined : PreviewAppearance.safeParse(args.appearance);
+        if (appearance && !appearance.success) return err("The appearance is light or dark.");
         if (!capability.preview) return err(NEEDS_DESKTOP);
         try {
-          const rendering = await capability.preview({ kind: kind.data, width, appearance: appearance.data, ...source });
+          const rendering = await capability.preview({ kind: kind.data, width, ...(appearance ? { appearance: appearance.data } : {}), ...source });
           return {
             content: [
               { type: "image", data: rendering.png, mimeType: "image/png" },
-              { type: "text", text: previewReport(rendering, { width, appearance: appearance.data }) },
+              { type: "text", text: previewReport(rendering, { width, appearance: rendering.appearance }) },
             ],
           };
         } catch (error) {
@@ -161,6 +163,7 @@ export function createDisplayCapability(input: {
   report(observation: DisplayObservation): Promise<void>;
   upload(file: { name: string; mediaType: string; data: Uint8Array }): Promise<{ id: string }>;
   renderer?: PreviewRenderer;
+  look?: () => Promise<PublishedAppearance | null>;
   previewTimeoutMs?: number;
 }): DisplayCapability {
   const { renderer, previewTimeoutMs = PREVIEW_TIMEOUT_MS } = input;
@@ -181,8 +184,11 @@ export function createDisplayCapability(input: {
       ? {
           async preview({ kind, width, appearance, content, path: target }: PreviewInput) {
             const source = new TextDecoder().decode(await sourceBytes(input.cwd, { content, path: target }));
-            const html = previewDocument(kind, source, appearance);
-            return withinTimeout(renderer.render({ html, width, appearance, timeoutMs: Math.max(1, previewTimeoutMs - 2_000) }), previewTimeoutMs);
+            const published = await input.look?.().catch(() => null);
+            const scheme = appearance ?? (published?.scheme === "dark" ? "dark" : "light");
+            const html = previewDocument(kind, source, previewTheme(scheme, published));
+            const rendering = await withinTimeout(renderer.render({ html, width, appearance: scheme, timeoutMs: Math.max(1, previewTimeoutMs - 2_000) }), previewTimeoutMs);
+            return { ...rendering, appearance: scheme };
           },
         }
       : {}),

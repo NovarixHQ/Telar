@@ -7,7 +7,19 @@ const MAX_TIMEOUT_MS = 30_000;
 const MAX_PNG_BYTES = 3_500_000;
 const MAX_ENTRIES = 50;
 const MAX_TEXT_CHARS = 2_000;
-const ALLOWED_URL = /^(data|blob|about|devtools):/i;
+const INERT_SCHEMES = new Set(["data:", "blob:", "about:", "devtools:"]);
+const PRIVATE_HOST = /^(localhost|.+\.localhost|.+\.local|.+\.internal|0\.0\.0\.0|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|169\.254\.\d+\.\d+|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+|\[.*\])$/i;
+
+function reachable(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (INERT_SCHEMES.has(parsed.protocol)) return true;
+  return (parsed.protocol === "https:" || parsed.protocol === "http:") && !PRIVATE_HOST.test(parsed.hostname);
+}
 
 const MEASURE = `(() => {
   const body = document.body;
@@ -22,7 +34,7 @@ const MEASURE = `(() => {
 const BROKEN_IMAGES = `[...document.images].filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.getAttribute("src") || "")`;
 
 const settle = (ms) =>
-  `document.fonts.ready.then(() => new Promise((done) => setTimeout(done, ${ms}))).then(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))))`;
+  `Promise.resolve(window.__previewReady).then(() => document.fonts.ready).then(() => new Promise((done) => setTimeout(done, ${ms}))).then(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))))`;
 
 function checked(request) {
   const { html, width, appearance, timeoutMs } = request ?? {};
@@ -63,9 +75,12 @@ function watchPage(debuggee) {
       note({ level: params.entry.level, text: clip(params.entry.text) });
     } else if (method === "Network.requestWillBeSent") {
       urls.set(params.requestId, params.request.url);
+    } else if (method === "Network.responseReceived" && params.response.status >= 400 && failedLoads.length < MAX_ENTRIES) {
+      failedLoads.push({ url: shortUrl(params.response.url), reason: `HTTP ${params.response.status} ${params.response.statusText}`.trim() });
     } else if (method === "Network.loadingFailed" && failedLoads.length < MAX_ENTRIES) {
-      const reason = params.blockedReason === "csp" ? "blocked by the artifact's content security policy" : params.blockedReason ? `blocked (${params.blockedReason})` : params.errorText;
-      failedLoads.push({ url: shortUrl(urls.get(params.requestId) ?? "unknown"), reason });
+      const url = urls.get(params.requestId) ?? "unknown";
+      const reason = params.blockedReason === "csp" ? "blocked by the page's content security policy" : !reachable(url) ? "blocked: a preview reaches only public addresses" : params.blockedReason ? `blocked (${params.blockedReason})` : params.errorText;
+      failedLoads.push({ url: shortUrl(url), reason });
     }
   });
   return { messages, failedLoads };
@@ -110,7 +125,7 @@ function createPreviewRenderer({ BrowserWindow, session }) {
     if (sealed) return;
     sealed = true;
     const preview = session.fromPartition(PARTITION);
-    preview.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !ALLOWED_URL.test(details.url) }));
+    preview.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !reachable(details.url) }));
     preview.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   }
 

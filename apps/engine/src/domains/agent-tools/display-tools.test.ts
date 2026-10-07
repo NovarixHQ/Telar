@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { assertTelarToolNames, MAX_ARTIFACT_BYTES } from "@telar/engine-client";
+import { ARTIFACT_THEME_TOKENS, assertTelarToolNames, MAX_ARTIFACT_BYTES } from "@telar/engine-client";
 import { createDisplayCapability, type DisplayCapability, displayTools } from "./display-tools";
 
 type Registered = {
@@ -64,6 +64,13 @@ describe("the display toolkit", () => {
       const hits = registered.filter((tool) => `${tool.name} ${tool.description}`.toLowerCase().includes(keyword));
       expect(hits.map((tool) => tool.name)).toContain("display_inline");
     }
+  });
+
+  test("display_inline tells the agent every Look variable an artifact can use", () => {
+    const { named } = build();
+    const content = (named("display_inline").shape.content as { description?: string }).description ?? "";
+    for (const [name] of ARTIFACT_THEME_TOKENS) expect(content).toContain(`--${name}`);
+    expect(content).toContain("hex");
   });
 
   test("display_open forwards path and title and answers in prose, not content", async () => {

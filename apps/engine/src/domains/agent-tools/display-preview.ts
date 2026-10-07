@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { ARTIFACT_CSP } from "@telar/engine-client";
+import { artifactTheme, type ArtifactTheme, artifactThemeCss, mermaidThemeVariables, type PublishedAppearance, TELAR_DARK, TELAR_LIGHT } from "@telar/engine-client";
 import { MAX_ANSWER_CHARS } from "./tool-kit";
 
-export const PreviewKind = z.enum(["html", "svg"]);
+export const PreviewKind = z.enum(["html", "svg", "mermaid"]);
 export type PreviewKind = z.infer<typeof PreviewKind>;
 
 export const PreviewAppearance = z.enum(["light", "dark"]);
@@ -26,24 +26,68 @@ export type PreviewRenderer = { render(request: PreviewRequest): Promise<Preview
 
 export const NEEDS_DESKTOP = "Preview needs the Telar desktop app, which renders the page offscreen, and this engine runs without it. Publish with display_inline and ask the person to look.";
 
-const STAND_IN_LOOKS: Record<PreviewAppearance, Record<string, string>> = {
-  light: { background: "#ffffff", foreground: "#1f2328", muted: "#656d76", line: "#d0d7de", accent: "#0969da" },
-  dark: { background: "#1c1c1e", foreground: "#e6edf3", muted: "#8d96a0", line: "#30363d", accent: "#4493f8" },
+const GLOBALS_CSS_TOKENS: Record<PreviewAppearance, Record<string, string>> = {
+  light: {
+    "--primary": "oklch(0.488 0.16 264)",
+    "--primary-foreground": "oklch(1 0 0)",
+    "--info": "oklch(0.51 0.09 215)",
+    "--success": "oklch(0.495 0.108 162)",
+    "--warning": "oklch(0.515 0.11 72)",
+    "--destructive": "oklch(0.50 0.19 25.5)",
+    "--chart-1": "oklch(0.56 0.16 264)",
+    "--chart-2": "oklch(0.56 0.15 336)",
+    "--tint-green": "oklch(0.56 0.13 155)",
+    "--tint-orange": "oklch(0.58 0.14 55)",
+    "--tint-cyan": "oklch(0.56 0.095 200)",
+    "--tint-yellow": "oklch(0.58 0.12 85)",
+    "--radius": "0.625rem",
+  },
+  dark: {
+    "--primary": "oklch(0.68 0.16 264)",
+    "--primary-foreground": "oklch(0.17 0.04 264)",
+    "--info": "oklch(0.74 0.125 215)",
+    "--success": "oklch(0.73 0.15 162)",
+    "--warning": "oklch(0.78 0.15 72)",
+    "--destructive": "oklch(0.7 0.19 25.5)",
+    "--chart-1": "oklch(0.74 0.13 264)",
+    "--chart-2": "oklch(0.74 0.15 336)",
+    "--tint-green": "oklch(0.74 0.14 155)",
+    "--tint-orange": "oklch(0.77 0.14 55)",
+    "--tint-cyan": "oklch(0.74 0.1 200)",
+    "--tint-yellow": "oklch(0.79 0.14 85)",
+    "--radius": "0.625rem",
+  },
 };
 
-function previewTheme(appearance: PreviewAppearance): string {
-  const tokens = Object.entries(STAND_IN_LOOKS[appearance])
-    .map(([name, value]) => `--${name}:${value};`)
-    .join("");
-  return `<style>:where(:root){color-scheme:${appearance};${tokens}background:var(--background)}:where(body){margin:0;padding:12px 14px;font:13px/1.5 system-ui,-apple-system,sans-serif;color:var(--foreground,CanvasText);background:transparent}</style>`;
+export function previewTheme(scheme: PreviewAppearance, published: PublishedAppearance | null | undefined): ArtifactTheme {
+  const surfaces: Record<string, string> = { ...(scheme === "dark" ? TELAR_DARK : TELAR_LIGHT), ...published?.look.composition[scheme].overrides };
+  const accent = published?.resolved?.accent[scheme];
+  const tokens: Record<string, string> = {
+    ...GLOBALS_CSS_TOKENS[scheme],
+    ...Object.fromEntries(Object.entries(surfaces).map(([name, value]) => [`--${name}`, value])),
+    ...(accent ? { "--primary": accent.primary, "--primary-foreground": accent.primaryForeground } : {}),
+    "--app-font-sans": published?.resolved?.fontStacks.sans ?? "system-ui, -apple-system, sans-serif",
+    "--app-font-mono": published?.resolved?.fontStacks.mono ?? "ui-monospace, monospace",
+  };
+  return artifactTheme(scheme, (token) => tokens[token] ?? "");
 }
 
-const svgBody = (svg: string) =>
+const MERMAID_MODULE = "https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.esm.min.mjs";
+
+const json = (value: unknown) => JSON.stringify(value).replaceAll("<", "\\u003c");
+
+const svgImage = (svg: string) =>
   `<img alt="" style="display:block;max-width:100%" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}" onerror="console.error('The svg does not parse as an image, so the conversation would show nothing.')">`;
 
-export function previewDocument(kind: PreviewKind, content: string, appearance: PreviewAppearance): string {
-  const body = kind === "svg" ? svgBody(content) : content.replace(/^\s*<!doctype[^>]*>/i, "");
-  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${ARTIFACT_CSP}"><meta charset="utf-8">${previewTheme(appearance)}${body}`;
+function mermaidBody(source: string, theme: ArtifactTheme): string {
+  const config = { startOnLoad: false, theme: "base", securityLevel: "strict", fontFamily: "monospace", suppressErrorRendering: true, themeVariables: mermaidThemeVariables(theme), htmlLabels: false, flowchart: { htmlLabels: false } };
+  return `<script>window.__previewReady=import(${json(MERMAID_MODULE)}).then(async({default:mermaid})=>{mermaid.initialize(${json(config)});const{svg}=await mermaid.render("preview",${json(source)});const image=new Image();image.alt="";image.style.cssText="display:block;max-width:100%";image.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);document.body.append(image);await image.decode();}).catch((error)=>console.error("This diagram could not be drawn: "+(error?.message??error)));</script>`;
+}
+
+export function previewDocument(kind: PreviewKind, content: string, theme: ArtifactTheme): string {
+  const body = kind === "svg" ? svgImage(content) : kind === "mermaid" ? mermaidBody(content, theme) : content.replace(/^\s*<!doctype[^>]*>/i, "");
+  const base = `:where(:root){background:var(--background)}:where(body){margin:0;padding:12px 14px;font:13px/1.5 var(--font-sans,system-ui,-apple-system,sans-serif);color:var(--foreground,CanvasText);background:transparent}`;
+  return `<!doctype html><meta charset="utf-8"><style>${artifactThemeCss(theme)}${base}</style>${body}`;
 }
 
 export async function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
@@ -74,7 +118,7 @@ export function previewReport(rendering: PreviewRendering, input: { width: numbe
     if (entry.stack) lines.push(entry.stack.slice(0, MAX_STACK_CHARS).replace(/^/gm, "    "));
   }
   if (rendering.console.length > shown.length) lines.push(`- … ${rendering.console.length - shown.length} more`);
-  lines.push(rendering.failedLoads.length === 0 ? "Failed loads: none." : "Failed loads (html has no network; inline every script, style, font and image):");
+  lines.push(rendering.failedLoads.length === 0 ? "Failed loads: none." : "Failed loads:");
   for (const load of rendering.failedLoads.slice(0, MAX_CONSOLE_ROWS)) lines.push(`- ${load.url.slice(0, 200)}: ${load.reason}`);
   lines.push("Nothing is published yet. When it looks right, call display_inline with the same source.");
   return lines.join("\n").slice(0, MAX_ANSWER_CHARS);

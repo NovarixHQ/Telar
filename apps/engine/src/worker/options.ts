@@ -10,6 +10,7 @@ import type { FolderCheck } from "./project-root";
 export type WorkerClient = Pick<
   EngineClient,
   | "health"
+  | "appearance"
   | "registerWorker"
   | "workerHeartbeat"
   | "claimTurn"

@@ -80,7 +80,7 @@ export function telarCapabilities(host: TurnHost, claim: WorkerClaim, runId: str
           cwd,
           report: (observation) => report([observation]).then(() => undefined),
           upload: async (file) => (await client.uploadAttachment(sessionId, file)).attachment,
-          ...(host.options.previewer ? { renderer: host.options.previewer } : {}),
+          ...(host.options.previewer ? { renderer: host.options.previewer, look: async () => (await client.appearance()).appearance } : {}),
         });
   const run = projectId && cwd ? clientRunCapability(client, sessionId) : undefined;
   const simulators = claim.simulators ? clientSimulatorCapability(client, (observation) => report([observation]), claim.simulators.binDir) : undefined;

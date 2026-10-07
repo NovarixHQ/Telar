@@ -21,6 +21,7 @@ function compactBounds(win) {
 }
 
 function floatOnTop(win, on) {
+  win.setWindowButtonVisibility?.(!on);
   win.setAlwaysOnTop(on, "floating");
   win.setVisibleOnAllWorkspaces(on, { visibleOnFullScreen: on, skipTransformProcessType: true });
 }

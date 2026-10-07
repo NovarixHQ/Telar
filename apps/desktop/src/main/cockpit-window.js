@@ -105,4 +105,4 @@ function createCockpitWindow(url, { createManager, onInPageNavigation }) {
   return win;
 }
 
-module.exports = { createCockpitWindow };
+module.exports = { cockpitWindowOptions, createCockpitWindow };

@@ -49,8 +49,12 @@ async function show(params: Record<string, string>) {
   root = createRoot(host);
   await act(async () => {
     root!.render(<BrowserWindowSurface />);
-    await new Promise((resolve) => setTimeout(resolve, 40));
   });
+  for (let attempt = 0; attempt < 25 && !host.querySelector('[role="tab"]') && !host.textContent?.includes("no browser"); attempt += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+  }
 }
 
 afterEach(async () => {

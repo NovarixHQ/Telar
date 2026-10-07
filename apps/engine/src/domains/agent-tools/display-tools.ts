@@ -35,7 +35,7 @@ const THEME_GUIDE = [
   "--code-keyword, --code-string, --code-number, --code-function, --shadow-1, --shadow-2, --shadow-3 (box-shadow elevation), --radius, --font-sans, --font-mono.",
   "To mock a cockpit component, translate its classes onto these: bg-input/30 is color-mix(in srgb, var(--input) 30%, transparent), shadow-2 is var(--shadow-2), dark: is [data-scheme=dark].",
   "Never paint an opaque page background: html shows --background, the reply's own canvas. The base stylesheet sets html background, colour and font from these, body margin to 0, and hides the scrollbar. Mermaid takes the Look by itself.",
-  "The page sits borderless on the reply's canvas, as wide as the reply column, with no frame or header around it: it is part of your reply.",
+  "The page sits borderless on the reply's canvas, as wide as the reply column (about 730px, wider if the reader widens chat, about 360px on phones), with no frame or header around it: it is part of your reply.",
   "Use a fluid width with no outer card, border, banner title or horizontal padding on the outermost element. Give charts fixed pixel heights.",
   "Let content set the page's height: no 100vh or height:100% on html or body.",
   "House style, matching the reply: 14px text and 12px muted labels. Head each section with a short line stating the finding, then a muted one-line subtitle.",

@@ -16,7 +16,7 @@ final class MJPEGStream: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         return queue
     }()
     private var session: URLSession?
-    private var parser = MJPEGParser()
+    private var parts = MJPEGParts()
     private var status = 200
     private var errorBody = Data()
     private var decoding = false
@@ -43,9 +43,8 @@ final class MJPEGStream: NSObject, URLSessionDataDelegate, @unchecked Sendable {
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
                     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        let http = response as? HTTPURLResponse
-        status = http?.statusCode ?? 0
-        parser = MJPEGParser(contentType: http?.value(forHTTPHeaderField: "content-type"))
+        status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if (200..<300).contains(status), let frame = parts.begin(expectedLength: response.expectedContentLength) { decode(frame) }
         completionHandler(.allow)
     }
 
@@ -54,7 +53,11 @@ final class MJPEGStream: NSObject, URLSessionDataDelegate, @unchecked Sendable {
             errorBody.append(data.prefix(4096))
             return
         }
-        guard let newest = parser.append(data).last, !decoding else { return }
+        if let frame = parts.append(data) { decode(frame) }
+    }
+
+    private func decode(_ newest: Data) {
+        guard !decoding else { return }
         decoding = true
         DispatchQueue.global(qos: .userInteractive).async { [weak self] in
             let image = UIImage(data: newest)?.preparingForDisplay()

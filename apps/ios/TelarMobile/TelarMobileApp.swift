@@ -58,21 +58,11 @@ struct RootView: View {
                             .id(composing.id)
                         } else if let ref = selection, let api = settings.api(for: ref.hostId) {
                             SessionView(api: api, sessionId: ref.sessionId, hostId: ref.hostId,
-                                        hostName: settings.host(ref.hostId)?.name, hostCount: settings.hosts.count,
+                                        hostName: settings.host(ref.hostId)?.name,
                                         cockpitBaseURL: settings.host(ref.hostId)?.baseURL, cache: settings.snapshotCache(for: ref.hostId),
                                         onRead: { answer in inbox.applyRead(ref, answer: answer) })
                                 .id("\(settings.apiFingerprint(ref.hostId)):\(ref.sessionId)")
                                 .environment(\.columnVisibility, $columnVisibility)
-                                .toolbar {
-                                    if columnVisibility == .detailOnly {
-                                        ToolbarItem(placement: .topBarLeading) {
-                                            Button("Show sidebar", systemImage: "sidebar.leading") {
-                                                withAnimation { columnVisibility = .all }
-                                            }
-                                            .keyboardShortcut("0", modifiers: [.command, .option])
-                                        }
-                                    }
-                                }
                         } else {
                             ContentUnavailableView {
                                 Label("Your work, within reach", systemImage: "text.bubble")
@@ -97,6 +87,10 @@ struct RootView: View {
             if next != nil { composing = nil; preferredColumn = .detail }
         }
         .onOpenURL { url in
+            if let link = Pairing.parseDeepLink(url) {
+                Task { await pair(link) }
+                return
+            }
             guard let ref = ScopedSessionID(url: url), settings.host(ref.hostId) != nil else { return }
             selection = ref; preferredColumn = .detail
         }
@@ -126,11 +120,8 @@ struct RootView: View {
             } else { inbox.stop() }
         }
         .task {
-            if let link = UserDefaults.standard.string(forKey: "addHostLink"),
-               let parsed = Pairing.parsePairingURL(link),
-               let paired = try? await Pairing.exchange(base: parsed.base, token: parsed.token, deviceName: UIDevice.current.name) {
-                settings.upsert(baseURLString: parsed.base.absoluteString, token: paired.deviceToken, addresses: paired.addresses ?? [])
-                await MobileNotifications.shared.promptAfterPairing()
+            if let link = UserDefaults.standard.string(forKey: "addHostLink").flatMap(Pairing.parsePairingURL) {
+                await pair(link)
             }
             if let id = UserDefaults.standard.string(forKey: "openSession") {
                 selection = ScopedSessionID.resolveLaunchArg(sessionId: id,
@@ -144,6 +135,11 @@ struct RootView: View {
             }
             await settings.refreshAddresses()
         }
+    }
+
+    private func pair(_ link: (base: URL, token: String)) async {
+        guard (try? await Pairing.complete(link, settings: settings, deviceName: UIDevice.current.name)) != nil else { return }
+        await MobileNotifications.shared.promptAfterPairing()
     }
 
     private func compose(_ seed: MobileDraft?) {

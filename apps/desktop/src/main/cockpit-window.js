@@ -12,6 +12,7 @@ const { buildApplicationMenu, chords, setBrowserChordScope } = require("./app-me
 const { applyExternalLinkPolicy, linkRouting } = require("./window-links");
 const { addHost, rememberWindowUrl, removeHost } = require("./browser-hosts");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
+const { DEV_BUILD, DEV_BUILD_ARG } = require("./flags");
 
 function cockpitWindowOptions(title) {
   const icon = developmentIconPath();
@@ -28,6 +29,7 @@ function cockpitWindowOptions(title) {
       nodeIntegration: false,
       sandbox: true,
       preload: path.join(__dirname, "..", "preload", "preload.js"),
+      ...(DEV_BUILD ? { additionalArguments: [DEV_BUILD_ARG] } : {}),
 
       plugins: true,
 

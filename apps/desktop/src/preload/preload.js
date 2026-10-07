@@ -187,4 +187,8 @@ contextBridge.exposeInMainWorld("telarDesktop", {
 
     scope: (chords) => ipcRenderer.invoke("telar:keybindings:scope", chords),
   },
+
+  ...(process.argv.includes("--telar-dev-build")
+    ? { dev: { pairSimulators: () => ipcRenderer.invoke("telar:dev:pair-simulators") } }
+    : {}),
 });

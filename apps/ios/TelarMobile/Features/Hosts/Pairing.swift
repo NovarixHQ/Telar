@@ -21,6 +21,22 @@ enum Pairing {
         return (baseURL, token)
     }
 
+    static func parseDeepLink(_ url: URL) -> (base: URL, token: String)? {
+        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.scheme == "telar", parts.host == "pair",
+              let link = parts.queryItems?.first(where: { $0.name == "link" })?.value
+        else { return nil }
+        return parsePairingURL(link)
+    }
+
+    @MainActor @discardableResult
+    static func complete(
+        _ link: (base: URL, token: String), settings: AppSettings, deviceName: String, session: URLSession = .shared
+    ) async throws -> HostID {
+        let paired = try await exchange(base: link.base, token: link.token, deviceName: deviceName, session: session)
+        return settings.upsert(baseURLString: link.base.absoluteString, token: paired.deviceToken, addresses: paired.addresses ?? [])
+    }
+
     static func looksLikePairingSecret(_ token: String) -> Bool {
         if token.hasPrefix("tlr_") { return true }
         return token.count == 8 && token.allSatisfy(\.isNumber)

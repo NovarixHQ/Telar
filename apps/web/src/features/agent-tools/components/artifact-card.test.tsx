@@ -25,6 +25,7 @@ const SOURCES: Record<string, string> = {
   att_sized: "<h1>Sized</h1>",
   att_unsized: "<h1>Unsized</h1>",
   att_remembered: "<h1>Remembered</h1>",
+  att_reflows: "<p>Reflows</p>",
   att_svg: '<svg xmlns="http://www.w3.org/2000/svg"><circle id="agent-dot" r="4"/></svg>',
   att_md: "# Plan\n\n- ship it",
   att_mermaid: "graph TD; A-->B",
@@ -111,6 +112,27 @@ describe("an artifact card", () => {
     const again = await card(artifact("html", "att_remembered"));
     await flush(() => again.querySelector("iframe") !== null);
     expect(again.querySelector("iframe")!.style.height).toBe("256px");
+  });
+
+  test("a height remembered at one chat width is not reserved at another, where the page reflows", async () => {
+    serveAttachments();
+    const first = await card(artifact("html", "att_reflows", 1, 600));
+    await flush(() => first.querySelector("iframe") !== null);
+    await reporter(first.querySelector("iframe")!)(256);
+    localStorage.setItem("telar-appearance", JSON.stringify({ chatWidth: "wide" }));
+    try {
+      const wide = await card(artifact("html", "att_reflows", 1, 600));
+      await flush(() => wide.querySelector("iframe") !== null);
+      const frame = wide.querySelector("iframe")!;
+      expect(frame.style.height).toBe("600px");
+      await reporter(frame)(180);
+      expect(frame.style.height).toBe("180px");
+    } finally {
+      localStorage.removeItem("telar-appearance");
+    }
+    const comfortable = await card(artifact("html", "att_reflows", 1, 600));
+    await flush(() => comfortable.querySelector("iframe") !== null);
+    expect(comfortable.querySelector("iframe")!.style.height).toBe("256px");
   });
 
   test("an html frame wears the Look in hex, with --background as the canvas painted around it", async () => {

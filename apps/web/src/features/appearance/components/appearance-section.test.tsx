@@ -114,7 +114,6 @@ describe("the rows settings search points at", () => {
     const indexed = SETTINGS_SEARCH_INDEX.entries.filter((entry: { pageId: string }) => entry.pageId === "appearance");
     const ids = indexed.map((entry: { id: string }) => entry.id);
     expect(ids).toContain("settings-row-appearance-window-translucency");
-    expect(ids).toContain("settings-row-appearance-window-glass");
     expect(ids).toContain("settings-row-appearance-window-layers-through-canvas-and-rail");
     expect(ids).toContain("settings-row-appearance-type-and-surfaces-accent");
     expect(ids).toContain("settings-row-appearance-background-base");
@@ -513,5 +512,22 @@ describe("there is no draft, and nothing to apply", () => {
     // Which half this window wears is a fact about the window, and it is also
     // the half every colour control on the pane edits.
     expect(host.querySelector("#settings-row-window-colour-scheme")).not.toBeNull();
+  });
+});
+
+describe("following the Mac's look", () => {
+  const following = () => window.localStorage.getItem("telar-follow-host") !== "detached";
+  const press = async (label: string) => {
+    const button = [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
+    await act(async () => button.click());
+  };
+
+  test("any appearance change stops it, not only a new scheme or look", async () => {
+    for (const label of ["Wide", "Full"]) {
+      window.localStorage.removeItem("telar-follow-host");
+      expect(following()).toBe(true);
+      await press(label);
+      expect(following()).toBe(false);
+    }
   });
 });

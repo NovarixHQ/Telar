@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Appearance, ChatWidth, Frost } from "../appearance";
 import { desktopAppearance } from "@/platform/desktop/desktop-appearance";
-import { Row, Segmented, SettingsGroup, ToggleRow } from "@/features/settings";
+import { Row, Segmented, SettingsGroup } from "@/features/settings";
 import { ThemeControl } from "./theme-control";
 import { ShowThroughRow } from "./studio/tools";
 
@@ -11,7 +11,17 @@ const subscribeToNothing = () => () => {};
 const bridgeIsPresent = () => desktopAppearance() !== undefined;
 const noBridgeOnTheServer = () => false;
 
-export function AppearanceWindowGroup({ appearance, setAppearance }: { appearance: Appearance; setAppearance: (patch: Partial<Appearance>) => void }) {
+type Glass = "off" | Frost;
+
+export function AppearanceWindowGroup({
+  appearance,
+  setAppearance,
+  onChange,
+}: {
+  appearance: Appearance;
+  setAppearance: (patch: Partial<Appearance>) => void;
+  onChange: (patch: Partial<Appearance>) => void;
+}) {
   const hasBridge = useSyncExternalStore(subscribeToNothing, bridgeIsPresent, noBridgeOnTheServer);
   const [windowSupported, setWindowSupported] = useState(false);
 
@@ -32,14 +42,10 @@ export function AppearanceWindowGroup({ appearance, setAppearance }: { appearanc
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasBridge]);
 
-  const setTranslucent = (next: boolean) => {
-    setAppearance({ translucent: next });
-    void desktopAppearance()?.set({ translucent: next });
-  };
-
-  const setFrost = (next: Frost) => {
-    setAppearance({ frost: next });
-    void desktopAppearance()?.set({ frost: next });
+  const setGlass = (next: Glass) => {
+    const patch = next === "off" ? { translucent: false } : { translucent: true, frost: next };
+    onChange(patch);
+    void desktopAppearance()?.set(patch);
   };
 
   return (
@@ -51,34 +57,33 @@ export function AppearanceWindowGroup({ appearance, setAppearance }: { appearanc
       />
       {hasBridge && windowSupported ? (
         <>
-          <ToggleRow label="Translucency" hint="Rebuilds the window." checked={appearance.translucent} onCheckedChange={setTranslucent} />
-          {appearance.translucent && (
-            <Row
-              label="Glass"
-              control={
-                <Segmented<Frost>
-                  value={appearance.frost}
-                  onChange={setFrost}
-                  options={[
-                    { value: "blur", label: "Blur" },
-                    { value: "clear", label: "Clear" },
-                  ]}
-                />
-              }
-            />
-          )}
+          <Row
+            label="Translucency"
+            hint="Rebuilds the window."
+            control={
+              <Segmented<Glass>
+                value={appearance.translucent ? appearance.frost : "off"}
+                onChange={setGlass}
+                options={[
+                  { value: "off", label: "Off" },
+                  { value: "blur", label: "Blur" },
+                  { value: "clear", label: "Clear" },
+                ]}
+              />
+            }
+          />
         </>
       ) : (
         <p className="py-3 text-xs text-muted-foreground">Translucency needs the macOS desktop app.</p>
       )}
-      <ShowThroughRow level={appearance.translucencyLevel} onChange={(translucencyLevel) => setAppearance({ translucencyLevel })} />
+      <ShowThroughRow level={appearance.translucencyLevel} onChange={(translucencyLevel) => onChange({ translucencyLevel })} />
       <Row
         label="Chat width"
         hint="How wide the conversation and the composer can grow."
         control={
           <Segmented<ChatWidth>
             value={appearance.chatWidth}
-            onChange={(chatWidth) => setAppearance({ chatWidth })}
+            onChange={(chatWidth) => onChange({ chatWidth })}
             options={[
               { value: "comfortable", label: "Comfortable" },
               { value: "wide", label: "Wide" },

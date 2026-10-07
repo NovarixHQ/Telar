@@ -17,7 +17,7 @@ const chatWidthRules = globals.match(/(?::root|\[data-chat-width="\w+"\]) \{\s*-
 
 function Settings() {
   const { appearance, setAppearance } = useAppearance();
-  return <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} />;
+  return <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} onChange={setAppearance} />;
 }
 
 async function cockpit() {

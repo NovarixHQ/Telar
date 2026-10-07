@@ -5,7 +5,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { accentPrimary } from "../accent-colours";
 import { detachFromHost, useFollowNotice } from "../host-follow";
 import { useTheme } from "./theme-provider";
-import { useAppearance } from "../appearance";
+import { useAppearance, type Appearance } from "../appearance";
 import { applyLook, readLooks as readLooksNow, writeLooks, type Look } from "../looks";
 import {
   compositionHalf,
@@ -74,6 +74,11 @@ export function AppearanceSection() {
   const wear = (look: Look) => {
     detachFromHost();
     setNotice(applyLook(look, setAppearance));
+  };
+
+  const change = (patch: Partial<Appearance>) => {
+    detachFromHost();
+    setAppearance(patch);
   };
 
   const compose = (ok: boolean) => {
@@ -147,11 +152,11 @@ export function AppearanceSection() {
       </SettingsGroup>
 
       <SettingsGroup title="Type and surfaces" description="The accent, the two typefaces, the sizes they run at, and how far surfaces lift off the canvas.">
-        <TypeTool appearance={appearance} onChange={setAppearance} />
-        <DepthControl value={appearance.depth} onChange={(depth) => setAppearance({ depth })} />
+        <TypeTool appearance={appearance} onChange={change} />
+        <DepthControl value={appearance.depth} onChange={(depth) => change({ depth })} />
       </SettingsGroup>
 
-      <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} />
+      <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} onChange={change} />
     </div>
   );
 }

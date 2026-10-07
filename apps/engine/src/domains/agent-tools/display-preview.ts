@@ -26,14 +26,13 @@ export type PreviewRenderer = { render(request: PreviewRequest): Promise<Preview
 
 export const NEEDS_DESKTOP = "Preview needs the Telar desktop app, which renders the page offscreen, and this engine runs without it. Publish with display_inline and ask the person to look.";
 
-// A stand-in for the cockpit's Look until its theme bootstrap is shared through engine-client.
-const LOOKS: Record<PreviewAppearance, Record<string, string>> = {
+const STAND_IN_LOOKS: Record<PreviewAppearance, Record<string, string>> = {
   light: { background: "#ffffff", foreground: "#1f2328", muted: "#656d76", line: "#d0d7de", accent: "#0969da" },
   dark: { background: "#1c1c1e", foreground: "#e6edf3", muted: "#8d96a0", line: "#30363d", accent: "#4493f8" },
 };
 
 function previewTheme(appearance: PreviewAppearance): string {
-  const tokens = Object.entries(LOOKS[appearance])
+  const tokens = Object.entries(STAND_IN_LOOKS[appearance])
     .map(([name, value]) => `--${name}:${value};`)
     .join("");
   return `<style>:where(:root){color-scheme:${appearance};${tokens}background:var(--background)}:where(body){margin:0;padding:12px 14px;font:13px/1.5 system-ui,-apple-system,sans-serif;color:var(--foreground,CanvasText);background:transparent}</style>`;

@@ -102,10 +102,6 @@ async function capture(window, { html, width, appearance }) {
   return { png: png.toString("base64"), contentHeight, capturedHeight, console: page.messages, failedLoads: [...page.failedLoads, ...missing].slice(0, MAX_ENTRIES) };
 }
 
-/**
- * Screenshots an artifact in a hidden offscreen window with no network, one at a time.
- * `BrowserWindow` and `session` are Electron's, injected so the render can be tested without it.
- */
 function createPreviewRenderer({ BrowserWindow, session }) {
   let sealed = false;
   let queue = Promise.resolve();

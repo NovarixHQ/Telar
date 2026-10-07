@@ -87,14 +87,14 @@ extension NavigationUITests {
         XCTAssertTrue(search.waitForExistence(timeout: 10), "the sidebar starts visible")
 
         app.buttons["Show panel"].tap()
-        XCTAssertTrue(app.buttons["Diff tab"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Close panel"].waitForExistence(timeout: 10))
         XCTAssertTrue(search.waitForNonExistence(timeout: 5), "portrait has no room for all three — the sidebar stands aside")
-        select(app.buttons["Diff tab"])
+        surface(app, "Diff")
         XCTAssertTrue(app.staticTexts["No recorded base — committed work is not included."].waitForExistence(timeout: 10),
                       "the Diff surface, not just its chip")
         snap("Panel — Diff")
 
-        select(app.buttons["Files tab"])
+        surface(app, "Files")
         openFromTree(app, "README.md")
         XCTAssertTrue(app.staticTexts["README.md"].firstMatch.waitForExistence(timeout: 10), "the file's address row")
         snap("Panel — Files, README")
@@ -111,8 +111,7 @@ extension NavigationUITests {
         XCTAssertTrue(app.staticTexts["report/main.pdf"].waitForExistence(timeout: 10), "PDF header")
         snap("Panel — Files, PDF")
 
-        XCTAssertTrue(app.buttons["Data tab"].exists, "Data tab is offered when the project opted in")
-        select(app.buttons["Data tab"])
+        surface(app, "Data")
         select(app.buttons["Plots"])
         XCTAssertTrue(app.buttons["Pin plot"].firstMatch.waitForExistence(timeout: 10), "plots grid")
         snap("Panel — Data, plots")
@@ -123,7 +122,7 @@ extension NavigationUITests {
         XCTAssertTrue(app.staticTexts["pandas"].waitForExistence(timeout: 10))
         snap("Panel — Data, environment")
 
-        select(app.buttons["LaTeX tab"])
+        surface(app, "LaTeX")
         XCTAssertTrue(app.buttons["Compile"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Undefined control sequence \\foo."].waitForExistence(timeout: 10))
         snap("Panel — LaTeX")
@@ -144,6 +143,22 @@ extension NavigationUITests {
         tab.tap()
         XCTAssertTrue(XCTWaiter.wait(for: [expectation(for: NSPredicate(format: "isSelected == true"), evaluatedWith: tab)], timeout: 5) == .completed,
                       "\(tab.label) is the surface that is up")
+    }
+
+    private func surface(_ app: XCUIApplication, _ label: String) {
+        let tab = app.buttons["\(label) tab"]
+        if !tab.exists {
+            let card = app.buttons["Open \(label)"]
+            if card.waitForExistence(timeout: 5) {
+                card.tap()
+            } else {
+                app.buttons["Open a surface"].tap()
+                let item = app.buttons[label].firstMatch
+                XCTAssertTrue(item.waitForExistence(timeout: 5), "the chooser offers \(label)")
+                item.tap()
+            }
+        }
+        select(tab)
     }
 
     private func openFromTree(_ app: XCUIApplication, _ name: String) {
@@ -209,14 +224,14 @@ extension NavigationUITests {
         snap("Panel toggle — closed")
 
         show.tap()
-        XCTAssertTrue(app.buttons["Diff tab"].waitForExistence(timeout: 10), "the panel opened")
+        XCTAssertTrue(app.buttons["Close panel"].waitForExistence(timeout: 10), "the panel opened")
         let hide = app.buttons["Hide panel"]
         XCTAssertTrue(hide.waitForExistence(timeout: 5), "the same button now closes it")
         XCTAssertTrue(hide.isSelected, "lit while the panel is open")
         snap("Panel toggle — open")
 
         hide.tap()
-        XCTAssertTrue(app.buttons["Diff tab"].waitForNonExistence(timeout: 10), "and it closes again")
+        XCTAssertTrue(app.buttons["Close panel"].waitForNonExistence(timeout: 10), "and it closes again")
     }
 }
 
@@ -229,8 +244,7 @@ extension NavigationUITests {
         let composer = app.textViews["Ask the agent, or run a command…"]
         XCTAssertTrue(composer.waitForExistence(timeout: 15))
         if app.buttons["Show panel"].exists { app.buttons["Show panel"].tap() }
-        XCTAssertTrue(app.buttons["Diff tab"].waitForExistence(timeout: 10))
-        select(app.buttons["Files tab"])
+        surface(app, "Files")
         openFromTree(app, "README.md")
         XCTAssertTrue(app.staticTexts["README.md"].firstMatch.waitForExistence(timeout: 10))
 

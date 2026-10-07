@@ -38,9 +38,6 @@ enum Theme {
     static let radiusComposer: CGFloat = 22
     static let radiusDrawer: CGFloat = 16
 
-    static let readingMeasure: CGFloat = 680
-
-    static let readingGutter: CGFloat = 32
     static let body = Font.system(.body)
     static let bodyMedium = Font.system(.body, weight: .medium)
     static let rowTitle = Font.system(.subheadline, weight: .medium)
@@ -123,13 +120,5 @@ struct SteppedPulseDot: View {
                     .opacity(Int(context.date.timeIntervalSinceReferenceDate) % 2 == 0 ? 1 : 0.5)
             }
         }
-    }
-}
-
-extension View {
-    func readingColumn(gutter: CGFloat = 0) -> some View {
-        self
-            .frame(maxWidth: Theme.readingMeasure + gutter)
-            .frame(maxWidth: .infinity)
     }
 }

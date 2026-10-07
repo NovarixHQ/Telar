@@ -14,19 +14,19 @@ extension AgentTone {
 
 struct AgentSection<Rows: View>: View {
     let label: String
-    let count: Int
+    let count: Int?
     @ViewBuilder let rows: Rows
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(label)
-                Text("\(count)").monospacedDigit()
+                if let count { Text("\(count)").monospacedDigit() }
             }
             .bandCaption()
             .padding(.horizontal, 4)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(label), \(count)")
+            .accessibilityLabel(count.map { "\(label), \($0)" } ?? label)
             .accessibilityAddTraits(.isHeader)
             VStack(spacing: 0) { rows }
                 .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous))
@@ -140,7 +140,7 @@ struct AgentsEmpty: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: 300)
         .frame(maxWidth: .infinity)
-        .padding(.top, 40)
+        .padding(.top, 16)
         .accessibilityElement(children: .combine)
     }
 }

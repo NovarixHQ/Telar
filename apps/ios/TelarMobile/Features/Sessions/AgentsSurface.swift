@@ -184,10 +184,12 @@ struct AgentsSurface: View {
     let sessionId: EngineID
 
     let hostId: HostID?
+    var hostName: String?
 
     let active: Bool
 
     @State private var sessions: [Session] = []
+    @State private var projects: [ProjectRef] = []
     @State private var assignments: [EngineID: [SessionAssignment]] = [:]
     @State private var following: [Subscription] = []
     @State private var loaded = false
@@ -209,10 +211,13 @@ struct AgentsSurface: View {
     var body: some View {
         ScrollView {
             let delegates = delegates, employers = employers
-            if delegates.isEmpty && employers.isEmpty {
-                if loaded { AgentsEmpty(failed: failed) }
-            } else {
-                VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 20) {
+                if let session = sessions.first(where: { $0.id == sessionId }) {
+                    SessionFactsCard(session: session, project: projects.first { $0.id == session.projectId }?.name, host: hostName)
+                }
+                if delegates.isEmpty && employers.isEmpty {
+                    if loaded { AgentsEmpty(failed: failed) }
+                } else {
                     if !delegates.isEmpty {
                         AgentSection(label: "Working for this conversation", count: delegates.count) {
                             ForEach(delegates) { entry in delegateRow(entry, last: entry.id == delegates.last?.id) }
@@ -224,9 +229,9 @@ struct AgentsSurface: View {
                         }
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 14)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 14)
         }
         .refreshable { await read() }
 
@@ -280,6 +285,7 @@ struct AgentsSurface: View {
             etag = answer.etag
             if let list = answer.live {
                 sessions = list.sessions
+                projects = list.projects
                 assignments = list.assignments
             }
         }

@@ -167,7 +167,7 @@ struct SessionView: View {
     }
 
     private func panelView(_ presentation: PanelPresentation, canFillWindow: Bool) -> PanelView {
-        PanelView(api: api, panelAPI: panelAPI, sessionId: sessionId, hostId: hostId, active: turnActive, panel: panel,
+        PanelView(api: api, panelAPI: panelAPI, sessionId: sessionId, hostId: hostId, hostName: hostName, active: turnActive, panel: panel,
                   presentation: presentation, canFillWindow: canFillWindow, onClose: { panel.close() })
     }
 

@@ -58,6 +58,7 @@ const EXPECTED_IDS: CommandId[] = [
   "toggle-devtools",
   "go-to-file",
   "search-project-contents",
+  "quick-composer",
   "settings",
   "search-settings",
   "appearance",
@@ -74,7 +75,7 @@ describe("the registry is the one source of truth", () => {
 
   test("every default chord uses CommandOrControl, never a hardcoded Cmd or Ctrl", () => {
     for (const command of COMMANDS) {
-      expect(command.defaultChord === "" || command.defaultChord.startsWith("CommandOrControl+")).toBe(true);
+      expect(command.global || command.defaultChord === "" || command.defaultChord.startsWith("CommandOrControl+")).toBe(true);
     }
   });
 

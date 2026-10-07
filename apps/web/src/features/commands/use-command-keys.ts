@@ -23,6 +23,7 @@ type DesktopCommandKeyBridge = {
   commandKeys?: { onInvoke?: (listener: (id: string) => void) => (() => void) | undefined };
   notifications?: { onOpen?: (listener: (path: unknown) => void) => (() => void) | undefined };
   app?: { openWindow?: (path: string) => Promise<unknown> };
+  quickComposer?: { toggle?: () => Promise<unknown> };
 };
 
 function desktop(): DesktopCommandKeyBridge | undefined {
@@ -90,6 +91,10 @@ export function useCommandKeys(
         return;
       }
       if (runCommand(id)) return;
+      if (id === "quick-composer") {
+        void desktop()?.quickComposer?.toggle?.();
+        return;
+      }
       if (id === "go-to-file") {
         if (runCommand("open-editor")) focusFieldNamed("Search files");
         return;

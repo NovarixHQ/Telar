@@ -32,7 +32,7 @@ const { logShell, shellLogPath, startHeapLog } = require("./shell-log");
 const { processMetricsReader, startServiceWorkerWatchdog } = require("./renderer-watch");
 const { engineDiscoveryFile, markMainWindowShown, postToEngine, rememberEngine, reportStartupFailure, startEngineChild, stopEngineChild, waitForEngine } = require("./engine-child");
 const { keepOccludedWindowsPainting, watchSchemeForVibrancy } = require("./appearance");
-const { buildApplicationMenu, followFocusedWindow } = require("./app-menu");
+const { buildApplicationMenu, followFocusedWindow, readKeybindingOverrides } = require("./app-menu");
 const { startExtensionHost } = require("./cockpit-extensions");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
 const { adoptLegacyUpdatePrefs } = require("./update-prefs");
@@ -45,6 +45,8 @@ const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface
 const { createSurfaceWindowStore } = require("../windows/surface-window-store");
 const { isCompact, setCompact } = require("../windows/compact-window");
 const { registerDevPairing } = require("../dev/pair-simulators");
+const { createQuickComposer } = require("./quick-composer");
+const { mergeKeymap } = require("./command-keys");
 
 pinUserData();
 
@@ -62,6 +64,7 @@ let browserSuggestions;
 function requireBrowserSuggestions() {
   return browserSuggestions ||= createBrowserSuggestions(app.getPath("userData"));
 }
+let quickComposer = null;
 let browserControl = null;
 let previewRenderer = null;
 let browserControlConfig = null;
@@ -426,7 +429,10 @@ require("./ipc-terminal").registerTerminalIpc({
 
 require("./ipc-store").registerWorkspaceAndStoreIpc({ telarHome });
 
-require("./ipc-prefs").registerPrefsIpc();
+require("./ipc-prefs").registerPrefsIpc({
+  onKeymap: (keymap) => quickComposer?.bind(keymap["quick-composer"]),
+  onCapture: (capturing) => quickComposer?.suspend(capturing),
+});
 
 require("./ipc-app").registerAppIpc({ createWindow, testNotification: desktopNotifier.test });
 
@@ -533,6 +539,10 @@ if (SMOKE) {
           if (registerDevPairing({ dev: DEV_BUILD, appUrl: url, hostToken: uiServer.HOST_TOKEN, ipcMain, notify })) buildApplicationMenu();
         }
         updaterWindow = createWindow(url);
+        if (process.platform === "darwin") {
+          quickComposer = createQuickComposer({ appUrl: url, openRoute: openNotificationPath, log: (line) => logShell("warn", line) });
+          quickComposer.bind(mergeKeymap(readKeybindingOverrides())["quick-composer"]);
+        }
         restoreBrowserWindows(currentHost(), requireSurfaceWindows());
 
         markMainWindowShown();

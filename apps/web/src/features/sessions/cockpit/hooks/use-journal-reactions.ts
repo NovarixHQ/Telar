@@ -12,9 +12,10 @@ import {
   setPanelTabParams,
   type latestBrowserState,
 } from "@/features/panel";
-import { agentSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped, withSimulatorShown } from "@/features/simulators";
+import { agentSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped } from "@/features/simulators";
 import { freshTerminals, revealTerminal, type RunView } from "@/features/terminal";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
+import { showSimulatorTab } from "../model";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 import type { useSessionSync } from "./use-session-sync";
 
@@ -61,11 +62,7 @@ export function useJournalReactions({ sessionId, sync: { events }, browser, enab
     if (fresh.some((event) => event.type === "prompt.drafted")) announcePromptShelfChanged();
     for (const change of agentSimulatorChanges(events, mountedAt.current, seenEvents.current)) {
       updatePanel((current) => {
-        if ("shown" in change) {
-          const opened = openPanelTab(current, SIMULATOR_SURFACE);
-          const tab = opened.tabs.find((entry) => entry.id === opened.activeTab)!;
-          return setPanelTabParams(opened, tab.id, withSimulatorShown(tab.params, change.shown));
-        }
+        if ("shown" in change) return showSimulatorTab(current, change.shown);
         return current.tabs
           .filter((tab) => tab.kind === SIMULATOR_SURFACE)
           .reduce((state, tab) => setPanelTabParams(state, tab.id, withSimulatorDropped(tab.params, change.dropped)), current);

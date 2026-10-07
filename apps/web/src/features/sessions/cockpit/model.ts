@@ -2,6 +2,8 @@ import { BotIcon, ClockIcon, TerminalIcon } from "lucide-react";
 import { pluginEnabled, readProjectPlugins, type TurnState } from "@telar/engine-client";
 import type { JournalTask, JournalTurn } from "@/platform/engine";
 import { insertReference } from "@/features/composer";
+import { openPanelTab, setPanelTabParams, type PanelTab, type PanelTabState } from "@/features/panel";
+import { SIMULATOR_SURFACE, withSimulatorShown } from "@/features/simulators";
 
 type TurnTone = "active" | "done" | "attention" | "danger" | "muted";
 const turnStates: Record<TurnState, { label: string; tone: TurnTone }> = {
@@ -80,4 +82,10 @@ export function wakeUpLabel(task: JournalTask | undefined): { verb: string; Icon
     default:
       return { verb: `${subject} reported`, Icon };
   }
+}
+
+export function showSimulatorTab(state: PanelTabState<PanelTab>, simulatorId: string): PanelTabState<PanelTab> {
+  const opened = openPanelTab<PanelTab>(state, SIMULATOR_SURFACE);
+  const tab = opened.tabs.find((entry) => entry.id === opened.activeTab)!;
+  return setPanelTabParams(opened, tab.id, withSimulatorShown(tab.params, simulatorId));
 }

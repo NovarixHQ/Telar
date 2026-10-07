@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var pushTarget: PushTarget?
     @State private var openDevicesSeed = UserDefaults.standard.bool(forKey: "openDevices")
     @State private var modeFailed = false
+    @AppStorage(ChatWidth.storageKey) private var chatWidth = ChatWidth.comfortable
 
     private var sidebarMode: Binding<SidebarMode> {
         Binding(get: { inbox.mode }, set: { next in
@@ -46,6 +47,22 @@ struct SettingsView: View {
                     SettingsFootnote(modeFailed
                         ? "Couldn't save on every computer. Try again when they are connected."
                         : "None lists sessions newest first, with spawned ones under their parent. Each computer's rail follows this too.")
+                }
+
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    VStack(spacing: 0) {
+                        SettingsSectionLabel("Appearance")
+                        SettingsCard {
+                            CardRow(icon: "arrow.left.and.right", title: "Chat width") {
+                                Picker("Chat width", selection: $chatWidth) {
+                                    ForEach(ChatWidth.allCases) { Text($0.label).tag($0) }
+                                }
+                                .pickerStyle(.segmented)
+                                .fixedSize()
+                            }
+                        }
+                        SettingsFootnote("How wide the conversation and the composer can grow.")
+                    }
                 }
 
                 VStack(spacing: 0) {

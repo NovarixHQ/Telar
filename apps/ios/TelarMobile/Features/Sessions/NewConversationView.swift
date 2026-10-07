@@ -143,8 +143,7 @@ struct NewConversationView: View {
                 )
             )
         }
-        .padding(.horizontal, 16)
-        .readingColumn(gutter: Theme.readingGutter)
+        .readingColumn(margins: 16)
         .padding(.vertical, 8)
         .background(alignment: .bottom) { ComposerScrim() }
     }

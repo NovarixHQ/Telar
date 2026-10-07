@@ -159,16 +159,14 @@ module.exports = {
         }
       })()`,
     });
-    if (!this.window.isDestroyed()) {
-      this.window.webContents.send("telar:browser:pointer", {
-        scopeKey: tab.scopeKey,
-        tabId: tab.id,
-        phase,
-        x: point.x,
-        y: point.y,
-        createdAt: new Date().toISOString(),
-      });
-    }
+    this.sendToScope(tab.scopeKey, "telar:browser:pointer", {
+      scopeKey: tab.scopeKey,
+      tabId: tab.id,
+      phase,
+      x: point.x,
+      y: point.y,
+      createdAt: new Date().toISOString(),
+    });
   },
 
   coordinatesOf(tab, args) {
@@ -512,23 +510,13 @@ module.exports = {
     return (!url || url === "about:blank") && !tab.loading && tab.navigationPending === 0;
   },
 
-  previewing(tab) {
-    return Boolean(tab?.previewWindow && !tab.previewWindow.isDestroyed?.());
-  },
-
-  previewRect(tab) {
-    const [width, height] = tab.previewWindow?.getContentSize?.() || [];
-    const viewport = this.viewportOf(tab);
-    return { x: 0, y: 0, width: Math.max(1, Math.round(width || viewport.width)), height: Math.max(1, Math.round(height || viewport.height)) };
-  },
-
   isTabShown(tab) {
-    if (this.previewing(tab)) return false;
-    return tab.scopeKey === this.visibleScopeKey && tab.id === this.activeTabIds.get(tab.scopeKey);
+    return this.isScopeShown(tab.scopeKey) && tab.id === this.activeTabIds.get(tab.scopeKey);
   },
 
   isTabVisible(tab) {
-    return this.isTabShown(tab) && this.bounds.width > 1 && this.bounds.height > 1;
+    const bounds = this.stageBoundsOf(tab.scopeKey);
+    return this.isTabShown(tab) && bounds.width > 1 && bounds.height > 1;
   },
 
   listTabs(scopeKey) {

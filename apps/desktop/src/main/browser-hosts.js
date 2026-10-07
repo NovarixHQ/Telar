@@ -23,7 +23,7 @@ function managerForEvent(event) {
   const sender = event?.sender;
   if (!sender) return null;
   for (const manager of browserManagers) {
-    if (!manager.window.isDestroyed() && manager.window.webContents === sender) return manager;
+    if (!manager.window.isDestroyed() && manager.windowOfSender(sender)) return manager;
   }
   return null;
 }
@@ -36,8 +36,8 @@ function requireBrowserManager(event) {
 
 function requireCockpitSender(event, what) {
   const manager = requireBrowserManager(event);
-  const cockpit = manager.window;
-  if (!cockpit || cockpit.isDestroyed() || event.sender !== cockpit.webContents || event.senderFrame !== cockpit.webContents.mainFrame) {
+  const own = manager.windowOfSender(event.sender);
+  if (!own || event.senderFrame !== own.webContents.mainFrame) {
     throw new Error(`Only the Telar window may ${what}.`);
   }
   return manager;

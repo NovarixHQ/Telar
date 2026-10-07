@@ -40,6 +40,9 @@ class DesktopBrowserManager {
     this.visibleScopeKey = null;
     this.bounds = { x: 0, y: 0, width: 1, height: 1 };
 
+    this.poppedStages = new Map();
+    this.openStageWindow = dependencies.openStageWindow || null;
+
     this.boundsByScope = new Map();
 
     this.radiusByScope = new Map();
@@ -106,7 +109,7 @@ class DesktopBrowserManager {
     });
 
     this.displayScaleFactor =
-      dependencies.scaleFactor || (() => this.electron().screen.getDisplayMatching(this.window.getBounds()).scaleFactor);
+      dependencies.scaleFactor || ((win) => this.electron().screen.getDisplayMatching((win || this.window).getBounds()).scaleFactor);
 
     this.window?.on?.("moved", () => {
       if (!this._disposed) this.applyShownGeometry();
@@ -194,27 +197,6 @@ class DesktopBrowserManager {
     return this.tabs.filter((tab) => tab.scopeKey === scope);
   }
 
-  scopeClaim(scopeKey) {
-    const wanted = String(scopeKey ?? "").trim();
-    if (!wanted || this._disposed || this.window?.isDestroyed?.()) return 0;
-
-    const bySession = !wanted.includes("#");
-    let best = 0;
-    const consider = (scope, rank) => {
-      if (typeof scope !== "string" || !scope) return;
-      const exact = scope === wanted;
-      if (!exact && !(bySession && scope.startsWith(`${wanted}#`))) return;
-      const claim = exact ? EXACT_SCOPE_CLAIM + rank : rank;
-      if (claim > best) best = claim;
-    };
-    consider(this.visibleScopeKey, SCOPE_CLAIM.visible);
-    for (const scope of this.boundsByScope.keys()) consider(scope, SCOPE_CLAIM.panel);
-
-    for (const scope of this.scopesClosedByPerson) consider(scope, SCOPE_CLAIM.panel);
-    for (const tab of this.tabs) if (tab.view) consider(tab.scopeKey, SCOPE_CLAIM.pages);
-    return best;
-  }
-
   state(scopeKey) {
     const scope = this.requireScope(scopeKey);
     const tabs = this.scopeTabs(scope);
@@ -227,6 +209,7 @@ class DesktopBrowserManager {
 
       profile: this.activeProfile(scope),
       profiles: this.listProfiles(),
+      popped: this.isPopped(scope),
       available: true,
       running: true,
       provider: "desktop",
@@ -256,7 +239,6 @@ class DesktopBrowserManager {
 
         colorScheme: tab.colorScheme || "system",
 
-        preview: this.previewing(tab),
         canGoBack: tab.view ? navigationFlag(tab.view.webContents, "canGoBack") : false,
         canGoForward: tab.view ? navigationFlag(tab.view.webContents, "canGoForward") : false,
       })),
@@ -265,8 +247,9 @@ class DesktopBrowserManager {
         const tab = tabs.find((entry) => entry.id === activeTabId);
         if (!tab) return null;
         const viewport = this.effectiveViewport(tab);
-        const fit = this.isNativeFit(tab) ? { scale: 1, rect: { ...this.bounds } } : fitViewport(viewport, this.bounds, this.zoomOf(tab));
-        return { ...viewport, mode: this.viewportModeOf(tab), scale: fit.scale, zoom: this.zoomOf(tab), rect: fit.rect, bounds: this.bounds, presets: VIEWPORT_PRESETS };
+        const bounds = this.stageBoundsOf(scope);
+        const fit = this.isNativeFit(tab) ? { scale: 1, rect: { ...bounds } } : fitViewport(viewport, bounds, this.zoomOf(tab));
+        return { ...viewport, mode: this.viewportModeOf(tab), scale: fit.scale, zoom: this.zoomOf(tab), rect: fit.rect, bounds, presets: VIEWPORT_PRESETS };
       })(),
       screenshot: null,
       error: null,
@@ -285,9 +268,8 @@ class DesktopBrowserManager {
 
     if (this.boundsEmit?.scope === scope) this.cancelBoundsEmit();
     this.version += 1;
-    if (!this.window.isDestroyed()) {
-      this.window.webContents.send("telar:browser:state", extra ? { ...this.state(scope), ...extra } : this.state(scope));
-    }
+    if (this.window.isDestroyed()) return;
+    this.sendToScope(scope, "telar:browser:state", extra ? { ...this.state(scope), ...extra } : this.state(scope));
   }
 
   async action(scopeKey, action) {
@@ -327,8 +309,9 @@ class DesktopBrowserManager {
       this.emitState(scope);
       return this.state(scope);
     }
-    if (kind === "preview") return this.openPreview(scope, action.index);
-    if (kind === "end-preview") return this.closePreview(scope, action.index);
+    if (kind === "pop-out") return this.popOut(scope);
+    if (kind === "show-window") return this.showStage(scope);
+    if (kind === "bring-back") return this.bringBack(scope);
     if (kind === "new") return (await this.createTab(scope, action.url || "about:blank", "human"), this.state(scope));
     if (kind === "close") return (this.closeTab(scope, action.index), this.state(scope));
 
@@ -591,6 +574,10 @@ class DesktopBrowserManager {
   releaseScope(scopeKey, destroy = false, { closedByPerson = false } = {}) {
     const scope = this.requireScope(scopeKey);
     const scoped = this.scopeTabs(scope);
+    if (this.isPopped(scope)) {
+      if (!destroy) return;
+      this.bringBack(scope);
+    }
 
     if (destroy && closedByPerson && scoped.length) {
       this.scopesClosedByPerson.add(scope);
@@ -643,6 +630,11 @@ class DesktopBrowserManager {
 
     this.forgetScope(from);
     if (this.visibleScopeKey === from) this.visibleScopeKey = to;
+    const stage = this.poppedStages.get(from);
+    if (stage) {
+      this.poppedStages.delete(from);
+      this.poppedStages.set(to, stage);
+    }
     this.applyVisibility();
     this.emitState(from);
     this.emitState(to);
@@ -707,6 +699,7 @@ class DesktopBrowserManager {
     this.cancelBoundsEmit();
 
     this.permissionPrompts.dispose();
+    this.closeAllStages();
     for (const tab of this.tabs) {
       this.hibernateTab(tab);
     }
@@ -731,11 +724,7 @@ class DesktopBrowserManager {
   }
 }
 
-mixin(DesktopBrowserManager.prototype, require("./profiles"), require("./interaction"), require("./geometry"), require("./tabs"), require("./tab-wiring"), require("./tools"), require("./focus-guard"));
-
-const SCOPE_CLAIM = { visible: 3, panel: 2, pages: 1 };
-
-const EXACT_SCOPE_CLAIM = 10;
+mixin(DesktopBrowserManager.prototype, require("./profiles"), require("./interaction"), require("./geometry"), require("./tabs"), require("./tab-wiring"), require("./tools"), require("./focus-guard"), require("./stage"));
 
 function managerForScope(managers, scopeKey, fallback = null) {
   let best = fallback;

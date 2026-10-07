@@ -358,13 +358,15 @@ describe("the canvas under the page — opaque once a document is ready, none be
     expect(views[1].canvases).toEqual([NONE, WHITE]);
   });
 
-  test("a tab in a window of its own keeps its canvas — the page is the whole window there", async () => {
-    const { manager, views } = makeHarness();
+  test("a browser in a window of its own keeps its canvas — the page is the whole window there", async () => {
+    const { manager, stageWindows, views } = makeHarness();
     await manager.createTab("s", "https://one.example/");
     const tab = manager.activeTab("s");
     views[0].webContents.emit("dom-ready");
     await tab.geometry.queue;
-    await manager.action("s", { action: "preview" });
+    await manager.action("s", { action: "pop-out" });
+    manager.setBounds("s", { x: 0, y: 40, width: 900, height: 600 }, stageWindows[0].webContents);
+    await manager.setVisible("s", true, stageWindows[0].webContents);
     await manager.applyGeometry(tab);
     expect(views[0].canvases).toEqual([NONE, WHITE]);
   });
@@ -441,10 +443,10 @@ describe("the panel's corner, and the frozen frame a menu opens over", () => {
     expect(view.radii.every((radius) => radius === 0)).toBe(true);
   });
 
-  test("a tab in a window of its own is square — the panel's corner is not its", async () => {
+  test("a browser in a window of its own wears that window's corner, not the panel's", async () => {
     const { manager, view } = await shown({ radius: 14 });
     expect(view.radii.at(-1)).toBe(14);
-    await manager.action("s", { action: "preview" });
+    await manager.action("s", { action: "pop-out" });
     await manager.applyGeometry(manager.scopeTabs("s")[0]);
     expect(view.radii.at(-1)).toBe(0);
   });

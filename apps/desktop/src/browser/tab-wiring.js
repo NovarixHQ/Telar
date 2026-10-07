@@ -106,7 +106,7 @@ module.exports = {
 
       canvas: undefined,
 
-      previewWindow: null,
+      stageWindow: null,
 
       geometry: null,
 
@@ -232,7 +232,7 @@ module.exports = {
 
       tab.view = null;
       { const host = this.hostOfTab(tab); if (host) { try { host.removeTab(wc); } catch {  } } }
-      try { this.window.contentView.removeChildView(view); } catch {  }
+      this.unmountView(tab, view);
       this.noteAgentTabClosed(tab);
       const scoped = this.scopeTabs(tab.scopeKey);
       if (this.activeTabIds.get(tab.scopeKey) === tab.id) {
@@ -287,70 +287,6 @@ module.exports = {
     return this.state(scope);
   },
 
-  async openPreview(scopeKey, index) {
-    const scope = this.requireScope(scopeKey);
-    const tab = index === undefined ? this.activeTab(scope) : this.tabAt(scope, index);
-    await this.wakeTab(tab);
-    if (this.previewing(tab)) {
-      try { tab.previewWindow.focus(); } catch {  }
-      return this.state(scope);
-    }
-    const { BrowserWindow } = this.electron();
-    if (!BrowserWindow) throw new Error("This build cannot open a separate window for a tab.");
-    const viewport = this.viewportOf(tab);
-    const win = new BrowserWindow({
-      width: viewport.width,
-      height: viewport.height,
-      useContentSize: true,
-      title: tab.title || "Preview",
-      backgroundColor: "#00000000",
-      show: true,
-    });
-    try {
-      this.window.contentView.removeChildView(tab.view);
-      win.contentView.addChildView(tab.view);
-    } catch (error) {
-      try { this.window.contentView.addChildView(tab.view); } catch {  }
-      try { win.destroy(); } catch {  }
-      throw new Error(`Could not open a separate window for this tab: ${error instanceof Error ? error.message : String(error)}`);
-    }
-    tab.previewWindow = win;
-    win.on?.("resize", () => { this.applyGeometry(tab).catch(() => {}); });
-
-    win.on?.("closed", () => {
-      if (!tab.previewWindow) return;
-      tab.previewWindow = null;
-      this.reclaimView(tab);
-      this.applyVisibility();
-      try { this.emitState(tab.scopeKey); } catch {  }
-    });
-    this.applyVisibility();
-    this.emitState(scope);
-    return this.state(scope);
-  },
-
-  endPreview(tab) {
-    const win = tab?.previewWindow;
-    if (!win) return;
-    tab.previewWindow = null;
-    this.reclaimView(tab);
-    try { if (!win.isDestroyed?.()) win.destroy(); } catch {  }
-  },
-
-  reclaimView(tab) {
-    if (!tab.view) return;
-    try { this.window.contentView.addChildView(tab.view); } catch {  }
-  },
-
-  closePreview(scopeKey, index) {
-    const scope = this.requireScope(scopeKey);
-    const tab = index === undefined ? this.activeTab(scope) : this.tabAt(scope, index);
-    this.endPreview(tab);
-    this.applyVisibility();
-    this.emitState(scope);
-    return this.state(scope);
-  },
-
   async clearBrowsingData(scopeKey, kind) {
     const scope = this.requireScope(scopeKey);
     const tabs = this.scopeTabs(scope);
@@ -384,7 +320,7 @@ module.exports = {
     );
     try {
       const { Menu } = this.electron();
-      Menu.buildFromTemplate(items).popup({ window: this.window });
+      Menu.buildFromTemplate(items).popup({ window: this.stageWindow(tab.scopeKey) });
     } catch {
     }
   },

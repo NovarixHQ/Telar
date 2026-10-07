@@ -40,6 +40,7 @@ const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require
 const { createCockpitWindow } = require("./cockpit-window");
 const { cockpitFocus, createPresence } = require("./presence");
 const { pinUserData } = require("./user-data");
+const { openSurfaceWindow } = require("../windows/surface-window");
 
 pinUserData();
 
@@ -184,6 +185,8 @@ function createWindow(url) {
         sitePermissions: createSitePermissionStore(app.getPath("userData")),
 
         createExtensionHost: (partition) => startExtensionHost(win, manager, partition),
+
+        openStageWindow: (scope, { project }) => openSurfaceWindow({ appUrl: url, kind: "browser", params: { scope, project } }),
 
         onChordScope,
       });

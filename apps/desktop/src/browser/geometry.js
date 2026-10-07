@@ -30,7 +30,7 @@ module.exports = {
   fitViewportChange(tab) {
     if (this.viewportModeOf(tab) !== "fit" || !this.isTabVisible(tab)) return null;
 
-    const stage = this.stageBounds();
+    const stage = this.stageBounds(tab);
     if (stage.width < VIEWPORT_MIN || stage.height < VIEWPORT_MIN) return null;
     const next = resolveViewport({ width: stage.width, height: stage.height });
     const current = this.viewportOf(tab);
@@ -60,22 +60,22 @@ module.exports = {
     return this.viewportModeOf(tab) === "fit" && this.isTabVisible(tab);
   },
 
-  cockpitZoom() {
-    const factor = this.window?.webContents?.getZoomFactor?.();
+  stageZoom(scopeKey) {
+    const factor = this.stageWindow(scopeKey)?.webContents?.getZoomFactor?.();
     return Number.isFinite(factor) && factor > 0 ? factor : 1;
   },
 
-  deviceScaleFactor() {
+  deviceScaleFactor(scopeKey) {
     try {
-      const factor = this.displayScaleFactor();
+      const factor = this.displayScaleFactor(this.stageWindow(scopeKey));
       return Number.isFinite(factor) && factor > 0 ? factor : 1;
     } catch {
       return 1;
     }
   },
 
-  windowRect(rect) {
-    const zoom = this.cockpitZoom();
+  windowRect(rect, scopeKey) {
+    const zoom = this.stageZoom(scopeKey);
     return {
       x: Math.round(rect.x * zoom),
       y: Math.round(rect.y * zoom),
@@ -84,19 +84,20 @@ module.exports = {
     };
   },
 
-  stageBounds() {
-    return this.windowRect(this.bounds);
+  stageBounds(tab) {
+    return this.windowRect(this.stageBoundsOf(tab.scopeKey), tab.scopeKey);
   },
 
   effectiveViewport(tab) {
     if (!this.isNativeFit(tab)) return this.viewportOf(tab);
-    const stage = this.stageBounds();
+    const stage = this.stageBounds(tab);
     return { width: stage.width, height: stage.height };
   },
 
   nativeRect(tab) {
-    if (this.isNativeFit(tab)) return { ...this.bounds };
-    return fitViewport(this.viewportOf(tab), this.bounds, this.zoomOf(tab)).rect;
+    const bounds = this.stageBoundsOf(tab.scopeKey);
+    if (this.isNativeFit(tab)) return { ...bounds };
+    return fitViewport(this.viewportOf(tab), bounds, this.zoomOf(tab)).rect;
   },
 
   zoomOf(tab) {
@@ -184,28 +185,22 @@ module.exports = {
       if (tab.view !== view || view.webContents.isDestroyed?.()) return;
       this.applyBorderRadius(tab, view);
       this.applyCanvas(tab, view);
-
-      if (this.previewing(tab)) {
-        view.setVisible(true);
-        view.setBounds(this.previewRect(tab));
-        return;
-      }
-
       const shown = this.isTabShown(tab) && !this.isBlank(tab);
       view.setVisible(shown);
 
-      if (shown) view.setBounds(this.windowRect(this.nativeRect(tab)));
+      if (shown) view.setBounds(this.windowRect(this.nativeRect(tab), tab.scopeKey));
     };
 
     const target = this.viewportTarget(tab);
     const scaleFirst = Boolean(target.view) && tab.debuggerReady && !this.isBlank(tab) && !this.emulationSettled(tab);
     if (!scaleFirst) place();
     const placed = tab.lastPlaced;
-    tab.lastPlaced = { width: this.bounds.width, height: this.bounds.height };
+    const bounds = this.stageBoundsOf(tab.scopeKey);
+    tab.lastPlaced = { width: bounds.width, height: bounds.height };
     if (
       placed &&
-      placed.width === this.bounds.width &&
-      placed.height === this.bounds.height &&
+      placed.width === bounds.width &&
+      placed.height === bounds.height &&
       this.fitViewportChange(tab) === null &&
       this.emulationSettled(tab) &&
       !this.needsColorScheme(tab)
@@ -235,7 +230,8 @@ module.exports = {
   },
 
   applyBorderRadius(tab, view) {
-    const radius = this.previewing(tab) ? 0 : this.radiusByScope.get(tab.scopeKey) || 0;
+    const stage = this.poppedStages.get(tab.scopeKey);
+    const radius = stage ? stage.radius : this.radiusByScope.get(tab.scopeKey) || 0;
     if (tab.borderRadius === radius) return;
     tab.borderRadius = radius;
     view.setBorderRadius?.(radius);
@@ -251,14 +247,7 @@ module.exports = {
   applyVisibility() {
     for (const tab of this.tabs) {
       if (!tab.view) continue;
-
-      if (this.previewing(tab)) {
-        this.applyGeometry(tab).catch(() => {});
-        continue;
-      }
-      const active = tab.scopeKey === this.visibleScopeKey && tab.id === this.activeTabIds.get(tab.scopeKey);
-
-      if (!active) tab.view.setVisible(false);
+      if (!this.isTabShown(tab)) tab.view.setVisible(false);
       this.applyGeometry(tab).catch(() => {});
     }
   },
@@ -269,7 +258,7 @@ module.exports = {
     }
   },
 
-  setBounds(scopeKey, input) {
+  setBounds(scopeKey, input, sender) {
     const next = {
       x: Math.max(0, Math.round(Number(input?.x) || 0)),
       y: Math.max(0, Math.round(Number(input?.y) || 0)),
@@ -277,11 +266,13 @@ module.exports = {
       height: Math.max(1, Math.round(Number(input?.height) || 1)),
     };
     const scope = this.requireScope(scopeKey);
+    const radius = Math.max(0, Math.round(Number(input?.radius) || 0));
+    const stage = this.stageOfSender(scope, sender);
+    if (stage) return this.setStageBounds(stage, scope, next, radius);
     this.boundsByScope.set(scope, next);
+    this.radiusByScope.set(scope, radius);
 
-    this.radiusByScope.set(scope, Math.max(0, Math.round(Number(input?.radius) || 0)));
-
-    if (this.visibleScopeKey && this.visibleScopeKey !== scope) return;
+    if (this.isPopped(scope) || (this.visibleScopeKey && this.visibleScopeKey !== scope)) return;
     const same = next.x === this.bounds.x && next.y === this.bounds.y && next.width === this.bounds.width && next.height === this.bounds.height;
     this.bounds = next;
 
@@ -289,13 +280,17 @@ module.exports = {
     if (!same && this.visibleScopeKey) this.scheduleBoundsEmit(this.visibleScopeKey);
   },
 
-  async setVisible(scopeKey, visible) {
+  async setVisible(scopeKey, visible, sender) {
     const scope = this.requireScope(scopeKey);
+    const stage = this.stageOfSender(scope, sender);
+    if (!stage && this.isPopped(scope)) return;
     if (visible) {
-      this.visibleScopeKey = scope;
-
-      const own = this.boundsByScope.get(scope);
-      if (own) this.bounds = own;
+      if (stage) stage.visible = true;
+      else {
+        this.visibleScopeKey = scope;
+        const own = this.boundsByScope.get(scope);
+        if (own) this.bounds = own;
+      }
       for (const tab of this.scopeTabs(scope)) {
         if (!tab.destroyWhenIdle) this.cancelDeferredHibernate(tab);
       }
@@ -307,27 +302,28 @@ module.exports = {
         }
       }
     }
+    else if (stage) stage.visible = false;
     else if (this.visibleScopeKey === scope) this.visibleScopeKey = null;
 
     await this.applyVisibilityAsync(scope);
   },
 
-  async freezeView(scopeKey) {
+  async freezeView(scopeKey, sender) {
     const scope = this.requireScope(scopeKey);
-    const frame = await this.captureFrozenFrame(scope);
-    await this.setVisible(scopeKey, false);
+    const frame = await this.captureFrozenFrame(scope, sender);
+    await this.setVisible(scopeKey, false, sender);
     return frame;
   },
 
-  async captureFrozenFrame(scope) {
-    if (this.visibleScopeKey !== scope) return null;
+  async captureFrozenFrame(scope, sender) {
+    if (!this.stageOfSender(scope, sender) && (this.isPopped(scope) || this.visibleScopeKey !== scope)) return null;
     const tab = this.scopeTabs(scope).length ? this.activeTab(scope) : null;
     if (!tab?.view || tab.view.webContents.isDestroyed?.()) return null;
 
-    if (!this.isTabVisible(tab) || this.isBlank(tab) || this.previewing(tab)) return null;
+    if (!this.isTabVisible(tab) || this.isBlank(tab)) return null;
     const rect = this.nativeRect(tab);
 
-    const { width, height } = this.windowRect(rect);
+    const { width, height } = this.windowRect(rect, scope);
     try {
       const image = await withTimeout(tab.view.webContents.capturePage({ x: 0, y: 0, width, height }), FREEZE_TIMEOUT_MS, FREEZE_TIMEOUT_MESSAGE);
       if (!image || image.isEmpty()) return null;
@@ -413,17 +409,17 @@ module.exports = {
 
   viewportTarget(tab) {
     if (this.isNativeFit(tab)) {
-      const stage = this.stageBounds();
+      const stage = this.stageBounds(tab);
       return { emulate: false, width: stage.width, height: stage.height, scale: 1 };
     }
     const viewport = this.viewportOf(tab);
 
     if (!this.isTabVisible(tab)) return { emulate: true, width: viewport.width, height: viewport.height, scale: 1 };
-    const scale = fitViewport(viewport, this.bounds, this.zoomOf(tab)).scale * this.cockpitZoom();
+    const scale = fitViewport(viewport, this.stageBoundsOf(tab.scopeKey), this.zoomOf(tab)).scale * this.stageZoom(tab.scopeKey);
 
-    const native = this.windowRect(this.nativeRect(tab));
+    const native = this.windowRect(this.nativeRect(tab), tab.scopeKey);
 
-    const deviceScaleFactor = this.deviceScaleFactor();
+    const deviceScaleFactor = this.deviceScaleFactor(tab.scopeKey);
     return { emulate: true, width: viewport.width, height: viewport.height, scale, deviceScaleFactor, view: { width: native.width, height: native.height } };
   },
 

@@ -35,7 +35,7 @@ module.exports = {
     tab.canvas = undefined;
     this.applyCanvas(tab, view);
     view.setVisible(false);
-    this.window.contentView.addChildView(view);
+    this.mountView(tab, view);
     tab.view = view;
     tab.hibernating = false;
     tab.refs.clear();
@@ -73,7 +73,7 @@ module.exports = {
       try { await host.whenReady(); } catch {  }
     }
 
-    if (tab.view === view && !view.webContents.isDestroyed()) host.addTab(view.webContents, this.window);
+    if (tab.view === view && !view.webContents.isDestroyed()) host.addTab(view.webContents, this.stageWindow(tab.scopeKey));
   },
 
   beginNavigation(tab) {
@@ -173,9 +173,6 @@ module.exports = {
 
     this.noteTabKeyFocus(tab, false);
     this.cancelDeferredHibernate(tab);
-
-    this.endPreview(tab);
-
     this.closeDevTools(tab);
     const view = tab.view;
     { const host = this.hostOfTab(tab); if (host) host.removeTab(view.webContents); }
@@ -183,7 +180,7 @@ module.exports = {
     tab.title = view.webContents.getTitle() || tab.title || "New tab";
     tab.hibernating = true;
     tab.view = null;
-    try { this.window.contentView.removeChildView(view); } catch {}
+    this.unmountView(tab, view);
     try { if (!view.webContents.isDestroyed()) view.webContents.close(); } catch {}
     tab.hibernating = false;
   },
@@ -250,6 +247,7 @@ module.exports = {
         .filter(
           (tab) =>
             tab.scopeKey !== this.visibleScopeKey &&
+            !this.isPopped(tab.scopeKey) &&
             (this.activeToolCalls.get(tab.scopeKey) || 0) === 0,
         )
         .sort((a, b) => a.lastUsedAt - b.lastUsedAt)[0];
@@ -428,6 +426,8 @@ module.exports = {
 
   endBrowser(scopeKey) {
     const scope = this.requireScope(scopeKey);
+    const stage = this.poppedStages.get(scope);
+    if (stage) this.dropStage(stage, { quiet: true });
     this.activeTabIds.delete(scope);
     this.boundsByScope.delete(scope);
     this.radiusByScope.delete(scope);

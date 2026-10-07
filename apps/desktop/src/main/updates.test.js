@@ -28,7 +28,8 @@ beforeAll(() => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-updates-"));
   terminals = { size: 0, closed: 0, async closeAll() { this.closed += 1; }, async drain() {}, async activeProcesses() { return []; } };
   main = { telarHome: () => home, updaterWindow: null, terminalHost: terminals, terminalsClosedForQuit: false };
-  cockpit = { window: new FakeBrowserWindow() };
+  const win = new FakeBrowserWindow();
+  cockpit = { window: win, windowOfSender: (sender) => (sender === win.webContents ? win : null) };
   hosts.addHost(cockpit.window, cockpit);
 });
 

@@ -202,17 +202,17 @@ function registerTabIpc({ requireLoginOffer }) {
 
   ipcMain.on("telar:browser:set-bounds", (event, input) => {
     try {
-      requireBrowserManager(event).setBounds(input?.scopeKey, input?.bounds);
+      requireBrowserManager(event).setBounds(input?.scopeKey, input?.bounds, event.sender);
     } catch {
     }
   });
 
   ipcMain.handle("telar:browser:set-visible", (event, input) =>
-    requireBrowserManager(event).setVisible(input?.scopeKey, input?.visible),
+    requireBrowserManager(event).setVisible(input?.scopeKey, input?.visible, event.sender),
   );
 
   ipcMain.handle("telar:browser:freeze-view", (event, input) =>
-    requireBrowserManager(event).freezeView(input?.scopeKey),
+    requireBrowserManager(event).freezeView(input?.scopeKey, event.sender),
   );
 
   ipcMain.handle("telar:browser:release-scope", (event, input) =>

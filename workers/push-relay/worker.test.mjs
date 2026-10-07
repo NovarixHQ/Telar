@@ -285,6 +285,18 @@ test('v2: each computer\'s card is reached by its own token, and only a dead one
     assert.deepEqual(calls.map(c=>c.url),[`https://api.push.apple.com/3/device/${mine}`,`https://api.push.apple.com/3/device/${mine}`]);
   });
 });
+test('v2: two computers and a card the phone has not yet forgotten each get only their own updates',async()=>{
+  const enrolled=await enroll();
+  const macA=await pairKey(enrolled,'mac-a'), macB=await pairKey(enrolled,'mac-b');
+  const ended='1'.repeat(64), cardA='2'.repeat(64), cardB='3'.repeat(64);
+  assert.equal((await asPhone(enrolled,'PUT',`/v2/devices/${enrolled.handle}`,{...tokensOf,activities:[ended,cardA,cardB].map(token=>({id:'__automatic__',token}))})).status,200);
+  const print=async t=>Buffer.from(await sha(t)).toString('hex').slice(0,16);
+  const card=async(token,event)=>({...alert,kind:'liveactivity',activity:'__automatic__',fingerprint:await print(token),payload:{aps:{event}}});
+  await withApple(()=>new Response(null,{status:200}),async calls=>{
+    for (const [key,token,event] of [[macA,cardA,'update'],[macB,cardB,'update'],[macB,cardB,'end'],[macA,cardA,'update']]) assert.equal((await macSend(enrolled,key,await card(token,event))).status,200);
+    assert.deepEqual(calls.map(c=>c.url.slice(-64)),[cardA,cardB,cardB,cardA]);
+  });
+});
 test('v2: limits per IP, per handle, and a global budget that answers 503 first',async()=>{
   const env=relayEnv();
   for(let n=0;n<IP_LIMITS.challenge[0];n++) assert.ok(await challengeFor(env,'203.0.113.7'));

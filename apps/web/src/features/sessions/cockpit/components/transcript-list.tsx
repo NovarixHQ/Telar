@@ -12,12 +12,11 @@ import { ArtifactShelf } from "@/features/agent-tools";
 import type { useSessionSync } from "../hooks/use-session-sync";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
 import { markerRowOf, transcriptRows } from "../model";
-import { planDispatches } from "../dispatch";
-import { useSessionDirectory } from "../hooks/use-session-directory";
 import { SessionProblem } from "./masthead";
 import { ReadReceiptMarker, type useReadReceipt } from "./read-receipt";
 import { EmptyTranscript, SessionTurn, TurnFrame } from "./session-turn";
-import { TranscriptTurns, type TurnView } from "./transcript-turns";
+import { useSessionDirectory } from "../hooks/use-session-directory";
+import { notifyingSessions, TranscriptTurns, type TurnView } from "./transcript-turns";
 
 type TurnProps = ComponentProps<typeof SessionTurn>;
 
@@ -43,25 +42,23 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const markerRow = markerRowOf(newestResultRunId, hostOf);
   // A cohort folds, except a turn with a request (open or decided) and the newest answer, whose marker must show.
   const keep = new Set([...sync.requests.map(hostRun), ...(markerRow ? [markerRow] : [])]);
-  const plan = planDispatches(shown, active?.runId);
-  const directory = useSessionDirectory(props.hostId, plan.sessionIds);
+  const directory = useSessionDirectory(props.hostId, notifyingSessions(shown));
   const items = useMemo(() => shown.flatMap((turn) => turn.items), [shown]);
   const sessionId = session?.id;
   const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId } : undefined), [sessionId, props.hostId]);
-  const turnRow = (turn: JournalTurn, { absorbed, covered, peerTitle }: TurnView) => (
+  const turnRow = (turn: JournalTurn, { peerTitle }: TurnView) => (
     <Fragment key={turn.runId}>
-      {!absorbed && <TurnFrame skippable={turn.runId !== active?.runId}>
+      <TurnFrame skippable={turn.runId !== active?.runId}>
         <SessionTurn
           turn={turn}
           live={turn.runId === active?.runId}
-          covered={covered}
           {...(peerTitle ? { peerTitle } : {})}
           requests={openRequests.filter((request) => hostRun(request) === turn.runId && request.id !== composerQuestion?.id)}
           awaiting={openRequests.some((request) => hostRun(request) === turn.runId)}
           {...props.turn}
           {...(turn.failureCode === "rate_limited" && turn.state === "failed" ? { onResumeNow: () => props.onResumeNow(turn.runId) } : {})}
         />
-      </TurnFrame>}
+      </TurnFrame>
       {newestResultRunId && turn.runId === markerRow && <ReadReceiptMarker markerRef={receipt.markerRefFor(newestResultRunId)} />}
     </Fragment>
   );
@@ -99,13 +96,10 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
             <ArtifactShelf items={items} hostId={props.hostId}>
             <TranscriptTurns
               turns={shown}
-              plan={plan}
               {...(active ? { activeRunId: active.runId } : {})}
               keep={keep}
               renderTurn={turnRow}
               directory={directory}
-              hostId={props.hostId}
-              {...(session?.projectId ? { projectId: session.projectId } : {})}
             />
             </ArtifactShelf>
           </TranscriptWorkspace>

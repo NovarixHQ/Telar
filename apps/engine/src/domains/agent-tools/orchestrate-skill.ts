@@ -109,17 +109,12 @@ for a session for themselves rather than for work you delegate, create it with
 
 ## 7. Summarise
 
-Keep a short running list and show it whenever something changes:
-
-- **Needs your decision** — each with a recommendation.
-- **In progress** — task, session, state.
-- **Done** — task, PR, merged or ready.
-
-Practise what the workers do: when you report to the person, lead with the
-list and keep it short.
+The cockpit shows every builder live under the turn that dispatched it, so do
+not keep a list of them in chat. When you report to the person, lead with what
+needs their decision, each with a recommendation, and keep it short.
 
 Releases, deploys and anything else irreversible or outward-facing wait for the
-person's explicit OK, whatever this list says.
+person's explicit OK, whatever this skill says.
 `;
 
 export const BUNDLED_SKILLS: readonly { name: string; text: string }[] = [

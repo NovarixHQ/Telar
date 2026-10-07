@@ -5,11 +5,10 @@ import { ChevronRightIcon } from "lucide-react";
 import type { JournalTurn } from "@/platform/engine";
 import { bareNotificationTurn, groupNotificationTurns, ROW, SessionTitles } from "@/features/transcript";
 import { cn } from "@/ui/utils";
-import { arrivalsFolded, type DispatchPlan } from "../dispatch";
+import type { SessionDirectory } from "../hooks/use-session-directory";
 import { CohortFold, foldCohortTurns } from "./cohort-fold";
-import { DispatchBlockView, sessionTitle, type SessionDirectory } from "./dispatch-block";
 
-export type TurnView = { absorbed: boolean; covered: boolean; peerTitle?: string };
+export type TurnView = { peerTitle?: string };
 
 function quiet(turn: JournalTurn): boolean {
   const detail = turn.notification;
@@ -31,65 +30,48 @@ function ArrivalStrip({ titles, children }: { titles: string[]; children: ReactN
   );
 }
 
-export function TranscriptTurns({ turns, plan, activeRunId, keep, renderTurn, directory, hostId, projectId }: {
+/** The sessions this transcript's notifications came from, so the cockpit can name them. */
+export function notifyingSessions(turns: readonly JournalTurn[]): string[] {
+  return [...new Set(turns.flatMap((turn) => [turn.notification?.sessionId, ...(turn.notification?.entries ?? []).map((entry) => entry.sessionId)]).filter((id): id is string => Boolean(id)))].sort();
+}
+
+export function TranscriptTurns({ turns, activeRunId, keep, renderTurn, directory }: {
   turns: readonly JournalTurn[];
-  plan: DispatchPlan;
+  directory: SessionDirectory;
   activeRunId?: string;
   keep: ReadonlySet<string>;
   renderTurn: (turn: JournalTurn, view: TurnView) => ReactNode;
-  directory: SessionDirectory;
-  hostId?: string;
-  projectId?: string;
 }) {
   const segments = foldCohortTurns(turns, { ...(activeRunId ? { activeRunId } : {}), keep });
+  const known = new Map(turns.flatMap((turn) => (turn.notification?.entries ?? []).flatMap((entry) => (entry.sessionId && entry.title ? [[entry.sessionId, entry.title] as const] : []))));
+  const title = (sessionId: string) => known.get(sessionId)?.trim() || directory.get(sessionId)?.title?.trim();
   const titleOf = (turn: JournalTurn) => {
-    const detail = turn.notification;
-    if (!detail?.sessionId) return undefined;
-    return sessionTitle(directory, detail.sessionId, detail.entries?.find((entry) => entry.sessionId === detail.sessionId)?.title);
+    const sessionId = turn.notification?.sessionId;
+    return sessionId ? title(sessionId) : undefined;
   };
-  const block = (turn: JournalTurn) => {
-    const anchored = plan.blocks.get(turn.runId);
-    return anchored && <DispatchBlockView key={`block_${turn.runId}`} block={anchored} directory={directory} {...(hostId ? { hostId } : {})} {...(projectId ? { projectId } : {})} />;
-  };
-  const view = (turn: JournalTurn): TurnView => {
+  const row = (turn: JournalTurn) => {
     const peerTitle = titleOf(turn);
-    return { absorbed: plan.absorbed.has(turn.runId), covered: plan.covered.has(turn.runId), ...(peerTitle ? { peerTitle } : {}) };
+    return <Fragment key={turn.runId}>{renderTurn(turn, peerTitle ? { peerTitle } : {})}</Fragment>;
   };
-  const row = (turn: JournalTurn, withBlock = true) => (
-    <Fragment key={turn.runId}>
-      {withBlock && block(turn)}
-      {renderTurn(arrivalsFolded(turn, plan.hidden), view(turn))}
-    </Fragment>
-  );
-  const rows = (group: readonly JournalTurn[], withBlock = true) => {
-    const shown = group.filter((turn) => !plan.absorbed.has(turn.runId));
-    if (shown.length > 1 && shown.every((turn) => quiet(turn) && turn.runId !== activeRunId)) {
-      return (
-        <Fragment key={group[0]!.runId}>
-          {withBlock && group.map(block)}
-          <ArrivalStrip titles={shown.map((turn) => titleOf(turn) ?? "Untitled session")}>{group.map((turn) => row(turn, false))}</ArrivalStrip>
-        </Fragment>
-      );
+  const rows = (group: readonly JournalTurn[]) => {
+    if (group.length > 1 && group.every((turn) => quiet(turn) && turn.runId !== activeRunId)) {
+      return <ArrivalStrip key={group[0]!.runId} titles={group.map((turn) => titleOf(turn) ?? "Untitled session")}>{group.map(row)}</ArrivalStrip>;
     }
-    if (group.length === 1) return row(group[0]!, withBlock);
+    if (group.length === 1) return row(group[0]!);
     return (
       <div key={group[0]!.runId} className="flex flex-col gap-0.5" data-notification-strip={group.length}>
-        {group.map((turn) => row(turn, withBlock))}
+        {group.map(row)}
       </div>
     );
   };
-  const titles = (sessionId: string) => sessionTitle(directory, sessionId);
   const drawn = segments.map((segment) => {
     const groups = groupNotificationTurns(segment.turns, activeRunId);
-    if (segment.kind === "turns") return <Fragment key={segment.turns[0]!.runId}>{groups.map((group) => rows(group))}</Fragment>;
+    if (segment.kind === "turns") return <Fragment key={segment.turns[0]!.runId}>{groups.map(rows)}</Fragment>;
     return (
-      <Fragment key={segment.turns[0]!.runId}>
-        {segment.turns.map(block)}
-        <CohortFold turns={segment.turns} members={segment.members}>
-          {groups.map((group) => rows(group, false))}
-        </CohortFold>
-      </Fragment>
+      <CohortFold key={segment.turns[0]!.runId} turns={segment.turns} members={segment.members}>
+        {groups.map(rows)}
+      </CohortFold>
     );
   });
-  return <SessionTitles.Provider value={titles}>{drawn}</SessionTitles.Provider>;
+  return <SessionTitles.Provider value={title}>{drawn}</SessionTitles.Provider>;
 }

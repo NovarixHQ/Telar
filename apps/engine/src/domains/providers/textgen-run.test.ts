@@ -77,7 +77,7 @@ test("runStructured logs the reason and answers undefined", async () => {
   const binaryPath = fakeCli("claude", `echo 'boom' >&2\nexit 2`);
   const logged: string[] = [];
   const original = console.error;
-  console.error = (line: string) => logged.push(line);
+  console.error = (line: string) => void (String(line).includes("text generation") && logged.push(line));
   try {
     expect(await runStructured({ driver: "claude", binaryPath }, "title this", {})).toBeUndefined();
   } finally {
@@ -90,7 +90,7 @@ test("a CLI that floods stdout is killed past 4 MB and logged, not buffered", as
   const binaryPath = fakeCli("claude", `while :; do head -c 1048576 /dev/zero | tr '\\0' x; done`);
   const logged: string[] = [];
   const original = console.error;
-  console.error = (line: string) => logged.push(line);
+  console.error = (line: string) => void (String(line).includes("text generation") && logged.push(line));
   try {
     expect(await runStructured({ driver: "claude", binaryPath }, "title this", {})).toBeUndefined();
   } finally {

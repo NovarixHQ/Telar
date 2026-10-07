@@ -1,11 +1,10 @@
-// One Live Activity per phone: the latest rows from each Mac, merged into the phone's single card.
 import { DEAD_TOKEN, appleReason } from './shared.mjs';
 
-export const CARD_ROWS = 5;
-export const HOST_TTL = 600000;
-export const THROTTLE = 15000;
-export const REFRESH = 300000;
-export const ARMED_GRACE = 120000;
+const CARD_ROWS = 5;
+const HOST_TTL = 600000;
+const THROTTLE = 15000;
+const REFRESH = 300000;
+const ARMED_GRACE = 120000;
 const STALE_S = 600, END_DISMISS_S = 15, ATTEMPTS = 20;
 const REFERENCE_EPOCH = 978307200;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -94,7 +93,6 @@ async function record(storage, attempt) {
   await storage.put('attempts', [...attempts, attempt].slice(-ATTEMPTS));
 }
 
-// Run one at a time per phone. The plan is made again after signing, so Apple gets the current token and content.
 export async function reconcileCard(storage, env, device, now, alert) {
   const first = await plan(storage, now, alert);
   if (!first.send) { await wakeAt(storage, first.wake, first.expiry); return false; }

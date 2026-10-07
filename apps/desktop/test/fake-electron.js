@@ -71,6 +71,12 @@ class FakeBrowserWindow extends Emitter {
   isFullScreen() {
     return this.fullscreen;
   }
+  isMaximized() {
+    return this.maximized === true;
+  }
+  maximize() {
+    this.maximized = true;
+  }
   setFullScreen(on) {
     this.fullscreen = on;
   }
@@ -195,6 +201,9 @@ const electron = {
     getAllDisplays: () => electron.screen.displays,
     getPrimaryDisplay: () => electron.screen.displays[0],
     getDisplayMatching: (rect) => electron.screen.displays.find((display) => rect.x >= display.workArea.x && rect.x < display.workArea.x + display.workArea.width) ?? electron.screen.displays[0],
+    cursor: { x: 0, y: 0 },
+    getCursorScreenPoint: () => ({ ...electron.screen.cursor }),
+    getDisplayNearestPoint: (point) => electron.screen.getDisplayMatching(point),
   },
   shell: { opened: [], openExternal: (url) => { electron.shell.opened.push(url); return Promise.resolve(); }, showItemInFolder: (target) => electron.shell.opened.push(target), openPath: (target) => { electron.shell.opened.push(target); return Promise.resolve(""); } },
   webContents: { getAllWebContents: () => [] },
@@ -219,6 +228,7 @@ function resetElectron() {
   electron.app.badgeCount = 0;
   electron.nativeTheme.shouldUseDarkColors = false;
   electron.screen.displays = [{ id: 1, workArea: { x: 0, y: 25, width: 1440, height: 875 } }];
+  electron.screen.cursor = { x: 0, y: 0 };
   for (const emitter of [electron.app, electron.nativeTheme, electron.powerMonitor]) emitter.listeners.clear();
 }
 

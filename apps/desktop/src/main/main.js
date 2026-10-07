@@ -175,8 +175,9 @@ function openNotificationPath(route) {
   win.webContents.send("telar:notifications:open", route);
 }
 
-function createWindow(url) {
+function createWindow(url, { main = false } = {}) {
   return createCockpitWindow(url, {
+    main,
     createManager: (win, { onChordScope }) => {
       const manager = new DesktopBrowserManager(win, {
         onControlChanged: reportBrowserControl,
@@ -527,7 +528,7 @@ if (SMOKE) {
           const notify = (body) => new Notification({ title: "Pair Booted Simulators", body }).show();
           if (registerDevPairing({ dev: DEV_BUILD, appUrl: url, hostToken: uiServer.HOST_TOKEN, ipcMain, notify })) buildApplicationMenu();
         }
-        updaterWindow = createWindow(url);
+        updaterWindow = createWindow(url, { main: true });
         restoreBrowserWindows(currentHost(), requireSurfaceWindows());
 
         markMainWindowShown();
@@ -535,7 +536,7 @@ if (SMOKE) {
 
         watchVolumes({ onChanged: reportVolumesChanged, powerMonitor });
         app.on("activate", () => {
-          if (BrowserWindow.getAllWindows().length === 0) createWindow(url);
+          if (BrowserWindow.getAllWindows().length === 0) createWindow(url, { main: true });
         });
       } catch (err) {
         logShell("error", `failed to start: ${err?.stack || err}`);

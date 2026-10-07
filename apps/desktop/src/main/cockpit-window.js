@@ -13,12 +13,11 @@ const { applyExternalLinkPolicy, linkRouting } = require("./window-links");
 const { addHost, rememberWindowUrl, removeHost } = require("./browser-hosts");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
 const { DEV_BUILD, DEV_BUILD_ARG } = require("./flags");
+const { adoptMainWindow, windowPlace } = require("../windows/main-window");
 
 function cockpitWindowOptions(title) {
   const icon = developmentIconPath();
   return {
-    width: 1280,
-    height: 800,
     ...backdropWindowOptions({ ...readUiPrefs(), dark: nativeTheme.shouldUseDarkColors, supported: supportsTranslucency() }),
     show: false,
     title,
@@ -63,11 +62,13 @@ function retryFailedLoads(win, url) {
   win.on("closed", () => clearTimeout(retryTimer));
 }
 
-function createCockpitWindow(url, { createManager, onInPageNavigation }) {
+function createCockpitWindow(url, { createManager, onInPageNavigation, main = false }) {
   const title = windowTitle();
   rememberWindowUrl(url);
 
-  const win = new BrowserWindow(cockpitWindowOptions(title));
+  const place = windowPlace(main);
+  const win = new BrowserWindow({ ...cockpitWindowOptions(title), ...place.bounds });
+  if (main) adoptMainWindow(win, place);
   watchWindowVisibility(win);
 
   const manager = createManager(win, { onChordScope: (owned) => setBrowserChordScope(manager, owned) });

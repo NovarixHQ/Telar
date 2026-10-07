@@ -6,7 +6,7 @@ The app talks only to the cockpit's `/api/**`, never to the engine. The engine s
 
 `apps/ios` has no `package.json`, so the Bun workspace tooling ignores it. The project uses file-system-synchronized groups: a new `.swift` file under `TelarMobile/` is built without any edit to the project file.
 
-To build without signing, from the repository root:
+To build without signing, from the repository root (CI runs this same Debug build; only the nightly builds Release):
 
 ```sh
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer

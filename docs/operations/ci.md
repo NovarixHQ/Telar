@@ -17,7 +17,7 @@ There is no `on: paths` filter. A workflow skipped that way never reports, and a
 | `Test engine 1/3`, `2/3`, `3/3` | `bun scripts/engine-shard.mjs <shard> 3` |
 | `Test desktop (macOS)` | `bun run test:desktop` with a JUnit report; fails if the macOS-only blocks were skipped or made no assertions |
 | `Test Electron` | each `test:desktop:<name>` Electron test in `apps/desktop`, each required to exit 0 and print its success marker |
-| `Build iOS` | when the change touches iOS, on macOS: an unsigned Release archive and a type-check budget report. Otherwise a no-op on Linux |
+| `Build iOS` | when the change touches iOS, on macOS: an unsigned Debug build (≤3 min; Release is only built by the nightly) and a type-check budget report. Otherwise a no-op on Linux |
 | `knip` | `bun run knip`: fails on any unused file, export, dependency or config hint |
 | `oxlint` | `bun run lint:ox`: fails on any finding in engine, desktop and engine-client |
 | `Verify passed` | the aggregate: fails unless every job above reports `success` |

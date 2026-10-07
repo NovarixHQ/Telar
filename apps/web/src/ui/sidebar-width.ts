@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { windowLayoutKey } from "@/platform/desktop/window-id";
 
 export const SIDEBAR_RESIZE_MIN_WIDTH = 16 * 16;
 export const APP_SIDEBAR_MAIN_MIN_WIDTH = 640;
@@ -77,24 +78,28 @@ function emit() {
   for (const l of listeners) l();
 }
 
+const storageKey = (key: string) => windowLayoutKey(KEY_PREFIX + key);
+
 function getSidebarPrefs(key: string | null): SidebarPrefs {
   if (!key || typeof window === "undefined") return NO_SIDEBAR_PREFS;
-  const hit = cache.get(key);
+  const stored = storageKey(key);
+  const hit = cache.get(stored);
   if (hit) return hit;
   let parsed: SidebarPrefs;
   try {
-    parsed = parseSidebarPrefs(window.localStorage.getItem(KEY_PREFIX + key));
+    parsed = parseSidebarPrefs(window.localStorage.getItem(stored));
   } catch {
     parsed = NO_SIDEBAR_PREFS;
   }
-  cache.set(key, parsed);
+  cache.set(stored, parsed);
   return parsed;
 }
 
 function write(key: string, next: SidebarPrefs) {
-  cache.set(key, next);
+  const stored = storageKey(key);
+  cache.set(stored, next);
   try {
-    window.localStorage.setItem(KEY_PREFIX + key, JSON.stringify(next));
+    window.localStorage.setItem(stored, JSON.stringify(next));
   } catch {
   }
   emit();
@@ -113,14 +118,6 @@ function subscribe(cb: () => void): () => void {
   return () => {
     listeners.delete(cb);
   };
-}
-
-if (typeof window !== "undefined") {
-  window.addEventListener("storage", (e) => {
-    if (!e.key?.startsWith(KEY_PREFIX)) return;
-    cache.set(e.key.slice(KEY_PREFIX.length), parseSidebarPrefs(e.newValue));
-    emit();
-  });
 }
 
 const getServerPrefs = () => NO_SIDEBAR_PREFS;

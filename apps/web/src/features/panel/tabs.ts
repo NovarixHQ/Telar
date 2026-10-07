@@ -1,4 +1,6 @@
-const STORAGE_KEY = "telar:right-panel";
+import { windowLayoutKey } from "@/platform/desktop/window-id";
+
+const STORAGE_KEY = windowLayoutKey("telar:right-panel");
 const VERSION = 1;
 /** Sessions to remember, LRU by `touchedAt`, so localStorage never fills. */
 const SESSION_CAP = 24;

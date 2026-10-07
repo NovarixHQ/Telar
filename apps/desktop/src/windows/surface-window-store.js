@@ -22,6 +22,8 @@ function cleanEntry(value) {
     bounds,
     ...(Number.isFinite(value.displayId) ? { displayId: value.displayId } : {}),
     fullscreen: value.fullscreen === true,
+    compact: value.compact === true,
+    ...(cleanBounds(value.expanded) ? { expanded: cleanBounds(value.expanded) } : {}),
   };
 }
 

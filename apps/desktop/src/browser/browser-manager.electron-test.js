@@ -4,6 +4,7 @@ const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 const { DesktopBrowserManager } = require("./browser-manager");
+const { setCompact } = require("../windows/compact-window");
 const { removeUserData } = require("../../test/electron/electron-test-teardown");
 
 app.setPath("userData", fs.mkdtempSync(path.join(os.tmpdir(), "telar-browser-regression-")));
@@ -216,10 +217,18 @@ async function main() {
     const poppedShot = await manager.callTool(scope, "browser_take_screenshot", {});
     assert(!poppedShot.isError, `screenshot of the popped window errored: ${textOf(poppedShot)}`);
     note(`popped window screenshot ${pngSize(poppedShot.content[0].data).width}px wide`);
+    setCompact(stage, true);
+    assert(stage.isAlwaysOnTop() && stage.isVisibleOnAllWorkspaces(), "the compact window does not float on top of every space");
+    const floatingClick = await manager.callTool(scope, "browser_click", { target: ref(textOf(await manager.callTool(scope, "browser_snapshot", {})), 'button "Increment counter"') });
+    assert(!floatingClick.isError, `click in the floating window errored: ${textOf(floatingClick)}`);
+    setCompact(stage, false);
+    assert(!stage.isAlwaysOnTop() && !stage.isVisibleOnAllWorkspaces(), "turning off on top left the window floating");
+    note("the compact window floated on top, took an agent click, and came back down");
     stage.close();
     for (let i = 0; i < 20 && !stage.isDestroyed(); i += 1) await new Promise((resolve) => setTimeout(resolve, 50));
     assert(window.contentView.children.includes(tab.view), "closing the window did not bring the view back");
     assert((await evaluate(manager, tab, "window.__telarPopped")) === "same page", "bringing the page back reloaded it");
+    assert((await evaluate(manager, tab, "document.getElementById('count').textContent")) === "3", "the floating window's click was dropped");
     note("pop-out moved the live page into its own window and back without a reload");
 
     manager.releaseScope("other", true);

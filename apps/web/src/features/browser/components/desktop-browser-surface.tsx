@@ -17,6 +17,7 @@ import type { DesktopBrowserTab } from "../types";
 import { describeViewport, groupedViewportPresets, stageOf, viewportPreset, VIEWPORT_ZOOMS, zoomFits } from "../viewport";
 import { CameraButton, CheckRow, Divider, ExtensionButton, menuRow, Notices } from "./browser-chrome";
 import { OptionsMenu, ProfileMenu } from "./browser-menus";
+import { CompactBar } from "./compact-bar";
 import { DeviceFrame } from "./device-frame";
 import { PoppedBrowser, usePoppedScope } from "./popped-browser";
 import { SitePermissionPrompt, SitePermissionsPopover, SiteSecurityIcon } from "./permission-prompt";
@@ -390,10 +391,16 @@ function BrowserBody(props: BrowserProps) {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) s.setChromeHasKeys(false);
       }}
     >
-      <TabStrip b={b} />
-      <AddressRow b={b} openOverlay={openOverlay} addressRowRef={addressRowRef} keyButtonRef={keyButtonRef} />
-      <DeviceToolbar b={b} openOverlay={openOverlay} />
-      <Notices b={b} />
+      {props.inWindow && s.state?.compact ? (
+        <CompactBar b={b} />
+      ) : (
+        <>
+          <TabStrip b={b} />
+          <AddressRow b={b} openOverlay={openOverlay} addressRowRef={addressRowRef} keyButtonRef={keyButtonRef} />
+          <DeviceToolbar b={b} openOverlay={openOverlay} />
+          <Notices b={b} />
+        </>
+      )}
       <BrowserHost b={b} frozenFrame={frozenFrame} hostRef={hostRef} />
     </div>
   );

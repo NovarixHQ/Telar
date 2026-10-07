@@ -43,6 +43,8 @@ class DesktopBrowserManager {
     this.poppedStages = new Map();
     this.openStageWindow = dependencies.openStageWindow || null;
     this.onStageClosed = dependencies.onStageClosed || null;
+    this.compactStageWindow = dependencies.compactStageWindow || null;
+    this.stageWindowCompact = dependencies.stageWindowCompact || (() => false);
 
     this.boundsByScope = new Map();
 
@@ -211,6 +213,7 @@ class DesktopBrowserManager {
       profile: this.activeProfile(scope),
       profiles: this.listProfiles(),
       popped: this.isPopped(scope),
+      compact: this.isCompactStage(scope),
       available: true,
       running: true,
       provider: "desktop",
@@ -313,6 +316,7 @@ class DesktopBrowserManager {
     if (kind === "pop-out") return this.popOut(scope);
     if (kind === "show-window") return this.showStage(scope);
     if (kind === "bring-back") return this.bringBack(scope);
+    if (kind === "compact") return this.setStageCompact(scope, action.on === true);
     if (kind === "new") return (await this.createTab(scope, action.url || "about:blank", "human"), this.state(scope));
     if (kind === "close") return (this.closeTab(scope, action.index), this.state(scope));
 

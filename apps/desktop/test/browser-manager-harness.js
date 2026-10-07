@@ -376,6 +376,8 @@ function makeHarness(options = {}) {
       waits.push(milliseconds);
     }),
     maxLiveViews: options.maxLiveViews,
+    compactStageWindow: (win, on) => { win.compact = on; },
+    stageWindowCompact: (win) => Boolean(win.compact),
     openStageWindow: (scope, details) => {
       const win = new FakeStageWindow({ scope, ...details });
       stageWindows.push(win);

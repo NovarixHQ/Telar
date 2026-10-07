@@ -103,3 +103,26 @@ describe("at launch", () => {
     expect(store.forgotten).toEqual(["gone"]);
   });
 });
+
+describe("a surface window that floats on top", () => {
+  test("is an ordinary window, never a panel", () => {
+    const win = openSurfaceWindow({ appUrl: APP, kind: "browser", key: "s", params: { scope: "s" }, store: memoryStore() });
+    expect(win.options.type).toBeUndefined();
+  });
+
+  test("going compact is written down with where it goes back to, and it reopens compact", () => {
+    const { setCompact } = require("./compact-window");
+    const store = memoryStore();
+    const first = openSurfaceWindow({ appUrl: APP, kind: "browser", key: "s", params: { scope: "s" }, store });
+    first.bounds = { x: 100, y: 100, width: 1000, height: 600 };
+    const expanded = first.getNormalBounds();
+    setCompact(first, true);
+    expect(store.get("browser", "s")).toMatchObject({ compact: true, expanded });
+
+    const again = openSurfaceWindow({ appUrl: APP, kind: "browser", key: "s", params: { scope: "s" }, store });
+    expect(again.onTop).toBe("floating");
+    expect(again.getNormalBounds()).toEqual(store.get("browser", "s").bounds);
+    setCompact(again, false);
+    expect(again.getNormalBounds()).toEqual(expanded);
+  });
+});

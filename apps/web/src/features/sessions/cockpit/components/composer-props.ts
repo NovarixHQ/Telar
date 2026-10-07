@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
-import type { Session } from "@telar/engine-client";
+import type { ProviderDriverKind, Session } from "@telar/engine-client";
+import type { ModelChoice } from "@/features/providers";
 import type { Composer } from "@/features/composer";
 import type { PanelTab } from "@/features/panel";
 import { wakeLabel } from "../../session-settling";
@@ -83,6 +84,7 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
     ...(fresh ? {} : { onResumeAfterRateLimit: (next: boolean) => void actions.setResumeAfterRateLimit(next) }),
     ...(draft.sessionDefaults.resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimitDefault: draft.sessionDefaults.resumeAfterRateLimit }),
     onModelChange: fresh ? draft.chooseModel : (next) => void actions.setModel(next),
+    ...(fresh ? {} : { onSwitchProvider: (driver: ProviderDriverKind, next: ModelChoice) => void actions.switchProvider(driver, next) }),
     // A right-panel tab, so on the solo route the change count stays a count.
     ...(solo ? {} : { onOpenChanges: () => showPanelTab("diff") }),
   };

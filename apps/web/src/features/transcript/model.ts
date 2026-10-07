@@ -161,7 +161,7 @@ export function transcriptTasks(tasks: readonly JournalTask[]): JournalTask[] {
 
 export type ActivitySegment = { kind: "run"; items: JournalItem[] } | { kind: "row"; item: JournalItem };
 
-const SEAM = new Set<Item["detail"]["type"]>(["assistant_message", "user_message", "notification", "plan", "context_compaction", "provider_wait", "conversation_import", "artifact"]);
+const SEAM = new Set<Item["detail"]["type"]>(["assistant_message", "user_message", "notification", "plan", "context_compaction", "provider_switch", "provider_wait", "conversation_import", "artifact"]);
 
 export type TurnResponse = { boundary?: JournalItem; items: JournalItem[] };
 

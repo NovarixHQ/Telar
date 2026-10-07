@@ -8,6 +8,7 @@ import { isToolItem, itemLabel, itemText, type JournalItem, type JournalTask } f
 import { MessageMenu, MessageResponse } from "@/ui/message";
 import { type OpenTab } from "./conversation-message";
 import { RowGestures, ToolRow } from "./tool-row";
+import { ProviderSwitchRow } from "./provider-switch-row";
 import { running, transcriptTasks } from "../model";
 import { AgentRow, CompactionRow, ConversationImportRow, PlanRow, PlotRow, ProviderWaitRow, ReasoningRow, SteeredMessageRow } from "./item-rows";
 import { NotificationRow } from "./notification-row";
@@ -34,6 +35,7 @@ export function TranscriptItem({ item, tasks, onOpenAgent, onOpenTab, onInsert, 
   if (item.detail.type === "reasoning") return <ReasoningRow item={item} />;
   if (item.detail.type === "context_compaction") return <CompactionRow item={item} />;
   if (item.detail.type === "conversation_import") return <ConversationImportRow item={item} />;
+  if (item.detail.type === "provider_switch") return <ProviderSwitchRow item={item} />;
   if (item.detail.type === "provider_wait") return <ProviderWaitRow item={item} />;
   // A NOTIFICATION IS NOT A MESSAGE ROW OF ANY KIND — #550. Its own arm, above
   // `user_message`, because the whole point of the type is that narrowing on it

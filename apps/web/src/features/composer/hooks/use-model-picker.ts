@@ -35,11 +35,12 @@ export type ModelPickerProps = {
   instanceId?: string;
   /** Absent before the session exists: the fresh canvas has nothing to patch. */
   onChange?: (next: ModelChoice) => void;
-  /** Absent once the session exists, which fixes the provider. */
+  /** Before the session exists: picking another provider's model changes what the first message creates. */
   onDriverChange?: (driver: ProviderDriverKind) => void;
+  onSwitchProvider?: (driver: ProviderDriverKind, next: ModelChoice) => void;
 };
 
-export function useModelPicker({ driver, choice, instanceId, onChange, onDriverChange }: ModelPickerProps) {
+export function useModelPicker({ driver, choice, instanceId, onChange, onDriverChange, onSwitchProvider }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
   const [showLegacy, setShowLegacy] = useState(false);
   // A live query replaces every scope the rail selects: the legacy fold, favourites and the provider.
@@ -47,8 +48,10 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
   const searching = query.trim().length > 0;
   const [view, setView] = useState<ModelView>(driver);
   // Other providers are read only while the provider can still be switched; each read spawns a subprocess.
-  const crossProvider = (view === "favorites" || searching) && Boolean(onDriverChange);
-  const scopes = crossProvider
+  const canSwitch = Boolean(onDriverChange || onSwitchProvider);
+  const crossProvider = (view === "favorites" || searching) && canSwitch;
+  const other = view !== "favorites" && view !== driver ? view : undefined;
+  const scopes = crossProvider || other
     ? PROVIDERS.map((option) => (option === driver && instanceId ? { driver: option, instanceId } : { driver: option }))
     : [{ driver, ...(instanceId ? { instanceId } : {}) }];
   const catalogues = useModelCatalogues(scopes);
@@ -88,13 +91,15 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
   const listedOf = (option: ProviderDriverKind) => groupFamilies(visibleModels(catalogues.get(option)?.models ?? [], choice.model));
   const { current, legacy } = keepStarredVisible(splitGenerations(listedOf(driver)), favorites);
   const matches = (family: ModelFamily) => familySearchText(family).includes(query.trim().toLowerCase());
-  const scope = searchScope(driver, crossProvider);
+  const scope = other ? [other] : searchScope(driver, crossProvider);
   const searchable = (option: ProviderDriverKind) => (option === driver ? [...current, ...legacy] : listedOf(option));
   const listed: { from: ProviderDriverKind; family: ModelFamily }[] = searching
     ? scope.flatMap((option) => searchable(option).filter(matches).map((family) => ({ from: option, family })))
     : view === "favorites"
       ? scope.flatMap((option) => listedOf(option).filter((family) => favorites.has(family.id)).map((family) => ({ from: option, family })))
-      : orderByFavorite(showLegacy ? [...current, ...legacy] : current, favorites).map((family) => ({ from: driver, family }));
+      : other
+        ? orderByFavorite(splitGenerations(listedOf(other)).current, favorites).map((family) => ({ from: other, family }))
+        : orderByFavorite(showLegacy ? [...current, ...legacy] : current, favorites).map((family) => ({ from: driver, family }));
   const asking = scope.find((option) => !catalogues.get(option));
 
   const showView = (onto: ModelView) => {
@@ -112,6 +117,7 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
   const pickFamily = (family: ModelFamily, from: ProviderDriverKind) => {
     const row = pickInFamily(family, activeWindow);
     if (from === driver) onChange?.(withModel(choice, row));
+    else if (onSwitchProvider) onSwitchProvider(from, { model: row.id });
     else {
       onDriverChange?.(from);
       onChange?.({ model: row.id });
@@ -136,6 +142,7 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
     showLegacy,
     setShowLegacy,
     crossProvider,
+    canSwitch,
     catalogue,
     models,
     selectedFamily,

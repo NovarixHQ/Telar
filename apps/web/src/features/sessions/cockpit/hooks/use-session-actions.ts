@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { RequestDecision, RuntimeMode } from "@telar/engine-client";
+import { defaultInstanceIdForDriver, type ProviderDriverKind, type RequestDecision, type RuntimeMode } from "@telar/engine-client";
 import { asEngineError, createEngineApi, newRunId } from "@/platform/engine";
 import { sessionModelSelection, type ModelChoice } from "@/features/providers";
 import type { useSessionSync } from "./use-session-sync";
@@ -56,6 +56,10 @@ export function useSessionActions(sessionId: string | undefined, { session, hydr
     setModel: async (next: ModelChoice) => {
       if (!session) return;
       await patch({ model: sessionModelSelection(session.providerInstanceId, next) ?? null }, "Could not change the model.");
+    },
+    switchProvider: async (driver: ProviderDriverKind, next: ModelChoice) => {
+      if (!session) return;
+      await patch({ model: sessionModelSelection(defaultInstanceIdForDriver(driver), next) ?? null }, "Could not switch provider.");
     },
     // Not gated on `sending`: this is the brake.
     setRuntimeMode: (mode: RuntimeMode) => patch({ runtimeMode: mode }, "Could not change the runtime mode."),

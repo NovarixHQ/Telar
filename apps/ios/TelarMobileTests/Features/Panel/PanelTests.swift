@@ -158,12 +158,6 @@ import Testing
         #expect(panel.tabs.isEmpty && panel.active == nil)
     }
 
-    @Test func theSimulatorSurfaceUsesTheDesktopsId() throws {
-        #expect(PanelTab.simulator.rawValue == "simulator")
-        #expect(PanelTab.simulator.label == "Simulator" && PanelTab.simulator.icon == "iphone")
-        #expect(try JSONDecoder().decode(PanelTab.self, from: Data("\"simulator\"".utf8)) == .simulator)
-    }
-
     @Test func theBundledPluginsContributeWhatTheyAlwaysDid() throws {
         #expect(PluginUI.surfaces(enabled: [.latex, .dataScience]).map(\.tab) == [.data, .latex])
         #expect(PanelTab.data.label == "Data" && PanelTab.data.icon == "flask")

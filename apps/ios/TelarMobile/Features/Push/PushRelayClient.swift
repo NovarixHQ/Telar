@@ -10,13 +10,8 @@ struct RelayCredential: Encodable, Equatable {
 }
 
 struct RelayTokens: Codable, Equatable {
-    struct Activity: Codable, Equatable {
-        var id: String
-        var token: String
-    }
     var token: String
-    var pushToStartToken: String?
-    var activities: [Activity]
+    var card: String?
 }
 
 protocol AppAttesting {
@@ -107,9 +102,10 @@ extension DCAppAttestService: AppAttesting {}
         }
     }
 
-    func forceRefresh() {
-        state.refreshedAt = nil
-        persist(state)
+    func cardReport() async -> RelayCardReport? {
+        guard !unavailable, let handle = state.handle,
+              let (status, data) = try? await phoneRequest("GET", "/v2/devices/\(handle)/card"), status == 200 else { return nil }
+        return try? JSONDecoder().decode(RelayCardReport.self, from: data)
     }
 
     func revoke(host: String) async {
@@ -147,9 +143,9 @@ extension DCAppAttestService: AppAttesting {}
         let attestation = try await attest.attestKey(keyId, clientDataHash: Self.sha256(challenge))
         struct Registration: Encodable {
             var keyId: String, attestation: String, challenge: String, bundle: String, sandbox: Bool
-            var token: String, pushToStartToken: String?, activities: [RelayTokens.Activity]
+            var token: String, card: String?
         }
-        let body = try JSONEncoder().encode(Registration(keyId: keyId, attestation: attestation.base64EncodedString(), challenge: challenge, bundle: bundle, sandbox: sandbox, token: tokens.token, pushToStartToken: tokens.pushToStartToken, activities: tokens.activities))
+        let body = try JSONEncoder().encode(Registration(keyId: keyId, attestation: attestation.base64EncodedString(), challenge: challenge, bundle: bundle, sandbox: sandbox, token: tokens.token, card: tokens.card))
         let (created, answer) = try await request("POST", "/v2/devices", body: body)
         if created == 401 { throw AttestationRefused() }
         guard created == 201, let handle = try JSONDecoder().decode([String: String].self, from: answer)["handle"] else { throw RelayError(status: created) }

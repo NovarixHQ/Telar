@@ -48,13 +48,16 @@ struct NotificationSettingsView: View {
             Section("Live Activities") {
                 Toggle("Automatic Live Activities", isOn: $liveActivities)
                     .onChange(of: liveActivities) { _, value in Task { await notifications.setLiveActivities(value) } }
-                Text("A Live Activity starts automatically when a computer has active agent work, highlights sessions that need you, and finishes when the work is done. Updates appear on the Lock Screen and Dynamic Island, including while Telar is in the background.")
+                Text("One Live Activity shows active agent work from all your computers. It starts when you open Telar while work is running, highlights sessions that need you, and finishes when the work is done.")
                 ForEach(notifications.liveActivityDiagnosis, id: \.self) { line in
                     Text(line).font(.footnote).foregroundStyle(.secondary)
                 }
             }
         }
         .navigationTitle("Notifications & activities")
-        .task { await notifications.syncRegistrations() }
+        .task {
+            await notifications.syncRegistrations()
+            await notifications.refreshCardReport()
+        }
     }
 }

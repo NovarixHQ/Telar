@@ -1,41 +1,8 @@
 import Foundation
 
 enum AutomaticCard {
-    static let sessionId = "__automatic__"
-
-    struct Shown {
-        var id: String
-        var hostId: String
-        var sessionId: String
-        var startedAt: Date
-    }
-
-    static func hostsToStart(enabled: Bool, working: Set<HostID>, carded: Set<HostID>, dismissed: Set<HostID>, engineStarts: Set<HostID>) -> Set<HostID> {
-        enabled ? working.subtracting(carded).subtracting(dismissed).subtracting(engineStarts) : []
-    }
-
-    static let startGrace: TimeInterval = 60
-
-    static func engineStarts(_ report: ActivityReport, now: Date = Date()) -> Bool {
-        guard report.blocker == nil else { return false }
-        guard let start = report.lastStart else { return true }
-        return start.status == 200 && (report.card || now.timeIntervalSince1970 - start.at < startGrace)
-    }
-
-    static func duplicates(_ cards: [Shown]) -> Set<String> {
-        var newest: [String: Shown] = [:]
-        for card in cards where card.sessionId == sessionId {
-            if let kept = newest[card.hostId], (kept.startedAt, kept.id) >= (card.startedAt, card.id) { continue }
-            newest[card.hostId] = card
-        }
-        return Set(cards.map(\.id)).subtracting(newest.values.map(\.id))
-    }
-
-    static func dismissedStillIdle(_ dismissed: Set<HostID>, working: Set<HostID>) -> Set<HostID> {
-        dismissed.intersection(working)
-    }
-
-    static let maxRows = 4
+    static let sessionId = "__card__"
+    static let maxRows = 5
     private static let ranks: [SessionActivity: Int] = [.blocked: 0, .working: 1, .queued: 2, .monitoring: 4]
     private static let statuses: [SessionActivity: String] = [.blocked: "Needs you", .working: "Working", .queued: "Queued", .monitoring: "Background"]
 
@@ -66,35 +33,24 @@ enum AutomaticCard {
         return order.compactMap { id in active[id]!.isEmpty ? nil : (byId[id]!, active[id]!) }
     }
 
-    static func rows(_ sessions: [Session], previews: Bool, projects: [String: String] = [:], carried: [SessionActivityRow] = []) -> [SessionActivityRow] {
-        let key = { (members: [Session]) in (members.map { rank($0)! }.min()!, -(members.compactMap(\.activityAt).max() ?? 0)) }
-        let active = families(sessions).sorted { (key($0.active).0, key($0.active).1, $0.root.id) < (key($1.active).0, key($1.active).1, $1.root.id) }
-        let live = active.map { family in
-            let title = family.root.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let workers = family.active.filter { $0.id != family.root.id }.count
-            return SessionActivityRow(id: family.root.id, status: status(family.active.min { rank($0)! < rank($1)! }!),
-                                      title: previews && !title.isEmpty ? SessionActivityRow.clip(title, 60) : nil,
-                                      project: ([family.root] + family.active).lazy.compactMap { projects[$0.id] }.first.map { SessionActivityRow.clip($0, 40) },
-                                      workers: workers > 0 ? workers : nil)
+    static func initialState(_ sessions: [HostedSession], names: [HostID: String], previews: Bool, projects: [String: String] = [:], now: Date) -> SessionActivityAttributes.ContentState {
+        let hosts = Dictionary(grouping: sessions, by: \.hostId).mapValues { families($0.map(\.session)) }.filter { !$0.value.isEmpty }
+        let ranked = hosts.flatMap { host, families in
+            families.map { family -> (row: SessionActivityRow, rank: Int, at: Timestamp) in
+                let title = family.root.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                let workers = family.active.filter { $0.id != family.root.id }.count
+                let lead = family.active.min { rank($0)! < rank($1)! }!
+                let row = SessionActivityRow(id: family.root.id, status: status(lead),
+                    title: previews && !title.isEmpty ? SessionActivityRow.clip(title, 60) : nil,
+                    project: ([family.root] + family.active).lazy.compactMap { projects[$0.id] }.first.map { SessionActivityRow.clip($0, 40) },
+                    workers: workers > 0 ? workers : nil, hostId: host.uuidString, host: hosts.count > 1 ? names[host] : nil)
+                return (row, rank(lead)!, family.active.compactMap(\.activityAt).max() ?? 0)
+            }
         }
-        let ids = Set(active.map(\.root.id))
-        return Array((live + carried.filter { $0.over && !ids.contains($0.id) }).prefix(maxRows))
-    }
-
-    static func initialState(_ sessions: [Session], previews: Bool, projects: [String: String] = [:], now: Date, carried: [SessionActivityRow] = []) -> SessionActivityAttributes.ContentState {
-        let shown = rows(sessions, previews: previews, projects: projects, carried: carried)
-        let active = shown.filter { !$0.over }
-        let count = families(sessions).count
-        let lead = sessions.first { $0.id == active.first?.id }?.title.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let title = previews && count == 1 && !lead.isEmpty ? SessionActivityRow.clip(lead, 160) : count > 1 ? "\(count) active sessions" : "Telar work"
-        return .init(title: title, status: active.first?.status ?? "Working", updatedAt: now, startedAt: now, ended: false,
-                     sessionId: shown.first?.id, activeCount: count, rows: shown)
-    }
-
-    static func refreshed(_ current: SessionActivityAttributes.ContentState, _ sessions: [Session], previews: Bool, projects: [String: String] = [:], now: Date) -> SessionActivityAttributes.ContentState? {
-        var next = initialState(sessions, previews: previews, projects: projects, now: now, carried: current.rows ?? [])
-        next.startedAt = current.startedAt
-        let same = (next.title, next.status, next.sessionId, next.activeCount, next.rows) == (current.title, current.status, current.sessionId, current.activeCount, current.rows)
-        return same ? nil : next
+        let rows = ranked.sorted { ($0.rank, -$0.at, $0.row.id) < ($1.rank, -$1.at, $1.row.id) }.prefix(maxRows).map(\.row)
+        let count = ranked.count
+        let title = count == 1 ? rows.first?.title ?? "Telar work" : "\(count) active sessions"
+        return .init(title: title, status: rows.first?.status ?? "Working", updatedAt: now, startedAt: now, ended: false,
+                     sessionId: rows.first?.id, activeCount: count, rows: Array(rows), hostId: rows.first?.hostId)
     }
 }

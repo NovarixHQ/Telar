@@ -4,11 +4,6 @@ import UIKit
 import UserNotifications
 
 struct PushRegistration: Encodable {
-    struct Follow: Encodable {
-        var sessionId: String
-        var token: String
-        var startedAt: Double
-    }
     var hostId: String
     var token: String
     var topic: String
@@ -18,15 +13,13 @@ struct PushRegistration: Encodable {
     var previews: Bool
     var sounds: String? = nil
     var mutedSessions: [String]
-    var activities: [Follow]
     var liveActivities: Bool = false
-    var pushToStartToken: String? = nil
     var hostName: String? = nil
     var relay: RelayCredential? = nil
+    var relayCard = true
 }
 struct PushStatus: Decodable {
     var configured: Bool
-    var activity: ActivityReport?
 }
 
 @MainActor @Observable final class MobileNotifications {
@@ -37,8 +30,7 @@ struct PushStatus: Decodable {
     var status = "Notifications are off"
     var readiness = PushReadiness()
     var activityError: String?
-    var activityReports: [HostID: ActivityReport] = [:]
-    private var resyncedForStartAt: Double = 0
+    var cardReport: RelayCardReport?
     private var token: String? = UserDefaults.standard.string(forKey: "telar.apns.token")
     private var activityTokens: [String: String] = [:]
     private var watchers: [String: Task<Void, Never>] = [:]
@@ -47,54 +39,29 @@ struct PushStatus: Decodable {
     private var synchronizing = false
     private var syncAgain = false
     private var attemptedRegistration = false
-    private var startToken: String?
-    private var startTokenRejected = false
-    private var rejectedStartTokens = UserDefaults.standard.stringArray(forKey: "telar.activity.rejectedStartTokens") ?? []
-    private var handledStartRejectionAt: Double = 0
-    private var startTokenWatcher: Task<Void, Never>?
-    private var incomingActivityWatcher: Task<Void, Never>?
-    private var dismissedCards: Set<HostID> = []
+    private var started = false
+    private var cardDismissed = false
     var liveActivities = UserDefaults.standard.object(forKey: "telar.activities.enabled") as? Bool ?? true {
         didSet { defaults.set(liveActivities, forKey: "telar.activities.enabled") }
     }
 
     func start(settings: AppSettings) {
         self.settings = settings
-        guard startTokenWatcher == nil else { return }
-        defaults.removeObject(forKey: "telar.activity.startToken")
-        if let data = Activity<SessionActivityAttributes>.pushToStartToken { saveStartToken(data) }
-        startTokenWatcher = Task { [weak self] in
-            for await data in Activity<SessionActivityAttributes>.pushToStartTokenUpdates {
-                self?.saveStartToken(data)
-                await self?.syncRegistrations()
-            }
-        }
-        incomingActivityWatcher = Task { [weak self] in
-            for await activity in Activity<SessionActivityAttributes>.activityUpdates {
-                self?.watch(activity)
-                await self?.syncRegistrations()
-            }
-        }
+        guard !started else { return }
+        started = true
+        defaults.removeObject(forKey: "telar.activity.rejectedStartTokens")
         Task { await syncRegistrations() }
         Task { await ReadSync.reconcile(settings: settings) }
     }
-    private func saveStartToken(_ data: Data) {
-        let confirmed = data.map { String(format: "%02x", $0) }.joined()
-        startToken = StartTokenPolicy.usable(confirmed, rejected: Set(rejectedStartTokens))
-        startTokenRejected = startToken == nil
-    }
     var liveActivityDiagnosis: [String] {
-        LiveActivityDiagnosis.lines(systemAllowed: ActivityAuthorizationInfo().areActivitiesEnabled, toggle: liveActivities,
-                                    hasStartToken: startToken != nil, startTokenRejected: startTokenRejected,
-                                    currentToken: startToken.map(StartTokenPolicy.fingerprint),
-                                    macs: (settings?.hosts ?? []).map { ($0.name, activityReports[$0.id]) })
+        LiveActivityDiagnosis.lines(systemAllowed: ActivityAuthorizationInfo().areActivitiesEnabled, toggle: liveActivities, report: cardReport,
+                                    macs: (settings?.hosts ?? []).map { ($0.id.uuidString, $0.name) })
     }
+    func refreshCardReport() async { cardReport = await PushRelayClient.shared.cardReport() }
     func setLiveActivities(_ enabled: Bool) async {
         liveActivities = enabled
         if !enabled {
-            for activity in Activity<SessionActivityAttributes>.activities where activity.attributes.sessionId == "__automatic__" {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            }
+            for activity in Activity<SessionActivityAttributes>.activities { await activity.end(nil, dismissalPolicy: .immediate) }
         }
         await syncRegistrations()
     }
@@ -146,7 +113,7 @@ struct PushStatus: Decodable {
         synchronizing = false
     }
     private func performRegistrationSync() async {
-        await endDuplicateCards()
+        await endOtherCards()
         for activity in Activity<SessionActivityAttributes>.activities where activity.activityState == .active || activity.activityState == .stale {
             watch(activity)
         }
@@ -162,15 +129,9 @@ struct PushStatus: Decodable {
         let authorization = await UNUserNotificationCenter.current().notificationSettings()
         let allowed = authorization.authorizationStatus == .authorized || authorization.authorizationStatus == .provisional
         var next = PushReadiness()
-        var reports: [HostID: ActivityReport] = [:]
-        let relayTokens = currentRelayTokens(token)
+        let relayTokens = RelayTokens(token: token, card: liveCard.flatMap { activityTokens[$0.id] })
         for host in settings.hosts {
             guard let api = settings.api(for: host.id) else { continue }
-            let activities = Activity<SessionActivityAttributes>.activities.filter { $0.attributes.hostId == host.id.uuidString }
-            let subscriptions = activities.compactMap { activity -> PushRegistration.Follow? in
-                guard let pushToken = activityTokens[activity.id], activity.activityState == .active || activity.activityState == .stale else { return nil }
-                return .init(sessionId: activity.attributes.sessionId, token: pushToken, startedAt: activity.content.state.startedAt.timeIntervalSince1970)
-            }
             let mutedSessions = muted.compactMap { URL(string: $0).flatMap(ScopedSessionID.init(url:)) }.filter { $0.hostId == host.id }.map(\.sessionId)
             #if DEBUG
             let sandbox = true
@@ -182,49 +143,21 @@ struct PushStatus: Decodable {
                 let reply = try await api.registerPush(.init(hostId: host.id.uuidString, token: token,
                     topic: Bundle.main.bundleIdentifier ?? "io.github.novarix.telar", sandbox: sandbox,
                     enabled: enabled && allowed, completions: completions, previews: previews, sounds: sounds.rawValue,
-                    mutedSessions: mutedSessions, activities: subscriptions,
+                    mutedSessions: mutedSessions,
                     liveActivities: liveActivities && ActivityAuthorizationInfo().areActivitiesEnabled,
-                    pushToStartToken: startToken, hostName: host.name, relay: relay))
+                    hostName: host.name, relay: relay))
                 if !reply.configured { next.notSending.insert(host.id) }
-                if let report = reply.activity { reports[host.id] = report }
             } catch { next.unreachable.insert(host.id) }
         }
         next.deviceUnsupported = PushRelayClient.shared.unavailable
         readiness = next
-        activityReports = reports
-        let refused = reports.values.filter(LiveActivityDiagnosis.startTokenMissingAtRelay).compactMap { $0.lastStart?.at }
-        if let latest = refused.max(), latest > resyncedForStartAt {
-            resyncedForStartAt = latest
-            if let data = Activity<SessionActivityAttributes>.pushToStartToken { saveStartToken(data) }
-            PushRelayClient.shared.forceRefresh()
-            syncAgain = true
-        }
-        let rejected = reports.values.compactMap { report -> ActivityReport.Start? in
-            LiveActivityDiagnosis.startTokenRejectedByApple(report) ? report.lastStart : nil
-        }
-        if let latest = rejected.max(by: { $0.at < $1.at }), latest.at > handledStartRejectionAt {
-            handledStartRejectionAt = latest.at
-            if let dead = latest.token ?? startToken.map(StartTokenPolicy.fingerprint) {
-                rejectedStartTokens = StartTokenPolicy.remember(print: dead, in: rejectedStartTokens)
-                defaults.set(rejectedStartTokens, forKey: "telar.activity.rejectedStartTokens")
-                if startToken.map(StartTokenPolicy.fingerprint) == dead { startToken = nil; startTokenRejected = true }
-            }
-            if let data = Activity<SessionActivityAttributes>.pushToStartToken { saveStartToken(data) }
-            PushRelayClient.shared.forceRefresh()
-            syncAgain = true
-        }
         status = next.statusLine(enabled: enabled, allowed: allowed)
     }
 
-    private func currentRelayTokens(_ token: String) -> RelayTokens {
-        let activities = Activity<SessionActivityAttributes>.activities.compactMap { activity -> RelayTokens.Activity? in
-            guard let pushToken = activityTokens[activity.id],
-                  activity.activityState == .active || activity.activityState == .stale,
-                  activity.attributes.sessionId.range(of: #"^[A-Za-z0-9_-]{1,128}$"#, options: .regularExpression) != nil
-            else { return nil }
-            return .init(id: activity.attributes.sessionId, token: pushToken)
+    private var liveCard: Activity<SessionActivityAttributes>? {
+        Activity<SessionActivityAttributes>.activities.first {
+            $0.attributes.sessionId == AutomaticCard.sessionId && ($0.activityState == .active || $0.activityState == .stale)
         }
-        return RelayTokens(token: token, pushToStartToken: startToken, activities: Array(activities.prefix(8)))
     }
 
     func promptAfterPairing() async {
@@ -247,47 +180,27 @@ struct PushStatus: Decodable {
     }
 
     func refreshActivityPrivacy() async {
-        for activity in Activity<SessionActivityAttributes>.activities {
-            var state = activity.content.state
-            if !previews { state.title = "Telar work" }
-            else if let host = UUID(uuidString: activity.attributes.hostId),
-                    let snapshot = try? await settings?.api(for: host)?.session(state.sessionId ?? activity.attributes.sessionId, window: SnapshotWindow(turns: 1)) {
-                state.title = snapshot.session.title
-            }
-            await activity.update(ActivityContent(state: state, staleDate: activity.content.staleDate))
-        }
+        guard !previews, let card = liveCard else { return }
+        var state = card.content.state
+        state.title = "Telar work"
+        state.rows = state.rows?.map { var row = $0; row.title = nil; return row }
+        await card.update(ActivityContent(state: state, staleDate: card.content.staleDate))
     }
 
-    func startAutomaticCards(_ active: [HostedSession], projectName: (HostedSession) -> String?) {
+    func startCard(_ active: [HostedSession], projectName: (HostedSession) -> String?) {
         guard UIApplication.shared.applicationState == .active else { return }
+        let working = active.filter { AutomaticCard.isActive($0.session) }
+        if working.isEmpty { cardDismissed = false; return }
+        guard liveActivities, ActivityAuthorizationInfo().areActivitiesEnabled, !cardDismissed, liveCard == nil else { return }
         let projects = Dictionary(active.compactMap { s in projectName(s).map { (s.session.id, $0) } }, uniquingKeysWith: { first, _ in first })
-        let working = Set(active.filter { AutomaticCard.isActive($0.session) }.map(\.hostId))
-        dismissedCards = AutomaticCard.dismissedStillIdle(dismissedCards, working: working)
-        let carded = Set(Activity<SessionActivityAttributes>.activities
-            .filter { $0.attributes.sessionId == AutomaticCard.sessionId && ($0.activityState == .active || $0.activityState == .stale) }
-            .compactMap { UUID(uuidString: $0.attributes.hostId) })
-        let engineStarts = Set(activityReports.filter { AutomaticCard.engineStarts($0.value) }.keys)
-        let hosts = AutomaticCard.hostsToStart(enabled: liveActivities && ActivityAuthorizationInfo().areActivitiesEnabled,
-                                               working: working, carded: carded, dismissed: dismissedCards, engineStarts: engineStarts)
-        for host in hosts {
-            for ended in Activity<SessionActivityAttributes>.activities where ended.attributes.hostId == host.uuidString {
-                Task { await ended.end(nil, dismissalPolicy: .immediate) }
-            }
-            let now = Date()
-            let state = AutomaticCard.initialState(active.filter { $0.hostId == host }.map(\.session), previews: previews, projects: projects, now: now)
-            let attributes = SessionActivityAttributes(hostId: host.uuidString, sessionId: AutomaticCard.sessionId, hostName: HostLabel.short(settings?.host(host)?.name))
-            do {
-                let activity = try Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: now.addingTimeInterval(Self.activityStale)), pushType: .token)
-                watch(activity)
-            } catch { activityError = "Couldn't start a Live Activity: \(error.localizedDescription)" }
-        }
-        for activity in Activity<SessionActivityAttributes>.activities where activity.attributes.sessionId == AutomaticCard.sessionId {
-            guard activity.activityState == .active || activity.activityState == .stale,
-                  let host = UUID(uuidString: activity.attributes.hostId), working.contains(host) else { continue }
-            let now = Date()
-            guard let state = AutomaticCard.refreshed(activity.content.state, active.filter { $0.hostId == host }.map(\.session), previews: previews, projects: projects, now: now) else { continue }
-            Task { await activity.update(ActivityContent(state: state, staleDate: now.addingTimeInterval(Self.activityStale))) }
-        }
+        let names = Dictionary((settings?.hosts ?? []).map { ($0.id, HostLabel.short($0.name)) }, uniquingKeysWith: { first, _ in first })
+        let now = Date()
+        let state = AutomaticCard.initialState(active, names: names, previews: previews, projects: projects, now: now)
+        do {
+            let activity = try Activity.request(attributes: SessionActivityAttributes(hostId: "", sessionId: AutomaticCard.sessionId, hostName: "Telar"),
+                                                content: ActivityContent(state: state, staleDate: now.addingTimeInterval(Self.activityStale)), pushType: .token)
+            watch(activity)
+        } catch { activityError = "Couldn't start a Live Activity: \(error.localizedDescription)" }
     }
     static let activityStale: TimeInterval = 600
     func removeHost(_ host: HostID, api: HTTPEngineAPI?) async {
@@ -299,31 +212,27 @@ struct PushStatus: Decodable {
             #endif
             _ = try? await api.registerPush(.init(hostId: host.uuidString, token: token,
                 topic: Bundle.main.bundleIdentifier ?? "io.github.novarix.telar", sandbox: sandbox,
-                enabled: false, completions: false, previews: false, mutedSessions: [], activities: []))
+                enabled: false, completions: false, previews: false, mutedSessions: []))
         }
         await PushRelayClient.shared.revoke(host: host.uuidString)
-        for activity in Activity<SessionActivityAttributes>.activities where activity.attributes.hostId == host.uuidString {
+    }
+    private func endOtherCards() async {
+        let newest = Activity<SessionActivityAttributes>.activities.filter { $0.attributes.sessionId == AutomaticCard.sessionId }
+            .max { ($0.content.state.startedAt, $0.id) < ($1.content.state.startedAt, $1.id) }
+        for activity in Activity<SessionActivityAttributes>.activities where activity.id != newest?.id {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
-    private func endDuplicateCards() async {
-        let shown = Activity<SessionActivityAttributes>.activities
-        let extra = AutomaticCard.duplicates(shown.map {
-            .init(id: $0.id, hostId: $0.attributes.hostId, sessionId: $0.attributes.sessionId, startedAt: $0.content.state.startedAt)
-        })
-        for activity in shown where extra.contains(activity.id) { await activity.end(nil, dismissalPolicy: .immediate) }
-    }
     private func watch(_ activity: Activity<SessionActivityAttributes>) {
-        if activity.attributes.sessionId == "__automatic__" && !liveActivities {
+        if !liveActivities {
             Task { await activity.end(nil, dismissalPolicy: .immediate) }
             return
         }
-        guard let host = UUID(uuidString: activity.attributes.hostId) else { return }
         if let data = activity.pushToken { activityTokens[activity.id] = data.map { String(format: "%02x", $0) }.joined() }
         guard watchers[activity.id] == nil else { return }
         stateWatchers[activity.id] = Task { [weak self] in
             for await state in activity.activityStateUpdates {
-                if state == .dismissed && activity.attributes.sessionId == AutomaticCard.sessionId { self?.dismissedCards.insert(host) }
+                if state == .dismissed { self?.cardDismissed = true }
                 if state == .ended || state == .dismissed {
                     self?.activityTokens[activity.id] = nil
                     self?.watchers.removeValue(forKey: activity.id)?.cancel()

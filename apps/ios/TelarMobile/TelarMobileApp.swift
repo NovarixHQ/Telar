@@ -63,16 +63,6 @@ struct RootView: View {
                                         onRead: { answer in inbox.applyRead(ref, answer: answer) })
                                 .id("\(settings.apiFingerprint(ref.hostId)):\(ref.sessionId)")
                                 .environment(\.columnVisibility, $columnVisibility)
-                                .toolbar {
-                                    if columnVisibility == .detailOnly {
-                                        ToolbarItem(placement: .topBarLeading) {
-                                            Button("Show sidebar", systemImage: "sidebar.leading") {
-                                                withAnimation { columnVisibility = .all }
-                                            }
-                                            .keyboardShortcut("0", modifiers: [.command, .option])
-                                        }
-                                    }
-                                }
                         } else {
                             ContentUnavailableView {
                                 Label("Your work, within reach", systemImage: "text.bubble")

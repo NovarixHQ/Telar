@@ -7,6 +7,8 @@ struct TranscriptView: View {
 
     var onReceiptMarkerVisible: ((EngineID, Bool) -> Void)?
 
+    @State private var artifacts = ArtifactShelf()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             ForEach(groupNotificationTurns(turns).map(TurnGroup.init)) { group in
@@ -21,6 +23,8 @@ struct TranscriptView: View {
             }
         }
         .padding(.horizontal, 12)
+        .environment(\.artifactShelf, artifacts)
+        .environment(\.artifactVersions, latestArtifactVersions(turns))
     }
 }
 

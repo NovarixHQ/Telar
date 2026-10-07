@@ -128,6 +128,34 @@ struct NotificationDetail: Codable, Equatable {
     var deliveries: Int? = nil
 }
 
+enum ArtifactKind: String, Codable {
+    case html, svg, markdown, mermaid
+    case unknown
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = ArtifactKind(rawValue: raw) ?? .unknown
+    }
+
+    var fileExtension: String {
+        switch self {
+        case .html: "html"
+        case .svg: "svg"
+        case .markdown: "md"
+        case .mermaid: "mmd"
+        case .unknown: "txt"
+        }
+    }
+}
+
+struct Artifact: Codable, Equatable {
+    var id: String
+    var kind: ArtifactKind
+    var title: String
+    var attachmentId: EngineID
+    var version: Int
+}
+
 enum ItemDetail: Equatable {
     case userMessage(UserMessageDetail)
     case notification(NotificationDetail)
@@ -144,6 +172,7 @@ enum ItemDetail: Equatable {
     case task(taskId: EngineID)
     case contextCompaction(reason: String?, preTokens: Int?, postTokens: Int?)
     case error(ErrorDetail)
+    case artifact(Artifact)
     case unknown(label: String?)
 }
 
@@ -152,7 +181,7 @@ extension ItemDetail: Decodable {
         case type, text, plan, command, change, read, call, query, resultCount
         case url, taskId, reason, preTokens, postTokens, error, label
         case attachments, sender, notice, wakeReason
-        case notification
+        case notification, artifact
     }
 
     init(from decoder: Decoder) throws {
@@ -210,6 +239,8 @@ extension ItemDetail: Decodable {
             )
         case "error":
             self = (try? c.decode(ErrorDetail.self, forKey: .error)).map { .error($0) } ?? fallback()
+        case "artifact":
+            self = (try? c.decode(Artifact.self, forKey: .artifact)).map { .artifact($0) } ?? fallback()
         case "unknown":
             self = .unknown(label: try? c.decodeIfPresent(String.self, forKey: .label))
         default:

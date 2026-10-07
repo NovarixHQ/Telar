@@ -43,6 +43,8 @@ struct ActivityGroupView: View {
                     case .agent(let item):
 
                         TaskChipRow(item: item, tasks: tasks)
+                    case .artifact(let item):
+                        ItemRowView(item: item)
                     case .run(let run):
                         ActivityRunView(rows: run, tasks: tasks, live: live && index == lastRun)
                     }

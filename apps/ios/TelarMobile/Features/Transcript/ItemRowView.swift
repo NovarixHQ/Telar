@@ -72,6 +72,8 @@ struct ItemRowView: View {
         case .task:
 
             EmptyView()
+        case .artifact(let artifact):
+            ArtifactCard(artifact: artifact)
         case .unknown(let label):
             ToolChipLabel(icon: "questionmark.diamond", label: label ?? "unknown item", status: item.status)
         default:

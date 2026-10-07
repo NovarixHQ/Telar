@@ -35,6 +35,7 @@ struct JournalItem: Identifiable, Equatable {
         case .browserAction(let call, _): return displayToolName(call.name)
         case .webSearch(let query, _): return query
         case .error(let error): return error.message
+        case .artifact(let artifact): return artifact.title
         case .unknown(let label): return label ?? "unknown"
         case .notification(let detail): return detail.summary
         case .userMessage: return "user_message"

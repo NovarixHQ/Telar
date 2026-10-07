@@ -16,7 +16,7 @@ func segmentActivity(_ items: [JournalItem]) -> [ActivitySegment] {
     var segments: [ActivitySegment] = []
     for item in items {
         switch item.detail {
-        case .assistantMessage, .userMessage, .plan, .contextCompaction:
+        case .assistantMessage, .userMessage, .plan, .contextCompaction, .artifact:
             segments.append(.row(item))
         default:
             if case .run(var run)? = segments.last {
@@ -97,11 +97,12 @@ func renderable(_ items: [JournalItem], tasks: [JournalTask] = []) -> [JournalIt
 enum ActivityCut: Equatable, Identifiable {
     case run([JournalItem])
     case agent(JournalItem)
+    case artifact(JournalItem)
 
     var id: EngineID {
         switch self {
         case .run(let items): items[0].id
-        case .agent(let item): item.id
+        case .agent(let item), .artifact(let item): item.id
         }
     }
 }
@@ -115,6 +116,10 @@ func cutAroundLiveAgents(_ items: [JournalItem], tasks: [JournalTask]) -> [Activ
         }
         if live {
             out.append(.agent(item))
+            continue
+        }
+        if case .artifact = item.detail {
+            out.append(.artifact(item))
             continue
         }
         if case .run(var run)? = out.last {

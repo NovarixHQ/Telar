@@ -440,6 +440,7 @@ describe("a browser popped out into its own window", () => {
     const { onState, push } = pushing();
     const { host } = await mount(panelState({ popped: true }), { onState });
     await push(panelState({ popped: false }));
+    await waitFor(() => Boolean(host.querySelector('[role="tab"]')));
     expect(host.querySelector('[role="tab"]')).not.toBeNull();
     expect(host.textContent).not.toContain("In its own window");
   });

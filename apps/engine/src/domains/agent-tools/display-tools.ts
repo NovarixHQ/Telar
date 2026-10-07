@@ -23,13 +23,18 @@ const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or ma
 const PREVIEW = `Check before display_inline: renders html, svg or mermaid offscreen in the Look and returns a screenshot, the content height, console errors with stacks, and failed loads. Use contentHeight for display_inline's height and fix console errors, then publish. If it says the desktop app is needed or it timed out, publish anyway, once.`;
 
 const THEME_GUIDE = [
-  "The source. Give this or path. Html and svg get the person's Look as CSS variables on :root, in hex, following Look changes live:",
-  "--background (the canvas around the frame; transparent on a see-through Look), --foreground, --muted, --muted-foreground,",
-  "--card, --card-foreground (raised surfaces), --border, --primary, --primary-foreground (solid buttons), --secondary, --secondary-foreground,",
-  "--accent, --accent-foreground (hover surface), --success, --warning, --info, --destructive,",
+  "The source. Give this or path. Html and svg get the person's Look as CSS variables on :root, in hex with alpha kept, following Look changes live.",
+  "Never redeclare them or guess fallbacks: a :root rule of yours replaces the Look.",
+  "The scheme is explicit: data-scheme=\"dark\" or \"light\" on <html>, and color-scheme and --scheme on :root. Read it there, never from a colour's luminance; dark styles key off [data-scheme=dark].",
+  "--background (the canvas behind the frame; transparent on a see-through Look), --foreground, --muted, --muted-foreground,",
+  "--card, --card-foreground, --popover, --popover-foreground (raised surfaces), --border, --input (field borders and dark field fills), --ring (focus),",
+  "--primary, --primary-foreground (solid buttons), --secondary, --secondary-foreground, --accent, --accent-foreground (hover surface), --overlay (modal scrim),",
+  "--sidebar, --sidebar-foreground, --sidebar-primary, --sidebar-accent, --sidebar-accent-foreground, --sidebar-border, --sidebar-ring (the session list),",
+  "--success, --warning, --info, --destructive, --tint-blue, --tint-cyan, --tint-green, --tint-yellow, --tint-orange, --tint-red, --tint-pink, --tint-purple,",
   "--chart-1, --chart-2, --chart-3, --chart-4, --chart-5, --chart-6 (categorical series, legible on --background and --card), --code-background, --code-foreground, --code-comment,",
-  "--code-keyword, --code-string, --code-number, --code-function, --radius, --font-sans, --font-mono.",
-  "The base stylesheet sets html background, colour and font from these, body margin to 0, and hides the scrollbar; your own CSS overrides it. Mermaid takes the Look by itself.",
+  "--code-keyword, --code-string, --code-number, --code-function, --shadow-1, --shadow-2, --shadow-3 (box-shadow elevation), --radius, --font-sans, --font-mono.",
+  "To mock a cockpit component, translate its classes onto these: bg-input/30 is color-mix(in srgb, var(--input) 30%, transparent), shadow-2 is var(--shadow-2), dark: is [data-scheme=dark].",
+  "Never paint an opaque page background: html shows --background, the reply's own canvas. The base stylesheet sets html background, colour and font from these, body margin to 0, and hides the scrollbar. Mermaid takes the Look by itself.",
   "The page sits borderless on the reply's canvas, as wide as the reply column, with no frame or header around it: it is part of your reply.",
   "Use a fluid width with no outer card, border, banner title or horizontal padding on the outermost element. Give charts fixed pixel heights.",
   "Let content set the page's height: no 100vh or height:100% on html or body.",
@@ -40,7 +45,7 @@ const THEME_GUIDE = [
 ].join(" ");
 
 export const DISPLAY_BRIEFING =
-  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Build the page, check it with display_preview — use contentHeight for display_inline's height and fix console errors — then publish with display_inline before your final reply, without restating what the page shows. If the preview says the desktop app is needed or it timed out, publish anyway, once, without retrying. The page is part of your reply: no outer card or title.";
+  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Build the page, check it with display_preview — use contentHeight for display_inline's height and fix console errors — then publish with display_inline before your final reply, without restating what the page shows. If the preview says the desktop app is needed or it timed out, publish anyway, once, without retrying. The page is part of your reply: no outer card or title, and no opaque background. Its scheme is data-scheme on <html>; never guess it from a colour.";
 
 function sourceOf(args: Record<string, unknown>): { content?: string; path?: string } | undefined {
   const content = typeof args.content === "string" && args.content.length > 0 ? args.content : undefined;

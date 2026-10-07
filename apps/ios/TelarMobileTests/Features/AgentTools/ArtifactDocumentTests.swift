@@ -102,7 +102,7 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
         #expect(token("border", dark: true) == "#ffffff1a")
         #expect(token("chart-1", dark: false) == "#436ed1")
         #expect(token("chart-6", dark: true) == "#e4b33f")
-        for (name, value) in ArtifactLook.tokens(dark: true) where !["radius", "font-sans", "font-mono"].contains(name) {
+        for (name, value) in ArtifactLook.tokens(dark: true) where !["shadow-1", "shadow-2", "shadow-3", "radius", "font-sans", "font-mono"].contains(name) {
             #expect(value.range(of: "^#[0-9a-f]{6}([0-9a-f]{2})?$", options: .regularExpression) != nil, "\(name) is \(value)")
         }
     }
@@ -111,7 +111,8 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
         let names = Set(ArtifactLook.tokens(dark: false).map(\.name))
         let expected: Set = ["background", "foreground", "muted", "card", "border", "primary", "accent", "success", "warning",
                              "info", "destructive", "chart-1", "chart-2", "chart-3", "chart-4", "chart-5", "chart-6",
-                             "radius", "font-sans", "font-mono"]
+                             "input", "ring", "popover", "secondary", "sidebar", "tint-blue", "code-background",
+                             "shadow-1", "shadow-2", "shadow-3", "radius", "font-sans", "font-mono"]
         #expect(expected.isSubset(of: names))
     }
 
@@ -120,7 +121,8 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
         let look = html.range(of: "--background:#0a0a0a")!
         let page = html.range(of: "--background:red")!
         #expect(look.lowerBound < page.lowerBound)
-        #expect(html.contains(":where(:root){color-scheme:dark;"))
+        #expect(html.hasPrefix(#"<!doctype html><html data-scheme="dark">"#))
+        #expect(html.contains(":where(:root){color-scheme:dark;--scheme:dark;"))
         #expect(html.components(separatedBy: "<!doctype html>").count == 2)
         #expect(!html.localizedCaseInsensitiveContains("<!DOCTYPE html><style>:root"))
     }
@@ -130,6 +132,7 @@ private func artifactItem(_ id: String, artifactId: String = "chart", version: I
         #expect(script.hasPrefix("document.getElementById(\"telar-look\")"))
         #expect(script.contains("color-scheme:light"))
         #expect(script.contains("--background:#fcfcfc"))
+        #expect(script.hasSuffix(#"document.documentElement.dataset.scheme="light";"#))
     }
 
     @Test func svgIsFittedToTheColumn() {

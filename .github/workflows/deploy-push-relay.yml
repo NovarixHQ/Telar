@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: node --test workers/push-relay/worker.test.mjs
+      - run: node --test workers/push-relay/worker.test.mjs workers/push-relay/card.test.mjs
       - name: Deploy on existing Free plan
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

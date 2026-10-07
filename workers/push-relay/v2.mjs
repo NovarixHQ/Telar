@@ -28,7 +28,8 @@
  *     (#584 took that down once).
  */
 import { verifyAssertion, verifyAttestation } from './appattest.mjs';
-import { DAY, DEAD_TOKEN, appleReason, b64url, readText, reply, unb64 } from './shared.mjs';
+import { cardReport, hostPost, reconcileCard, registerCard, storeHost, wakeAt } from './card.mjs';
+import { DAY, DEAD_TOKEN, appleReason, b64url, digest, readText, reply, unb64 } from './shared.mjs';
 
 // Delete the legacy ids on `until`, together with MOBILE_TOPICS in apps/web/src/lib/mobile/push.ts.
 const LEGACY_BUNDLE_IDS = { until: '2026-11-01', ids: ['com.telar.mobile', 'com.telar.mobile.dev'] };
@@ -39,6 +40,7 @@ const id = /^[a-zA-Z0-9_-]{1,128}$/;
 const HANDLE = /^[A-Za-z0-9_-]{43}$/; // 32 random bytes
 const KEY_ID = /^[A-Za-z0-9_-]{22}$/; // 16 random bytes
 const CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
+const FINGERPRINT = /^[a-f0-9]{16}$/;
 const CHALLENGE_TTL = 300000;
 /** A registration the phone has not refreshed in this long is gone, and so is a
  *  send key nobody has used in this long. The phone refreshes on every launch
@@ -77,18 +79,26 @@ function ipKey(ip) {
   return [...front, ...Array(Math.max(0, 8 - front.length - back.length)).fill('0'), ...back].slice(0, 4).join(':') + '::/64';
 }
 
-/** The tokens a phone registers. The same shape at registration and on refresh. */
+// Older apps register an `__automatic__` card per Mac, named by token fingerprint. Drop `pushToStartToken`, `activities` and this on 2026-12-01.
+async function activityToken(activities, body) {
+  const named = activities.filter(a => a.id === body.activity);
+  if (body.fingerprint === undefined) return named[0]?.token;
+  for (const a of named) if ((await digest(a.token)).slice(0, 16) === body.fingerprint) return a.token;
+}
+
+/** The tokens a phone registers. The same shape at registration and on refresh; `card` is its one Live Activity. */
 function tokens(body) {
   if (!body || typeof body.token !== 'string' || !hex.test(body.token)) return;
   if (body.pushToStartToken !== undefined && (typeof body.pushToStartToken !== 'string' || !hex.test(body.pushToStartToken))) return;
+  if (body.card !== undefined && (typeof body.card !== 'string' || !hex.test(body.card))) return;
   const activities = body.activities ?? [];
   if (!Array.isArray(activities) || activities.length > 8 || !activities.every(a => a && typeof a.id === 'string' && id.test(a.id) && typeof a.token === 'string' && hex.test(a.token))) return;
-  return { token: body.token, activities: activities.map(a => ({ id: a.id, token: a.token })), ...(body.pushToStartToken === undefined ? {} : { pushToStartToken: body.pushToStartToken }) };
+  return { token: body.token, activities: activities.map(a => ({ id: a.id, token: a.token })), ...(body.pushToStartToken === undefined ? {} : { pushToStartToken: body.pushToStartToken }), ...(body.card === undefined ? {} : { card: body.card }) };
 }
 
 export async function handleV2(request, env, path) {
   const method = request.method;
-  const route = path.match(/^\/v2\/devices\/([A-Za-z0-9_-]{43})(\/push|\/keys(?:\/([A-Za-z0-9_-]{22}))?)?$/);
+  const route = path.match(/^\/v2\/devices\/([A-Za-z0-9_-]{43})(\/push|\/card|\/keys(?:\/([A-Za-z0-9_-]{22}))?)?$/);
   const kind = method === 'GET' && path === '/v2/challenge' ? 'challenge'
     : method === 'POST' && path === '/v2/devices' ? 'register'
     : route ? (route[2] === '/push' ? 'send' : 'phone') : undefined;
@@ -185,14 +195,16 @@ export class RelayDevice {
     const storage = this.state.storage;
     const path = new URL(request.url).pathname;
     if (path === '/internal/register') {
-      await storage.put('device', await request.json());
+      const { card, ...device } = await request.json();
+      await storage.put('device', device);
+      await registerCard(storage, card, Date.now());
       return reply(200);
     }
     const now = Date.now();
     const device = await storage.get('device');
     if (!device) return reply(404);
     if (now - device.updatedAt > STALE) { await storage.deleteAll(); return reply(410); }
-    const route = path.match(/^\/v2\/devices\/[A-Za-z0-9_-]{43}(\/push|\/keys(?:\/([A-Za-z0-9_-]{22}))?)?$/);
+    const route = path.match(/^\/v2\/devices\/[A-Za-z0-9_-]{43}(\/push|\/card|\/keys(?:\/([A-Za-z0-9_-]{22}))?)?$/);
     if (!route) return reply(404);
     const text = request.method === 'GET' || request.method === 'DELETE' ? '' : await request.text();
     if (route[1] === '/push') return this.send(request, path, text, device, now);
@@ -218,11 +230,15 @@ export class RelayDevice {
     if (!route[1] && request.method === 'PUT') {
       const refreshed = tokens(body);
       if (!refreshed) return reply(400);
+      const { card, ...registered } = refreshed;
       const current = await storage.get('device');
       delete current.pushToStartToken;
-      await storage.put('device', { ...current, ...refreshed, updatedAt: now });
+      await storage.put('device', { ...current, ...registered, updatedAt: now });
+      await registerCard(storage, card, now);
+      await this.cardTurn(device => reconcileCard(storage, this.env, device, now));
       return reply(200);
     }
+    if (route[1] === '/card' && request.method === 'GET') return reply(200, await cardReport(storage, now));
     if (!route[1] && request.method === 'DELETE') { await storage.deleteAll(); return reply(200); }
     if (route[1] === '/keys' && request.method === 'POST') {
       if (typeof body?.pairing !== 'string' || !id.test(body.pairing)) return reply(400);
@@ -275,7 +291,7 @@ export class RelayDevice {
       if (now - key.usedAt > DAY) await tx.put(`key:${keyId}`, { ...key, usedAt: now });
       return 'ok';
     });
-    if (await storage.getAlarm() === null) await storage.setAlarm(now + 2 * SKEW);
+    await wakeAt(storage, now + 2 * SKEW);
     if (allowed === 'replay') return reply(401);
     if (allowed === 'day') return reply(429, { error: 'daily_budget' }, retryAfter((day + 1) * DAY - now));
     // NO Retry-After: that header pauses the whole Mac (`pauseHost`), and alerts
@@ -283,6 +299,13 @@ export class RelayDevice {
     if (allowed === 'background') return reply(429, { error: 'background_budget' });
     if (allowed !== 'ok') return reply(429, {}, retryAfter(60000 - now % 60000));
 
+    if (body?.kind === 'card') {
+      const post = hostPost(body);
+      if (!post) return reply(400);
+      await storeHost(storage, key.pairing, post.host, now);
+      const alerted = await this.cardTurn(device => reconcileCard(storage, this.env, device, now, post.alert));
+      return reply(200, { status: 200, alerted });
+    }
     const alert = body?.kind === 'alert', activity = body?.kind === 'liveactivity';
     const start = activity && body.start === true;
     // A BACKGROUND PUSH IS SILENT OR IT IS REFUSED. `aps` is exactly
@@ -290,9 +313,9 @@ export class RelayDevice {
     // badge at priority 5 under a push type Apple does not display.
     if (background && JSON.stringify(body.payload?.aps) !== '{"content-available":1}') return reply(400);
     if ((!alert && !activity && !background) || typeof body.collapseId !== 'string' || !/^[a-f0-9]{64}$/.test(body.collapseId) || !body.payload?.aps || new TextEncoder().encode(JSON.stringify(body.payload)).length > 4096) return reply(400);
-    if (activity && !start && (typeof body.activity !== 'string' || !id.test(body.activity))) return reply(400);
+    if (activity && !start && (typeof body.activity !== 'string' || !id.test(body.activity) || (body.fingerprint !== undefined && !FINGERPRINT.test(body.fingerprint)))) return reply(400);
     // WHERE is decided here, from what the phone registered, never by the Mac.
-    const token = alert || background ? device.token : start ? device.pushToStartToken : device.activities.find(a => a.id === body.activity)?.token;
+    const token = alert || background ? device.token : start ? device.pushToStartToken : await activityToken(device.activities, body);
     if (!token) return reply(409, { error: 'not_registered' });
     const topic = alert || background ? device.bundle : `${device.bundle}.push-type.liveactivity`;
     try {
@@ -313,24 +336,33 @@ export class RelayDevice {
       if (response.status === 200) await response.body?.cancel();
       else reason = await appleReason(response);
       if (response.status === 410 || DEAD_TOKEN.has(reason)) {
-        // Only the dead token goes. The handle and its keys stay, so the next
-        // refresh from the phone brings this pair back without re-pairing.
+        // Only the dead token goes: the phone's next refresh restores the pair without re-pairing.
         const current = await storage.get('device');
         if (alert || background) delete current.token;
         else if (start) delete current.pushToStartToken;
-        else current.activities = current.activities.filter(a => a.id !== body.activity);
+        else current.activities = current.activities.filter(a => a.token !== token);
         await storage.put('device', current);
       }
       return reply(200, { status: response.status, ...(reason === undefined ? {} : { reason }) });
     } catch { return reply(503); }
   }
 
-  /** Forgets signatures whose timestamps would be refused anyway. */
+  cardTurn(run) {
+    const turn = (this.turn ?? Promise.resolve()).then(async () => {
+      const device = await this.state.storage.get('device');
+      return device ? run(device) : false;
+    });
+    this.turn = turn.catch(() => false);
+    return turn;
+  }
+
+  /** Brings the card up to date and forgets signatures whose timestamps would be refused anyway. */
   async alarm() {
     const now = Date.now();
+    await this.cardTurn(device => reconcileCard(this.state.storage, this.env, device, now));
     const seen = await this.state.storage.list({ prefix: 'seen:', limit: 1000 });
     const stale = [...seen].filter(([, v]) => v.until < now).map(([k]) => k);
     if (stale.length) await this.state.storage.delete(stale);
-    if (seen.size > stale.length) await this.state.storage.setAlarm(now + 2 * SKEW);
+    if (seen.size > stale.length) await wakeAt(this.state.storage, now + 2 * SKEW);
   }
 }

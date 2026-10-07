@@ -20,15 +20,30 @@ the App Attest capability enabled.
 | Who | Request | Proof |
 |---|---|---|
 | Phone | `GET /v2/challenge` → `{challenge}` | none; per-IP limited, single use, 5 minutes |
-| Phone | `POST /v2/devices` `{keyId, attestation, challenge, bundle, sandbox, token, pushToStartToken?, activities:[{id, token}]}` → `201 {handle}` | App Attest attestation over `SHA256(challenge)` |
+| Phone | `POST /v2/devices` `{keyId, attestation, challenge, bundle, sandbox, token, card?, pushToStartToken?, activities:[{id, token}]}` → `201 {handle}` | App Attest attestation over `SHA256(challenge)` |
 | Phone | `PUT /v2/devices/:handle` (refresh tokens), `DELETE` (forget everything) | `x-telar-assertion` over `"<METHOD> <path>\n<body>"` |
+| Phone | `GET /v2/devices/:handle/card` → `{card, hosts, attempts}` | assertion as above |
 | Phone | `POST /v2/devices/:handle/keys` `{pairing}` → `201 {keyId, sendKey}`; `DELETE …/keys/:keyId` | assertion as above |
-| Mac | `POST /v2/devices/:handle/push` `{kind:"alert"\|"liveactivity"\|"background", start?, activity?, collapseId, payload}` → `{status, reason?}` | `x-telar-key`, `x-telar-timestamp` (ms), `x-telar-signature` = hex HMAC-SHA256(sendKey, `"<ts>\nPOST\n<path>\n<body>"`) |
+| Mac | `POST /v2/devices/:handle/push` `{kind:"alert"\|"liveactivity"\|"background", start?, activity?, fingerprint?, collapseId, payload}` → `{status, reason?}`, or `{kind:"card", host:{id, name}, active, rows, alert?}` → `{status:200, alerted}` | `x-telar-key`, `x-telar-timestamp` (ms), `x-telar-signature` = hex HMAC-SHA256(sendKey, `"<ts>\nPOST\n<path>\n<body>"`) |
 
 - **Tokens stay in the relay.** The Mac names a kind and, for a Live
   Activity, the activity id the phone registered. The relay picks the token,
   the topic (`<bundle>` or `<bundle>.push-type.liveactivity`) and the APNs host
   (`sandbox` → `api.sandbox.push.apple.com`).
+- **One card per phone.** The phone starts its Live Activity itself, in the
+  foreground, and registers its token as `card`. Each Mac posts its own rows
+  (at most 5, only what the card shows) and beats every 2 minutes while it has
+  any; a Mac silent for 10 minutes drops off. The relay merges every Mac's rows
+  into that card, most urgent first, at most 5. A routine change waits until 15
+  s after the last update; a new count, a session newly needing you or newly
+  finished goes at once. Unchanged content is sent again every 5 minutes, so the
+  card never reaches its 10-minute stale date. With no rows left the card ends,
+  except in its first 2 minutes. A card post is never refused for a missing
+  card: `alerted` says whether the alert rode on the card, so the Mac knows
+  whether to send its own. The last 20 attempts are kept for the phone to read.
+- **Older apps** register one `__automatic__` card per Mac. The Mac names which by
+  `fingerprint`, the first 16 hex of the SHA-256 of that card's token, until
+  2026-12-01.
 - **Bundles:** `io.github.novarix.telar` and `io.github.novarix.telar.dev`, plus the legacy
   `com.telar.mobile` and `com.telar.mobile.dev` for phones not yet moved, until 2026-11-01.
 - **Keys:** there is one send key per pairing. Asking again for the same

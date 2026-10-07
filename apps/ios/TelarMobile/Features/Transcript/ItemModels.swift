@@ -154,6 +154,7 @@ struct Artifact: Codable, Equatable {
     var title: String
     var attachmentId: EngineID
     var version: Int
+    var height: Int?
 }
 
 enum ItemDetail: Equatable {

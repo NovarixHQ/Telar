@@ -39,42 +39,28 @@ struct ArtifactCard: View {
     @State private var expanded = false
 
     var body: some View {
-        let newest = max(versions[artifact.id] ?? artifact.version, artifact.version)
-        VStack(alignment: .leading, spacing: 0) {
-            Button { expanded = true } label: { header(newest: newest) }
-                .buttonStyle(.plain)
-                .accessibilityHint("Opens full screen")
-            if newest == artifact.version {
-                Rectangle().fill(Theme.border).frame(height: 1)
-                ArtifactBody(artifact: artifact)
-            }
-        }
-        .background(Theme.canvas)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radiusRow))
-        .hairline(Theme.radiusRow)
-        .fullScreenCover(isPresented: $expanded) { ArtifactSheet(artifact: artifact) }
-    }
-
-    private func header(newest: Int) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "square.on.circle")
-                .font(.system(Theme.caption, weight: .medium))
+        if (versions[artifact.id] ?? artifact.version) > artifact.version {
+            Text("\(artifact.title) · updated below")
+                .font(Theme.meta)
                 .foregroundStyle(Theme.textMuted)
-            Text(artifact.title)
-                .font(.system(Theme.footnote, weight: .medium))
-                .foregroundStyle(Theme.text)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            if let label = artifactVersionLabel(artifact, newest: newest) {
-                Text(label).font(Theme.monoSmall).foregroundStyle(Theme.textMuted).tabularNumbers()
-            }
-            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                .font(.system(Theme.caption, weight: .medium))
-                .foregroundStyle(Theme.textMuted)
+        } else {
+            ArtifactBody(artifact: artifact)
+                .overlay(alignment: .topTrailing) {
+                    Button { expanded = true } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(Theme.caption, weight: .medium))
+                            .foregroundStyle(Theme.textMuted)
+                            .padding(6)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(6)
+                    .accessibilityLabel("Open \(artifact.title) full screen")
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(artifact.title)
+                .fullScreenCover(isPresented: $expanded) { ArtifactSheet(artifact: artifact) }
         }
-        .padding(.horizontal, 10)
-        .frame(minHeight: 36)
-        .contentShape(Rectangle())
     }
 }
 
@@ -98,13 +84,13 @@ private struct ArtifactBody: View {
     @ViewBuilder private var content: some View {
         switch load {
         case .loading:
-            ArtifactNotice(text: "Loading…").frame(height: ArtifactFrame.height(measured: probe?.height))
+            Color.clear.frame(height: ArtifactFrame.height(measured: probe?.height, hint: artifact.height))
         case .failed:
             ArtifactNotice(text: "This artifact could not be loaded.")
         case .loaded(let text, _):
             switch artifact.kind {
             case .html, .svg: frame(text)
-            case .markdown: MarkdownText(text: text).padding(.horizontal, 12).padding(.vertical, 10)
+            case .markdown: MarkdownText(text: text)
             case .mermaid, .unknown: ArtifactNotice.desktopOnly(artifact.kind)
             }
         }
@@ -116,7 +102,7 @@ private struct ArtifactBody: View {
                 ArtifactNotice(text: "This artifact stopped responding.")
             } else if shelf?.slots.isLive(key) ?? true {
                 ArtifactWebView(
-                    key: key, content: text, kind: artifact.kind, dark: scheme == .dark, scrolls: ArtifactFrame.scrolls(probe),
+                    key: key, content: text, kind: artifact.kind, dark: scheme == .dark, scrolls: ArtifactFrame.scrolls(probe, hint: artifact.height),
                     onProbe: { probe in
                         localProbe = probe
                         shelf?.record(probe, for: key)
@@ -130,7 +116,7 @@ private struct ArtifactBody: View {
                 .buttonStyle(.plain)
             }
         }
-        .frame(height: ArtifactFrame.height(measured: probe?.height))
+        .frame(height: ArtifactFrame.height(measured: probe?.height, hint: artifact.height))
         .onScrollVisibilityChange(threshold: 0.05) { visible in
             if visible { shelf?.claim(key) } else { shelf?.release(key) }
         }
@@ -155,7 +141,6 @@ struct ArtifactNotice: View {
         }
         .font(Theme.meta)
         .foregroundStyle(Theme.textMuted)
-        .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
     }

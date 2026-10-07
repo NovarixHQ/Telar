@@ -3,7 +3,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { JournalItem } from "@/platform/engine";
 import { cutAroundStandingRows, segmentActivity, transcriptTasks, turnActivity } from "@/features/transcript";
-import { cockpitPlugins, describeTurnState, markerRowOf, pinToggleOverride, transcriptRows } from "./model";
+import { emptyPanelTabs, type PanelTab } from "@/features/panel";
+import { cockpitPlugins, describeTurnState, markerRowOf, pinToggleOverride, showSimulatorTab, transcriptRows } from "./model";
 import { SessionTurn } from "./components/session-turn";
 
 const rendered = { runId: "run_1", sessionId: "session_1", status: "completed", startedAt: 1, completedAt: 2, streamedText: "", openedBy: 0 } as const;
@@ -437,4 +438,13 @@ describe("⌘P pins the conversation you are reading, and unpins it again", () =
     // Settled is somebody's decision to shelve this; Pin over it means pin.
     expect(pinToggleOverride("settled")).toBe("active");
   });
+});
+
+test("docking a simulator opens the panel on a Simulator tab with that simulator selected, reusing the tab it already has", () => {
+  const docked = showSimulatorTab({ ...emptyPanelTabs<PanelTab>(), open: false }, "A1B2");
+  expect(docked.open).toBe(true);
+  expect(docked.tabs).toEqual([{ id: docked.activeTab!, kind: "simulator", params: { open: "A1B2", active: "A1B2" } }]);
+  const again = showSimulatorTab({ ...docked, open: false }, "C3D4");
+  expect(again.open).toBe(true);
+  expect(again.tabs).toEqual([{ id: docked.activeTab!, kind: "simulator", params: { open: "A1B2,C3D4", active: "C3D4" } }]);
 });

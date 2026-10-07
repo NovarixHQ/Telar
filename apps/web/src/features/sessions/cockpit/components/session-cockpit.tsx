@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { WorkspaceInspector } from "@/features/sessions/components/workspace-inspector";
 import type { ConversationFollowHandle } from "@/ui/conversation";
@@ -9,10 +10,11 @@ import { canvasPanelKey, RailToggle, RightPanel } from "@/features/panel";
 import { usePluginPanels } from "@/features/plugins";
 import { useProviderInstance } from "@/features/providers";
 import { SessionSchedules } from "@/features/schedules";
+import { floatKey, useSimulatorFloat } from "@/features/simulators";
 import { normaliseContextNoticePercent } from "@/features/composer/context-notice";
 import { hostFromPathname } from "@/platform/engine/host-client";
 import { canvasHref } from "../../session-list";
-import { pinToggleOverride } from "../model";
+import { pinToggleOverride, showSimulatorTab } from "../model";
 import { useCockpitCommands } from "../hooks/use-cockpit-commands";
 import { useCockpitPanel } from "../hooks/use-cockpit-panel";
 import { useCockpitProject } from "../hooks/use-cockpit-project";
@@ -33,6 +35,8 @@ import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
 import { useReadReceipt } from "./read-receipt";
 import { TranscriptList } from "./transcript-list";
+
+const FloatingSimulator = dynamic(() => import("@/features/simulators/components/floating-simulator").then((mod) => mod.FloatingSimulator));
 
 export function SessionCockpit({
   projectId,
@@ -91,13 +95,14 @@ export function SessionCockpit({
   useNavigationMarks(pathname, transcriptLanded, sync.loading);
   const receipt = useReadReceipt(hostId, sessionId, sync);
   const providerInstance = useProviderInstance(session?.providerInstanceId, session?.driver);
+  const floating = useSimulatorFloat(sessionId && !solo ? floatKey(hostId, sessionId) : undefined).simulator;
   const panelGestures = solo
     ? {}
     : { onOpenAgent: model.showAgent, onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
 
   return (
     <main data-surfaces className="group/surfaces flex min-h-0 flex-1 overflow-hidden md:overflow-visible md:gap-2">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border md:group-has-[[data-panel-fullscreen]]/surfaces:shadow-none md:group-has-[[data-panel-fullscreen]]/surfaces:ring-0">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border md:group-has-[[data-panel-fullscreen]]/surfaces:shadow-none md:group-has-[[data-panel-fullscreen]]/surfaces:ring-0">
         {solo ? (
           <SoloTools projectId={projectId} hostId={hostId} session={session} />
         ) : (
@@ -150,6 +155,11 @@ export function SessionCockpit({
             contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
           })}
         />
+        {floating && sessionId && (
+          <Suspense fallback={null}>
+            <FloatingSimulator sessionId={sessionId} hostId={hostId} onOpenInPanel={(id) => panelState.updatePanel((current) => showSimulatorTab(current, id))} />
+          </Suspense>
+        )}
       </div>
       {panelPresence.mounted && (
         <RightPanel

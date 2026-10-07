@@ -159,7 +159,7 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
       />
     );
   if (kind === "simulator")
-    return <SimulatorSurface key={instanceKey} {...(hostId ? { hostId } : {})} visible={props.visible} params={tab.params} {...(onTabParams ? { onParams: onTabParams } : {})} />;
+    return <SimulatorSurface key={instanceKey} {...(hostId ? { hostId } : {})} {...(sessionId ? { sessionId } : {})} visible={props.visible} params={tab.params} {...(onTabParams ? { onParams: onTabParams } : {})} />;
   const filePath = model.filePanelPath(kind);
   if (filePath !== undefined) return <FileViewSurface path={filePath} {...scoped} {...(active ? { active } : {})} />;
   return undefined;

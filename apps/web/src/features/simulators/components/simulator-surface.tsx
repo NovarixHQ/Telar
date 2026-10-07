@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import { PlusIcon, XIcon } from "lucide-react";
 import type { SimulatorSummary } from "@telar/engine-client";
+import { Button } from "@/ui/button";
 import { cn } from "@/ui/utils";
 import { createSimulatorsApi, type SimulatorsApi } from "../api";
+import { dockSimulator, floatKey, floatSimulator, useSimulatorFloat } from "../float";
 import { useSimulators } from "../hooks/use-simulators";
 import { openSimulators } from "../tabs";
 import { SimulatorIcon, SimulatorList } from "./simulator-list";
@@ -13,6 +15,7 @@ import { SimulatorView } from "./simulator-view";
 
 type SurfaceProps = {
   hostId?: string;
+  sessionId?: string;
   visible: boolean;
   params?: Readonly<Record<string, string>>;
   onParams?: (params: Record<string, string>) => void;
@@ -21,7 +24,18 @@ type SurfaceProps = {
 
 const LIST = "";
 
-export function SimulatorSurface({ hostId, visible, params, onParams, api: injected }: SurfaceProps) {
+function FloatingElsewhere({ name, onDock }: { name: string; onDock: () => void }) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center text-xs text-muted-foreground">
+      <p>{name} is floating over the chat.</p>
+      <Button size="xs" variant="outline" onClick={onDock}>
+        Open in right panel
+      </Button>
+    </div>
+  );
+}
+
+export function SimulatorSurface({ hostId, sessionId, visible, params, onParams, api: injected }: SurfaceProps) {
   const api = useMemo(() => injected ?? createSimulatorsApi(hostId), [injected, hostId]);
   const { state, error, refresh } = useSimulators(api, visible);
   const [local, setLocal] = useState<Readonly<Record<string, string>>>(() => params ?? {});
@@ -41,6 +55,8 @@ export function SimulatorSurface({ hostId, visible, params, onParams, api: injec
   const simulators = state?.simulators ?? [];
   const named = (id: string) => simulators.find((simulator) => simulator.id === id);
   const current = active === LIST ? undefined : named(active);
+  const float = sessionId ? floatKey(hostId, sessionId) : undefined;
+  const floating = useSimulatorFloat(float).simulator;
 
   const attempt = async (work: () => Promise<void>) => {
     try {
@@ -85,18 +101,25 @@ export function SimulatorSurface({ hostId, visible, params, onParams, api: injec
       <div className="flex min-h-0 flex-1">
         {current?.booted && state?.status === "ready" ? (
           <>
-            <div className="min-w-0 flex-1">
-              <SimulatorView
-                key={current.id}
-                simulator={current}
-                api={api}
-                {...(hostId ? { hostId } : {})}
-                visible={visible}
-                settingsOpen={settingsOpen}
-                onToggleSettings={() => setSettingsOpen((value) => !value)}
-                onPowerOff={() => shutdown(current)}
-              />
-            </div>
+            {float && floating?.id === current.id ? (
+              <FloatingElsewhere name={current.name} onDock={() => dockSimulator(float)} />
+            ) : (
+              <div className="min-w-0 flex-1">
+                <SimulatorView
+                  key={current.id}
+                  simulator={current}
+                  api={api}
+                  {...(hostId ? { hostId } : {})}
+                  visible={visible}
+                  docked={{
+                    settingsOpen,
+                    onToggleSettings: () => setSettingsOpen((value) => !value),
+                    onPowerOff: () => shutdown(current),
+                    ...(float ? { onFloat: () => floatSimulator(float, current) } : {}),
+                  }}
+                />
+              </div>
+            )}
             {settingsOpen && <SimulatorSettings key={current.id} simulator={current} api={api} visible={visible} onClose={() => setSettingsOpen(false)} />}
           </>
         ) : (

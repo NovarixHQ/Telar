@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { artifactTheme, type ArtifactTheme, artifactThemeCss, mermaidThemeVariables, type PublishedAppearance, TELAR_DARK, TELAR_LIGHT } from "@telar/engine-client";
+import { ARTIFACT_BASE_CSS, artifactTheme, type ArtifactTheme, artifactThemeCss, mermaidThemeVariables, type PublishedAppearance, TELAR_DARK, TELAR_LIGHT } from "@telar/engine-client";
 import { MAX_ANSWER_CHARS } from "./tool-kit";
 
 export const PreviewKind = z.enum(["html", "svg", "mermaid"]);
@@ -86,8 +86,7 @@ function mermaidBody(source: string, theme: ArtifactTheme): string {
 
 export function previewDocument(kind: PreviewKind, content: string, theme: ArtifactTheme): string {
   const body = kind === "svg" ? svgImage(content) : kind === "mermaid" ? mermaidBody(content, theme) : content.replace(/^\s*<!doctype[^>]*>/i, "");
-  const base = `:where(:root){background:var(--background)}:where(body){margin:0;padding:12px 14px;font:13px/1.5 var(--font-sans,system-ui,-apple-system,sans-serif);color:var(--foreground,CanvasText);background:transparent}`;
-  return `<!doctype html><meta charset="utf-8"><style>${artifactThemeCss(theme)}${base}</style>${body}`;
+  return `<!doctype html><meta charset="utf-8"><style>${artifactThemeCss(theme)}${ARTIFACT_BASE_CSS}</style>${body}`;
 }
 
 export async function withinTimeout<T>(work: Promise<T>, ms: number): Promise<T> {

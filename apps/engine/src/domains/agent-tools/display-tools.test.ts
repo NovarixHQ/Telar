@@ -196,7 +196,20 @@ describe("display_inline", () => {
     expect((await run({ kind: "svg", title: "A", content: "x", path: "a.svg" })).isError).toBe(true);
     expect(textOf(await run({ kind: "png", title: "A", content: "x" }))).toContain("html, svg, markdown, mermaid");
     expect(textOf(await run({ kind: "svg", title: "A", content: "x", id: "../etc" }))).toMatch(/letters, digits/);
+    expect(textOf(await run({ kind: "html", title: "A", content: "x", height: 12.5 }))).toMatch(/whole number of pixels from 80 to 2000/);
+    expect((await run({ kind: "html", title: "A", content: "x", height: 5000 })).isError).toBe(true);
     expect(inlined).toEqual([]);
+  });
+
+  test("carries the page's height to the conversation, which holds that space while it loads", async () => {
+    const { named, inlined } = build();
+    expect((await named("display_inline").run({ kind: "html", title: "Chart", content: "<p>x</p>", height: 420 })).isError).toBeUndefined();
+    expect(inlined).toEqual([{ kind: "html", title: "Chart", content: "<p>x</p>", height: 420 }]);
+  });
+
+  test("the answer tells the agent the person already sees it, so the reply does not restate it", async () => {
+    const result = await build().named("display_inline").run({ kind: "html", title: "Chart", content: "<p>x</p>" });
+    expect(textOf(result)).toMatch(/don't restate/);
   });
 });
 
@@ -222,6 +235,8 @@ describe("the worker's inline capability", () => {
       expect(await capability.inline({ kind: "html", title: "Page", content: "<p>hi</p>", id: "page" })).toEqual({ id: "page" });
       expect(uploads).toEqual([{ name: "page.txt", mediaType: "text/plain", data: "<p>hi</p>" }]);
       expect(reports).toEqual([{ kind: "artifact.published", artifact: { id: "page", kind: "html", title: "Page", attachmentId: "att_1" } }]);
+      await capability.inline({ kind: "html", title: "Tall", content: "<p>hi</p>", id: "tall", height: 640 });
+      expect(reports.at(-1)).toEqual({ kind: "artifact.published", artifact: { id: "tall", kind: "html", title: "Tall", attachmentId: "att_2", height: 640 } });
       const minted = await capability.inline({ kind: "markdown", title: "Notes", content: "# hi" });
       expect(minted.id).toMatch(/^art_[a-f0-9]{8}$/);
     } finally {

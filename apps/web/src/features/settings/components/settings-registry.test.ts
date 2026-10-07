@@ -12,8 +12,8 @@ test("every indexed pane is a pane the shell can actually select", () => {
 test("no two rows claim the same anchor", () => {
   const ids = SETTINGS_SEARCH_INDEX.entries.map((entry) => entry.id);
   expect(new Set(ids).size).toBe(ids.length);
-  expect(ids).toContain("settings-row-about-this-build-engine");
-  expect(ids).toContain("settings-row-tools-computer-use");
+  expect(ids).toContain("settings-row-general-about-engine");
+  expect(ids).toContain("settings-row-integrations-computer-use");
 });
 
 test("the questions a person actually types find the row", () => {
@@ -36,8 +36,12 @@ test("every indexed row is declared on the pane that actually renders it", () =>
   const paneOf: Record<string, string> = {
     "Remembered logins": "integrations",
     "Browser profiles": "integrations",
-    "Add a server": "tools",
-    "Add a computer": "remote",
+    "Add a server": "integrations",
+    "Add a computer": "connections",
+    "Rename branches to match": "source-control",
+    "Terminals settled sessions may keep open": "storage",
+    "Notify on": "notifications",
+    "Continue after Telar restarts": "general",
     "Settle quiet sessions": "general",
     "Add a login": "providers",
   };
@@ -49,8 +53,8 @@ test("every indexed row is declared on the pane that actually renders it", () =>
 
 test("a result carries the pane it lives on, which is what the list shows", () => {
   const hit = searchSettings(SETTINGS_SEARCH_INDEX, "tailscale")[0];
-  expect(hit?.pageId).toBe("remote");
-  expect(hit?.pageLabel).toBe("Remote access");
+  expect(hit?.pageId).toBe("connections");
+  expect(hit?.pageLabel).toBe("Connections");
 });
 
 test("generated plugin rows join the index on the Projects and Plugins panes", async () => {

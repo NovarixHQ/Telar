@@ -139,7 +139,7 @@ function DeviceRow({ device, isSelf, busy, onRename, onRole, onRevoke }: { devic
 export function RemoteDevicesGroup({ status, ...actions }: { status: RemoteStatus } & DeviceActions) {
   return (
     <SettingsGroup
-      title="Paired devices"
+      title="Devices that reach this Mac"
       description={
         status.requireAuth ? "Devices that may reach this cockpit." : "Pairing is off — these credentials only matter again when you turn it back on."
       }

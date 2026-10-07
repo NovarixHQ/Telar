@@ -39,7 +39,7 @@ Type `/orchestrate` in the composer and paste your list. The orchestrate skill h
 5. pass each worker's blockers to you, with a recommendation,
 6. settle the workers when their work is done, and keep you updated with a short summary.
 
-`/orchestrate` shows up only when the skill is installed. Telar installs it together with the telar skill, under Settings → Agent tools → Telar orientation.
+`/orchestrate` shows up only when the skill is installed. Telar installs it together with the telar skill, under Settings → Integrations → Telar orientation.
 
 Standing rules that differ per project, such as who may merge or how many workers may run at once, belong in a note in that project's notebook. The coordinator reads it before it starts.
 

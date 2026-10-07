@@ -6,7 +6,7 @@ const { passwordManagerEnabled, setPasswordManagerEnabled } = require("../login/
 const { browserManagers, requireBrowserManager, requireCockpitSender } = require("./browser-hosts");
 const { openInSystemBrowser } = require("./window-links");
 
-const PASSWORD_MANAGER_OFF = "The password manager is turned off in Settings → Browser.";
+const PASSWORD_MANAGER_OFF = "The password manager is turned off in Settings → Integrations.";
 
 function registerViewIpc({ requireBrowserSuggestions }) {
   ipcMain.handle("telar:browser:suggestions", async (event, scopeKey) => {

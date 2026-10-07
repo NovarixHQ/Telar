@@ -3,7 +3,7 @@
 import { GlobeIcon, LockIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { desktopApp } from "@/platform/desktop/desktop-app";
-import { Row, SettingsGroup, ToggleRow } from "@/features/settings";
+import { Row, ToggleRow } from "@/features/settings";
 import { describeServeError } from "../tailscale-serve";
 import type { RemoteStatus } from "../api";
 
@@ -42,7 +42,7 @@ function ExposureHint({ status }: { status: RemoteStatus }) {
   );
 }
 
-export function RemoteEnvironmentGroup({
+export function RemoteEnvironmentRows({
   status,
   restartNeeded,
   onExposure,
@@ -55,7 +55,7 @@ export function RemoteEnvironmentGroup({
 }) {
   const relaunch = desktopApp();
   return (
-    <SettingsGroup title="This environment">
+    <>
       <ToggleRow
         label="Network access"
         icon={GlobeIcon}
@@ -64,7 +64,7 @@ export function RemoteEnvironmentGroup({
         onCheckedChange={(next) => onExposure(next ? "network-accessible" : "local-only")}
       />
       <ToggleRow
-        label="Tailscale HTTPS"
+        label="HTTPS on your private network"
         icon={LockIcon}
         hint={<TailscaleHint status={status} />}
         checked={status.tailscaleServe === true}
@@ -83,6 +83,6 @@ export function RemoteEnvironmentGroup({
           }
         />
       )}
-    </SettingsGroup>
+    </>
   );
 }

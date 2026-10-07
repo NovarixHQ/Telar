@@ -5,7 +5,6 @@ import {
   ClockIcon,
   BoxesIcon,
   CopyIcon,
-  DownloadIcon,
   FlaskConicalIcon,
   FolderGitIcon,
   FolderKanbanIcon,
@@ -15,7 +14,6 @@ import {
   GlobeIcon,
   HardDriveIcon,
   ImageIcon,
-  InfoIcon,
   LockIcon,
   MonitorIcon,
   MoonIcon,
@@ -242,12 +240,12 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
     ],
   },
   {
-    id: "remote",
-    label: "Remote access",
+    id: "connections",
+    label: "Connections",
     icon: SmartphoneIcon,
     groups: [
       {
-        title: "Pairing",
+        title: "This Mac",
         rows: [
           {
             title: "Require pairing",
@@ -255,11 +253,6 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
             keywords: ["auth", "security", "phone", "ipad"],
             icon: SmartphoneIcon,
           },
-        ],
-      },
-      {
-        title: "This environment",
-        rows: [
           {
             title: "Network access",
             hint: "Listen on every interface, or on 127.0.0.1 only.",
@@ -267,9 +260,9 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
             icon: GlobeIcon,
           },
           {
-            title: "Tailscale HTTPS",
-            hint: "Publish through Tailscale Serve at a MagicDNS HTTPS URL, so phone browsers get a secure context.",
-            keywords: ["tailnet", "magicdns", "certificate", "serve"],
+            title: "HTTPS on your private network",
+            hint: "A real certificate at a private-network address, so phone browsers get a secure context.",
+            keywords: ["tailscale", "tailnet", "magicdns", "certificate", "serve"],
             icon: LockIcon,
           },
         ],
@@ -286,7 +279,7 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
         ],
       },
       {
-        title: "Paired devices",
+        title: "Devices that reach this Mac",
         rows: [
           {
             title: "Revoke all other devices",
@@ -296,6 +289,24 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
           },
         ],
       },
+      {
+        title: "Computers this Mac reaches",
+        rows: [
+          {
+            title: "Add a computer",
+            hint: "Another Telar's conversations, in this rail, from its pairing link.",
+            keywords: ["host", "pair", "second machine", "remote", "mac", "computer"],
+            icon: MonitorIcon,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: BellIcon,
+    groups: [
       {
         title: "Push notifications",
         rows: [
@@ -317,17 +328,6 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
             hint: "The sound this computer's alerts play.",
             keywords: ["sound", "chime", "audio", "mute", "silent", "hilo", "armonico", "felt"],
             icon: Volume2Icon,
-          },
-        ],
-      },
-      {
-        title: "Other computers",
-        rows: [
-          {
-            title: "Add a computer",
-            hint: "Another Telar's conversations, in this rail, from its pairing link.",
-            keywords: ["host", "pair", "second machine", "remote", "mac", "computer"],
-            icon: MonitorIcon,
           },
         ],
       },
@@ -366,10 +366,21 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
             icon: ArchiveIcon,
           },
           {
-            title: "Location",
+            title: "Worktree folder",
             hint: "Where new worktrees are made; the summary below moves the ones already made.",
             keywords: ["worktree", "checkout", "external", "drive", "move", "space", "disk", "relocate", "worktree folder", "how many", "size"],
             icon: FolderGitIcon,
+          },
+        ],
+      },
+      {
+        title: "Terminals",
+        rows: [
+          {
+            title: "Terminals settled sessions may keep open",
+            hint: "Past it, the session settled longest ago has its terminals closed first.",
+            keywords: ["terminal", "process", "dev server", "shell", "limit", "cap", "running", "settled"],
+            icon: TerminalIcon,
           },
         ],
       },
@@ -394,7 +405,7 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
         title: "Store",
         rows: [
           {
-            title: "Location",
+            title: "Data folder",
             hint: "Where Telar keeps everything.",
             keywords: ["external", "volume", "drive", "where", "path", "ssd"],
             icon: HardDriveIcon,
@@ -416,67 +427,6 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
     ],
   },
   {
-    id: "about",
-    label: "This build",
-    icon: InfoIcon,
-    groups: [
-      {
-        title: "This build",
-        rows: [
-          { title: "Version", hint: "Which build of Telar this install is.", keywords: ["about"], icon: InfoIcon },
-          {
-            title: "Engine",
-            hint: "Whether the thing that runs turns is answering.",
-            keywords: ["daemon", "offline", "health"],
-            icon: InfoIcon,
-          },
-          {
-            title: "State",
-            hint: "Sessions, transcripts, worktrees and settings.",
-            keywords: ["telar home", "storage", "path"],
-            icon: InfoIcon,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "updates",
-    label: "Updates",
-    icon: DownloadIcon,
-    groups: [
-      {
-        title: "Updates",
-        rows: [
-          {
-            title: "Update status",
-            hint: "Check for a new build, and install one that has been found.",
-            keywords: ["upgrade", "download", "version"],
-            icon: DownloadIcon,
-          },
-          {
-            title: "Channel",
-            hint: "Which stream of builds this install follows.",
-            keywords: ["beta", "nightly", "stable", "release"],
-            icon: DownloadIcon,
-          },
-          {
-            title: "Continue sessions after restarting",
-            hint: "When Telar restarts to update, the sessions it stopped pick up where they left off.",
-            keywords: ["resume", "restart", "update", "continue", "interrupted"],
-            icon: DownloadIcon,
-          },
-          {
-            title: "Install on quit",
-            hint: "A downloaded update installs itself the next time you quit Telar.",
-            keywords: ["restart", "automatic"],
-            icon: DownloadIcon,
-          },
-        ],
-      },
-    ],
-  },
-  {
     id: "source-control",
     label: "Source control",
     icon: GitPullRequestIcon,
@@ -489,6 +439,17 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
             hint: "Issues, pull requests and checks, read through the gh CLI you signed in to yourself.",
             keywords: ["gh", "git", "pull request", "issues", "token", "auth", "sign in", "cli", "forge", "gitlab"],
             icon: GitPullRequestIcon,
+          },
+        ],
+      },
+      {
+        title: "Branches",
+        rows: [
+          {
+            title: "Rename branches to match",
+            hint: "Only branches the engine cut. Yours keep their names.",
+            keywords: ["git", "branch name", "title"],
+            icon: GitBranchIcon,
           },
         ],
       },

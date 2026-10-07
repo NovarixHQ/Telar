@@ -26,7 +26,7 @@ async function mountRow(sounds: NotificationSounds) {
 describe("Notification sounds", () => {
   test("offers the three sets and Off, and search finds the row", () => {
     expect(NOTIFICATION_SOUNDS_VALUES.map((value) => SOUND_LABELS[value])).toEqual(["Hilo", "Armónico", "Felt", "Off"]);
-    expect(SETTINGS_SEARCH_INDEX.entries.find((entry) => entry.title === "Notification sounds")?.id).toBe("settings-row-remote-push-notifications-notification-sounds");
+    expect(SETTINGS_SEARCH_INDEX.entries.find((entry) => entry.title === "Notification sounds")?.id).toBe("settings-row-notifications-push-notifications-notification-sounds");
   });
 
   test("the play button previews the chosen set from a file the cockpit serves", async () => {

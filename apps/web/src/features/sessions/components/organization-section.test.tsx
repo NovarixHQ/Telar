@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { flush, installTestDom, mount, press } from "@/test/dom";
 import { liveRow, mountRail, project, stubRail } from "@/test/rail";
-import { RailSection } from "./rail-section";
+import { OrganizationSection } from "./organization-section";
 
 installTestDom();
 
@@ -28,7 +28,7 @@ const projectHeads = (host: HTMLElement) => host.querySelectorAll('[aria-label^=
 test("with no mode chosen, the rail is one list and the switch is off", async () => {
   const patches = stubLayout();
   const rail = await mountRail();
-  await mount(<RailSection />);
+  await mount(<OrganizationSection />);
   await flush();
   expect(projectHeads(rail)).toBe(0);
   expect(rail.textContent).toContain("Title a");
@@ -40,7 +40,7 @@ test("with no mode chosen, the rail is one list and the switch is off", async ()
 test("turning grouping off in settings flattens the rail, and back on regroups it", async () => {
   const patches = stubLayout("grouped");
   const rail = await mountRail();
-  await mount(<RailSection />);
+  await mount(<OrganizationSection />);
   await flush();
   expect(projectHeads(rail)).toBe(2);
   expect(toggle().getAttribute("aria-checked")).toBe("true");

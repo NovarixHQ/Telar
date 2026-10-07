@@ -18,7 +18,6 @@ mock.module("next/navigation", () => ({
 
 const { PackagesPanel } = await import("@/features/plugins/components/packages-panel");
 const { Dropdown } = await import("./settings-shell");
-const { WorkspaceSection } = await import("@/features/projects/components/workspace-section");
 const { TextGenSection } = await import("@/features/providers/components/textgen-section");
 const { DataScienceSection } = await import("@/features/plugins/data-science/data-science-section");
 const { LooksSection } = await import("@/features/appearance/components/looks-section");
@@ -68,13 +67,11 @@ test("a dropdown's trigger reads the chosen label, never the value", () => {
 });
 
 test("an enumeration setting is a dropdown, and a boolean is still a switch", async () => {
-  for (const node of [<WorkspaceSection key="w" />, <TextGenSection key="t" />]) {
-    const view = await mountOffline(node);
-    expect(view.host.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
-    expect(view.host.querySelector("[aria-pressed]")).toBeNull();
-    expect(view.host.querySelector('[role="switch"]')).not.toBeNull();
-    view.done();
-  }
+  const view = await mountOffline(<TextGenSection />);
+  expect(view.host.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
+  expect(view.host.querySelector("[aria-pressed]")).toBeNull();
+  expect(view.host.querySelector('[role="switch"]')).not.toBeNull();
+  view.done();
 });
 
 test("a plugin pane heads its groups with whose they are, never a bare 'Packages'", () => {

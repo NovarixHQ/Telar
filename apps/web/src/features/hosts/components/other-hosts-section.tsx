@@ -59,7 +59,7 @@ export function OtherHostsSection() {
   };
 
   return (
-    <SettingsGroup title="Other computers" description="Another Telar's conversations, in this rail.">
+    <SettingsGroup title="Computers this Mac reaches" description="Another Telar's conversations, in this rail.">
       {hosts?.map((host) => (
         <HostRow key={host.id} host={host} onRename={(name) => void rename(host.id, name)} onRemove={() => void remove(host.id)} />
       ))}

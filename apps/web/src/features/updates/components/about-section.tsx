@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DownloadIcon, MonitorIcon, PowerIcon, RefreshCwIcon } from "lucide-react";
+import type { EngineHealth } from "@telar/engine-client";
+import { Badge } from "@/ui/badge";
 import { CHANNEL_HINT, desktopUpdates, updateStatusHint, useDesktopUpdate, type UpdatePrefsInfo } from "../desktop-updates";
 import { Row, SettingsGroup } from "@/features/settings";
 import { Button } from "@/ui/button";
@@ -9,12 +11,37 @@ import { Spinner } from "@/ui/spinner";
 import { Switch } from "@/ui/switch";
 import { UpdateToast } from "./update-toast";
 import { RestartUpdateDialog } from "./restart-update-dialog";
-import { useSessionDefaults } from "@/features/sessions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 
-export function UpdatesSection() {
+function Mono({ children }: { children: ReactNode }) {
+  return <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{children}</code>;
+}
+
+type BuildInfo = { appVersion?: string; health?: EngineHealth; unreachable?: boolean };
+
+function BuildRows({ appVersion, health, unreachable }: BuildInfo) {
+  return (
+    <>
+      <Row label="Version" control={<Mono>{appVersion ?? "—"}</Mono>} />
+      <Row
+        label="Engine"
+        hint={unreachable ? "Nothing is claiming turns; a message sent now stays queued." : undefined}
+        control={
+          unreachable ? (
+            <Badge variant="outline">Not answering</Badge>
+          ) : health?.worker.registered ? (
+            <Badge variant="secondary">Running</Badge>
+          ) : (
+            <Badge variant="outline">No worker</Badge>
+          )
+        }
+      />
+    </>
+  );
+}
+
+export function AboutSection(build: BuildInfo) {
   const { supported: isDesktop, status, action, label, busy, failure, act, restart } = useDesktopUpdate();
-  const { defaults, loading: defaultsLoading, save: saveDefaults } = useSessionDefaults();
   const [prefs, setPrefs] = useState<UpdatePrefsInfo | null>(null);
 
   useEffect(() => {
@@ -31,12 +58,9 @@ export function UpdatesSection() {
 
   if (!isDesktop) {
     return (
-      <SettingsGroup title="Updates">
-        <Row
-          icon={MonitorIcon}
-          label="Desktop app only"
-          hint="This browser tab has no updater to check."
-        />
+      <SettingsGroup title="About">
+        <BuildRows {...build} />
+        <Row icon={MonitorIcon} label="Desktop app only" hint="Only the desktop app updates itself." />
       </SettingsGroup>
     );
   }
@@ -67,7 +91,8 @@ export function UpdatesSection() {
   );
 
   return (
-    <SettingsGroup title="Updates">
+    <SettingsGroup title="About">
+      <BuildRows {...build} />
       <Row label="Update status" hint={failure ?? updateStatusHint(status)} control={control} />
       <Row
         label="Channel"
@@ -91,19 +116,6 @@ export function UpdatesSection() {
               ))}
             </SelectContent>
           </Select>
-        }
-      />
-      <Row
-        label="Continue sessions after restarting"
-        hint="When Telar restarts to update, the sessions it stopped pick up where they left off."
-        info="Only a restart to install an update counts; a crash never resumes anything. Each stopped session gets one message saying Telar restarted, marked as automatic. Terminals and runs are not restarted, and a session you stopped or settled is left alone."
-        control={
-          <Switch
-            aria-label="Continue sessions after restarting"
-            checked={defaults.resumeAfterRestart === true}
-            onCheckedChange={(resumeAfterRestart) => void saveDefaults({ resumeAfterRestart })}
-            disabled={defaultsLoading}
-          />
         }
       />
       <Row

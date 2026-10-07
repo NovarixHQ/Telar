@@ -92,9 +92,13 @@ async function evaluate(debuggee, expression) {
   return answer.result.value;
 }
 
-async function capture(window, { html, width, appearance }) {
+const startRendererBeforeDebugging = (contents) => contents.loadURL("about:blank");
+
+async function capture(window, { html, width, appearance }, progress) {
   const contents = window.webContents;
   const debuggee = contents.debugger;
+  await startRendererBeforeDebugging(contents);
+  progress.started = true;
   debuggee.attach("1.3");
   const page = watchPage(debuggee);
   for (const domain of ["Runtime", "Log", "Network"]) await debuggee.sendCommand(`${domain}.enable`);
@@ -142,11 +146,13 @@ function createPreviewRenderer({ BrowserWindow, session }) {
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
     let timer;
+    const progress = { started: false };
+    const seconds = Math.ceil(input.timeoutMs / 1000);
     const expired = new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`The page did not settle within ${Math.ceil(input.timeoutMs / 1000)} s.`)), input.timeoutMs);
+      timer = setTimeout(() => reject(new Error(progress.started ? `The page did not settle within ${seconds} s.` : `The preview window did not start within ${seconds} s.`)), input.timeoutMs);
     });
     try {
-      return await Promise.race([capture(window, input), expired]);
+      return await Promise.race([capture(window, input, progress), expired]);
     } finally {
       clearTimeout(timer);
       if (!window.isDestroyed()) window.destroy();

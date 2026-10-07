@@ -35,6 +35,7 @@
     "test:desktop:metrics": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/process-metrics.electron-test.js",
     "test:desktop:visibility": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/window-visibility.electron-test.js",
     "test:desktop:pty": "env -u ELECTRON_RUN_AS_NODE electron ./src/terminal/pty-host.electron-test.js",
+    "test:desktop:preview": "env -u ELECTRON_RUN_AS_NODE electron ./src/agent-tools/preview-renderer.electron-test.js",
     "smoke": "bun run test:desktop:smoke",
     "pack": "bash ../../scripts/package-desktop.sh",
     "package:local": "bash ../../scripts/package-desktop.sh",

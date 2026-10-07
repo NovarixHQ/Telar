@@ -44,6 +44,8 @@ function fakeElectron({ contentHeight = 300, broken = [], hang = false, png = Bu
         setWindowOpenHandler: (handler) => (this.openHandler = handler),
         on: (name, listener) => (this[name] = listener),
         loadURL: async (url) => {
+          if (url === "about:blank") return (this.started = true);
+          if (!this.started || !this.protocol) throw new Error("the debugger was attached before the renderer started");
           this.url = url;
           if (hang) return new Promise(() => undefined);
           for (const [method, params] of PAGE_EVENTS) for (const listener of listeners) listener({}, method, params);
@@ -146,6 +148,21 @@ describe("the offscreen preview renderer", () => {
   test("closes the window and refuses when the page never settles", async () => {
     const electron = fakeElectron({ hang: true });
     await expect(createPreviewRenderer(electron).render({ ...request, timeoutMs: 20 })).rejects.toThrow("The page did not settle within 1 s.");
+    expect(electron.windows[0].destroyed).toBe(true);
+  });
+
+  test("says the window never started when the renderer never comes up", async () => {
+    const electron = fakeElectron();
+    const renderer = createPreviewRenderer({
+      session: electron.session,
+      BrowserWindow: class extends electron.BrowserWindow {
+        constructor(options) {
+          super(options);
+          this.webContents.loadURL = () => new Promise(() => undefined);
+        }
+      },
+    });
+    await expect(renderer.render({ ...request, timeoutMs: 20 })).rejects.toThrow("The preview window did not start within 1 s.");
     expect(electron.windows[0].destroyed).toBe(true);
   });
 

@@ -1,8 +1,9 @@
 const path = require("node:path");
-const { BrowserWindow, nativeTheme } = require("electron");
+const { BrowserWindow, nativeTheme, screen } = require("electron");
 const { createExternalLinkPolicy } = require("../browser/browser-manager");
 const { backdropWindowOptions } = require("../main/window-material");
 const { applyExternalLinkPolicy } = require("../main/window-links");
+const { placeOnDisplays } = require("./surface-window-store");
 
 const TITLES = { browser: "Browser" };
 
@@ -12,11 +13,27 @@ function surfaceUrl(appUrl, kind, params) {
   return url.href;
 }
 
-function openSurfaceWindow({ appUrl, kind, params }) {
+function rememberedPlace(store, kind, key) {
+  const saved = store?.get(kind, key);
+  if (!saved) return { saved: null, bounds: { width: 1100, height: 800 } };
+  return { saved, bounds: placeOnDisplays(saved, screen.getAllDisplays(), screen.getPrimaryDisplay()) };
+}
+
+function trackPlace(win, store, kind, key) {
+  const record = () => {
+    if (win.isDestroyed()) return;
+    const bounds = win.getNormalBounds();
+    store.remember(kind, key, { bounds, displayId: screen.getDisplayMatching(bounds).id, fullscreen: win.isFullScreen() });
+  };
+  for (const event of ["resize", "move", "enter-full-screen", "leave-full-screen"]) win.on(event, record);
+  record();
+}
+
+function openSurfaceWindow({ appUrl, kind, key, params, store }) {
   const title = TITLES[kind] || "Telar";
+  const { saved, bounds } = rememberedPlace(store, kind, key);
   const win = new BrowserWindow({
-    width: 1100,
-    height: 800,
+    ...bounds,
     minWidth: 360,
     minHeight: 240,
     show: false,
@@ -35,9 +52,23 @@ function openSurfaceWindow({ appUrl, kind, params }) {
     event.preventDefault();
     win.setTitle(title);
   });
-  win.once("ready-to-show", () => win.show());
+  win.once("ready-to-show", () => {
+    win.show();
+    if (saved?.fullscreen) win.setFullScreen(true);
+  });
+  if (store) trackPlace(win, store, kind, key);
   win.loadURL(surfaceUrl(appUrl, kind, params));
   return win;
 }
 
-module.exports = { openSurfaceWindow };
+function restoreBrowserWindows(manager, store) {
+  for (const { key } of store.list("browser")) {
+    try {
+      manager.popOut(key);
+    } catch {
+      store.forget("browser", key);
+    }
+  }
+}
+
+module.exports = { openSurfaceWindow, restoreBrowserWindows };

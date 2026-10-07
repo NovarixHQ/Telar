@@ -136,6 +136,7 @@ module.exports = {
     if (!entry) return;
     const [scope] = entry;
     this.poppedStages.delete(scope);
+    if (!this._disposed) this.onStageClosed?.(scope);
     if (!this._disposed) for (const tab of this.scopeTabs(scope)) this.moveView(tab, this.window);
     if (!closing) {
       try { if (!stage.window.isDestroyed()) stage.window.destroy(); } catch {}

@@ -61,7 +61,18 @@ class FakeBrowserWindow extends Emitter {
     this.destroyed = false;
     this.title = options.title;
     this.loaded = [];
+    this.bounds = { x: options.x ?? 0, y: options.y ?? 0, width: options.width ?? 800, height: options.height ?? 600 };
+    this.fullscreen = false;
     FakeBrowserWindow.all.push(this);
+  }
+  getNormalBounds() {
+    return { ...this.bounds };
+  }
+  isFullScreen() {
+    return this.fullscreen;
+  }
+  setFullScreen(on) {
+    this.fullscreen = on;
   }
   isDestroyed() {
     return this.destroyed;
@@ -157,6 +168,12 @@ const electron = {
   nativeTheme: Object.assign(new Emitter(), { shouldUseDarkColors: false, themeSource: "system" }),
   powerMonitor: Object.assign(new Emitter(), { getSystemIdleState: () => "active" }),
   session: { defaultSession: { cookies: { set: async () => {} }, webRequest: { onBeforeSendHeaders() {} } }, fromPartition: () => ({}) },
+  screen: {
+    displays: [{ id: 1, workArea: { x: 0, y: 25, width: 1440, height: 875 } }],
+    getAllDisplays: () => electron.screen.displays,
+    getPrimaryDisplay: () => electron.screen.displays[0],
+    getDisplayMatching: (rect) => electron.screen.displays.find((display) => rect.x >= display.workArea.x && rect.x < display.workArea.x + display.workArea.width) ?? electron.screen.displays[0],
+  },
   shell: { opened: [], openExternal: (url) => { electron.shell.opened.push(url); return Promise.resolve(); }, showItemInFolder: (target) => electron.shell.opened.push(target), openPath: (target) => { electron.shell.opened.push(target); return Promise.resolve(""); } },
   webContents: { getAllWebContents: () => [] },
 };
@@ -179,6 +196,7 @@ function resetElectron() {
   electron.app.isPackaged = false;
   electron.app.badgeCount = 0;
   electron.nativeTheme.shouldUseDarkColors = false;
+  electron.screen.displays = [{ id: 1, workArea: { x: 0, y: 25, width: 1440, height: 875 } }];
   for (const emitter of [electron.app, electron.nativeTheme, electron.powerMonitor]) emitter.listeners.clear();
 }
 

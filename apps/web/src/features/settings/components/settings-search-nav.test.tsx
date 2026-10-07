@@ -125,7 +125,7 @@ test("choosing a result in the shell selects the pane it lives on", async () => 
   });
   await typeInto(field(), "tailscale");
   await press(field(), "Enter");
-  expect(selected).toEqual(["remote"]);
+  expect(selected).toEqual(["connections"]);
 });
 
 function stubRow(reducedMotion: boolean) {

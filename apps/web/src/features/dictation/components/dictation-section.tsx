@@ -13,11 +13,11 @@ import { Dropdown, Row, SettingsGroup } from "@/features/settings";
 
 const PROVIDERS: { id: DictationProviderId; label: string }[] = [
   { id: "off", label: "Off" },
-  { id: "deepgram", label: "Deepgram" },
+  { id: "deepgram", label: "Cloud service" },
 ];
 
 const PROVIDER_INFO: Partial<Record<DictationProviderId, string>> = {
-  deepgram: "Audio goes from the device straight to Deepgram; it does not pass through this computer.",
+  deepgram: "Audio goes from the device straight to the service; it does not pass through this computer.",
 };
 
 export function DictationSection() {
@@ -77,7 +77,7 @@ export function DictationSection() {
               }
             />
             <Row
-              label="Deepgram key"
+              label="Service key"
               icon={KeyRoundIcon}
               {...(configured ? { status: "set" } : {})}
               info="The key stays on this computer. Browsers and phones get a five-minute token instead."
@@ -86,8 +86,8 @@ export function DictationSection() {
                   <Input
                     type="password"
                     className="h-8 w-56 font-mono text-xs"
-                    aria-label="Deepgram key"
-                    placeholder={configured ? "A key is saved" : "Paste a Deepgram API key"}
+                    aria-label="Service key"
+                    placeholder={configured ? "A key is saved" : "Paste the service's API key"}
                     value={key}
                     disabled={loading}
                     onChange={(event) => {
@@ -130,7 +130,7 @@ export function DictationSection() {
             >
               {keyterms && keyterms.sent < keyterms.built && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {`Deepgram took ${keyterms.sent} of the ${keyterms.built} words Telar sent it last time. `}
+                  {`The service took ${keyterms.sent} of the ${keyterms.built} words Telar sent it last time. `}
                   {keyterms.reason === "refused"
                     ? "Over budget: branch names go first, then projects, then old conversations. This box is never cut."
                     : "Telar sent the number it can prove is safe; the next press tries the full list again."}

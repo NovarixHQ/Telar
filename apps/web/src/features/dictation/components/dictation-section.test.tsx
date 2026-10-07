@@ -30,7 +30,7 @@ describe("search lands on it", () => {
     // off the key row is not even rendered, so a result pointing at it would
     // scroll to nothing.
     for (const query of ["dictation", "dictate", "voice"]) {
-      expect(first(query)?.pageId).toBe("dictation");
+      expect(first(query)?.pageId).toBe("integrations");
       expect(first(query)?.title).toBe("Provider");
     }
   });
@@ -41,11 +41,11 @@ describe("search lands on it", () => {
     // this word could mean either. What must be true is that the dictation
     // switch is on the page at all rather than buried under one match.
     const found = searchSettings(SETTINGS_SEARCH_INDEX, "microphone").slice(0, 3);
-    expect(found.some((entry) => entry.pageId === "dictation" && entry.title === "Provider")).toBe(true);
+    expect(found.some((entry) => entry.pageId === "integrations" && entry.title === "Provider")).toBe(true);
   });
 
   test("and looking for the vendor still finds its key", () => {
-    expect(first("deepgram")?.pageId).toBe("dictation");
+    expect(first("deepgram")?.pageId).toBe("integrations");
   });
 
   test("the words somebody types after a name came back wrong (#581)", () => {
@@ -53,7 +53,7 @@ describe("search lands on it", () => {
     // "vocabulary" is what the row is called. None of the three is a word the
     // provider or key rows use, so all three have exactly one place to land.
     for (const query of ["vocabulary", "glossary", "keyterms"]) {
-      expect(first(query)?.pageId).toBe("dictation");
+      expect(first(query)?.pageId).toBe("integrations");
       expect(first(query)?.title).toBe("Vocabulary");
     }
   });
@@ -61,7 +61,7 @@ describe("search lands on it", () => {
   test("nothing in the index still points at General for dictation", () => {
     // The group moved panes; an entry left behind would navigate somebody to a
     // pane the rows are no longer on.
-    const strays = SETTINGS_SEARCH_INDEX.entries.filter((entry) => entry.group === "Dictation" && entry.pageId !== "dictation");
+    const strays = SETTINGS_SEARCH_INDEX.entries.filter((entry) => entry.group === "Dictation" && entry.pageId !== "integrations");
     expect(strays).toEqual([]);
   });
 });
@@ -143,7 +143,7 @@ describe("what the pane shows before anybody has chosen", () => {
 
     expect(host.textContent).toContain("Provider");
     // No credential is asked for until somebody says whose it would be.
-    expect(host.querySelector('input[aria-label="Deepgram key"]')).toBeNull();
+    expect(host.querySelector('input[aria-label="Service key"]')).toBeNull();
     // And Off explains itself: no hint under it, no ⓘ beside it.
     expect(host.textContent).not.toContain("mic button");
     expect(infos(host)).toBe("");
@@ -156,7 +156,7 @@ describe("what the pane shows before anybody has chosen", () => {
 
   test("the provider trigger reads the provider's name, not its id (#318)", async () => {
     const { host, unmount } = await pane({ provider: "deepgram", configured: true, language: "multi", languages: [] });
-    expect(host.querySelector('[aria-label="Dictation provider"] [data-slot="select-value"]')?.textContent).toBe("Deepgram");
+    expect(host.querySelector('[aria-label="Dictation provider"] [data-slot="select-value"]')?.textContent).toBe("Cloud service");
     await unmount();
   });
 

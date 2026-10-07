@@ -1,4 +1,4 @@
-import { BlocksIcon, DownloadIcon, FolderKanbanIcon, GitPullRequestIcon, GlobeIcon, HardDriveIcon, InfoIcon, KeyboardIcon, MicIcon, PaletteIcon, PlugIcon, SlidersHorizontalIcon, SmartphoneIcon, WrenchIcon } from "lucide-react";
+import { BellIcon, BlocksIcon, FolderKanbanIcon, GitPullRequestIcon, HardDriveIcon, KeyboardIcon, PaletteIcon, PlugIcon, PlugZapIcon, SlidersHorizontalIcon, SmartphoneIcon } from "lucide-react";
 import type { PluginStatus } from "@telar/engine-client";
 import { type SettingsSearchIndex } from "./search";
 import { SETTINGS_SEARCH_INDEX, SETTINGS_SEARCH_PAGES } from "./registry";
@@ -6,20 +6,17 @@ import { pluginSettingsSearchEntries } from "@/features/plugins";
 import type { SettingsSection } from "./components/settings-shell";
 
 export const SECTIONS: SettingsSection[] = [
-  { id: "general", label: "General", icon: SlidersHorizontalIcon, group: "Cockpit" },
-  { id: "appearance", label: "Appearance", icon: PaletteIcon, group: "Cockpit", scope: "browser" },
-  { id: "keybindings", label: "Keybindings", icon: KeyboardIcon, group: "Cockpit", scope: "browser" },
-  { id: "integrations", label: "Browser", icon: GlobeIcon, group: "Cockpit" },
-  { id: "dictation", label: "Dictation", icon: MicIcon, group: "Cockpit" },
-  { id: "providers", label: "Providers", icon: PlugIcon, group: "Agents", scope: "mac", wide: true },
-  { id: "tools", label: "Agent tools", icon: WrenchIcon, group: "Agents", scope: "mac" },
-  { id: "plugins", label: "Plugins", icon: BlocksIcon, group: "Agents", scope: "mac", wide: true },
-  { id: "projects", label: "Projects", icon: FolderKanbanIcon, group: "Projects", scope: "project", wide: true },
-  { id: "remote", label: "Remote access", icon: SmartphoneIcon, group: "This computer", scope: "mac" },
-  { id: "storage", label: "Storage", icon: HardDriveIcon, group: "This computer", scope: "mac" },
-  { id: "about", label: "This build", icon: InfoIcon, group: "About", scope: "mac" },
-  { id: "updates", label: "Updates", icon: DownloadIcon, group: "About", scope: "mac" },
-  { id: "source-control", label: "Source control", icon: GitPullRequestIcon, group: "About", scope: "mac" },
+  { id: "general", label: "General", icon: SlidersHorizontalIcon },
+  { id: "appearance", label: "Appearance", icon: PaletteIcon, scope: "browser" },
+  { id: "keybindings", label: "Keybindings", icon: KeyboardIcon, scope: "browser" },
+  { id: "providers", label: "Providers", icon: PlugIcon, scope: "mac", wide: true },
+  { id: "integrations", label: "Integrations", icon: PlugZapIcon },
+  { id: "plugins", label: "Plugins", icon: BlocksIcon, scope: "mac", wide: true },
+  { id: "projects", label: "Projects", icon: FolderKanbanIcon, scope: "project", wide: true },
+  { id: "notifications", label: "Notifications", icon: BellIcon, scope: "mac" },
+  { id: "source-control", label: "Source control", icon: GitPullRequestIcon, scope: "mac" },
+  { id: "storage", label: "Storage", icon: HardDriveIcon, scope: "mac" },
+  { id: "connections", label: "Connections", icon: SmartphoneIcon, scope: "mac" },
 ];
 
 export const SECTION_IDS = SECTIONS.map((section) => section.id);

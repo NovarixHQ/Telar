@@ -1,36 +1,23 @@
 import { expect, test } from "bun:test";
-import { GlobeIcon } from "lucide-react";
 import { SECTION_IDS, SECTIONS } from "./settings-sections";
 import { resolveSection } from "./use-section-from-url";
 
 const route = (raw: string | null) => resolveSection(raw, SECTION_IDS);
-const section = (id: string) => SECTIONS.find((entry) => entry.id === id);
 
-test("the nav is five groups, in order, each holding its panes", () => {
-  expect(SECTIONS.map(({ group, id }) => `${group}:${id}`)).toEqual([
-    "Cockpit:general",
-    "Cockpit:appearance",
-    "Cockpit:keybindings",
-    "Cockpit:integrations",
-    "Cockpit:dictation",
-    "Agents:providers",
-    "Agents:tools",
-    "Agents:plugins",
-    "Projects:projects",
-    "This computer:remote",
-    "This computer:storage",
-    "About:about",
-    "About:updates",
-    "About:source-control",
+test("the nav is eleven panes, in order", () => {
+  expect(SECTIONS.map(({ id }) => id)).toEqual([
+    "general",
+    "appearance",
+    "keybindings",
+    "providers",
+    "integrations",
+    "plugins",
+    "projects",
+    "notifications",
+    "source-control",
+    "storage",
+    "connections",
   ]);
-});
-
-test("panes are labelled for what they hold", () => {
-  expect(section("about")?.label).toBe("This build");
-  expect(section("updates")?.label).toBe("Updates");
-  expect(section("storage")?.label).toBe("Storage");
-  expect(section("integrations")?.label).toBe("Browser");
-  expect(section("integrations")?.icon).toBe(GlobeIcon);
 });
 
 test("every current pane id routes to itself", () => {
@@ -39,7 +26,7 @@ test("every current pane id routes to itself", () => {
 
 
 test("plugins share one destination, and removed panes are not routed", () => {
-  for (const gone of ["latex", "data-science", "schedules", "store"]) {
+  for (const gone of ["latex", "data-science", "schedules", "store", "remote", "tools", "about", "updates", "dictation"]) {
     expect(SECTION_IDS).not.toContain(gone);
     expect(route(gone)).toBeNull();
   }

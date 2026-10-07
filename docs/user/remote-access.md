@@ -1,6 +1,6 @@
 # Remote access
 
-Telar runs on your Mac, but you can reach it from somewhere else: a browser on another computer, the iPhone app, or the Telar on a second Mac. Everything is in Settings → Remote access.
+Telar runs on your Mac, but you can reach it from somewhere else: a browser on another computer, the iPhone app, or the Telar on a second Mac. Everything is in Settings → Connections.
 
 ## How it's guarded
 
@@ -10,7 +10,7 @@ Telar runs on your Mac, but you can reach it from somewhere else: a browser on a
 
 ## Pairing a browser or phone
 
-1. On the Mac, go to Settings → Remote access → Pair a device and show a pairing code.
+1. On the Mac, go to Settings → Connections → Pair a device and show a pairing code.
 2. Pick the address the other device will use: the local network, your Tailscale address, or the Tailscale HTTPS name.
 3. On the other device, scan the QR code, open the link, or type the eight-digit code on the pairing page.
 
@@ -46,7 +46,7 @@ Forgetting the pairing on a phone only removes it from that phone. To cut the ph
 You can bring another Mac's conversations into this one's rail.
 
 1. On the other Mac, turn on network access and pairing, then show a pairing code and copy the link.
-2. On this Mac, go to Settings → Remote access → Other Macs, paste the link, and choose Pair.
+2. On this Mac, go to Settings → Connections → Computers this Mac reaches, paste the link, and choose Pair.
 
 That Mac's conversations appear in your rail, marked with its name, and you work on them from here. You can rename it here.
 
@@ -56,4 +56,4 @@ Forgetting a Mac removes its conversations from your rail. The other Mac still l
 
 ## Push notifications
 
-Phone notifications are also set in Remote access. See [iPhone](iphone.md).
+Phone notifications are set in Settings → Notifications. See [iPhone](iphone.md).

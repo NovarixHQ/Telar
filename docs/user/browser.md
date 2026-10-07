@@ -21,7 +21,7 @@ A profile is a separate set of cookies, storage and logins. Use one per account 
 
 - Every project browses in the default profile unless you pick another for it from the browser's profile picker. Several projects can share a profile.
 - Switching profile changes where the next tab opens. Tabs already open stay signed in as the profile they were opened with.
-- Create profiles from the browser's profile picker or in Settings → Browser. Each needs a name, and can get an icon and a colour so you can tell them apart in the toolbar.
+- Create profiles from the browser's profile picker or in Settings → Integrations. Each needs a name, and can get an icon and a colour so you can tell them apart in the toolbar.
 - Changing the default moves every project that hasn't picked its own.
 - Deleting a profile sends its projects back to the default, and their tabs reopen signed out.
 
@@ -31,9 +31,9 @@ An agent can ask to sign in to a site with a login from your 1Password. Telar sh
 
 This needs the 1Password CLI, with "Integrate with 1Password CLI" turned on in the 1Password app's Developer settings. 1Password asks you to unlock as usual.
 
-The request has an unticked box to let agents use that login again without asking. It covers only that login, in that profile, on that exact address. Settings → Browser → Remembered logins lists these and lets you revoke each one. Telar can also ask after you sign in yourself; that offer is off until you turn on "Offer to remember after you sign in" there.
+The request has an unticked box to let agents use that login again without asking. It covers only that login, in that profile, on that exact address. Settings → Integrations → Remembered logins lists these and lets you revoke each one. Telar can also ask after you sign in yourself; that offer is off until you turn on "Offer to remember after you sign in" there.
 
-Settings → Browser → "Use a password manager in the browser" turns all of this off: no extension is loaded, the toolbar button, the strip below and the remember offers disappear, and `browser_fill_secret` tells the agent the setting is off. It starts on only if the 1Password app is installed. Turning it off applies to filling and the browser's buttons at once; browsers already open keep the extension loaded until Telar restarts.
+Settings → Integrations → "Use a password manager in the browser" turns all of this off: no extension is loaded, the toolbar button, the strip below and the remember offers disappear, and `browser_fill_secret` tells the agent the setting is off. It starts on only if the 1Password app is installed. Turning it off applies to filling and the browser's buttons at once; browsers already open keep the extension loaded until Telar restarts.
 
 The 1Password button in the toolbar talks to the 1Password app only once 1Password trusts Telar as a browser. If the browser warns that it doesn't, click **Open 1Password settings**, unlock 1Password, click Add Browser and choose Telar. 1Password matches a browser by its app identity and developer, so this survives updates. It was needed again when Telar became `io.github.novarix.telar`: the old Telar entry in that list no longer matches, and you can remove it.
 
@@ -53,11 +53,11 @@ Use the pen to mark up what you see. Telar freezes the page and gives you a rect
 
 ## Site permissions
 
-The first time a site wants the camera, microphone, notifications, location, the clipboard or screen sharing, Telar asks from the address bar. Settings → Browser → Site permissions lists your answers so you can change them.
+The first time a site wants the camera, microphone, notifications, location, the clipboard or screen sharing, Telar asks from the address bar. Settings → Integrations → Site permissions lists your answers so you can change them.
 
 ## What's not obvious
 
-- Profiles and site permissions exist only in the desktop app. Settings → Browser says so when you open it elsewhere.
+- Profiles and site permissions exist only in the desktop app. Settings → Integrations says so when you open it elsewhere.
 - The page isn't live while you annotate. It comes back when you send or cancel.
 - A remembered login still needs 1Password to be unlocked.
 - The camera and the pen are only in the panel. The browser's own window has no composer to send a picture to.

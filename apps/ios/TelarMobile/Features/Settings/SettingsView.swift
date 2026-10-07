@@ -171,7 +171,7 @@ struct HostSettingsView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    SettingsFootnote("Removes the pairing credential and drafts from this phone. The computer keeps running; revoke this phone from its Remote access panel to kill the credential everywhere.")
+                    SettingsFootnote("Removes the pairing credential and drafts from this phone. The computer keeps running; revoke this phone from its Connections settings to kill the credential everywhere.")
                 }
             }
             .padding(.horizontal, 20)

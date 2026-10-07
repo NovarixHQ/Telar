@@ -8,6 +8,7 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   FolderGitIcon,
+  InfoIcon,
   KeyRoundIcon,
   KeyboardIcon,
   LanguagesIcon,
@@ -53,16 +54,10 @@ export const APP_PAGES: SettingsPageSpec[] = [
             keywords: ["permissions", "supervised", "auto", "full access", "approval", "runtime mode", "prompts"],
             icon: ShieldCheckIcon,
           },
-          {
-            title: "Continue after a reset",
-            hint: "A turn stopped by a usage limit runs again once the limit lifts.",
-            keywords: ["rate limit", "usage limit", "resume", "five-hour", "weekly", "claude"],
-            icon: RefreshCwIcon,
-          },
         ],
       },
       {
-        title: "Rail",
+        title: "Organization",
         rows: [
           {
             title: "Group sessions by project",
@@ -70,11 +65,6 @@ export const APP_PAGES: SettingsPageSpec[] = [
             keywords: ["group by", "flat", "none", "list", "sidebar", "order", "newest"],
             icon: ListTreeIcon,
           },
-        ],
-      },
-      {
-        title: "Settling",
-        rows: [
           {
             title: "Settle quiet sessions",
             hint: "Quiet sessions leave the list on their own, or nothing does. Shelved ones are on the rail, under Settled.",
@@ -100,15 +90,21 @@ export const APP_PAGES: SettingsPageSpec[] = [
             icon: TimerIcon,
           },
           {
-            title: "Terminals settled sessions may keep open",
-            hint: "Past it, the session settled longest ago has its terminals closed first.",
-            keywords: ["terminal", "process", "dev server", "shell", "limit", "cap", "running", "settled"],
-            icon: TimerIcon,
+            title: "Continue after a usage limit resets",
+            hint: "A turn stopped by a usage limit runs again once the limit lifts.",
+            keywords: ["rate limit", "usage limit", "resume", "five-hour", "weekly", "claude"],
+            icon: RefreshCwIcon,
+          },
+          {
+            title: "Continue after Telar restarts",
+            hint: "When Telar restarts to update, the sessions it stopped pick up where they left off.",
+            keywords: ["resume", "restart", "update", "continue", "interrupted"],
+            icon: RefreshCwIcon,
           },
         ],
       },
       {
-        title: "Generated text",
+        title: "Text generation",
         rows: [
           {
             title: "Written by",
@@ -134,11 +130,35 @@ export const APP_PAGES: SettingsPageSpec[] = [
             keywords: ["title", "rename", "automatic"],
             icon: SparklesIcon,
           },
+        ],
+      },
+      {
+        title: "About",
+        rows: [
+          { title: "Version", hint: "Which build of Telar this install is.", keywords: ["about", "this build"], icon: InfoIcon },
           {
-            title: "Rename branches to match",
-            hint: "Only branches the engine cut. Yours keep their names.",
-            keywords: ["git", "branch name"],
-            icon: SparklesIcon,
+            title: "Engine",
+            hint: "Whether the thing that runs turns is answering.",
+            keywords: ["daemon", "offline", "health"],
+            icon: InfoIcon,
+          },
+          {
+            title: "Update status",
+            hint: "Check for a new build, and install one that has been found.",
+            keywords: ["upgrade", "download", "version", "updates"],
+            icon: DownloadIcon,
+          },
+          {
+            title: "Channel",
+            hint: "Which stream of builds this install follows.",
+            keywords: ["beta", "nightly", "stable", "release", "updates"],
+            icon: DownloadIcon,
+          },
+          {
+            title: "Install on quit",
+            hint: "A downloaded update installs itself the next time you quit Telar.",
+            keywords: ["restart", "automatic", "updates"],
+            icon: DownloadIcon,
           },
         ],
       },
@@ -180,7 +200,7 @@ export const APP_PAGES: SettingsPageSpec[] = [
         ],
       },
       {
-        title: "Composer",
+        title: "Background",
         rows: [
           {
             title: "Base",
@@ -249,7 +269,7 @@ export const APP_PAGES: SettingsPageSpec[] = [
   },
   {
     id: "integrations",
-    label: "Browser",
+    label: "Integrations",
     icon: PlugZapIcon,
     groups: [
       {
@@ -304,13 +324,88 @@ export const APP_PAGES: SettingsPageSpec[] = [
           },
         ],
       },
-    ],
-  },
-  {
-    id: "dictation",
-    label: "Dictation",
-    icon: MicIcon,
-    groups: [
+      {
+        title: "Simulators",
+        rows: [
+          {
+            title: "Use simulators",
+            hint: "Lets Telar list, start and stop the simulators on this Mac.",
+            keywords: ["simulator", "emulator", "iphone", "ios", "android", "device", "xcode", "hub"],
+            icon: SmartphoneIcon,
+          },
+          {
+            title: "Let agents use simulators",
+            hint: "Agents can open a simulator, look at it and use its apps.",
+            keywords: ["simulator", "agent", "agent-device", "screenshot", "tap", "automation"],
+            icon: SmartphoneIcon,
+          },
+        ],
+      },
+      {
+        title: "Telar orientation",
+        rows: [
+          {
+            title: "Tell agents they are inside Telar",
+            hint: "One paragraph per turn saying what Telar's words mean — the browser, a session, the panel, the rail, Looks.",
+            keywords: [
+              "orientation",
+              "preamble",
+              "system prompt",
+              "prompt",
+              "context",
+              "inject",
+              "briefing",
+              "instructions",
+              "telar",
+            ],
+            icon: SparklesIcon,
+          },
+          {
+            title: "Show the text",
+            hint: "The exact paragraph this engine injects, read from the engine itself.",
+            keywords: ["preamble", "prompt", "text", "reveal", "audit", "what does it say"],
+            icon: SparklesIcon,
+          },
+          {
+            title: "Install the telar skill",
+            hint: "A SKILL.md in each provider's skills directory with the detail: the panel, assignment and settling, browser tabs.",
+            keywords: ["skill", "SKILL.md", "claude", "codex", "opencode", "docs", "reference", "telar"],
+            icon: SparklesIcon,
+          },
+        ],
+      },
+      {
+        rows: [
+          {
+            navigateOnly: true,
+            title: "Add a server",
+            hint: "Tool servers every project sees. A project can define one with the same id to replace it for itself.",
+            keywords: ["mcp", "stdio", "sse", "http", "tool", "server"],
+            icon: WrenchIcon,
+          },
+        ],
+      },
+      {
+        rows: [
+          {
+            title: "Computer use",
+            hint: "Whether sessions can drive Mac apps — screenshots, clicks, typing.",
+            keywords: [
+              "cua",
+              "driver",
+              "automation",
+              "engine",
+              "access",
+              "permission",
+              "privacy",
+              "accessibility",
+              "screen recording",
+              "grant",
+            ],
+            icon: MonitorIcon,
+          },
+        ],
+      },
       {
         title: "Dictation",
         rows: [
@@ -343,7 +438,7 @@ export const APP_PAGES: SettingsPageSpec[] = [
             icon: LanguagesIcon,
           },
           {
-            title: "Deepgram key",
+            title: "Service key",
             hint: "The credential this computer spends on transcription. Stored with its engine state; the browser and the phone only ever get a token that expires in minutes.",
             keywords: ["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "deepgram", "key", "api key", "credential"],
             icon: KeyRoundIcon,
@@ -430,95 +525,6 @@ export const APP_PAGES: SettingsPageSpec[] = [
             hint: "An agent reads this computer's usage in the background, read-only, and explains what drives it.",
             keywords: ["diagnose", "diagnosis", "high usage", "why", "tokens", "cost", "spend", "expensive", "report"],
             icon: StethoscopeIcon,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "tools",
-    label: "Agent tools",
-    icon: WrenchIcon,
-    groups: [
-      {
-        title: "Telar orientation",
-        rows: [
-          {
-            title: "Tell agents they are inside Telar",
-            hint: "One paragraph per turn saying what Telar's words mean — the browser, a session, the panel, the rail, Looks.",
-            keywords: [
-              "orientation",
-              "preamble",
-              "system prompt",
-              "prompt",
-              "context",
-              "inject",
-              "briefing",
-              "instructions",
-              "telar",
-            ],
-            icon: SparklesIcon,
-          },
-          {
-            title: "Show the text",
-            hint: "The exact paragraph this engine injects, read from the engine itself.",
-            keywords: ["preamble", "prompt", "text", "reveal", "audit", "what does it say"],
-            icon: SparklesIcon,
-          },
-          {
-            title: "Install the telar skill",
-            hint: "A SKILL.md in each provider's skills directory with the detail: the panel, assignment and settling, browser tabs.",
-            keywords: ["skill", "SKILL.md", "claude", "codex", "opencode", "docs", "reference", "telar"],
-            icon: SparklesIcon,
-          },
-        ],
-      },
-      {
-        rows: [
-          {
-            navigateOnly: true,
-            title: "Add a server",
-            hint: "Tool servers every project sees. A project can define one with the same id to replace it for itself.",
-            keywords: ["mcp", "stdio", "sse", "http", "tool", "server"],
-            icon: WrenchIcon,
-          },
-        ],
-      },
-      {
-        rows: [
-          {
-            title: "Computer use",
-            hint: "Whether sessions can drive Mac apps — screenshots, clicks, typing.",
-            keywords: [
-              "cua",
-              "driver",
-              "automation",
-              "engine",
-              "access",
-              "permission",
-              "privacy",
-              "accessibility",
-              "screen recording",
-              "grant",
-            ],
-            icon: MonitorIcon,
-          },
-        ],
-      },
-      {
-        title: "Simulators",
-        rows: [
-          {
-            title: "Use simulators",
-            hint: "Lets Telar list, start and stop the simulators on this Mac.",
-            keywords: ["simulator", "emulator", "iphone", "ios", "android", "device", "xcode", "hub"],
-            icon: SmartphoneIcon,
-          },
-          {
-            title: "Let agents use simulators",
-            hint: "Agents can open a simulator, look at it and use its apps.",
-            keywords: ["simulator", "agent", "agent-device", "screenshot", "tap", "automation"],
-            icon: SmartphoneIcon,
           },
         ],
       },

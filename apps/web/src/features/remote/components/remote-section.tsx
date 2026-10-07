@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { SmartphoneIcon } from "lucide-react";
-import { PushNotificationsGroup } from "@/features/push";
 import { Row, SettingsGroup, ToggleRow } from "@/features/settings";
 import { useRemoteStatus } from "../hooks/use-remote-status";
 import { RemoteDevicesGroup, RevokeOthersRow } from "./remote-devices-group";
-import { RemoteEnvironmentGroup } from "./remote-environment-group";
+import { RemoteEnvironmentRows } from "./remote-environment-group";
 import { RemotePairGroup } from "./remote-pair-group";
 
 export function RemoteSection() {
@@ -16,7 +15,7 @@ export function RemoteSection() {
 
   if (!status) {
     return (
-      <SettingsGroup title="Pairing">
+      <SettingsGroup title="This Mac">
         <Row label="Loading" hint="Reading the pairing store." {...(error ? { error } : {})} control={null} />
       </SettingsGroup>
     );
@@ -24,7 +23,7 @@ export function RemoteSection() {
 
   return (
     <>
-      <SettingsGroup title="Pairing">
+      <SettingsGroup title="This Mac">
         <ToggleRow
           label="Require pairing"
           icon={SmartphoneIcon}
@@ -37,16 +36,15 @@ export function RemoteSection() {
           checked={status.requireAuth}
           onCheckedChange={(next) => void remote.toggle(next)}
         />
+        {status.requireAuth && (
+          <RemoteEnvironmentRows
+            status={status}
+            restartNeeded={remote.restartNeeded}
+            onExposure={(next) => void remote.setExposure(next)}
+            onTailscaleServe={(next) => void remote.setTailscaleServe(next)}
+          />
+        )}
       </SettingsGroup>
-
-      {status.requireAuth && (
-        <RemoteEnvironmentGroup
-          status={status}
-          restartNeeded={remote.restartNeeded}
-          onExposure={(next) => void remote.setExposure(next)}
-          onTailscaleServe={(next) => void remote.setTailscaleServe(next)}
-        />
-      )}
 
       {status.requireAuth && (
         <RemotePairGroup
@@ -66,8 +64,6 @@ export function RemoteSection() {
         onRole={(id, role) => void remote.patchDevice(id, { role })}
         onRevoke={(id) => void remote.revoke(id)}
       />
-
-      <PushNotificationsGroup />
 
       {status.devices.length > 1 && status.callerDeviceId && (
         <SettingsGroup title="Danger">

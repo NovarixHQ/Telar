@@ -1,16 +1,15 @@
 "use client";
 
-import { FolderGitIcon, RefreshCwIcon, ShieldCheckIcon } from "lucide-react";
+import { FolderGitIcon, ShieldCheckIcon } from "lucide-react";
 import { DEFAULT_DETACHED_RUNTIME_MODE, DEFAULT_SESSION_DEFAULTS, type EnvMode, type RuntimeMode } from "@telar/engine-client";
 import { useSessionDefaults } from "@/features/sessions";
 import { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
-import { Dropdown, Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
+import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 
 export function WorkspaceSection() {
   const { defaults, loading, save, error } = useSessionDefaults();
-  useRestoreDefaults(() => save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode, runtimeMode: null, resumeAfterRateLimit: true }));
+  useRestoreDefaults(() => save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode, runtimeMode: null }));
   const access = defaults.runtimeMode ?? DEFAULT_DETACHED_RUNTIME_MODE;
-  const resumes = defaults.resumeAfterRateLimit !== false;
 
   return (
     <SettingsGroup title="New sessions" scope="mac">
@@ -55,14 +54,6 @@ export function WorkspaceSection() {
             />
           )
         }
-      />
-      <ToggleRow
-        label="Continue after a reset"
-        icon={RefreshCwIcon}
-        hint="A Claude turn stopped by a usage limit runs again once the limit lifts. A conversation can still change its own."
-        checked={resumes}
-        onCheckedChange={(next) => void save({ resumeAfterRateLimit: next })}
-        {...(resumes ? {} : { onRevert: () => void save({ resumeAfterRateLimit: true }) })}
       />
     </SettingsGroup>
   );

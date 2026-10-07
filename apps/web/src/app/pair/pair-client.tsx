@@ -111,7 +111,7 @@ export function PairClient() {
         {state.phase === "failed" && <p className="max-w-72 text-center text-sm text-destructive">{state.message}</p>}
         {state.phase === "idle" && (
           <p className="max-w-72 text-center text-sm text-muted-foreground">
-            Enter the eight-digit code from Settings → Remote access on the machine running Telar.
+            Enter the eight-digit code from Settings → Connections on the machine running Telar.
           </p>
         )}
         {canType && (

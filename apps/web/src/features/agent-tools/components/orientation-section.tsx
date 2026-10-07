@@ -76,7 +76,7 @@ export function OrientationSection() {
             Show the text
           </button>
         }
-        id="settings-row-tools-telar-orientation-show-the-text"
+        id="settings-row-integrations-telar-orientation-show-the-text"
       >
         {showing && (
           <p className="mt-2 whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed text-muted-foreground">

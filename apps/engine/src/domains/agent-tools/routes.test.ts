@@ -35,7 +35,7 @@ test("the callback answers where the browser should land, whatever went wrong", 
 
   const denied = redirectOf(await call("GET", "/v2/mcp-oauth/callback?error=access_denied&error_description=You+said+no"));
   expect(denied.pathname).toBe("/settings");
-  expect(Object.fromEntries(denied.searchParams)).toEqual({ section: "tools", mcpOAuthError: "You said no" });
+  expect(Object.fromEntries(denied.searchParams)).toEqual({ section: "integrations", mcpOAuthError: "You said no" });
 
   const incomplete = redirectOf(await call("GET", "/v2/mcp-oauth/callback?state=abc"));
   expect(incomplete.searchParams.get("mcpOAuthError")).toMatch(/incomplete/);

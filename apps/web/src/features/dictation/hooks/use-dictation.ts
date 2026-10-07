@@ -229,7 +229,7 @@ export function useDictation(input: {
       if (abandoned()) return;
       // Everything below is Deepgram's shape; refuse other providers by name.
       if (minted.provider !== "deepgram") {
-        throw new Error(`This browser does not know how to dictate with ${minted.provider}. Update Telar, or choose another provider in Settings → Dictation.`);
+        throw new Error(`This browser does not know how to dictate with ${minted.provider}. Update Telar, or choose another provider in Settings → Integrations → Dictation.`);
       }
       const { stream: microphone, fallback } = await openMicrophone(navigator.mediaDevices);
       // Permission granted after a stop: the teardown can't reach this track.

@@ -378,10 +378,8 @@ test("the worker cannot archive, delete or accept anything — the client it hol
     // Read-only by construction — see `SessionsQueryCapability`, which has no
     // member that writes for one to be misfiled as.
     // The verb that addressed the built-in Agent came and went with it (#784, #908).
-    // `subscribeCohort` and `cohorts` are a subscription to several sessions at
-    // once, and its list: the same reach `subscribe` already has.
     expect(surface).toEqual([
-      "capabilities", "cohorts", "create", "cursor", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscribeCohort", "subscriptions", "turn", "unsubscribe",
+      "capabilities", "create", "cursor", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscriptions", "turn", "unsubscribe",
     ]);
     expect(Object.keys(sessions.query).sort()).toEqual(["answer", "find", "grep", "outline", "step", "steps"]);
     for (const forbidden of ["archive", "delete", "accept", "merge", "commit"]) {
@@ -590,15 +588,13 @@ test("a Codex turn is handed the `telar` wall over the socket with its own self 
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
-      params: { name: "sessions_subscribe", arguments: { sessionIds: [claude.id] } },
+      params: { name: "sessions_subscribe", arguments: { sessionId: claude.id } },
     }),
   });
   const { result } = (await answered.json()) as { result: { content: Array<{ text: string }>; isError?: boolean } };
   expect(result.isError).not.toBe(true);
-  // One session is a cohort of one now (session-tools audit).
-  const { cohorts } = await client.cohorts(codex.id);
-  expect(cohorts).toHaveLength(1);
-  expect(cohorts[0]).toMatchObject({ subscriberSessionId: codex.id, members: [{ sessionId: claude.id }] });
+  const { subscriptions } = await client.subscriptions(codex.id);
+  expect(subscriptions).toEqual([expect.objectContaining({ subscriberSessionId: codex.id, targetSessionId: claude.id })]);
 });
 
 // ── 4. attribution over the wire ─────────────────────────────────────────────
@@ -644,7 +640,7 @@ test("sessions_send from a turn is stamped with the sender over the wire, and th
     if ((await client.session(made!.id)).turns[0]?.state === "completed") break;
     await Bun.sleep(5);
   }
-  // A worker serves every session: once the peer settles, a later tick also claims the host's cohort wake.
+  // A worker serves every session: once the peer settles, a later tick also claims the host's wake.
   await worker.tick();
   await woken;
   expect(prompts).toHaveLength(1);

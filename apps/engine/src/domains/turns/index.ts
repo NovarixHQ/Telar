@@ -1,8 +1,8 @@
 export { framedSteerText, framedTurnInput, RELAY_RULE, steerRowTitle, withTurnNotes } from "./attribution";
 export { SteerMailbox, steerRowDetail, type SteerMessage } from "./steering";
 export { boundedOutline, context, FIND_SCAN, firstLine, GREP_CONTEXT_CHARS, ITEM_TITLE_CHARS, outlineRow, summariseTurn, TURN_ANSWER_NO_SUCH_RUN, TURN_ANSWER_NONE, WHY_CHARS, type OutlineRow, type TurnSummary } from "./turn-summary";
-export { INLINE_CHARS, inlineExcerpt, runSpendOf } from "./agent-notice";
-export { cohortNotification, MAX_COHORT_ENTRIES, mergeNotifications, notificationLabel } from "./notification";
+export { runSpendOf } from "./agent-notice";
+export { childEndingNotification, MAX_ENTRIES, mergeNotifications } from "./notification";
 export { turnRoutes, workerRoutes } from "./routes";
 export { sessionTurnRoutes } from "./session-routes";
 export { MAX_TEXT_LENGTH, TurnIntake } from "./intake";

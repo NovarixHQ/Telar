@@ -76,7 +76,7 @@ describe("passive arrivals", () => {
 
   test("arrivals while idle fold into the head of the NEXT turn — the one that handed them over", () => {
     const idle: Turn = { ...host, state: "completed", completedAt: 105 };
-    const next: Turn = { ...turn, runId: "run_398", sequence: 398, input: "[cohort done]", state: "running", acceptedAt: 200, updatedAt: 200, startedAt: 200 };
+    const next: Turn = { ...turn, runId: "run_398", sequence: 398, input: "[builders done]", state: "running", acceptedAt: 200, updatedAt: 200, startedAt: 200 };
     const shown = hostPassiveArrivals(projectJournal([idle, ...guests, next], rows, []));
     expect(shown.map((row) => row.runId)).toEqual(["run_386", "run_398"]);
     expect(shown[1]!.items.map((row) => row.id)).toEqual(["notification_run_392", "notification_run_394", "notification_run_397"]);

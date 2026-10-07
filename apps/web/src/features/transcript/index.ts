@@ -13,7 +13,6 @@ export {
   groupNotificationTurns,
   segmentActivity,
   splitAtMessageBoundaries,
-  tallyParts,
   transcriptTasks,
   turnActivity,
   withoutOpeningNotification,

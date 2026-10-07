@@ -309,18 +309,18 @@ test("the skill says the things a coordinator gets wrong", () => {
   expect(TELAR_SKILL.toLowerCase()).toContain("refused");
 });
 
-test("the skill teaches the session-tools audit's model: one subscribe, a result and one line", () => {
+test("the skill teaches the session-tools audit's model: end your turn, a result and one line", () => {
   // Agents subscribed per session, polled, and wrote their answer twice.
   const skill = TELAR_SKILL.replace(/\s+/g, " ");
-  expect(skill).toContain("`sessions_create({ tasks: [...] })` creates, tasks and subscribes them in one call");
-  expect(skill).toContain("send every task first, then ONE `sessions_subscribe({ sessionIds: [...] })` — one id or many, the same call. Then END YOUR TURN");
-  expect(skill).toContain("Do not subscribe per session, do not poll, and do not sleep");
+  expect(skill).toContain("Give each task its own `sessions_create` (or `sessions_send` intent `task`), several in one message. Then END YOUR TURN");
+  expect(skill).toContain("Do not subscribe, do not poll, and do not sleep");
+  expect(skill).toContain("Each builder reaches you as ONE line when it is done");
   expect(skill).toContain("A turn that merely ends is not done");
   expect(skill).toContain("Answer a blocker with `sessions_send` intent `task`: an `fyi` does not wake it");
   expect(skill).toContain("then end your turn with one short line");
   expect(skill).toContain("do not write it out a second time");
   expect(skill).toContain("never open a turn of their own");
-  expect(skill).toContain("call `sessions_read` only when it says it was cut");
+  expect(skill).toContain("Call `sessions_read` only when you need the rest");
   expect(ORIENTATION_VERSION).toBeGreaterThanOrEqual(9);
 });
 
@@ -493,9 +493,8 @@ test("the orchestrate skill is a provider-readable skill that names no repo or p
   expect(isTelarGenerated(ORCHESTRATE_SKILL)).toBe(true);
   // The workflow's load-bearing rules.
   const text = ORCHESTRATE_SKILL.replace(/\s+/g, " ");
-  expect(text).toContain("the whole wave in ONE call");
-  expect(text).toContain("subscribes you to all of them as one cohort");
-  expect(text).toContain("Every task you send joins the same cohort");
+  expect(text).toContain("the whole wave in one message");
+  expect(text).toContain("Each worker reaches you as one line when it sends its result");
   expect(text).toContain("never reply just to acknowledge one");
   expect(text).toContain("`sessions_send` it as a `task`; that is the default to a session you tasked");
   expect(text).toContain("Never stack PRs");

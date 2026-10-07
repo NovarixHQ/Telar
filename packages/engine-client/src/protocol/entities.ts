@@ -368,37 +368,6 @@ export const Subscription = z.object({
 });
 export type Subscription = z.infer<typeof Subscription>;
 
-export const CohortMember = z.object({
-  sessionId: Id,
-  title: z.string().max(200).optional(),
-  outcome: z.enum(["result", "unreported", "completed", "failed", "stopped", "settled", "archived", "deleted"]).optional(),
-  /** It sent a `blocker` and has not been answered: it stays pending whatever its turns do. */
-  blocked: z.boolean().optional(),
-  awaiting: z.boolean().optional(),
-  fetch: z.object({ sessionId: Id, runId: Id }).optional(),
-  /** The first line of its result or answer, clamped. */
-  firstLine: z.string().max(400).optional(),
-  excerpt: z.string().max(1_600).optional(),
-  chars: z.number().int().nonnegative().optional(),
-  spent: z.string().max(300).optional(),
-  at: Timestamp.optional(),
-});
-export type CohortMember = z.infer<typeof CohortMember>;
-
-export const Cohort = z.object({
-  id: Id,
-  subscriberSessionId: Id,
-  members: z.array(CohortMember).min(1).max(20),
-  completionWake: z.enum(["settled_only", "always"]).optional(),
-  createdAt: Timestamp,
-  /** Past this the cohort delivers what it has, naming who is still pending. */
-  expiresAt: Timestamp,
-  ready: z.enum(["all", "expired"]).optional(),
-});
-export type Cohort = z.infer<typeof Cohort>;
-
-export type SubscribedCohort = Cohort & { alreadySubscribed?: true; movedFrom?: string[] };
-
 export const AgentMessageIntent = z.enum(["task", "fyi", "result", "blocker"]);
 export type AgentMessageIntent = z.infer<typeof AgentMessageIntent>;
 
@@ -435,9 +404,6 @@ export const NotificationDetail = z.object({
   entries: z.array(NotificationEntry).max(50).optional(),
   spent: z.string().max(300).optional(),
   deliveries: z.number().int().positive().optional(),
-  /** Set on a cohort's one notification (see `Cohort`). */
-  cohortId: Id.optional(),
-  cohortOpenedAt: Timestamp.optional(),
 });
 export type NotificationDetail = z.infer<typeof NotificationDetail>;
 

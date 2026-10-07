@@ -11,7 +11,7 @@ import {
   type WakeReason,
 } from "@telar/engine-client";
 import { EngineStateError, type Kernel } from "../../platform/kernel";
-import { isPeerMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
+import { isPeerMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionChildren, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
 import { quotedExcerpt } from "./agent-notice";
 import { RELAY_RULE } from "./attribution";
 import { FOLDING_INTENTS, type TurnSubmission } from "./intake";
@@ -85,6 +85,7 @@ type WakeDeps = {
   items: SessionItems;
   mailbox: SessionMailbox;
   subscriptions: SessionSubscriptions;
+  children: Pick<SessionChildren, "turnEnded" | "parentsOf">;
   readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   scanQueue: (sessionId: string) => SessionQueue;
@@ -109,22 +110,14 @@ export class TurnWakes {
     turn: Turn,
     context: { resultText?: string; failure?: Turn["failure"]; request?: EngineRequest },
   ): void {
-    this.deps.subscriptions.advanceCohortMember(targetSessionId, kind, turn, context);
+    this.deps.children.turnEnded(targetSessionId, kind, turn, context);
     if (turn.origin === "session" && turn.wakeReason) return;
     const all = this.deps.subscriptions.readSubscriptions();
     const hits = all.filter((each) => each.targetSessionId === targetSessionId && each.events.includes(kind));
     if (kind === "request_opened") {
-      for (const cohort of this.deps.subscriptions.readCohorts()) {
-        if (!cohort.members.some((member) => member.sessionId === targetSessionId && !member.outcome)) continue;
-        if (hits.some((each) => each.subscriberSessionId === cohort.subscriberSessionId)) continue;
-        hits.push({
-          id: cohort.id,
-          subscriberSessionId: cohort.subscriberSessionId,
-          targetSessionId,
-          events: ["request_opened"],
-          ...(cohort.completionWake ? { completionWake: cohort.completionWake } : {}),
-          createdAt: cohort.createdAt,
-        });
+      for (const parentId of this.deps.children.parentsOf(targetSessionId)) {
+        if (hits.some((each) => each.subscriberSessionId === parentId)) continue;
+        hits.push({ id: `child_${targetSessionId}`, subscriberSessionId: parentId, targetSessionId, events: ["request_opened"], createdAt: turn.acceptedAt });
       }
     }
     if (hits.length === 0) return;
@@ -265,7 +258,7 @@ export class TurnWakes {
       return true;
     }
     const at = this.kernel.now();
-    // A turn that carries a cohort keeps it: only this run's lines are replaced.
+    // A turn that carries other news keeps it: only this run's lines are replaced.
     const others = waiting.notification?.entries?.filter((entry) => !(entry.sessionId === targetSessionId && entry.runId === wakeReason.runId));
     notification = { ...(others?.length ? mergeNotifications([{ ...waiting.notification!, entries: others }, notification]) : notification), deliveries };
     waiting.input = notificationLabel(notification);
@@ -395,7 +388,6 @@ export class TurnWakes {
 
   /** Delivers everything held as one notification when the session is idle; peer mail alone rides with the next turn. */
   flushPendingNotifications(sessionId: string): void {
-    if (!this.hasLiveTurn(sessionId)) this.deps.subscriptions.deliverReadyCohorts(sessionId);
     const pending = this.deps.mailbox.pending(sessionId);
     if (pending.length === 0) return;
     if (this.hasLiveTurn(sessionId)) return;
@@ -434,6 +426,19 @@ export class TurnWakes {
     }
     // Cleared only once a turn holds it, in the same command, so a failed submit loses nothing.
     this.deps.mailbox.setPending(sessionId, []);
+  }
+
+  /** A builder's ending goes through the mailbox, so a busy parent hears of several at once when its turn ends. */
+  announceChildEnding(parentId: string, notification: NotificationDetail): void {
+    let parent: Session;
+    try {
+      parent = this.deps.records.require(parentId);
+    } catch {
+      return;
+    }
+    if (parent.state !== "active") return;
+    this.deps.mailbox.hold(parentId, notification);
+    this.flushPendingNotifications(parentId);
   }
 
   /** What the cap kept from being pushed again, for `sessions_read` view "status". */
@@ -493,8 +498,6 @@ export class TurnWakes {
         dropped.push(turn);
         continue;
       }
-      // A cohort's notification is about all its members, not the one that led it.
-      if (turn.notification?.cohortId) continue;
       if (!turn.notification) {
         if (runId === undefined && turn.wakeReason!.sessionId === targetSessionId) dropped.push(turn);
         continue;

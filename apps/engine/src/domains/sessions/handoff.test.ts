@@ -30,7 +30,6 @@ function setup() {
   const a = running(store, "session_a", "run_a");
   store.intake.submitAgentTurn("session_child", { runId: "run_task", input: "build it", intent: "task" }, a);
   store.turnLifecycle.completeTurn("session_a", "run_a", a.claimToken, { text: "tasked" });
-  store.subscriptions.subscribeCohort("session_a", { sessionIds: ["session_child"] });
   const claimToken = store.claims.claimTurn("session_child", "worker_child")!.claim!.token;
   store.turnLifecycle.markRunning("session_child", "run_task", claimToken);
   return { store, child: { sessionId: "session_child", runId: "run_task", claimToken } };
@@ -47,7 +46,7 @@ test("detaching makes the session stand alone and its old parent stops waiting o
   expect(session.startedFrom).toBeUndefined();
   expect(store.handoff.parentOf("session_child")).toBeUndefined();
   expect(store.records.get("session_a").activity).toBe("idle");
-  expect(store.subscriptions.cohortsFor("session_a")).toEqual([]);
+  expect(store.children.childrenOf("session_a")).toEqual([]);
   expect(handedOff(store, "session_a")).toMatchObject([{ subject: "session_child", from: "session_a" }]);
   expect(handedOff(store, "session_child")).toHaveLength(1);
 });
@@ -61,7 +60,8 @@ test("reassigning moves the waiting and the results to the new parent", () => {
   expect(store.records.get("session_a").activity).toBe("idle");
   expect(store.records.get("session_b")).toMatchObject({ activity: "waiting", activityDetail: { kind: "session", sessionId: "session_child", sessions: 1 } });
   expect(() => store.intake.submitAgentTurn("session_a", { runId: "run_late", input: "done", intent: "result" }, child)).toThrow("never assigned you work");
-  expect(store.intake.submitAgentTurn("session_b", { runId: "run_result", input: "done", intent: "result" }, child).turn.agentDelivery).toBe("wake");
+  expect(store.intake.submitAgentTurn("session_b", { runId: "run_result", input: "done", intent: "result" }, child).turn.agentDelivery).toBe("passive");
+  expect(store.queries.turns("session_b").filter((turn) => turn.wakeReason).map((turn) => turn.notification!.summary)).toEqual([expect.stringContaining("[builder done]")]);
 
   store.turnLifecycle.completeTurn("session_child", "run_task", child.claimToken, { text: "built" });
   expect(store.queries.turns("session_a").filter((turn) => turn.origin === "session")).toEqual([]);

@@ -29,11 +29,6 @@ export type SessionsPort = {
   subscribe(subscriber: string, input: Parameters<Capability["subscribe"]>[1]): Promise<{ subscription: Subscription }>;
   unsubscribe(id: string, input: { subscriberSessionId: string }): Promise<{ removed: boolean }>;
   subscriptions(subscriber: string): Promise<{ subscriptions: Subscription[] }>;
-  subscribeCohort(
-    subscriber: string,
-    input: Parameters<NonNullable<Capability["subscribeCohort"]>>[1],
-  ): Promise<{ cohort: Result<NonNullable<Capability["subscribeCohort"]>> }>;
-  cohorts(subscriber: string): Promise<{ cohorts: Result<NonNullable<Capability["cohorts"]>> }>;
   resolveRequest(
     sessionId: string,
     requestId: string,
@@ -112,8 +107,6 @@ export function storeSessionsPort(store: EngineStore): SessionsPort {
     subscribe: async (subscriber, input) => ({ subscription: store.subscriptions.subscribe(subscriber, input) }),
     unsubscribe: async (id, { subscriberSessionId }) => ({ removed: store.subscriptions.unsubscribe(id, subscriberSessionId) }),
     subscriptions: async (subscriber) => ({ subscriptions: store.subscriptions.subscriptionsFor(subscriber) }),
-    subscribeCohort: async (subscriber, input) => ({ cohort: store.subscriptions.subscribeCohort(subscriber, input) }),
-    cohorts: async (subscriber) => ({ cohorts: store.subscriptions.cohortsFor(subscriber) }),
     resolveRequest: async (id, requestId, input) => ({ request: store.requestGate.resolve(id, requestId, input) }),
     acknowledgeRead: async (reader, { sessionId, runId }) => store.wakes.acknowledgeRead(reader, sessionId, runId),
     findSessions: async (query) => store.queries.findSessions(query),
@@ -163,8 +156,6 @@ export function sessionsCapability(port: SessionsPort, identity: SessionIdentity
     subscribe: async (subscriber, input) => (await port.subscribe(subscriber, input)).subscription,
     unsubscribe: async (id, subscriber) => (await port.unsubscribe(id, { subscriberSessionId: subscriber })).removed,
     subscriptions: async (subscriber) => (await port.subscriptions(subscriber)).subscriptions,
-    subscribeCohort: async (subscriber, input) => (await port.subscribeCohort(subscriber, input)).cohort,
-    cohorts: async (subscriber) => (await port.cohorts(subscriber)).cohorts,
     resolveRequest: async (id, requestId, input) => (await port.resolveRequest(id, requestId, { ...input, resolvedBy: "session" })).request,
     query: {
       find: (search) => port.findSessions(search),

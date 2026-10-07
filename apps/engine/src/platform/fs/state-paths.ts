@@ -22,7 +22,7 @@ export type EngineStatePaths = {
   usageLimitSources: string;
   usageLimitSecrets: string;
   subscriptions: string;
-  cohorts: string;
+  children: string;
   textGen: string;
   sessionDefaults: string;
   simulatorSettings: string;
@@ -71,7 +71,7 @@ export function statePaths(root: string): EngineStatePaths {
     usageLimitSources: path.join(resolved, "usage-limit-sources.json"),
     usageLimitSecrets: path.join(resolved, "usage-limit-secrets.json"),
     subscriptions: path.join(resolved, "subscriptions.json"),
-    cohorts: path.join(resolved, "cohorts.json"),
+    children: path.join(resolved, "children.json"),
     textGen: path.join(resolved, "text-generation.json"),
     sessionDefaults: path.join(resolved, "session-defaults.json"),
     simulatorSettings: path.join(resolved, "simulator-settings.json"),

@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import type { NotificationDetail } from "@telar/engine-client";
 import { EngineStore } from "../../state";
-import { agentNotice, INLINE_CHARS, inlineExcerpt, reportBack } from "./agent-notice";
+import { agentNotice, reportBack } from "./agent-notice";
 import { frameAgentMessage, framedSteerText, framedTurnInput, frameWakeMessage, RELAY_RULE } from "./attribution";
 import { claudeNotificationContent } from "../../drivers/claude";
 import { codexNotificationInstruction } from "../../drivers/codex";
@@ -169,32 +169,19 @@ test("every intent is announced; a task and a report are never quoted", () => {
       expect(notice.split("\n")).toHaveLength(intent === "task" ? 3 : 2);
       if (intent === "task") expect(notice.split("\n")[2]).toBe(reportBack("session_worker"));
     } else {
-      // A result ends an errand and a blocker asks for a decision: the two a
-      // coordinator nearly always reads, so they arrive with their words.
-      expect(notice).toContain("In full:\n<<<\nSENSITIVE PAYLOAD\n>>>");
-      // And a result needs no acknowledgement turn.
-      expect(notice.endsWith("No reply is needed to acknowledge it.")).toBe(intent === "result");
+      // A result or a blocker adds one line: how it begins, and where the rest is.
+      expect(notice.split("\n")).toHaveLength(2);
+      expect(notice).toContain("It begins: SENSITIVE PAYLOAD · read it with");
     }
   }
 });
 
-test("a long result is quoted up to INLINE_CHARS, cut at a word, and says how much is left", () => {
+test("a long result adds one line: its first line clamped, and where to read the rest", () => {
   const body = `Merged #12 and #14.\n${"word ".repeat(2_000)}`;
-  const notice = agentNotice({ recipientSessionId: "session_host", runId: "run_x", body, intent: "result", sender: { sessionId: "session_worker" } });
-  const quoted = notice.slice(notice.indexOf("<<<\n") + 4, notice.indexOf("\n>>>"));
-  expect(quoted.startsWith("Merged #12 and #14.")).toBe(true);
-  expect(quoted.length).toBeLessThanOrEqual(INLINE_CHARS + 1);
-  expect(quoted.endsWith("word…")).toBe(true);
-  const omitted = body.trim().length - (quoted.length - 1);
-  expect(notice).toContain(`It begins (${omitted.toLocaleString("en-US")} more chars not shown):`);
-  expect(notice).toContain('Read the rest with sessions_read(sessionId: "session_host", runId: "run_x").');
-  // Bounded whatever was sent.
-  expect(notice.length).toBeLessThan(INLINE_CHARS + 500);
-});
-
-test("the excerpt cuts mid-word only when no word break is near", () => {
-  expect(inlineExcerpt("x".repeat(3_000))).toEqual({ shown: `${"x".repeat(INLINE_CHARS)}…`, omitted: 3_000 - INLINE_CHARS });
-  expect(inlineExcerpt("  short  ")).toEqual({ shown: "short", omitted: 0 });
+  const notice = agentNotice({ recipientSessionId: "session_host", runId: "run_x", body, intent: "result", sender: { sessionId: "session_worker" }, spent: "sonnet, 12k tokens" });
+  expect(notice).toBe(
+    `[agent message · result] session session_worker sent this session a result (run run_x, ${body.length.toLocaleString("en-US")} chars).\nIt begins: Merged #12 and #14. · read it with sessions_read(sessionId: "session_host", runId: "run_x") · its run: sonnet, 12k tokens`,
+  );
 });
 
 /**

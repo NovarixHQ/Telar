@@ -140,7 +140,7 @@ export class ExecutionStore {
 
   owns(file: string): boolean {
     const key = path.relative(this.root, file);
-    return key === "task-stops.json" || key === "subscriptions.json"
+    return key === "task-stops.json" || key === "subscriptions.json" || key === "children.json"
       || /^sessions\/[A-Za-z0-9_-]+\/(session|queue|items|requests|tasks)\.json$/.test(key)
       // Offset indexes commit with their document.
       || /^sessions\/[A-Za-z0-9_-]+\/(queue|items)\.index\.json$/.test(key);

@@ -428,7 +428,6 @@ describe("a worker tasked by two sessions", () => {
   test("a subscriber that assigned nothing hears the worker is done, never another tasker's result", () => {
     const { store, send, complete } = taskedTwice();
     store.subscriptions.subscribe("session_c", { targetSessionId: "session_a" });
-    store.subscriptions.subscribeCohort("session_c", { sessionIds: ["session_a"] });
     send("session_host", "result", "Parser fixed: the secret sauce.");
     complete();
     const heard = store.queries.turns("session_c").map((turn) => `${turn.input}\n${turn.notification?.body ?? ""}`).join("\n");

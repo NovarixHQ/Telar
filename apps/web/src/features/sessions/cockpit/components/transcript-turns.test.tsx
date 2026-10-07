@@ -44,7 +44,6 @@ const render = (turns: JournalTurn[], titles: Record<string, string> = TITLES) =
   renderToStaticMarkup(
     <TranscriptTurns
       turns={turns}
-      keep={new Set()}
       directory={new Map(Object.entries(titles).map(([id, title]) => [id, { title }]))}
       renderTurn={(each, view) => <SessionTurn turn={each} requests={[]} sending={false} live={false} onDecide={() => {}} {...(view.peerTitle ? { peerTitle: view.peerTitle } : {})} />}
     />,

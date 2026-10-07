@@ -100,7 +100,7 @@ test("a provider turn can open over a queued one, so a lower sequence can start 
   const store = new EngineStore(root(), () => (clock += 10));
   store.projectRegistry.register({ id: "project_one", name: "One", root: "/tmp" });
   store.lifecycle.createSession({ id: "session_one", projectId: "project_one" });
-  const waiting = store.intake.submitTurn("session_one", { runId: "run_waiting", input: "cohort done" }).turn;
+  const waiting = store.intake.submitTurn("session_one", { runId: "run_waiting", input: "builders done" }).turn;
   expect(waiting.state).toBe("queued");
   const provider = store.claims.openProviderTurn("session_one", { workerId: "worker_one", input: "Background task completed.", reason: { kind: "unknown" } });
   expect(provider.sequence).toBeGreaterThan(waiting.sequence);

@@ -1,28 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { GlobeIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
+import { cn } from "@/ui/utils";
 import type { BrowserStartState } from "../folds";
-import type { OpenableSurface, PanelTab } from "../model";
-import type { PanelTabParams } from "../tabs";
+import { launcherRowForKey, type LauncherRow } from "../model";
+import { launcherLabel, LauncherRowContent, openLauncherRow, type LauncherActions } from "./launcher";
 
 /** The "+" menu. A kind already in the strip is here only because a second one is a different thing, so it opens another. */
-export function SurfaceChooser({
-  openable,
-  canStartBrowser,
-  browserStart,
-  onOpenTab,
-  onOpenNewTab,
-  onOpenBrowser,
-}: {
-  openable: readonly OpenableSurface[];
-  canStartBrowser: boolean;
-  browserStart: BrowserStartState;
-  onOpenTab: (tab: PanelTab) => void;
-  onOpenNewTab?: (tab: PanelTab, params?: PanelTabParams) => void;
-  onOpenBrowser?: () => void;
-}) {
+export function SurfaceChooser({ rows, actions, browserStart }: { rows: readonly LauncherRow[]; actions: LauncherActions; browserStart: BrowserStartState }) {
   const [open, setOpen] = useState(false);
   /**
    * The primitive defers its toggle to a rAF, which an occluded renderer (the native browser view) may never run.
@@ -47,22 +34,36 @@ export function SurfaceChooser({
           </button>
         }
       />
-      <DropdownMenuContent align="start" sideOffset={6} className="w-48">
-        {openable.map((candidate) => (
-          <DropdownMenuItem
-            key={candidate.id}
-            onClick={() => (candidate.another && onOpenNewTab ? onOpenNewTab(candidate.id) : onOpenTab(candidate.id))}
-          >
-            <candidate.icon className="size-3.5" />
-            <span className="min-w-0 flex-1 truncate">{candidate.another && onOpenNewTab ? `New ${candidate.label}` : candidate.label}</span>
-          </DropdownMenuItem>
-        ))}
-        {canStartBrowser && (
-          <DropdownMenuItem disabled={browserStart.status === "pending"} onClick={() => onOpenBrowser?.()}>
-            <GlobeIcon className="size-3.5" />
-            <span className="min-w-0 flex-1 truncate">{browserStart.status === "pending" ? "Starting the browser…" : "Open a browser"}</span>
-          </DropdownMenuItem>
-        )}
+      <DropdownMenuContent
+        align="start"
+        sideOffset={6}
+        className="w-48"
+        onKeyDownCapture={(event) => {
+          if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+          const row = launcherRowForKey(rows, event.key);
+          if (!row) return;
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen(false);
+          openLauncherRow(row, actions);
+        }}
+      >
+        {rows.map((row) => {
+          const pending = row.id === "browser" && browserStart.status === "pending";
+          return (
+            <DropdownMenuItem
+              key={row.id}
+              disabled={pending}
+              closeOnClick={!row.unavailable}
+              title={row.unavailable}
+              aria-disabled={row.unavailable ? true : undefined}
+              className={cn(row.unavailable && "opacity-50")}
+              onClick={() => openLauncherRow(row, actions)}
+            >
+              <LauncherRowContent row={row} label={launcherLabel(row, browserStart, actions.onOpenNewTab !== undefined)} pending={pending} />
+            </DropdownMenuItem>
+          );
+        })}
       </DropdownMenuContent>
     </DropdownMenu>
   );

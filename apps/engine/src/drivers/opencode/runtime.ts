@@ -132,7 +132,7 @@ export async function startOpenCodeRuntime(input: DriverRun): Promise<OpenCodeRu
     OPENCODE_CONFIG_CONTENT: openCodeConfigContent(input, instructionsFile, limits) };
   Object.assign(env, openCodeCompactionEnv(input.autoCompact));
   for (const [name, value] of Object.entries(env)) if (value === undefined) delete env[name];
-  const child = spawn(binary, ["serve", "--hostname=127.0.0.1", "--port=0"], {
+  const child = spawn(binary, ["serve", "--hostname=127.0.0.1", "--port=0", ...(input.extraArgs ?? [])], {
     cwd: input.cwd, env, detached: OWN_GROUP, stdio: ["ignore", "pipe", "pipe"],
   });
   let closed = false;

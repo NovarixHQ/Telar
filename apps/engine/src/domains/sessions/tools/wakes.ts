@@ -13,62 +13,27 @@ function subscriptionTools(tool: ToolFactory, capability: SessionsCapability): u
       "sessions_subscribe",
       SUBSCRIBE,
       {
-        sessionIds: z
-          .array(z.string().min(1))
-          .min(1)
-          .max(20)
-          .optional()
-          .describe("One wake when all are done; a turn that merely ends is not done."),
-        timeoutMinutes: z.number().int().min(1).max(10_080).optional().describe("Default 240; then you get what arrived."),
+        sessionId: z.string().min(1).optional().describe("Wake me once when its turn ends."),
         cancel: z.string().min(1).optional().describe("An id to stop."),
       },
       async (args) => {
         if (!capability.self) return err(NO_SELF);
-        const subscribing = args.sessionIds !== undefined;
-        const cancelling = args.cancel !== undefined;
-        if (subscribing && cancelling) return err("Pass sessionIds to subscribe OR cancel to stop one, not both in one call.");
-        if (cancelling && args.timeoutMinutes !== undefined) return err("timeoutMinutes belongs to a new subscription; cancel takes only the id.");
-        if (subscribing) return subscribe(capability, capability.self.sessionId, args);
-        if (cancelling) return cancel(capability, capability.self.sessionId, String(args.cancel));
-        if (args.timeoutMinutes !== undefined) return err("timeoutMinutes needs sessionIds: name the sessions to be woken by.");
-        return listSubscriptions(capability, capability.self.sessionId);
+        const self = capability.self.sessionId;
+        if (args.sessionId !== undefined && args.cancel !== undefined) return err("Pass sessionId to subscribe OR cancel to stop one, not both in one call.");
+        if (typeof args.sessionId === "string") return subscribe(capability, self, args.sessionId);
+        if (typeof args.cancel === "string") return cancel(capability, self, args.cancel);
+        return listSubscriptions(capability, self);
       },
     ),
   ];
 }
 
-async function subscribe(capability: SessionsCapability, self: string, args: Record<string, unknown>) {
-  const sessionIds = Array.isArray(args.sessionIds) ? args.sessionIds.map(String) : [];
-  if (sessionIds.length === 0) return err("Name the sessions to be woken by: sessionIds.");
-  if (!capability.subscribeCohort) {
-    try {
-      const subscriptions = await Promise.all(sessionIds.map((targetSessionId) => capability.subscribe(self, { targetSessionId, once: true })));
-      return json({ subscriptions, note: "You will be woken once per session when it ends a turn. End your turn now." });
-    } catch (error) {
-      return err(`Could not subscribe: ${failure(error)}`);
-    }
-  }
+async function subscribe(capability: SessionsCapability, self: string, targetSessionId: string) {
   try {
-    const cohort = await capability.subscribeCohort(self, {
-      sessionIds,
-      ...(typeof args.timeoutMinutes === "number" ? { timeoutMinutes: args.timeoutMinutes } : {}),
-    });
-    const pending = cohort.members.filter((member) => !member.outcome).length;
-    const already = cohort.alreadySubscribed
-      ? `Already subscribed (${cohort.id}): nothing new was made, and it still expires at ${new Date(cohort.expiresAt).toISOString()}. `
-      : cohort.movedFrom
-        ? `Moved from ${cohort.movedFrom.join(", ")}, which no longer track${cohort.movedFrom.length === 1 ? "s" : ""} these sessions. `
-        : "";
-    return json({
-      ...cohort,
-      note: already + (pending === 0
-        ? "Every session was already done, so the notification is on its way now."
-        : cohort.members.length === 1
-          ? `You will get ONE notification when ${sessionIds[0]} is done, quoting what it said, or at ${new Date(cohort.expiresAt).toISOString()} if it never is. A blocker or parked request still reaches you at once. End your turn now.`
-          : `You will get ONE notification when all ${cohort.members.length} are done (${pending} still pending), or at ${new Date(cohort.expiresAt).toISOString()} with whatever arrived. Their results are held for it, not delivered one by one; a blocker or parked request still reaches you at once, and a member that sent a blocker stays pending until you answer it. End your turn now.`),
-    });
+    const subscription = await capability.subscribe(self, { targetSessionId, once: true });
+    return json({ ...subscription, note: `You will be woken once, when ${targetSessionId} ends a turn. End your turn now.` });
   } catch (error) {
-    return err(`Could not subscribe to the cohort: ${failure(error)}`);
+    return err(`Could not subscribe: ${failure(error)}`);
   }
 }
 
@@ -84,7 +49,6 @@ async function cancel(capability: SessionsCapability, self: string, subscription
 async function listSubscriptions(capability: SessionsCapability, self: string) {
   try {
     const subscriptions = await capability.subscriptions(self);
-    const cohorts = capability.cohorts ? await capability.cohorts(self) : [];
     const { rows } = fillWithin(subscriptions, (subscription) => subscription, {
       limit: SUBSCRIPTIONS_LIMIT,
       chars: SUBSCRIPTIONS_CHARS,
@@ -92,10 +56,7 @@ async function listSubscriptions(capability: SessionsCapability, self: string) {
     return json({
       subscriptions: rows,
       ...(subscriptions.length > rows.length ? { total: subscriptions.length, notShown: subscriptions.length - rows.length } : {}),
-      ...(cohorts.length > 0
-        ? { cohorts: cohorts.map((cohort) => ({ id: cohort.id, expiresAt: cohort.expiresAt, pending: cohort.members.filter((member) => !member.outcome).map((member) => member.sessionId), members: cohort.members.length })) }
-        : {}),
-      ...(subscriptions.length === 0 && cohorts.length === 0
+      ...(subscriptions.length === 0
         ? { note: "This session is not subscribed to anything." }
         : subscriptions.length > rows.length
           ? { note: `${rows.length} of ${subscriptions.length}. That many at once is usually a sign that one-shot subscriptions were not being removed.` }

@@ -76,7 +76,7 @@ export function SessionCockpit({
   const panelPresence = usePanelPresence(!solo && panel.open);
   const browser = useSessionBrowser({ hostId, sessionId, projectId, sync, draft: draftConfig, composer, panel: panelState, setCreatedSessionId });
   useCockpitCommands({
-    solo, enabledPlugins, panel: panelState,
+    solo, enabledPlugins, panel: panelState, openBrowser: () => void browser.openBrowser(),
     pinSession: () => {
       if (!sessionId) return;
       void settling.patchFromMenu({ settledOverride: pinToggleOverride(session?.settledOverride) }, "Could not change the session's pin.");

@@ -20,7 +20,7 @@ import { notifyingSessions, TranscriptTurns, type TurnView } from "./transcript-
 
 type TurnProps = ComponentProps<typeof SessionTurn>;
 
-/** The conversation: its banners, the earlier-turns edge, and every turn folded into cohorts and notification strips. */
+/** The conversation: its banners, the earlier-turns edge, and every turn with its notification strips. */
 export function TranscriptList({ sync, model, receipt, ...props }: {
   sync: ReturnType<typeof useSessionSync>;
   model: ReturnType<typeof useTranscriptModel>;
@@ -40,8 +40,6 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const { shown, hostOf } = transcriptRows(model.transcript);
   const hostRun = (request: EngineRequest) => hostOf.get(request.runId) ?? request.runId;
   const markerRow = markerRowOf(newestResultRunId, hostOf);
-  // A cohort folds, except a turn with a request (open or decided) and the newest answer, whose marker must show.
-  const keep = new Set([...sync.requests.map(hostRun), ...(markerRow ? [markerRow] : [])]);
   const directory = useSessionDirectory(props.hostId, notifyingSessions(shown));
   const items = useMemo(() => shown.flatMap((turn) => turn.items), [shown]);
   const sessionId = session?.id;
@@ -97,7 +95,6 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
             <TranscriptTurns
               turns={shown}
               {...(active ? { activeRunId: active.runId } : {})}
-              keep={keep}
               renderTurn={turnRow}
               directory={directory}
             />

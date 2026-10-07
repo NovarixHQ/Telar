@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isPluginSurface, pluginCommands, pluginSurfaces, viewerAvailable } from "./registry";
+import { isPluginSurface, pluginSurfaces, viewerAvailable } from "./registry";
 import { panelTabForPath } from "@/features/panel";
 import { editorFileForPath } from "@/features/files/editor-workspace";
 import { defaultRightPanelWidth } from "@/features/panel";
@@ -9,14 +9,12 @@ describe("the web plugin registry, gated by the enabled ids", () => {
     expect(pluginSurfaces([]).map((surface) => surface.id)).toEqual([]);
     expect(pluginSurfaces(["data-science"]).map((surface) => surface.id)).toEqual(["data"]);
     expect(pluginSurfaces(["latex", "data-science"]).map((surface) => surface.id)).toEqual(["data", "latex"]);
-    expect(pluginCommands(["latex"])).toEqual([{ id: "open-latex", surface: "latex" }]);
-    expect(pluginCommands([])).toEqual([]);
+    expect(pluginSurfaces(["latex"]).map((surface) => surface.command)).toEqual(["open-latex"]);
   });
 
   test("a plugin with no web contributions draws nothing and breaks nothing", () => {
     // The proof plugin: enabled, known to the engine, and invisible here.
     expect(pluginSurfaces(["hello"])).toEqual([]);
-    expect(pluginCommands(["hello"])).toEqual([]);
     expect(panelTabForPath("analysis.ipynb", ["hello"])).toBe("file:analysis.ipynb");
     expect(editorFileForPath("data.csv", ["hello"]).view).toBe("code");
   });

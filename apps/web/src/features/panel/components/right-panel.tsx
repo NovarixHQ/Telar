@@ -55,8 +55,10 @@ export type RightPanelProps = {
   turns?: readonly Turn[];
   tasks?: readonly JournalTask[];
   focusedTask?: TaskFocus;
-  /** Absent when the engine cannot start a browser here; the affordances hide with it. */
+  /** Starts the session's browser, or shows its last page when one runs. Absent hides the Browser row. */
   onOpenBrowser?: () => void;
+  /** Why the Browser row is dimmed: nothing runs and nothing can start here. */
+  browserUnavailable?: string;
   browserStart?: BrowserStartState;
   events?: readonly EngineEvent[];
   tabs: readonly PanelTabItem[];
@@ -214,7 +216,7 @@ function PanelSurface(props: SurfaceProps) {
 }
 
 export function RightPanel(props: RightPanelProps) {
-  const { active, sessionId, tabs, tab, onCloseTab, onTabParams, editors, onEditorChange, onOpenBrowser, open = true, items = [], turns = [], tasks = [], events = [] } = props;
+  const { active, sessionId, tabs, tab, onCloseTab, onTabParams, editors, onEditorChange, onOpenTab, onOpenNewTab, onOpenBrowser, browserUnavailable, open = true, items = [], turns = [], tasks = [], events = [] } = props;
   const { browserStart = { status: "idle" }, enabledPlugins = model.NO_PLUGINS, pluginPanels = model.NO_PANELS } = props;
   const [fullscreen, setFullscreen] = useState(false);
   const toggleFullscreen = () => setFullscreen((current) => !current);
@@ -234,6 +236,13 @@ export function RightPanel(props: RightPanelProps) {
   const activeTab = useMemo(() => tabs.find((entry) => entry.id === tab), [tabs, tab]);
   const [lightbox, setLightbox] = useState<string>();
   const keptTerminals = useKeptTerminals(tabs, activeTab);
+  const launcher = model.launcherRows(tabs, {
+    enabledPlugins,
+    pluginPanels,
+    canOpenNew: onOpenNewTab !== undefined,
+    ...(onOpenBrowser ? { browser: browserUnavailable ? { unavailable: browserUnavailable } : {} } : {}),
+  });
+  const actions = { onOpenTab, ...(onOpenNewTab ? { onOpenNewTab } : {}), ...(onOpenBrowser ? { onOpenBrowser } : {}) };
 
   // Bound to this instance: a hidden Terminal must never write the active tab's params.
   const panelSurface = (entry: PanelTabItem, showing: boolean) => (
@@ -267,7 +276,7 @@ export function RightPanel(props: RightPanelProps) {
       )}
     >
       {!fullscreen && <RightPanelResizeHandle panelRef={panelRef} />}
-      <TabStrip {...props} browser={browser} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} />
+      <TabStrip {...props} browser={browser} launcher={launcher} actions={actions} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} />
       <div {...(tab ? { id: `right-panel-${tab}`, role: "tabpanel" } : {})} className="min-h-0 flex-1 overflow-y-auto md:rounded-b-xl">
         {/* A Terminal once shown stays mounted and hidden: remounting rebuilds every emulator and replays its bytes. */}
         {keptTerminals.map((id) => {
@@ -286,7 +295,7 @@ export function RightPanel(props: RightPanelProps) {
             {panelSurface(activeTab, true)}
           </Suspense>
         ) : (
-          <PanelEmptyState onOpen={props.onOpenTab} browserStart={browserStart} enabledPlugins={enabledPlugins} pluginPanels={pluginPanels} {...(browser ? { browser } : {})} {...(onOpenBrowser ? { onOpenBrowser } : {})} />
+          <PanelEmptyState rows={launcher} actions={actions} browserStart={browserStart} canOpenNew={onOpenNewTab !== undefined} />
         )}
         {activeTab && sessionId && (
           <Suspense fallback={null}>

@@ -50,14 +50,14 @@ describe("driving a session", () => {
     expect(tools.get("sessions_send")!.shape).not.toHaveProperty("runId");
   });
 
-  test("a task subscribes its sender, and the sender is told to end its turn", async () => {
+  test("a task files the recipient as the sender's child, and the sender is told to end its turn", async () => {
     const { store, projectId } = engine();
     const { parent, tools } = orchestrator(store, projectId);
     const lone = store.lifecycle.createSession({ projectId, title: "lone" }).id;
     const sent = await call(tools, "sessions_send", { intent: "task", sessionId: lone, input: "look into it" });
-    expect(String(sent.json!.note)).toContain("End your turn: you will be woken once");
+    expect(String(sent.json!.note)).toContain("End your turn: one line reaches you when it finishes");
     expect(String(sent.json!.note)).not.toContain("sessions_subscribe");
-    expect(store.subscriptions.cohortsFor(parent.id).map((cohort) => cohort.members.map((member) => member.sessionId))).toEqual([[lone]]);
+    expect(store.children.childrenOf(parent.id).map((child) => child.sessionId)).toEqual([lone]);
   });
 
   test("status answers the question it exists for as a boolean, not an inference", async () => {

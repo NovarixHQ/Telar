@@ -34,7 +34,11 @@ enum Pairing {
         _ link: (base: URL, token: String), settings: AppSettings, deviceName: String, session: URLSession = .shared
     ) async throws -> HostID {
         let paired = try await exchange(base: link.base, token: link.token, deviceName: deviceName, session: session)
-        return settings.upsert(baseURLString: link.base.absoluteString, token: paired.deviceToken, addresses: paired.addresses ?? [])
+        let health = try? await HTTPEngineAPI(baseURL: link.base, deviceToken: paired.deviceToken).health()
+        return settings.upsert(
+            baseURLString: link.base.absoluteString, token: paired.deviceToken,
+            addresses: paired.addresses ?? [], daemonId: health?.daemonId
+        )
     }
 
     static func looksLikePairingSecret(_ token: String) -> Bool {

@@ -396,6 +396,21 @@ test("the Claude seam tells the SDK which executable to spawn", async () => {
   expect(received).toBe("/opt/homebrew/bin/claude");
 });
 
+test("the login's extra arguments reach the SDK as flags", async () => {
+  let received: unknown;
+  const driver = createRealClaudeDriver(
+    async () => ({
+      async *query(input) {
+        received = input.options.extraArgs;
+        yield { type: "result", subtype: "success" };
+      },
+    }),
+    { resolveExecutable: () => "/opt/homebrew/bin/claude" },
+  );
+  await run(driver, { extraArgs: ["--chrome", "--debug-file", "/tmp/claude.log"] }).result;
+  expect(received).toEqual({ chrome: null, "debug-file": "/tmp/claude.log" });
+});
+
 test("a resolver with nothing to offer leaves the SDK's own lookup alone", async () => {
   // Not the same as pointing it at a path that does not exist: an absent option
   // is the SDK's documented default, and inventing a path would turn "we could

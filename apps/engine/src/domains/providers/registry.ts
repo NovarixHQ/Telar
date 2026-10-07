@@ -12,6 +12,7 @@ import {
   type ProviderInstanceEnvVar,
 } from "@telar/engine-client";
 import { EngineStateError, SECRET_KEY_SEPARATOR, STATE_VERSION, type Kernel } from "../../platform/kernel";
+import { tokenizeCliArgs } from "../../platform/process/cli-args";
 import { inheritedOwnedEnv, providerEnvIsCredential, providerOwnsEnv, stoppedInheriting } from "./instances";
 
 const MAX_ENV_VARS = 64;
@@ -80,6 +81,7 @@ export type ProviderInstanceInput = {
   enabled?: boolean;
   configDir?: string | null;
   binaryPath?: string | null;
+  extraArgs?: string | null;
   env?: unknown;
   /** Names of inherited variables to keep as this login's own; their values come from the engine's environment, never the request. */
   carryOverInherited?: unknown;
@@ -153,6 +155,14 @@ export class ProviderRegistry {
           throw new EngineStateError("invalid_request", "binary path must be an absolute path, a ~-relative path, or a bare command name");
         }
         return binary;
+      }),
+      ...optionalPatch("extraArgs", input.extraArgs, existing?.extraArgs, (value) => {
+        try {
+          tokenizeCliArgs(value);
+        } catch (error) {
+          throw new EngineStateError("invalid_request", (error as Error).message);
+        }
+        return value.trim();
       }),
     };
     const parsed = ProviderInstanceSchema.safeParse(instance);

@@ -51,10 +51,10 @@ test("turn/start sends the app-server's own input shape, snake_case field and al
   expect(sent("turn/start").input).toEqual([{ type: "text", text: "hello codex", text_elements: [] }]);
 });
 
-test("the app-server is launched with exactly one argument and told everything else in params", async () => {
-  await runTurn("plain").result;
+test("the app-server is launched with only the person's extra arguments and told everything else in params", async () => {
+  await runTurn("plain", { extraArgs: ["-c", "model_verbosity=low"] }).result;
   const argv = sent("@argv").argv as string[];
-  expect(argv.slice(1)).toEqual(["app-server"]);
+  expect(argv.slice(1)).toEqual(["app-server", "-c", "model_verbosity=low"]);
   expect(sent("initialize")).toEqual({
     clientInfo: { name: "telar", title: "Telar", version: "0.1.0" },
     capabilities: { experimentalApi: true, requestAttestation: false },
@@ -320,6 +320,18 @@ test("the plan is one row updated in place, not a new checklist per revision", a
     step: "read the driver",
     status: "completed",
   });
+});
+
+test("a compaction asks the app-server to compact the thread instead of sending /compact as a message", async () => {
+  const { result, observations } = runTurn("plain", { compact: true, providerSessionId: "fake-thread", prompt: "/compact" });
+  await expect(result).resolves.toMatchObject({ providerSessionId: "fake-thread" });
+  expect(sent("thread/compact/start")).toEqual({ threadId: "fake-thread" });
+  expect(wire().some((entry) => entry.method === "turn/start")).toBeFalse();
+  expect(started(observations).some((o) => o.kind === "item.started" && o.item.detail.type === "context_compaction")).toBeTrue();
+});
+
+test("a compaction that never sends turn/completed still ends on its completed item", async () => {
+  await expect(runTurn("compact-no-turn-end", { compact: true, providerSessionId: "fake-thread" }).result).resolves.toMatchObject({ providerSessionId: "fake-thread" });
 });
 
 test("mid-turn compaction is keyed off the item, and the turn still ends", async () => {

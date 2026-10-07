@@ -30,9 +30,9 @@ test("a request parked while the subscriber is busy goes into its running turn, 
   expect(store.wakes.pendingNotifications("session_host")).toEqual([]);
 });
 
-test("a cohort member's parked request reaches a busy orchestrator at once", () => {
+test("a builder's parked request reaches a busy orchestrator at once", () => {
   const { store } = setup();
-  store.subscriptions.subscribeCohort("session_host", { sessionIds: ["session_a", "session_b"] });
+  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
   busy(store);
 
   parkRequest(store);

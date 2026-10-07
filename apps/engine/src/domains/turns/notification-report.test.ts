@@ -87,17 +87,17 @@ test("a report and a result from one run, before the host has started: one deliv
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
 });
 
-test("a result held for a cohort also silences a plain subscription's completion", () => {
+test("a result told by its builder's ending notice also silences a plain subscription's completion", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a" });
-  store.subscriptions.subscribeCohort("session_host", { sessionIds: ["session_a", "session_b"] });
+  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
   const worker = reports(store);
   expect(worker.sent.agentDelivery).toBe("passive");
 
   worker.end();
 
   expect(recordOf(store, worker.runId)).toBeDefined();
-  expect(notifications(store).filter((turn) => turn.agentDelivery !== "passive")).toHaveLength(0);
+  expect(notifications(store).filter((turn) => turn.agentDelivery !== "passive").map((turn) => turn.notification!.summary)).toEqual([expect.stringContaining("[builder done]")]);
 });
 
 test("after its result, a later turn on the same errand does not wake the host", () => {

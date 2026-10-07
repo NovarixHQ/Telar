@@ -13,7 +13,7 @@ export type RuntimeCtx = {
   browserSocket: { url: string; token: string; } | undefined;
   fastMode: boolean | undefined;
   model: string | undefined;
-  notification: { kind: "wake" | "peer_message" | "request"; summary: string; fetch: { sessionId: string; runId: string; }; body: string; sessionId?: string | undefined; runId?: string | undefined; requestId?: string | undefined; wakeKind?: "turn_completed" | "turn_failed" | "turn_stopped" | "request_opened" | undefined; intent?: "task" | "fyi" | "result" | "blocker" | undefined; entries?: { kind: "wake" | "peer_message" | "request"; summary: string; sessionId?: string | undefined; runId?: string | undefined; requestId?: string | undefined; wakeKind?: "turn_completed" | "turn_failed" | "turn_stopped" | "request_opened" | undefined; intent?: "task" | "fyi" | "result" | "blocker" | undefined; }[] | undefined; deliveries?: number | undefined; cohortId?: string | undefined; cohortOpenedAt?: number | undefined; } | undefined;
+  notification: { kind: "wake" | "peer_message" | "request"; summary: string; fetch: { sessionId: string; runId: string; }; body: string; sessionId?: string | undefined; runId?: string | undefined; requestId?: string | undefined; wakeKind?: "turn_completed" | "turn_failed" | "turn_stopped" | "request_opened" | undefined; intent?: "task" | "fyi" | "result" | "blocker" | undefined; entries?: { kind: "wake" | "peer_message" | "request"; summary: string; sessionId?: string | undefined; runId?: string | undefined; requestId?: string | undefined; wakeKind?: "turn_completed" | "turn_failed" | "turn_stopped" | "request_opened" | undefined; intent?: "task" | "fyi" | "result" | "blocker" | undefined; }[] | undefined; deliveries?: number | undefined; } | undefined;
   prompt: string;
   providerSessionId: string | undefined;
   seededTasks: TaskSeed[] | undefined;
@@ -98,6 +98,7 @@ export const buildRuntime = (ctx: RuntimeCtx): ClaudeSessionRuntime<ClaudeTurnBi
       // Part of the fingerprint: a CLI that upgraded itself between two
       // turns changes the resolved path, and the runtime is recreated.
       ...(ctx.turn.executable ? { pathToClaudeCodeExecutable: ctx.turn.executable } : {}),
+      ...(ctx.turn.extraArgs ? { extraArgs: ctx.turn.extraArgs } : {}),
     },
   }) as RuntimeQuery;
 

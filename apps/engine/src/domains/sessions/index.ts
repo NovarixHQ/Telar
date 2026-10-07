@@ -23,6 +23,7 @@ export { SessionAttachments } from "./attachment-store";
 export { webImageOf } from "./web-image";
 export { sessionsSocketDoor } from "./socket-door";
 export { SessionSubscriptions, TERMINAL_WAKE_KINDS } from "./subscriptions";
+export { SessionChildren } from "./children";
 export { SessionLifecycle } from "./lifecycle-store";
 export { SessionHandoff } from "./handoff";
 export { ACTIVE_TURN_STATES, SessionQueries } from "./queries";

@@ -1,5 +1,5 @@
 import type { AgentModelChoice, ModelSelection, ProviderDriverKind, RuntimeMode, TurnAttachment } from "../protocol/common";
-import type { Cohort, Session, SessionOrigin, SubscribedCohort, Subscription, Turn, WakeKind } from "../protocol/entities";
+import type { Session, SessionOrigin, Subscription, Turn, WakeKind } from "../protocol/entities";
 import type { AgentTurnInput } from "../protocol/observations";
 import type { TaskOutputPage } from "../protocol/tasks";
 import type { EngineTransport } from "../platform/transport";
@@ -14,6 +14,7 @@ import {
   type SessionGrepAnswer,
   type SessionOutlineAnswer,
   type SessionSearchAnswer,
+  type SessionChildren,
   type SessionSettleEnded,
   type SessionSnapshot,
   type SnapshotWindow,
@@ -209,16 +210,8 @@ export const sessionsClient = {
     return this.request("GET", `${sessionPath(sessionId)}/subscriptions`);
   },
 
-  subscribeCohort(
-    this: EngineTransport,
-    sessionId: string,
-    input: { sessionIds: string[]; timeoutMinutes?: number; completionWake?: Cohort["completionWake"] },
-  ): Promise<{ cohort: SubscribedCohort }> {
-    return this.request("POST", `${sessionPath(sessionId)}/cohorts`, input);
-  },
-
-  cohorts(this: EngineTransport, sessionId: string): Promise<{ cohorts: Cohort[] }> {
-    return this.request("GET", `${sessionPath(sessionId)}/cohorts`);
+  children(this: EngineTransport, sessionId: string): Promise<SessionChildren> {
+    return this.request("GET", `${sessionPath(sessionId)}/children`);
   },
 
   acknowledgeRead(this: EngineTransport, readerSessionId: string, input: { sessionId: string; runId: string }): Promise<{ acknowledged: true }> {

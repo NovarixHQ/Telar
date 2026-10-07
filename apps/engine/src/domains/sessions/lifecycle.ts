@@ -84,20 +84,14 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
     },
     { method: "GET", path: sessionRoute("/subscriptions"), auth: "engine", handle: ({ params }) => ok({ subscriptions: store.subscriptions.subscriptionsFor(params[0]!) }) },
     {
-      method: "POST",
-      path: sessionRoute("/cohorts"),
+      method: "GET",
+      path: sessionRoute("/children"),
       auth: "engine",
-      handle({ params: [sessionId], body }) {
-        const sessionIds = Array.isArray(body.sessionIds) ? body.sessionIds.filter((each): each is string => typeof each === "string") : [];
-        const cohort = store.subscriptions.subscribeCohort(sessionId!, {
-          sessionIds,
-          ...(typeof body.timeoutMinutes === "number" ? { timeoutMinutes: body.timeoutMinutes } : {}),
-          ...completionWake(body.completionWake),
-        });
-        return { status: 201, body: { cohort } };
+      handle: ({ params }) => {
+        store.records.require(params[0]!);
+        return ok({ children: store.children.childrenOf(params[0]!) });
       },
     },
-    { method: "GET", path: sessionRoute("/cohorts"), auth: "engine", handle: ({ params }) => ok({ cohorts: store.subscriptions.cohortsFor(params[0]!) }) },
     { method: "GET", path: sessionRoute("/held-reports"), auth: "engine", handle: ({ params }) => ok({ held: store.wakes.pendingNotifications(params[0]!).length }) },
     {
       method: "POST",

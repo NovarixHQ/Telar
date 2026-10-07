@@ -4,17 +4,19 @@ import { useMemo, useState } from "react";
 import { Maximize2Icon, Minimize2Icon, PanelRightCloseIcon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { KeyHint } from "@/features/commands";
-import { desktopBrowserBridge } from "@/features/browser";
 import { cn } from "@/ui/utils";
 import { splitRoster, tabBadge, type TabBadge } from "../folds";
 import { useLivePages } from "../hooks/use-live-pages";
 import { useTabDrag } from "../hooks/use-tab-drag";
-import { browserScopeKey, browserTabId, describePanelTabInstance, NO_PANELS, NO_PLUGINS, openableSurfaces, type BrowserState, type LivePage, type PanelTabItem } from "../model";
+import { browserScopeKey, browserTabId, describePanelTabInstance, type BrowserState, type LauncherRow, type LivePage, type PanelTabItem } from "../model";
 import type { RightPanelProps } from "./right-panel";
+import type { LauncherActions } from "./launcher";
 import { SurfaceChooser } from "./surface-chooser";
 
-type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "tasks" | "onTabChange" | "onCloseTab" | "onMoveTab" | "onOpenTab" | "onOpenNewTab" | "onOpenBrowser" | "browserStart" | "enabledPlugins" | "pluginPanels" | "onClose"> & {
+type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "tasks" | "onTabChange" | "onCloseTab" | "onMoveTab" | "browserStart" | "onClose"> & {
   browser: BrowserState | undefined;
+  launcher: readonly LauncherRow[];
+  actions: LauncherActions;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
 };
@@ -120,7 +122,7 @@ function TabChip({
 
 /** The panel's top bar: the tabs, the "+" chooser, and the panel's own controls. In fullscreen it is the window's titlebar. */
 export function TabStrip(strip: StripProps) {
-  const { tabs, sessionId, browser, fullscreen, onOpenNewTab, onOpenBrowser, tasks = [], browserStart = { status: "idle" } } = strip;
+  const { tabs, sessionId, fullscreen, launcher, tasks = [], browserStart = { status: "idle" } } = strip;
   const menu = useState<string>();
   const drag = useTabDrag(tabs, strip.onMoveTab);
   const browserScopes = useMemo(
@@ -134,14 +136,6 @@ export function TabStrip(strip: StripProps) {
     return new Set([...counted].filter(([, count]) => count > 1).map(([kind]) => kind));
   }, [tabs]);
   const roster = useMemo(() => splitRoster(tasks), [tasks]);
-  const canStartBrowser = Boolean(onOpenBrowser) && (browser?.tabs.length ?? 0) === 0;
-  const openable = openableSurfaces(tabs, {
-    enabledPlugins: strip.enabledPlugins ?? NO_PLUGINS,
-    pluginPanels: strip.pluginPanels ?? NO_PANELS,
-    browser,
-    desktop: Boolean(desktopBrowserBridge()),
-    canOpenNew: onOpenNewTab !== undefined,
-  });
 
   return (
     <div
@@ -163,16 +157,7 @@ export function TabStrip(strip: StripProps) {
             menu={menu}
           />
         ))}
-        {(openable.length > 0 || canStartBrowser) && (
-          <SurfaceChooser
-            openable={openable}
-            canStartBrowser={canStartBrowser}
-            browserStart={browserStart}
-            onOpenTab={strip.onOpenTab}
-            {...(onOpenNewTab ? { onOpenNewTab } : {})}
-            {...(onOpenBrowser ? { onOpenBrowser } : {})}
-          />
-        )}
+        {launcher.length > 0 && <SurfaceChooser rows={launcher} actions={strip.actions} browserStart={browserStart} />}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
         {tabs.length > 1 && (

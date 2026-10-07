@@ -6,7 +6,6 @@ import type { JournalTurn } from "@/platform/engine";
 import { bareNotificationTurn, groupNotificationTurns, ROW, SessionTitles } from "@/features/transcript";
 import { cn } from "@/ui/utils";
 import type { SessionDirectory } from "../hooks/use-session-directory";
-import { CohortFold, foldCohortTurns } from "./cohort-fold";
 
 export type TurnView = { peerTitle?: string };
 
@@ -35,14 +34,12 @@ export function notifyingSessions(turns: readonly JournalTurn[]): string[] {
   return [...new Set(turns.flatMap((turn) => [turn.notification?.sessionId, ...(turn.notification?.entries ?? []).map((entry) => entry.sessionId)]).filter((id): id is string => Boolean(id)))].sort();
 }
 
-export function TranscriptTurns({ turns, activeRunId, keep, renderTurn, directory }: {
+export function TranscriptTurns({ turns, activeRunId, renderTurn, directory }: {
   turns: readonly JournalTurn[];
   directory: SessionDirectory;
   activeRunId?: string;
-  keep: ReadonlySet<string>;
   renderTurn: (turn: JournalTurn, view: TurnView) => ReactNode;
 }) {
-  const segments = foldCohortTurns(turns, { ...(activeRunId ? { activeRunId } : {}), keep });
   const known = new Map(turns.flatMap((turn) => (turn.notification?.entries ?? []).flatMap((entry) => (entry.sessionId && entry.title ? [[entry.sessionId, entry.title] as const] : []))));
   const title = (sessionId: string) => known.get(sessionId)?.trim() || directory.get(sessionId)?.title?.trim();
   const titleOf = (turn: JournalTurn) => {
@@ -64,14 +61,6 @@ export function TranscriptTurns({ turns, activeRunId, keep, renderTurn, director
       </div>
     );
   };
-  const drawn = segments.map((segment) => {
-    const groups = groupNotificationTurns(segment.turns, activeRunId);
-    if (segment.kind === "turns") return <Fragment key={segment.turns[0]!.runId}>{groups.map(rows)}</Fragment>;
-    return (
-      <CohortFold key={segment.turns[0]!.runId} turns={segment.turns} members={segment.members}>
-        {groups.map(rows)}
-      </CohortFold>
-    );
-  });
+  const drawn = groupNotificationTurns(turns, activeRunId).map(rows);
   return <SessionTitles.Provider value={title}>{drawn}</SessionTitles.Provider>;
 }

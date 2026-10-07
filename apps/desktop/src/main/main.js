@@ -42,6 +42,7 @@ const { cockpitFocus, createPresence } = require("./presence");
 const { pinUserData } = require("./user-data");
 const { createTerminalReaders } = require("./terminal-readers");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
+const { mainWindow, windowToFocus } = require("../windows/main-window");
 const { createSurfaceWindowStore } = require("../windows/surface-window-store");
 const { isCompact, setCompact } = require("../windows/compact-window");
 const { registerDevPairing } = require("../dev/pair-simulators");
@@ -184,8 +185,9 @@ function openNotificationPath(route) {
   win.webContents.send("telar:notifications:open", route);
 }
 
-function createWindow(url) {
+function createWindow(url, { main = false } = {}) {
   return createCockpitWindow(url, {
+    main,
     createManager: (win, { onChordScope }) => {
       const manager = new DesktopBrowserManager(win, {
         onControlChanged: reportBrowserControl,
@@ -466,7 +468,7 @@ if (SMOKE) {
     app.quit();
   } else {
     app.on("second-instance", () => {
-      const [win] = BrowserWindow.getAllWindows();
+      const win = windowToFocus(mainWindow(), [...browserManagers].map((manager) => manager.window));
       if (win) {
         if (win.isMinimized()) win.restore();
         win.focus();
@@ -538,7 +540,7 @@ if (SMOKE) {
           const notify = (body) => new Notification({ title: "Pair Booted Simulators", body }).show();
           if (registerDevPairing({ dev: DEV_BUILD, appUrl: url, hostToken: uiServer.HOST_TOKEN, ipcMain, notify })) buildApplicationMenu();
         }
-        updaterWindow = createWindow(url);
+        updaterWindow = createWindow(url, { main: true });
         if (process.platform === "darwin") {
           quickComposer = createQuickComposer({ appUrl: url, openRoute: openNotificationPath, log: (line) => logShell("warn", line) });
           quickComposer.bind(mergeKeymap(readKeybindingOverrides())["quick-composer"]);
@@ -550,7 +552,7 @@ if (SMOKE) {
 
         watchVolumes({ onChanged: reportVolumesChanged, powerMonitor });
         app.on("activate", () => {
-          if (BrowserWindow.getAllWindows().length === 0) createWindow(url);
+          if (BrowserWindow.getAllWindows().length === 0) createWindow(url, { main: true });
         });
       } catch (err) {
         logShell("error", `failed to start: ${err?.stack || err}`);

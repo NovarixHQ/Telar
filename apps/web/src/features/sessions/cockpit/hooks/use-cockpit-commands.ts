@@ -1,15 +1,15 @@
 "use client";
 
 import { useCommandHandlers } from "@/features/commands";
-import type { PanelTab } from "@/features/panel";
-import { pluginCommands } from "@/features/plugins";
+import { surfaceCommands } from "@/features/panel";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 
-/** The cockpit's keyboard commands: the panel's (none on the solo route), the enabled plugins' openers, and pinning. */
-export function useCockpitCommands({ solo, enabledPlugins, panel, pinSession }: {
+/** The cockpit's keyboard commands: the panel's (none on the solo route), one opener per surface, and pinning. */
+export function useCockpitCommands({ solo, enabledPlugins, panel, openBrowser, pinSession }: {
   solo: boolean;
   enabledPlugins: readonly string[];
   panel: ReturnType<typeof useCockpitPanel>;
+  openBrowser: () => void;
   pinSession: () => void;
 }) {
   const { togglePanel, stepPanelTab, showPanelTab } = panel;
@@ -21,9 +21,8 @@ export function useCockpitCommands({ solo, enabledPlugins, panel, pinSession }: 
             "toggle-panel": togglePanel,
             "panel-next-tab": () => stepPanelTab(1),
             "panel-previous-tab": () => stepPanelTab(-1),
-            "open-diff": () => showPanelTab("diff"),
-            "open-editor": () => showPanelTab("editor"),
-            ...Object.fromEntries(pluginCommands(enabledPlugins).map((command) => [command.id, () => showPanelTab(command.surface as PanelTab)])),
+            "open-browser": openBrowser,
+            ...Object.fromEntries(surfaceCommands(enabledPlugins).map(({ command, tab }) => [command, () => showPanelTab(tab)])),
           }),
       "pin-session": pinSession,
     },

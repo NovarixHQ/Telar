@@ -23,7 +23,7 @@ export type DraftChoices = {
   runtimeMode: RuntimeMode;
 };
 
-/** The session's browser: whether it can start, and opening it — which first turns a fresh canvas into a draft session. */
+/** The session's browser: one entry that shows the last page when one runs, else starts it — which first turns a fresh canvas into a draft session. */
 export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, composer, panel, setCreatedSessionId }: {
   hostId: string;
   sessionId: string | undefined;
@@ -38,14 +38,17 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
   /** Folded once here so the panel and the pinned summary cannot disagree about which tabs are open. */
   const browser = useMemo(() => latestBrowserState(events), [events]);
 
-  const [browserCanStart, setBrowserCanStart] = useState(false);
+  const [browserCanStart, setBrowserCanStart] = useState<boolean>();
   useEffect(() => {
     if (!transcriptLanded) return;
     let cancelled = false;
     // Deferred: a synchronous setState in an effect body is a cascading render.
     const task = window.setTimeout(() => {
-      setBrowserCanStart(false);
-      if (!desktopBrowserBridge()) return;
+      setBrowserCanStart(undefined);
+      if (!desktopBrowserBridge()) {
+        setBrowserCanStart(false);
+        return;
+      }
       if (!sessionId) {
         setBrowserCanStart(Boolean(projectId));
         return;
@@ -104,7 +107,16 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
     try { return await flight; } finally { browserDraftFlight.current = null; }
   }
 
+  function showBrowser(pages: readonly { id: string; active?: boolean }[]): boolean {
+    const page = pages.find((tab) => tab.active) ?? pages.at(-1);
+    if (!page) return false;
+    if (desktopBrowserBridge()) panel.showSessionBrowser();
+    else panel.showPanelTab(browserPanelTab(page.id));
+    return true;
+  }
+
   async function openBrowser() {
+    if (showBrowser(browser?.tabs ?? [])) return;
     if (browserOpening.current) return;
     browserOpening.current = true;
     const origin = window.location.pathname;
@@ -121,11 +133,7 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
       const result = await browserApi.browserState(target, { start: true });
       if (window.location.pathname !== destination) return;
       setBrowserStart(describeBrowserStart(result.browser));
-      const active = result.browser.tabs.find((tab) => tab.active) ?? result.browser.tabs[0];
-      if (active) {
-        if (desktopBrowserBridge()) panel.showSessionBrowser();
-        else panel.showPanelTab(browserPanelTab(active.id));
-      }
+      showBrowser(result.browser.tabs);
     } catch (error) {
       if (window.location.pathname === origin || window.location.pathname === destination) {
         setBrowserStart({ status: "error", message: error instanceof Error ? error.message : "The engine could not start a browser." });
@@ -135,5 +143,8 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
     }
   }
 
-  return { browser, browserCanStart, browserStart, openBrowser, browserDraftFlight, browserDraftSendPending };
+  const pages = browser?.tabs.length ?? 0;
+  const browserUnavailable =
+    pages > 0 || browserCanStart !== false ? undefined : desktopBrowserBridge() ? "This session can't start a browser" : "Starting a browser needs the desktop app";
+  return { browser, browserUnavailable, browserStart, openBrowser, browserDraftFlight, browserDraftSendPending };
 }

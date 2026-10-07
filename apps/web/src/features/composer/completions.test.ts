@@ -11,9 +11,10 @@ import {
   providerCommandCompletions,
   rankCommands,
   rankPaths,
+  rankSessions,
   rankSkills,
 } from "./completions";
-import { directoryReference, fileReference, skillReference } from "./drag-reference";
+import { directoryReference, fileReference, sessionReference, skillReference } from "./drag-reference";
 
 const FILES = [
   "README.md",
@@ -306,5 +307,31 @@ describe("the provider's own slash commands", () => {
     expect(rankCommands(rows, "/ship")[0]?.label).toBe("/ship");
     expect(rankCommands(rows, "clean")[0]?.label).toBe("/commit-commands:clean_gone");
     expect(rankCommands(rows, "qqqq")).toEqual([]);
+  });
+});
+
+describe("sessions the at-sign menu offers", () => {
+  const SESSIONS = [
+    { id: "session_a", title: "Settings redesign", projectId: "p_other", projectName: "Site", updatedAt: 500 },
+    { id: "session_b", title: "Study T3 Code handoff", projectId: "p_telar", projectName: "Telar", updatedAt: 100 },
+    { id: "session_c", title: "Live Activity", projectId: "p_telar", projectName: "Telar", updatedAt: 300 },
+    { id: "session_here", title: "This one", projectId: "p_telar", updatedAt: 900 },
+    { id: "session_d", title: "Old", projectId: "p_other", updatedAt: 10 },
+    { id: "session_e", title: "Older", projectId: "p_other", updatedAt: 5 },
+  ];
+  const here = { sessionId: "session_here", projectId: "p_telar" };
+
+  test("the current project's sessions come first, newest first, then the rest by recency, at most four", () => {
+    expect(rankSessions(SESSIONS, "", here).map((row) => row.id)).toEqual(["session:session_c", "session:session_b", "session:session_a", "session:session_d"]);
+  });
+
+  test("the session being typed in is never offered", () => {
+    expect(rankSessions(SESSIONS, "this", here)).toEqual([]);
+  });
+
+  test("a query narrows by title and picking inserts the session reference", () => {
+    const [row] = rankSessions(SESSIONS, "handoff", here);
+    expect(row).toMatchObject({ label: "Study T3 Code handoff", detail: "Telar", group: "Sessions", glyph: "session" });
+    expect(row?.action).toEqual({ type: "insert", text: sessionReference({ id: "session_b", title: "Study T3 Code handoff" }).text });
   });
 });

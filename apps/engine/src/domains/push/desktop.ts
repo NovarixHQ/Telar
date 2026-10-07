@@ -1,9 +1,6 @@
-import type { NotificationSounds, NotifyOn } from "@telar/engine-client";
+import { cockpitSessionHref, type NotificationSounds, type NotifyOn } from "@telar/engine-client";
 import { readNotifyOn, readSounds } from "./prefs";
 import { ALERT_BODY, alertKind, signalKey, soundFor, type AlertKind, type SessionSignal } from "./push";
-
-const sessionHref = (session: { id: string; projectId?: string }) =>
-  session.projectId ? `/projects/${encodeURIComponent(session.projectId)}/sessions/${encodeURIComponent(session.id)}` : "/main";
 
 export const DESKTOP_NOTICE = "telar:desktop-notification";
 export const DESKTOP_APPROVE = "telar:desktop-notification:approve";
@@ -62,7 +59,7 @@ export function desktopNotices(
       type: DESKTOP_NOTICE, kind, sessionId: session.id,
       title: prefs.previews ? session.title.slice(0, 160) : "Telar",
       body: ALERT_BODY[kind],
-      path: sessionHref(session),
+      path: cockpitSessionHref(session),
       ...(request ? { request } : {}),
     });
   }

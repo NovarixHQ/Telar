@@ -5,10 +5,8 @@
 // COPIED FROM apps/web_old/lib/fixtures/fake-codex-app-server.mjs and extended.
 // The value carried over is the part that cannot be re-derived: every method
 // name, item.type spelling and field name below was taken from a live trace
-// against a real `codex app-server` 0.145.0. What was DROPPED is the
-// `thread/compact/start` machinery and its scenarios — Telar's `TurnDriver`
-// runs turns, and an on-demand compaction is a session operation with no
-// caller here. Auto-compaction MID-TURN is kept, because a turn can hit it.
+// against a real `codex app-server` 0.145.0. `thread/compact/start` plays as a
+// turn whose only item is the compaction.
 //
 // WHAT WAS ADDED, and why each one is a test that could not otherwise exist:
 //   · server→client REQUESTS with real correlation (`ask`), so an approval is
@@ -113,6 +111,16 @@ rl.on("line", (line) => {
   if (msg.method === "thread/resume") {
     threadId = msg.params?.threadId ?? ROOT_THREAD;
     write({ jsonrpc: "2.0", id: msg.id, result: { thread: { id: threadId } } });
+    return;
+  }
+  if (msg.method === "thread/compact/start") {
+    write({ jsonrpc: "2.0", id: msg.id, result: {} });
+    setTimeout(() => {
+      notify("turn/started", { threadId, turn: { id: turnId, status: "inProgress" } });
+      item({ type: "contextCompaction", id: "item-compact" });
+      done({ type: "contextCompaction", id: "item-compact" });
+      if (scenario !== "compact-no-turn-end") notify("turn/completed", { threadId, turn: { id: turnId, status: "completed" } });
+    }, 5);
     return;
   }
   if (msg.method === "turn/start") {

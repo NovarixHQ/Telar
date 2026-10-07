@@ -21,7 +21,7 @@ export function orchestration(store: EngineStore) {
       stop: () => store.turnLifecycle.stopTurn(sessionId, claimed.runId),
     };
   };
-  const cohortWakes = () => store.queries.turns(host).filter((each) => each.notification?.cohortId);
-  const cohorts = () => store.subscriptions.cohortsFor(host).map((cohort) => cohort.members.map((member) => member.sessionId));
-  return { host, turn, cohortWakes, cohorts };
+  const endingWakes = () => store.queries.turns(host).filter((each) => each.wakeReason && each.notification?.entries?.some((entry) => entry.title !== undefined));
+  const children = () => store.children.childrenOf(host).map((child) => [child.sessionId, child.state]);
+  return { host, turn, endingWakes, children };
 }

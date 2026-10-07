@@ -127,48 +127,6 @@ describe("the panel opens as wide as the widest thing in it (#357)", () => {
  * between "two columns when there is room" and "two columns when the monitor is
  * big", and only one of those is true of a panel you can drag narrow.
  */
-describe("the surface chooser lays out in columns", () => {
-  const chooser = () => {
-    const markup = strip([]);
-    const opens = markup.indexOf("Open a surface");
-    expect(opens).toBeGreaterThan(-1);
-    return markup;
-  };
-
-  test("the cards are a grid: one column by default, two once the PANEL is wide enough", () => {
-    const markup = chooser();
-    expect(markup).toContain("grid-cols-1");
-    expect(markup).toContain("@[420px]/panel-empty:grid-cols-2");
-  });
-
-  test("the query is the panel's own width — a named container, not a viewport breakpoint", () => {
-    const markup = chooser();
-    expect(markup).toContain("@container/panel-empty");
-    // A bare `@container` would answer for whichever ancestor is nearest, and
-    // the surfaces inside this panel are free to open containers of their own.
-    expect(markup).not.toContain("sm:grid-cols-2");
-  });
-
-  test("the width cap grows with the columns, so two are not 180px each", () => {
-    // `max-w-sm` is one readable column. Splitting it in two would make each
-    // column narrower than the rows this replaced.
-    const markup = chooser();
-    expect(markup).toContain("max-w-sm");
-    expect(markup).toContain("@[420px]/panel-empty:max-w-2xl");
-  });
-
-  test("ROW-MAJOR: the cards keep the order the strip declares them in", () => {
-    const markup = chooser();
-    // `Run` left this list with the tab (#890): a run is a chip in the
-    // Terminal's strip now, so the chooser has one fewer card and the surface
-    // that ends the row is Terminal.
-    const order = ["Agents", "Processes", "Diff", "Editor", "Issues", "Pull requests", "Terminal"];
-    const at = order.map((label) => markup.indexOf(`>${label}<`));
-    expect(at.every((index) => index > -1)).toBe(true);
-    expect([...at].sort((a, b) => a - b)).toEqual(at);
-  });
-});
-
 describe("the strip is keyed by instance, not by kind", () => {
   test("every tab gets its own chip and its own close button", () => {
     const markup = strip([tab("editor", "editor", { path: "a.ts" }), tab("editor#2", "editor", { path: "b.ts" })], "editor#2");

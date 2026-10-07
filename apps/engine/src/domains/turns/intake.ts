@@ -97,9 +97,9 @@ type IntakeDeps = {
   joinWaitingNotification: (sessionId: string, waitingRunId: string, notification: NotificationDetail) => void;
   rewriteNotificationItem: (sessionId: string, turn: Turn) => void;
   waitingSubscription: (subscriberSessionId: string, targetSessionId: string) => boolean;
-  cohortHolds: (sessionId: string, senderSessionId: string) => boolean;
-  cohortBlocked: (subscriberSessionId: string, memberSessionId: string) => boolean;
-  recordCohortMessage: (sessionId: string, senderSessionId: string, intent: NonNullable<Turn["agentIntent"]>, runId: string, text: string, spent?: string) => void;
+  holdsChild: (parentSessionId: string, childSessionId: string) => boolean;
+  childWaitingOn: (parentSessionId: string, childSessionId: string) => boolean;
+  recordChildMessage: (recipientSessionId: string, senderSessionId: string, intent: NonNullable<Turn["agentIntent"]>, message: { runId: string; body: string; senderRunId?: string }) => void;
   agentTurnModel: (sessionId: string, choice: AgentModelChoice) => TurnModelSelection | undefined;
   runSpend: (sessionId: string, runId: string) => RunSpend | undefined;
 };
@@ -192,7 +192,7 @@ export class TurnIntake {
       }
       const intent = input.intent ?? (sender.sessionId && this.assignedBy(sessionId, sender.sessionId) ? "task" : "fyi");
       if (input.model && intent !== "task") throw new EngineStateError("invalid_request", "model and effort go with a task; an fyi, result or blocker runs nothing.");
-      if (intent === "fyi" && sender.sessionId && this.deps.cohortBlocked(sender.sessionId, sessionId)) {
+      if (intent === "fyi" && sender.sessionId && this.deps.childWaitingOn(sender.sessionId, sessionId)) {
         throw new EngineStateError("conflict", `${sessionId} is waiting on your answer to its blocker, and an fyi does not wake it. Answer with intent: "task".`);
       }
       const model = input.model ? this.deps.agentTurnModel(sessionId, input.model) : undefined;
@@ -202,8 +202,9 @@ export class TurnIntake {
       const correction = input.corrects && !this.deps.readQueue(sessionId, [input.runId]).turns.some((turn) => turn.runId === input.runId)
         ? this.correctionOf(sessionId, input.corrects, sender.sessionId)
         : undefined;
-      const cohortHeld = intent === "result" && sender.sessionId !== undefined && this.deps.cohortHolds(sessionId, sender.sessionId);
-      const delivery = !cohortHeld && (intent === "task" || intent === "blocker" || waiting || correction === "read" || correction === "queued")
+      // The child's ending notice tells this result, so the message itself wakes no one.
+      const childHeld = intent === "result" && sender.sessionId !== undefined && this.deps.holdsChild(sessionId, sender.sessionId);
+      const delivery = !childHeld && (intent === "task" || intent === "blocker" || waiting || correction === "read" || correction === "queued")
         ? "wake"
         : "passive";
       const scope = intent === "task" ? input.scope : undefined;
@@ -223,7 +224,7 @@ export class TurnIntake {
         ? this.deps.waitingNotificationTurn(sessionId)
         : undefined;
       const result = this.submitTurn(sessionId, {
-        ...(folds || joins || cohortHeld ? { foldedIntoWaitingWake: true } : {}),
+        ...(folds || joins || childHeld ? { foldedIntoWaitingWake: true } : {}),
         runId: input.runId,
         input: input.input,
         ...(model ? { model } : {}),
@@ -238,7 +239,9 @@ export class TurnIntake {
       });
       if (folds && !result.replayed) this.foldIntoWaitingMessage(sessionId, folds, notification);
       if (joins && !result.replayed) this.deps.joinWaitingNotification(sessionId, joins, notification);
-      if (!result.replayed && sender.sessionId) this.deps.recordCohortMessage(sessionId, sender.sessionId, intent, input.runId, input.input, spent);
+      if (!result.replayed && sender.sessionId) {
+        this.deps.recordChildMessage(sessionId, sender.sessionId, intent, { runId: input.runId, body: input.input, ...(proof ? { senderRunId: proof.runId } : {}) });
+      }
       // The unread version goes only once its replacement is safely accepted.
       if (correction === "queued" || correction === "held") this.withdrawCorrected(sessionId, input.corrects!, correction);
       return result;

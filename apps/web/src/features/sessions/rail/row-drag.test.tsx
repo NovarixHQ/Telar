@@ -61,13 +61,13 @@ describe("a row in an arrangeable band is a drag handle", () => {
     expect(render({ drag })).toContain('draggable="true"');
   });
 
-  test("a row in a band that does not arrange carries none", () => {
-    // Search results, the shelves and "Needs you" pass no `drag` — a list that
-    // is an answer, a shelf you are not keeping and a queue the engine fills
-    // are none of them places where a position means anything. (The row's own
-    // anchor still says `draggable="false"`; that is the link declining to
-    // drag its URL, not the row offering to move.)
-    expect(render()).not.toContain('draggable="true"');
+  test("a row in a band that does not arrange still drags, as a reference only", () => {
+    expect(render()).toContain('draggable="true"');
+    expect(render()).not.toContain("Drag to move");
+  });
+
+  test("another host's row carries no handle: its reference would not resolve here", () => {
+    expect(render({ session: { ...session, hostId: "host_far" } })).not.toContain('draggable="true"');
   });
 
   test("the handle WRAPS the right-click trigger rather than being it", () => {

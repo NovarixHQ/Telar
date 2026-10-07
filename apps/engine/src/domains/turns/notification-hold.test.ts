@@ -125,7 +125,7 @@ test("a waiting notification is re-announced at most twice; the third stays pend
   expect(store.queries.turns("session_host").filter((turn) => turn.notification !== undefined)).toHaveLength(1);
 });
 
-test("a cohort already waiting takes a fresh wake with it rather than queueing a second turn", () => {
+test("a merged wake already waiting takes a fresh wake with it rather than queueing a second turn", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: false });
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_b", once: false });
@@ -168,7 +168,7 @@ test("two children finishing a moment apart on an idle host make ONE queued turn
   expect(store.wakes.pendingNotifications("session_host").map((each) => each.runId)).toEqual(["run_a2"]);
 });
 
-test("a newer fact about one run in a queued cohort replaces only that run's line", () => {
+test("a newer fact about one run in a queued merged wake replaces only that run's line", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: false });
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_b", once: false });

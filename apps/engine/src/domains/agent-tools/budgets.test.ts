@@ -389,7 +389,7 @@ const CASES: Array<{ tool: string; args?: Record<string, unknown>; ceiling: numb
   { tool: "sessions_stop", args: { sessionId: SESSION_ID }, ceiling: 2_000, why: "a count and a sentence, never the turns" },
   { tool: "sessions_settle", args: { sessionId: SESSION_ID }, ceiling: 1_000, why: "a title and a sentence" },
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "diff" }, ceiling: MAX_ANSWER_CHARS, why: "500 files and 60 commits" },
-  { tool: "sessions_subscribe", args: { sessionIds: [SESSION_ID] }, ceiling: 1_500, why: "one subscription and a sentence" },
+  { tool: "sessions_subscribe", args: { sessionId: SESSION_ID }, ceiling: 1_500, why: "one subscription and a sentence" },
   { tool: "sessions_subscribe", args: { cancel: "sub_1" }, ceiling: 500, why: "a boolean" },
   { tool: "sessions_subscribe", ceiling: MAX_ANSWER_CHARS, why: "200 subscriptions" },
   { tool: "sessions_requests", args: { sessionId: SESSION_ID }, ceiling: MAX_ANSWER_CHARS, why: "200 open questions with their fields" },

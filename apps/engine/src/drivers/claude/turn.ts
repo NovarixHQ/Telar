@@ -54,6 +54,7 @@ export type TurnState = {
   backgroundClaim: BackgroundClaim | undefined;
   backgroundClaimChain: Promise<unknown>;
   executable: string | undefined;
+  extraArgs: Record<string, string | null> | undefined;
   turnBindings: ClaudeTurnBindings;
   streaming: boolean;
   briefings: string[];

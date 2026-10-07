@@ -3,12 +3,14 @@ import { assertId, EngineStateError, type JournalEntry, type Kernel } from "../.
 import type { SessionLifecycle } from "./lifecycle-store";
 import { sessionMetadataFile, storedSession } from "./metadata";
 import type { SessionRecords } from "./records";
+import type { SessionChildren } from "./children";
 import type { SessionSubscriptions } from "./subscriptions";
 
 type HandoffDeps = {
   records: SessionRecords;
   lifecycle: Pick<SessionLifecycle, "detachAssignments">;
   subscriptions: Pick<SessionSubscriptions, "handOver">;
+  children: Pick<SessionChildren, "handOver">;
   assignments(sessionId: string): SessionAssignment[];
   appendEvent(sessionId: string, event: JournalEntry): unknown;
 };
@@ -45,7 +47,10 @@ export class SessionHandoff {
       const next: Session = { ...rest, ...(input.to ? { startedFrom: { sessionId: input.to } } : {}), updatedAt: this.kernel.now() };
       this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(next));
       this.deps.appendEvent(sessionId, { type: "session.updated", session: next });
-      if (from !== undefined) this.deps.subscriptions.handOver(sessionId, from, input.to);
+      if (from !== undefined) {
+        this.deps.subscriptions.handOver(sessionId, from, input.to);
+        this.deps.children.handOver(sessionId, from, input.to);
+      }
 
       const moved: JournalEntry = { type: "session.handed_off", subject: sessionId, ...(from ? { from } : {}), ...(input.to ? { to: input.to } : {}) };
       const known = new Set(this.deps.records.ids());

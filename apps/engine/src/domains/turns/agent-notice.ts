@@ -1,4 +1,5 @@
 import { defaultInstanceIdForDriver, type Session, type TokenUsage, type Turn } from "@telar/engine-client";
+import { firstLine } from "./turn-summary";
 
 function senderPhrase(sender: { sessionId?: string } | undefined): string {
   return sender?.sessionId ? `session ${sender.sessionId}` : "an agent outside any session (the sessions socket)";
@@ -55,9 +56,11 @@ export function spendPhrase(spend: RunSpend | undefined): string | undefined {
   return on && used ? `${on}, ${used}` : (on ?? used);
 }
 
-export const INLINE_CHARS = 1_500;
+const INLINE_CHARS = 1_500;
 
-export function inlineExcerpt(text: string, limit = INLINE_CHARS): { shown: string; omitted: number } {
+const LINE_CHARS = 200;
+
+function inlineExcerpt(text: string, limit = INLINE_CHARS): { shown: string; omitted: number } {
   const trimmed = text.trim();
   if (trimmed.length <= limit) return { shown: trimmed, omitted: 0 };
   const cut = trimmed.slice(0, limit);
@@ -77,8 +80,6 @@ export function quotedExcerpt(text: string, where: string): string[] {
   ];
 }
 
-const NO_REPLY = "No reply is needed to acknowledge it.";
-
 export function reportBack(senderSessionId: string): string {
   return `When it is done: sessions_send intent "result" to ${senderSessionId} (the point first, under ~800 chars), then end your turn with one short line. Need a decision: intent "blocker". No progress reports.`;
 }
@@ -89,8 +90,8 @@ export function agentNotice(input: AgentNoticeInput): string {
   const where = `sessions_read(sessionId: "${input.recipientSessionId}", runId: "${input.runId}")`;
   const header = `[agent message · ${input.intent}] ${who} ${verbPhrase(input.intent)} (run ${input.runId}, ${size}).${input.corrects ? ` It CORRECTS their earlier message (run ${input.corrects}); disregard that one.` : ""}`;
   if ((input.intent === "result" || input.intent === "blocker") && input.body.trim()) {
-    const spent = input.intent === "result" && input.spent ? [`Its run so far: ${input.spent}.`] : [];
-    return [header, ...quotedExcerpt(input.body, where), ...spent, ...(input.intent === "result" ? [NO_REPLY] : [])].join("\n");
+    const spent = input.intent === "result" && input.spent ? ` · its run: ${input.spent}` : "";
+    return `${header}\nIt begins: ${firstLine(input.body, LINE_CHARS)} · read it with ${where}${spent}`;
   }
   return [
     header,

@@ -69,6 +69,8 @@ type RunOptions = {
   notification?: NotificationDetail;
   model?: string;
   autoCompact?: AutoCompact;
+  compact?: boolean;
+  extraArgs?: string[];
 };
 
 export function runTurn(scenario: string, run: RunOptions = {}) {
@@ -94,6 +96,8 @@ export function runTurn(scenario: string, run: RunOptions = {}) {
     ...(run.serviceTier ? { serviceTier: run.serviceTier } : {}),
     ...(run.model ? { model: run.model } : {}),
     ...(run.autoCompact ? { autoCompact: run.autoCompact } : {}),
+    ...(run.compact ? { compact: true } : {}),
+    ...(run.extraArgs ? { extraArgs: run.extraArgs } : {}),
   });
   return { result, observations, controller };
 }

@@ -10,7 +10,7 @@ ProviderSkills,
 ProviderInstance,
 ProviderInstanceEnvVar,
 AutoCompact,
-ProviderProbe,Session,Turn,WorkspaceFile,
+ProviderProbe,Session,Turn,UsageLimitWindow,WorkspaceFile,
 WorkspaceListing,
 WorkspaceWriteResult
 } from "@telar/engine-client";
@@ -240,6 +240,7 @@ export function integrationCalls(fetcher: Fetcher) {
       autoCompact?: AutoCompact | null;
       configDir?: string | null;
       binaryPath?: string | null;
+      extraArgs?: string | null;
       enabled?: boolean;
       env?: ProviderInstanceEnvVar[];
       /** Inherited variables to keep, by name. The engine supplies the values
@@ -252,5 +253,7 @@ export function integrationCalls(fetcher: Fetcher) {
         "/api/provider-instances",
         input,
       ),
+    providerLimits: (instanceId: string) =>
+      request<{ windows: UsageLimitWindow[] }>(fetcher, "GET", `/api/provider-instances/${encodeURIComponent(instanceId)}/limits`),
   };
 }

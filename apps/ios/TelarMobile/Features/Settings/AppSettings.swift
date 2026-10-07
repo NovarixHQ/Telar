@@ -50,8 +50,9 @@ import Observation
 
     func refreshAddresses() async {
         for host in hosts {
-            guard await reprobe(host.id, order: host.addresses) != nil,
-                  let api = api(for: host.id), let status = try? await api.remoteStatus() else { continue }
+            guard await reprobe(host.id, order: host.addresses) != nil, let api = api(for: host.id) else { continue }
+            if let health = try? await api.health() { recordDaemonId(health.daemonId, for: host.id) }
+            guard let status = try? await api.remoteStatus() else { continue }
             if book.learnAddresses(status.dialableAddresses, for: host.id) { persist() }
         }
     }
@@ -74,8 +75,8 @@ import Observation
     }
 
     @discardableResult
-    func upsert(baseURLString: String, token: String?, addresses: [String] = [], name: String? = nil) -> HostID {
-        let result = book.upsert(baseURLString: baseURLString, addresses: addresses, name: name)
+    func upsert(baseURLString: String, token: String?, addresses: [String] = [], daemonId: String? = nil, name: String? = nil) -> HostID {
+        let result = book.upsert(baseURLString: baseURLString, addresses: addresses, daemonId: daemonId, name: name)
         let id: HostID
         switch result {
         case .added(let new): id = new
@@ -104,7 +105,15 @@ import Observation
     }
 
     func recordDaemonId(_ daemonId: String, for id: HostID) {
+        let before = Set(book.hosts.map(\.id))
         _ = book.recordDaemonId(daemonId, for: id)
+        let survivor = book.hosts.first { $0.daemonId == daemonId }
+        for merged in before.subtracting(book.hosts.map(\.id)) {
+            if let survivor, let newest = token(for: merged) {
+                vault.write(newest, account: HostMigration.tokenAccount(survivor.id))
+            }
+            vault.delete(account: HostMigration.tokenAccount(merged))
+        }
         persist()
     }
 

@@ -4,7 +4,7 @@ export const ORCHESTRATE_SKILL_NAME = "orchestrate";
 
 export const ORCHESTRATE_SKILL = `---
 name: ${ORCHESTRATE_SKILL_NAME}
-description: Telar Orchestrate — turn a person's list of issues or problems into parallel worker sessions, one per task: triage, brief, dispatch as a cohort, verify and integrate results, relay the person's decisions, settle and summarise. Use when asked to coordinate or fan out a list of work across Telar sessions.
+description: Telar Orchestrate — turn a person's list of issues or problems into parallel worker sessions, one per task: triage, brief, dispatch, verify and integrate results, relay the person's decisions, settle and summarise. Use when asked to coordinate or fan out a list of work across Telar sessions.
 telar: generated v${ORIENTATION_VERSION}
 ---
 
@@ -46,10 +46,9 @@ Write each worker a self-contained brief. It will not see this conversation.
 
 ## 3. Dispatch
 
-- One session per task, the whole wave in ONE call:
-  \`sessions_create({ projectId, tasks: [...] })\`, an entry per task with a
-  title that says what it is and the brief as \`task\`. It creates each worker
-  under you, assigns its work and subscribes you to all of them as one cohort.
+- One session per task: one \`sessions_create({ projectId, title, task })\`
+  each, the whole wave in one message, with a title that says what it is and
+  the brief as \`task\`. Each creates a worker under you and assigns its work.
 - Omit \`envMode\` so the project's own mode applies. Pass \`"worktree"\` only
   when the project allows worktrees and the task edits code that needs
   isolation.
@@ -57,28 +56,25 @@ Write each worker a self-contained brief. It will not see this conversation.
   folders, and run overlapping work one after another, never in parallel.
   They open no PRs; you review the checkout yourself, and its diff
   (\`sessions_read\` \`view: "diff"\`) holds every local worker's changes.
-- Pick each entry's \`model\` and \`effort\` for its task, not yours: search
+- Pick each worker's \`model\` and \`effort\` for its task, not yours: search
   or read, a Haiku; mechanical edits, a Sonnet at medium; review, a Sonnet at
   high; design or debugging, your own model. \`sessions_capabilities\` lists
   what is offered, and each result says what that run spent.
-- Then END YOUR TURN. No per-session creates or sends, no polling, no
-  sleeping. Every task you send joins the same cohort, and you are woken once,
-  when every worker has sent its result (or failed, was stopped or settled),
-  with each result quoted; a blocker or a parked request reaches you at once.
+- Then END YOUR TURN. No subscribing, no polling, no sleeping. Each worker
+  reaches you as one line when it sends its result (or fails, is stopped or
+  settled); several that finish while you are busy arrive together. A blocker
+  or a parked request reaches you at once.
 - To change what a worker is doing — a correction, a decision, a stop —
   \`sessions_send\` it as a \`task\`; that is the default to a session you
   tasked. An \`fyi\` is passive: it is read only with its next turn.
-- A single quick task whose answer you need now: give \`sessions_create\` a
-  \`wait\` in seconds and read the result in the same call. \`wait\` is
-  refused while a wave is out.
 - Respect the project's concurrency or load cap: dispatch in waves if there is
   one.
 
 ## 4. Integrate
 
-When results arrive (each is quoted in the one notice; call \`sessions_read\`
-only for one it cut, with \`view: "diff"\` for what a worker changed; never
-reply just to acknowledge one):
+When results arrive (one line each, naming the \`sessions_read\` call for the
+rest; read one only when you need it, with \`view: "diff"\` for what a worker
+changed; never reply just to acknowledge one):
 
 - **Verify before merging.** Checks must belong to the PR's CURRENT head SHA,
   all completed and green. Merge pinned to that head commit, so a push that
@@ -111,7 +107,8 @@ for a session for themselves rather than for work you delegate, create it with
 
 The cockpit shows every builder live under the turn that dispatched it, so do
 not keep a list of them in chat. When you report to the person, lead with what
-needs their decision, each with a recommendation, and keep it short.
+needs their decision, each with a recommendation, and keep it short. When you
+name a worker, use its \`link\` so the person can open it.
 
 Releases, deploys and anything else irreversible or outward-facing wait for the
 person's explicit OK, whatever this skill says.

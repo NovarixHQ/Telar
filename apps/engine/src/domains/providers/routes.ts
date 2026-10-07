@@ -1,16 +1,18 @@
-import { isBuiltInDriver, resolveMcpServers, type BuiltInDriver, type ProviderDriverKind } from "@telar/engine-client";
+import { isBuiltInDriver, resolveMcpServers, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
 import { positiveParam, stringValue } from "../../platform/http/params";
 import { ok, type Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
 import { runCliUpdate, type CliUpdateRun } from "./cli-updates";
 import { createProviderProber, type VersionProbe } from "./instances";
+import { readProviderLimits } from "./limits";
 import { runStructuredForPolicy } from "./textgen";
 
 type ProviderRouteDeps = {
   now: () => number;
   probeVersion?: (driver: ProviderDriverKind, binaryPath: string | undefined, force: boolean) => Promise<VersionProbe>;
   runUpdate?: (driver: BuiltInDriver, binaryPath: string | undefined) => Promise<CliUpdateRun>;
+  readLimits?: (instance: ProviderInstance) => Promise<UsageLimitWindow[]>;
 };
 
 const only = (input: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> =>
@@ -135,7 +137,8 @@ function mcpServerRoutes(store: EngineStore): Route[] {
 
 const INSTANCE = /^\/v2\/provider-instances\/([A-Za-z][A-Za-z0-9_-]*)$/;
 const INSTANCE_MODELS = /^\/v2\/provider-instances\/([A-Za-z][A-Za-z0-9_-]*)\/models$/;
-const INSTANCE_FIELDS = ["driver", "displayName", "accentColor", "contextNoticePercent", "autoCompact", "configDir", "binaryPath", "env", "carryOverInherited"];
+const INSTANCE_LIMITS = /^\/v2\/provider-instances\/([A-Za-z][A-Za-z0-9_-]*)\/limits$/;
+const INSTANCE_FIELDS = ["driver", "displayName", "accentColor", "contextNoticePercent", "autoCompact", "configDir", "binaryPath", "extraArgs", "env", "carryOverInherited"];
 
 /** The configured logins. Listed with their probes; sensitive environment values never come back. */
 function providerInstanceRoutes(store: EngineStore, deps: ProviderRouteDeps): Route[] {
@@ -165,6 +168,17 @@ function providerInstanceRoutes(store: EngineStore, deps: ProviderRouteDeps): Ro
         const result = await updateProvider(instance.driver, instance.binaryPath);
         const providerInstances = store.providers.list();
         return ok({ result, providerInstances, probes: await probeProviders(providerInstances, { force: true }) });
+      },
+    },
+    {
+      method: "GET",
+      path: INSTANCE_LIMITS,
+      auth: "engine",
+      async handle({ params }) {
+        const listed = store.providers.list().find((entry) => entry.id === params[0]);
+        if (!listed) throw new HttpError(404, "not_found", `unknown provider instance ${params[0]}`);
+        if (listed.driver !== "codex") throw new HttpError(409, "conflict", "only Codex logins report their usage limits");
+        return ok({ windows: await (deps.readLimits ?? readProviderLimits)(store.providers.resolve(listed.id, listed.driver)) });
       },
     },
     { method: "GET", path: INSTANCE_MODELS, auth: "engine", handle: ({ params }) => ok({ overlay: store.catalogues.overlay(params[0]!) }) },

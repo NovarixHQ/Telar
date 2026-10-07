@@ -324,31 +324,36 @@ test("releasing checks the turn's state before its hold, and refuses a removed p
   expect(awayBoot.queries.turns("session_one")[0]?.held).toBeDefined();
 });
 
-test("withdrawing a builder's queued message leaves its cohort waiting", () => {
+test("withdrawing a builder's queued message leaves it working", () => {
   const { store } = readyStore();
-  const { turn, cohortWakes, cohorts } = orchestration(store);
+  const { turn, endingWakes, children } = orchestration(store);
   const host = turn("session_one");
   host.task("session_a", "port the parser");
   host.end();
   const a = turn("session_a");
   store.intake.submitTurn("session_a", { runId: "run_later", input: "/compact", kind: "compact" });
   expect(store.turnLifecycle.stopTurn("session_a", "run_later").stopped).toBe(true);
-  expect(cohortWakes()).toHaveLength(0);
-  expect(store.subscriptions.cohortsFor("session_one")[0]!.members[0]!.outcome).toBeUndefined();
+  expect(endingWakes()).toHaveLength(0);
+  expect(children()).toEqual([["session_a", "working"]]);
 
   a.result("Parser ported.");
   a.end();
-  expect(cohorts()).toEqual([]);
-  expect(cohortWakes()).toHaveLength(1);
-  expect(cohortWakes()[0]!.notification!.body).toContain("Parser ported.");
+  expect(children()).toEqual([["session_a", "done"]]);
+  expect(endingWakes()).toHaveLength(1);
+  expect(endingWakes()[0]!.notification!.body).toContain("Parser ported.");
 });
 
-test("stopping an orchestrator's turn ends its open cohorts", () => {
+test("a person stopping an orchestrator holds its builders' endings until they write to it again", () => {
   const { store } = readyStore();
-  const { turn, cohorts } = orchestration(store);
+  const { turn, endingWakes, children } = orchestration(store);
   const host = turn("session_one");
   host.task("session_a", "port the parser");
-  expect(cohorts()).toEqual([["session_a"]]);
-  host.stop();
-  expect(cohorts()).toEqual([]);
+  store.turnLifecycle.stopSession("session_one", "user");
+  expect(children()).toEqual([["session_a", "working"]]);
+
+  const a = turn("session_a");
+  expect(() => a.result("Parser ported.")).toThrow("stopped by its user");
+  a.end();
+  expect(endingWakes()).toHaveLength(0);
+  expect(store.wakes.pendingNotifications("session_one").map((each) => each.summary)).toEqual([expect.stringContaining("[builder done]")]);
 });

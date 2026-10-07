@@ -18,11 +18,11 @@ export const CLAUDE_CAPABILITIES: DriverCapabilities = {
 
 export const CODEX_CAPABILITIES: DriverCapabilities = {
   liveSteering: true,
-  compaction: "text",
+  compaction: "native",
   backgroundTaskStop: false,
   contextInjection: "native",
   fork: false,
-  usageLimits: false,
+  usageLimits: true,
 };
 
 export const OPENCODE_CAPABILITIES: DriverCapabilities = {

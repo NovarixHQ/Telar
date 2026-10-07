@@ -1,25 +1,22 @@
 import { FlaskConicalIcon, PuzzleIcon, SigmaIcon, type LucideIcon } from "lucide-react";
 import type { CommandId } from "@/features/commands";
 
-export type PluginSurface = { id: string; label: string; icon: LucideIcon; blurb: string; wide?: boolean };
+export type PluginSurface = { id: string; label: string; icon: LucideIcon; blurb: string; wide?: boolean; key?: string; command?: CommandId };
 
 type PluginViewer = "notebook" | "table";
 
 export type PluginWebContribution = {
   surfaces?: readonly PluginSurface[];
   viewers?: readonly PluginViewer[];
-  commands?: readonly { id: CommandId; surface: string }[];
 };
 
 export const PLUGIN_WEB = {
   "data-science": {
-    surfaces: [{ id: "data", label: "Data", icon: FlaskConicalIcon, blurb: "Plots, variables and the Python environment", wide: true }],
+    surfaces: [{ id: "data", label: "Data", icon: FlaskConicalIcon, blurb: "Plots, variables and the Python environment", wide: true, key: "a", command: "open-data" }],
     viewers: ["notebook", "table"],
-    commands: [{ id: "open-data", surface: "data" }],
   },
   latex: {
-    surfaces: [{ id: "latex", label: "LaTeX", icon: SigmaIcon, blurb: "Compile status, errors and the log" }],
-    commands: [{ id: "open-latex", surface: "latex" }],
+    surfaces: [{ id: "latex", label: "LaTeX", icon: SigmaIcon, blurb: "Compile status, errors and the log", key: "x", command: "open-latex" }],
   },
 } as const satisfies Record<string, PluginWebContribution>;
 
@@ -60,8 +57,4 @@ export function viewerAvailable(viewer: string | undefined, enabled: readonly st
   if (viewer === undefined) return false;
   const owned = Object.values(REGISTRY).some((entry) => entry.viewers?.includes(viewer as PluginViewer));
   return !owned || contributions(enabled).some((entry) => entry.viewers?.includes(viewer as PluginViewer));
-}
-
-export function pluginCommands(enabled: readonly string[]): { id: CommandId; surface: string }[] {
-  return contributions(enabled).flatMap((entry) => [...(entry.commands ?? [])]);
 }

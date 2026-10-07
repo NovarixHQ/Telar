@@ -174,11 +174,10 @@ export const APP_PAGES: SettingsPageSpec[] = [
         rows: [
           {
             title: "Translucency",
-            hint: "Rebuilds the window. The macOS desktop app only.",
-            keywords: ["glass", "blur", "vibrancy", "transparent"],
+            hint: "Off, blurred or clear glass. Rebuilds the window. The macOS desktop app only.",
+            keywords: ["glass", "blur", "clear", "frost", "vibrancy", "transparent"],
             icon: MonitorIcon,
           },
-          { title: "Glass", hint: "Blur or clear, behind a translucent window.", keywords: ["frost", "blur"], icon: MonitorIcon },
           {
             title: "Layers through canvas and rail",
             hint: "How much of the composition's layers, and the desktop behind a translucent window, show through the app.",

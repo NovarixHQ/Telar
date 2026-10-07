@@ -6,6 +6,7 @@ import { iPhone, PNG, simulatorEngine } from "../../../test/fake-simulator-hub";
 import type { DriverRun, TurnDriver } from "../../drivers";
 import { type TelarCapabilities, telarWall, type ToolFactory, toSdkTools } from "../agent-tools";
 import { AGENT_DEVICE, installedVersions, toolBinDir } from "./toolchain";
+import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 type Result = { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError?: boolean };
 type Handler = (args: Record<string, unknown>) => Promise<Result>;
@@ -29,7 +30,7 @@ function heldDriver() {
   const arrived: Held[] = [];
   const waiting: Array<(turn: Held) => void> = [];
   const driver: TurnDriver = {
-    run: (run) =>
+    capabilities: STUB_CAPABILITIES, run: (run) =>
       new Promise((resolve) => {
         const turn = { run, release: () => resolve({ text: "ok" }) };
         const waiter = waiting.shift();

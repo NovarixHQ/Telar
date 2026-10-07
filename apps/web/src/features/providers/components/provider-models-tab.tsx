@@ -1,12 +1,13 @@
 "use client";
 
+import { driverLabel } from "./provider-icon";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeOffIcon, PlusIcon, StarIcon, XIcon } from "lucide-react";
 import type { CustomProviderModel, ModelCatalogue, ModelOverlay, ProviderInstance, ProviderModel } from "@telar/engine-client";
 import { cn } from "@/ui/utils";
 import { createEngineApi } from "@/platform/engine";
 import { forgetModelCatalogues } from "../model-catalogue-cache";
-import { DRIVER_LABEL } from "../provider-instances";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 
@@ -217,7 +218,7 @@ export function ProviderModelsTab({ instance }: { instance: ProviderInstance }) 
     if (orderTimer.current !== null) window.clearTimeout(orderTimer.current);
   }, []);
 
-  const label = DRIVER_LABEL[instance.driver];
+  const label = driverLabel(instance.driver);
   const served = catalogue?.models ?? [];
   const models = useMemo(() => {
     if (!pendingOrder) return served;

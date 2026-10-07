@@ -34,7 +34,7 @@ struct SessionComposerHost: ComposerHost {
     var uploading: Bool { store.uploading }
     var queuedTurns: [JournalTurn] { store.queuedTurns }
 
-    var canPromoteQueued: Bool { store.sync.session?.driver != "opencode" }
+    var canPromoteQueued: Bool { ["claude", "codex"].contains(store.sync.session?.driver ?? "claude") }
 
     var commandContext: ComposerCommandContext {
         ComposerCommandContext(busy: isRunning, runtimeMode: store.sync.session?.runtimeMode, driver: store.sync.session?.driver)

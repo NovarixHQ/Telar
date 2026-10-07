@@ -6,7 +6,7 @@ import { CircleCheckIcon } from "lucide-react";
 import type { LiveSessionRow } from "@telar/engine-client";
 import { fmtAgo, fmtTokens } from "@/ui/format";
 import { canvasHref, sessionHref, sessionKey, settledHint, settlingActivity, type SessionBand, type SidebarSession } from "../session-list";
-import { ProviderIcon, PROVIDER_LABEL } from "@/features/providers";
+import { ProviderIcon, driverLabel } from "@/features/providers";
 import { SessionRowContextMenu, type SessionRowMenuProps } from "./session-inbox-menu";
 import { mutateRow, patchSession, withSettling, withTitle, type SessionRowChanged } from "../session-mutations";
 import { terminalsClosedHint } from "../session-settling";
@@ -85,7 +85,7 @@ export function SessionDetails({ session, renderedAt }: { session: SidebarSessio
       <div className="space-y-0.5 px-3 py-2">
         <DetailRow
           label="Agent"
-          value={session.model ? `${PROVIDER_LABEL[session.driver]} · ${session.model}` : PROVIDER_LABEL[session.driver]}
+          value={session.model ? `${driverLabel(session.driver)} · ${session.model}` : driverLabel(session.driver)}
         />
         {session.effort ? <DetailRow label="Effort" value={session.effort} /> : null}
         {session.projectName ? <DetailRow label="Project" value={session.projectName} /> : null}

@@ -1,8 +1,9 @@
 import {
   AUTO_COMPACT_MAX_TOKENS,
+  BUILT_IN_DRIVERS,
+  isBuiltInDriver,
   AutoCompact as AutoCompactSchema,
   defaultInstanceIdForDriver,
-  ProviderDriverKind as ProviderDriverKindSchema,
   ProviderInstance as ProviderInstanceSchema,
   ProviderInstanceEnvVar as ProviderInstanceEnvVarSchema,
   type AutoCompact,
@@ -14,7 +15,6 @@ import { EngineStateError, SECRET_KEY_SEPARATOR, STATE_VERSION, type Kernel } fr
 import { inheritedOwnedEnv, providerEnvIsCredential, providerOwnsEnv, stoppedInheriting } from "./instances";
 
 const MAX_ENV_VARS = 64;
-const BUILT_IN_DRIVERS: readonly ProviderDriverKind[] = ["claude", "codex", "opencode"];
 
 /** An instance id must start with a letter: it rides in URLs, and `-force` would read as a flag. */
 export function assertInstanceId(value: unknown): asserts value is string {
@@ -112,7 +112,7 @@ export class ProviderRegistry {
     const instances = this.read();
     const existing = instances.find((instance) => instance.id === input.id);
     const driver = input.driver === undefined ? existing?.driver : input.driver;
-    if (driver !== "claude" && driver !== "codex" && driver !== "opencode") {
+    if (!isBuiltInDriver(driver)) {
       throw new EngineStateError("invalid_request", "provider instance driver must be claude, codex, opencode or telar");
     }
     if (existing && existing.driver !== driver) throw new EngineStateError("conflict", "a provider instance cannot change driver");
@@ -220,7 +220,7 @@ export class ProviderRegistry {
     }
     const rows = Array.isArray(stored.providerInstances) ? stored.providerInstances : [];
     const kept = rows.filter(
-      (row) => !(typeof row === "object" && row !== null && !ProviderDriverKindSchema.safeParse((row as { driver?: unknown }).driver).success),
+      (row) => !(typeof row === "object" && row !== null && !isBuiltInDriver((row as { driver?: unknown }).driver)),
     );
     if (kept.length !== rows.length) {
       this.writeInstances(kept);

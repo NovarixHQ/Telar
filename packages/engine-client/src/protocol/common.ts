@@ -18,14 +18,12 @@ export type Timestamp = z.infer<typeof Timestamp>;
 export const EnvironmentId = z.literal("local");
 export type EnvironmentId = z.infer<typeof EnvironmentId>;
 
-export const ProviderDriverKind = z.enum(["claude", "codex", "opencode"]);
+export const ProviderDriverKind = z.string().min(1);
 export type ProviderDriverKind = z.infer<typeof ProviderDriverKind>;
 
-export const PROVIDER_CAPABILITIES: Record<ProviderDriverKind, { liveSteering: boolean; compaction: boolean; backgroundTaskStop: boolean }> = {
-  claude: { liveSteering: true, compaction: true, backgroundTaskStop: true },
-  codex: { liveSteering: true, compaction: true, backgroundTaskStop: false },
-  opencode: { liveSteering: false, compaction: false, backgroundTaskStop: false },
-};
+export const BUILT_IN_DRIVERS = ["claude", "codex", "opencode"] as const;
+export type BuiltInDriver = (typeof BUILT_IN_DRIVERS)[number];
+export const isBuiltInDriver = (driver: unknown): driver is BuiltInDriver => (BUILT_IN_DRIVERS as readonly unknown[]).includes(driver);
 
 export const ProviderInstanceId = Id;
 export type ProviderInstanceId = z.infer<typeof ProviderInstanceId>;

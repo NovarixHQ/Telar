@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { CheckIcon, MoreHorizontalIcon } from "lucide-react";
 import type { ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
-import { type ModelChoice, useModelCatalogue, ProviderIcon, PROVIDER_LABEL, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
+import { type ModelChoice, useModelCatalogue, ProviderIcon, driverLabel, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,7 +109,7 @@ export function ComposerOverflowMenu({
       title: "Provider",
       choices: PROVIDERS.map((option) => ({
         key: option,
-        label: PROVIDER_LABEL[option],
+        label: driverLabel(option),
         icon: <ProviderIcon provider={option} size={14} />,
         selected: option === driver,
         onClick: () => onDriverChange(option),

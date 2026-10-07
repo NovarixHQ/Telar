@@ -4,11 +4,12 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import type { BuiltInDriver } from "@telar/engine-client";
 import { OPENCODE_VERSION, openCodeVersionMessage, openCodeVersionVerdict } from "../../drivers/opencode";
 
 const execFileP = promisify(execFile);
 
-export type CliId = "claude" | "codex" | "opencode";
+export type CliId = BuiltInDriver;
 
 type CliStatus =
   | "ok"

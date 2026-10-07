@@ -6,7 +6,7 @@ import type { ProviderDriverKind, UsageLimitAccount, UsageLimitSourceSnapshot, U
 import { createEngineApi } from "@/platform/engine";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
-import { DRIVER_LABEL } from "../model";
+import { driverLabel } from "@/features/providers";
 import { cn } from "@/ui/utils";
 
 const api = createEngineApi();
@@ -119,7 +119,7 @@ export function ProviderCard({ driver, accounts }: { driver: ProviderDriverKind;
   return (
     <div className="flex min-w-0 flex-col gap-2.5 rounded-xl p-4 ring-1 ring-foreground/10">
       <div className="flex items-baseline gap-2">
-        <span className="text-sm font-medium">{DRIVER_LABEL[driver]}</span>
+        <span className="text-sm font-medium">{driverLabel(driver)}</span>
         <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
           {accounts.length} account{accounts.length === 1 ? "" : "s"}
           {unread > 0 ? ` · ${unread} unread` : ""}

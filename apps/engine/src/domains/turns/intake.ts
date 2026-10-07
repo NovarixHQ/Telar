@@ -1,7 +1,6 @@
 import {
   assignmentsOf,
   type AgentModelChoice,
-  PROVIDER_CAPABILITIES,
   type AssignmentTurn,
   seedSessionTitle,
   turnHasContent,
@@ -14,6 +13,7 @@ import {
   type WakeReason,
 } from "@telar/engine-client";
 import type { GitRunner } from "../../platform/git/runner";
+import type { DriverCapabilities } from "../../drivers/capabilities";
 import { assertId, EngineStateError, type Kernel } from "../../platform/kernel";
 import type { ProjectAvailability } from "../../platform/fs/volumes";
 import {
@@ -73,6 +73,7 @@ export type TurnSubmission = {
 
 type IntakeDeps = {
   records: SessionRecords;
+  capabilities: (driver: string) => DriverCapabilities;
   items: SessionItems;
   mailbox: SessionMailbox;
   attachments: SessionAttachments;
@@ -118,7 +119,7 @@ export class TurnIntake {
       const session = this.deps.records.get(sessionId);
       // A released checkout comes back and the turn waits on `preparing`; a settled one is locked again.
       if (session.workspace.mode === "worktree") this.deps.reopenWorktree(sessionId);
-      if (kind === "compact" && !PROVIDER_CAPABILITIES[session.driver].compaction)
+      if (kind === "compact" && this.deps.capabilities(session.driver).compaction === "none")
         throw new EngineStateError("conflict", "this provider does not support manual compaction");
       const queue = this.deps.readQueue(sessionId, [input.runId]);
       const known = queue.turns.find((turn) => turn.runId === input.runId);
@@ -164,7 +165,7 @@ export class TurnIntake {
       }
       // A compaction is a gesture on the session, not words for the running model; it always waits its turn.
       const interrupts = turn.origin !== "session" || turn.agentIntent === "task" || turn.agentIntent === "blocker" || turn.wakeReason?.kind === "request_opened";
-      if (kind !== "compact" && interrupts && !session.paused && PROVIDER_CAPABILITIES[session.driver].liveSteering) {
+      if (kind !== "compact" && interrupts && !session.paused && this.deps.capabilities(session.driver).liveSteering) {
         const steered = this.steerIfRunning(sessionId, turn.runId);
         if (steered) return { turn: steered, replayed: false };
       }

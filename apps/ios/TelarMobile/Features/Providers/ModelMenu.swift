@@ -12,12 +12,14 @@ struct ProviderIconView: View {
                 .scaledToFit()
                 .frame(width: size, height: size)
                 .foregroundStyle(Theme.text)
-        } else if driver == "opencode" {
-            Text("OC").font(.system(size: size * 0.65, weight: .semibold)).frame(width: size, height: size)
-        } else {
+        } else if driver == "claude" {
             Image("ProviderClaude")
                 .resizable()
                 .scaledToFit()
+                .frame(width: size, height: size)
+        } else {
+            Text(driver == "opencode" ? "OC" : String(driver.prefix(2)).uppercased())
+                .font(.system(size: size * 0.65, weight: .semibold))
                 .frame(width: size, height: size)
         }
     }

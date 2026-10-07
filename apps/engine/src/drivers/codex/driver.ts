@@ -8,6 +8,7 @@ import { codexSandboxPolicy, codexThreadParams, codexTurnInput, defaultThreadCon
 import { CodexTurn } from "./turn";
 import { codexWindowConfig, readCodexWindows, type CodexWindow } from "./windows";
 import { agentEnv } from "../../platform/process/agent-env";
+import { CODEX_CAPABILITIES } from "../capabilities";
 
 export type CodexDriverOptions = {
   model?: string;
@@ -34,7 +35,7 @@ class CodexTurnCancelled extends Error {
 
 /** Runs each turn in its own `codex app-server`, reaped when the turn ends. */
 export function createCodexDriver(options: CodexDriverOptions = {}): TurnDriver {
-  return { run: (run) => runCodexTurn(options, run) };
+  return { capabilities: CODEX_CAPABILITIES, run: (run) => runCodexTurn(options, run) };
 }
 
 async function runCodexTurn(options: CodexDriverOptions, run: DriverRun): Promise<DriverResult> {

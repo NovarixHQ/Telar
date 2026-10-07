@@ -1,12 +1,14 @@
 "use client";
 
+import { driverLabel } from "./provider-icon";
+
 import { DownloadIcon } from "lucide-react";
 import type { ProviderInstance, ProviderProbe } from "@telar/engine-client";
 import { normaliseContextNoticePercent } from "@/features/composer";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
 import { CopyCommand } from "@/ui/copy-command";
-import { DRIVER_LABEL, displayNameOf, isDefaultInstance, updateAdvisory } from "../provider-instances";
+import { displayNameOf, isDefaultInstance, updateAdvisory } from "../provider-instances";
 import { AccentPicker, BlurInput, CompactionField, EnvEditor } from "./provider-instance-fields";
 import type { InstancePatch } from "./provider-instance-card";
 
@@ -39,7 +41,7 @@ function UpdateAdvisory({
         <>
           <CopyCommand command={advisory.command} />
           <p className="text-2xs leading-snug text-muted-foreground/70">
-            Telar picked this from how the CLI was installed, and runs exactly it. Any other login of {DRIVER_LABEL[driver]} pointing at the same binary
+            Telar picked this from how the CLI was installed, and runs exactly it. Any other login of {driverLabel(driver)} pointing at the same binary
             moves with it.
           </p>
         </>
@@ -148,7 +150,7 @@ export function ProviderConfigurationTab({
 }) {
   const title = displayNameOf(instance);
   const needsSignIn = probe?.signIn === "signed-out" || probe?.signIn === "missing-config-dir";
-  const advisory = updateAdvisory(probe, DRIVER_LABEL[instance.driver]);
+  const advisory = updateAdvisory(probe, driverLabel(instance.driver));
   return (
     <div className="space-y-4">
       {advisory && <UpdateAdvisory advisory={advisory} driver={instance.driver} onUpdateCli={onUpdateCli} updating={updating} />}

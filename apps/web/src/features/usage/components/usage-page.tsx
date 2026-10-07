@@ -1,5 +1,7 @@
 "use client";
 
+import { driverLabel } from "@/features/providers";
+
 import { useMemo, useState } from "react";
 import { RotateCwIcon } from "lucide-react";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
@@ -14,7 +16,6 @@ import { UsageHosts } from "./usage-hosts";
 import { ALL_HOSTS, reportFor } from "../hosts";
 import { useHostUsage } from "../use-host-usage";
 import {
-  DRIVER_LABEL,
   foldUsage,
   formatPeriodShort,
   formatShare,
@@ -110,8 +111,8 @@ export function UsagePage() {
                   {report.sources
                     .map((source) =>
                       source.status === "ok"
-                        ? `${DRIVER_LABEL[source.provider]}: ${source.sessions} session${source.sessions === 1 ? "" : "s"} scanned`
-                        : `${DRIVER_LABEL[source.provider]}: no transcripts at ${source.path}`,
+                        ? `${driverLabel(source.provider)}: ${source.sessions} session${source.sessions === 1 ? "" : "s"} scanned`
+                        : `${driverLabel(source.provider)}: no transcripts at ${source.path}`,
                     )
                     .join(" · ")}
                   {report.pricing === "unavailable" ? " · Rate table unreachable — unreported costs are not counted." : ""}
@@ -133,7 +134,7 @@ function UsageSummary({ fold, metric, resolution }: { fold: UsageFold; metric: M
         .filter((provider) => metric === "tokens" || provider.costUsd > 0)
         .map((provider) => ({
           key: provider.driver,
-          label: DRIVER_LABEL[provider.driver],
+          label: driverLabel(provider.driver),
           color: SERIES_COLOR[provider.driver]!,
           values: fold.periods.map((period) => {
             const slice = period.byDriver[provider.driver];
@@ -161,7 +162,7 @@ function UsageSummary({ fold, metric, resolution }: { fold: UsageFold; metric: M
           {fold.providers.map((provider) => (
             <div key={provider.driver} className="flex items-center gap-2 text-sm">
               <Dot driver={provider.driver} />
-              <span className="min-w-0 flex-1 truncate">{DRIVER_LABEL[provider.driver]}</span>
+              <span className="min-w-0 flex-1 truncate">{driverLabel(provider.driver)}</span>
               <span className="tabular-nums text-muted-foreground">{formatShare(provider.share)}</span>
               <span className="w-20 text-right tabular-nums">
                 {metric === "cost" ? (provider.costUsd > 0 ? formatUsd(provider.costUsd) : "—") : formatTokens(provider.processed)}
@@ -247,7 +248,7 @@ function Breakdown({ fold, metric, resolution }: { fold: UsageFold; metric: Metr
                 <th className={cn(cell, "font-medium")}>{resolution === "hour" ? "Hour" : "Day"}</th>
                 {fold.providers.map((provider) => (
                   <th key={provider.driver} className={cn(num, "font-medium")}>
-                    {DRIVER_LABEL[provider.driver]}
+                    {driverLabel(provider.driver)}
                   </th>
                 ))}
                 <th className={cn(num, "font-medium")}>Total</th>

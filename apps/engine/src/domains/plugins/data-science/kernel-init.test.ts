@@ -19,6 +19,7 @@ import { KernelHost } from "./kernel-host";
 import { dataSciencePlugin } from "./plugin";
 import type { PluginInitContext } from "../contract";
 import { stubModels } from "../../../../test/stub-models";
+import { STUB_CAPABILITIES } from "../../../../test/stub-driver";
 
 const roots: string[] = [];
 const daemons: EngineDaemon[] = [];
@@ -102,7 +103,7 @@ test("a daemon with an embedded worker builds the host at startup, through the p
   const daemon = await startEngine({
     models: stubModels,
     engineRoot: root(),
-    embeddedWorker: { createDriver: () => ({ run: async () => ({ text: "ok" }) }), pollMs: 20 },
+    embeddedWorker: { createDriver: () => ({ capabilities: STUB_CAPABILITIES, run: async () => ({ text: "ok" }) }), pollMs: 20 },
   });
   daemons.push(daemon);
   const client = new EngineClient(daemon.discovery);

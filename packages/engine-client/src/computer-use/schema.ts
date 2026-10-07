@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ProviderDriverKind } from "../protocol/common";
+import { BUILT_IN_DRIVERS, type ProviderDriverKind } from "../protocol/common";
 
 export const ComputerUsePermission = z.enum(["granted", "denied", "unauthenticated", "host-not-running", "unknown"]);
 export type ComputerUsePermission = z.infer<typeof ComputerUsePermission>;
@@ -7,7 +7,7 @@ export type ComputerUsePermission = z.infer<typeof ComputerUsePermission>;
 export const ComputerUseBackend = z.enum(["cua"]);
 export type ComputerUseBackend = z.infer<typeof ComputerUseBackend>;
 
-export const COMPUTER_USE_DRIVERS: readonly ProviderDriverKind[] = ["claude", "codex", "opencode"];
+export const COMPUTER_USE_DRIVERS: readonly ProviderDriverKind[] = BUILT_IN_DRIVERS;
 
 export function driverTakesComputerUse(driver: ProviderDriverKind): boolean {
   return COMPUTER_USE_DRIVERS.includes(driver);

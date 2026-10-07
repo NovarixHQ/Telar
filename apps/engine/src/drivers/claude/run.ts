@@ -1,10 +1,6 @@
 import crypto from "node:crypto";
-import { BROWSER_BRIEFING } from "../../domains/browser";
-import { DISPLAY_BRIEFING } from "../../domains/agent-tools";
-import { RUN_BRIEFING } from "../../domains/terminal";
 import { isBackgroundWork, claudeCompactionEnv, type ItemDetail, type TaskSeed } from "@telar/engine-client";
 import { claudeEffortFor, claudeWindowTokensOf, requireCli, withClaudeSettingsEnv } from "../../domains/providers";
-import { pluginBriefings } from "../../domains/plugins";
 import { canonicalEnvPatch, canonicalJson, canonicalServers, changedFields, fieldDigest, fieldDigests, resolveChildEnv } from "./identity";
 import { ClaudeRuntimeStore, IDLE_RUNTIME_MS, UNATTENDED_BACKGROUND_WORK_MS } from "./runtime";
 import { framedSteerText } from "../../domains/turns";
@@ -39,6 +35,8 @@ import { onOwnResult } from "./turn-result";
 import { onMessageStart } from "./turn-stream";
 import { onEndTurnGrace } from "./turn-result";
 import { agentEnv } from "../../platform/process/agent-env";
+import { CLAUDE_CAPABILITIES } from "../capabilities";
+import { driverBriefings } from "../briefings";
 
 function defaultClaudeExecutable(binaryPath?: string): string {
   try {
@@ -83,6 +81,7 @@ export function createClaudeDriver(
     },
   });
   return {
+    capabilities: CLAUDE_CAPABILITIES,
     dispose: () => runtimes.destroyAll(),
     stopTask: (sessionId, providerTaskId) => runtimes.stopTask(sessionId, providerTaskId),
     run: (input) => runClaudeTurn({ loadSdk, resolveExecutable, providerSilenceMs, endTurnGraceMs, backgroundClaimLingerMs, runtimes }, input),
@@ -220,16 +219,7 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
 
   turn.streaming = claudeStreamingInputEnabled();
 
-  turn.briefings = [
-    ...(orientation ? [orientation] : []),
-    ...(mainBriefing ? [mainBriefing] : []),
-    ...(browserSocket ? [BROWSER_BRIEFING] : []),
-    ...(run ? [RUN_BRIEFING] : []),
-    ...(display ? [DISPLAY_BRIEFING] : []),
-    // Each enabled plugin's own paragraph, from its manifest. Carried by
-    // the fingerprint's `plugins` field: the same set, the same words.
-    ...pluginBriefings(Object.keys(plugins ?? {})),
-  ];
+  turn.briefings = driverBriefings(input);
 
   turn.fingerprintFields = {
     cwd: turn.cwd,

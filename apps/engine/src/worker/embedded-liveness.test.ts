@@ -6,6 +6,7 @@ import { EngineClientError } from "@telar/engine-client";
 import type { TurnDriver } from "../drivers";
 import { EngineWorker } from ".";
 import { createWorkerDiagnostics, sanitizeDiagnostic } from "./diagnostics";
+import { STUB_CAPABILITIES } from "../../test/stub-driver";
 
 /**
  * #208 follow-up — THE WORKER MUST NOT EXPIRE ITSELF ON A CLOCK THE ENGINE DOES
@@ -50,7 +51,7 @@ function fakeClient() {
   return state;
 }
 
-const driver: TurnDriver = { run: async () => ({ text: "" }) };
+const driver: TurnDriver = { capabilities: STUB_CAPABILITIES, run: async () => ({ text: "" }) };
 const unreachable = () =>
   new EngineClientError("engine_unavailable", "engine is unreachable", undefined, { operation: "workerHeartbeat", transport: "TypeError:ECONNRESET" });
 

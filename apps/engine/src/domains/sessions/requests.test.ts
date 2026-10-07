@@ -16,6 +16,7 @@ import { EngineStateError } from "../../platform/kernel";
 import { EngineWorker } from "../../worker";
 import { normalizeOutcome, type TurnDriver } from "../../drivers";
 import { stubModels } from "../../../test/stub-models";
+import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 const roots: string[] = [];
 const daemons: EngineDaemon[] = [];
@@ -191,7 +192,7 @@ test("a driver blocked on a human is unblocked by the heartbeat, end to end", as
 
   let decided: string | undefined;
   const driver: TurnDriver = {
-    async run({ onRequest }) {
+    capabilities: STUB_CAPABILITIES, async run({ onRequest }) {
       // The worker answers with an OUTCOME ({decision, answers?}) — the shape
       // user_input needs; approval-shaped callers read `.decision`.
       decided = normalizeOutcome(
@@ -236,7 +237,7 @@ test("a stop while a human is deciding settles the driver instead of hanging the
 
   let seen: string | undefined;
   const driver: TurnDriver = {
-    async run({ onRequest }) {
+    capabilities: STUB_CAPABILITIES, async run({ onRequest }) {
       seen = normalizeOutcome(await onRequest!({ kind: "command_execution", detail: bashDetail, toolUseId: "toolu_1" })).decision;
       return { text: "unreachable" };
     },
@@ -266,7 +267,7 @@ test("a request the provider withdraws is cancelled, so the running turn stops r
   const finished = new Promise<void>((resolve) => { finish = resolve; });
   let seen: string | undefined;
   const driver: TurnDriver = {
-    async run({ onRequest }) {
+    capabilities: STUB_CAPABILITIES, async run({ onRequest }) {
       seen = normalizeOutcome(await onRequest!({ kind: "command_execution", detail: bashDetail, toolUseId: "toolu_1", signal: withdraw.signal })).decision;
       await finished;
       return { text: "carried on" };

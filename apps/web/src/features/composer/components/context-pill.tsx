@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Minimize2Icon } from "lucide-react";
 import type { ProviderDriverKind, UsageSnapshot } from "@telar/engine-client";
 import { fmtTokens } from "@/ui/format";
-import { PROVIDER_LABEL } from "@/features/providers";
+import { driverLabel } from "@/features/providers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Button } from "@/ui/button";
 
@@ -44,7 +44,7 @@ export function ContextPill({
     : usedPct === null
       ? compactTokens(used)
       : `${usedPct.toFixed(1)}% · ${compactTokens(used)}/${compactTokens(max!)}`;
-  const harness = driver ? PROVIDER_LABEL[driver] : "The harness";
+  const harness = driver ? driverLabel(driver) : "The harness";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

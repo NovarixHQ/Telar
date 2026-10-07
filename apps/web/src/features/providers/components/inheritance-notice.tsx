@@ -1,9 +1,10 @@
 "use client";
 
+import { driverLabel } from "./provider-icon";
+
 import { XIcon } from "lucide-react";
 import type { ProviderInstance } from "@telar/engine-client";
 import { Button } from "@/ui/button";
-import { DRIVER_LABEL } from "../provider-instances";
 
 export type InheritanceNotice = {
   names: readonly string[];
@@ -23,7 +24,7 @@ export function InheritanceNotice({ driver, names, onCarryOver, onDismiss }: Inh
         </Button>
       </div>
       <p className="text-2xs leading-snug text-muted-foreground">
-        Configuring a login stops it picking up {DRIVER_LABEL[driver]}&rsquo;s own variables from the environment Telar was
+        Configuring a login stops it picking up {driverLabel(driver)}&rsquo;s own variables from the environment Telar was
         launched with — otherwise an ambient key or proxy would silently replace this login&rsquo;s identity. Telar was passing
         {names.length === 1 ? " this one" : " these"} down, and no longer will:
       </p>

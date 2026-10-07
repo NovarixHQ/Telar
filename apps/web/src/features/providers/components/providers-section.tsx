@@ -1,11 +1,13 @@
 "use client";
 
+import { driverLabel } from "./provider-icon";
+
 import { useState } from "react";
 import { PlusIcon, RotateCwIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { cn } from "@/ui/utils";
-import { displayNameOf, DRIVER_LABEL, DRIVERS, isDefaultInstance, isValidInstanceId, providerSummary, signInCommand, suggestInstanceId, versionLabel } from "../provider-instances";
+import { displayNameOf, DRIVERS, isDefaultInstance, isValidInstanceId, providerSummary, signInCommand, suggestInstanceId, versionLabel } from "../provider-instances";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -106,7 +108,7 @@ function AddInstanceDialog({
                   }
                 >
                   <ProviderIcon provider={option} size={13} />
-                  {DRIVER_LABEL[option]}
+                  {driverLabel(option)}
                 </button>
               ))}
             </div>
@@ -214,7 +216,7 @@ export function ProvidersSection() {
           {probe && !probe.installed && (
             <SettingsGroup>
               <Row
-                label={`${DRIVER_LABEL[probe.driver]} is not installed`}
+                label={`${driverLabel(probe.driver)} is not installed`}
                 hint={probe.message ?? "Install the CLI to use this login."}
                 control={<Badge variant="outline">Missing</Badge>}
               />

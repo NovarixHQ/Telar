@@ -1,4 +1,4 @@
-import type { ProviderDriverKind } from "@telar/engine-client";
+import { isBuiltInDriver, type BuiltInDriver } from "@telar/engine-client";
 import { BROWSER_TOOLS, BrowserToolSocket, type BrowserSocketCapability, type EngineBrowser } from "../domains/browser";
 import { createClaudeDriver } from "./claude";
 import type { DriverSelector } from "../worker";
@@ -43,6 +43,6 @@ export function createBrowserToolSocket(browser: EngineBrowser): BrowserToolSock
 export function createDefaultDrivers(): DriverSelector {
   const claude = createClaudeDriver();
   const codex = createCodexDriver();
-  const byKind: Record<ProviderDriverKind, TurnDriver> = { claude, codex, opencode: createOpenCodeDriver() };
-  return (kind) => byKind[kind];
+  const byKind: Record<BuiltInDriver, TurnDriver> = { claude, codex, opencode: createOpenCodeDriver() };
+  return (kind) => (isBuiltInDriver(kind) ? byKind[kind] : undefined);
 }

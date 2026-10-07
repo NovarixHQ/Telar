@@ -40,7 +40,6 @@ const snapshot = () => (watchers > 0 ? (cached ??= JSON.stringify(readArtifactTh
 
 const SERVER_THEME = JSON.stringify({ scheme: "light", variables: {} } satisfies ArtifactTheme);
 
-/** The current Look as artifact variables; a new value only when the Look changes. */
 export function useArtifactTheme(): ArtifactTheme {
   const json = useSyncExternalStore(subscribe, snapshot, () => SERVER_THEME);
   return useMemo(() => JSON.parse(json) as ArtifactTheme, [json]);

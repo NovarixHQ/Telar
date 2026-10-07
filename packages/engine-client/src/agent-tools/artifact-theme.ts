@@ -1,6 +1,5 @@
 export type ArtifactTheme = { scheme: "light" | "dark"; variables: Record<string, string> };
 
-/** Each CSS variable an artifact can use, and the Look token it is read from. Every app that renders artifacts mirrors this list. */
 export const ARTIFACT_THEME_TOKENS = [
   ["background", "--background"],
   ["foreground", "--foreground"],
@@ -56,7 +55,6 @@ function oklabToRgb(l: number, a: number, b: number): [number, number, number] {
   ];
 }
 
-/** Any hex, rgb(), oklch(), oklab() or color(srgb …) value as #rrggbb, or #rrggbbaa when translucent; undefined for anything else. */
 export function cssColorToHex(value: string): string | undefined {
   const text = value.trim().toLowerCase();
   const short = /^#([0-9a-f]{3,4})$/.exec(text);
@@ -82,7 +80,6 @@ export function cssColorToHex(value: string): string | undefined {
   return `#${rgb.map(byte).join("")}${alpha < 1 ? byte(alpha) : ""}`;
 }
 
-/** Reads each token through `read`; a colour that does not convert is passed through `resolve` (for example a browser's computed colour) and tried once more. */
 export function artifactTheme(scheme: ArtifactTheme["scheme"], read: (token: string) => string, resolve?: (value: string) => string): ArtifactTheme {
   const variables: Record<string, string> = {};
   for (const [name, token] of ARTIFACT_THEME_TOKENS) {
@@ -94,7 +91,6 @@ export function artifactTheme(scheme: ArtifactTheme["scheme"], read: (token: str
   return { scheme, variables };
 }
 
-/** The theme as a zero-specificity :root rule, so a page's own rules win. Self-contained: frames run it from its source text. */
 export function artifactThemeCss(theme: ArtifactTheme): string {
   const variables = theme.variables || {};
   const lines = Object.keys(variables)
@@ -140,7 +136,6 @@ const MERMAID_TOKENS: Record<string, string> = {
   pie6: "chart-6",
 };
 
-/** Mermaid's `base` theme variables, in hex because its colour parser rejects oklch(). */
 export function mermaidThemeVariables(theme: ArtifactTheme): Record<string, string | boolean> {
   const variables: Record<string, string | boolean> = { darkMode: theme.scheme === "dark" };
   for (const [key, name] of Object.entries(MERMAID_TOKENS)) {

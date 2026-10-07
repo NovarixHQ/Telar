@@ -1,8 +1,9 @@
 const http = require("node:http");
 
 const MAX_BODY_BYTES = 1_000_000;
+const MAX_PREVIEW_BYTES = 4_000_000;
 
-const ROUTES = new Set(["GET /state", "POST /bind", "POST /tool", "POST /open", "POST /release", "GET /metrics", "GET /password-manager"]);
+const ROUTES = new Set(["GET /state", "POST /bind", "POST /tool", "POST /open", "POST /release", "GET /metrics", "GET /password-manager", "POST /preview"]);
 
 function json(response, status, value) {
   response.writeHead(status, {
@@ -12,13 +13,13 @@ function json(response, status, value) {
   response.end(JSON.stringify(value));
 }
 
-function readJson(request) {
+function readJson(request, maxBytes = MAX_BODY_BYTES) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     request.on("data", (chunk) => {
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         reject(new Error("Browser control request is too large."));
         request.destroy();
         return;
@@ -36,7 +37,7 @@ function readJson(request) {
   });
 }
 
-function startBrowserControlServer({ port, token, getBrowserManager, readProcessMetrics, passwordManagerEnabled }) {
+function startBrowserControlServer({ port, token, getBrowserManager, readProcessMetrics, passwordManagerEnabled, renderPreview }) {
   if (!token) throw new Error("A browser control token is required.");
   const server = http.createServer(async (request, response) => {
     if (request.headers.authorization !== `Bearer ${token}`) {
@@ -63,6 +64,15 @@ function startBrowserControlServer({ port, token, getBrowserManager, readProcess
 
       if (route === "GET /password-manager") {
         json(response, 200, { enabled: passwordManagerEnabled ? passwordManagerEnabled() : true });
+        return;
+      }
+
+      if (route === "POST /preview") {
+        if (typeof renderPreview !== "function") {
+          json(response, 503, { error: "This Telar shell cannot render previews." });
+          return;
+        }
+        json(response, 200, await renderPreview(await readJson(request, MAX_PREVIEW_BYTES)));
         return;
       }
 

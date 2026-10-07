@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import type { SimulatorInput, SimulatorSummary } from "@telar/engine-client";
+import type { SimulatorChrome, SimulatorInput, SimulatorSummary } from "@telar/engine-client";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
 import { cn } from "@/ui/utils";
 import { hubUrl, type SimulatorsApi } from "../api";
-import { DeviceFrame, deviceShape, fitDevice } from "./device-frame";
+import { DeviceFrame, fitDevice, isWatch, uprightDevice } from "./device-frame";
 import { SimulatorToolbar } from "./simulator-toolbar";
 import { crownDelta, hidUsage, inputQueue, NEXT_ORIENTATION, rawPoint, readScreenConfig, ROTATION_DEGREES, type Orientation, type ScreenConfig } from "../input";
 import { startStream, type StreamStatus } from "../stream";
@@ -77,6 +77,23 @@ function useScreenConfig(url: (() => string) | undefined): ScreenConfig | undefi
     };
   }, [url]);
   return screen;
+}
+
+function useChrome(api: SimulatorsApi, id: string, wanted: boolean): SimulatorChrome | null | undefined {
+  const [chrome, setChrome] = useState<{ id: string; value: SimulatorChrome | null }>();
+  useEffect(() => {
+    if (!wanted) return;
+    let cancelled = false;
+    void api
+      .simulatorChrome(id)
+      .then((answer) => answer.chrome)
+      .catch(() => null)
+      .then((value) => !cancelled && setChrome({ id, value }));
+    return () => {
+      cancelled = true;
+    };
+  }, [api, id, wanted]);
+  return chrome?.id === id ? chrome.value : undefined;
 }
 
 function useBox(element: HTMLElement | null): { width: number; height: number } {
@@ -193,18 +210,17 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
   };
   const rotate = useRotate(screen, press);
 
-  const shape = deviceShape(simulator);
-  const watch = shape.kind === "watch";
-  const portraitFrames = !screen || screen.width <= screen.height;
+  const chrome = useChrome(api, simulator.id, visible && ios);
+  const watch = isWatch(simulator);
+  const device = uprightDevice(chrome, screen, simulator);
   const turnedBy = screen ? ROTATION_DEGREES[screen.orientation] : 0;
-  const turned = Math.abs(turnedBy) === 90;
-  const aspect = screen ? (turned ? Math.max(screen.width, screen.height) / Math.min(screen.width, screen.height) : Math.min(screen.width, screen.height) / Math.max(screen.width, screen.height)) : shape.aspect;
-  const frame = fitDevice(shape, aspect, { width: box.width - 2 * STAGE_PADDING, height: box.height - 2 * STAGE_PADDING });
-  const degrees = screen && portraitFrames ? turnedBy : 0;
+  const scale = fitDevice(device, turnedBy, { width: box.width - 2 * STAGE_PADDING, height: box.height - 2 * STAGE_PADDING });
+  const shown = { width: device.screen.width * scale, height: device.screen.height * scale };
+  const degrees = screen && screen.width > screen.height ? -turnedBy : 0;
   const media: CSSProperties =
     Math.abs(degrees) === 90
-      ? { width: frame.height, height: frame.width, left: (frame.width - frame.height) / 2, top: (frame.height - frame.width) / 2, transform: `rotate(${degrees}deg)` }
-      : { width: frame.width, height: frame.height, ...(degrees ? { transform: `rotate(${degrees}deg)` } : {}) };
+      ? { width: shown.height, height: shown.width, left: (shown.width - shown.height) / 2, top: (shown.height - shown.width) / 2, transform: `rotate(${degrees}deg)` }
+      : { ...shown, ...(degrees ? { transform: `rotate(${degrees}deg)` } : {}) };
 
   const touch = (phase: "begin" | "move" | "end", event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -243,11 +259,11 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
               if (usage !== undefined && event.target === event.currentTarget) press({ type: "key", phase: "up", usage });
             }}
           >
-            <DeviceFrame shape={shape} screen={frame} unit={frame.unit} degrees={turnedBy}>
+            <DeviceFrame device={device} scale={scale} degrees={turnedBy}>
               <div
                 data-testid="simulator-frame"
                 className="relative touch-none select-none"
-                style={{ width: frame.width, height: frame.height }}
+                style={shown}
                 onPointerDown={(event) => {
                   event.currentTarget.setPointerCapture?.(event.pointerId);
                   host?.focus();
@@ -266,7 +282,7 @@ export function SimulatorView({ simulator, api, hostId, visible, settingsOpen, o
                   touch("end", event);
                 }}
                 onWheel={(event) => {
-                  const delta = watch ? crownDelta(event.deltaY, event.deltaMode, frame.height) : undefined;
+                  const delta = watch ? crownDelta(event.deltaY, event.deltaMode, shown.height) : undefined;
                   if (delta !== undefined) press({ type: "crown", delta });
                 }}
               >

@@ -22,12 +22,20 @@ SESSIONS = [
     session('approval', 'Review the mobile navigation', activity='blocked'),
     session('pinned', 'Telar mobile experience', settledOverride='active'),
     session('design', 'Bring Telar’s design to iPhone and iPad'),
-    session('push', 'Keep me updated when work needs me', activity='monitoring'),
+    session('push', 'Keep me updated when work needs me', activity='monitoring', startedFrom=dict(sessionId='design')),
     session('metrics', 'Verify campaign reporting', project='console'),
     session('snoozed', 'Explore desktop handoff', activity='idle', snoozedUntil=NOW+3600000),
     session('done', 'Improve session search', activity='idle', settledOverride='settled', lastTurnEndedAt=NOW-3600000),
 ]
 
+
+ASSIGNMENTS = {
+    'pinned': [dict(fromSessionId='design', scope='Port the transcript rules to the phone', receivedAt=NOW - 1800000)],
+    'metrics': [dict(fromSessionId='design', scope='Check the reporting numbers', outcome='completed', receivedAt=NOW - 7200000, endedAt=NOW - 900000)],
+    'done': [dict(fromSessionId='design', scope='Speed up session search', outcome='failed', receivedAt=NOW - 9000000, endedAt=NOW - 5400000)],
+    'design': [dict(fromSessionId='approval', scope='Bring the design to iPhone and iPad', receivedAt=NOW - 3600000)],
+}
+SUBSCRIPTIONS = [dict(id='sub_1', subscriberSessionId='design', targetSessionId='snoozed')]
 
 RICH_ANSWER = """Here is the multiple-regression summary.
 
@@ -258,7 +266,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, PLOT_PNG, 'image/png')
         if route.endswith('/diff'):
             return self._send(200, json.dumps({'diff': {'repository': True, 'workspacePath': '/tmp/telar-preview', 'branch': 'mobile-experience', 'files': [{'path': 'notes/plan.md', 'status': 'modified', 'linesAdded': 2, 'linesRemoved': 1}], 'commits': [], 'linesAdded': 2, 'linesRemoved': 1, 'truncated': False}}).encode())
-        if route == '/api/sessions/live': data = dict(sessions=SESSIONS, projects=PROJECTS)
+        if route == '/api/sessions/live': data = dict(sessions=SESSIONS, projects=PROJECTS, assignments=ASSIGNMENTS)
+        elif route.endswith('/subscriptions'): data = dict(subscriptions=[x for x in SUBSCRIPTIONS if x['subscriberSessionId'] == route.split('/')[3]])
         elif route == '/api/inbox-policy': data = dict(policy=dict(autoSettleAfterHours=72))
         elif route == '/api/sidebar-layout': data = dict(layout=dict(projectOrder=['telar', 'console']))
         elif route == '/api/health': data = json.loads((FIXTURES/'health.json').read_text())

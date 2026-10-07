@@ -96,6 +96,27 @@ export function detailLines(status: PushRelayStatus, now = Date.now()): Array<{ 
   }));
 }
 
+const REGISTERS_INFO =
+  "A paired phone registers when it first asks for notification permission. A registration that stops working is removed automatically, and the phone registers again the next time Telar opens on it.";
+
+export function phoneRow(status: PushRelayStatus, summary: { label: string; ok: boolean }): { label: string; hint?: string; info: string } {
+  if (!status.configured) {
+    return {
+      label: "No phone can be reached yet",
+      hint: "Pair a phone and allow notifications when it asks.",
+      info: "There is nothing to set up on this computer. The phone registers itself, and a test notification confirms it here.",
+    };
+  }
+  if (status.pausedUntil !== undefined) {
+    return {
+      label: pausedLine(status.pausedUntil),
+      hint: "Alerts resume on their own.",
+      info: "This computer has spent the relay's daily budget, so nothing is sent until it resets. If it happens every day, something is sending far more than it should.",
+    };
+  }
+  return { label: summary.label, ...(summary.ok ? {} : { hint: "Open Telar on the phone to register it." }), info: REGISTERS_INFO };
+}
+
 export const NOTIFY_ON_LABELS: Record<NotifyOn, string> = {
   mac: "This computer when active",
   iphone: "iPhone only",
@@ -133,73 +154,50 @@ export function PushNotificationsGroup() {
   const summary = phoneSummary(status);
   const details = detailLines(status);
 
+  const phone = phoneRow(status, summary);
+
   return (
-    <SettingsGroup
-      title="Push notifications"
-      description="Whether this computer's alerts reach your phone."
-      action={<Badge variant={headline.ok ? "outline" : "destructive"}>{headline.label}</Badge>}
-    >
-      {notifyOn && (
-        <Row
-          label="Notify on"
-          icon={BellIcon}
-          hint="Which device each alert goes to."
-          info="Each alert goes to one device: this computer while Telar is in front and in use, your iPhone otherwise. A session you're looking at alerts neither."
-          {...(notifyError ? { error: notifyError } : {})}
-          {...(notifyOn === "mac" ? {} : { onRevert: () => void saveNotifyOn("mac") })}
-          control={
-            <Dropdown
-              value={notifyOn}
-              onChange={(next) => void saveNotifyOn(next)}
-              options={(Object.keys(NOTIFY_ON_LABELS) as NotifyOn[]).map((value) => ({ value, label: NOTIFY_ON_LABELS[value] }))}
-              className="w-48"
-              label="Notify on"
-            />
-          }
-        />
-      )}
-      <NotificationSoundsRow />
-      {!status.configured && (
-        <Row
-          label="No phone can be reached yet"
-          icon={BellIcon}
-          hint="Pair a phone and allow notifications when it asks."
-          info="There is nothing to set up on this computer. The phone registers itself, and a test notification confirms it here."
-          control={null}
-        />
-      )}
-      {status.pausedUntil !== undefined && (
-        <Row
-          label={pausedLine(status.pausedUntil)}
-          icon={BellIcon}
-          hint="Alerts resume on their own."
-          info="This computer has spent the relay's daily budget, so nothing is sent until it resets. If it happens every day, something is sending far more than it should."
-          control={null}
-        />
-      )}
-      <Row
-        id="push-phones"
-        label={summary.label}
-        icon={SmartphoneIcon}
-        {...(summary.ok ? {} : { hint: "Open Telar on the phone to register it." })}
-        info="A paired phone registers when it first asks for notification permission. A registration that stops working is removed automatically, and the phone registers again the next time Telar opens on it."
-        control={null}
-      >
-        {details.length > 0 && (
-          <details className="mt-1 text-xs text-muted-foreground">
-            <summary className="cursor-pointer select-none hover:text-foreground">Details</summary>
-            <ul className="mt-1.5 space-y-1.5">
-              {details.map((detail) => (
-                <li key={detail.key}>
-                  <span className="text-foreground">{detail.name}</span>
-                  <br />
-                  {detail.line}
-                </li>
-              ))}
-            </ul>
-          </details>
+    <>
+      <SettingsGroup title="Alerts">
+        {notifyOn && (
+          <Row
+            label="Notify on"
+            icon={BellIcon}
+            hint="Which device each alert goes to."
+            info="Each alert goes to one device: this computer while Telar is in front and in use, your iPhone otherwise. A session you're looking at alerts neither."
+            {...(notifyError ? { error: notifyError } : {})}
+            {...(notifyOn === "mac" ? {} : { onRevert: () => void saveNotifyOn("mac") })}
+            control={
+              <Dropdown
+                value={notifyOn}
+                onChange={(next) => void saveNotifyOn(next)}
+                options={(Object.keys(NOTIFY_ON_LABELS) as NotifyOn[]).map((value) => ({ value, label: NOTIFY_ON_LABELS[value] }))}
+                className="w-48"
+                label="Notify on"
+              />
+            }
+          />
         )}
-      </Row>
-    </SettingsGroup>
+        <NotificationSoundsRow />
+      </SettingsGroup>
+      <SettingsGroup title="Phones" action={<Badge variant={headline.ok ? "outline" : "destructive"}>{headline.label}</Badge>}>
+        <Row id="push-phones" label={phone.label} icon={SmartphoneIcon} {...(phone.hint ? { hint: phone.hint } : {})} info={phone.info} control={null}>
+          {details.length > 0 && (
+            <details className="mt-1 text-xs text-muted-foreground">
+              <summary className="cursor-pointer select-none hover:text-foreground">Details</summary>
+              <ul className="mt-1.5 space-y-1.5">
+                {details.map((detail) => (
+                  <li key={detail.key}>
+                    <span className="text-foreground">{detail.name}</span>
+                    <br />
+                    {detail.line}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </Row>
+      </SettingsGroup>
+    </>
   );
 }

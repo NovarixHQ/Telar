@@ -16,6 +16,7 @@ export function OtherHostsSection() {
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hostError, setHostError] = useState<{ id: string; message: string }>();
 
   const load = useCallback(async () => {
     try {
@@ -46,13 +47,27 @@ export function OtherHostsSection() {
     }
   };
 
+  const refused = (id: string, cause: unknown, fallback: string) =>
+    setHostError({ id, message: cause instanceof EngineApiError ? cause.message : fallback });
+
   const rename = async (id: string, name: string) => {
-    await api.renameHost(id, name).catch(() => undefined);
+    setHostError(undefined);
+    try {
+      await api.renameHost(id, name);
+    } catch (cause) {
+      refused(id, cause, "Could not rename that computer.");
+    }
     await load();
   };
 
   const remove = async (id: string) => {
-    await api.removeHost(id).catch(() => undefined);
+    setHostError(undefined);
+    try {
+      await api.removeHost(id);
+    } catch (cause) {
+      refused(id, cause, "Could not forget that computer.");
+      return;
+    }
     writeSidebarCache(forgetRows(readSidebarCache(), id));
     void forgetHostHeads(id).catch(() => undefined);
     await load();
@@ -61,7 +76,7 @@ export function OtherHostsSection() {
   return (
     <SettingsGroup title="Computers this Mac reaches" description="Another Telar's conversations, in this rail.">
       {hosts?.map((host) => (
-        <HostRow key={host.id} host={host} onRename={(name) => void rename(host.id, name)} onRemove={() => void remove(host.id)} />
+        <HostRow key={host.id} host={host} {...(hostError?.id === host.id ? { error: hostError.message } : {})} onRename={(name) => void rename(host.id, name)} onRemove={() => void remove(host.id)} />
       ))}
       <Row
         label="Add a computer"
@@ -92,7 +107,7 @@ export function OtherHostsSection() {
   );
 }
 
-function HostRow({ host, onRename, onRemove }: { host: PublicHost; onRename: (name: string) => void; onRemove: () => void }) {
+function HostRow({ host, error, onRename, onRemove }: { host: PublicHost; error?: string; onRename: (name: string) => void; onRemove: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(host.name);
 
@@ -104,6 +119,7 @@ function HostRow({ host, onRename, onRemove }: { host: PublicHost; onRename: (na
   return (
     <Row
       icon={MonitorIcon}
+      {...(error ? { error } : {})}
       label={
         editing ? (
           <Input

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { click, flush, mount, stubFetch, installTestDom } from "@/test/dom";
-import { detailLines, deviceLine, NOT_REGISTERED, NOTIFY_ON_LABELS, pausedLine, phoneSummary, PushNotificationsGroup, relayHeadline, testLine } from "./push-notifications-group";
+import { detailLines, deviceLine, NOT_REGISTERED, NOTIFY_ON_LABELS, pausedLine, phoneRow, phoneSummary, PushNotificationsGroup, relayHeadline, testLine } from "./push-notifications-group";
 import { DEFAULT_NOTIFY_ON, NOTIFY_ON_VALUES, type NotifyOn, type PushRelayStatus } from "@telar/engine-client";
 import { SETTINGS_SEARCH_INDEX } from "@/features/settings";
 
@@ -29,10 +29,10 @@ describe("Notify on", () => {
   });
 
   test("the row shows the stored choice where search points, and reverting writes the default", async () => {
-    expect(SETTINGS_SEARCH_INDEX.entries.find((entry) => entry.title === "Notify on")?.id).toBe("settings-row-notifications-push-notifications-notify-on");
+    expect(SETTINGS_SEARCH_INDEX.entries.find((entry) => entry.title === "Notify on")?.id).toBe("settings-row-notifications-alerts-notify-on");
     for (const saves of [true, false]) {
       const { host, calls, unmount } = await mountPane({ configured: true, devices: [] }, "both", saves);
-      expect(host.querySelector('[id$="push-notifications-notify-on"]')?.textContent).toContain("Both");
+      expect(host.querySelector('[id$="alerts-notify-on"]')?.textContent).toContain("Both");
       await click(host.querySelector('[aria-label="Revert to the default"]')!);
       expect(calls.filter((call) => call.route.startsWith("PUT")).map((call) => call.body)).toEqual([{ notifyOn: "mac" }]);
       // A refused write shows the stored value again, and says so.
@@ -123,6 +123,24 @@ describe("the one summary line", () => {
     expect(lines[1]!.name).toContain("stopped");
     expect(lines[1]!.line).toContain("last refused 400");
     expect(lines[1]!.line).toContain("20 failures in a row");
+  });
+});
+
+describe("the phones row", () => {
+  test("one row says the state, in the order that matters", () => {
+    const ok = { label: "Alerts reach 1 phone", ok: true };
+    expect(phoneRow({ configured: false, devices: [] }, ok).label).toBe("No phone can be reached yet");
+    expect(phoneRow({ configured: true, pausedUntil: 0, devices: [] }, ok).label).toBe(pausedLine(0));
+    expect(phoneRow({ configured: true, devices: [] }, ok)).toMatchObject({ label: "Alerts reach 1 phone" });
+    expect(phoneRow({ configured: true, devices: [] }, { label: "x", ok: false }).hint).toBe("Open Telar on the phone to register it.");
+  });
+
+  test("the pane draws exactly one phone row, whatever the state", async () => {
+    const { host, unmount } = await mountPane({ configured: true, pausedUntil: Date.now() + 3600_000, devices: [device()] });
+    const phones = [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Phones")!;
+    expect(phones.querySelectorAll('[id^="settings-row-"], #push-phones')).toHaveLength(1);
+    expect(phones.textContent).toContain("Push paused until");
+    unmount();
   });
 });
 

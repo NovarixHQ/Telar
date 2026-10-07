@@ -16,7 +16,7 @@ const { awaitStore } = require("../store/store-gate");
 const { createStoreGateWindow } = require("../store/store-gate-window");
 const { createBrowserSuggestions } = require("../browser/browser-suggestions");
 const { readProfileRegistry } = require("../browser/browser-profiles");
-const { createTabStore } = require("../browser/browser-tab-store");
+const { createSharedTabStore } = require("../browser/browser-tab-store");
 const { createSitePermissionStore } = require("../browser/site-permissions");
 const { bundledHelperDaemon, stopHelperDaemon } = require("./computer-use-stop");
 const desktopHandoff = require("../handoff/desktop-handoff");
@@ -51,6 +51,11 @@ pinUserData();
 let surfaceWindows;
 function requireSurfaceWindows() {
   return surfaceWindows ||= createSurfaceWindowStore(app.getPath("userData"));
+}
+
+let browserTabs;
+function requireBrowserTabs() {
+  return browserTabs ||= createSharedTabStore(app.getPath("userData"));
 }
 
 let browserSuggestions;
@@ -189,7 +194,7 @@ function createWindow(url) {
 
         onProfileMigrated: (from, to) => requireBrowserSuggestions().adopt(from, to),
 
-        tabStore: createTabStore(app.getPath("userData")),
+        tabStore: requireBrowserTabs().forWindow(),
 
         sitePermissions: createSitePermissionStore(app.getPath("userData")),
 

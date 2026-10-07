@@ -66,11 +66,13 @@ describe("the display toolkit", () => {
     }
   });
 
-  test("display_inline tells the agent every Look variable an artifact can use", () => {
+  test("display_inline and display_preview tell the agent every Look variable an artifact can use", () => {
     const { named } = build();
-    const content = (named("display_inline").shape.content as { description?: string }).description ?? "";
-    for (const [name] of ARTIFACT_THEME_TOKENS) expect(content).toContain(`--${name}`);
-    expect(content).toContain("hex");
+    for (const tool of ["display_inline", "display_preview"]) {
+      const content = (named(tool).shape.content as { description?: string }).description ?? "";
+      for (const [name] of ARTIFACT_THEME_TOKENS) expect(`${tool} ${content}`).toContain(`--${name}`);
+      expect(content).toContain("hex");
+    }
   });
 
   test("display_open forwards path and title and answers in prose, not content", async () => {

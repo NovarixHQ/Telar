@@ -31,7 +31,7 @@ const HOST_CONTEXT_CHANGED = "ui/notifications/host-context-changed";
 
 export const hostContextMessage = (theme: ArtifactTheme) => ({ jsonrpc: "2.0", method: HOST_CONTEXT_CHANGED, params: { theme: theme.scheme, styles: { variables: theme.variables } } });
 
-const BASE_STYLE = `<style>:where(:root){scrollbar-width:thin;scrollbar-color:color-mix(in oklab,currentColor 30%,transparent) transparent}:where(body){margin:0;padding:12px 14px;font:13px/1.5 var(--font-sans,system-ui,-apple-system,sans-serif);color:var(--foreground,CanvasText);background:transparent}</style>`;
+const BASE_STYLE = `<style>:where(html){background:var(--background);color:var(--foreground,CanvasText);font:13px/1.5 var(--font-sans,system-ui,-apple-system,sans-serif);scrollbar-width:none}:where(html)::-webkit-scrollbar{display:none}:where(body){margin:0;padding:12px 14px}:where(code,kbd,pre,samp){font-family:var(--font-mono,ui-monospace,monospace)}</style>`;
 
 const themeListener = `<script>(()=>{const sheet=document.currentScript.previousElementSibling;document.currentScript.remove();const css=${artifactThemeCss.toString()};addEventListener("message",(event)=>{const data=event.data;if(event.source!==parent||data?.method!==${escapeScript(HOST_CONTEXT_CHANGED)})return;sheet.textContent=css({scheme:data.params?.theme,variables:data.params?.styles?.variables});});})()</script>`;
 

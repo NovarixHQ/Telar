@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { ARTIFACT_THEME_TOKENS, type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES, type PublishedAppearance } from "@telar/engine-client";
+import { type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES, type PublishedAppearance } from "@telar/engine-client";
 import { NEEDS_DESKTOP, PREVIEW_TIMEOUT_MS, PREVIEW_WIDTH, PreviewAppearance, previewDocument, PreviewKind, previewTheme, type PreviewRenderer, type PreviewRendering, previewReport, withinTimeout } from "./display-preview";
 import { err, failure, ok, type ToolFactory } from "./tool-kit";
 
@@ -21,7 +21,15 @@ const INLINE = `Draw a visual artifact in the conversation: an html page, svg, m
 
 const PREVIEW = `Render html, svg or mermaid offscreen in the current Look as display_inline would draw it, before publishing. Returns a screenshot, the content height, console errors and warnings with stacks, and failed loads. The person sees nothing.`;
 
-const CONTENT = `The source. Give this or path. Html and svg can use the Look's CSS variables, in hex and updated live when the Look changes; your own :root rules win. ${ARTIFACT_THEME_TOKENS.map(([name]) => `--${name}`).join(" ")}. Mermaid takes the Look's colours by itself.`;
+const THEME_GUIDE = [
+  "The source. Give this or path. Html and svg get the person's Look as CSS variables on :root, in hex, following Look changes live:",
+  "--background (the canvas around the frame; transparent on a see-through Look), --foreground, --muted, --muted-foreground,",
+  "--card, --card-foreground (raised surfaces), --border, --primary, --primary-foreground (solid buttons), --secondary, --secondary-foreground,",
+  "--accent, --accent-foreground (hover surface), --success, --warning, --info, --destructive,",
+  "--chart-1, --chart-2, --chart-3, --chart-4, --chart-5, --chart-6 (categorical series, legible on --background and --card), --code-background, --code-foreground, --code-comment,",
+  "--code-keyword, --code-string, --code-number, --code-function, --radius, --font-sans, --font-mono.",
+  "The base stylesheet sets html background, colour and font from these and hides the scrollbar; your own CSS overrides it. Mermaid takes the Look by itself.",
+].join(" ");
 
 export const DISPLAY_BRIEFING =
   "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Check it with display_preview, publish with display_inline, then reply without restating what the page shows.";
@@ -62,7 +70,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
       {
         kind: ArtifactKind.describe("How to render it."),
         title: z.string().min(1).max(200).describe("Shown above the artifact."),
-        content: z.string().optional().describe(CONTENT),
+        content: z.string().optional().describe(THEME_GUIDE),
         path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
         id: z.string().optional().describe("Reuse an earlier artifact's id to add a new version of it."),
       },
@@ -88,7 +96,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
       PREVIEW,
       {
         kind: PreviewKind.describe("How display_inline would render it."),
-        content: z.string().optional().describe("The source. Give this or path."),
+        content: z.string().optional().describe(THEME_GUIDE),
         path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
         width: z.number().int().min(PREVIEW_WIDTH.min).max(PREVIEW_WIDTH.max).optional().describe(`CSS pixels; default ${PREVIEW_WIDTH.initial}, the conversation's width.`),
         appearance: PreviewAppearance.optional().describe("Default: the scheme the person's Look is in."),

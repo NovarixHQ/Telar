@@ -80,14 +80,53 @@ export function cssColorToHex(value: string): string | undefined {
   return `#${rgb.map(byte).join("")}${alpha < 1 ? byte(alpha) : ""}`;
 }
 
-export function artifactTheme(scheme: ArtifactTheme["scheme"], read: (token: string) => string, resolve?: (value: string) => string): ArtifactTheme {
+const rgbOf = (hex: string) => [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255) as [number, number, number];
+
+const luminance = (hex: string) => {
+  const [r, g, b] = rgbOf(hex).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+export function contrastRatio(a: string, b: string): number {
+  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (light + 0.05) / (dark + 0.05);
+}
+
+const opaque = (value: string | undefined): value is string => value !== undefined && /^#[0-9a-f]{6}$/.test(value);
+
+function mixHex(from: string, to: string, amount: number): string {
+  const [a, b] = [rgbOf(from), rgbOf(to)];
+  return `#${a.map((v, i) => Math.round((v + (b[i]! - v) * amount) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
+const CHART_CONTRAST = 3;
+
+function legibleChart(colour: string, grounds: string[], ink: string): string {
+  for (let step = 0; step <= 10; step++) {
+    const candidate = mixHex(colour, ink, step / 10);
+    if (grounds.every((ground) => contrastRatio(candidate, ground) >= CHART_CONTRAST)) return candidate;
+  }
+  return ink;
+}
+
+type ThemeOptions = { paint?: (token: string) => string | undefined; canvas?: string };
+
+export function artifactTheme(scheme: ArtifactTheme["scheme"], read: (token: string) => string, { paint, canvas }: ThemeOptions = {}): ArtifactTheme {
   const variables: Record<string, string> = {};
   for (const [name, token] of ARTIFACT_THEME_TOKENS) {
-    const raw = read(token).trim();
-    if (!raw) continue;
-    const value = NOT_COLOURS.has(name) ? raw.replace(unsafe, "") : (cssColorToHex(raw) ?? (resolve ? cssColorToHex(resolve(raw)) : undefined));
+    const value = NOT_COLOURS.has(name) ? read(token).trim().replace(unsafe, "") : (paint?.(token) ?? cssColorToHex(read(token)));
     if (value) variables[`--${name}`] = value;
   }
+  const ink = variables["--foreground"];
+  const grounds = [variables["--background"], variables["--card"]].filter(opaque);
+  if (opaque(ink) && grounds.length > 0) {
+    for (let series = 1; series <= 6; series++) {
+      const name = `--chart-${series}`;
+      const colour = variables[name];
+      if (opaque(colour)) variables[name] = legibleChart(colour, grounds, ink);
+    }
+  }
+  if (canvas) variables["--background"] = canvas;
   return { scheme, variables };
 }
 
@@ -140,7 +179,8 @@ export function mermaidThemeVariables(theme: ArtifactTheme): Record<string, stri
   const variables: Record<string, string | boolean> = { darkMode: theme.scheme === "dark" };
   for (const [key, name] of Object.entries(MERMAID_TOKENS)) {
     const value = theme.variables[`--${name}`];
-    if (value) variables[key] = value;
+    const ground = name === "background" && !opaque(value) ? theme.variables["--card"] : value;
+    if (opaque(ground)) variables[key] = ground;
   }
   return variables;
 }

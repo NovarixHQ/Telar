@@ -23,7 +23,7 @@ export function ArtifactCard({ sessionId, artifact }: { sessionId: string; artif
   const newest = latest.get(artifact.id) ?? artifact;
   const superseded = newest.version > artifact.version;
   return (
-    <figure aria-label={artifact.title} className="my-1 overflow-hidden rounded-lg border border-border bg-background">
+    <figure aria-label={artifact.title} className="app-ground my-1 overflow-hidden rounded-lg border border-border bg-background">
       <figcaption className="flex items-center gap-2 px-2.5 py-1.5 text-xs">
         <ShapesIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate font-medium">{artifact.title}</span>

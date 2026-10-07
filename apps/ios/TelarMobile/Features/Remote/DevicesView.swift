@@ -49,23 +49,21 @@ struct DevicesView: View {
                         }
                     }
 
-                    VStack(spacing: 0) {
-                        SettingsSectionLabel(mine.isEmpty ? "Devices" : "Other devices")
-                        SettingsCard {
-                            if others.isEmpty {
-                                StatusBanner(
-                                    icon: "antenna.radiowaves.left.and.right", color: Theme.textMuted,
-                                    title: mine.isEmpty ? "No devices are paired." : "No other devices are paired.",
-                                    detail: "Devices appear here as they pair from the computer's Connections settings."
-                                )
-                            }
-                            ForEach(Array(others.enumerated()), id: \.element.id) { index, device in
-                                if index > 0 { CardDivider() }
-                                deviceRow(device, isSelf: false)
-                            }
+                    SettingsGroup(
+                        label: mine.isEmpty ? "Devices" : "Other devices",
+                        footer: canManage ? "Tap the role chip to rename, change access, or revoke. Revoking logs the device out on its next request." : nil,
+                        error: error
+                    ) {
+                        if others.isEmpty {
+                            StatusBanner(
+                                icon: "antenna.radiowaves.left.and.right", color: Theme.textMuted,
+                                title: mine.isEmpty ? "No devices are paired." : "No other devices are paired.",
+                                detail: "Devices appear here as they pair from the computer's Connections settings."
+                            )
                         }
-                        if canManage {
-                            SettingsFootnote("Tap the role chip to rename, change access, or revoke. Revoking logs the device out on its next request.")
+                        ForEach(Array(others.enumerated()), id: \.element.id) { index, device in
+                            if index > 0 { CardDivider() }
+                            deviceRow(device, isSelf: false)
                         }
                     }
 
@@ -93,12 +91,6 @@ struct DevicesView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding(.top, 48)
-                }
-
-                if status != nil, let error {
-                    SettingsCard {
-                        StatusBanner(icon: "exclamationmark.triangle", color: Theme.statusAmber, title: error)
-                    }
                 }
             }
             .padding(.horizontal, 20)

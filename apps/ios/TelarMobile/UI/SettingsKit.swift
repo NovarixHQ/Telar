@@ -40,6 +40,106 @@ struct SettingsFootnote: View {
     }
 }
 
+struct SettingsPage<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) { content }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
+        }
+        .background(Theme.sheet)
+        .navigationTitle(title)
+    }
+}
+
+struct SettingsFix {
+    let title: String
+    let action: () -> Void
+
+    @MainActor static let openSystemSettings = SettingsFix(title: "Open Settings") {
+        if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+    }
+}
+
+struct SettingsGroup<Content: View>: View {
+    var label: String?
+    var footer: String?
+    var error: String?
+    var fix: SettingsFix?
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let label { SettingsSectionLabel(label) }
+            SettingsCard { content }
+            if let error {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(error).fixedSize(horizontal: false, vertical: true)
+                        if let fix {
+                            Button(fix.title, action: fix.action)
+                                .font(.system(Theme.footnote, weight: .semibold))
+                                .foregroundStyle(Theme.accent)
+                        }
+                    }
+                }
+                .font(.system(Theme.footnote))
+                .foregroundStyle(Theme.statusRed)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            } else if let footer {
+                SettingsFootnote(footer)
+            }
+        }
+    }
+}
+
+struct CardToggleRow: View {
+    let icon: String
+    let title: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        CardRow(icon: icon, title: title) {
+            Toggle(title, isOn: $isOn).labelsHidden()
+        }
+    }
+}
+
+struct CardValueRow: View {
+    let icon: String
+    let title: String
+    let value: String
+    var action: (() -> Void)?
+
+    var body: some View {
+        let row = CardRow(icon: icon, title: title) {
+            HStack(spacing: 6) {
+                Text(value)
+                    .font(.system(.callout))
+                    .foregroundStyle(Theme.textMuted)
+                    .lineLimit(1)
+                if action != nil {
+                    Image(systemName: "chevron.right")
+                        .font(.system(Theme.footnote, weight: .medium))
+                        .foregroundStyle(Theme.chevron)
+                }
+            }
+        }
+        if let action {
+            Button(action: action) { row }.buttonStyle(.plain)
+        } else {
+            row
+        }
+    }
+}
+
 struct CardDivider: View {
     var body: some View {
         Rectangle().fill(Theme.borderSubtle).frame(height: 1)
@@ -99,7 +199,7 @@ struct CardNavRow: View {
 }
 
 struct CardField: View {
-    let label: String
+    var label: String?
     let placeholder: String
     @Binding var text: String
     var mono = false
@@ -109,9 +209,11 @@ struct CardField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.system(Theme.footnote, weight: .medium))
-                .foregroundStyle(Theme.textMuted)
+            if let label {
+                Text(label)
+                    .font(.system(Theme.footnote, weight: .medium))
+                    .foregroundStyle(Theme.textMuted)
+            }
             Group {
                 if secure {
                     SecureField(placeholder, text: $text)

@@ -5,94 +5,72 @@ struct SettingsView: View {
     let inbox: MergedInbox
     @State private var pushTarget: PushTarget?
     @State private var openDevicesSeed = UserDefaults.standard.bool(forKey: "openDevices")
-    @State private var modeFailed = false
-    @AppStorage(ChatWidth.storageKey) private var chatWidth = ChatWidth.comfortable
-
-    private var sidebarMode: Binding<SidebarMode> {
-        Binding(get: { inbox.mode }, set: { next in
-            Task {
-                modeFailed = !(await inbox.setMode(next) { host, mode in
-                    try await settings.api(for: host)?.setSidebarLayout(mode: mode)
-                })
-            }
-        })
-    }
+    @State private var notifications = MobileNotifications.shared
 
     enum PushTarget: Hashable {
+        case general
+        case appearance
+        case notifications
         case host(HostID)
         case addMac
         case devices(HostID)
     }
 
+    private var showsAppearance: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
+    private var notificationsSummary: String {
+        let alerts = notifications.enabled ? "On" : "Off"
+        return notifications.liveActivities ? "\(alerts) · Live Activity on" : alerts
+    }
+
+    private var version: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "?"
+        guard let build = info?["CFBundleVersion"] as? String else { return short }
+        return "\(short) (\(build))"
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                NavigationLink { NotificationSettingsView() } label: {
-                    Label("Notifications & activities", systemImage: "bell.badge")
-                        .frame(maxWidth: .infinity, alignment: .leading).padding()
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: Theme.radiusCard))
+        SettingsPage(title: "Settings") {
+            SettingsCard {
+                CardNavRow(icon: "gearshape", title: "General", subtitle: "Session list") { pushTarget = .general }
+                if showsAppearance {
+                    CardDivider()
+                    CardNavRow(icon: "paintbrush", title: "Appearance", subtitle: "Chat width") { pushTarget = .appearance }
                 }
-
-                VStack(spacing: 0) {
-                    SettingsSectionLabel("Session list")
-                    SettingsCard {
-                        CardRow(icon: "list.bullet.indent", title: "Group by") {
-                            Picker("Group by", selection: sidebarMode) {
-                                ForEach(SidebarMode.allCases) { Text($0.label).tag($0) }
-                            }
-                            .pickerStyle(.segmented)
-                            .fixedSize()
-                        }
-                    }
-                    SettingsFootnote(modeFailed
-                        ? "Couldn't save on every computer. Try again when they are connected."
-                        : "None lists sessions newest first, with spawned ones under their parent. Each computer's rail follows this too.")
-                }
-
-                if UIDevice.current.userInterfaceIdiom == .pad {
-                    VStack(spacing: 0) {
-                        SettingsSectionLabel("Appearance")
-                        SettingsCard {
-                            CardRow(icon: "arrow.left.and.right", title: "Chat width") {
-                                Picker("Chat width", selection: $chatWidth) {
-                                    ForEach(ChatWidth.allCases) { Text($0.label).tag($0) }
-                                }
-                                .pickerStyle(.segmented)
-                                .fixedSize()
-                            }
-                        }
-                        SettingsFootnote("How wide the conversation and the composer can grow.")
-                    }
-                }
-
-                VStack(spacing: 0) {
-                    SettingsSectionLabel("Cockpits")
-                    SettingsCard {
-                        ForEach(Array(settings.hosts.enumerated()), id: \.element.id) { index, host in
-                            if index > 0 { CardDivider() }
-                            CardNavRow(
-                                icon: "desktopcomputer",
-                                title: host.name,
-                                subtitle: (host.baseURL?.host() ?? host.baseURLString)
-                                    + (settings.token(for: host.id) != nil ? " · paired" : " · open")
-                            ) { pushTarget = .host(host.id) }
-                        }
-                        if !settings.hosts.isEmpty { CardDivider() }
-                        CardNavRow(icon: "plus.circle.fill", title: "Add a computer…", subtitle: "Scan a pairing code or connect by address") {
-                            pushTarget = .addMac
-                        }
-                    }
-                    SettingsFootnote("Every computer pairs with its own key. Sessions from all of them share the inbox; the desktop icon in the top bar filters.")
+                CardDivider()
+                CardNavRow(icon: "bell.badge", title: "Notifications", subtitle: notificationsSummary) {
+                    pushTarget = .notifications
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 32)
+
+            SettingsGroup(label: "Connections", footer: "Every computer pairs with its own key. Sessions from all of them share the inbox.") {
+                ForEach(settings.hosts) { host in
+                    CardNavRow(
+                        icon: "desktopcomputer",
+                        title: host.name,
+                        subtitle: (settings.token(for: host.id) != nil ? "Paired · " : "Open · ")
+                            + (host.baseURL?.host() ?? host.baseURLString)
+                    ) { pushTarget = .host(host.id) }
+                    CardDivider()
+                }
+                CardNavRow(icon: "plus.circle.fill", title: "Add a computer", subtitle: "Scan a pairing code or connect by address") {
+                    pushTarget = .addMac
+                }
+            }
+
+            SettingsGroup(label: "About") {
+                CardValueRow(icon: "info.circle", title: "Version", value: version)
+            }
         }
-        .background(Theme.sheet)
-        .navigationTitle("Settings")
         .navigationDestination(item: $pushTarget) { target in
             switch target {
+            case .general:
+                GeneralSettingsView(settings: settings, inbox: inbox)
+            case .appearance:
+                AppearanceSettingsView()
+            case .notifications:
+                NotificationSettingsView()
             case .host(let id):
                 HostSettingsView(settings: settings, hostId: id)
             case .addMac:
@@ -112,110 +90,54 @@ struct SettingsView: View {
     }
 }
 
-struct HostSettingsView: View {
+struct GeneralSettingsView: View {
     let settings: AppSettings
-    let hostId: HostID
-    @State private var nameDraft = ""
-    @State private var confirmRemove = false
-    @Environment(\.dismiss) private var dismiss
+    let inbox: MergedInbox
+    @State private var modeFailed = false
 
-    private var host: Host? { settings.host(hostId) }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                VStack(spacing: 0) {
-                    SettingsSectionLabel("Name")
-                    SettingsCard {
-                        CardField(label: "Shown on inbox rows and menus", placeholder: host?.baseURL?.host() ?? "My computer", text: $nameDraft)
-                    }
-                }
-
-                VStack(spacing: 0) {
-                    SettingsSectionLabel("This computer")
-                    SettingsCard {
-                        CardNavRow(
-                            icon: "server.rack",
-                            title: "Connection",
-                            subtitle: host?.baseURL?.host() ?? host?.baseURLString
-                        ) { pushConnect = true }
-                        if settings.api(for: hostId) != nil {
-                            CardDivider()
-                            CardNavRow(
-                                icon: "iphone.radiowaves.left.and.right",
-                                title: "Devices",
-                                subtitle: "Who may reach this computer"
-                            ) { pushDevices = true }
-                            CardDivider()
-                            CardNavRow(
-                                icon: "waveform",
-                                title: "Dictation",
-                                subtitle: "Speak into the message box"
-                            ) { pushDictation = true }
-                            CardDivider()
-                            CardNavRow(
-                                icon: "iphone",
-                                title: "Simulators",
-                                subtitle: "Watch and drive this computer's simulators"
-                            ) { pushSimulators = true }
-                        }
-                    }
-                }
-
-                VStack(spacing: 0) {
-                    SettingsCard {
-                        Button {
-                            confirmRemove = true
-                        } label: {
-                            CardRow(icon: "trash", iconColor: Theme.statusRed, title: "Remove this computer", titleColor: Theme.statusRed) { EmptyView() }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    SettingsFootnote("Removes the pairing credential and drafts from this phone. The computer keeps running; revoke this phone from its Connections settings to kill the credential everywhere.")
-                }
+    private var sidebarMode: Binding<SidebarMode> {
+        Binding(get: { inbox.mode }, set: { next in
+            Task {
+                modeFailed = !(await inbox.setMode(next) { host, mode in
+                    try await settings.api(for: host)?.setSidebarLayout(mode: mode)
+                })
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 32)
-        }
-        .background(Theme.sheet)
-        .navigationTitle(host?.name ?? "Computer")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $pushConnect) {
-            ConnectView(settings: settings, target: .existing(hostId))
-        }
-        .navigationDestination(isPresented: $pushDevices) {
-            if let api = settings.api(for: hostId) {
-                DevicesView(api: api)
-            }
-        }
-        .navigationDestination(isPresented: $pushDictation) {
-            if let api = settings.api(for: hostId) {
-                DictationSettingsView(api: api)
-            }
-        }
-        .navigationDestination(isPresented: $pushSimulators) {
-            if let api = settings.api(for: hostId) {
-                SimulatorsView(api: api)
-            }
-        }
-        .onAppear { nameDraft = host?.name ?? "" }
-        .onChange(of: nameDraft) {
-            guard host != nil else { return }
-            settings.rename(hostId, to: nameDraft)
-        }
-        .confirmationDialog("Remove \(host?.name ?? "this computer")?", isPresented: $confirmRemove, titleVisibility: .visible) {
-            Button("Remove", role: .destructive) {
-                settings.remove(hostId)
-                dismiss()
-            }
-        } message: {
-            Text("This phone forgets the credential and any pending drafts for it. Pair again anytime.")
-        }
+        })
     }
 
-    @State private var pushConnect = false
-    @State private var pushDevices = false
-    @State private var pushDictation = false
-    @State private var pushSimulators = false
+    var body: some View {
+        SettingsPage(title: "General") {
+            SettingsGroup(
+                label: "Session list",
+                footer: "Applies on every computer you are paired with.",
+                error: modeFailed ? "Couldn't save on every computer. Try again when they are connected." : nil
+            ) {
+                CardRow(icon: "list.bullet.indent", title: "Group by") {
+                    Picker("Group by", selection: sidebarMode) {
+                        ForEach(SidebarMode.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
+            }
+        }
+    }
+}
+
+struct AppearanceSettingsView: View {
+    @AppStorage(ChatWidth.storageKey) private var chatWidth = ChatWidth.comfortable
+
+    var body: some View {
+        SettingsPage(title: "Appearance") {
+            SettingsGroup(label: "Conversation", footer: "How wide the conversation and the composer can grow.") {
+                CardRow(icon: "arrow.left.and.right", title: "Chat width") {
+                    Picker("Chat width", selection: $chatWidth) {
+                        ForEach(ChatWidth.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                }
+            }
+        }
+    }
 }

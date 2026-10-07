@@ -1,7 +1,6 @@
 import type { ComponentProps } from "react";
 import type { Session } from "@telar/engine-client";
 import type { Composer } from "@/features/composer";
-import type { PanelTab } from "@/features/panel";
 import { wakeLabel } from "../../session-settling";
 import type { useComposerDraft } from "../hooks/use-composer-draft";
 import type { useDraftConfig } from "../hooks/use-draft-config";
@@ -10,7 +9,7 @@ import type { useSettling } from "../hooks/use-settling";
 import type { useSubmit } from "../hooks/use-submit";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
 
-export function composerProps({ fresh, solo, session, projectId, projectName, compact, contextNoticePercent, composer, draft, actions, settling, model, submit, showPanelTab }: {
+export function composerProps({ fresh, solo, session, projectId, projectName, compact, contextNoticePercent, composer, draft, actions, settling, model, submit }: {
   fresh: boolean;
   solo: boolean;
   session: Session | undefined;
@@ -24,7 +23,6 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
   settling: ReturnType<typeof useSettling>;
   model: ReturnType<typeof useTranscriptModel>;
   submit: ReturnType<typeof useSubmit>;
-  showPanelTab: (tab: PanelTab) => void;
 }): ComponentProps<typeof Composer> {
   const { composerQuestion, newestUsage } = model;
   const runtimeMode = session?.runtimeMode ?? (fresh ? draft.runtimeMode : undefined);
@@ -81,7 +79,5 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
     ...(fresh ? {} : { onResumeAfterRateLimit: (next: boolean) => void actions.setResumeAfterRateLimit(next) }),
     ...(draft.sessionDefaults.resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimitDefault: draft.sessionDefaults.resumeAfterRateLimit }),
     onModelChange: fresh ? draft.chooseModel : (next) => void actions.setModel(next),
-    // A right-panel tab, so on the solo route the change count stays a count.
-    ...(solo ? {} : { onOpenChanges: () => showPanelTab("diff") }),
   };
 }

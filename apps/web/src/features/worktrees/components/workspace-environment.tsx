@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronDownIcon,
-  FolderGit2Icon,
   FolderGitIcon,
   GitBranchIcon,
   HardDriveIcon,
   GitBranchPlusIcon,
-  GitCommitHorizontalIcon,
   RefreshCwIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -17,7 +15,7 @@ import { createEngineApi } from "@/platform/engine";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { cn } from "@/ui/utils";
 import { usePoll } from "@/ui/hooks/use-poll";
-import { awayLabel, awayReason, ChooseProjectFolder, isAway, type Away } from "@/features/projects";
+import { awayReason, ChooseProjectFolder, isAway, type Away } from "@/features/projects";
 
 const api = createEngineApi();
 
@@ -178,10 +176,6 @@ const CONTROL = "flex h-6 min-w-0 items-center gap-1 rounded-md px-1.5 transitio
 
 const REFRESH_MS = 15_000;
 
-function StripRule() {
-  return <span aria-hidden className="h-3.5 w-px shrink-0 bg-border/60" />;
-}
-
 function WhereThisLands({
   projectName,
   git,
@@ -310,162 +304,49 @@ function AwayNotice({
   );
 }
 
-function BranchPopover({
-  git,
-  branch,
-  away,
-  reachable,
-  modeLabel,
-  onOpenChanges,
-}: {
-  git?: GitOverview | undefined;
-  branch?: string | undefined;
-  away?: Away | undefined;
-  reachable: boolean;
-  modeLabel: string;
-  onOpenChanges?: (() => void) | undefined;
-}) {
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label={away ? "Drive" : "Branch"}
-            title={away ? "This project's disk is not readable right now" : "Where this session's work lands"}
-            className={CONTROL}
-          />
-        }
-      >
-        {away ? <HardDriveIcon className="size-3.5 shrink-0" /> : <GitBranchIcon className="size-3.5 shrink-0" />}
-        <span className="min-w-0 truncate font-mono">
-          {away ? awayLabel(away).toLowerCase() : (branch ?? "no branch")}
-        </span>
-        <ChevronDownIcon className="size-3 shrink-0" />
-      </PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={8} className="w-[min(24rem,calc(100vw-2rem))] gap-0 rounded-2xl p-2">
-        <p className="px-2 pb-1 pt-1 text-2xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Branch</p>
-        <div className="rounded-xl bg-muted/35 p-1">
-          {branch && (
-            <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <GitBranchIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate font-mono text-sm">{branch}</span>
-              {git && (git.ahead !== undefined || git.behind !== undefined) && (
-                <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-                  ↑{git.ahead ?? 0} ↓{git.behind ?? 0}
-                </span>
-              )}
-            </div>
-          )}
-          {git?.repository && (
-            <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-              <FolderGitIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate text-sm">{modeLabel}</span>
-              {git.worktrees && (
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {git.worktrees.length} worktree{git.worktrees.length === 1 ? "" : "s"}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        {(!reachable || away || (git && !git.repository)) && (
-          <p className="px-2 pt-2 text-2xs text-muted-foreground">
-            {!reachable
-              ? "The engine did not answer — this may be out of date."
-              : away
-                ? `${awayReason(away)} Nothing above was read from it.`
-                : "Not a git repository."}
-          </p>
-        )}
-        {onOpenChanges && (
-          <button
-            type="button"
-            onClick={onOpenChanges}
-            className="mt-2 flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <GitCommitHorizontalIcon className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 truncate">Files this session changed</span>
-            <span className="ml-auto shrink-0 text-xs text-muted-foreground">Open panel</span>
-          </button>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
+/** Before a session: where the first message lands. After: only a notice while the project's folder is unreachable. */
 export function EnvironmentStrip({
   projectId,
   projectName,
   session,
   git,
-  reachable = true,
   onRetry,
   envMode,
   onEnvMode,
   pendingBase,
   onBase,
-  onOpenChanges,
 }: {
   projectId: string;
   projectName?: string;
   session?: Session;
   git?: GitOverview;
-  reachable?: boolean;
   onRetry?: () => void | Promise<void>;
   envMode?: "local" | "worktree";
   onEnvMode?: (mode: "local" | "worktree") => void;
   pendingBase?: { baseRef?: string; branchName?: string };
   onBase?: (next: { baseRef?: string; branchName?: string }) => void;
-  onOpenChanges?: () => void;
 }) {
   const away = isAway(git?.availability) ? git.availability : undefined;
-  const worktreeBranch = session?.workspace.mode === "worktree" ? session.workspace.branch : undefined;
-  const branch = worktreeBranch ?? git?.branch;
-  const dirty = git?.dirtyFiles ?? 0;
   const choosing = Boolean(onEnvMode) && !session;
-  const isWorktree = choosing ? envMode === "worktree" : Boolean(worktreeBranch);
-  const modeLabel = isWorktree ? "Own worktree" : "Project checkout";
+  if (!away && !choosing) return null;
 
   return (
     <div className="mx-3 -mt-px">
       <div className="overflow-hidden rounded-b-2xl border border-t-0 border-border/80 bg-card/95 shadow-1 backdrop-blur-xl">
         {away && <AwayNotice away={away} projectId={projectId} projectName={projectName} onRetry={onRetry} />}
-        <div className="flex min-h-8 w-full items-center gap-1 px-2 text-2xs text-muted-foreground">
-        {choosing && onEnvMode ? (
-          <WhereThisLands
-            {...(projectName ? { projectName } : {})}
-            {...(git ? { git } : {})}
-            {...(onRetry ? { onRetry } : {})}
-            {...(envMode ? { envMode } : {})}
-            onEnvMode={onEnvMode}
-            {...(pendingBase ? { pendingBase } : {})}
-            {...(onBase ? { onBase } : {})}
-          />
-        ) : (
-          <>
-            <span className="flex min-w-0 shrink-0 items-center gap-1.5 px-1 font-medium text-foreground">
-              <FolderGit2Icon className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="max-w-40 truncate">{projectName ?? "Project"}</span>
-            </span>
-
-            <StripRule />
-
-            <span className={cn(CONTROL, "hover:bg-transparent hover:text-muted-foreground")} title={modeLabel}>
-              {isWorktree ? <GitBranchIcon className="size-3.5 shrink-0" /> : <FolderGitIcon className="size-3.5 shrink-0" />}
-              <span className="hidden truncate @xl/composer:inline">{modeLabel}</span>
-            </span>
-
-            <StripRule />
-
-            <BranchPopover git={git} branch={branch} away={away} reachable={reachable} modeLabel={modeLabel} onOpenChanges={onOpenChanges} />
-          </>
+        {choosing && onEnvMode && (
+          <div className="flex min-h-8 w-full items-center gap-1 px-2 text-2xs text-muted-foreground">
+            <WhereThisLands
+              {...(projectName ? { projectName } : {})}
+              {...(git ? { git } : {})}
+              {...(onRetry ? { onRetry } : {})}
+              {...(envMode ? { envMode } : {})}
+              onEnvMode={onEnvMode}
+              {...(pendingBase ? { pendingBase } : {})}
+              {...(onBase ? { onBase } : {})}
+            />
+          </div>
         )}
-
-        {dirty > 0 && (
-          <span className="ml-auto shrink-0 rounded-full bg-warning/10 px-1.5 py-0.5 text-3xs font-medium text-warning">{dirty} changed</span>
-        )}
-        </div>
       </div>
     </div>
   );
@@ -486,13 +367,12 @@ export async function readWorkspaceGit(engine: typeof api, projectId: string, wo
 export function WorkspaceEnvironment({
   onAvailability,
   ...props
-}: Omit<Parameters<typeof EnvironmentStrip>[0], "git" | "reachable" | "onRetry"> & {
+}: Omit<Parameters<typeof EnvironmentStrip>[0], "git" | "onRetry"> & {
   onAvailability?: (availability: Away | undefined) => void;
 }) {
   const { projectId, session } = props;
   const worktreeSessionId = session?.workspace.mode === "worktree" ? session.id : undefined;
   const [git, setGit] = useState<GitOverview>();
-  const [reachable, setReachable] = useState(true);
   const own = useRef<OwnStatus & { sessionId?: string }>({});
 
   const load = useCallback(async () => {
@@ -500,14 +380,13 @@ export function WorkspaceEnvironment({
     try {
       const next = await readWorkspaceGit(api, projectId, worktreeSessionId, own.current);
       setGit(next);
-      setReachable(true);
       onAvailability?.(isAway(next.availability) ? next.availability : undefined);
     } catch {
-      setReachable(false);
+      return;
     }
   }, [projectId, worktreeSessionId, onAvailability]);
 
   usePoll(load, REFRESH_MS, { key: load });
 
-  return <EnvironmentStrip {...props} {...(git ? { git } : {})} reachable={reachable} onRetry={load} />;
+  return <EnvironmentStrip {...props} {...(git ? { git } : {})} onRetry={load} />;
 }

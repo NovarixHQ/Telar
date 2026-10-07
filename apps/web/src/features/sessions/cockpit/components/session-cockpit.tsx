@@ -30,9 +30,11 @@ import { useSettling } from "../hooks/use-settling";
 import { useSubmit } from "../hooks/use-submit";
 import { useTitleMenu } from "../hooks/use-title-menu";
 import { useTranscriptModel } from "../hooks/use-transcript-model";
+import { useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 import { composerProps } from "./composer-props";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
+import { WorkspaceCard, WorkspaceCardToggle } from "./workspace-card";
 import { useReadReceipt } from "./read-receipt";
 import { TranscriptList } from "./transcript-list";
 
@@ -75,8 +77,9 @@ export function SessionCockpit({
   const { panel, showPanelTab } = panelState;
   const panelPresence = usePanelPresence(!solo && panel.open);
   const browser = useSessionBrowser({ hostId, sessionId, projectId, sync, draft: draftConfig, composer, panel: panelState, setCreatedSessionId });
+  const workspaceCard = useWorkspaceCardOpen();
   useCockpitCommands({
-    solo, enabledPlugins, panel: panelState, openBrowser: () => void browser.openBrowser(),
+    solo, enabledPlugins, panel: panelState, openBrowser: () => void browser.openBrowser(), toggleWorkspace: workspaceCard.toggle,
     pinSession: () => {
       if (!sessionId) return;
       void settling.patchFromMenu({ settledOverride: pinToggleOverride(session?.settledOverride) }, "Could not change the session's pin.");
@@ -114,10 +117,9 @@ export function SessionCockpit({
             session={session}
             {...(headerMenu ? { menu: headerMenu } : {})}
             onRename={(next) => void actions.rename(next)}
-            onWatchRun={() => showPanelTab("terminal")}
-            onRunTerminals={revealNewTerminals}
             panel={
               <>
+                {session && <WorkspaceCardToggle open={workspaceCard.open} onToggle={workspaceCard.toggle} />}
                 {/* Keyed by host and session: a different machine is a different mount. The last turn's state is the refresh cue. */}
                 {session && (
                   <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
@@ -129,6 +131,20 @@ export function SessionCockpit({
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
+          {!solo && session && (
+            <WorkspaceCard
+              key={`${hostId}:${session.id}`}
+              hostId={hostId}
+              session={session}
+              open={workspaceCard.open}
+              busy={Boolean(active)}
+              backgroundTasks={model.backgroundTasks}
+              panel={panelState}
+              onClose={workspaceCard.toggle}
+              onRunTerminals={revealNewTerminals}
+              onViewBackground={model.showProcesses}
+            />
+          )}
           <TranscriptList
             sync={sync}
             model={model}
@@ -150,7 +166,7 @@ export function SessionCockpit({
           />
           <Composer
             {...composerProps({
-              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit, showPanelTab,
+              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,
               // Not while a conversation is opening: a composer changing height would move the viewport again.
               compact: readingBack && transcriptLanded,
               contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),

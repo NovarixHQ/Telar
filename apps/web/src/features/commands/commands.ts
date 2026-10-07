@@ -27,6 +27,7 @@ export type CommandId =
   | "toggle-dictation"
   | "reveal-in-finder"
   | "pin-session"
+  | "toggle-workspace"
   | "search-sessions"
   | "add-project"
   | "toggle-rail"

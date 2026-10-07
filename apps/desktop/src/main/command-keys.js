@@ -14,6 +14,8 @@ const COMMANDS = [
 
   { id: "reveal-in-finder", label: "Reveal in Finder", group: "Conversation", icon: "folder-open", defaultChord: "CommandOrControl+O", menu: "file" },
 
+  { id: "toggle-workspace", label: "Toggle Workspace", group: "Conversation", icon: "folder-git-2", defaultChord: "CommandOrControl+Alt+W" },
+
   { id: "pin-session", label: "Pin Conversation", altLabel: "Unpin Conversation", group: "Conversation", icon: "pin", defaultChord: "CommandOrControl+P", menu: "file" },
 
   { id: "search-sessions", label: "Command Palette", group: "Rail", icon: "search", defaultChord: "CommandOrControl+K" },

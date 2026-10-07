@@ -1,0 +1,138 @@
+import { afterAll, afterEach, describe, expect, mock, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import type { RunView, SessionChild, SessionDiff } from "@telar/engine-client";
+import { WorkspaceCardView, type WorkspaceCardViewProps } from "./workspace-card";
+
+GlobalRegistrator.register({ url: "http://localhost/" });
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+afterAll(async () => {
+  await GlobalRegistrator.unregister();
+});
+
+const roots: Root[] = [];
+
+afterEach(async () => {
+  await act(async () => {
+    for (const root of roots.splice(0)) root.unmount();
+  });
+  document.body.innerHTML = "";
+});
+
+const diff: SessionDiff = {
+  repository: true,
+  workspacePath: "/fixtures/telar-ios-panel",
+  branch: "telar/ios-panel-column",
+  ahead: 2,
+  behind: 0,
+  files: [],
+  commits: [],
+  linesAdded: 38,
+  linesRemoved: 12,
+  truncated: false,
+};
+
+const terminal = (over: Partial<RunView> = {}): RunView => ({
+  terminalId: "term_1",
+  runId: "term_1",
+  projectId: "project_1",
+  sessionId: "session_1",
+  origin: "run",
+  title: "bun dev",
+  configName: "bun dev",
+  command: "bun dev",
+  worktreePath: "/fixtures/telar-ios-panel",
+  cwd: "/fixtures/telar-ios-panel",
+  status: "running",
+  activity: "busy",
+  readiness: { kind: "pending" },
+  startedAt: 1,
+  env: [],
+  ...over,
+});
+
+const agent: SessionChild = { sessionId: "session_builder", parentSessionId: "session_1", title: "Settings mockup", state: "working", startedAt: 1 };
+
+async function mount(over: Partial<WorkspaceCardViewProps> = {}) {
+  const props: WorkspaceCardViewProps = {
+    path: "/fixtures/telar-ios-panel",
+    worktree: true,
+    diff,
+    terminals: [terminal(), terminal({ terminalId: "term_old", runId: "term_old", title: "old", status: "exited" })],
+    backgroundTasks: 0,
+    agents: [agent, { ...agent, sessionId: "session_done", title: "T3 research", state: "done" }],
+    onClose: mock(),
+    onOpenTerminal: mock(),
+    onOpenChanges: mock(),
+    onOpenAgent: mock(),
+    ...over,
+  };
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  roots.push(root);
+  await act(async () => root.render(<WorkspaceCardView {...props} />));
+  return { host, props };
+}
+
+const section = (host: HTMLElement, name: string) => host.querySelector<HTMLElement>(`section[aria-label="${name}"]`);
+const button = (scope: HTMLElement, text: string) => [...scope.querySelectorAll("button")].find((entry) => entry.textContent?.includes(text));
+
+describe("the Workspace card", () => {
+  test("draws the workspace, version control and agents from what it is given", async () => {
+    const { host } = await mount();
+    const workspace = section(host, "Workspace")!;
+    expect(workspace.textContent).toContain("telar-ios-panel");
+    expect(workspace.textContent).toContain("Worktree");
+    expect(workspace.textContent).toContain("bun dev");
+    expect(workspace.textContent).not.toContain("old");
+    const git = section(host, "Version control")!;
+    expect(git.textContent).toContain("telar/ios-panel-column");
+    expect(git.textContent).toContain("+38");
+    expect(git.textContent).toContain("−12");
+    const agents = section(host, "Agents")!;
+    expect(agents.textContent).toContain("1 running");
+    expect(agents.textContent).toContain("Settings mockup");
+    expect(agents.textContent).toContain("T3 research");
+  });
+
+  test("a checkout with no repository and no builders shows only the workspace", async () => {
+    const { host } = await mount({ worktree: false, diff: { ...diff, repository: false }, agents: [] });
+    expect(section(host, "Workspace")!.textContent).toContain("Checkout");
+    expect(section(host, "Version control")).toBeNull();
+    expect(section(host, "Agents")).toBeNull();
+  });
+
+  test("Changes opens the Diff", async () => {
+    const { host, props } = await mount();
+    await act(async () => button(section(host, "Version control")!, "Changes")!.click());
+    expect(props.onOpenChanges).toHaveBeenCalledTimes(1);
+  });
+
+  test("an agent's row opens that agent's session", async () => {
+    const { host, props } = await mount();
+    await act(async () => button(section(host, "Agents")!, "Settings mockup")!.click());
+    expect(props.onOpenAgent).toHaveBeenCalledWith(agent);
+  });
+
+  test("a running shell's row opens its terminal", async () => {
+    const { host, props } = await mount();
+    await act(async () => button(section(host, "Workspace")!, "bun dev")!.click());
+    expect(props.onOpenTerminal).toHaveBeenCalledWith(terminal());
+  });
+
+  test("background processes are counted and open where they run", async () => {
+    const onViewBackground = mock();
+    const { host } = await mount({ backgroundTasks: 2, onViewBackground });
+    await act(async () => button(section(host, "Workspace")!, "2 background processes")!.click());
+    expect(onViewBackground).toHaveBeenCalledTimes(1);
+  });
+
+  test("the close button closes it", async () => {
+    const { host, props } = await mount();
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Close workspace"]')!.click());
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+});

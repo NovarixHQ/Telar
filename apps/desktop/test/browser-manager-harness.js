@@ -386,6 +386,7 @@ function makeHarness(options = {}) {
     ...(options.onControlChanged ? { onControlChanged: options.onControlChanged } : {}),
     ...(options.onVisited ? { onVisited: options.onVisited } : {}),
     ...(options.onChordScope ? { onChordScope: options.onChordScope } : {}),
+    ...(options.onStageClosed ? { onStageClosed: options.onStageClosed } : {}),
     ...(options.onLoginEntryFinished ? { onLoginEntryFinished: options.onLoginEntryFinished } : {}),
     ...(options.tabStore ? { tabStore: options.tabStore } : {}),
     ...(options.timers ? { setTimer: options.timers.set, clearTimer: options.timers.clear } : {}),

@@ -42,6 +42,7 @@ class DesktopBrowserManager {
 
     this.poppedStages = new Map();
     this.openStageWindow = dependencies.openStageWindow || null;
+    this.onStageClosed = dependencies.onStageClosed || null;
 
     this.boundsByScope = new Map();
 

@@ -184,6 +184,17 @@ describe("bringing it back", () => {
     manager.destroy();
     expect(win.isDestroyed()).toBe(true);
   });
+
+  test("a window the person closes is reported closed, one the cockpit takes down is not", async () => {
+    const closed = [];
+    const first = await popped({ onStageClosed: (scope) => closed.push(scope) });
+    first.win.close();
+    expect(closed).toEqual(["s"]);
+
+    const second = await popped({ onStageClosed: (scope) => closed.push(scope) });
+    second.manager.destroy();
+    expect(closed).toEqual(["s"]);
+  });
 });
 
 describe("a popped browser stays alive", () => {

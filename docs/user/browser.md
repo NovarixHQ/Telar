@@ -43,7 +43,7 @@ The device toolbar resizes the page to a preset: phones, tablets, desktops and f
 
 ## Its own window
 
-Browser options → **Open in its own window** moves the session's browser, with all its tabs, into a window of its own. The pages keep running and nothing reloads; the agent keeps working in them. The panel says where the browser went, with **Show** and **Bring back**. Closing the window also brings it back.
+Browser options → **Open in its own window** moves the session's browser, with all its tabs, into a window of its own. The pages keep running and nothing reloads; the agent keeps working in them. The panel says where the browser went, with **Show** and **Bring back**. Closing the window also brings it back. A window still open when you quit reopens at launch, where you left it.
 
 ## Annotating a page
 

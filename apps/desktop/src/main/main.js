@@ -40,9 +40,15 @@ const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require
 const { createCockpitWindow } = require("./cockpit-window");
 const { cockpitFocus, createPresence } = require("./presence");
 const { pinUserData } = require("./user-data");
-const { openSurfaceWindow } = require("../windows/surface-window");
+const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
+const { createSurfaceWindowStore } = require("../windows/surface-window-store");
 
 pinUserData();
+
+let surfaceWindows;
+function requireSurfaceWindows() {
+  return surfaceWindows ||= createSurfaceWindowStore(app.getPath("userData"));
+}
 
 let browserSuggestions;
 function requireBrowserSuggestions() {
@@ -186,7 +192,10 @@ function createWindow(url) {
 
         createExtensionHost: (partition) => startExtensionHost(win, manager, partition),
 
-        openStageWindow: (scope, { project }) => openSurfaceWindow({ appUrl: url, kind: "browser", params: { scope, project } }),
+        openStageWindow: (scope, { project }) =>
+          openSurfaceWindow({ appUrl: url, kind: "browser", key: scope, params: { scope, project }, store: requireSurfaceWindows() }),
+
+        onStageClosed: (scope) => requireSurfaceWindows().forget("browser", scope),
 
         onChordScope,
       });
@@ -278,6 +287,8 @@ app.on("before-quit", (event) => {
   closingTerminalsForQuit = true;
   void closeTerminalsThenQuit();
 });
+app.on("before-quit", () => requireSurfaceWindows().holdForQuit());
+
 async function closeTerminalsThenQuit() {
   const host = terminalHost;
   try {
@@ -289,6 +300,7 @@ async function closeTerminalsThenQuit() {
       if (response !== plan.dialog.defaultId) {
         closingTerminalsForQuit = false;
         app.isQuitting = false;
+        requireSurfaceWindows().release();
         return;
       }
     }
@@ -509,6 +521,7 @@ if (SMOKE) {
           url = `http://127.0.0.1:${port}/`;
         }
         updaterWindow = createWindow(url);
+        restoreBrowserWindows(currentHost(), requireSurfaceWindows());
 
         markMainWindowShown();
         configureAutoUpdater();

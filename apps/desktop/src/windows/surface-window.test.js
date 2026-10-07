@@ -1,7 +1,7 @@
 const { afterEach, describe, expect, test } = require("bun:test");
 const path = require("node:path");
 const { FakeBrowserWindow, resetElectron } = require("../../test/fake-electron");
-const { openSurfaceWindow } = require("./surface-window");
+const { openSurfaceWindow, restoreBrowserWindows } = require("./surface-window");
 
 const APP = "http://127.0.0.1:42731/";
 
@@ -41,5 +41,65 @@ describe("a surface window", () => {
     const win = openSurfaceWindow({ appUrl: APP, kind: "browser", params: { scope: "s" } });
     expect(win.webContents.windowOpenHandler({ url: "https://example.com/" })).toEqual({ action: "deny" });
     expect(FakeBrowserWindow.getAllWindows()).toHaveLength(1);
+  });
+});
+
+function memoryStore(entries = []) {
+  const kept = new Map(entries.map((entry) => [entry.key, entry]));
+  return {
+    kept,
+    forgotten: [],
+    list: () => [...kept.values()],
+    get: (_kind, key) => kept.get(key) ?? null,
+    remember(kind, key, state) { kept.set(key, { kind, key, ...state }); },
+    forget(_kind, key) { this.forgotten.push(key); kept.delete(key); },
+  };
+}
+
+describe("a surface window remembers where it was", () => {
+  test("it reopens where it was left, clamped to a display that still exists", () => {
+    const store = memoryStore([{ kind: "browser", key: "s", bounds: { x: 1600, y: 100, width: 1200, height: 800 }, displayId: 2, fullscreen: false }]);
+    const win = openSurfaceWindow({ appUrl: APP, kind: "browser", key: "s", params: { scope: "s" }, store });
+    expect({ x: win.options.x, y: win.options.y, width: win.options.width, height: win.options.height }).toEqual({ x: 240, y: 100, width: 1200, height: 800 });
+  });
+
+  test("a new one opens at the default size, and is remembered at once", () => {
+    const store = memoryStore();
+    const win = openSurfaceWindow({ appUrl: APP, kind: "browser", key: "s", params: { scope: "s" }, store });
+    expect(win.options).toMatchObject({ width: 1100, height: 800 });
+    expect(store.get("browser", "s")).toMatchObject({ displayId: 1, fullscreen: false });
+  });
+
+  test("moving, resizing and full screen are each written down", () => {
+    const store = memoryStore();
+    const win = openSurfaceWindow({ appUrl: APP, kind: "browser", key: "s", params: { scope: "s" }, store });
+    win.bounds = { x: 40, y: 60, width: 700, height: 500 };
+    win.emit("move");
+    expect(store.get("browser", "s").bounds).toEqual({ x: 40, y: 60, width: 700, height: 500 });
+    win.fullscreen = true;
+    win.emit("enter-full-screen");
+    expect(store.get("browser", "s").fullscreen).toBe(true);
+  });
+
+  test("a window left in full screen goes back to full screen once shown", () => {
+    const store = memoryStore([{ kind: "browser", key: "s", bounds: { x: 0, y: 25, width: 900, height: 700 }, displayId: 1, fullscreen: true }]);
+    const win = openSurfaceWindow({ appUrl: APP, kind: "browser", key: "s", params: { scope: "s" }, store });
+    expect(win.isFullScreen()).toBe(false);
+    win.emit("ready-to-show");
+    expect(win.isFullScreen()).toBe(true);
+  });
+});
+
+describe("at launch", () => {
+  test("every browser that was popped out at quit pops out again, and one with no tabs left is forgotten", () => {
+    const store = memoryStore([
+      { kind: "browser", key: "kept", bounds: { x: 0, y: 25, width: 900, height: 700 } },
+      { kind: "browser", key: "gone", bounds: { x: 0, y: 25, width: 900, height: 700 } },
+    ]);
+    const popped = [];
+    const manager = { popOut: (key) => { if (key === "gone") throw new Error("no tabs"); popped.push(key); } };
+    restoreBrowserWindows(manager, store);
+    expect(popped).toEqual(["kept"]);
+    expect(store.forgotten).toEqual(["gone"]);
   });
 });

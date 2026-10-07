@@ -28,7 +28,7 @@
  *     (#584 took that down once).
  */
 import { verifyAssertion, verifyAttestation } from './appattest.mjs';
-import { DAY, DEAD_TOKEN, appleReason, b64url, readText, reply, unb64 } from './shared.mjs';
+import { DAY, DEAD_TOKEN, appleReason, b64url, digest, readText, reply, unb64 } from './shared.mjs';
 
 // Delete the legacy ids on `until`, together with MOBILE_TOPICS in apps/web/src/lib/mobile/push.ts.
 const LEGACY_BUNDLE_IDS = { until: '2026-11-01', ids: ['com.telar.mobile', 'com.telar.mobile.dev'] };
@@ -39,6 +39,7 @@ const id = /^[a-zA-Z0-9_-]{1,128}$/;
 const HANDLE = /^[A-Za-z0-9_-]{43}$/; // 32 random bytes
 const KEY_ID = /^[A-Za-z0-9_-]{22}$/; // 16 random bytes
 const CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
+const FINGERPRINT = /^[a-f0-9]{16}$/;
 const CHALLENGE_TTL = 300000;
 /** A registration the phone has not refreshed in this long is gone, and so is a
  *  send key nobody has used in this long. The phone refreshes on every launch
@@ -75,6 +76,13 @@ function ipKey(ip) {
   const [head, tail = ''] = ip.toLowerCase().split('::');
   const front = head ? head.split(':') : [], back = tail ? tail.split(':') : [];
   return [...front, ...Array(Math.max(0, 8 - front.length - back.length)).fill('0'), ...back].slice(0, 4).join(':') + '::/64';
+}
+
+// Every computer's card is `__automatic__`, so the Mac names its token's fingerprint. Drop the id-only fallback on 2026-11-01.
+async function activityToken(activities, body) {
+  const named = activities.filter(a => a.id === body.activity);
+  if (body.fingerprint === undefined) return named[0]?.token;
+  for (const a of named) if ((await digest(a.token)).slice(0, 16) === body.fingerprint) return a.token;
 }
 
 /** The tokens a phone registers. The same shape at registration and on refresh. */
@@ -290,9 +298,9 @@ export class RelayDevice {
     // badge at priority 5 under a push type Apple does not display.
     if (background && JSON.stringify(body.payload?.aps) !== '{"content-available":1}') return reply(400);
     if ((!alert && !activity && !background) || typeof body.collapseId !== 'string' || !/^[a-f0-9]{64}$/.test(body.collapseId) || !body.payload?.aps || new TextEncoder().encode(JSON.stringify(body.payload)).length > 4096) return reply(400);
-    if (activity && !start && (typeof body.activity !== 'string' || !id.test(body.activity))) return reply(400);
+    if (activity && !start && (typeof body.activity !== 'string' || !id.test(body.activity) || (body.fingerprint !== undefined && !FINGERPRINT.test(body.fingerprint)))) return reply(400);
     // WHERE is decided here, from what the phone registered, never by the Mac.
-    const token = alert || background ? device.token : start ? device.pushToStartToken : device.activities.find(a => a.id === body.activity)?.token;
+    const token = alert || background ? device.token : start ? device.pushToStartToken : await activityToken(device.activities, body);
     if (!token) return reply(409, { error: 'not_registered' });
     const topic = alert || background ? device.bundle : `${device.bundle}.push-type.liveactivity`;
     try {
@@ -313,12 +321,11 @@ export class RelayDevice {
       if (response.status === 200) await response.body?.cancel();
       else reason = await appleReason(response);
       if (response.status === 410 || DEAD_TOKEN.has(reason)) {
-        // Only the dead token goes. The handle and its keys stay, so the next
-        // refresh from the phone brings this pair back without re-pairing.
+        // Only the dead token goes: the phone's next refresh restores the pair without re-pairing.
         const current = await storage.get('device');
         if (alert || background) delete current.token;
         else if (start) delete current.pushToStartToken;
-        else current.activities = current.activities.filter(a => a.id !== body.activity);
+        else current.activities = current.activities.filter(a => a.token !== token);
         await storage.put('device', current);
       }
       return reply(200, { status: response.status, ...(reason === undefined ? {} : { reason }) });

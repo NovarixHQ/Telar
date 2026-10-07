@@ -262,6 +262,29 @@ test('v2: a dead token is dropped, and the phone\'s next refresh restores the pa
     assert.equal((await macSend(enrolled,key,alert)).status,200);
   });
 });
+test('v2: each computer\'s card is reached by its own token, and only a dead one is dropped',async()=>{
+  const enrolled=await enroll();
+  const key=await pairKey(enrolled);
+  const mine='e'.repeat(64), other='f'.repeat(64);
+  assert.equal((await asPhone(enrolled,'PUT',`/v2/devices/${enrolled.handle}`,{...tokensOf,activities:[{id:'__automatic__',token:other},{id:'__automatic__',token:mine}]})).status,200);
+  const print=async t=>Buffer.from(await sha(t)).toString('hex').slice(0,16);
+  const update={...alert,kind:'liveactivity',activity:'__automatic__',payload:{aps:{event:'update'}}};
+  await withApple(()=>new Response(null,{status:200}),async calls=>{
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:await print(mine)})).status,200);
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:await print('a'.repeat(64))})).status,409);
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:'NOT-HEX'})).status,400);
+    assert.deepEqual(calls.map(c=>c.url),[`https://api.push.apple.com/3/device/${mine}`]);
+  });
+  await withApple(()=>new Response(null,{status:410}),async()=>{
+    assert.deepEqual(await (await macSend(enrolled,key,{...update,fingerprint:await print(other)})).json(),{status:410});
+  });
+  await withApple(()=>new Response(null,{status:200}),async calls=>{
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:await print(other)})).status,409);
+    assert.equal((await macSend(enrolled,key,{...update,fingerprint:await print(mine)})).status,200);
+    assert.equal((await macSend(enrolled,key,update)).status,200);
+    assert.deepEqual(calls.map(c=>c.url),[`https://api.push.apple.com/3/device/${mine}`,`https://api.push.apple.com/3/device/${mine}`]);
+  });
+});
 test('v2: limits per IP, per handle, and a global budget that answers 503 first',async()=>{
   const env=relayEnv();
   for(let n=0;n<IP_LIMITS.challenge[0];n++) assert.ok(await challengeFor(env,'203.0.113.7'));

@@ -23,10 +23,12 @@ the App Attest capability enabled.
 | Phone | `POST /v2/devices` `{keyId, attestation, challenge, bundle, sandbox, token, pushToStartToken?, activities:[{id, token}]}` → `201 {handle}` | App Attest attestation over `SHA256(challenge)` |
 | Phone | `PUT /v2/devices/:handle` (refresh tokens), `DELETE` (forget everything) | `x-telar-assertion` over `"<METHOD> <path>\n<body>"` |
 | Phone | `POST /v2/devices/:handle/keys` `{pairing}` → `201 {keyId, sendKey}`; `DELETE …/keys/:keyId` | assertion as above |
-| Mac | `POST /v2/devices/:handle/push` `{kind:"alert"\|"liveactivity"\|"background", start?, activity?, collapseId, payload}` → `{status, reason?}` | `x-telar-key`, `x-telar-timestamp` (ms), `x-telar-signature` = hex HMAC-SHA256(sendKey, `"<ts>\nPOST\n<path>\n<body>"`) |
+| Mac | `POST /v2/devices/:handle/push` `{kind:"alert"\|"liveactivity"\|"background", start?, activity?, fingerprint?, collapseId, payload}` → `{status, reason?}` | `x-telar-key`, `x-telar-timestamp` (ms), `x-telar-signature` = hex HMAC-SHA256(sendKey, `"<ts>\nPOST\n<path>\n<body>"`) |
 
 - **Tokens stay in the relay.** The Mac names a kind and, for a Live
-  Activity, the activity id the phone registered. The relay picks the token,
+  Activity, the activity id the phone registered plus the first 16 hex of the
+  SHA-256 of its token, since every computer's card shares the id
+  `__automatic__`. The relay picks the token,
   the topic (`<bundle>` or `<bundle>.push-type.liveactivity`) and the APNs host
   (`sandbox` → `api.sandbox.push.apple.com`).
 - **Bundles:** `io.github.novarix.telar` and `io.github.novarix.telar.dev`, plus the legacy

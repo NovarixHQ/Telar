@@ -1,83 +1,59 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { mermaid } from "@streamdown/mermaid";
-import type { Artifact } from "@telar/engine-client";
+import { artifactThemeCss, mermaidThemeVariables, type Artifact, type ArtifactTheme } from "@telar/engine-client";
 import { attachmentUrl } from "@/features/plugins";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { MessageResponse } from "@/ui/message";
 import { cn } from "@/ui/utils";
-import { ARTIFACT_SANDBOX, artifactDocument, clampFrameHeight, type ArtifactHeight, type LookTokens } from "../artifacts";
+import { ARTIFACT_SANDBOX, artifactDocument, clampFrameHeight, hostContextMessage, type ArtifactHeight } from "../artifacts";
+import { useArtifactTheme } from "../artifact-theme";
 import { svgImage } from "../svg-image";
 import { readableScale } from "../viewport";
 import { SvgViewer } from "./svg-viewer";
 
-function subscribeToLook(onChange: () => void) {
-  const observer = new MutationObserver(onChange);
-  observer.observe(document.documentElement, { attributes: true });
-  return () => observer.disconnect();
-}
+type Diagram = { source: string; look: string; svg?: string; error?: string };
 
-const useDarkLook = () => useSyncExternalStore(subscribeToLook, () => document.documentElement.classList.contains("dark"), () => false);
-
-function lookSnapshot(): string {
-  const root = document.documentElement;
-  const style = getComputedStyle(root);
-  const token = (name: string) => style.getPropertyValue(name).trim();
-  const look: LookTokens = {
-    scheme: root.classList.contains("dark") ? "dark" : "light",
-    background: token("--background"),
-    foreground: token("--foreground"),
-    muted: token("--muted-foreground"),
-    line: token("--border"),
-    accent: token("--primary"),
-  };
-  return JSON.stringify(look);
-}
-
-const SERVER_LOOK = JSON.stringify({ scheme: "light", background: "", foreground: "", muted: "", line: "", accent: "" } satisfies LookTokens);
-
-const useLookSnapshot = () => useSyncExternalStore(subscribeToLook, lookSnapshot, () => SERVER_LOOK);
-
-type Diagram = { source: string; dark: boolean; svg?: string; error?: string };
-
-function useMermaidSvg(source: string, dark: boolean): Diagram {
+function useMermaidSvg(source: string, theme: ArtifactTheme): Diagram {
   const id = `artifact-mermaid-${useId().replace(/[^A-Za-z0-9_-]/g, "")}`;
-  const [diagram, setDiagram] = useState<Diagram>({ source, dark });
+  const look = useMemo(() => JSON.stringify(theme), [theme]);
+  const [diagram, setDiagram] = useState<Diagram>({ source, look });
   useEffect(() => {
     let live = true;
     mermaid
-      .getMermaid({ theme: dark ? "dark" : "default", htmlLabels: false, flowchart: { htmlLabels: false } })
+      .getMermaid({ theme: "base", themeVariables: mermaidThemeVariables(theme), htmlLabels: false, flowchart: { htmlLabels: false } })
       .render(id, source)
-      .then(({ svg }) => live && setDiagram({ source, dark, svg }))
-      .catch((error: unknown) => live && setDiagram({ source, dark, error: error instanceof Error ? error.message : String(error) }));
+      .then(({ svg }) => live && setDiagram({ source, look, svg }))
+      .catch((error: unknown) => live && setDiagram({ source, look, error: error instanceof Error ? error.message : String(error) }));
     return () => {
       live = false;
     };
-  }, [id, source, dark]);
-  return diagram.source === source && diagram.dark === dark ? diagram : { source, dark };
+  }, [id, source, look, theme]);
+  return diagram.source === source && diagram.look === look ? diagram : { source, look };
 }
 
 function MermaidDiagram({ source, title, fill }: { source: string; title: string; fill: boolean }) {
-  const dark = useDarkLook();
-  const { svg, error } = useMermaidSvg(source, dark);
+  const theme = useArtifactTheme();
+  const { svg, error } = useMermaidSvg(source, theme);
   if (error) return <p className="px-3 py-2 text-xs text-muted-foreground">This diagram could not be drawn: {error}</p>;
   if (svg === undefined) return <p className="px-3 py-2 text-xs text-muted-foreground">Drawing…</p>;
-  return <Drawing source={svg} title={title} fill={fill} />;
+  return <Drawing source={svg} title={title} fill={fill} theme={theme} />;
 }
 
 const checkerboard = (a: string, b: string): React.CSSProperties => ({ background: `repeating-conic-gradient(${a} 0% 25%, ${b} 0% 50%) 0 0 / 16px 16px` });
 
-function Drawing({ source, title, fill, ground }: { source: string; title: string; fill: boolean; ground?: React.CSSProperties }) {
-  const image = useMemo(() => svgImage(source), [source]);
+function Drawing({ source, title, fill, theme, ground }: { source: string; title: string; fill: boolean; theme: ArtifactTheme; ground?: React.CSSProperties }) {
+  const image = useMemo(() => svgImage(source, artifactThemeCss(theme)), [source, theme]);
   const minScale = useMemo(() => readableScale(source), [source]);
   if (!image) return <p className="px-3 py-2 text-xs text-muted-foreground">This drawing is not a valid svg.</p>;
   return <SvgViewer image={image} title={title} minScale={minScale} fill={fill} {...(ground ? { ground } : {})} />;
 }
 
 function SvgDrawing({ source, title, fill }: { source: string; title: string; fill: boolean }) {
-  const ground = useDarkLook() ? checkerboard("#3d3d3d", "#343434") : checkerboard("#f3f3f3", "#e8e8e8");
-  return <Drawing source={source} title={title} fill={fill} ground={ground} />;
+  const theme = useArtifactTheme();
+  const ground = theme.scheme === "dark" ? checkerboard("#3d3d3d", "#343434") : checkerboard("#f3f3f3", "#e8e8e8");
+  return <Drawing source={source} title={title} fill={fill} theme={theme} ground={ground} />;
 }
 
 type Loaded = { attachmentId: string; text?: string; failed?: boolean };
@@ -101,9 +77,13 @@ function HtmlFrame({ content, title, fill }: { content: string; title: string; f
   const frame = useId();
   const ref = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState<number>();
-  const snapshot = useLookSnapshot();
-  const look = useMemo(() => JSON.parse(snapshot) as LookTokens, [snapshot]);
-  const srcDoc = useMemo(() => artifactDocument(content, frame, look), [content, frame, look]);
+  const theme = useArtifactTheme();
+  const [doc, setDoc] = useState(() => ({ content, srcDoc: artifactDocument(content, frame, theme) }));
+  if (doc.content !== content) setDoc({ content, srcDoc: artifactDocument(content, frame, theme) });
+  const pushTheme = () => ref.current?.contentWindow?.postMessage(hostContextMessage(theme), "*");
+  useEffect(() => {
+    ref.current?.contentWindow?.postMessage(hostContextMessage(theme), "*");
+  }, [theme]);
   useEffect(() => {
     if (fill) return;
     const listen = (event: MessageEvent) => {
@@ -121,10 +101,11 @@ function HtmlFrame({ content, title, fill }: { content: string; title: string; f
       ref={ref}
       title={title}
       sandbox={ARTIFACT_SANDBOX}
-      srcDoc={srcDoc}
+      srcDoc={doc.srcDoc}
       referrerPolicy="no-referrer"
+      onLoad={pushTheme}
       className={cn("block w-full border-0 bg-transparent", fill && "h-full")}
-      style={{ colorScheme: look.scheme, ...(fill ? {} : { height: height ?? 160 }) }}
+      style={{ colorScheme: theme.scheme, ...(fill ? {} : { height: height ?? 160 }) }}
     />
   );
 }

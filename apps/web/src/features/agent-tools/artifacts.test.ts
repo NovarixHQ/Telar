@@ -1,8 +1,10 @@
 import { afterEach, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { artifactDocument, clampFrameHeight, contentHeight, latestArtifacts, MAX_FRAME_HEIGHT, MIN_FRAME_HEIGHT, type LookTokens } from "./artifacts";
+import { artifactTheme, type ArtifactTheme } from "@telar/engine-client";
+import { artifactDocument, clampFrameHeight, contentHeight, hostContextMessage, latestArtifacts, MAX_FRAME_HEIGHT, MIN_FRAME_HEIGHT } from "./artifacts";
 
-const look: LookTokens = { scheme: "dark", background: "#111", foreground: "#eee", muted: "#999", line: "#333", accent: "#36f" };
+const LOOK: Record<string, string> = { "--background": "oklch(0.975 0.002 286)", "--foreground": "oklch(0.274 0.006 286)", "--chart-1": "oklch(0.56 0.16 264)", "--app-font-sans": "ui-sans-serif" };
+const look: ArtifactTheme = artifactTheme("dark", (token) => LOOK[token] ?? "");
 
 test("the policy leads the document, ahead of an agent's own doctype and markup", () => {
   const doc = artifactDocument("<!DOCTYPE html><html><head><meta http-equiv='Content-Security-Policy' content='default-src *'></head></html>", "f1", look);
@@ -15,7 +17,37 @@ test("a frame id cannot close the reporting script", () => {
 });
 
 test("a Look token cannot break out of the injected style", () => {
-  expect(artifactDocument("<p>x</p>", "f1", { ...look, accent: "red}</style><script>alert(1)</script>" })).not.toContain("</style><script>alert(1)");
+  expect(artifactDocument("<p>x</p>", "f1", { ...look, variables: { "--font-sans": "x}</style><script>alert(1)</script>" } })).not.toContain("</style><script>alert(1)");
+});
+
+test("the Look is in the head as hex before the page's first paint, and the page's own rules come after it", () => {
+  const doc = artifactDocument("<style>:root{--background:pink}</style><p>x</p>", "f1", look);
+  const sheet = /<style>(:where\(:root\)\{color-scheme:dark;[^<]*)<\/style>/.exec(doc)?.[1];
+  expect(sheet).toMatch(/--background:#[0-9a-f]{6};/);
+  expect(sheet).toMatch(/--chart-1:#[0-9a-f]{6};/);
+  expect(sheet).toContain("--font-sans:ui-sans-serif;");
+  expect(sheet).not.toContain("oklch");
+  expect(doc.indexOf(sheet!)).toBeLessThan(doc.indexOf(":root{--background:pink}"));
+});
+
+function runFrame(doc: string) {
+  GlobalRegistrator.register({ url: "http://localhost/", settings: { enableJavaScriptEvaluation: true, suppressInsecureJavaScriptEnvironmentWarning: true } as never });
+  Object.defineProperty(document, "fonts", { value: { ready: Promise.resolve() } });
+  document.write(doc);
+  return document;
+}
+
+test("a Look change posted into the frame restyles it in place, and only its parent may post one", () => {
+  const frame = runFrame(artifactDocument("<p id='kept'>x</p>", "f1", look));
+  const kept = frame.getElementById("kept");
+  const next = artifactTheme("light", (token) => ({ "--background": "#000000" })[token] ?? "");
+  window.dispatchEvent(new MessageEvent("message", { data: hostContextMessage(next), source: {} as Window }));
+  const sheet = frame.querySelector("style")!;
+  expect(sheet.textContent).toContain("color-scheme:dark");
+  window.dispatchEvent(new MessageEvent("message", { data: hostContextMessage(next), source: window.parent }));
+  expect(sheet.textContent).toBe(":where(:root){color-scheme:light;--background:#000000;}");
+  expect(frame.querySelectorAll("script")).toHaveLength(0);
+  expect(frame.getElementById("kept")).toBe(kept);
 });
 
 test("a reported height is clamped, and anything that is not a number is ignored", () => {

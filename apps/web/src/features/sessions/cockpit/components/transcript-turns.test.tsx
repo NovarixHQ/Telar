@@ -114,3 +114,45 @@ describe("children under the turn that tasked them", () => {
     expect(withAgents([dispatch, later], [{ ...stray, state: "done" }])).not.toContain("Older errand");
   });
 });
+
+function ending(runId: string, endings: { sessionId: string; state: "done" | "failed"; title: string; why?: string }[]): JournalTurn {
+  const entries = endings.map(({ sessionId, state, title, why }) => ({
+    kind: "wake" as const,
+    sessionId,
+    wakeKind: state === "failed" ? ("turn_failed" as const) : ("turn_completed" as const),
+    title,
+    summary: `[builder ${state}] "${title}" (${sessionId})${why ? ` — ${why}` : ""}`,
+  }));
+  const summary = entries.length > 1 ? `${entries.length} builders finished · …` : entries[0]!.summary;
+  const notification: NotificationDetail = { kind: "wake", sessionId: entries.at(-1)!.sessionId, wakeKind: entries.at(-1)!.wakeKind, summary, fetch: { sessionId: HOST, runId }, body: summary, entries };
+  return turn({ runId, origin: "provider", notification, items: [notificationItem(runId, notification)] });
+}
+
+describe("a builder's ending", () => {
+  const renderEnding = (turns: JournalTurn[], agents: SessionChild[] = []) =>
+    renderToStaticMarkup(
+      <TranscriptTurns
+        turns={turns}
+        directory={new Map()}
+        agents={agents}
+        projectId="proj"
+        renderTurn={(each) => <SessionTurn turn={each} requests={[]} sending={false} live={false} onDecide={() => {}} />}
+      />,
+    );
+
+  test("reads as that builder's row, ended, not as a generic notice", () => {
+    const html = renderEnding([ending("run_end", [{ sessionId: "s_a", state: "done", title: "Fix the rail", why: "Merged the fix" }])]);
+    expect(visibleText(html)).toContain("Fix the rail");
+    expect(visibleText(html)).toContain("Merged the fix");
+    expect(html).toContain('data-agent-state="done"');
+    expect(visibleText(html)).not.toContain("Session finished a turn");
+  });
+
+  test("several at once read as a group of ended rows", () => {
+    const html = renderEnding(
+      [ending("run_end", [{ sessionId: "s_a", state: "done", title: "One" }, { sessionId: "s_b", state: "failed", title: "Two", why: "tests fail" }])],
+      [child("s_a", { state: "done", endedAt: 2_000 }), child("s_b", { state: "failed", endedAt: 3_000 })],
+    );
+    expect(visibleText(html)).toContain("2 agents · 1 done · 1 failed");
+  });
+});

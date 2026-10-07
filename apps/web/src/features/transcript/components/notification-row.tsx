@@ -7,7 +7,9 @@ ChevronRightIcon
 import { type JournalTurn } from "@/platform/engine";
 import { ROW } from "./transcript-fold";
 import { cn } from "@/ui/utils";
+import { builderEndings } from "../builder-endings";
 import { notificationLabel } from "../model";
+import { FrozenAgentRows } from "./agent-rows";
 import { SessionLookup } from "./session-lookup";
 
 export function NotificationRow({ detail, message, title }: { detail: NonNullable<JournalTurn["notification"]>; message?: string; title?: string }) {
@@ -20,6 +22,8 @@ export function NotificationRow({ detail, message, title }: { detail: NonNullabl
   const body = detail.body.trim();
   const entries = detail.entries ?? [];
   const peerMessage = detail.kind === "peer_message" && message && message.trim() !== body ? message.trim() : undefined;
+  const endings = builderEndings(detail);
+  if (endings) return <FrozenAgentRows endings={endings} />;
   return (
     <div className="min-w-0" aria-label="Notification">
       <button

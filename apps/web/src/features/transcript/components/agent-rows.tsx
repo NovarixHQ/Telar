@@ -7,6 +7,7 @@ import type { SessionChild, SessionChildState } from "@telar/engine-client";
 import { ProviderIcon } from "@/features/providers";
 import { useNow } from "@/ui/hooks/use-now";
 import { cn } from "@/ui/utils";
+import type { BuilderEnding } from "../builder-endings";
 import { SessionLookup } from "./session-lookup";
 import { ROW } from "./transcript-fold";
 
@@ -94,4 +95,22 @@ function AgentGroup({ agents }: { agents: readonly AgentRowData[] }) {
 export function AgentRows({ agents }: { agents: readonly AgentRowData[] }) {
   if (agents.length === 0) return null;
   return <div aria-label="Agents">{agents.length === 1 ? <AgentRow agent={agents[0]!} /> : <AgentGroup agents={agents} />}</div>;
+}
+
+/** Builders a notification reports ended, drawn as their rows stopped at that moment. */
+export function FrozenAgentRows({ endings }: { endings: readonly BuilderEnding[] }) {
+  const lookup = useContext(SessionLookup);
+  const agents = endings.map((ending): AgentRowData => {
+    const child = lookup(ending.sessionId)?.child;
+    const times = child && !pending(child) ? { startedAt: child.startedAt, ...(child.endedAt === undefined ? {} : { endedAt: child.endedAt }) } : {};
+    return {
+      ...times,
+      sessionId: ending.sessionId,
+      state: ending.state,
+      ...(child?.provider ? { provider: child.provider } : {}),
+      ...((ending.title ?? child?.title) ? { title: ending.title ?? child?.title } : {}),
+      ...(ending.summary ? { summary: ending.summary } : {}),
+    };
+  });
+  return <AgentRows agents={agents} />;
 }

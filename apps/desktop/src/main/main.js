@@ -2,7 +2,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
 const { randomUUID } = require("node:crypto");
-const { app, BrowserWindow, dialog, Notification, powerMonitor, session } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Notification, powerMonitor, session } = require("electron");
 const { DesktopBrowserManager, managerForScope } = require("../browser/browser-manager");
 const { startBrowserControlServer } = require("../browser/browser-control-server");
 const { createPreviewRenderer } = require("../agent-tools/preview-renderer");
@@ -43,6 +43,7 @@ const { pinUserData } = require("./user-data");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
 const { createSurfaceWindowStore } = require("../windows/surface-window-store");
 const { isCompact, setCompact } = require("../windows/compact-window");
+const { registerDevPairing } = require("../dev/pair-simulators");
 
 pinUserData();
 
@@ -523,6 +524,8 @@ if (SMOKE) {
           startServer(port, home);
           await waitForServer(port);
           url = `http://127.0.0.1:${port}/`;
+          const notify = (body) => new Notification({ title: "Pair Booted Simulators", body }).show();
+          if (registerDevPairing({ dev: DEV_BUILD, appUrl: url, hostToken: uiServer.HOST_TOKEN, ipcMain, notify })) buildApplicationMenu();
         }
         updaterWindow = createWindow(url);
         restoreBrowserWindows(currentHost(), requireSurfaceWindows());

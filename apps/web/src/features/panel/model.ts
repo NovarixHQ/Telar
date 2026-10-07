@@ -1,33 +1,41 @@
 import { BotIcon, CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, TerminalIcon, type LucideIcon } from "lucide-react";
+import type { CommandId } from "@/features/commands";
 import type { BrowserProvider, BrowserTab } from "@telar/engine-client";
 import { fileKind } from "@/features/files";
 import { isPluginSurface, PLUGIN_SURFACES, pluginSurfaces, viewerAvailable, type PluginSurfaceId, type PluginPanelSource } from "@/features/plugins";
 import type { PanelTabInstance, PanelTabParams } from "./tabs";
 
 const SURFACES = [
+  { id: "terminal", label: "Terminal", icon: SquareTerminalIcon, blurb: "Shells in this session's checkout, and what the project is running", key: "t", command: "open-terminal" },
+  { id: "editor", label: "Editor", icon: FileCode2Icon, blurb: "Files, with the tree beside them", key: "e", command: "open-editor" },
+  { id: "diff", label: "Diff", icon: FileDiffIcon, blurb: "What this session changed", key: "d", command: "open-diff" },
+  { id: "simulator", label: "Simulator", icon: SmartphoneIcon, blurb: "This Mac's simulators, live and controllable", key: "s", command: "open-simulator" },
+  { id: "issues", label: "Issues", icon: CircleDotIcon, blurb: "Open issues", key: "i", command: "open-issues" },
+  { id: "pulls", label: "Pull requests", icon: GitPullRequestIcon, blurb: "Open pull requests", key: "u", command: "open-pulls" },
   { id: "agents", label: "Agents", icon: BotIcon, blurb: "Sub-agents and the conversations working for this one" },
   { id: "processes", label: "Processes", icon: TerminalIcon, blurb: "Background shells, watch loops" },
-  { id: "diff", label: "Diff", icon: FileDiffIcon, blurb: "What this session changed" },
-  { id: "editor", label: "Editor", icon: FileCode2Icon, blurb: "Files, with the tree beside them" },
-  { id: "issues", label: "Issues", icon: CircleDotIcon, blurb: "Open issues" },
-  { id: "pulls", label: "Pull requests", icon: GitPullRequestIcon, blurb: "Open pull requests" },
-  { id: "simulator", label: "Simulator", icon: SmartphoneIcon, blurb: "This Mac's simulators, live and controllable" },
-  { id: "terminal", label: "Terminal", icon: SquareTerminalIcon, blurb: "Shells in this session's checkout, and what the project is running" },
 ] as const;
 
 type SurfaceId = (typeof SURFACES)[number]["id"] | PluginSurfaceId;
 
-type Surface = { id: SurfaceId; label: string; icon: LucideIcon; blurb: string };
+/** `key` is the launcher letter; `command` is the ⌘⇧ chord that opens the same surface from anywhere. */
+type Surface = { id: SurfaceId; label: string; icon: LucideIcon; blurb: string; key?: string; command?: CommandId };
 
 const ALL_SURFACES: readonly Surface[] = [...SURFACES, ...PLUGIN_SURFACES];
+
+/** The launcher's Browser row: not a tab kind, since it starts the browser or shows the last page. */
+export const BROWSER_SURFACE = { label: "Browser", icon: GlobeIcon, key: "b", command: "open-browser" } as const satisfies Omit<Surface, "id" | "blurb">;
+
+export function surfaceCommands(enabledPlugins: readonly string[]): { command: CommandId; tab: PanelTab }[] {
+  return surfacesFor(enabledPlugins).flatMap((surface) => (surface.command ? [{ command: surface.command, tab: surface.id as PanelTab }] : []));
+}
 
 export const NO_PLUGINS: readonly string[] = [];
 export const NO_PANELS: readonly PluginPanelSource[] = [];
 
-/** The surfaces a project offers: the core ones, with the enabled plugins' slotted in before the Terminal. */
-export function surfacesFor(enabledPlugins: readonly string[], pluginPanels: readonly PluginPanelSource[] = NO_PANELS): Surface[] {
-  const terminal = SURFACES.findIndex((surface) => surface.id === "terminal");
-  return [...SURFACES.slice(0, terminal), ...pluginSurfaces(enabledPlugins, pluginPanels.length > 0), ...SURFACES.slice(terminal)];
+/** The surfaces a project offers: the core ones, then the enabled plugins'. */
+function surfacesFor(enabledPlugins: readonly string[], pluginPanels: readonly PluginPanelSource[] = NO_PANELS): Surface[] {
+  return [...SURFACES, ...pluginSurfaces(enabledPlugins, pluginPanels.length > 0)];
 }
 
 /** File, issue and pull ids are requests to open something inside a surface, never tabs of their own. */
@@ -237,27 +245,30 @@ export function describePanelTabInstance(
   return { ...described, label: `${described.label} · ${suffix}`, blurb: `${described.blurb} — ${suffix}` };
 }
 
-export type OpenableSurface = { id: PanelTab; label: string; icon: LucideIcon; another: boolean };
+export type LauncherRow = { id: PanelTab | "browser"; label: string; icon: LucideIcon; key?: string; another: boolean; unavailable?: string };
 
-/** What the "+" offers: a singleton disappears once open; a multi-instance kind stays and opens another. */
-export function openableSurfaces(
+/**
+ * The launcher, shared by the empty panel and the "+": the Browser first when the cockpit can open one, then the surfaces.
+ * A singleton already in the strip drops out; a multi-instance kind stays and opens another.
+ */
+export function launcherRows(
   tabs: readonly PanelTabItem[],
-  { enabledPlugins, pluginPanels, browser, desktop, canOpenNew }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; browser: BrowserState | undefined; desktop: boolean; canOpenNew: boolean },
-): OpenableSurface[] {
+  { enabledPlugins, pluginPanels, canOpenNew, browser }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; browser?: { unavailable?: string } },
+): LauncherRow[] {
   const holdsKind = (kind: PanelTab) => tabs.some((entry) => entry.kind === kind);
-  const offersAnother = (kind: PanelTab) => isMultiInstancePanelTab(kind) && canOpenNew;
-  const pages = browser?.tabs ?? [];
-  const browsers: OpenableSurface[] = desktop
-    ? pages.length > 0 && (!holdsKind(LIVE_BROWSER_TAB) || offersAnother(LIVE_BROWSER_TAB))
-      ? [{ id: LIVE_BROWSER_TAB, label: "Browser", icon: GlobeIcon, another: holdsKind(LIVE_BROWSER_TAB) }]
-      : []
-    : pages
-        .filter((page) => !holdsKind(browserPanelTab(page.id)))
-        .map((page) => ({ id: browserPanelTab(page.id), label: browserTabLabel(page), icon: GlobeIcon, another: false }));
+  const offersAnother = (kind: PanelTab) => MULTI_INSTANCE.has(kind) && canOpenNew;
+  const browserRow: LauncherRow[] = browser
+    ? [{ id: "browser", label: BROWSER_SURFACE.label, icon: BROWSER_SURFACE.icon, key: BROWSER_SURFACE.key, another: false, ...(browser.unavailable ? { unavailable: browser.unavailable } : {}) }]
+    : [];
   return [
+    ...browserRow,
     ...surfacesFor(enabledPlugins, pluginPanels)
       .filter((surface) => !holdsKind(surface.id) || offersAnother(surface.id))
-      .map((surface) => ({ id: surface.id as PanelTab, label: surface.label, icon: surface.icon, another: holdsKind(surface.id) })),
-    ...browsers,
+      .map((surface) => ({ id: surface.id as PanelTab, label: surface.label, icon: surface.icon, ...(surface.key ? { key: surface.key } : {}), another: holdsKind(surface.id) })),
   ];
+}
+
+export function launcherRowForKey(rows: readonly LauncherRow[], key: string): LauncherRow | undefined {
+  const letter = key.toLowerCase();
+  return rows.find((row) => row.key === letter && !row.unavailable);
 }

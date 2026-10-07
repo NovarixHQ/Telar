@@ -29,7 +29,7 @@ struct PanelView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(presentation == .column ? Theme.sheet : Theme.canvas)
-        .navigationTitle(panel.active.label)
+        .navigationTitle(panel.active?.label ?? "Panel")
         .environment(\.panel, panel)
     }
 
@@ -39,7 +39,10 @@ struct PanelView: View {
 
     private var strip: some View {
         HStack(spacing: 4) {
-            PanelTabStrip(tabs: panel.tabs, active: panel.active) { panel.select($0) }
+            PanelTabStrip(
+                tabs: panel.tabs, active: panel.active, openable: panel.openable,
+                select: { panel.select($0) }, close: { panel.closeTab($0) }, open: { panel.open($0) }
+            )
             Spacer(minLength: 0)
 
             if canFillWindow {
@@ -71,6 +74,8 @@ struct PanelView: View {
 
     @ViewBuilder private var surface: some View {
         switch panel.active {
+        case nil:
+            PanelEmptyState(offered: panel.offered) { panel.open($0) }
         case .diff:
             DiffView(api: api, sessionId: sessionId)
 
@@ -82,16 +87,16 @@ struct PanelView: View {
             }
         case .agents:
             AgentsSurface(api: api, sessionId: sessionId, hostId: hostId, active: active)
-        case .files:
+        case .editor:
             if let panelAPI {
                 FilesSurface(api: panelAPI, sessionId: sessionId, hostId: hostId, active: active, panel: panel)
             } else {
                 unavailable
             }
 
-        default:
+        case let tab?:
             if let panelAPI {
-                PluginSurfaceView(tab: panel.active, api: panelAPI, sessionId: sessionId, hostId: hostId, active: active, panel: panel)
+                PluginSurfaceView(tab: tab, api: panelAPI, sessionId: sessionId, hostId: hostId, active: active, panel: panel)
             } else {
                 unavailable
             }

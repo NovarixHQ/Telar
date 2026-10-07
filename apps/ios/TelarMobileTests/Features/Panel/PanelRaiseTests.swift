@@ -51,7 +51,7 @@ import Testing
         panel.openFile("src/main.swift")
 
         #expect(panel.isOpen)
-        #expect(panel.active == .files)
+        #expect(panel.active == .editor)
         #expect(panel.editor.activePath == "src/main.swift")
         #expect(panel.generation > generation)
         let reopened = PanelModel(hostId: panel.hostId, sessionId: "s", defaults: defaults)
@@ -84,7 +84,7 @@ import Testing
 
         panel.openFile("notes.md")
 
-        #expect(panel.active == .files)
+        #expect(panel.active == .editor)
     }
 
     @Test @MainActor func closingTwiceIsTheSameAsClosingOnce() {

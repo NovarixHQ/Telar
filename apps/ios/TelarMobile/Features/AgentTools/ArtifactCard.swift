@@ -2,12 +2,12 @@ import SwiftUI
 
 @MainActor @Observable final class ArtifactShelf {
     private(set) var slots = ArtifactSlots(cap: 4)
-    private(set) var probes: [EngineID: ArtifactProbe] = [:]
+    private(set) var probes: [String: ArtifactProbe] = [:]
 
     func claim(_ key: EngineID) { slots.claim(key) }
     func release(_ key: EngineID) { slots.release(key) }
 
-    func record(_ probe: ArtifactProbe, for key: EngineID) {
+    func record(_ probe: ArtifactProbe, for key: String) {
         if probes[key] != probe { probes[key] = probe }
     }
 }
@@ -73,12 +73,16 @@ private struct ArtifactBody: View {
     @State private var load = ArtifactLoad.loading
     @State private var localProbe: ArtifactProbe?
     @State private var crashed = false
+    @State private var width: CGFloat = 0
 
     private var key: EngineID { artifact.attachmentId }
-    private var probe: ArtifactProbe? { shelf?.probes[key] ?? localProbe }
+    private var measureKey: String { "\(Int(width)):\(key)" }
+    private var probe: ArtifactProbe? { shelf?.probes[measureKey] ?? localProbe }
 
     var body: some View {
-        content.task(id: key) { load = await ArtifactLoad.fetch(artifact, source: source) }
+        content
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .task(id: key) { load = await ArtifactLoad.fetch(artifact, source: source) }
     }
 
     @ViewBuilder private var content: some View {
@@ -105,7 +109,7 @@ private struct ArtifactBody: View {
                     key: key, content: text, kind: artifact.kind, dark: scheme == .dark, scrolls: ArtifactFrame.scrolls(probe, hint: artifact.height),
                     onProbe: { probe in
                         localProbe = probe
-                        shelf?.record(probe, for: key)
+                        shelf?.record(probe, for: measureKey)
                     },
                     onCrash: { crashed = true }
                 )

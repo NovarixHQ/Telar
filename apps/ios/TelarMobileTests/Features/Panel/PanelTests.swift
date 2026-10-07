@@ -119,7 +119,7 @@ import Testing
         let a = UUID(), b = UUID()
         let panelA = PanelModel(hostId: a, sessionId: "s", defaults: defaults)
         panelA.openFile("notes.md")
-        #expect(panelA.isOpen && panelA.active == .files)
+        #expect(panelA.isOpen && panelA.active == .editor)
 
         let panelB = PanelModel(hostId: b, sessionId: "s", defaults: defaults)
         #expect(!panelB.isOpen && panelB.editor.files.isEmpty)
@@ -128,14 +128,16 @@ import Testing
         #expect(again.editor.files.map(\.path) == ["notes.md"])
     }
 
-    @Test @MainActor func aTabTheProjectDoesNotOfferFallsBackToDiff() {
+    @Test @MainActor func aTabTheProjectStopsOfferingLeavesTheStrip() {
         let suite = "telar.panel.test.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let panel = PanelModel(hostId: UUID(), sessionId: "s", defaults: defaults)
-        panel.select(.data)
+        panel.open(.diff)
+        panel.open(.data)
         panel.setPlugins([.latex])
-        #expect(panel.tabs == [.diff, .files, .agents, .simulator, .latex])
+        #expect(panel.offered == [.diff, .editor, .agents, .simulator, .latex])
+        #expect(panel.tabs == [.diff])
         #expect(panel.active == .diff)
     }
 
@@ -145,15 +147,15 @@ import Testing
         defer { defaults.removePersistentDomain(forName: suite) }
         let panel = PanelModel(hostId: UUID(), sessionId: "s", defaults: defaults)
         panel.setPlugins([PluginID("hello")])
-        #expect(panel.tabs == [.diff, .files, .agents, .simulator])
+        #expect(panel.offered == PanelTab.core)
         #expect(panelView(for: "nb.ipynb", enabled: [PluginID("hello")]) == .notebookReadOnly)
         #expect(panelView(for: "rows.csv", enabled: [PluginID("hello")]) == .code)
         #expect(PluginUI.surfaces(enabled: [PluginID("hello")]).isEmpty)
 
         #expect(PanelTab(rawValue: "someday").label == "someday")
-        panel.select(PanelTab(rawValue: "someday"))
+        panel.open(PanelTab(rawValue: "someday"))
         panel.setPlugins([PluginID("hello")])
-        #expect(panel.active == .diff)
+        #expect(panel.tabs.isEmpty && panel.active == nil)
     }
 
     @Test func theSimulatorSurfaceUsesTheDesktopsId() throws {
@@ -183,10 +185,10 @@ import Testing
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let panel = PanelModel(hostId: UUID(), sessionId: "s", defaults: defaults)
-        #expect(panel.tabs == [.diff, .files, .agents, .simulator])
-        panel.select(.agents)
+        #expect(panel.offered == [.diff, .editor, .agents, .simulator])
+        panel.open(.agents)
         panel.setPlugins([.dataScience, .latex])
-        #expect(panel.tabs == [.diff, .files, .agents, .simulator, .data, .latex])
+        #expect(panel.offered == [.diff, .editor, .agents, .simulator, .data, .latex])
         #expect(panel.active == .agents)
         panel.setPlugins([])
         #expect(panel.active == .agents)

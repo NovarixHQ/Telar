@@ -167,6 +167,7 @@ struct DraftComposerHost: ComposerHost {
     }
 
     var skillsKey: String? { model.draft.target.map { "project:\($0.id):\(model.choice.driver)" } }
+    var mentionsKey: String? { model.draft.target.map { "project:\($0.id)" } }
 
     func send(_ text: String) async { await model.send(text) }
     func stop() async {}
@@ -181,6 +182,12 @@ struct DraftComposerHost: ComposerHost {
     func readSkills() async throws -> ProviderSkills {
         guard let api = model.api, let target = model.draft.target else { return .empty }
         return try await api.projectSkills(target.project.id, driver: model.choice.driver)
+    }
+
+    func readMentions() async throws -> ComposerMentions {
+        guard let api = model.api, let target = model.draft.target else { return ComposerMentions() }
+        let live = try await api.liveSessions()
+        return ComposerMentions(sessions: live.sessions, projects: live.projects, projectId: target.project.id)
     }
 
     func perform(_ action: ComposerCommandAction) async {

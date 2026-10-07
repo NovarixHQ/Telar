@@ -1,7 +1,7 @@
 import Foundation
 
 struct ComposerTrigger: Equatable {
-    enum Kind: Equatable { case command, skill }
+    enum Kind: Equatable { case command, skill, mention }
 
     var kind: Kind
     var query: String
@@ -21,8 +21,10 @@ struct ComposerTrigger: Equatable {
         let space = head.rangeOfCharacter(from: .whitespacesAndNewlines, options: .backwards)
         let tokenStart = space.location == NSNotFound ? 0 : space.location + space.length
         let token = head.substring(from: tokenStart)
+        let range = NSRange(location: tokenStart, length: cursor - tokenStart)
+        if token.hasPrefix("@") { return ComposerTrigger(kind: .mention, query: String(token.dropFirst()), range: range) }
         guard token.hasPrefix("$"), !token.hasPrefix("${") else { return nil }
-        return ComposerTrigger(kind: .skill, query: String(token.dropFirst()), range: NSRange(location: tokenStart, length: cursor - tokenStart))
+        return ComposerTrigger(kind: .skill, query: String(token.dropFirst()), range: range)
     }
 
     func replace(in text: String, with replacement: String) -> (text: String, caret: Int) {

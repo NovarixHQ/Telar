@@ -10,7 +10,7 @@ import struct
 import time
 import zlib
 
-FIXTURES = Path(__file__).resolve().parents[1] / 'TelarMobileTests' / 'Fixtures'
+FIXTURES = Path(__file__).resolve().parents[1] / 'Fixtures'
 NOW = int(time.time() * 1000)
 PROJECTS = [{'id': 'telar', 'name': 'Telar'}, {'id': 'console', 'name': 'GoVirtual Console'}]
 

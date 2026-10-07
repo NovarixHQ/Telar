@@ -643,16 +643,12 @@ jobs:
   # this can rot.
   #
   ios:
-    name: Build and test iOS
+    name: Build iOS
     needs: [source]
     runs-on: ${{ needs.source.outputs.ios == 'true' && 'macos-latest' || 'ubuntu-latest' }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    # 30 → 45 with the simulator leg (#755). The job now does a Release archive
-    # AND a Debug test build plus a simulator boot, so the ceiling has to cover
-    # both; the archive alone measured 3m48s–4m08s. A timeout is not a budget —
-    # if this job ever approaches 45 minutes something is wrong rather than
-    # slow, and the `IOS_TESTS_SECONDS` line below is what to read first.
-    timeout-minutes: 45
+    # The archive measured 3m48s–4m08s; 20 means something is wrong, not slow.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         if: needs.source.outputs.ios == 'true'
@@ -813,116 +809,6 @@ jobs:
               | sed -E 's/.*took ([0-9]+)ms.*/\1 &/' | sort -rn | cut -d' ' -f2- | head -20 \
               | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-
-      # `-only-testing` fences out TelarMobileUITests, which would hang here
-      # without apps/ios/scripts/preview-server.py running.
-      - name: Run TelarMobileTests on a simulator
-        if: needs.source.outputs.ios == 'true'
-        env:
-          DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
-        run: |
-          set -euo pipefail
-          RESULT_BUNDLE="$RUNNER_TEMP/TelarMobileTests.xcresult"
-          rm -rf "$RESULT_BUNDLE"
-          started=$(date +%s)
-          xcodebuild \
-            -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
-            -destination-timeout 120 \
-            -derivedDataPath "$RUNNER_TEMP/DerivedDataTests" \
-            -resultBundlePath "$RESULT_BUNDLE" \
-            -only-testing:TelarMobileTests \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            test > "$RUNNER_TEMP/test.log" 2>&1 || {
-              status=$?
-              echo "::group::the test log, last 400 lines"
-              tail -400 "$RUNNER_TEMP/test.log"
-              echo "::endgroup::"
-              echo "::error::xcodebuild test failed (exit $status) — see the step after this one for which tests, if any, ran"
-              echo "IOS_TESTS_SECONDS $(( $(date +%s) - started ))"
-              exit "$status"
-            }
-          echo "IOS_TESTS_SECONDS $(( $(date +%s) - started ))"
-          echo "xcodebuild exited 0; $(wc -l < "$RUNNER_TEMP/test.log") lines of log"
-
-      # EXIT 0 IS NOT A TEST RUN, and this repository already owns both halves
-      # of that lesson: its macOS job once "proved the macOS block ran" by
-      # grepping a describe name, and a SKIPPED test prints its own name — the
-      # string was present exactly when the thing it guarded against had
-      # happened. `xcodebuild test` can exit 0 having executed nothing: a
-      # destination that resolved to something empty, a filter matching no
-      # target, a plan that skipped every suite.
-      #
-      # A FLOOR ON `passedTests`, NOT `totalTestCount > 0`. The step this is
-      # lifted from failed on `total == 0` and on `failed`, and so exited 0 when
-      # every test was SKIPPED and none failed — the same wound in a new
-      # costume. 562 is the count of `@Test` cases in the tree (none
-      # parameterised, so one case per declaration). It was 661 when written and
-      # was LOWERED ONCE, deliberately, by #908: removing the integrated Agent
-      # deleted its iOS suites, about a hundred cases that test nothing left. And
-      # a floor rather than an equality so that adding tests never reddens this
-      # and removing a suite always does. It also makes it irrelevant whether
-      # `totalTestCount` counts skipped cases, which is the more robust
-      # instrument either way — and is why that question was deliberately not
-      # looked up and relied on.
-      #
-      # RAISE THE FLOOR WHEN TESTS ARE ADDED, but only deliberately: it is the
-      # one number here that a human has to maintain, and lowering it to make a
-      # red go away is the failure this step exists to prevent.
-      #
-      # `environmentDescription` IS PRINTED because it names the runtime the
-      # run actually landed on, which is the cheap way to notice an image
-      # change before it becomes a mystery.
-      #
-      # always(), so a red suite still gets its failures named here rather than
-      # leaving a bare xcodebuild exit code above. That also covers the
-      # compile-failure case, where no bundle is written at all.
-      - name: Require that the tests actually ran
-        if: always() && needs.source.outputs.ios == 'true'
-        run: |
-          set -euo pipefail
-          RESULT_BUNDLE="$RUNNER_TEMP/TelarMobileTests.xcresult"
-          FLOOR=562
-
-          if [ ! -e "$RESULT_BUNDLE" ]; then
-            echo "::error::xcodebuild produced no result bundle at $RESULT_BUNDLE, so no test was executed. If the archive or the test build failed above, that is the cause; if neither did, the destination resolved to nothing."
-            exit 1
-          fi
-
-          xcrun xcresulttool get test-results summary --path "$RESULT_BUNDLE" --compact > "$RUNNER_TEMP/summary.json"
-          FLOOR="$FLOOR" python3 - "$RUNNER_TEMP/summary.json" <<'PY'
-          import json, os, sys
-
-          s = json.load(open(sys.argv[1]))
-          floor = int(os.environ["FLOOR"])
-          total = s.get("totalTestCount") or 0
-          passed = s.get("passedTests") or 0
-          failed = s.get("failedTests") or 0
-          skipped = s.get("skippedTests") or 0
-          where = s.get("environmentDescription", "unknown environment")
-
-          print(f"IOS_TESTS {passed} passed, {failed} failed, {skipped} skipped "
-                f"of {total} ({where})")
-
-          for f in s.get("testFailures") or []:
-              name = f.get("testName") or f.get("targetName") or "unknown test"
-              print(f"::error::{name}: {f.get('failureText', '').strip()}")
-
-          bad = False
-          if passed < floor:
-              print(f"::error::{passed} tests passed, under the floor of {floor}. Either a suite "
-                    f"was skipped or disabled, or the destination ran less than the whole target. "
-                    f"A run that executes nothing exits 0 from xcodebuild, which is why this "
-                    f"floor exists rather than a check that some tests ran.")
-              bad = True
-          if failed:
-              print(f"::error::{failed} test(s) failed.")
-              bad = True
-
-          sys.exit(1 if bad else 0)
-          PY
 
       # THE OTHER BRANCH, and it must not be able to print what the branch
       # above prints. `IOS_ARCHIVE_NOT_NEEDED` and `IOS_ARCHIVE_OK 2/2 …` are

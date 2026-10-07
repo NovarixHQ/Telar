@@ -5,6 +5,7 @@ enum PluginUI {
         let tab: PanelTab
         let label: String
         let icon: String
+        let blurb: String
     }
 
     enum Viewer: Equatable {
@@ -17,8 +18,8 @@ enum PluginUI {
     }
 
     static let bundled: [(id: PluginID, contribution: Contribution)] = [
-        (.dataScience, Contribution(surfaces: [Surface(tab: .data, label: "Data", icon: "flask")], viewers: [.notebook, .table])),
-        (.latex, Contribution(surfaces: [Surface(tab: .latex, label: "LaTeX", icon: "function")])),
+        (.dataScience, Contribution(surfaces: [Surface(tab: .data, label: "Data", icon: "flask", blurb: "Plots, variables and the Python environment")], viewers: [.notebook, .table])),
+        (.latex, Contribution(surfaces: [Surface(tab: .latex, label: "LaTeX", icon: "function", blurb: "Compile status, errors and the log")])),
     ]
 
     static func surfaces(enabled: Set<PluginID>) -> [Surface] {

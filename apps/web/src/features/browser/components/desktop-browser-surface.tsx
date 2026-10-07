@@ -2,9 +2,10 @@
 
 import { Suspense, useRef } from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeftIcon, ArrowRightIcon, ChevronRightIcon, EllipsisIcon, LockIcon, LockOpenIcon, MonitorSmartphoneIcon, MoonIcon, PencilIcon, RotateCwIcon, RotateCwSquareIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, ChevronRightIcon, EllipsisIcon, LockIcon, LockOpenIcon, MonitorSmartphoneIcon, MoonIcon, PencilIcon, PictureInPicture2Icon, RotateCwIcon, RotateCwSquareIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { siteLabel } from "../desktop-site-permissions";
+import { useCommandHandlers } from "@/features/commands";
 import { useNativeViewOverlay } from "@/platform/desktop/native-view-overlay";
 import { IdentityIcon } from "@/ui/telar-icons";
 import { cn } from "@/ui/utils";
@@ -153,6 +154,11 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
             <PencilIcon className="size-3.5" />
           </button>
         </>
+      ) : null}
+      {b.inWindow ? (
+        <button type="button" aria-label="Float on top" title="Float on top: a small window above other apps" className={cn("shrink-0", GLYPH)} onClick={() => void act({ action: "float", on: true })}>
+          <PictureInPicture2Icon className="size-3.5" />
+        </button>
       ) : null}
       <Popover open={openOverlay === "options"} onOpenChange={toggle(b, "options")}>
         <PopoverTrigger
@@ -355,8 +361,10 @@ function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: R
 
 /** The desktop shell's native browser, with its tab strip, address row and tools; the panel shows a placeholder while it has its own window. */
 export function DesktopBrowserSurface(props: BrowserProps) {
-  const popped = usePoppedScope(props.bridge, props.scopeKey, props.onEnded);
-  if (popped && !props.inWindow) return <PoppedBrowser bridge={props.bridge} scopeKey={props.scopeKey} />;
+  const { bridge, scopeKey } = props;
+  const { popped, compact } = usePoppedScope(bridge, scopeKey, props.onEnded);
+  useCommandHandlers({ "float-browser": () => void bridge.action(scopeKey, { action: "float" }).catch(() => undefined) }, [bridge, scopeKey]);
+  if (popped && !props.inWindow) return <PoppedBrowser bridge={bridge} scopeKey={scopeKey} compact={compact} />;
   return <BrowserBody {...props} />;
 }
 

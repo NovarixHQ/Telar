@@ -41,12 +41,12 @@ export function SessionSkeleton({ composer = false }: { composer?: boolean }) {
             // A CANVAS HAS NO TRANSCRIPT, so a skeleton that draws one promises
             // a conversation that is not coming. The composer sits in the middle
             // of the screen here, which is the shape worth holding.
-            <div className="m-auto w-full max-w-[50rem] space-y-3">
+            <div className="m-auto w-full max-w-(--chat-content-max-width) space-y-3">
               <Block className="mx-auto h-6 w-56" />
               <Block className="h-24 w-full" />
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-[50rem] space-y-6">
+            <div className="mx-auto w-full max-w-(--chat-content-max-width) space-y-6">
               <div className="flex justify-end">
                 <Block className="h-10 w-2/5" />
               </div>
@@ -67,7 +67,7 @@ export function SessionSkeleton({ composer = false }: { composer?: boolean }) {
         </div>
         {!composer && (
           <div className="shrink-0 px-4 pb-4">
-            <Block className="mx-auto h-20 w-full max-w-[50rem]" />
+            <Block className="mx-auto h-20 w-full max-w-(--chat-content-max-width)" />
           </div>
         )}
       </div>

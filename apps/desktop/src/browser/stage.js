@@ -129,6 +129,14 @@ module.exports = {
     return Boolean(win && !win.isDestroyed() && this.stageWindowCompact(win));
   },
 
+  floatStage(scopeKey, on) {
+    const scope = this.requireScope(scopeKey);
+    const wanted = on === undefined ? !this.isCompactStage(scope) : on;
+    if (wanted && !this.isPopped(scope)) this.popOut(scope);
+    if (!this.isPopped(scope)) return this.state(scope);
+    return this.setStageCompact(scope, wanted);
+  },
+
   setStageCompact(scopeKey, on) {
     const scope = this.requireScope(scopeKey);
     const win = this.poppedStages.get(scope)?.window;

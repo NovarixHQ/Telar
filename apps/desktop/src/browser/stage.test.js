@@ -225,20 +225,37 @@ describe("a popped browser stays alive", () => {
 describe("floating on top", () => {
   test("the window's own control makes it compact and says so to the window and the panel", async () => {
     const { manager, messages, win } = await popped();
-    await manager.action("s", { action: "compact", on: true });
+    await manager.action("s", { action: "float" });
     expect(win.compact).toBe(true);
     expect(manager.state("s").compact).toBe(true);
     const last = (list) => list.filter((message) => message.channel === "telar:browser:state").at(-1).payload;
     expect(last(win.messages).compact).toBe(true);
     expect(last(messages).compact).toBe(true);
 
-    await manager.action("s", { action: "compact", on: false });
+    await manager.action("s", { action: "float" });
     expect(manager.state("s").compact).toBe(false);
+    await manager.action("s", { action: "float", on: false });
+    expect(manager.state("s").compact).toBe(false);
+  });
+
+  test("floating a browser still in the panel pops it out and floats it in one step", async () => {
+    const { manager, stageWindows } = makeHarness();
+    await manager.createTab("s", "https://one.example/");
+    await manager.action("s", { action: "float" });
+    expect(manager.state("s")).toMatchObject({ popped: true, compact: true });
+    expect(stageWindows).toHaveLength(1);
+  });
+
+  test("turning floating off for a browser in the panel opens no window", async () => {
+    const { manager, stageWindows } = makeHarness();
+    await manager.createTab("s", "https://one.example/");
+    await manager.action("s", { action: "float", on: false });
+    expect(stageWindows).toHaveLength(0);
   });
 
   test("the agent keeps working in a floating window", async () => {
     const { active, manager, show } = await popped();
-    await manager.action("s", { action: "compact", on: true });
+    await manager.action("s", { action: "float", on: true });
     await show({ x: 0, y: 28, width: 480, height: 270 });
     await manager.focusAgentTab("s", 1);
     expect((await manager.callTool("s", "browser_snapshot", {})).isError).toBeFalsy();
@@ -247,11 +264,8 @@ describe("floating on top", () => {
     expect(active().view.visible).toBe(true);
   });
 
-  test("only a browser in its own window can float, and the agent cannot make it", async () => {
-    const harness = makeHarness();
-    await harness.manager.createTab("s", "https://one.example/");
-    await expect(harness.manager.action("s", { action: "compact", on: true })).rejects.toThrow("Only a browser in its own window");
+  test("the agent cannot float a window over the person's screen", async () => {
     const { manager } = await popped();
-    await expect(manager.performAction("s", { action: "compact", on: true })).rejects.toThrow("Unknown desktop browser action");
+    await expect(manager.performAction("s", { action: "float", on: true })).rejects.toThrow("Unknown desktop browser action");
   });
 });

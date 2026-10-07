@@ -45,7 +45,7 @@ The device toolbar resizes the page to a preset: phones, tablets, desktops and f
 
 Browser options → **Open in its own window** moves the session's browser, with all its tabs, into a window of its own. The pages keep running and nothing reloads; the agent keeps working in them. The panel says where the browser went, with **Show** and **Bring back**. Closing the window also brings it back. A window still open when you quit reopens at launch, where you left it.
 
-In that window, Browser options → **Keep on top** shrinks it to a small window that floats above other apps and full-screen spaces. The page stays live and the agent keeps working in it. Hover its top strip for back, reload, bring back and **Turn off on top**.
+**Float on top** shrinks the browser to a small window that floats above other apps and full-screen spaces. The page stays live and the agent keeps working in it. It is the picture-in-picture button next to the address in the browser's own window, a row in Browser options, a button on the panel's "In its own window" placeholder, and Window → Float Browser on Top (⌥⌘P). From the panel it pops the browser out first. Hover the floating window's top strip for back, reload, bring back and **Turn off on top**.
 
 ## Annotating a page
 

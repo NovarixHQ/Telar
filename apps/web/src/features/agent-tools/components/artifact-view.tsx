@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { mermaid } from "@streamdown/mermaid";
 import { artifactThemeCss, mermaidThemeVariables, type Artifact, type ArtifactTheme } from "@telar/engine-client";
+import { useAppearance } from "@/features/appearance";
 import { attachmentUrl } from "@/features/plugins";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { MessageResponse } from "@/ui/message";
@@ -71,10 +72,16 @@ function useArtifactText(hostId: string, sessionId: string, attachmentId: string
 
 const measured = new Map<string, number>();
 
+function useMeasureKey(attachmentId: string): string {
+  return `${useAppearance().appearance.chatWidth}:${attachmentId}`;
+}
+
 function HtmlFrame({ content, title, attachmentId, hint }: { content: string; title: string; attachmentId: string; hint: number | undefined }) {
   const frame = useId();
   const ref = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState(() => measured.get(attachmentId));
+  const key = useMeasureKey(attachmentId);
+  const [reported, setReported] = useState<{ key: string; height: number }>();
+  const height = reported?.key === key ? reported.height : (measured.get(key) ?? reported?.height);
   const theme = useArtifactTheme(ref);
   const [doc, setDoc] = useState(() => ({ content, srcDoc: artifactDocument(content, frame, theme) }));
   if (doc.content !== content) setDoc({ content, srcDoc: artifactDocument(content, frame, theme) });
@@ -93,12 +100,12 @@ function HtmlFrame({ content, title, attachmentId, hint }: { content: string; ti
       if (data?.artifactFrame !== frame) return;
       const next = measuredHeight(data.height);
       if (next === undefined) return;
-      measured.set(attachmentId, next);
-      setHeight(next);
+      measured.set(key, next);
+      setReported({ key, height: next });
     };
     window.addEventListener("message", listen);
     return () => window.removeEventListener("message", listen);
-  }, [frame, attachmentId]);
+  }, [frame, key]);
   return (
     <iframe
       ref={ref}
@@ -143,8 +150,9 @@ const HOVER_BAR = "absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5 rou
 
 export function ArtifactView({ hostId = LOCAL_HOST_ID, sessionId, artifact }: { hostId?: string; sessionId: string; artifact: Artifact }) {
   const { text, failed } = useArtifactText(hostId, sessionId, artifact.attachmentId);
+  const measureKey = useMeasureKey(artifact.attachmentId);
   if (failed) return <p className="py-2 text-xs text-muted-foreground">Unable to load {artifact.title}.</p>;
-  if (text === undefined) return artifact.kind === "html" ? <div style={{ height: frameHeight(artifact.height, measured.get(artifact.attachmentId)) }} /> : null;
+  if (text === undefined) return artifact.kind === "html" ? <div style={{ height: frameHeight(artifact.height, measured.get(measureKey)) }} /> : null;
   const actions = <ArtifactActions artifact={artifact} text={text} />;
   if (artifact.kind === "svg") return <SvgDrawing source={text} title={artifact.title} actions={actions} />;
   if (artifact.kind === "mermaid") return <MermaidDiagram source={text} title={artifact.title} actions={actions} />;

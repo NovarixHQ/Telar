@@ -171,6 +171,12 @@ export const APP_PAGES: SettingsPageSpec[] = [
             keywords: ["light", "dark", "system", "theme", "mode"],
             icon: MonitorIcon,
           },
+          {
+            title: "Chat width",
+            hint: "How wide the conversation and the composer can grow.",
+            keywords: ["wide", "full", "comfortable", "column", "measure", "transcript"],
+            icon: MonitorIcon,
+          },
         ],
       },
       {

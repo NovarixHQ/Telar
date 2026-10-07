@@ -316,7 +316,7 @@ class DesktopBrowserManager {
     if (kind === "pop-out") return this.popOut(scope);
     if (kind === "show-window") return this.showStage(scope);
     if (kind === "bring-back") return this.bringBack(scope);
-    if (kind === "compact") return this.setStageCompact(scope, action.on === true);
+    if (kind === "float") return this.floatStage(scope, typeof action.on === "boolean" ? action.on : undefined);
     if (kind === "new") return (await this.createTab(scope, action.url || "about:blank", "human"), this.state(scope));
     if (kind === "close") return (this.closeTab(scope, action.index), this.state(scope));
 

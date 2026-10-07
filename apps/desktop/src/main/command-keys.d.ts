@@ -16,7 +16,7 @@ export type CommandKeyEventLike = {
   shiftKey?: boolean;
 };
 
-export type CommandMenu = "file" | "panel" | "view";
+export type CommandMenu = "file" | "panel" | "view" | "window";
 
 export type Command = {
   id: string;

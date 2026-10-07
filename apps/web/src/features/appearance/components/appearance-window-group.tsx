@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { Appearance, Frost } from "../appearance";
+import type { Appearance, ChatWidth, Frost } from "../appearance";
 import { desktopAppearance } from "@/platform/desktop/desktop-appearance";
 import { Row, Segmented, SettingsGroup, ToggleRow } from "@/features/settings";
 import { ThemeControl } from "./theme-control";
@@ -72,6 +72,21 @@ export function AppearanceWindowGroup({ appearance, setAppearance }: { appearanc
         <p className="py-3 text-xs text-muted-foreground">Translucency needs the macOS desktop app.</p>
       )}
       <ShowThroughRow level={appearance.translucencyLevel} onChange={(translucencyLevel) => setAppearance({ translucencyLevel })} />
+      <Row
+        label="Chat width"
+        hint="How wide the conversation and the composer can grow."
+        control={
+          <Segmented<ChatWidth>
+            value={appearance.chatWidth}
+            onChange={(chatWidth) => setAppearance({ chatWidth })}
+            options={[
+              { value: "comfortable", label: "Comfortable" },
+              { value: "wide", label: "Wide" },
+              { value: "full", label: "Full" },
+            ]}
+          />
+        }
+      />
     </SettingsGroup>
   );
 }

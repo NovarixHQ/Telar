@@ -48,6 +48,10 @@ export function useCommandHandlers(handlers: CommandHandlers, deps: readonly unk
   }, deps);
 }
 
+export function useMenuCommands() {
+  useEffect(() => desktop()?.commandKeys?.onInvoke?.((id) => void runCommand(id as CommandId)), []);
+}
+
 function focusFieldNamed(label: string, attempt = 0) {
   const field = document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
   if (field) {

@@ -68,7 +68,7 @@ function WorkerLine({ worker, directory, hostId, projectId }: { worker: Dispatch
 
 export function DispatchBlockView({ block, directory, hostId, projectId }: { block: DispatchBlock; directory: SessionDirectory; hostId?: string; projectId?: string }) {
   return (
-    <section className="mx-auto w-full min-w-0 max-w-[50rem] rounded-md border border-border/60 py-1" aria-label="Dispatched sessions">
+    <section className="mx-auto w-full min-w-0 max-w-(--chat-content-max-width) rounded-md border border-border/60 py-1" aria-label="Dispatched sessions">
       <p className="flex items-center gap-1.5 px-1.5 py-1 text-xs">
         <UsersIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <span>{dispatchSummary(block)}</span>

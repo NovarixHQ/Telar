@@ -39,6 +39,7 @@ function buildApplicationMenu(keymap = readKeymap()) {
   const fileCommands = menuCommands(keymap, "file");
   const panelCommands = menuCommands(keymap, "panel");
   const viewCommands = menuCommands(keymap, "view");
+  const windowCommands = menuCommands(keymap, "window");
 
   const jumpBindings = fileCommands.filter((command) => command.jump);
   const otherBindings = fileCommands.filter((command) => !command.jump);
@@ -82,7 +83,16 @@ function buildApplicationMenu(keymap = readKeymap()) {
     },
 
     ...(panelCommands.length > 0 ? [{ label: "Panel", submenu: panelCommands.map(toMenuItem) }] : []),
-    { role: "windowMenu" },
+    {
+      role: "window",
+      submenu: [
+        ...windowCommands.map(toMenuItem),
+        { type: "separator" },
+        { role: "minimize" },
+        { role: "zoom" },
+        ...(isMac ? [{ type: "separator" }, { role: "front" }] : [{ role: "close" }]),
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }

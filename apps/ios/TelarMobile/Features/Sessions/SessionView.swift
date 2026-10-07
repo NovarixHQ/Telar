@@ -185,7 +185,7 @@ struct SessionView: View {
                         .toolbar(.hidden, for: .navigationBar)
                 }
 
-                .background(Theme.canvas)
+                .background(Theme.sheet)
                 .inspectorColumnWidth(min: 360, ideal: 440, max: 640)
             }
 
@@ -212,14 +212,14 @@ struct SessionView: View {
             }
             .navigationDestination(isPresented: $pushShown) {
                 panelView(.page, canFillWindow: false)
-                    .navigationTitle("Panel")
                     .navigationBarTitleDisplayMode(.inline)
             }
             .onChange(of: panel.isOpen, initial: true) { _, _ in
 
                 raisePanel(panel.isOpen)
-                syncSidebar(open: panel.isOpen)
             }
+            .onChange(of: panel.isOpen) { syncSidebar(open: panel.isOpen) }
+            .onAppear { DispatchQueue.main.async { syncSidebar(open: panel.isOpen) } }
             .onChange(of: inspectorShown) { _, open in
 
                 guard wantsColumn, !panel.isFullScreen, PanelRaise.isDismissal(open) else { return }
@@ -229,7 +229,10 @@ struct SessionView: View {
                 if !wantsColumn, PanelRaise.isDismissal(open) { panelDismissed() }
             }
 
-            .onChange(of: wantsColumn) { raisePanel(panel.isOpen) }
+            .onChange(of: wantsColumn) {
+                raisePanel(panel.isOpen)
+                syncSidebar(open: panel.isOpen)
+            }
             .task(id: "\(sessionId):plugins") { await readPlugins() }
             .task(id: scenePhase == .active) {
                 if scenePhase == .active, let simulatorsAPI { await simulatorWatch.watch(simulatorsAPI) }

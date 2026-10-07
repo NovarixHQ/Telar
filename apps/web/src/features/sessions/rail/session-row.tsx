@@ -14,6 +14,8 @@ import type { RailJumpSlot } from "../session-groups";
 import { KeyHintOverlay } from "@/features/commands";
 import { useSidebar } from "@/ui/sidebar";
 import { cn } from "@/ui/utils";
+import { sessionReference, startReferenceDrag } from "@/features/composer";
+import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { useRowWarmth } from "./use-row-warmth";
 import { RowMarks, RowStatus } from "./session-row-marks";
 import { CardBody, RowLink, SlimBody } from "./session-row-body";
@@ -138,21 +140,30 @@ function RenameInput({ title, onCommit, onCancel }: { title: string; onCommit: (
   );
 }
 
-function DragFrame({ drag, children }: { drag: RowDrag; children: React.ReactNode }) {
+/** Any row drags into a composer as a session reference; rows in a reorderable band also move. */
+function DragFrame({ drag, session, children }: { drag?: RowDrag; session: SidebarSession; children: React.ReactNode }) {
+  const referable = !session.draft && (!session.hostId || session.hostId === LOCAL_HOST_ID);
+  if (!drag && !referable) return children;
+  const onDragStart = (event: React.DragEvent) => {
+    drag?.onDragStart(event);
+    if (!referable) return;
+    startReferenceDrag(event.dataTransfer, sessionReference(session));
+    if (drag) event.dataTransfer.effectAllowed = "copyMove";
+  };
   return (
     <div
       draggable
-      onDragStart={drag.onDragStart}
-      onDragEnd={drag.onDragEnd}
-      onDragOver={drag.onDragOver}
-      onDragLeave={drag.onDragLeave}
-      onDrop={drag.onDrop}
-      title="Drag to move this conversation"
+      onDragStart={onDragStart}
+      onDragEnd={drag?.onDragEnd}
+      onDragOver={drag?.onDragOver}
+      onDragLeave={drag?.onDragLeave}
+      onDrop={drag?.onDrop}
+      title={drag ? "Drag to move this conversation, or into a message to reference it" : "Drag into a message to reference this conversation"}
       className={cn(
         "cursor-grab rounded-md transition-opacity active:cursor-grabbing",
-        drag.dragging && "opacity-40",
-        drag.insert === "above" && "shadow-[inset_0_2px_0_0_var(--color-sidebar-primary)]",
-        drag.insert === "below" && "shadow-[inset_0_-2px_0_0_var(--color-sidebar-primary)]",
+        drag?.dragging && "opacity-40",
+        drag?.insert === "above" && "shadow-[inset_0_2px_0_0_var(--color-sidebar-primary)]",
+        drag?.insert === "below" && "shadow-[inset_0_-2px_0_0_var(--color-sidebar-primary)]",
       )}
     >
       {children}
@@ -301,5 +312,9 @@ export function SessionRow({
   );
 
   const menu = <SessionRowContextMenu {...menuProps}>{row}</SessionRowContextMenu>;
-  return drag ? <DragFrame drag={drag}>{menu}</DragFrame> : menu;
+  return (
+    <DragFrame {...(drag ? { drag } : {})} session={session}>
+      {menu}
+    </DragFrame>
+  );
 }

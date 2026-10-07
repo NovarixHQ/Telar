@@ -47,7 +47,7 @@ describe("the registry", () => {
 
   test("only commands with a menu placement can reach a menu", () => {
     const placed = new Set(
-      ["file", "panel", "view"].flatMap((menu) => menuCommands(defaultKeymap(), menu)).map((c) => c.id),
+      ["file", "panel", "view", "window"].flatMap((menu) => menuCommands(defaultKeymap(), menu)).map((c) => c.id),
     );
     for (const command of COMMANDS) expect(placed.has(command.id)).toBe(Boolean(command.menu));
   });

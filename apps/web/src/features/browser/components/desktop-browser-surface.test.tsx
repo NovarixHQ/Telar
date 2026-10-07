@@ -6,6 +6,7 @@ import { presentationZoomLabel } from "../model";
 import type { DesktopBrowserBridge, DesktopBrowserPanelState, DesktopBrowserTab } from "../types";
 import { DesktopBrowserSurface } from "./desktop-browser-surface";
 import { claimNativeView, nativeViewOverlayHidden } from "@/platform/desktop/native-view-overlay";
+import { runCommand } from "@/features/commands";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -445,16 +446,48 @@ describe("a browser popped out into its own window", () => {
     expect(host.textContent).not.toContain("In its own window");
   });
 
-  test("only its own window offers to keep it on top", async () => {
+  test("Float on top is in the menu, in the panel and in the window", async () => {
     const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
     await mouseClick(optionsTrigger(own.host));
-    await mouseClick(menuRow("Keep on top"));
-    expect(own.actions.at(-1)).toEqual({ action: "compact", on: true });
+    await mouseClick(menuRow("Float on top"));
+    expect(own.actions.at(-1)).toEqual({ action: "float", on: true });
     own.unmount();
 
     const panel = await mount(panelState());
     await mouseClick(optionsTrigger(panel.host));
-    expect(menuRows()).not.toContain("Keep on top");
+    await mouseClick(menuRow("Float on top"));
+    expect(panel.actions.at(-1)).toEqual({ action: "float", on: true });
+  });
+
+  test("the window's toolbar has a button that floats it on top; the panel's does not", async () => {
+    const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
+    const button = own.host.querySelector('[aria-label="Float on top"]')!;
+    await mouseClick(button);
+    expect(own.actions.at(-1)).toEqual({ action: "float", on: true });
+    own.unmount();
+
+    const panel = await mount(panelState());
+    expect(panel.host.querySelector('[aria-label="Float on top"]')).toBeNull();
+  });
+
+  test("the panel's placeholder floats it, and turns floating off once it floats", async () => {
+    const floating = await mount(panelState({ popped: true }));
+    await mouseClick(button(floating.host, "Float on top"));
+    expect(floating.actions.at(-1)).toEqual({ action: "float", on: true });
+    floating.unmount();
+
+    const already = await mount(panelState({ popped: true, compact: true }));
+    await mouseClick(button(already.host, "Turn off on top"));
+    expect(already.actions.at(-1)).toEqual({ action: "float", on: false });
+  });
+
+  test("the Float Browser on Top command toggles it, from the panel or the window", async () => {
+    const { actions } = await mount(panelState());
+    await act(async () => {
+      runCommand("float-browser");
+      await settle();
+    });
+    expect(actions.at(-1)).toEqual({ action: "float" });
   });
 
   test("floating on top, the window is the page with a slim pill: back, reload, bring back, turn off on top", async () => {
@@ -472,7 +505,7 @@ describe("a browser popped out into its own window", () => {
     await mouseClick(pill("Bring back to the panel"));
     expect(actions.at(-1)).toEqual({ action: "bring-back" });
     await mouseClick(pill("Turn off on top"));
-    expect(actions.at(-1)).toEqual({ action: "compact", on: false });
+    expect(actions.at(-1)).toEqual({ action: "float", on: false });
   });
 
   test("a browser that ends while popped closes the panel's tab", async () => {

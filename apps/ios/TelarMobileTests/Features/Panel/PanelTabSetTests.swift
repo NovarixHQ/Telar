@@ -15,7 +15,7 @@ import Testing
         #expect(panel.tabs.isEmpty && panel.active == nil && !panel.isOpen)
         panel.open()
         #expect(panel.isOpen && panel.tabs.isEmpty)
-        #expect(panel.openable == [.diff, .editor, .agents])
+        #expect(panel.openable == [.diff, .editor, .agents, .simulator])
     }
 
     @Test func openingASurfaceAddsItOnceAndTheChooserStopsOfferingIt() {
@@ -26,7 +26,7 @@ import Testing
         panel.open(.agents)
         #expect(panel.tabs == [.agents, .diff])
         #expect(panel.active == .agents)
-        #expect(panel.openable == [.editor])
+        #expect(panel.openable == [.editor, .simulator])
     }
 
     @Test func closingTheActiveTabFocusesItsRightNeighbourThenTheLast() {

@@ -136,7 +136,7 @@ import Testing
         panel.open(.diff)
         panel.open(.data)
         panel.setPlugins([.latex])
-        #expect(panel.offered == [.diff, .editor, .agents, .latex])
+        #expect(panel.offered == [.diff, .editor, .agents, .simulator, .latex])
         #expect(panel.tabs == [.diff])
         #expect(panel.active == .diff)
     }
@@ -179,10 +179,10 @@ import Testing
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let panel = PanelModel(hostId: UUID(), sessionId: "s", defaults: defaults)
-        #expect(panel.offered == [.diff, .editor, .agents])
+        #expect(panel.offered == [.diff, .editor, .agents, .simulator])
         panel.open(.agents)
         panel.setPlugins([.dataScience, .latex])
-        #expect(panel.offered == [.diff, .editor, .agents, .data, .latex])
+        #expect(panel.offered == [.diff, .editor, .agents, .simulator, .data, .latex])
         #expect(panel.active == .agents)
         panel.setPlugins([])
         #expect(panel.active == .agents)

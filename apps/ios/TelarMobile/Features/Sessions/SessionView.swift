@@ -167,7 +167,8 @@ struct SessionView: View {
     }
 
     private func panelView(_ presentation: PanelPresentation, canFillWindow: Bool) -> PanelView {
-        PanelView(api: api, panelAPI: panelAPI, sessionId: sessionId, hostId: hostId, hostName: hostName, active: turnActive, panel: panel,
+        PanelView(api: api, panelAPI: panelAPI, sessionId: sessionId, hostId: hostId,
+                  simulators: simulatorWatch.running, agentSimulatorId: store.sync.agentSimulatorId, hostName: hostName, active: turnActive, panel: panel,
                   presentation: presentation, canFillWindow: canFillWindow, onClose: { panel.close() })
     }
 
@@ -239,6 +240,9 @@ struct SessionView: View {
                 syncSidebar(open: true)
             }
             .onChange(of: store.sync.displayOpens.count) { watchDisplayOpens() }
+            .onChange(of: store.sync.agentSimulatorId) { _, id in
+                if id != nil { panel.open(.simulator) }
+            }
     }
 
     private var presence: some View {

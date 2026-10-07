@@ -283,3 +283,48 @@ describe("the password manager choice", () => {
     }
   });
 });
+
+describe("the offscreen preview route", () => {
+  const post = (origin, body) =>
+    fetch(`${origin}/preview`, { method: "POST", headers: { Authorization: "Bearer secret", "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  test("hands the request to the renderer without asking for a browser host, and answers its refusals as 400", async () => {
+    const asked = [];
+    const control = await startBrowserControlServer({
+      port: await freePort(),
+      token: "secret",
+      getBrowserManager: () => {
+        throw new Error("a preview needs no browser host");
+      },
+      renderPreview: (input) => {
+        if (input.html === "refuse") throw new Error("The width is 240 to 1600 pixels.");
+        asked.push(input);
+        return { png: "iVBORw0KGgo=", contentHeight: 10 };
+      },
+    });
+    const origin = `http://127.0.0.1:${control.port}`;
+    try {
+      const html = `<p>${"x".repeat(1_200_000)}</p>`;
+      const answer = await post(origin, { html, width: 728 });
+      expect(answer.status).toBe(200);
+      expect(await answer.json()).toEqual({ png: "iVBORw0KGgo=", contentHeight: 10 });
+      expect(asked).toEqual([{ html, width: 728 }]);
+      const refused = await post(origin, { html: "refuse" });
+      expect(refused.status).toBe(400);
+      expect(await refused.json()).toEqual({ error: "The width is 240 to 1600 pixels." });
+    } finally {
+      await control.close();
+    }
+  });
+
+  test("a shell with no renderer says so", async () => {
+    const control = await startBrowserControlServer({ port: await freePort(), token: "secret", getBrowserManager: () => null });
+    try {
+      const answer = await post(`http://127.0.0.1:${control.port}`, { html: "<p/>" });
+      expect(answer.status).toBe(503);
+      expect(await answer.json()).toEqual({ error: "This Telar shell cannot render previews." });
+    } finally {
+      await control.close();
+    }
+  });
+});

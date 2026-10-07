@@ -54,7 +54,7 @@ function textOf(result: { content: unknown[] }): string {
 describe("the display toolkit", () => {
   test("every tool declares the display capability in its name", () => {
     const { registered } = build();
-    expect(registered.map((tool) => tool.name)).toEqual(["display_open", "display_inline"]);
+    expect(registered.map((tool) => tool.name)).toEqual(["display_open", "display_inline", "display_preview"]);
     expect(() => assertTelarToolNames(registered.map((tool) => tool.name))).not.toThrow();
   });
 

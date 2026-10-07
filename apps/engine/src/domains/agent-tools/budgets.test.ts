@@ -522,7 +522,7 @@ describe("every tool description is short enough to carry", () => {
   test("display is capped too — the one that had no guard", () => {
     const { registered, factory } = register();
     displayTools(factory, { open: async ({ path }) => ({ path }), inline: async () => ({ id: "a" }) });
-    expect(registered.map((entry) => entry.name)).toEqual(["display_open", "display_inline"]);
+    expect(registered.map((entry) => entry.name)).toEqual(["display_open", "display_inline", "display_preview"]);
     for (const display of registered) {
       expect(display.description.length).toBeLessThanOrEqual(MAX_DESCRIPTION);
       expect(display.description.length).toBeGreaterThan(80);

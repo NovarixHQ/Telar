@@ -2,9 +2,10 @@ const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
 const { randomUUID } = require("node:crypto");
-const { app, BrowserWindow, dialog, Notification, powerMonitor } = require("electron");
+const { app, BrowserWindow, dialog, Notification, powerMonitor, session } = require("electron");
 const { DesktopBrowserManager, managerForScope } = require("../browser/browser-manager");
 const { startBrowserControlServer } = require("../browser/browser-control-server");
+const { createPreviewRenderer } = require("../agent-tools/preview-renderer");
 const { startRunTerminalServer } = require("../terminal/run-terminal-server");
 const { publishTailscaleServe, serveEnv, unpublishTailscaleServe } = require("./tailscale");
 const { windowTargetUrl } = require("./window-target");
@@ -47,6 +48,7 @@ function requireBrowserSuggestions() {
   return browserSuggestions ||= createBrowserSuggestions(app.getPath("userData"));
 }
 let browserControl = null;
+let previewRenderer = null;
 let browserControlConfig = null;
 
 let runTerminalChannel = null;
@@ -471,6 +473,8 @@ if (SMOKE) {
           readProcessMetrics: () => processMetricsReader().summary(),
 
           passwordManagerEnabled,
+
+          renderPreview: (input) => (previewRenderer ||= createPreviewRenderer({ BrowserWindow, session })).render(input),
         });
 
         runTerminalConfig = { port: await findFreePort(), token: randomUUID() };

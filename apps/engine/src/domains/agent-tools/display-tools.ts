@@ -2,24 +2,36 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { ARTIFACT_THEME_TOKENS, type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES } from "@telar/engine-client";
+import { ARTIFACT_THEME_TOKENS, type Artifact, ArtifactId, ArtifactKind, MAX_ARTIFACT_BYTES, type PublishedAppearance } from "@telar/engine-client";
+import { NEEDS_DESKTOP, PREVIEW_TIMEOUT_MS, PREVIEW_WIDTH, PreviewAppearance, previewDocument, PreviewKind, previewTheme, type PreviewRenderer, type PreviewRendering, previewReport, withinTimeout } from "./display-preview";
 import { err, failure, ok, type ToolFactory } from "./tool-kit";
 
 type InlineInput = { kind: ArtifactKind; title: string; id?: string; content?: string; path?: string };
+type PreviewInput = { kind: PreviewKind; width: number; appearance?: PreviewAppearance; content?: string; path?: string };
 
 export type DisplayCapability = {
   open(input: { path: string; title?: string }): Promise<{ path: string }>;
   inline(input: InlineInput): Promise<{ id: string }>;
+  preview?(input: PreviewInput): Promise<PreviewRendering & { appearance: PreviewAppearance }>;
 };
 
 const OPEN = `Show the human a file from this checkout in the panel, rendered (markdown, PDF, image, video, code). For something you made for them to look at now.`;
 
-const INLINE = `Draw a visual artifact in the conversation: an html page, svg, mermaid diagram, chart or markdown. Best when asked for a status, overview, comparison, diagram or chart; otherwise reply in plain text, and honour a preference for md or html files. Pass the same id to revise it. Html has no network: inline every script, style and image.`;
+const INLINE = `Draw a visual artifact in the conversation: an html page, svg, mermaid diagram, chart or markdown. Best for a status, overview, comparison, diagram or chart; otherwise reply in plain text, and honour a preference for md or html files. Html has no network: inline every script, style and image. Check it with display_preview first. Same id revises.`;
+
+const PREVIEW = `Render html, svg or mermaid offscreen in the current Look as display_inline would draw it, before publishing. Returns a screenshot, the content height, console errors and warnings with stacks, and failed loads. The person sees nothing.`;
 
 const CONTENT = `The source. Give this or path. Html and svg can use the Look's CSS variables, in hex and updated live when the Look changes; your own :root rules win. ${ARTIFACT_THEME_TOKENS.map(([name]) => `--${name}`).join(" ")}. Mermaid takes the Look's colours by itself.`;
 
 export const DISPLAY_BRIEFING =
-  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files.";
+  "When the person asks for a status, overview, comparison, diagram or chart, an inline artifact from display_inline (tool search loads it) is usually best; otherwise reply in plain text and honour a preference for md or html files. Check it with display_preview, publish with display_inline, then reply without restating what the page shows.";
+
+function sourceOf(args: Record<string, unknown>): { content?: string; path?: string } | undefined {
+  const content = typeof args.content === "string" && args.content.length > 0 ? args.content : undefined;
+  const file = typeof args.path === "string" && args.path.trim() ? args.path.trim() : undefined;
+  if ((content === undefined) === (file === undefined)) return undefined;
+  return content !== undefined ? { content } : { path: file };
+}
 
 export function displayTools(tool: ToolFactory, capability: DisplayCapability): unknown[] {
   return [
@@ -59,16 +71,50 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
         if (!kind.success) return err(`Name a kind: ${ArtifactKind.options.join(", ")}.`);
         const title = typeof args.title === "string" ? args.title.trim().slice(0, 200) : "";
         if (!title) return err("Give the artifact a title.");
-        const content = typeof args.content === "string" && args.content.length > 0 ? args.content : undefined;
-        const file = typeof args.path === "string" && args.path.trim() ? args.path.trim() : undefined;
-        if ((content === undefined) === (file === undefined)) return err("Give exactly one of content or path.");
+        const source = sourceOf(args);
+        if (!source) return err("Give exactly one of content or path.");
         const id = typeof args.id === "string" && args.id.trim() ? args.id.trim() : undefined;
         if (id !== undefined && !ArtifactId.safeParse(id).success) return err("An id is 1-64 letters, digits, dashes or underscores.");
         try {
-          const shown = await capability.inline({ kind: kind.data, title, ...(id ? { id } : {}), ...(content !== undefined ? { content } : {}), ...(file ? { path: file } : {}) });
-          return ok(`Showing "${title}" in the conversation as artifact ${shown.id}. To revise it, call display_inline again with id "${shown.id}".`);
+          const shown = await capability.inline({ kind: kind.data, title, ...(id ? { id } : {}), ...source });
+          return ok(`Showing "${title}" in the conversation as artifact ${shown.id}, above your reply: don't restate or describe it. To revise it, call display_inline again with id "${shown.id}".`);
         } catch (error) {
           return err(`Could not show "${title}": ${failure(error)}`);
+        }
+      },
+    ),
+    tool(
+      "display_preview",
+      PREVIEW,
+      {
+        kind: PreviewKind.describe("How display_inline would render it."),
+        content: z.string().optional().describe("The source. Give this or path."),
+        path: z.string().optional().describe("A file in the checkout holding the source, relative to its root."),
+        width: z.number().int().min(PREVIEW_WIDTH.min).max(PREVIEW_WIDTH.max).optional().describe(`CSS pixels; default ${PREVIEW_WIDTH.initial}, the conversation's width.`),
+        appearance: PreviewAppearance.optional().describe("Default: the scheme the person's Look is in."),
+      },
+      async (args) => {
+        const kind = PreviewKind.safeParse(args.kind);
+        if (!kind.success) return err(`Name a kind: ${PreviewKind.options.join(", ")}.`);
+        const source = sourceOf(args);
+        if (!source) return err("Give exactly one of content or path.");
+        const width = args.width ?? PREVIEW_WIDTH.initial;
+        if (typeof width !== "number" || !Number.isInteger(width) || width < PREVIEW_WIDTH.min || width > PREVIEW_WIDTH.max) {
+          return err(`The width is a whole number of pixels from ${PREVIEW_WIDTH.min} to ${PREVIEW_WIDTH.max}.`);
+        }
+        const appearance = args.appearance === undefined ? undefined : PreviewAppearance.safeParse(args.appearance);
+        if (appearance && !appearance.success) return err("The appearance is light or dark.");
+        if (!capability.preview) return err(NEEDS_DESKTOP);
+        try {
+          const rendering = await capability.preview({ kind: kind.data, width, ...(appearance ? { appearance: appearance.data } : {}), ...source });
+          return {
+            content: [
+              { type: "image", data: rendering.png, mimeType: "image/png" },
+              { type: "text", text: previewReport(rendering, { width, appearance: rendering.appearance }) },
+            ],
+          };
+        } catch (error) {
+          return err(`Could not preview it: ${failure(error)}`);
         }
       },
     ),
@@ -98,11 +144,29 @@ async function checkoutFile(cwd: string, target: string): Promise<{ resolved: st
   return { resolved, relative: path.relative(cwd, resolved).split(path.sep).join("/"), stats };
 }
 
+async function sourceBytes(cwd: string, source: { content?: string; path?: string }): Promise<Uint8Array> {
+  let data: Uint8Array;
+  if (source.path !== undefined) {
+    const { resolved, stats } = await checkoutFile(cwd, source.path);
+    if (stats.size > MAX_ARTIFACT_BYTES) throw new Error(tooLarge(stats.size));
+    data = new Uint8Array(await fs.promises.readFile(resolved));
+  } else {
+    data = new TextEncoder().encode(source.content ?? "");
+  }
+  if (data.byteLength === 0) throw new Error("the artifact is empty");
+  if (data.byteLength > MAX_ARTIFACT_BYTES) throw new Error(tooLarge(data.byteLength));
+  return data;
+}
+
 export function createDisplayCapability(input: {
   cwd: string;
   report(observation: DisplayObservation): Promise<void>;
   upload(file: { name: string; mediaType: string; data: Uint8Array }): Promise<{ id: string }>;
+  renderer?: PreviewRenderer;
+  look?: () => Promise<PublishedAppearance | null>;
+  previewTimeoutMs?: number;
 }): DisplayCapability {
+  const { renderer, previewTimeoutMs = PREVIEW_TIMEOUT_MS } = input;
   return {
     async open({ path: target, title }) {
       const { relative } = await checkoutFile(input.cwd, target);
@@ -110,20 +174,23 @@ export function createDisplayCapability(input: {
       return { path: relative };
     },
     async inline({ kind, title, id = `art_${crypto.randomUUID().slice(0, 8)}`, content, path: target }) {
-      let data: Uint8Array;
-      if (target !== undefined) {
-        const { resolved, stats } = await checkoutFile(input.cwd, target);
-        if (stats.size > MAX_ARTIFACT_BYTES) throw new Error(tooLarge(stats.size));
-        data = new Uint8Array(await fs.promises.readFile(resolved));
-      } else {
-        data = new TextEncoder().encode(content ?? "");
-      }
-      if (data.byteLength === 0) throw new Error("the artifact is empty");
-      if (data.byteLength > MAX_ARTIFACT_BYTES) throw new Error(tooLarge(data.byteLength));
+      const data = await sourceBytes(input.cwd, { content, path: target });
       // Stored as plain text whatever the kind, so the bytes route can never serve it as a page.
       const attachment = await input.upload({ name: `${id}.txt`, mediaType: "text/plain", data });
       await input.report({ kind: "artifact.published", artifact: { id, kind, title, attachmentId: attachment.id } });
       return { id };
     },
+    ...(renderer
+      ? {
+          async preview({ kind, width, appearance, content, path: target }: PreviewInput) {
+            const source = new TextDecoder().decode(await sourceBytes(input.cwd, { content, path: target }));
+            const published = await input.look?.().catch(() => null);
+            const scheme = appearance ?? (published?.scheme === "dark" ? "dark" : "light");
+            const html = previewDocument(kind, source, previewTheme(scheme, published));
+            const rendering = await withinTimeout(renderer.render({ html, width, appearance: scheme, timeoutMs: Math.max(1, previewTimeoutMs - 2_000) }), previewTimeoutMs);
+            return { ...rendering, appearance: scheme };
+          },
+        }
+      : {}),
   };
 }

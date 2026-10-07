@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { displayToolName, isTelarMcpServer, parseToolName, TELAR_MCP_SERVER, UNKNOWN_PATH, type ItemDetail, type RequestDetail, type RequestKind } from "@telar/engine-client";
 
-const TELAR_READ_TOOLS = new Set<string>(["display_open", "display_inline"]);
+const TELAR_READ_TOOLS = new Set<string>(["display_open", "display_inline", "display_preview"]);
 
 let telarPluginReadTools = new Set<string>();
 

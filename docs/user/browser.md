@@ -41,6 +41,10 @@ The 1Password button in the toolbar talks to the 1Password app only once 1Passwo
 
 The device toolbar resizes the page to a preset: phones, tablets, desktops and foldables, in portrait or landscape. You can also drag the page's edges to any size, and zoom it to fit. You can make the page think the system is in light or dark mode, to check both.
 
+## Its own window
+
+Browser options → **Open in its own window** moves the session's browser, with all its tabs, into a window of its own. The pages keep running and nothing reloads; the agent keeps working in them. The panel says where the browser went, with **Show** and **Bring back**. Closing the window also brings it back.
+
 ## Annotating a page
 
 Use the pen to mark up what you see. Telar freezes the page and gives you a rectangle, an arrow, freehand, text labels, and a picker that names the element you click. Undo removes the last mark. When you're done, the marked-up picture goes into the composer, with a note of any elements you picked. The agent then knows exactly which button you mean. The camera attaches a plain screenshot, of the viewport or, with a right-click, the full page.
@@ -54,3 +58,4 @@ The first time a site wants the camera, microphone, notifications, location, the
 - Profiles and site permissions exist only in the desktop app. Settings → Browser says so when you open it elsewhere.
 - The page isn't live while you annotate. It comes back when you send or cancel.
 - A remembered login still needs 1Password to be unlocked.
+- The camera and the pen are only in the panel. The browser's own window has no composer to send a picture to.

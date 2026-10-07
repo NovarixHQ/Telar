@@ -24,8 +24,6 @@ export type DesktopBrowserTab = {
   /** Page zoom factor, not the presentation scale. */
   zoom?: number;
   colorScheme?: "light" | "dark" | "system";
-  /** Moved into a window of its own, so the panel has no page to draw. */
-  preview?: boolean;
   profileId?: string | null;
 };
 
@@ -69,6 +67,8 @@ export type DesktopBrowserPanelState = {
   profile?: DesktopBrowserProfile | null;
   profiles?: DesktopBrowserProfile[];
   profileKey?: string | null;
+  /** Drawn in a window of its own; the panel has no page to show meanwhile. */
+  popped?: boolean;
   // An event on exactly one push, never on a `getState` read: "no tabs" alone
   // cannot tell a closed browser from one that has not opened a page yet.
   ended?: boolean;

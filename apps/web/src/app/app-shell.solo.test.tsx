@@ -130,6 +130,12 @@ describe("the rail, per route", () => {
     expect(rail()).not.toBeNull();
   });
 
+  test("a surface in a window of its own skips it", async () => {
+    await show("/surface/browser");
+    expect(rail()).toBeNull();
+    expect(host!.textContent).toContain("conversation");
+  });
+
   test("settings still skips it too — the second route through the same door", async () => {
     await show("/settings");
     expect(rail()).toBeNull();

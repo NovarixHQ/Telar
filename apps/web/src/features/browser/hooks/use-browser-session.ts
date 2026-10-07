@@ -41,6 +41,7 @@ export type BrowserProps = {
   projectId?: string;
   onAttach?: (files: readonly File[], caption?: string) => void;
   onEnded?: () => void;
+  inWindow?: boolean;
 };
 
 type SyncRefs = {
@@ -108,7 +109,7 @@ export function useBrowserSync({ bridge, scopeKey, projectId, onEnded }: Browser
     bridge,
     scopeKey,
     hostRef,
-    [activeTab?.id, activeTab?.viewport?.width, activeTab?.viewport?.height, viewportMode, Boolean(s.actionError), Boolean(s.extensionError), Boolean(s.permissionDenial), Boolean(s.download), activeTab?.sleeping, activeTab?.preview].join("|"),
+    [activeTab?.id, activeTab?.viewport?.width, activeTab?.viewport?.height, viewportMode, Boolean(s.actionError), Boolean(s.extensionError), Boolean(s.permissionDenial), Boolean(s.download), activeTab?.sleeping].join("|"),
     viewportMode,
     overlayRef,
   );
@@ -338,7 +339,7 @@ export function useBrowserCapture({ bridge, scopeKey, onAttach }: BrowserProps, 
         elements: shot.elements ?? [],
       }),
     );
-  const canCapture = Boolean(bridge.capture && onAttach && activeTab && addressValue(activeTab.url) !== "" && !activeTab.sleeping && !activeTab.preview);
+  const canCapture = Boolean(bridge.capture && onAttach && activeTab && addressValue(activeTab.url) !== "" && !activeTab.sleeping);
   return { captureInto, startAnnotate, canCapture };
 }
 

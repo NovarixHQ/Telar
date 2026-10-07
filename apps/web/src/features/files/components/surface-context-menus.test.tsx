@@ -483,7 +483,6 @@ describe("the integrated browser's tab strip", () => {
     canGoForward: false,
     zoom: 1,
     colorScheme: "system",
-    preview: false,
     viewport: { width: 1280, height: 800, preset: "default", mode: "fit" },
     ...patch,
   });

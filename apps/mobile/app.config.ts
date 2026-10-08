@@ -49,6 +49,7 @@ const config: ExpoConfig = {
         recordAudioAndroid: false,
       },
     ],
+    ["expo-image-picker", { photosPermission: false, microphonePermission: false, cameraPermission: "Telar takes the photos you attach to a message." }],
   ],
 };
 

@@ -49,5 +49,5 @@ export function useDictation(host: HostConnection | undefined, onWords: (words: 
     }
   };
 
-  return { phase, problem, toggle: () => void (phase === "recording" ? stop() : phase === "idle" ? start() : undefined) };
+  return { phase, problem, language: grant.current?.language, toggle: () => void (phase === "recording" ? stop() : phase === "idle" ? start() : undefined) };
 }

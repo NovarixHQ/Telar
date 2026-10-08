@@ -1,6 +1,5 @@
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useRef, useState } from "react";
-import { isActiveTurn } from "@telar/client/journal";
 import { ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, Text, type ScrollViewInstance } from "react-native";
 import { FloatingComposer } from "../composer";
 import { hosts, useHosts } from "../hosts";
@@ -29,7 +28,6 @@ export function SessionScreen() {
   const scroll = useRef<ScrollViewInstance>(null);
   const [footer, setFooter] = useState(0);
   const rows = transcriptRows(feed.turns);
-  const working = feed.turns.some((turn) => isActiveTurn(turn.state));
   const { rows: railRows } = useRail(params.hostId);
 
   return (
@@ -41,7 +39,7 @@ export function SessionScreen() {
         ))}
         {feed.failed ? <Text style={[styles.tool, styles.failed]}>{feed.failed}</Text> : null}
       </ScrollView>
-      <FloatingComposer host={host} hostId={params.hostId} sessionId={params.sessionId} head={feed.head} working={working} mentions={railRows} {...(params.draft ? { initialDraft: params.draft } : {})} onHeight={setFooter} onSent={() => scroll.current?.scrollToEnd()} />
+      <FloatingComposer host={host} hostId={params.hostId} sessionId={params.sessionId} mentions={railRows} {...(params.draft ? { initialDraft: params.draft } : {})} onHeight={setFooter} onSent={() => scroll.current?.scrollToEnd()} />
     </KeyboardAvoidingView>
   );
 }

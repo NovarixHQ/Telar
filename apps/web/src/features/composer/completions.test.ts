@@ -96,18 +96,13 @@ describe("what the slash menu offers", () => {
     expect(fresh).toContain("driver:codex");
   });
 
-  test("model and access are one row each, and only beside their pills", () => {
-    expect(availableCommands({ busy: false, fresh: false }).some((command) => command.glyph === "model" || command.glyph === "access")).toBe(false);
-    const commands = availableCommands({ busy: false, fresh: false, pickers: { model: true, access: true } });
-    expect(commands.filter((command) => command.glyph === "model")).toEqual([expect.objectContaining({ label: "/model", action: { type: "picker", picker: "model" } })]);
-    expect(commands.filter((command) => command.glyph === "access")).toEqual([expect.objectContaining({ label: "/access", action: { type: "picker", picker: "access" } })]);
+  test("model, effort and access are one row each, and only beside their pills", () => {
+    expect(availableCommands({ busy: false, fresh: false }).some((command) => ["model", "effort", "access"].includes(command.glyph))).toBe(false);
+    const commands = availableCommands({ busy: false, fresh: false, pickers: { model: true, effort: true, access: true } });
+    for (const picker of ["model", "effort", "access"] as const) {
+      expect(commands.filter((command) => command.glyph === picker)).toEqual([expect.objectContaining({ label: `/${picker}`, action: { type: "picker", picker } })]);
+    }
     expect(availableCommands({ busy: false, fresh: false, pickers: { model: true, access: false } }).some((command) => command.glyph === "access")).toBe(false);
-  });
-
-  test("efforts appear only when the caller knows any", () => {
-    expect(availableCommands({ busy: false, fresh: false }).some((command) => command.glyph === "effort")).toBe(false);
-    const withEfforts = availableCommands({ busy: false, fresh: false, efforts: ["low", "high"] });
-    expect(withEfforts.filter((command) => command.glyph === "effort").map((command) => command.label)).toEqual(["/effort low", "/effort high"]);
   });
 });
 

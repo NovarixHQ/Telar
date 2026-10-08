@@ -15,12 +15,11 @@ type CompletionAction =
   | { type: "picker"; picker: ComposerPicker }
   | { type: "env-mode"; mode: "local" | "worktree" }
   | { type: "driver"; driver: ProviderDriverKind }
-  | { type: "effort"; effort: string }
   | { type: "compact" }
   | { type: "resume" }
   | { type: "stop" };
 
-export type ComposerPicker = "model" | "access";
+export type ComposerPicker = "model" | "effort" | "access";
 
 export type Completion = {
   id: string;
@@ -145,14 +144,12 @@ type CommandContext = {
   busy: boolean;
   fresh: boolean;
   /** The pills on show; each one's picker gets a `/` row. */
-  pickers?: { model: boolean; access: boolean };
+  pickers?: Partial<Record<ComposerPicker, boolean>>;
   /** The agent that will receive the next message: the session's, or the canvas's before it exists. */
   driver?: ProviderDriverKind;
   /** Only ever true on an existing session; see `compactBlockedReason`. */
   compacting?: boolean;
   envMode?: "local" | "worktree";
-  /** Effort levels the selected model publishes; empty means no `/effort` row. */
-  efforts?: readonly string[];
   /** `onAdopt` is set and no session exists yet; mirrors the picker link's `fresh && onAdopt` gate. */
   canResume?: boolean;
   /** The engine reported Telar's bundled `orchestrate` skill for this session. */
@@ -195,14 +192,8 @@ export function availableCommands(context: CommandContext): Completion[] {
     commands.push({ id: "access", label: "/access", detail: "Choose what the agent may do without asking.", glyph: "access", action: { type: "picker", picker: "access" } });
   }
 
-  for (const effort of context.efforts ?? []) {
-    commands.push({
-      id: `effort:${effort}`,
-      label: `/effort ${effort}`,
-      detail: "How hard the model thinks before it answers.",
-      glyph: "effort",
-      action: { type: "effort", effort },
-    });
+  if (context.pickers?.effort) {
+    commands.push({ id: "effort", label: "/effort", detail: "How hard the model thinks before it answers.", glyph: "effort", action: { type: "picker", picker: "effort" } });
   }
 
   if (context.fresh) {

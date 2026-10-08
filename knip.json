@@ -113,6 +113,10 @@
     "apps/web/src/features/remote/server/**": [
       "exports",
       "types"
+    ],
+    "apps/mobile/src/ui/**": [
+      "exports",
+      "types"
     ]
   }
 }

@@ -1,11 +1,12 @@
 import { NavigationContainer, type LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { Button, Linking, Settings } from "react-native";
+import { Button, Linking, Settings, useColorScheme } from "react-native";
 import { DiffScreen } from "./features/git";
 import { hosts, HostsScreen, PairScreen } from "./features/hosts";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
 import type { RootStack } from "./platform/navigation/routes";
+import { navigationTheme } from "./platform/navigation/theme";
 
 const Stack = createNativeStackNavigator<RootStack>();
 
@@ -18,8 +19,9 @@ async function initialUrl(): Promise<string | null | undefined> {
 const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId", Session: "session/:hostId/:sessionId", Diff: "diff/:hostId/:sessionId" } }, getInitialURL: initialUrl };
 
 export function App() {
+  const scheme = useColorScheme() === "dark" ? "dark" : "light";
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer linking={linking} theme={navigationTheme(scheme)}>
       <StatusBar style="auto" />
       <Stack.Navigator screenOptions={{ headerLargeTitle: true }}>
         <Stack.Screen name="Hosts" component={HostsScreen} options={{ title: "Telar" }} />

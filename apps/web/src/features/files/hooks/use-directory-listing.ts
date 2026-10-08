@@ -24,6 +24,10 @@ function remember(hostId: string | undefined, path: string): void {
   }
 }
 
+function typesDotfolder(field: string): boolean {
+  return /(^|\/)\.[^/]*$/.test(field);
+}
+
 export function useDirectoryListing({ list, hostId, startAt }: { list: DirectoryLister; hostId?: string | undefined; startAt?: string | undefined }) {
   const [target, setTarget] = useState<string | undefined>(() =>
     startAt ?? (typeof window === "undefined" ? undefined : remembered(hostId)),
@@ -39,17 +43,23 @@ export function useDirectoryListing({ list, hostId, startAt }: { list: Directory
   const [loading, setLoading] = useState(true);
   // Only a remembered folder falls back to home, once; a typed or opened one says why it failed.
   const fellBack = useRef(false);
+  const shown = useRef<string>(undefined);
+  const dotted = typesDotfolder(field);
+  const listHidden = hidden || dotted;
 
   // No synchronous setState here; whatever changes the target turns the spinner on.
   useEffect(() => {
     let live = true;
-    void list({ ...(target ? { path: target } : {}), ...(hidden ? { hidden: true } : {}), ...(nearest && target ? { nearest: true } : {}) })
+    void list({ ...(target ? { path: target } : {}), ...(listHidden ? { hidden: true } : {}), ...(nearest && target ? { nearest: true } : {}) })
       .then((answer) => {
         if (!live) return;
         if (answer.missing) setAside(`Nothing to open at ${answer.missing}, so this is the nearest folder that exists.`);
         setListing(answer);
-        setField(directoryField(answer.path, answer.home));
-        setIndex(0);
+        if (answer.path !== shown.current) {
+          setField(directoryField(answer.path, answer.home));
+          setIndex(0);
+        }
+        shown.current = answer.path;
         setError(undefined);
         setLoading(false);
         remember(hostId, answer.path);
@@ -72,7 +82,7 @@ export function useDirectoryListing({ list, hostId, startAt }: { list: Directory
     return () => {
       live = false;
     };
-  }, [list, target, hidden, nearest, hostId]);
+  }, [list, target, listHidden, nearest, hostId]);
 
   const open = (path: string) => {
     fellBack.current = true;
@@ -90,6 +100,7 @@ export function useDirectoryListing({ list, hostId, startAt }: { list: Directory
   };
 
   const editField = (next: string) => {
+    if (!hidden && typesDotfolder(next) !== dotted) setLoading(true);
     setField(next);
     setIndex(0);
     setError(undefined);

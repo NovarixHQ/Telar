@@ -1,5 +1,21 @@
+import { cpSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import type { ExpoConfig } from "expo/config";
+import { withDangerousMod, type ConfigPlugin } from "expo/config-plugins";
 import { appVariant } from "./config/variant.ts";
+
+// The provider marks and logo are asset-catalog images so SwiftUI can draw them by name.
+const withCatalogImages: ConfigPlugin = (config) =>
+  withDangerousMod(config, [
+    "ios",
+    (modConfig) => {
+      const { projectRoot, platformProjectRoot, projectName } = modConfig.modRequest;
+      const source = join(projectRoot, "assets/catalog");
+      const catalog = join(platformProjectRoot, projectName ?? "", "Images.xcassets");
+      for (const imageset of readdirSync(source)) cpSync(join(source, imageset), join(catalog, imageset), { recursive: true });
+      return modConfig;
+    },
+  ]);
 
 const variant = appVariant(process.env.APP_VARIANT);
 
@@ -36,4 +52,4 @@ const config: ExpoConfig = {
   ],
 };
 
-export default config;
+export default withCatalogImages(config);

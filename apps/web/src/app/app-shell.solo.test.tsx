@@ -130,6 +130,12 @@ describe("the rail, per route", () => {
     expect(rail()).not.toBeNull();
   });
 
+  test("the pairing page is drawn alone, so an unpaired browser polls nothing", async () => {
+    await show("/pair");
+    expect(rail()).toBeNull();
+    expect(host!.textContent).toBe("conversation");
+  });
+
   test("a surface in a window of its own skips it", async () => {
     await show("/surface/browser");
     expect(rail()).toBeNull();

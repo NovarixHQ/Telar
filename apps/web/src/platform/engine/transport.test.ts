@@ -43,6 +43,12 @@ describe("a browser the engine does not know", () => {
     expect(visited).toEqual(["/pair"]);
   });
 
+  test("on the pairing page itself it does not reload the page", async () => {
+    const visited = visit("/pair");
+    await createEngineApi(unpaired).projectGit("p1").catch(() => undefined);
+    expect(visited).toEqual([]);
+  });
+
   test("a refusal from another Mac stays an error on this page", async () => {
     const visited = visit("/hosts/mini/projects/p1");
     const refusal = await createEngineApi(unpaired).projectGit("p1").catch((error: unknown) => error);

@@ -122,7 +122,7 @@ async function send<T>(fetcher: Fetcher, method: string, pathname: string, body?
 }
 
 function askedThisCockpit(fetcher: Fetcher, pathname: string): boolean {
-  if (typeof window === "undefined" || pathname.startsWith("/api/hosts/")) return false;
+  if (typeof window === "undefined" || window.location.pathname === "/pair" || pathname.startsWith("/api/hosts/")) return false;
   return (pinnedHost(fetcher) ?? hostFromPathname(window.location.pathname)) === LOCAL_HOST_ID;
 }
 

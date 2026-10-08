@@ -95,7 +95,7 @@ export function PairClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const canType = state.phase === "idle" || state.phase === "failed";
+  const busy = state.phase === "pairing";
   const code = codeFromInput(typed);
   const looksNumeric = /^[\d\s-]*$/.test(typed);
 
@@ -106,26 +106,30 @@ export function PairClient() {
     <main className="app-ground flex min-h-dvh items-center justify-center bg-background text-foreground">
       <div className="flex w-full max-w-sm flex-col items-center gap-3 rounded-2xl border border-border/60 px-10 py-8">
         <div className="text-lg font-medium">Telar</div>
-        {state.phase === "pairing" && <p className="text-sm text-muted-foreground">Pairing this browser…</p>}
         {state.phase === "paired" && <p className="text-sm text-muted-foreground">Paired — opening the cockpit.</p>}
         {state.phase === "failed" && <p className="max-w-72 text-center text-sm text-destructive">{state.message}</p>}
+        {busy && <p className="text-sm text-muted-foreground">Pairing this browser…</p>}
         {state.phase === "idle" && (
           <p className="max-w-72 text-center text-sm text-muted-foreground">
             Enter the eight-digit code from Settings → Connections on the machine running Telar.
           </p>
         )}
-        {canType && (
+        {state.phase !== "paired" && (
           <form
             className="flex w-full flex-col gap-2"
             onSubmit={(event) => {
               event.preventDefault();
-              if (code) void pair(code);
+              if (code && !busy) void pair(code);
             }}
           >
             <Input
               autoFocus
               value={typed}
-              onChange={(event) => setTyped(formatTyped(event.target.value))}
+              onChange={(event) => {
+                setTyped(formatTyped(event.target.value));
+                if (state.phase === "failed") setState({ phase: "idle" });
+              }}
+              readOnly={busy}
               placeholder="0000 0000"
               aria-label="Pairing code"
               autoComplete="one-time-code"
@@ -133,8 +137,8 @@ export function PairClient() {
               spellCheck={false}
               className={looksNumeric ? "h-12 text-center font-mono text-2xl tracking-[0.25em] tabular-nums" : "font-mono text-xs"}
             />
-            <Button type="submit" size="sm" disabled={!code}>
-              Pair
+            <Button type="submit" size="sm" disabled={!code || busy}>
+              {busy ? "Pairing…" : "Pair"}
             </Button>
             <p className="text-center text-2xs text-muted-foreground">A whole pairing link pastes here too.</p>
           </form>

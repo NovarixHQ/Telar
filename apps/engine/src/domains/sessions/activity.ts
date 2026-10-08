@@ -18,7 +18,7 @@ import {
 import type { Kernel } from "../../platform/kernel";
 import { newestFirst, parseSession, sessionMetadataFile } from "./metadata";
 import { isResultTurn } from "./records";
-import { rowIsShelved } from "./session-index";
+import { rowIsShelved, settledShelfProject } from "./session-index";
 
 type ActivityDeps = {
   /** The live turns, the last ended and last answered, and the named runs. */
@@ -192,19 +192,22 @@ export class SessionActivity {
   }
 
   /** Which rows the rail would draw, decided from the index alone. */
-  shelf(inbox: InboxPolicy, all: boolean, keep?: string): { chosen: Set<string>; shelved: Set<string>; settledCount: number } {
+  shelf(inbox: InboxPolicy, all: boolean): { chosen: Set<string>; shelved: Set<string>; settledByProject: Record<string, number> } {
     const at = { now: this.kernel.now(), autoSettleAfterHours: inbox.autoSettleAfterHours };
     const chosen = new Set<string>();
     const shelved = new Set<string>();
+    const settledByProject: Record<string, number> = {};
     for (const row of this.kernel.executionStore.liveSessionRows()) {
-      if (row.id !== keep && rowIsShelved(row, at)) {
+      const project = settledShelfProject(row, at);
+      if (project !== undefined) settledByProject[project] = (settledByProject[project] ?? 0) + 1;
+      if (rowIsShelved(row, at)) {
         shelved.add(row.id);
         if (!all) continue;
       }
       chosen.add(row.id);
     }
     for (const id of this.shelved.keys()) if (!shelved.has(id)) this.shelved.delete(id);
-    return { chosen, shelved, settledCount: shelved.size };
+    return { chosen, shelved, settledByProject };
   }
 
   // Only when every open row is a recognised wait; a cold JSON session answers nothing rather than parse.

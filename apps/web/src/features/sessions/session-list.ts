@@ -8,10 +8,12 @@ import {
   type SessionAssignment,
   type SessionPreparation,
   type ProviderDriverKind,
+  railBand,
+  type RailBand,
   type SessionSettledBy,
   workspacePath,
 } from "@telar/engine-client";
-import { isShelved, isSnoozed, settlingActivityOf, type SettlingActivity, type SettlingOptions } from "./session-settling";
+import { settlingActivityOf, type SettlingActivity, type SettlingOptions } from "./session-settling";
 import { hostPrefix } from "@/platform/engine/host-client";
 
 export const SESSION_PAGE_SIZE = 20;
@@ -139,7 +141,7 @@ export function settledHint(session: Pick<SidebarSession, "settledBy" | "settled
     : "Settled after its delegated work was delivered";
 }
 
-export type SessionBand = "pinned" | "active" | "snoozed" | "settled";
+export type SessionBand = RailBand;
 
 export type SessionListInput = {
   sessions: readonly SidebarSession[];
@@ -187,10 +189,7 @@ const activeNewestFirst = (a: SidebarSession, b: SidebarSession) =>
   lastActivityAt(b) - lastActivityAt(a) || createdNewestFirst(a, b);
 
 export function bandOf(session: SidebarSession, options: SettlingOptions): SessionBand {
-  const activity = settlingActivity(session);
-  if (isSnoozed(session, activity, options)) return "snoozed";
-  if (session.settledOverride === "active") return "pinned";
-  return isShelved(session, activity, options) ? "settled" : "active";
+  return railBand(session, settlingActivity(session), options) ?? "active";
 }
 
 export function sessionKey(session: Pick<SidebarSession, "id" | "hostId">): string {

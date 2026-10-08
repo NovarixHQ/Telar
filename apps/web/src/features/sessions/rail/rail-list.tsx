@@ -281,7 +281,7 @@ export function RailShelves({
       />
       <SessionShelf
         label="Settled"
-        count={data.settledOpen ? list.settledCount : Math.max(list.settledCount, data.shelvedOnEngines)}
+        count={view.settledCount}
         rows={list.settled}
         open={data.settledOpen}
         onToggle={data.toggleSettled}

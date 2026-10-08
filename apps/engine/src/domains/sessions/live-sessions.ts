@@ -112,6 +112,7 @@ export class LiveSessions {
     inbox: InboxPolicy;
     revision: number;
     settledCount: number;
+    settledByProject: Record<string, number>;
     terminals: Record<string, number>;
   } {
     // Read first, so a write that lands mid-fold is reported by the next read rather than swallowed.
@@ -129,7 +130,8 @@ export class LiveSessions {
       assignments: { ...live.assignments, ...shelf.assignments },
       inbox,
       revision,
-      settledCount: indexed.settledCount,
+      settledCount: Object.values(indexed.settledByProject).reduce((total, count) => total + count, 0),
+      settledByProject: indexed.settledByProject,
       terminals: this.deps.terminalCounts(sessions.map((session) => session.id)),
     };
   }

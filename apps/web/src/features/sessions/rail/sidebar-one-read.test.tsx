@@ -95,7 +95,7 @@ describe("and that one read is conditional", () => {
   test("opening the Settled shelf reads the shelf beside the list", async () => {
     const requests = stubRail((request) => (request.search === "?all=1&shelf=1"
       ? { body: page({ sessions: [liveRow("done", { settledOverride: "settled" })] }) }
-      : { body: page({ revision: 7, settledCount: 1 }) }));
+      : { body: page({ revision: 7, settledByProject: { p1: 1 } }) }));
     const host = await mountRail();
     await click(shelfButton(host));
     expect(liveReads(requests).at(-1)!.search).toBe("?all=1&shelf=1");
@@ -106,7 +106,7 @@ describe("and that one read is conditional", () => {
   test("an open shelf is not read again while the list is unchanged", async () => {
     const requests = stubRail((request) => (request.search.includes("shelf")
       ? { etag: "shelf-1", body: page({ sessions: [liveRow("done", { settledOverride: "settled" })] }) }
-      : request.ifNoneMatch === "lean-1" ? { status: 304, etag: "lean-1" } : { etag: "lean-1", body: page({ settledCount: 1 }) }));
+      : request.ifNoneMatch === "lean-1" ? { status: 304, etag: "lean-1" } : { etag: "lean-1", body: page({ settledByProject: { p1: 1 } }) }));
     const host = await mountRail();
     await click(shelfButton(host));
     const before = liveReads(requests).length;

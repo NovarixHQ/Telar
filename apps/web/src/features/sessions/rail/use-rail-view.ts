@@ -42,6 +42,9 @@ export function useRailView(data: RailData, { query, activeSessionId, sessionLim
     settledLimit,
     order: layout.mode === "flat" ? "activity" : "created",
   });
+  let shelvedOnEngines = 0;
+  for (const [key, count] of data.shelvedOnEngines) if (projectsShown.size === 0 || projectsShown.has(key)) shelvedOnEngines += count;
+  const settledCount = data.settledOpen ? list.settledCount : Math.max(list.settledCount, shelvedOnEngines);
   const bandFor = (session: SidebarSession) =>
     bandOf(session, { now: data.renderedAt, autoSettleAfterHours: windowFor(session, autoSettleAfterHours, data.hostWindows) });
   const grouped =
@@ -76,6 +79,7 @@ export function useRailView(data: RailData, { query, activeSessionId, sessionLim
     projectsShown,
     layout,
     list,
+    settledCount,
     grouped,
     flatEntries,
     drawnGroups,

@@ -23,8 +23,8 @@ export type LiveSessionsPage = {
   inbox?: InboxPolicy;
   /** What to pass as `since` next time. */
   revision?: number;
-  /** How many settled rows the default answer left out; absent means it left none out. */
-  settledCount?: number;
+  /** The Settled shelf's rows by project id, "" for none; drafts and snoozed rows are not counted. */
+  settledByProject?: Record<string, number>;
   /** Open terminals per session in this answer, whoever opened them. */
   terminals?: Record<string, number>;
   unchanged?: false;

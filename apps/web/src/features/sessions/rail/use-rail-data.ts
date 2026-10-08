@@ -4,7 +4,7 @@ import { LOCAL_HOST_ID } from "@telar/engine-client";
 import { createEngineApi, type LiveSessionsPage } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
-import { PROJECTS_CHANGED_EVENT } from "@/features/projects";
+import { PROJECTS_CHANGED_EVENT, projectFilterKey } from "@/features/projects";
 import { dedupeAcrossHosts } from "../session-groups";
 import { sessionKey, toSidebarSession, type SidebarSession } from "../session-list";
 import { applyRowChange, type SessionRowChange } from "../session-mutations";
@@ -22,7 +22,7 @@ type HostPage = {
   daemonId?: string;
   policy?: InboxPolicy;
   layout?: SidebarLayout;
-  settledCount?: number;
+  settledByProject?: Record<string, number>;
 };
 
 type HostCache = {
@@ -98,8 +98,22 @@ function toHostPage(result: LiveSessionsPage, host: { id: string; name: string }
     ...(daemonId ? { daemonId } : {}),
     ...(policy ? { policy } : {}),
     ...(result.layout ? { layout: result.layout } : {}),
-    ...(result.settledCount === undefined ? {} : { settledCount: result.settledCount }),
+    ...(result.settledByProject ? { settledByProject: result.settledByProject } : {}),
   };
+}
+
+function settledByFilterKey(reads: readonly { daemonId?: string; hostId?: string; settledByProject?: Record<string, number> }[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  const engines = new Set<string>();
+  for (const read of reads) {
+    if (read.daemonId && engines.has(read.daemonId)) continue;
+    if (read.daemonId) engines.add(read.daemonId);
+    for (const [projectId, count] of Object.entries(read.settledByProject ?? {})) {
+      const key = projectFilterKey(projectId, read.hostId);
+      counts.set(key, (counts.get(key) ?? 0) + count);
+    }
+  }
+  return counts;
 }
 
 function withShelf(rows: readonly SidebarSession[], shelf: readonly SidebarSession[]): SidebarSession[] {
@@ -139,7 +153,7 @@ export function useRailData() {
   const [loaded, setLoaded] = useState(false);
   const [settledOpen, setSettledOpen] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
-  const [shelvedOnEngines, setShelvedOnEngines] = useState(0);
+  const [shelvedOnEngines, setShelvedOnEngines] = useState<ReadonlyMap<string, number>>(() => new Map());
   const [hosts, setHosts] = useState<PublicHost[]>([]);
   const [unreachable, setUnreachable] = useState<Set<string>>(() => new Set());
   const [remoteProjects, setRemoteProjects] = useState<RemoteProject[]>([]);
@@ -171,7 +185,7 @@ export function useRailData() {
     setProjects(local.value.projects);
     observeSidebarLayout(local.value.layout);
     const away = new Set<string>();
-    const reads: { daemonId?: string; sessions: SidebarSession[]; settledCount?: number }[] = [local.value];
+    const reads: (HostPage & { hostId?: string })[] = [local.value];
     const remoteProjects: RemoteProject[] = [];
     const windows = new Map<string, number | null>();
     if (local.value.policy) windows.set(LOCAL_HOST_ID, local.value.policy.autoSettleAfterHours);
@@ -180,7 +194,7 @@ export function useRailData() {
       const host = book[index]!;
       if (page.status === "fulfilled") {
         next = rememberRows(next, host.id, page.value.sessions);
-        reads.push(page.value);
+        reads.push({ ...page.value, hostId: host.id });
         if (page.value.policy) windows.set(host.id, page.value.policy.autoSettleAfterHours);
         if (!page.value.daemonId || page.value.daemonId !== local.value.daemonId) {
           remoteProjects.push(...page.value.projects.map((project) => ({ ...project, hostId: host.id, hostName: host.name })));
@@ -199,7 +213,7 @@ export function useRailData() {
     }
     setStaleByHost(remembered);
     setUnreachable(away);
-    setShelvedOnEngines(reads.reduce((total, read) => total + (read.settledCount ?? 0), 0));
+    setShelvedOnEngines(settledByFilterKey(reads));
     setSessions(dedupeAcrossHosts(reads));
     setRenderedAt(Date.now());
     setLoaded(true);

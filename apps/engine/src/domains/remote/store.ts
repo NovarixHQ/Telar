@@ -5,7 +5,9 @@ import type { DeviceIdentity, DevicePlatform, DeviceRole, ExposureMode, PairingR
 
 export class RemoteStoreError extends Error {}
 
-export type PairedDevice = RemoteDevice & { tokenHash: string };
+export type PairedDevice = RemoteDevice & { tokenHash: string; clientId?: string };
+
+type NewDevice = { platform?: DevicePlatform; role?: DeviceRole; identity?: DeviceIdentity; clientId?: string };
 
 interface PendingPairing {
   tokenHash: string;
@@ -69,6 +71,11 @@ export function matchDevice(file: RemoteFile, raw: string): PairedDevice | undef
 
 const cleanName = (name: string): string => name.trim().slice(0, NAME_MAX) || "Unnamed device";
 
+function samePairedDevice(device: PairedDevice, name: string, options: NewDevice): boolean {
+  if (device.clientId && options.clientId) return device.clientId === options.clientId;
+  return device.name === name && device.platform === options.platform && device.identity?.address === options.identity?.address;
+}
+
 function createRemoteStoreContext(dir: string) {
   const file = path.join(dir, "remote.json");
   function read(): RemoteFile {
@@ -111,8 +118,8 @@ export function createRemoteStore(dir: string) {
 function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
   const { read, write, update, find } = h;
   return {
-    addDevice(name: string, raw: string, options: { platform?: DevicePlatform; role?: DeviceRole; identity?: DeviceIdentity } = {}): PairedDevice {
-      const device: PairedDevice = {
+    addDevice(name: string, raw: string, options: NewDevice = {}): PairedDevice {
+      const fresh: PairedDevice = {
         id: "dev_" + crypto.randomBytes(6).toString("hex"),
         name: cleanName(name),
         tokenHash: hashToken(raw),
@@ -120,9 +127,18 @@ function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
         role: options.role ?? "full",
         ...(options.platform ? { platform: options.platform } : {}),
         ...(options.identity ? { identity: options.identity } : {}),
+        ...(options.clientId ? { clientId: options.clientId } : {}),
       };
-      update((current) => current.devices.push(device));
-      return device;
+      return update((current) => {
+        const earlier = current.devices.find((device) => samePairedDevice(device, fresh.name, options));
+        if (!earlier) {
+          current.devices.push(fresh);
+          return fresh;
+        }
+        const device: PairedDevice = { ...fresh, id: earlier.id, role: options.role ?? earlier.role };
+        current.devices = current.devices.map((each) => (each === earlier ? device : each));
+        return device;
+      });
     },
     renameDevice(id: string, name: string): PairedDevice | undefined {
       const current = read();

@@ -121,6 +121,16 @@ describe("pairing routes", () => {
     expect(((await replay.json()) as { error: { code: string } }).error.code).toBe("cockpit_unauthorized");
   });
 
+  test("a browser that pairs again keeps one entry", async () => {
+    await freshHome();
+    const first = (await (await pairPost(pairRequest(await mintToken(), {}, { clientId: "browser-1" }))).json()) as { deviceId: string };
+    const again = (await (await pairPost(pairRequest(await mintToken(), {}, { clientId: "browser-1" }))).json()) as { deviceId: string };
+    await pairPost(pairRequest(await mintToken(), {}, { clientId: "browser-2" }));
+    const status = (await (await remoteGet(statusRequest())).json()) as { devices: { id: string }[] };
+    expect(again.deviceId).toBe(first.deviceId);
+    expect(status.devices).toHaveLength(2);
+  });
+
   test("the status body never carries token material", async () => {
     await freshHome();
     await mintToken();
@@ -183,8 +193,8 @@ describe("pairing routes", () => {
   test("DELETE /api/remote/devices keeps the caller and revokes the rest", async () => {
     await freshHome();
     const keeper = (await (await pairPost(pairRequest(await mintToken()))).json()) as { deviceToken: string; deviceId: string };
-    await pairPost(pairRequest(await mintToken()));
-    await pairPost(pairRequest(await mintToken()));
+    await pairPost(pairRequest(await mintToken(), {}, { deviceName: "Old phone" }));
+    await pairPost(pairRequest(await mintToken(), {}, { deviceName: "Laptop" }));
     const anonymous = await devicesDeleteOthers(new Request("http://x/api/remote/devices", { method: "DELETE" }));
     expect(anonymous.status).toBe(401);
     const response = await devicesDeleteOthers(

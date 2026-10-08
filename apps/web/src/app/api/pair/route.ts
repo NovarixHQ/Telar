@@ -4,7 +4,7 @@ import { engineCall, engineRoute, invalidRequest } from "@/platform/engine/serve
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type PairBody = { token?: unknown; deviceName?: unknown; platform?: unknown; kind?: unknown; client?: unknown; machine?: unknown; os?: unknown };
+type PairBody = { token?: unknown; clientId?: unknown; deviceName?: unknown; platform?: unknown; kind?: unknown; client?: unknown; machine?: unknown; os?: unknown };
 
 export const POST = engineRoute(async (request: Request) => {
   let body: PairBody;
@@ -26,6 +26,7 @@ export const POST = engineRoute(async (request: Request) => {
     code: typeof body.token === "string" ? body.token : "",
     name: describeDevice(identity, typeof body.deviceName === "string" ? body.deviceName : undefined),
     identity,
+    ...(typeof body.clientId === "string" ? { clientId: body.clientId } : {}),
     ...(platform ? { platform } : {}),
   });
   if (answer.status !== 200) return Response.json(answer.body, { status: answer.status, headers: { "cache-control": "no-store" } });

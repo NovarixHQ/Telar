@@ -8,7 +8,7 @@ import { machineSettingsPatch } from "../sections";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { usePoll } from "@/ui/hooks/use-poll";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row } from "@/features/settings";
 
 const api = createEngineApi();
 
@@ -25,7 +25,7 @@ type Choice = { kind: "tectonic" | "texlive" | "managed"; path?: string };
 const sameChoice = (a: Choice | undefined, b: Choice): boolean =>
   a?.kind === b.kind && (b.kind === "managed" || a?.path === b.path);
 
-export function LatexDistributionSettings({
+export function LatexDistributionRows({
   machine,
   onChange,
 }: {
@@ -103,46 +103,47 @@ export function LatexDistributionSettings({
 
   return (
     <>
-      <SettingsGroup
-        title="TeX distribution"
-        description="What this computer compiles with when a project has not chosen its own."
-      >
-        {managed && (
-          <ManagedTectonicRow
-            managed={managed}
-            selected={sameChoice(chosen, { kind: "managed" })}
-            busy={busy}
-            onChoose={(selected) => choose({ kind: "managed" }, selected)}
-            onInstall={() => void install()}
-          />
-        )}
+      <Row
+        keywords={["latex", "tex", "tex live", "tectonic", "distribution", "compiler"]}
+        id="plugins-latex-distribution"
+        label="TeX distribution"
+        hint="What this computer compiles with when a project has not chosen its own."
+      />
+      {managed && (
+        <ManagedTectonicRow
+          managed={managed}
+          selected={sameChoice(chosen, { kind: "managed" })}
+          busy={busy}
+          onChoose={(selected) => choose({ kind: "managed" }, selected)}
+          onInstall={() => void install()}
+        />
+      )}
 
-        {found.length === 0 && (
+      {found.length === 0 && (
+        <Row
+          label="No other TeX install found"
+          hint="Telar's own Tectonic above needs nothing installed; TeX Live and a system Tectonic are found here when they are present."
+          control={<Badge variant="outline">None</Badge>}
+        />
+      )}
+
+      {found.map((choice) => {
+        const selected = sameChoice(chosen, choice);
+        return (
           <Row
-            label="No other TeX install found"
-            hint="Telar's own Tectonic above needs nothing installed; TeX Live and a system Tectonic are found here when they are present."
-            control={<Badge variant="outline">None</Badge>}
+            key={`${choice.kind}:${choice.path}`}
+            label={choice.kind === "tectonic" ? "Tectonic" : "TeX Live"}
+            hint={choice.path}
+            control={
+              <Button variant={selected ? "secondary" : "outline"} size="sm" disabled={busy} onClick={() => choose(choice, selected)}>
+                {selected ? "Default" : "Use"}
+              </Button>
+            }
           />
-        )}
+        );
+      })}
 
-        {found.map((choice) => {
-          const selected = sameChoice(chosen, choice);
-          return (
-            <Row
-              key={`${choice.kind}:${choice.path}`}
-              label={choice.kind === "tectonic" ? "Tectonic" : "TeX Live"}
-              hint={choice.path}
-              control={
-                <Button variant={selected ? "secondary" : "outline"} size="sm" disabled={busy} onClick={() => choose(choice, selected)}>
-                  {selected ? "Default" : "Use"}
-                </Button>
-              }
-            />
-          );
-        })}
-
-        {error && <Row label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />}
-      </SettingsGroup>
+      {error && <Row label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />}
     </>
   );
 }

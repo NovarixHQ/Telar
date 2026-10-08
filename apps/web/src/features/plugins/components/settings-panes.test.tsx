@@ -16,20 +16,20 @@ const { machineBlocksFor, projectPaneFor, SETTINGS_PANES } = await import("./set
 const { DataScienceSection } = await import("../data-science/data-science-section");
 const { DataSciencePackagesRow } = await import("../data-science/machine-settings");
 const { LatexSection } = await import("../latex/latex-section");
-const { LatexDistributionSettings } = await import("../latex/machine-settings");
+const { LatexDistributionRows } = await import("../latex/machine-settings");
 
 test("the two shipped features keep only what the generated pane cannot draw", () => {
   expect(projectPaneFor("data-science")).toBe(DataScienceSection);
   // The Mac scope is generated; each adds the one block its schema cannot express.
-  expect(machineBlocksFor("data-science")).toEqual({ machineRows: DataSciencePackagesRow });
+  expect(machineBlocksFor("data-science").machineRows).toBe(DataSciencePackagesRow);
   expect(projectPaneFor("latex")).toBe(LatexSection);
-  expect(machineBlocksFor("latex")).toEqual({ machineGroups: LatexDistributionSettings });
+  expect(machineBlocksFor("latex").machineRows).toBe(LatexDistributionRows);
   // Losing an id here would silently replace a working editor with a checkbox.
   expect(Object.keys(SETTINGS_PANES).sort()).toEqual(["data-science", "latex"]);
 });
 
 test("a plugin with no entry resolves to none — including an inherited key", () => {
   expect(projectPaneFor("hello")).toBeUndefined();
-  expect(machineBlocksFor("hello")).toEqual({});
+  expect(machineBlocksFor("hello").machineRows).toBeUndefined();
   expect(projectPaneFor("constructor")).toBeUndefined();
 });

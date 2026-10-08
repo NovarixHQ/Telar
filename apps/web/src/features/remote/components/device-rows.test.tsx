@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { RemoteDevice } from "@telar/engine-client";
-import { RemoteDevicesGroup } from "./remote-devices-group";
+import { DeviceRows } from "./device-rows";
 
 const HOUR = 60 * 60 * 1000;
 
 function rows(devices: RemoteDevice[]): string[] {
   const html = renderToStaticMarkup(
-    <RemoteDevicesGroup
+    <DeviceRows
       status={{ requireAuth: true, exposure: "local-only", tailscaleServe: false, devices, endpoints: [] }}
       busy={false}
       onRename={() => undefined}
@@ -37,7 +37,7 @@ test("a connected device says so, and a quiet one shows when it was last seen", 
 
 test("each device is a settings row, not a table", () => {
   const html = renderToStaticMarkup(
-    <RemoteDevicesGroup
+    <DeviceRows
       status={{ requireAuth: true, exposure: "local-only", tailscaleServe: false, devices: [{ id: "dev_1", name: "Phone", createdAt: 1, role: "full" }], endpoints: [] }}
       busy={false}
       onRename={() => undefined}
@@ -52,7 +52,7 @@ test("each device is a settings row, not a table", () => {
 
 test("only the app running the server is this device", () => {
   const html = renderToStaticMarkup(
-    <RemoteDevicesGroup
+    <DeviceRows
       status={{
         requireAuth: true,
         exposure: "local-only",
@@ -69,7 +69,7 @@ test("only the app running the server is this device", () => {
     />,
   );
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-  expect(text).toContain("This device · Telar on mini");
+  expect(text).toContain("Telar on mini This device");
   expect(text.match(/This device/g)).toHaveLength(1);
   expect(text).toContain("Chrome on mini browser ·");
 });
@@ -82,4 +82,18 @@ test("the iOS app reads as its own name and as an iPhone or an iPad", () => {
   ]);
   expect(phone).toContain("> Telar iPhone iPhone ·");
   expect(pad).toContain("> Studio iPad ·");
+});
+
+test("with pairing off, the list says the credentials wait for it", () => {
+  const html = renderToStaticMarkup(
+    <DeviceRows
+      status={{ requireAuth: false, exposure: "local-only", tailscaleServe: false, devices: [], endpoints: [] }}
+      busy={false}
+      onRename={() => undefined}
+      onRole={() => undefined}
+      onRevoke={() => undefined}
+    />,
+  );
+  expect(html).toContain("Pairing is off");
+  expect(html).toContain("None yet");
 });

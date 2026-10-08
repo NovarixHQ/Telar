@@ -18,7 +18,7 @@ function VersionRow({ appVersion }: { appVersion?: string }) {
   return <Row keywords={["about", "this build"]} label="Version" control={<Mono>{appVersion ?? "—"}</Mono>} />;
 }
 
-export function AboutSection({ appVersion }: { appVersion?: string }) {
+export function AboutSection({ appVersion, children }: { appVersion?: string; children?: ReactNode }) {
   const { supported: isDesktop, status, action, label, busy, failure, act, restart } = useDesktopUpdate();
   const [prefs, setPrefs] = useState<UpdatePrefsInfo | null>(null);
 
@@ -39,6 +39,7 @@ export function AboutSection({ appVersion }: { appVersion?: string }) {
       <SettingsGroup title="About">
         <VersionRow {...(appVersion ? { appVersion } : {})} />
         <Row label="Desktop app only" hint="Only the desktop app updates itself." />
+        {children}
       </SettingsGroup>
     );
   }
@@ -77,6 +78,7 @@ export function AboutSection({ appVersion }: { appVersion?: string }) {
           label="No update feed in this build"
           hint="It was packaged locally, so it never checks for or installs updates."
         />
+        {children}
       </SettingsGroup>
     );
   }
@@ -110,6 +112,7 @@ export function AboutSection({ appVersion }: { appVersion?: string }) {
           </Select>
         }
       />
+      {children}
     </SettingsGroup>
   );
 }

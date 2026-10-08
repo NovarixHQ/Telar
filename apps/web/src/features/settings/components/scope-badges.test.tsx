@@ -1,12 +1,10 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentType } from "react";
-import { BrowserLoginsSection } from "@/features/browser/panes/browser-logins-section";
-import { BrowserProfilesSection } from "@/features/browser/panes/browser-profiles-section";
-import { DictationMicrophoneSection } from "@/features/dictation/components/dictation-microphone-section";
-import { DictationSection } from "@/features/dictation/components/dictation-section";
-import { OrganizationSection } from "@/features/sessions/components/organization-section";
-import { LinksSection } from "./links-section";
+import { BrowserGroup } from "@/features/browser/panes/browser-group";
+import { LinksRow } from "@/features/browser/panes/links-row";
+import { DictationMicrophoneRows } from "@/features/dictation/components/dictation-microphone-section";
+import { RailSection } from "@/features/sessions/components/rail-section";
 import { SECTIONS } from "../settings-sections";
 import { Row, SettingsGroup, ToggleRow } from "./settings-shell";
 import { TextGenSection } from "@/features/providers/components/textgen-section";
@@ -47,11 +45,15 @@ test("only panes kept somewhere other than this computer name their scope in the
 
 test("the mixed panes mark each group by where it is stored", () => {
   const scopes = (Section: ComponentType) => [...new Set([...renderToStaticMarkup(<Section />).matchAll(/data-scope="(\w+)"/g)].map((match) => match[1]))];
-  expect(scopes(LinksSection)).toEqual(["browser"]);
-  expect(scopes(DictationMicrophoneSection)).toEqual(["browser"]);
   // Off the address bar's host this reads "host"; the local engine is this Mac.
-  expect(scopes(OrganizationSection)).toEqual(["mac"]);
-  for (const Section of [WorkspaceSection, TextGenSection, DictationSection, BrowserLoginsSection, BrowserProfilesSection]) {
+  expect(scopes(RailSection)).toEqual(["mac"]);
+  for (const Section of [WorkspaceSection, TextGenSection, BrowserGroup]) {
     expect(scopes(Section)).toEqual(["mac"]);
+  }
+});
+
+test("a row kept in this browser inside a this-computer group says so behind its ⓘ", () => {
+  for (const Rows of [LinksRow, DictationMicrophoneRows]) {
+    expect(renderToStaticMarkup(<Rows />)).toContain('data-info="Kept in this browser only.');
   }
 });

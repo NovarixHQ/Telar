@@ -22,7 +22,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { WorktreeInventory, WorktreeRow } from "@telar/engine-client";
-import { armedRows, confirmSentence, ownerLabel, reclaimPayload, visibleRows, WorktreeListSection } from "./worktree-list-section";
+import { armedRows, confirmSentence, ownerLabel, reclaimPayload, visibleRows, WorktreeList } from "./worktree-list";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -71,7 +71,7 @@ async function mount() {
   document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(<WorktreeListSection />);
+    root.render(<WorktreeList />);
     await settle();
   });
   await act(async () => {
@@ -89,7 +89,7 @@ async function mount() {
   };
 }
 
-describe("Settings ▸ Storage ▸ Checkouts", () => {
+describe("Settings ▸ Storage ▸ all worktrees", () => {
   test("a reclaimable row starts checked, because Telar already did the proof", async () => {
     inventory.rows = [row({ basename: "telar--done-1111", merged: true, clean: true, bytes: 1024 ** 3 })];
     const view = await mount();
@@ -307,7 +307,7 @@ test("closing the pane aborts a checkouts read the engine has not answered", asy
     document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => {
-      root.render(<WorktreeListSection />);
+      root.render(<WorktreeList />);
     });
     await act(async () => {
       for (const run of queued.splice(0)) run();

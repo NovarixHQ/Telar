@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { LayersIcon } from "lucide-react";
 import {
   DEFAULT_DETACHED_RUNTIME_MODE,
@@ -13,7 +14,7 @@ import { projectDraftModel, RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODE
 import { ModelChoiceControl } from "@/features/composer";
 import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 
-export function WorkspaceSection() {
+export function WorkspaceSection({ children }: { children?: ReactNode }) {
   const { defaults, loading, save, error } = useSessionDefaults();
   useRestoreDefaults(() => save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode, runtimeMode: null, defaultModel: null }));
   const access = defaults.runtimeMode ?? DEFAULT_DETACHED_RUNTIME_MODE;
@@ -84,6 +85,7 @@ export function WorkspaceSection() {
           )
         }
       />
+      {children}
     </SettingsGroup>
   );
 }

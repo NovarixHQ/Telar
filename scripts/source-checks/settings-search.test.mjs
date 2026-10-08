@@ -6,11 +6,11 @@ const group = (page, title) => pages.find((entry) => entry.id === page)?.groups.
 
 test("a row is indexed on the pane and under the group that render it", () => {
   expect(group("notifications", "Alerts")?.rows.map((row) => row.title)).toContain("Notify on");
-  expect(group("storage", "Terminals")?.rows.map((row) => row.title)).toEqual(["Terminals settled sessions may keep open"]);
+  expect(group("general", "Rail")?.rows.map((row) => row.title)).toContain("Terminals settled sessions may keep open");
 });
 
 test("rows a component draws inside its own group's children take that group", () => {
-  expect(group("connections", "Devices that reach this Mac")?.rows.map((row) => row.title)).toEqual(["Pair a device", "Revoke all other devices"]);
+  expect(group("connections", "Paired")?.rows.map((row) => row.title)).toEqual(["Pair a device", "Revoke all other devices", "Add a computer"]);
 });
 
 test("rows built from a list and plugin panes are found, and state rows are not", () => {

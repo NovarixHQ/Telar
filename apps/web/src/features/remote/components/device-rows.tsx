@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { TerminalIcon, ServerIcon, GlobeIcon, CircleHelpIcon, MonitorIcon, SmartphoneIcon, XIcon } from "lucide-react";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { fmtAgo } from "@/ui/format";
-import { Dropdown, Row, SettingsGroup, SettingsList } from "@/features/settings";
+import { Dropdown, Row, SettingsList } from "@/features/settings";
 import type { RemoteDevice } from "@telar/engine-client";
 import type { RemoteStatus } from "../api";
 
@@ -137,30 +137,23 @@ function DeviceRow({ device, busy, onRename, onRole, onRevoke }: { device: Remot
   );
 }
 
-export function RemoteDevicesGroup({ status, children, ...actions }: { status: RemoteStatus; children?: ReactNode } & DeviceActions) {
+export function DeviceRows({ status, ...actions }: { status: RemoteStatus } & DeviceActions) {
   return (
-    <SettingsGroup
-      title="Devices that reach this Mac"
-      description={
-        status.requireAuth ? "Devices that may reach this cockpit." : "Pairing is off — these credentials only matter again when you turn it back on."
-      }
-      {...(status.host
-        ? {
-            action: (
-              <Badge variant="outline" title="Runs the server — always connected, nothing to revoke">
-                {status.host.isCaller ? "This device" : "Host"} · {status.host.name}
-              </Badge>
-            ),
-          }
-        : {})}
-    >
+    <>
+      {!status.requireAuth && <Row label="Pairing is off" hint="These credentials only matter again when you turn pairing back on." />}
+      {status.host && (
+        <Row
+          label={status.host.name}
+          status={<Badge variant="outline">{status.host.isCaller ? "This device" : "Host"}</Badge>}
+          hint="Runs the server, so it is always connected and has nothing to revoke."
+        />
+      )}
       {status.devices.length === 0 ? (
         <Row label="None yet" hint="Devices appear here as they pair." control={null} />
       ) : (
         <SettingsList label="Paired devices">{status.devices.map((device) => <DeviceRow key={device.id} device={device} {...actions} />)}</SettingsList>
       )}
-      {children}
-    </SettingsGroup>
+    </>
   );
 }
 

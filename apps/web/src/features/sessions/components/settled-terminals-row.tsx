@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DEFAULT_SETTLED_TERMINAL_LIMIT, MAX_SETTLED_TERMINAL_LIMIT } from "@telar/engine-client";
 import { Input } from "@/ui/input";
-import { Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
+import { Row, useRestoreDefaults } from "@/features/settings";
 import { useInboxPolicy } from "../inbox-policy";
 
 function CountInput({ value, onCommit, label }: { value: number; onCommit: (value: number) => void; label: string }) {
@@ -31,29 +31,27 @@ function CountInput({ value, onCommit, label }: { value: number; onCommit: (valu
   );
 }
 
-export function SettledTerminalsSection() {
+export function SettledTerminalsRow() {
   const { policy, save, error } = useInboxPolicy();
   const terminalLimit = policy.settledTerminalLimit ?? DEFAULT_SETTLED_TERMINAL_LIMIT;
   useRestoreDefaults(() => save({ settledTerminalLimit: DEFAULT_SETTLED_TERMINAL_LIMIT }));
 
   return (
-    <SettingsGroup title="Terminals">
-      <Row
-        keywords={["terminal", "process", "dev server", "shell", "limit", "cap", "running", "settled"]}
-        label="Terminals settled sessions may keep open"
-        info="Counted across every project on this computer, shells you opened included. Past it, the session settled longest ago has its terminals closed first, and its row says so. Settling one yourself closes its terminals at once; one settled automatically keeps them for 30 minutes."
-        {...(error ? { error } : {})}
-        {...(terminalLimit === DEFAULT_SETTLED_TERMINAL_LIMIT
-          ? {}
-          : { onRevert: () => void save({ settledTerminalLimit: DEFAULT_SETTLED_TERMINAL_LIMIT }) })}
-        control={
-          <CountInput
-            value={terminalLimit}
-            label="How many terminals settled sessions may keep open"
-            onCommit={(next) => void save({ settledTerminalLimit: next })}
-          />
-        }
-      />
-    </SettingsGroup>
+    <Row
+      keywords={["terminal", "process", "dev server", "shell", "limit", "cap", "running", "settled"]}
+      label="Terminals settled sessions may keep open"
+      info="Counted across every project on this computer, shells you opened included. Past it, the session settled longest ago has its terminals closed first, and its row says so. Settling one yourself closes its terminals at once; one settled automatically keeps them for 30 minutes."
+      {...(error ? { error } : {})}
+      {...(terminalLimit === DEFAULT_SETTLED_TERMINAL_LIMIT
+        ? {}
+        : { onRevert: () => void save({ settledTerminalLimit: DEFAULT_SETTLED_TERMINAL_LIMIT }) })}
+      control={
+        <CountInput
+          value={terminalLimit}
+          label="How many terminals settled sessions may keep open"
+          onCommit={(next) => void save({ settledTerminalLimit: next })}
+        />
+      }
+    />
   );
 }

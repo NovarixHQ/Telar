@@ -4,7 +4,7 @@ import { DEFAULT_CLEANUP_POLICY } from "@telar/engine-client";
 import { PushNotificationsGroup } from "@/features/push";
 import { CleanupSection } from "@/features/worktrees/components/cleanup-section";
 import { buttonLabelled, click, flush, installTestDom, mount, stubFetch } from "@/test/dom";
-import { ExperimentalSection } from "./experimental-section";
+import { ExperimentalRows } from "./experimental-rows";
 import { SettingsShell } from "./settings-shell";
 
 installTestDom();
@@ -34,7 +34,7 @@ test("Restore defaults turns every trial off", async () => {
   window.localStorage.setItem("telar:experiment:tabs", "on");
   const { host } = await mount(
     <SettingsShell title="Settings" sections={[{ id: "general", label: "General", icon: BellIcon }]} active="general" onSelect={() => {}}>
-      <ExperimentalSection experiments={[{ id: "tabs", label: "Tabs", hint: "Tabs.", decideBy: "2099-01-01" }]} />
+      <ExperimentalRows experiments={[{ id: "tabs", label: "Tabs", hint: "Tabs.", decideBy: "2099-01-01" }]} />
     </SettingsShell>,
   );
   await click(buttonLabelled("Restore defaults", host));

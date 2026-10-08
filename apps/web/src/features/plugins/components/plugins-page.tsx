@@ -11,7 +11,7 @@ import { Switch } from "@/ui/switch";
 import { machineBlocksFor } from "./settings-panes";
 import { GeneratedSettingsRows, pluginIcon } from "./generated-settings";
 import { NothingToConfigure } from "./plugin-settings";
-import { generatedGroupTitle, settingsFields } from "../settings-form";
+import { settingsFields } from "../settings-form";
 import { machineSettingsPatch } from "../sections";
 import { MasterDetail, Row, SettingsGroup, type MasterDetailItem } from "@/features/settings";
 
@@ -32,25 +32,21 @@ function MachinePluginSettings({
   machine: ProjectPlugins | undefined;
   onMachine: (machine: ProjectPlugins) => void;
 }) {
-  const { machineGroups: Groups, machineRows: Rows } = machineBlocksFor(status.meta.id);
+  const { machineRows: Rows } = machineBlocksFor(status.meta.id);
   const fields = settingsFields(status.machineSettingsSchema);
   const section = status.meta.settings.find((entry) => entry.scope === "machine");
+  if (fields.length === 0 && !Rows) return null;
   return (
-    <>
-      {Groups && <Groups machine={machine} onChange={onMachine} />}
-      {(fields.length > 0 || Rows) && (
-        <SettingsGroup title={generatedGroupTitle(status, "machine")} {...(section?.blurb ? { description: section.blurb } : {})}>
-          <GeneratedSettingsRows
-            fields={fields}
-            values={machine?.entries[status.meta.id]?.settings ?? {}}
-            onWrite={async (settings) => {
-              onMachine((await api.updateMachinePlugins(machineSettingsPatch(machine, status.meta.id, settings))).machine);
-            }}
-          />
-          {Rows && <Rows machine={machine} onChange={onMachine} />}
-        </SettingsGroup>
-      )}
-    </>
+    <SettingsGroup title="Plugin defaults" {...(section?.blurb ? { description: section.blurb } : {})}>
+      <GeneratedSettingsRows
+        fields={fields}
+        values={machine?.entries[status.meta.id]?.settings ?? {}}
+        onWrite={async (settings) => {
+          onMachine((await api.updateMachinePlugins(machineSettingsPatch(machine, status.meta.id, settings))).machine);
+        }}
+      />
+      {Rows && <Rows machine={machine} onChange={onMachine} />}
+    </SettingsGroup>
   );
 }
 

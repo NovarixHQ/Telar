@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type C
 import Link from "next/link";
 import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, Undo2Icon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
+import { BreadcrumbSeparator, MainBreadcrumb, MainHeader } from "@/ui/main-header";
 import { cn } from "@/ui/utils";
 import { settingsGroupId, settingsRowId, type SettingsSearchEntry, type SettingsSearchIndex } from "../search";
 import { SettingsSearchNav } from "./settings-search-nav";
@@ -106,13 +107,11 @@ function SettingsPaneHeader({
   restorers: ReadonlyArray<() => void | Promise<void>>;
 }) {
   return (
-    <header className="app-drag app-ground sticky top-0 z-10 flex h-[var(--titlebar-height)] shrink-0 items-center gap-2.5 border-b border-border bg-background/65 px-5 text-foreground backdrop-blur md:h-[var(--titlebar-band-height)]">
-      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
-        <span className="shrink-0 text-sm text-muted-foreground">{title}</span>
-        <span aria-hidden className="shrink-0 text-sm text-muted-foreground/50">
-          /
-        </span>
-        <h3 aria-current="page" className="truncate font-heading text-sm font-semibold tracking-tight">
+    <MainHeader leftmost={false}>
+      <MainBreadcrumb>
+        <span className="shrink-0 text-muted-foreground">{title}</span>
+        <BreadcrumbSeparator />
+        <h3 aria-current="page" className="truncate font-semibold">
           {section.label}
         </h3>
         {section.scope && (
@@ -120,7 +119,7 @@ function SettingsPaneHeader({
             <ScopeBadge scope={section.scope} />
           </span>
         )}
-      </nav>
+      </MainBreadcrumb>
       <div className="app-no-drag ml-auto flex items-center gap-2">
         {headerActions}
         {restorers.length > 0 && (
@@ -137,7 +136,7 @@ function SettingsPaneHeader({
           </Button>
         )}
       </div>
-    </header>
+    </MainHeader>
   );
 }
 
@@ -187,12 +186,12 @@ export function SettingsShell({
       <nav
         className={cn(
           "flex w-[var(--settings-nav-width)] shrink-0 flex-col gap-4 overflow-x-hidden overflow-y-auto border-r border-border bg-sidebar p-3",
-          "md:w-[calc(var(--settings-nav-width)-1rem)] md:rounded-xl md:border-r-0 md:shadow-1 md:ring-1 md:ring-sidebar-border",
+          "md:w-[calc(var(--settings-nav-width)-1rem)] md:rounded-lg md:border-r-0 md:shadow-1 md:ring-1 md:ring-sidebar-border",
         )}
       >
         <div
           className={cn(
-            "app-drag -m-3 mb-0 flex h-[var(--titlebar-height)] shrink-0 items-center border-b border-sidebar-border/60 px-3",
+            "app-drag -m-3 mb-0 flex h-[var(--titlebar-height)] shrink-0 items-center px-3",
             "pl-[max(12px,calc(var(--titlebar-inset)+4px))]",
             "md:h-[var(--titlebar-band-height)]",
           )}

@@ -12,7 +12,7 @@ export function StoreSection() {
 
   if (!supported) {
     return (
-      <SettingsGroup title="Store">
+      <SettingsGroup title="Data folder">
         <Row label="Desktop app only" hint="This browser tab has no store of its own." />
       </SettingsGroup>
     );
@@ -24,10 +24,10 @@ export function StoreSection() {
   const where = status?.volume?.label ? `${status.volume.label} · ${status.path}` : status?.path;
 
   return (
-    <SettingsGroup title="Store">
+    <SettingsGroup title="Data folder">
       <Row
         keywords={["external", "volume", "drive", "where", "path", "ssd"]}
-        label="Data folder"
+        label="Location"
         hint={status?.pinnedByEnvironment ? `${status.path} (pinned by TELAR_HOME).` : where}
         {...(status?.volume ? { info: REMOVABLE_DRIVE_WARNING } : {})}
         {...(failure ? { error: failure } : {})}

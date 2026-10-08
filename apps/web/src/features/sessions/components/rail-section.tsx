@@ -8,6 +8,7 @@ import { Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 import { useSidebarLayout } from "../rail/sidebar-layout";
 import { useSessionDefaults } from "../session-defaults";
 import { SettlingRows } from "./settling-rows";
+import { SettledTerminalsRow } from "./settled-terminals-row";
 
 function GroupByProjectRow() {
   const layout = useSidebarLayout();
@@ -32,7 +33,7 @@ function GroupByProjectRow() {
   );
 }
 
-function ContinueAfterRestartRow() {
+export function ContinueAfterRestartRow() {
   const { defaults, loading, save, error } = useSessionDefaults();
   useRestoreDefaults(() => save({ resumeAfterRestart: false }));
   const restarts = defaults.resumeAfterRestart === true;
@@ -57,13 +58,13 @@ function ContinueAfterRestartRow() {
   );
 }
 
-export function OrganizationSection() {
+export function RailSection() {
   const pathname = usePathname();
   return (
-    <SettingsGroup title="Organization" scope={hostFromPathname(pathname ?? "/") === LOCAL_HOST_ID ? "mac" : "host"}>
-      <SettlingRows />
-      <ContinueAfterRestartRow />
+    <SettingsGroup title="Rail" scope={hostFromPathname(pathname ?? "/") === LOCAL_HOST_ID ? "mac" : "host"}>
       <GroupByProjectRow />
+      <SettlingRows />
+      <SettledTerminalsRow />
     </SettingsGroup>
   );
 }

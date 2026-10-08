@@ -4,8 +4,8 @@ import { confirmProfileDeletion, describeProfileUse, profileNameProblem, whyUnde
 import { buttonLabelled, click, flush, mount, installTestDom } from "@/test/dom";
 import { typeInto } from "@/test/type-into";
 import { NewBrowserProfileDialog } from "../components/profile-prompt";
-import { BrowserProfilesSection } from "./browser-profiles-section";
-import { IntegrationsPage } from "./integrations-page";
+import { BrowserProfilesRows } from "./browser-profiles-section";
+import { BrowserGroup } from "./browser-group";
 import { Row } from "@/features/settings/components/settings-shell";
 
 installTestDom();
@@ -20,7 +20,7 @@ function profile(patch: Partial<BrowserProfile> = {}): BrowserProfile {
 
 async function mountSection(profiles: BrowserProfile[], bridge: Record<string, unknown> = {}) {
   (window as { telarDesktop?: unknown }).telarDesktop = { browser: { profiles: async () => ({ profiles }), ...bridge } };
-  const { host } = await mount(<BrowserProfilesSection />);
+  const { host } = await mount(<BrowserProfilesRows />);
   await flush(() => Boolean(host.querySelector(`[aria-label="Icon for ${profiles[0]!.label}"]`)));
   return host;
 }
@@ -54,17 +54,18 @@ test("a profile name is required and may not repeat another", () => {
   expect(profileNameProblem("Personal", [profile()])).toBeUndefined();
 });
 
-test("a browser tab says it has no browser host rather than offering dead controls", () => {
-  const html = renderToStaticMarkup(<BrowserProfilesSection />);
-  expect(html).toContain("Desktop app only");
-  expect(html).toContain("no browser host");
+test("a browser tab says profiles and site permissions are desktop-only rather than offering dead controls", () => {
+  const html = renderToStaticMarkup(<BrowserGroup />);
+  expect(html.match(/Desktop app only/g)).toHaveLength(2);
   expect(html).not.toContain("New profile");
 });
 
-test("the pane is profiles THEN remembered logins — a grant is scoped to a profile", () => {
-  const html = renderToStaticMarkup(<IntegrationsPage />);
-  expect(html.indexOf("Browser profiles")).toBeGreaterThan(-1);
-  expect(html.indexOf("Browser profiles")).toBeLessThan(html.indexOf("Remembered logins"));
+test("the Browser group is one section: links, profiles, then remembered logins, then site permissions", () => {
+  const html = renderToStaticMarkup(<BrowserGroup />);
+  expect(html.match(/<section/g)).toHaveLength(1);
+  const order = ["Open in the session&#x27;s browser", "Browser profiles", "Remembered logins", "Site permissions"].map((text) => html.indexOf(text));
+  expect(order.every((at) => at > -1)).toBe(true);
+  expect(order).toEqual([...order].sort((a, b) => a - b));
 });
 
 test("a shell without a delete handler offers no Delete button", async () => {

@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import type { Project, ProjectPlugins } from "@telar/engine-client";
 import { DataSciencePackagesRow } from "../data-science/machine-settings";
 import { DataScienceSection, dataScienceToggle } from "../data-science/data-science-section";
-import { LatexDistributionSettings } from "../latex/machine-settings";
+import { LatexDistributionRows } from "../latex/machine-settings";
 import { LatexSection, latexToggle } from "../latex/latex-section";
 import { blockPatch, enablePatch } from "../sections";
 
@@ -13,13 +13,12 @@ type ProjectToggle = (project: Project, next: boolean) => { enabled: boolean; [s
 export type PluginSettingsPanes = {
   project?: ProjectSettingsPane;
   projectToggle?: ProjectToggle;
-  machineGroups?: MachineSettingsBlock;
   machineRows?: MachineSettingsBlock;
 };
 
 export const SETTINGS_PANES: Readonly<Record<string, PluginSettingsPanes>> = {
   "data-science": { project: DataScienceSection, projectToggle: dataScienceToggle, machineRows: DataSciencePackagesRow },
-  latex: { project: LatexSection, projectToggle: latexToggle, machineGroups: LatexDistributionSettings },
+  latex: { project: LatexSection, projectToggle: latexToggle, machineRows: LatexDistributionRows },
 };
 
 function panesFor(pluginId: string): PluginSettingsPanes | undefined {
@@ -35,10 +34,7 @@ export function projectTogglePatch(project: Project, pluginId: string, next: boo
   return toggle ? blockPatch(pluginId, toggle(project, next)) : enablePatch(pluginId, next);
 }
 
-export function machineBlocksFor(pluginId: string): Pick<PluginSettingsPanes, "machineGroups" | "machineRows"> {
-  const panes = panesFor(pluginId);
-  return {
-    ...(panes?.machineGroups ? { machineGroups: panes.machineGroups } : {}),
-    ...(panes?.machineRows ? { machineRows: panes.machineRows } : {}),
-  };
+export function machineBlocksFor(pluginId: string): { machineRows?: MachineSettingsBlock } {
+  const machineRows = panesFor(pluginId)?.machineRows;
+  return machineRows ? { machineRows } : {};
 }

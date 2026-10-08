@@ -23,7 +23,7 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
 import { ProfileColorPicker, ProfileIconPicker } from "./browser-profile-marks";
-import { Row, SettingsGroup, SettingsList } from "@/features/settings";
+import { Row, SettingsList } from "@/features/settings";
 
 type ProfilesBridge = NonNullable<ReturnType<typeof desktopBrowserProfiles>>;
 
@@ -137,7 +137,7 @@ function ProfileRow({
   );
 }
 
-export function BrowserProfilesSection() {
+export function BrowserProfilesRows() {
   const [profiles, setProfiles] = useState<BrowserProfile[]>();
   const [error, setError] = useState<{ message: string; at?: string }>();
   const [busy, setBusy] = useState<string>();
@@ -176,62 +176,50 @@ export function BrowserProfilesSection() {
     }
   };
 
-  if (!bridge) {
-    return (
-      <SettingsGroup title="Browser profiles" scope="mac" description="The identities Telar's own browser signs in as.">
-        <Row label="Desktop app only" hint="This browser tab has no browser host to keep profiles for." />
-      </SettingsGroup>
-    );
-  }
-
   return (
     <>
-      <SettingsGroup
+      <Row
         keywords={["cookies", "account", "sign in", "chrome", "profile", "default", "browser", "integrations"]}
-        title="Browser profiles"
-        scope="mac"
-        description="Each one is a separate set of cookies and logins for Telar's own browser."
-        action={
-          <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
-            New profile
-          </Button>
+        label="Browser profiles"
+        hint="Each one is a separate set of cookies and logins for Telar's own browser."
+        {...(bridge && profiles === undefined && !error ? { status: <Spinner className="size-4" /> } : {})}
+        {...(error && !error.at ? { error: error.message } : {})}
+        control={
+          bridge ? (
+            <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
+              New profile
+            </Button>
+          ) : (
+            <Badge variant="outline">Desktop app only</Badge>
+          )
         }
-      >
-        {error && !error.at && (
-          <p role="alert" className="text-xs text-destructive">
-            {error.message}
-          </p>
-        )}
-        {profiles === undefined && !error && <Spinner className="size-4" />}
+      />
+      {bridge && (
         <SettingsList label="Browser profiles">
           {profiles?.map((profile) => (
             <ProfileRow
-            key={profile.id}
-            profile={profile}
-            profiles={profiles}
-            bridge={bridge}
-            busy={busy === profile.id}
-            error={error?.at === profile.id ? error.message : undefined}
-            renaming={renaming === profile.id}
-            onRenaming={(next) => setRenaming(next ? profile.id : undefined)}
-            onError={(message) => setError({ message, at: profile.id })}
-            act={(write) => void act(profile.id, write)}
+              key={profile.id}
+              profile={profile}
+              profiles={profiles}
+              bridge={bridge}
+              busy={busy === profile.id}
+              error={error?.at === profile.id ? error.message : undefined}
+              renaming={renaming === profile.id}
+              onRenaming={(next) => setRenaming(next ? profile.id : undefined)}
+              onError={(message) => setError({ message, at: profile.id })}
+              act={(write) => void act(profile.id, write)}
             />
           ))}
         </SettingsList>
-      </SettingsGroup>
-      <SitePermissionsGroup />
-      <NewBrowserProfileDialog
-        open={creating}
-        onOpenChange={setCreating}
-        existing={profiles ?? []}
-        onCreated={() => void load()}
-      />
+      )}
+      {bridge && (
+        <NewBrowserProfileDialog open={creating} onOpenChange={setCreating} existing={profiles ?? []} onCreated={() => void load()} />
+      )}
     </>
   );
 }
 
-function SitePermissionsGroup() {
+export function SitePermissionsRows() {
   const [profiles, setProfiles] = useState<SitePermissionProfile[]>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState<string>();
@@ -269,24 +257,18 @@ function SitePermissionsGroup() {
     }
   };
 
-  if (!supported) {
-    return (
-      <SettingsGroup title="Site permissions" scope="mac" description="What sites may do in Telar's own browser.">
-        <Row label="Desktop app only" hint="This browser tab has no browser host to keep site permissions for." />
-      </SettingsGroup>
-    );
-  }
-
   return (
-    <SettingsGroup
-      title="Site permissions"
-      scope="mac"
-      description="Camera, microphone, notifications, location, clipboard and screen sharing, as you answered them."
-    >
-      {error && <p className="text-xs text-destructive">{error}</p>}
-      {profiles === undefined && !error && <Spinner className="size-4" />}
+    <>
+      <Row
+        keywords={["camera", "microphone", "mic", "webcam", "notifications", "location", "geolocation", "clipboard", "screen share", "screen sharing", "permission", "permissions", "allow", "block", "revoke", "site"]}
+        label="Site permissions"
+        hint="Camera, microphone, notifications, location, clipboard and screen sharing, as you answered them."
+        {...(supported && profiles === undefined && !error ? { status: <Spinner className="size-4" /> } : {})}
+        {...(error ? { error } : {})}
+        {...(supported ? {} : { control: <Badge variant="outline">Desktop app only</Badge> })}
+      />
       {profiles?.length === 0 && (
-        <Row keywords={["camera", "microphone", "mic", "webcam", "notifications", "location", "geolocation", "clipboard", "screen share", "screen sharing", "permission", "permissions", "allow", "block", "revoke", "site"]} label="Nothing decided yet" hint="Telar asks the first time a site wants something, over the browser's address bar." />
+        <Row label="Nothing decided yet" hint="Telar asks the first time a site wants something, over the browser's address bar." />
       )}
       <SettingsList label="Site permissions">
         {profiles?.map((profile) =>
@@ -329,6 +311,6 @@ function SitePermissionsGroup() {
           )),
         )}
       </SettingsList>
-    </SettingsGroup>
+    </>
   );
 }

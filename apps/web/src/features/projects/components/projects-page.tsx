@@ -19,8 +19,8 @@ import { ProjectModelOptionsRow } from "./model-options-row";
 import { ChooseProjectFolder } from "./choose-project-folder";
 import { ProjectIconPicker } from "./project-icon-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { McpSection } from "@/features/agent-tools";
-import { RemoveProjectSection } from "./remove-project-section";
+import { McpServerRows } from "@/features/agent-tools";
+import { RemoveProjectRow } from "./remove-project-row";
 import { Dropdown, Row, Segmented, SettingsGroup } from "@/features/settings";
 import { ProjectWorkspaceSection } from "./workspace-config-section";
 
@@ -76,7 +76,7 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
   const gone = project?.availability === "missing" && !project.hostId && project.removedAt === undefined;
 
   return (
-    <SettingsGroup title="Identity">
+    <>
       <Row
         keywords={["rename", "title", "project name"]}
         label="Name"
@@ -130,7 +130,7 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
           }
         />
       )}
-    </SettingsGroup>
+    </>
   );
 }
 
@@ -370,7 +370,11 @@ export function ProjectsPage() {
   const replaceProject = (next: Project) => {
     setByHost((current) => ({
       ...current,
-      [hostId]: (current[hostId] ?? []).map((entry) => (entry.id === next.id ? { ...entry, ...next } : entry)),
+      [hostId]: (current[hostId] ?? []).map((entry) =>
+        entry.id === next.id
+          ? { ...next, ...(entry.hostId ? { hostId: entry.hostId } : {}), ...(entry.hostName ? { hostName: entry.hostName } : {}) }
+          : entry,
+      ),
     }));
   };
 
@@ -405,7 +409,10 @@ export function ProjectsPage() {
         unreachable={unreachable}
       />
 
-      <ProjectIdentityRows {...(project ? { project } : {})} writer={writer} onMoved={replaceProject} />
+      <SettingsGroup title="Project">
+        <ProjectIdentityRows {...(project ? { project } : {})} writer={writer} onMoved={replaceProject} />
+        {project && !project.hostId && <RemoveProjectRow key={project.id} project={project} onChange={replaceProject} />}
+      </SettingsGroup>
       <ProjectConversationRows
         {...(project ? { project } : {})}
         envMode={defaults.envMode}
@@ -415,8 +422,10 @@ export function ProjectsPage() {
 
       {project && !project.hostId && (
         <>
-          <McpSection scope={{ projectId: project.id, projectName: project.name }} />
           <ProjectWorkspaceSection key={project.id} projectId={project.id} />
+          <SettingsGroup title="Agent tools">
+            <McpServerRows scope={{ projectId: project.id, projectName: project.name }} />
+          </SettingsGroup>
         </>
       )}
 
@@ -426,8 +435,6 @@ export function ProjectsPage() {
         {...(machine ? { machine } : {})}
         onChange={replaceProject}
       />
-
-      {project && !project.hostId && <RemoveProjectSection key={project.id} project={project} onChange={replaceProject} />}
     </>
   );
 }

@@ -210,7 +210,7 @@ test("a settings row is found by name and opens its pane at that row", async () 
   expect(group?.textContent).toContain("Colour scheme");
   const row = [...group!.querySelectorAll('[role="option"]')].find((node) => node.textContent?.startsWith("Colour scheme"));
   await click(row);
-  expect(log).toEqual(["open:false", "navigate:/settings?section=appearance&row=settings-row-appearance-colour-scheme"]);
+  expect(log).toEqual(["open:false", "navigate:/settings?section=appearance&row=settings-row-appearance-theme-colour-scheme"]);
 });
 
 test("a settings page is a result that opens the page itself", async () => {

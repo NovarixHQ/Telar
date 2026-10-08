@@ -63,17 +63,13 @@ export function AppearanceSection() {
       {notice && <p className="mb-3 text-xs text-warning">{notice}</p>}
       {shareNotice && <p className="mb-3 text-xs text-warning">{shareNotice}</p>}
 
-      <Row
-        keywords={["light", "dark", "system", "theme", "mode"]}
-        label="Colour scheme"
-        hint="Which state the app wears, and the one Background edits."
-        control={<ThemeControl />}
-      />
-
-      <SettingsGroup
-        title="Background"
-        description="A base colour the surfaces are derived from, and the layers over it, for each colour scheme."
-      >
+      <SettingsGroup title="Theme">
+        <Row
+          keywords={["light", "dark", "system", "theme", "mode"]}
+          label="Colour scheme"
+          hint="Which state the app wears, and the one the rows below edit."
+          control={<ThemeControl />}
+        />
         <Row
           keywords={["colour", "color", "theme", "palette", "hue", "tint", "background", "canvas"]}
           label="Base"
@@ -127,9 +123,7 @@ export function AppearanceSection() {
             onToken={(token: ThemeToken, value) => compose(setOverride(mode, token, value))}
           />
         </details>
-      </SettingsGroup>
 
-      <SettingsGroup title="Type and surfaces" description="The accent, the two typefaces, the sizes they run at, and how far surfaces lift off the canvas.">
         <TypeTool appearance={appearance} onChange={setAppearance} />
         <DepthControl value={appearance.depth} onChange={(depth) => setAppearance({ depth })} />
       </SettingsGroup>

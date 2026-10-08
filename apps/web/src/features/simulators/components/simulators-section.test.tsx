@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { SimulatorSettings } from "@telar/engine-client";
 import { buttonLabelled, flush, installTestDom, mount, press, stubFetch } from "@/test/dom";
-import { SimulatorsSection } from "./simulators-section";
+import { SimulatorsRow } from "./simulators-section";
 
 installTestDom();
 
@@ -15,7 +15,7 @@ async function mountSection(initial: SimulatorSettings, refuse?: string) {
       return { simulatorSettings: settings };
     },
   });
-  const { host } = await mount(<SimulatorsSection />);
+  const { host } = await mount(<SimulatorsRow />);
   await flush(() => calls.some((call) => call.route === "GET /api/simulator-settings"));
   await flush();
   const option = (label: string) => buttonLabelled(label, host)!;

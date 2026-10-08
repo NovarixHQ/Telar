@@ -1,22 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Row, SettingsGroup, ToggleRow } from "@/features/settings";
 import { useRemoteStatus } from "../hooks/use-remote-status";
-import { RemoteDevicesGroup, RevokeOthersRow } from "./remote-devices-group";
+import { DeviceRows, RevokeOthersRow } from "./device-rows";
 import { RemoteEnvironmentRows } from "./remote-environment-group";
 import { PairDeviceRow } from "./remote-pair-group";
 
-export function RemoteSection() {
+/** Children are rows drawn in the Paired group, after Pair a device. */
+export function RemoteSection({ children }: { children?: ReactNode }) {
   const remote = useRemoteStatus();
   const { status, error } = remote;
   const [endpointUrl, setEndpointUrl] = useState<string | null>(null);
 
   if (!status) {
     return (
-      <SettingsGroup title="This Mac">
-        <Row label="Loading" hint="Reading the pairing store." {...(error ? { error } : {})} control={null} />
-      </SettingsGroup>
+      <>
+        <SettingsGroup title="This Mac">
+          <Row label="Loading" hint="Reading the pairing store." {...(error ? { error } : {})} control={null} />
+        </SettingsGroup>
+        {children ? <SettingsGroup title="Paired">{children}</SettingsGroup> : null}
+      </>
     );
   }
 
@@ -45,13 +49,7 @@ export function RemoteSection() {
         )}
       </SettingsGroup>
 
-      <RemoteDevicesGroup
-        status={status}
-        busy={remote.busy}
-        onRename={(id, name) => void remote.patchDevice(id, { name })}
-        onRole={(id, role) => void remote.patchDevice(id, { role })}
-        onRevoke={(id) => void remote.revoke(id)}
-      >
+      <SettingsGroup title="Paired">
         {status.requireAuth && (
           <PairDeviceRow
             minted={remote.minted}
@@ -62,10 +60,18 @@ export function RemoteSection() {
             onSelectEndpoint={setEndpointUrl}
           />
         )}
+        {children}
+        <DeviceRows
+          status={status}
+          busy={remote.busy}
+          onRename={(id, name) => void remote.patchDevice(id, { name })}
+          onRole={(id, role) => void remote.patchDevice(id, { role })}
+          onRevoke={(id) => void remote.revoke(id)}
+        />
         {status.devices.length > 1 && status.callerDeviceId && (
           <RevokeOthersRow count={status.devices.length - 1} onConfirm={() => void remote.revokeOthers()} />
         )}
-      </RemoteDevicesGroup>
+      </SettingsGroup>
     </>
   );
 }

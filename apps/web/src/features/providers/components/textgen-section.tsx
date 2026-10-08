@@ -18,7 +18,7 @@ export function TextGenSection() {
   const atDefault = policy.driver === DEFAULT_TEXT_GEN_POLICY.driver && policy.model === DEFAULT_TEXT_GEN_POLICY.model && policy.effort === undefined;
 
   return (
-    <SettingsGroup title="Text generation" scope="mac">
+    <SettingsGroup title="Naming" scope="mac">
       <Row
         keywords={["claude", "codex", "opencode", "driver", "title model", "textgen", "reasoning", "thinking", "effort"]}
         label="Written by"

@@ -3,7 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { WorktreeInventory, WorktreeLocation, WorktreeSummary } from "@telar/engine-client";
-import { WorktreeSummarySection } from "./worktree-summary-section";
+import { WorktreeSummaryRows } from "./worktree-summary-rows";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -86,7 +86,7 @@ async function mount() {
   document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(<WorktreeSummarySection />);
+    root.render(<WorktreeSummaryRows />);
     await settle();
   });
   await act(async () => {

@@ -2,14 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BotIcon, FolderGit2Icon, FolderGitIcon, GitBranchIcon, GitCompareIcon, SquareTerminalIcon } from "lucide-react";
+import { BotIcon, FolderGitIcon, GitBranchIcon, GitCompareIcon, SquareTerminalIcon } from "lucide-react";
 import { type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
 import { OpenWorkspaceButton } from "@/features/files";
 import { PublishBox, useGitHubReady } from "@/features/git";
 import { isOpenTerminal, openTerminal, RunHeaderControl, statusLabel, type RunView } from "@/features/terminal";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
-import { Button } from "@/ui/button";
 import { cn } from "@/ui/utils";
 import { sessionHref } from "../../session-list";
 import type { useCockpitPanel } from "../hooks/use-cockpit-panel";
@@ -187,14 +186,5 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}
       />
     </div>
-  );
-}
-
-export function WorkspaceCardToggle() {
-  const { open, toggle } = useWorkspaceCardOpen();
-  return (
-    <Button type="button" variant="ghost" size="icon-sm" aria-label="Workspace" aria-pressed={open} title="Workspace (⌥⌘W)" onClick={toggle} className={cn("text-muted-foreground", open && "bg-accent text-foreground")}>
-      <FolderGit2Icon />
-    </Button>
   );
 }

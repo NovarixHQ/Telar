@@ -34,7 +34,8 @@ import { useTranscriptModel } from "../hooks/use-transcript-model";
 import { composerProps } from "./composer-props";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
-import { WorkspaceCard, WorkspaceCardToggle } from "./workspace-card";
+import { WorkspaceCard } from "./workspace-card";
+import { WorkspaceCardToggle } from "./workspace-card-toggle";
 import { useReadReceipt } from "./read-receipt";
 import { TranscriptList } from "./transcript-list";
 
@@ -125,7 +126,7 @@ export function SessionCockpit({
                 {session && (
                   <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
                 )}
-                <RailToggle open={panel.open} onToggle={panelState.openPanel} />
+                <RailToggle open={panel.open} onToggle={panelState.togglePanel} />
               </>
             }
           />

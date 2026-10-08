@@ -117,7 +117,7 @@ export function TabStrip(strip: StripProps) {
   return (
     <div
       className={cn(
-        "@container/strip flex h-10 shrink-0 items-center gap-1 border-b border-border px-2 py-0",
+        "@container/strip flex h-10 shrink-0 items-center gap-1 px-2 py-0",
         fullscreen && "pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))] md:h-[var(--titlebar-band-height)]",
       )}
     >

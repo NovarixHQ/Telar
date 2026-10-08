@@ -23,7 +23,7 @@ export function jumpProp(env: RowEnv, key: string): { jumpSlot?: RailJumpSlot } 
 
 export function TelarSidebarHeader() {
   return (
-    <SidebarHeader className="app-drag h-[var(--titlebar-height)] justify-center rounded-t-lg border-b border-sidebar-border/60 py-0 pr-2 pl-[max(8px,var(--titlebar-inset))] md:h-[var(--titlebar-band-height)]">
+    <SidebarHeader className="app-drag h-[var(--titlebar-height)] justify-center rounded-t-lg py-0 pr-2 pl-[max(8px,var(--titlebar-inset))] md:h-[var(--titlebar-band-height)]">
       <div className="flex min-w-0 items-center gap-1">
         <SidebarTrigger aria-label="Hide sidebar" title="Hide sidebar" className="app-no-drag shrink-0" />
         <KeyHint command="toggle-rail" />

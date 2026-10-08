@@ -37,7 +37,7 @@ export function useDirectoryListing({ list, hostId, startAt }: { list: Directory
   const [error, setError] = useState<string>();
   const [unlisted, setUnlisted] = useState<string>();
   const [loading, setLoading] = useState(true);
-  // Only the first target falls back to home, once; a folder the person opened says why it failed.
+  // Only a remembered folder falls back to home, once; a typed or opened one says why it failed.
   const fellBack = useRef(false);
 
   // No synchronous setState here; whatever changes the target turns the spinner on.
@@ -60,14 +60,13 @@ export function useDirectoryListing({ list, hostId, startAt }: { list: Directory
         const engine = cause instanceof EngineApiError ? cause : undefined;
         // 403: the folder is there but could not be listed, as a cloud folder macOS has not opened to Telar yet.
         if (target && engine?.status === 403) setUnlisted(target);
-        if (target && !fellBack.current && (engine?.code === "not_found" || engine?.code === "invalid_request")) {
+        if (target && !nearest && !fellBack.current && (engine?.code === "not_found" || engine?.code === "invalid_request")) {
           fellBack.current = true;
-          if (nearest && engine) setAside(`${engine.message} Showing home instead.`);
-          setNearest(false);
           setLoading(true);
           setTarget(undefined);
           return;
         }
+        if (nearest && target) setField(target);
         setError(engine ? engine.message : "That folder could not be listed.");
       });
     return () => {

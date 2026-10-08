@@ -25,13 +25,12 @@ function TickingDuration({ startedAt }: { startedAt: number }) {
 function DriveStatus({ session, away }: { session: SidebarSession; away: Away }) {
   return (
     <span
-      className={`inline-flex min-w-0 shrink items-center gap-1 text-2xs font-medium text-muted-foreground ${yieldOnHover}`}
+      role="img"
+      aria-label={awayLabel(away)}
       title={awayReason(away, session.projectName)}
+      className={`shrink-0 text-muted-foreground ${yieldOnHover}`}
     >
-      <HardDriveIcon className="size-3 shrink-0" />
-      <span role="status" className="truncate">
-        {awayLabel(away)}
-      </span>
+      <HardDriveIcon className="size-3" />
     </span>
   );
 }

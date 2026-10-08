@@ -34,7 +34,6 @@ Deleting a session removes its transcript and its worktree for good. Telar asks 
 - **Pinned** sessions stay at the top and are never settled automatically. Pin from the session's menu or press ⌘P.
 - **Group by**: Project groups sessions under their projects. None shows a single list with the newest first. In that list, sessions started by another session appear under that session.
 - **Search** matches session titles and project names, across every band, settled and snoozed included. The project filter at the start of the search field narrows the rail to the projects you pick.
-- **Drafts** are messages you started in a new session but never sent. They sit at the top of the rail.
 - **Status**: "Waiting on you" means a question or an approval needs your answer. It's the only highlighted state. Other states include Working, Queued, Background (work still running after the turn ended), Waiting on session and Scheduled.
 
 Shortcuts: ⌘1–⌘9 jump to the rows in your list (snoozed and settled rows are skipped), ⌘K opens the command palette, and ⌘B hides the rail.

@@ -296,13 +296,3 @@ export function activeSessionFromPathname(pathname: string): string | undefined 
   const id = decode(match[2]);
   return match[1] ? `${decode(match[1])}:${id}` : id;
 }
-
-export function canvasProjectFromPathname(pathname: string): string | undefined {
-  const match = /^(?:\/hosts\/[^/]+)?\/projects\/([^/]+)\/sessions\/new\/?$/.exec(pathname);
-  if (!match) return undefined;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
-}

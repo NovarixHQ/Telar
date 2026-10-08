@@ -49,6 +49,19 @@ describe("the rail's header is one row", () => {
     await click(byLabel("New session", host)!);
     expect(pushes).toEqual([canvasHref("p9", "mini")]);
   });
+
+  test("an unsent new conversation is not listed until it is sent", async () => {
+    writeDraft(undefined, "p1", "half a thought");
+    try {
+      stubRail(() => ({ body: { projects: [project("p1", "One")], sessions: [liveRow("a")] } }));
+      const host = await mountRail();
+      expect(host.textContent).toContain("Title a");
+      expect(host.textContent).not.toContain("half a thought");
+      expect(byLabel("Discard draft in One", host)).toBeNull();
+    } finally {
+      writeDraft(undefined, "p1", "");
+    }
+  });
 });
 
 describe("the projects New session can target", () => {
@@ -116,16 +129,6 @@ describe("the project filter, as a set", () => {
     expect(list).not.toContain("Title one-row");
     expect(list).not.toContain("Title one-pinned");
     expect(filterTrigger()!.getAttribute("aria-label")).toBe("Filtering by 1 project — change");
-  });
-
-  test("a draft is a row, so the filter reaches it too", async () => {
-    stubRail(() => ({ body: two }));
-    const host = await mountRail();
-    await act(async () => writeDraft(undefined, "p1", "half a thought"));
-    expect(host.textContent).toContain("half a thought");
-    await openFilter();
-    await click(checkbox("Two"));
-    expect(host.textContent).not.toContain("half a thought");
   });
 
   test("a rail emptied by the filter says so, rather than No sessions yet", async () => {

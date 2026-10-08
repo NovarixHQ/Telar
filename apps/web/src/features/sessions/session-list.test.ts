@@ -9,7 +9,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   activeSessionFromPathname,
-  canvasProjectFromPathname,
   bandOf,
   canvasHref,
   deriveSessionList,
@@ -445,7 +444,6 @@ describe("sessions on another Mac", () => {
   test("the remote canvas round-trips like the local one", () => {
     expect(canvasHref("project_a", "host_ab")).toBe("/hosts/host_ab/projects/project_a/sessions/new");
     expect(canvasHref("project_a", "local")).toBe("/projects/project_a/sessions/new");
-    expect(canvasProjectFromPathname(canvasHref("project_a", "host_ab"))).toBe("project_a");
   });
 
   test("the row you are reading survives paging on its own host only", () => {
@@ -454,31 +452,6 @@ describe("sessions on another Mac", () => {
     // Page size one: the local s1 fills the page, and the remote s1 is pulled
     // in as the survivor — by its scoped key, not by a bare id that both share.
     expect(list.sessions.map((session) => sessionKey(session))).toEqual(["s1", "host_ab:s1"]);
-  });
-});
-
-describe("canvasProjectFromPathname", () => {
-  test("names the project whose canvas is open, and round-trips canvasHref", () => {
-    // The draft rail highlights the row you are currently writing in, and the
-    // only thing identifying that row is the project — `activeSessionFromPathname`
-    // answers the literal "new" here, which matches no session and no draft.
-    expect(canvasProjectFromPathname(canvasHref("project_a"))).toBe("project_a");
-    expect(canvasProjectFromPathname(canvasHref("a/b"))).toBe("a/b");
-  });
-
-  test("a session route has no open canvas", () => {
-    // Not "the project this session belongs to": on a session route every draft
-    // row is somewhere else, and none of them is current.
-    expect(canvasProjectFromPathname("/projects/project_a/sessions/s1")).toBeUndefined();
-    expect(canvasProjectFromPathname("/projects/project_a/sessions/new/extra")).toBeUndefined();
-    expect(canvasProjectFromPathname("/settings")).toBeUndefined();
-    expect(canvasProjectFromPathname("/")).toBeUndefined();
-  });
-
-  test("a session literally named new is still not a canvas", () => {
-    // `activeSessionFromPathname` cannot tell these apart; this reader gets the
-    // trailing-slash and suffix cases right so the two never disagree.
-    expect(canvasProjectFromPathname("/projects/project_a/sessions/new/")).toBe("project_a");
   });
 });
 

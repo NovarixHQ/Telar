@@ -3,7 +3,8 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { RunView, SessionChild, SessionDiff } from "@telar/engine-client";
-import { WorkspaceCardView, type WorkspaceCardViewProps } from "./workspace-card";
+import { WorkspaceCardFrame, WorkspaceCardView, type WorkspaceCardViewProps } from "./workspace-card";
+import { cardPlacement, DOCK_MIN_WIDTH, setCardPlacement, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -147,5 +148,65 @@ describe("the Workspace card", () => {
   test("background processes are counted", async () => {
     const { host } = await mount({ backgroundTasks: 2 });
     expect(section(host, "Workspace")!.textContent).toContain("2 background processes");
+  });
+});
+
+describe("how the Workspace card opens", () => {
+  function Probe() {
+    const { open, placement, toggle, close } = useWorkspaceCardOpen();
+    return (
+      <>
+        <button type="button" aria-label="Workspace" onClick={toggle}>toggle</button>
+        <p data-testid="outside">chat</p>
+        <WorkspaceCardFrame open={open} placement={placement} onClose={close}>
+          <span>card</span>
+        </WorkspaceCardFrame>
+      </>
+    );
+  }
+  const shown = (host: HTMLElement) => !host.querySelector("[data-placement]")!.className.split(" ").includes("hidden");
+  const toggle = (host: HTMLElement) => act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Workspace"]')!.click());
+  const clickOutside = (host: HTMLElement) => act(async () => host.querySelector("[data-testid=outside]")!.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+  const escape = () => act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+
+  async function mountProbe(placement: "docked" | "popover") {
+    window.localStorage.setItem("telar:workspace-card", "closed");
+    setCardPlacement(placement);
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    roots.push(root);
+    await act(async () => root.render(<Probe />));
+    return host;
+  }
+
+  test("docked, the toggle opens it and it stays open through outside clicks and Escape until toggled shut", async () => {
+    const host = await mountProbe("docked");
+    expect(shown(host)).toBe(false);
+    await toggle(host);
+    expect(shown(host)).toBe(true);
+    await clickOutside(host);
+    await escape();
+    expect(shown(host)).toBe(true);
+    await toggle(host);
+    expect(shown(host)).toBe(false);
+  });
+
+  test("as a popover it closes on an outside click and on Escape", async () => {
+    const host = await mountProbe("popover");
+    await toggle(host);
+    expect(shown(host)).toBe(true);
+    await clickOutside(host);
+    expect(shown(host)).toBe(false);
+    await toggle(host);
+    expect(shown(host)).toBe(true);
+    await escape();
+    expect(shown(host)).toBe(false);
+  });
+
+  test("an open panel makes it a popover at any width; otherwise only a narrow chat does", () => {
+    expect(cardPlacement(DOCK_MIN_WIDTH + 400, true)).toBe("popover");
+    expect(cardPlacement(DOCK_MIN_WIDTH + 400, false)).toBe("docked");
+    expect(cardPlacement(DOCK_MIN_WIDTH - 1, false)).toBe("popover");
   });
 });

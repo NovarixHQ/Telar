@@ -6,7 +6,6 @@ import type { ModelChoice } from "@/features/providers";
 import { AgentControl } from "./agent-control";
 import { ReasoningControl } from "./reasoning-control";
 
-/** The composer's model pill and options pill side by side, for a setting that stores a provider, a model and its options. */
 export function ModelChoiceControl({
   driver,
   choice,

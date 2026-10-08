@@ -1,5 +1,5 @@
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from "@react-navigation/native";
-import { useAnimatedHeaderHeight } from "@react-navigation/native-stack";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { useState } from "react";
 import { KeyboardAvoidingView, StyleSheet } from "react-native";
 import { FloatingComposer } from "../composer";
@@ -16,7 +16,7 @@ import type { RootStack } from "../../platform/navigation/routes";
 export function SessionScreen() {
   const { params } = useRoute<RouteProp<RootStack, "Session">>();
   const navigation = useNavigation<NavigationProp<RootStack>>();
-  const headerHeight = useAnimatedHeaderHeight();
+  const headerHeight = useHeaderHeight();
   const rows = useHosts(hosts);
   const host = hosts.get(params.hostId);
   const connection = rows.find((row) => row.connection === host)?.state;
@@ -57,7 +57,7 @@ export function SessionScreen() {
     </>
   );
 
-  const panel = host ? <PanelView host={host} sessionId={params.sessionId} panel={column.panel} state={column.state} presentation="column" onClose={() => column.panel.close()} /> : null;
+  const panel = host ? <PanelView host={host} sessionId={params.sessionId} panel={column.panel} state={column.state} presentation="column" onClose={column.panel.close} /> : null;
   return (
     <PanelColumn shown={column.shown} full={column.state.fullScreen} width={column.width} onWidth={column.setWidth} top={headerHeight} panel={panel}>
       <KeyboardAvoidingView style={styles.screen} behavior="padding">

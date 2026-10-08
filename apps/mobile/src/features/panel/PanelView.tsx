@@ -1,5 +1,6 @@
 import { Button, ContentUnavailableView, Divider, HStack, Host, Spacer, VStack } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, foregroundStyle, frame, padding, shapes } from "@expo/ui/swift-ui/modifiers";
+import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { faded, Icon, Theme, type SymbolName } from "../../ui";
@@ -30,7 +31,7 @@ function StripButton({ icon, label, onPress }: { icon: SymbolName; label: string
   );
 }
 
-export function PanelView({ host, sessionId, panel, state, presentation = "page", onClose }: Props) {
+export const PanelView = memo(function PanelView({ host, sessionId, panel, state, presentation = "page", onClose }: Props) {
   const column = presentation === "column";
   return (
     <View style={[styles.fill, { backgroundColor: column ? Theme.sheet : Theme.canvas }]}>
@@ -57,6 +58,6 @@ export function PanelView({ host, sessionId, panel, state, presentation = "page"
       <Surface host={host} sessionId={sessionId} active={state.active} panel={panel} />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({ fill: { flex: 1 } });

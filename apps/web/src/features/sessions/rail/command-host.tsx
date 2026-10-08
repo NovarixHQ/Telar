@@ -115,7 +115,7 @@ export function useCommandHost({
         onChooseProject={(target) => startSession(composerTargetOf(target))}
         onOpenSession={openSession}
         onNavigate={go}
-        onRegistered={() => void data.loadAll()}
+        onRegistered={({ projectId, hostId }) => startSession({ projectId, ...(hostId ? { hostId } : {}) })}
       />
     </Suspense>
   ) : null;

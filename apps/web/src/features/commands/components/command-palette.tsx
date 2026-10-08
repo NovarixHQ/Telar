@@ -78,7 +78,7 @@ export function CommandPalette({
   onChooseProject: (target: NewConversationTarget) => void;
   onOpenSession: (session: SidebarSession) => void;
   onNavigate: (href: string) => void;
-  onRegistered: () => void;
+  onRegistered: (registered: Registered) => void;
 }) {
   const keymap = useKeymap();
   const quick = useQuickSettings({ railOpen });
@@ -182,14 +182,14 @@ export function CommandPalette({
               onBack={() => walk("root")}
               onRegistered={(registered) => {
                 setToast(registered);
-                onRegistered();
+                onRegistered(registered);
               }}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      <RegisteredToast toast={toast} onDismiss={() => setToast(undefined)} onChanged={onRegistered} />
+      <RegisteredToast toast={toast} onDismiss={() => setToast(undefined)} />
     </>
   );
 }

@@ -43,7 +43,7 @@ export function ProjectPalette({
   onOpenChange: (open: boolean) => void;
   targets: readonly NewConversationTarget[];
   onChoose: (target: NewConversationTarget) => void;
-  onRegistered: () => void;
+  onRegistered: (registered: Registered) => void;
 }) {
   const [toast, setToast] = useState<Registered>();
 
@@ -59,13 +59,13 @@ export function ProjectPalette({
             onClose={() => onOpenChange(false)}
             onRegistered={(registered) => {
               setToast(registered);
-              onRegistered();
+              onRegistered(registered);
             }}
           />
         </DialogContent>
       </Dialog>
 
-      <RegisteredToast toast={toast} onDismiss={() => setToast(undefined)} onChanged={onRegistered} />
+      <RegisteredToast toast={toast} onDismiss={() => setToast(undefined)} />
     </>
   );
 }
@@ -212,15 +212,7 @@ function CloneUrlPage({
   );
 }
 
-export function RegisteredToast({
-  toast,
-  onDismiss,
-  onChanged,
-}: {
-  toast: Registered | undefined;
-  onDismiss: () => void;
-  onChanged: () => void;
-}) {
+export function RegisteredToast({ toast, onDismiss }: { toast: Registered | undefined; onDismiss: () => void }) {
   const [undone, setUndone] = useState<string>();
   const key = toast?.projectId;
   useNativeViewOverlay(Boolean(toast));
@@ -238,10 +230,7 @@ export function RegisteredToast({
     setUndone(toast.projectId);
     void createEngineApi(hostFetcher(toast.hostId ?? LOCAL_HOST_ID))
       .unregisterProject(toast.projectId)
-      .then(() => {
-        announceProjectsChanged();
-        onChanged();
-      })
+      .then(announceProjectsChanged)
       .catch(() => setUndone(undefined));
   };
 

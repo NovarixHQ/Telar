@@ -172,7 +172,10 @@ describe("the first message of a new conversation", () => {
   });
 });
 
-const bubbles = (host: HTMLElement) => [...host.querySelectorAll('[data-role="user"]')].map((node) => node.textContent?.trim());
+const bubbles = (host: HTMLElement) =>
+  [...host.querySelectorAll('[data-role="user"]')].map((node) =>
+    [...node.children].filter((child) => !child.matches("[data-slot=message-actions]")).map((child) => child.textContent).join("").trim(),
+  );
 
 describe("the first message, before the engine has it", () => {
   test("shows as the person's bubble with the turn working under it, from the send until its own turn lands", async () => {

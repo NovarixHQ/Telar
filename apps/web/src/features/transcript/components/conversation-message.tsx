@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { BotIcon, ChevronRightIcon } from "lucide-react";
 import type { TurnAttachment } from "@telar/engine-client";
 import { Message, MessageContent, MessageResponse } from "@/ui/message";
@@ -15,10 +15,12 @@ export function ConversationMessage({
   text,
   attachments,
   onOpenTab,
+  footer,
 }: {
   text: string;
   attachments?: readonly TurnAttachment[];
   onOpenTab?: OpenTab;
+  footer?: ReactNode;
 }) {
   return (
     <Message from="user">
@@ -26,6 +28,7 @@ export function ConversationMessage({
         {text.trim() && <PromptText text={text} {...(onOpenTab ? { onOpen: onOpenTab } : {})} />}
         <MessageAttachments {...(attachments ? { attachments } : {})} />
       </MessageContent>
+      {footer}
     </Message>
   );
 }

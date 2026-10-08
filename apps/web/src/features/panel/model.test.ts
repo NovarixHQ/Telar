@@ -8,7 +8,6 @@ import {
   describePanelTab,
   filePanelTabPath,
   isFilePanelTab,
-  isMultiInstancePanelTab,
   isPanelTab,
   isRestorablePanelTab,
   issuePanelNumber,
@@ -58,12 +57,6 @@ describe("the Terminal surface", () => {
     const { label, blurb } = describePanelTab("terminal");
     expect(label).toBe("Terminal");
     expect(blurb.length).toBeGreaterThan(0);
-  });
-
-  test("is multi-instance, like the Editor and the Diff", () => {
-    expect(isMultiInstancePanelTab("terminal")).toBe(true);
-    expect(isMultiInstancePanelTab("editor")).toBe(true);
-    expect(isMultiInstancePanelTab("diff")).toBe(true);
   });
 
   test("asking for a terminal twice focuses the one you have", () => {
@@ -169,14 +162,9 @@ describe("a browser tab's label comes from the live page when the shell has one"
     expect(describePanelTab(browserPanelTab("p1"), journal, live)).toMatchObject({ label: "Example Domain", blurb: "https://example.com" });
   });
 
-  test("a journal id the shell never saw takes the shell's ACTIVE tab, not 'Closed page'", () => {
-    const live = [
-      { id: "native-a", title: "Background", url: "https://a.example", active: false },
-      { id: "native-b", title: "Example Domain", url: "https://example.com", active: true },
-    ];
-    const described = describePanelTab(browserPanelTab("gone"), journal, live);
-    expect(described.label).toBe("Example Domain");
-    expect(described.missing).toBeUndefined();
+  test("a page the shell does not list is never named after another live page", () => {
+    const live = [{ id: "native-b", title: "Example Domain", url: "https://example.com", active: true }];
+    expect(describePanelTab(browserPanelTab("gone"), journal, live)).toMatchObject({ label: "Closed page", missing: true });
   });
 
   test("no live tabs at all falls back to the journal's answer", () => {

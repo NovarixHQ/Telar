@@ -9,7 +9,7 @@ import { useCommandHandlers } from "@/features/commands";
 import { useNativeViewOverlay } from "@/platform/desktop/native-view-overlay";
 import { IdentityIcon } from "@/ui/telar-icons";
 import { cn } from "@/ui/utils";
-import { browserView, useBrowserActions, useBrowserCapture, useBrowserKeys, useBrowserPermissions, useBrowserSync, useDeviceSize, type BrowserProps, type BrowserUi } from "../hooks/use-browser-session";
+import { browserView, useBrowserActions, useBrowserCapture, useBrowserKeys, useBrowserPermissions, useBrowserSync, useDeviceSize, useShownPage, type BrowserProps, type BrowserUi } from "../hooks/use-browser-session";
 import { useBrowserStore, type BrowserOverlay } from "../hooks/use-browser-store";
 import { useHostSize } from "../hooks/use-browser-viewport";
 import { useFrozenOverlay } from "../hooks/use-frozen-overlay";
@@ -359,7 +359,7 @@ function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: R
   );
 }
 
-/** The desktop shell's native browser, with its tab strip, address row and tools; the panel shows a placeholder while it has its own window. */
+/** The desktop shell's native browser, with its address row and tools, and its own tab strip unless a panel tab names the page. The panel shows a placeholder while it has its own window. */
 export function DesktopBrowserSurface(props: BrowserProps) {
   const { bridge, scopeKey } = props;
   const { popped, compact } = usePoppedScope(bridge, scopeKey, props.onEnded);
@@ -387,6 +387,7 @@ function BrowserBody(props: BrowserProps) {
   const capture = useBrowserCapture(props, s, view);
   const size = useDeviceSize(props, s, view, actions.act);
   const onKeys = useBrowserKeys(s, view, actions.act);
+  useShownPage(props.pageId, s, actions.act);
   const b: BrowserUi = { ...props, ...s, ...view, ...sync, ...actions, ...permissions, ...capture, ...size, hostSize };
 
   return (
@@ -403,7 +404,7 @@ function BrowserBody(props: BrowserProps) {
         <CompactBar b={b} />
       ) : (
         <>
-          <TabStrip b={b} />
+          {props.pageId === undefined && <TabStrip b={b} />}
           <AddressRow b={b} openOverlay={openOverlay} addressRowRef={addressRowRef} keyButtonRef={keyButtonRef} />
           <DeviceToolbar b={b} openOverlay={openOverlay} />
           <Notices b={b} />

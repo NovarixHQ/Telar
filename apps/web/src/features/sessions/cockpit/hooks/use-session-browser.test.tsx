@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { EngineEvent } from "@telar/engine-client";
 import type { DesktopBrowserBridge } from "@/features/browser/types";
 import { flush, installTestDom, mount, stubFetch } from "@/test/dom";
+import { sessionHref } from "../../session-list";
 import { useSessionBrowser, type DraftChoices } from "./use-session-browser";
 
 installTestDom();
@@ -18,21 +19,28 @@ function withBridge(bridge: DesktopBrowserBridge | undefined) {
   (window as unknown as { telarDesktop?: { browser?: DesktopBrowserBridge } }).telarDesktop = bridge ? { browser: bridge } : undefined;
 }
 
+function nativeBrowser(pages: [string, boolean][]): DesktopBrowserBridge {
+  return {
+    getState: async (scopeKey: string) => ({ scopeKey, tabs: pages.map(([id, active], index) => ({ id, index, active })) }),
+  } as unknown as DesktopBrowserBridge;
+}
+
 const pageEvent = (ids: string[]) =>
   ({ id: 1, at: 1, sessionId: "session_1", type: "browser.state.changed", provider: "integrated", tabs: ids.map((id) => ({ id, title: id, url: `https://${id}.test/` })) }) as unknown as EngineEvent;
 
 async function probe({ sessionId = "session_1", bridge, events = [], canStart = true }: { sessionId?: string; bridge?: DesktopBrowserBridge; events?: EngineEvent[]; canStart?: boolean }) {
   withBridge(bridge);
   const starts: string[] = [];
+  let started = () => {};
   stubFetch({
-    "GET /api/sessions/session_1/browser": () => ({ browser: { scopeKey: "session_1", provider: "none", running: false, tabs: [], canStart } }),
+    "GET /api/sessions/session_1/browser": () => (started(), { browser: { scopeKey: "session_1", provider: "none", running: false, tabs: [], canStart } }),
     "POST /api/sessions/session_1/browser": () => {
       starts.push("start");
       return { browser: { scopeKey: "session_1", provider: "integrated", running: true, tabs: [], canStart } };
     },
   });
   const shown: string[] = [];
-  const panel = { showSessionBrowser: () => shown.push("live"), showPanelTab: (tab: string) => shown.push(tab) };
+  const panel = { showPanelTab: (tab: string) => shown.push(tab) };
   let result: ReturnType<typeof useSessionBrowser> | undefined;
   function Probe() {
     result = useSessionBrowser({
@@ -54,6 +62,7 @@ async function probe({ sessionId = "session_1", bridge, events = [], canStart = 
     result: () => result!,
     shown,
     starts,
+    onStart: (run: () => void) => { started = run; },
     unmount: () => {
       mounted.unmount();
       withBridge(undefined);
@@ -70,10 +79,27 @@ describe("the one Browser entry", () => {
     view.unmount();
   });
 
-  test("in the desktop app it shows the live browser instead", async () => {
-    const view = await probe({ bridge: {} as DesktopBrowserBridge, events: [pageEvent(["a"])] });
+  test("in the desktop app it shows the native browser's active page, not the journal's", async () => {
+    const view = await probe({ bridge: nativeBrowser([["n1", false], ["n2", true], ["n3", false]]), events: [pageEvent(["a"])] });
     await view.result().openBrowser();
-    expect(view.shown).toEqual(["live"]);
+    expect(view.shown).toEqual(["browser:n2"]);
+    expect(view.starts).toEqual([]);
+    view.unmount();
+  });
+
+  test("in the desktop app with no native page it starts the browser, then shows the page it opened", async () => {
+    const pages: [string, boolean][] = [];
+    const view = await probe({ bridge: nativeBrowser(pages) });
+    let starts = 0;
+    view.onStart(() => {
+      starts += 1;
+      pages.push(["n1", true]);
+    });
+    window.history.replaceState(null, "", sessionHref({ id: "session_1", projectId: "project_1", hostId: "local" }));
+    await view.result().openBrowser();
+    expect(starts).toBe(1);
+    expect(view.shown).toEqual(["browser:n1"]);
+    window.history.replaceState(null, "", "/");
     view.unmount();
   });
 

@@ -2,3 +2,4 @@ export type { DesktopBrowserBridge, DesktopBrowserPanelState, DesktopBrowserTab 
 export { BrowserWindowSurface } from "./components/browser-window";
 export { DesktopBrowserSurface } from "./components/desktop-browser-surface";
 export { desktopBrowserBridge } from "./desktop-browser-bridge";
+export { closeNativePage, nativePageToShow } from "./native-pages";

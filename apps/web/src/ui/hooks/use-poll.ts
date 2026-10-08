@@ -16,9 +16,8 @@ const IDLE_POLL_MAX_MS = 120_000;
 const ACTIVITY = ["pointerdown", "keydown", "focus"] as const;
 
 /**
- * Calls `fn` every `ms`, never overlapping a read still in flight; `null` stops it, a hidden window skips ticks.
- * `fn` gets a signal aborted on unmount and on `key` change; it handles its own errors.
- * Returns `wake`: read now (or right after the read in flight) and start the period over.
+ * Calls `fn` every `ms`, never overlapping a read in flight; `null` stops it, a hidden window skips ticks. `fn` gets a
+ * signal aborted on unmount and `key` change. Returns `wake`: read now (or after the read in flight) and restart the period.
  */
 export function usePoll(fn: (signal: AbortSignal) => unknown, ms: number | null, { immediate = true, key, backoff = false }: PollOptions = {}): () => void {
   const latest = useRef(fn);

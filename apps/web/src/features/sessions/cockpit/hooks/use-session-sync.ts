@@ -186,7 +186,6 @@ type TailInput = {
   fail: (cause: unknown, fallback: string) => void;
 };
 
-/** Polls fast while a turn runs; settled, it backs off and the host's stream wakes it for this session's events. */
 function useTail({ hostId, sessionId, syncKey, turns, pull, fail }: TailInput) {
   const inFlight = useRef<string>(undefined);
   const live = turns.some((turn) => isActiveTurn(turn.state));

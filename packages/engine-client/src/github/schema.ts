@@ -2,7 +2,7 @@ import { z } from "zod";
 
 type Refused<R> = { refusal: R; message?: string };
 
-export type GitHubUnavailable = "not_installed" | "not_authenticated" | "no_repository" | "no_checkout" | "not_github" | "failed";
+export type GitHubUnavailable = "not_installed" | "not_authenticated" | "no_repository" | "no_remote" | "no_checkout" | "not_github" | "failed";
 
 export type GitHubCliAuth =
   | { signedIn: true; account?: string }

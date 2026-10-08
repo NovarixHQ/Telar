@@ -50,6 +50,7 @@ export function FloatingComposer({ host, hostId, sessionId, head, working, menti
   const [deciding, setDeciding] = useState<string>();
   const [problem, setProblem] = useState<string>();
   const [unsent, setUnsent] = useState<{ text: string; runId: string; error: string }>();
+  const [cleared, setCleared] = useState(0);
   const [height, setHeight] = useState(0);
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardShown();
@@ -102,6 +103,7 @@ export function FloatingComposer({ host, hostId, sessionId, head, working, menti
     const text = typed.trim();
     if (!host || !text) return;
     setDraft("");
+    setCleared((count) => count + 1);
     onSent?.();
     await deliver(text, unsent?.text === text ? unsent.runId : newRunId());
   };
@@ -148,6 +150,7 @@ export function FloatingComposer({ host, hostId, sessionId, head, working, menti
         draft={draft}
         onDraft={setDraftState}
         onCaret={setCaret}
+        resetKey={cleared}
         placeholder="Ask the agent, or run a command…"
         slot={slot}
         onSlot={() => void (slot.kind === "stop" ? stop() : send())}

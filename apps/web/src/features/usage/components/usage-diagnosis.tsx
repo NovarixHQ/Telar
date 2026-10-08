@@ -23,13 +23,13 @@ const MODELS: { value: Model; label: string }[] = [
 ];
 
 const FIX_LABEL: Record<UsageDiagnosisReport["findings"][number]["fix"]["setting"], string> = {
-  "new-sessions-model": "Settings → New sessions → Model",
-  "new-sessions-effort": "Settings → New sessions → Effort",
-  "settle-delegated": "Settings → Settling",
-  "generated-text-model": "Settings → General → Text generation → Model",
+  "new-sessions-model": "Settings → General → New sessions → Model",
+  "new-sessions-effort": "Settings → General → New sessions → Model",
+  "settle-delegated": "Settings → General → Rail",
+  "generated-text-model": "Settings → General → Naming → Written by",
   compaction: "Settings → Providers → Compaction",
   schedules: "The session's schedule",
-  "mcp-servers": "Settings → Tools → MCP servers",
+  "mcp-servers": "Settings → Integrations → Agent tools",
   none: "Nothing in Telar",
 };
 

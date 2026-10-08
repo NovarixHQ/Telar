@@ -11,8 +11,8 @@ export const SETTINGS_SEARCH_PAGES: readonly SettingsPageSpec[] = SECTIONS.map((
   icon: section.icon,
   ...(section.keywords ? { keywords: section.keywords } : {}),
   groups: (GENERATED_PAGES.find((page) => page.id === section.id)?.groups ?? []).map((group) =>
-    section.id === "general" && group.title === "Experimental"
-      ? { ...group, rows: EXPERIMENTS.map((experiment) => ({ title: experiment.label, hint: experiment.hint, keywords: ["experiment", "trial"] })) }
+    section.id === "general" && group.title === "About"
+      ? { ...group, rows: [...group.rows, ...EXPERIMENTS.map((experiment) => ({ title: experiment.label, hint: experiment.hint, keywords: ["experiment", "trial"] }))] }
       : group,
   ),
 }));

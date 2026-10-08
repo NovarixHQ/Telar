@@ -3,7 +3,7 @@ import { act } from "react";
 import { DEFAULT_INBOX_POLICY, type InboxPolicy } from "@telar/engine-client";
 import { flush, installTestDom, mount } from "@/test/dom";
 import { forgetInboxPolicies } from "../inbox-policy";
-import { SettledTerminalsSection } from "./settled-terminals-section";
+import { SettledTerminalsRow } from "./settled-terminals-row";
 
 installTestDom();
 
@@ -19,7 +19,7 @@ test("the settled terminal limit is one count, patched alone", async () => {
     }
     return Response.json({ inbox: policy });
   }) as typeof fetch;
-  const { host } = await mount(<SettledTerminalsSection />);
+  const { host } = await mount(<SettledTerminalsRow />);
   await flush();
   expect(host.textContent).toContain("Terminals settled sessions may keep open");
   const input = host.querySelector<HTMLInputElement>('[aria-label="How many terminals settled sessions may keep open"]')!;

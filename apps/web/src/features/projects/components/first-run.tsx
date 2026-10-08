@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FolderPlusIcon, PlugZapIcon } from "lucide-react";
 import { ProjectPalette } from "./project-palette";
+import { canvasHref } from "@/features/sessions";
 import { Button } from "@/ui/button";
 
 export function FirstRun({ unreachable = false }: { unreachable?: boolean }) {
@@ -37,7 +38,7 @@ export function FirstRun({ unreachable = false }: { unreachable?: boolean }) {
         onOpenChange={setOpen}
         targets={[]}
         onChoose={() => {}}
-        onRegistered={() => router.refresh()}
+        onRegistered={({ projectId, hostId }) => router.push(canvasHref(projectId, hostId))}
       />
     </div>
   );

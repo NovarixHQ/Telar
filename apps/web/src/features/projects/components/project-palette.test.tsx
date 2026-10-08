@@ -16,6 +16,7 @@ import {
   targetPlace,
   type NewConversationTarget,
   type PalettePage,
+  type Registered,
 } from "../palette-model";
 import { ProjectPalette, ProjectPalettePages, RegisteredToast } from "./project-palette";
 import { nativeViewOverlayHidden } from "@/platform/desktop/native-view-overlay";
@@ -46,6 +47,7 @@ function engine(routes: Record<string, Route>, unreachable: string[] = []) {
 async function openPalette(props: { page?: PalettePage; targets?: NewConversationTarget[] } = {}) {
   const log: string[] = [];
   const chosen: NewConversationTarget[] = [];
+  const registered: Registered[] = [];
   await mount(
     <ProjectPalette
       open
@@ -53,11 +55,11 @@ async function openPalette(props: { page?: PalettePage; targets?: NewConversatio
       targets={props.targets ?? targets}
       onOpenChange={(next) => log.push(`open:${next}`)}
       onChoose={(target) => (log.push(`choose:${target.id}`), chosen.push(target))}
-      onRegistered={() => log.push("registered")}
+      onRegistered={(project) => (log.push("registered"), registered.push(project))}
     />,
   );
   await flush();
-  return { log, chosen };
+  return { log, chosen, registered };
 }
 
 const field = () => document.querySelector<HTMLInputElement>('[role="combobox"]')!;
@@ -314,7 +316,7 @@ test("Local folder with a pasted path opens the browser at it, Add registers onl
   let announced = 0;
   const count = () => (announced += 1);
   window.addEventListener(PROJECTS_CHANGED_EVENT, count);
-  const { log } = await openPalette({ page: "sources" });
+  const { log, registered } = await openPalette({ page: "sources" });
   await typeInto(field(), "'/Users/me/code/telar'");
   expect(options().map((row) => row.textContent)).toEqual(["Local folderOpen /Users/me/code/telar"]);
   await key({ key: "Enter" });
@@ -330,7 +332,7 @@ test("Local folder with a pasted path opens the browser at it, Add registers onl
   ]);
   expect(calls.find((call) => call.route === "POST /api/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
   expect(log).toEqual(["open:false", "registered"]);
-  window.removeEventListener(PROJECTS_CHANGED_EVENT, count);
+  expect(registered).toEqual([{ projectId: "project_new", name: "telar", hostId: "local" }]);
   expect(announced).toBe(1);
   expect(page()).toContain("telar was added.");
 
@@ -338,7 +340,8 @@ test("Local folder with a pasted path opens the browser at it, Add registers onl
   await flush(() => page().includes("telar was removed again."));
   expect(calls.at(-1)!.route).toBe("DELETE /api/projects/project_new");
   expect(buttonLabelled("Undo")).toBeUndefined();
-  expect(log.at(-1)).toBe("registered");
+  window.removeEventListener(PROJECTS_CHANGED_EVENT, count);
+  expect(announced).toBe(2);
 });
 
 test("a path typed into the browser is what ⌘↵ adds, not the folder still being shown", async () => {
@@ -479,7 +482,7 @@ describe("where Backspace goes", () => {
 });
 
 test("the registered toast takes the native browser view down while it shows", async () => {
-  const { unmount } = await mount(<RegisteredToast toast={{ projectId: "p1", name: "telar" }} onDismiss={() => {}} onChanged={() => {}} />);
+  const { unmount } = await mount(<RegisteredToast toast={{ projectId: "p1", name: "telar" }} onDismiss={() => {}} />);
   expect(nativeViewOverlayHidden()).toBe(true);
   unmount();
   expect(nativeViewOverlayHidden()).toBe(false);

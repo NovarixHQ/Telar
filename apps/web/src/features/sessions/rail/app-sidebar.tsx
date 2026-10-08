@@ -160,7 +160,7 @@ function SidebarBody() {
               onNavigate();
               router.push(href);
             }}
-            onRegistered={() => void data.loadAll()}
+            onRegistered={({ projectId, hostId }) => startSession({ projectId, ...(hostId ? { hostId } : {}) })}
           />
         </Suspense>
       )}

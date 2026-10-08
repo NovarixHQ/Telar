@@ -1,15 +1,17 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, type ComponentType } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { itemLabel, type JournalItem, type JournalTask } from "@telar/client/journal";
 import { faded, Theme, type SymbolName } from "../../ui";
 import { CodeBlockView, copyAction, LongPressMenu, PageSheet } from "./chrome";
-import { ItemRow } from "./ItemRow";
 import { Markdown } from "./Markdown";
 import { MONO, PulseDot, Symbol, TextSize } from "./native";
 import { detailParts, rowCopies, type DetailPart } from "./tool-detail";
 
 /** The sub-agents of the turn being drawn, so a `task` row can find its own. */
 export const TurnTasks = createContext<readonly JournalTask[]>([]);
+
+/** How a sub-agent's sheet draws each of its steps; the transcript provides its own row. */
+export const StepRow = createContext<ComponentType<{ item: JournalItem }>>(() => null);
 
 const TOOL_ICON: Partial<Record<JournalItem["detail"]["type"], SymbolName>> = {
   command_execution: "terminal",
@@ -93,6 +95,7 @@ function AgentStatus({ task }: { task: JournalTask }) {
 /** A sub-agent: title, live or failed mark and its step count; tap for everything it did. */
 export function TaskRow({ task }: { task: JournalTask }) {
   const [open, setOpen] = useState(false);
+  const Step = useContext(StepRow);
   const title = task.title ?? "Sub-agent";
   const steps = task.items.length;
   return (
@@ -110,7 +113,7 @@ export function TaskRow({ task }: { task: JournalTask }) {
       </Pressable>
       <PageSheet title={title} open={open} onClose={() => setOpen(false)}>
         <AgentStatus task={task} />
-        {task.items.map((item) => <ItemRow key={item.id} item={item} />)}
+        {task.items.map((item) => <Step key={item.id} item={item} />)}
         {steps === 0 ? <Text style={styles.meta}>No steps recorded yet.</Text> : null}
         {task.resultText ? (
           <>

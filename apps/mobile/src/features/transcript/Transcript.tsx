@@ -3,7 +3,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, useColorScheme, View } 
 import type { JournalTurn } from "@telar/client/journal";
 import { ItemRow, NestedDetail, NoticeLine, NoticeRow, UserBubble } from "./ItemRow";
 import { ArtifactVersions } from "./source";
-import { TaskRow, TurnTasks } from "./ToolRows";
+import { StepRow, TaskRow, TurnTasks } from "./ToolRows";
 import { groupTurns, turnLayout, type Activity, type Ending, type Fold } from "./layout";
 import { Theme } from "../../ui";
 import { PulseDot, Symbol, TextSize } from "./native";
@@ -132,15 +132,17 @@ export function Transcript({ turns }: { turns: readonly JournalTurn[] }) {
   const versions = useMemo(() => latestVersions(turns), [turns]);
   return (
     <ArtifactVersions.Provider value={versions}>
-      {groupTurns(turns).map((group) =>
-        group.length === 1 ? (
-          <TurnView key={group[0]!.runId} turn={group[0]!} />
-        ) : (
-          <View key={group[0]!.runId} style={styles.group}>
-            {group.map((turn) => <TurnView key={turn.runId} turn={turn} />)}
-          </View>
-        ),
-      )}
+      <StepRow.Provider value={ItemRow}>
+        {groupTurns(turns).map((group) =>
+          group.length === 1 ? (
+            <TurnView key={group[0]!.runId} turn={group[0]!} />
+          ) : (
+            <View key={group[0]!.runId} style={styles.group}>
+              {group.map((turn) => <TurnView key={turn.runId} turn={turn} />)}
+            </View>
+          ),
+        )}
+      </StepRow.Provider>
     </ArtifactVersions.Provider>
   );
 }

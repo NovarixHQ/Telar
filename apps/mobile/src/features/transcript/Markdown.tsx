@@ -2,7 +2,8 @@ import { Fragment, memo, useMemo, type ReactNode } from "react";
 import { DynamicColorIOS, Linking, ScrollView, StyleSheet, Text, View, type ColorValue, type TextStyle } from "react-native";
 import type { Tokens } from "marked";
 import { fencedLanguage, highlightCode, markdownBlocks, type Token } from "./markdown-blocks";
-import { MONO, Symbol, Theme } from "./temp-ui";
+import { faded, Radius, Theme } from "../../ui";
+import { MONO, Symbol } from "./native";
 
 const SIZE = 15;
 const HEADINGS: Record<number, { scale: number; top: number; bottom: number; muted?: boolean }> = {
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   del: { textDecorationLine: "line-through" },
   link: { color: Theme.accent },
   codespan: { fontFamily: MONO, fontSize: SIZE * 0.88, backgroundColor: Theme.codeBackground },
-  codeBlock: { backgroundColor: Theme.codeBackground, borderRadius: Theme.radiusRow, borderWidth: 1, borderColor: Theme.borderSubtle, overflow: "hidden" },
+  codeBlock: { backgroundColor: Theme.codeBackground, borderRadius: Radius.row, borderWidth: 1, borderColor: faded("border", 0.6), overflow: "hidden" },
   codePad: { padding: 10 },
   code: { fontFamily: MONO, fontSize: 13, color: SYNTAX_BASE },
   codePlain: { color: Theme.text, lineHeight: 13 * 1.4 },

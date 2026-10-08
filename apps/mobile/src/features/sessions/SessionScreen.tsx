@@ -2,25 +2,19 @@ import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react";
 import type { RequestDecision } from "@telar/engine-client";
 import { isActiveTurn } from "@telar/client/journal";
-import { KeyboardAvoidingView, Pressable, Settings, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Settings, StyleSheet, View } from "react-native";
 import { Composer } from "../composer";
 import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { SessionControls } from "../providers";
 import { hosts, useHosts } from "../hosts";
-import { feedOf, sendMessage, StatusCard, Symbol, TextSize, Theme, TranscriptScroll, useFeed } from "../transcript";
+import { feedOf, sendMessage, TranscriptScroll, useFeed } from "../transcript";
 import { answerRequest, openRequests, RequestCards, stopSession } from "../turns";
 import { present } from "../../platform/connection";
+import { Theme } from "../../ui";
 import { useSessionHeader } from "./session-header";
+import { StatusNotice } from "./StatusNotice";
 import { useRail } from "./use-rail";
 import type { RootStack } from "../../platform/navigation/routes";
-
-function CardButton({ label, tone = Theme.text, onPress }: { label: string; tone?: typeof Theme.text; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={8}>
-      <Text style={[styles.cardButton, { color: tone }]}>{label}</Text>
-    </Pressable>
-  );
-}
 
 export function SessionScreen() {
   const { params } = useRoute<RouteProp<RootStack, "Session">>();
@@ -105,32 +99,25 @@ export function SessionScreen() {
       />
       <View style={styles.footer}>
         {lost ? (
-          <StatusCard tint={Theme.amber}>
-            <View style={styles.cardRow}>
-              <Symbol name="wifi.exclamationmark" size={TextSize.caption} color={Theme.amber} />
-              <Text style={[styles.cardText, { color: Theme.amber }]} numberOfLines={2}>{feed.head ? `Showing what was recorded — ${lost}` : lost}</Text>
-              <CardButton label="Retry" onPress={() => {
-                host?.wake("reconnect");
-                void feedOf(host, params.sessionId)?.refresh();
-              }} />
-            </View>
-          </StatusCard>
+          <StatusNotice
+            tint="amber"
+            icon="wifi.exclamationmark"
+            text={feed.head ? `Showing what was recorded — ${lost}` : lost}
+            actions={[{ label: "Retry", onPress: () => {
+              host?.wake("reconnect");
+              void feedOf(host, params.sessionId)?.refresh();
+            } }]}
+          />
         ) : null}
         <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
         {unsent ? (
-          <StatusCard tint={Theme.red}>
-            <View style={styles.cardRow}>
-              <Text style={[styles.cardText, { color: Theme.red }]} numberOfLines={2}>{`Not sent — ${unsent.error}`}</Text>
-              <CardButton label="Retry" onPress={() => void send(unsent.text)} />
-              <CardButton label="Discard" tone={Theme.red} onPress={() => setUnsent(undefined)} />
-            </View>
-          </StatusCard>
+          <StatusNotice
+            tint="red"
+            text={`Not sent — ${unsent.error}`}
+            actions={[{ label: "Retry", onPress: () => void send(unsent.text) }, { label: "Discard", destructive: true, onPress: () => setUnsent(undefined) }]}
+          />
         ) : null}
-        {failure ? (
-          <StatusCard tint={Theme.red}>
-            <Text style={[styles.cardText, { color: Theme.red }]} numberOfLines={3}>{failure}</Text>
-          </StatusCard>
-        ) : null}
+        {failure ? <StatusNotice tint="red" text={failure} /> : null}
       </View>
       {host && feed.head ? <SessionControls host={host} session={feed.head.session} onChanged={(work) => void act(() => work)} /> : null}
       <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send(draft)} onStop={() => void stop()} mentions={mentions} {...(dictationAvailable ? { dictation } : {})} />
@@ -141,7 +128,4 @@ export function SessionScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Theme.canvas },
   footer: { gap: 12, paddingHorizontal: 16 },
-  cardRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  cardText: { flex: 1, fontSize: TextSize.footnote },
-  cardButton: { fontSize: TextSize.footnote, fontWeight: "500" },
 });

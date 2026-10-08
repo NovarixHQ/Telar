@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type 
 import type { JournalTurn } from "@telar/client/journal";
 import { FOLLOWING, scrolled, shouldFollow, showsJump, type Follow } from "./follow";
 import { Transcript } from "./Transcript";
-import { Symbol, TextSize, Theme } from "./temp-ui";
+import { Theme } from "../../ui";
+import { Symbol, TextSize } from "./native";
 
 type Props = {
   turns: readonly JournalTurn[];

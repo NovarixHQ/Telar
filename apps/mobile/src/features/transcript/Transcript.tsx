@@ -3,7 +3,8 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, useColorScheme, View } 
 import type { JournalTurn } from "@telar/client/journal";
 import { ItemRow, NestedDetail, Notice, UserBubble } from "./ItemRow";
 import { turnLayout, type Activity, type Ending, type Fold } from "./layout";
-import { SteppedPulseDot, Symbol, TextSize, Theme } from "./temp-ui";
+import { Theme } from "../../ui";
+import { PulseDot, Symbol, TextSize } from "./native";
 
 function FoldHeader({ text, detail, open, failed, onPress }: { text: string; detail?: string; open: boolean; failed: boolean; onPress: () => void }) {
   return (
@@ -85,7 +86,7 @@ function EndingRow({ ending }: { ending: Ending }) {
   if (ending.kind === "stopped") return <Text style={styles.meta}>Stopped</Text>;
   return (
     <View style={styles.workingRow}>
-      <SteppedPulseDot />
+      <PulseDot />
       <SweepingText text={ending.label} />
     </View>
   );

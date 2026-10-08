@@ -4,9 +4,10 @@ import { itemLabel, itemText, type JournalItem } from "@telar/client/journal";
 import { firstLine, providerSwitchLabel } from "./layout";
 import { Markdown } from "./Markdown";
 import { advanceReveal, REVEAL_FRAME_MS, revealed, revealText, stepReveal, type Reveal } from "./reveal";
-import { MONO, SteppedPulseDot, Symbol, TextSize, Theme, type SFSymbol } from "./temp-ui";
+import { Radius, Theme, type SymbolName } from "../../ui";
+import { MONO, PulseDot, Symbol, TextSize } from "./native";
 
-const TOOL_ICON: Partial<Record<JournalItem["detail"]["type"], SFSymbol>> = {
+const TOOL_ICON: Partial<Record<JournalItem["detail"]["type"], SymbolName>> = {
   command_execution: "terminal",
   file_change: "pencil.line",
   file_read: "doc.text",
@@ -16,14 +17,14 @@ const TOOL_ICON: Partial<Record<JournalItem["detail"]["type"], SFSymbol>> = {
   unknown: "questionmark.diamond",
 };
 
-function ToolChip({ icon, label, status }: { icon: SFSymbol; label: string; status?: JournalItem["status"] }) {
+function ToolChip({ icon, label, status }: { icon: SymbolName; label: string; status?: JournalItem["status"] }) {
   return (
     <View style={styles.chip}>
       <View style={styles.glyph}>
         <Symbol name={icon} size={TextSize.footnote} weight="medium" color={Theme.textMuted} />
       </View>
       <Text style={styles.chipLabel} numberOfLines={1} ellipsizeMode="middle">{label}</Text>
-      {status === "inProgress" ? <SteppedPulseDot /> : null}
+      {status === "inProgress" ? <PulseDot /> : null}
       {status === "failed" ? <Symbol name="xmark" size={TextSize.caption} weight="semibold" color={Theme.red} /> : null}
       {status === "declined" ? <Symbol name="hand.raised" size={TextSize.caption} color={Theme.amber} /> : null}
     </View>
@@ -147,7 +148,7 @@ export function UserBubble({ text, attachments = 0 }: { text: string; attachment
   );
 }
 
-export function Notice({ icon, text }: { icon: SFSymbol; text: string }) {
+export function Notice({ icon, text }: { icon: SymbolName; text: string }) {
   return (
     <View style={styles.notice}>
       <Symbol name={icon} size={TextSize.caption} color={Theme.textMuted} />
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
   muted: { color: Theme.textMuted },
   planStep: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   bubbleRow: { flexDirection: "row", justifyContent: "flex-end", paddingLeft: 32 },
-  bubble: { padding: 12, borderRadius: Theme.radiusBubble, backgroundColor: Theme.messageSurface, flexShrink: 1 },
+  bubble: { padding: 12, borderRadius: Radius.bubble, backgroundColor: Theme.subtle, flexShrink: 1 },
   bubbleText: { fontSize: TextSize.body, lineHeight: TextSize.body * 1.2 + 4, color: Theme.text },
   imageLabel: { flexDirection: "row", alignItems: "center", gap: 6 },
   notice: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },

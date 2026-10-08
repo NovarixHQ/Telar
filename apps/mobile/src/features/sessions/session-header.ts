@@ -5,7 +5,7 @@ import { Alert } from "react-native";
 import type { Session } from "@telar/engine-client";
 import type { HostConnection } from "../../platform/connection";
 import type { RootStack } from "../../platform/navigation/routes";
-import { Theme } from "../transcript";
+import { Theme } from "../../ui";
 
 type Icon = Extract<NonNullable<NativeStackHeaderItemButton["icon"]>, { type: "sfSymbol" }>;
 const symbol = (name: Icon["name"]): Icon => ({ type: "sfSymbol", name });

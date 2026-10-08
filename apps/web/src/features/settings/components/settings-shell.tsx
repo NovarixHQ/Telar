@@ -17,7 +17,6 @@ export type SettingsSection = {
   label: string;
   icon: ComponentType<{ className?: string }>;
   count?: number;
-  group?: string; // optional side-nav grouping header
   scope?: SettingsScope;
   wide?: boolean;
 };
@@ -341,9 +340,11 @@ export function SettingsGroup({
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className="divide-y divide-border/60 rounded-xl border border-border bg-card shadow-1 [&>*]:px-4">
-        <SettingsGroupContext.Provider value={typeof title === "string" ? title : undefined}>{children}</SettingsGroupContext.Provider>
-      </div>
+      {children !== false && (
+        <div className="divide-y divide-border/60 rounded-xl border border-border bg-card shadow-1 [&>*]:px-4">
+          <SettingsGroupContext.Provider value={typeof title === "string" ? title : undefined}>{children}</SettingsGroupContext.Provider>
+        </div>
+      )}
     </section>
   );
 }

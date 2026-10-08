@@ -12,7 +12,11 @@ export function WorkspaceSection() {
   const access = defaults.runtimeMode ?? DEFAULT_DETACHED_RUNTIME_MODE;
 
   return (
-    <SettingsGroup title="New sessions" scope="mac">
+    <SettingsGroup
+      title="New sessions"
+      scope="mac"
+      description="Settings holds the defaults. A project can override them, and the composer changes only its own session."
+    >
       <Row
         label="Workspace"
         icon={FolderGitIcon}

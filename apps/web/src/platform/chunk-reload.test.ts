@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { isChunkLoadError, reloadForNewBuild } from "./chunk-reload";
+import { isChunkLoadError, reloadForNewBuild, reloadIsDue } from "./chunk-reload";
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -23,14 +23,13 @@ describe("isChunkLoadError", () => {
 });
 
 describe("reloadForNewBuild", () => {
-  test("reloads once, then refuses inside the guard window and reloads again after it", () => {
+  test("a reload is due once, not again inside the guard window, and again after it", () => {
     const storage = memoryStorage();
     let reloads = 0;
-    const reload = () => void reloads++;
-    expect(reloadForNewBuild({ storage, now: 1_000_000, reload })).toBe(true);
-    expect(reloadForNewBuild({ storage, now: 1_010_000, reload })).toBe(false);
+    expect(reloadIsDue({ storage, now: 1_000_000 })).toBe(true);
+    reloadForNewBuild({ storage, now: 1_000_000, reload: () => void reloads++ });
     expect(reloads).toBe(1);
-    expect(reloadForNewBuild({ storage, now: 1_040_000, reload })).toBe(true);
-    expect(reloads).toBe(2);
+    expect(reloadIsDue({ storage, now: 1_010_000 })).toBe(false);
+    expect(reloadIsDue({ storage, now: 1_040_000 })).toBe(true);
   });
 });

@@ -10,11 +10,11 @@ export function isChunkLoadError(error: unknown): boolean {
 
 type ReloadDeps = { storage?: Pick<Storage, "getItem" | "setItem">; now?: number; reload?: () => void };
 
-/** Reloads the window once so a rebuilt server's chunks are fetched; false when it already did so within the guard window. */
-export function reloadForNewBuild({ storage = window.sessionStorage, now = Date.now(), reload = () => window.location.reload() }: ReloadDeps = {}): boolean {
-  const last = Number(storage.getItem(RELOADED_AT_KEY) ?? 0);
-  if (now - last < LOOP_GUARD_MS) return false;
+export function reloadIsDue({ storage = window.sessionStorage, now = Date.now() }: ReloadDeps = {}): boolean {
+  return now - Number(storage.getItem(RELOADED_AT_KEY) ?? 0) >= LOOP_GUARD_MS;
+}
+
+export function reloadForNewBuild({ storage = window.sessionStorage, now = Date.now(), reload = () => window.location.reload() }: ReloadDeps = {}): void {
   storage.setItem(RELOADED_AT_KEY, String(now));
   reload();
-  return true;
 }

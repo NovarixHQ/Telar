@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { catchError, type ErrorInfo } from "next/error";
-import { isChunkLoadError, reloadForNewBuild } from "@/platform/chunk-reload";
+import { isChunkLoadError, reloadForNewBuild, reloadIsDue } from "@/platform/chunk-reload";
 import { Button } from "./button";
 
-/** What a boundary shows: a stale chunk reloads the window once, anything else offers a retry in place. */
 export function LoadFailure({ error, retry, label }: { error: unknown; retry: () => void; label: string }) {
-  const [reloading, setReloading] = useState(() => isChunkLoadError(error));
+  const [reloading] = useState(() => isChunkLoadError(error) && reloadIsDue());
   useEffect(() => {
-    if (isChunkLoadError(error) && reloadForNewBuild()) return;
-    setReloading(false);
-  }, [error]);
+    if (reloading) reloadForNewBuild();
+  }, [reloading]);
   if (reloading) return null;
   return (
     <div role="alert" className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
@@ -35,5 +33,4 @@ function ResettingFailure({ resetKey, reset, ...failure }: { error: unknown; ret
   return <LoadFailure {...failure} />;
 }
 
-/** Keeps a failing surface inside its own box instead of taking the cockpit down; a new `resetKey` clears the failure without remounting. */
 export const SurfaceBoundary = catchError(SurfaceFallback);

@@ -32,7 +32,6 @@ function openCockpit(main) {
   return createCockpitWindow("http://127.0.0.1:42731/", {
     main,
     createManager: (window) => ({ window, extensionHosts: new Map(), windowOfSender: () => null, hideVisibleScope() {}, destroy() {} }),
-    onInPageNavigation: () => {},
   });
 }
 

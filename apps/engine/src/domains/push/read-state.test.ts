@@ -3,6 +3,7 @@ import type http from "node:http";
 import { EngineClientError, type EngineClient } from "@telar/engine-client";
 import { matchRoute } from "../../platform/http/router";
 import { createDesktopStream, DESKTOP_DISMISS, dismissDesktop } from "./desktop";
+import { alertId } from "./push";
 import { clearedSessions, parseReadStateIds, READ_STATE_MAX } from "./read-sync";
 import { pushRoutes } from "./routes";
 
@@ -56,6 +57,6 @@ describe("the desktop hook", () => {
     dismissDesktop("s1", stream);
     stop();
     dismissDesktop("s2", stream);
-    expect(heard.map((chunk) => JSON.parse(chunk.replace(/^data: /, "")))).toEqual([{ type: DESKTOP_DISMISS, sessionId: "s1" }]);
+    expect(heard.map((chunk) => JSON.parse(chunk.replace(/^data: /, "")))).toEqual([{ type: DESKTOP_DISMISS, sessionId: "s1", id: alertId("s1") }]);
   });
 });

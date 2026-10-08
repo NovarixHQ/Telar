@@ -1,6 +1,6 @@
 import { EngineClientError, type EngineClient } from "@telar/engine-client";
 import { fail, ok, type Route } from "../../platform/http/route";
-import { desktopInUse, desktopStream, handleDesktopMessage } from "./desktop";
+import { desktopStream, handleDesktopMessage } from "./desktop";
 import { activityReport, parseRegistration, pushConfigured, PushInputError, readPushRecords, saveRegistration, writePushRecords } from "./push";
 import { clearedSessions, parseReadStateIds } from "./read-sync";
 import { sendRelayTest, startMobilePushWorker } from "./worker";
@@ -63,12 +63,6 @@ export function pushRoutes(deps: PushRouteDeps): Route[] {
         });
         return ok({ cleared });
       },
-    },
-    {
-      method: "PUT",
-      path: /^\/v2\/push\/desktop\/presence\/([^/]+)$/,
-      auth: "engine",
-      handle: () => ok({ hostInUse: desktopInUse() }),
     },
     {
       method: "POST",

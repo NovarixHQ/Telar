@@ -3,11 +3,12 @@ import type http from "node:http";
 import type { EngineClient } from "@telar/engine-client";
 import { matchRoute } from "../../platform/http/router";
 import {
-  DESKTOP_APPROVE, DESKTOP_APPROVED, DESKTOP_DISMISS, DESKTOP_NOTICE, DESKTOP_PRESENCE, PRESENCE_STALE_MS,
+  DESKTOP_APPROVE, DESKTOP_APPROVED, DESKTOP_DISMISS, DESKTOP_NOTICE,
   createDesktopStream, desktopAttached, desktopNotices, dismissDesktop, emptyDesktopState, handleDesktopMessage, notifyDesktop,
-  type DesktopState, type Presence,
+  type DesktopState,
 } from "./desktop";
-import { notification, signalKey, type Delivery, type DeliveryResult, type MobileRegistration, type PushRecord, type SessionSignal } from "./push";
+import { alertId, notification, signalKey, type Delivery, type DeliveryResult, type MobileRegistration, type PushRecord, type SessionSignal } from "./push";
+import { sessionLifecycleRoutes } from "../sessions";
 import { pushRoutes } from "./routes";
 import { deliverRecord } from "./worker";
 
@@ -143,69 +144,62 @@ describe("the desktop stream", () => {
   });
 });
 
-const g = globalThis as { telarDesktopNotify?: DesktopState; telarDesktopPresence?: Presence };
+const g = globalThis as { telarDesktopNotify?: DesktopState };
 const recorder = () => ({ sent: [] as unknown[], connected: true, send(message: unknown) { this.sent.push(message); } });
 
-describe("presence from the shell", () => {
-  const never = async () => { throw new Error("must not resolve"); };
-
-  test("the shell's beat is kept, stamped with this process's clock, and answers nothing", async () => {
-    delete g.telarDesktopPresence;
-    const wire = recorder();
-    await handleDesktopMessage({ type: DESKTOP_PRESENCE, active: true, viewingPath: "/main", at: 1 }, never, wire, undefined, 5000);
-    expect<Presence | undefined>(g.telarDesktopPresence).toEqual({ active: true, viewingPath: "/main", at: 5000 });
-    await handleDesktopMessage({ type: DESKTOP_PRESENCE, active: false, viewingPath: null }, never, wire, undefined, 6000);
-    expect<Presence | undefined>(g.telarDesktopPresence).toEqual({ active: false, viewingPath: null, at: 6000 });
-    expect(wire.sent).toEqual([]);
-  });
-
-  test("a malformed beat is ignored, so the last good one simply ages out", async () => {
-    const before = g.telarDesktopPresence;
-    for (const junk of [
-      { type: DESKTOP_PRESENCE, active: "yes", viewingPath: null },
-      { type: DESKTOP_PRESENCE, active: true, viewingPath: "https://evil.example" },
-      { type: DESKTOP_PRESENCE, active: true },
-      { type: DESKTOP_PRESENCE, active: true, viewingPath: `/${"x".repeat(1024)}` },
-    ]) await handleDesktopMessage(junk, never, recorder(), undefined, 9000);
-    expect(g.telarDesktopPresence).toBe(before);
-  });
-
-  test("another Mac asking is told whether this one is in use", async () => {
-    const { route, params } = matchRoute(pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => [] }), "PUT", "/v2/push/desktop/presence/device_mac")!;
-    const ask = () => route.handle({ body: {}, params, query: new URLSearchParams() } as never);
-    g.telarDesktopPresence = { active: true, viewingPath: null, at: Date.now() };
-    expect(await ask()).toMatchObject({ status: 200, body: { hostInUse: true } });
-    g.telarDesktopPresence = { active: true, viewingPath: null, at: Date.now() - PRESENCE_STALE_MS - 1 };
-    expect(await ask()).toMatchObject({ status: 200, body: { hostInUse: false } });
-  });
-});
-
-describe("the Mac and the phone each get the alert", () => {
+describe("one alert reaches every device, under one id, and a read anywhere clears it everywhere", () => {
+  const ended: SessionSignal = { ...working, activity: "idle", activityAt: 3000, lastTurnEndedAt: 3000, lastTurnSequence: 2, lastReadTurnSequence: 1 };
+  const before: SessionSignal = { ...working, lastTurnSequence: 1, lastReadTurnSequence: 1 };
   const phone: PushRecord = {
     hostId: "12345678-1234-1234-1234-123456789abc", token: "a".repeat(64), topic: "io.github.novarix.telar", sandbox: false,
     enabled: true, completions: true, previews: false, mutedSessions: [],
-    deviceId: "paired", revision: "r1", updatedAt: 1000, baselined: true, seen: { s1: signalKey(working) }, activitySent: {},
+    deviceId: "paired", revision: "r1", updatedAt: 1000, baselined: true, seen: { s1: signalKey(before) }, activitySent: {},
   };
   const moved = new Set(["s1"]);
+  const phoneSends = () => {
+    const sent: Delivery[] = [];
+    return { sent, send: async (delivery: Delivery): Promise<DeliveryResult> => { sent.push(delivery); return { status: 200 }; } };
+  };
 
-  test("whatever the Mac's presence, it gets a banner and the phone gets a push", async () => {
-    for (const presence of [{ active: true, viewingPath: null, at: Date.now() }, { active: true, viewingPath: "/projects/p1/sessions/s1", at: Date.now() }, { active: false, viewingPath: null, at: 0 }, undefined]) {
-      g.telarDesktopNotify = { seen: { s1: signalKey(working) }, baselined: true, offered: {} };
-      if (presence) g.telarDesktopPresence = presence; else delete g.telarDesktopPresence;
-      const mac = recorder();
-      notifyDesktop([blocked], moved, mac);
-      expect(mac.sent).toEqual([expect.objectContaining({ type: DESKTOP_NOTICE, kind: "blocked", sessionId: "s1" })]);
-      const sent: Delivery[] = [];
-      const next = await deliverRecord(phone, [blocked], async (delivery): Promise<DeliveryResult> => { sent.push(delivery); return { status: 200 }; }, 11, { changed: moved });
-      expect(sent.map((d) => d.kind)).toEqual(["alert"]);
-      expect(next?.seen.s1).toBe(signalKey(blocked));
-    }
+  test("the Mac banner and the phone push carry the same id", async () => {
+    g.telarDesktopNotify = { seen: { s1: signalKey(before) }, baselined: true, offered: {} };
+    const mac = recorder();
+    notifyDesktop([ended], moved, mac);
+    const push = phoneSends();
+    await deliverRecord(phone, [ended], push.send, 11, { changed: moved, readSync: true });
+    expect(mac.sent).toEqual([expect.objectContaining({ type: DESKTOP_NOTICE, kind: "finished", sessionId: "s1", id: alertId("s1") })]);
+    expect(push.sent.map((d) => [d.kind, d.collapseId])).toEqual([["alert", alertId("s1")]]);
+  });
+
+  test("read on the Mac or the phone: the read receipt takes the Mac banner down and the phone is told to clear it", async () => {
+    const dismissed: string[] = [];
+    const store = { records: { markRead: (id: string) => ({ id }) } } as unknown as Parameters<typeof sessionLifecycleRoutes>[0];
+    const { route, params } = matchRoute(sessionLifecycleRoutes(store, (id) => dismissed.push(id)), "POST", "/v2/sessions/s1/read")!;
+    await route.handle({ body: { runId: "run_2" }, params, query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse });
+    expect(dismissed).toEqual(["s1"]);
+
+    const mac = recorder();
+    dismissDesktop("s1", mac);
+    expect(mac.sent).toEqual([{ type: DESKTOP_DISMISS, sessionId: "s1", id: alertId("s1") }]);
+
+    const push = phoneSends();
+    const alerted = (await deliverRecord(phone, [ended], push.send, 11, { changed: moved, readSync: true }))!;
+    await deliverRecord(alerted, [{ ...ended, lastReadTurnSequence: 2 }], push.send, 11 + 120, { readSync: true });
+    expect(push.sent.filter((d) => d.kind === "background").map((d) => d.payload.read)).toEqual([{ host: phone.hostId, sessions: ["s1"] }]);
+  });
+
+  test("no device holds another back: the session on the Mac's screen still pushes the phone", async () => {
+    g.telarDesktopNotify = { seen: { s1: signalKey(before) }, baselined: true, offered: {} };
+    const mac = recorder();
+    notifyDesktop([ended], moved, mac);
+    const push = phoneSends();
+    await deliverRecord(phone, [ended], push.send, 11, { changed: moved });
+    expect([mac.sent.length, push.sent.length]).toEqual([1, 1]);
   });
 });
 
-
 describe("read elsewhere takes the Mac's banner down", () => {
-  test("a read sends the shell a dismiss for that session, ids only, and only when the shell is there", () => {
+  test("a dismiss names the session and its alert id, and goes only to a shell that is there", () => {
     const sent: unknown[] = [];
     const wire = { connected: false, send: (message: unknown) => { sent.push(message); } };
     dismissDesktop("s1", wire);
@@ -214,6 +208,6 @@ describe("read elsewhere takes the Mac's banner down", () => {
     dismissDesktop("x".repeat(300), wire);
     expect(sent).toEqual([]);
     dismissDesktop("s1", wire);
-    expect(sent).toEqual([{ type: DESKTOP_DISMISS, sessionId: "s1" }]);
+    expect(sent).toEqual([{ type: DESKTOP_DISMISS, sessionId: "s1", id: alertId("s1") }]);
   });
 });

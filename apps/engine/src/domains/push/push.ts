@@ -189,13 +189,14 @@ export function alertSound(record: MobileRegistration, kind: AlertKind): string 
   if (record.sounds === undefined) return "default";
   return record.sounds === "off" ? undefined : `telar-${record.sounds}-needs.caf`;
 }
+export const alertId = (sessionId: string): string => crypto.createHash("sha256").update(sessionId).digest("hex");
 export function notification(record: MobileRegistration, session: SessionSignal, previous: string | undefined): Delivery | undefined {
   if (!record.enabled || record.mutedSessions.includes(session.id)) return;
   const kind = alertKind(session, previous, record.completions);
   if (!kind) return;
   const body = ALERT_BODY[kind];
   const approvable = session.activity === "blocked" ? session.approvable : undefined;
-  const collapseId = crypto.createHash("sha256").update(session.id).digest("hex");
+  const collapseId = alertId(session.id);
   const sound = alertSound(record, kind);
   return { token: record.token, topic: record.topic, sandbox: record.sandbox, kind: "alert", collapseId,
     payload: { aps: { alert: { title: record.previews ? session.title.slice(0, 160) : "Telar", body }, ...(sound ? { sound } : {}),

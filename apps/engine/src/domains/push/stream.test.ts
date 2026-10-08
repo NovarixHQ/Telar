@@ -5,6 +5,7 @@ import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
 import { stubModels } from "../../../test/stub-models";
+import { alertId } from "./push";
 
 const roots: string[] = [];
 const daemons: EngineDaemon[] = [];
@@ -65,7 +66,7 @@ test("the shell's stream carries a dismissal when a session is read", async () =
   expect(stream.type).toBe("text/event-stream");
   const frame = stream.next();
   await client.markSessionRead("session_one", "run_one");
-  expect(await frame).toEqual({ type: "telar:desktop-notification:dismiss", sessionId: "session_one" });
+  expect(await frame).toEqual({ type: "telar:desktop-notification:dismiss", sessionId: "session_one", id: alertId("session_one") });
 });
 
 test("an approval the engine never offered is answered not ok on the stream", async () => {

@@ -68,7 +68,7 @@ function claimWindowUrl(appUrl) {
   return { id, url: url.href };
 }
 
-function createCockpitWindow(appUrl, { createManager, onInPageNavigation, main = false }) {
+function createCockpitWindow(appUrl, { createManager, main = false }) {
   const title = windowTitle();
   rememberWindowUrl(appUrl);
   const { id, url } = claimWindowUrl(appUrl);
@@ -83,7 +83,6 @@ function createCockpitWindow(appUrl, { createManager, onInPageNavigation, main =
 
   applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl }));
   win.webContents.on("did-start-loading", () => onCockpitReload(win, manager));
-  win.webContents.on("did-navigate-in-page", () => onInPageNavigation());
   win.webContents.on("did-finish-load", () => {
     if (win.isDestroyed()) return;
 

@@ -3,9 +3,9 @@
 const DESKTOP_NOTICE = "telar:desktop-notification";
 const DESKTOP_APPROVE = "telar:desktop-notification:approve";
 const DESKTOP_APPROVED = "telar:desktop-notification:approved";
-const DESKTOP_PRESENCE = "telar:desktop-presence";
 const DESKTOP_DISMISS = "telar:desktop-notification:dismiss";
 const KINDS = new Set(["blocked", "finished", "failed"]);
+const ALERT_ID = /^[a-f0-9]{64}$/;
 
 const text = (value, max) => typeof value === "string" && value.length > 0 && value.length <= max;
 
@@ -14,10 +14,10 @@ const appPath = (value) =>
 
 function parseNotice(message) {
   if (!message || typeof message !== "object" || message.type !== DESKTOP_NOTICE) return null;
-  const { kind, sessionId, title, body, path, request } = message;
-  if (!KINDS.has(kind) || !text(sessionId, 256) || !text(title, 160) || !text(body, 200) || !appPath(path)) return null;
+  const { kind, id, sessionId, title, body, path, request } = message;
+  if (!KINDS.has(kind) || !ALERT_ID.test(id) || !text(sessionId, 256) || !text(title, 160) || !text(body, 200) || !appPath(path)) return null;
   if (request !== undefined && !text(request, 256)) return null;
-  return { kind, sessionId, title, body, path, ...(request === undefined ? {} : { request }) };
+  return { kind, id, sessionId, title, body, path, ...(request === undefined ? {} : { request }) };
 }
 
 function routeOf(url) {
@@ -33,33 +33,6 @@ function shouldNotifyDesktop(notice, context = {}) {
   return true;
 }
 
-const ACTIVE_IDLE_SECONDS = 60;
-
-const PRESENCE_BEAT_MS = 15_000;
-
-function presenceMessage({ idleState, locked, focused, viewingPath }) {
-  const active = !locked && focused && idleState === "active";
-  return { type: DESKTOP_PRESENCE, active, viewingPath: active && appPath(viewingPath) ? viewingPath : null };
-}
-
-function createPresenceReporter({ sample, send, setInterval: every = setInterval, clearInterval: stopEvery = clearInterval }) {
-  let timer = null;
-  const report = () => send(presenceMessage(sample()));
-  return {
-    report,
-    start() {
-      if (timer) return;
-      report();
-      timer = every(report, PRESENCE_BEAT_MS);
-      timer?.unref?.();
-    },
-    stop() {
-      if (timer) stopEvery(timer);
-      timer = null;
-    },
-  };
-}
-
 function createDesktopNotifier({ Notification, send, context, open, chime, enabled = () => true }) {
   const live = new Map();
 
@@ -69,6 +42,7 @@ function createDesktopNotifier({ Notification, send, context, open, chime, enabl
     live.get(notice.sessionId)?.close();
     const approvable = notice.request !== undefined;
     const banner = new Notification({
+      id: notice.id,
       title: notice.title,
       body: notice.body,
       ...chime.options(notice.kind),
@@ -99,6 +73,7 @@ function createDesktopNotifier({ Notification, send, context, open, chime, enabl
     handleServerMessage(message) {
       if (message?.type === DESKTOP_DISMISS) {
         if (text(message.sessionId, 256)) live.get(message.sessionId)?.close();
+        if (typeof message.id === "string" && ALERT_ID.test(message.id)) Notification.remove(message.id);
         return;
       }
       if (message?.type === DESKTOP_APPROVED) {
@@ -120,12 +95,7 @@ module.exports = {
   DESKTOP_NOTICE,
   DESKTOP_APPROVE,
   DESKTOP_APPROVED,
-  DESKTOP_PRESENCE,
   DESKTOP_DISMISS,
-  ACTIVE_IDLE_SECONDS,
-  PRESENCE_BEAT_MS,
-  presenceMessage,
-  createPresenceReporter,
   parseNotice,
   routeOf,
   shouldNotifyDesktop,

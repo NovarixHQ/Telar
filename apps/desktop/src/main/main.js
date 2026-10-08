@@ -39,7 +39,7 @@ const { passwordManagerEnabled } = require("../login/password-manager-prefs");
 const { adoptLegacyUpdatePrefs } = require("./update-prefs");
 const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require("./browser-hosts");
 const { createCockpitWindow } = require("./cockpit-window");
-const { cockpitFocus, createPresence } = require("./presence");
+const { cockpitFocus } = require("./cockpit-focus");
 const { pinUserData } = require("./user-data");
 const { createTerminalReaders } = require("./terminal-readers");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
@@ -157,7 +157,6 @@ function startServer(port, home) {
       ...serveEnv(),
     },
     onExit: (code, signal) => {
-      presence.stop();
       if (!SMOKE && !app.isQuitting) {
         console.error(`[telar-desktop] server exited (code=${code} signal=${signal})`);
         app.quit();
@@ -165,7 +164,6 @@ function startServer(port, home) {
     },
   });
   engineNotices.start(engineDiscoveryFile(home));
-  presence.watch();
   return child;
 }
 
@@ -178,7 +176,6 @@ const desktopNotifier = createDesktopNotifier({
   chime,
   enabled: () => readNotificationPrefs().enabled,
 });
-const presence = createPresence({ send: engineNotices.send });
 
 function openNotificationPath(route) {
   const win = [currentHost(), ...browserManagers].map((manager) => manager?.window).find((w) => w && !w.isDestroyed());
@@ -225,7 +222,6 @@ function createWindow(url, { main = false } = {}) {
       });
       return manager;
     },
-    onInPageNavigation: () => presence.report(),
   });
 }
 

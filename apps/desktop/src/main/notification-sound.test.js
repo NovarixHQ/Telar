@@ -29,7 +29,7 @@ function show(packaged, kind = "finished", allowed = true) {
     send() {}, context: () => ({}), open() {}, chime: createChime({ packaged, play: (file) => played.push(file) }),
   });
   notifier.handleServerMessage({
-    type: DESKTOP_NOTICE, kind, sessionId: "s1", title: "Fix the build",
+    type: DESKTOP_NOTICE, kind, id: "a".repeat(64), sessionId: "s1", title: "Fix the build",
     body: "A session finished. Its result is ready to review.", path: "/main", sound: "telar-hilo-done",
   });
   return { options: made[0].options, played };

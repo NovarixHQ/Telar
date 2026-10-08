@@ -1,27 +1,21 @@
 import { cockpitSessionHref } from "@telar/engine-client";
-import { ALERT_BODY, alertKind, signalKey, type AlertKind, type SessionSignal } from "./push";
+import { ALERT_BODY, alertId, alertKind, signalKey, type AlertKind, type SessionSignal } from "./push";
 
 export const DESKTOP_NOTICE = "telar:desktop-notification";
 export const DESKTOP_APPROVE = "telar:desktop-notification:approve";
 export const DESKTOP_APPROVED = "telar:desktop-notification:approved";
-export const DESKTOP_PRESENCE = "telar:desktop-presence";
 export const DESKTOP_DISMISS = "telar:desktop-notification:dismiss";
 
 export type DesktopNotice = {
   type: typeof DESKTOP_NOTICE;
   kind: AlertKind;
+  id: string;
   sessionId: string;
   title: string;
   body: string;
   path: string;
   request?: string;
 };
-
-export type Presence = { active: boolean; viewingPath: string | null; at: number };
-export const PRESENCE_STALE_MS = 45_000;
-
-export const presentNow = (presence: Presence | undefined, now: number): presence is Presence =>
-  presence !== undefined && presence.active && now - presence.at >= 0 && now - presence.at <= PRESENCE_STALE_MS;
 
 export type DesktopState = { seen: Record<string, string>; baselined: boolean; offered: Record<string, string> };
 export const emptyDesktopState = (): DesktopState => ({ seen: {}, baselined: false, offered: {} });
@@ -42,7 +36,7 @@ export function desktopNotices(
     const request = kind === "blocked" ? session.approvable : undefined;
     if (request) next.offered[session.id] = request;
     notices.push({
-      type: DESKTOP_NOTICE, kind, sessionId: session.id,
+      type: DESKTOP_NOTICE, kind, id: alertId(session.id), sessionId: session.id,
       title: session.title.slice(0, 160),
       body: ALERT_BODY[kind],
       path: cockpitSessionHref(session),
@@ -78,14 +72,11 @@ type Resolve = (sessionId: string, requestId: string, input: { decision: "accept
 
 const desktopGlobal = globalThis as typeof globalThis & {
   telarDesktopNotify?: DesktopState;
-  telarDesktopPresence?: Presence;
 };
 
 export function desktopAttached(channel: Channel = desktopStream): boolean {
   return channel.connected;
 }
-
-export const desktopInUse = (now = Date.now()): boolean => presentNow(desktopGlobal.telarDesktopPresence, now);
 
 export function notifyDesktop(sessions: readonly SessionSignal[], changed: ReadonlySet<string> | undefined, channel: Channel = desktopStream): void {
   const { notices, state } = desktopNotices(desktopGlobal.telarDesktopNotify ?? emptyDesktopState(), sessions, changed);
@@ -94,14 +85,9 @@ export function notifyDesktop(sessions: readonly SessionSignal[], changed: Reado
 }
 
 const validId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 256;
-export async function handleDesktopMessage(message: unknown, resolve: Resolve, channel: Channel = desktopStream, state = desktopGlobal.telarDesktopNotify, now = Date.now()): Promise<void> {
+export async function handleDesktopMessage(message: unknown, resolve: Resolve, channel: Channel = desktopStream, state = desktopGlobal.telarDesktopNotify): Promise<void> {
   if (!message || typeof message !== "object") return;
-  const { type, sessionId, requestId, active, viewingPath } = message as Record<string, unknown>;
-  if (type === DESKTOP_PRESENCE) {
-    const viewing = viewingPath === null || (typeof viewingPath === "string" && viewingPath.startsWith("/") && viewingPath.length <= 1024) ? viewingPath : undefined;
-    if (typeof active === "boolean" && viewing !== undefined) desktopGlobal.telarDesktopPresence = { active, viewingPath: viewing, at: now };
-    return;
-  }
+  const { type, sessionId, requestId } = message as Record<string, unknown>;
   if (type !== DESKTOP_APPROVE || !validId(sessionId) || !validId(requestId)) return;
   let ok = false;
   if (state && state.offered[sessionId] === requestId) {
@@ -113,5 +99,5 @@ export async function handleDesktopMessage(message: unknown, resolve: Resolve, c
 
 export function dismissDesktop(sessionId: string, channel: Channel = desktopStream): void {
   if (!validId(sessionId) || !desktopAttached(channel)) return;
-  channel.send({ type: DESKTOP_DISMISS, sessionId });
+  channel.send({ type: DESKTOP_DISMISS, sessionId, id: alertId(sessionId) });
 }

@@ -8,7 +8,7 @@ import { math } from "@streamdown/math";
 import { cn } from "@/ui/utils";
 import { useLinkPolicy } from "@/platform/link-policy";
 import { rehypeDisplayStandaloneMath } from "@/ui/markdown-math";
-import { MarkdownCode } from "@/ui/markdown-blocks";
+import { MarkdownCode, MarkdownImage } from "@/ui/markdown-blocks";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 
 export type MessageRole = "user" | "assistant";
@@ -50,7 +50,7 @@ const MATH_PLUGINS = { math } as const;
 const MATH_REHYPE = [rehypeDisplayStandaloneMath];
 
 const LINKS_UNGATED = { enabled: false } as const;
-const BLOCKS = { code: MarkdownCode };
+const BLOCKS = { code: MarkdownCode, img: MarkdownImage };
 
 export const MessageResponse = memo(
   ({ className, streaming, children, rehypePlugins, plugins, components, ...props }: MessageResponseProps & { streaming?: boolean }) => {

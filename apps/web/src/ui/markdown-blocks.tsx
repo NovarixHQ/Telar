@@ -1,9 +1,12 @@
 "use client";
 
-import { isValidElement, useState, type ComponentProps } from "react";
+import { isValidElement, Suspense, useState, type ComponentProps, type KeyboardEvent, type MouseEvent } from "react";
 import { WrapTextIcon } from "lucide-react";
 import { CodeBlock, CodeBlockCopyButton, useIsCodeFenceIncomplete, type ExtraProps } from "streamdown";
+import dynamic from "next/dynamic";
 import { cn } from "@/ui/utils";
+
+const ImageLightbox = dynamic(() => import("@/features/plugins/data-science/image-lightbox").then((mod) => mod.ImageLightbox));
 
 const LANGUAGE = /language-([^\s]+)/;
 const START_LINE = /startLine=(\d+)/;
@@ -49,5 +52,40 @@ export function MarkdownCode({ node, className, children, ...props }: ComponentP
       </button>
       <CodeBlockCopyButton />
     </CodeBlock>
+  );
+}
+
+/** A span, not a button: Streamdown draws links as buttons, and a linked image would nest one in the other. */
+export function MarkdownImage({ src, alt, title }: ComponentProps<"img"> & ExtraProps) {
+  const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
+  if (typeof src !== "string" || !src) return null;
+  if (failed) return <span className="text-xs text-muted-foreground italic">Image not available</span>;
+  const expand = (event: MouseEvent | KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setOpen(true);
+  };
+  return (
+    <>
+      <span
+        role="button"
+        tabIndex={0}
+        aria-label={alt ? `Open image: ${alt}` : "Open image"}
+        className="my-2 inline-block max-w-full cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={expand}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") expand(event);
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary sources from agent replies */}
+        <img src={src} alt={alt ?? ""} {...(title ? { title } : {})} loading="lazy" onError={() => setFailed(true)} className="block max-w-full rounded-lg" />
+      </span>
+      {open && (
+        <Suspense fallback={null}>
+          <ImageLightbox src={src} alt={alt || "Image"} onClose={() => setOpen(false)} />
+        </Suspense>
+      )}
+    </>
   );
 }

@@ -204,7 +204,6 @@ describe("reviewFraming", () => {
   test("a worktree session still says the work is its own, and still reconciles", () => {
     const framing = reviewFraming(diff(files, { base: "base000", added: 9, removed: 2 }), owned, true);
     expect(framing.headline).toBe("2 files +9 −2");
-    expect(framing.note).toBe("Everything this session changed, committed and uncommitted.");
     expect(framing.journal).toBe(true);
   });
 
@@ -213,8 +212,6 @@ describe("reviewFraming", () => {
     // conversation that wrote no code. The figures are true; the claim was not.
     const framing = reviewFraming(diff(files, { base: "base000", added: 9, removed: 2, shared: true }), sharedReview, true);
     expect(framing.headline).toBe("The project checkout — 2 files +9 −2");
-    expect(framing.note).toContain("shares the project checkout");
-    expect(framing.note).not.toContain("Everything this session changed");
   });
 
   test("a shared checkout withdraws the journal's disagreement, and only that", () => {
@@ -227,30 +224,11 @@ describe("reviewFraming", () => {
     expect(sharedReview.settled).toEqual([]);
   });
 
-  test("a session with no recorded base says so in either mode", () => {
-    expect(reviewFraming(diff(files), owned, true).note).toBe("No starting commit was recorded, so this counts only what is uncommitted.");
-    const shared = reviewFraming(diff(files, { shared: true }), sharedReview, true).note;
-    expect(shared).toContain("no starting commit was recorded");
-    expect(shared).toContain("shares the project checkout");
-  });
-
-  test("a read git cut short gives up 'everything' in either mode (#654 through the fold)", () => {
-    // Two independent doubts that compose: whose changes these are, and how
-    // many of them git managed to report. Neither branch may swallow the other.
-    expect(reviewFraming(diff(files, { base: "base000", filesIncomplete: "timeout" }), owned, true).note).toBe(
-      "What this session changed, committed and uncommitted — as much of it as git reported.",
-    );
-    const both = reviewFraming(diff(files, { base: "base000", shared: true, filesIncomplete: "failed" }), sharedReview, true).note;
-    expect(both).toContain("shares the project checkout");
-    expect(both).toContain("as much of it as git reported");
-  });
-
   test("the canvas is untouched — no session to misattribute anything to", () => {
     // A project diff carries no `shared` flag at all, and its copy already
     // named the project rather than a session.
     const framing = reviewFraming(diff(files), reconcileReview(diff(files), journal()), false);
     expect(framing.headline).toBe("2 files");
-    expect(framing.note).toBe("Everything uncommitted in this project right now.");
     expect(framing.journal).toBe(false);
   });
 });

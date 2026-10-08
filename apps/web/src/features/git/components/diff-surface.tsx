@@ -14,13 +14,13 @@ import { useDiffRead, useDiffRefresh } from "../hooks/use-diff-read";
 import { useDiffView } from "../hooks/use-diff-view";
 import { usePatchReader } from "../hooks/use-patch-reader";
 import { useGitHubReady, useGitRefs } from "../hooks/use-repo-reads";
-import { reviewUnderFilter, toggleOpen, turnNote, turnReview, type PatchWitness } from "../model";
+import { reviewUnderFilter, toggleOpen, turnReview, type PatchWitness } from "../model";
 import { CommitBox } from "./commit-box";
 import { DiffHeader } from "./diff-header";
 import { DiffToolbar } from "./diff-toolbar";
 import { PublishBox } from "./publish-box";
 import type { PullCommentContext } from "./pull-line-comment";
-import { CommitList, DiffUnknownBand, ReconciliationBand, ReviewEmptyState, TurnEmptyState } from "./review-bands";
+import { CommitList, DiffUnknownBand, ReviewEmptyState, TurnEmptyState } from "./review-bands";
 import { ReviewList } from "./review-list";
 
 type DiffSurfaceProps = {
@@ -47,8 +47,8 @@ type DiffSurfaceProps = {
 export function DiffSurface({ sessionId, projectId, reported, suggestion, active, tab, onTabChange, turns, onOpenFile, onOpenInNewPanelTab, onInsertReference }: DiffSurfaceProps) {
   const [refreshing, setRefreshing] = useState(false);
   const { view, setView } = useDiffView();
-  const [openPaths, setOpenPaths] = useState<ReadonlySet<string>>(() => new Set());
-  const toggleRow = useCallback((path: string) => setOpenPaths((current) => toggleOpen(current, path)), []);
+  const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleRow = useCallback((path: string) => setFolded((current) => toggleOpen(current, path)), []);
 
   const turn = useMemo(() => turnFor(turns ?? [], tab.turn), [turns, tab.turn]);
   // Undefined only for a turn with no usable anchor, which keeps the journal as its witness.
@@ -85,8 +85,9 @@ export function DiffSurface({ sessionId, projectId, reported, suggestion, active
   const rowMenu = { ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenInNewPanelTab ? { onOpenInNewPanelTab } : {}), ...(onInsertReference ? { onInsertReference } : {}) };
   const witness: PatchWitness = tab.kind === "turn" ? "journal" : "git";
   const shownPaths = shown?.rows.map((row) => row.file.path) ?? [];
-  const anyOpen = shownPaths.some((path) => openPaths.has(path));
-  const toggleAll = () => setOpenPaths((current) => (shownPaths.some((path) => current.has(path)) ? new Set() : new Set(shownPaths)));
+  const openPaths = new Set(shownPaths.filter((path) => !folded.has(path)));
+  const anyOpen = openPaths.size > 0;
+  const toggleAll = () => setFolded(anyOpen ? new Set(shownPaths) : new Set());
 
   const unreadable = unreadableState(sessionId, projectId, error, diff);
   if (unreadable) return unreadable;
@@ -99,7 +100,7 @@ export function DiffSurface({ sessionId, projectId, reported, suggestion, active
   }
 
   const framing = reviewFraming(diff, shown, Boolean(sessionId));
-  const turnFraming = tab.kind === "turn" && turn ? { headline: `${describeReview(shown)} — ${turnLabel(turn)}`, note: turnNote(turn, diff) } : undefined;
+  const turnFraming = tab.kind === "turn" && turn ? { headline: `${describeReview(shown)} — ${turnLabel(turn)}` } : undefined;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -112,9 +113,6 @@ export function DiffSurface({ sessionId, projectId, reported, suggestion, active
         diff={diff}
         fromGit={fromGit}
         headline={turnFraming?.headline ?? framing.headline}
-        note={turnFraming?.note ?? framing.note}
-        trimmed={trimmed}
-        filesInAll={review.filesChanged}
         refreshing={refreshing}
         onRefresh={() => {
           setRefreshing(true);
@@ -125,7 +123,6 @@ export function DiffSurface({ sessionId, projectId, reported, suggestion, active
       {fromGit && (
         <>
           <DiffUnknownBand diff={diff} onRetry={load} />
-          {sessionId && <ReconciliationBand review={shown} journal={framing.journal} />}
           <CommitList commits={diff.commits} />
         </>
       )}

@@ -122,9 +122,11 @@ struct HTTPEngineAPI: Sendable {
         let session = transport.session
         do {
             return try await load(session, request)
-        } catch let error as URLError where error.code == .cancelled && !Task.isCancelled && session !== transport.session {
+        } catch where Task.isCancelled {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
             do {
-                return try await load(transport.session, request)
+                return try await load(transport.renew(replacing: session), request)
             } catch {
                 throw EngineAPIError.transport(error)
             }

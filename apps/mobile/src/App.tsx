@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
 import { DiffScreen } from "./features/git";
-import { hosts, HostsScreen, PairScreen } from "./features/hosts";
+import { ConnectScreen, hosts, HostSettingsScreen, HostsScreen } from "./features/hosts";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
 import type { RootStack } from "./platform/navigation/routes";
 import { navigationTheme } from "./platform/navigation/theme";
@@ -25,7 +25,8 @@ export function App() {
       <StatusBar style="auto" />
       <Stack.Navigator screenOptions={{ headerLargeTitle: true }}>
         <Stack.Screen name="Hosts" component={HostsScreen} options={{ title: "Telar" }} />
-        <Stack.Screen name="Pair" component={PairScreen} options={{ title: "Pair a computer", presentation: "formSheet", headerLargeTitle: false, sheetAllowedDetents: [0.6, 1] }} />
+        <Stack.Screen name="Pair" component={ConnectScreen} options={{ title: "Connect to Telar" }} />
+        <Stack.Screen name="HostSettings" component={HostSettingsScreen} options={{ title: "Computer" }} />
         <Stack.Screen name="Sessions" component={SessionsScreen} options={({ route }) => ({ title: route.params.hostName ?? hosts.get(route.params.hostId)?.name ?? "Sessions" })} />
         <Stack.Screen
           name="Session"

@@ -1,43 +1,31 @@
-import { Button, ContentUnavailableView, Host, LabeledContent, List, Text, VStack } from "@expo/ui/swift-ui";
-import { buttonStyle, controlSize } from "@expo/ui/swift-ui/modifiers";
 import { useNavigation, type NavigationProp } from "@react-navigation/native";
 import { present } from "../../platform/connection";
 import type { RootStack } from "../../platform/navigation/routes";
+import { ConnectionsSection } from "./ConnectionsSection";
 import { hosts } from "./registry";
+import { CardDivider, CardNavRow, SettingsGroup, SettingsPage } from "./settings-kit";
 import { useHosts } from "./use-hosts";
+import { WelcomeScreen } from "./WelcomeScreen";
 
 export function HostsScreen() {
   const rows = useHosts(hosts);
   const navigation = useNavigation<NavigationProp<RootStack>>();
-  if (rows.length === 0) {
-    return (
-      <Host style={{ flex: 1 }}>
-        <VStack spacing={16}>
-          <ContentUnavailableView
-            title="No computers yet"
-            systemImage="desktopcomputer"
-            description="Pair this phone with Telar on your computer to follow and steer its sessions."
-          />
-          <Button label="Pair a computer" onPress={() => navigation.navigate("Pair")} modifiers={[buttonStyle("glassProminent"), controlSize("large")]} />
-        </VStack>
-      </Host>
-    );
-  }
+  if (rows.length === 0) return <WelcomeScreen />;
   return (
-    <Host style={{ flex: 1 }}>
-      <List>
-        {rows.map(({ connection, state }) => (
-          <Button
+    <SettingsPage>
+      <SettingsGroup label="Sessions">
+        {rows.flatMap(({ connection, state }, index) => [
+          ...(index > 0 ? [<CardDivider key={`${connection.hostId}-divider`} />] : []),
+          <CardNavRow
             key={connection.hostId}
-            modifiers={[buttonStyle("plain")]}
+            icon="text.bubble"
+            title={connection.name}
+            subtitle={present(state, Date.now()).label}
             onPress={() => navigation.navigate("Sessions", { hostId: connection.hostId, hostName: connection.name })}
-          >
-            <LabeledContent label={connection.name}>
-              <Text>{present(state, Date.now()).label}</Text>
-            </LabeledContent>
-          </Button>
-        ))}
-      </List>
-    </Host>
+          />,
+        ])}
+      </SettingsGroup>
+      <ConnectionsSection />
+    </SettingsPage>
   );
 }

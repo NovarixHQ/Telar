@@ -26,3 +26,13 @@ test("highlighted code keeps every character, tagged with its scope", () => {
 test("code without a language comes back as one plain run", () => {
   expect(highlightCode("ls -la", undefined)).toEqual([{ text: "ls -la" }]);
 });
+
+test("$$ math is a display block on its own lines and inline inside a sentence", () => {
+  const blocks = markdownBlocks("Depth:\n\n$$\n\\frac{a}{b}\n$$\n\nso $$E=mc^2$$ holds, but `$$code$$` stays code.\n\n$$x^2$$\n");
+  const kinds = blocks.filter((block) => block.type !== "space").map((block) => block.type);
+  expect(kinds).toEqual(["paragraph", "mathBlock", "paragraph", "mathBlock"]);
+  expect(blocks.find((block) => block.type === "mathBlock")).toMatchObject({ text: "\\frac{a}{b}" });
+  const sentence = blocks.filter((block) => block.type === "paragraph")[1] as { tokens: { type: string; text?: string }[] };
+  expect(sentence.tokens.map((token) => token.type)).toEqual(["text", "mathInline", "text", "codespan", "text"]);
+  expect(sentence.tokens[3]).toMatchObject({ text: "$$code$$" });
+});

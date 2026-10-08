@@ -3,6 +3,8 @@ import { DynamicColorIOS, Linking, ScrollView, StyleSheet, Text, View, type Colo
 import type { Tokens } from "marked";
 import { fencedLanguage, highlightCode, markdownBlocks, type Token } from "./markdown-blocks";
 import { faded, Radius, Theme } from "../../ui";
+import { copyAction, LongPressMenu } from "./chrome";
+import { MarkdownImage, MathView } from "./media";
 import { MONO, Symbol } from "./native";
 
 const SIZE = 15;
@@ -52,6 +54,8 @@ function inline(tokens: readonly Token[] | undefined, key = ""): ReactNode[] {
         return "\n";
       case "checkbox":
         return null;
+      case "mathInline":
+        return <MathView key={id} tex={token.text as string} display={false} />;
       default:
         return "text" in token && typeof token.text === "string" ? token.text : token.raw;
     }
@@ -75,13 +79,15 @@ function CodeBlock({ token }: { token: Tokens.Code }) {
   const language = fencedLanguage(token.lang);
   const spans = useMemo(() => highlightCode(token.text, language), [token.text, language]);
   return (
-    <View style={styles.codeBlock}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.codePad}>
-        <Text selectable style={[styles.code, !language && styles.codePlain]}>
-          {spans.map((span, index) => (span.scope ? <Text key={index} style={{ color: syntaxColor(span.scope) }}>{span.text}</Text> : span.text))}
-        </Text>
-      </ScrollView>
-    </View>
+    <LongPressMenu actions={[copyAction("Copy", token.text)]}>
+      <View style={styles.codeBlock}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.codePad}>
+          <Text selectable style={[styles.code, !language && styles.codePlain]}>
+            {spans.map((span, index) => (span.scope ? <Text key={index} style={{ color: syntaxColor(span.scope) }}>{span.text}</Text> : span.text))}
+          </Text>
+        </ScrollView>
+      </View>
+    </LongPressMenu>
   );
 }
 
@@ -130,6 +136,12 @@ function Block({ token, muted }: { token: Token; muted: boolean }) {
   const tint = muted ? styles.muted : undefined;
   switch (token.type) {
     case "paragraph":
+      if (token.tokens?.length && token.tokens.every((part) => part.type === "image" || (part.type === "text" && !part.raw.trim()))) {
+        return token.tokens.map((part, index) => (part.type === "image" ? <MarkdownImage key={index} uri={part.href as string} alt={part.text as string} /> : null));
+      }
+      return <Paragraph tokens={token.tokens} {...(tint ? { style: tint } : {})} />;
+    case "mathBlock":
+      return <MathView tex={token.text as string} display />;
     case "text":
       return <Paragraph tokens={token.tokens ?? [{ type: "text", raw: token.raw, text: token.text }]} {...(tint ? { style: tint } : {})} />;
     case "heading": {

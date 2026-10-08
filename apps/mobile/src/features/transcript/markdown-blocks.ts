@@ -1,10 +1,33 @@
 import hljs from "highlight.js/lib/common";
-import { Lexer, type Token } from "marked";
+import { Marked, type Token, type TokenizerExtension } from "marked";
 
 export type { Token };
 
+/** `$$…$$` on its own lines, or alone on one line between blank lines, as the Swift app treats it. */
+const mathBlock: TokenizerExtension = {
+  name: "mathBlock",
+  level: "block",
+  start: (src) => src.match(/^ {0,3}\$\$/m)?.index,
+  tokenizer(src) {
+    const match = /^ {0,3}\$\$[ \t]*\n([\s\S]+?)\n {0,3}\$\$[ \t]*(?:\n+|$)/.exec(src) ?? /^ {0,3}\$\$([^\n]+?)\$\$[ \t]*(?:\n[ \t]*\n+|\n?$)/.exec(src);
+    return match ? { type: "mathBlock", raw: match[0], text: match[1]!.trim() } : undefined;
+  },
+};
+
+const mathInline: TokenizerExtension = {
+  name: "mathInline",
+  level: "inline",
+  start: (src) => src.indexOf("$$"),
+  tokenizer(src) {
+    const match = /^\$\$([^\n]+?)\$\$/.exec(src);
+    return match ? { type: "mathInline", raw: match[0], text: match[1]!.trim() } : undefined;
+  },
+};
+
+const marked = new Marked({ gfm: true, extensions: [mathBlock, mathInline] });
+
 export function markdownBlocks(text: string): Token[] {
-  return Lexer.lex(text, { gfm: true });
+  return marked.lexer(text);
 }
 
 const FENCE_ALIASES: Record<string, string | null> = {

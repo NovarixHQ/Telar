@@ -13,6 +13,7 @@ import { MainSidebarTrigger, useMainIsLeftmost } from "@/ui/main-sidebar-trigger
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { Button } from "@/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/ui/dropdown-menu";
+import { HeaderToggleGroup } from "@/ui/header-toggle";
 import { Input } from "@/ui/input";
 import { dropdownSessionMenuParts, SessionActionContextMenu, SessionActionMenuItems } from "../../components/session-action-menu";
 import { buildSessionActionMenuItems, type SessionActionHandlers, type SessionActionMenuState } from "../../session-action-menu";
@@ -100,7 +101,7 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
   return (
     <header
       className={cn(
-        "app-ground app-drag flex min-h-[var(--titlebar-height)] shrink-0 items-center gap-2 bg-background/65 py-1.5 pr-4 backdrop-blur md:h-[var(--titlebar-band-height)] md:min-h-[var(--titlebar-band-height)] md:py-0",
+        "app-drag flex min-h-[var(--titlebar-height)] shrink-0 items-center gap-2 py-1.5 pr-3 md:h-[var(--titlebar-band-height)] md:min-h-[var(--titlebar-band-height)] md:py-0",
         // The traffic-light inset is measured from the content island, not the window edge.
         mainIsLeftmost ? "pl-[max(16px,calc(var(--titlebar-inset)+var(--app-island-inset)))]" : "pl-4",
       )}
@@ -127,7 +128,7 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
           )}
         </div>
       </SessionActionContextMenu>
-      <div className="app-no-drag ml-auto flex shrink-0 items-center gap-2">{panel}</div>
+      <HeaderToggleGroup aria-label="Session controls" className="app-no-drag ml-auto">{panel}</HeaderToggleGroup>
     </header>
   );
 }

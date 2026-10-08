@@ -6,7 +6,7 @@ import { CodeBlock, CodeBlockCopyButton, useIsCodeFenceIncomplete, type ExtraPro
 import dynamic from "next/dynamic";
 import { cn } from "@/ui/utils";
 
-const ImageLightbox = dynamic(() => import("@/features/plugins/data-science/image-lightbox").then((mod) => mod.ImageLightbox));
+const ImageLightbox = dynamic(() => import("@/ui/image-lightbox").then((mod) => mod.ImageLightbox));
 
 const LANGUAGE = /language-([^\s]+)/;
 const START_LINE = /startLine=(\d+)/;

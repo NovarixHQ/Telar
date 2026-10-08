@@ -74,8 +74,12 @@ describe("the reasoning pill", () => {
     expect(pill?.textContent).toContain("High");
     expect(pill?.textContent).not.toContain("Reasoning");
     expect(pill?.getAttribute("aria-label")).toBe("Reasoning effort: High (default)");
-    expect(pill?.title).toBe("The model's default. Pick a level to change it.");
     expect(pill?.disabled).toBe(false);
+    await act(async () => {
+      pill?.focus();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(document.querySelector("[data-slot=tooltip-content]")?.textContent).toBe("Reasoning effort. The model's default; pick a level to change it.");
   });
 
   test("a pick shows the pick", async () => {

@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { ShieldCheckIcon } from "lucide-react";
 import type { ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
-import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+import { Popover, PopoverContent } from "@/ui/popover";
 import { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
-import { ChoiceRow, ControlTrigger, MenuHeading } from "./control-primitives";
+import { ChoiceRow, MenuHeading, PillTrigger } from "./control-primitives";
 
 export function AccessControl({
   runtimeMode,
@@ -35,7 +35,7 @@ export function AccessControl({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<ControlTrigger open={open} icon={<ShieldCheckIcon className="size-3.5" />} label={label} fold="xl" ariaLabel={`Access: ${mode}`} />} />
+      <PillTrigger tip="Access" open={open} icon={<ShieldCheckIcon className="size-3.5" />} label={label} fold="xl" ariaLabel={`Access: ${mode}`} />
       <PopoverContent align="start" side="top" sideOffset={8} className="w-[min(20rem,calc(100vw-2rem))] gap-0 rounded-2xl p-1.5">
         <MenuHeading>Access</MenuHeading>
         {RUNTIME_MODES.map((option) => (

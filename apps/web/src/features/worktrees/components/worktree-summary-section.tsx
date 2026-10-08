@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReleasableState, WorktreeLocation, WorktreeLocationMove, WorktreeMoveResult, WorktreeState, WorktreeSummary, WorktreeTally } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
-import { fmtAgo, formatBytes } from "@/ui/format";
+import { fmtAgo, formatBytes, plural } from "@/ui/format";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/dialog";
@@ -14,7 +14,6 @@ import { WorktreeListSection } from "./worktree-list-section";
 const api = createEngineApi();
 const POLL_MS = 3_000;
 
-const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
 function tallyLabel(tally: WorktreeTally): string {
   if (tally.count === 0) return "No worktrees";
@@ -60,7 +59,7 @@ const STATES: Record<WorktreeState, { label: (days: number) => string; verb?: st
   archived: { label: () => "Archived sessions", verb: "Release" },
   orphaned: { label: () => "No session", verb: "Remove" },
   unchanged: { label: () => "No commits beyond the default branch", verb: "Release" },
-  idle: { label: (days) => `Idle more than ${days} days`, verb: "Release" },
+  idle: { label: (days) => `Idle more than ${plural(days, "day")}`, verb: "Release" },
   recent: { label: () => "Settled recently" },
 };
 

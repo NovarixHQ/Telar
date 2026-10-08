@@ -40,7 +40,11 @@ export const UNAVAILABLE: Record<GitHubDetailUnavailable, { title: string; detai
   },
   no_repository: {
     title: "Not a repository",
-    detail: "There is no git repository here — or one with no remotes at all — so there is nothing for gh to read.",
+    detail: "There is no git repository here, so there is nothing for gh to read.",
+  },
+  no_remote: {
+    title: "No GitHub remote",
+    detail: "This repository has no GitHub remote. Add one in a terminal and this fills in.",
   },
   not_github: {
     title: "Not on GitHub",

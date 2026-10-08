@@ -5,6 +5,7 @@ import type { DictationProviderId } from "@telar/engine-client";
 import { DICTATION_AUTOMATIC } from "../automatic";
 import { useDictationSettings } from "../settings";
 import { Button } from "@/ui/button";
+import { plural } from "@/ui/format";
 import { Input } from "@/ui/input";
 import { Textarea } from "@/ui/textarea";
 import { DictationMicrophoneSection } from "./dictation-microphone-section";
@@ -131,7 +132,7 @@ export function DictationSection() {
             >
               {keyterms && keyterms.sent < keyterms.built && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {`The service took ${keyterms.sent} of the ${keyterms.built} words Telar sent it last time. `}
+                  {`The service took ${keyterms.sent} of the ${plural(keyterms.built, "word")} Telar sent it last time. `}
                   {keyterms.reason === "refused"
                     ? "Over budget: branch names go first, then projects, then old sessions. This box is never cut."
                     : "Telar sent the number it can prove is safe; the next press tries the full list again."}

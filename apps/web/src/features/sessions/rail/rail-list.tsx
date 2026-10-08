@@ -42,7 +42,6 @@ export function AttentionRows({ rows, env }: { rows: readonly SidebarSession[]; 
             session={session}
             active={sessionKey(session) === env.activeSessionId}
             showProject
-            variant="card"
             band={env.bandFor(session)}
             renderedAt={env.renderedAt}
             onRowChanged={env.onRowChanged}
@@ -117,7 +116,6 @@ function RailRows(props: ListProps) {
               session={session}
               active={sessionKey(session) === env.activeSessionId}
               showProject
-              variant="card"
               band="pinned"
               renderedAt={env.renderedAt}
               onRowChanged={env.onRowChanged}
@@ -245,7 +243,6 @@ function UnreachableHosts({ data, env }: { data: RailData; env: RowEnv }) {
             session={session}
             active={sessionKey(session) === env.activeSessionId}
             showProject
-            variant="slim"
             band={env.bandFor(session)}
             renderedAt={env.renderedAt}
             onRowChanged={env.onRowChanged}

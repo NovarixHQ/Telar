@@ -221,7 +221,7 @@ describe("the panel opens a surface without giving the route anything to do", ()
         onTabChange={() => {}}
         onOpenTab={() => {}}
         onCloseTab={() => {}}
-        onClose={() => {}}
+       
       />,
     );
 

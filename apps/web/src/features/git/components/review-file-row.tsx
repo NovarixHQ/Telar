@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { GitFileChange, GitFilePatch } from "@telar/engine-client";
-import { fileReference, startReferenceDrag } from "@/features/composer";
+import { fileReference, startReferenceDrag } from "@telar/client/composer";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { PanelRow } from "@/ui/panel";
 import { Spinner } from "@/ui/spinner";

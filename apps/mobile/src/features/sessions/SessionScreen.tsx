@@ -8,6 +8,7 @@ import { SessionControls } from "../providers";
 import { hosts, useHosts } from "../hosts";
 import { feedOf, sendMessage, transcriptRows, useFeed, type TranscriptRow } from "../transcript";
 import { answerRequest, openRequests, RequestCards, stopSession } from "../turns";
+import { useRail } from "./use-rail";
 import type { RootStack } from "../../platform/navigation/routes";
 
 function Row({ row }: { row: TranscriptRow }) {
@@ -28,13 +29,16 @@ export function SessionScreen() {
   useHosts(hosts);
   const host = hosts.get(params.hostId);
   const feed = useFeed(host, params.sessionId);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(params.draft ?? "");
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string>();
   const scroll = useRef<ScrollViewInstance>(null);
   const [deciding, setDeciding] = useState<string>();
   const rows = transcriptRows(feed.turns);
   const working = feed.turns.some((turn) => isActiveTurn(turn.state));
+  const { rows: railRows } = useRail(params.hostId);
+  const projectId = feed.head?.session.projectId;
+  const mentions = { targets: railRows, current: { sessionId: params.sessionId, ...(projectId ? { projectId } : {}) } };
 
   const act = async (work: () => Promise<unknown>, after?: () => void) => {
     setProblem(undefined);
@@ -90,7 +94,7 @@ export function SessionScreen() {
       <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
       {problem ? <Text style={[styles.problem, styles.failed]}>{problem}</Text> : null}
       {host && feed.head ? <SessionControls host={host} session={feed.head.session} onChanged={(work) => void act(() => work)} /> : null}
-      <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} />
+      <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} mentions={mentions} />
     </KeyboardAvoidingView>
   );
 }

@@ -7,6 +7,7 @@ import { createEngineApi } from "@/platform/engine";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
+import { plural } from "@/ui/format";
 import { Spinner } from "@/ui/spinner";
 import { cn } from "@/ui/utils";
 import { JobLog, type JobHandle } from "./job-log";
@@ -178,7 +179,7 @@ function EnvironmentFields({
           hint={environment.python}
           status={<Badge variant="secondary">{MANAGER_LABEL[environment.manager]}</Badge>}
           control={
-            packages && <span className="text-xs text-muted-foreground tabular-nums">{packages.length} packages</span>
+            packages && <span className="text-xs text-muted-foreground tabular-nums">{plural(packages.length, "package")}</span>
           }
         >
           <code className="mt-0.5 block min-w-0 truncate font-mono text-2xs text-muted-foreground">{environment.root}</code>

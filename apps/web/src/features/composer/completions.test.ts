@@ -14,7 +14,7 @@ import {
   rankSessions,
   rankSkills,
 } from "./completions";
-import { directoryReference, fileReference, sessionReference, skillReference } from "./drag-reference";
+import { directoryReference, fileReference, sessionReference, skillReference } from "@telar/client/composer";
 
 const FILES = [
   "README.md",
@@ -76,6 +76,21 @@ describe("ranking paths", () => {
     expect(ranked).toHaveLength(3);
   });
 
+  test("a shorter path wins among equally good basename matches", () => {
+    const repo = buildPathIndex(["apps/web/src/app/page.tsx", "apps/web/package.json", "package.json"]);
+    expect(rankPaths(repo, "pa").map((completion) => completion.path).slice(0, 2)).toEqual(["package.json", "apps/web/package.json"]);
+  });
+
+  test("an exact basename, extension aside, outranks a longer prefix match", () => {
+    const repo = buildPathIndex(["packages/core/index.ts", "package.json"]);
+    expect(rankPaths(repo, "package")[0]?.path).toBe("package.json");
+  });
+
+  test("a basename prefix outranks a folder prefix, which outranks a fuzzy match", () => {
+    const repo = buildPathIndex(["store/deep/x.ts", "src/stereo.ts", "src/storage.ts"]);
+    expect(rankPaths(repo, "sto").map((completion) => completion.path)).toEqual(["store/", "src/storage.ts", "store/deep/", "store/deep/x.ts", "src/stereo.ts"]);
+  });
+
   test("a query that matches nothing returns nothing rather than everything", () => {
     expect(rankPaths(index, "zzzzzzz")).toEqual([]);
   });
@@ -96,18 +111,13 @@ describe("what the slash menu offers", () => {
     expect(fresh).toContain("driver:codex");
   });
 
-  test("model and access are one row each, and only beside their pills", () => {
-    expect(availableCommands({ busy: false, fresh: false }).some((command) => command.glyph === "model" || command.glyph === "access")).toBe(false);
-    const commands = availableCommands({ busy: false, fresh: false, pickers: { model: true, access: true } });
-    expect(commands.filter((command) => command.glyph === "model")).toEqual([expect.objectContaining({ label: "/model", action: { type: "picker", picker: "model" } })]);
-    expect(commands.filter((command) => command.glyph === "access")).toEqual([expect.objectContaining({ label: "/access", action: { type: "picker", picker: "access" } })]);
+  test("model, effort and access are one row each, and only beside their pills", () => {
+    expect(availableCommands({ busy: false, fresh: false }).some((command) => ["model", "effort", "access"].includes(command.glyph))).toBe(false);
+    const commands = availableCommands({ busy: false, fresh: false, pickers: { model: true, effort: true, access: true } });
+    for (const picker of ["model", "effort", "access"] as const) {
+      expect(commands.filter((command) => command.glyph === picker)).toEqual([expect.objectContaining({ label: `/${picker}`, action: { type: "picker", picker } })]);
+    }
     expect(availableCommands({ busy: false, fresh: false, pickers: { model: true, access: false } }).some((command) => command.glyph === "access")).toBe(false);
-  });
-
-  test("efforts appear only when the caller knows any", () => {
-    expect(availableCommands({ busy: false, fresh: false }).some((command) => command.glyph === "effort")).toBe(false);
-    const withEfforts = availableCommands({ busy: false, fresh: false, efforts: ["low", "high"] });
-    expect(withEfforts.filter((command) => command.glyph === "effort").map((command) => command.label)).toEqual(["/effort low", "/effort high"]);
   });
 });
 

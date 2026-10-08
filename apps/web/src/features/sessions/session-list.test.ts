@@ -482,14 +482,6 @@ describe("canvasProjectFromPathname", () => {
   });
 });
 
- test("browser drafts stay available until explicitly settled or archived", () => {
-  const draft = row("draft", "Browser draft", { draft: true, updatedAt: NOW - 30 * DAY });
-  expect(bandOf(draft, opts)).toBe("active");
-  expect(bandOf({ ...draft, settledOverride: "settled" }, opts)).toBe("settled");
-  expect(bandOf({ ...draft, archived: true }, opts)).toBe("settled");
-  expect(bandOf({ ...draft, settledOverride: "active" }, opts)).toBe("pinned");
-});
-
 describe("a paired Mac's rows are banded by that Mac's clock", () => {
   test("windowFor answers each row's own host, and the default for one nobody read", () => {
     const windows = new Map<string, number | null>([["local", null], ["host_x", 72]]);

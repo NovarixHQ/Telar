@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { act, useState } from "react";
 import { UNKNOWN_PATH, type GitFileChange, type SessionDiff } from "@telar/engine-client";
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
-import { fileReference, REFERENCE_MIME } from "@/features/composer/drag-reference";
+import { fileReference, REFERENCE_MIME } from "@telar/client/composer";
 import type { NotebookCell, NotebookRead } from "@/features/plugins/data-science/ds";
 import type { JournalItem, JournalTask } from "@telar/client/journal";
 import type { DiffTab } from "@/features/git/diff-scope";

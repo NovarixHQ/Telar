@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CLEANUP_LOG_DAYS, CLEANUP_SETTLED_DAYS, DEFAULT_CLEANUP_POLICY, type CleanupPolicy, type CleanupReport, type CleanupState, type RetentionPolicy } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
-import { fmtAgo, formatBytes } from "@/ui/format";
+import { fmtAgo, formatBytes, plural } from "@/ui/format";
 import { Button } from "@/ui/button";
 import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 import { WorktreeSummarySection } from "./worktree-summary-section";
@@ -17,7 +17,7 @@ export const FIXED_RULES =
 type Days = "off" | `${number}`;
 
 function daysOptions(days: readonly number[]): { value: Days; label: string }[] {
-  return [{ value: "off", label: "Off" }, ...days.map((day) => ({ value: `${day}` as Days, label: `${day} ${day === 1 ? "day" : "days"}` }))];
+  return [{ value: "off", label: "Off" }, ...days.map((day) => ({ value: `${day}` as Days, label: plural(day, "day") }))];
 }
 
 export function lastCleanupLabel(last: CleanupReport | undefined, now = Date.now()): string {
@@ -67,7 +67,7 @@ function RetentionRow() {
     <Row
       keywords={["retention", "journal", "export", "retire", "idle"]}
       label="Turn journal retention"
-      hint={`Journals of sessions idle ${retention.idleAfterDays} days are moved to ${retention.exportTo ?? "an export folder"}.`}
+      hint={`Journals of sessions idle ${plural(retention.idleAfterDays, "day")} are moved to ${retention.exportTo ?? "an export folder"}.`}
       {...(retentionError ? { error: retentionError } : {})}
       control={
         <Button size="sm" variant="outline" onClick={() => void retentionOff()}>

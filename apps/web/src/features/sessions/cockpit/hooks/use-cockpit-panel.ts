@@ -268,7 +268,6 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
       touch();
       updatePanel((current) => movePanelTab(current, id, toIndex));
     },
-    onClose: () => setOpen(false),
   };
 
   return {

@@ -112,6 +112,32 @@ test("the dotfolder toggle offers the OTHER state and asks for dotfolders", asyn
   expect(toggle?.getAttribute("aria-pressed")).toBe("true");
 });
 
+const withDotfolders = (input: Parameters<DirectoryLister>[0]) => {
+  const plain = listing(input.path ?? "/Users/me/code");
+  return input.hidden ? { ...plain, dirs: [...plain.dirs, { name: ".config", path: "/Users/me/code/.config", git: false, hidden: true }] } : plain;
+};
+const optionNames = (host: Element) => [...host.querySelectorAll('[role="option"]')].map((option) => option.textContent);
+
+test("showing dotfolders keeps the path being typed", async () => {
+  const { list, calls } = lister(withDotfolders);
+  const host = await mountBrowser({ list });
+  await type(host, "~/code/al");
+  await click(host.querySelector('[aria-label="Show dotfolders"]')!);
+  await flush(() => calls.length > 1 && !host.textContent?.includes("Reading that folder…"));
+  expect(field(host).value).toBe("~/code/al");
+  expect(optionNames(host)).toEqual(["alpha"]);
+});
+
+test("a dot starts a search among dotfolders without the toggle", async () => {
+  const { list, calls } = lister(withDotfolders);
+  const host = await mountBrowser({ list });
+  await type(host, "~/code/.c");
+  await flush(() => optionNames(host).includes(".config"));
+  expect(calls.at(-1)).toMatchObject({ hidden: true });
+  expect(field(host).value).toBe("~/code/.c");
+  expect(host.querySelector('[aria-label="Show dotfolders"]')).not.toBeNull();
+});
+
 test("the caller's sentence is shown, and its own refusal wins over it", async () => {
   const notice = "That repository already exists there.";
   expect(render({ notice })).toContain(notice);

@@ -11,7 +11,7 @@ import {
   skillReference,
   taskReference,
   type ReferenceKind,
-} from "./drag-reference";
+} from "@telar/client/composer";
 
 /** Exhaustive: a new kind in `drag-reference.ts` fails the count below. */
 const EVERY_KIND: Record<ReferenceKind, ReturnType<typeof fileReference>> = {

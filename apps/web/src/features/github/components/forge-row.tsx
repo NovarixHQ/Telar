@@ -19,7 +19,7 @@ import type { GitHubIssue, GitHubLink, GitHubPullRequest } from "@telar/engine-c
 import { Badge } from "@/ui/badge";
 import { PanelRow } from "@/ui/panel";
 import { Spinner } from "@/ui/spinner";
-import { issueReference, pullReference, startReferenceDrag } from "@/features/composer";
+import { issueReference, pullReference, startReferenceDrag } from "@telar/client/composer";
 import { fmtAgo } from "@/ui/format";
 import { issueStatus, offersMerge, pullStatus, STATUS_LABEL, STATUS_TONE, type ForgeStatus } from "../github-forge";
 import { cn } from "@/ui/utils";

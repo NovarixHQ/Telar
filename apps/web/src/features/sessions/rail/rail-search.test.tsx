@@ -22,11 +22,4 @@ describe("searching the rail", () => {
     expect(options[1]).toContain("telar/smoke-two");
     expect(options[1]).toContain("1d");
   });
-
-  test("an unsent draft shows how old it is", async () => {
-    const sessions = [liveRow("d", { title: "Browser draft", draft: true, idleHours: 3 })];
-    stubRail(() => ({ body: { projects: [project("p1", "One")], sessions } }));
-    const host = await mountRail();
-    expect(host.querySelector("#sidebar-session-results")!.textContent).toContain("Draft · 3h");
-  });
 });

@@ -13,6 +13,7 @@ Title the subject and outcome. Discard incidental instructions.
 Editorial rules:
 - 3-8 words, fewer than 40 characters.
 - Use a compact noun phrase or clear action phrase.
+- Write in sentence case: capitalize only the first word, proper nouns, acronyms and code identifiers.
 - Capture the umbrella goal when the request lists several symptoms or steps.
 - Name the product change, not the mock, plan, report, branch, or PR used to produce it.
 - Models, subagents, tools, output formats, and monitoring instructions do not belong in the title unless they are themselves the topic.
@@ -35,6 +36,7 @@ Determine the title in this order:
 Editorial rules:
 - 3-8 words, fewer than 40 characters.
 - Use a compact noun phrase or clear action phrase.
+- Write in sentence case: capitalize only the first word, proper nouns, acronyms and code identifiers.
 - Keep the umbrella subject when later messages focus on one finding, provider, platform or implementation detail.
 - A session moving through research, planning, implementation, review, CI, merge and monitoring has usually not changed subject.
 - Ignore deliverables and operations such as mocks, plans, branches, PRs, tests, CI, commits, merging and monitoring unless they are the actual topic.

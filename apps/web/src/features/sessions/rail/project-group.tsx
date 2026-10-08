@@ -204,7 +204,6 @@ export function ProjectGroupSection({
                 session={session}
                 active={key === activeSessionId}
                 showProject={false}
-                variant="slim"
                 band={bandFor(session)}
                 renderedAt={renderedAt}
                 onRowChanged={onRowChanged}

@@ -1,4 +1,5 @@
 import type { UsageDiagnosis } from "@telar/engine-client";
+import { plural } from "@/ui/format";
 import { formatShare, formatTokens, formatUsd } from "./model";
 
 export function diagnosisFeedbackText(diagnosis: UsageDiagnosis): string {
@@ -8,7 +9,7 @@ export function diagnosisFeedbackText(diagnosis: UsageDiagnosis): string {
   const lines = ["Usage diagnosis report", "", `**Summary:** ${report.summary}`];
   if (totals) {
     const processed = totals.tokens.input + totals.tokens.output + totals.tokens.cacheRead + totals.tokens.cacheCreate;
-    lines.push(`**30 days:** ${formatTokens(processed)} tokens · ${formatUsd(totals.costUsd)} · ${formatShare(totals.cacheHit)} cache reads · ${totals.turns} turns · ${totals.sessions} sessions`);
+    lines.push(`**30 days:** ${formatTokens(processed)} tokens · ${formatUsd(totals.costUsd)} · ${formatShare(totals.cacheHit)} cache reads · ${plural(totals.turns, "turn")} · ${plural(totals.sessions, "session")}`);
   }
   lines.push(`**Diagnosed with:** ${diagnosis.model ?? "unknown"}, prompt v${diagnosis.promptVersion}${diagnosis.fallback ? ", from the engine's checks alone" : ""}`);
   const logs = diagnosis.logs;

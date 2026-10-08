@@ -21,6 +21,8 @@ import type { ComposerEditorHandle } from "../components/composer-editor";
 
 const api = createEngineApi();
 
+const PATHS_FAILED: Completion = { id: "paths:failed", label: "Files", detail: "Could not read the files here.", glyph: "directory", action: { type: "insert", text: "" }, disabled: true };
+
 type CommandState = {
   busy: boolean;
   fresh: boolean;
@@ -31,12 +33,12 @@ type CommandState = {
   efforts: string[];
 };
 
-/** Read on the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again on the next sigil. */
-function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<T>) | undefined, fallback: T) {
+/** Read on the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again once `retry` changes. */
+function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<T>) | undefined, fallback: T, retry?: unknown) {
   // Keyed by checkout so one session's answer never serves another.
-  const [cache, setCache] = useState<{ checkout: string; value: T; failed?: boolean }>();
+  const [cache, setCache] = useState<{ checkout: string; value: T; failed?: { retry: unknown } }>();
   const [reading, setReading] = useState(false);
-  if (!wanted && cache?.failed) setCache(undefined);
+  if (cache?.failed && (!wanted || cache.failed.retry !== retry)) setCache(undefined);
   const value = cache?.checkout === checkout ? cache.value : undefined;
   useEffect(() => {
     if (!wanted || value || reading || !read) return;
@@ -44,7 +46,7 @@ function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<
       setReading(true);
       void read()
         .then((answer) => setCache({ checkout, value: answer }))
-        .catch(() => setCache({ checkout, value: fallback, failed: true }))
+        .catch(() => setCache({ checkout, value: fallback, failed: { retry } }))
         .finally(() => setReading(false));
     }, 0);
     return () => window.clearTimeout(task);
@@ -80,7 +82,7 @@ export function useComposerCompletions({
   const listPaths = sessionId || projectId
     ? async () => buildPathIndex((sessionId ? await api.sessionFiles(sessionId) : await api.projectFiles(projectId!)).listing.files)
     : async () => [] as PathEntry[];
-  const paths = useLazyRead(trigger?.kind === "path", checkout, listPaths, [] as PathEntry[]);
+  const paths = useLazyRead(trigger?.kind === "path", checkout, listPaths, [] as PathEntry[], trigger?.query);
   // This engine's sessions only: a reference to another host's session would not resolve here.
   const listSessions = async (): Promise<SessionCandidate[]> => {
     const live = await api.liveSessions();
@@ -97,7 +99,8 @@ export function useComposerCompletions({
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
     if (trigger.kind === "path") {
       const sessionRows = rankSessions(sessions.value ?? [], trigger.query, { sessionId, projectId });
-      return [...rankPaths(paths.value ?? [], trigger.query, 12), ...sessionRows];
+      const files = paths.failed ? [PATHS_FAILED] : rankPaths(paths.value ?? [], trigger.query, 12);
+      return [...files, ...sessionRows];
     }
     // Two ranked lists, not one: a plugin command must not outscore `/stop`.
     const own = availableCommands({
@@ -112,12 +115,11 @@ export function useComposerCompletions({
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
     return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, accessPicker, menuDriver, compacting, envMode, efforts, canResume]);
+  }, [trigger, dismissed, paths.value, paths.failed, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, accessPicker, menuDriver, compacting, envMode, efforts, canResume]);
 
   // `@` always opens, so an empty or unreadable listing says so instead of looking like a dead key.
   const loading = (trigger?.kind === "path" && (paths.reading || sessions.reading)) || (trigger?.kind === "skill" && skills.reading);
   const open = !blocked && trigger !== null && !dismissed && (completions.length > 0 || loading || trigger.kind === "path");
-  const emptyText = trigger?.kind === "path" && paths.failed ? "Could not read the files here." : "No matches.";
 
   /** Recompute from the live caret after every edit and caret move; leaving a `@word` closes the list. */
   const retrigger = useCallback(
@@ -147,7 +149,7 @@ export function useComposerCompletions({
   const heading = () =>
     trigger?.kind === "skill" ? "Skills" : trigger?.kind === "command" ? "Commands" : "Files and folders";
 
-  return { trigger, completions, open, loading, emptyText, active, setActive, setDismissed, retrigger, edited, take, heading };
+  return { trigger, completions, open, loading, active, setActive, setDismissed, retrigger, edited, take, heading };
 }
 
 export type ComposerCompletions = ReturnType<typeof useComposerCompletions>;

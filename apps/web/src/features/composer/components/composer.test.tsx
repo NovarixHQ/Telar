@@ -349,6 +349,35 @@ describe("the @ menu", () => {
     await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
     expect(calls.filter((call) => call.route === "GET /api/projects/project_a/files")).toHaveLength(2);
   });
+
+  const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
+  const others = () => ({ sessions: [{ id: "session_b", title: "Pair on the parser", projectId: "project_a", updatedAt: 1 }], projects: [{ id: "project_a", name: "ozom" }] });
+  const files = ["README.md", "package.json", "src/app/page.tsx", "src/lib/api.ts"];
+
+  test("a prefix lists the session's matching files", async () => {
+    const { host, editor } = await composer({ projectId: "project_a", session }, { "GET /api/sessions/session_a/files": listing(files), "GET /api/sessions/live": live });
+    await type(editor, "@pa");
+    await flush(() => menu(host)?.textContent?.includes("page.tsx") ?? false);
+    const rows = [...menu(host)!.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
+    expect(rows.some((row) => row.startsWith("package.json"))).toBe(true);
+    expect(rows.some((row) => row.startsWith("README.md"))).toBe(false);
+  });
+
+  test("a failed listing says so beside session rows, and the next keystroke reads again", async () => {
+    let answer: () => unknown = () => {
+      throw new Error("git timed out");
+    };
+    const { host, editor, calls } = await composer({ projectId: "project_a", session }, { "GET /api/sessions/session_a/files": () => answer(), "GET /api/sessions/live": others });
+    await type(editor, "@p");
+    await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
+    expect(menu(host)?.textContent).toContain("Pair on the parser");
+
+    answer = listing(files);
+    act(() => void activeComposer()!.replace(2, 2, "a"));
+    await flush(() => menu(host)?.textContent?.includes("page.tsx") ?? false);
+    expect(menu(host)?.textContent).not.toContain("Could not read the files here.");
+    expect(calls.filter((call) => call.route === "GET /api/sessions/session_a/files")).toHaveLength(2);
+  });
 });
 
 describe("the corner button is Stop only while a running turn has nothing typed", () => {

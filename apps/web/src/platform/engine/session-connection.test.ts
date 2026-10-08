@@ -4,7 +4,7 @@ import { envelope, item, turn } from "@telar/client/journal/fixtures";
 import { projectJournal } from "@telar/client/journal";
 import { itemText } from "@telar/client/journal";
 import { clearConnections, HEAD_MEMORY_BYTES, heldConnections, HEADS_IN_MEMORY, SessionConnection, sessionConnection } from "./session-connection";
-import { hydrateSession, type HydratedSession, type SessionSyncApi } from "./session-sync";
+import { hydrateSession, type HydratedSession, type SessionSyncApi } from "@telar/client/journal";
 const initial = { session: { id: "session_1" }, turns: [], items: [], tasks: [], requests: [], cursor: 3 } as unknown as SessionSnapshot;
 test("surface reads share one hydration and an outage retains projection and cursor atomically", async () => {
   let release!: () => void;

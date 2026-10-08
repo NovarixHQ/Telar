@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { HydratedSession } from "@/platform/engine";
+import type { HydratedSession } from "@telar/client/journal";
 import { envelope, item, turn } from "@telar/client/journal/fixtures";
 import { forgetHostHeads, HEAD_BYTES, HEADS_ON_DISK, HEADS_TOTAL_BYTES, headKey, memoryHeadStore, saveHead } from "./session-heads";
 

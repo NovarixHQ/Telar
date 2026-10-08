@@ -1,6 +1,7 @@
 "use client";
 
-import { createEngineApi, headBytes, INITIAL_TURNS, sessionConnection, type HydratedSession, type SessionConnection } from "@/platform/engine";
+import { createEngineApi, headBytes, sessionConnection, type SessionConnection } from "@/platform/engine";
+import { INITIAL_TURNS, type HydratedSession } from "@telar/client/journal";
 import { projectJournal } from "@telar/client/journal";
 import { hostFetcher } from "@/platform/engine/host-client";
 

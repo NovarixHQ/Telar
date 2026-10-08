@@ -29,6 +29,7 @@ export function HostsScreen() {
         {rows.map(({ connection, state }) => (
           <Button
             key={connection.hostId}
+            modifiers={[buttonStyle("plain")]}
             onPress={() => navigation.navigate("Sessions", { hostId: connection.hostId, hostName: connection.name })}
           >
             <LabeledContent label={connection.name}>

@@ -146,6 +146,13 @@ test("network exposure needs pairing on, and turning pairing off closes it", asy
   expect(on.body.deviceToken).toMatch(/^tlr_/);
 });
 
+test("turning pairing on without a device to pair mints nothing", async () => {
+  const { call } = await engine();
+  const on = await call("PATCH", "/v2/remote", { requireAuth: true });
+  expect(on.body).toEqual({ requireAuth: true });
+  expect((await call("GET", "/v2/remote")).body.devices).toEqual([]);
+});
+
 test("the device list says which devices are connected now", async () => {
   const { call, pair } = await engine();
   const phone = await pair("Phone");

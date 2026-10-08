@@ -49,3 +49,27 @@ test("each device is a settings row, not a table", () => {
   expect(html).toContain('id="settings-device-dev_1"');
   expect(html).toContain('aria-label="Revoke Phone"');
 });
+
+test("only the app running the server is this device", () => {
+  const html = renderToStaticMarkup(
+    <RemoteDevicesGroup
+      status={{
+        requireAuth: true,
+        exposure: "local-only",
+        tailscaleServe: false,
+        devices: [{ id: "dev_1", name: "Chrome on mini", createdAt: 1, role: "full", identity: { kind: "browser", client: "Chrome", machine: "mini" } }],
+        endpoints: [],
+        callerDeviceId: "dev_1",
+        host: { name: "Telar on mini", isCaller: true },
+      }}
+      busy={false}
+      onRename={() => undefined}
+      onRole={() => undefined}
+      onRevoke={() => undefined}
+    />,
+  );
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  expect(text).toContain("This device · Telar on mini");
+  expect(text.match(/This device/g)).toHaveLength(1);
+  expect(text).toContain("Chrome on mini browser ·");
+});

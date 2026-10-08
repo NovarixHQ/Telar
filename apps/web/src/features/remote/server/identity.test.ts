@@ -39,10 +39,10 @@ describe("sniffing a user agent", () => {
     expect(sniffUserAgent(CHROME_MAC.replace("Chrome/120.0", "Chrome/120.0 Edg/120.0")).client).toBe("Edge");
   });
 
-  test("an app shell is a desktop app, not a fourth tab of Chrome", () => {
+  test("a page in an app shell is a browser tab, named by its engine", () => {
     const electron =
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Telar/0.4.0 Chrome/126.0 Electron/31.0 Safari/537.36";
-    expect(sniffUserAgent(electron)).toEqual({ kind: "desktop", client: "Telar", os: "macOS" });
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Telar/0.4.0-nightly.3 Chrome/126.0 Electron/31.0 Safari/537.36";
+    expect(sniffUserAgent(electron)).toEqual({ kind: "browser", client: "Chrome", os: "macOS" });
   });
 
   test("something that is not a browser stays unknown rather than being guessed", () => {
@@ -58,8 +58,8 @@ describe("what the row says", () => {
   });
 
   test("otherwise it is assembled from what is known", () => {
-    expect(describeDevice({ kind: "browser", client: "Firefox", os: "Linux" })).toBe("Firefox · Linux");
-    expect(describeDevice({ kind: "cli", client: "telar-cli", machine: "bastion" })).toBe("telar-cli · bastion");
+    expect(describeDevice({ kind: "browser", client: "Firefox", os: "Linux" })).toBe("Firefox on Linux");
+    expect(describeDevice({ kind: "cli", client: "telar-cli", machine: "bastion" })).toBe("telar-cli on bastion");
   });
 
   test("a device that said nothing is still named", () => {
@@ -70,7 +70,7 @@ describe("what the row says", () => {
 
   test("a client that declared only a kind is still named by it", () => {
     // The whole point of opening the kind: "Lintel" must survive to the row.
-    expect(describeDevice({ kind: "lintel", machine: "mini-fbarbera" })).toBe("Lintel · mini-fbarbera");
+    expect(describeDevice({ kind: "lintel", machine: "mini-fbarbera" })).toBe("Lintel on mini-fbarbera");
     expect(describeDevice({ kind: "lintel" })).toBe("Lintel");
   });
 });

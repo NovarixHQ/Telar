@@ -46,7 +46,8 @@ export const GET = engineRoute(async (request: Request) => {
 export const PATCH = engineRoute(async (request: Request) => {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const turningOn = body.requireAuth === true && body.exposure === undefined && body.tailscaleServe === undefined;
-  const identity = turningOn ? observeIdentity(request) : undefined;
+  const pairsCaller = turningOn && !(await identifyCaller(request)).host;
+  const identity = pairsCaller ? observeIdentity(request) : undefined;
   const answer = await engineCall("PATCH", "/v2/remote", identity ? { ...body, device: { name: describeDevice(identity), identity } } : body);
   const { deviceToken, ...visible } = answer.body as { deviceToken?: string };
   if (answer.status !== 200 || !deviceToken) return Response.json(visible, { status: answer.status });

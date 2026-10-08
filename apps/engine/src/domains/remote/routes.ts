@@ -82,11 +82,12 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
           store.setRequireAuth(false);
           return ok({ requireAuth: false });
         }
-        const caller = (body.device ?? {}) as Body;
+        store.setRequireAuth(true);
+        if (!body.device || typeof body.device !== "object") return ok({ requireAuth: true });
+        const caller = body.device as Body;
         const deviceToken = mintDeviceToken();
         const identity = identityOf(caller.identity);
         const device = store.addDevice(text(caller.name) ?? "Unnamed device", deviceToken, identity ? { identity } : {});
-        store.setRequireAuth(true);
         return ok({ requireAuth: true, device: { id: device.id, name: device.name }, deviceToken });
       },
     },

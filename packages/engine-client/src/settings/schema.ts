@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EnvMode, ProviderDriverKind, RuntimeMode } from "../protocol/common";
+import { EnvMode, ModelSelection, ProviderDriverKind, RuntimeMode } from "../protocol/common";
 
 export const MIN_AUTO_SETTLE_HOURS = 1;
 export const MAX_AUTO_SETTLE_HOURS = 90 * 24;
@@ -39,6 +39,7 @@ export const SessionDefaults = z.object({
   runtimeMode: RuntimeMode.optional(),
   /** Absent is on. */
   resumeAfterRateLimit: z.boolean().optional(),
+  defaultModel: ModelSelection.optional(),
 });
 export type SessionDefaults = z.infer<typeof SessionDefaults>;
 
@@ -48,6 +49,7 @@ export type SessionDefaultsPatch = {
   resumeAfterRestart?: boolean;
   runtimeMode?: RuntimeMode | null;
   resumeAfterRateLimit?: boolean;
+  defaultModel?: ModelSelection | null;
 };
 
 export const DEFAULT_SESSION_DEFAULTS: SessionDefaults = { envMode: "local" };

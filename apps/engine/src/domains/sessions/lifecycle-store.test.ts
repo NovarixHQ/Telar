@@ -162,3 +162,30 @@ test("a model selection can be cleared, which `undefined` could never express", 
   store.lifecycle.updateSession("session_one", { model: { instanceId: session.providerInstanceId, model: "claude-opus-5" } });
   expect(store.lifecycle.updateSession("session_one", { title: "Renamed" }).model?.model).toBe("claude-opus-5");
 });
+
+test("the machine's default model opens new sessions on its provider, unless the project or the caller names another", () => {
+  const { store } = readyStore();
+  store.settings.setSessionDefaults({ defaultModel: { instanceId: "codex", model: "gpt-5-codex", effort: "high" } });
+
+  const plain = store.lifecycle.createSession({ id: "session_plain", projectId: "project_one" });
+  expect(plain.driver).toBe("codex");
+  expect(plain.model).toEqual({ instanceId: "codex", model: "gpt-5-codex", effort: "high" });
+
+  const routed = store.lifecycle.createSession({ id: "session_routed", projectId: "project_one", driver: "claude" });
+  expect(routed.driver).toBe("claude");
+  expect(routed.model).toBeUndefined();
+
+  store.projectRegistry.update("project_one", { defaultModel: { instanceId: "claude", model: "opus" } });
+  const project = store.lifecycle.createSession({ id: "session_project", projectId: "project_one" });
+  expect(project.driver).toBe("claude");
+  expect(project.model).toEqual({ instanceId: "claude", model: "opus" });
+});
+
+test("a default model on a switched-off login falls back to Claude without it", () => {
+  const { store } = readyStore();
+  store.providers.save({ id: "codex", enabled: false });
+  store.settings.setSessionDefaults({ defaultModel: { instanceId: "codex", model: "gpt-5-codex" } });
+  const session = store.lifecycle.createSession({ id: "session_off", projectId: "project_one" });
+  expect(session.driver).toBe("claude");
+  expect(session.model).toBeUndefined();
+});

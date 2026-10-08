@@ -12,6 +12,7 @@ import { forgeParams, readForgeOpen, type ForgeOpen } from "@/features/github";
 import { useSuspendSidebar } from "@/ui/sidebar";
 import { useSidebarPrefs } from "@/ui/sidebar-width";
 import { useCommandHandlers } from "@/features/commands";
+import { useCanOpenShells } from "@/features/terminal";
 import { cn } from "@/ui/utils";
 import { journalWrites, latestBrowserState, type BrowserStartState } from "../folds";
 import { useKeptTerminals } from "../hooks/use-kept-terminals";
@@ -249,10 +250,12 @@ export function RightPanel(props: RightPanelProps) {
     if (showingPage || !sessionId) return;
     void desktopBrowserBridge()?.setVisible(sessionId, false).catch(() => undefined);
   }, [showingPage, sessionId]);
+  const shells = useCanOpenShells();
   const launcher = model.launcherRows(tabs, {
     enabledPlugins,
     pluginPanels,
     canOpenNew: onOpenNewTab !== undefined,
+    shells,
     flat: props.flatTabs !== false,
     ...(onOpenBrowser ? { browser: browserUnavailable ? { unavailable: browserUnavailable } : {} } : {}),
   });

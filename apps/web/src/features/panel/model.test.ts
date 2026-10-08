@@ -193,6 +193,11 @@ describe("a surface's letter", () => {
     expect(rows.some((row) => row.id === "browser")).toBe(false);
   });
 
+  test("outside the flat-tabs trial the open Terminal is a singleton, since it holds every shell", () => {
+    const rows = launcherRows([{ id: "terminal", kind: "terminal", params: {} }], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, flat: false });
+    expect(rows.some((row) => row.id === "terminal")).toBe(false);
+  });
+
   test("offers no Agents or Processes surface", () => {
     const labels = launcherRows([], { enabledPlugins: [], pluginPanels: [], canOpenNew: true }).map((row) => row.label);
     expect(labels).not.toContain("Agents");

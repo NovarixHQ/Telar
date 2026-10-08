@@ -3,6 +3,7 @@ export type Experiment = { id: string; label: string; hint: string; decideBy: st
 
 export const EXPERIMENTS: readonly Experiment[] = [
   { id: "agent-catalog", label: "Agent catalog", hint: "Install agents from the public catalog as new logins on the Providers page.", decideBy: "2026-11-06" },
+  { id: "flat-panel-tabs", label: "One tab per page and terminal", hint: "Every browser page and every terminal gets its own panel tab, instead of one Browser and one Terminal tab with a strip inside.", decideBy: "2026-11-07" },
 ];
 
 export function decideByLabel(decideBy: string): string {

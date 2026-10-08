@@ -128,7 +128,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   agents: readonly SessionChild[];
   busy: boolean;
   backgroundTasks: number;
-  panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab">;
+  panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab" | "flat">;
   onRunTerminals: (terminals: readonly RunView[]) => void;
 }) {
   const router = useRouter();
@@ -182,7 +182,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
               ),
             }
           : {})}
-        onOpenTerminal={(run) => panel.updatePanel((current) => openTerminal(current, run, "terminal"))}
+        onOpenTerminal={(run) => panel.updatePanel((current) => openTerminal(current, run, "terminal", panel.flat))}
         onOpenChanges={() => panel.showPanelTab("diff")}
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}
       />

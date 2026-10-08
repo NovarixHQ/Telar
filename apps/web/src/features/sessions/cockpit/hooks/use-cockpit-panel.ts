@@ -33,37 +33,21 @@ import {
 } from "@/features/panel";
 import { useBrowserPageTabs } from "./use-browser-page-tabs";
 import { createSimulatorsApi, releaseSimulatorTab, SIMULATOR_SURFACE } from "@/features/simulators";
-import { closeTerminalTab, createRunApi, splitLegacyTerminalParams } from "@/features/terminal";
+import { useExperiment } from "@/features/settings/experiments";
+import { arrangeTerminalTabs, closeTerminalTab, createRunApi } from "@/features/terminal";
 
 /** Rail (16rem) + conversation floor (24rem) + panel floor (20rem), rounded up. */
 const NARROW_WINDOW = 1280;
 
 type Strip = PanelTabState<PanelTab>;
 
-function restorePanel(panelKey: string): { panel: Strip; editors: Record<string, EditorState> } {
-  const panel = splitTerminalTabs(readPanelTabs<PanelTab>(panelKey, isRestorablePanelTab));
+function restorePanel(panelKey: string, flat: boolean): { panel: Strip; editors: Record<string, EditorState> } {
+  const panel = arrangeTerminalTabs(readPanelTabs<PanelTab>(panelKey, isRestorablePanelTab), "terminal", flat);
   const editors: Record<string, EditorState> = { editor: readEditor(panelKey) };
   for (const entry of panel.tabs) {
     if (entry.kind === "editor" && !(entry.id in editors)) editors[entry.id] = readEditor(editorInstanceKey(panelKey, entry.id));
   }
   return { panel, editors };
-}
-
-/** A Terminal tab saved with a strip of shells becomes one tab per shell. Delete after 2027-01-31. */
-function splitTerminalTabs(state: Strip): Strip {
-  if (!state.tabs.some((tab) => tab.kind === "terminal" && "shells" in tab.params)) return state;
-  let next: Strip = { ...state, tabs: [] };
-  for (const tab of state.tabs) {
-    if (tab.kind !== "terminal") {
-      next = { ...next, tabs: [...next.tabs, tab] };
-      continue;
-    }
-    splitLegacyTerminalParams(tab.params).forEach((params, index) => {
-      const id = index === 0 ? tab.id : nextPanelTabId({ ...next, tabs: [...next.tabs, ...state.tabs] }, "terminal");
-      next = { ...next, tabs: [...next.tabs, { id, kind: "terminal", params }] };
-    });
-  }
-  return next;
 }
 
 function editorTargetId(state: Strip) {
@@ -102,15 +86,16 @@ function closeTab(panel: Strip, id: string, { hostId, sessionId, updatePanel }: 
   updatePanel((current) => closePanelTab(current, id));
 }
 
-function usePersistedPanel(panelKey: string) {
+function usePersistedPanel(panelKey: string, flat: boolean) {
   const [panel, setPanel] = useState<Strip>(() => emptyPanelTabs<PanelTab>());
   const panelNow = useRef(panel);
   const [editors, setEditors] = useState<Record<string, EditorState>>(() => ({}));
+  const flatNow = useRef(flat);
 
   useEffect(() => {
     // Deferred: a synchronous setState in an effect body is a cascading render.
     const task = window.setTimeout(() => {
-      const restored = restorePanel(panelKey);
+      const restored = restorePanel(panelKey, flatNow.current);
       setEditors(restored.editors);
       panelNow.current = restored.panel;
       setPanel(restored.panel);
@@ -143,6 +128,11 @@ function usePersistedPanel(panelKey: string) {
   );
 
   useEffect(() => {
+    flatNow.current = flat;
+    updatePanel((current) => arrangeTerminalTabs(current, "terminal", flat));
+  }, [flat, updatePanel]);
+
+  useEffect(() => {
     updatePanel((current) => {
       let next = current;
       for (const entry of current.tabs) {
@@ -164,7 +154,8 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
   hostId: string;
   sessionId: string | undefined;
 }) {
-  const { panel, panelNow, updatePanel, editors, updateEditor } = usePersistedPanel(panelKey);
+  const [flat] = useExperiment("flat-panel-tabs");
+  const { panel, panelNow, updatePanel, editors, updateEditor } = usePersistedPanel(panelKey, flat);
 
   const { open: railOpen, setOpen: setRailOpen } = useSidebar();
   const makeRoomForPanel = useCallback(() => {
@@ -271,7 +262,7 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
   };
 
   return {
-    panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
+    flat, panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
     openPanel: () => setOpen(true), togglePanel: () => setOpen(!panelNow.current.open), tabHandlers,
   };
 }

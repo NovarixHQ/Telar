@@ -113,7 +113,7 @@ enum SyncConnectionState: Equatable {
         while !Task.isCancelled {
             try? await Task.sleep(for: interval)
             if Task.isCancelled { break }
-            await tick()
+            if case .retrying = connection { await open() } else { await tick() }
         }
     }
 
@@ -203,7 +203,7 @@ enum SyncConnectionState: Equatable {
 
     private func reconcile() async {
         do {
-            guard case .events(let events, let next) = try await api.sessionDelta(sessionId, after: cursor) else {
+            guard case .events(let events, let next) = try? await api.sessionDelta(sessionId, after: cursor) else {
                 return await hydrate()
             }
             let read = needsSessionSnapshot(events) ? try await api.sessionRead(sessionId, window: SnapshotWindow(turns: initialTurns)) : nil

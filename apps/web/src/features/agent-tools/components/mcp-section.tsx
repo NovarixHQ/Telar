@@ -9,7 +9,7 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Switch } from "@/ui/switch";
-import { Row, Segmented, SettingsGroup } from "@/features/settings";
+import { Row, Segmented, SettingsGroup, SettingsList } from "@/features/settings";
 import { HEALTH_DOT, signInAction, signInSummary, statusFor } from "../mcp-oauth";
 
 const api = createEngineApi();
@@ -256,13 +256,33 @@ function AddServerForm({ scope, onAdded, onClose }: { scope: McpScope; onAdded: 
   );
 }
 
+function useOAuthOutcome() {
+  const [outcome, setOutcome] = useState<{ connected?: string; error?: string }>();
+  useEffect(() => {
+    const task = window.setTimeout(() => {
+      const query = new URLSearchParams(window.location.search);
+      const connected = query.get("mcpConnected");
+      const error = query.get("mcpOAuthError");
+      if (!connected && !error) return;
+      setOutcome({ ...(connected ? { connected } : {}), ...(error ? { error } : {}) });
+      query.delete("mcpConnected");
+      query.delete("mcpOAuthError");
+      const rest = query.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
+    }, 0);
+    return () => window.clearTimeout(task);
+  }, []);
+
+  return outcome;
+}
+
 export function McpSection({ scope }: { scope?: McpScope } = {}) {
   const [servers, setServers] = useState<McpServer[]>();
   const [inherited, setInherited] = useState<McpServer[]>([]);
   const [statuses, setStatuses] = useState<McpOAuthStatus[]>([]);
   const [unreachable, setUnreachable] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [outcome, setOutcome] = useState<{ connected?: string; error?: string }>();
+  const outcome = useOAuthOutcome();
   const [awaiting, setAwaiting] = useState<string>();
 
   const projectId = scope?.projectId;
@@ -318,21 +338,6 @@ export function McpSection({ scope }: { scope?: McpScope } = {}) {
     };
   }, [awaiting, loadStatuses]);
 
-  useEffect(() => {
-    const task = window.setTimeout(() => {
-      const query = new URLSearchParams(window.location.search);
-      const connected = query.get("mcpConnected");
-      const error = query.get("mcpOAuthError");
-      if (!connected && !error) return;
-      setOutcome({ ...(connected ? { connected } : {}), ...(error ? { error } : {}) });
-      query.delete("mcpConnected");
-      query.delete("mcpOAuthError");
-      const rest = query.toString();
-      window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}`);
-    }, 0);
-    return () => window.clearTimeout(task);
-  }, []);
-
   return (
     <>
       {outcome && (
@@ -370,20 +375,22 @@ export function McpSection({ scope }: { scope?: McpScope } = {}) {
         ) : servers.length === 0 ? (
           <Row icon={PlugIcon} label="No servers configured" hint="Telar's own tools are always available and not listed here." />
         ) : (
-          servers.map((server) => (
-            <ServerRow
-              key={server.id}
-              server={server}
-              scope={scope}
-              {...(statusFor(statuses, server) ? { status: statusFor(statuses, server)! } : {})}
-              awaiting={awaiting === server.id}
-              onAwait={setAwaiting}
-              onChange={() => {
-                void load();
-                void loadStatuses();
-              }}
-            />
-          ))
+          <SettingsList label="Servers">
+            {servers.map((server) => (
+              <ServerRow
+                key={server.id}
+                server={server}
+                scope={scope}
+                {...(statusFor(statuses, server) ? { status: statusFor(statuses, server)! } : {})}
+                awaiting={awaiting === server.id}
+                onAwait={setAwaiting}
+                onChange={() => {
+                  void load();
+                  void loadStatuses();
+                }}
+              />
+            ))}
+          </SettingsList>
         )}
       </SettingsGroup>
 

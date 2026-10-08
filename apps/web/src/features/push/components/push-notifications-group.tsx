@@ -188,7 +188,7 @@ export function PushNotificationsGroup() {
           {details.length > 0 && (
             <details className="mt-1 text-xs text-muted-foreground">
               <summary className="cursor-pointer select-none hover:text-foreground">Details</summary>
-              <ul className="mt-1.5 space-y-1.5">
+              <ul className="mt-1.5 max-h-48 space-y-1.5 overflow-y-auto overscroll-contain">
                 {details.map((detail) => (
                   <li key={detail.key}>
                     <span className="text-foreground">{detail.name}</span>

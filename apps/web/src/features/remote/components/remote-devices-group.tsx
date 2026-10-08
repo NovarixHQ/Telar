@@ -6,7 +6,7 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { fmtAgo } from "@/ui/format";
-import { Dropdown, Row, SettingsGroup } from "@/features/settings";
+import { Dropdown, Row, SettingsGroup, SettingsList } from "@/features/settings";
 import type { RemoteDevice } from "@telar/engine-client";
 import type { RemoteStatus } from "../api";
 
@@ -157,7 +157,7 @@ export function RemoteDevicesGroup({ status, children, ...actions }: { status: R
       {status.devices.length === 0 ? (
         <Row label="None yet" hint="Devices appear here as they pair." control={null} />
       ) : (
-        status.devices.map((device) => <DeviceRow key={device.id} device={device} isSelf={device.id === status.callerDeviceId} {...actions} />)
+        <SettingsList label="Paired devices">{status.devices.map((device) => <DeviceRow key={device.id} device={device} isSelf={device.id === status.callerDeviceId} {...actions} />)}</SettingsList>
       )}
       {children}
     </SettingsGroup>

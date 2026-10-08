@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { DownloadIcon, MonitorSmartphoneIcon, PencilIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { createEngineApi } from "@/platform/engine";
 import { useFollowHost } from "../host-follow";
@@ -28,7 +28,7 @@ import { Input } from "@/ui/input";
 import { Switch } from "@/ui/switch";
 import { cn } from "@/ui/utils";
 import { LookThumb } from "./look-thumb";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row, ScrollBox, SettingsGroup } from "@/features/settings";
 
 function stackPhrase(layers: readonly { type: string }[]): string {
   if (layers.length === 0) return "flat";
@@ -281,6 +281,12 @@ const subscribeToNothing = () => () => {};
 const hostNow = () => isHostWindow();
 const hostOnTheServer = () => true;
 
+const LOOKS_BEFORE_SCROLL = 12;
+
+function LooksFrame({ long, children }: { long: boolean; children: ReactNode }) {
+  return long ? <ScrollBox label="Looks">{children}</ScrollBox> : <div className="-mx-4">{children}</div>;
+}
+
 export function LooksSection({ onWear }: { onWear: (look: Look) => void }) {
   const isHost = useSyncExternalStore(subscribeToNothing, hostNow, hostOnTheServer);
   const { appearance } = useAppearance();
@@ -359,7 +365,7 @@ export function LooksSection({ onWear }: { onWear: (look: Look) => void }) {
       />
       {error && <p className="py-1.5 text-xs text-warning">{error}</p>}
       {!isHost && <HostLookRow onWear={onWear} />}
-      <div className="-mx-4">
+      <LooksFrame long={looks.length + BUILT_IN_LOOKS.length > LOOKS_BEFORE_SCROLL}>
         <table className="w-full table-fixed border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-border/40 text-2xs font-normal tracking-wide text-muted-foreground uppercase">
@@ -396,7 +402,7 @@ export function LooksSection({ onWear }: { onWear: (look: Look) => void }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </LooksFrame>
     </SettingsGroup>
   );
 }

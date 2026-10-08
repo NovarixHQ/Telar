@@ -7,7 +7,6 @@ import {
   insertReference,
   issueReference,
   lineRangeReference,
-  noteReference,
   sessionReference,
   pageReference,
   pullReference,
@@ -71,38 +70,6 @@ describe("what a reference says", () => {
 
   test("a sub-agent names itself and says how it ended", () => {
     expect(taskReference({ id: "task_1", title: "reviewer", state: "failed" }).text).toBe('the "reviewer" sub-agent (failed)');
-  });
-});
-
-describe("project notes", () => {
-  const note = { id: "n-abc123", title: "Deploy", body: "run `bun run ship` from main" };
-
-  test("A NOTE CARRIES ITS BODY — a reference that inserted only a title is a link the model cannot follow", () => {
-    const reference = noteReference(note);
-    expect(reference.kind).toBe("note");
-    expect(reference.label).toBe("Deploy");
-    expect(reference.text).toBe('the "Deploy" project note (n-abc123):\n\n```note\nrun `bun run ship` from main\n```');
-  });
-
-  test("the id rides in the head line, so an agent holding notes_write can edit what it was shown", () => {
-    expect(noteReference(note).text.startsWith('the "Deploy" project note (n-abc123)')).toBe(true);
-  });
-
-  test("a note containing its own fence cannot close the block early", () => {
-    // One backtick longer than the longest run inside, as markdown itself does.
-    const text = noteReference({ id: "n-1", title: "Snippet", body: "```ts\nexport const a = 1;\n```" }).text;
-    expect(text).toContain("````note\n```ts\nexport const a = 1;\n```\n````");
-  });
-
-  test("an empty note is its head line and nothing else", () => {
-    // "+, type a title, come back to it" is a real state, and a fence around
-    // nothing would be noise in the middle of a sentence.
-    expect(noteReference({ id: "n-2", title: "Later", body: "   " }).text).toBe('the "Later" project note (n-2)');
-  });
-
-  test("a title's double quotes become single ones here too, for the same reason", () => {
-    // The chip pattern finds a note by the quotes around its title.
-    expect(noteReference({ id: "n-3", title: 'The "why" file', body: "x" }).text).toContain("the \"The 'why' file\" project note (n-3)");
   });
 });
 

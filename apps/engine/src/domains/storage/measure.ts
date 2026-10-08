@@ -7,7 +7,6 @@ export const DIRECTORY_CATEGORIES: Readonly<Record<string, StorageCategory>> = {
   sessions: "sessions",
   python: "python",
   "browser-profiles": "browser-profiles",
-  notes: "notes",
   dictation: "dictation",
   run: "run",
   diagnostics: "diagnostics",

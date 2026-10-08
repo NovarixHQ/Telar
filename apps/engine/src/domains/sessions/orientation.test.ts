@@ -38,7 +38,6 @@ import { codexHome, openCodeHome, providerSkillRoot, providerSkillRoots } from "
 import { driverBriefings } from "../../drivers/briefings";
 import { openCodeConfigContent } from "../../drivers/opencode";
 import { sessionsTools } from ".";
-import { notesTools } from "../notes";
 import { runTools } from "../terminal/tools";
 import { BROWSER_BRIEFING } from "../browser";
 import { RUN_BRIEFING } from "../terminal/briefing";
@@ -257,7 +256,6 @@ function telarToolNames(): string[] {
   };
   const capability = new Proxy({}, { get: () => () => undefined }) as never;
   sessionsTools(record, capability);
-  notesTools(record, capability);
   displayTools(record, capability);
   runTools(record, capability);
   return names;

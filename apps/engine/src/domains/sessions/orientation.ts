@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-export const ORIENTATION_VERSION = 12;
+export const ORIENTATION_VERSION = 13;
 
 export const TELAR_SKILL_NAME = "telar";
 
@@ -18,7 +18,7 @@ export const TELAR_ORIENTATION =
 
 export const TELAR_SKILL = `---
 name: ${TELAR_SKILL_NAME}
-description: What Telar is and what its words mean — the cockpit's panel, rail and surfaces, sessions and how they are assigned and settled, the integrated browser's tab rules, and the project notebook. Read this when a request uses a word like "the browser", "the panel", "a session" or "a Look" and you are not certain it means what you would assume outside Telar.
+description: What Telar is and what its words mean — the cockpit's panel, rail and surfaces, sessions and how they are assigned and settled and the integrated browser's tab rules. Read this when a request uses a word like "the browser", "the panel", "a session" or "a Look" and you are not certain it means what you would assume outside Telar.
 telar: generated v${ORIENTATION_VERSION}
 ---
 
@@ -241,22 +241,6 @@ they say "the browser" in Telar, this is what they mean.
 - In a spreadsheet drawn on a canvas, reach cells through its name box (type
   \`B7\`, Enter) and formula bar; \`browser_paste\` tab-separated rows to fill
   many cells at once, and \`browser_copy\` reads a selection back.
-
-## The project notebook
-
-The quick notes kept beside the code — deploy incantations, constraints, the
-decisions somebody wrote down so they would not be asked twice. A note belongs
-to a PROJECT, so every session on it opens the same notebook. It is THEIRS:
-write one when the person asks you to keep something, not to log what you did.
-
-- A note you write is stamped as an agent's, permanently.
-- \`notes_delete\` removes only notes an agent wrote. The person's own are
-  theirs; say so rather than asking another session to delete one for you.
-- \`notes_list\` shows titles and the first 120 characters; \`notes_list({ noteId })\`
-  gives one note whole — ask for the ones you actually need. \`projects: true\`
-  lists the notebooks you can use.
-
-Tools: \`notes_list\`, \`notes_write\`, \`notes_delete\`.
 
 ## Showing and running
 

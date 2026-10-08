@@ -46,7 +46,7 @@ describe("Telar's own reads are reads", () => {
   });
 
   test("everything that writes or spends still parks, in every attended mode", () => {
-    for (const tool of ["sessions_create", "sessions_send", "notes_write"]) {
+    for (const tool of ["sessions_create", "sessions_send", "prompt_draft"]) {
       expect(requestKindForTool(qualifyTelarTool(tool))).toBe("tool_call");
       expect(requiresHuman("approval-required", requestKindForTool(qualifyTelarTool(tool)))).toBe(true);
       expect(requiresHuman("auto-accept-edits", requestKindForTool(qualifyTelarTool(tool)))).toBe(true);

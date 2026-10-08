@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { chipBasename, chipIsDirectory, chipPath, detectComposerTrigger, replaceTextRange, segmentDraft } from "./tokens";
-import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, noteReference, pageReference, pullReference, sessionReference, skillReference, taskReference } from "./drag-reference";
+import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, pageReference, pullReference, sessionReference, skillReference, taskReference } from "./drag-reference";
 
 describe("what the caret is in the middle of", () => {
   test("an at-sign opens the path menu and carries what follows it", () => {
@@ -192,22 +192,6 @@ describe("which runs of a draft draw as chips", () => {
     const kinds = segmentDraft(draft).map((segment) => (segment.type === "chip" ? segment.reference.kind : "text"));
     expect(kinds).toEqual(["text", "issue", "text", "file"]);
     expect(rebuild(draft)).toBe(draft);
-  });
-
-  test("a project note chips on its HEAD LINE and leaves its body in the draft", () => {
-    const draft = `summarise ${noteReference({ id: "n-abc123", title: "Deploy", body: "bun run ship" }).text}`;
-    const segments = segmentDraft(draft);
-    const chip = segments.find((segment) => segment.type === "chip");
-    expect(chip?.reference.kind).toBe("note");
-    expect(chip?.reference.label).toBe("Deploy");
-    expect(chip?.reference.text).toBe('the "Deploy" project note (n-abc123)');
-    expect(segments.at(-1)).toEqual({ type: "text", text: ":\n\n```note\nbun run ship\n```" });
-    expect(rebuild(draft)).toBe(draft);
-  });
-
-  test("prose that merely mentions a project note is prose", () => {
-    const draft = 'check the "Deploy" project note before you ship';
-    expect(segmentDraft(draft).filter((segment) => segment.type === "chip")).toEqual([]);
   });
 
   test("a session reference is one chip, instructions included, named by its title", () => {

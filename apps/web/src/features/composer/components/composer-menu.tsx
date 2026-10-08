@@ -3,16 +3,12 @@
 // Keys are the composer's; every row prevents mousedown so a click never blurs the editor mid-pick.
 
 import { Fragment } from "react";
-import { BotIcon, DownloadIcon, FolderIcon, GaugeIcon, GitBranchIcon, MessagesSquareIcon, Minimize2Icon, NotebookPenIcon, ShieldCheckIcon, SparklesIcon, SquareIcon, WandSparklesIcon } from "lucide-react";
+import { BotIcon, DownloadIcon, FolderIcon, GaugeIcon, GitBranchIcon, MessagesSquareIcon, Minimize2Icon, ShieldCheckIcon, SparklesIcon, SquareIcon, WandSparklesIcon } from "lucide-react";
 import type { Completion, CompletionGlyph } from "../completions";
 import { FileKindIcon } from "@/features/files";
 import { cn } from "@/ui/utils";
 
 const COMMAND_GLYPHS: Partial<Record<CompletionGlyph, typeof BotIcon>> = {
-  // Not a command, but it reaches the same table: a note row's glyph is the one
-  // the strip and the chip already use, so the three spellings of "a note" are
-  // recognisable as the same object.
-  note: NotebookPenIcon,
   access: ShieldCheckIcon,
   model: SparklesIcon,
   effort: GaugeIcon,

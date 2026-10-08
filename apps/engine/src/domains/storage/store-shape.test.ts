@@ -37,7 +37,6 @@
  *   - session creation (`local` env mode)
  *   - a turn: submit, claim, mark running, stream two deltas, complete an item,
  *     complete the turn, and a read receipt
- *   - a project note
  *   - an MCP server registration
  *   - session defaults and the published appearance blob
  *   - the execution store's own housekeeping on open

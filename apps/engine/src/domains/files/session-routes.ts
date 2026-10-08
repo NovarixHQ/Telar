@@ -1,4 +1,4 @@
-import { parseDiffBaseQuery, parseFilePatchQuery } from "@telar/engine-client";
+import { MAX_FILE_REFERENCES, parseDiffBaseQuery, parseFilePatchQuery } from "@telar/engine-client";
 import { body, HttpError } from "../../platform/http/http";
 import { stringValue } from "../../platform/http/params";
 import { ok, sessionRoute, type Route } from "../../platform/http/route";
@@ -33,6 +33,15 @@ export function sessionFilesRoutes(store: EngineStore): Route[] {
         const target = query.get("path");
         if (target) return ok({ file: await store.files.session(sessionId!, target) });
         return ok({ listing: await store.workspaceReads.sessionFiles(sessionId!) });
+      },
+    },
+    {
+      method: "POST",
+      path: sessionRoute("/files/references"),
+      auth: "engine",
+      async handle({ params: [sessionId], body: input }) {
+        const texts = (Array.isArray(input.texts) ? input.texts : []).filter((text): text is string => typeof text === "string").slice(0, MAX_FILE_REFERENCES);
+        return ok({ references: await store.files.sessionReferences(sessionId!, texts, () => store.workspaceReads.sessionFiles(sessionId!)) });
       },
     },
     {

@@ -8,7 +8,7 @@ import { createFileWriter, type FileWriter } from "../file-writer";
 import { detectNewline, withNewline } from "../line-endings";
 import { applyMarkdownEdit, type MarkdownEditAction } from "../markdown-edit";
 import { SaveCoordinator } from "../save-coordinator";
-import { useHighlightedLines, useRestoredView } from "./use-file-view";
+import { useHighlightedLines, useLineReveal, useRestoredView } from "./use-file-view";
 
 const SAVE_DEBOUNCE_MS = 500;
 
@@ -174,6 +174,7 @@ export function useFileEditor({ path, sessionId, projectId, hostId, lang, active
   const saverRef = useSaver({ editable, readied, writer, scope, path, owner, latest, saveStateRef, setPending, setProblem, discarded });
   const { lines, coloured } = useHighlightedLines(draft, lang);
   const rememberView = useRestoredView(draft, readViewRef, onView, textareaRef, scrollerRef);
+  useLineReveal(path, draft, textareaRef, scrollerRef);
 
   // The only way text changes: screen, saver and stash, so an unmount mid-save loses nothing.
   const change = useCallback(

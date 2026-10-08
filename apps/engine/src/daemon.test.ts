@@ -339,6 +339,11 @@ test("the host's appearance round-trips, caches by ETag, and answers the right r
   expect(republished.etag).not.toBe(etag);
   expect((await fetch(url, { headers: { ...auth, "if-none-match": etag! } })).status).toBe(200);
 
+  const image = `data:image/jpeg;base64,${"A".repeat(3 * 1024 * 1024)}`;
+  const heavy: PublishedAppearance = { ...publishedAppearance(16), background: { kind: "image", gradient: "aurora", colours: ["#000000", "#ffffff"], image, strength: 70 } };
+  await expect(client.setAppearance(heavy)).resolves.toMatchObject({ ok: true });
+  expect((await client.appearance()).appearance?.background?.image).toBe(image);
+
   // 405, NOT 404: the path exists, the verb does not — and `Allow` says which.
   const wrongVerb = await fetch(url, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: "{}" });
   expect(wrongVerb.status).toBe(405);

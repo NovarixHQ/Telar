@@ -7,6 +7,7 @@ import {
   DEPTHS,
   APP_FONTS,
   DEFAULT_ACCENT,
+  DEFAULT_BACKGROUND,
   DEFAULT_CHAT_WIDTH,
   DEFAULT_DEPTH,
   DEFAULT_FONT_SIZE,
@@ -20,11 +21,14 @@ import {
   MIN_FONT_SIZE,
   MIN_MONO_FONT_SIZE,
   MIN_TRANSLUCENCY,
+  parseBackground,
   type Accent,
+  type Background,
   type ChatWidth,
   type Depth,
   type AppFont,
 } from "@telar/engine-client";
+import { applyBackground } from "./background";
 
 export {
   ACCENTS,
@@ -76,6 +80,7 @@ export type Appearance = {
   depth: Depth;
   frost: Frost;
   chatWidth: ChatWidth;
+  background: Background;
 };
 
 const FROSTS = ["blur", "clear"] as const;
@@ -98,6 +103,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   depth: DEFAULT_DEPTH,
   frost: "blur",
   chatWidth: DEFAULT_CHAT_WIDTH,
+  background: DEFAULT_BACKGROUND,
 };
 
 const STORAGE_KEY = "telar-appearance";
@@ -145,6 +151,7 @@ export function parseAppearance(raw: string | null): Appearance {
       depth: oneOf(record.depth, DEPTHS) ?? DEFAULT_APPEARANCE.depth,
       frost: oneOf(record.frost, FROSTS) ?? DEFAULT_APPEARANCE.frost,
       chatWidth: oneOf(record.chatWidth, CHAT_WIDTHS) ?? DEFAULT_APPEARANCE.chatWidth,
+      background: parseBackground(record.background),
     };
   } catch {
     return DEFAULT_APPEARANCE;
@@ -201,6 +208,7 @@ export function applyAppearance(appearance: Appearance): void {
   else root.style.fontSize = `${appearance.fontSize}px`;
   root.style.setProperty("--app-font-mono-size", `${appearance.fontMonoSize}px`);
   applyWindowChrome(appearance);
+  applyBackground(appearance.background);
   root.style.setProperty("--translucency", translucencyCss(appearance.translucencyLevel));
 }
 

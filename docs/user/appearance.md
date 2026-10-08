@@ -7,6 +7,7 @@ Telar has one appearance: its default, changed however you like. Everything is i
 - **Colour scheme**: System (follows macOS), Light or Dark, picked from three previews.
 - **Accent**: the colour for things you act on, like buttons, links and the caret. There are eight to choose from.
 - **Depth**: how far cards, the composer and menus lift off the page.
+- **Background**: None, a Gradient (four presets or your own pair of colours) or an Image (choose a file or drop one onto the row). **Strength** sets how strongly it shows. Presets have a light and a dark version; your own colours and images look the same in both schemes. Large pictures are shrunk so they can travel to every window.
 
 ## Typography
 

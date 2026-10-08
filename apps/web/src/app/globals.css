@@ -1004,6 +1004,42 @@ html:not(.dark)[data-telar-shell][data-translucent] {
   backdrop-filter: blur(10px);
 }
 
+#app-backdrop {
+  display: none;
+}
+[data-backdrop] {
+  background-color: var(--background);
+  --sidebar-wash: color-mix(in oklab, var(--sidebar) 70%, transparent);
+}
+[data-backdrop] body,
+[data-backdrop] .app-ground {
+  background-color: transparent;
+}
+[data-backdrop] #app-backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--backdrop-light, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--backdrop-strength, 60%);
+}
+.dark[data-backdrop] #app-backdrop {
+  background-image: var(--backdrop-dark, var(--backdrop-light, none));
+}
+[data-backdrop] [data-role="user"] > .bg-secondary {
+  background-color: color-mix(in oklab, var(--secondary) 80%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+[data-telar-shell][data-translucent][data-backdrop] {
+  background-color: transparent;
+  background-image: linear-gradient(transparent, transparent);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -1,4 +1,4 @@
-import type { DiffBaseOption, FilePatchOptions, GitFileChange, GitFilePatch, GitPatchIncomplete, SessionDiff } from "@telar/engine-client";
+import type { DiffBaseOption, FilePatchOptions, GitFileChange, GitFilePatch, GitPatchIncomplete } from "@telar/engine-client";
 import { unreportedFiles, type SessionReview } from "./session-review";
 import type { DiffScopeKind } from "./diff-scope";
 import type { DiffTurn } from "./diff-turns";
@@ -56,23 +56,6 @@ export function journalPatch(turn: DiffTurn | undefined, path: string): GitFileP
   return reported
     ? { patch: reported.patch, binary: false, ...(reported.truncated ? { incomplete: "truncated" as const } : {}) }
     : { patch: "", binary: false, incomplete: "failed" as const };
-}
-
-export function turnNote(turn: DiffTurn, diff: SessionDiff | undefined): string {
-  const anchored = Boolean(turn.anchor?.before && turn.anchor.after);
-  if (anchored) {
-    const committed = turn.anchor?.before !== turn.anchor?.after;
-    const range = committed
-      ? "What git says changed between where this turn started and where it ended."
-      : "This turn committed nothing, so this is what git says changed since it started — including anything written after it ended.";
-    return diff?.shared === true
-      ? `${range} This checkout is shared with your editor and with every other local session on it, so some of this may not be this turn's.`
-      : `${range} This session owns its checkout, so this is as close to one turn's work as git can say.`;
-  }
-  if (turn.anchor?.read) {
-    return "Where the repository stood when this turn ran was never read, so this is the agent's own reported patches rather than git.";
-  }
-  return "What this turn reported writing — the agent's own patches, not the checkout. Git may disagree, and the working-tree scope is where you would see it.";
 }
 
 /** Every option a row's patch read needs; the scope's base goes last so nothing shadows it. */

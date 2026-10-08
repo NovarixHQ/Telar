@@ -133,11 +133,16 @@ struct DiffCallout: View {
 
 struct DiffFileRow: View {
     let file: GitFileChange
+    let open: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let parts = splitPath(file.path)
         HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "chevron.right")
+                .font(.system(Theme.captionTiny, weight: .semibold))
+                .foregroundStyle(Theme.textMuted)
+                .rotationEffect(.degrees(open ? 90 : 0))
             DiffStatusBadge(status: file.status)
             VStack(alignment: .leading, spacing: 1) {
                 Text(parts.name)
@@ -165,7 +170,9 @@ struct DiffFileRow: View {
             }
         }
         .padding(.vertical, 8)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityValue(open ? "Expanded" : "Collapsed")
     }
 
     private func detail(folder: String?) -> String? {

@@ -56,7 +56,7 @@ struct TurnAttachment: Codable, Identifiable, Equatable {
     var isPinned: Bool { tags?.contains("pinned") == true }
 }
 
-struct GitFileChange: Decodable, Identifiable, Equatable, Hashable {
+struct GitFileChange: Decodable, Identifiable, Equatable {
     var path: String
 
     var status: String

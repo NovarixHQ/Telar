@@ -16,6 +16,7 @@ struct PanelView: View {
     var hostName: String?
 
     let active: Bool
+    var diffRevision = 0
     let panel: PanelModel
     var presentation: PanelPresentation = .page
 
@@ -78,7 +79,7 @@ struct PanelView: View {
         case nil:
             PanelEmptyState(offered: panel.offered) { panel.open($0) }
         case .diff:
-            DiffView(api: api, sessionId: sessionId)
+            DiffView(api: api, sessionId: sessionId, active: active, revision: diffRevision)
 
         case .simulator:
             if let simulatorsAPI = api as? any SimulatorsAPI {

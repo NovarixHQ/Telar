@@ -177,7 +177,8 @@ struct SessionView: View {
 
     private func panelView(_ presentation: PanelPresentation, canFillWindow: Bool) -> PanelView {
         PanelView(api: api, panelAPI: panelAPI, sessionId: sessionId, hostId: hostId,
-                  simulators: simulatorWatch.running, simulatorIds: store.sync.simulatorIds, hostName: hostName, active: turnActive, panel: panel,
+                  simulators: simulatorWatch.running, simulatorIds: store.sync.simulatorIds, hostName: hostName, active: turnActive,
+                  diffRevision: PatchModel.revision(store.sync.turns), panel: panel,
                   presentation: presentation, canFillWindow: canFillWindow, onClose: { panel.close() })
     }
 

@@ -100,7 +100,7 @@ export function TurnEmptyState({ noTurns, trimmed }: { noTurns: boolean; trimmed
   return (
     <div className="px-4 py-6 text-center text-2xs text-muted-foreground">
       {noTurns
-        ? "No turn in this conversation has reported writing a file yet."
+        ? "No turn in this session has reported writing a file yet."
         : trimmed
           ? `This turn reported nothing under ${trimmed}.`
           : "This turn reported writing nothing."}

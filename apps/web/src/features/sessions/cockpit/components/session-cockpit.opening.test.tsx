@@ -100,7 +100,7 @@ test("an opening session shows the rail's title and project at once, and a quiet
   await open("session_open_1");
   expect(header()).toContain("Fix the orbit solver");
   expect(header()).toContain("exoplanets");
-  expect(header()).not.toContain("New conversation");
+  expect(header()).not.toContain("New session");
   expect(host!.querySelector('[aria-label="Loading session"]')).not.toBeNull();
   expect(text()).not.toContain("Hydrating");
   expect(text()).not.toContain("journal");
@@ -109,7 +109,7 @@ test("an opening session shows the rail's title and project at once, and a quiet
 
 test("without a cached row the title is a placeholder, never \"New conversation\", until the record arrives", async () => {
   await open("session_open_2");
-  expect(header()).not.toContain("New conversation");
+  expect(header()).not.toContain("New session");
   await act(async () => answerBootstrap());
   await act(async () => await new Promise<void>((resolve) => setTimeout(resolve, 0)));
   expect(header()).toContain("Fix the orbit solver");

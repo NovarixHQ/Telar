@@ -61,7 +61,7 @@ const field = () => document.querySelector('[role="combobox"]') as HTMLInputElem
 const options = () => [...document.querySelectorAll('[role="option"]')];
 const option = (label: string) => options().find((node) => node.textContent?.startsWith(label));
 const conversations = () =>
-  [...document.querySelectorAll('[role="group"][aria-label="Recent conversations"] [role="option"]')].map((node) => node.textContent);
+  [...document.querySelectorAll('[role="group"][aria-label="Recent sessions"] [role="option"]')].map((node) => node.textContent);
 const highlighted = () => document.getElementById(field().getAttribute("aria-activedescendant") ?? "");
 
 async function key(init: KeyboardEventInit) {
@@ -115,7 +115,7 @@ test("the Accent page is a page of this dialog, and Backspace on an empty field 
 
   await clearField(field());
   await key({ key: "Backspace" });
-  expect(field().getAttribute("aria-label")).toBe("Search commands, settings, projects and conversations");
+  expect(field().getAttribute("aria-label")).toBe("Search commands, settings, projects and sessions");
   expect(log).toEqual([]);
 });
 
@@ -152,7 +152,7 @@ test("the highlight is announced, each section is a named group, and the field h
   expect<string | null | undefined>(document.querySelector('[role="listbox"]')?.id).toBe(field().getAttribute("aria-controls"));
   expect(field().getAttribute("aria-activedescendant")).toBe("command-palette-0");
   const groups = [...document.querySelectorAll('[role="group"]')].map((node) => node.getAttribute("aria-label"));
-  expect(groups).toEqual(["Actions", "Quick settings", "Projects", "Recent conversations"]);
+  expect(groups).toEqual(["Actions", "Quick settings", "Projects", "Recent sessions"]);
   expect(document.activeElement).toBe(field());
 });
 
@@ -163,7 +163,7 @@ test("a row that walks opens the project palette's own page without closing, and
   expect(field().getAttribute("aria-label")).toBe("Search projects");
   expect(log).toEqual([]);
   await key({ key: "Backspace" });
-  expect(field().getAttribute("aria-label")).toBe("Search commands, settings, projects and conversations");
+  expect(field().getAttribute("aria-label")).toBe("Search commands, settings, projects and sessions");
 });
 
 test("any other command closes the dialog first, then runs", async () => {

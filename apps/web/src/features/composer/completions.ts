@@ -189,7 +189,7 @@ export function availableCommands(context: CommandContext): Completion[] {
   const commands: Completion[] = [];
 
   if (context.pickers?.model) {
-    commands.push({ id: "model", label: "/model", detail: "Switch the model for this conversation.", glyph: "model", action: { type: "picker", picker: "model" } });
+    commands.push({ id: "model", label: "/model", detail: "Switch the model for this session.", glyph: "model", action: { type: "picker", picker: "model" } });
   }
   if (context.pickers?.access) {
     commands.push({ id: "access", label: "/access", detail: "Choose what the agent may do without asking.", glyph: "access", action: { type: "picker", picker: "access" } });
@@ -236,7 +236,7 @@ export function availableCommands(context: CommandContext): Completion[] {
     commands.push({
       id: "compact",
       label: "/compact",
-      detail: blocked ?? "Summarise the conversation to free space.",
+      detail: blocked ?? "Summarise the session to free space.",
       glyph: "compact",
       action: { type: "compact" },
       ...(blocked ? { disabled: true } : {}),

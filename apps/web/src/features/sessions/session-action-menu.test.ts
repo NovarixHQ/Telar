@@ -358,7 +358,7 @@ describe("gating: disabled with a reason beats failing later", () => {
   });
 
   test("rename is refused on an archived session", () => {
-    expect(byId(build({ session: target({ archived: true }) }), "rename").disabled).toBe("This conversation is over.");
+    expect(byId(build({ session: target({ archived: true }) }), "rename").disabled).toBe("This session is over.");
   });
 
   test("Regenerate title sits under Rename, asks for a new title, and is refused on an archived session", () => {
@@ -367,7 +367,7 @@ describe("gating: disabled with a reason beats failing later", () => {
     expect(ids(items).indexOf("regenerate-title")).toBe(ids(items).indexOf("rename") + 1);
     byId(items, "regenerate-title").run!();
     expect(calls).toEqual([["regenerateTitle", undefined]]);
-    expect(byId(build({ session: target({ archived: true }) }), "regenerate-title").disabled).toBe("This conversation is over.");
+    expect(byId(build({ session: target({ archived: true }) }), "regenerate-title").disabled).toBe("This session is over.");
   });
 
   test("a session with no project cannot start a sibling or open settings", () => {

@@ -32,7 +32,7 @@ test("every command in the registry is accounted for, derived rather than listed
 test("the nine jumps are one row carrying the whole range", () => {
   // Nine near-identical rows were three quarters of this pane saying one thing.
   const jump = rowsWith().find((row) => row.id === "jump");
-  expect(jump?.title).toBe("Jump to conversation 1–9");
+  expect(jump?.title).toBe("Jump to session 1–9");
   expect(jump?.caps).toEqual(["⌘", "1"]);
   expect(jump?.through).toEqual(["⌘", "9"]);
   // And the row rebinds all nine, which is what makes the fold honest.
@@ -61,7 +61,7 @@ test("the range is read off the registry, not hardcoded", () => {
     { id: "jump-2" as never, label: "Jump 2", group: "Rail", icon: "hash", defaultChord: "CommandOrControl+2", jump: 2 },
   ];
   const keymap = { "jump-1": "CommandOrControl+1", "jump-2": "CommandOrControl+2" } as Keymap;
-  expect(keybindingRows("mac", keymap, table)[0]?.title).toBe("Jump to conversation 1–2");
+  expect(keybindingRows("mac", keymap, table)[0]?.title).toBe("Jump to session 1–2");
   const lone = keybindingRows("mac", keymap, [table[0]!]);
   expect(lone).toHaveLength(1);
   expect(lone[0]?.id).toBe("jump-1");
@@ -85,7 +85,7 @@ test("the chord is split into one cap per key, in the platform's own register", 
 test("rows read in this app's vocabulary, not the Electron menu's", () => {
   const titles = rowsWith().map((row) => row.title);
   expect(titles).toContain("New session");
-  expect(titles).toContain("Jump to conversation 1–9");
+  expect(titles).toContain("Jump to session 1–9");
   // The menu's trailing ellipsis is a menu-item convention and names nothing on
   // a settings row.
   expect(titles).toContain("Settings");

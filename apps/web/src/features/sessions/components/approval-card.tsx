@@ -214,7 +214,7 @@ function SecretAccessCard({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Telar fills the values directly — they never enter the conversation, the journal, or the model.
+        Telar fills the values directly — they never enter the transcript, the journal, or the model.
       </p>
 
       {profile && (

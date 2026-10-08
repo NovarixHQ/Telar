@@ -51,7 +51,7 @@ export function keybindingRows(platform: KeyCapPlatform, keymap: Keymap, command
         id: "jump",
         commandIds: folded.map((jump) => jump.id),
         group: command.group,
-        title: `Jump to conversation ${first.jump}–${last!.jump}`,
+        title: `Jump to session ${first.jump}–${last!.jump}`,
         hint: JUMP_HINT,
         chord,
         caps: keyCaps(chord, platform),

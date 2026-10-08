@@ -132,7 +132,7 @@ export function PullRequestForm({ publish }: { publish: Publish }) {
         className="w-full resize-none rounded-md border border-input bg-background p-2 text-xs outline-none focus-visible:border-ring"
       />
       <p className="text-2xs leading-snug text-muted-foreground">
-        This happens on GitHub and cannot be undone from Telar. The description carries this session&rsquo;s id, so the conversation
+        This happens on GitHub and cannot be undone from Telar. The description carries this session&rsquo;s id, so the session
         behind it is findable.
       </p>
       <div className="flex items-center gap-1.5">

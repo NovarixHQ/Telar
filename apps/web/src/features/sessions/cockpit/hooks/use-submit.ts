@@ -88,7 +88,7 @@ export function useSubmit(args: Args) {
       let target = sessionId ?? browserTarget;
       if (!target) {
         if (projectId === undefined) {
-          setError(new EngineApiError("invalid_request", "This conversation has no project to create a session in."));
+          setError(new EngineApiError("invalid_request", "This session has no project."));
           return;
         }
         const title = seedSessionTitle(text, splitImages(files).images.map((file) => file.name));
@@ -114,9 +114,9 @@ export function useSubmit(args: Args) {
   };
 
   const adoptConversation = async (conversation: ClaudeConversation): Promise<void> => {
-    if (projectId === undefined) throw new EngineApiError("invalid_request", "This conversation has no project to create a session in.");
+    if (projectId === undefined) throw new EngineApiError("invalid_request", "This session has no project.");
     // The engine refuses this too; saying it here tells the person before a session is created.
-    if (sessionId) throw new EngineApiError("conflict", "This conversation has already started. Open a new one to bring in another.");
+    if (sessionId) throw new EngineApiError("conflict", "This session has already started. Open a new one to bring in another.");
     const title = (conversation.customTitle || conversation.firstPrompt || conversation.title || "Claude Code conversation")
       .replace(/\s+/g, " ")
       .slice(0, 80);

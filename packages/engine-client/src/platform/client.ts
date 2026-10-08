@@ -11,11 +11,13 @@ export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promis
 
 type Stream = { url: string; headers: Record<string, string> };
 
+export type EngineEndpoint = { baseUrl: () => string; token: string };
+
 export interface EngineClient extends EngineDomainMethods {}
 
 export class EngineClient implements EngineTransport {
   constructor(
-    readonly discovery: EngineDiscovery,
+    private readonly target: EngineDiscovery | EngineEndpoint,
     private readonly fetchImpl: FetchLike = fetch,
   ) {}
 
@@ -38,11 +40,11 @@ export class EngineClient implements EngineTransport {
   }
 
   sessionsStream(): Stream {
-    return this.stream("/v2/sessions/stream");
+    return this.locate("/v2/sessions/stream");
   }
 
   runBytesStream(sessionId: string, input: RunTargetInput & { after?: number } = {}): Stream {
-    return this.stream(runBytesStreamPath(sessionId, input));
+    return this.locate(runBytesStreamPath(sessionId, input));
   }
 
   ds<T>(sessionId: string, method: string, body?: unknown): Promise<T> {
@@ -83,17 +85,18 @@ export class EngineClient implements EngineTransport {
     return this.parse(response);
   }
 
-  private stream(pathname: string): Stream {
-    return { url: `http://${this.discovery.host}:${this.discovery.port}${pathname}`, headers: { authorization: `Bearer ${this.discovery.token}` } };
+  locate(pathname: string): Stream {
+    const base = "baseUrl" in this.target ? this.target.baseUrl().replace(/\/$/, "") : `http://${this.target.host}:${this.target.port}`;
+    return { url: `${base}${pathname}`, headers: { authorization: `Bearer ${this.target.token}` } };
   }
 
   private async send(pathname: string, init: RequestInit & { headers?: Record<string, string> }, operation?: string): Promise<Response> {
-    const { url, headers } = this.stream(pathname);
+    const { url, headers } = this.locate(pathname);
     try {
       return await this.fetchImpl(url, { ...init, headers: { ...headers, ...init.headers } });
     } catch (cause) {
       // An abort is the caller hanging up, not the engine being away.
-      if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
+      if ((cause as { name?: unknown } | null)?.name === "AbortError") throw cause;
       const transport = sanitizeTransportCause(cause);
       throw new EngineClientError("engine_unavailable", "engine is unreachable", undefined, { ...(operation === undefined ? {} : { operation }), ...(transport ? { transport } : {}) });
     }

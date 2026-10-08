@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import type { FileReference } from "@telar/engine-client";
 import { CHIP_CLASS, CHIP_ICON_CLASS, CHIP_LABEL_CLASS, chipIsDirectory, chipPath, chipTitle, segmentDraft } from "@/features/composer";
 import { chipGlyphFor, type TelarReference } from "@/features/composer";
@@ -84,6 +84,9 @@ export function FileReferenceChip({ reference, onOpen }: { reference: FileRefere
 }
 
 const CODE_SPAN = /(`[^`\n]+`)/;
+const COLLAPSE_CHARS = 600;
+const COLLAPSE_LINES = 8;
+const COLLAPSE_FADE = "linear-gradient(to bottom, black calc(100% - 1.75rem), transparent)";
 
 function TypedText({ text, files, onOpen }: { text: string; files: ReadonlyMap<string, FileReference>; onOpen?: ((path: string) => void) | undefined }) {
   if (!files.size) return <>{text}</>;
@@ -107,16 +110,34 @@ export function PromptText({
   onOpen?: (tab: PanelTab) => void;
 }) {
   const files = useFileReferences(text);
+  const [expanded, setExpanded] = useState(false);
   const openFile = onOpen ? (path: string) => onOpen(filePanelTab(path)) : undefined;
+  const long = text.length > COLLAPSE_CHARS || text.split("\n").length > COLLAPSE_LINES;
+  const collapsed = long && !expanded;
   return (
-    <p className={cn("whitespace-pre-wrap", className)}>
-      {segmentDraft(text).map((segment, index) =>
-        segment.type === "chip" ? (
-          <ReferenceChip key={index} reference={segment.reference} {...(onOpen ? { onOpen } : {})} />
-        ) : (
-          <TypedText key={index} text={segment.text} files={files} onOpen={openFile} />
-        ),
+    <>
+      <p
+        className={cn("whitespace-pre-wrap", collapsed && "max-h-44 overflow-hidden", className)}
+        style={collapsed ? { maskImage: COLLAPSE_FADE, WebkitMaskImage: COLLAPSE_FADE } : undefined}
+      >
+        {segmentDraft(text).map((segment, index) =>
+          segment.type === "chip" ? (
+            <ReferenceChip key={index} reference={segment.reference} {...(onOpen ? { onOpen } : {})} />
+          ) : (
+            <TypedText key={index} text={segment.text} files={files} onOpen={openFile} />
+          ),
+        )}
+      </p>
+      {long && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          className="-ml-1 self-start rounded px-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? "Show less" : "Show full message"}
+        </button>
       )}
-    </p>
+    </>
   );
 }

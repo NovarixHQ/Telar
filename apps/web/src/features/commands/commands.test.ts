@@ -48,6 +48,8 @@ const EXPECTED_IDS: CommandId[] = [
   "jump-7",
   "jump-8",
   "jump-9",
+  "previous-session",
+  "next-session",
   "toggle-panel",
   "panel-next-tab",
   "panel-previous-tab",
@@ -102,7 +104,7 @@ describe("the registry is the one source of truth", () => {
 
   test("⌘K names the palette it opens, and keeps the id anybody's override is stored under", () => {
     expect(COMMANDS.find((command) => command.id === "search-sessions")).toMatchObject({
-      label: "Command Palette",
+      label: "Command palette",
       defaultChord: "CommandOrControl+K",
     });
   });
@@ -123,9 +125,9 @@ describe("the registry is the one source of truth", () => {
   test("⌘P pins the conversation you are reading, and says what unpinning is called", () => {
     const pin = COMMANDS.find((command) => command.id === "pin-session");
     expect(pin).toMatchObject({
-      label: "Pin Conversation",
-      altLabel: "Unpin Conversation",
-      group: "Conversation",
+      label: "Pin session",
+      altLabel: "Unpin session",
+      group: "Session",
       defaultChord: "CommandOrControl+P",
       menu: "file",
     });
@@ -135,7 +137,7 @@ describe("the registry is the one source of truth", () => {
 
   test("⌘D dictates, and it is a command rather than a menu row", () => {
     const dictate = COMMANDS.find((command) => command.id === "toggle-dictation");
-    expect(dictate).toMatchObject({ label: "Dictate", group: "Conversation", icon: "mic", defaultChord: "CommandOrControl+D" });
+    expect(dictate).toMatchObject({ label: "Dictate", group: "Session", icon: "mic", defaultChord: "CommandOrControl+D" });
     expect(dictate?.menu).toBeUndefined();
     expect(defaultKeymap()["toggle-dictation"]).toBe("CommandOrControl+D");
     expect(keymapConflicts(defaultKeymap())["toggle-dictation"]).toBeUndefined();
@@ -287,6 +289,27 @@ describe("what a command means here", () => {
     expect(commandDestination("jump-1", ["/a"])).toEqual({ kind: "navigate", href: "/a" });
     expect(commandDestination("jump-2", ["/a"])).toEqual({ kind: "noop" });
     expect(commandDestination("jump-3", ["/a", undefined, "/c"])).toEqual({ kind: "navigate", href: "/c" });
+  });
+
+  test("previous and next step one row from the open session and stop at either end", () => {
+    const rail = ["/a", "/b", "/c"];
+    expect(commandDestination("next-session", rail, 1)).toEqual({ kind: "navigate", href: "/c" });
+    expect(commandDestination("previous-session", rail, 1)).toEqual({ kind: "navigate", href: "/a" });
+    expect(commandDestination("next-session", rail, 2)).toEqual({ kind: "noop" });
+    expect(commandDestination("previous-session", rail, 0)).toEqual({ kind: "noop" });
+  });
+
+  test("with nothing open they enter the rail from its near end; an open session the rail does not show goes nowhere", () => {
+    const rail = ["/a", "/b", "/c"];
+    expect(commandDestination("next-session", rail)).toEqual({ kind: "navigate", href: "/a" });
+    expect(commandDestination("previous-session", rail)).toEqual({ kind: "navigate", href: "/c" });
+    expect(commandDestination("next-session", rail, -1)).toEqual({ kind: "noop" });
+    expect(commandDestination("next-session", [])).toEqual({ kind: "noop" });
+  });
+
+  test("⌘⇧[ and ⌘⇧] resolve by the physical key, whatever Shift turns the character into", () => {
+    expect(resolveWebCommandKeyAction(defaultKeymap(), { key: "{", code: "BracketLeft", metaKey: true, shiftKey: true })).toBe("previous-session");
+    expect(resolveWebCommandKeyAction(defaultKeymap(), { key: "}", code: "BracketRight", metaKey: true, shiftKey: true })).toBe("next-session");
   });
 });
 

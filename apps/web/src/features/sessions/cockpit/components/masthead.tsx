@@ -62,13 +62,14 @@ export function usePanelPresence(open: boolean, durationMs = 200): { mounted: bo
   return { mounted, shown };
 }
 
-export function SessionMasthead({ projectId, hostId, projectName, projectResolved, session, onRename, panel, menu }: {
+export function SessionMasthead({ projectId, hostId, projectName, projectResolved, session, fallbackTitle, onRename, panel, menu }: {
   projectId?: string;
   hostId: string;
   projectName?: string;
   /** Whether this host's registry has answered at all. */
   projectResolved?: boolean;
   session?: Session;
+  fallbackTitle?: string;
   onRename: (title: string) => void;
   /** The session panel's triggers, so the masthead never holds the session's items and events. */
   panel: React.ReactNode;
@@ -76,18 +77,17 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
 }) {
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
-  const title = session?.title ?? "New conversation";
+  const title = session?.title ?? fallbackTitle;
   const mainIsLeftmost = useMainIsLeftmost();
 
   const commit = () => {
     setEditing(false);
     const next = draftTitle.trim();
-    // Empty or unchanged is a silent cancel, not an error and not a write.
     if (next && next !== title) onRename(next.slice(0, 120));
   };
 
   const beginRename = () => {
-    setDraftTitle(title);
+    setDraftTitle(title ?? "");
     setEditing(true);
   };
 
@@ -121,7 +121,9 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
             </Link>
           )}
           <span className="shrink-0 text-border">/</span>
-          {editing ? (
+          {title === undefined ? (
+            <span aria-hidden className="h-4 w-40 animate-pulse rounded-md bg-muted/60" />
+          ) : editing ? (
             <TitleEditor value={draftTitle} onChange={setDraftTitle} onCommit={commit} onCancel={() => setEditing(false)} />
           ) : (
             <TitleMenu title={title} items={menuItems} open={menuOpen} onOpenChange={openMenu} onRename={beginRename} />

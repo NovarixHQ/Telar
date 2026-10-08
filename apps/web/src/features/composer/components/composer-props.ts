@@ -53,15 +53,13 @@ export type ComposerProps = {
   compacting?: boolean;
   /** This login's heavy-context threshold, as a whole percentage. */
   contextNoticePercent?: number;
+  sentPrompts?: readonly string[];
   onDraftChange: (draft: string) => void;
   onSubmit: () => void;
   onStop: () => void;
   /** Stops the lingering background tasks; `onStop` ends the turn and spares them. */
   onStopBackground: () => void;
   onRuntimeMode: (mode: RuntimeMode) => void;
-  onResumeAfterRateLimit?: (next: boolean) => void;
-  /** This Mac's standing answer, shown when the session has not chosen. */
-  resumeAfterRateLimitDefault?: boolean;
   /** Takes the whole next choice. Absent makes every picker read-only. */
   onModelChange?: (next: ModelChoice) => void;
   onSwitchProvider?: (driver: ProviderDriverKind, next: ModelChoice) => void;

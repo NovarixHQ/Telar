@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import type { ProviderDriverKind, Session } from "@telar/engine-client";
 import type { ModelChoice } from "@/features/providers";
-import type { Composer } from "@/features/composer";
+import { recallablePrompts, type Composer } from "@/features/composer";
 import { wakeLabel } from "../../session-settling";
 import type { useComposerDraft } from "../hooks/use-composer-draft";
 import type { useDraftConfig } from "../hooks/use-draft-config";
@@ -72,14 +72,13 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
           onCancelQuestion: (requestId: string) => void actions.decideRequest(requestId, "cancel"),
         }
       : {}),
+    sentPrompts: recallablePrompts(model.transcript),
     onDraftChange: composer.changeDraft,
     onSubmit: () => void submit.submit(),
     onStop: () => void actions.stop(),
     onStopBackground: () => void actions.stopBackground(),
     // Before a session exists both choices are held locally and applied by the patch that follows creation.
     onRuntimeMode: fresh ? draft.chooseRuntimeMode : (mode) => void actions.setRuntimeMode(mode),
-    ...(fresh ? {} : { onResumeAfterRateLimit: (next: boolean) => void actions.setResumeAfterRateLimit(next) }),
-    ...(draft.sessionDefaults.resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimitDefault: draft.sessionDefaults.resumeAfterRateLimit }),
     onModelChange: fresh ? draft.chooseModel : (next) => void actions.setModel(next),
     ...(fresh ? {} : { onSwitchProvider: (driver: ProviderDriverKind, next: ModelChoice) => void actions.switchProvider(driver, next) }),
   };

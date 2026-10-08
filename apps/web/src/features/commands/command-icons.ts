@@ -3,8 +3,10 @@ import {
   AArrowDownIcon,
   AArrowUpIcon,
   AppWindowIcon,
+  ArrowDownIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
+  ArrowUpIcon,
   BlendIcon,
   BugIcon,
   ExternalLinkIcon,
@@ -55,8 +57,10 @@ export const COMMAND_ICONS: Record<string, LucideIcon> = {
   "a-arrow-down": AArrowDownIcon,
   "a-arrow-up": AArrowUpIcon,
   "app-window": AppWindowIcon,
+  "arrow-down": ArrowDownIcon,
   "arrow-left": ArrowLeftIcon,
   "arrow-right": ArrowRightIcon,
+  "arrow-up": ArrowUpIcon,
   blend: BlendIcon,
   bug: BugIcon,
   "circle-dot": CircleDotIcon,
@@ -101,7 +105,7 @@ export const COMMAND_ICONS: Record<string, LucideIcon> = {
 };
 
 export const GROUP_ICONS: Record<CommandGroup, LucideIcon> = {
-  Conversation: MessageSquareIcon,
+  Session: MessageSquareIcon,
   Rail: PanelLeftIcon,
   Panel: PanelRightIcon,
   Application: SettingsIcon,

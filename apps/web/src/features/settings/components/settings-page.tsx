@@ -41,23 +41,20 @@ const WorkspaceSection = dynamic(() => import("@/features/projects/components/wo
 const api = createEngineApi();
 
 export function SettingsPage() {
-  const [active, setActive] = useSectionFromUrl("general", SECTION_IDS);
+  const [active, setActive, revealRow] = useSectionFromUrl("general", SECTION_IDS);
   const backHref = useSettingsReturnPath();
   const [about, setAbout] = useState<{ appVersion: string }>();
   const [health, setHealth] = useState<EngineHealth>();
-  const [unreachable, setUnreachable] = useState(false);
 
   const load = useCallback(async () => {
     void api
       .about()
       .then(setAbout)
       .catch(() => undefined);
-    try {
-      setHealth(await api.health());
-      setUnreachable(false);
-    } catch {
-      setUnreachable(true);
-    }
+    await api
+      .health()
+      .then(setHealth)
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -80,6 +77,7 @@ export function SettingsPage() {
       onSelect={setActive}
       backHref={backHref}
       search={search}
+      {...(revealRow ? { reveal: revealRow } : {})}
     >
       <Suspense fallback={null}>
         {active === "general" && (
@@ -87,11 +85,7 @@ export function SettingsPage() {
             <WorkspaceSection />
             <OrganizationSection />
             <TextGenSection />
-            <AboutSection
-              {...(about ? { appVersion: about.appVersion } : {})}
-              {...(health ? { health } : {})}
-              unreachable={unreachable}
-            />
+            <AboutSection {...(about ? { appVersion: about.appVersion } : {})} />
             <ExperimentalSection />
           </>
         )}

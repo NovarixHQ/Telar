@@ -329,7 +329,7 @@ describe("the right panel's tab strip", () => {
     stubFetch({});
     const { closed, chip } = await mountPanel();
     await rightClick(chip(1));
-    expect(labels()).toEqual(["Close", "Close others", "Close all", "Fill the window"]);
+    expect(labels()).toEqual(["Close", "Close others", "Close to the right", "Close all", "Fill the window"]);
     await click(item("Close"));
     await rightClick(chip(1));
     await click(item("Close others"));

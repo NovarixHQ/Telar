@@ -9,9 +9,11 @@ import { diffTabParams, readDiffTab, type DiffTab, diffTurns, type DiffTurn } fr
 import type { TelarReference } from "@/features/composer";
 import type { EditorState, OpenIntent } from "@/features/files";
 import { forgeParams, readForgeOpen, type ForgeOpen } from "@/features/github";
+import { SurfaceBoundary } from "@/ui/load-failure";
 import { useSuspendSidebar } from "@/ui/sidebar";
 import { useSidebarPrefs } from "@/ui/sidebar-width";
 import { useCommandHandlers } from "@/features/commands";
+import { useCanOpenShells } from "@/features/terminal";
 import { cn } from "@/ui/utils";
 import { journalWrites, latestBrowserState, type BrowserStartState } from "../folds";
 import { useKeptTerminals } from "../hooks/use-kept-terminals";
@@ -39,7 +41,7 @@ const GitHubSurface = dynamic(() => import("@/features/github").then((mod) => mo
 const TerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.TerminalSurface));
 const GroupedTerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.GroupedTerminalSurface));
 const SimulatorSurface = dynamic(() => import("@/features/simulators/components/simulator-surface").then((mod) => mod.SimulatorSurface));
-const ImageLightbox = dynamic(() => import("@/features/plugins/data-science/image-lightbox").then((mod) => mod.ImageLightbox));
+const ImageLightbox = dynamic(() => import("@/ui/image-lightbox").then((mod) => mod.ImageLightbox));
 
 export type RightPanelProps = {
   active?: TurnState;
@@ -249,10 +251,12 @@ export function RightPanel(props: RightPanelProps) {
     if (showingPage || !sessionId) return;
     void desktopBrowserBridge()?.setVisible(sessionId, false).catch(() => undefined);
   }, [showingPage, sessionId]);
+  const shells = useCanOpenShells();
   const launcher = model.launcherRows(tabs, {
     enabledPlugins,
     pluginPanels,
     canOpenNew: onOpenNewTab !== undefined,
+    shells,
     flat: props.flatTabs !== false,
     ...(onOpenBrowser ? { browser: browserUnavailable ? { unavailable: browserUnavailable } : {} } : {}),
   });
@@ -298,22 +302,28 @@ export function RightPanel(props: RightPanelProps) {
           const showing = entry.id === activeTab?.id;
           return (
             <div key={entry.id} className={cn("h-full", !showing && "hidden")}>
-              <Suspense fallback={null}>{panelSurface(entry, showing)}</Suspense>
+              <SurfaceBoundary>
+                <Suspense fallback={null}>{panelSurface(entry, showing)}</Suspense>
+              </SurfaceBoundary>
             </div>
           );
         })}
         {activeTab && keptTerminals.includes(activeTab.id) ? null : activeTab && (sessionId || model.browserTabId(activeTab.kind) === undefined) ? (
-          <Suspense fallback={null}>
-            {active && !model.ownsItsHeight(activeTab.kind) && <p className="px-4 pt-2 font-mono text-3xs uppercase tracking-[0.08em] text-muted-foreground/60">{active}</p>}
-            {panelSurface(activeTab, true)}
-          </Suspense>
+          <SurfaceBoundary resetKey={activeTab.id}>
+            <Suspense fallback={null}>
+              {active && !model.ownsItsHeight(activeTab.kind) && <p className="px-4 pt-2 font-mono text-3xs uppercase tracking-[0.08em] text-muted-foreground/60">{active}</p>}
+              {panelSurface(activeTab, true)}
+            </Suspense>
+          </SurfaceBoundary>
         ) : (
           <PanelEmptyState rows={launcher} actions={actions} browserStart={browserStart} canOpenNew={onOpenNewTab !== undefined} />
         )}
         {activeTab && sessionId && (
-          <Suspense fallback={null}>
-            <ImageLightbox {...(lightbox ? { src: attachmentUrl(sessionId, lightbox, props.hostId ? { hostId: props.hostId } : {}) } : {})} onClose={() => setLightbox(undefined)} />
-          </Suspense>
+          <SurfaceBoundary label="This image">
+            <Suspense fallback={null}>
+              <ImageLightbox {...(lightbox ? { src: attachmentUrl(sessionId, lightbox, props.hostId ? { hostId: props.hostId } : {}) } : {})} onClose={() => setLightbox(undefined)} />
+            </Suspense>
+          </SurfaceBoundary>
         )}
       </div>
     </aside>

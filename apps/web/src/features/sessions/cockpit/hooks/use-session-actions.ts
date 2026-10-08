@@ -50,7 +50,6 @@ export function useSessionActions(sessionId: string | undefined, { session, hydr
     decideRequest: (requestId: string, decision: RequestDecision, extra?: { answers?: Record<string, unknown> }) =>
       act((id) => api.resolveRequest(id, requestId, { decision, ...(extra?.answers ? { answers: extra.answers } : {}) }), "Could not answer the approval."),
     resumeNow: (runId: string) => act((id) => api.resumeRateLimitedTurn(id, runId), "Could not resume that turn."),
-    setResumeAfterRateLimit: (next: boolean) => patch({ resumeAfterRateLimit: next }, "Could not change that setting."),
     rename: (title: string) => patch({ title }, "Could not rename the session."),
     // `null`, not `undefined`: JSON drops an undefined key, and the engine would keep the old selection.
     setModel: async (next: ModelChoice) => {

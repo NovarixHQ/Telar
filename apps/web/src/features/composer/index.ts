@@ -25,6 +25,7 @@ export { Composer } from "./components/composer";
 export { ReasoningControl } from "./components/reasoning-control";
 export { MAX_ATTACHMENTS } from "./hooks/use-composer-stash";
 export { modelOptionsOf } from "./model-options";
+export { recallablePrompts } from "./prompt-recall";
 export { normaliseContextNoticePercent } from "./context-notice";
 export {
   browserPageReference,

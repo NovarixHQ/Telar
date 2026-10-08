@@ -113,7 +113,7 @@ export function ComposerCard({
           active={Math.min(menu.active, Math.max(0, menu.completions.length - 1))}
           heading={menu.heading()}
           {...(menu.loading ? { loading: true } : {})}
-          emptyText="No matches."
+          emptyText={menu.emptyText}
           onActive={menu.setActive}
           onPick={pick}
         />

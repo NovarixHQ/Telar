@@ -2,6 +2,7 @@
 
 import { useCommandHandlers } from "@/features/commands";
 import { surfaceCommands } from "@/features/panel";
+import { useCanOpenShells } from "@/features/terminal";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 import { useWorkspaceCardOpen } from "./use-workspace-card";
 
@@ -15,6 +16,7 @@ export function useCockpitCommands({ solo, enabledPlugins, panel, openBrowser, p
 }) {
   const { togglePanel, stepPanelTab, showPanelTab } = panel;
   const toggleWorkspace = useWorkspaceCardOpen().toggle;
+  const shells = useCanOpenShells();
   useCommandHandlers(
     {
       ...(solo
@@ -25,10 +27,10 @@ export function useCockpitCommands({ solo, enabledPlugins, panel, openBrowser, p
             "panel-previous-tab": () => stepPanelTab(-1),
             "open-browser": openBrowser,
             "toggle-workspace": toggleWorkspace,
-            ...Object.fromEntries(surfaceCommands(enabledPlugins).map(({ command, tab }) => [command, () => showPanelTab(tab)])),
+            ...Object.fromEntries(surfaceCommands(enabledPlugins, { shells }).map(({ command, tab }) => [command, () => showPanelTab(tab)])),
           }),
       "pin-session": pinSession,
     },
-    [solo, enabledPlugins],
+    [solo, enabledPlugins, shells],
   );
 }

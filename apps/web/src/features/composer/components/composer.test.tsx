@@ -29,11 +29,12 @@ type BoxProps = {
   projectId?: string;
   session?: Session;
   runtimeMode?: RuntimeMode;
+  sentPrompts?: string[];
   onSubmit?: () => void;
   onStop?: () => void;
 };
 
-function Box({ initial = "", files = [], busy = false, ready = true, compact = false, fresh = false, projectId, session, runtimeMode, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, ready = true, compact = false, fresh = false, projectId, session, runtimeMode, sentPrompts, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -58,6 +59,7 @@ function Box({ initial = "", files = [], busy = false, ready = true, compact = f
         {...(projectId ? { projectId } : {})}
         {...(session ? { session } : {})}
         {...(runtimeMode ? { runtimeMode } : {})}
+        {...(sentPrompts ? { sentPrompts } : {})}
       />
     </>
   );
@@ -182,13 +184,67 @@ describe("⌘S", () => {
   });
 
   test("wins over an open completion menu", async () => {
-    const { host, editor, draft } = await composer();
+    const { host, editor, draft } = await composer({ fresh: true });
     await type(editor, "/");
     expect(host.querySelector('[role="listbox"]')).not.toBeNull();
     key(editor, saveChord);
     await flush();
     expect(draft()).toBe("");
     expect(stashed().map((entry) => entry.prompt)).toEqual(["/"]);
+  });
+});
+
+describe("an attachment thumbnail", () => {
+  test("enlarges the picked image when clicked", async () => {
+    const png = new File(["png"], "shot.png", { type: "image/png" });
+    const { host } = await composer({ files: [png] });
+    expect(document.querySelector('[role="dialog"] img[alt="shot.png"]')).toBeNull();
+    await click(host.querySelector('[aria-label="Enlarge shot.png"]')!);
+    await flush(() => Boolean(document.querySelector('[role="dialog"]')));
+    expect(document.querySelector('[role="dialog"] img[alt="shot.png"]')).not.toBeNull();
+  });
+
+  test("is not a button for a file that is not an image", async () => {
+    const pdf = new File(["%PDF"], "notes.pdf", { type: "application/pdf" });
+    const { host } = await composer({ files: [pdf] });
+    expect(host.querySelector('[aria-label="Enlarge notes.pdf"]')).toBeNull();
+  });
+});
+
+describe("prompt recall", () => {
+  const sentPrompts = ["first", "second"];
+
+  test("↑ in an empty box walks back through sent prompts, and ↓ walks forward to the empty draft", async () => {
+    const { editor, draft } = await composer({ sentPrompts });
+    expect(key(editor, { key: "ArrowUp" }).defaultPrevented).toBe(true);
+    await flush();
+    expect(draft()).toBe("second");
+    key(editor, { key: "ArrowUp" });
+    await flush();
+    expect(draft()).toBe("first");
+    key(editor, { key: "ArrowDown" });
+    await flush();
+    expect(draft()).toBe("second");
+    key(editor, { key: "ArrowDown" });
+    await flush();
+    expect(draft()).toBe("");
+    expect(key(editor, { key: "ArrowDown" }).defaultPrevented).toBe(false);
+  });
+
+  test("↑ with words in the box moves the caret instead", async () => {
+    const { editor, draft } = await composer({ initial: "typing", sentPrompts });
+    expect(key(editor, { key: "ArrowUp" }).defaultPrevented).toBe(false);
+    await flush();
+    expect(draft()).toBe("typing");
+  });
+
+  test("an edited recall stops browsing", async () => {
+    const { editor, draft } = await composer({ sentPrompts });
+    key(editor, { key: "ArrowUp" });
+    await flush();
+    await type(editor, "x");
+    expect(draft()).toBe("xsecond");
+    expect(key(editor, { key: "ArrowUp" }).defaultPrevented).toBe(false);
   });
 });
 
@@ -257,6 +313,42 @@ describe("the skills menu", () => {
   });
 });
 
+describe("the @ menu", () => {
+  const listing = (files: string[]) => () => ({ listing: { workspacePath: "/w", repository: true, files, source: "git", truncated: false, readAt: 0 } });
+  const live = () => ({ sessions: [], projects: [] });
+  const menu = (host: HTMLElement) => host.querySelector('[role="listbox"][aria-label="Files and folders"]');
+
+  test("offers the project's files and folders", async () => {
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": listing(["README.md", "src/app.ts"]), "GET /api/sessions/live": live });
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
+    expect(menu(host)?.textContent).toContain("src");
+  });
+
+  test("with nothing to offer it still opens and says so", async () => {
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": listing([]), "GET /api/sessions/live": live });
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("No matches.") ?? false);
+    expect(menu(host)).not.toBeNull();
+  });
+
+  test("a listing that failed says so, and the next @ asks again", async () => {
+    let answer: () => unknown = () => {
+      throw new Error("git timed out");
+    };
+    const { host, editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => answer(), "GET /api/sessions/live": live });
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
+
+    answer = listing(["README.md"]);
+    act(() => void activeComposer()!.replace(0, 1, ""));
+    await flush();
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
+    expect(calls.filter((call) => call.route === "GET /api/projects/project_a/files")).toHaveLength(2);
+  });
+});
+
 describe("the corner button is Stop only while a running turn has nothing typed", () => {
   const corner = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button[aria-label="Stop"], button[aria-label="Send"]')!;
 
@@ -310,7 +402,7 @@ describe("what the corner button and the empty box say", () => {
 
   test("Send's tooltip says why a press would not send", async () => {
     const { host } = await composer({ initial: "go", ready: false });
-    expect(await tooltip(send(host))).toBe("This conversation is not ready yet.");
+    expect(await tooltip(send(host))).toBe("This session is not ready yet.");
   });
 
   test("a ready Send's tooltip just names it", async () => {
@@ -385,4 +477,50 @@ describe("a narrow column, such as one beside an open panel", () => {
     expect(expand(host)).toBeNull();
     expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
   });
+});
+
+describe("the access pill", () => {
+  const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
+  const pill = (host: HTMLElement) => host.querySelector<HTMLElement>('[aria-label^="Access:"]')!;
+
+  test("names the access level in effect", async () => {
+    expect(pill((await composer({ session, runtimeMode: "full-access" })).host).textContent).toContain("Full access");
+  });
+
+  test("auto says what it is, so it never reads as the reasoning pill's Auto", async () => {
+    expect(pill((await composer({ session, runtimeMode: "auto" })).host).textContent).toContain("Auto access");
+  });
+
+  test("its menu is only access", async () => {
+    const { host } = await composer({ session, runtimeMode: "full-access" });
+    await click(pill(host));
+    expect(document.body.textContent).toContain("Supervised");
+    expect(document.body.textContent).not.toContain("Usage limits");
+  });
+});
+
+describe("the / menu opens the pills' pickers", () => {
+  const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
+  const options = (host: HTMLElement) => [...host.querySelectorAll('[role="listbox"] [role="option"]')].map((row) => row.textContent ?? "");
+  const pill = (label: string) => document.querySelector<HTMLElement>(`[aria-label^="${label}:"]`);
+
+  test("model and access are one row each", async () => {
+    const { host, editor } = await composer({ session, runtimeMode: "full-access" });
+    await type(editor, "/");
+    expect(options(host).filter((row) => row.startsWith("/model"))).toHaveLength(1);
+    expect(options(host).filter((row) => row.startsWith("/access"))).toHaveLength(1);
+    expect(options(host).some((row) => row.startsWith("/full-access"))).toBe(false);
+  });
+
+  for (const [command, label] of [["/access", "Access"], ["/model", "Model"]] as const) {
+    test(`${command} clears the box and opens the ${label.toLowerCase()} picker`, async () => {
+      const { editor, draft } = await composer({ session, runtimeMode: "full-access" });
+      await type(editor, command);
+      expect(pill(label)?.getAttribute("aria-expanded")).not.toBe("true");
+      key(editor, { key: "Enter" });
+      await flush();
+      expect(draft()).toBe("");
+      expect(pill(label)?.getAttribute("aria-expanded")).toBe("true");
+    });
+  }
 });

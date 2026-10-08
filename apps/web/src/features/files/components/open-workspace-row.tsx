@@ -141,7 +141,7 @@ export function OpenWorkspaceRow({
                   <button type="button" title={entry.path} onClick={() => act(entry)} className={row}>
                     <OpenerIcon icon={entry.icon} iconDataUrl={entry.iconDataUrl} />
                     <span className="min-w-0 flex-1 truncate">{entry.label}</span>
-                    {entry === primary && <KeyHint command="open-in-app" />}
+                    {entry === primary && entry.kind !== "reveal" && <KeyHint command="open-in-app" />}
                     {entry.kind === "reveal" && canReveal && <KeyHint command="reveal-in-finder" />}
                   </button>
                 )}

@@ -558,9 +558,7 @@ test("a worktree release PRUNES NOTHING while the project's drive is away", asyn
   mounts.unmount("TelarVR");
   await store.projectProbes.probe(store.projectRegistry.get("project_one"));
   ran.length = 0;
-  // Deleting the checkout on archive is an opt-in Storage switch now.
-  store.cleanup.setPolicy({ archived: true });
-  store.lifecycle.archiveSession("session_tree");
+  store.lifecycle.archiveSession("session_tree", { releaseCheckout: true });
   await settle();
 
   expect(ran.filter((call) => call.includes("prune"))).toEqual([]);
@@ -582,9 +580,7 @@ test("…and prunes as it always did once the drive is back", async () => {
   expect(await until(() => ran.some((call) => call.startsWith("worktree add")))).toBe(true);
 
   ran.length = 0;
-  // Deleting the checkout on archive is an opt-in Storage switch now.
-  store.cleanup.setPolicy({ archived: true });
-  store.lifecycle.archiveSession("session_tree");
+  store.lifecycle.archiveSession("session_tree", { releaseCheckout: true });
   expect(await until(() => ran.some((call) => call.includes("prune")))).toBe(true);
 });
 

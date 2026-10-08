@@ -12,6 +12,12 @@ export function githubRoutes(store: EngineStore): Route[] {
   return [
     {
       method: "GET",
+      path: /^\/v2\/github\/cli$/,
+      auth: "engine",
+      handle: async () => ok({ auth: await store.github.cliAuth() }),
+    },
+    {
+      method: "GET",
       path: /^\/v2\/projects\/([^/]+)\/github$/,
       auth: "engine",
       async handle({ params, query }) {

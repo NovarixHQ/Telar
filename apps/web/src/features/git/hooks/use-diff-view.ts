@@ -13,7 +13,7 @@ export type DiffView = {
   tree: boolean;
 };
 
-export const DEFAULT_DIFF_VIEW: DiffView = { layout: "stacked", wrap: false, ignoreWhitespace: false, tree: true };
+export const DEFAULT_DIFF_VIEW: DiffView = { layout: "stacked", wrap: false, ignoreWhitespace: false, tree: false };
 
 export function parseDiffView(raw: string | null): DiffView {
   if (!raw) return DEFAULT_DIFF_VIEW;
@@ -25,7 +25,7 @@ export function parseDiffView(raw: string | null): DiffView {
       layout: record.layout === "split" ? "split" : "stacked",
       wrap: record.wrap === true,
       ignoreWhitespace: record.ignoreWhitespace === true,
-      tree: record.tree !== false,
+      tree: record.tree === true,
     };
   } catch {
     return DEFAULT_DIFF_VIEW;

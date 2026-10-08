@@ -40,14 +40,13 @@ export class CleanupStore {
   }
 }
 
-type CleanupReason = "archived" | "inactive" | "settled" | "unchanged";
+type CleanupReason = "archived" | "settled";
 
 export type CleanupCandidate = {
   sessionId: string;
   path: string;
   archived: boolean;
   released: boolean;
-  lastActiveAt: number;
   settledAt?: number;
 };
 
@@ -57,14 +56,8 @@ export function planWorktreeCleanup(sessions: readonly CleanupCandidate[], polic
   const plan: PlannedRelease[] = [];
   for (const session of sessions) {
     if (session.released) continue;
-    const planned = (reason: CleanupReason) => plan.push({ sessionId: session.sessionId, path: session.path, reason });
-    if (session.archived) {
-      if (policy.archived) planned("archived");
-      continue;
-    }
-    if (policy.inactiveDays !== null && now - session.lastActiveAt >= policy.inactiveDays * DAY_MS) planned("inactive");
-    else if (policy.settledDays !== null && session.settledAt !== undefined && now - session.settledAt >= policy.settledDays * DAY_MS) planned("settled");
-    else if (policy.unchanged) planned("unchanged");
+    if (policy.settledDays === null || session.settledAt === undefined || now - session.settledAt < policy.settledDays * DAY_MS) continue;
+    plan.push({ sessionId: session.sessionId, path: session.path, reason: session.archived ? "archived" : "settled" });
   }
   return plan;
 }

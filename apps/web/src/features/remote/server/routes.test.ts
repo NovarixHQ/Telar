@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { GET as identityGet } from "@/app/api/identity/route";
 import { GET as pingGet } from "@/app/api/ping/route";
 import { POST as pairPost } from "@/app/api/pair/route";
 import { GET as remoteGet, PATCH as remotePatch } from "@/app/api/remote/route";
@@ -9,7 +10,7 @@ import { POST as pairingMint } from "@/app/api/remote/pairing/route";
 import { DELETE as deviceDelete, PATCH as devicePatch } from "@/app/api/remote/devices/[deviceId]/route";
 import { DELETE as devicesDeleteOthers } from "@/app/api/remote/devices/route";
 import { HOST_HEADER } from "./host-token";
-import { dialableAddresses, isTailnetIpv4, listEndpoints } from "./endpoints";
+import { advertisedAddresses, dialableAddresses, isTailnetIpv4, listEndpoints } from "./endpoints";
 import { machineName } from "./observe";
 import { decideAccess, readRemote } from "./testing";
 import { startEngine, type EngineDaemon } from "../../../../../engine/src/daemon";
@@ -74,6 +75,15 @@ describe("pairing routes", () => {
     expect(body.ok).toBe(true);
     expect(body.proto).toBe(1);
     expect(typeof body.appVersion).toBe("string");
+  });
+
+  test("identity answers strangers with this Mac's lasting id and its addresses", async () => {
+    await freshHome();
+    expect(decideAccess({ ...readRemote(), requireAuth: true }, { pathname: "/api/identity", method: "GET" }, undefined)).toEqual({ allow: true });
+    const body = (await (await identityGet()).json()) as { hostId: string; appVersion: string; addresses: string[] };
+    expect(body.hostId).toMatch(/^host_/);
+    expect(body.addresses).toEqual(advertisedAddresses());
+    expect(body.addresses.some((url) => url.includes("127.0.0.1"))).toBe(false);
   });
 
   test("mint → exchange yields a device token and a lax http cookie", async () => {
@@ -223,7 +233,7 @@ describe("pairing routes", () => {
       };
       expect(withHost.host?.identity.client).toBe("Telar (dev)");
       expect(withHost.host?.identity.kind).toBe("desktop");
-      expect(withHost.host?.name).toBe(`Telar (dev) · ${machineName()}`);
+      expect(withHost.host?.name).toBe(`Telar (dev) on ${machineName()}`);
       expect(withHost.host?.isCaller).toBe(false);
 
       const fromHost = (await (await remoteGet(
@@ -231,10 +241,7 @@ describe("pairing routes", () => {
       )).json()) as { host?: { isCaller: boolean } };
       expect(fromHost.host?.isCaller).toBe(true);
 
-      // AND BY HEADER, WITH NO COOKIE (issue #259). The shell's window loses
-      // its cookie to a network-service restart or to the other spelling of
-      // loopback; if this row stopped saying "This device" then, the panel
-      // would be telling the user their app is not the host of its own server.
+      // The shell's window can lose its cookie to the other spelling of loopback.
       const byHeader = (await (await remoteGet(
         new Request("http://x/api/remote", { headers: { [HOST_HEADER]: "tlr_hostsecret" } }),
       )).json()) as { host?: { isCaller: boolean } };
@@ -252,25 +259,40 @@ describe("pairing routes", () => {
     }
   });
 
-  test("the self-paired caller is identified, not called 'This browser'", async () => {
-    // It is the one row guaranteed to be in every list, and it used to be the
-    // only one with no client, no machine and no address to know it by.
+  test("a browser tab on this Mac pairs as that browser on this Mac", async () => {
     await freshHome();
     await remotePatch(new Request("http://127.0.0.1:3100/api/remote", {
       method: "PATCH",
       headers: {
         "content-type": "application/json",
-        "user-agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Telar/0.4.0 Chrome/126.0 Electron/31.0 Safari/537.36",
+        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
       },
       body: JSON.stringify({ requireAuth: true }),
     }));
     const device = readRemote().devices[0];
-    expect(device.identity?.kind).toBe("desktop");
-    expect(device.identity?.client).toBe("Telar");
+    expect(device.identity?.kind).toBe("browser");
     expect(device.identity?.origin).toBe("127.0.0.1:3100");
-    // Dialled loopback, so this server's machine IS that client's machine.
-    expect(device.name).toBe(`Telar · ${machineName()}`);
+    expect(device.name).toBe(`Chrome on ${machineName()}`);
+  });
+
+  test("the app running the server turns pairing on without becoming a device", async () => {
+    await freshHome();
+    const savedToken = process.env.TELAR_HOST_TOKEN;
+    process.env.TELAR_HOST_TOKEN = "tlr_hostsecret";
+    try {
+      const response = await remotePatch(new Request("http://127.0.0.1:3100/api/remote", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", [HOST_HEADER]: "tlr_hostsecret", cookie: "telar_device=tlr_hostsecret" },
+        body: JSON.stringify({ requireAuth: true }),
+      }));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("set-cookie")).toBeNull();
+      expect(readRemote().requireAuth).toBe(true);
+      expect(readRemote().devices).toEqual([]);
+    } finally {
+      if (savedToken === undefined) delete process.env.TELAR_HOST_TOKEN;
+      else process.env.TELAR_HOST_TOKEN = savedToken;
+    }
   });
 
   test("enabling requireAuth pairs the calling browser in the same response", async () => {
@@ -343,6 +365,14 @@ describe("endpoint enumeration", () => {
       "http://192.168.1.20:3000",
       "http://100.110.136.102:3000",
       "https://mac.tail.ts.net",
+    ]);
+  });
+
+  test("advertised addresses put the tailnet before the local network", () => {
+    expect(advertisedAddresses(3000, nics, { TELAR_TAILSCALE_URL: "https://mac.tail.ts.net" })).toEqual([
+      "http://100.110.136.102:3000",
+      "https://mac.tail.ts.net",
+      "http://192.168.1.20:3000",
     ]);
   });
 

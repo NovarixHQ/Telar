@@ -37,6 +37,7 @@ import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
 import { WorkspaceCard } from "./workspace-card";
 import { WorkspaceCardToggle } from "./workspace-card-toggle";
 import { useReadReceipt } from "./read-receipt";
+import { useRememberedRow } from "../hooks/use-remembered-row";
 import { TranscriptList } from "./transcript-list";
 
 const FloatingSimulator = dynamic(() => import("@/features/simulators/components/floating-simulator").then((mod) => mod.FloatingSimulator));
@@ -63,6 +64,7 @@ export function SessionCockpit({
   const fresh = !sessionId;
   const sync = useSessionSync({ hostId, sessionId, initiallyLoading: Boolean(routeSessionId) });
   const { session, turns, transcriptLanded } = sync;
+  const remembered = useRememberedRow(hostId, session ? undefined : sessionId);
   const { projectName, projectResolved, defaults: projectDefaults, enabledPlugins } = useCockpitProject({
     hostId, projectId, serverProjectName, transcriptLanded,
   });
@@ -114,9 +116,10 @@ export function SessionCockpit({
           <SessionMasthead
             projectId={projectId}
             hostId={hostId}
-            projectName={projectName}
+            projectName={projectName ?? remembered?.projectName}
             projectResolved={projectResolved}
             session={session}
+            fallbackTitle={fresh ? "New conversation" : remembered?.title}
             {...(headerMenu ? { menu: headerMenu } : {})}
             onRename={(next) => void actions.rename(next)}
             panel={
@@ -132,11 +135,11 @@ export function SessionCockpit({
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="@container/conversation flex min-h-0 flex-1 flex-col @3xl/conversation:flex-row-reverse">
+          <div className="flex min-h-0 flex-1 flex-col">
             {!solo && session && (
               <WorkspaceCard
                 key={`${hostId}:${session.id}`} hostId={hostId} session={session} agents={agents} busy={Boolean(active)}
-                backgroundTasks={model.backgroundTasks} panel={panelState} onRunTerminals={revealNewTerminals}
+                backgroundTasks={model.backgroundTasks} panel={panelState} dismissible={panel.open} onRunTerminals={revealNewTerminals}
               />
             )}
             <TranscriptList

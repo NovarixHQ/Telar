@@ -17,13 +17,15 @@ import {
   WorkingIndicator,
   workedForLabel,
   withoutOpeningNotification,
+  AgentMarkdown,
   AgentMessageBubble,
   ConversationMessage,
+  MessageActions,
 } from "@/features/transcript";
 import type { PanelTab } from "@/features/panel";
 import { cn } from "@/ui/utils";
 import { ApprovalCard } from "../../components/approval-card";
-import { Message, MessageContent, MessageMenu, MessageResponse } from "@/ui/message";
+import { Message, MessageContent, MessageMenu } from "@/ui/message";
 import { CodeSurface } from "@/ui/code-surface";
 import { describeTurnState, wakeUpLabel } from "../model";
 
@@ -256,7 +258,7 @@ function SessionTurnBody({
               ))}
             </>
           )}
-          {!streamedAnswer && turn.resultText && <MessageResponse>{turn.resultText}</MessageResponse>}
+          {!streamedAnswer && turn.resultText && <AgentMarkdown text={turn.resultText} onOpenFile={onOpenFile} />}
           {turn.failure && (
             <TurnFailureRow
               failure={turn.failure}
@@ -325,9 +327,12 @@ function TurnOpening({
     <>
       {turn.kind !== "import" && turn.origin !== "provider" && turn.origin !== "session" && turn.origin !== "restart" && (
         // `markdown={false}`: the typed draft is not Markdown, so "Copy as Markdown" would mislabel it.
-        <div className="mb-6">
+        <div className="mb-1">
           <MessageMenu text={turn.prompt} markdown={false} {...(onInsert ? { onQuote: onInsert } : {})}>
-            <ConversationMessage text={turn.prompt} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
+            <div className="group/message">
+              <ConversationMessage text={turn.prompt} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
+              <MessageActions text={turn.prompt} at={turn.acceptedAt} align="end" />
+            </div>
           </MessageMenu>
         </div>
       )}
@@ -370,12 +375,21 @@ export function TurnFrame({ skippable, children }: { skippable: boolean; childre
 }
 
 export function EmptyTranscript({ loading }: { loading: boolean }) {
+  if (loading) {
+    return (
+      <div role="status" aria-busy="true" aria-label="Loading session" className="mx-auto w-full max-w-(--chat-content-max-width) space-y-6 py-6">
+        <div className="ml-auto h-10 w-2/5 animate-pulse rounded-md bg-muted/60" />
+        <div className="space-y-2">
+          <div className="h-4 w-11/12 animate-pulse rounded-md bg-muted/60" />
+          <div className="h-4 w-2/3 animate-pulse rounded-md bg-muted/60" />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-1 py-16 text-center">
-      <p className="text-sm font-medium">{loading ? "Hydrating transcript…" : "Ready for its first turn"}</p>
-      <p className="text-sm text-muted-foreground">
-        {loading ? "Reading the durable journal from the engine." : "Ask for changes, or explore the project."}
-      </p>
+      <p className="text-sm font-medium">Ready for its first turn</p>
+      <p className="text-sm text-muted-foreground">Ask for changes, or explore the project.</p>
     </div>
   );
 }

@@ -104,9 +104,6 @@ export function sessionCalls(fetcher: Fetcher) {
          *  the inactivity rule — see `Session.settledOverride`. */
         settledOverride?: "settled" | "active" | null;
         snoozedUntil?: number | null;
-        /** Sit out a usage limit and carry on. `null` returns the session to the
-         *  driver's default — see `Session.resumeAfterRateLimit`. */
-        resumeAfterRateLimit?: boolean | null;
       },
     ) => request<{ session: Session; ended?: SessionSettleEnded }>(fetcher, "PATCH", `/api/sessions/${encodeURIComponent(sessionId)}`, patch),
     markSessionRead: (sessionId: string, runId: string) =>

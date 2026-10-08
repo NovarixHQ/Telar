@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EraserIcon, ImageIcon, LayersIcon, MonitorIcon, PaperclipIcon, PlusIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
+import { ImageLightbox } from "@/ui/image-lightbox";
 import { isStashable } from "../hooks/use-composer-stash";
 
 export function AddContextMenu({ onPick }: { onPick: (files: File[]) => void }) {
@@ -106,17 +107,27 @@ export function AttachmentChip({ file, onRemove }: { file: File; onRemove: () =>
     if (!preview) return;
     return () => URL.revokeObjectURL(preview);
   }, [preview]);
+  const [enlarged, setEnlarged] = useState(false);
+  const thumb = "flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted";
 
   return (
     <span className="group/chip relative flex items-center gap-2 rounded-lg border border-border bg-background/80 py-1 pl-1 pr-2">
-      <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
-        {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element -- a blob URL for a file the user just picked; next/image cannot optimise it
+      {preview ? (
+        <button
+          type="button"
+          aria-label={`Enlarge ${file.name}`}
+          onClick={() => setEnlarged(true)}
+          className={`${thumb} cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- a blob URL for a file the user just picked; next/image cannot optimise it */}
           <img src={preview} alt="" className="size-full object-cover" />
-        ) : (
+        </button>
+      ) : (
+        <span className={thumb}>
           <PaperclipIcon className="size-3.5 text-muted-foreground" />
-        )}
-      </span>
+        </span>
+      )}
+      {preview && <ImageLightbox {...(enlarged ? { src: preview } : {})} alt={file.name} onClose={() => setEnlarged(false)} />}
       <span className="flex min-w-0 flex-col">
         <span className="max-w-40 truncate text-2xs font-medium leading-tight">{file.name}</span>
         <span className="text-3xs leading-tight text-muted-foreground">{fileSize(file.size)}</span>

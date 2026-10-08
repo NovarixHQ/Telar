@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
-import type { ProviderDriverKind, ProviderSkills, RuntimeMode } from "@telar/engine-client";
+import type { ProviderDriverKind, ProviderSkills } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import {
   availableCommands,
@@ -24,18 +24,19 @@ const api = createEngineApi();
 type CommandState = {
   busy: boolean;
   fresh: boolean;
-  runtimeMode: RuntimeMode | undefined;
+  pickers: { model: boolean; access: boolean };
   envMode: "local" | "worktree" | undefined;
   compacting: boolean | undefined;
   canResume: boolean;
-  choices: { models: { id: string; label: string }[]; efforts: string[] };
+  efforts: string[];
 };
 
-/** Read once on the first sigil, never on mount: listing is a git call, skills may spawn the harness. */
+/** Read on the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again on the next sigil. */
 function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<T>) | undefined, fallback: T) {
   // Keyed by checkout so one session's answer never serves another.
-  const [cache, setCache] = useState<{ checkout: string; value: T }>();
+  const [cache, setCache] = useState<{ checkout: string; value: T; failed?: boolean }>();
   const [reading, setReading] = useState(false);
+  if (!wanted && cache?.failed) setCache(undefined);
   const value = cache?.checkout === checkout ? cache.value : undefined;
   useEffect(() => {
     if (!wanted || value || reading || !read) return;
@@ -43,14 +44,14 @@ function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<
       setReading(true);
       void read()
         .then((answer) => setCache({ checkout, value: answer }))
-        .catch(() => setCache({ checkout, value: fallback }))
+        .catch(() => setCache({ checkout, value: fallback, failed: true }))
         .finally(() => setReading(false));
     }, 0);
     return () => window.clearTimeout(task);
     // `read` and `fallback` are rebuilt every render; `checkout` names what they read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wanted, value, reading, checkout]);
-  return { value, reading };
+  return { value, reading, failed: Boolean(value && cache?.failed) };
 }
 
 /** `@` for paths, `$` for skills, `/` for this box's commands then the provider's. */
@@ -90,7 +91,7 @@ export function useComposerCompletions({
   const listSkills = sessionId ? () => api.sessionSkills(sessionId) : projectId ? () => api.projectSkills(projectId, menuDriver) : undefined;
   const skills = useLazyRead<ProviderSkills>(trigger?.kind === "skill" || trigger?.kind === "command", checkout, listSkills, { skills: [], commands: [] });
 
-  const { busy, fresh, runtimeMode, envMode, compacting, canResume, choices } = commands;
+  const { busy, fresh, pickers: { model: modelPicker, access: accessPicker }, envMode, compacting, canResume, efforts } = commands;
   const completions = useMemo<Completion[]>(() => {
     if (!trigger || dismissed) return [];
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
@@ -102,21 +103,21 @@ export function useComposerCompletions({
     const own = availableCommands({
       busy,
       fresh,
-      ...(runtimeMode ? { runtimeMode } : {}),
+      pickers: { model: modelPicker, access: accessPicker },
       ...(menuDriver ? { driver: menuDriver } : {}),
       ...(compacting ? { compacting } : {}),
       ...(envMode ? { envMode } : {}),
-      models: choices.models,
-      efforts: choices.efforts,
+      efforts,
       canResume,
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
     return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, skills.value, busy, fresh, runtimeMode, menuDriver, compacting, envMode, choices, canResume]);
+  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, accessPicker, menuDriver, compacting, envMode, efforts, canResume]);
 
-  // A list still fetching stays open and says so; `/` always has this box's own verbs to show.
-  const loading = (trigger?.kind === "path" && paths.reading) || (trigger?.kind === "skill" && skills.reading);
-  const open = !blocked && trigger !== null && !dismissed && (completions.length > 0 || loading);
+  // `@` always opens, so an empty or unreadable listing says so instead of looking like a dead key.
+  const loading = (trigger?.kind === "path" && (paths.reading || sessions.reading)) || (trigger?.kind === "skill" && skills.reading);
+  const open = !blocked && trigger !== null && !dismissed && (completions.length > 0 || loading || trigger.kind === "path");
+  const emptyText = trigger?.kind === "path" && paths.failed ? "Could not read the files here." : "No matches.";
 
   /** Recompute from the live caret after every edit and caret move; leaving a `@word` closes the list. */
   const retrigger = useCallback(
@@ -146,7 +147,7 @@ export function useComposerCompletions({
   const heading = () =>
     trigger?.kind === "skill" ? "Skills" : trigger?.kind === "command" ? "Commands" : "Files and folders";
 
-  return { trigger, completions, open, loading, active, setActive, setDismissed, retrigger, edited, take, heading };
+  return { trigger, completions, open, loading, emptyText, active, setActive, setDismissed, retrigger, edited, take, heading };
 }
 
 export type ComposerCompletions = ReturnType<typeof useComposerCompletions>;

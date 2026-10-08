@@ -8,13 +8,13 @@ import { choiceOf } from "@/features/providers";
 import { useCommandHandlers } from "@/features/commands";
 import { DictationButton, DictationGlow, useComposerDictation } from "@/features/dictation";
 import { cn } from "@/ui/utils";
-import { compactBlockedReason, isResumeDraft, type Completion } from "../completions";
+import { compactBlockedReason, isResumeDraft, type Completion, type ComposerPicker } from "../completions";
 import { markComposerActive, type ComposerSubmit } from "../registry";
 import { hasUltrathink, toggleUltrathink } from "../model-options";
-import { useComposerCommandChoices } from "../hooks/use-composer-command-choices";
+import { useComposerEfforts } from "../hooks/use-composer-efforts";
 import { useComposerCompletions } from "../hooks/use-composer-completions";
 import { useComposerMotion } from "../hooks/use-composer-motion";
-import { composerKeyHandler, useEscArm } from "../hooks/use-composer-keys";
+import { composerKeyHandler, useEscArm, usePromptRecall } from "../hooks/use-composer-keys";
 import { useComposerRegistration } from "../hooks/use-composer-registration";
 import { MAX_ATTACHMENTS, useComposerStash } from "../hooks/use-composer-stash";
 import { useDropTarget } from "../hooks/use-drop-target";
@@ -31,14 +31,13 @@ import { ComposerPills, SendButton } from "./composer-toolbar";
 // External clients already reach for this id.
 const EDITOR_ID = "turn-prompt";
 
-function placeholderFor(ready: boolean, busy: boolean): string {
-  if (!ready) return "Waiting for the session…";
+function placeholderFor(busy: boolean): string {
   if (busy) return "Enter sends into the running turn…";
   return "Ask anything, @ to reference, $ for skills, / for commands";
 }
 
 function blockedReason(ready: boolean, driveAway: boolean, hasContent: boolean): string | undefined {
-  if (!ready) return "This conversation is not ready yet.";
+  if (!ready) return "This session is not ready yet.";
   if (driveAway) return "The project's files are not reachable right now.";
   if (!hasContent) return "There is nothing to send.";
   return undefined;
@@ -65,10 +64,8 @@ function useSubmitGate(props: ComposerProps, question: { active: boolean; advanc
 
 function runAction(action: Completion["action"], props: ComposerProps, startResume: () => void) {
   const choice = choiceOf(props.session?.model ?? props.pendingModel);
-  if (action.type === "runtime-mode") props.onRuntimeMode(action.mode);
   if (action.type === "env-mode") props.onEnvMode?.(action.mode);
   if (action.type === "driver") props.onDriverChange?.(action.driver);
-  if (action.type === "model") props.onModelChange?.({ ...choice, model: action.model });
   if (action.type === "effort") props.onModelChange?.({ ...choice, effort: action.effort });
   if (action.type === "compact") props.onCompact?.();
   if (action.type === "resume") startResume();
@@ -103,6 +100,7 @@ export function Composer(props: ComposerProps) {
   const [expanded, expand] = useExpanded(compact);
   const [resuming, setResuming] = useState(false);
   const startResume = useCallback(() => setResuming(true), []);
+  const [summon, setSummon] = useState<{ picker: ComposerPicker; at: number }>();
   const token = useId();
   const activeDriver = session?.driver ?? driver ?? "claude";
   const choice = choiceOf(session?.model ?? props.pendingModel);
@@ -114,20 +112,23 @@ export function Composer(props: ComposerProps) {
   const dictation = useComposerDictation(token);
   const esc = useEscArm(busy, onStop);
   const stash = useComposerStash({ draft, attachments, projectId, sessionId: session?.id, onDraftChange, onAttach, editor });
-  const commandChoices = useComposerCommandChoices(activeDriver, choice, session?.providerInstanceId);
+  const efforts = useComposerEfforts(activeDriver, choice, session?.providerInstanceId);
+  const pillsShown = Boolean(session || (fresh && driver));
   const menu = useComposerCompletions({
     editor,
     sessionId: session?.id,
     projectId,
     menuDriver: fresh ? driver : session?.driver,
     blocked: question.active,
-    commands: { busy, fresh, runtimeMode: props.runtimeMode, envMode: props.envMode, compacting: props.compacting, canResume: Boolean(props.onAdopt), choices: commandChoices },
+    commands: { busy, fresh, pickers: { model: pillsShown, access: pillsShown && Boolean(props.runtimeMode) }, envMode: props.envMode, compacting: props.compacting, canResume: Boolean(props.onAdopt), efforts },
   });
   const pick = (completion: Completion) => {
     const action = menu.take(completion);
-    if (action && action.type !== "insert") runAction(action, props, startResume);
+    if (action?.type === "picker") setSummon((last) => ({ picker: action.picker, at: (last?.at ?? 0) + 1 }));
+    else if (action && action.type !== "insert") runAction(action, props, startResume);
   };
-  const onKeyDown = composerKeyHandler({ draft, attachments, busy, questionActive: question.active, stash, menu, pick, submit: () => void trySubmit(), esc });
+  const recall = usePromptRecall(props.sentPrompts, session?.id ?? `fresh:${projectId}`, draft, onDraftChange);
+  const onKeyDown = composerKeyHandler({ draft, attachments, busy, questionActive: question.active, stash, menu, pick, submit: () => void trySubmit(), recall, esc });
   useCommandHandlers({ "focus-composer": () => editor.current?.focus(), send: () => void trySubmit(), "stop-turn": () => busy && onStop() });
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
@@ -135,13 +136,13 @@ export function Composer(props: ComposerProps) {
   const compactNow = compact && !fresh && !expanded && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0;
   const shape = [compactNow, attachments.length > 0, question.active, Boolean(driveAway)].join();
   const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
-  const pills = (session || (fresh && driver)) && (
+  const pills = pillsShown && (
     <ComposerPills
       {...props}
+      summon={summon}
       driver={activeDriver}
       choice={choice}
       instanceId={session?.providerInstanceId}
-      resumeAfterRateLimit={session?.resumeAfterRateLimit ?? props.resumeAfterRateLimitDefault}
       ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }}
     />
   );
@@ -200,7 +201,7 @@ export function Composer(props: ComposerProps) {
                 editorId={EDITOR_ID}
                 kind={kind}
                 text={question.boxText}
-                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(ready, busy)}
+                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(busy)}
                 ready={ready}
                 compact={compactNow}
                 draft={draft}

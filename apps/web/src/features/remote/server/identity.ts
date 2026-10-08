@@ -58,14 +58,8 @@ export function sniffUserAgent(header: string | null | undefined): {
   const ua = typeof header === "string" ? header.slice(0, 400) : "";
   if (ua.length === 0) return { kind: "unknown" };
 
-  const embedded = /\bElectron\//.test(ua)
-    ? /([A-Za-z][A-Za-z0-9._-]*)\/[\d.]+\s+Chrome\//.exec(ua)?.[1]
-    : undefined;
-
   const client =
-    embedded ? embedded
-    : /\bElectron\//.test(ua) ? "Electron"
-    : /\bEdg\//.test(ua) ? "Edge"
+    /\bEdg\//.test(ua) ? "Edge"
     : /\bOPR\//.test(ua) ? "Opera"
     : /\bFirefox\//.test(ua) ? "Firefox"
     : /\bChrome\//.test(ua) ? "Chrome"
@@ -82,8 +76,7 @@ export function sniffUserAgent(header: string | null | undefined): {
     : undefined;
 
   const kind: DeviceKind =
-    /\bElectron\//.test(ua) ? "desktop"
-    : /\biPhone\b|\bAndroid\b.*\bMobile\b/.test(ua) ? "phone"
+    /\biPhone\b|\bAndroid\b.*\bMobile\b/.test(ua) ? "phone"
     : /\biPad\b|\bTablet\b/.test(ua) ? "tablet"
     : client ? "browser"
     : "unknown";
@@ -99,6 +92,5 @@ export function describeDevice(
   if (name) return name;
   const what = identity.client ?? kindLabel(identity.kind);
   const where = identity.machine ?? identity.os;
-  const parts = [what, where].filter((part): part is string => Boolean(part));
-  return parts.length > 0 ? parts.join(" · ") : "Unknown device";
+  return [what, where].filter(Boolean).join(" on ") || "Unknown device";
 }

@@ -191,7 +191,7 @@ export class SettingsStore {
     }
   }
 
-  setSessionDefaults(patch: { envMode?: unknown; resumeAfterRestart?: unknown; runtimeMode?: unknown; resumeAfterRateLimit?: unknown; defaultModel?: unknown }): SessionDefaults {
+  setSessionDefaults(patch: { envMode?: unknown; resumeAfterRestart?: unknown; runtimeMode?: unknown; defaultModel?: unknown }): SessionDefaults {
     const next: SessionDefaults = { ...this.sessionDefaults() };
     if (patch.envMode !== undefined) {
       const parsed = SessionDefaultsSchema.shape.envMode.safeParse(patch.envMode);
@@ -203,9 +203,6 @@ export class SettingsStore {
       if (patch.runtimeMode === null) delete next.runtimeMode;
       else if (RUNTIME_MODES.has(patch.runtimeMode as RuntimeMode)) next.runtimeMode = patch.runtimeMode as RuntimeMode;
       else throw new EngineStateError("invalid_request", "unknown runtime mode");
-    }
-    if (patch.resumeAfterRateLimit !== undefined) {
-      next.resumeAfterRateLimit = boolean(patch.resumeAfterRateLimit, "resumeAfterRateLimit must be true or false");
     }
     if (patch.defaultModel === null) delete next.defaultModel;
     else if (patch.defaultModel !== undefined) {

@@ -33,6 +33,8 @@ export type CommandId =
   | "add-project"
   | "toggle-rail"
   | `jump-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
+  | "previous-session"
+  | "next-session"
   | "toggle-panel"
   | "panel-next-tab"
   | "panel-previous-tab"
@@ -59,7 +61,7 @@ export type CommandId =
   | "open-plugins"
   | "check-for-updates";
 
-export type CommandGroup = "Conversation" | "Rail" | "Panel" | "Application";
+export type CommandGroup = "Session" | "Rail" | "Panel" | "Application";
 
 export type Command = Omit<RawCommand, "id" | "group"> & { id: CommandId; group: CommandGroup };
 
@@ -67,7 +69,7 @@ export const COMMANDS = RAW_COMMANDS as Command[];
 
 export type Keymap = Record<CommandId, string>;
 
-export const COMMAND_GROUPS: readonly CommandGroup[] = ["Conversation", "Rail", "Panel", "Application"];
+export const COMMAND_GROUPS: readonly CommandGroup[] = ["Session", "Rail", "Panel", "Application"];
 
 export function defaultKeymap(): Keymap {
   return rawDefaultKeymap() as Keymap;

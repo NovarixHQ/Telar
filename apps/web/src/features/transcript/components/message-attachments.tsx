@@ -3,7 +3,8 @@
 import { createContext, useContext, useState } from "react";
 import { PaperclipIcon } from "lucide-react";
 import type { ProviderDriverKind, TurnAttachment } from "@telar/engine-client";
-import { attachmentUrl, humanBytes, ImageLightbox } from "@/features/plugins";
+import { attachmentUrl, humanBytes } from "@/features/plugins";
+import { ImageLightbox } from "@/ui/image-lightbox";
 
 /** The session, the host it lives on, and the provider it runs on, for the rows drawn below it. */
 export const TranscriptSession = createContext<{ sessionId: string; hostId?: string; driver?: ProviderDriverKind } | undefined>(undefined);

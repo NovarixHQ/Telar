@@ -59,24 +59,18 @@ export type RetentionBucket = { days: number; sessions: number; events: number; 
 
 export type JournalRetirement = { retired: number; skipped: number; events: number };
 
-export const CLEANUP_INACTIVE_DAYS = [3, 7, 14, 30] as const;
 export const CLEANUP_LOG_DAYS = [7, 30] as const;
-export const CLEANUP_SETTLED_DAYS = [1, 3, 7, 14] as const;
+export const CLEANUP_SETTLED_DAYS = [1, 3, 7, 14, 30] as const;
 
 export const CleanupPolicy = z.object({
-  /** Release the checkout of a session inactive this many days. `null` is off. */
-  inactiveDays: z.union([z.literal(3), z.literal(7), z.literal(14), z.literal(30)]).nullable(),
-  settledDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14)]).nullable().default(3),
-  /** Release an idle session's checkout whose branch has nothing beyond the default branch. */
-  unchanged: z.boolean(),
-  /** Release the checkout of an archived session. */
-  archived: z.boolean(),
+  /** Release the checkout of a session settled or archived this many days. `null` is off. */
+  settledDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14), z.literal(30)]).nullable().default(3),
   /** Delete rotated logs older than this many days. `null` is off. */
   logsDays: z.union([z.literal(7), z.literal(30)]).nullable(),
 });
 export type CleanupPolicy = z.infer<typeof CleanupPolicy>;
 
-export const DEFAULT_CLEANUP_POLICY: CleanupPolicy = { inactiveDays: null, settledDays: 3, unchanged: false, archived: false, logsDays: null };
+export const DEFAULT_CLEANUP_POLICY: CleanupPolicy = { settledDays: 3, logsDays: null };
 
 export const CleanupReport = z.object({
   at: z.number(),

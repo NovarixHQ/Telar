@@ -1,6 +1,6 @@
 import os from "node:os";
+import { parsePairingUrl } from "@telar/engine-client";
 import { fail, ok, type Route } from "../../platform/http/route";
-import { parsePairingUrl } from "./book";
 import { forwardRoute } from "./forward";
 import { publicHost, type HostsStore } from "./store";
 

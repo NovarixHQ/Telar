@@ -2,12 +2,13 @@
 
 import type { ComponentProps, HTMLAttributes } from "react";
 import { useStreamingReveal } from "@/ui/hooks/use-streaming-reveal";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { Streamdown } from "streamdown";
 import { math } from "@streamdown/math";
 import { cn } from "@/ui/utils";
 import { useLinkPolicy } from "@/platform/link-policy";
 import { rehypeDisplayStandaloneMath } from "@/ui/markdown-math";
+import { MarkdownCode, MarkdownImage } from "@/ui/markdown-blocks";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 
 export type MessageRole = "user" | "assistant";
@@ -49,11 +50,13 @@ const MATH_PLUGINS = { math } as const;
 const MATH_REHYPE = [rehypeDisplayStandaloneMath];
 
 const LINKS_UNGATED = { enabled: false } as const;
+const BLOCKS = { code: MarkdownCode, img: MarkdownImage };
 
 export const MessageResponse = memo(
-  ({ className, streaming, children, rehypePlugins, plugins, ...props }: MessageResponseProps & { streaming?: boolean }) => {
+  ({ className, streaming, children, rehypePlugins, plugins, components, ...props }: MessageResponseProps & { streaming?: boolean }) => {
     const revealed = useStreamingReveal(typeof children === "string" ? children : "", streaming === true);
     const { openInSessionBrowser } = useLinkPolicy();
+    const blocks = useMemo(() => (components ? { ...BLOCKS, ...components } : BLOCKS), [components]);
     return (
     <Streamdown
       className={cn("telar-markdown w-full text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0", STREAMDOWN_LIST_SPACING, className)}
@@ -61,7 +64,8 @@ export const MessageResponse = memo(
       parseIncompleteMarkdown={streaming === true}
       plugins={plugins ? { ...MATH_PLUGINS, ...plugins } : MATH_PLUGINS}
       rehypePlugins={rehypePlugins ? [...MATH_REHYPE, ...rehypePlugins] : MATH_REHYPE}
-      controls={{ code: { copy: true, download: false }, table: true, mermaid: true }}
+      controls={{ table: true }}
+      components={blocks}
       {...(openInSessionBrowser ? { linkSafety: LINKS_UNGATED } : {})}
       {...props}
     >

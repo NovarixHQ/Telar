@@ -88,7 +88,6 @@ type LifecycleHost = {
   startSetup(sessionId: string, worktree: string): Promise<void>;
   releaseBrowser(sessionId: string, reason: string): Promise<unknown> | void;
   releasePlugins(sessionId: string, reason: string): void;
-  releasesArchivedCheckouts(): boolean;
   /** A session was settled or archived: the children it held, and its own record, change. */
   reviewChildren(): void;
 };
@@ -315,10 +314,6 @@ export class SessionLifecycle {
       /** `null` cancels a snooze. A time in the past is accepted and simply
        *  reads as awake — a client's clock is not this engine's to police. */
       snoozedUntil?: number | null;
-      /** `null` returns the session to the driver's default rather than storing
-       *  one — see `Session.resumeAfterRateLimit`. Three answers, so not a
-       *  boolean: "on", "off", and "whatever this provider does". */
-      resumeAfterRateLimit?: boolean | null;
     },
   ): Session {
     return this.kernel.command("updateSession", () => {
@@ -369,11 +364,6 @@ export class SessionLifecycle {
           throw new EngineStateError("invalid_request", "settledOverride must be 'settled', 'active' or null");
         }
       }
-      if (patch.resumeAfterRateLimit !== undefined) {
-        if (patch.resumeAfterRateLimit === null) delete next.resumeAfterRateLimit;
-        else if (typeof patch.resumeAfterRateLimit === "boolean") next.resumeAfterRateLimit = patch.resumeAfterRateLimit;
-        else throw new EngineStateError("invalid_request", "resumeAfterRateLimit must be a boolean or null");
-      }
       if (patch.snoozedUntil !== undefined) {
         delete next.wokeAt;
         if (patch.snoozedUntil === null) {
@@ -398,7 +388,6 @@ export class SessionLifecycle {
         // `next` and then be dropped here as "nothing changed", leaving the stale
         // stamp on disk with no event to say it went.
         next.wokeAt === session.wokeAt &&
-        next.resumeAfterRateLimit === session.resumeAfterRateLimit &&
         JSON.stringify(next.model ?? null) === JSON.stringify(session.model ?? null)
       ) {
         return structuredClone(session);
@@ -456,13 +445,13 @@ export class SessionLifecycle {
     void this.host.releaseBrowser(sessionId, "session archived");
     this.releaseDataScience(session, "session archived");
 
-    // A worktree implies a project; the checkout goes only when asked (Storage's policy, or a caller giving it back).
+    // A worktree implies a project; the checkout goes only when a caller gives it back, otherwise Storage's sweep takes it later.
     if (session.workspace.mode === "worktree" && session.projectId && !session.workspace.released) {
       const project = this.host.getProject(session.projectId);
       // Best-effort. A leaked directory is bounded inside the engine's own
       // root and is reapable later; refusing to archive because git was
       // unhappy would strand the session in a state a human cannot leave.
-      if (options.releaseCheckout ?? this.host.releasesArchivedCheckouts()) this.releaseWorktree(project, session.workspace.path);
+      if (options.releaseCheckout) this.releaseWorktree(project, session.workspace.path);
       else this.pruneWorktree(project, session.workspace.path);
     }
     const at = this.kernel.now();

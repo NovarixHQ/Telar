@@ -96,23 +96,18 @@ describe("what the slash menu offers", () => {
     expect(fresh).toContain("driver:codex");
   });
 
-  test("the mode already in effect is still listed, and says so", () => {
-    const commands = availableCommands({ busy: false, fresh: false, runtimeMode: "full-access" });
-    const current = commands.find((command) => command.id === "access:full-access");
-    expect(current?.detail).toContain("(current)");
-    expect(commands.filter((command) => command.glyph === "access")).toHaveLength(4);
+  test("model and access are one row each, and only beside their pills", () => {
+    expect(availableCommands({ busy: false, fresh: false }).some((command) => command.glyph === "model" || command.glyph === "access")).toBe(false);
+    const commands = availableCommands({ busy: false, fresh: false, pickers: { model: true, access: true } });
+    expect(commands.filter((command) => command.glyph === "model")).toEqual([expect.objectContaining({ label: "/model", action: { type: "picker", picker: "model" } })]);
+    expect(commands.filter((command) => command.glyph === "access")).toEqual([expect.objectContaining({ label: "/access", action: { type: "picker", picker: "access" } })]);
+    expect(availableCommands({ busy: false, fresh: false, pickers: { model: true, access: false } }).some((command) => command.glyph === "access")).toBe(false);
   });
 
-  test("models and efforts appear only when the caller knows any", () => {
-    expect(availableCommands({ busy: false, fresh: false }).some((command) => command.glyph === "model")).toBe(false);
-    const withModels = availableCommands({
-      busy: false,
-      fresh: false,
-      models: [{ id: "opus[1m]", label: "Opus 5" }],
-      efforts: ["low", "high"],
-    });
-    expect(withModels.find((command) => command.glyph === "model")).toMatchObject({ label: "/model Opus 5", action: { type: "model", model: "opus[1m]" } });
-    expect(withModels.filter((command) => command.glyph === "effort").map((command) => command.label)).toEqual(["/effort low", "/effort high"]);
+  test("efforts appear only when the caller knows any", () => {
+    expect(availableCommands({ busy: false, fresh: false }).some((command) => command.glyph === "effort")).toBe(false);
+    const withEfforts = availableCommands({ busy: false, fresh: false, efforts: ["low", "high"] });
+    expect(withEfforts.filter((command) => command.glyph === "effort").map((command) => command.label)).toEqual(["/effort low", "/effort high"]);
   });
 });
 
@@ -200,25 +195,23 @@ describe("/resume, the empty composer's own link reached from the keyboard", () 
 });
 
 describe("ranking commands", () => {
-  const commands = availableCommands({ busy: true, fresh: true, runtimeMode: "auto" });
+  const commands = [
+    ...availableCommands({ busy: true, fresh: true, pickers: { model: true, access: true } }),
+    ...providerCommandCompletions([{ name: "security-review", description: "Review the branch.", source: "user" }]),
+  ];
 
   test("a prefix of the name wins", () => {
-    expect(rankCommands(commands, "ful")[0]?.label).toBe("/full-access");
+    expect(rankCommands(commands, "acc")[0]?.label).toBe("/access");
     expect(rankCommands(commands, "sto")[0]?.label).toBe("/stop");
   });
 
   test("initials reach a hyphenated command, which a prefix cannot", () => {
-    expect(rankCommands(commands, "fa")[0]?.label).toBe("/full-access");
-  });
-
-  test("the fuzzy tier is loose, and that is a trade rather than a bug", () => {
-    // `ae` is also a subsequence of `claude`, so initials reach a command but don't reliably select it.
-    expect(rankCommands(commands, "ae").map((command) => command.label)).toContain("/auto-edits");
+    expect(rankCommands(commands, "sr")[0]?.label).toBe("/security-review");
   });
 
   test("a genuine prefix still beats a fuzzy hit on a shorter name", () => {
     // Fuzzy tier starts at 100, prefix at 2.
-    expect(rankCommands(commands, "auto")[0]?.label).toBe("/auto");
+    expect(rankCommands(commands, "lo")[0]?.label).toBe("/local");
   });
 
   test("a leading slash in the query is not searched for", () => {
@@ -234,8 +227,7 @@ describe("ranking commands", () => {
   });
 
   test("the description is searchable, but ranks below the name", () => {
-    const byDescription = rankCommands(commands, "prompts");
-    expect(byDescription[0]?.label).toBe("/full-access");
+    expect(rankCommands(commands, "asking")[0]?.label).toBe("/access");
   });
 });
 

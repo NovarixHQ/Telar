@@ -3,6 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { CleanupState, RetentionPolicy } from "@telar/engine-client";
+import { press } from "@/test/dom";
 import { CleanupSection, FIXED_RULES, lastCleanupLabel, runLabel } from "./cleanup-section";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
@@ -13,7 +14,7 @@ afterAll(async () => {
 });
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
-const OFF: CleanupState = { policy: { inactiveDays: null, settledDays: null, unchanged: false, archived: false, logsDays: null }, running: false };
+const OFF: CleanupState = { policy: { settledDays: null, logsDays: null }, running: false };
 const ROOT = "/store/worktrees";
 
 let state: CleanupState = OFF;
@@ -65,14 +66,22 @@ async function mount() {
   await act(async () => {
     await settle();
   });
+  const click = async (element: Element) => {
+    await act(async () => {
+      element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      await settle();
+    });
+  };
   return {
     host,
     text: () => host.textContent ?? "",
     switches: () => [...host.querySelectorAll('[role="switch"]')] as HTMLElement[],
     button: (label: string) => [...host.querySelectorAll("button")].find((candidate) => candidate.textContent?.trim() === label),
-    click: async (element: Element) => {
+    click,
+    choose: async (label: string, option: string) => {
+      await press(host.querySelector(`[aria-label="${label}"]`)!);
+      await press([...document.querySelectorAll('[role="option"]')].find((candidate) => candidate.textContent?.trim() === option)!);
       await act(async () => {
-        element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
         await settle();
       });
     },
@@ -84,21 +93,21 @@ async function mount() {
 }
 
 describe("Settings ▸ Storage ▸ automatic cleanup", () => {
-  test("the five controls render, all off", async () => {
+  test("one worktree removal row and the log row render, both off", async () => {
     const view = await mount();
-    for (const label of ["Delete inactive worktrees", "Release settled worktrees", "Delete unchanged worktrees", "Delete worktrees of archived sessions", "Delete old logs"]) {
-      expect(view.text()).toContain(label);
+    const triggers = [...view.host.querySelectorAll('[aria-label="Remove worktrees"], [aria-label="Delete old logs"]')];
+    expect(triggers.map((trigger) => trigger.textContent?.replace("▼", "").trim())).toEqual(["Off", "Off"]);
+    expect(view.switches()).toHaveLength(0);
+    for (const gone of ["Delete inactive worktrees", "Release settled worktrees", "Delete unchanged worktrees", "Delete worktrees of archived sessions"]) {
+      expect(view.text()).not.toContain(gone);
     }
-    const triggers = [...view.host.querySelectorAll('[aria-label="Delete inactive worktrees"], [aria-label="Release settled worktrees"], [aria-label="Delete old logs"]')];
-    expect(triggers.map((trigger) => trigger.textContent?.replace("▼", "").trim())).toEqual(["Off", "Off", "Off"]);
-    expect(view.switches().map((toggle) => toggle.getAttribute("aria-checked"))).toEqual(["false", "false"]);
     view.unmount();
   });
 
-  test("releasing settled worktrees shows the stored days", async () => {
+  test("removing worktrees shows the stored days", async () => {
     state = { ...OFF, policy: { ...OFF.policy, settledDays: 3 } };
     const view = await mount();
-    expect(view.host.querySelector('[aria-label="Release settled worktrees"]')?.textContent).toContain("3 days");
+    expect(view.host.querySelector('[aria-label="Remove worktrees"]')?.textContent).toContain("3 days");
     view.unmount();
   });
 
@@ -111,12 +120,12 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
 
   test("a change PUTs only its patch and shows the engine's answer", async () => {
     // The engine answers with more than was asked for; the page shows the answer.
-    putAnswer = (patch) => ({ ...state, policy: { ...state.policy, ...patch, inactiveDays: 7 } });
+    putAnswer = (patch) => ({ ...state, policy: { ...state.policy, ...patch, logsDays: 30 } });
     const view = await mount();
-    await view.click(view.switches()[0]!);
-    expect(calls.find((call) => call.method === "PUT")).toEqual({ url: "/api/cleanup", method: "PUT", body: { unchanged: true } });
-    expect(view.switches()[0]!.getAttribute("aria-checked")).toBe("true");
-    expect(view.host.querySelector('[aria-label="Delete inactive worktrees"]')?.textContent).toContain("7 days");
+    await view.choose("Remove worktrees", "7 days");
+    expect(calls.find((call) => call.method === "PUT")).toEqual({ url: "/api/cleanup", method: "PUT", body: { settledDays: 7 } });
+    expect(view.host.querySelector('[aria-label="Remove worktrees"]')?.textContent).toContain("7 days");
+    expect(view.host.querySelector('[aria-label="Delete old logs"]')?.textContent).toContain("30 days");
     view.unmount();
   });
 
@@ -127,9 +136,9 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
         status: 400,
         headers: { "content-type": "application/json" },
       })) as unknown as typeof fetch;
-    await view.click(view.switches()[1]!);
+    await view.choose("Remove worktrees", "3 days");
     expect(view.host.querySelector('[role="alert"]')?.textContent).toContain("The engine refused that.");
-    expect(view.switches()[1]!.getAttribute("aria-checked")).toBe("false");
+    expect(view.host.querySelector('[aria-label="Remove worktrees"]')?.textContent).toContain("Off");
     view.unmount();
   });
 

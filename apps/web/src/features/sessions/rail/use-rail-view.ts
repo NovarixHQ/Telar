@@ -5,7 +5,6 @@ import {
   groupSessions,
   moveProjectGroupStep,
   PINNED_ROW_SCOPE,
-  RAIL_JUMP_SLOTS,
   railJumpSlots,
   railRowsForCommandKeys,
   useCollapsedGroups,
@@ -18,7 +17,7 @@ import { useRailDrag } from "./use-rail-drag";
 
 type ViewInput = { query: string; activeSessionId: string | undefined; sessionLimit: number; settledLimit: number };
 
-/** What the rail draws from the data: the filtered list, its grouping, drag and jump slots. */
+/** What the rail draws from the data: the filtered list, its grouping, drag, rail order and jump slots. */
 export function useRailView(data: RailData, { query, activeSessionId, sessionLimit, settledLimit }: ViewInput) {
   const { policy } = useInboxPolicy();
   const autoSettleAfterHours = policy.autoSettleAfterHours;
@@ -58,12 +57,12 @@ export function useRailView(data: RailData, { query, activeSessionId, sessionLim
     return next && (() => void layout.setOrder(next));
   };
 
-  const jumpRows = grouped
+  const railRows = grouped
     ? railRowsForCommandKeys({ ...grouped, groups: drawnGroups }, collapsed.collapsed)
     : flatEntries
-      ? flatRailRows(flatEntries, expanded.expanded, activeSessionId).slice(0, RAIL_JUMP_SLOTS.length)
-      : list.sessions.slice(0, RAIL_JUMP_SLOTS.length);
-  const jumpSlots = railJumpSlots(jumpRows);
+      ? flatRailRows(flatEntries, expanded.expanded, activeSessionId)
+      : list.sessions;
+  const jumpSlots = railJumpSlots(railRows);
   const env: RowEnv = {
     ...(activeSessionId ? { activeSessionId } : {}),
     renderedAt: data.renderedAt,
@@ -86,7 +85,7 @@ export function useRailView(data: RailData, { query, activeSessionId, sessionLim
     moveGroup,
     collapsed,
     expanded,
-    jumpRows,
+    railRows,
     env,
     showingStale: data.unavailable && data.sessions.length > 0,
   };

@@ -16,7 +16,7 @@ import {
   type CommandId,
   type Keymap,
 } from "./commands";
-import { sessionHref, type SidebarSession } from "@/features/sessions";
+import { sessionHref, sessionKey, type SidebarSession } from "@/features/sessions";
 
 type DesktopCommandKeyBridge = {
   isDesktop?: boolean;
@@ -67,14 +67,17 @@ function focusFieldNamed(label: string, attempt = 0) {
 export function useCommandKeys(
   rows: readonly SidebarSession[],
   overrides?: CommandHandlers,
+  activeKey?: string,
 ): (id: CommandId) => void {
   const router = useRouter();
   const keymap = useKeymap();
-  const recentHrefs = useRef<(string | undefined)[]>([]);
+  const railHrefs = useRef<(string | undefined)[]>([]);
+  const activeRow = useRef<number | undefined>(undefined);
   const latestOverrides = useRef(overrides);
   const latestKeymap = useRef(keymap);
   useEffect(() => {
-    recentHrefs.current = rows.map((session) => sessionHref(session));
+    railHrefs.current = rows.map((session) => sessionHref(session));
+    activeRow.current = activeKey === undefined ? undefined : rows.findIndex((session) => sessionKey(session) === activeKey);
     latestOverrides.current = overrides;
     latestKeymap.current = keymap;
   });
@@ -99,7 +102,7 @@ export function useCommandKeys(
         if (runCommand("open-editor")) focusFieldNamed("Search files");
         return;
       }
-      const destination = commandDestination(id, recentHrefs.current);
+      const destination = commandDestination(id, railHrefs.current, activeRow.current);
       if (destination.kind === "noop") return;
       if (destination.kind === "open-window") {
         const shell = desktop();

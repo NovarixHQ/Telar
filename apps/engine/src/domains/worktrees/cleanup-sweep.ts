@@ -10,15 +10,14 @@ export function cleanupCandidates(sessions: readonly Session[], at: SettlingOpti
     if (session.workspace.mode !== "worktree" || !session.projectId) return [];
     const archived = session.state === "archived";
     const active = Math.max(session.updatedAt, session.lastTurnEndedAt ?? 0, session.activityAt ?? 0);
-    const settledAt = (session.settledOverride === "settled" ? session.settledAt : undefined) ?? active + (at.autoSettleAfterHours ?? 0) * HOUR_MS;
+    const settledAt = archived ? active : ((session.settledOverride === "settled" ? session.settledAt : undefined) ?? active + (at.autoSettleAfterHours ?? 0) * HOUR_MS);
     return [
       {
         sessionId: session.id,
         path: session.workspace.path,
         archived,
         released: session.workspace.released !== undefined,
-        lastActiveAt: active,
-        ...(archived || live.has(session.id) ? {} : { settledAt }),
+        ...(!archived && live.has(session.id) ? {} : { settledAt }),
       },
     ];
   });

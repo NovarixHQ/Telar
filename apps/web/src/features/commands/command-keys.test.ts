@@ -77,11 +77,11 @@ describe("what ⌘1..⌘9 count", () => {
     expect(counted(rows)).toEqual(["Live"]);
   });
 
-  test("never more than nine, whatever the survivor rule pins into view", () => {
+  test("the survivor rule's row is counted last, so ⌘⇧] can still reach it past the ninth", () => {
     const rows = Array.from({ length: 20 }, (_, index) => row(`s${index}`, `Session ${index}`, { createdAt: NOW - index * 1_000 }));
     const recent = counted(rows, { activeSessionId: "s19" });
-    expect(recent).toHaveLength(9);
     expect(recent[0]).toBe("Session 0");
+    expect(recent.at(-1)).toBe("Session 19");
     expect(sessionHref(row("s0", "Session 0"))).toBe("/projects/p1/sessions/s0");
   });
 });

@@ -101,14 +101,13 @@ function createUpdater(main) {
 
   function applyUpdatePrefs(prefs) {
     autoUpdater.channel = prefs.channel;
-
-    autoUpdater.autoInstallOnAppQuit = prefs.installOnQuit;
   }
 
   function configureAutoUpdater() {
     autoUpdater.logger = updateLogger();
 
     autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = false;
     applyUpdatePrefs(readUpdatePrefs());
     const key = updateProxyKey();
     if (key) autoUpdater.requestHeaders = { "X-Telar-Update-Key": key };
@@ -203,7 +202,6 @@ function registerUpdates(main) {
 
     if (decision === "pending") return { status: "restarting" };
 
-    autoUpdater.autoInstallOnAppQuit = false;
     app.isQuitting = true;
 
     const engineRoot = path.join(telarHome(), "engine");
@@ -267,7 +265,6 @@ function registerUpdates(main) {
         typeof patch?.channel === "string" && UPDATE_CHANNELS.includes(patch.channel)
           ? patch.channel
           : current.channel,
-      installOnQuit: typeof patch?.installOnQuit === "boolean" ? patch.installOnQuit : current.installOnQuit,
     };
     writeUpdatePrefs(next);
     applyUpdatePrefs(next);

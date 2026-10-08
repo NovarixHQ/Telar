@@ -58,7 +58,7 @@ describe("the menu is built from the stored map, not the defaults", () => {
     const keymap = mergeKeymap({ "new-conversation": "CommandOrControl+Alt+9" });
     const item = menuCommands(keymap, "file").find((command) => command.id === "new-conversation");
     expect(item.accelerator).toBe("CommandOrControl+Alt+9");
-    expect(item.label).toBe("New Conversation");
+    expect(item.label).toBe("New session");
 
     expect(menuCommands(keymap, "file").find((command) => command.id === "settings").accelerator).toBe("CommandOrControl+,");
   });
@@ -84,9 +84,9 @@ describe("the menu is built from the stored map, not the defaults", () => {
     expect(file.map((command) => command.id)).not.toContain("open-latex");
   });
 
-  test("Developer Tools is a View menu row on ⌥⌘I, and reaches no other menu", () => {
+  test("Developer tools is a View menu row on ⌥⌘I, and reaches no other menu", () => {
     const item = menuCommands(defaultKeymap(), "view").find((command) => command.id === "toggle-devtools");
-    expect(item).toMatchObject({ label: "Developer Tools", accelerator: "CommandOrControl+Alt+I" });
+    expect(item).toMatchObject({ label: "Developer tools", accelerator: "CommandOrControl+Alt+I" });
     for (const menu of ["file", "panel"]) {
       expect(menuCommands(defaultKeymap(), menu).map((command) => command.id)).not.toContain("toggle-devtools");
     }
@@ -94,7 +94,7 @@ describe("the menu is built from the stored map, not the defaults", () => {
 
   test("the File menu opens the workspace on ⌘O and reveals it on ⌥⌘O", () => {
     const file = menuCommands(defaultKeymap(), "file");
-    expect(file.find((command) => command.id === "open-in-app")).toMatchObject({ label: "Open in Preferred App", accelerator: "CommandOrControl+O" });
+    expect(file.find((command) => command.id === "open-in-app")).toMatchObject({ label: "Open in preferred app", accelerator: "CommandOrControl+O" });
     expect(file.find((command) => command.id === "reveal-in-finder")).toMatchObject({ label: "Reveal in Finder", accelerator: "CommandOrControl+Alt+O" });
   });
 });

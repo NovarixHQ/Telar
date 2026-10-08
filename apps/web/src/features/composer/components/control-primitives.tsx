@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { forwardRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { PopoverTrigger } from "@/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
@@ -53,6 +53,14 @@ export function PillTrigger({ tip, ...props }: ControlTriggerProps & { tip: stri
       <TooltipContent>{tip}</TooltipContent>
     </Tooltip>
   );
+}
+
+/** Opens the picker each time `summon` changes: a `/` row asked for it. */
+export function useSummon(summon: number | undefined, open: () => void) {
+  const [seen, setSeen] = useState(summon);
+  if (summon === seen) return;
+  setSeen(summon);
+  if (summon !== undefined) open();
 }
 
 export function MenuHeading({ children }: { children: ReactNode }) {

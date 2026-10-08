@@ -35,6 +35,7 @@ import { useTranscriptModel } from "../hooks/use-transcript-model";
 import { composerProps } from "./composer-props";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
+import { WorkspaceCard, WorkspaceCardToggle } from "./workspace-card";
 import { useReadReceipt } from "./read-receipt";
 import { TranscriptList } from "./transcript-list";
 
@@ -118,10 +119,9 @@ export function SessionCockpit({
             session={session}
             {...(headerMenu ? { menu: headerMenu } : {})}
             onRename={(next) => void actions.rename(next)}
-            onWatchRun={() => showPanelTab("terminal")}
-            onRunTerminals={revealNewTerminals}
             panel={
               <>
+                {session && <WorkspaceCardToggle />}
                 {/* Keyed by host and session: a different machine is a different mount. The last turn's state is the refresh cue. */}
                 {session && (
                   <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
@@ -133,6 +133,18 @@ export function SessionCockpit({
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
+          {!solo && session && (
+            <WorkspaceCard
+              key={`${hostId}:${session.id}`}
+              hostId={hostId}
+              session={session}
+              agents={agents}
+              busy={Boolean(active)}
+              backgroundTasks={model.backgroundTasks}
+              panel={panelState}
+              onRunTerminals={revealNewTerminals}
+            />
+          )}
           <TranscriptList
             sync={sync}
             model={model}
@@ -155,7 +167,7 @@ export function SessionCockpit({
           />
           <Composer
             {...composerProps({
-              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit, showPanelTab,
+              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,
               // Not while a conversation is opening: a composer changing height would move the viewport again.
               compact: readingBack && transcriptLanded,
               contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),

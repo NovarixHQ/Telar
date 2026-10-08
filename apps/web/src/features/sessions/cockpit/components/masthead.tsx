@@ -1,13 +1,12 @@
 "use client";
 
-import { OpenWorkspaceButton } from "@/features/files";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDownIcon, FolderGit2Icon, TriangleAlertIcon } from "lucide-react";
 import { type Session, workspacePath } from "@telar/engine-client";
 import { refusedBy, type EngineApiError } from "@/platform/engine";
 import { projectLabel } from "@/features/hosts";
-import { RunHeaderControl, type RunView } from "@/features/terminal";
+import { RunHeaderControl } from "@/features/terminal";
 import { hostName } from "@/platform/engine/host-client";
 import { cn } from "@/ui/utils";
 import { WorkspaceInspector } from "../../components/workspace-inspector";
@@ -63,7 +62,7 @@ export function usePanelPresence(open: boolean, durationMs = 200): { mounted: bo
   return { mounted, shown };
 }
 
-export function SessionMasthead({ projectId, hostId, projectName, projectResolved, session, onRename, panel, onWatchRun, onRunTerminals, menu }: {
+export function SessionMasthead({ projectId, hostId, projectName, projectResolved, session, onRename, panel, menu }: {
   projectId?: string;
   hostId: string;
   projectName?: string;
@@ -73,8 +72,6 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
   onRename: (title: string) => void;
   /** The session panel's triggers, so the masthead never holds the session's items and events. */
   panel: React.ReactNode;
-  onWatchRun: () => void;
-  onRunTerminals: (terminals: readonly RunView[]) => void;
   menu?: Omit<SessionActionMenuState, "actions"> & { actions: Omit<SessionActionHandlers, "rename">; onOpen?: () => void };
 }) {
   const [editing, setEditing] = useState(false);
@@ -131,15 +128,7 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
           )}
         </div>
       </SessionActionContextMenu>
-      <div className="app-no-drag ml-auto flex shrink-0 items-center gap-2">
-        {session && workspacePath(session.workspace) !== undefined && (
-          <>
-            <RunHeaderControl key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} onWatchOutput={onWatchRun} onTerminals={onRunTerminals} />
-            <OpenWorkspaceButton path={workspacePath(session.workspace)} hostId={hostId} />
-          </>
-        )}
-        {panel}
-      </div>
+      <div className="app-no-drag ml-auto flex shrink-0 items-center gap-2">{panel}</div>
     </header>
   );
 }

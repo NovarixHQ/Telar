@@ -66,5 +66,4 @@ export type ComposerProps = {
   /** Takes the whole next choice. Absent makes every picker read-only. */
   onModelChange?: (next: ModelChoice) => void;
   onSwitchProvider?: (driver: ProviderDriverKind, next: ModelChoice) => void;
-  onOpenChanges?: () => void;
 };

@@ -2,7 +2,6 @@ import type { ComponentProps } from "react";
 import type { ProviderDriverKind, Session } from "@telar/engine-client";
 import type { ModelChoice } from "@/features/providers";
 import type { Composer } from "@/features/composer";
-import type { PanelTab } from "@/features/panel";
 import { wakeLabel } from "../../session-settling";
 import type { useComposerDraft } from "../hooks/use-composer-draft";
 import type { useDraftConfig } from "../hooks/use-draft-config";
@@ -11,7 +10,7 @@ import type { useSettling } from "../hooks/use-settling";
 import type { useSubmit } from "../hooks/use-submit";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
 
-export function composerProps({ fresh, solo, session, projectId, projectName, compact, contextNoticePercent, builders, composer, draft, actions, settling, model, submit, showPanelTab }: {
+export function composerProps({ fresh, solo, session, projectId, projectName, compact, contextNoticePercent, builders, composer, draft, actions, settling, model, submit }: {
   fresh: boolean;
   solo: boolean;
   session: Session | undefined;
@@ -26,7 +25,6 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
   settling: ReturnType<typeof useSettling>;
   model: ReturnType<typeof useTranscriptModel>;
   submit: ReturnType<typeof useSubmit>;
-  showPanelTab: (tab: PanelTab) => void;
 }): ComponentProps<typeof Composer> {
   const { composerQuestion, newestUsage } = model;
   const runtimeMode = session?.runtimeMode ?? (fresh ? draft.runtimeMode : undefined);
@@ -85,7 +83,5 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
     ...(draft.sessionDefaults.resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimitDefault: draft.sessionDefaults.resumeAfterRateLimit }),
     onModelChange: fresh ? draft.chooseModel : (next) => void actions.setModel(next),
     ...(fresh ? {} : { onSwitchProvider: (driver: ProviderDriverKind, next: ModelChoice) => void actions.switchProvider(driver, next) }),
-    // A right-panel tab, so on the solo route the change count stays a count.
-    ...(solo ? {} : { onOpenChanges: () => showPanelTab("diff") }),
   };
 }

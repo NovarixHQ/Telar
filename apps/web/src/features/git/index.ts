@@ -3,3 +3,5 @@ export { ReviewFileRow } from "./components/review-file-row";
 export { REVIEW_STATUS_LETTER, REVIEW_STATUS_WORD } from "./session-review";
 export { type DiffTab, diffTabParams, readDiffTab } from "./diff-scope";
 export { type DiffTurn, diffTurns } from "./diff-turns";
+export { PublishBox } from "./components/publish-box";
+export { useGitHubReady } from "./hooks/use-repo-reads";

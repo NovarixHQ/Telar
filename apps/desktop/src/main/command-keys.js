@@ -36,6 +36,8 @@ const COMMANDS = [
       jump: n,
     };
   }),
+  { id: "previous-session", label: "Previous Session", group: "Rail", icon: "arrow-up", defaultChord: "CommandOrControl+Shift+[" },
+  { id: "next-session", label: "Next Session", group: "Rail", icon: "arrow-down", defaultChord: "CommandOrControl+Shift+]" },
 
   { id: "toggle-panel", label: "Toggle right panel", group: "Panel", icon: "panel-right", defaultChord: "CommandOrControl+\\", menu: "panel" },
   { id: "panel-next-tab", label: "Next panel tab", group: "Panel", icon: "arrow-right", defaultChord: "CommandOrControl+Alt+Right", menu: "panel" },

@@ -104,14 +104,14 @@ function SidebarBody() {
   const activeSessionId = activeSessionFromPathname(pathname);
   const view = useRailView(data, { query, activeSessionId, sessionLimit, settledLimit });
   useDockUnread(data.sessions, activeSessionId, view.env.bandFor);
-  const run = useCommandKeys(view.jumpRows, {
+  const run = useCommandKeys(view.railRows, {
     "new-conversation": () => newConversation(),
     "new-conversation-in": () => openPalette("projects"),
     "add-project": () => openPalette("sources"),
     "search-sessions": () =>
       setPalette((current) => (current.open ? { ...current, open: false } : { open: true, asked: true, page: "root", query })),
     "toggle-rail": () => toggleSidebar(),
-  });
+  }, activeSessionId);
 
   const results = view.list.sessions;
   const selectedSearchIndex = results.length ? Math.min(searchIndex, results.length - 1) : -1;

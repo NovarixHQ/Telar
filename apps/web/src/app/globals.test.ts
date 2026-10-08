@@ -177,7 +177,7 @@ describe("the design token palette", () => {
  */
 describe("the translucency wash", () => {
   /** Every declaration inside a rule whose selector mentions the wash gate. */
-  const washBlocks = [...code.matchAll(/(:is\(\[data-telar-shell\]\[data-translucent\], \[data-backdrop\]\)[^{]*)\{([^}]*)\}/g)];
+  const washBlocks = [...code.matchAll(/^((?:html:not\(\.dark\))?\[data-telar-shell\]\[data-translucent\][^{]*)\{([^}]*)\}/gm)];
 
   test("gates on both attributes, and there is more than one rule doing it", () => {
     expect(washBlocks.length).toBeGreaterThan(1);
@@ -271,17 +271,6 @@ describe("the translucency wash", () => {
     for (const rule of [body, rail]) {
       expect(rule?.[2]).toContain("var(--wash-transparency,");
     }
-  });
-});
-
-describe("the backdrop layer", () => {
-  test("the root carries its own background, so the wash paints ABOVE the scene", () => {
-    // Without this, body's background PROPAGATES to the canvas, which is
-    // painted below a `z-index: -1` descendant — putting the translucency wash
-    // underneath the very wallpaper it exists to tint. Scoped to
-    // [data-backdrop] so the shell's vibrancy still gets propagation.
-    expect(code).toMatch(/\n\[data-backdrop\]\s*\{[^}]*background-color:\s*var\(--background\)/);
-    expect(code).toMatch(/z-index:\s*-1/);
   });
 });
 

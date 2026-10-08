@@ -2,23 +2,20 @@
 
 import { useSyncExternalStore } from "react";
 import type { SharedAppearance } from "@telar/engine-client";
-import { parseAppearance, type Appearance } from "./appearance";
-import { currentComposition, strandedTones, writeComposition } from "./composition";
-
-type SharedFields = Omit<SharedAppearance, "composition" | "images">;
+import { parseAppearance } from "./appearance";
 
 const APPEARANCE_KEY = "telar-appearance";
 const APPLIED_KEY = "telar-host-appearance-applied";
 
-const QUOTA_MESSAGE = "The host's layer images would not fit in this browser's storage; everything else was applied.";
-
-function tintMessage(tones: readonly string[]): string {
-  const named = tones.length === 1 ? tones[0] : `${tones.slice(0, -1).join(", ")} and ${tones[tones.length - 1]}`;
-  const one = tones.length === 1;
-  return `The card sits too close to the ${named} colour${one ? "" : "s"}, so ${one ? "that tint" : "those tints"} will be hard to read.`;
+export function currentShared(): SharedAppearance {
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(APPEARANCE_KEY);
+  } catch {}
+  return pickShared(parseAppearance(raw));
 }
 
-function sharedFields(appearance: Appearance): SharedFields {
+export function pickShared(appearance: SharedAppearance): SharedAppearance {
   return {
     accent: appearance.accent,
     fontSans: appearance.fontSans,
@@ -32,32 +29,12 @@ function sharedFields(appearance: Appearance): SharedFields {
   };
 }
 
-export function currentShared(): SharedAppearance {
-  let raw: string | null = null;
-  try {
-    raw = window.localStorage.getItem(APPEARANCE_KEY);
-  } catch {}
-  return { ...currentComposition(), ...sharedFields(parseAppearance(raw)) };
-}
-
 export function fingerprint(shared: SharedAppearance, scheme: string): string {
   return JSON.stringify([shared, scheme]);
 }
 
-/** Wears the host's appearance in this window; answers a notice when part of it could not be worn as-is. */
-export function wearShared(shared: SharedAppearance, setAppearance: (patch: SharedFields) => void): string | undefined {
-  const { composition, images, ...fields } = shared;
-  const stored = writeComposition(composition, images);
-  setAppearance(fields);
-  const notices: string[] = [];
-  if (!stored) notices.push(QUOTA_MESSAGE);
-  const stranded = strandedTones(composition);
-  if (stranded.length > 0) notices.push(tintMessage(stranded));
-  return notices.length > 0 ? notices.join(" ") : undefined;
-}
-
 const listeners = new Set<() => void>();
-let state: { synced: boolean; shared?: string; notice?: string } = { synced: false };
+let state: { synced: boolean; shared?: string } = { synced: false };
 
 function subscribe(onChange: () => void): () => void {
   listeners.add(onChange);
@@ -69,8 +46,8 @@ export function shareState(): Readonly<typeof state> {
   return state;
 }
 
-export function markShared(next: { shared: string; notice?: string }): void {
-  state = { synced: true, ...next };
+export function markShared(shared: string): void {
+  state = { synced: true, shared };
   for (const listener of listeners) listener();
 }
 

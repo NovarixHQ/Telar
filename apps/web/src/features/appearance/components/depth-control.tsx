@@ -14,7 +14,7 @@ export function DepthControl({ value, onChange }: { value: Depth; onChange: (nex
     <Row
       keywords={["shadow", "elevation", "flat", "soft", "deep", "raised"]}
       label="Depth"
-      hint="How far raised surfaces — cards, the composer, menus — sit off the page."
+      hint="How far cards, the composer and menus lift off the page."
       {...(value === DEFAULT_DEPTH ? {} : { onRevert: () => onChange(DEFAULT_DEPTH) })}
       control={<Dropdown<Depth> value={value} onChange={onChange} options={OPTIONS} label="Depth" />}
     />

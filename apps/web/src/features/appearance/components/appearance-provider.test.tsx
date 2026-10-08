@@ -44,18 +44,19 @@ const hostAppearance = {
   scheme: "light",
   translucent: false,
   frost: "blur",
-  composition: { light: { base: "#c88337", layers: [], overrides: {} }, dark: { base: "#252525", layers: [], overrides: {} } },
-  images: {},
+  composition: { light: { base: "#c88337", layers: [{ type: "image", id: "wallpaper" }], overrides: { card: "#ffffff" } }, dark: { base: "#252525", layers: [], overrides: {} } },
+  images: { wallpaper: "data:image/webp;base64,AAAA" },
   accent: "sea",
   fontSize: 15,
 };
 
 const stored = () => JSON.parse(window.localStorage.getItem("telar-appearance") ?? "{}") as Record<string, unknown>;
 
-test("a window wears the host's appearance, never overwrites it with its own defaults, and shares what it changes", async () => {
+test("a window wears the host's appearance, even one stored with layers and custom colours, and shares what it changes", async () => {
   const restoreTimers = fakeLongTimers();
   try {
     window.localStorage.setItem("telar-looks", "[]");
+    window.localStorage.setItem("telar-theme-css", ":root{--card:red}");
     const calls = stubFetch({
       "GET /api/appearance": () => ({ appearance: hostAppearance, updatedAt: 7 }),
       "PUT /api/appearance": () => ({ ok: true, updatedAt: 8, etag: '"a8"' }),
@@ -69,8 +70,9 @@ test("a window wears the host's appearance, never overwrites it with its own def
 
     expect(stored()).toMatchObject({ accent: "sea", fontSize: 15 });
     expect(window.localStorage.getItem("telar-theme")).toBe("light");
-    expect(JSON.parse(window.localStorage.getItem("telar-composition") ?? "{}").light.base).toBe("#c88337");
+    expect(stored()).not.toHaveProperty("composition");
     expect(window.localStorage.getItem("telar-looks")).toBeNull();
+    expect(window.localStorage.getItem("telar-theme-css")).toBeNull();
 
     await runDebounced();
     expect(calls.filter((call) => call.route === "PUT /api/appearance")).toEqual([]);
@@ -79,7 +81,8 @@ test("a window wears the host's appearance, never overwrites it with its own def
     await runDebounced();
     const puts = calls.filter((call) => call.route === "PUT /api/appearance");
     expect(puts).toHaveLength(1);
-    expect(puts[0]!.body).toMatchObject({ version: 3, accent: "rose", fontSize: 15, scheme: "light", composition: { light: { base: "#c88337" } } });
+    expect(puts[0]!.body).toMatchObject({ version: 3, accent: "rose", fontSize: 15, scheme: "light" });
+    expect(puts[0]!.body).not.toHaveProperty("composition");
   } finally {
     restoreTimers();
   }

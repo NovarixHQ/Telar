@@ -83,18 +83,18 @@ describe("display_preview", () => {
 
   test("wears the person's appearance, its font faces and its scheme when no appearance is asked for", async () => {
     const published = parsePublishedAppearance({
+      version: 3,
       scheme: "dark",
       translucent: false,
       frost: "clear",
       resolved: { accent: { name: "rose", light: { primary: "#cc0044", primaryForeground: "#ffffff" }, dark: { primary: "#ff5588", primaryForeground: "#110000" } }, fontStacks: { sans: "Inter, sans-serif", mono: "Menlo, monospace" }, fontFaces: FACES },
-      composition: { light: { base: "#f8f8f9", layers: [], overrides: {} }, dark: { base: "#252525", layers: [], overrides: { card: "#123456" } } },
     })!;
     const { run, requests } = preview({ appearance: published });
     const result = await run({ kind: "html", content: "<p>hi</p>" });
     expect(textOf(result)).toContain("in dark");
     const { html, appearance } = requests[0]!;
     expect(appearance).toBe("dark");
-    for (const token of ["--card:#123456;", "--primary:#ff5588;", "--primary-foreground:#110000;", "--font-sans:Inter, sans-serif;", "--font-mono:Menlo, monospace;"]) expect(html).toContain(token);
+    for (const token of ["--primary:#ff5588;", "--primary-foreground:#110000;", "--font-sans:Inter, sans-serif;", "--font-mono:Menlo, monospace;"]) expect(html).toContain(token);
     expect(html.indexOf(FACES)).toBeLessThan(html.indexOf("<p>hi</p>"));
   });
 

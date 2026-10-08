@@ -4,14 +4,23 @@ import { useEffect } from "react";
 import { createEngineApi } from "@/platform/engine";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { useAppearance } from "../appearance";
-import { currentShared, fingerprint, markShared, readAppliedStamp, shareState, wearShared, writeAppliedStamp } from "../shared-appearance";
+import { currentShared, fingerprint, markShared, pickShared, readAppliedStamp, shareState, writeAppliedStamp } from "../shared-appearance";
 import { readTheme, useTheme } from "./theme-provider";
 
 const api = createEngineApi();
 
 const POLL_MS = 10_000;
 
-const RETIRED_KEYS = ["telar-looks", "telar-follow-host", "telar-host-look-applied", "telar-host-look-notice"];
+const RETIRED_KEYS = [
+  "telar-looks",
+  "telar-follow-host",
+  "telar-host-look-applied",
+  "telar-host-look-notice",
+  "telar-composition",
+  "telar-composition-images",
+  "telar-theme-css",
+  "telar-backdrop-compiled",
+];
 
 /** Keeps this window wearing the host's appearance, whichever window last changed it. */
 export function HostLookFollower(): null {
@@ -30,13 +39,13 @@ export function HostLookFollower(): null {
       if (!answer || signal.aborted) return false;
       const { appearance, updatedAt } = answer;
       if (appearance === null || updatedAt === null || updatedAt === readAppliedStamp()) {
-        if (!shareState().synced) markShared({ shared: fingerprint(currentShared(), readTheme()) });
+        if (!shareState().synced) markShared(fingerprint(currentShared(), readTheme()));
         return false;
       }
-      const notice = wearShared(appearance, setAppearance);
+      setAppearance(pickShared(appearance));
       setTheme(appearance.scheme);
       writeAppliedStamp(updatedAt);
-      markShared({ shared: fingerprint(currentShared(), appearance.scheme), notice });
+      markShared(fingerprint(currentShared(), appearance.scheme));
       return true;
     },
     POLL_MS,

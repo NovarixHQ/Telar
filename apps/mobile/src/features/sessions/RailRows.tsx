@@ -1,6 +1,7 @@
 import { Button, Capsule, Circle, HStack, Overlay, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, foregroundStyle, frame, lineLimit, monospacedDigit, offset, opacity, padding, truncationMode } from "@expo/ui/swift-ui/modifiers";
 import { faded, HostMark, Icon, ProjectAvatar, ProviderIcon, SteppedPulseDot, Theme, Type } from "../../ui";
+import { useProjectIcon } from "../projects";
 import type { RailRow, RailStatus } from "./rail";
 
 function StatusSlot({ status }: { status: RailStatus }) {
@@ -35,6 +36,11 @@ function StatusSlot({ status }: { status: RailStatus }) {
   }
 }
 
+function RowAvatar({ row, size }: { row: RailRow; size: number }) {
+  const image = useProjectIcon(row.hostId, row.projectId, row.projectIcon);
+  return <ProjectAvatar name={row.projectName} iconName={row.projectIconName} iconEmoji={row.projectIconEmoji} image={image} size={size} />;
+}
+
 const UnreadDot = () => <Circle modifiers={[foregroundStyle(Theme.accent), frame({ width: 6, height: 6 }), accessibilityLabel("Unread answer")]} />;
 
 const PinMark = () => <Icon name="pin.fill" textStyle="caption2" color={faded("textMuted", 0.7)} />;
@@ -55,7 +61,7 @@ function CardBody({ row, host }: RowProps) {
       <HStack spacing={5}>
         {host ? <HostMark hostId={row.hostId} name={host} size={12} /> : null}
         {row.pinned ? <PinMark /> : null}
-        {row.projectName ? <ProjectAvatar name={row.projectName} iconName={row.projectIconName} iconEmoji={row.projectIconEmoji} size={12} /> : null}
+        {row.projectName ? <RowAvatar row={row} size={12} /> : null}
         {row.projectName ? <Text modifiers={[Type.metaSmall, foregroundStyle(faded("textMuted", 0.75)), lineLimit(1)]}>{row.projectName}</Text> : null}
         <Spacer minLength={4} />
         <StatusSlot status={row.status} />
@@ -85,7 +91,7 @@ function SlimBody({ row, host }: RowProps) {
       {host ? <HostMark hostId={row.hostId} name={host} size={13} /> : null}
       {row.pinned ? <PinMark /> : null}
       <Faded by={row.projectName ? 0.8 : 0.6}>
-        {row.projectName ? <ProjectAvatar name={row.projectName} iconName={row.projectIconName} iconEmoji={row.projectIconEmoji} size={13} /> : <ProviderIcon driver={row.driver} size={12} />}
+        {row.projectName ? <RowAvatar row={row} size={13} /> : <ProviderIcon driver={row.driver} size={12} />}
       </Faded>
       {row.unread ? <UnreadDot /> : null}
       <Text modifiers={[row.unread ? Type.slimMedium : Type.slim, foregroundStyle(row.unread ? Theme.text : faded("text", 0.7)), lineLimit(1), truncationMode("tail")]}>{row.title}</Text>

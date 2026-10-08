@@ -24,6 +24,7 @@ export type RailRow = {
   title: string;
   projectId?: string;
   projectName?: string;
+  projectIcon?: string;
   projectIconName?: string;
   projectIconEmoji?: string;
   driver: string;
@@ -105,6 +106,7 @@ export function railSections(inboxes: readonly HostInbox[], now: number, filter?
         title: row.title.trim() || "Untitled session",
         ...(row.projectId ? { projectId: row.projectId } : {}),
         ...(project ? { projectName: project.name } : {}),
+        ...(project?.icon ? { projectIcon: project.icon } : {}),
         ...(project?.iconName ? { projectIconName: project.iconName } : {}),
         ...(project?.iconEmoji ? { projectIconEmoji: project.iconEmoji } : {}),
         driver: row.driver,

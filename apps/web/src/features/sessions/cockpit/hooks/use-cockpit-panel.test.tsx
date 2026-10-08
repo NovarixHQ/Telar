@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { act } from "react";
 import { writePanelTabs, type PanelTab, type PanelTabState } from "@/features/panel";
 import { setExperiment } from "@/features/settings/experiments";
@@ -69,4 +69,44 @@ test("turning the trial on and off while the cockpit is open unfolds and folds t
   await flush();
   expect(panel().tabs.map((tab) => tab.kind)).toEqual(["terminal", "diff"]);
   expect(terminals(panel())).toEqual(["pty_1", "pty_2"]);
+});
+
+describe("in the desktop app", () => {
+  const pages = [
+    { id: "a", index: 0, active: false },
+    { id: "b", index: 1, active: true },
+  ];
+  beforeEach(() => {
+    const browser = { getState: async (scopeKey: string) => ({ scopeKey, tabs: pages }), onState: () => () => undefined };
+    (window as unknown as { telarDesktop?: unknown }).telarDesktop = { browser };
+  });
+  afterEach(() => {
+    delete (window as unknown as { telarDesktop?: unknown }).telarDesktop;
+  });
+  const withPages: Strip = {
+    tabs: [
+      { id: "browser:a", kind: "browser:a", params: {} },
+      { id: "diff", kind: "diff", params: {} },
+      { id: "browser:b", kind: "browser:b", params: {} },
+    ],
+    activeTab: "browser:b",
+    open: true,
+  };
+
+  test("with the trial off, page tabs restore as the one Browser tab, selected", async () => {
+    const panel = await restore(withPages);
+    expect(panel().tabs.map((tab) => tab.id)).toEqual(["browser:__integrated__", "diff"]);
+    expect(panel().activeTab).toBe("browser:__integrated__");
+  });
+
+  test("turning the trial on unfolds the Browser tab into the browser's pages, and off folds them back", async () => {
+    const panel = await restore(withPages);
+    await act(async () => setExperiment("flat-panel-tabs", true));
+    await flush(() => panel().tabs.length > 2);
+    expect(panel().tabs.map((tab) => tab.id)).toEqual(["browser:a", "browser:b", "diff"]);
+    expect(panel().activeTab).toBe("browser:b");
+    await act(async () => setExperiment("flat-panel-tabs", false));
+    await flush();
+    expect(panel().tabs.map((tab) => tab.id)).toEqual(["browser:__integrated__", "diff"]);
+  });
 });

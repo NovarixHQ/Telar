@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { EngineEvent, Item } from "@telar/engine-client";
-import { describeBrowserStart, journalWrites, latestBrowserState, syncPageTabs } from "./folds";
+import { agentBrowserActivity, describeBrowserStart, foldBrowserTabs, journalWrites, latestBrowserState, syncPageTabs, unfoldBrowserTab } from "./folds";
+import { LIVE_BROWSER_TAB } from "./model";
 import type { PanelTabState } from "./tabs";
 
 function fileChange(overrides: {
@@ -126,6 +127,62 @@ describe("syncPageTabs", () => {
   test("returns the same object when nothing changes", () => {
     const state: Strip = { tabs: [tab("diff"), tab("browser:a")], activeTab: "diff", open: true };
     expect(syncPageTabs(state, { tabs: [page("a", true)] }, "a")).toBe(state);
+  });
+});
+
+describe("one Browser tab, outside the flat-tabs trial", () => {
+  type Strip = PanelTabState<string>;
+  const tab = (kind: string) => ({ id: kind, kind, params: {} });
+  const ids = (state: Strip) => state.tabs.map((entry) => entry.id);
+  const flat = (activeTab: string): Strip => ({ tabs: [tab("browser:a"), tab("diff"), tab("browser:b")], activeTab, open: true });
+
+  test("page tabs fold into the one Browser tab at the first one's place, selected if a page was", () => {
+    expect(ids(foldBrowserTabs(flat("browser:b")))).toEqual([LIVE_BROWSER_TAB, "diff"]);
+    expect(foldBrowserTabs(flat("browser:b")).activeTab).toBe(LIVE_BROWSER_TAB);
+    expect(foldBrowserTabs(flat("diff")).activeTab).toBe("diff");
+    const folded = foldBrowserTabs(flat("diff"));
+    expect(foldBrowserTabs(folded)).toBe(folded);
+  });
+
+  test("the Browser tab unfolds into the native pages in its place, the native active page selected", () => {
+    const folded = foldBrowserTabs(flat("browser:a"));
+    const native = { tabs: [{ id: "a" }, { id: "b", active: true }, { id: "c" }] };
+    const unfolded = unfoldBrowserTab(folded, native);
+    expect(ids(unfolded)).toEqual(["browser:a", "browser:b", "browser:c", "diff"]);
+    expect(unfolded.activeTab).toBe("browser:b");
+    expect(unfoldBrowserTab(foldBrowserTabs(flat("diff")), native).activeTab).toBe("diff");
+  });
+
+  test("with no pages, or the browser in its own window, the Browser tab just goes", () => {
+    const folded = foldBrowserTabs(flat("browser:a"));
+    expect(ids(unfoldBrowserTab(folded, { tabs: [], ended: true }))).toEqual(["diff"]);
+    expect(unfoldBrowserTab(folded, { tabs: [{ id: "a" }], popped: true }).activeTab).toBe("diff");
+  });
+
+  test("the first native read in the trial unfolds a Browser tab left from before", () => {
+    const synced = syncPageTabs(foldBrowserTabs(flat("browser:a")), { tabs: [{ id: "a", active: true }, { id: "b" }] }, "a");
+    expect(ids(synced)).toEqual(["browser:a", "browser:b", "diff"]);
+    expect(synced.activeTab).toBe("browser:a");
+  });
+});
+
+describe("agentBrowserActivity", () => {
+  const browsed = (id: number, at: number, pages: number) =>
+    ({ id, at, type: "browser.state.changed", provider: "desktop", tabs: Array.from({ length: pages }, (_, n) => ({ id: `p${n}` })) }) as unknown as EngineEvent;
+  const call = (id: number, status: string) =>
+    ({ id, at: 200, type: "item.completed", item: { id: `i${id}`, status, detail: { type: "browser_action", call: { name: "mcp__telar__browser_navigate" } } } }) as unknown as EngineEvent;
+
+  test("acts on browsing from after the mount, once; a replay from before never does", () => {
+    const events = [browsed(1, 100, 1), browsed(2, 200, 2)];
+    expect(agentBrowserActivity(events, 150, 0)).toEqual({ acted: true, through: 2 });
+    expect(agentBrowserActivity(events, 150, 2)).toEqual({ acted: false, through: 2 });
+    expect(agentBrowserActivity([browsed(1, 100, 3)], 150, 0)).toEqual({ acted: false, through: 0 });
+  });
+
+  test("a completed browser call counts, a refused one or an empty browser does not", () => {
+    expect(agentBrowserActivity([call(6, "completed")], 150, 0)).toEqual({ acted: true, through: 6 });
+    expect(agentBrowserActivity([call(7, "failed")], 150, 0)).toEqual({ acted: false, through: 7 });
+    expect(agentBrowserActivity([browsed(4, 200, 0)], 150, 0)).toEqual({ acted: false, through: 4 });
   });
 });
 

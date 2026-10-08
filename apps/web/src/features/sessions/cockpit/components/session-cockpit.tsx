@@ -132,38 +132,34 @@ export function SessionCockpit({
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
-          {!solo && session && (
-            <WorkspaceCard
-              key={`${hostId}:${session.id}`}
+          <div className="@container/conversation flex min-h-0 flex-1 flex-col @3xl/conversation:flex-row-reverse">
+            {!solo && session && (
+              <WorkspaceCard
+                key={`${hostId}:${session.id}`} hostId={hostId} session={session} agents={agents} busy={Boolean(active)}
+                backgroundTasks={model.backgroundTasks} panel={panelState} onRunTerminals={revealNewTerminals}
+              />
+            )}
+            <TranscriptList
+              sync={sync}
+              model={model}
+              receipt={receipt}
+              follow={follow}
+              onAtBottomChange={onAtBottomChange}
+              onConversationClick={onConversationClick}
+              projectId={projectId}
               hostId={hostId}
-              session={session}
+              fresh={fresh}
               agents={agents}
-              busy={Boolean(active)}
-              backgroundTasks={model.backgroundTasks}
-              panel={panelState}
-              onRunTerminals={revealNewTerminals}
+              turn={{
+                roster: model.roster,
+                sending: actions.sending,
+                onInsert: composer.insertIntoComposer,
+                ...panelGestures,
+                onDecide: (requestId, decision, extra) => void actions.decideRequest(requestId, decision, extra),
+              }}
+              onResumeNow={(runId) => void actions.resumeNow(runId)}
             />
-          )}
-          <TranscriptList
-            sync={sync}
-            model={model}
-            receipt={receipt}
-            follow={follow}
-            onAtBottomChange={onAtBottomChange}
-            onConversationClick={onConversationClick}
-            projectId={projectId}
-            hostId={hostId}
-            fresh={fresh}
-            agents={agents}
-            turn={{
-              roster: model.roster,
-              sending: actions.sending,
-              onInsert: composer.insertIntoComposer,
-              ...panelGestures,
-              onDecide: (requestId, decision, extra) => void actions.decideRequest(requestId, decision, extra),
-            }}
-            onResumeNow={(runId) => void actions.resumeNow(runId)}
-          />
+          </div>
           <Composer
             {...composerProps({
               fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,

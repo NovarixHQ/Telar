@@ -86,23 +86,33 @@ function completionForPath(entry: PathEntry): Completion {
   };
 }
 
-/**
- * Scored against the basename and the whole path; the better score wins. Fuzzy matching
- * is basename-only, since a subsequence matches nearly any path in a large repo.
- */
+/** Tier, then how tight the match is within it; `null` when the entry does not match. */
+function pathMatch(entry: PathEntry, query: string): { tier: number; closeness: number } | null {
+  const name = entry.name.toLowerCase();
+  const path = `/${entry.path.toLowerCase().replace(/\/$/, "")}`;
+  if (name === query || name.split(".")[0] === query) return { tier: 0, closeness: 0 };
+  if (name.startsWith(query)) return { tier: 1, closeness: 0 };
+  if (path.includes(`/${query}`)) return { tier: 2, closeness: 0 };
+  const inside = name.indexOf(query);
+  if (inside !== -1) return { tier: 3, closeness: inside };
+  if (path.includes(query)) return { tier: 4, closeness: 0 };
+  // Fuzzy is basename-only: a subsequence matches nearly any path in a large repo.
+  const fuzzy = scoreQueryMatch({ value: name, query, exactBase: 0, fuzzyBase: 0 });
+  return fuzzy === null ? null : { tier: 5, closeness: fuzzy };
+}
+
+/** Exact basename, basename prefix, path segment prefix, substring, then fuzzy; a shorter path breaks ties. */
 export function rankPaths(index: readonly PathEntry[], query: string, limit = 12): Completion[] {
   const normalized = normalizeSearchQuery(query);
   if (!normalized) return [...index].sort(shallowestFirst).slice(0, limit).map(completionForPath);
 
   const ranked: RankedSearchResult<PathEntry>[] = [];
   for (const entry of index) {
-    const scores = [
-      scoreQueryMatch({ value: entry.name.toLowerCase(), query: normalized, exactBase: 0, prefixBase: 2, boundaryBase: 8, includesBase: 16, fuzzyBase: 100, boundaryMarkers: [".", "-", "_"] }),
-      scoreQueryMatch({ value: entry.path.toLowerCase(), query: normalized, exactBase: 1, prefixBase: 4, boundaryBase: 12, includesBase: 24, boundaryMarkers: ["/", "-", "_", "."] }),
-    ].filter((score): score is number => score !== null);
-    if (scores.length === 0) continue;
+    const match = pathMatch(entry, normalized);
+    if (!match) continue;
+    const score = match.tier * 1e8 + Math.min(match.closeness, 9999) * 1e4 + entry.path.length;
     // On a tie a file outranks its containing directory.
-    insertRankedSearchResult(ranked, { item: entry, score: Math.min(...scores), tieBreaker: `${entry.directory ? 1 : 0}\0${entry.path}` }, limit);
+    insertRankedSearchResult(ranked, { item: entry, score, tieBreaker: `${entry.directory ? 1 : 0}\0${entry.path}` }, limit);
   }
   return ranked.map((entry) => completionForPath(entry.item));
 }

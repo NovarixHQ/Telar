@@ -22,6 +22,7 @@ import {
   nextPanelTabId,
   openNewPanelTab,
   openPanelTab,
+  PERSON_CHOICE_MS,
   pullPanelNumber,
   readPanelTabs,
   setPanelTabParams,
@@ -99,13 +100,7 @@ function closeTab(panel: Strip, id: string, { hostId, sessionId, updatePanel }: 
   updatePanel((current) => closePanelTab(current, id));
 }
 
-/** The right panel's tab strip and Editor instances, persisted per `panelKey`. */
-export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }: {
-  panelKey: string;
-  enabledPlugins: readonly string[];
-  hostId: string;
-  sessionId: string | undefined;
-}) {
+function usePersistedPanel(panelKey: string) {
   const [panel, setPanel] = useState<Strip>(() => emptyPanelTabs<PanelTab>());
   const panelNow = useRef(panel);
   const [editors, setEditors] = useState<Record<string, EditorState>>(() => ({}));
@@ -134,15 +129,6 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
     [panelKey],
   );
 
-  useBrowserPageTabs(sessionId, updatePanel);
-
-  const { open: railOpen, setOpen: setRailOpen } = useSidebar();
-  const makeRoomForPanel = useCallback(() => {
-    if (!railOpen) return;
-    if (window.innerWidth >= NARROW_WINDOW) return;
-    setRailOpen(false);
-  }, [railOpen, setRailOpen]);
-
   const updateEditor = useCallback(
     (id: string, next: (current: EditorState) => EditorState) => {
       setEditors((current) => {
@@ -166,7 +152,34 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
     });
   }, [editors, updatePanel]);
 
-  const showPanelTab = useCallback(
+  return { panel, panelNow, updatePanel, editors, updateEditor };
+}
+
+/** The right panel's tab strip and Editor instances, persisted per `panelKey`. */
+export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }: {
+  panelKey: string;
+  enabledPlugins: readonly string[];
+  hostId: string;
+  sessionId: string | undefined;
+}) {
+  const { panel, panelNow, updatePanel, editors, updateEditor } = usePersistedPanel(panelKey);
+
+  const { open: railOpen, setOpen: setRailOpen } = useSidebar();
+  const makeRoomForPanel = useCallback(() => {
+    if (!railOpen) return;
+    if (window.innerWidth >= NARROW_WINDOW) return;
+    setRailOpen(false);
+  }, [railOpen, setRailOpen]);
+
+  // The person's last own move in the panel; what an agent or Run opens waits PERSON_CHOICE_MS behind it.
+  const touchedAt = useRef(0);
+  const touch = () => {
+    touchedAt.current = Date.now();
+  };
+  const mayReveal = useCallback(() => Date.now() - touchedAt.current >= PERSON_CHOICE_MS, []);
+  useBrowserPageTabs(sessionId, updatePanel, mayReveal);
+
+  const presentTab = useCallback(
     (tab: PanelTab, intent: OpenIntent = "pin") => {
       makeRoomForPanel();
       const path = filePanelTabPath(tab);
@@ -183,21 +196,38 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
       if (pull !== undefined) return updatePanel((current) => openForgeTab(current, "pulls", pull));
       updatePanel((current) => openPanelTab(current, tab));
     },
-    [makeRoomForPanel, updatePanel, updateEditor, enabledPlugins],
+    [makeRoomForPanel, updatePanel, updateEditor, enabledPlugins, panelNow],
+  );
+
+  const showPanelTab = useCallback(
+    (tab: PanelTab, intent: OpenIntent = "pin") => {
+      touch();
+      presentTab(tab, intent);
+    },
+    [presentTab],
+  );
+
+  const revealSurface = useCallback(
+    (tab: PanelTab) => {
+      if (mayReveal()) presentTab(tab);
+    },
+    [mayReveal, presentTab],
   );
 
   const openFileInNewPanelTab = useCallback(
     (path: string) => {
+      touch();
       makeRoomForPanel();
       const id = nextPanelTabId(panelNow.current, "editor");
       updateEditor(id, (current) => openInEditor(current, editorFileForPath(path, enabledPlugins), "pin"));
       updatePanel((current) => addPanelTab(current, { id, kind: "editor", params: { path } }));
     },
-    [makeRoomForPanel, updatePanel, updateEditor, enabledPlugins],
+    [makeRoomForPanel, updatePanel, updateEditor, enabledPlugins, panelNow],
   );
 
   const showNewPanelTab = useCallback(
     (tab: PanelTab, params?: PanelTabParams) => {
+      touch();
       makeRoomForPanel();
       updatePanel((current) => openNewPanelTab(current, tab, params));
     },
@@ -209,26 +239,37 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
       const { tabs, activeTab } = panelNow.current;
       const at = Math.max(tabs.findIndex((entry) => entry.id === activeTab), 0);
       const next = tabs[(at + delta + tabs.length) % tabs.length];
+      touch();
       if (next) updatePanel((state) => ({ ...state, activeTab: next.id, open: true }));
     },
-    [updatePanel],
+    [updatePanel, panelNow],
   );
 
   const setOpen = (open: boolean) => {
+    touch();
     if (open) makeRoomForPanel();
     updatePanel((current) => ({ ...current, open }));
   };
 
   const tabHandlers = {
-    onTabChange: (id: string) => updatePanel((current) => ({ ...current, activeTab: id })),
-    onCloseTab: (id: string) => closeTab(panel, id, { hostId, sessionId, updatePanel }),
+    onTabChange: (id: string) => {
+      touch();
+      updatePanel((current) => ({ ...current, activeTab: id }));
+    },
+    onCloseTab: (id: string) => {
+      touch();
+      closeTab(panel, id, { hostId, sessionId, updatePanel });
+    },
     onTabParams: (id: string, params: PanelTabParams) => updatePanel((current) => setPanelTabParams(current, id, params)),
-    onMoveTab: (id: string, toIndex: number) => updatePanel((current) => movePanelTab(current, id, toIndex)),
+    onMoveTab: (id: string, toIndex: number) => {
+      touch();
+      updatePanel((current) => movePanelTab(current, id, toIndex));
+    },
     onClose: () => setOpen(false),
   };
 
   return {
-    panel, editors, updatePanel, updateEditor, showPanelTab, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
+    panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
     openPanel: () => setOpen(true), togglePanel: () => setOpen(!panelNow.current.open), tabHandlers,
   };
 }

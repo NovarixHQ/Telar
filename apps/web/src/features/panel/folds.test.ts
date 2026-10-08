@@ -73,6 +73,17 @@ describe("syncPageTabs", () => {
   const page = (id: string, active = false) => ({ id, active });
   const ids = (state: Strip) => state.tabs.map((entry) => entry.id);
 
+  test("a page the agent opened is shown when asked; one the person opened is only added", () => {
+    const state: Strip = { tabs: [tab("diff")], activeTab: "diff", open: false };
+    const agent = syncPageTabs(state, { tabs: [{ id: "a", openedBy: "agent" as const }] }, undefined, true);
+    expect(agent.activeTab).toBe("browser:a");
+    expect(agent.open).toBe(true);
+    const human = syncPageTabs(state, { tabs: [{ id: "b", openedBy: "human" as const }] }, undefined, true);
+    expect(human.activeTab).toBe("diff");
+    const quiet = syncPageTabs(state, { tabs: [{ id: "a", openedBy: "agent" as const }] }, undefined, false);
+    expect(quiet.activeTab).toBe("diff");
+  });
+
   test("a new page gets a tab, unselected, and the panel stays as it was", () => {
     const state: Strip = { tabs: [tab("diff")], activeTab: "diff", open: false };
     const next = syncPageTabs(state, { tabs: [page("a", true)] }, "a");

@@ -16,10 +16,14 @@ function tabForRun<Kind extends string>(state: PanelTabState<Kind>, kind: Kind, 
   return state.tabs.find((tab) => tab.kind === kind && readTerminalTab(tab.params).run?.runId === runId);
 }
 
-/** Gives a run its own tab, unselected and with the panel untouched. Same object when it already has one. */
-export function revealTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind): PanelTabState<Kind> {
-  if (tabForRun(state, kind, run.runId)) return state;
-  return revealPanelTab(state, { id: nextPanelTabId(state, kind), kind, params: terminalTabParams(runTab(run)) });
+/** Gives a run its own tab; `show` also opens the panel on it. Same object when nothing changes. */
+export function revealTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind, show = false): PanelTabState<Kind> {
+  const held = tabForRun(state, kind, run.runId);
+  return revealPanelTab(state, held ?? { id: nextPanelTabId(state, kind), kind, params: terminalTabParams(runTab(run)) }, show);
+}
+
+export function startedCommand(run: RunView, before: RunView | undefined): boolean {
+  return run.activity === "busy" && (before === undefined || before.activity !== "busy" || before.command !== run.command);
 }
 
 /**
@@ -47,6 +51,5 @@ export function syncRunTabs<Kind extends string>(
 
 /** A person asked for this run: its tab is selected and the panel opens. */
 export function openTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind): PanelTabState<Kind> {
-  const revealed = revealTerminal(state, run, kind);
-  return { ...revealed, activeTab: tabForRun(revealed, kind, run.runId)!.id, open: true };
+  return revealTerminal(state, run, kind, true);
 }

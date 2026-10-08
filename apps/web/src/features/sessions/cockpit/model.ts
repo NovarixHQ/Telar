@@ -2,7 +2,7 @@ import { BotIcon, ClockIcon, TerminalIcon } from "lucide-react";
 import { pluginEnabled, readProjectPlugins, type TurnState } from "@telar/engine-client";
 import type { JournalTask, JournalTurn } from "@/platform/engine";
 import { insertReference } from "@/features/composer";
-import { openPanelTab, setPanelTabParams, type PanelTab, type PanelTabState } from "@/features/panel";
+import { nextPanelTabId, revealPanelTab, setPanelTabParams, type PanelTab, type PanelTabState } from "@/features/panel";
 import { SIMULATOR_SURFACE, withSimulatorShown } from "@/features/simulators";
 
 type TurnTone = "active" | "done" | "attention" | "danger" | "muted";
@@ -84,8 +84,9 @@ export function wakeUpLabel(task: JournalTask | undefined): { verb: string; Icon
   }
 }
 
-export function showSimulatorTab(state: PanelTabState<PanelTab>, simulatorId: string): PanelTabState<PanelTab> {
-  const opened = openPanelTab<PanelTab>(state, SIMULATOR_SURFACE);
-  const tab = opened.tabs.find((entry) => entry.id === opened.activeTab)!;
-  return setPanelTabParams(opened, tab.id, withSimulatorShown(tab.params, simulatorId));
+export function showSimulatorTab(state: PanelTabState<PanelTab>, simulatorId: string, show = true): PanelTabState<PanelTab> {
+  const held = state.tabs.find((entry) => entry.kind === SIMULATOR_SURFACE);
+  const tab = held ?? { id: nextPanelTabId<PanelTab>(state, SIMULATOR_SURFACE), kind: SIMULATOR_SURFACE as PanelTab, params: {} };
+  const placed = revealPanelTab(state, tab, show);
+  return setPanelTabParams(placed, tab.id, withSimulatorShown(tab.params, simulatorId));
 }

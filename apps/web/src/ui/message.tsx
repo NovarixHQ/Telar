@@ -31,7 +31,7 @@ export const MessageContent = ({
     className={cn(
       "flex min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm text-foreground",
       from === "user"
-        ? "ml-auto w-fit rounded-lg bg-secondary px-4 py-3"
+        ? "ml-auto w-fit max-w-[80%] rounded-lg bg-secondary px-4 py-3"
         : "w-full",
       className,
     )}

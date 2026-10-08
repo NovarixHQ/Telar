@@ -11,7 +11,8 @@ import {
 import type { EnvMode, PluginStatus, Project, ProjectPlugins, ProviderDriverKind, ProviderInstance } from "@telar/engine-client";
 import { defaultInstanceIdForDriver } from "@telar/engine-client";
 import type { PublicHost } from "@telar/engine-client";
-import { choiceNamesAnything, choiceOf, sessionModelSelection, type ModelChoice, useModelCatalogue } from "@/features/providers";
+import { useModelCatalogue } from "@/features/providers";
+import { choiceNamesAnything, choiceOf, sessionModelSelection, type ModelChoice } from "@telar/client/providers";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { LOCAL_HOST_ID } from "@telar/engine-client";

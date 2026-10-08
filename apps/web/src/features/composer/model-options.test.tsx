@@ -14,7 +14,7 @@ import type { BuiltInDriver, ModelCatalogue, ProviderDriverKind, ProviderModel }
 import { hasUltrathink, modelOptionSections, toggleUltrathink, type ModelOptionSection } from "./model-options";
 import { ReasoningControl } from "./components/reasoning-control";
 import { forgetModelCatalogues } from "@/features/providers/model-catalogue-cache";
-import type { ModelChoice } from "@/features/providers/models";
+import type { ModelChoice } from "@telar/client/providers";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

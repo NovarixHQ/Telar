@@ -2,7 +2,8 @@
 
 import { CheckIcon, StarIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
-import { type ModelFamily, connectionLabel, routeOf, routedModelLabel, driverLabel, ModelRowIcon } from "@/features/providers";
+import { connectionLabel, routeOf, routedModelLabel, driverLabel, ModelRowIcon } from "@/features/providers";
+import { type ModelFamily } from "@telar/client/providers";
 import { cn } from "@/ui/utils";
 
 /** One model family: its name, then the harness and connection serving it, since one model can be reached through several. */

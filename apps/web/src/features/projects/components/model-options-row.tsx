@@ -2,7 +2,7 @@
 
 import { GaugeIcon } from "lucide-react";
 import type { ProviderDriverKind, ProviderModel } from "@telar/engine-client";
-import { choiceOf, type ModelChoice } from "@/features/providers";
+import { choiceOf, type ModelChoice } from "@telar/client/providers";
 import { modelOptionsOf, ReasoningControl } from "@/features/composer";
 import { Row } from "@/features/settings";
 

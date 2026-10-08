@@ -1,5 +1,5 @@
 import type { ClaudeConversation, EngineRequest, ProviderDriverKind, RuntimeMode, Session, SessionChildState, UsageSnapshot } from "@telar/engine-client";
-import type { ModelChoice } from "@/features/providers";
+import type { ModelChoice } from "@telar/client/providers";
 import type { ComposerKind } from "../registry";
 
 export type ComposerProps = {

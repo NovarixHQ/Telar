@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { writeDraft, writeDraftFiles } from "@/features/composer";
-import { sessionModelSelection, type ModelChoice } from "@/features/providers";
+import { sessionModelSelection, type ModelChoice } from "@telar/client/providers";
 import { browserPanelTab, describeBrowserStart, latestBrowserState, LIVE_BROWSER_TAB, type BrowserStartState } from "@/features/panel";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import { nativePageToShow, openNativePage } from "@/features/browser/native-pages";

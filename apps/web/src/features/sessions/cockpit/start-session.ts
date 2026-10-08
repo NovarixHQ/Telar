@@ -1,7 +1,7 @@
 import { seedSessionTitle, type ProviderDriverKind, type RuntimeMode, type Session, type TurnModelSelection } from "@telar/engine-client";
 import { newRunId, type createEngineApi } from "@/platform/engine";
 import { splitImages } from "@/features/prompts";
-import { choiceNamesAnything, choiceOf, sessionModelSelection, type ModelChoice } from "@/features/providers";
+import { choiceNamesAnything, choiceOf, sessionModelSelection, type ModelChoice } from "@telar/client/providers";
 import { newSessionId } from "../session-mutations";
 
 type Api = ReturnType<typeof createEngineApi>;

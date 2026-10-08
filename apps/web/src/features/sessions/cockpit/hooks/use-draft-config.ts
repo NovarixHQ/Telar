@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
-import { projectDraftModel, type ModelChoice } from "@/features/providers";
+import { projectDraftModel, type ModelChoice } from "@telar/client/providers";
 import { useSessionDefaults } from "../../session-defaults";
 import type { ProjectDefaults } from "./use-cockpit-project";
 import type { DraftChoices } from "./use-session-browser";

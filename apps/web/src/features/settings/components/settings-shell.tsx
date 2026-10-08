@@ -18,7 +18,6 @@ export type SettingsSection = {
   icon: ComponentType<{ className?: string }>;
   count?: number;
   scope?: SettingsScope;
-  wide?: boolean;
   keywords?: readonly string[];
 };
 
@@ -240,7 +239,7 @@ export function SettingsShell({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border">
         <SettingsPaneHeader title={title} section={activeSection} headerActions={headerActions} restorers={restorers} />
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className={cn("mx-auto w-full px-5 py-5", activeSection.wide ? "max-w-5xl" : "max-w-2xl")}>
+          <div className="mx-auto w-full max-w-4xl px-5 py-5">
             <SettingsPaneContext.Provider value={activeSection.id}>
               <SettingsRestoreContext.Provider value={restoreRegistry}>
                 <SettingsRevealContext.Provider value={pendingRow}>{children}</SettingsRevealContext.Provider>

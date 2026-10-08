@@ -59,7 +59,12 @@ export function diffNotes(diff: SessionDiff): string[] {
   return notes;
 }
 
-export const fileCount = (count: number) => (count === 1 ? "1 file" : `${count} files`);
+const grouped = new Intl.NumberFormat("en-US");
+
+/** A count as Swift interpolates an Int into Text: grouped in thousands. */
+export const count = (value: number) => grouped.format(value);
+
+export const fileCount = (files: number) => (files === 1 ? "1 file" : `${count(files)} files`);
 
 const UNITS: [number, (n: number) => string][] = [
   [365 * 86_400, (n) => `${n} yr.`],

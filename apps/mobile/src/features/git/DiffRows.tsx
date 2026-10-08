@@ -2,7 +2,7 @@ import { HStack, RoundedRectangle, Spacer, Text, VStack } from "@expo/ui/swift-u
 import { accessibilityElement, accessibilityHidden, accessibilityLabel, accessibilityValue, background, fixedSize, font, foregroundStyle, frame, lineLimit, monospacedDigit, padding, rotationEffect, shapes, truncationMode } from "@expo/ui/swift-ui/modifiers";
 import type { GitCommitEntry, SessionDiff } from "@telar/engine-client";
 import { faded, Icon, Theme, Type } from "../../ui";
-import { fileCount, relativeTime, statBlocks, type FileLine, type StatusTone } from "./summary";
+import { count, fileCount, relativeTime, statBlocks, type FileLine, type StatusTone } from "./summary";
 
 const rounded = (cornerRadius: number) => shapes.roundedRectangle({ cornerRadius, roundedCornerStyle: "continuous" });
 
@@ -25,8 +25,8 @@ function StatusBadge({ letter, tone, label }: { letter: string; tone: StatusTone
 function DiffCounts({ added, removed }: { added?: number; removed?: number }) {
   return (
     <HStack spacing={6} modifiers={[font({ textStyle: "footnote", weight: "medium" }), monospacedDigit()]}>
-      {added === undefined ? null : <Text modifiers={[foregroundStyle(Theme.emerald)]}>{`+${added}`}</Text>}
-      {removed === undefined ? null : <Text modifiers={[foregroundStyle(Theme.red)]}>{`−${removed}`}</Text>}
+      {added === undefined ? null : <Text modifiers={[foregroundStyle(Theme.emerald)]}>{`+${count(added)}`}</Text>}
+      {removed === undefined ? null : <Text modifiers={[foregroundStyle(Theme.red)]}>{`−${count(removed)}`}</Text>}
     </HStack>
   );
 }

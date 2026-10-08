@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { SessionDiff } from "@telar/engine-client";
-import { diffNotes, fileLine, relativeTime, statBlocks } from "./summary";
+import { count, diffNotes, fileCount, fileLine, relativeTime, statBlocks } from "./summary";
 
 const diff = (over: Partial<SessionDiff> = {}): SessionDiff => ({
   repository: true,
@@ -47,4 +47,10 @@ test("commit times read as iOS's abbreviated relative dates", () => {
   expect(relativeTime(now - 3 * 3_600_000, now)).toBe("3 hr. ago");
   expect(relativeTime(now - 86_400_000, now)).toBe("1 day ago");
   expect(relativeTime(now - 9 * 86_400_000, now)).toBe("1 wk. ago");
+});
+
+test("counts group thousands as the Swift app prints them", () => {
+  expect(count(31_603)).toBe("31,603");
+  expect(fileCount(1)).toBe("1 file");
+  expect(fileCount(1200)).toBe("1,200 files");
 });

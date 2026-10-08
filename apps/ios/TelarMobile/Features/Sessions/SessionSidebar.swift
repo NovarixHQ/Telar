@@ -208,7 +208,7 @@ struct SessionSidebar: View {
                     Button("Retry") {
                         Task {
                             await settings.reconnect(failure.hostId)
-                            await inbox.refresh()
+                            await inbox.refresh(failure.hostId)
                         }
                     }
                     .buttonStyle(.borderless).fontWeight(.medium)

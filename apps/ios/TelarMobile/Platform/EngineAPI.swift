@@ -62,15 +62,12 @@ struct HTTPEngineAPI: Sendable {
     let transport: HTTPTransport
 
     let failover: (@Sendable (URL) async -> URL?)?
-    let onUnauthorized: (@Sendable () async -> Void)?
 
     init(baseURL: URL, deviceToken: String? = nil, transport: HTTPTransport = HTTPTransport(),
-         onUnauthorized: (@Sendable () async -> Void)? = nil,
          failover: (@Sendable (URL) async -> URL?)? = nil) {
         self.baseURL = baseURL
         self.deviceToken = deviceToken
         self.transport = transport
-        self.onUnauthorized = onUnauthorized
         self.failover = failover
     }
 
@@ -119,38 +116,36 @@ struct HTTPEngineAPI: Sendable {
     }
 
     func exchange(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        let session = transport.session
         do {
-            return try await load(session, request)
-        } catch where Task.isCancelled {
+            let answer = try await load(request)
+            guard (answer.1 as? HTTPURLResponse)?.statusCode == 421, let retry = await movedAway(request) else { return answer }
+            return try await load(retry)
+        } catch where Task.isCancelled || HostAddresses.isCancellation(error) {
             throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
-            do {
-                return try await load(transport.renew(replacing: session), request)
-            } catch {
-                throw EngineAPIError.transport(error)
-            }
         } catch {
-            guard HostAddresses.isTransportFailure(error) else { throw EngineAPIError.transport(error) }
-            let fresh = transport.renew(replacing: session)
-            guard let failover, let moved = await failover(baseURL),
-                  ["GET", "HEAD"].contains(request.httpMethod ?? "GET"),
-                  let url = request.url, let rebased = HostAddresses.rebase(url, from: baseURL, to: moved)
-            else { throw EngineAPIError.transport(error) }
-            var retry = request
-            retry.url = rebased
+            guard HostAddresses.isTransportFailure(error), let retry = await movedAway(request) else { throw EngineAPIError.transport(error) }
             do {
-                return try await load(fresh, retry)
+                return try await load(retry)
             } catch {
-                throw EngineAPIError.transport(error)
+                throw HostAddresses.isCancellation(error) ? CancellationError() : EngineAPIError.transport(error)
             }
         }
     }
 
-    private func load(_ session: URLSession, _ request: URLRequest) async throws -> (Data, URLResponse) {
+    private func movedAway(_ request: URLRequest) async -> URLRequest? {
+        guard ["GET", "HEAD"].contains(request.httpMethod ?? "GET"), let failover,
+              let moved = await failover(baseURL), !Task.isCancelled,
+              let url = request.url, let rebased = HostAddresses.rebase(url, from: baseURL, to: moved), rebased != url
+        else { return nil }
+        var retry = request
+        retry.url = rebased
+        return retry
+    }
+
+    private func load(_ request: URLRequest) async throws -> (Data, URLResponse) {
         let started = ContinuousClock.now
         do {
-            let answer = try await session.data(for: request)
+            let answer = try await transport.session.data(for: request)
             let status = (answer.1 as? HTTPURLResponse)?.statusCode ?? 0
             ConnectionLog.shared.request(transport.hostKey, request, outcome: .success(status), since: started)
             return answer
@@ -165,9 +160,7 @@ struct HTTPEngineAPI: Sendable {
         let http = response as? HTTPURLResponse
         let status = http?.statusCode ?? 0
         guard (200..<300).contains(status) else {
-            let error = EngineAPIError.failure(data, status: status)
-            if error.isUnauthorized { await onUnauthorized?() }
-            throw error
+            throw EngineAPIError.failure(data, status: status)
         }
         return RawFile(data: data, contentType: http?.value(forHTTPHeaderField: "content-type"))
     }
@@ -191,9 +184,7 @@ struct HTTPEngineAPI: Sendable {
         let (data, response) = try await exchange(request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
-            let error = EngineAPIError.failure(data, status: status)
-            if error.isUnauthorized { await onUnauthorized?() }
-            throw error
+            throw EngineAPIError.failure(data, status: status)
         }
         return (data, status)
     }

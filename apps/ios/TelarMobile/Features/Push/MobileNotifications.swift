@@ -36,8 +36,7 @@ struct PushStatus: Decodable {
     private var watchers: [String: Task<Void, Never>] = [:]
     private var stateWatchers: [String: Task<Void, Never>] = [:]
     private let defaults = UserDefaults.standard
-    private var synchronizing = false
-    private var syncAgain = false
+    private var registrations: [HostID: Task<Void, Never>] = [:]
     private var attemptedRegistration = false
     private var started = false
     private var cardDismissed = false
@@ -99,16 +98,6 @@ struct PushStatus: Decodable {
         Task { await syncRegistrations() }
     }
     func syncRegistrations() async {
-        syncAgain = true
-        guard !synchronizing else { return }
-        synchronizing = true
-        repeat {
-            syncAgain = false
-            await performRegistrationSync()
-        } while syncAgain
-        synchronizing = false
-    }
-    private func performRegistrationSync() async {
         await endOtherCards()
         for activity in Activity<SessionActivityAttributes>.activities where activity.activityState == .active || activity.activityState == .stale {
             watch(activity)
@@ -124,35 +113,42 @@ struct PushStatus: Decodable {
         }
         let authorization = await UNUserNotificationCenter.current().notificationSettings()
         let allowed = authorization.authorizationStatus == .authorized || authorization.authorizationStatus == .provisional
-        var next = PushReadiness()
         let relayTokens = RelayTokens(token: token, card: liveCard.flatMap { activityTokens[$0.id] })
-        await withTaskGroup(of: (HostID, Bool?).self) { group in
-            for host in settings.hosts {
-                guard let api = settings.api(for: host.id) else { continue }
-                let mutedSessions = muted.compactMap { URL(string: $0).flatMap(ScopedSessionID.init(url:)) }.filter { $0.hostId == host.id }.map(\.sessionId)
-                #if DEBUG
-                let sandbox = true
-                #else
-                let sandbox = false
-                #endif
-                group.addTask { @MainActor in
-                    let relay = await PushRelayClient.shared.credential(for: host.id.uuidString, tokens: relayTokens)
-                    let reply = try? await api.registerPush(.init(hostId: host.id.uuidString, token: token,
-                        topic: Bundle.main.bundleIdentifier ?? "io.github.novarix.telar", sandbox: sandbox,
-                        enabled: self.enabled && allowed, completions: self.completions, previews: self.previews, sounds: self.sounds.rawValue,
-                        mutedSessions: mutedSessions,
-                        liveActivities: self.liveActivities && ActivityAuthorizationInfo().areActivitiesEnabled,
-                        hostName: host.name, relay: relay))
-                    return (host.id, reply?.configured)
-                }
-            }
-            for await (id, configured) in group {
-                if configured == nil { next.unreachable.insert(id) } else if configured == false { next.notSending.insert(id) }
-            }
+        let paired = Set(settings.hosts.map(\.id))
+        readiness.forget(except: paired)
+        for (id, running) in registrations where !paired.contains(id) { running.cancel() }
+        registrations = registrations.filter { paired.contains($0.key) }
+        let running = settings.hosts.compactMap { host in
+            settings.api(for: host.id).map { register(host, api: $0, token: token, allowed: allowed, relayTokens: relayTokens) }
         }
-        next.deviceUnsupported = PushRelayClient.shared.unavailable
-        readiness = next
-        status = next.statusLine(enabled: enabled, allowed: allowed)
+        for task in running { await task.value }
+    }
+
+    private func register(_ host: Host, api: HTTPEngineAPI, token: String, allowed: Bool, relayTokens: RelayTokens) -> Task<Void, Never> {
+        registrations[host.id]?.cancel()
+        let mutedSessions = muted.compactMap { URL(string: $0).flatMap(ScopedSessionID.init(url:)) }.filter { $0.hostId == host.id }.map(\.sessionId)
+        #if DEBUG
+        let sandbox = true
+        #else
+        let sandbox = false
+        #endif
+        let registration = PushRegistration(hostId: host.id.uuidString, token: token,
+            topic: Bundle.main.bundleIdentifier ?? "io.github.novarix.telar", sandbox: sandbox,
+            enabled: enabled && allowed, completions: completions, previews: previews, sounds: sounds.rawValue,
+            mutedSessions: mutedSessions,
+            liveActivities: liveActivities && ActivityAuthorizationInfo().areActivitiesEnabled,
+            hostName: host.name, relay: nil)
+        let task = Task { [weak self] in
+            var sent = registration
+            sent.relay = await PushRelayClient.shared.credential(for: host.id.uuidString, tokens: relayTokens)
+            let reply = try? await api.registerPush(sent)
+            guard !Task.isCancelled, let self else { return }
+            readiness.record(host.id, configured: reply?.configured)
+            readiness.deviceUnsupported = PushRelayClient.shared.unavailable
+            status = readiness.statusLine(enabled: enabled, allowed: allowed)
+        }
+        registrations[host.id] = task
+        return task
     }
 
     private var liveCard: Activity<SessionActivityAttributes>? {

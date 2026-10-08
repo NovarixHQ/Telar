@@ -215,7 +215,7 @@ enum HostAddresses {
 
     static func isTransportFailure(_ error: Error) -> Bool {
         guard let code = (error as? URLError)?.code else { return false }
-        return [.timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .dnsLookupFailed]
+        return [.timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .dnsLookupFailed, .notConnectedToInternet]
             .contains(code)
     }
 

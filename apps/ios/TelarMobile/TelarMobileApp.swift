@@ -29,6 +29,7 @@ struct TelarMobileApp: App {
 struct RootView: View {
     let settings: AppSettings
     @State private var inbox = MergedInbox()
+    @State private var open = OpenSession()
     @State private var composing: Composing?
     @State private var selection: ScopedSessionID?
     @State private var showSettings = UserDefaults.standard.bool(forKey: "openSettings")
@@ -59,7 +60,8 @@ struct RootView: View {
                         } else if let ref = selection, let api = settings.api(for: ref.hostId) {
                             SessionView(api: api, sessionId: ref.sessionId, hostId: ref.hostId,
                                         hostName: settings.host(ref.hostId)?.name,
-                                        cockpitBaseURL: settings.host(ref.hostId)?.baseURL, cache: settings.snapshotCache(for: ref.hostId),
+                                        cockpitBaseURL: settings.host(ref.hostId)?.baseURL,
+                                        store: open.store(ref, key: settings.apiFingerprint(ref.hostId), api: api, cache: settings.snapshotCache(for: ref.hostId)),
                                         onRead: { answer in inbox.applyRead(ref, answer: answer) },
                                         reconnect: { await settings.reconnect(ref.hostId) })
                                 .id("\(settings.apiFingerprint(ref.hostId)):\(ref.sessionId)")
@@ -104,6 +106,10 @@ struct RootView: View {
         .onChange(of: settings.book.membershipFingerprint) {
             if let selection, settings.host(selection.hostId) == nil { self.selection = nil }
         }
+        .task(id: OpenSession.Key(ref: selection, fingerprint: selection.map { settings.apiFingerprint($0.hostId) }, active: scenePhase == .active)) {
+            guard scenePhase == .active, composing == nil, let ref = selection, let api = settings.api(for: ref.hostId) else { return }
+            await open.store(ref, key: settings.apiFingerprint(ref.hostId), api: api, cache: settings.snapshotCache(for: ref.hostId)).sync.follow()
+        }
         .task(id: fingerprint) {
             inbox.sync(hosts: settings.hosts, settings: settings, active: scenePhase == .active)
             MobileNotifications.shared.settings = settings
@@ -112,9 +118,8 @@ struct RootView: View {
         .onChange(of: inbox.onCards) { _, sessions in
             if scenePhase == .active { MobileNotifications.shared.startCard(sessions, projectName: inbox.projectName) }
         }
-        .onChange(of: scenePhase) { previous, phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                if previous == .background { settings.renewConnections() }
                 inbox.start()
                 MobileNotifications.shared.startCard(inbox.onCards, projectName: inbox.projectName)
                 Task { await MobileNotifications.shared.syncRegistrations() }

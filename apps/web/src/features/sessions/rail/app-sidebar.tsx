@@ -1,23 +1,12 @@
 "use client";
 
-import { Suspense, useCallback, useState } from "react";
-import dynamic from "next/dynamic";
-import { usePathname, useRouter } from "next/navigation";
-import type { Project } from "@telar/engine-client";
-import { type CommandPalettePage, useCommandHandlers, useCommandKeys } from "@/features/commands";
+import { useCallback, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCommandHandlers } from "@/features/commands";
 import { HostMarksShown } from "@/features/hosts";
-import { type NewConversationTarget, projectSettingsHref } from "@/features/projects";
+import { projectSettingsHref } from "@/features/projects";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarRail, type SidebarResizableOptions, type SidebarWidthProposal, useSidebar } from "@/ui/sidebar";
-import {
-  activeSessionFromPathname,
-  canvasHref,
-  canvasProjectFromPathname,
-  SESSION_PAGE_SIZE,
-  SETTLED_PAGE_SIZE,
-  sessionHref,
-  sessionKey,
-  type SidebarSession,
-} from "../session-list";
+import { activeSessionFromPathname, canvasProjectFromPathname, SESSION_PAGE_SIZE, SETTLED_PAGE_SIZE } from "../session-list";
 import { APP_SIDEBAR_MAIN_MIN_WIDTH, APP_SIDEBAR_STORAGE_KEY, keepsRoomForMain, SIDEBAR_RESIZE_MIN_WIDTH } from "@/ui/sidebar-width";
 import { AppSidebarFooterRow } from "./app-sidebar-footer";
 import { RailDrafts } from "./rail-drafts";
@@ -26,10 +15,9 @@ import { TelarSidebarHeader } from "./rail-parts";
 import { RailSearch } from "./rail-search";
 import { SidebarProjectFilter } from "./sidebar-project-filter";
 import { useDockUnread } from "./unread";
-import { type RailData, useRailData, type RemoteProject } from "./use-rail-data";
+import { useCommandHost } from "./command-host";
+import { type RailData, useRailData } from "./use-rail-data";
 import { useRailView } from "./use-rail-view";
-
-const CommandPalette = dynamic(() => import("@/features/commands/components/command-palette").then((mod) => mod.CommandPalette));
 
 const APP_SIDEBAR_RESIZABLE = {
   minWidth: SIDEBAR_RESIZE_MIN_WIDTH,
@@ -42,61 +30,14 @@ export function connectedHosts(data: Pick<RailData, "hosts" | "unreachable">): n
   return 1 + data.hosts.filter((host) => !data.unreachable.has(host.id)).length;
 }
 
-export function pickerTargetsFor(projects: readonly Project[], remoteProjects: readonly RemoteProject[]): NewConversationTarget[] {
-  return [
-    ...projects.map((project) => ({
-      id: project.id,
-      name: project.name,
-      ...(project.icon ? { icon: project.icon } : {}),
-      ...(project.iconName ? { iconName: project.iconName } : {}),
-      ...(project.root ? { root: project.root } : {}),
-    })),
-    ...remoteProjects.map((project) => ({
-      id: project.id,
-      name: project.name,
-      ...(project.icon ? { icon: project.icon } : {}),
-      ...(project.iconName ? { iconName: project.iconName } : {}),
-      hostId: project.hostId,
-      hostName: project.hostName,
-    })),
-  ];
-}
-
-export const composerTargetOf = (target: { id: string; hostId?: string }) => ({
-  projectId: target.id,
-  ...(target.hostId ? { hostId: target.hostId } : {}),
-});
-
-type PaletteState = { open: boolean; asked: boolean; page: CommandPalettePage; query: string };
-type ComposerTarget = { projectId: string; hostId?: string };
-
-export function composerTargetFor(
-  sessions: readonly SidebarSession[],
-  activeSessionId: string | undefined,
-  projects: readonly Project[],
-  remoteProjects: readonly RemoteProject[],
-): ComposerTarget | undefined {
-  const active = sessions.find((session) => sessionKey(session) === activeSessionId);
-  if (active?.projectId) return { projectId: active.projectId, ...(active.hostId ? { hostId: active.hostId } : {}) };
-  const recent = [...sessions].sort((left, right) => right.updatedAt - left.updatedAt).find((session) => session.projectId);
-  if (recent?.projectId) return { projectId: recent.projectId, ...(recent.hostId ? { hostId: recent.hostId } : {}) };
-  if (projects[0]) return { projectId: projects[0].id };
-  const remote = remoteProjects[0];
-  return remote ? { projectId: remote.id, hostId: remote.hostId } : undefined;
-}
-
 function SidebarBody() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { isMobile, open: railOpen, setOpenMobile, toggleSidebar } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const data = useRailData();
   const [query, setQuery] = useState("");
   const [searchIndex, setSearchIndex] = useState(0);
   const [sessionLimit, setSessionLimit] = useState(SESSION_PAGE_SIZE);
   const [settledLimit, setSettledLimit] = useState(SETTLED_PAGE_SIZE);
-  const [palette, setPalette] = useState<PaletteState>({ open: false, asked: false, page: "root", query: "" });
-  const openPalette = (page: CommandPalettePage, seed = "") => setPalette({ open: true, asked: true, page, query: seed });
-
   const onNavigate = useCallback(() => {
     if (isMobile) setOpenMobile(false);
   }, [isMobile, setOpenMobile]);
@@ -104,37 +45,17 @@ function SidebarBody() {
   const activeSessionId = activeSessionFromPathname(pathname);
   const view = useRailView(data, { query, activeSessionId, sessionLimit, settledLimit });
   useDockUnread(data.sessions, activeSessionId, view.env.bandFor);
-  const run = useCommandKeys(view.railRows, {
-    "new-conversation": () => newConversation(),
-    "new-conversation-in": () => openPalette("projects"),
-    "add-project": () => openPalette("sources"),
-    "search-sessions": () =>
-      setPalette((current) => (current.open ? { ...current, open: false } : { open: true, asked: true, page: "root", query })),
-    "toggle-rail": () => toggleSidebar(),
-  }, activeSessionId);
+  const { element: palette, run, openPalette, composerTarget, startSession, openSession, pickerTargets, soleTarget, go } = useCommandHost({
+    data,
+    railRows: view.railRows,
+    activeSessionId,
+    railQuery: query,
+    onNavigate,
+  });
 
   const results = view.list.sessions;
   const selectedSearchIndex = results.length ? Math.min(searchIndex, results.length - 1) : -1;
-  const composerTarget = composerTargetFor(data.sessions, activeSessionId, data.projects, data.remoteProjects);
-  const startSession = (target = composerTarget) => {
-    onNavigate();
-    router.push(target ? canvasHref(target.projectId, target.hostId) : "/");
-  };
-  const openSession = (session: SidebarSession) => {
-    onNavigate();
-    router.push(sessionHref(session));
-  };
-  const openProjectSettings = (projectId: string) => {
-    onNavigate();
-    router.push(projectSettingsHref(projectId));
-  };
-
-  const pickerTargets = pickerTargetsFor(data.projects, data.remoteProjects);
-  const soleTarget = pickerTargets.length === 1 ? pickerTargets[0] : undefined;
-  const newConversation = () => {
-    if (soleTarget) startSession(composerTargetOf(soleTarget));
-    else openPalette("projects");
-  };
+  const openProjectSettings = (projectId: string) => go(projectSettingsHref(projectId));
 
   const localProjectId = composerTarget && !composerTarget.hostId ? composerTarget.projectId : undefined;
   useCommandHandlers(localProjectId ? { "project-settings": () => openProjectSettings(localProjectId) } : {}, [localProjectId]);
@@ -143,27 +64,7 @@ function SidebarBody() {
   const listProps = { data, view, query, selectedSearchIndex, onNavigate, startSession, openProjectSettings };
   return (
     <>
-      {palette.asked && (
-        <Suspense fallback={null}>
-          <CommandPalette
-            open={palette.open}
-            page={palette.page}
-            query={palette.query}
-            onOpenChange={(open) => setPalette((current) => ({ ...current, open, asked: current.asked || open }))}
-            targets={pickerTargets}
-            sessions={data.sessions}
-            railOpen={railOpen}
-            onRun={run}
-            onChooseProject={(target) => startSession(composerTargetOf(target))}
-            onOpenSession={openSession}
-            onNavigate={(href) => {
-              onNavigate();
-              router.push(href);
-            }}
-            onRegistered={() => void data.loadAll()}
-          />
-        </Suspense>
-      )}
+      {palette}
       <TelarSidebarHeader />
       <HostMarksShown value={connectedHosts(data) > 1}>
         <SidebarContent>
@@ -230,4 +131,11 @@ export function AppSidebar() {
       <AppSidebarRail />
     </Sidebar>
   );
+}
+
+export function RaillessCommands() {
+  const data = useRailData();
+  const activeSessionId = activeSessionFromPathname(usePathname());
+  const view = useRailView(data, { query: "", activeSessionId, sessionLimit: SESSION_PAGE_SIZE, settledLimit: SETTLED_PAGE_SIZE });
+  return useCommandHost({ data, railRows: view.railRows, activeSessionId }).element;
 }

@@ -22,7 +22,7 @@ function menuItem(label, items = electron.Menu.current) {
 
 test("the Window menu offers to float the browser on top, with its shortcut", () => {
   buildApplicationMenu();
-  const item = windowMenu().submenu.find((entry) => entry.label === "Float Browser on Top");
+  const item = windowMenu().submenu.find((entry) => entry.label === "Float browser on top");
   expect(item.accelerator).toBe("CommandOrControl+Alt+P");
 
   const win = new FakeBrowserWindow();
@@ -54,7 +54,7 @@ describe("each window keeps its own shortcut state, and the menu follows the foc
   }
   const capture = (win, on) => electron.ipcMain.invoke("telar:keybindings:capture", eventFrom(win), on);
   const scope = (win, chords) => electron.ipcMain.invoke("telar:keybindings:scope", eventFrom(win), chords);
-  const newConversation = () => menuItem("New Conversation");
+  const newConversation = () => menuItem("New session");
 
   test("recording a shortcut in one window leaves the other's shortcuts working", () => {
     expect(capture(b, true)).toBe(true);

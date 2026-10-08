@@ -260,7 +260,7 @@ export function KeybindingsPage() {
 }
 
 const GROUP_BLURBS: Record<CommandGroup, string> = {
-  Conversation: "The conversation in front of you, and starting another one.",
+  Session: "The session in front of you, and starting another one.",
   Rail: "Moving around the list on the left.",
   Panel: "The surfaces on the right, and which one is showing.",
   Application: "The app itself.",

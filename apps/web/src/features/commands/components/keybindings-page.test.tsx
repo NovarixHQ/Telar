@@ -26,7 +26,7 @@ test("every command in the registry is accounted for, derived rather than listed
   const singles = COMMANDS.filter((command) => !command.jump).map((command) => command.id);
   expect(rows.map((row) => row.id).sort()).toEqual([...singles, "jump"].sort());
   // Every row files under a group the pane draws, or it would render nowhere.
-  for (const row of rows) expect(["Conversation", "Rail", "Panel", "Application"]).toContain(row.group);
+  for (const row of rows) expect(["Session", "Rail", "Panel", "Application"]).toContain(row.group);
 });
 
 test("the nine jumps are one row carrying the whole range", () => {
@@ -84,7 +84,7 @@ test("the chord is split into one cap per key, in the platform's own register", 
 
 test("rows read in this app's vocabulary, not the Electron menu's", () => {
   const titles = rowsWith().map((row) => row.title);
-  expect(titles).toContain("New Conversation");
+  expect(titles).toContain("New session");
   expect(titles).toContain("Jump to conversation 1–9");
   // The menu's trailing ellipsis is a menu-item convention and names nothing on
   // a settings row.
@@ -100,8 +100,8 @@ test("a conflicted map flags both rows, by the other one's name", () => {
   // to say so rather than to prevent it.
   const keymap = mergeKeymap({ "open-editor": "CommandOrControl+Shift+D" });
   const rows = rowsWith(keymap);
-  expect(rows.find((row) => row.id === "open-diff")?.conflicts).toEqual(["Open Editor"]);
-  expect(rows.find((row) => row.id === "open-editor")?.conflicts).toEqual(["Open Diff"]);
+  expect(rows.find((row) => row.id === "open-diff")?.conflicts).toEqual(["Open editor"]);
+  expect(rows.find((row) => row.id === "open-editor")?.conflicts).toEqual(["Open diff"]);
   // A clean map flags nothing.
   for (const row of rowsWith()) expect(row.conflicts).toEqual([]);
 });
@@ -109,7 +109,7 @@ test("a conflicted map flags both rows, by the other one's name", () => {
 test("a clash inside the folded range surfaces on the one row that draws it", () => {
   // ⌘3 colliding with something has nowhere else to be said.
   const keymap = mergeKeymap({ "open-diff": "CommandOrControl+3" });
-  expect(rowsWith(keymap).find((row) => row.id === "jump")?.conflicts).toEqual(["Open Diff"]);
+  expect(rowsWith(keymap).find((row) => row.id === "jump")?.conflicts).toEqual(["Open diff"]);
 });
 
 test("a row knows whether it has been moved, which is what offers the revert", () => {
@@ -148,7 +148,7 @@ test("recording the folded row moves all nine together, or not at all", () => {
 
 test("the pane draws each chord as a pressable key cap", () => {
   const html = renderToStaticMarkup(<KeybindingsPage />);
-  expect(html).toContain("New Conversation");
+  expect(html).toContain("New session");
   // Caps, not a string: "⌘ N" in one box reads as a key called "⌘ N".
   expect(html).toContain("<kbd");
   // And never the accelerator the Electron menu is built from.
@@ -156,15 +156,15 @@ test("the pane draws each chord as a pressable key cap", () => {
   // #367's whole point: every row is a control now. The pane used to say the
   // chords were fixed by having nothing to press.
   expect(html).toContain("<button");
-  expect(html).toContain("Change the chord for New Conversation");
+  expect(html).toContain("Change the chord for New session");
   expect(html).not.toContain("not built yet");
 });
 
 test("the pane groups the rows the way a person meets them", () => {
   const html = renderToStaticMarkup(<KeybindingsPage />);
-  for (const group of ["Conversation", "Rail", "Panel", "Application"]) expect(html).toContain(group);
-  // Conversation before Application: the order is the app's, not the alphabet's.
-  expect(html.indexOf("Conversation")).toBeLessThan(html.indexOf("Application"));
+  for (const group of ["Session", "Rail", "Panel", "Application"]) expect(html).toContain(group);
+  // Session before Application: the order is the app's, not the alphabet's.
+  expect(html.indexOf("Session")).toBeLessThan(html.indexOf("Application"));
 });
 
 test("search finds the pane before it has ever been opened", () => {

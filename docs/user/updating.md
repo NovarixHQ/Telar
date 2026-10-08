@@ -11,7 +11,7 @@ Nothing installs until you choose to. You can install in one of two ways:
 - **Install and restart** now. Telar asks first and tells you what the restart will interrupt: sessions that are working, and terminals whose commands will be ended.
 - **Install on quit** (Settings → General → About). A downloaded update installs the next time you quit Telar.
 
-To check by hand, use the update control in the rail, Settings → General → About, or Check for Updates… in the command palette.
+To check by hand, use the update control in the rail, Settings → General → About, or Check for updates… in the command palette.
 
 ## Sessions across a restart
 

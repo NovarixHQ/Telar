@@ -99,7 +99,7 @@ export const COMMAND_ICONS: Record<string, LucideIcon> = {
 };
 
 export const GROUP_ICONS: Record<CommandGroup, LucideIcon> = {
-  Conversation: MessageSquareIcon,
+  Session: MessageSquareIcon,
   Rail: PanelLeftIcon,
   Panel: PanelRightIcon,
   Application: SettingsIcon,

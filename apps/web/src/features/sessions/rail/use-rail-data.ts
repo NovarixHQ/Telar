@@ -135,6 +135,7 @@ export function useRailData() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [sessions, setSessions] = useState<SidebarSession[]>([]);
   const [renderedAt, setRenderedAt] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   const [settledOpen, setSettledOpen] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [shelvedOnEngines, setShelvedOnEngines] = useState(0);
@@ -162,6 +163,7 @@ export function useRailData() {
         setSessions(remembered);
         setRenderedAt(Date.now());
       }
+      setLoaded(true);
       return;
     }
     setUnavailable(false);
@@ -199,6 +201,7 @@ export function useRailData() {
     setShelvedOnEngines(reads.reduce((total, read) => total + (read.settledCount ?? 0), 0));
     setSessions(dedupeAcrossHosts(reads));
     setRenderedAt(Date.now());
+    setLoaded(true);
   }, [loadHost]);
 
   // A reload asked for mid-read (a project just added) runs once more rather than being dropped.
@@ -256,6 +259,7 @@ export function useRailData() {
   return {
     projects,
     sessions,
+    loaded,
     renderedAt,
     settledOpen,
     toggleSettled,

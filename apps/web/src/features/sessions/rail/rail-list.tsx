@@ -8,7 +8,7 @@ import { projectPlaces } from "@/features/hosts";
 import { CAPTION } from "./idiom";
 import { sessionKey, type SidebarSession } from "../session-list";
 import { cn } from "@/ui/utils";
-import { jumpProp, SessionShelf, SidebarEmpty, type RowEnv } from "./rail-parts";
+import { jumpProp, RailSkeleton, SessionShelf, SidebarEmpty, type RowEnv } from "./rail-parts";
 import { SessionRow } from "./session-row";
 import type { RailData } from "./use-rail-data";
 import type { RailView } from "./use-rail-view";
@@ -129,7 +129,9 @@ function RailRows(props: ListProps) {
         </div>
       )}
 
-      {data.unavailable && !view.showingStale ? (
+      {!data.loaded ? (
+        <RailSkeleton />
+      ) : data.unavailable && !view.showingStale ? (
         <SidebarEmpty icon={MessageSquareIcon} title="Engine unavailable" detail="Start the local engine, then this list refills itself." />
       ) : !view.showingStale && data.projects.length === 0 ? (
         <SidebarEmpty icon={FolderPlusIcon} title="No projects yet" detail="Register a project to start a session." />

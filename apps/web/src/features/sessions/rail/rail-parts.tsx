@@ -5,6 +5,7 @@ import { CAPTION } from "./idiom";
 import { sessionKey, type SessionBand, type SidebarSession } from "../session-list";
 import type { SessionRowChanged } from "../session-mutations";
 import type { RailJumpSlot } from "../session-groups";
+import { Skeleton } from "@/ui/skeleton";
 import { cn } from "@/ui/utils";
 import { SessionRow } from "./session-row";
 
@@ -47,6 +48,22 @@ export function SidebarEmpty({
       <Icon className="mx-auto mb-2 size-5" />
       <p className="text-xs font-medium text-sidebar-foreground/75">{title}</p>
       <p className="mt-1 text-2xs leading-4">{detail}</p>
+    </div>
+  );
+}
+
+const SKELETON_ROWS = ["w-3/5", "w-4/5", "w-2/3", "w-1/2"];
+
+export function RailSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading sessions" role="status" className="space-y-3 px-2 pt-1">
+      <Skeleton className="h-3 w-24 bg-sidebar-accent" />
+      {SKELETON_ROWS.map((width) => (
+        <div key={width} className="flex items-center gap-2">
+          <Skeleton className="size-4 shrink-0 bg-sidebar-accent" />
+          <Skeleton className={cn("h-3.5 bg-sidebar-accent", width)} />
+        </div>
+      ))}
     </div>
   );
 }

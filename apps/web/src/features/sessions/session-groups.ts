@@ -280,10 +280,10 @@ export function railRowsForCommandKeys(grouped: GroupedSessions, collapsed?: Rea
   for (const group of grouped.groups) {
     if (!collapsed?.has(group.key)) rows.push(...group.sessions);
   }
-  return rows.slice(0, RAIL_JUMP_SLOTS.length);
+  return rows;
 }
 
-export const RAIL_JUMP_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+const RAIL_JUMP_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 export type RailJumpSlot = (typeof RAIL_JUMP_SLOTS)[number];
 
 export function railJumpSlots(rows: readonly SidebarSession[]): Map<string, RailJumpSlot> {

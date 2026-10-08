@@ -25,7 +25,13 @@ export type CommandDestination =
   | { kind: "open-window"; href: string }
   | { kind: "noop" };
 
-export function commandDestination(id: CommandId, recentSessionHrefs: readonly (string | undefined)[]): CommandDestination {
+export function commandDestination(id: CommandId, railHrefs: readonly (string | undefined)[], activeRow?: number): CommandDestination {
+  if (id === "previous-session" || id === "next-session") {
+    const step = id === "next-session" ? 1 : -1;
+    const at = activeRow ?? (step > 0 ? -1 : railHrefs.length);
+    const href = activeRow === -1 ? undefined : railHrefs[at + step];
+    return href ? { kind: "navigate", href } : { kind: "noop" };
+  }
   if (id === "new-conversation") return { kind: "navigate", href: "/" };
   if (id === "new-tab") return { kind: "open-tab", href: "/" };
   if (id === "new-window") return { kind: "open-window", href: "/" };
@@ -36,7 +42,7 @@ export function commandDestination(id: CommandId, recentSessionHrefs: readonly (
   if (id === "open-usage") return { kind: "navigate", href: "/usage" };
   const n = jumpSlot(id);
   if (!n) return { kind: "noop" };
-  const href = recentSessionHrefs[n - 1];
+  const href = railHrefs[n - 1];
   return href ? { kind: "navigate", href } : { kind: "noop" };
 }
 

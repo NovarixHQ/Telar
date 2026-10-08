@@ -35,7 +35,7 @@ async function row(
   patch: GitFilePatch,
   file: GitFileChange = { path: "big.txt", status: "modified" },
   witness?: "git" | "journal",
-): Promise<{ text: string; viewers: number; asked: GitFileChange[] }> {
+): Promise<{ text: string; viewers: number; asked: GitFileChange[]; labels: string[] }> {
   const mount = document.createElement("div");
   document.body.appendChild(mount);
   const root = createRoot(mount);
@@ -61,13 +61,14 @@ async function row(
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
   });
-  return { text: mount.textContent ?? "", viewers: mount.querySelectorAll(".diff-code-view").length, asked };
+  const labels = [...mount.querySelectorAll("button[aria-label]")].map((button) => button.getAttribute("aria-label") ?? "");
+  return { text: mount.textContent ?? "", viewers: mount.querySelectorAll(".diff-code-view").length, asked, labels };
 }
 
 describe("a row whose patch is not the whole patch (#694)", () => {
-  test("a patch cut at the engine's bound says so AND still draws the hunks it got", async () => {
+  test("a patch cut at the engine's bound says so in the header's ⓘ AND still draws the hunks it got", async () => {
     const drawn = await row({ patch: HUNKS, binary: false, incomplete: "truncated" });
-    expect(drawn.text).toContain("may not be the whole change");
+    expect(drawn.labels.some((label) => label.includes("may not be the whole change"))).toBe(true);
     expect(drawn.viewers).toBe(1);
   });
 
@@ -79,7 +80,7 @@ describe("a row whose patch is not the whole patch (#694)", () => {
       const drawn = await row({ patch: "", binary: false, incomplete });
       expect(drawn.text, `${incomplete} says what happened`).toContain(says);
       expect(drawn.viewers, `${incomplete} draws no hunks`).toBe(0);
-      expect(drawn.text).not.toContain("may not be the whole change");
+      expect(drawn.labels).toContain("Retry loading diff");
     }
   });
 
@@ -155,5 +156,52 @@ describe("which witness a row names (#694)", () => {
   test("git is the default, because two of the three scopes are git", async () => {
     const unset = await row({ patch: "", binary: false, incomplete: "failed" });
     expect(unset.text).toContain("git could not read this file's diff");
+  });
+});
+
+describe("the file header", () => {
+  async function header(readPatch: (file: GitFileChange) => Promise<{ file: GitFilePatch }>) {
+    const mount = document.createElement("div");
+    document.body.appendChild(mount);
+    const root = createRoot(mount);
+    roots.push(root);
+    await act(async () => {
+      root.render(
+        <ReviewFileRow
+          readPatch={readPatch}
+          file={{ path: "src/big.txt", status: "modified" }}
+          reported
+          view={{ layout: "stacked", wrap: false, ignoreWhitespace: false, tree: false }}
+          open
+          onToggle={() => {}}
+        />,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    return mount;
+  }
+  const button = (mount: HTMLElement, label: string) => mount.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+
+  test("a read that failed has its own retry, which reads the file again", async () => {
+    let reads = 0;
+    const mount = await header(() => (++reads === 1 ? Promise.reject(new Error("nope")) : Promise.resolve({ file: { patch: HUNKS, binary: false } })));
+    expect(mount.textContent).toContain("git could not produce a patch");
+    await act(async () => button(mount, "Retry loading diff").click());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(reads).toBe(2);
+    expect(button(mount, "Retry loading diff")).toBeNull();
+    expect(mount.querySelectorAll(".diff-code-view").length).toBe(1);
+  });
+
+  test("the copy button puts the path on the clipboard", async () => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: (text: string) => (written.push(text), Promise.resolve()) } });
+    const mount = await header(() => Promise.resolve({ file: { patch: HUNKS, binary: false } }));
+    await act(async () => button(mount, "Copy file path").click());
+    expect(written).toEqual(["src/big.txt"]);
   });
 });

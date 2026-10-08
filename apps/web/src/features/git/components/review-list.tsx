@@ -43,9 +43,7 @@ export function ReviewList({
 }) {
   const rowsRef = useRef<HTMLDivElement>(null);
   const selectFromTree = (path: string) => {
-    const opening = !openPaths.has(path);
-    toggleRow(path);
-    if (!opening) return;
+    if (!openPaths.has(path)) toggleRow(path);
     window.requestAnimationFrame(() => rowsRef.current?.querySelector(`[data-diff-path="${CSS.escape(path)}"]`)?.scrollIntoView({ block: "start" }));
   };
   const rowProps = (file: GitFileChange) => ({
@@ -55,6 +53,7 @@ export function ReviewList({
     witness,
     open: openPaths.has(file.path),
     onToggle: () => toggleRow(file.path),
+    ...(rowMenu.onOpenFile ? { onOpenFile: rowMenu.onOpenFile } : {}),
   });
 
   return (

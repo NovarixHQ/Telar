@@ -182,7 +182,7 @@ describe("⌘S", () => {
   });
 
   test("wins over an open completion menu", async () => {
-    const { host, editor, draft } = await composer();
+    const { host, editor, draft } = await composer({ fresh: true });
     await type(editor, "/");
     expect(host.querySelector('[role="listbox"]')).not.toBeNull();
     key(editor, saveChord);
@@ -405,4 +405,30 @@ describe("the access pill", () => {
     expect(document.body.textContent).toContain("Supervised");
     expect(document.body.textContent).not.toContain("Usage limits");
   });
+});
+
+describe("the / menu opens the pills' pickers", () => {
+  const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
+  const options = (host: HTMLElement) => [...host.querySelectorAll('[role="listbox"] [role="option"]')].map((row) => row.textContent ?? "");
+  const pill = (label: string) => document.querySelector<HTMLElement>(`[aria-label^="${label}:"]`);
+
+  test("model and access are one row each", async () => {
+    const { host, editor } = await composer({ session, runtimeMode: "full-access" });
+    await type(editor, "/");
+    expect(options(host).filter((row) => row.startsWith("/model"))).toHaveLength(1);
+    expect(options(host).filter((row) => row.startsWith("/access"))).toHaveLength(1);
+    expect(options(host).some((row) => row.startsWith("/full-access"))).toBe(false);
+  });
+
+  for (const [command, label] of [["/access", "Access"], ["/model", "Model"]] as const) {
+    test(`${command} clears the box and opens the ${label.toLowerCase()} picker`, async () => {
+      const { editor, draft } = await composer({ session, runtimeMode: "full-access" });
+      await type(editor, command);
+      expect(pill(label)?.getAttribute("aria-expanded")).not.toBe("true");
+      key(editor, { key: "Enter" });
+      await flush();
+      expect(draft()).toBe("");
+      expect(pill(label)?.getAttribute("aria-expanded")).toBe("true");
+    });
+  }
 });

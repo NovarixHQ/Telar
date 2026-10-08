@@ -108,33 +108,6 @@ export function TurnEmptyState({ noTurns, trimmed }: { noTurns: boolean; trimmed
   );
 }
 
-/** Unreported files are only named when the transcript speaks for the tree (`journal`); settled ones always. */
-export function ReconciliationBand({ review, journal }: { review: SessionReview; journal: boolean }) {
-  const unreported = journal ? review.unreported : [];
-  if (unreported.length === 0 && review.settled.length === 0) return null;
-  return (
-    <div className="border-b border-border bg-muted/25 px-4 py-2.5 text-2xs leading-relaxed">
-      {unreported.length > 0 && (
-        <p className="flex gap-1.5 text-foreground">
-          <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-warning" />
-          <span>
-            <span className="font-medium">
-              {unreported.length} {unreported.length === 1 ? "file" : "files"} the transcript never mentioned
-            </span>{" "}
-            — an install, a build, or a formatter.
-          </span>
-        </p>
-      )}
-      {review.settled.length > 0 && (
-        <p className={cn("text-muted-foreground", unreported.length > 0 && "mt-1.5")}>
-          {review.settled.length} {review.settled.length === 1 ? "file the session wrote is" : "files the session wrote are"} back to how
-          {review.settled.length === 1 ? " it" : " they"} started.
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function CommitList({ commits }: { commits: SessionDiff["commits"] }) {
   const [open, setOpen] = useState(false);
   if (commits.length === 0) return null;

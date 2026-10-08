@@ -17,7 +17,7 @@ async function initialUrl(): Promise<string | null | undefined> {
   return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
 }
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Diff: "diff/:hostId/:sessionId" } }, getInitialURL: initialUrl };
+const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { initialRouteName: "Rail", screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Diff: "diff/:hostId/:sessionId" } }, getInitialURL: initialUrl };
 
 export function App() {
   const scheme = useColorScheme() === "dark" ? "dark" : "light";
@@ -31,17 +31,7 @@ export function App() {
           <Stack.Screen name="Settings" component={HostsScreen} options={{ title: "Settings" }} />
           <Stack.Screen name="Unavailable" component={Unavailable} options={({ route }) => ({ title: route.params.title })} />
         </Stack.Group>
-        <Stack.Screen
-          name="Session"
-          component={SessionScreen}
-          options={({ route, navigation }) => ({
-            title: route.params.title ?? "",
-            headerLargeTitle: false,
-            headerRight: () => (
-              <Button title="Diff" onPress={() => navigation.navigate("Diff", { hostId: route.params.hostId, sessionId: route.params.sessionId })} />
-            ),
-          })}
-        />
+        <Stack.Screen name="Session" component={SessionScreen} options={({ route }) => ({ title: route.params.title ?? "Session", headerLargeTitle: false, headerTransparent: true, headerShadowVisible: false, headerBackButtonDisplayMode: "minimal" })} />
         <Stack.Screen name="Diff" component={DiffScreen} options={{ title: "Diff", headerLargeTitle: false }} />
       </Stack.Navigator>
     </NavigationContainer>

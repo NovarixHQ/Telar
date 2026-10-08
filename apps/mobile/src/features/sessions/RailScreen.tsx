@@ -16,18 +16,21 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStack } from "../../platform/navigation/routes";
 import { hosts, NoComputers } from "../hosts";
 import { Icon, Theme, type SymbolName } from "../../ui";
 import { inboxFor } from "./inboxes";
+import { nestRail, type NestedRow } from "./nesting";
 import { searchRail, type RailRow } from "./rail";
 import { RailRowView } from "./RailRows";
 import { useMergedRail, type MergedRail } from "./use-rail";
 
 type Navigation = NativeStackNavigationProp<RootStack, "Rail">;
+
+let expandedParents: ReadonlySet<string> = new Set();
 
 const sfSymbol = (name: string) => ({ type: "sfSymbol" as const, name: name as SymbolName });
 
@@ -121,6 +124,10 @@ export function RailScreen() {
   const navigation = useNavigation<Navigation>();
   const [chosen, setFilter] = useState<string>();
   const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(expandedParents);
+  useEffect(() => {
+    expandedParents = expanded;
+  }, [expanded]);
   const rail = useMergedRail(chosen);
   useToolbar(navigation, rail, rail.filter, setFilter, setQuery);
 
@@ -130,6 +137,19 @@ export function RailScreen() {
   const markFor = (row: RailRow) => (rail.computers.length > 1 ? (hostName(row.hostId) ?? "Computer") : undefined);
   const open = (row: RailRow) => navigation.navigate("Session", { hostId: row.hostId, sessionId: row.sessionId, title: row.title });
   const draw = (row: RailRow, slim = false) => <RailRowView key={row.key} row={row} host={markFor(row)} slim={slim} stale={rail.stale.has(row.hostId)} onOpen={() => open(row)} />;
+  const toggle = (key: string) => setExpanded((current) => (current.has(key) ? new Set([...current].filter((entry) => entry !== key)) : new Set([...current, key])));
+  const drawNested = ({ row, family, nested }: NestedRow) => (
+    <RailRowView
+      key={row.key}
+      row={row}
+      host={markFor(row)}
+      nested={nested}
+      stale={rail.stale.has(row.hostId)}
+      {...(family ? { family: { family, open: expanded.has(family.key), onToggle: () => toggle(family.key) } } : {})}
+      onOpen={() => open(row)}
+    />
+  );
+  const nestedRail = nestRail(rail, expanded);
   const found = query.trim() ? searchRail([...rail.sections.active, ...rail.sections.snoozed, ...rail.sections.settled], query, hostName) : undefined;
   const refreshAll = async () => {
     await Promise.all(rail.computers.map((computer) => inboxFor(computer.hostId)?.refresh()));
@@ -148,8 +168,8 @@ export function RailScreen() {
             )
           ) : (
             <>
-              {rail.pinned.length > 0 ? <Section>{rail.pinned.map((row) => draw(row))}</Section> : null}
-              {rail.rows.length > 0 ? <Section>{rail.rows.map((row) => draw(row))}</Section> : null}
+              {nestedRail.pinned.length > 0 ? <Section>{nestedRail.pinned.map(drawNested)}</Section> : null}
+              {nestedRail.rows.length > 0 ? <Section>{nestedRail.rows.map(drawNested)}</Section> : null}
               <EmptyState rail={rail} />
             </>
           )}

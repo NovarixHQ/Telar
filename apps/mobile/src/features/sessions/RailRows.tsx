@@ -1,7 +1,24 @@
 import { Button, Capsule, Circle, HStack, Overlay, Spacer, Text, VStack } from "@expo/ui/swift-ui";
-import { accessibilityLabel, buttonStyle, foregroundStyle, frame, lineLimit, monospacedDigit, offset, opacity, padding, truncationMode } from "@expo/ui/swift-ui/modifiers";
+import {
+  accessibilityAddTraits,
+  accessibilityLabel,
+  buttonStyle,
+  contentShape,
+  foregroundStyle,
+  frame,
+  lineLimit,
+  monospacedDigit,
+  offset,
+  onTapGesture,
+  opacity,
+  padding,
+  rotationEffect,
+  shapes,
+  truncationMode,
+} from "@expo/ui/swift-ui/modifiers";
 import { faded, HostMark, Icon, ProjectAvatar, ProviderIcon, SteppedPulseDot, Theme, Type } from "../../ui";
 import { useProjectIcon } from "../projects";
+import type { RailFamily } from "./nesting";
 import type { RailRow, RailStatus } from "./rail";
 
 function StatusSlot({ status }: { status: RailStatus }) {
@@ -47,10 +64,10 @@ const PinMark = () => <Icon name="pin.fill" textStyle="caption2" color={faded("t
 
 const Faded = ({ by, children }: { by: number; children: React.ReactElement }) => <HStack modifiers={[opacity(by)]}>{children}</HStack>;
 
-type RowProps = { row: RailRow; host: string | undefined };
+type RowProps = { row: RailRow; host: string | undefined; disclosure?: React.ReactElement | null };
 
 /** Three lines: where (computer, pin, project) with the status, the title, and the branch. */
-function CardBody({ row, host }: RowProps) {
+function CardBody({ row, host, disclosure = null }: RowProps) {
   const provider = (size: number, by: number) => (
     <Faded by={by}>
       <ProviderIcon driver={row.driver} size={size} />
@@ -70,6 +87,7 @@ function CardBody({ row, host }: RowProps) {
         {row.unread ? <UnreadDot /> : null}
         <Text modifiers={[Type.rowTitle, foregroundStyle(Theme.text), lineLimit(1), truncationMode("tail")]}>{row.title}</Text>
         <Spacer minLength={0} />
+        {row.branch ? null : disclosure}
         {row.branch ? null : provider(11, 0.5)}
       </HStack>
       {row.branch ? (
@@ -77,6 +95,7 @@ function CardBody({ row, host }: RowProps) {
           <Icon name="arrow.triangle.branch" textStyle="caption2" />
           <Text modifiers={[Type.meta, lineLimit(1), truncationMode("middle")]}>{row.branch}</Text>
           <Spacer minLength={4} />
+          {disclosure}
           {provider(11, 0.6)}
         </HStack>
       ) : null}
@@ -101,24 +120,36 @@ function SlimBody({ row, host }: RowProps) {
   );
 }
 
+function FamilyToggle({ family, open, onToggle }: { family: RailFamily; open: boolean; onToggle: () => void }) {
+  const summary = [`${family.count} ${family.count === 1 ? "session" : "sessions"}`, ...(family.working ? [`${family.working} working`] : []), ...(family.needsYou ? [`${family.needsYou} ${family.needsYou === 1 ? "needs" : "need"} you`] : [])].join(" · ");
+  return (
+    <Button modifiers={[buttonStyle("borderless"), accessibilityLabel(`${open ? "Hide" : "Show"} ${summary}`)]} onPress={onToggle}>
+      <HStack spacing={2} modifiers={[Type.metaSmall, foregroundStyle(faded("textMuted", 0.7)), padding({ horizontal: 4, vertical: 2 }), contentShape(shapes.rectangle())]}>
+        {family.needsYou ? <Circle modifiers={[foregroundStyle(Theme.red), frame({ width: 6, height: 6 })]} /> : null}
+        <Text modifiers={[monospacedDigit()]}>{String(family.count)}</Text>
+        <Icon name="chevron.down" textStyle="caption2" modifiers={[rotationEffect(open ? 0 : -90)]} />
+      </HStack>
+    </Button>
+  );
+}
+
 const accentColor = { amber: Theme.amber, accent: Theme.accent };
 
 /** A tappable rail row with the disclosure chevron; a card row also wears the 2pt activity bar at its leading edge. */
-export function RailRowView({ row, host, slim, stale, onOpen }: RowProps & { slim?: boolean; stale: boolean; onOpen: () => void }) {
-  const body = slim ? <SlimBody row={row} host={host} /> : <CardBody row={row} host={host} />;
+export function RailRowView({ row, host, slim, nested, stale, family, onOpen }: RowProps & { slim?: boolean; nested?: boolean; stale: boolean; family?: { family: RailFamily; open: boolean; onToggle: () => void }; onOpen: () => void }) {
+  const disclosure = family ? <FamilyToggle {...family} /> : null;
+  const body = slim || nested ? <SlimBody row={row} host={host} /> : <CardBody row={row} host={host} disclosure={disclosure} />;
   return (
-    <Button modifiers={[buttonStyle("plain")]} onPress={onOpen}>
-      <HStack spacing={11}>
-        <Overlay alignment="leading" modifiers={[opacity(stale ? 0.6 : 1)]}>
+    <HStack spacing={11} modifiers={[contentShape(shapes.rectangle()), onTapGesture(onOpen), accessibilityAddTraits(["isButton"])]}>
+        <Overlay alignment="leading" modifiers={[opacity(stale ? 0.6 : 1), padding({ leading: nested ? 12 : 0 })]}>
           {body}
-          {!slim && row.accent ? (
+          {!slim && !nested && row.accent ? (
             <Overlay.Content>
               <Capsule modifiers={[foregroundStyle(accentColor[row.accent]), frame({ width: 2 }), padding({ vertical: 2 }), offset({ x: -8 })]} />
             </Overlay.Content>
           ) : null}
         </Overlay>
         <Icon name="chevron.forward" textStyle="footnote" weight="semibold" modifiers={[foregroundStyle({ type: "hierarchical", style: "tertiary" }), padding({ trailing: 2 })]} />
-      </HStack>
-    </Button>
+    </HStack>
   );
 }

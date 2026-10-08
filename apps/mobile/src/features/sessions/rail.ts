@@ -6,8 +6,10 @@ import {
   settlingActivityOf,
   type LiveSessionRow,
   type LiveSessionsAnswer,
+  type SessionActivity,
 } from "@telar/engine-client";
 import type { ConnectionState } from "../../platform/connection";
+import { parentOf } from "./nesting";
 
 export type RailStatus =
   | { kind: "snoozed"; label: string }
@@ -29,9 +31,11 @@ export type RailRow = {
   projectIconEmoji?: string;
   driver: string;
   branch?: string;
+  activity: SessionActivity;
   pinned: boolean;
   unread: boolean;
   status: RailStatus;
+  parentId?: string;
   accent?: "amber" | "accent";
   createdAt: number;
   updatedAt: number;
@@ -111,9 +115,11 @@ export function railSections(inboxes: readonly HostInbox[], now: number, filter?
         ...(project?.iconEmoji ? { projectIconEmoji: project.iconEmoji } : {}),
         driver: row.driver,
         ...(row.workspace.mode === "worktree" ? { branch: row.workspace.branch } : {}),
+        activity: row.activity ?? "idle",
         pinned: row.settledOverride === "active",
         unread: !busy && hasUnreadResult(session),
         status: statusOf(row, now),
+        ...(parentOf(row.id, row.startedFrom?.sessionId, answer.assignments?.[row.id]) ? { parentId: parentOf(row.id, row.startedFrom?.sessionId, answer.assignments?.[row.id])! } : {}),
         ...(accentOf(row.activity) ? { accent: accentOf(row.activity)! } : {}),
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,

@@ -9,7 +9,7 @@ SearchIcon,
 SquareTerminalIcon,TerminalIcon,WrenchIcon
 } from "lucide-react";
 import { isKnownPath, type Item } from "@telar/engine-client";
-import { toolOutput, type JournalItem } from "@/platform/engine";
+import { toolOutput, type JournalItem } from "@telar/client/journal";
 import { hostPrefix } from "@/platform/engine/host-client";
 import { fileReference } from "@/features/composer";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";

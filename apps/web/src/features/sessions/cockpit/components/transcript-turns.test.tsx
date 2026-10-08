@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AgentMessageIntent, NotificationDetail, SessionChild } from "@telar/engine-client";
-import type { JournalItem, JournalTurn } from "@/platform/engine";
+import type { JournalItem, JournalTurn } from "@telar/client/journal";
 import { SessionTurn } from "./session-turn";
 import { TranscriptTurns } from "./transcript-turns";
 

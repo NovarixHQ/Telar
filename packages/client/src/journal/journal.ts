@@ -1,5 +1,5 @@
-import { pickPrefix } from "@/platform/engine/journal-items";
-import { pluginJournalRow } from "@/platform/engine/plugin-journal";
+import { pickPrefix } from "./journal-items";
+import { pluginJournalRow } from "./plugin-journal";
 import type { EngineEvent, Item, RateLimitType, Task, Turn, TurnAttachment, TurnFailureCode, TurnState, UsageSnapshot } from "@telar/engine-client";
 
 // The client-side fold over the journal. Items sort by the event id that opened them, never by

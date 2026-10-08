@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { HydratedSession } from "@/platform/engine";
-import { envelope, item, turn } from "@/test/journal-fixtures";
+import { envelope, item, turn } from "@telar/client/journal/fixtures";
 import { forgetHostHeads, HEAD_BYTES, HEADS_ON_DISK, HEADS_TOTAL_BYTES, headKey, memoryHeadStore, saveHead } from "./session-heads";
 
 const head = (id: string, padding = 0): HydratedSession =>

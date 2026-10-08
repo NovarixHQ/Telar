@@ -3,7 +3,7 @@
 import { Fragment, useMemo, type ComponentProps, type RefObject } from "react";
 import { ClockIcon, TriangleAlertIcon } from "lucide-react";
 import { workspacePath, type EngineRequest, type SessionChild } from "@telar/engine-client";
-import type { JournalTurn } from "@/platform/engine";
+import type { JournalTurn } from "@telar/client/journal";
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { Button } from "@/ui/button";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";

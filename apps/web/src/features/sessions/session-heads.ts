@@ -1,6 +1,7 @@
 "use client";
 
-import { createEngineApi, headBytes, INITIAL_TURNS, projectJournal, sessionConnection, type HydratedSession, type SessionConnection } from "@/platform/engine";
+import { createEngineApi, headBytes, INITIAL_TURNS, sessionConnection, type HydratedSession, type SessionConnection } from "@/platform/engine";
+import { projectJournal } from "@telar/client/journal";
 import { hostFetcher } from "@/platform/engine/host-client";
 
 /** A session's newest turns, folded through `cursor`, as it was when saved. */

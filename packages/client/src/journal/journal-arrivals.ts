@@ -1,4 +1,4 @@
-import type { JournalItem, JournalTurn } from "@/platform/engine/journal";
+import type { JournalItem, JournalTurn } from "./journal";
 
 /**
  * Moves each passive arrival into the turn running when it was accepted, or,

@@ -13,8 +13,8 @@ import {
   tailIntervalMs,
   tailSession,
 } from "./session-sync";
-import { projectJournal } from "./journal";
-import { itemText } from "./journal-items";
+import { projectJournal } from "@telar/client/journal";
+import { itemText } from "@telar/client/journal";
 
 const session: Session = {
   id: "session_1",

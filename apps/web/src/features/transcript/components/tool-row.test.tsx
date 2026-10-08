@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { act } from "react";
 import { installTestDom, mount } from "@/test/dom";
-import type { JournalItem } from "@/platform/engine";
+import type { JournalItem } from "@telar/client/journal";
 import { ToolRow } from "./tool-row";
 
 installTestDom();

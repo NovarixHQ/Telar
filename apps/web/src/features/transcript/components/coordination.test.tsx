@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ActivityGroup } from "./activity";
 import { SessionTurn } from "@/features/sessions/cockpit";
 import { AgentMessageBubble } from "./conversation-message";
-import type { JournalTurn } from "@/platform/engine";
+import type { JournalTurn } from "@telar/client/journal";
 
 const machine: JournalTurn = { runId: "run_peer", origin: "session", sender: { sessionId: "session_worker" }, prompt: "Internal checkpoint", state: "completed", resultText: "Internal acknowledgement", items: [], tasks: [] };
 const render = (turn: JournalTurn) => renderToStaticMarkup(<SessionTurn turn={turn} requests={[]} sending={false} live={false} onDecide={() => {}} />);

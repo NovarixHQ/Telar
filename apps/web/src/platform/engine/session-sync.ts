@@ -1,6 +1,6 @@
 import type { EngineEvent, Item, SessionBootstrap, SessionDelta, SessionSnapshot, SnapshotPage, SnapshotWindow, Subscription, Task, Turn } from "@telar/engine-client";
-import { journalCursor } from "./journal";
-import { isActiveTurn } from "./journal-items";
+import { journalCursor } from "@telar/client/journal";
+import { isActiveTurn } from "@telar/client/journal";
 
 export type SessionSyncApi = {
   session(sessionId: string, window?: SnapshotWindow): Promise<SessionSnapshot>;

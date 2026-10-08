@@ -3,7 +3,7 @@
 import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { ChevronRightIcon, Minimize2Icon, ShieldCheckIcon } from "lucide-react";
 import type { EngineRequest, RequestDecision } from "@telar/engine-client";
-import { isActiveTurn, isCompacting, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@/platform/engine";
+import { isActiveTurn, isCompacting, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@telar/client/journal";
 import {
   LiveActivity,
   Marker,

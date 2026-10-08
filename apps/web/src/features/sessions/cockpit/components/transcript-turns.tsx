@@ -3,7 +3,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import type { SessionChild } from "@telar/engine-client";
-import type { JournalTurn } from "@/platform/engine";
+import type { JournalTurn } from "@telar/client/journal";
 import { AgentRows, bareNotificationTurn, groupNotificationTurns, ROW, SessionLookup, type SessionFacts } from "@/features/transcript";
 import { cn } from "@/ui/utils";
 import { sessionHref } from "../../session-list";

@@ -2,7 +2,8 @@
 
 import { type SetStateAction, useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { Session } from "@telar/engine-client";
-import { asEngineError, createEngineApi, isActiveTurn, loadOlderTurns, tailIntervalMs, type EngineApiError, type HydratedSession } from "@/platform/engine";
+import { asEngineError, createEngineApi, loadOlderTurns, tailIntervalMs, type EngineApiError, type HydratedSession } from "@/platform/engine";
+import { isActiveTurn } from "@telar/client/journal";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { headConnection, headKey, headStore, openHead, saveHead } from "../../session-heads";

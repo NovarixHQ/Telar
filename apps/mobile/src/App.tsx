@@ -5,6 +5,7 @@ import { Button, Linking, Settings, useColorScheme } from "react-native";
 import { DiffScreen } from "./features/git";
 import { hosts, HostsScreen, PairScreen } from "./features/hosts";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
+import { SettingsScreen } from "./features/settings";
 import type { RootStack } from "./platform/navigation/routes";
 import { navigationTheme } from "./platform/navigation/theme";
 
@@ -39,6 +40,9 @@ export function App() {
           })}
         />
         <Stack.Screen name="Diff" component={DiffScreen} options={{ title: "Diff", headerLargeTitle: false }} />
+        <Stack.Screen name="Settings" options={{ presentation: "modal", headerShown: false }}>
+          {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} onAddComputer={() => navigation.navigate("Pair")} />}
+        </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
   );

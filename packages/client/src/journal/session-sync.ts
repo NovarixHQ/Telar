@@ -25,11 +25,7 @@ export type SessionSyncApi = {
 export const INITIAL_TURNS = 10;
 export const OLDER_PAGE_TURNS = 20;
 
-/**
- * Tail cadence: 1 s while a turn runs, 3 s once settled, matching iOS's
- * `SessionSyncEngine.interval`. Not gated on visibility: the desktop shell's
- * `backgroundThrottling: false` keeps `document.visibilityState` at "visible".
- */
+/** Tail cadence: 1 s while a turn runs, 3 s once settled, matching iOS's `SessionSyncEngine.interval`. */
 export const TAIL_LIVE_MS = 1_000;
 export const TAIL_SETTLED_MS = 3_000;
 

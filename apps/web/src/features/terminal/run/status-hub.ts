@@ -1,3 +1,4 @@
+import { readEventStream } from "@/platform/engine/event-stream";
 import type { RunStatusEvent } from "./types";
 
 export type HubSignal = { type: "open" } | { type: "frame"; event: RunStatusEvent } | { type: "error"; message: string };
@@ -78,7 +79,10 @@ export function followRunStatus({ fetch: get = (path, init) => fetch(path, init)
         if (!response.ok || !response.body) throw new Error(`run stream ${response.status}`);
         delay = 1_000;
         emit({ type: "open" });
-        await readFrames(response.body, signal, (event) => emit({ type: "frame", event }));
+        await readEventStream(response.body, signal, (data) => {
+          const event = data as RunStatusEvent;
+          if (event?.type === "run.status") emit({ type: "frame", event });
+        });
       } catch (cause) {
         if (signal.aborted) return;
         emit({ type: "error", message: cause instanceof Error ? cause.message : "The run feed is not answering." });
@@ -88,29 +92,4 @@ export function followRunStatus({ fetch: get = (path, init) => fetch(path, init)
       delay = Math.min(delay * 2, 30_000);
     }
   };
-}
-
-const FRAME_END = "\n\n";
-
-async function readFrames(body: NonNullable<Response["body"]>, signal: AbortSignal, apply: (event: RunStatusEvent) => void): Promise<void> {
-  const reader = body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done || signal.aborted) return;
-    buffer += value;
-    let boundary = buffer.indexOf(FRAME_END);
-    while (boundary !== -1) {
-      const frame = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + FRAME_END.length);
-      boundary = buffer.indexOf(FRAME_END);
-      if (!frame.startsWith("data:")) continue;
-      try {
-        const event = JSON.parse(frame.slice("data:".length).trim()) as RunStatusEvent;
-        if (event.type === "run.status") apply(event);
-      } catch {
-        continue;
-      }
-    }
-  }
 }

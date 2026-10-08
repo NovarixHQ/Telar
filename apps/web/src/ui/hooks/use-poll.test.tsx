@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useNow } from "./use-now";
 import { usePoll, type PollOptions } from "./use-poll";
@@ -126,20 +126,66 @@ describe("usePoll", () => {
 
   test("skips hidden ticks and catches up when shown", async () => {
     let calls = 0;
-    let state: DocumentVisibilityState = "visible";
-    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
     mount(<Poller fn={() => (calls += 1)} ms={1_000} />);
-    state = "hidden";
+    await setVisibility("hidden");
     await advance(3_000);
     expect(calls).toBe(1);
-    state = "visible";
-    await act(async () => {
-      document.dispatchEvent(new Event("visibilitychange"));
-      await Promise.resolve();
-    });
+    await setVisibility("visible");
+    expect(calls).toBe(2);
+  });
+
+  test("an idle backoff doubles the period after each read that finds nothing", async () => {
+    let calls = 0;
+    mount(<Poller fn={() => (calls += 1)} ms={100} options={{ backoff: true }} />);
+    await advance(200 + 400 + 800 + 1_600 + 3_200);
+    expect(calls).toBe(6);
+  });
+
+  test("a read that resolves true keeps the base period", async () => {
+    let calls = 0;
+    mount(<Poller fn={() => ((calls += 1), true)} ms={1_000} options={{ backoff: true }} />);
+    await advance(5_000);
+    expect(calls).toBe(6);
+  });
+
+  test("input starts a backed-off period over", async () => {
+    let calls = 0;
+    mount(<Poller fn={() => (calls += 1)} ms={1_000} options={{ backoff: true }} />);
+    await advance(2_000 + 4_000 + 8_000);
+    expect(calls).toBe(4);
+    await act(async () => window.dispatchEvent(new Event("keydown")));
+    await advance(1_000);
+    expect(calls).toBe(5);
+  });
+
+  test("wake reads at once, and once more after a read in flight", async () => {
+    let calls = 0;
+    let finish: () => void = () => {};
+    const handle = { wake: () => {} };
+    function Waker() {
+      const wake = usePoll(() => ((calls += 1), new Promise<void>((resolve) => (finish = resolve))), 60_000);
+      useEffect(() => {
+        handle.wake = wake;
+      });
+      return null;
+    }
+    mount(<Waker />);
+    expect(calls).toBe(1);
+    act(() => handle.wake());
+    act(() => handle.wake());
+    expect(calls).toBe(1);
+    await act(async () => finish());
     expect(calls).toBe(2);
   });
 });
+
+async function setVisibility(state: DocumentVisibilityState) {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+  await act(async () => {
+    document.dispatchEvent(new Event("visibilitychange"));
+    await Promise.resolve();
+  });
+}
 
 function Clock({ ms, seen }: { ms: number; seen: number[] }) {
   seen.push(useNow(ms));

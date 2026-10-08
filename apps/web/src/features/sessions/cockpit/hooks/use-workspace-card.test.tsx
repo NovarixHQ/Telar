@@ -5,7 +5,7 @@ import { useWorkspaceCardData } from "./use-workspace-card";
 installTestDom();
 
 function Probe({ shared }: { shared: boolean }) {
-  const { diff } = useWorkspaceCardData("local", "session_1", true, shared);
+  const { diff } = useWorkspaceCardData("local", "session_1", true, shared, false);
   return <span>{diff ? `+${diff.linesAdded}` : "none"}</span>;
 }
 

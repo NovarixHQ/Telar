@@ -4,5 +4,5 @@ export type RootStack = {
   Hosts: undefined;
   Pair: { link?: string } | undefined;
   Sessions: { hostId: string; hostName?: string };
-  Session: { hostId: string; sessionId: Session["id"]; title: string };
+  Session: { hostId: string; sessionId: Session["id"]; title?: string };
 };

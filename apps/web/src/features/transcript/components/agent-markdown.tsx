@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useMemo, type ComponentProps } from "react";
 import type { FileReference } from "@telar/engine-client";
+import { InlineCode } from "@/ui/markdown-blocks";
 import { MessageResponse } from "@/ui/message";
-import { cn } from "@/ui/utils";
 import { useFileReferences } from "../file-references";
 import { FileReferenceChip } from "./prompt-text";
 
@@ -11,20 +11,16 @@ type Files = { files: ReadonlyMap<string, FileReference>; onOpen?: ((path: strin
 
 const MessageFiles = createContext<Files | undefined>(undefined);
 
-function InlineCode({ className, children, ...props }: ComponentProps<"code"> & { node?: unknown }) {
+function FileAwareCode({ children, ...props }: ComponentProps<"code"> & { node?: unknown }) {
   const attributes = { ...props };
   delete attributes.node;
   const context = useContext(MessageFiles);
   const reference = typeof children === "string" ? context?.files.get(children.trim()) : undefined;
   if (reference) return <FileReferenceChip reference={reference} onOpen={context?.onOpen} />;
-  return (
-    <code className={cn("rounded bg-muted px-1.5 py-0.5 font-mono text-sm", className)} data-streamdown="inline-code" {...attributes}>
-      {children}
-    </code>
-  );
+  return <InlineCode {...attributes}>{children}</InlineCode>;
 }
 
-const COMPONENTS = { inlineCode: InlineCode };
+const COMPONENTS = { inlineCode: FileAwareCode };
 
 export function AgentMarkdown({ text, onOpenFile }: { text: string; onOpenFile?: ((path: string) => void) | undefined }) {
   const files = useFileReferences(text);

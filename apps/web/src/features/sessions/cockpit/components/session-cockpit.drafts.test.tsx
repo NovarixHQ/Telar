@@ -172,6 +172,43 @@ describe("the first message of a new conversation", () => {
   });
 });
 
+const bubbles = (host: HTMLElement) => [...host.querySelectorAll('[data-role="user"]')].map((node) => node.textContent?.trim());
+
+describe("the first message, before the engine has it", () => {
+  test("shows as the person's bubble with the turn working under it, from the send until its own turn lands", async () => {
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    wire({ create: () => held });
+    const { host } = await open();
+    await type(host, "map the exoplanets");
+    await send(host);
+    await settle();
+    expect(bubbles(host)).toEqual(["map the exoplanets"]);
+    expect(host.textContent).not.toContain("Ready for its first turn");
+
+    await act(async () => release());
+    await settle();
+    expect(bubbles(host)).toEqual(["map the exoplanets"]);
+    expect(host.textContent).not.toContain("Ready for its first turn");
+  });
+
+  test("is taken back into the box when the engine refuses the session", async () => {
+    let refuse = () => {};
+    const held = new Promise<void>((_, reject) => (refuse = () => reject(new Error("refused"))));
+    wire({ create: () => held });
+    const { host } = await open();
+    await type(host, "map the exoplanets");
+    await send(host);
+    await settle();
+    expect(bubbles(host)).toEqual(["map the exoplanets"]);
+
+    await act(async () => refuse());
+    await settle();
+    expect(bubbles(host)).toEqual([]);
+    expect(editor(host).textContent).toBe("map the exoplanets");
+  });
+});
+
 describe("switching conversations", () => {
   test("saves the outgoing draft under its own conversation and loads the incoming one's", async () => {
     writeDraft("session_drafts_a", "project_1", "");

@@ -14,7 +14,7 @@ async function initialUrl(): Promise<string | null | undefined> {
   return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
 }
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId" } }, getInitialURL: initialUrl };
+const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId", Session: "session/:hostId/:sessionId" } }, getInitialURL: initialUrl };
 
 export function App() {
   return (
@@ -27,7 +27,7 @@ export function App() {
         <Stack.Screen
           name="Session"
           component={SessionScreen}
-          options={({ route }) => ({ title: route.params.title, headerLargeTitle: false })}
+          options={({ route }) => ({ title: route.params.title ?? "", headerLargeTitle: false })}
         />
       </Stack.Navigator>
     </NavigationContainer>

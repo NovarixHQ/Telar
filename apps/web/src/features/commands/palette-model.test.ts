@@ -257,14 +257,14 @@ describe("the four sections", () => {
   const actions = paletteActions(COMMANDS, defaultKeymap(), anything, ["search-sessions"]);
   const quick = quickSettings(state());
 
-  test("Actions, Quick settings, Projects, Recent conversations — always in that order", () => {
+  test("Actions, Quick settings, Projects, Recent sessions — always in that order", () => {
     const sections = paletteSections({ actions, quick, targets, sessions, query: "" });
     expect(sections.map((section) => section.id)).toEqual(["actions", "quick", "projects", "sessions"]);
     expect(sections.map((section) => section.title)).toEqual([
       "Actions",
       "Quick settings",
       "Projects",
-      "Recent conversations",
+      "Recent sessions",
     ]);
   });
 

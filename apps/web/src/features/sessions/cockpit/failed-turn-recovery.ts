@@ -25,7 +25,7 @@ export function continuationDraft(current: string, turn: Pick<RecoverableTurn, "
   const reason = turn.failure?.trim();
   const continuation = resumable
     ? `The previous turn ended early${reason ? ` (${reason})` : ""}. Continue from the work that already exists above; do not redo it.`
-    : `The previous turn ended early${reason ? ` (${reason})` : ""}, and this conversation could not be resumed — you will not remember it. Re-read the working tree before changing anything.`;
+    : `The previous turn ended early${reason ? ` (${reason})` : ""}, and this session could not be resumed — you will not remember it. Re-read the working tree before changing anything.`;
   const existing = current.trimEnd();
   return existing ? `${existing}\n\n${continuation}` : continuation;
 }

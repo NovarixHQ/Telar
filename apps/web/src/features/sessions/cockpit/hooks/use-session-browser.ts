@@ -75,7 +75,7 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
 
   async function ensureBrowserDraft(): Promise<string> {
     if (sessionId) return sessionId;
-    if (projectId === undefined) throw new EngineApiError("invalid_request", "This conversation has no project to open a draft in.");
+    if (projectId === undefined) throw new EngineApiError("invalid_request", "This session has no project to open a draft in.");
     if (browserDraftFlight.current) return browserDraftFlight.current;
     const origin = window.location.pathname;
     if (browserDraftIdentity.current?.path !== origin) browserDraftIdentity.current = { path: origin, id: newSessionId() };

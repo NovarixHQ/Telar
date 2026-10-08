@@ -141,7 +141,7 @@ describe("/compact, the wheel's button reached from the keyboard", () => {
   test("an available row says what it would do rather than why it cannot", () => {
     const offered = availableCommands(claude).find((command) => command.id === "compact");
     expect(offered?.disabled).toBeUndefined();
-    expect(offered?.detail).toBe("Summarise the conversation to free space.");
+    expect(offered?.detail).toBe("Summarise the session to free space.");
   });
 
   test("the draft that IS the gesture is exactly `/compact`, trimmed", () => {

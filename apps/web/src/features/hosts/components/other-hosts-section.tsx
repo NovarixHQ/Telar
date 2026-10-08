@@ -74,7 +74,7 @@ export function OtherHostsSection() {
   };
 
   return (
-    <SettingsGroup title="Computers this Mac reaches" description="Another Telar's conversations, in this rail.">
+    <SettingsGroup title="Computers this Mac reaches" description="Another Telar's sessions, in this rail.">
       <SettingsList label="Computers">
         {hosts?.map((host) => (
           <HostRow key={host.id} host={host} {...(hostError?.id === host.id ? { error: hostError.message } : {})} onRename={(name) => void rename(host.id, name)} onRemove={() => void remove(host.id)} />
@@ -153,7 +153,7 @@ function HostRow({ host, error, onRename, onRemove }: { host: PublicHost; error?
           </button>
         )
       }
-      hint={`${host.baseUrl} — forgetting it drops its conversations from this rail. That computer keeps the access until it revokes this one.`}
+      hint={`${host.baseUrl} — forgetting it drops its sessions from this rail. That computer keeps the access until it revokes this one.`}
       control={
         <Button variant="ghost" size="icon-sm" aria-label={`Forget ${host.name}`} title="Forget this computer (its own Devices list keeps the access until revoked there)" onClick={onRemove}>
           <XIcon className="size-3.5" />

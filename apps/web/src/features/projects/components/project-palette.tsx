@@ -13,7 +13,7 @@ import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import type { NewConversationTarget, PalettePage, Registered } from "../palette-model";
 
 const PAGE_TITLES: Record<ProjectPalettePage, string> = {
-  projects: "New conversation",
+  projects: "New session",
   sources: "Add a project",
   hosts: "Choose the computer",
   local: "Choose a project folder",
@@ -22,7 +22,7 @@ const PAGE_TITLES: Record<ProjectPalettePage, string> = {
 };
 
 const PAGE_SENTENCES: Record<ProjectPalettePage, string> = {
-  projects: "Choose the project this conversation belongs to.",
+  projects: "Choose the project this session belongs to.",
   sources: "Choose where the project comes from.",
   hosts: "Choose the computer the project lives on.",
   local: "Browse for the folder that holds the project.",

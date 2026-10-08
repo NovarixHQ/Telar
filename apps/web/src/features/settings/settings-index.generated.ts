@@ -43,7 +43,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     { "title":"Window", rows: [
       {"title":"Translucency","hint":"Rebuilds the window.","keywords":["glass","blur","clear","frost","vibrancy","transparent"]},
       {"title":"Layers through canvas and rail","keywords":["show-through","show through","opacity","wallpaper","backdrop","layers"]},
-      {"title":"Chat width","hint":"How wide the conversation and the composer can grow.","keywords":["wide","full","comfortable","column","measure","transcript"]},
+      {"title":"Chat width","hint":"How wide the transcript and the composer can grow.","keywords":["wide","full","comfortable","column","measure","transcript"]},
     ] },
   ] },
   { id: "keybindings", groups: [
@@ -114,10 +114,10 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Icon","keywords":["avatar","favicon","logo","mark"],"icon":ImageIcon},
       {"title":"Checkout","keywords":["root","path","folder","directory"],"icon":FolderGitIcon},
     ] },
-    { "title":"New conversations", rows: [
+    { "title":"New sessions", rows: [
       {"title":"Default model","keywords":["model","per project","default"],"icon":SparklesIcon},
-      {"title":"Model options","hint":"New conversations in this project start with this model and these options.","keywords":["effort","reasoning","fast mode","per project"],"icon":GaugeIcon},
-      {"title":"Where new conversations start","keywords":["worktree","checkout","workspace","branch"],"icon":FolderGitIcon},
+      {"title":"Model options","hint":"New sessions in this project start with this model and these options.","keywords":["effort","reasoning","fast mode","per project"],"icon":GaugeIcon},
+      {"title":"Where new sessions start","keywords":["worktree","checkout","workspace","branch"],"icon":FolderGitIcon},
     ] },
     { "title":"Sign-in", rows: [
     ] },

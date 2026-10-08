@@ -5,7 +5,7 @@ import { CommitBox } from "./commit-box";
 installTestDom();
 
 const box = (over: { files?: number; busy?: boolean; countIncomplete?: boolean } = {}) =>
-  mount(<CommitBox sessionId="s1" suggestion="Fix it" files={over.files ?? 2} busy={over.busy ?? false} {...(over.countIncomplete ? { countIncomplete: true } : {})} workspacePath="/work" onCommitted={() => {}} />);
+  mount(<CommitBox sessionId="s1" suggestion="Fix it" files={over.files ?? 2} busy={over.busy ?? false} {...(over.countIncomplete ? { countIncomplete: true } : {})} onCommitted={() => {}} />);
 
 const commitButton = (host: HTMLElement) => [...host.querySelectorAll("button")].find((node) => node.textContent?.includes("Commit everything"))!;
 
@@ -32,4 +32,9 @@ describe("Commit everything says why it is unavailable", () => {
     const { host } = await box({ files: 0, countIncomplete: true });
     expect(commitButton(host).disabled).toBe(false);
   });
+});
+
+test("the box is its controls, with no standing paragraph under them", async () => {
+  const { host } = await box({ files: 2 });
+  expect(host.textContent).toBe("Commit everything…");
 });

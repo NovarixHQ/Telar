@@ -244,15 +244,36 @@ describe("acting on a page with no refs — coordinates, focus, chords, paste an
 
   test("browser_press_key sends a chord as one keyDown/keyUp carrying its modifiers", async () => {
     const { manager, views } = await canvasTab();
-    const result = await manager.callTool("s", "browser_press_key", { key: "Meta+V" });
-    expect(textOf(result)).toBe("Pressed Meta+V.");
+    const result = await manager.callTool("s", "browser_press_key", { key: "Alt+Shift+V" });
+    expect(textOf(result)).toBe("Pressed Alt+Shift+V.");
     expect(views[0].webContents.inputEvents).toEqual([
-      { type: "keyDown", keyCode: "V", modifiers: ["meta"] },
-      { type: "keyUp", keyCode: "V", modifiers: ["meta"] },
+      { type: "keyDown", keyCode: "V", modifiers: ["alt", "shift"] },
+      { type: "keyUp", keyCode: "V", modifiers: ["alt", "shift"] },
     ]);
     const unknown = await manager.callTool("s", "browser_press_key", { key: "Hyper+A" });
     expect(unknown.isError).toBe(true);
     expect(views[0].webContents.inputEvents).toHaveLength(2);
+  });
+
+  test("an editing chord runs its editing command, as a real one would, and still reaches the page as a key", async () => {
+    const { manager, views, debug } = await canvasTab();
+    for (const [key, command] of [["ControlOrMeta+A", "selectAll"], ["ControlOrMeta+C", "copy"], ["ControlOrMeta+Shift+Z", "redo"]]) {
+      expect(textOf(await manager.callTool("s", "browser_press_key", { key }))).toBe(`Pressed ${key}.`);
+      const [down, up] = debug.commands.filter((c) => c.method === "Input.dispatchKeyEvent").slice(-2).map((c) => c.params);
+      expect(down).toMatchObject({ type: "rawKeyDown", commands: [command] });
+      expect(up).toMatchObject({ type: "keyUp", key: down.key, modifiers: down.modifiers, commands: [] });
+    }
+    expect(views[0].webContents.inputEvents).toEqual([]);
+  });
+
+  test("editChord is the platform's own modifier only: Ctrl+A on a Mac moves the caret, ⌥⌘A is no edit", () => {
+    const { editChord } = require("./page-input");
+    expect(editChord(keyChord("Meta+A", "darwin"), "darwin")).toMatchObject({ key: "a", code: "KeyA", windowsVirtualKeyCode: 65, modifiers: 4, commands: ["selectAll"] });
+    expect(editChord(keyChord("Control+A"), "darwin")).toBeUndefined();
+    expect(editChord(keyChord("Control+V"), "linux")).toMatchObject({ modifiers: 2, commands: ["paste"] });
+    expect(editChord(keyChord("Meta+Alt+A"), "darwin")).toBeUndefined();
+    expect(editChord(keyChord("Meta+Shift+A"), "darwin")).toBeUndefined();
+    expect(editChord(keyChord("Meta+Shift+Z"), "darwin")).toMatchObject({ modifiers: 12, commands: ["redo"] });
   });
 
   test("paste: a page that handles the event takes it; otherwise the focused editable gets it inserted; otherwise it is refused", async () => {

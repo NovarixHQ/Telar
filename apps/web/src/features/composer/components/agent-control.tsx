@@ -43,7 +43,7 @@ export function AgentControl({ summon, ...props }: ModelPickerProps & { summon?:
             : onDriverChange
               ? "Applies to the first message."
               : onSwitchProvider
-                ? "Takes effect next turn. Another provider's model switches provider and hands it this conversation."
+                ? "Takes effect next turn. Another provider's model switches provider and hands it this session."
                 : "Takes effect next turn."}
           {catalogue?.source === "builtin" && models.some((row) => row.source !== "user") ? " Built-in list." : ""}
           {models.some((row) => row.source === "user") ? " Includes models you added." : ""}

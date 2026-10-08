@@ -91,6 +91,7 @@ export function useDirectoryListing({ list, hostId, startAt }: { list: Directory
 
   const editField = (next: string) => {
     setField(next);
+    setIndex(0);
     setError(undefined);
   };
 

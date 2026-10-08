@@ -13,7 +13,7 @@ import { WorktreesRootRow } from "./worktrees-root-section";
 const api = createEngineApi();
 
 export const FIXED_RULES =
-  "Never touched: a worktree with uncommitted changes, unpushed commits, a turn in flight or a running process, or one Telar did not create. The branch and conversation are always kept.";
+  "Never touched: a worktree with uncommitted changes, unpushed commits, a turn in flight or a running process, or one Telar did not create. The branch and session are always kept.";
 
 type Days = "off" | `${number}`;
 
@@ -69,7 +69,7 @@ function RetentionRow() {
       keywords={["retention", "journal", "export", "retire", "idle"]}
       icon={HistoryIcon}
       label="Turn journal retention"
-      hint={`Journals of conversations idle ${retention.idleAfterDays} days are moved to ${retention.exportTo ?? "an export folder"}.`}
+      hint={`Journals of sessions idle ${retention.idleAfterDays} days are moved to ${retention.exportTo ?? "an export folder"}.`}
       {...(retentionError ? { error: retentionError } : {})}
       control={
         <Button size="sm" variant="outline" onClick={() => void retentionOff()}>

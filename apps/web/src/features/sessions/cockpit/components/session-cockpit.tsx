@@ -31,6 +31,7 @@ import { useSettling } from "../hooks/use-settling";
 import { useSubmit } from "../hooks/use-submit";
 import { useTitleMenu } from "../hooks/use-title-menu";
 import { useTranscriptModel } from "../hooks/use-transcript-model";
+import { pendingStillShown, type PendingTurn } from "../pending-turn";
 import { composerProps } from "./composer-props";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
@@ -55,14 +56,16 @@ export function SessionCockpit({
   solo?: boolean;
 }) {
   const [createdSessionId, setCreatedSessionId] = useState<string>();
+  const [pending, setPending] = useState<PendingTurn>();
   const pathname = usePathname();
   const hostId = hostFromPathname(pathname);
   // A session with no project has no canvas URL, so it is never on the canvas.
   const onCanvas = projectId !== undefined && pathname === canvasHref(projectId, hostId);
   const sessionId = routeSessionId ?? (onCanvas ? undefined : createdSessionId);
   /** No session yet: the composer is the whole screen and nothing is polled. */
-  const fresh = !sessionId;
+  const fresh = !sessionId && !pending;
   const sync = useSessionSync({ hostId, sessionId, initiallyLoading: Boolean(routeSessionId) });
+  if (pending && !pendingStillShown(pending, sessionId, sync.turns)) setPending(undefined);
   const { session, turns, transcriptLanded } = sync;
   const remembered = useRememberedRow(hostId, session ? undefined : sessionId);
   const { projectName, projectResolved, defaults: projectDefaults, enabledPlugins } = useCockpitProject({
@@ -89,14 +92,14 @@ export function SessionCockpit({
   });
   const onConversationClick = useLinkRouting({ hostId, projectId, sessionId, solo, panel: panelState });
   const revealNewTerminals = useJournalReactions({ sessionId, sync, browser: browser.browser, enabledPlugins, panel: panelState });
-  const model = useTranscriptModel(sessionId, sync);
+  const model = useTranscriptModel(sessionId, sync, pending);
   const { active } = model;
   const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));
   const builders = useBuildersBanner(hostId, agents);
   const settling = useSettling(hostId, sessionId, sync);
   const actions = useSessionActions(sessionId, sync);
   const submit = useSubmit({
-    hostId, sessionId, projectId, busy: Boolean(active), sync, composer, draft: draftConfig, browser, panel: panelState, actions, follow, setCreatedSessionId,
+    hostId, sessionId, projectId, busy: Boolean(active), sync, composer, draft: draftConfig, browser, panel: panelState, actions, follow, setCreatedSessionId, setPending,
   });
   const headerMenu = useTitleMenu({ hostId, projectId, projectName, sessionId, sync, settling });
   useNavigationMarks(pathname, transcriptLanded, sync.loading);
@@ -119,7 +122,7 @@ export function SessionCockpit({
             projectName={projectName ?? remembered?.projectName}
             projectResolved={projectResolved}
             session={session}
-            fallbackTitle={fresh ? "New conversation" : remembered?.title}
+            fallbackTitle={fresh ? "New session" : remembered?.title}
             {...(headerMenu ? { menu: headerMenu } : {})}
             onRename={(next) => void actions.rename(next)}
             panel={

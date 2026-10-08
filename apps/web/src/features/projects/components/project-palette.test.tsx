@@ -192,7 +192,7 @@ test("the Projects page's last row walks to Sources, which always has a way back
   expect(page()).toContain("Backspace Back");
   await click(document.querySelector('[aria-label="Back to projects"]')!);
   expect(document.querySelector('[role="listbox"]')?.getAttribute("aria-label")).toBe("Projects");
-  expect(document.querySelector("h2")?.textContent).toBe("New conversation");
+  expect(document.querySelector("h2")?.textContent).toBe("New session");
 });
 
 test("Backspace goes back only on an empty field", async () => {

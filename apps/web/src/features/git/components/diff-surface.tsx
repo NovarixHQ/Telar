@@ -206,38 +206,30 @@ function DiffFooter({
   github: boolean | undefined;
   onChanged: () => void;
 }) {
+  if (!sessionId) return null;
   const busy = active === "running" || active === "claimed";
   return (
     <div className="mt-auto">
-      {sessionId ? (
-        <>
-          <CommitBox
-            sessionId={sessionId}
-            suggestion={suggestion}
-            files={files}
-            {...(diff.filesIncomplete ? { countIncomplete: true } : {})}
-            busy={busy}
-            workspacePath={diff.workspacePath}
-            onCommitted={onChanged}
-          />
-          {diff.branch && diff.shared !== true && kind !== "turn" && (
-            <PublishBox
-              sendPush={() => api.pushSessionBranch(sessionId)}
-              sendPullRequest={(input) => api.openSessionPullRequest(sessionId, input)}
-              {...(github === undefined ? {} : { github })}
-              branch={diff.branch}
-              {...(diff.ahead === undefined ? {} : { ahead: diff.ahead })}
-              commitsSinceBase={diff.commits.length}
-              busy={busy}
-              suggestion={suggestion}
-              onPublished={onChanged}
-            />
-          )}
-        </>
-      ) : (
-        <p className="border-t border-border p-3 text-2xs leading-snug text-muted-foreground">
-          The project&rsquo;s own uncommitted work, before this conversation starts.
-        </p>
+      <CommitBox
+        sessionId={sessionId}
+        suggestion={suggestion}
+        files={files}
+        {...(diff.filesIncomplete ? { countIncomplete: true } : {})}
+        busy={busy}
+        onCommitted={onChanged}
+      />
+      {diff.branch && diff.shared !== true && kind !== "turn" && (
+        <PublishBox
+          sendPush={() => api.pushSessionBranch(sessionId)}
+          sendPullRequest={(input) => api.openSessionPullRequest(sessionId, input)}
+          {...(github === undefined ? {} : { github })}
+          branch={diff.branch}
+          {...(diff.ahead === undefined ? {} : { ahead: diff.ahead })}
+          commitsSinceBase={diff.commits.length}
+          busy={busy}
+          suggestion={suggestion}
+          onPublished={onChanged}
+        />
       )}
     </div>
   );

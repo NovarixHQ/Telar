@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { PackageIcon } from "lucide-react";
 import type { ProjectPlugins } from "@telar/engine-client";
 import { dataScienceMachineSettings } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
@@ -51,7 +50,6 @@ export function DataSciencePackagesRow({
     <Row
       keywords={["pandas", "numpy", "packages", "pip", "environment", "data science"]}
       id="plugins-data-science-packages"
-      icon={PackageIcon}
       label="Default packages"
       hint="Installed into environments Telar creates from here on. Nothing is installed into an environment that already exists."
       {...(error ? { error } : {})}

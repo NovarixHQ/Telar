@@ -1,6 +1,5 @@
 "use client";
 
-import { AudioLinesIcon, MicIcon, TypeIcon } from "lucide-react";
 import { hearing } from "../level";
 import { microphoneOptions, microphoneStatus } from "../devices";
 import { useAudioInputs, useMicrophoneTest, useMicrophoneUnavailable } from "../hooks/use-microphone";
@@ -16,7 +15,7 @@ export function DictationMicrophoneSection() {
   if (unavailable) {
     return (
       <SettingsGroup title="Microphone" scope="browser">
-        <Row icon={MicIcon} label="Not available here" hint={unavailable} />
+        <Row label="Not available here" hint={unavailable} />
       </SettingsGroup>
     );
   }
@@ -30,7 +29,6 @@ export function DictationMicrophoneSection() {
       <Row
         keywords={["input", "device", "which microphone", "choose microphone", "headset", "airpods", "usb", "interface", "built-in", "default input", "wrong microphone"]}
         label="Input"
-        icon={MicIcon}
         {...(gone ? { status: <span className="text-2xs text-muted-foreground">Not connected</span> } : {})}
         {...(gone
           ? { hint: `${gone.label} is not connected; using the system default until it is.` }
@@ -54,7 +52,6 @@ export function DictationMicrophoneSection() {
       <Row
         keywords={["level", "meter", "volume", "test microphone", "not hearing", "no audio", "silent", "muted", "dead", "check"]}
         label="Level"
-        icon={AudioLinesIcon}
         {...(reading && !hearing(level) ? { hint: "Hearing nothing. Pick another input." } : {})}
         info="Reads the input directly; nothing is sent anywhere."
         {...(meterError ? { error: meterError } : {})}
@@ -72,7 +69,6 @@ export function DictationMicrophoneSection() {
       <Row
         keywords={["demo", "preview", "try", "live", "test transcription", "interim", "rewritten", "see it working"]}
         label="Live transcript"
-        icon={TypeIcon}
         {...(demo.error ? { error: demo.error.text } : {})}
         info="A real, paid transcription. The words are discarded and touch no message box."
         control={

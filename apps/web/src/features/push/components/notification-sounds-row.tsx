@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRingIcon, PlayIcon, Volume2Icon } from "lucide-react";
+import { BellRingIcon, PlayIcon } from "lucide-react";
 import { DEFAULT_NOTIFICATION_SOUNDS, NOTIFICATION_SOUNDS_VALUES, type NotificationSounds } from "@telar/engine-client";
 import { Button } from "@/ui/button";
 import { Dropdown, Row, useRestoreDefaults } from "@/features/settings";
@@ -44,7 +44,6 @@ export function NotificationSoundsRow() {
     <Row
       keywords={["sound", "chime", "audio", "mute", "silent", "hilo", "armonico", "felt"]}
       label="Notification sounds"
-      icon={Volume2Icon}
       hint="The sound this computer's alerts play."
       info={`Your iPhone has its own choice, in its notification settings.${test ? " Test sends a real notification, so Focus and your computer's sound settings apply." : ""}`}
       {...(error ? { error } : {})}

@@ -1,6 +1,5 @@
 "use client";
 
-import { LayersIcon } from "lucide-react";
 import { DEFAULT_DEPTH, type Depth } from "../appearance";
 import { Dropdown, Row } from "@/features/settings";
 
@@ -15,7 +14,6 @@ export function DepthControl({ value, onChange }: { value: Depth; onChange: (nex
     <Row
       keywords={["shadow", "elevation", "flat", "soft", "deep", "raised"]}
       label="Depth"
-      icon={LayersIcon}
       hint="How far raised surfaces — cards, the composer, menus — sit off the page."
       {...(value === DEFAULT_DEPTH ? {} : { onRevert: () => onChange(DEFAULT_DEPTH) })}
       control={<Dropdown<Depth> value={value} onChange={onChange} options={OPTIONS} label="Depth" />}

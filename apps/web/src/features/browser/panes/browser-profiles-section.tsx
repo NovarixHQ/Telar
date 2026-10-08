@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MonitorIcon } from "lucide-react";
 import {
   confirmProfileDeletion,
   desktopBrowserProfiles,
@@ -19,19 +18,12 @@ import {
 } from "../desktop-site-permissions";
 import { PermissionKindIcon } from "../components/permission-prompt";
 import { NewBrowserProfileDialog } from "../components/profile-prompt";
-import { IdentityIcon } from "@/ui/telar-icons";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
 import { ProfileColorPicker, ProfileIconPicker } from "./browser-profile-marks";
 import { Row, SettingsGroup, SettingsList } from "@/features/settings";
-
-function profileGlyph(profile: BrowserProfile) {
-  return function ProfileGlyph({ className }: { className?: string }) {
-    return <IdentityIcon icon={profile.icon} color={profile.color} className={className} />;
-  };
-}
 
 type ProfilesBridge = NonNullable<ReturnType<typeof desktopBrowserProfiles>>;
 
@@ -60,7 +52,6 @@ function ProfileRow({
 
     <Row
       {...(error ? { error } : {})}
-      icon={profileGlyph(profile)}
       label={
         <span className="flex items-center gap-2">
           <span className="truncate">{profile.label}</span>
@@ -188,7 +179,7 @@ export function BrowserProfilesSection() {
   if (!bridge) {
     return (
       <SettingsGroup title="Browser profiles" scope="mac" description="The identities Telar's own browser signs in as.">
-        <Row icon={MonitorIcon} label="Desktop app only" hint="This browser tab has no browser host to keep profiles for." />
+        <Row label="Desktop app only" hint="This browser tab has no browser host to keep profiles for." />
       </SettingsGroup>
     );
   }
@@ -281,7 +272,7 @@ function SitePermissionsGroup() {
   if (!supported) {
     return (
       <SettingsGroup title="Site permissions" scope="mac" description="What sites may do in Telar's own browser.">
-        <Row icon={MonitorIcon} label="Desktop app only" hint="This browser tab has no browser host to keep site permissions for." />
+        <Row label="Desktop app only" hint="This browser tab has no browser host to keep site permissions for." />
       </SettingsGroup>
     );
   }

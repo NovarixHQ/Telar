@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { DownloadIcon, MonitorIcon, PowerIcon, RefreshCwIcon } from "lucide-react";
+import { DownloadIcon, PowerIcon, RefreshCwIcon } from "lucide-react";
 import { CHANNEL_HINT, desktopUpdates, updateStatusHint, useDesktopUpdate, type UpdatePrefsInfo } from "../desktop-updates";
 import { Row, SettingsGroup } from "@/features/settings";
 import { Button } from "@/ui/button";
@@ -38,7 +38,7 @@ export function AboutSection({ appVersion }: { appVersion?: string }) {
     return (
       <SettingsGroup title="About">
         <VersionRow {...(appVersion ? { appVersion } : {})} />
-        <Row icon={MonitorIcon} label="Desktop app only" hint="Only the desktop app updates itself." />
+        <Row label="Desktop app only" hint="Only the desktop app updates itself." />
       </SettingsGroup>
     );
   }
@@ -73,7 +73,6 @@ export function AboutSection({ appVersion }: { appVersion?: string }) {
       <SettingsGroup title="About">
         <VersionRow {...(appVersion ? { appVersion } : {})} />
         <Row
-          icon={MonitorIcon}
           keywords={["upgrade", "download", "updates", "channel"]}
           label="No update feed in this build"
           hint="It was packaged locally, so it never checks for or installs updates."

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { CircleAlertIcon, PlugIcon } from "lucide-react";
 import type { Project } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { enablePatch, type PluginSectionEntry } from "../sections";
@@ -63,7 +62,6 @@ export function PluginSettings({
   return (
     <SettingsGroup title={entry.label} description={entry.blurb}>
       <Row
-        icon={PlugIcon}
         label={`${entry.label} for this project`}
         hint={
           failed
@@ -96,7 +94,6 @@ export function PluginSettings({
 
       {failed && (
         <Row
-          icon={CircleAlertIcon}
           label="Did not start"
           hint={entry.error ?? "The engine reported no reason."}
           control={<Badge variant="outline">Failed</Badge>}
@@ -104,7 +101,7 @@ export function PluginSettings({
       )}
 
       {error && (
-        <Row icon={CircleAlertIcon} label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />
+        <Row label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />
       )}
     </SettingsGroup>
   );

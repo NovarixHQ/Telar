@@ -1,6 +1,5 @@
 "use client";
 
-import { RotateCcwIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { DEFAULT_SIDEBAR_LAYOUT, LOCAL_HOST_ID } from "@telar/engine-client";
 import { Switch } from "@/ui/switch";
@@ -42,7 +41,6 @@ function ContinueAfterRestartRow() {
     <Row
       keywords={["resume", "restart", "update", "continue", "interrupted"]}
       label="Continue after Telar restarts"
-      icon={RotateCcwIcon}
       hint="When Telar restarts to update, the sessions it stopped pick up where they left off."
       info="Only a restart to install an update counts; a crash never resumes anything. Each stopped session gets one message saying Telar restarted, marked as automatic. Terminals and runs are not restarted, and a session you stopped or settled is left alone."
       {...(error ? { error } : {})}

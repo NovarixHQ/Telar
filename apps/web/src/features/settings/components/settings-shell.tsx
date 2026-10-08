@@ -356,7 +356,6 @@ export function Row({
   label,
   hint,
   info,
-  icon: Icon,
   status,
   control,
   onRevert,
@@ -368,7 +367,6 @@ export function Row({
   label: ReactNode;
   hint?: ReactNode;
   info?: ReactNode;
-  icon?: ComponentType<{ className?: string }>;
   status?: ReactNode;
   control?: ReactNode;
   onRevert?: () => void;
@@ -391,41 +389,34 @@ export function Row({
       {...(anchor ? { id: anchor } : {})}
       tabIndex={-1}
       className="flex flex-wrap items-start gap-x-4 gap-y-2 py-3 outline-none">
-      <div className="flex min-w-48 flex-1 items-start gap-2.5">
-        {Icon && (
-          <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-muted-foreground/70">
-            <Icon className="size-4" />
+      <div className="min-w-48 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          {info && <InfoTip info={info} />}
+          {status && <span className="shrink-0">{status}</span>}
+          <span className="flex size-3 shrink-0 items-center justify-center">
+            {onRevert && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button variant="ghost" size="icon-xs" aria-label="Revert to the default" onClick={onRevert} className="size-5 shrink-0 text-muted-foreground/60 hover:text-foreground">
+                      <Undo2Icon className="size-3" />
+                    </Button>
+                  }
+                />
+                <TooltipContent>Back to the default</TooltipContent>
+              </Tooltip>
+            )}
           </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-foreground">{label}</span>
-            {info && <InfoTip info={info} />}
-            {status && <span className="shrink-0">{status}</span>}
-            <span className="flex size-3 shrink-0 items-center justify-center">
-              {onRevert && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button variant="ghost" size="icon-xs" aria-label="Revert to the default" onClick={onRevert} className="size-5 shrink-0 text-muted-foreground/60 hover:text-foreground">
-                        <Undo2Icon className="size-3" />
-                      </Button>
-                    }
-                  />
-                  <TooltipContent>Back to the default</TooltipContent>
-                </Tooltip>
-              )}
-            </span>
-          </div>
-          {explanation && <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{explanation}</p>}
-          {error && (
-            <p role="alert" className="mt-1 flex items-start gap-1.5 text-xs leading-snug text-destructive">
-              <CircleAlertIcon className="mt-px size-3 shrink-0" />
-              <span>{error}</span>
-            </p>
-          )}
-          {children}
         </div>
+        {explanation && <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{explanation}</p>}
+        {error && (
+          <p role="alert" className="mt-1 flex items-start gap-1.5 text-xs leading-snug text-destructive">
+            <CircleAlertIcon className="mt-px size-3 shrink-0" />
+            <span>{error}</span>
+          </p>
+        )}
+        {children}
       </div>
       {control && (
         <div
@@ -540,7 +531,6 @@ export function ToggleRow({
   id,
   label,
   hint,
-  icon,
   status,
   checked,
   onCheckedChange,
@@ -553,7 +543,6 @@ export function ToggleRow({
   label: ReactNode;
   hint?: ReactNode;
   info?: ReactNode;
-  icon?: ComponentType<{ className?: string }>;
   status?: ReactNode;
   checked: boolean;
   onCheckedChange: (v: boolean) => void;
@@ -567,7 +556,6 @@ export function ToggleRow({
       {...(id ? { id } : {})}
       label={label}
       hint={hint}
-      icon={icon}
       {...(status ? { status } : {})}
       {...(onRevert ? { onRevert } : {})}
       {...(error ? { error } : {})}

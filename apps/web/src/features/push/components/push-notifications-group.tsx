@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellIcon, SmartphoneIcon } from "lucide-react";
 import { Badge } from "@/ui/badge";
 import { fmtAgo } from "@/ui/format";
 import { DEFAULT_NOTIFY_ON, type ActivityReport, type NotifyOn, type PushRelayStatus } from "@telar/engine-client";
@@ -165,7 +164,6 @@ export function PushNotificationsGroup() {
           <Row
             keywords={["duplicate", "twice", "desktop notifications", "banner", "iphone", "mac", "idle", "away", "push"]}
             label="Notify on"
-            icon={BellIcon}
             hint="Which device each alert goes to."
             info="Each alert goes to one device: this computer while Telar is in front and in use, your iPhone otherwise. A session you're looking at alerts neither."
             {...(notifyError ? { error: notifyError } : {})}
@@ -184,7 +182,7 @@ export function PushNotificationsGroup() {
         <NotificationSoundsRow />
       </SettingsGroup>
       <SettingsGroup keywords={["notifications", "apns", "alerts", "push", "relay", "phone", "not working", "test notification", "paused", "registered"]} title="Phones" action={<Badge variant={headline.ok ? "outline" : "destructive"}>{headline.label}</Badge>}>
-        <Row id="push-phones" label={phone.label} icon={SmartphoneIcon} {...(phone.hint ? { hint: phone.hint } : {})} info={phone.info} control={null}>
+        <Row id="push-phones" label={phone.label} {...(phone.hint ? { hint: phone.hint } : {})} info={phone.info} control={null}>
           {details.length > 0 && (
             <details className="mt-1 text-xs text-muted-foreground">
               <summary className="cursor-pointer select-none hover:text-foreground">Details</summary>

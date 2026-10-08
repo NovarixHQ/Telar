@@ -1,6 +1,5 @@
 "use client";
 
-import { ExternalLinkIcon } from "lucide-react";
 import { useLinkPolicy } from "@/platform/link-policy";
 import { Switch } from "@/ui/switch";
 import { Row, SettingsGroup, useRestoreDefaults } from "./settings-shell";
@@ -14,7 +13,6 @@ export function LinksSection() {
       <Row
         keywords={["external", "system browser", "tabs"]}
         label="Open in the session's browser"
-        icon={ExternalLinkIcon}
         hint={
           openInSessionBrowser
             ? "Issues and pull requests open in the right panel; other links become tabs the agent can see."

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MonitorIcon, XIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import type { PublicHost } from "@telar/engine-client";
 import { forgetRows, readSidebarCache, writeSidebarCache, forgetHostHeads } from "@/features/sessions";
@@ -121,7 +121,6 @@ function HostRow({ host, error, onRename, onRemove }: { host: PublicHost; error?
 
   return (
     <Row
-      icon={MonitorIcon}
       {...(error ? { error } : {})}
       label={
         editing ? (

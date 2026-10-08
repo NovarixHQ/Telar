@@ -12,13 +12,15 @@ type Props = {
   older?: { loading: boolean; load: () => void } | undefined;
   /** Bumped when the phone sends, so the transcript jumps back to the tail. */
   pin: number;
+  /** Height of whatever floats over the transcript's bottom edge (the composer). */
+  bottomInset?: number;
   children?: ReactNode;
 };
 
 const metricsOf = ({ contentOffset, layoutMeasurement, contentSize }: NativeScrollEvent) => ({ offset: contentOffset.y, viewport: layoutMeasurement.height, content: contentSize.height });
 
 /** The transcript follows its tail until the reader scrolls up; a jump button brings it back. */
-export function TranscriptScroll({ turns, loading, older, pin, children }: Props) {
+export function TranscriptScroll({ turns, loading, older, pin, bottomInset = 0, children }: Props) {
   const scroll = useRef<ScrollViewInstance>(null);
   const follow = useRef<Follow>(FOLLOWING);
   const dragging = useRef(false);
@@ -44,7 +46,8 @@ export function TranscriptScroll({ turns, loading, older, pin, children }: Props
       <ScrollView
         ref={scroll}
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 12 + bottomInset }]}
+        scrollIndicatorInsets={{ bottom: bottomInset }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"
         maintainVisibleContentPosition={{ minIndexForVisible: older ? 1 : 0 }}
@@ -68,7 +71,7 @@ export function TranscriptScroll({ turns, loading, older, pin, children }: Props
         {children}
       </ScrollView>
       {jump ? (
-        <Pressable onPress={() => pinToTail(true)} style={styles.jump} accessibilityRole="button" accessibilityLabel="Scroll to the newest message">
+        <Pressable onPress={() => pinToTail(true)} style={[styles.jump, { bottom: 12 + bottomInset }]} accessibilityRole="button" accessibilityLabel="Scroll to the newest message">
           <Symbol name="arrow.down" size={14} weight="semibold" color={Theme.text} />
         </Pressable>
       ) : null}
@@ -84,7 +87,7 @@ const styles = StyleSheet.create({
   older: { alignSelf: "center", height: 32, paddingHorizontal: 14, justifyContent: "center", borderRadius: 16, borderWidth: 1, borderColor: Theme.border, backgroundColor: Theme.subtle },
   olderLabel: { fontSize: TextSize.footnote, fontWeight: "500", color: Theme.textMuted },
   jump: {
-    position: "absolute", right: 16, bottom: 12, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center",
+    position: "absolute", right: 16, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center",
     backgroundColor: Theme.card, borderWidth: 1, borderColor: Theme.border,
     shadowColor: "black", shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
   },

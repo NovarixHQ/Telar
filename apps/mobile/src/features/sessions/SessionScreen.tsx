@@ -1,8 +1,12 @@
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Settings, StyleSheet, Text, TextInput, View, type ScrollViewInstance } from "react-native";
+import type { RequestDecision } from "@telar/engine-client";
+import { isActiveTurn } from "@telar/client/journal";
+import { ActivityIndicator, KeyboardAvoidingView, ScrollView, Settings, StyleSheet, Text, type ScrollViewInstance } from "react-native";
+import { Composer } from "../composer";
 import { hosts, useHosts } from "../hosts";
 import { feedOf, sendMessage, transcriptRows, useFeed, type TranscriptRow } from "../transcript";
+import { answerRequest, openRequests, RequestCards, stopSession } from "../turns";
 import type { RootStack } from "../../platform/navigation/routes";
 
 function Row({ row }: { row: TranscriptRow }) {
@@ -27,22 +31,41 @@ export function SessionScreen() {
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string>();
   const scroll = useRef<ScrollViewInstance>(null);
+  const [deciding, setDeciding] = useState<string>();
   const rows = transcriptRows(feed.turns);
+  const working = feed.turns.some((turn) => isActiveTurn(turn.state));
+
+  const act = async (work: () => Promise<unknown>, after?: () => void) => {
+    setProblem(undefined);
+    try {
+      await work();
+      after?.();
+      if (host) await feedOf(host, params.sessionId)?.refresh();
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   const send = async (typed: string = draft) => {
     const text = typed.trim();
     if (!host || !text) return;
     setSending(true);
-    setProblem(undefined);
-    try {
-      await sendMessage(host, params.sessionId, text);
-      setDraft("");
-      await feedOf(host, params.sessionId)?.refresh();
-    } catch (error) {
-      setProblem(error instanceof Error ? error.message : String(error));
-    } finally {
-      setSending(false);
-    }
+    await act(() => sendMessage(host, params.sessionId, text), () => setDraft(""));
+    setSending(false);
+  };
+
+  const stop = async () => {
+    if (!host) return;
+    setSending(true);
+    await act(() => stopSession(host, params.sessionId));
+    setSending(false);
+  };
+
+  const decide = async (requestId: string, decision: RequestDecision) => {
+    if (!host) return;
+    setDeciding(requestId);
+    await act(() => answerRequest(host, params.sessionId, requestId, decision));
+    setDeciding(undefined);
   };
 
   // `-telarSendOnOpen <text>` at launch sends it once the session has loaded, so a simulator can test sending without a tap.
@@ -63,13 +86,9 @@ export function SessionScreen() {
         ))}
         {feed.failed ? <Text style={[styles.tool, styles.failed]}>{feed.failed}</Text> : null}
       </ScrollView>
+      <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
       {problem ? <Text style={[styles.problem, styles.failed]}>{problem}</Text> : null}
-      <View style={styles.composer}>
-        <TextInput style={styles.input} placeholder="Message" value={draft} onChangeText={setDraft} multiline editable={!sending} />
-        <Pressable accessibilityRole="button" accessibilityLabel="Send" onPress={() => void send()} disabled={sending || !draft.trim()} style={styles.send}>
-          {sending ? <ActivityIndicator /> : <Text style={[styles.sendLabel, !draft.trim() && styles.disabled]}>↑</Text>}
-        </Pressable>
-      </View>
+      <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} />
     </KeyboardAvoidingView>
   );
 }
@@ -85,9 +104,4 @@ const styles = StyleSheet.create({
   working: { color: "#0A84FF" },
   failed: { color: "#D70015" },
   problem: { paddingHorizontal: 16, paddingBottom: 6, fontSize: 13 },
-  composer: { flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 10, paddingBottom: 30, backgroundColor: "white" },
-  input: { flex: 1, minHeight: 38, maxHeight: 140, borderRadius: 19, paddingHorizontal: 14, paddingTop: 9, paddingBottom: 9, fontSize: 16, backgroundColor: "#F2F2F7" },
-  send: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#0A84FF" },
-  sendLabel: { color: "white", fontSize: 20, fontWeight: "700" },
-  disabled: { opacity: 0.4 },
 });

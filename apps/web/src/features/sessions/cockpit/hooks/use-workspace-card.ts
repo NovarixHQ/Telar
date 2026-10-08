@@ -9,8 +9,7 @@ import { usePoll } from "@/ui/hooks/use-poll";
 const OPEN_KEY = "telar:workspace-card";
 const REFRESH_MS = 15_000;
 const CARD_WIDTH = 288;
-const READABLE_CHAT = 640;
-export const DOCK_MIN_WIDTH = CARD_WIDTH + 12 + 32 + READABLE_CHAT + 20;
+export const DOCK_GUTTER = CARD_WIDTH + 24;
 const listeners = new Set<() => void>();
 
 export type CardPlacement = "docked" | "popover";
@@ -34,8 +33,17 @@ const notify = () => {
   for (const listener of listeners) listener();
 };
 
-export function cardPlacement(chatWidth: number, panelOpen: boolean): CardPlacement {
-  return panelOpen || chatWidth < DOCK_MIN_WIDTH ? "popover" : "docked";
+export function cardPlacement(chatWidth: number, laneWidth: number, panelOpen: boolean): CardPlacement {
+  const margin = (chatWidth - Math.min(laneWidth, chatWidth)) / 2;
+  return panelOpen || margin < DOCK_GUTTER ? "popover" : "docked";
+}
+
+function laneWidth(element: HTMLElement): number {
+  const read = (node: Element) => getComputedStyle(node).getPropertyValue("--chat-content-max-width").trim();
+  const value = read(element) || read(document.documentElement);
+  if (value.endsWith("rem")) return parseFloat(value) * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  if (value.endsWith("px")) return parseFloat(value);
+  return element.clientWidth;
 }
 
 export function setCardPlacement(next: CardPlacement) {
@@ -69,7 +77,7 @@ export function useCardPlacement(panelOpen: boolean) {
   const [element, setElement] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (!element) return;
-    const place = () => setCardPlacement(cardPlacement(element.clientWidth, panelOpen));
+    const place = () => setCardPlacement(cardPlacement(element.clientWidth, laneWidth(element), panelOpen));
     place();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(place);

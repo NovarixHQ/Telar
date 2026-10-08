@@ -6,7 +6,7 @@ import path from "node:path";
 import type { EngineClient } from "@telar/engine-client";
 import { matchRoute } from "../../platform/http/router";
 import type { Route } from "../../platform/http/route";
-import { notification, pushConfigured, readPushRecords, saveRegistration, signalKey, writePushRecords, type MobileRegistration, type PushRecord, type SessionSignal } from "./push";
+import { notification, pushAvailable, pushConfigured, readPushRecords, saveRegistration, signalKey, writePushRecords, type MobileRegistration, type PushRecord, type SessionSignal } from "./push";
 import { pushRoutes } from "./routes";
 import { deliverRecord, startMobilePushWorker, stopMobilePushWorker } from "./worker";
 
@@ -33,9 +33,6 @@ const workerDeps = { client: () => ({}) as EngineClient, fullDevices: () => [pho
 async function call(method: Route["method"], pathname: string, devices = [phone]) {
   const { route, params } = matchRoute(pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => devices }), method, pathname)!;
   return route.handle({ body: {}, params, query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse }) as Promise<{ status: number; body: Record<string, unknown> }>;
-}
-async function relayStatus<T>(devices = [phone]): Promise<T> {
-  return (await call("GET", "/v2/push/relay", devices)).body as T;
 }
 
 const registration: MobileRegistration = {
@@ -64,49 +61,12 @@ describe("a Mac with nobody to send to", () => {
     expect(await call("GET", "/v2/push/devices/phone")).toEqual({ status: 200, body: { configured: false } });
   });
 
-  test("the status route answers the same predicate the worker gates on", async () => {
-    setup();
-    const body = await relayStatus<Record<string, unknown>>();
-    expect(body.configured).toBe(pushConfigured());
-    expect(body.configured).toBe(false);
-    expect(body.devices).toEqual([]);
-    expect(Object.keys(body).sort()).toEqual(["configured", "devices"]);
-  });
-
-  test("a phone that brought no relay credential is shown as not yet registered, and not sent to", async () => {
+  test("a phone that brought no relay credential is not sent to", () => {
     setup();
     saveRegistration(phone.id, registration);
-    const body = await relayStatus<{ configured: boolean; devices: Array<{ transport: string }> }>();
-    expect(body.devices[0]!.transport).toBe("none");
-    expect(body.configured).toBe(false);
+    expect(pushAvailable()).toBe(false);
     startMobilePushWorker(workerDeps);
     expect((globalThis as { telarMobilePushTimer?: unknown }).telarMobilePushTimer).toBeUndefined();
-  });
-});
-
-describe("the status route never carries a credential", () => {
-  test("a registered phone is described, never quoted", async () => {
-    setup();
-    saveRegistration(phone.id, { ...registration, pushToStartToken: "b".repeat(64), liveActivities: true });
-
-    const text = JSON.stringify(await relayStatus());
-    expect(text).not.toContain("a".repeat(64));
-    expect(text).not.toContain("b".repeat(64));
-
-    const body = JSON.parse(text) as { devices: Array<{ name?: string; enabled: boolean; paired: boolean; lastDeliveryAt?: number }> };
-    expect(body.devices).toHaveLength(1);
-    expect(body.devices[0]!.name).toBe("Facundo's iPhone");
-    expect(body.devices[0]!.enabled).toBe(true);
-    expect(body.devices[0]!.paired).toBe(true);
-    expect(body.devices[0]!.lastDeliveryAt).toBeUndefined();
-  });
-
-  test("a record whose device is no longer paired is shown as what it is", async () => {
-    setup();
-    saveRegistration("gone", registration);
-    const body = await relayStatus<{ devices: Array<{ paired: boolean; name?: string }> }>();
-    expect(body.devices[0]!.paired).toBe(false);
-    expect(body.devices[0]!.name).toBeUndefined();
   });
 });
 
@@ -152,24 +112,5 @@ describe("telling a registered phone from a reached one", () => {
     writePushRecords([{ ...record(), lastDeliveryAt: 5_000 }]);
     saveRegistration("paired", { ...registration, completions: false });
     expect(readPushRecords()[0]!.lastDeliveryAt).toBe(5_000);
-  });
-});
-
-describe("the status route says why a phone is not being reached", () => {
-  test("the last status, Apple's reason, the failure run and whether it is parked", async () => {
-    setup();
-    saveRegistration(phone.id, registration);
-    writePushRecords([{ ...readPushRecords()[0]!, lastStatus: 400, lastReason: "BadDeviceToken", failures: 20, parked: true }]);
-
-    const body = await relayStatus<{
-      devices: Array<{ lastStatus?: number; lastReason?: string; consecutiveFailures: number; parked: boolean }>;
-    }>();
-    expect(body.devices[0]).toMatchObject({ lastStatus: 400, lastReason: "BadDeviceToken", consecutiveFailures: 20, parked: true });
-  });
-
-  test("a quiet Mac reports no pause, and the pause is never a guess", async () => {
-    setup();
-    const body = await relayStatus<{ pausedUntil?: number }>();
-    expect(body.pausedUntil).toBeUndefined();
   });
 });

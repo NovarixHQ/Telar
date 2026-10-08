@@ -1,17 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import type http from "node:http";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { DEFAULT_NOTIFY_ON, NOTIFY_ON_VALUES, type EngineClient, type NotifyOn } from "@telar/engine-client";
+import type { EngineClient } from "@telar/engine-client";
 import { matchRoute } from "../../platform/http/router";
 import {
   DESKTOP_APPROVE, DESKTOP_APPROVED, DESKTOP_DISMISS, DESKTOP_NOTICE, DESKTOP_PRESENCE, PRESENCE_STALE_MS,
-  createDesktopStream, desktopAttached, desktopNotices, dismissDesktop, emptyDesktopState, handleDesktopMessage, macTookAlert, noteConnectedMac, notifyDesktop, notifyRoute,
+  createDesktopStream, desktopAttached, desktopNotices, dismissDesktop, emptyDesktopState, handleDesktopMessage, notifyDesktop,
   type DesktopState, type Presence,
 } from "./desktop";
-import { readNotifyOn, readSounds, writeNotifyOn, writeSounds } from "./prefs";
-import { notification, signalKey, soundFor, type Delivery, type DeliveryResult, type MobileRegistration, type PushRecord, type SessionSignal } from "./push";
+import { notification, signalKey, type Delivery, type DeliveryResult, type MobileRegistration, type PushRecord, type SessionSignal } from "./push";
 import { pushRoutes } from "./routes";
 import { deliverRecord } from "./worker";
 
@@ -53,22 +49,18 @@ describe("which transitions reach the Mac", () => {
     expect(next.notices.map((n) => n.sessionId)).toEqual(["s2"]);
   });
 
-  test("agrees with the phone's rule, including the completions gate and the ungated failure", () => {
+  test("a phone that turned completions off does not change what the Mac shows", () => {
     const phone: MobileRegistration = { hostId: "h", token: "t", topic: "io.github.novarix.telar", sandbox: false, enabled: true, completions: false, previews: true, mutedSessions: [] };
     const { state } = pass(emptyDesktopState(), [working]);
-    const prefs = { completions: false, previews: true };
-    expect(desktopNotices(state, [finished], undefined, prefs).notices).toEqual([]);
     expect(notification(phone, finished, state.seen.s1)).toBeUndefined();
-    expect(desktopNotices(state, [failed], undefined, prefs).notices).toHaveLength(1);
+    expect(pass(state, [finished]).notices.map((n) => n.kind)).toEqual(["finished"]);
   });
 
-  test("the title is the session's by default on the Mac, generic when previews are off", () => {
+  test("the banner carries the session's title and opens the session", () => {
     const { state } = pass(emptyDesktopState(), [working]);
     const [shown] = pass(state, [blocked]).notices;
     expect(shown).toMatchObject({ type: DESKTOP_NOTICE, title: "Private repository task", path: "/projects/p1/sessions/s1" });
-    const [hidden] = desktopNotices(state, [blocked], undefined, { completions: true, previews: false }).notices;
-    expect(hidden.title).toBe("Telar");
-    expect(JSON.stringify(hidden)).not.toContain("Private");
+    expect(shown).not.toHaveProperty("sound");
   });
 
   test("a session with no project opens at /main", () => {
@@ -151,50 +143,7 @@ describe("the desktop stream", () => {
   });
 });
 
-describe("notify on: one alert, one device", () => {
-  const PATH = "/projects/p1/sessions/s1";
-  const now = 1_000_000;
-  const presence = (patch: Partial<Presence> = {}): Presence => ({ active: true, viewingPath: null, at: now - 1000, ...patch });
-  const cases: Array<[string, Presence | undefined]> = [
-    ["active", presence()],
-    ["idle or locked", presence({ active: false })],
-    ["stale", presence({ at: now - PRESENCE_STALE_MS - 1 })],
-    ["absent", undefined],
-  ];
-  const phoneOnly = { desktop: false, phone: true };
-  const expected: Record<NotifyOn, Record<string, { desktop: boolean; phone: boolean }>> = {
-    mac: { active: { desktop: true, phone: false }, "idle or locked": phoneOnly, stale: phoneOnly, absent: phoneOnly },
-    iphone: { active: phoneOnly, "idle or locked": phoneOnly, stale: phoneOnly, absent: phoneOnly },
-    both: Object.fromEntries(cases.map(([name]) => [name, { desktop: true, phone: true }])),
-  };
-
-  test("the matrix, not viewing the session", () => {
-    for (const notifyOn of NOTIFY_ON_VALUES) {
-      for (const [name, p] of cases) expect([notifyOn, name, notifyRoute(notifyOn, p, PATH, now)]).toEqual([notifyOn, name, expected[notifyOn][name]]);
-    }
-  });
-
-  test("viewing that session while active silences both, except iPhone only, which always pushes", () => {
-    const viewing = presence({ viewingPath: PATH });
-    expect(notifyRoute("mac", viewing, PATH, now)).toEqual({ desktop: false, phone: false });
-    expect(notifyRoute("both", viewing, PATH, now)).toEqual({ desktop: false, phone: false });
-    expect(notifyRoute("iphone", viewing, PATH, now)).toEqual(phoneOnly);
-    expect(notifyRoute("mac", presence({ viewingPath: "/projects/p1/sessions/s2" }), PATH, now)).toEqual({ desktop: true, phone: false });
-  });
-
-  test("a stale or idle 'viewing' never silences the phone: a window left open is not somebody looking", () => {
-    expect(notifyRoute("mac", presence({ viewingPath: PATH, at: now - PRESENCE_STALE_MS - 1 }), PATH, now)).toEqual(phoneOnly);
-    expect(notifyRoute("mac", presence({ viewingPath: PATH, active: false }), PATH, now)).toEqual(phoneOnly);
-    expect(notifyRoute("mac", presence({ at: now + 60_000 }), PATH, now)).toEqual(phoneOnly);
-    expect(notifyRoute("mac", presence({ at: now - PRESENCE_STALE_MS }), PATH, now)).toEqual({ desktop: true, phone: false });
-  });
-
-  test("the default is This Mac when active", () => {
-    expect(DEFAULT_NOTIFY_ON).toBe("mac");
-  });
-});
-
-const g = globalThis as { telarDesktopNotify?: DesktopState; telarDesktopPresence?: Presence; telarDesktopTook?: Record<string, string>; telarConnectedMacs?: Record<string, number> };
+const g = globalThis as { telarDesktopNotify?: DesktopState; telarDesktopPresence?: Presence };
 const recorder = () => ({ sent: [] as unknown[], connected: true, send(message: unknown) { this.sent.push(message); } });
 
 describe("presence from the shell", () => {
@@ -220,167 +169,40 @@ describe("presence from the shell", () => {
     ]) await handleDesktopMessage(junk, never, recorder(), undefined, 9000);
     expect(g.telarDesktopPresence).toBe(before);
   });
+
+  test("another Mac asking is told whether this one is in use", async () => {
+    const { route, params } = matchRoute(pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => [] }), "PUT", "/v2/push/desktop/presence/device_mac")!;
+    const ask = () => route.handle({ body: {}, params, query: new URLSearchParams() } as never);
+    g.telarDesktopPresence = { active: true, viewingPath: null, at: Date.now() };
+    expect(await ask()).toMatchObject({ status: 200, body: { hostInUse: true } });
+    g.telarDesktopPresence = { active: true, viewingPath: null, at: Date.now() - PRESENCE_STALE_MS - 1 };
+    expect(await ask()).toMatchObject({ status: 200, body: { hostInUse: false } });
+  });
 });
 
-describe("the Mac takes an alert, and the phone's seen still advances", () => {
+describe("the Mac and the phone each get the alert", () => {
   const phone: PushRecord = {
     hostId: "12345678-1234-1234-1234-123456789abc", token: "a".repeat(64), topic: "io.github.novarix.telar", sandbox: false,
     enabled: true, completions: true, previews: false, mutedSessions: [],
     deviceId: "paired", revision: "r1", updatedAt: 1000, baselined: true, seen: { s1: signalKey(working) }, activitySent: {},
   };
-  const reset = (presence?: Presence) => {
-    g.telarDesktopNotify = { seen: { s1: signalKey(working) }, baselined: true, offered: {} };
-    g.telarDesktopTook = {};
-    delete g.telarConnectedMacs;
-    if (presence) g.telarDesktopPresence = presence; else delete g.telarDesktopPresence;
-  };
-  const phoneSends = () => {
-    const sent: Delivery[] = [];
-    return { sent, send: async (delivery: Delivery): Promise<DeliveryResult> => { sent.push(delivery); return { status: 200 }; } };
-  };
   const moved = new Set(["s1"]);
 
-  test("active on the Mac: a banner, no push, and the record moves on as if it had pushed", async () => {
-    reset({ active: true, viewingPath: null, at: 10_000 });
-    const mac = recorder();
-    notifyDesktop([blocked], moved, { channel: mac, notifyOn: "mac", now: 11_000 });
-    expect(mac.sent).toHaveLength(1);
-    const push = phoneSends();
-    const next = await deliverRecord(phone, [blocked], push.send, 11, { changed: moved, macTook: macTookAlert });
-    expect(push.sent).toEqual([]);
-    expect(next?.seen.s1).toBe(signalKey(blocked));
-    delete g.telarDesktopPresence;
-    const later = phoneSends();
-    await deliverRecord(next!, [blocked], later.send, 100, { macTook: macTookAlert });
-    expect(later.sent).toEqual([]);
-  });
-
-  test("viewing the session: neither device, and the phone still moves on", async () => {
-    reset({ active: true, viewingPath: "/projects/p1/sessions/s1", at: 10_000 });
-    const mac = recorder();
-    notifyDesktop([blocked], moved, { channel: mac, notifyOn: "both", now: 11_000 });
-    const push = phoneSends();
-    const next = await deliverRecord(phone, [blocked], push.send, 11, { changed: moved, macTook: macTookAlert });
-    expect([mac.sent, push.sent]).toEqual([[], []]);
-    expect(next?.seen.s1).toBe(signalKey(blocked));
-  });
-
-  test("idle or unfocused, a beat gone stale, or no shell at all: no banner, and the phone is pushed", async () => {
-    for (const presence of [{ active: false, viewingPath: null, at: 10_000 }, { active: true, viewingPath: null, at: 11_000 - PRESENCE_STALE_MS - 1 }, undefined]) {
-      reset(presence);
+  test("whatever the Mac's presence, it gets a banner and the phone gets a push", async () => {
+    for (const presence of [{ active: true, viewingPath: null, at: Date.now() }, { active: true, viewingPath: "/projects/p1/sessions/s1", at: Date.now() }, { active: false, viewingPath: null, at: 0 }, undefined]) {
+      g.telarDesktopNotify = { seen: { s1: signalKey(working) }, baselined: true, offered: {} };
+      if (presence) g.telarDesktopPresence = presence; else delete g.telarDesktopPresence;
       const mac = recorder();
-      notifyDesktop([blocked], moved, { channel: mac, notifyOn: "mac", now: 11_000 });
-      expect(mac.sent).toEqual([]);
-      const push = phoneSends();
-      await deliverRecord(phone, [blocked], push.send, 11, { changed: moved, macTook: macTookAlert });
-      expect(push.sent).toHaveLength(1);
+      notifyDesktop([blocked], moved, mac);
+      expect(mac.sent).toEqual([expect.objectContaining({ type: DESKTOP_NOTICE, kind: "blocked", sessionId: "s1" })]);
+      const sent: Delivery[] = [];
+      const next = await deliverRecord(phone, [blocked], async (delivery): Promise<DeliveryResult> => { sent.push(delivery); return { status: 200 }; }, 11, { changed: moved });
+      expect(sent.map((d) => d.kind)).toEqual(["alert"]);
+      expect(next?.seen.s1).toBe(signalKey(blocked));
     }
   });
-
-  test("a paired Mac in use takes the alert from the phone, until it goes idle or quiet", async () => {
-    const report = async (active: boolean) => {
-      const { route, params } = matchRoute(pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => [] }), "PUT", "/v2/push/desktop/presence/device_mac")!;
-      return route.handle({ body: { active }, params, query: new URLSearchParams() } as never);
-    };
-    for (const [active, at, pushed] of [[true, 10_000, 0], [false, 10_000, 1], [true, 11_000 - PRESENCE_STALE_MS - 1, 1]] as const) {
-      reset();
-      noteConnectedMac("device_mac", active, at);
-      notifyDesktop([blocked], moved, { channel: recorder(), notifyOn: "mac", now: 11_000 });
-      const push = phoneSends();
-      await deliverRecord(phone, [blocked], push.send, 11, { changed: moved, macTook: macTookAlert });
-      expect(push.sent).toHaveLength(pushed);
-    }
-    reset({ active: true, viewingPath: null, at: Date.now() });
-    expect(await report(true)).toMatchObject({ status: 200, body: { hostInUse: true } });
-    expect(g.telarConnectedMacs?.device_mac).toBeNumber();
-    delete g.telarDesktopPresence;
-    expect(await report(false)).toMatchObject({ status: 200, body: { hostInUse: false } });
-    expect(g.telarConnectedMacs).toEqual({});
-  });
-
-  test("the claim is for that signal only: the next transition asks again", () => {
-    reset({ active: true, viewingPath: null, at: 10_000 });
-    notifyDesktop([blocked], moved, { channel: recorder(), notifyOn: "mac", now: 11_000 });
-    expect(macTookAlert(blocked)).toBe(true);
-    expect(macTookAlert(finished)).toBe(false);
-    g.telarDesktopPresence = { active: false, viewingPath: null, at: 12_000 };
-    notifyDesktop([finished], moved, { channel: recorder(), notifyOn: "mac", now: 12_500 });
-    expect(g.telarDesktopTook).toEqual({});
-  });
-
-  test("a transition the Mac never raised (its launch baseline) is never claimed", async () => {
-    delete g.telarDesktopNotify;
-    g.telarDesktopTook = {};
-    g.telarDesktopPresence = { active: true, viewingPath: null, at: 10_000 };
-    notifyDesktop([blocked], undefined, { channel: recorder(), notifyOn: "mac", now: 11_000 });
-    const push = phoneSends();
-    await deliverRecord(phone, [blocked], push.send, 11, { macTook: macTookAlert });
-    expect(push.sent).toHaveLength(1);
-  });
-
-  test("Live Activities are not arbitrated: the host card is still refreshed", async () => {
-    reset({ active: true, viewingPath: null, at: 10_000 });
-    notifyDesktop([blocked], moved, { channel: recorder(), notifyOn: "mac", now: 11_000 });
-    const push = phoneSends();
-    const following = { ...phone, liveActivities: true, card: { token: "b".repeat(64), startedAt: 1 } };
-    await deliverRecord(following, [blocked], push.send, 11, { changed: moved, macTook: macTookAlert });
-    expect(push.sent.map((d) => d.kind)).toEqual(["liveactivity"]);
-  });
 });
 
-describe("the sound a banner plays", () => {
-  const reset = () => {
-    g.telarDesktopNotify = { seen: { s1: signalKey(working) }, baselined: true, offered: {} };
-    g.telarDesktopPresence = { active: true, viewingPath: null, at: 10_000 };
-  };
-
-  test("each alert kind names its own sound in the chosen set", () => {
-    const heard = (session: SessionSignal) => {
-      reset();
-      const mac = recorder();
-      notifyDesktop([session], new Set(["s1"]), { channel: mac, notifyOn: "mac", sounds: "felt", now: 11_000 });
-      return (mac.sent[0] as { sound?: string }).sound;
-    };
-    expect([heard(blocked), heard(finished), heard(failed)]).toEqual(["telar-felt-needs", "telar-felt-done", "telar-felt-error"]);
-  });
-
-  test("Off sends a banner with no sound at all", () => {
-    reset();
-    const mac = recorder();
-    notifyDesktop([blocked], new Set(["s1"]), { channel: mac, notifyOn: "mac", sounds: "off", now: 11_000 });
-    expect(mac.sent).toHaveLength(1);
-    expect(mac.sent[0]).not.toHaveProperty("sound");
-    expect(soundFor("off", "failed")).toBeUndefined();
-  });
-
-  test("defaults to Hilo; a write reads back and nonsense reads as the default", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "telar-sounds-"));
-    try {
-      const file = path.join(dir, "remote", "notification-sounds.json");
-      expect(readSounds(file)).toBe("hilo");
-      writeSounds("armonico", file);
-      expect(readSounds(file)).toBe("armonico");
-      writeFileSync(file, JSON.stringify({ sounds: "kazoo" }));
-      expect(readSounds(file)).toBe("hilo");
-    } finally { rmSync(dir, { recursive: true, force: true }); }
-  });
-});
-
-describe("where Notify on is kept", () => {
-  test("a missing, garbled or unknown file reads as the default; a write reads back", () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), "telar-notify-on-"));
-    try {
-      const file = path.join(dir, "remote", "notify-on.json");
-      expect(readNotifyOn(file)).toBe("mac");
-      writeNotifyOn("iphone", file);
-      expect(readNotifyOn(file)).toBe("iphone");
-      writeFileSync(file, "{not json");
-      expect(readNotifyOn(file)).toBe("mac");
-      writeFileSync(file, JSON.stringify({ notifyOn: "watch" }));
-      expect(readNotifyOn(file)).toBe("mac");
-    } finally { rmSync(dir, { recursive: true, force: true }); }
-  });
-});
 
 describe("read elsewhere takes the Mac's banner down", () => {
   test("a read sends the shell a dismiss for that session, ids only, and only when the shell is there", () => {

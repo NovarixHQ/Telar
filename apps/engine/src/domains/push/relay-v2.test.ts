@@ -124,7 +124,7 @@ describe("a send", () => {
 });
 
 describe("the test alert after pairing", () => {
-  test("is sent once per key, and its answer is what Settings shows", async () => {
+  test("is sent once per key, and its answer is kept", async () => {
     setup();
     const device = phone;
     saveRegistration(device.id, registration);
@@ -151,18 +151,6 @@ describe("the test alert after pairing", () => {
     let sends = 0;
     await sendRelayTest(device.id, registration.topic, async () => { sends++; return { status: 200 }; });
     expect(sends).toBe(0);
-  });
-
-  test("Settings shows the outcome and the transport, and never the key or the handle", async () => {
-    setup();
-    const device = phone;
-    saveRegistration(device.id, registration);
-    await sendRelayTest(device.id, registration.topic, async () => ({ status: 400, reason: "BadDeviceToken" }));
-    const { body } = await call("GET", "/v2/push/relay") as { body: { configured: boolean; devices: unknown[] } };
-    const text = JSON.stringify(body);
-    expect(body.configured).toBe(true);
-    expect(body.devices[0]).toMatchObject({ transport: "v2", test: { status: 400, reason: "BadDeviceToken", relay: false } });
-    for (const secret of [credential.sendKey, credential.handle, credential.keyId, registration.token]) expect(text).not.toContain(secret);
   });
 });
 

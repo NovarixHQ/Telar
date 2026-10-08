@@ -1,7 +1,5 @@
-import type { LiveSessionsAnswer, NotificationSounds, NotifyOn } from "@telar/engine-client";
-import { desktopAttached, desktopNotices, desktopPresence, desktopStream, emptyDesktopState, notifyRoute, presentNow, type Channel, type DesktopState, type Presence } from "./desktop";
-import { readNotifyOn, readSounds } from "./prefs";
-import { soundFor } from "./push";
+import type { LiveSessionsAnswer } from "@telar/engine-client";
+import { desktopAttached, desktopNotices, desktopStream, emptyDesktopState, type Channel, type DesktopState } from "./desktop";
 import { signals } from "./worker";
 
 export type PairedHost = { id: string; baseUrl: string; deviceToken: string };
@@ -13,18 +11,13 @@ const HOST_TIMEOUT_MS = 10_000;
 export const hostPath = (hostId: string, path: string): string =>
   path.startsWith("/projects/") ? `/hosts/${encodeURIComponent(hostId)}${path}` : "/";
 
-export function showsHere(notifyOn: NotifyOn, here: Presence | undefined, hostInUse: boolean, path: string, now: number): boolean {
-  return !hostInUse && notifyRoute(notifyOn, here, path, now).desktop;
-}
+type PollOptions = { fetcher?: typeof fetch; channel?: Channel; now?: number };
 
-type PollOptions = { fetcher?: typeof fetch; channel?: Channel; notifyOn?: NotifyOn; sounds?: NotificationSounds; here?: Presence; now?: number };
-
-async function exchangePresence(host: PairedHost, active: boolean, fetcher: typeof fetch): Promise<boolean> {
+async function hostInUse(host: PairedHost, fetcher: typeof fetch): Promise<boolean> {
   try {
     const answer = await fetcher(`${host.baseUrl}/api/mobile/presence`, {
       method: "PUT",
-      headers: { authorization: `Bearer ${host.deviceToken}`, "content-type": "application/json" },
-      body: JSON.stringify({ active }),
+      headers: { authorization: `Bearer ${host.deviceToken}` },
       signal: AbortSignal.timeout(HOST_TIMEOUT_MS),
     });
     return answer.ok && ((await answer.json()) as { hostInUse?: unknown }).hostInUse === true;
@@ -34,8 +27,8 @@ async function exchangePresence(host: PairedHost, active: boolean, fetcher: type
 }
 
 export async function pollHost(host: PairedHost, watch: HostWatch, options: PollOptions = {}): Promise<void> {
-  const { fetcher = fetch, channel = desktopStream, notifyOn = readNotifyOn(), sounds = readSounds(), here = desktopPresence(), now = Date.now() } = options;
-  const hostInUse = await exchangePresence(host, notifyOn !== "iphone" && presentNow(here, now), fetcher);
+  const { fetcher = fetch, channel = desktopStream, now = Date.now() } = options;
+  const inUse = await hostInUse(host, fetcher);
   const etag = watch.etags.get(host.id);
   const live = await fetcher(`${host.baseUrl}/api/sessions/live?all=1`, {
     headers: { authorization: `Bearer ${host.deviceToken}`, ...(etag === undefined ? {} : { "if-none-match": etag }) },
@@ -47,12 +40,8 @@ export async function pollHost(host: PairedHost, watch: HostWatch, options: Poll
   if (nextTag) watch.etags.set(host.id, nextTag);
   const { notices, state } = desktopNotices(watch.states.get(host.id) ?? emptyDesktopState(), signals(answer.sessions, answer.assignments, answer.projects, now), undefined);
   watch.states.set(host.id, state);
-  for (const notice of notices) {
-    const path = hostPath(host.id, notice.path);
-    if (!showsHere(notifyOn, here, hostInUse, path, now)) continue;
-    const sound = soundFor(sounds, notice.kind);
-    channel.send({ ...notice, path, ...(sound ? { sound } : {}) });
-  }
+  if (inUse) return;
+  for (const notice of notices) channel.send({ ...notice, path: hostPath(host.id, notice.path) });
 }
 
 export function watchHosts(hosts: () => PairedHost[], fetcher: typeof fetch = fetch): () => void {

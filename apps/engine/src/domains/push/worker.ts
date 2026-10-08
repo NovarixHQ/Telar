@@ -1,6 +1,6 @@
 import type { EngineClient, LiveSessionRow, Project, SessionAssignment } from "@telar/engine-client";
 import { needsRelayTest, relayTestDelivery, relayV2Delivery } from "./relay-v2";
-import { desktopAttached, macTookAlert, notifyDesktop } from "./desktop";
+import { desktopAttached, notifyDesktop } from "./desktop";
 import { collectReads, noteAlert, READ_SYNC_BATCH, readSyncDelivery, readSyncDue, readSyncWanted } from "./read-sync";
 import { ACTIVITY_REFRESH_S, CARD_LINGER_S, tokenFingerprint, isDeadToken, notRegistered, notification, pushAvailable, pushConfigured, readPushRecords, sendAPNs, signalKey, writePushRecords, type Delivery, type DeliveryResult, type PushRecord, type RelayCredential, type SessionSignal } from "./push";
 import { automaticActivityDelivery, automaticSessions, cardAlert, cardPost, cardRows, type CardAlert, type CardPost } from "./card";
@@ -15,7 +15,7 @@ export async function deliverRecord(
   sessions: SessionSignal[],
   send: (delivery: Delivery) => Promise<DeliveryResult>,
   now = Date.now() / 1000,
-  options: { changed?: ReadonlySet<string>; macTook?: (session: SessionSignal) => boolean; readSync?: boolean; post?: (card: CardPost) => Promise<DeliveryResult> } = {},
+  options: { changed?: ReadonlySet<string>; readSync?: boolean; post?: (card: CardPost) => Promise<DeliveryResult> } = {},
 ): Promise<PushRecord | undefined> {
   if (record.parked || (record.retryAt ?? 0) > now) return record;
   let failed = false;
@@ -46,7 +46,7 @@ export async function deliverRecord(
   for (const session of sessions) {
     if (options.changed && !options.changed.has(session.id) && session.id in record.seen) continue;
     const payload = notification(record, session, record.seen[session.id] ?? (record.baselined ? "new:0:0:false" : undefined));
-    if (payload && !options.macTook?.(session)) {
+    if (payload) {
       if (cardLive && session.activity === "blocked" && payload.payload.request === undefined) held.push([session, payload]);
       else {
         const sent = await push(session, payload);
@@ -397,7 +397,7 @@ export function startMobilePushWorker(given?: PushWorkerDeps): void {
           const sent = record.relay ? await relayV2Delivery(record.relay, delivery) : await sendAPNs(delivery);
           if (sent.retryAfter !== undefined) pauseHost(sent.retryAfter);
           return sent;
-        }, Date.now() / 1000, { macTook: macTookAlert, ...(narrow === undefined ? {} : { changed: narrow }), readSync: true,
+        }, Date.now() / 1000, { ...(narrow === undefined ? {} : { changed: narrow }), readSync: true,
           ...(record.relay ? { post: (card: CardPost) => relayV2Delivery(record.relay!, card) } : {}) });
         if (result?.readSync?.pending.length) workerGlobal.telarMobilePushHeartbeat = true;
         const current = readPushRecords();

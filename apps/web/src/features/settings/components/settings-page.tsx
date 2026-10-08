@@ -11,6 +11,7 @@ import { projectPaneFor } from "@/features/plugins";
 import { useSectionFromUrl } from "../use-section-from-url";
 import { useSettingsReturnPath } from "../return-path";
 
+const ExperimentalSection = dynamic(() => import("./experimental-section").then((mod) => mod.ExperimentalSection));
 const AppearanceSection = dynamic(() => import("@/features/appearance/components/appearance-section").then((mod) => mod.AppearanceSection));
 const OrganizationSection = dynamic(() => import("@/features/sessions/components/organization-section").then((mod) => mod.OrganizationSection));
 const SettledTerminalsSection = dynamic(() => import("@/features/sessions/components/settled-terminals-section").then((mod) => mod.SettledTerminalsSection));
@@ -92,6 +93,7 @@ export function SettingsPage() {
               {...(health ? { health } : {})}
               unreachable={unreachable}
             />
+            <ExperimentalSection />
           </>
         )}
 

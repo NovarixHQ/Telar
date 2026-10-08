@@ -159,25 +159,12 @@ export class WorktreeMaintenance {
   private async sweepRelease({ sessionId, reason }: PlannedRelease, processes: () => Promise<Set<string> | undefined>): Promise<SweepOutcome> {
     const session = this.deps.records.get(sessionId);
     if (session.workspace.mode !== "worktree" || !session.projectId) return "ignored";
-    if (reason === "unchanged" && !(await this.branchUnchanged(session.projectId, session.workspace.branch))) return "ignored";
     if (!(await existsWithin(this.volumes, session.workspace.path))) return "ignored";
     return (await this.release(sessionId, reason, { strict: true, processes })).ok ? "released" : "skipped";
   }
 
   isCleanupRunning(): boolean {
     return this.cleanupRunning;
-  }
-
-  // Zero commits past the default branch; a git read that did not answer counts as changed, since this licenses a delete.
-  private async branchUnchanged(projectId: string, branch: string): Promise<boolean> {
-    const project = this.deps.getProject(projectId);
-    for (const base of ["refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/master", "refs/heads/main", "refs/heads/master"]) {
-      const exists = await this.deps.git(project.root, ["rev-parse", "--verify", "--quiet", base]);
-      if (exists.status !== 0) continue;
-      const ahead = await this.deps.git(project.root, ["rev-list", "--count", `${base}..refs/heads/${branch}`]);
-      return ahead.status === 0 && !ahead.timedOut && ahead.stdout.trim() === "0";
-    }
-    return false;
   }
 
   /** Re-cuts a released checkout at the same path and branch, then runs its setup; idempotent. */
@@ -435,7 +422,7 @@ export class WorktreeMaintenance {
       sessions,
       ...(current ? { current } : {}),
       defaultRoot: defaultWorktreesRoot(this.kernel.paths.root),
-      idleDays: this.deps.cleanup.policy().inactiveDays ?? DEFAULT_IDLE_DAYS,
+      idleDays: this.deps.cleanup.policy().settledDays ?? DEFAULT_IDLE_DAYS,
       now: this.kernel.now(),
       exists: (folder: string) => fs.existsSync(folder),
     };

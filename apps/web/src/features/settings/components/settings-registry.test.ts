@@ -22,10 +22,10 @@ test("the questions a person actually types find the row", () => {
   expect(first("settle")).toBe("Settle quiet sessions");
   // A title that starts with the word leads; the cleanup row is still found.
   expect(first("worktree")).toBe("Worktree preparation");
-  expect(searchSettings(SETTINGS_SEARCH_INDEX, "worktree").map((hit) => hit.title)).toContain("Delete inactive worktrees");
+  expect(searchSettings(SETTINGS_SEARCH_INDEX, "worktree").map((hit) => hit.title)).toContain("Remove worktrees");
   expect(searchSettings(SETTINGS_SEARCH_INDEX, "worktree").map((hit) => hit.title)).toContain("Workspace");
   // A symptom, not a destination.
-  expect(first("disk space")).toBe("Delete inactive worktrees");
+  expect(first("disk space")).toBe("Remove worktrees");
   expect(first("1password")).toBe("Remembered logins");
   expect(first("cookies")).toBe("Browser profiles");
   // Half-remembered, and in the wrong number.

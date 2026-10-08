@@ -1,1 +1,1 @@
-export { DiffScreen } from "./DiffScreen";
+export { DiffSurface } from "./DiffSurface";

@@ -2,8 +2,8 @@ import { NavigationContainer, type LinkingOptions } from "@react-navigation/nati
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
-import { DiffScreen } from "./features/git";
 import { ConnectScreen } from "./features/hosts";
+import { PanelScreen } from "./features/panel";
 import { RailScreen, SessionScreen } from "./features/sessions";
 import { SettingsScreen } from "./features/settings";
 import { UsageScreen } from "./features/usage";
@@ -19,7 +19,7 @@ async function initialUrl(): Promise<string | null | undefined> {
   return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
 }
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { initialRouteName: "Rail", screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Diff: "diff/:hostId/:sessionId" } }, getInitialURL: initialUrl };
+const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { initialRouteName: "Rail", screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } }, getInitialURL: initialUrl };
 
 export function App() {
   const scheme = useColorScheme() === "dark" ? "dark" : "light";
@@ -33,7 +33,7 @@ export function App() {
           <Stack.Screen name="Unavailable" component={Unavailable} options={({ route }) => ({ title: route.params.title })} />
         </Stack.Group>
         <Stack.Screen name="Session" component={SessionScreen} options={({ route }) => ({ title: route.params.title ?? "Session", headerLargeTitle: false, headerTransparent: true, headerShadowVisible: false, headerBackButtonDisplayMode: "minimal" })} />
-        <Stack.Screen name="Diff" component={DiffScreen} options={{ title: "Diff", headerLargeTitle: false }} />
+        <Stack.Screen name="Panel" component={PanelScreen} options={{ title: "Panel", headerLargeTitle: false }} />
         <Stack.Screen name="Settings" options={{ presentation: "modal", headerShown: false }}>
           {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} />}
         </Stack.Screen>

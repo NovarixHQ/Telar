@@ -5,7 +5,7 @@ export type RootStack = {
   Settings: undefined;
   Unavailable: { title: string; systemImage: "folder.badge.plus" | "square.and.pencil" };
   Pair: { link?: string } | undefined;
-  Diff: { hostId: string; sessionId: string };
+  Panel: { hostId: string; sessionId: string; tab?: string };
   Usage: { hostId?: string } | undefined;
   Session: { hostId: string; sessionId: Session["id"]; title?: string; draft?: string };
 };

@@ -24,13 +24,13 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
     };
     const rename = () =>
       Alert.prompt("Rename session", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Rename", isPreferred: true, onPress: (next?: string) => next?.trim() && update({ title: next.trim() }) }], "plain-text", title);
-    const openPanel = () => {
-      if (host) navigation.navigate("Diff", { hostId: host.hostId, sessionId });
+    const openPanel = (tab?: "diff") => {
+      if (host) navigation.navigate("Panel", { hostId: host.hostId, sessionId, ...(tab ? { tab } : {}) });
     };
     const options: NativeStackNavigationOptions = {
       title,
       unstable_headerRightItems: (): NativeStackHeaderItem[] => [
-        { type: "button", label: "Panel", icon: symbol("sidebar.trailing"), tintColor: Theme.textMuted, onPress: openPanel, accessibilityLabel: "Panel" },
+        { type: "button", label: "Panel", icon: symbol("sidebar.trailing"), tintColor: Theme.textMuted, onPress: () => openPanel(), accessibilityLabel: "Panel" },
         {
           type: "menu",
           label: "Session actions",
@@ -41,7 +41,7 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
             title,
             items: [
               { type: "submenu", label: "Edit", inline: true, items: [{ type: "action", label: "Rename", icon: symbol("pencil"), onPress: rename }] },
-              { type: "submenu", label: "Panel", inline: true, items: [{ type: "action", label: "Diff", icon: symbol("plusminus"), onPress: openPanel }] },
+              { type: "submenu", label: "Panel", inline: true, items: [{ type: "action", label: "Diff", icon: symbol("plusminus"), onPress: () => openPanel("diff") }] },
               {
                 type: "submenu",
                 label: "Shelf",

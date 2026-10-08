@@ -257,6 +257,42 @@ describe("the skills menu", () => {
   });
 });
 
+describe("the @ menu", () => {
+  const listing = (files: string[]) => () => ({ listing: { workspacePath: "/w", repository: true, files, source: "git", truncated: false, readAt: 0 } });
+  const live = () => ({ sessions: [], projects: [] });
+  const menu = (host: HTMLElement) => host.querySelector('[role="listbox"][aria-label="Files and folders"]');
+
+  test("offers the project's files and folders", async () => {
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": listing(["README.md", "src/app.ts"]), "GET /api/sessions/live": live });
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
+    expect(menu(host)?.textContent).toContain("src");
+  });
+
+  test("with nothing to offer it still opens and says so", async () => {
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": listing([]), "GET /api/sessions/live": live });
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("No matches.") ?? false);
+    expect(menu(host)).not.toBeNull();
+  });
+
+  test("a listing that failed says so, and the next @ asks again", async () => {
+    let answer: () => unknown = () => {
+      throw new Error("git timed out");
+    };
+    const { host, editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => answer(), "GET /api/sessions/live": live });
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
+
+    answer = listing(["README.md"]);
+    act(() => void activeComposer()!.replace(0, 1, ""));
+    await flush();
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
+    expect(calls.filter((call) => call.route === "GET /api/projects/project_a/files")).toHaveLength(2);
+  });
+});
+
 describe("the corner button is Stop only while a running turn has nothing typed", () => {
   const corner = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button[aria-label="Stop"], button[aria-label="Send"]')!;
 

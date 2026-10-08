@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { ConversationFollowHandle } from "@/ui/conversation";
@@ -74,9 +74,6 @@ export function SessionCockpit({
   const draftConfig = useDraftConfig({ projectId, fresh, projectDefaults });
   const composer = useComposerDraft({ sessionId, projectId });
   const follow = useRef<ConversationFollowHandle>(null);
-  /** Reading back through the transcript steps the composer down to its compact shape. */
-  const [readingBack, setReadingBack] = useState(false);
-  const onAtBottomChange = useCallback((atBottom: boolean) => setReadingBack(!atBottom), []);
   const pluginPanels = usePluginPanels(hostId, enabledPlugins);
   const panelKey = sessionId ?? (projectId === undefined ? "main" : canvasPanelKey(projectId));
   const panelState = useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId });
@@ -150,7 +147,6 @@ export function SessionCockpit({
               model={model}
               receipt={receipt}
               follow={follow}
-              onAtBottomChange={onAtBottomChange}
               onConversationClick={onConversationClick}
               projectId={projectId}
               hostId={hostId}
@@ -169,8 +165,6 @@ export function SessionCockpit({
           <Composer
             {...composerProps({
               fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,
-              // Not while a conversation is opening: a composer changing height would move the viewport again.
-              compact: readingBack && transcriptLanded,
               contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
               builders,
             })}

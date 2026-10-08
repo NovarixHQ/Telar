@@ -10,13 +10,12 @@ import type { useSettling } from "../hooks/use-settling";
 import type { useSubmit } from "../hooks/use-submit";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
 
-export function composerProps({ fresh, solo, session, projectId, projectName, compact, contextNoticePercent, builders, composer, draft, actions, settling, model, submit }: {
+export function composerProps({ fresh, solo, session, projectId, projectName, contextNoticePercent, builders, composer, draft, actions, settling, model, submit }: {
   fresh: boolean;
   solo: boolean;
   session: Session | undefined;
   projectId: string | undefined;
   projectName: string | undefined;
-  compact: boolean;
   contextNoticePercent: ComponentProps<typeof Composer>["contextNoticePercent"];
   builders: ComponentProps<typeof Composer>["builders"];
   composer: ReturnType<typeof useComposerDraft>;
@@ -32,7 +31,6 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
     draft: composer.draft,
     // A fresh canvas is ready: the message typed is what creates the session.
     ready: fresh || Boolean(session),
-    compact,
     attachments: composer.attachments,
     onAttach: composer.setAttachments,
     fresh,

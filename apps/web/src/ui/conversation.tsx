@@ -72,30 +72,6 @@ const ConversationPlacement = ({ at, landed }: { at: string; landed: boolean }) 
   return null;
 };
 
-export const READING_BACK_PX = 200;
-
-const ConversationAtBottom = ({ onChange }: { onChange: (atBottom: boolean) => void }) => {
-  const { isAtBottom, scrollRef } = useStickToBottomContext();
-  const reported = useRef<boolean | undefined>(undefined);
-  useEffect(() => {
-    const report = (atBottom: boolean) => {
-      if (reported.current === atBottom) return;
-      reported.current = atBottom;
-      onChange(atBottom);
-    };
-    if (isAtBottom) return report(true);
-    const element = scrollRef.current;
-    if (!element) return;
-    const measure = () => {
-      if (element.scrollHeight - element.clientHeight - element.scrollTop > READING_BACK_PX) report(false);
-    };
-    measure();
-    element.addEventListener("scroll", measure, { passive: true });
-    return () => element.removeEventListener("scroll", measure);
-  }, [isAtBottom, onChange, scrollRef]);
-  return null;
-};
-
 const PREFETCH_MARGIN_PX = 400;
 
 export function anchoredScrollTop(before: { scrollTop: number; scrollHeight: number }, after: { scrollHeight: number }): number {
@@ -168,7 +144,6 @@ export type ConversationViewportProps = ComponentProps<typeof StickToBottom> & {
   conversation?: string;
   landed?: boolean;
   followRef?: Ref<ConversationFollowHandle>;
-  onAtBottomChange?: (atBottom: boolean) => void;
 };
 
 export const ConversationViewport = ({
@@ -176,7 +151,6 @@ export const ConversationViewport = ({
   conversation,
   landed = true,
   followRef,
-  onAtBottomChange,
   children,
   ...props
 }: ConversationViewportProps) => {
@@ -187,7 +161,6 @@ export const ConversationViewport = ({
       {rendered}
       {placement}
       {follow}
-      {onAtBottomChange && <ConversationAtBottom onChange={onAtBottomChange} />}
     </>
   );
   return (

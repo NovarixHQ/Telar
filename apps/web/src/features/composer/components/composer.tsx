@@ -72,13 +72,6 @@ function runAction(action: Completion["action"], props: ComposerProps, startResu
   if (action.type === "stop") props.onStop();
 }
 
-/** Opened from the compact card; back to compact once the reader returns to the bottom. */
-function useExpanded(compact: boolean) {
-  const [expanded, setExpanded] = useState(false);
-  if (!compact && expanded) setExpanded(false);
-  return [expanded, () => setExpanded(true)] as const;
-}
-
 function ComposerContext({ usage, session, onCompact, busy, sending, compacting }: ComposerProps) {
   return (
     <ContextPill
@@ -92,12 +85,11 @@ function ComposerContext({ usage, session, onCompact, busy, sending, compacting 
 }
 
 export function Composer(props: ComposerProps) {
-  const { draft, ready, compact = false, kind = "session", attachments, onAttach, fresh = false, driver, busy, sending, session, projectId, onDraftChange, onStop } = props;
+  const { draft, ready, kind = "session", attachments, onAttach, fresh = false, driver, busy, sending, session, projectId, onDraftChange, onStop } = props;
   const editor = useRef<ComposerEditorHandle>(null);
   const box = useRef<HTMLDivElement>(null);
   // Reported up by the environment strip, which already polls the project's git state.
   const [driveAway, setDriveAway] = useState<Exclude<ProjectAvailability, "available">>();
-  const [expanded, expand] = useExpanded(compact);
   const [resuming, setResuming] = useState(false);
   const startResume = useCallback(() => setResuming(true), []);
   const [summon, setSummon] = useState<{ picker: ComposerPicker; at: number }>();
@@ -133,8 +125,7 @@ export function Composer(props: ComposerProps) {
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
   const drop = useDropTarget(editor, addFiles);
-  const compactNow = compact && !fresh && !expanded && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0;
-  const shape = [compactNow, attachments.length > 0, question.active, Boolean(driveAway)].join();
+  const shape = [attachments.length > 0, question.active, Boolean(driveAway)].join();
   const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
   const pills = pillsShown && (
     <ComposerPills
@@ -203,7 +194,6 @@ export function Composer(props: ComposerProps) {
                 text={question.boxText}
                 placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(busy)}
                 ready={ready}
-                compact={compactNow}
                 draft={draft}
                 attachments={attachments}
                 onAttach={onAttach}
@@ -213,10 +203,6 @@ export function Composer(props: ComposerProps) {
                 onSelectionChange={() => !question.active && menu.retrigger(draft)}
                 onKeyDown={onKeyDown}
                 onFocus={() => markComposerActive(token)}
-                onExpand={() => {
-                  expand();
-                  editor.current?.focus();
-                }}
                 stash={stash}
                 menu={menu}
                 pick={pick}
@@ -224,7 +210,7 @@ export function Composer(props: ComposerProps) {
                 pills={pills}
                 trailing={
                   <>
-                    {!compactNow && <ComposerContext {...props} />}
+                    <ComposerContext {...props} />
                     <DictationButton dictation={dictation} />
                     {send}
                   </>
@@ -232,7 +218,7 @@ export function Composer(props: ComposerProps) {
               />
             </DictationGlow>
           </form>
-          <ComposerFoot props={props} tray={compactNow} compact={compactNow} pills={pills} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
+          <ComposerFoot props={props} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
         </div>
       </div>
     </div>

@@ -45,7 +45,7 @@ function ContinueRows() {
         keywords={["rate limit", "usage limit", "resume", "five-hour", "weekly", "claude"]}
         label="Continue after a usage limit resets"
         icon={RefreshCwIcon}
-        hint="A Claude turn stopped by a usage limit runs again once the limit lifts. A conversation can still change its own."
+        hint="A Claude turn stopped by a usage limit runs again once the limit lifts. A session can still change its own."
         checked={resumes}
         onCheckedChange={(next) => void save({ resumeAfterRateLimit: next })}
         {...(error ? { error } : {})}
@@ -75,9 +75,9 @@ export function OrganizationSection() {
   const pathname = usePathname();
   return (
     <SettingsGroup title="Organization" scope={hostFromPathname(pathname ?? "/") === LOCAL_HOST_ID ? "mac" : "host"}>
-      <GroupByProjectRow />
       <SettlingRows />
       <ContinueRows />
+      <GroupByProjectRow />
     </SettingsGroup>
   );
 }

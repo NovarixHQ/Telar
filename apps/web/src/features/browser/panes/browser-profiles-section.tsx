@@ -25,7 +25,7 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
 import { ProfileColorPicker, ProfileIconPicker } from "./browser-profile-marks";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row, SettingsGroup, SettingsList } from "@/features/settings";
 
 function profileGlyph(profile: BrowserProfile) {
   return function ProfileGlyph({ className }: { className?: string }) {
@@ -212,8 +212,9 @@ export function BrowserProfilesSection() {
           </p>
         )}
         {profiles === undefined && !error && <Spinner className="size-4" />}
-        {profiles?.map((profile) => (
-          <ProfileRow
+        <SettingsList label="Browser profiles">
+          {profiles?.map((profile) => (
+            <ProfileRow
             key={profile.id}
             profile={profile}
             profiles={profiles}
@@ -224,8 +225,9 @@ export function BrowserProfilesSection() {
             onRenaming={(next) => setRenaming(next ? profile.id : undefined)}
             onError={(message) => setError({ message, at: profile.id })}
             act={(write) => void act(profile.id, write)}
-          />
-        ))}
+            />
+          ))}
+        </SettingsList>
       </SettingsGroup>
       <SitePermissionsGroup />
       <NewBrowserProfileDialog
@@ -295,45 +297,47 @@ function SitePermissionsGroup() {
       {profiles?.length === 0 && (
         <Row keywords={["camera", "microphone", "mic", "webcam", "notifications", "location", "geolocation", "clipboard", "screen share", "screen sharing", "permission", "permissions", "allow", "block", "revoke", "site"]} label="Nothing decided yet" hint="Telar asks the first time a site wants something, over the browser's address bar." />
       )}
-      {profiles?.map((profile) =>
-        profile.origins.map((site) => (
-          <Row
-            key={`${profile.partition}:${site.origin}`}
-            id={`settings-row-site-permission-${profile.partition}-${site.origin}`}
-            label={<span className="truncate font-mono text-[0.75rem]">{siteLabel(site.origin)}</span>}
-            hint={`${profile.label} · ${site.kinds.map(describeSitePermission).join(", ")}`}
-            control={
-              <div className="flex items-center gap-1">
-                {site.kinds.map((record) => (
-                  <button
-                    key={record.kind}
-                    type="button"
+      <SettingsList label="Site permissions">
+        {profiles?.map((profile) =>
+          profile.origins.map((site) => (
+            <Row
+              key={`${profile.partition}:${site.origin}`}
+              id={`settings-row-site-permission-${profile.partition}-${site.origin}`}
+              label={<span className="truncate font-mono text-[0.75rem]">{siteLabel(site.origin)}</span>}
+              hint={`${profile.label} · ${site.kinds.map(describeSitePermission).join(", ")}`}
+              control={
+                <div className="flex items-center gap-1">
+                  {site.kinds.map((record) => (
+                    <button
+                      key={record.kind}
+                      type="button"
+                      disabled={busy === `${profile.partition}:${site.origin}`}
+                      aria-label={`Forget ${describeSitePermission(record)} for ${siteLabel(site.origin)} in ${profile.label}`}
+                      title={`${describeSitePermission(record)} — forget this answer. The site asks again next time.`}
+                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+                      onClick={() =>
+                        void forget(`${profile.partition}:${site.origin}`, { partition: profile.partition, origin: site.origin, kind: record.kind })
+                      }
+                    >
+                      <PermissionKindIcon kind={record.kind} className={record.decision === "block" ? "opacity-50" : undefined} />
+                    </button>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     disabled={busy === `${profile.partition}:${site.origin}`}
-                    aria-label={`Forget ${describeSitePermission(record)} for ${siteLabel(site.origin)} in ${profile.label}`}
-                    title={`${describeSitePermission(record)} — forget this answer. The site asks again next time.`}
-                    className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
-                    onClick={() =>
-                      void forget(`${profile.partition}:${site.origin}`, { partition: profile.partition, origin: site.origin, kind: record.kind })
-                    }
+                    title={`Forget every answer given to ${siteLabel(site.origin)} in ${profile.label}. Nothing is signed out; the site asks again next time.`}
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => void forget(`${profile.partition}:${site.origin}`, { partition: profile.partition, origin: site.origin })}
                   >
-                    <PermissionKindIcon kind={record.kind} className={record.decision === "block" ? "opacity-50" : undefined} />
-                  </button>
-                ))}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={busy === `${profile.partition}:${site.origin}`}
-                  title={`Forget every answer given to ${siteLabel(site.origin)} in ${profile.label}. Nothing is signed out; the site asks again next time.`}
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => void forget(`${profile.partition}:${site.origin}`, { partition: profile.partition, origin: site.origin })}
-                >
-                  Remove
-                </Button>
-              </div>
-            }
-          />
-        )),
-      )}
+                    Remove
+                  </Button>
+                </div>
+              }
+            />
+          )),
+        )}
+      </SettingsList>
     </SettingsGroup>
   );
 }

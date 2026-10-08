@@ -7,7 +7,7 @@ import type { PublicHost } from "@telar/engine-client";
 import { forgetRows, readSidebarCache, writeSidebarCache, forgetHostHeads } from "@/features/sessions";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row, SettingsGroup, SettingsList } from "@/features/settings";
 
 const api = createEngineApi();
 
@@ -75,9 +75,11 @@ export function OtherHostsSection() {
 
   return (
     <SettingsGroup title="Computers this Mac reaches" description="Another Telar's conversations, in this rail.">
-      {hosts?.map((host) => (
-        <HostRow key={host.id} host={host} {...(hostError?.id === host.id ? { error: hostError.message } : {})} onRename={(name) => void rename(host.id, name)} onRemove={() => void remove(host.id)} />
-      ))}
+      <SettingsList label="Computers">
+        {hosts?.map((host) => (
+          <HostRow key={host.id} host={host} {...(hostError?.id === host.id ? { error: hostError.message } : {})} onRename={(name) => void rename(host.id, name)} onRemove={() => void remove(host.id)} />
+        ))}
+      </SettingsList>
       <Row
         keywords={["host", "pair", "second machine", "remote", "mac", "computer"]}
         label="Add a computer"

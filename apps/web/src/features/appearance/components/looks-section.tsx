@@ -28,7 +28,7 @@ import { Input } from "@/ui/input";
 import { Switch } from "@/ui/switch";
 import { cn } from "@/ui/utils";
 import { LookThumb } from "./look-thumb";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row, ScrollBox, SettingsGroup } from "@/features/settings";
 
 function stackPhrase(layers: readonly { type: string }[]): string {
   if (layers.length === 0) return "flat";
@@ -359,7 +359,7 @@ export function LooksSection({ onWear }: { onWear: (look: Look) => void }) {
       />
       {error && <p className="py-1.5 text-xs text-warning">{error}</p>}
       {!isHost && <HostLookRow onWear={onWear} />}
-      <div className="-mx-4">
+      <ScrollBox label="Looks">
         <table className="w-full table-fixed border-collapse text-left text-xs">
           <thead>
             <tr className="border-b border-border/40 text-2xs font-normal tracking-wide text-muted-foreground uppercase">
@@ -396,7 +396,7 @@ export function LooksSection({ onWear }: { onWear: (look: Look) => void }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollBox>
     </SettingsGroup>
   );
 }

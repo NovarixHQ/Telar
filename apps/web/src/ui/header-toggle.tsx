@@ -2,7 +2,6 @@ import type { ComponentProps } from "react";
 import { Button } from "@/ui/button";
 import { cn } from "@/ui/utils";
 
-/** One icon toggle in a header group: quiet at rest, filled and ringed while on or while its popup is open. */
 export function HeaderToggle({ className, ...props }: ComponentProps<typeof Button>) {
   return (
     <Button

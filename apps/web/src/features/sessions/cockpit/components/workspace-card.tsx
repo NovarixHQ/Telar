@@ -52,7 +52,6 @@ export type WorkspaceCardViewProps = {
   terminals: readonly RunView[];
   backgroundTasks: number;
   agents: readonly SessionChild[];
-  /** The Run and Open rows, which read the engine and the desktop shell themselves. */
   run?: ReactNode;
   editor?: ReactNode;
   publish?: ReactNode;
@@ -159,7 +158,7 @@ function CopyItem({ label, value }: { label: string; value: string | undefined }
   );
 }
 
-/** Floats over the conversation's top right. Kept mounted while closed: the Run menu's feed is what reveals new terminals. */
+/** Takes its own space beside the conversation, or above it in a narrow column. Kept mounted while closed: the Run row's feed is what reveals new terminals. */
 export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, panel, onRunTerminals }: {
   hostId: string;
   session: Session;
@@ -178,7 +177,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   const github = useGitHubReady(open && publishable, session.projectId);
   const api = createEngineApi(hostFetcher(hostId));
   return (
-    <div className={cn("app-no-drag absolute top-3 right-3 z-20", !open && "hidden")}>
+    <div className={cn("app-no-drag flex max-h-1/2 shrink-0 justify-end overflow-y-auto p-3 @3xl/conversation:max-h-full", !open && "hidden")}>
       <WorkspaceCardView
         path={path}
         worktree={session.workspace.mode === "worktree"}

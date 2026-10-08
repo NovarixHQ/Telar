@@ -53,7 +53,6 @@ export function PublishBox({
   );
 }
 
-/** What the publish flow has to say: a pull request it opened, and the refusals either arm last got. */
 export function PublishStatus({ publish }: { publish: Publish }) {
   const { pushProblem, pullProblem, opened } = publish;
   return (

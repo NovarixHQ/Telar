@@ -303,8 +303,6 @@ export class SessionLifecycle {
      *  different requests and JSON cannot express the difference any other way. */
     patch: {
       title?: string;
-      /** Engine-only; a title change without it means someone else chose the title. */
-      autoTitle?: "first" | "second";
       runtimeMode?: RuntimeMode;
       detached?: boolean;
       model?: ModelSelectionValue | null;
@@ -326,8 +324,6 @@ export class SessionLifecycle {
         if (!title) throw new EngineStateError("invalid_request", "session title cannot be empty");
         next.title = title.slice(0, 200);
       }
-      if (patch.autoTitle !== undefined) next.autoTitle = patch.autoTitle;
-      else if (next.title !== session.title) delete next.autoTitle;
       if (patch.runtimeMode !== undefined) {
         if (!RUNTIME_MODES.has(patch.runtimeMode)) throw new EngineStateError("invalid_request", "unknown runtime mode");
         next.runtimeMode = patch.runtimeMode;
@@ -379,7 +375,6 @@ export class SessionLifecycle {
       // Nothing changed: no write, no event, so a polling "save" button adds no journal rows.
       if (
         next.title === session.title &&
-        next.autoTitle === session.autoTitle &&
         next.runtimeMode === session.runtimeMode &&
         next.detached === session.detached &&
         next.settledOverride === session.settledOverride &&

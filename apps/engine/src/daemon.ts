@@ -16,7 +16,7 @@ import { createHostsStore, hostsRoutes, identityRoutes, readHostId } from "./dom
 import { createEnginePlugins, externalPluginsDir, PluginInputError, pluginRoutes, pluginScopedRoutes, pluginSessionRoutes } from "./domains/plugins";
 import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
-import { maybeRetitleSession, maybeRetitleWithContext, providersRoutes, readModelCatalogue, sessionProviderRoutes, type AgentRouteDeps, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
+import { maybeRetitleSession, providersRoutes, readModelCatalogue, sessionProviderRoutes, type AgentRouteDeps, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
 import { createPushService } from "./domains/push";
 import { createRemoteStore, remoteDirFor, remoteRoutes } from "./domains/remote";
 import { schedulesRoutes } from "./domains/schedules";
@@ -310,9 +310,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const token = crypto.randomBytes(32).toString("base64url");
   const startedAt = now();
   const workers = createWorkerRegistry(store, { now, leaseMs: leaseMs(options), ...(options.onWorkerRetired ? { onRetired: options.onWorkerRetired } : {}) });
-  const execution = createExecutionPort(store, workers.registration, workers.active, (sessionId) =>
-    setImmediate(() => void maybeRetitleWithContext(store, sessionId).catch((error: unknown) => console.error(`[engine] the second title for ${sessionId} failed: ${String(error)}`))),
-  );
+  const execution = createExecutionPort(store, workers.registration, workers.active);
   const sweepers = startSweepers(engineSweeps(store, options, workers.prune, storageMeter.forget, () => runMount.manager.closeIdleAgentShells()), loopLag.run);
   // Read once, `.local` dropped: a name that changed per request would be a row that renames itself.
   const hostname = os.hostname().replace(/\.local$/i, "") || undefined;

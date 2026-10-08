@@ -38,7 +38,7 @@ function Probe() {
 
 type Setup = { dark: boolean; accent?: string; scene?: "translucent" | "backdrop" };
 
-function applyLook(setup: Setup) {
+function applyScheme(setup: Setup) {
   const root = document.documentElement;
   root.className = setup.dark ? "dark" : "";
   for (const [name, value] of [["data-accent", setup.accent], ["data-backdrop", setup.scene === "backdrop" ? "scene" : undefined]] as const) {
@@ -55,7 +55,7 @@ function applyLook(setup: Setup) {
 const COLOR_MIX_ONLY = new Set(["overlay"]);
 const COLOURS = ARTIFACT_THEME_TOKENS.filter(([name]) => !ARTIFACT_NOT_COLOURS.has(name) && !COLOR_MIX_ONLY.has(name)).map(([name]) => `--${name}`);
 
-test("every Look reaches an artifact as real colours and shadows, with its scheme stated on the page", async () => {
+test("every appearance reaches an artifact as real colours and shadows, with its scheme stated on the page", async () => {
   const sheet = document.createElement("style");
   sheet.textContent = GLOBALS;
   document.head.append(sheet);
@@ -63,7 +63,7 @@ test("every Look reaches an artifact as real colours and shadows, with its schem
   const setups = [false, true].flatMap((dark) => [undefined, ...ACCENTS].flatMap((accent) => [undefined, "translucent", "backdrop"].map((scene) => ({ dark, accent, scene }) as Setup)));
   try {
     for (const setup of setups) {
-      await act(async () => applyLook(setup));
+      await act(async () => applyScheme(setup));
       const theme = JSON.parse(host.querySelector("output")!.textContent!) as ArtifactTheme;
       const label = JSON.stringify(setup);
       const scheme = setup.dark ? "dark" : "light";
@@ -80,7 +80,7 @@ test("every Look reaches an artifact as real colours and shadows, with its schem
       }
     }
   } finally {
-    applyLook({ dark: false });
+    applyScheme({ dark: false });
     document.body.style.removeProperty("background-color");
     await act(async () => sheet.remove());
   }

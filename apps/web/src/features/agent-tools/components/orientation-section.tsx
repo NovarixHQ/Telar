@@ -52,7 +52,7 @@ export function OrientationSection() {
         keywords={["orientation", "preamble", "system prompt", "prompt", "context", "skill", "SKILL.md", "instructions", "telar", "show the text"]}
         label="Tell agents they are inside Telar"
         hint="A paragraph each turn and a skill file for each provider, so agents read Telar's words the way you mean them."
-        info="The paragraph says that the browser is Telar's, that a session is a Telar session, and what the panel, the rail and Looks are. The skill has the detail. Turning this off deletes the skill file."
+        info="The paragraph says that the browser is Telar's, that a session is a Telar session, and what the panel and the rail are. The skill has the detail. Turning this off deletes the skill file."
         {...(error ? { error } : {})}
         {...(on === fallback ? {} : { onRevert: () => void save({ ...DEFAULT_AGENT_ORIENTATION }) })}
         control={

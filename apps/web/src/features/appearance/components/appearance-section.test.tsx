@@ -16,7 +16,7 @@
  * therefore assert against a pane in its pre-hydration state, which is not the
  * pane this file is about.
  */
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -26,19 +26,9 @@ import { SETTINGS_SEARCH_INDEX } from "@/features/settings";
 import { TELAR_DARK, TELAR_LIGHT } from "@telar/engine-client";
 import { STATE_INK, TINT_FLOOR, tintCost } from "../tint-separation";
 import { readTheme } from "./theme-provider";
-import { BUILT_IN_LOOKS } from "../built-in-looks";
-import { writeLooks } from "../looks";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-// The pane's own reads of the world, stubbed to the quiet answer. None of them
-// is what this file is about: the appearance home is a file the engine serves
-// (absent here), and the host look is another window's published appearance.
-mock.module("../appearance-home", () => ({
-  readAppearanceHome: async () => ({ themes: [], looks: [], unreadable: [] }),
-  mergeById: (mine: unknown[]) => mine,
-}));
 
 const { AppearanceSection } = await import("./appearance-section");
 
@@ -73,9 +63,16 @@ function captions(): string[] {
 
 describe("the pane is a stack of settings groups", () => {
   test("every group is on the page at once, in reading order", () => {
-    // Start from something whole, compose it, then its type, and last the
-    // window — the only group that is not part of a look.
-    expect(captions()).toEqual(["Looks", "Background", "Type and surfaces", "Window"]);
+    expect(captions()).toEqual(["Background", "Type and surfaces", "Window"]);
+  });
+
+  test("the colour scheme leads, outside any group, and Restore Telar's default closes the pane", () => {
+    const scheme = host.querySelector('[aria-label="Colour scheme"]');
+    expect(scheme?.closest("section")).toBeNull();
+    const firstGroup = host.querySelector("section")!;
+    expect(scheme!.compareDocumentPosition(firstGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const buttons = [...host.querySelectorAll("button")];
+    expect(buttons.at(-1)?.textContent).toBe("Restore Telar's default");
   });
 
   test("there is no tab strip left anywhere on it", () => {
@@ -84,24 +81,8 @@ describe("the pane is a stack of settings groups", () => {
     expect(host.querySelector('[role="tab"]')).toBeNull();
   });
 
-  test("each group says what it is for, under its title", () => {
-    // `SettingsGroup`'s description is the sentence the panel headers never had
-    // room for — a mono `WINDOW` chip cannot say that none of it travels in a
-    // look.
-    expect(host.textContent).toContain("None of it travels in a look");
-    expect(host.textContent).toContain("A look is a whole composition");
-  });
-
-  /**
-   * THE COPY TEACHES ONE MODEL — the owner's "we have too many ways of selecting
-   * colour themes: themes, colours, looks", and then "themes should not exist".
-   * There is ONE noun left. The composer's own description says what a
-   * composition is, and the gallery's says a look is one saved.
-   */
-  test("there is no theme left to pick, only a composition and looks of it", () => {
-    expect(host.textContent).toContain("Light and dark are two states of one composition");
-    expect(host.textContent).toContain("A look is a whole composition");
-    // The vocabulary the model deleted, gone from the copy as well as the code.
+  test("there is one appearance: no theme or look to pick", () => {
+    expect(host.textContent).not.toMatch(/\blooks?\b/i);
     expect(host.textContent).not.toContain("theme pair");
     expect(host.textContent).not.toContain("Light theme");
     expect(host.textContent).not.toContain("Backdrop");
@@ -148,91 +129,6 @@ describe("the rows settings search points at", () => {
 });
 
 /**
- * THE GALLERY IS A LIST, AND IT IS THE ONLY PRESET SYSTEM — issue #471.
- *
- * It was a horizontal rank of 128px thumbnails inside a vertically-scrolling
- * pane, with a separate LIBRARY of themes underneath answering an overlapping
- * question. What is pinned is the shape that replaced both: no sideways
- * scroller, a row per look carrying a line about what it holds, actions that are
- * real buttons, and no second grid anywhere.
- */
-/**
- * A TABLE, BECAUSE THE LIST WAS TOO LONG — round three of #471. "The looks UI
- * is too long; when you land on the looks you have to scroll a lot. We should
- * use tables for this like we do in other interfaces." Ten built-ins have to
- * fit a short window, which is what these assertions are actually about.
- */
-describe("the Looks gallery reads as a table", () => {
-  /** The section `SettingsGroup` draws for the gallery, found by its caption. */
-  function looksGroup(): HTMLElement | null {
-    return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Looks") ?? null;
-  }
-
-  test("nothing in it scrolls, sideways or otherwise", () => {
-    expect(looksGroup()?.querySelector(".overflow-x-auto")).toBeNull();
-    // A scroll box inside a scrolling pane is the thing the table replaced.
-    expect(looksGroup()?.querySelector(".overflow-y-auto")).toBeNull();
-    expect([...(looksGroup()?.querySelectorAll("*") ?? [])].some((node) => /(^|\s)max-h-/.test(node.className ?? ""))).toBe(false);
-  });
-
-  test("once saved looks make it long, it scrolls inside its group", async () => {
-    await act(async () => {
-      writeLooks(BUILT_IN_LOOKS.slice(0, 5).map((look, index) => ({ ...look, id: `saved-${index}`, label: `Saved ${index}` })));
-    });
-    expect(looksGroup()?.querySelector('[role="region"][aria-label="Looks"]')).not.toBeNull();
-    expect(looksGroup()?.querySelectorAll("tbody tr") ?? []).toHaveLength(15);
-    await act(async () => {
-      writeLooks([]);
-    });
-  });
-
-  test("it is one table with a row per look, headed by what the columns are", () => {
-    const table = looksGroup()?.querySelector("table");
-    expect(table).not.toBeNull();
-    expect([...(table?.querySelectorAll("thead th") ?? [])].map((cell) => cell.textContent)).toEqual(["Look", "Carries", "Actions"]);
-    // Ten built-ins (features/appearance/built-in-looks.ts) and nothing saved on a fresh store.
-    expect(table?.querySelectorAll("tbody tr") ?? []).toHaveLength(10);
-  });
-
-  test("every default is a row of its own, with a Wear button on it", () => {
-    // None of them worn on a fresh store — except Telar, which IS the fresh
-    // store's composition, and whose Wear is therefore disabled.
-    const wears = [...(looksGroup()?.querySelectorAll("button") ?? [])].filter((button) => button.textContent === "Wear");
-    expect(wears.length).toBeGreaterThanOrEqual(9);
-  });
-
-  /** THE NAME IS THE ROW'S ACTION. Wearing is what a reader came here to do, so
-   *  it is the one control that is never behind a hover. */
-  test("a look's name wears it, and says so", () => {
-    const named = [...(looksGroup()?.querySelectorAll("tbody button") ?? [])].find((button) => button.textContent === "Dusk");
-    expect(named?.getAttribute("title")).toBe("Wear Dusk");
-  });
-
-  test("a row says what the look carries, not just what it is called", () => {
-    const text = looksGroup()?.textContent ?? "";
-    // A built-in says what it is in its own words; every look says its accent
-    // and its two faces.
-    expect(text).toContain("The app's own colours");
-    expect(text).toContain("Tide, under a dusk gradient");
-    expect(text).toContain("Geist / Geist Mono");
-  });
-
-  test("the defaults carry no rename, export or delete — there is no card yet", () => {
-    const labels = [...(looksGroup()?.querySelectorAll("button") ?? [])].map((button) => button.getAttribute("aria-label") ?? "");
-    expect(labels.filter((label) => label.startsWith("Rename "))).toEqual([]);
-    expect(labels.filter((label) => label.startsWith("Delete "))).toEqual([]);
-  });
-
-  test("the worn one is the one the window actually has on", () => {
-    // A fresh store is Telar's own composition, and exactly one row may claim
-    // it — an id test would mark none, and a colours-only test would mark the
-    // scenic looks built on the same base as well.
-    const worn = looksGroup()?.querySelectorAll('[title="The window has this look on"]') ?? [];
-    expect(worn).toHaveLength(1);
-  });
-});
-
-/**
  * THE COMPOSER IS THE THEME — issue #471.
  *
  * "Gradient and theme are different things here. We inject the gradients over
@@ -247,7 +143,7 @@ describe("the Background group", () => {
     return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Background") ?? null;
   }
 
-  test("it carries no light/dark switch of its own: Window ▸ Colour scheme is the one", () => {
+  test("it carries no light/dark switch of its own: Colour scheme is the one", () => {
     const segments = [...(composerGroup()?.querySelectorAll("button[aria-pressed]") ?? [])].map((button) => button.textContent);
     expect(segments).not.toContain("Light");
     expect(segments).not.toContain("Dark");
@@ -488,7 +384,7 @@ describe("the pane sits in the same reading column as every other", () => {
 /**
  * EVERY CONTROL WRITES WHAT IT NAMES, AT ONCE — issue #471.
  *
- * The pane used to edit a DRAFT: a whole Look nobody was wearing, painted onto
+ * The pane used to edit a DRAFT: a whole appearance nobody was wearing, painted onto
  * the document to simulate wearing it, gated behind an Apply button in a sticky
  * masthead that also carried Discard, an undo arrow, a "Previewing" chip and a
  * name field. The owner's complaint was that bar, and the answer was to delete
@@ -496,16 +392,13 @@ describe("the pane sits in the same reading column as every other", () => {
  *
  * WHAT IS GUARDED HERE IS THE ABSENCE. No individual control can show that
  * there is no longer a pending state — each of them looks the same either way —
- * so what is pinned is that the bar and its whole vocabulary are gone, and that
- * the one thing it carried which is still a real act, "Save look", survived
- * inside the group whose shelf it adds to.
+ * so what is pinned is that the bar and its whole vocabulary are gone.
  */
 describe("there is no draft, and nothing to apply", () => {
   test("the masthead's vocabulary is gone from the pane", () => {
     for (const word of ["Apply", "Discard", "Previewing", "Undo"]) {
       expect(host.textContent).not.toContain(word);
     }
-    expect(host.querySelector('[aria-label="Look name"]')).toBeNull();
   });
 
   test("nothing on the pane is sticky any more", () => {
@@ -513,34 +406,18 @@ describe("there is no draft, and nothing to apply", () => {
     expect(host.querySelector(".sticky")).toBeNull();
   });
 
-  test("Save look stands in the Looks group, beside the shelf it adds to", () => {
-    const save = [...host.querySelectorAll("button")].find((button) => button.textContent === "Save look");
-    expect(save).toBeDefined();
-    // `SettingsGroup` draws its action on the caption line, outside the card —
-    // the same block that carries the group's own <h4>.
-    expect(save?.closest("section")?.querySelector("h4")?.textContent).toBe("Looks");
-  });
-
-  test("the colour scheme is a Window row now, not a masthead control", () => {
-    // Which half this window wears is a fact about the window, and it is also
-    // the half every colour control on the pane edits.
-    expect(host.querySelector("#settings-row-window-colour-scheme")).not.toBeNull();
-  });
 });
 
-describe("following the Mac's look", () => {
-  const following = () => window.localStorage.getItem("telar-follow-host") !== "detached";
-  const press = async (label: string) => {
-    const button = [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
-    await act(async () => button.click());
-  };
-
-  test("any appearance change stops it, not only a new scheme or look", async () => {
-    for (const label of ["Wide", "Full"]) {
-      window.localStorage.removeItem("telar-follow-host");
-      expect(following()).toBe(true);
-      await press(label);
-      expect(following()).toBe(false);
-    }
+describe("Restore Telar's default", () => {
+  test("puts back the default after a change", async () => {
+    const press = async (label: string) => {
+      const button = [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
+      await act(async () => button.click());
+    };
+    await press("Wide");
+    expect(JSON.parse(window.localStorage.getItem("telar-appearance") ?? "{}").chatWidth).toBe("wide");
+    await press("Restore Telar's default");
+    expect(JSON.parse(window.localStorage.getItem("telar-appearance") ?? "{}").chatWidth).toBe("comfortable");
+    expect(window.localStorage.getItem("telar-theme")).toBe("system");
   });
 });

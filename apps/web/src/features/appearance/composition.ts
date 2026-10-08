@@ -27,7 +27,7 @@ export const THEME_CSS_KEY = "telar-theme-css";
 
 export type CompositionMode = "light" | "dark";
 
-export const MODES: readonly CompositionMode[] = ["light", "dark"];
+const MODES: readonly CompositionMode[] = ["light", "dark"];
 
 export const DEFAULT_COMPOSITION: Composition = {
   light: { base: DEFAULT_BASE_LIGHT, layers: [], overrides: {} },

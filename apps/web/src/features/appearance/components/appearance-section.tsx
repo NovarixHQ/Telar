@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import { accentPrimary } from "../accent-colours";
-import { detachFromHost, useFollowNotice } from "../host-follow";
+import { useShareState } from "../shared-appearance";
 import { useTheme } from "./theme-provider";
-import { DEFAULT_APPEARANCE, useAppearance, type Appearance } from "../appearance";
-import { applyLook, readLooks as readLooksNow, writeLooks, type Look } from "../looks";
+import { DEFAULT_APPEARANCE, useAppearance } from "../appearance";
 import {
   DEFAULT_COMPOSITION,
   compositionHalf,
@@ -15,44 +14,23 @@ import {
   type CompositionMode,
 } from "../composition";
 import { halfFromBase } from "../palette-from-image";
-import { mergeById, readAppearanceHome } from "../appearance-home";
 import { THEME_TOKENS, type ThemeToken } from "../theme-palettes";
 import { Button } from "@/ui/button";
-import { Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
+import { Row, SettingsGroup } from "@/features/settings";
 import { DepthControl } from "./depth-control";
-import { LooksSection } from "./looks-section";
+import { ThemeControl } from "./theme-control";
 import { GroupStrip } from "./studio/tool-strip";
 import { BaseControl, ColourTool, PaletteStrip, TypeTool } from "./studio/tools";
 import { LayerStack } from "./studio/layer-stack";
 import { AppearanceWindowGroup } from "./appearance-window-group";
 
-function useAppearanceHomeNotice(): string | undefined {
-  const [homeNotice, setHomeNotice] = useState<string>();
-  useEffect(() => {
-    const abort = new AbortController();
-    void readAppearanceHome().then((home) => {
-      if (abort.signal.aborted) return;
-      if (home.looks.length > 0) writeLooks(mergeById(readLooksNow(), home.looks));
-      if (home.unreadable.length > 0) {
-        const [first] = home.unreadable;
-        setHomeNotice(
-          home.unreadable.length === 1
-            ? `${first!.file} could not be read — ${first!.reason}.`
-            : `${home.unreadable.length} files in the appearance folder could not be read; the first is ${first!.file}.`,
-        );
-      }
-    });
-    return () => abort.abort();
-  }, []);
-  return homeNotice;
-}
+const STORAGE_FULL = "That change would not fit in browser storage — its layer images are large.";
 
 export function AppearanceSection() {
   const { appearance, setAppearance } = useAppearance();
   const { composition, images, setBase, setLayers, setOverride, setComposition } = useComposition();
   const [notice, setNotice] = useState<string>();
-  const followNotice = useFollowNotice();
-  const homeNotice = useAppearanceHomeNotice();
+  const shareNotice = useShareState().notice;
 
   const { theme, setTheme } = useTheme();
   const systemIsDark = useSyncExternalStore(
@@ -72,38 +50,29 @@ export function AppearanceSection() {
   const derived = useMemo(() => halfFromBase(state.base, mode), [state.base, mode]);
   const overrideCount = useMemo(() => THEME_TOKENS.filter((token) => state.overrides[token] !== undefined).length, [state.overrides]);
 
-  const wear = (look: Look) => {
-    detachFromHost();
-    setNotice(applyLook(look, setAppearance));
-  };
-
-  const change = (patch: Partial<Appearance>) => {
-    detachFromHost();
-    setAppearance(patch);
-  };
-
-  useRestoreDefaults(() => {
-    change({ ...DEFAULT_APPEARANCE, translucent: appearance.translucent, frost: appearance.frost });
+  const restore = () => {
+    setAppearance({ ...DEFAULT_APPEARANCE, translucent: appearance.translucent, frost: appearance.frost });
     setTheme("system");
-    setComposition(DEFAULT_COMPOSITION);
-  });
-
-  const compose = (ok: boolean) => {
-    detachFromHost();
-    setNotice(ok ? undefined : "That change would not fit in browser storage — its layer images are large.");
+    setNotice(setComposition(DEFAULT_COMPOSITION) ? undefined : STORAGE_FULL);
   };
+
+  const compose = (ok: boolean) => setNotice(ok ? undefined : STORAGE_FULL);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {notice && <p className="mb-3 text-xs text-warning">{notice}</p>}
-      {homeNotice && <p className="mb-3 text-xs text-warning">{homeNotice}</p>}
-      {followNotice && <p className="mb-3 text-xs text-warning">{followNotice}</p>}
+      {shareNotice && <p className="mb-3 text-xs text-warning">{shareNotice}</p>}
 
-      <LooksSection onWear={wear} />
+      <Row
+        keywords={["light", "dark", "system", "theme", "mode"]}
+        label="Colour scheme"
+        hint="Which state the app wears, and the one Background edits."
+        control={<ThemeControl />}
+      />
 
       <SettingsGroup
         title="Background"
-        description="What the app looks like: a base colour the surfaces are derived from, and the layers over it. Light and dark are two states of one composition — you edit the one the window wears, set under Window below."
+        description="A base colour the surfaces are derived from, and the layers over it, for each colour scheme."
       >
         <Row
           keywords={["colour", "color", "theme", "palette", "hue", "tint", "background", "canvas"]}
@@ -161,11 +130,17 @@ export function AppearanceSection() {
       </SettingsGroup>
 
       <SettingsGroup title="Type and surfaces" description="The accent, the two typefaces, the sizes they run at, and how far surfaces lift off the canvas.">
-        <TypeTool appearance={appearance} onChange={change} />
-        <DepthControl value={appearance.depth} onChange={(depth) => change({ depth })} />
+        <TypeTool appearance={appearance} onChange={setAppearance} />
+        <DepthControl value={appearance.depth} onChange={(depth) => setAppearance({ depth })} />
       </SettingsGroup>
 
-      <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} onChange={change} />
+      <AppearanceWindowGroup appearance={appearance} setAppearance={setAppearance} />
+
+      <div className="py-4">
+        <Button size="sm" variant="outline" onClick={restore}>
+          Restore Telar&apos;s default
+        </Button>
+      </div>
     </div>
   );
 }

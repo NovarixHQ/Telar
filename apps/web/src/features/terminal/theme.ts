@@ -19,7 +19,7 @@
  * then `ansi[n] = v(theme.black, DEFAULT_ANSI_COLORS[n])`, where `v` returns
  * its fallback for `undefined`). So the shortest correct table is no table.
  *
- * `overrides` still accepts ANSI keys, so a future Look that genuinely carries
+ * `overrides` still accepts ANSI keys, so a future appearance that genuinely carries
  * a palette can supply one without this module growing speculative
  * `--terminal-ansi-*` variables nobody has tested.
  *
@@ -42,7 +42,7 @@ export type TerminalTheme = {
 
 /**
  * What a caller may override on top of the five above: the ANSI sixteen, each
- * optional, and typed here only so a Look that one day carries a palette has a
+ * optional, and typed here only so an appearance that one day carries a palette has a
  * name for the shape. Nothing in this app supplies them — the emulator's own
  * defaults stand.
  */
@@ -56,13 +56,13 @@ export type TerminalAnsiOverrides = Partial<
 >;
 
 /**
- * The three the Look owns, and where each comes from.
+ * The three the appearance owns, and where each comes from.
  *
  * `--card` rather than `--background` for the surface: the right panel draws on
  * the raised surface, and a terminal painting the window's base colour would
  * read as a hole in it. The fallbacks are what a caller gets where there is no
  * stylesheet at all (a test, a server render) — not a second opinion about the
- * Look.
+ * appearance.
  */
 const LOOK_TOKENS = {
   background: { variable: "--card", fallback: "#111111" },
@@ -102,9 +102,9 @@ export function terminalTheme(
     foreground: look("foreground"),
     cursor: look("cursor"),
     // The block cursor's own text colour: the surface under it, so a character
-    // sitting inside the caret stays legible whichever accent the Look carries.
+    // sitting inside the caret stays legible whichever accent the appearance carries.
     cursorAccent: background,
-    // Not a Look token, and deliberately not the accent: a selection has to be
+    // Not an appearance token, and deliberately not the accent: a selection has to be
     // visible over the background AND over whatever truecolour the shell
     // painted, and a solid accent would hide the text it is selecting.
     selectionBackground: "rgba(120, 150, 200, 0.3)",

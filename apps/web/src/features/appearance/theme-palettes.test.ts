@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import { cssColorToHex, FOREGROUND_SURFACES, TELAR_DARK, TELAR_LIGHT, THEME_TOKENS } from "./theme-palettes";
-import { BUILT_IN_LOOKS } from "./built-in-looks";
+import { DEFAULT_BASE_DARK, DEFAULT_BASE_LIGHT } from "@telar/engine-client";
 import { halfFor } from "./palette-from-image";
 
 describe("cssColorToHex", () => {
-  test("every value a built-in look actually paints round-trips to a real hex", () => {
+  test("every value the default and a tinted base paint round-trips to a real hex", () => {
     // The picker is an <input type="color">, which shows black for anything
     // that is not exactly #rrggbb — so this is a hard contract, not a
     // preference. `#808080` used to be the answer for whole syntaxes.
     const halves: Record<string, string>[] = [
       TELAR_LIGHT,
       TELAR_DARK,
-      ...BUILT_IN_LOOKS.flatMap((look) => [halfFor(look.composition.light, "light"), halfFor(look.composition.dark, "dark")]),
-      // The BASES too: they are what the composer's own colour input shows, and
-      // an input that cannot render its value shows black.
-      ...BUILT_IN_LOOKS.map((look) => ({ base: look.composition.light.base, dark: look.composition.dark.base })),
+      halfFor({ base: "#c88337", overrides: {} }, "light"),
+      halfFor({ base: "#24a1db", overrides: {} }, "dark"),
+      // The bases too: an <input type="color"> that cannot render its value shows black.
+      { light: DEFAULT_BASE_LIGHT, dark: DEFAULT_BASE_DARK },
     ];
     for (const half of halves) {
       for (const token of Object.keys(half)) {

@@ -1,5 +1,5 @@
 /**
- * THE TINTS ARE VISIBLE — measured, on every scheme and every Look we ship.
+ * THE TINTS ARE VISIBLE — measured, on every scheme and every base colour.
  *
  * globals.test.ts pins the DECLARATION. This file pins the RESULT, and the two
  * are deliberately different kinds of guard: the first reads source and can say
@@ -7,8 +7,8 @@
  * rewrite of how the declaration is spelled. #691 shipped the first and said so.
  *
  * EVERYTHING IS READ, NOTHING IS COPIED. The floor and the state vocabulary come
- * out of globals.css — the file they paint from — and the cards come out of the
- * built-in Looks. A second copy of any of those numbers here would be a test
+ * out of globals.css — the file they paint from — and the cards are derived the
+ * way the app derives them. A second copy of any of those numbers here would be a test
  * that keeps passing while the app changes underneath it, which is the failure
  * mode #691's guards were careful to avoid.
  *
@@ -24,7 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { THEME_TOKENS } from "@telar/engine-client";
-import { BUILT_IN_LOOKS } from "./built-in-looks";
+import { DEFAULT_COMPOSITION } from "./composition";
 import { compositionHalf } from "./composition";
 import { halfFromBase } from "./palette-from-image";
 import {
@@ -89,7 +89,7 @@ const floor = (() => {
   return Number(percent[1]) / 100;
 })();
 
-/** The state vocabulary, per scheme, straight out of the stylesheet. A Look
+/** The state vocabulary, per scheme, straight out of the stylesheet. An appearance
  *  cannot move these — they are not in THEME_TOKENS — which is exactly why the
  *  hazard is on the OTHER end of the mix. */
 const INK = {
@@ -107,24 +107,19 @@ const MODES: readonly Mode[] = ["light", "dark"];
  * --sidebar and --muted-foreground, which have `-wash` variants the translucent
  * scene swaps in), so the second colour of every tint mix is precisely a
  * composition's card and nothing else composes over it.
- *
- * ONE LIST NOW, WHERE THERE WERE TWO (#471). This used to walk the built-in
- * THEMES and the starter LOOKS separately, either side of a distinction the
- * colour model no longer has — a palette with nothing over it is a composition
- * with no layers, so the ten built-in Looks are every card this build can paint
- * a tint onto. `compositionHalf` derives each one the way the app does, which
- * keeps the guard reading the real card rather than a stored copy of it.
  */
-const surfaces: ReadonlyArray<{ label: string; mode: Mode; card: string }> = BUILT_IN_LOOKS.flatMap((look) =>
-  MODES.map((mode) => ({ label: `look ${look.id}`, mode, card: compositionHalf(look.composition, mode).card })),
-);
+const surfaces: ReadonlyArray<{ label: string; mode: Mode; card: string }> = MODES.map((mode) => ({
+  label: "Telar's default",
+  mode,
+  card: compositionHalf(DEFAULT_COMPOSITION, mode).card,
+}));
 
 /** The three declared tones. `.tint-warning` has no call site outside
  *  globals.css today; it is measured anyway, because the class exists and the
  *  next reader to reach for it should find it already held to the bar. */
 const TONES = ["success", "destructive", "warning"] as const;
 
-describe("the semantic tints, on every scheme and Look we ship", () => {
+describe("the semantic tints, on every scheme", () => {
   test("the stylesheet actually yielded a floor and a vocabulary", () => {
     // A positive control: every assertion below is a claim about values pulled
     // out of a file by regex, and a regex that quietly matched nothing would
@@ -134,8 +129,6 @@ describe("the semantic tints, on every scheme and Look we ship", () => {
     expect(INK.light.success).toMatch(/^oklch\(/);
     expect(INK.dark.destructive).toMatch(/^oklch\(/);
     expect(INK.light.success).not.toBe(INK.dark.success);
-    expect(BUILT_IN_LOOKS.length).toBeGreaterThan(0);
-    expect(surfaces.length).toBe(2 * BUILT_IN_LOOKS.length);
     for (const { label, card } of surfaces) expect(card, `${label} has a card`).toMatch(/^(oklch\(|#|rgb)/);
   });
 
@@ -270,7 +263,7 @@ describe("the semantic tints, on every scheme and Look we ship", () => {
  * every card this build can derive from the composer's own control — generated
  * from the hue/saturation domain of a colour picker and pushed through the real
  * `halfFromBase`, never written down — and the answer there is that the repair
- * never fires. The sRGB GRID is every card a VS Code import, a Look file or a
+ * never fires. The sRGB GRID is every card a VS Code import or a
  * hand override can reach, and the answer there is what the repair does when it
  * does fire. A guard over only the first would pass forever without exercising
  * a line of the search.
@@ -322,11 +315,11 @@ describe("repairing the ink", () => {
     return answer;
   };
 
-  test("the whole argument's premise: no Look can set a state colour", () => {
+  test("the whole argument's premise: no appearance can set a state colour", () => {
     /**
      * THE LOAD-BEARING FACT. Repairing `--success` is only safe because there is
-     * no way for anybody to have chosen it — it is not in the sixteen a Look
-     * carries, so no import, no Look file, no picker and no migration can write
+     * no way for anybody to have chosen it — it is not in the sixteen an appearance
+     * carries, so no import, no picker and no migration can write
      * one. Put `success` in THEME_TOKENS and this fails, which is correct: the
      * rule would have to be reconsidered from the start.
      */
@@ -378,7 +371,7 @@ describe("repairing the ink", () => {
     expect(moved.slice(0, 5), "and so the repair must be a fixed point on every one of them").toEqual([]);
   });
 
-  test("every Look this build ships is a fixed point too", () => {
+  test("Telar's default is a fixed point too", () => {
     const moved: string[] = [];
     for (const { label, mode, card } of surfaces) {
       for (const tone of TINT_TONES) {

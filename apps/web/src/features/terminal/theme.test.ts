@@ -23,13 +23,13 @@ afterAll(async () => {
 const reader = (values: Record<string, string>): CssVarReader => (variable) => values[variable];
 
 describe("terminalTheme", () => {
-  test("the three the Look owns come from the Look", () => {
+  test("the three the appearance owns come from the appearance", () => {
     const theme = terminalTheme(reader({ "--card": "#101214", "--foreground": "#e8e8e8", "--primary": "#7aa2f7" }));
     expect(theme.background).toBe("#101214");
     expect(theme.foreground).toBe("#e8e8e8");
     expect(theme.cursor).toBe("#7aa2f7");
     // The caret's own text colour is the surface under it, so a character
-    // inside the block stays legible whatever accent the Look carries.
+    // inside the block stays legible whatever accent the appearance carries.
     expect(theme.cursorAccent).toBe("#101214");
   });
 
@@ -70,7 +70,7 @@ describe("terminalTheme", () => {
     for (const name of ANSI_KEYS) expect(name in theme).toBe(false);
   });
 
-  test("overrides win, which is how a Look could one day supply a palette", () => {
+  test("overrides win, which is how an appearance could one day supply a palette", () => {
     const theme = terminalTheme(reader({}), { red: "#ff0000", background: "#123456" });
     expect(theme.red).toBe("#ff0000");
     expect(theme.background).toBe("#123456");
@@ -190,14 +190,14 @@ describe("cssColorReader", () => {
 
   test("a colour space xterm cannot parse comes back as one it can", () => {
     // `--card` is `oklch(0.2 0 0)` in this app; xterm handles #rgb and rgb()
-    // and throws on the rest, so the canvas is what makes the Look usable.
+    // and throws on the rest, so the canvas is what makes the appearance usable.
     expect(convert("oklch(0.2 0 0)", (value) => (value.startsWith("oklch") ? "#2b2b2b" : value))).toBe("#2b2b2b");
   });
 
   test("a value the browser REFUSES answers nothing, rather than the last colour set", () => {
     // This is the whole reason for two sentinels. A rejected `fillStyle` leaves
     // the previous value in place, so a single assignment would hand back
-    // whichever sentinel ran last and call it the Look's background — and
+    // whichever sentinel ran last and call it the appearance's background — and
     // `terminalTheme` would then treat a parse failure as a deliberate black.
     expect(convert("not-a-colour", (value) => (value.startsWith("#") ? value : undefined))).toBeUndefined();
   });

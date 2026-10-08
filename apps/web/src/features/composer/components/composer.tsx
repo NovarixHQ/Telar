@@ -37,6 +37,13 @@ function placeholderFor(ready: boolean, busy: boolean): string {
   return "Ask for changes, or explore the project…";
 }
 
+function blockedReason(ready: boolean, driveAway: boolean, hasContent: boolean): string | undefined {
+  if (!ready) return "This conversation is not ready yet.";
+  if (driveAway) return "The project's files are not reachable right now.";
+  if (!hasContent) return "There is nothing to send.";
+  return undefined;
+}
+
 /** The one gate every send passes through: Enter, ⌘↵, the send button and the page API. */
 function useSubmitGate(props: ComposerProps, question: { active: boolean; advance: { current: () => boolean } }, hasContent: boolean, driveAway: boolean, startResume: () => void) {
   const { draft, ready, fresh, onAdopt, onDraftChange, onSubmit } = props;
@@ -49,9 +56,8 @@ function useSubmitGate(props: ComposerProps, question: { active: boolean; advanc
       startResume();
       return { ok: true };
     }
-    if (!ready) return { ok: false, reason: "This conversation is not ready yet." };
-    if (driveAway) return { ok: false, reason: "The project's files are not reachable right now." };
-    if (!hasContent) return { ok: false, reason: "There is nothing to send." };
+    const reason = blockedReason(ready, driveAway, hasContent);
+    if (reason) return { ok: false, reason };
     onSubmit();
     return { ok: true };
   }, [question.active, advance, ready, driveAway, draft, hasContent, onSubmit, fresh, onAdopt, onDraftChange, startResume]);
@@ -145,6 +151,7 @@ export function Composer(props: ComposerProps) {
       sending={sending}
       hasContent={hasContent}
       escArmed={esc.armed}
+      blocked={blockedReason(ready, Boolean(driveAway), true)}
       onStop={onStop}
       animate={motion}
       {...(question.active ? { question: { label: question.submitLabel, ready: question.canAdvance } } : {})}

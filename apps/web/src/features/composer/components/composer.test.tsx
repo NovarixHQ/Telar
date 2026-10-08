@@ -23,6 +23,7 @@ type BoxProps = {
   initial?: string;
   files?: File[];
   busy?: boolean;
+  ready?: boolean;
   compact?: boolean;
   fresh?: boolean;
   projectId?: string;
@@ -32,7 +33,7 @@ type BoxProps = {
   onStop?: () => void;
 };
 
-function Box({ initial = "", files = [], busy = false, compact = false, fresh = false, projectId, session, runtimeMode, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, ready = true, compact = false, fresh = false, projectId, session, runtimeMode, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -40,7 +41,7 @@ function Box({ initial = "", files = [], busy = false, compact = false, fresh = 
       <p data-testid="draft">{draft}</p>
       <Composer
         draft={draft}
-        ready
+        ready={ready}
         attachments={attachments}
         onAttach={setAttachments}
         busy={busy}
@@ -290,6 +291,25 @@ describe("the corner button is Stop only while a running turn has nothing typed"
     const { host } = await composer({ onSubmit: () => sends++ });
     await click(corner(host));
     expect(sends).toBe(0);
+  });
+});
+
+describe("what the corner button and the empty box say", () => {
+  const send = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button[aria-label="Send"]')!;
+  const tooltip = async (button: HTMLElement) => {
+    act(() => button.focus());
+    await flush(() => document.querySelector("[data-slot=tooltip-content]") !== null);
+    return document.querySelector("[data-slot=tooltip-content]")?.textContent;
+  };
+
+  test("Send's tooltip says why a press would not send", async () => {
+    const { host } = await composer({ initial: "go", ready: false });
+    expect(await tooltip(send(host))).toBe("This conversation is not ready yet.");
+  });
+
+  test("a ready Send's tooltip just names it", async () => {
+    const { host } = await composer({ initial: "go" });
+    expect(await tooltip(send(host))).toBe("Send");
   });
 });
 

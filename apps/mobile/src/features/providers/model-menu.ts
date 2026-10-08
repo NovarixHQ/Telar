@@ -1,59 +1,125 @@
-import type { ModelSelection, ProviderModel, RuntimeMode } from "@telar/engine-client";
+import type { ProviderDriverKind, ProviderModel, RuntimeMode } from "@telar/engine-client";
 import {
   contextWindowOf,
   effortLabel,
   familyOf,
   groupFamilies,
   pickInFamily,
+  rowFor,
+  rowOf,
   RUNTIME_MODE_LABELS,
   RUNTIME_MODES,
-  visibleModels,
+  WINDOW_LABEL,
+  windowsOf,
   type ModelChoice,
 } from "@telar/client/providers";
 
-export type MenuOption<T> = { value: T; label: string; selected: boolean };
+export type MenuOption = { key: string; label: string; subtitle?: string; selected: boolean; choice: ModelChoice };
 
-export type ModelMenu = {
-  label: string;
-  families: MenuOption<string>[];
-  efforts: MenuOption<string | undefined>[];
-};
+type MenuSection = { title: string; options: MenuOption[] };
 
-/** The session's model choices, grouped into families as the cockpit's menu groups them. */
-export function modelMenu(models: readonly ProviderModel[], selection: Pick<ModelSelection, "model" | "effort"> | undefined): ModelMenu {
-  const families = groupFamilies(visibleModels(models, selection?.model)).filter((family) => !family.hidden);
-  const current = familyOf(families, selection?.model) ?? families.find((family) => family.isDefault);
-  const row = current && (current.rows.find((candidate) => candidate.id === selection?.model || candidate.resolves === selection?.model) ?? pickInFamily(current, "standard"));
-  const efforts = row?.efforts ?? [];
-  const effort = selection?.effort;
+export type ModelMenu = { label: string; families: MenuOption[]; sections: MenuSection[] };
+
+const ULTRACODE = "Extra-high reasoning that can also plan and run multi-step workflows on its own.";
+
+function withDefault(label: string, isDefault: boolean): string {
+  return isDefault ? `${label} · Default` : label;
+}
+
+/** Moving to another row keeps only the options that row still offers. */
+function moving(choice: ModelChoice, row: ProviderModel, driver: ProviderDriverKind): ModelChoice {
+  const { effort, fastMode, ultracode, serviceTier } = choice;
   return {
-    label: [current?.label ?? "Default", effort ? effortLabel(effort) : undefined].filter(Boolean).join(" · "),
-    families: families.map((family) => ({ value: family.id, label: family.label, selected: family === current })),
-    efforts: [
-      ...(row?.defaultEffort ? [] : [{ value: undefined, label: "Auto", selected: !effort }]),
-      ...efforts.map((value) => ({
-        value,
-        label: value === row?.defaultEffort ? `${effortLabel(value)} · Default` : effortLabel(value),
-        selected: effort === value || (!effort && value === row?.defaultEffort),
-      })),
-    ],
+    model: row.id,
+    ...(effort && row.efforts.includes(effort as never) ? { effort } : {}),
+    ...(fastMode && row.fastMode ? { fastMode } : {}),
+    ...(ultracode && offersUltracode(driver, row) ? { ultracode } : {}),
+    ...(serviceTier && row.serviceTiers?.some((tier) => tier.id === serviceTier) ? { serviceTier } : {}),
   };
 }
 
-/** The choice that picking `familyId` makes: its row in the current context window, keeping an effort the new model still has. */
-export function chooseFamily(models: readonly ProviderModel[], selection: ModelChoice | undefined, familyId: string): ModelChoice {
-  const families = groupFamilies(models);
-  const family = families.find((candidate) => candidate.id === familyId);
-  if (!family) return selection ?? {};
-  const was = selection?.model ? models.find((model) => model.id === selection.model || model.resolves === selection.model) : undefined;
-  const row = pickInFamily(family, was ? contextWindowOf(was) : "standard");
-  const effort = selection?.effort && row.efforts.includes(selection.effort as never) ? selection.effort : undefined;
-  return { model: row.id, ...(effort ? { effort } : {}) };
+function offersUltracode(driver: ProviderDriverKind, row: ProviderModel): boolean {
+  return driver === "claude" && row.efforts.includes("xhigh");
 }
 
-export function accessMenu(mode: RuntimeMode): { label: string; options: MenuOption<RuntimeMode>[] } {
+function levelLabel(choice: ModelChoice, row: ProviderModel | undefined): string | undefined {
+  if (choice.effort) return effortLabel(choice.effort);
+  if (choice.ultracode) return "Ultracode";
+  if (!row || row.efforts.length === 0) return undefined;
+  return row.defaultEffort ? effortLabel(row.defaultEffort) : "Auto";
+}
+
+/** The session's model menu as the phone's Swift app draws it: families, then the options the chosen row offers. */
+export function modelMenu(models: readonly ProviderModel[], choice: ModelChoice, driver: ProviderDriverKind): ModelMenu {
+  const shown = models.filter((model) => !model.hidden);
+  const families = groupFamilies(shown).filter((family) => !family.hidden);
+  const row = rowOf(shown, choice.model) ?? shown.find((model) => model.isDefault) ?? shown[0];
+  const family = familyOf(families, row?.id);
+  const window = row ? contextWindowOf(row) : "standard";
+  const windows = windowsOf(family);
+  const change = (patch: ModelChoice): ModelChoice => ({ ...choice, ...(choice.model || !row ? {} : { model: row.id }), ...patch });
+
+  const sections: MenuSection[] = [];
+  if (row && row.efforts.length > 0) {
+    sections.push({
+      title: "Reasoning",
+      options: [
+        ...(row.defaultEffort ? [] : [{ key: "auto", label: "Auto", selected: !choice.effort && !choice.ultracode, choice: change({ effort: undefined, ultracode: undefined }) }]),
+        ...row.efforts.map((level) => ({
+          key: level,
+          label: withDefault(effortLabel(level), row.defaultEffort === level),
+          selected: !choice.ultracode && (choice.effort ? choice.effort === level : row.defaultEffort === level),
+          choice: change({ effort: row.defaultEffort === level ? undefined : level, ultracode: undefined }),
+        })),
+        ...(offersUltracode(driver, row) ? [{ key: "ultracode", label: "Ultracode", subtitle: ULTRACODE, selected: choice.ultracode === true, choice: change({ ultracode: true, effort: undefined }) }] : []),
+      ],
+    });
+  }
+  if (family && windows.length > 1) {
+    sections.push({
+      title: "Context window",
+      options: windows.flatMap((option) => {
+        const target = rowFor(family, option);
+        return target ? [{ key: option, label: withDefault(WINDOW_LABEL[option], target.defaultWindow === true), selected: option === window, choice: moving(choice, target, driver) }] : [];
+      }),
+    });
+  }
+  if (row?.fastMode) {
+    sections.push({
+      title: "Fast mode",
+      options: [
+        { key: "on", label: "On", selected: choice.fastMode === true, choice: change({ fastMode: true }) },
+        { key: "off", label: "Off · Default", selected: choice.fastMode !== true, choice: change({ fastMode: undefined }) },
+      ],
+    });
+  }
+  if (row?.serviceTiers?.length) {
+    sections.push({
+      title: "Service tier",
+      options: [
+        ...(row.defaultServiceTier ? [] : [{ key: "auto", label: "Auto", selected: !choice.serviceTier, choice: change({ serviceTier: undefined }) }]),
+        ...row.serviceTiers.map((tier) => ({
+          key: tier.id,
+          label: withDefault(tier.name, row.defaultServiceTier === tier.id),
+          ...(tier.description ? { subtitle: tier.description } : {}),
+          selected: (choice.serviceTier ?? row.defaultServiceTier) === tier.id,
+          choice: change({ serviceTier: row.defaultServiceTier === tier.id ? undefined : tier.id }),
+        })),
+      ],
+    });
+  }
+
+  const label = [family?.label ?? "Model", levelLabel(choice, row), windows.length > 1 ? WINDOW_LABEL[window] : undefined, choice.fastMode ? "Fast" : undefined];
   return {
-    label: RUNTIME_MODE_LABELS[mode],
+    label: label.filter(Boolean).join(" · "),
+    families: families.map((option) => ({ key: option.id, label: option.label, selected: option === family, choice: moving(choice, pickInFamily(option, window), driver) })),
+    sections,
+  };
+}
+
+export function accessMenu(mode: RuntimeMode | undefined): { label: string; options: { value: RuntimeMode; label: string; selected: boolean }[] } {
+  return {
+    label: mode ? RUNTIME_MODE_LABELS[mode] : "Configuration",
     options: RUNTIME_MODES.map((value) => ({ value, label: RUNTIME_MODE_LABELS[value], selected: value === mode })),
   };
 }

@@ -1,1 +1,1 @@
-export { Composer } from "./Composer";
+export { FloatingComposer } from "./FloatingComposer";

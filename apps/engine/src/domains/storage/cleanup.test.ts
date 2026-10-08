@@ -286,5 +286,4 @@ test("a policy outside the offered choices is refused", () => {
   const home = tmp("telar-cleanup-policy-");
   const store = new EngineStore(home, () => 1);
   expect(store.cleanup.setPolicy({ settledDays: 5 })).toBeUndefined();
-  expect(store.cleanup.setPolicy({ logsDays: 30 })).toEqual({ ...DEFAULT_CLEANUP_POLICY, logsDays: 30 });
 });

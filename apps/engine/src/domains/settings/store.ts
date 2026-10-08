@@ -4,20 +4,15 @@ import {
   AgentOrientation as AgentOrientationSchema,
   DEFAULT_AGENT_ORIENTATION,
   DEFAULT_INBOX_POLICY,
-  DEFAULT_RETENTION_POLICY,
   DEFAULT_SESSION_DEFAULTS,
   DEFAULT_SIDEBAR_LAYOUT,
   DEFAULT_SIMULATOR_SETTINGS,
   DEFAULT_TEXT_GEN_POLICY,
   InboxPolicy as InboxPolicySchema,
   MAX_AUTO_SETTLE_HOURS,
-  MAX_RETENTION_DAYS,
   MAX_SIDEBAR_PROJECT_ORDER,
   MAX_SIDEBAR_SESSION_ORDER,
   MIN_AUTO_SETTLE_HOURS,
-  MIN_RETENTION_DAYS,
-  RETENTION_BUCKET_DAYS,
-  RetentionPolicy as RetentionPolicySchema,
   SessionDefaults as SessionDefaultsSchema,
   SidebarLayout as SidebarLayoutSchema,
   SidebarMode,
@@ -25,9 +20,6 @@ import {
   TextGenPolicy as TextGenPolicySchema,
   type AgentOrientation,
   type InboxPolicy,
-  type JournalRetirement,
-  type RetentionBucket,
-  type RetentionPolicy,
   type RuntimeMode,
   type SessionDefaults,
   type SidebarLayout,
@@ -92,62 +84,6 @@ export class SettingsStore {
     }
     this.kernel.writeDocument(this.kernel.paths.inbox, { version: STATE_VERSION, ...next });
     return { ...next };
-  }
-
-  /** The shipped default is `never`: no reading of a broken file starts removing history. */
-  retention(): RetentionPolicy {
-    try {
-      const parsed = RetentionPolicySchema.safeParse(this.kernel.readDocument(this.kernel.paths.retention));
-      return parsed.success ? parsed.data : { ...DEFAULT_RETENTION_POLICY };
-    } catch {
-      return { ...DEFAULT_RETENTION_POLICY };
-    }
-  }
-
-  /** A window without an export destination is refused rather than silently never swept. */
-  setRetention(patch: { idleAfterDays?: unknown; exportTo?: unknown }): RetentionPolicy {
-    const next: RetentionPolicy = { ...this.retention() };
-    if (patch.idleAfterDays !== undefined) {
-      if (patch.idleAfterDays === null) next.idleAfterDays = null;
-      else {
-        const parsed = RetentionPolicySchema.shape.idleAfterDays.safeParse(patch.idleAfterDays);
-        if (!parsed.success)
-          throw new EngineStateError(
-            "invalid_request",
-            `a retention window must be a whole number of days between ${MIN_RETENTION_DAYS} and ${MAX_RETENTION_DAYS}, or null`,
-          );
-        next.idleAfterDays = parsed.data;
-      }
-    }
-    if (patch.exportTo !== undefined) {
-      if (patch.exportTo === null) next.exportTo = null;
-      else {
-        if (typeof patch.exportTo !== "string" || !patch.exportTo.trim() || !path.isAbsolute(patch.exportTo.trim()))
-          throw new EngineStateError("invalid_request", "an export destination must be an absolute path");
-        next.exportTo = patch.exportTo.trim();
-      }
-    }
-    if (next.idleAfterDays !== null && !next.exportTo)
-      throw new EngineStateError("invalid_request", "choose where the journal is exported before setting a retention window");
-    this.kernel.writeDocument(this.kernel.paths.retention, { version: STATE_VERSION, ...next });
-    return { ...next };
-  }
-
-  /** What each window would take on this store; `bytes` reads rows, so it's opt-in. */
-  retentionPreview(options: { bytes?: boolean } = {}): RetentionBucket[] {
-    const now = this.kernel.now();
-    return RETENTION_BUCKET_DAYS.map((days) => ({
-      days,
-      ...this.kernel.executionStore.retentionPreview({ idleBefore: now - days * DAY_MS, now }, options),
-    }));
-  }
-
-  /** Runs only when the policy has both a window and a destination. */
-  sweepRetention(): JournalRetirement {
-    const policy = this.retention();
-    if (policy.idleAfterDays === null || !policy.exportTo) return { retired: 0, skipped: 0, events: 0 };
-    const now = this.kernel.now();
-    return this.kernel.executionStore.retireJournal({ idleBefore: now - policy.idleAfterDays * DAY_MS, now }, { exportTo: policy.exportTo });
   }
 
   orientation(): AgentOrientation {

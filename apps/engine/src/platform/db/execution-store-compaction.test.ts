@@ -346,7 +346,7 @@ test("the background sweep hands the event loop back between sessions, one at a 
   } finally { store.close(); }
 });
 
-test("retention runs after the walk, and a close mid-walk stops it without reporting", async () => {
+test("a close mid-walk stops the sweep without reporting", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "telar-sweep-cancel-")); homes.push(root);
   fs.mkdirSync(path.join(root, "sessions"), { recursive: true });
   let ids: string[] = [];
@@ -355,20 +355,15 @@ test("retention runs after the walk, and a close mid-walk stops it without repor
 
   const queued: (() => void)[] = [];
   const told: { deltas: number; starts: number; sessions: number }[] = [];
-  let retentionSweeps = 0;
   const store = new ExecutionStore(root, {
     compactAfterOpenMs: 1,
     sweepYield: (next) => { queued.push(next); },
     onJournalCompacted: (swept) => { told.push(swept); },
-    onRetentionSweep: () => { retentionSweeps += 1; },
   });
   const deadline = Date.now() + 4_000;
   while (queued.length === 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
   queued.shift()!();
-  // One session in: the walk is real, and retention has NOT run — it is one
-  // call and it waits for the end rather than firing per session.
   expect(deltasIn(store, ids[0]!)).toBe(0);
-  expect(retentionSweeps).toBe(0);
 
   store.close();
   // The step still queued must not run a transaction against a closed
@@ -376,7 +371,6 @@ test("retention runs after the walk, and a close mid-walk stops it without repor
   expect(queued).toHaveLength(1);
   expect(() => queued.shift()!()).not.toThrow();
   expect(told).toEqual([]);
-  expect(retentionSweeps).toBe(0);
 
   // And the two sessions the walk did not reach still hold every row, which is
   // the half that says the cancel stopped work rather than only silenced it.

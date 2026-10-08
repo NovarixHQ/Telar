@@ -138,19 +138,3 @@ test("a row that changes after it was slimmed gives the stub its item back first
   expect(raw(home).stubs).toBe(1);
   expect(store.events("session_one")).toEqual(before);
 });
-
-test("retention's guards and export are unchanged by a slimmed journal", () => {
-  const home = build();
-  const store = reopen(home);
-  store.sweep(["compact"]);
-  const before = store.events("session_one");
-  store.sweep(["slim"]);
-
-  const exportTo = path.join(home, "exports");
-  expect(store.retireSession("session_one", { exportTo })).toEqual({ retired: true, events: before.length });
-  const lines = fs.readFileSync(path.join(exportTo, "session_one", "sessions", "session_one", "events.ndjson"), "utf8")
-    .trim().split("\n").map((line) => JSON.parse(line));
-  // The export is the full journal, not the stubs.
-  expect(lines).toEqual(before);
-  expect(lines.some((line) => "itemRow" in line)).toBe(false);
-});

@@ -70,23 +70,6 @@ export function storageRoutes(store: EngineStore, meter: StorageMeter): Route[] 
         return ok({ copy: copyStore(store.paths.root, store.kernel.executionStore, body.destination.trim()) });
       },
     },
-    {
-      method: "GET",
-      path: "/v2/storage/retention",
-      auth: "engine",
-      handle: ({ query }) => ok({ retention: store.settings.retention(), buckets: store.settings.retentionPreview(query.get("bytes") === "1" ? { bytes: true } : {}) }),
-    },
-    { method: "PUT", path: "/v2/storage/retention", auth: "engine", handle: ({ body }) => ok({ retention: store.settings.setRetention(body) }) },
-    {
-      method: "POST",
-      path: "/v2/storage/retention/sweep",
-      auth: "engine",
-      handle() {
-        const swept = store.settings.sweepRetention();
-        meter.forget();
-        return ok({ swept });
-      },
-    },
     { method: "GET", path: "/v2/cleanup", auth: "engine", handle: () => ok(cleanup()) },
     {
       method: "PUT",

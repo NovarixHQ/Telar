@@ -64,7 +64,6 @@ export function startSweepWalk(store: ExecutionStore): void {
     if (usage.turns > 0 || usage.refused > 0) store.housekeeping.usage = usage;
     if (slimmed.rows > 0) store.housekeeping.slimmed = slimmed;
     if (requests.pairs > 0 || requests.refused > 0) store.housekeeping.requests = requests;
-    try { store.onRetentionSweep?.(); } catch {}
   };
   const step = (): void => {
     if (walk.cancelled || store.closed) { if (store.walk === walk) store.walk = undefined; return; }

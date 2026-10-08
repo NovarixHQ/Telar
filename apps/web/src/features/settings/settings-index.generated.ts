@@ -143,14 +143,10 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "storage", groups: [
     { "title":"Worktrees", rows: [
       {"title":"Remove worktrees","hint":"Removes a settled or archived session's worktree after this many days; it comes back when you reopen the session.","keywords":["cleanup","clean up","disk","space","free","full","reclaim","checkout","idle","inactive","settled","archived","old","days"]},
-      {"title":"Clean up","keywords":["clean up now","cleanup","sweep","free space","disk","run"]},
+      {"title":"Clean up","keywords":["clean up now","cleanup","sweep","free space","disk","run","logs"]},
       {"title":"Worktree folder","keywords":["worktree","checkout","external","drive","move","space","disk","relocate","worktree folder","how many","size"]},
       {"title":"Where worktrees live","keywords":["disk","size","drive","volume","location","file watchers","move"]},
       {"title":"By state","keywords":["release","idle","archived","orphaned","reclaim"]},
-    ] },
-    { "title":"Logs", rows: [
-      {"title":"Delete old logs","hint":"Rotated logs only.","keywords":["cleanup","clean up","disk","space","logs","rotate","days"]},
-      {"title":"Turn journal retention","keywords":["retention","journal","export","retire","idle"]},
     ] },
     { "title":"Data folder", rows: [
       {"title":"Location","keywords":["external","volume","drive","where","path","ssd"]},

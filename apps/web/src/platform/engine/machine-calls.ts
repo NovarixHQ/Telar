@@ -24,8 +24,8 @@ ManagedTectonic,
 InboxPolicy,EnvMode,
 DictationAnswer,
 DictationProviderId,SidebarLayout,
-SidebarMode,RetentionBucket,
-RetentionPolicy,TextGenEffort,TextGenPolicy,UsageReport,
+SidebarMode,
+TextGenEffort,TextGenPolicy,UsageReport,
 UsageResolution,UsageLimitSource,
 ModelCatalogue,
 ModelOverlay,
@@ -184,19 +184,6 @@ export function settingsCalls(fetcher: Fetcher) {
       const { id, ...patch } = input;
       return request<{ source: UsageLimitSource }>(fetcher, "PUT", `/api/usage/sources/${encodeURIComponent(id)}`, patch);
     },
-    /** The retention window in force, and what each candidate window would take
-     *  on THIS store — see `RetentionBucket`. Read-only: nothing is deleted to
-     *  answer it. `bytes` costs a scan of every qualifying row's text where the
-     *  counts beside it are index ranges, so ask only when a person is looking
-     *  at the figure, and never on a timer (#629). */
-    retention: (options: { bytes?: boolean; signal?: AbortSignal } = {}) =>
-      request<{ retention: RetentionPolicy; buckets: RetentionBucket[] }>(
-        fetcher,
-        "GET",
-        `/api/storage/retention${options.bytes ? "?bytes=1" : ""}`,
-        undefined,
-        options.signal,
-      ),
     /** Create a row, or replace one by `id`. `nextRunAt` is the ENGINE's to
      *  compute: a caller that could name it could aim a row at the past, where
      *  the grace rule would skip it for ever. */

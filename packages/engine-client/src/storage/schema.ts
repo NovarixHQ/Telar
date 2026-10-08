@@ -40,37 +40,15 @@ export type StorageReport = {
 
 export type JournalReclaim = { before: number; after: number; deltas: number; starts: number; sessions: number; usage?: number };
 
-export const MIN_RETENTION_DAYS = 1;
-export const MAX_RETENTION_DAYS = 365;
-
-export const RetentionPolicy = z.object({
-  /** Days idle before a settled session's journal may go; `null` never sweeps. */
-  idleAfterDays: z.number().int().min(MIN_RETENTION_DAYS).max(MAX_RETENTION_DAYS).nullable(),
-  /** Where the journal is written before it is dropped; with none, nothing is deleted. */
-  exportTo: z.string().min(1).nullable().default(null),
-});
-export type RetentionPolicy = z.infer<typeof RetentionPolicy>;
-
-export const DEFAULT_RETENTION_POLICY: RetentionPolicy = { idleAfterDays: null, exportTo: null };
-
-export const RETENTION_BUCKET_DAYS = [7, 14, 30, 60] as const;
-
-export type RetentionBucket = { days: number; sessions: number; events: number; bytes?: number };
-
-export type JournalRetirement = { retired: number; skipped: number; events: number };
-
-export const CLEANUP_LOG_DAYS = [7, 30] as const;
 export const CLEANUP_SETTLED_DAYS = [1, 3, 7, 14, 30] as const;
 
 export const CleanupPolicy = z.object({
   /** Release the checkout of a session settled or archived this many days. `null` is off. */
   settledDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14), z.literal(30)]).nullable().default(3),
-  /** Delete rotated logs older than this many days. `null` is off. */
-  logsDays: z.union([z.literal(7), z.literal(30)]).nullable(),
 });
 export type CleanupPolicy = z.infer<typeof CleanupPolicy>;
 
-export const DEFAULT_CLEANUP_POLICY: CleanupPolicy = { settledDays: 3, logsDays: null };
+export const DEFAULT_CLEANUP_POLICY: CleanupPolicy = { settledDays: 3 };
 
 export const CleanupReport = z.object({
   at: z.number(),

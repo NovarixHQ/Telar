@@ -230,7 +230,6 @@ export class EngineStore {
     // path (#646). `onExecutionHousekeeping` is the daemon's line.
     const executionStore = new ExecutionStore(root, {
       onJournalCompacted: (swept) => options.onExecutionHousekeeping?.({ journal: swept }),
-      onRetentionSweep: () => { this.settings.sweepRetention(); },
     });
     this.kernel = new Kernel({ paths: this.paths, now, executionStore, notifier: options.notifier });
     ({

@@ -299,7 +299,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [web, desktop, engine-client, workers, operations]
+        suite: [web, desktop, engine-client, workers, mobile, operations]
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

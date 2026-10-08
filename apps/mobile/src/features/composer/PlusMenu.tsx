@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, useRef, type ReactNode } from "react";
 import { Button, Host, Menu, Section } from "@expo/ui/swift-ui";
 import { accessibilityLabel, background, frame, glassEffect, menuOrder, shapes } from "@expo/ui/swift-ui/modifiers";
 import { isDevice } from "expo-device";
@@ -15,8 +15,17 @@ export type PlusMenuProps = {
   onStop?: () => void;
 };
 
+const same = (a: PlusMenuProps, b: PlusMenuProps) => a.controls === b.controls && !a.onStash === !b.onStash && !a.onStop === !b.onStop;
+
 /** The 44pt plus: the session's model and access, Commands and skills, Attach, the stash, and Stop while the send button can't. */
-export function PlusMenu({ controls, onCommands, onAttach, onStash, onShowStash, onStop }: PlusMenuProps) {
+export const PlusMenu = memo(function PlusMenu(props: PlusMenuProps) {
+  // Redrawn only when an item appears or goes: re-rendering the native menu on every keystroke stalls typing.
+  const latest = useRef(props);
+  latest.current = props;
+  const { controls, onStash, onStop } = props;
+  const onCommands = () => latest.current.onCommands();
+  const onAttach = (kind: PickerKind) => latest.current.onAttach(kind);
+  const onShowStash = () => latest.current.onShowStash();
   const plus = (
     <Icon
       name="plus"
@@ -37,11 +46,11 @@ export function PlusMenu({ controls, onCommands, onAttach, onStash, onShowStash,
             {isDevice ? <Button label="Camera" systemImage="camera" onPress={() => onAttach("camera")} /> : null}
             <Button label="Files" systemImage="folder" onPress={() => onAttach("files")} />
           </Menu>
-          {onStash ? <Button label="Stash this prompt" systemImage="tray.and.arrow.down" onPress={onStash} /> : null}
+          {onStash ? <Button label="Stash this prompt" systemImage="tray.and.arrow.down" onPress={() => latest.current.onStash?.()} /> : null}
           <Button label="Show stashed prompts" systemImage="tray.full" onPress={onShowStash} />
         </Section>
-        {onStop ? <Button label="Stop the running turn" systemImage="stop.fill" role="destructive" onPress={onStop} /> : null}
+        {onStop ? <Button label="Stop the running turn" systemImage="stop.fill" role="destructive" onPress={() => latest.current.onStop?.()} /> : null}
       </Menu>
     </Host>
   );
-}
+}, same);

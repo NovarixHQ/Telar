@@ -23,7 +23,8 @@ const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
 const document = mathjax.document("", {
   InputJax: new TeX({ packages: ["base", "ams"] }),
-  OutputJax: new SVG({ fontCache: "none", fontData: MathJaxNewcmFont }),
+  // MathJax 4 breaks inline maths into one <svg> per line; the transcript wraps it as a single run instead.
+  OutputJax: new SVG({ fontCache: "none", fontData: MathJaxNewcmFont, linebreaks: { inline: false } }),
 });
 
 const cache = new Map<string, Typeset | null>();

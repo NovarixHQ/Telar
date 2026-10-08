@@ -169,7 +169,7 @@ export function Composer(props: ComposerProps) {
   };
 
   return (
-    <div className="w-full shrink-0 px-4">
+    <div className="relative z-20 w-full shrink-0 px-4">
       <div
         className={cn(
           "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-1.5 pt-2 pb-5",

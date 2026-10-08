@@ -2,6 +2,8 @@
 
 import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { PopoverTrigger } from "@/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/ui/utils";
 
 // Nothing inside the composer's InputGroup may carry `disabled`: its `has-disabled:opacity-50` greys the whole box.
@@ -32,7 +34,7 @@ type ControlTriggerProps = ComponentPropsWithoutRef<"button"> & {
   ariaLabel: string;
 };
 
-export const ControlTrigger = forwardRef<HTMLButtonElement, ControlTriggerProps>(
+const ControlTrigger = forwardRef<HTMLButtonElement, ControlTriggerProps>(
   ({ open, icon, label, fold, detail, ariaLabel, className, ...props }, ref) => (
     <button {...props} ref={ref} type="button" className={cn(controlClass(open, props.disabled), fold && "shrink-0", className)} aria-label={ariaLabel}>
       <span className="flex shrink-0 [&_svg]:size-3.5">{icon}</span>
@@ -43,6 +45,15 @@ export const ControlTrigger = forwardRef<HTMLButtonElement, ControlTriggerProps>
   ),
 );
 ControlTrigger.displayName = "ControlTrigger";
+
+export function PillTrigger({ tip, ...props }: ControlTriggerProps & { tip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<PopoverTrigger render={<ControlTrigger {...props} />} />} />
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function MenuHeading({ children }: { children: ReactNode }) {
   return <div className="px-2 pb-1 pt-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground">{children}</div>;

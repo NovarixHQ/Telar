@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BellRingIcon, PlayIcon, Volume2Icon } from "lucide-react";
 import { DEFAULT_NOTIFICATION_SOUNDS, NOTIFICATION_SOUNDS_VALUES, type NotificationSounds } from "@telar/engine-client";
 import { Button } from "@/ui/button";
-import { Dropdown, Row } from "@/features/settings";
+import { Dropdown, Row, useRestoreDefaults } from "@/features/settings";
 import { notificationSounds, setNotificationSounds } from "../api";
 
 export const SOUND_LABELS: Record<NotificationSounds, string> = { hilo: "Hilo", armonico: "Armónico", felt: "Felt", off: "Off" };
@@ -35,6 +35,8 @@ export function NotificationSoundsRow() {
       setError("Couldn't save. Try again.");
     }
   };
+
+  useRestoreDefaults(() => save(DEFAULT_NOTIFICATION_SOUNDS));
 
   if (!sounds) return null;
   const test = desktopTest();

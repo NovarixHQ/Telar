@@ -9,7 +9,7 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Textarea } from "@/ui/textarea";
 import { DictationMicrophoneSection } from "./dictation-microphone-section";
-import { Dropdown, Row, SettingsGroup } from "@/features/settings";
+import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 
 const PROVIDERS: { id: DictationProviderId; label: string }[] = [
   { id: "off", label: "Off" },
@@ -25,6 +25,8 @@ export function DictationSection() {
   const [key, setKey] = useState("");
   const [keySaved, setKeySaved] = useState(false);
   const [terms, setTerms] = useState<string>();
+
+  useRestoreDefaults(() => save({ provider: "off", language: "multi" }));
 
   async function saveKey(value: string): Promise<void> {
     setKeySaved(false);

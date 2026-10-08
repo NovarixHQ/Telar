@@ -5,9 +5,10 @@ import { ChevronRightIcon } from "lucide-react";
 import { accentPrimary } from "../accent-colours";
 import { detachFromHost, useFollowNotice } from "../host-follow";
 import { useTheme } from "./theme-provider";
-import { useAppearance, type Appearance } from "../appearance";
+import { DEFAULT_APPEARANCE, useAppearance, type Appearance } from "../appearance";
 import { applyLook, readLooks as readLooksNow, writeLooks, type Look } from "../looks";
 import {
+  DEFAULT_COMPOSITION,
   compositionHalf,
   copyLayersAcross,
   useComposition,
@@ -17,7 +18,7 @@ import { halfFromBase } from "../palette-from-image";
 import { mergeById, readAppearanceHome } from "../appearance-home";
 import { THEME_TOKENS, type ThemeToken } from "../theme-palettes";
 import { Button } from "@/ui/button";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 import { DepthControl } from "./depth-control";
 import { LooksSection } from "./looks-section";
 import { GroupStrip } from "./studio/tool-strip";
@@ -53,7 +54,7 @@ export function AppearanceSection() {
   const followNotice = useFollowNotice();
   const homeNotice = useAppearanceHomeNotice();
 
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const systemIsDark = useSyncExternalStore(
     (onChange) => {
       const query = window.matchMedia("(prefers-color-scheme: dark)");
@@ -80,6 +81,12 @@ export function AppearanceSection() {
     detachFromHost();
     setAppearance(patch);
   };
+
+  useRestoreDefaults(() => {
+    change({ ...DEFAULT_APPEARANCE, translucent: appearance.translucent, frost: appearance.frost });
+    setTheme("system");
+    setComposition(DEFAULT_COMPOSITION);
+  });
 
   const compose = (ok: boolean) => {
     detachFromHost();

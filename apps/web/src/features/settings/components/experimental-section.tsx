@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { ChevronRightIcon, FlaskConicalIcon } from "lucide-react";
-import { decideByLabel, EXPERIMENTS, useExperiment, type Experiment } from "../experiments";
-import { Row, SettingsGroup, ToggleRow, usePendingReveal } from "./settings-shell";
+import { decideByLabel, EXPERIMENTS, setExperiment, useExperiment, type Experiment } from "../experiments";
+import { Row, SettingsGroup, ToggleRow, usePendingReveal, useRestoreDefaults } from "./settings-shell";
 
 function ExperimentRow({ experiment }: { experiment: Experiment }) {
   const [on, set] = useExperiment(experiment.id);
@@ -21,6 +21,9 @@ function ExperimentRow({ experiment }: { experiment: Experiment }) {
 
 export function ExperimentalSection({ experiments = EXPERIMENTS }: { experiments?: readonly Experiment[] }) {
   const [chosen, setOpen] = useState(false);
+  useRestoreDefaults(() => {
+    for (const experiment of experiments) setExperiment(experiment.id, false);
+  });
   const revealing = usePendingReveal();
   const open = chosen || revealing?.startsWith("settings-row-general-experimental-") === true;
   return (

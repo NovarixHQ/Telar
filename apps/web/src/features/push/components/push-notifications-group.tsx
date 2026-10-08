@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { BellIcon, SmartphoneIcon } from "lucide-react";
 import { Badge } from "@/ui/badge";
 import { fmtAgo } from "@/ui/format";
-import type { ActivityReport, NotifyOn, PushRelayStatus } from "@telar/engine-client";
+import { DEFAULT_NOTIFY_ON, type ActivityReport, type NotifyOn, type PushRelayStatus } from "@telar/engine-client";
 import { pushNotifyOn, pushRelayStatus, setPushNotifyOn } from "../api";
-import { Dropdown, Row, SettingsGroup } from "@/features/settings";
+import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 import { NotificationSoundsRow } from "./notification-sounds-row";
 
 export function relayHeadline(status: PushRelayStatus): { label: string; ok: boolean } {
@@ -149,6 +149,8 @@ export function PushNotificationsGroup() {
     }
   };
 
+  useRestoreDefaults(() => saveNotifyOn(DEFAULT_NOTIFY_ON));
+
   if (!status) return null;
   const headline = relayHeadline(status);
   const summary = phoneSummary(status);
@@ -167,7 +169,7 @@ export function PushNotificationsGroup() {
             hint="Which device each alert goes to."
             info="Each alert goes to one device: this computer while Telar is in front and in use, your iPhone otherwise. A session you're looking at alerts neither."
             {...(notifyError ? { error: notifyError } : {})}
-            {...(notifyOn === "mac" ? {} : { onRevert: () => void saveNotifyOn("mac") })}
+            {...(notifyOn === DEFAULT_NOTIFY_ON ? {} : { onRevert: () => void saveNotifyOn(DEFAULT_NOTIFY_ON) })}
             control={
               <Dropdown
                 value={notifyOn}

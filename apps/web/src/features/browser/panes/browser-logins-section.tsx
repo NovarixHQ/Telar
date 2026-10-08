@@ -6,7 +6,7 @@ import type { RememberedLogin } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
-import { Row, SettingsGroup, ToggleRow } from "@/features/settings";
+import { Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
 import { desktopBrowserBridge } from "../desktop-browser-bridge";
 
 const api = createEngineApi();
@@ -19,11 +19,13 @@ export function LoginOfferToggle() {
     void bridge?.loginOfferPrefs?.().then((prefs) => setOffer(prefs.offerAfterSignIn));
   }, [bridge]);
 
-  if (!bridge?.loginOfferPrefs || offer === undefined) return null;
   const change = async (next: boolean) => {
+    if (!bridge?.loginOfferPrefs) return;
     setOffer(next);
-    setOffer((await bridge.loginOfferPrefs!({ offerAfterSignIn: next })).offerAfterSignIn);
+    setOffer((await bridge.loginOfferPrefs({ offerAfterSignIn: next })).offerAfterSignIn);
   };
+  useRestoreDefaults(() => change(false));
+  if (!bridge?.loginOfferPrefs || offer === undefined) return null;
   return (
     <ToggleRow
       keywords={["1password", "save login", "remember", "offer", "prompt", "password"]}
@@ -31,6 +33,7 @@ export function LoginOfferToggle() {
       hint="After you type a login in Telar's browser, ask whether agents may reuse it."
       checked={offer}
       onCheckedChange={(next) => void change(next)}
+      {...(offer ? { onRevert: () => void change(false) } : {})}
     />
   );
 }

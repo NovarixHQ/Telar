@@ -229,6 +229,7 @@ struct ActivityRunView: View {
         case .error: "Error"
         case .plan: "Planned"
         case .contextCompaction: "Compacted context"
+        case .providerSwitch(let detail): detail.label
         case .mcpToolCall(let call), .dynamicToolCall(let call): displayToolName(call.name)
         default: item.label
         }

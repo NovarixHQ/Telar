@@ -56,7 +56,7 @@ function mount(tabs: PanelTabItem[] = [tab("editor", "editor", { path: "a.ts" })
         onTabChange={() => {}}
         onOpenTab={() => {}}
         onCloseTab={() => {}}
-        onClose={() => {}}
+       
       />,
     );
   });

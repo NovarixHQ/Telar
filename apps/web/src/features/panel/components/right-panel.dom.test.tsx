@@ -18,7 +18,7 @@ function panel(tabs: PanelTabItem[], extra: { onMoveTab?: (id: string, toIndex: 
       onTabChange={() => {}}
       onOpenTab={() => {}}
       onCloseTab={() => {}}
-      onClose={() => {}}
+     
       {...extra}
     />,
   );

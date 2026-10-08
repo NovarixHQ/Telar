@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Maximize2Icon, Minimize2Icon, PanelRightCloseIcon, XIcon } from "lucide-react";
+import { Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { KeyHint } from "@/features/commands";
+import { HeaderToggleGroup } from "@/ui/header-toggle";
 import { cn } from "@/ui/utils";
 import { useLivePages } from "../hooks/use-live-pages";
 import { useTabDrag } from "../hooks/use-tab-drag";
@@ -12,7 +13,7 @@ import type { RightPanelProps } from "./right-panel";
 import type { LauncherActions } from "./launcher";
 import { SurfaceChooser } from "./surface-chooser";
 
-type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "onTabChange" | "onCloseTab" | "onMoveTab" | "browserStart" | "onClose"> & {
+type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "onTabChange" | "onCloseTab" | "onMoveTab" | "browserStart" | "controls"> & {
   browser: BrowserState | undefined;
   launcher: readonly LauncherRow[];
   actions: LauncherActions;
@@ -115,7 +116,7 @@ function TabChip({
   );
 }
 
-/** The panel's top bar. It closes the panel only in fullscreen, where it is the window's titlebar. */
+/** The panel's top bar, level with the masthead. Its controls are pinned right so they hold still while the panel slides. */
 export function TabStrip(strip: StripProps) {
   const { tabs, sessionId, fullscreen, launcher, browserStart = { status: "idle" } } = strip;
   const menu = useState<string>();
@@ -130,8 +131,8 @@ export function TabStrip(strip: StripProps) {
   return (
     <div
       className={cn(
-        "@container/strip flex h-10 shrink-0 items-center gap-1 px-2 py-0",
-        fullscreen && "pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))] md:h-[var(--titlebar-band-height)]",
+        "@container/strip flex h-10 shrink-0 items-center justify-end gap-1 overflow-hidden py-0 pr-3 pl-2 md:h-[var(--titlebar-band-height)]",
+        fullscreen && "pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))]",
       )}
     >
       <div role="tablist" aria-label="Right panel tabs" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
@@ -164,17 +165,8 @@ export function TabStrip(strip: StripProps) {
         >
           {fullscreen ? <Minimize2Icon className="size-4" /> : <Maximize2Icon className="size-4" />}
         </button>
-        {fullscreen && (
-          <>
-            <button type="button" aria-label="Close right panel" title="Close right panel" onClick={strip.onClose} className={CONTROL}>
-              <PanelRightCloseIcon className="size-4" />
-            </button>
-            <span className="hidden @lg/strip:contents">
-              <KeyHint command="toggle-panel" />
-            </span>
-          </>
-        )}
       </div>
+      {strip.controls && <HeaderToggleGroup aria-label="Session controls">{strip.controls}</HeaderToggleGroup>}
     </div>
   );
 }

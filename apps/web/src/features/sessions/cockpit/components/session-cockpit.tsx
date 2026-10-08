@@ -107,8 +107,19 @@ export function SessionCockpit({
     ? {}
     : { onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
 
+  const controls = (
+    <>
+      {session && <WorkspaceCardToggle />}
+      {/* Keyed by host and session: a different machine is a different mount. The last turn's state is the refresh cue. */}
+      {session && (
+        <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
+      )}
+      <RailToggle open={panel.open} onToggle={panelState.togglePanel} />
+    </>
+  );
+
   return (
-    <main data-surfaces className="group/surfaces flex min-h-0 flex-1 overflow-hidden md:overflow-visible md:gap-2">
+    <main data-surfaces className="group/surfaces flex min-h-0 flex-1 overflow-hidden md:overflow-visible">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border md:group-has-[[data-panel-fullscreen]]/surfaces:shadow-none md:group-has-[[data-panel-fullscreen]]/surfaces:ring-0">
         {solo ? (
           <SoloTools hostId={hostId} session={session} />
@@ -122,16 +133,7 @@ export function SessionCockpit({
             fallbackTitle={fresh ? "New session" : remembered?.title}
             {...(headerMenu ? { menu: headerMenu } : {})}
             onRename={(next) => void actions.rename(next)}
-            panel={
-              <>
-                {session && <WorkspaceCardToggle />}
-                {/* Keyed by host and session: a different machine is a different mount. The last turn's state is the refresh cue. */}
-                {session && (
-                  <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
-                )}
-                <RailToggle open={panel.open} onToggle={panelState.togglePanel} />
-              </>
-            }
+            {...(panelPresence.mounted ? {} : { panel: controls })}
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
@@ -181,6 +183,7 @@ export function SessionCockpit({
           {...rightPanelProps({
             open: panelPresence.shown, hostId, sessionId, projectId, sync, model, panel: panelState, browser, composer, enabledPlugins, pluginPanels,
           })}
+          controls={controls}
         />
       )}
     </main>

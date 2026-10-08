@@ -319,7 +319,7 @@ describe("the right panel's tab strip", () => {
   async function mountPanel(tabs: PanelTabItem[] = TABS, extra: Partial<React.ComponentProps<typeof RightPanel>> = {}) {
     const closed: string[] = [];
     const { host } = await mount(
-      <RightPanel sessionId="s1" projectId="p1" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={(id) => closed.push(id)} onClose={() => {}} {...extra} />,
+      <RightPanel sessionId="s1" projectId="p1" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={(id) => closed.push(id)} {...extra} />,
     );
     const chip = (index: number) => host.querySelectorAll('[role="tab"]')[index]!;
     return { host, closed, chip };

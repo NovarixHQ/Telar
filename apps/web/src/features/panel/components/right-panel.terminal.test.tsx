@@ -142,7 +142,7 @@ function show(tabs: PanelTabItem[], active: string | undefined, flatTabs = true)
         onTabChange={() => {}}
         onOpenTab={() => {}}
         onCloseTab={() => {}}
-        onClose={() => {}}
+       
         flatTabs={flatTabs}
       />,
     );

@@ -391,3 +391,20 @@ describe("which catalogues a live query reads", () => {
     }
   });
 });
+
+describe("Switch provider, from a running session's picker", () => {
+  test("another provider's tab lists its models without switching, and picking one switches", async () => {
+    const switched: Array<[ProviderDriverKind, unknown]> = [];
+    await open({ onDriverChange: undefined, onSwitchProvider: (driver, next) => void switched.push([driver, next]) });
+    await press(document.body.querySelector<HTMLButtonElement>('button[aria-label="Codex"]')!);
+    expect(switched).toEqual([]);
+    expect(rowText()).toEqual(["GPT-6 Astra | Codex"]);
+    await press(rows()[0]!);
+    expect(switched).toEqual([["codex", { model: "gpt-6-astra" }]]);
+  });
+
+  test("a session that cannot switch keeps the other tabs shut", async () => {
+    await open({ onDriverChange: undefined });
+    expect(document.body.querySelector<HTMLButtonElement>('button[aria-label="Codex"]')?.disabled).toBe(true);
+  });
+});

@@ -123,6 +123,10 @@ rl.on("line", (line) => {
     }, 5);
     return;
   }
+  if (msg.method === "thread/inject_items" && process.env.FAKE_CODEX_INJECT !== "unsupported") {
+    write({ jsonrpc: "2.0", id: msg.id, result: {} });
+    return;
+  }
   if (msg.method === "turn/start") {
     write({ jsonrpc: "2.0", id: msg.id, result: { turn: { id: turnId } } });
     // The real app-server acks essentially synchronously and the notification

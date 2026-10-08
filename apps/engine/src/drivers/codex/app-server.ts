@@ -42,6 +42,15 @@ class AsyncChannel<T> {
 
 const MAX_LINE_BYTES = 64 * 1024 * 1024;
 
+export class CodexRpcError extends Error {
+  constructor(
+    readonly code: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 /** One `codex app-server` subprocess (newline-delimited JSON-RPC over stdio) for one turn. */
 export class CodexAppServer {
   private readonly child: ChildProcessWithoutNullStreams;
@@ -98,7 +107,7 @@ export class CodexAppServer {
       const waiter = this.pending.get(message.id);
       if (!waiter) return;
       this.pending.delete(message.id);
-      if (message.error) waiter.reject(new Error(message.error.message));
+      if (message.error) waiter.reject(new CodexRpcError(message.error.code, message.error.message));
       else waiter.resolve(message.result);
       return;
     }

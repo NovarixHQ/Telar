@@ -93,7 +93,7 @@ export function StashBadge({ stash }: { stash: ComposerStash }) {
 
 type PillProps = Pick<
   ComposerProps,
-  "fresh" | "runtimeMode" | "envMode" | "onModelChange" | "onRuntimeMode" | "onDriverChange" | "onEnvMode" | "onResumeAfterRateLimit"
+  "fresh" | "runtimeMode" | "envMode" | "onModelChange" | "onSwitchProvider" | "onRuntimeMode" | "onDriverChange" | "onEnvMode" | "onResumeAfterRateLimit"
 > & {
   driver: ProviderDriverKind;
   choice: ModelChoice;
@@ -109,7 +109,7 @@ export function ComposerPills(props: PillProps) {
   const limit = { ...(resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimit }), ...(onResumeAfterRateLimit ? { onResumeAfterRateLimit } : {}) };
   return (
     <>
-      <AgentControl {...shared} {...(onDriverChange ? { onDriverChange } : {})} />
+      <AgentControl {...shared} {...(onDriverChange ? { onDriverChange } : {})} {...(props.onSwitchProvider ? { onSwitchProvider: props.onSwitchProvider } : {})} />
       <div className="hidden items-center gap-1 @2xl/composer:flex">
         <ControlDivider />
         <ReasoningControl {...shared} ultrathink={ultrathink} />

@@ -71,6 +71,7 @@ type RunOptions = {
   autoCompact?: AutoCompact;
   compact?: boolean;
   extraArgs?: string[];
+  carriedContext?: string;
 };
 
 export function runTurn(scenario: string, run: RunOptions = {}) {
@@ -98,6 +99,7 @@ export function runTurn(scenario: string, run: RunOptions = {}) {
     ...(run.autoCompact ? { autoCompact: run.autoCompact } : {}),
     ...(run.compact ? { compact: true } : {}),
     ...(run.extraArgs ? { extraArgs: run.extraArgs } : {}),
+    ...(run.carriedContext ? { carriedContext: run.carriedContext } : {}),
   });
   return { result, observations, controller };
 }

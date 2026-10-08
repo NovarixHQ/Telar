@@ -23,8 +23,18 @@ import {
 import { assertId, EngineStateError, type Kernel } from "../../platform/kernel";
 import { withComputerUse, type ResolvedComputerUse } from "../computer-use";
 import type { ModelCatalogues } from "../providers";
-import { awaitsRateLimitSweep, TELAR_ORIENTATION, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionRequests, type SessionTasks } from "../sessions";
+import {
+  awaitsRateLimitSweep,
+  TELAR_ORIENTATION,
+  type SessionItems,
+  type SessionMailbox,
+  type SessionQueue,
+  type SessionRecords,
+  type SessionRequests,
+  type SessionTasks,
+} from "../sessions";
 import { MAX_TEXT_LENGTH } from "./intake";
+import { carriedContext, stampClaimProvider, switchItem } from "./provider-carry";
 
 // How far the durable progress stamp may lag the in-memory one before a write; well under `STALLED_AFTER_MS`.
 const PROGRESS_STAMP_MS = 60_000;
@@ -42,6 +52,7 @@ function taskSeedOf(task: Task): TaskSeed {
 
 type ClaimDeps = {
   records: SessionRecords;
+  items: SessionItems;
   tasks: SessionTasks;
   requests: SessionRequests;
   mailbox: SessionMailbox;
@@ -77,11 +88,9 @@ export class TurnClaims {
   claimTurn(sessionId: string, workerId: string): Turn | undefined {
     return this.kernel.command("claimTurn", () => {
       assertId(workerId, "worker id");
-      // A PAUSED SESSION DISPATCHES NOTHING — checked on the record, not
-      // inferred from held flags, so a message that slipped into `queued`
-      // unheld by any path still cannot run. See `pauseSession`.
-      if (this.deps.records.get(sessionId).paused) return undefined;
-      if (this.deps.records.get(sessionId).preparation) return undefined;
+      // Checked on the record, not held flags, so nothing that slipped into `queued` unheld runs while paused.
+      const session = this.deps.records.get(sessionId);
+      if (session.paused || session.preparation) return undefined;
       const queue = this.deps.readQueue(sessionId);
       if (queue.turns.some((turn) => turn.state === "claimed" || turn.state === "running")) return undefined;
       if (queue.turns.some((turn) => turn.state === "ambiguous")) return undefined;
@@ -93,11 +102,24 @@ export class TurnClaims {
       // written against a session the person had reason to think was live.
       turn.claim = { workerId, token: crypto.randomUUID(), at, sequence: queue.nextSequence };
       turn.updatedAt = at;
+      const switched = stampClaimProvider(session, () => this.deps.records.history(sessionId), turn);
       this.deps.writeQueue(sessionId, queue);
+      this.deps.records.save(session);
       this.deps.records.touch(sessionId, at);
       this.kernel.appendEvent(sessionId, { type: "turn.claimed", workerId }, turn.runId);
+      if (switched) this.recordSwitch(sessionId, turn, switched, at);
       return structuredClone(turn);
     });
+  }
+
+  private recordSwitch(sessionId: string, turn: Turn, detail: Parameters<typeof switchItem>[2], at: number): void {
+    const item = switchItem(sessionId, turn, detail, at);
+    const items = this.deps.items.read(sessionId);
+    if (items.has(item.id)) return;
+    items.set(item.id, item);
+    this.deps.items.write(sessionId, items, new Set([item.id]));
+    this.kernel.appendEvent(sessionId, { type: "item.started", item }, turn.runId);
+    this.kernel.appendEvent(sessionId, { type: "item.completed", item }, turn.runId);
   }
 
   /** A turn the provider started between turns, born running under a fresh claim; refused while any turn is live. */
@@ -400,6 +422,10 @@ export class TurnClaims {
         return ids.length > 0 ? { plugins: ids } : {};
       })(),
       ...(resumeCursor ? { resumeCursor } : {}),
+      ...(() => {
+        const context = carriedContext(session.id, () => this.deps.records.history(session.id), turn);
+        return context ? { carriedContext: context } : {};
+      })(),
       // The session's LIVE task rows, so a provider process built cold
       // files a still-running shell's report on the row that exists rather
       // than minting a second one. Settled rows have nothing to report on.

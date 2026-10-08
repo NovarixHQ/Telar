@@ -36,14 +36,14 @@ export function ModelPickerRail({
           key={option}
           type="button"
           // Portalled, so outside InputGroup's has-disabled reach. The current provider stays live to leave favourites.
-          disabled={!onDriverChange && option !== driver}
+          disabled={!picker.canSwitch && option !== driver}
           onClick={() => {
             picker.showView(option);
             if (option !== driver) onDriverChange?.(option);
           }}
           aria-label={driverLabel(option)}
-          title={onDriverChange || option === driver ? driverLabel(option) : `${driverLabel(option)} — fixed for this session`}
-          className={cn(railClass(option === picker.view), "disabled:cursor-default", option !== driver && !onDriverChange && "opacity-40")}
+          title={picker.canSwitch || option === driver ? driverLabel(option) : `${driverLabel(option)} — fixed for this session`}
+          className={cn(railClass(option === picker.view), "disabled:cursor-default", option !== driver && !picker.canSwitch && "opacity-40")}
         >
           <ProviderIcon provider={option} size={15} />
         </button>

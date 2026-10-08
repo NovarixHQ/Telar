@@ -19,3 +19,13 @@ export function builderEndings(detail: NotificationDetail): BuilderEnding[] | un
   const endings = entries.map(ending);
   return endings.every((each) => each !== undefined) ? endings : undefined;
 }
+
+export type AgentFinished = { sessionIds: string[]; titles: (string | undefined)[]; failed: boolean };
+
+export function agentsFinished(detail: NotificationDetail, isChild: (sessionId: string) => boolean): AgentFinished | undefined {
+  const entries: NotificationEntry[] = detail.entries?.length ? detail.entries : [detail];
+  const ended = (entry: NotificationEntry) => entry.wakeKind === "turn_completed" || entry.wakeKind === "turn_failed";
+  const finished = entries.every((entry) => entry.sessionId && ((entry.kind === "wake" && ended(entry) && entry.summary.startsWith(TAG)) || ((entry.intent === "result" || ended(entry)) && isChild(entry.sessionId))));
+  if (!finished) return undefined;
+  return { sessionIds: entries.map((entry) => entry.sessionId!), titles: entries.map((entry) => entry.title), failed: entries.some((entry) => entry.wakeKind === "turn_failed") };
+}

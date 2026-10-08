@@ -8,7 +8,7 @@ import { ProviderIcon } from "@/features/providers";
 import { fmtElapsed } from "@/ui/format";
 import { useNow } from "@/ui/hooks/use-now";
 import { cn } from "@/ui/utils";
-import type { BuilderEnding } from "../builder-endings";
+import type { AgentFinished, BuilderEnding } from "../builder-endings";
 import { SessionLookup, type SessionFacts } from "./session-lookup";
 import { ROW } from "./transcript-fold";
 
@@ -31,7 +31,7 @@ const DOT: Record<SessionChildState, string> = {
   stopped: "bg-muted-foreground/50",
 };
 
-export const agentPending = (agent: { state: SessionChildState }) => agent.state === "working" || agent.state === "waiting";
+const agentPending = (agent: { state: SessionChildState }) => agent.state === "working" || agent.state === "waiting";
 
 const seconds = (ms: number) => Math.max(0, Math.floor(ms / 1000));
 
@@ -114,10 +114,13 @@ export function SessionAgentRow({ agent }: { agent: AgentRowData }) {
 
 function groupStatus(agents: readonly AgentView[]): string {
   const count = (test: (agent: AgentView) => boolean) => agents.filter(test).length;
-  const working = count(agentPending);
-  const failed = count((agent) => agent.state === "failed");
-  const parts = [working && `${working} working`, failed && `${failed} failed`].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "✓ completed";
+  const parts = [
+    [count(agentPending), "working"],
+    [count((agent) => agent.state === "done"), "done"],
+    [count((agent) => agent.state === "failed"), "failed"],
+    [count((agent) => agent.state === "stopped"), "stopped"],
+  ] as const;
+  return parts.flatMap(([n, word]) => (n ? [`${n} ${word}`] : [])).join(" · ");
 }
 
 export function AgentCard({ agents, children }: { agents: readonly AgentView[]; children: ReactNode }) {
@@ -172,4 +175,29 @@ export function FrozenAgentRows({ endings }: { endings: readonly BuilderEnding[]
     };
   });
   return <AgentRows agents={agents} />;
+}
+
+export function AgentFinishedRow({ label, failed, href }: { label: string; failed: boolean; href?: string }) {
+  return (
+    <div className={cn(ROW, "gap-2")} aria-label="Agent finished">
+      <BotIcon aria-hidden className={cn("size-3.5 shrink-0", failed ? "text-destructive" : "text-muted-foreground")} />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {href && (
+        <Link href={href} className="flex shrink-0 items-center gap-0.5 rounded px-1 text-2xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+          Open
+          <ChevronRightIcon aria-hidden className="size-3" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+export function BuildersFinishedRow({ finished, fallbackTitle }: { finished: AgentFinished; fallbackTitle?: string }) {
+  const lookup = useContext(SessionLookup);
+  const verb = finished.failed ? "failed" : "finished";
+  const [only] = finished.sessionIds;
+  if (finished.sessionIds.length > 1 || !only) return <AgentFinishedRow label={`${finished.sessionIds.length} builders ${verb}`} failed={finished.failed} />;
+  const facts = lookup(only);
+  const title = finished.titles[0] ?? facts?.title ?? fallbackTitle;
+  return <AgentFinishedRow label={title ? `Builder “${title}” ${verb}` : `A builder ${verb}`} failed={finished.failed} {...(facts?.href ? { href: facts.href } : {})} />;
 }

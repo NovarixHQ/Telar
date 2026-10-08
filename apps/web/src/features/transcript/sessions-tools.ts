@@ -82,6 +82,8 @@ export function sessionsLink(item: JournalItem): string | undefined {
 
 export function sessionsCreated(item: JournalItem): string | undefined {
   const call = callOf(item);
-  if (!call || displayToolName(call.name) !== "sessions_create") return undefined;
-  return sessionsLink(item)?.split("/").at(-1) || undefined;
+  if (!call || item.status === "inProgress" || displayToolName(call.name) !== "sessions_create") return undefined;
+  const id = field(parsed(call.output), "id");
+  if (typeof id === "string") return id;
+  return /\\?"id\\?"\s*:\s*\\?"(session_[\w-]+)/.exec(JSON.stringify(call.output ?? ""))?.[1];
 }

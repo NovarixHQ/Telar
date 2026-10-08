@@ -85,15 +85,16 @@ describe("a finished turn's work", () => {
     expect(host.querySelector('figure[aria-label="Chart"]')).not.toBeNull();
   });
 
-  test("keeps adjacent sub-agents on screen as one row while any is out, and folds them once all are done", () => {
+  test("folds sub-agents with the rest of the work, even one still out, and opens to one group row", () => {
     const working = { ...agent(2, ""), state: "running" as const };
     const host = mount([ran("a", "bun test"), spawn(1), spawn(2)], [agent(1, "Twelve files."), working]);
-    expect(host.textContent).not.toContain("bun test");
-    expect(host.textContent).toContain("2 subagents");
-    expect(host.textContent).toContain("1 working");
+    expect(host.textContent).not.toContain("subagents");
+    act(() => host.querySelector("button")!.click());
+    expect(host.textContent).toContain("1 working · 1 done");
 
     act(() => root!.render(<TurnWork items={[ran("a", "bun test"), spawn(1), spawn(2)]} tasks={[agent(1, "Twelve files."), agent(2, "A local engine.")]} label="Worked for 1m 14s" />));
-    expect(host.textContent).not.toContain("subagents");
+    expect(host.textContent).toContain("2 subagents");
+    expect(host.textContent).toContain("2 done");
   });
 
   test("draws nothing when the turn did no work", () => {

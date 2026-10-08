@@ -9,7 +9,7 @@ import { AgentDisclosure, type AgentView } from "./agent-rows";
 import { TranscriptSession } from "./message-attachments";
 import type { RowGestures } from "./tool-row";
 
-const STATE: Record<JournalTask["state"], SessionChildState> = {
+export const TASK_AGENT_STATE: Record<JournalTask["state"], SessionChildState> = {
   pending: "working",
   running: "working",
   waiting: "waiting",
@@ -24,7 +24,7 @@ function firstLine(text: string | undefined): string | undefined {
 }
 
 export function taskAgentView(item: JournalItem, task: JournalTask | undefined, driver: AgentView["provider"]): AgentView {
-  const state = task ? STATE[task.state] : item.status === "inProgress" ? "working" : item.status === "failed" ? "failed" : "done";
+  const state = task ? TASK_AGENT_STATE[task.state] : item.status === "inProgress" ? "working" : item.status === "failed" ? "failed" : "done";
   const last = task?.items.at(-1);
   const line = state === "working" ? (last ? itemLabel(last) : undefined) : firstLine(task?.failure ?? task?.resultText);
   const completedAt = task?.completedAt ?? item.completedAt;

@@ -12,7 +12,7 @@ import { notificationLabel } from "../model";
 import { FrozenAgentRows } from "./agent-rows";
 import { SessionLookup } from "./session-lookup";
 
-export function foldsIntoAgentRow(detail: NonNullable<JournalTurn["notification"]>, drawn: (sessionId: string) => boolean): boolean {
+function foldsIntoAgentRow(detail: NonNullable<JournalTurn["notification"]>, drawn: (sessionId: string) => boolean): boolean {
   const said = detail.entries?.length ? detail.entries : [detail];
   return said.every((each) => each.sessionId !== undefined && drawn(each.sessionId) && (each.intent === "result" || each.wakeKind === "turn_completed" || each.wakeKind === "turn_failed"));
 }

@@ -45,13 +45,14 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const sessionId = session?.id;
   const driver = session?.driver;
   const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId, ...(driver ? { driver } : {}) } : undefined), [sessionId, props.hostId, driver]);
-  const turnRow = (turn: JournalTurn, { peerTitle }: TurnView) => (
+  const turnRow = (turn: JournalTurn, { peerTitle, builders }: TurnView) => (
     <Fragment key={turn.runId}>
       <TurnFrame skippable={turn.runId !== active?.runId}>
         <SessionTurn
           turn={turn}
           live={turn.runId === active?.runId}
           {...(peerTitle ? { peerTitle } : {})}
+          {...(builders ? { builders } : {})}
           requests={openRequests.filter((request) => hostRun(request) === turn.runId && request.id !== composerQuestion?.id)}
           awaiting={openRequests.some((request) => hostRun(request) === turn.runId)}
           {...props.turn}

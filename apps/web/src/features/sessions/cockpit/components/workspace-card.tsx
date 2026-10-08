@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BotIcon, CopyIcon, FolderGitIcon, GitBranchIcon, GitCompareIcon, MessageSquarePlusIcon } from "lucide-react";
-import { type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
+import { BotIcon, ChevronDownIcon, CopyIcon, FolderGitIcon, GitBranchIcon, GitCompareIcon, MessageSquarePlusIcon } from "lucide-react";
+import { type ProviderDriverKind, type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
 import { OpenWorkspaceRow } from "@/features/files";
+import { ProviderIcon } from "@/features/providers";
 import { PublishRows, useGitHubReady } from "@/features/git";
 import { isOpenTerminal, openTerminal, RunRow, statusLabel, type RunView } from "@/features/terminal";
 import { createEngineApi } from "@/platform/engine";
@@ -14,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { cn } from "@/ui/utils";
 import { canvasHref, sessionHref } from "../../session-list";
 import type { useCockpitPanel } from "../hooks/use-cockpit-panel";
+import type { CardSubagent } from "../model";
 import { useWorkspaceCardData, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 
 const CHILD_STATE: Record<SessionChild["state"], string> = { working: "Running", waiting: "Waiting", done: "Done", failed: "Failed", stopped: "Stopped" };
@@ -52,6 +54,8 @@ export type WorkspaceCardViewProps = {
   terminals: readonly RunView[];
   backgroundTasks: number;
   agents: readonly SessionChild[];
+  subagents?: readonly CardSubagent[];
+  driver?: ProviderDriverKind;
   run?: ReactNode;
   editor?: ReactNode;
   publish?: ReactNode;
@@ -65,7 +69,23 @@ export type WorkspaceCardViewProps = {
 export function WorkspaceCardView(props: WorkspaceCardViewProps) {
   const { path, worktree, diff, backgroundTasks, agents } = props;
   const open = props.terminals.filter(isOpenTerminal);
-  const working = agents.filter((agent) => agent.state === "working").length;
+  const subagents = props.subagents ?? [];
+  const working = [...agents, ...subagents].filter((agent) => agent.state === "working").length;
+  const out = (agent: { state: SessionChild["state"] }) => agent.state === "working" || agent.state === "waiting";
+  const builderRow = (agent: SessionChild) => (
+    <ActionRow key={agent.sessionId} onClick={() => props.onOpenAgent(agent)}>
+      <BotIcon />
+      <span className="min-w-0 flex-1 truncate">{agent.title ?? "Untitled"}</span>
+      <RowMeta className={cn("font-sans", agent.state === "working" && "text-primary")}>{CHILD_STATE[agent.state]}</RowMeta>
+    </ActionRow>
+  );
+  const subagentRow = (agent: CardSubagent) => (
+    <div key={agent.id} className={cn(ROW, "text-foreground")}>
+      {props.driver ? <ProviderIcon provider={props.driver} size={16} className="shrink-0" /> : <BotIcon />}
+      <span className="min-w-0 flex-1 truncate">{agent.title}</span>
+      <RowMeta className={cn("font-sans", agent.state === "working" && "text-primary")}>{CHILD_STATE[agent.state]}</RowMeta>
+    </div>
+  );
   const branch = diff?.branch;
   const newSession = props.onNewSession && (
     <DropdownMenuItem onClick={props.onNewSession}>
@@ -133,18 +153,31 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
           </ActionRow>
         </Section>
       )}
-      {agents.length > 0 && (
+      {agents.length + subagents.length > 0 && (
         <Section title="Agents" meta={working > 0 ? `${working} running` : undefined}>
-          {agents.map((agent) => (
-            <ActionRow key={agent.sessionId} onClick={() => props.onOpenAgent(agent)}>
-              <BotIcon />
-              <span className="min-w-0 flex-1 truncate">{agent.title ?? "Untitled"}</span>
-              <RowMeta className={cn("font-sans", agent.state === "working" && "text-primary")}>{CHILD_STATE[agent.state]}</RowMeta>
-            </ActionRow>
-          ))}
+          {agents.filter(out).map(builderRow)}
+          {subagents.filter(out).map(subagentRow)}
+          <FinishedAgents count={agents.filter((agent) => !out(agent)).length + subagents.filter((agent) => !out(agent)).length}>
+            {agents.filter((agent) => !out(agent)).map(builderRow)}
+            {subagents.filter((agent) => !out(agent)).map(subagentRow)}
+          </FinishedAgents>
         </Section>
       )}
     </div>
+  );
+}
+
+function FinishedAgents({ count, children }: { count: number; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  if (count === 0) return null;
+  return (
+    <>
+      <ActionRow aria-expanded={open} onClick={() => setOpen((current) => !current)} className="text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate">{`Finished agents (${count})`}</span>
+        <ChevronDownIcon className={cn("transition-transform", open && "rotate-180")} />
+      </ActionRow>
+      {open && children}
+    </>
   );
 }
 
@@ -182,10 +215,11 @@ function useDismiss(active: boolean, close: () => void) {
 }
 
 /** Floats over the conversation's top right, under its toggle. Kept mounted while closed: the Run row's feed is what reveals new terminals. */
-export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, panel, dismissible, onRunTerminals }: {
+export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgroundTasks, panel, dismissible, onRunTerminals }: {
   hostId: string;
   session: Session;
   agents: readonly SessionChild[];
+  subagents: readonly CardSubagent[];
   busy: boolean;
   backgroundTasks: number;
   panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab" | "flat">;
@@ -202,7 +236,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   const github = useGitHubReady(open && publishable, session.projectId);
   const api = createEngineApi(hostFetcher(hostId));
   return (
-    <div ref={frame} className={cn("app-no-drag absolute top-3 right-3 z-20 max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl [&>*]:max-w-full", !open && "hidden")}>
+    <div ref={frame} className={cn("app-no-drag order-first mx-3 mt-3 max-h-[45%] shrink-0 overflow-y-auto rounded-2xl md:order-last md:mr-3 md:ml-0 md:max-h-[calc(100%-1.5rem)] md:self-start [&>*]:max-w-full max-md:[&>*]:w-full", !open && "hidden")}>
       <WorkspaceCardView
         path={path}
         worktree={session.workspace.mode === "worktree"}
@@ -210,6 +244,8 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
         terminals={terminals}
         backgroundTasks={backgroundTasks}
         agents={agents}
+        subagents={subagents}
+        driver={session.driver}
         {...(path === undefined
           ? {}
           : {

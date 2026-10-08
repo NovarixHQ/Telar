@@ -1,6 +1,8 @@
 import { BotIcon, ClockIcon, TerminalIcon } from "lucide-react";
 import { pluginEnabled, readProjectPlugins, type TurnState } from "@telar/engine-client";
 import type { JournalTask, JournalTurn } from "@telar/client/journal";
+import type { SessionChildState } from "@telar/engine-client";
+import { TASK_AGENT_STATE, transcriptTasks } from "@/features/transcript";
 import { insertReference } from "@telar/client/composer";
 import { nextPanelTabId, revealPanelTab, setPanelTabParams, type PanelTab, type PanelTabState } from "@/features/panel";
 import { SIMULATOR_SURFACE, withSimulatorShown } from "@/features/simulators";
@@ -91,4 +93,14 @@ export function showSimulatorTab(state: PanelTabState<PanelTab>, simulatorId: st
   const tab = held ?? { id: nextPanelTabId<PanelTab>(state, SIMULATOR_SURFACE), kind: SIMULATOR_SURFACE as PanelTab, params: {} };
   const placed = revealPanelTab(state, tab, show);
   return setPanelTabParams(placed, tab.id, withSimulatorShown(tab.params, simulatorId));
+}
+
+export type CardSubagent = { id: string; title: string; state: SessionChildState };
+
+export function cardSubagents(transcript: readonly JournalTurn[]): CardSubagent[] {
+  const agents = transcript.map((turn) => transcriptTasks(turn.tasks));
+  const latest = agents.findLast((tasks) => tasks.length > 0) ?? [];
+  const live = agents.flat().filter((task) => TASK_AGENT_STATE[task.state] === "working" || TASK_AGENT_STATE[task.state] === "waiting");
+  const shown = [...live, ...latest.filter((task) => !live.includes(task))];
+  return shown.map((task) => ({ id: task.id, title: task.title ?? task.role ?? "Sub-agent", state: TASK_AGENT_STATE[task.state] }));
 }

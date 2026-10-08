@@ -3,7 +3,8 @@ export { sessionWakeLabel } from "./components/item-rows";
 export { MessageActions } from "./components/message-actions";
 export { TranscriptSession } from "./components/message-attachments";
 export { AgentRows } from "./components/agent-rows";
-export { NotificationRow } from "./components/notification-row";
+export { sessionsCreated } from "./sessions-tools";
+export { foldsIntoAgentRow, NotificationRow } from "./components/notification-row";
 export { SessionLookup, type SessionFacts } from "./components/session-lookup";
 export { SessionSkeleton } from "./components/session-skeleton";
 export { TranscriptWorkspace } from "./components/tool-row";
@@ -14,6 +15,7 @@ export { Marker, TurnFailureRow, WorkingIndicator } from "./components/turn-stat
 export {
   bareNotificationTurn,
   cutAroundStandingRows,
+  taskLiveness,
   groupNotificationTurns,
   segmentActivity,
   splitAtMessageBoundaries,

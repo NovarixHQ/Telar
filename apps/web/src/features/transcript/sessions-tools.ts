@@ -79,3 +79,9 @@ export function sessionsLink(item: JournalItem): string | undefined {
   const link = field(parsed(call.output), "link");
   return typeof link === "string" && link.startsWith("/projects/") ? link : undefined;
 }
+
+export function sessionsCreated(item: JournalItem): string | undefined {
+  const call = callOf(item);
+  if (!call || displayToolName(call.name) !== "sessions_create") return undefined;
+  return sessionsLink(item)?.split("/").at(-1) || undefined;
+}

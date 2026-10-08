@@ -1,5 +1,6 @@
 "use client";
 
+import { useContext } from "react";
 import {
 TriangleAlertIcon
 } from "lucide-react";
@@ -15,6 +16,9 @@ import { running, transcriptTasks } from "../model";
 import { CompactionRow, ConversationImportRow, PlanRow, PlotRow, ProviderWaitRow, ReasoningRow, SteeredMessageRow } from "./item-rows";
 import { NotificationRow } from "./notification-row";
 import { TaskAgentRow } from "./task-agent-row";
+import { SessionAgentRow } from "./agent-rows";
+import { SessionLookup } from "./session-lookup";
+import { sessionsCreated } from "../sessions-tools";
 
 export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, onOpenFileInNewTab }: {
   item: JournalItem;
@@ -24,6 +28,10 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
   onOpenTab?: OpenTab;
 } & RowGestures) {
   const gestures = { ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
+  const lookup = useContext(SessionLookup);
+  const created = sessionsCreated(item);
+  const builder = created ? lookup(created)?.child : undefined;
+  if (builder) return <SessionAgentRow agent={builder} />;
   if (item.detail.type === "task") {
     const taskId = item.detail.taskId;
     const task = tasks?.find((candidate) => candidate.id === taskId);

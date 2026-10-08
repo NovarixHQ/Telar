@@ -95,15 +95,17 @@ describe("children under the turn that tasked them", () => {
     expect(visibleText(withAgents([dispatch], [child("s_a", { state: "done", summary: "Merged it", endedAt: 2_000 })]))).toContain("Merged it");
   });
 
-  test("several from one turn share a header that counts them, open while any works", () => {
+  test("several from one turn are one row that counts them, closed until opened", () => {
     const html = withAgents([dispatch], [child("s_a", { title: "One" }), child("s_b", { title: "Two" }), child("s_c", { title: "Three", state: "done", endedAt: 2_000 })]);
-    expect(visibleText(html)).toContain("3 agents · 2 working · 1 done");
-    expect(visibleText(html)).toContain("Three");
+    expect(visibleText(html)).toContain("3 subagents");
+    expect(visibleText(html)).toContain("2 working");
+    expect(visibleText(html)).not.toContain("Three");
   });
 
   test("once every one has ended the group starts closed", () => {
     const html = withAgents([dispatch], [child("s_a", { title: "One", state: "done" }), child("s_b", { title: "Two", state: "failed" })]);
-    expect(visibleText(html)).toContain("2 agents · 1 done · 1 failed");
+    expect(visibleText(html)).toContain("2 subagents");
+    expect(visibleText(html)).toContain("1 failed");
     expect(visibleText(html)).not.toContain("One");
   });
 
@@ -153,6 +155,57 @@ describe("a builder's ending", () => {
       [ending("run_end", [{ sessionId: "s_a", state: "done", title: "One" }, { sessionId: "s_b", state: "failed", title: "Two", why: "tests fail" }])],
       [child("s_a", { state: "done", endedAt: 2_000 }), child("s_b", { state: "failed", endedAt: 3_000 })],
     );
-    expect(visibleText(html)).toContain("2 agents · 1 done · 1 failed");
+    expect(visibleText(html)).toContain("2 subagents");
+    expect(visibleText(html)).toContain("1 failed");
+  });
+
+  test("a builder already drawn under the turn that tasked it is not drawn again by its ending", () => {
+    const html = renderEnding(
+      [dispatch, ending("run_end", [{ sessionId: "s_a", state: "done", title: "Reply OK", why: "OK" }])],
+      [child("s_a", { title: "Reply OK", state: "done", summary: "OK", endedAt: 24_000 })],
+    );
+    expect(html.match(/data-agent-state="done"/g)).toHaveLength(1);
+  });
+});
+
+describe("two sub-agents and a builder from one turn", () => {
+  const at = { runId: "run_dispatch", sessionId: HOST, startedAt: 1, streamedText: "", openedBy: 0 } as const;
+  const spawn = (n: number): JournalItem => ({ ...at, id: `item_toolu_${n}`, status: "completed", completedAt: 5, title: `Agent ${n}`, detail: { type: "task", taskId: `task_${n}` } });
+  const create: JournalItem = {
+    ...at,
+    id: "item_create",
+    status: "completed",
+    completedAt: 3,
+    title: "sessions_create",
+    detail: { type: "mcp_tool_call", call: { name: "mcp__telar__sessions_create", input: { title: "Reply OK" }, output: JSON.stringify({ link: "/projects/proj/sessions/s_ok" }) } },
+  };
+  const agentTask = (n: number, state: "running" | "completed") => ({ id: `task_${n}`, sessionId: HOST, runId: "run_dispatch", kind: "agent" as const, state, title: n === 1 ? "List files" : "Summarise README", startedAt: 1, updatedAt: 2, ...(state === "completed" ? { completedAt: 5 } : {}), items: [] });
+  const fanOut = (state: "running" | "completed") =>
+    turn({ runId: "run_dispatch", prompt: "Fan out", startedAt: 1, endedAt: 9, items: [spawn(1), spawn(2), create], tasks: [agentTask(1, state), agentTask(2, state)] });
+  const builder = (state: "working" | "done") => child("s_ok", { title: "Reply OK", state, ...(state === "done" ? { summary: "OK", endedAt: 24_000 } : {}) });
+  const draw = (turns: JournalTurn[], agents: SessionChild[]) =>
+    renderToStaticMarkup(
+      <TranscriptTurns
+        turns={turns}
+        directory={new Map()}
+        agents={agents}
+        projectId="proj"
+        renderTurn={(each) => <SessionTurn turn={each} requests={[]} sending={false} live={false} onDecide={() => {}} />}
+      />,
+    );
+
+  test("while they work they are one row outside the fold, and the builder is not drawn twice", () => {
+    const text = visibleText(draw([fanOut("running")], [builder("working")]));
+    expect(text).toContain("3 subagents");
+    expect(text).toContain("3 working");
+    expect(text).not.toContain("Started builder");
+    expect(text.split("Reply OK").length - 1).toBeLessThanOrEqual(1);
+  });
+
+  test("the builder's result does not add a row of its own", () => {
+    const text = visibleText(draw([fanOut("completed"), arrival("run_result", "s_ok", "result", "OK")], [builder("done")]));
+    expect(text).not.toContain("sent a result");
+    expect(text).not.toContain("subagents");
+    expect(text).toContain("Worked for");
   });
 });

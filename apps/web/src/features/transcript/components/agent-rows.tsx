@@ -9,7 +9,7 @@ import { fmtElapsed } from "@/ui/format";
 import { useNow } from "@/ui/hooks/use-now";
 import { cn } from "@/ui/utils";
 import type { BuilderEnding } from "../builder-endings";
-import { SessionLookup } from "./session-lookup";
+import { SessionLookup, type SessionFacts } from "./session-lookup";
 import { ROW } from "./transcript-fold";
 
 export type AgentRowData = Pick<SessionChild, "sessionId" | "state"> & Partial<Pick<SessionChild, "title" | "provider" | "progress" | "summary" | "startedAt" | "endedAt">>;
@@ -17,14 +17,11 @@ export type AgentRowData = Pick<SessionChild, "sessionId" | "state"> & Partial<P
 export type AgentView = {
   state: SessionChildState;
   title: string;
-  role?: string;
   line?: string;
   provider?: ProviderDriverKind;
   startedAt?: number;
   endedAt?: number;
 };
-
-const STATES: readonly SessionChildState[] = ["working", "waiting", "done", "failed", "stopped"];
 
 const DOT: Record<SessionChildState, string> = {
   working: "motion-safe:animate-pulse bg-primary",
@@ -34,15 +31,7 @@ const DOT: Record<SessionChildState, string> = {
   stopped: "bg-muted-foreground/50",
 };
 
-const STATE_LINE: Record<SessionChildState, string> = {
-  working: "Working",
-  waiting: "Waiting on you",
-  done: "Done",
-  failed: "Failed",
-  stopped: "Stopped",
-};
-
-const pending = (agent: { state: SessionChildState }) => agent.state === "working" || agent.state === "waiting";
+export const agentPending = (agent: { state: SessionChildState }) => agent.state === "working" || agent.state === "waiting";
 
 const seconds = (ms: number) => Math.max(0, Math.floor(ms / 1000));
 
@@ -51,65 +40,70 @@ function Ticking({ from }: { from: number }) {
   return fmtElapsed(seconds(now - from));
 }
 
-function Clock({ agent }: { agent: AgentView }) {
-  if (agent.startedAt === undefined) return null;
-  const shown = pending(agent) ? <Ticking from={agent.startedAt} /> : agent.endedAt === undefined ? null : fmtElapsed(seconds(agent.endedAt - agent.startedAt));
-  return shown && <span className="shrink-0 text-xs tabular-nums text-muted-foreground" aria-label="Elapsed">{shown}</span>;
+function Clock({ span, live }: { span: { startedAt?: number; endedAt?: number }; live: boolean }) {
+  if (span.startedAt === undefined) return null;
+  const shown = live ? <Ticking from={span.startedAt} /> : span.endedAt === undefined ? null : fmtElapsed(seconds(span.endedAt - span.startedAt));
+  return shown && <span className="shrink-0 text-2xs tabular-nums text-muted-foreground" aria-label="Elapsed">{shown}</span>;
+}
+
+function Avatar({ agent, dot = true, className }: { agent: AgentView; dot?: boolean; className?: string }) {
+  return (
+    <span className={cn("relative inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted ring-2 ring-background", className)}>
+      {agent.provider ? <ProviderIcon provider={agent.provider} size={12} /> : <BotIcon aria-hidden className="size-3 text-muted-foreground" />}
+      {dot && <span role="img" aria-label={agent.state} className={cn("absolute -right-px -bottom-px size-1.5 rounded-full ring-2 ring-background", DOT[agent.state])} />}
+    </span>
+  );
+}
+
+function Chevron({ open }: { open?: boolean }) {
+  return <ChevronRightIcon aria-hidden className={cn("size-3.5 shrink-0 text-muted-foreground/60 transition-[color,transform] group-hover/agent:text-foreground", open && "rotate-90")} />;
 }
 
 function AgentFace({ agent, chevron, open }: { agent: AgentView; chevron: boolean; open?: boolean }) {
-  const failed = agent.state === "failed";
   return (
     <>
-      <span className="relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border/70 bg-muted ring-2 ring-background">
-        {agent.provider ? <ProviderIcon provider={agent.provider} size={14} /> : <BotIcon aria-hidden className="size-3.5 text-muted-foreground" />}
-        <span role="img" aria-label={agent.state} className={cn("absolute -right-px -bottom-px size-2 rounded-full ring-2 ring-background", DOT[agent.state])} />
+      <Avatar agent={agent} />
+      <span className="min-w-0 shrink-0 truncate font-medium text-foreground">{agent.title}</span>
+      {agent.line && <span className={cn("min-w-0 flex-1 truncate text-2xs", agent.state === "failed" ? "text-destructive" : "text-muted-foreground")}>{agent.line}</span>}
+      <span className="ml-auto flex shrink-0 items-center gap-1.5">
+        <Clock span={agent} live={agentPending(agent)} />
+        {chevron && <Chevron open={open} />}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2">
-          <span className="min-w-0 truncate text-xs font-medium text-foreground">{agent.title}</span>
-          {agent.role && <span className="shrink-0 text-3xs text-muted-foreground">{agent.role}</span>}
-        </span>
-        <span className={cn("block truncate text-2xs leading-relaxed", failed ? "text-destructive" : "text-muted-foreground")}>{agent.line || STATE_LINE[agent.state]}</span>
-      </span>
-      <Clock agent={agent} />
-      {chevron && <ChevronRightIcon aria-hidden className={cn("size-3.5 shrink-0 text-muted-foreground/60 transition-[color,transform] group-hover/agent:text-foreground", open && "rotate-90")} />}
     </>
   );
 }
 
-const FACE = cn(ROW, "group/agent gap-2.5 py-1.5");
+const FACE = cn(ROW, "group/agent gap-2");
 const ACTIONABLE = "cursor-pointer transition-colors hover:bg-muted/50";
 
 export function AgentDisclosure({ agent, children }: { agent: AgentView; children?: ReactNode }) {
   const [open, setOpen] = useState(false);
   if (!children) return <div className={FACE} data-agent-state={agent.state}><AgentFace agent={agent} chevron={false} /></div>;
   return (
-    <div className="flex flex-col">
+    <div className="flex min-w-0 flex-col">
       <button type="button" aria-expanded={open} aria-label={agent.title} data-agent-state={agent.state} onClick={() => setOpen((current) => !current)} className={cn(FACE, ACTIONABLE)}>
         <AgentFace agent={agent} chevron open={open} />
       </button>
-      {open && <div className="ml-4.5 flex min-w-0 flex-col gap-0.5 border-l border-border/70 py-1 pl-3">{children}</div>}
+      {open && <div className="ml-4 flex min-w-0 flex-col gap-0.5 border-l border-border/70 py-1 pl-3">{children}</div>}
     </div>
   );
 }
 
-function lineOf(agent: AgentRowData): string | undefined {
-  if (agent.state === "working") return agent.progress;
-  if (agent.state === "waiting") return undefined;
-  return agent.summary;
-}
-
-function SessionAgentRow({ agent }: { agent: AgentRowData }) {
-  const facts = useContext(SessionLookup)(agent.sessionId);
-  const view: AgentView = {
+export function sessionAgentView(agent: AgentRowData, facts: SessionFacts | undefined): AgentView {
+  const line = agent.state === "working" ? agent.progress : agent.state === "waiting" ? "Waiting on you" : agent.summary;
+  return {
     state: agent.state,
     title: agent.title?.trim() || facts?.title?.trim() || "Untitled session",
-    ...(lineOf(agent) ? { line: lineOf(agent) } : {}),
+    ...(line ? { line } : {}),
     ...(agent.provider ? { provider: agent.provider } : {}),
     ...(agent.startedAt === undefined ? {} : { startedAt: agent.startedAt }),
     ...(agent.endedAt === undefined ? {} : { endedAt: agent.endedAt }),
   };
+}
+
+export function SessionAgentRow({ agent }: { agent: AgentRowData }) {
+  const facts = useContext(SessionLookup)(agent.sessionId);
+  const view = sessionAgentView(agent, facts);
   if (!facts?.href) return <div className={FACE} data-agent-state={agent.state}><AgentFace agent={view} chevron={false} /></div>;
   return (
     <Link href={facts.href} aria-label={`Open ${view.title}`} data-agent-state={agent.state} className={cn(FACE, ACTIONABLE)}>
@@ -118,38 +112,56 @@ function SessionAgentRow({ agent }: { agent: AgentRowData }) {
   );
 }
 
-function AgentGroup({ agents }: { agents: readonly AgentRowData[] }) {
-  const live = agents.some(pending);
-  const [open, setOpen] = useState(live);
-  const counts = STATES.flatMap((state) => {
-    const count = agents.filter((agent) => agent.state === state).length;
-    return count ? [`${count} ${state}`] : [];
-  });
+function groupStatus(agents: readonly AgentView[]): string {
+  const count = (test: (agent: AgentView) => boolean) => agents.filter(test).length;
+  const working = count(agentPending);
+  const failed = count((agent) => agent.state === "failed");
+  const parts = [working && `${working} working`, failed && `${failed} failed`].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "✓ completed";
+}
+
+export function AgentCard({ agents, children }: { agents: readonly AgentView[]; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  if (agents.length < 2) return <div className="flex min-w-0 flex-col">{children}</div>;
+  const live = agents.some(agentPending);
+  const failed = agents.some((agent) => agent.state === "failed");
+  const starts = agents.flatMap((agent) => (agent.startedAt === undefined ? [] : [agent.startedAt]));
+  const ends = agents.flatMap((agent) => (agent.endedAt === undefined ? [] : [agent.endedAt]));
+  const span = starts.length ? { startedAt: Math.min(...starts), ...(ends.length === agents.length ? { endedAt: Math.max(...ends) } : {}) } : {};
   return (
-    <div className="flex flex-col">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={cn(ROW, "hover:bg-muted/50", !live && "text-muted-foreground")}>
-        <ChevronRightIcon className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
-        <span className="min-w-0 truncate">{[`${agents.length} agents`, ...counts].join(" · ")}</span>
+    <div className="flex min-w-0 flex-col" aria-label="Agents">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={cn(FACE, ACTIONABLE)}>
+        <span aria-hidden className="flex shrink-0 items-center -space-x-1.5">
+          {agents.slice(0, 3).map((agent, index) => <Avatar key={index} agent={agent} dot={false} />)}
+          {agents.length > 3 && <span className="inline-flex size-5 items-center justify-center rounded-full bg-muted text-3xs font-medium text-muted-foreground ring-2 ring-background">+{agents.length - 3}</span>}
+        </span>
+        <span className="shrink-0 font-medium text-foreground">{`${agents.length} subagents`}</span>
+        <span className={cn("min-w-0 flex-1 truncate text-2xs", live ? "text-primary" : failed ? "text-destructive" : "text-muted-foreground")}>{groupStatus(agents)}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          <Clock span={span} live={live} />
+          <Chevron open={open} />
+        </span>
       </button>
-      {open && (
-        <div className="ml-3 flex flex-col border-l border-border/70 pl-1.5">
-          {agents.map((agent) => <SessionAgentRow key={agent.sessionId} agent={agent} />)}
-        </div>
-      )}
+      {open && <div className="mt-0.5 mb-1 flex min-w-0 flex-col gap-0.5 rounded-lg border border-border/60 bg-card/30 p-1">{children}</div>}
     </div>
   );
 }
 
 export function AgentRows({ agents }: { agents: readonly AgentRowData[] }) {
+  const lookup = useContext(SessionLookup);
   if (agents.length === 0) return null;
-  return <div aria-label="Agents">{agents.length === 1 ? <SessionAgentRow agent={agents[0]!} /> : <AgentGroup agents={agents} />}</div>;
+  return (
+    <AgentCard agents={agents.map((agent) => sessionAgentView(agent, lookup(agent.sessionId)))}>
+      {agents.map((agent) => <SessionAgentRow key={agent.sessionId} agent={agent} />)}
+    </AgentCard>
+  );
 }
 
 export function FrozenAgentRows({ endings }: { endings: readonly BuilderEnding[] }) {
   const lookup = useContext(SessionLookup);
   const agents = endings.map((ending): AgentRowData => {
     const child = lookup(ending.sessionId)?.child;
-    const times = child && !pending(child) ? { startedAt: child.startedAt, ...(child.endedAt === undefined ? {} : { endedAt: child.endedAt }) } : {};
+    const times = child && !agentPending(child) ? { startedAt: child.startedAt, ...(child.endedAt === undefined ? {} : { endedAt: child.endedAt }) } : {};
     return {
       ...times,
       sessionId: ending.sessionId,

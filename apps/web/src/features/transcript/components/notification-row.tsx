@@ -12,6 +12,11 @@ import { notificationLabel } from "../model";
 import { FrozenAgentRows } from "./agent-rows";
 import { SessionLookup } from "./session-lookup";
 
+export function foldsIntoAgentRow(detail: NonNullable<JournalTurn["notification"]>, drawn: (sessionId: string) => boolean): boolean {
+  const said = detail.entries?.length ? detail.entries : [detail];
+  return said.every((each) => each.sessionId !== undefined && drawn(each.sessionId) && (each.intent === "result" || each.wakeKind === "turn_completed" || each.wakeKind === "turn_failed"));
+}
+
 export function NotificationRow({ detail, message, title }: { detail: NonNullable<JournalTurn["notification"]>; message?: string; title?: string }) {
   const [open, setOpen] = useState(false);
   const [reading, setReading] = useState(false);
@@ -23,6 +28,7 @@ export function NotificationRow({ detail, message, title }: { detail: NonNullabl
   const entries = detail.entries ?? [];
   const peerMessage = detail.kind === "peer_message" && message && message.trim() !== body ? message.trim() : undefined;
   const endings = builderEndings(detail);
+  if (foldsIntoAgentRow(detail, (sessionId) => Boolean(lookup(sessionId)?.drawn))) return null;
   if (endings) return <FrozenAgentRows endings={endings} />;
   return (
     <div className="min-w-0" aria-label="Notification">

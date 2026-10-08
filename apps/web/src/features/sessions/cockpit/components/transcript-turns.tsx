@@ -4,7 +4,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import type { SessionChild } from "@telar/engine-client";
 import type { JournalTurn } from "@telar/client/journal";
-import { AgentRows, bareNotificationTurn, groupNotificationTurns, ROW, SessionLookup, type SessionFacts } from "@/features/transcript";
+import { AgentRows, bareNotificationTurn, foldsIntoAgentRow, groupNotificationTurns, ROW, sessionsCreated, SessionLookup, type SessionFacts } from "@/features/transcript";
 import { cn } from "@/ui/utils";
 import { sessionHref } from "../../session-list";
 import { childPending } from "../hooks/use-session-children";
@@ -37,12 +37,13 @@ export function mentionedSessions(turns: readonly JournalTurn[], children: reado
   return [...new Set([...notifying, ...children.map((child) => child.sessionId)].filter((id): id is string => Boolean(id)))].sort();
 }
 
-/** Each child under the turn that tasked it; one whose turn is not loaded shows under the newest while it is still out. */
-function anchorChildren(turns: readonly JournalTurn[], children: readonly SessionChild[]): Map<string, SessionChild[]> {
+/** Each child not already drawn where it was created goes under the turn that tasked it; one whose turn is not loaded shows under the newest while it is still out. */
+function anchorChildren(turns: readonly JournalTurn[], children: readonly SessionChild[], inline: ReadonlySet<string>): Map<string, SessionChild[]> {
   const loaded = new Set(turns.map((turn) => turn.runId));
   const newest = turns.at(-1)?.runId;
   const anchored = new Map<string, SessionChild[]>();
   for (const child of children) {
+    if (inline.has(child.sessionId)) continue;
     const anchor = child.parentRunId && loaded.has(child.parentRunId) ? child.parentRunId : childPending(child) ? newest : undefined;
     if (anchor) anchored.set(anchor, [...(anchored.get(anchor) ?? []), child]);
   }
@@ -60,6 +61,9 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
 }) {
   const known = new Map(turns.flatMap((turn) => (turn.notification?.entries ?? []).flatMap((entry) => (entry.sessionId && entry.title ? [[entry.sessionId, entry.title] as const] : []))));
   const childOf = new Map(agents.map((child) => [child.sessionId, child]));
+  const inline = new Set(turns.flatMap((turn) => turn.items.flatMap((item) => sessionsCreated(item) ?? [])).filter((id) => childOf.has(id)));
+  const anchored = anchorChildren(turns, agents, inline);
+  const drawn = new Set([...inline, ...[...anchored.values()].flat().map((child) => child.sessionId)]);
   const lookup = (sessionId: string): SessionFacts => {
     const child = childOf.get(sessionId);
     const listed = directory.get(sessionId);
@@ -69,9 +73,9 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
       ...(title ? { title } : {}),
       ...(owner ? { href: sessionHref({ id: sessionId, projectId: owner, ...(hostId ? { hostId } : {}) }) } : {}),
       ...(child ? { child } : {}),
+      ...(drawn.has(sessionId) ? { drawn: true } : {}),
     };
   };
-  const anchored = anchorChildren(turns, agents);
   const titleOf = (turn: JournalTurn) => {
     const sessionId = turn.notification?.sessionId;
     return sessionId ? lookup(sessionId).title : undefined;
@@ -90,6 +94,7 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
       </Fragment>
     );
   };
+  const folded = (turn: JournalTurn) => turn.runId !== activeRunId && !anchored.has(turn.runId) && bareNotificationTurn(turn) && foldsIntoAgentRow(turn.notification!, (id) => drawn.has(id));
   const rows = (group: readonly JournalTurn[]) => {
     if (group.length > 1 && group.every((turn) => quiet(turn) && turn.runId !== activeRunId && !anchored.has(turn.runId))) {
       return <ArrivalStrip key={group[0]!.runId} titles={group.map((turn) => titleOf(turn) ?? "Untitled session")}>{group.map(row)}</ArrivalStrip>;
@@ -101,6 +106,5 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
       </div>
     );
   };
-  const drawn = groupNotificationTurns(turns, activeRunId).map(rows);
-  return <SessionLookup.Provider value={lookup}>{drawn}</SessionLookup.Provider>;
+  return <SessionLookup.Provider value={lookup}>{groupNotificationTurns(turns.filter((turn) => !folded(turn)), activeRunId).map(rows)}</SessionLookup.Provider>;
 }

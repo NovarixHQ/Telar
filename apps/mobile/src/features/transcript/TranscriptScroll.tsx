@@ -22,15 +22,18 @@ export function TranscriptScroll({ turns, loading, older, pin, children }: Props
   const scroll = useRef<ScrollViewInstance>(null);
   const follow = useRef<Follow>(FOLLOWING);
   const dragging = useRef(false);
+  const viewport = useRef(0);
+  const content = useRef(0);
   const [jump, setJump] = useState(false);
 
   const update = (next: Follow) => {
     follow.current = next;
     setJump(showsJump(next));
   };
+  // A transcript shorter than the screen stays at its resting offset; scrollToEnd would clamp to 0 and tuck its top under the bar.
   const pinToTail = (animated = false) => {
     update(FOLLOWING);
-    scroll.current?.scrollToEnd({ animated });
+    if (content.current > viewport.current) scroll.current?.scrollToEnd({ animated });
   };
   useEffect(() => {
     if (pin) pinToTail();
@@ -49,7 +52,9 @@ export function TranscriptScroll({ turns, loading, older, pin, children }: Props
         onScrollBeginDrag={() => (dragging.current = true)}
         onScrollEndDrag={() => (dragging.current = false)}
         onScroll={({ nativeEvent }) => update(scrolled(follow.current, metricsOf(nativeEvent), dragging.current))}
-        onContentSizeChange={() => {
+        onLayout={({ nativeEvent }) => (viewport.current = nativeEvent.layout.height)}
+        onContentSizeChange={(_, height) => {
+          content.current = height;
           if (shouldFollow(follow.current)) pinToTail();
         }}
       >

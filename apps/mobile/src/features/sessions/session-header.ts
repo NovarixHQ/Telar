@@ -29,9 +29,6 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
     };
     const options: NativeStackNavigationOptions = {
       title,
-      headerTransparent: true,
-      headerShadowVisible: false,
-      headerBackButtonDisplayMode: "minimal",
       unstable_headerRightItems: (): NativeStackHeaderItem[] => [
         { type: "button", label: "Panel", icon: symbol("sidebar.trailing"), tintColor: Theme.textMuted, onPress: openPanel, accessibilityLabel: "Panel" },
         {

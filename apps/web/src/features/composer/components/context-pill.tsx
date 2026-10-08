@@ -59,19 +59,20 @@ export function ContextPill({
         }
       >
         <svg className="absolute inset-0 size-8 -rotate-90" viewBox="0 0 32 32" aria-hidden>
-          <circle cx="16" cy="16" r={RING_RADIUS} fill="none" stroke="currentColor" strokeWidth="2.5" className="text-border" />
-          <circle
-            cx="16"
-            cy="16"
-            r={RING_RADIUS}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeDasharray={RING_CIRCUMFERENCE}
-            strokeDashoffset={RING_CIRCUMFERENCE * (1 - (usedPct ?? 0) / 100)}
-            className={critical ? "text-destructive" : "text-primary"}
-          />
+          <circle cx="16" cy="16" r={RING_RADIUS} fill="none" strokeWidth="2.5" className="stroke-muted-foreground/25" />
+          {usedPct !== null && (
+            <circle
+              data-testid="context-fill"
+              cx="16"
+              cy="16"
+              r={RING_RADIUS}
+              fill="none"
+              strokeWidth="2.5"
+              strokeDasharray={RING_CIRCUMFERENCE}
+              strokeDashoffset={RING_CIRCUMFERENCE * (1 - usedPct / 100)}
+              className={critical ? "stroke-destructive" : "stroke-muted-foreground/75"}
+            />
+          )}
         </svg>
       </PopoverTrigger>
       <PopoverContent align="end" side="top" sideOffset={8} className="w-auto gap-0 bg-transparent p-0 shadow-none ring-0">

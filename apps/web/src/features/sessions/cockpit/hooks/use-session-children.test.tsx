@@ -103,6 +103,20 @@ describe("useSessionChildren", () => {
     expect(seen).toEqual([]);
   });
 
+  test("an engine that answers 404 is never asked again for that session", async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      reads.push(new URL(String(input), "http://localhost").pathname);
+      return Response.json({ error: { code: "not_found", message: "Not found" } }, { status: 404 });
+    }) as typeof fetch;
+    await mount(<Growing />);
+    await settle();
+    expect(reads).toHaveLength(1);
+    await act(async () => grow());
+    for (let tick = 0; tick < 3; tick += 1) await advance(CHILDREN_IDLE_MS);
+    expect(reads).toHaveLength(1);
+    expect(seen).toEqual([]);
+  });
+
   test("no session reads nothing", async () => {
     await mount(<Probe />);
     for (let waited = 0; waited < CHILDREN_IDLE_MS; waited += CHILDREN_LIVE_MS) await advance(CHILDREN_LIVE_MS);

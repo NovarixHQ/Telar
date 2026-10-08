@@ -16,7 +16,7 @@ const rendering: PreviewRendering = {
   failedLoads: [{ url: "https://cdn.example.com/chart.js", reason: "blocked by the artifact's content security policy" }],
 };
 
-function preview(options: { render?: (request: PreviewRequest) => Promise<PreviewRendering>; desktop?: boolean; timeoutMs?: number; cwd?: string; look?: PublishedAppearance | null } = {}) {
+function preview(options: { render?: (request: PreviewRequest) => Promise<PreviewRendering>; desktop?: boolean; timeoutMs?: number; cwd?: string; appearance?: PublishedAppearance | null } = {}) {
   const requests: PreviewRequest[] = [];
   const capability = createDisplayCapability({
     cwd: options.cwd ?? os.tmpdir(),
@@ -33,7 +33,7 @@ function preview(options: { render?: (request: PreviewRequest) => Promise<Previe
           },
         }),
     ...(options.timeoutMs ? { previewTimeoutMs: options.timeoutMs } : {}),
-    ...(options.look !== undefined ? { look: async () => options.look ?? null } : {}),
+    ...(options.appearance !== undefined ? { appearance: async () => options.appearance ?? null } : {}),
   });
   let run: ((args: Record<string, unknown>) => Promise<Result>) | undefined;
   displayTools((name, _description, _shape, handler) => {
@@ -64,7 +64,7 @@ describe("display_preview", () => {
     expect(requests[0]).toMatchObject({ width: 728, appearance: "light" });
   });
 
-  test("renders the page in Telar's own Look for the asked appearance, open to the network", async () => {
+  test("renders the page in Telar's default appearance for the asked scheme, open to the network", async () => {
     const { run, requests } = preview();
     await run({ kind: "html", content: "<!DOCTYPE html><p>hi</p>", width: 400, appearance: "dark" });
     const { html, width, appearance } = requests[0]!;
@@ -81,15 +81,15 @@ describe("display_preview", () => {
     expect(html.endsWith("<p>hi</p>")).toBe(true);
   });
 
-  test("wears the person's published Look, its font faces and its scheme when no appearance is asked for", async () => {
-    const look = parsePublishedAppearance({
+  test("wears the person's appearance, its font faces and its scheme when no appearance is asked for", async () => {
+    const published = parsePublishedAppearance({
       scheme: "dark",
       translucent: false,
       frost: "clear",
       resolved: { accent: { name: "rose", light: { primary: "#cc0044", primaryForeground: "#ffffff" }, dark: { primary: "#ff5588", primaryForeground: "#110000" } }, fontStacks: { sans: "Inter, sans-serif", mono: "Menlo, monospace" }, fontFaces: FACES },
-      look: { version: 2, id: "mine", label: "Mine", composition: { light: { base: "#f8f8f9", layers: [], overrides: {} }, dark: { base: "#252525", layers: [], overrides: { card: "#123456" } } } },
+      composition: { light: { base: "#f8f8f9", layers: [], overrides: {} }, dark: { base: "#252525", layers: [], overrides: { card: "#123456" } } },
     })!;
-    const { run, requests } = preview({ look });
+    const { run, requests } = preview({ appearance: published });
     const result = await run({ kind: "html", content: "<p>hi</p>" });
     expect(textOf(result)).toContain("in dark");
     const { html, appearance } = requests[0]!;
@@ -98,14 +98,14 @@ describe("display_preview", () => {
     expect(html.indexOf(FACES)).toBeLessThan(html.indexOf("<p>hi</p>"));
   });
 
-  test("a Look the engine cannot read leaves Telar's own, in light", async () => {
-    const { run, requests } = preview({ look: null });
+  test("an appearance the engine cannot read leaves Telar's own, in light", async () => {
+    const { run, requests } = preview({ appearance: null });
     await run({ kind: "html", content: "<p>hi</p>" });
     expect(requests[0]!.appearance).toBe("light");
     expect(requests[0]!.html).toContain("color-scheme:light");
   });
 
-  test("mermaid is drawn by mermaid in the Look's colours, and a failure lands in the console", async () => {
+  test("mermaid is drawn by mermaid in the appearance's colours, and a failure lands in the console", async () => {
     const { run, requests } = preview();
     await run({ kind: "mermaid", content: "graph TD; A-->B</script>", appearance: "light" });
     const { html } = requests[0]!;

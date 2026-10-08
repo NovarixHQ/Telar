@@ -38,7 +38,7 @@ import { CodeSpecimen, InterfaceSpecimen, TerminalSpecimen } from "./type-specim
 
 export type TypeToolProps = { appearance: Appearance; onChange: (patch: Partial<Appearance>) => void };
 
-export const SANS_LABEL: Record<AppFont, string> = {
+const SANS_LABEL: Record<AppFont, string> = {
   geist: "Geist",
   inter: "Inter",
   "plex-sans": "IBM Plex Sans",
@@ -57,7 +57,7 @@ export const SANS_LABEL: Record<AppFont, string> = {
   system: "System",
   custom: "Custom…",
 };
-export const MONO_LABEL: Record<AppFont, string> = { ...SANS_LABEL, geist: "Geist Mono" };
+const MONO_LABEL: Record<AppFont, string> = { ...SANS_LABEL, geist: "Geist Mono" };
 const ACCENT_LABEL: Record<Accent, string> = {
   indigo: "Indigo",
   sky: "Sky",

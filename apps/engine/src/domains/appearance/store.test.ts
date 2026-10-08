@@ -47,11 +47,9 @@ test("the published appearance is an opaque blob, capped, and survives a restart
   expect(() => store.appearance.set("indigo")).toThrow(EngineStateError);
   expect(() => store.appearance.set(null)).toThrow(EngineStateError);
 
-  // THE CAP MOVED UP AND CHANGED ITS MEANING. It used to forbid an inlined
-  // wallpaper at 64 KB; a published look now IS a whole Look and legitimately
-  // carries its backdrop's pixels, so a megabyte of image rides through and
-  // only the absurd is refused.
-  const wallpaper = { look: { backdrop: { image: `data:image/webp;base64,${"A".repeat(2 * 1024 * 1024)}` } } };
+  // The appearance carries its layers' pixels, so megabytes of image ride
+  // through and only the absurd is refused.
+  const wallpaper = { images: { wallpaper: `data:image/webp;base64,${"A".repeat(2 * 1024 * 1024)}` } };
   expect(store.appearance.set(wallpaper).blob).toEqual(wallpaper);
   expect(() => store.appearance.set({ wallpaper: "x".repeat(9 * 1024 * 1024) })).toThrow(EngineStateError);
   // …and the refusal left the last good publish alone.
@@ -72,4 +70,35 @@ test("the published appearance is an opaque blob, capped, and survives a restart
   // decoration, never the request that asked for it.
   fs.writeFileSync(path.join(stateRoot, "appearance.json"), "not json at all");
   expect(store.appearance.get()).toBeNull();
+});
+
+test("opening a host that had Looks keeps the worn one as its appearance and discards the rest", () => {
+  const stateRoot = root();
+  const worn = { version: 2, id: "published", label: "Published look", accent: "sea", composition: { light: { base: "#fff" } } };
+  const appearanceFile = path.join(stateRoot, "appearance.json");
+  fs.writeFileSync(appearanceFile, JSON.stringify({ version: 1, updatedAt: 42, appearance: { version: 2, scheme: "dark", translucent: true, look: worn } }));
+  const library = path.join(stateRoot, "appearance");
+  fs.mkdirSync(path.join(library, "looks"), { recursive: true });
+  fs.writeFileSync(path.join(library, "looks", "dusk.json"), JSON.stringify({ id: "dusk", label: "Dusk" }));
+  fs.writeFileSync(path.join(stateRoot, "AGENTS.md"), "# This is a Telar instance's own state\n\nappearance/looks/<id>.json\n");
+
+  const store = new EngineStore(stateRoot, () => 100);
+
+  expect(store.appearance.get()).toEqual({
+    updatedAt: 42,
+    blob: { version: 3, scheme: "dark", translucent: true, accent: "sea", composition: { light: { base: "#fff" } } },
+  });
+  expect(fs.existsSync(library)).toBe(false);
+  expect(fs.existsSync(path.join(stateRoot, "AGENTS.md"))).toBe(false);
+
+  const migrated = fs.readFileSync(appearanceFile, "utf8");
+  new EngineStore(stateRoot, () => 100);
+  expect(fs.readFileSync(appearanceFile, "utf8")).toBe(migrated);
+});
+
+test("an AGENTS.md the person wrote survives the migration", () => {
+  const stateRoot = root();
+  fs.writeFileSync(path.join(stateRoot, "AGENTS.md"), "# My notes\n");
+  new EngineStore(stateRoot, () => 100);
+  expect(fs.readFileSync(path.join(stateRoot, "AGENTS.md"), "utf8")).toBe("# My notes\n");
 });

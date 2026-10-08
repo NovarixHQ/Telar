@@ -31,7 +31,7 @@ ModelCatalogue,
 ModelOverlay,
 CustomProviderModel,EngineHealth,ModelSelection,
 Project,
-PreparedPrompt,ProviderDriverKind,PublishedAppearance,WorkspaceConfig,
+PreparedPrompt,ProviderDriverKind,WorkspaceConfig,
 ProjectWorkspaceOverrides,
 ProjectWorkspaceView
 } from "@telar/engine-client";
@@ -215,11 +215,6 @@ export function settingsCalls(fetcher: Fetcher) {
       input: { prompt: string; schema: Record<string, unknown>; model?: string; effort?: "low" | "medium" | "high" },
       options: { signal?: AbortSignal } = {},
     ) => request<{ result: Record<string, unknown> }>(fetcher, "POST", "/api/textgen/complete", input, options.signal),
-    /** The host cockpit's published look, for windows that want to wear it.
-     *  Already parsed by the shared total parser on the engine adapter's side,
-     *  so `null` covers both "nothing published" and "nothing readable" — the
-     *  same instruction to a reader either way. */
-    appearance: () => request<{ appearance: PublishedAppearance | null; updatedAt: number | null }>(fetcher, "GET", "/api/appearance"),
     /** Which models a provider says it has — asked of the provider where it can
      *  answer, and this cockpit's own short list where it cannot. */
     modelCatalogue: (driver: ProviderDriverKind, options: { refresh?: boolean; instanceId?: string } = {}) => {

@@ -135,7 +135,7 @@ describe("an artifact card", () => {
     expect(comfortable.querySelector("iframe")!.style.height).toBe("256px");
   });
 
-  test("an html frame wears the Look in hex, with --background as the canvas painted around it", async () => {
+  test("an html frame wears the appearance in hex, with --background as the canvas painted around it", async () => {
     serveAttachments();
     const root = document.documentElement;
     root.classList.add("dark");
@@ -161,7 +161,7 @@ describe("an artifact card", () => {
     }
   });
 
-  test("on a see-through Look the frame's --background is transparent, so the page shows the same glass as the reply", async () => {
+  test("on a see-through appearance the frame's --background is transparent, so the page shows the same glass as the reply", async () => {
     serveAttachments();
     document.body.style.backgroundColor = "rgba(10, 10, 10, 0.55)";
     try {
@@ -173,7 +173,7 @@ describe("an artifact card", () => {
     }
   });
 
-  test("a Look change is posted into the open frame, which keeps its page instead of reloading", async () => {
+  test("an appearance change is posted into the open frame, which keeps its page instead of reloading", async () => {
     serveAttachments();
     const root = document.documentElement;
     const host = await card(artifact("html", "att_html"));
@@ -236,7 +236,7 @@ describe("an artifact card", () => {
     expect(host.querySelector("pre, code, [data-streamdown], #drawn-diagram")).toBeNull();
   });
 
-  test("mermaid takes the Look's own colours, and is drawn again when the Look changes", async () => {
+  test("mermaid takes the appearance's own colours, and is drawn again when the appearance changes", async () => {
     serveAttachments();
     drawn.length = 0;
     const root = document.documentElement;

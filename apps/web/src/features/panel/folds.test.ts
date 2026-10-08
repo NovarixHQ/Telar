@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { EngineEvent, Item, Task } from "@telar/engine-client";
-import { agentBrowserActivity, browserScopeToRelease, describeBrowserStart, isLiveTask, journalWrites, latestBrowserState, splitRoster, tabBadge } from "./folds";
+import type { EngineEvent, Item } from "@telar/engine-client";
+import { agentBrowserActivity, browserScopeToRelease, describeBrowserStart, journalWrites, latestBrowserState } from "./folds";
 import { LIVE_BROWSER_TAB } from "./model";
 import { revealPanelTab, type PanelTabState } from "./tabs";
 
@@ -130,46 +130,6 @@ describe("browserScopeToRelease", () => {
   });
 });
 
-describe("isLiveTask", () => {
-  test("counts waiting as live — a blocked sub-agent has not finished", () => {
-    for (const state of ["pending", "running", "waiting"]) {
-      expect(isLiveTask({ state } as Task)).toBe(true);
-    }
-    for (const state of ["completed", "failed", "stopped"]) {
-      expect(isLiveTask({ state } as Task)).toBe(false);
-    }
-  });
-});
-
-describe("splitRoster", () => {
-  test("agents on one side, background work on the other", () => {
-    const split = splitRoster([
-      { id: "shell", kind: "background", state: "running", items: [] },
-      { id: "plain", kind: "agent", state: "running", items: [] },
-    ] as never);
-    expect(split.agents.map((task) => task.id)).toEqual(["plain"]);
-    expect(split.processes.map((task) => task.id)).toEqual(["shell"]);
-  });
-
-  test("a task with no kind at all is presumed an agent, matching the contract's denylist", () => {
-    const split = splitRoster([{ id: "unkinded", state: "running", items: [] }] as never);
-    expect(split.agents).toHaveLength(1);
-    expect(split.processes).toHaveLength(0);
-  });
-
-  test("the split has no third side, and no task lands on two", () => {
-    // A container row would make a four-agent fan-out read as five running.
-    const tasks = [
-      { id: "shell", kind: "background", state: "running", items: [] },
-      { id: "plain", kind: "agent", state: "running", items: [] },
-      { id: "unkinded", state: "running", items: [] },
-    ];
-    const split = splitRoster(tasks as never);
-    expect(Object.keys(split).sort()).toEqual(["agents", "processes"]);
-    expect(split.agents.length + split.processes.length).toBe(tasks.length);
-  });
-});
-
 describe("describeBrowserStart", () => {
   test("a tab means the press worked and the button goes quiet", () => {
     expect(describeBrowserStart({ running: true, tabs: [{ id: "0", url: "about:blank", title: "", active: true }] })).toEqual({ status: "idle" });
@@ -182,23 +142,5 @@ describe("describeBrowserStart", () => {
   test("running with no tab is named, not left looking like 'still starting'", () => {
     expect(describeBrowserStart({ running: true, tabs: [] })).toEqual({ status: "error", message: "The browser started but opened no page." });
     expect(describeBrowserStart({ running: false, tabs: [] })).toEqual({ status: "error", message: "The browser did not start." });
-  });
-});
-
-describe("tabBadge", () => {
-  const roster = splitRoster([
-    { id: "a", kind: "agent", state: "running", items: [] },
-    { id: "b", kind: "agent", state: "failed", items: [] },
-    { id: "c", kind: "background", state: "completed", items: [] },
-  ] as never);
-
-  test("counts each side, with its running and failed tallies", () => {
-    expect(tabBadge("agents", roster)).toEqual({ count: 2, running: 1, failed: 1 });
-    expect(tabBadge("processes", roster)).toEqual({ count: 1, running: 0, failed: 0 });
-  });
-
-  test("any other kind, or an empty side, wears no badge", () => {
-    expect(tabBadge("diff", roster)).toBeUndefined();
-    expect(tabBadge("processes", splitRoster([]))).toBeUndefined();
   });
 });

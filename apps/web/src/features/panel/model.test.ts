@@ -64,7 +64,6 @@ describe("the Terminal surface", () => {
     expect(isMultiInstancePanelTab("terminal")).toBe(true);
     expect(isMultiInstancePanelTab("editor")).toBe(true);
     expect(isMultiInstancePanelTab("diff")).toBe(true);
-    expect(isMultiInstancePanelTab("processes")).toBe(false);
   });
 
   test("asking for a terminal twice focuses the one you have", () => {
@@ -72,13 +71,6 @@ describe("the Terminal surface", () => {
     state = openPanelTab(state, "terminal");
     expect(state.tabs.map((entry) => entry.id)).toEqual(["terminal"]);
     expect(state.activeTab).toBe("terminal");
-  });
-
-  test("it is NOT the Processes surface", () => {
-    // Processes folds the engine's background tasks — liveness and an owner.
-    // This is a shell you type into. Both exist; neither replaced the other.
-    expect(isPanelTab("processes")).toBe(true);
-    expect(describePanelTab("processes").label).toBe("Processes");
   });
 });
 
@@ -156,13 +148,11 @@ describe("issue and pull-request tabs", () => {
   });
 });
 
-describe("the retired Usage surface", () => {
-  test("a stored 'usage' tab id restores as nothing", () => {
-    // The surface was removed; a panel persisted before the removal may still
-    // hold its id. The validator refusing it is what makes the restore drop the
-    // tab instead of rendering a blank pane.
-    expect(isPanelTab("usage")).toBe(false);
-    expect(isPanelTab("agents")).toBe(true);
+describe("retired surfaces", () => {
+  test("a stored Usage, Agents or Processes tab id restores as nothing", () => {
+    // Refusing the id is what makes a restore drop the tab instead of rendering a blank pane.
+    for (const retired of ["usage", "agents", "processes"]) expect(isPanelTab(retired)).toBe(false);
+    expect(isPanelTab("terminal")).toBe(true);
   });
 });
 
@@ -194,16 +184,6 @@ describe("a browser tab's label comes from the live page when the shell has one"
   });
 });
 
-describe("the Agents surface", () => {
-  test("its blurb names what the section holds, and no longer stops at sub-agents", () => {
-    const { label, blurb } = describePanelTab("agents");
-    expect(label).toBe("Agents");
-    expect(blurb).toContain("conversations working for this one");
-    expect(blurb).not.toBe("Sub-agents");
-    expect(blurb.toLowerCase()).not.toContain("warp");
-  });
-});
-
 describe("a surface's letter", () => {
   test("its ⌘⇧ chord opens the same surface from anywhere, plugins included", () => {
     const rows = launcherRows([], { enabledPlugins: ["data-science", "latex"], pluginPanels: [], canOpenNew: true, browser: {} });
@@ -223,5 +203,11 @@ describe("a surface's letter", () => {
     expect(rows.find((row) => row.id === "terminal")?.another).toBe(true);
     expect(rows.find((row) => row.id === "diff")?.another).toBe(true);
     expect(rows.some((row) => row.id === "browser")).toBe(false);
+  });
+
+  test("offers no Agents or Processes surface", () => {
+    const labels = launcherRows([], { enabledPlugins: [], pluginPanels: [], canOpenNew: true }).map((row) => row.label);
+    expect(labels).not.toContain("Agents");
+    expect(labels).not.toContain("Processes");
   });
 });

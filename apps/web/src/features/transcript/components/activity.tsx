@@ -16,7 +16,6 @@ export function LiveActivity({
   items,
   tasks,
   liveTail = true,
-  onOpenAgent,
   onInsert,
   onOpenFile,
   onOpenFileInNewTab,
@@ -24,11 +23,10 @@ export function LiveActivity({
   items: JournalItem[];
   tasks: JournalTask[];
   liveTail?: boolean;
-  onOpenAgent?: (taskId: string) => void;
 } & RowGestures) {
   const segments = segmentActivity(items);
   const tail = liveTail ? segments.length - 1 : -1;
-  const open = { ...(onOpenAgent ? { onOpenAgent } : {}), ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
+  const open = { ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
   return (
     <>
       {segments.map((segment, index) =>
@@ -49,7 +47,6 @@ export function ActivityGroup({
   items,
   live,
   tasks,
-  onOpenAgent,
   onInsert,
   onOpenFile,
   onOpenFileInNewTab,
@@ -57,10 +54,9 @@ export function ActivityGroup({
   items: JournalItem[];
   live: boolean;
   tasks: JournalTask[];
-  onOpenAgent?: (taskId: string) => void;
 } & RowGestures) {
   const rows = useMemo(() => renderable(items, tasks), [items, tasks]);
-  const open = { ...(onOpenAgent ? { onOpenAgent } : {}), ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
+  const open = { ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
   if (rows.length === 0) return null;
   if (live) return <LiveRun rows={rows} tasks={tasks} {...open} />;
   const cuts = cutAroundStandingRows(rows, tasks);
@@ -77,7 +73,7 @@ export function ActivityGroup({
   );
 }
 
-function HarnessConsultRow({ label, items, tasks, ...gestures }: { label: string; items: JournalItem[]; tasks: JournalTask[]; onOpenAgent?: (taskId: string) => void } & RowGestures) {
+function HarnessConsultRow({ label, items, tasks, ...gestures }: { label: string; items: JournalItem[]; tasks: JournalTask[] } & RowGestures) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-md">
@@ -98,7 +94,7 @@ function HarnessConsultRow({ label, items, tasks, ...gestures }: { label: string
   );
 }
 
-function TranscriptRows({ rows, tasks, ...gestures }: { rows: readonly JournalItem[]; tasks: JournalTask[]; onOpenAgent?: (taskId: string) => void } & RowGestures) {
+function TranscriptRows({ rows, tasks, ...gestures }: { rows: readonly JournalItem[]; tasks: JournalTask[] } & RowGestures) {
   const workspace = useContext(WorkspaceContext);
   const segments = useMemo(() => foldHarnessRows(rows, workspace), [rows, workspace]);
   return (
@@ -114,8 +110,8 @@ function TranscriptRows({ rows, tasks, ...gestures }: { rows: readonly JournalIt
   );
 }
 
-function LiveRun({ rows, tasks, onOpenAgent, onInsert, onOpenFile, onOpenFileInNewTab }: { rows: JournalItem[]; tasks: JournalTask[]; onOpenAgent?: (taskId: string) => void } & RowGestures) {
-  const pass = { ...(onOpenAgent ? { onOpenAgent } : {}), ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
+function LiveRun({ rows, tasks, onInsert, onOpenFile, onOpenFileInNewTab }: { rows: JournalItem[]; tasks: JournalTask[] } & RowGestures) {
+  const pass = { ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
   return (
     <div className="flex w-full min-w-0 flex-col gap-0.5 text-xs">
       <StepFold
@@ -131,9 +127,9 @@ function LiveRun({ rows, tasks, onOpenAgent, onInsert, onOpenFile, onOpenFileInN
   );
 }
 
-function SettledRun({ rows, tasks, onOpenAgent, onInsert, onOpenFile, onOpenFileInNewTab }: { rows: JournalItem[]; tasks: JournalTask[]; onOpenAgent?: (taskId: string) => void } & RowGestures) {
+function SettledRun({ rows, tasks, onInsert, onOpenFile, onOpenFileInNewTab }: { rows: JournalItem[]; tasks: JournalTask[] } & RowGestures) {
   const workspace = useContext(WorkspaceContext);
-  const pass = { ...(onOpenAgent ? { onOpenAgent } : {}), ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
+  const pass = { ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
   return (
     <StepFold
       rows={rows}

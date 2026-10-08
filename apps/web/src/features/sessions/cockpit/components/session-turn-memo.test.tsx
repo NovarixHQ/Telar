@@ -74,7 +74,6 @@ const turnElement = (turn: JournalTurn, live = false) => (
     live={live}
     requests={[]}
     sending={false}
-    onOpenAgent={() => {}}
     onOpenTab={() => {}}
     onInsert={() => {}}
     onOpenFile={() => {}}

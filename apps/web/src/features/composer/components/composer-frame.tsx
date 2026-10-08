@@ -36,7 +36,7 @@ export function ComposerHead({
           {...(session?.providerInstanceId ? { instanceId: session.providerInstanceId } : {})}
         />
       )}
-      <BackgroundPresence count={props.backgroundTasks} onStop={props.onStopBackground} {...(props.onViewBackground ? { onView: props.onViewBackground } : {})} />
+      <BackgroundPresence count={props.backgroundTasks} onStop={props.onStopBackground} />
       {note && <ComposerNote note={note} onDismiss={onDismissNote} />}
     </>
   );

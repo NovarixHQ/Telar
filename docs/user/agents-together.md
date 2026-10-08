@@ -45,12 +45,6 @@ Standing rules that differ per project, such as who may merge or how many worker
 
 ## Seeing who works for whom
 
-The Agents tab in the panel shows the relationships around a conversation:
-
-- **Working for this conversation**: the sessions this one tasked, with how each errand ended. If you follow one of them here, this conversation is woken when it finishes.
-- **Working for**: the conversation that handed this one its task.
-- **Reports from peers**: reports waiting for this conversation's next turn.
-
 Delegated sessions are ordinary sessions in the rail. Open one to watch it or talk to it directly.
 
 ## What's not obvious

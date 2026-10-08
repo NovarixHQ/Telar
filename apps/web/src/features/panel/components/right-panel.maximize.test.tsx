@@ -9,7 +9,7 @@ import type { PanelTabItem } from "../model";
 installTestDom();
 
 const STORED = "telar-sidebar:rail-test";
-const tabs = [{ id: "agents", kind: "agents", params: {} }] as PanelTabItem[];
+const tabs = [{ id: "editor", kind: "editor", params: {} }] as PanelTabItem[];
 
 function Rail() {
   return <p data-testid="rail">{useSidebar().state}</p>;
@@ -23,7 +23,7 @@ function Shell() {
       <button type="button" onClick={() => setOpen(false)}>
         close panel
       </button>
-      <RightPanel sessionId="session_a" projectId="project_a" tabs={tabs} tab="agents" open={open} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />
+      <RightPanel sessionId="session_a" projectId="project_a" tabs={tabs} tab="editor" open={open} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />
     </SidebarProvider>
   );
 }

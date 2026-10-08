@@ -1,5 +1,4 @@
-import type { BrowserSnapshot, EngineEvent, Item, Task, TaskState } from "@telar/engine-client";
-import type { JournalTask } from "@/platform/engine";
+import type { BrowserSnapshot, EngineEvent, Item } from "@telar/engine-client";
 import { browserScopeKey, LIVE_BROWSER_TAB, type BrowserState } from "./model";
 import type { PanelTabInstance } from "./tabs";
 
@@ -57,32 +56,4 @@ export function agentBrowserActivity(events: readonly EngineEvent[], since: numb
 /** The native scope to destroy when a desktop Browser tab closes. */
 export function browserScopeToRelease(sessionId: string, tab: PanelTabInstance | undefined): string | undefined {
   return tab?.kind === LIVE_BROWSER_TAB ? browserScopeKey(sessionId, tab.id) : undefined;
-}
-
-/** The nonce makes a repeat press on the same chip a new request. */
-export type TaskFocus = { id: string; nonce: number };
-
-const LIVE_TASK_STATES = new Set<TaskState>(["pending", "running", "waiting"]);
-
-export function isLiveTask(task: Task): boolean {
-  return LIVE_TASK_STATES.has(task.state);
-}
-
-type RosterSplit = { agents: JournalTask[]; processes: JournalTask[] };
-
-/** Anything the engine did not mark `background` is presumed an agent. */
-export function splitRoster(tasks: readonly JournalTask[]): RosterSplit {
-  return {
-    agents: tasks.filter((task) => task.kind !== "background"),
-    processes: tasks.filter((task) => task.kind === "background"),
-  };
-}
-
-export type TabBadge = { count: number; running: number; failed: number };
-
-/** The count an Agents or Processes tab wears, or nothing for every other kind. */
-export function tabBadge(kind: string, roster: RosterSplit): TabBadge | undefined {
-  const side = kind === "agents" ? roster.agents : kind === "processes" ? roster.processes : undefined;
-  if (!side?.length) return undefined;
-  return { count: side.length, running: side.filter(isLiveTask).length, failed: side.filter((task) => task.state === "failed").length };
 }

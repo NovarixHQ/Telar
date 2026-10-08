@@ -195,35 +195,6 @@ export function bandOf(session: SidebarSession, options: SettlingOptions): Sessi
   return isShelved(session, activity, options) ? "settled" : "active";
 }
 
-export type RelatedWork = {
-  active: SidebarSession[];
-  review: SidebarSession[];
-  independent: SidebarSession[];
-};
-
-export function relatedWork(
-  sessions: readonly SidebarSession[],
-  coordinator: Pick<SidebarSession, "id" | "hostId">,
-): RelatedWork {
-  const host = coordinator.hostId;
-  const related: RelatedWork = { active: [], review: [], independent: [] };
-  for (const session of sessions) {
-    if (sessionKey(session) === sessionKey(coordinator)) continue;
-    if ((session.hostId ?? undefined) !== (host ?? undefined)) continue;
-    const mine = (session.assignments ?? []).filter((assignment) => assignment.fromSessionId === coordinator.id);
-    if (mine.some((assignment) => assignment.outcome === undefined && !assignment.unresolved)) {
-      related.active.push(session);
-      continue;
-    }
-    if (mine.some((assignment) => assignment.outcome !== undefined && assignment.outcome !== "detached")) {
-      related.review.push(session);
-      continue;
-    }
-    if (session.startedFrom?.sessionId === coordinator.id) related.independent.push(session);
-  }
-  return related;
-}
-
 export function sessionKey(session: Pick<SidebarSession, "id" | "hostId">): string {
   return session.hostId ? `${session.hostId}:${session.id}` : session.id;
 }

@@ -58,7 +58,6 @@ export type ComposerProps = {
   onStop: () => void;
   /** Stops the lingering background tasks; `onStop` ends the turn and spares them. */
   onStopBackground: () => void;
-  onViewBackground?: () => void;
   onRuntimeMode: (mode: RuntimeMode) => void;
   onResumeAfterRateLimit?: (next: boolean) => void;
   /** This Mac's standing answer, shown when the session has not chosen. */

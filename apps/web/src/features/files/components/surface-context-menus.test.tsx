@@ -371,16 +371,12 @@ describe("the transcript's message and tool rows", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  test("an agent row offers Open in the Agents panel only where its Open button exists", async () => {
+  test("a sub-agent row offers its report and nothing to open, since it has no session of its own", async () => {
     const spawn = { ...base, id: "t", status: "completed", completedAt: 2, detail: { type: "task", taskId: "task_1" } } as unknown as JournalItem;
     const task = { id: "task_1", state: "completed", title: "Survey", role: "explorer", resultText: "Found it." } as unknown as JournalTask;
-    const opened: string[] = [];
-    await transcriptRow(spawn, { tasks: [task], onOpenAgent: (id) => opened.push(id) });
-    expect(labels()).toEqual(["Copy text", "Copy as Markdown", "Open in the Agents panel"]);
-    await choose("Open in the Agents panel");
-    expect(opened).toEqual(["task_1"]);
-    await transcriptRow(spawn, { tasks: [task] });
-    expect(labels()).not.toContain("Open in the Agents panel");
+    const { host } = await transcriptRow(spawn, { tasks: [task] });
+    expect(labels()).toEqual(["Copy text", "Copy as Markdown"]);
+    expect([...host.querySelectorAll("button")].map((node) => node.textContent?.trim())).not.toContain("Open ▸");
   });
 });
 

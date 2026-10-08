@@ -1,4 +1,4 @@
-import { BotIcon, CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, TerminalIcon, type LucideIcon } from "lucide-react";
+import { CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, type LucideIcon } from "lucide-react";
 import type { CommandId } from "@/features/commands";
 import type { BrowserProvider, BrowserTab } from "@telar/engine-client";
 import { fileKind } from "@/features/files";
@@ -12,8 +12,6 @@ const SURFACES = [
   { id: "simulator", label: "Simulator", icon: SmartphoneIcon, blurb: "This Mac's simulators, live and controllable", key: "s", command: "open-simulator" },
   { id: "issues", label: "Issues", icon: CircleDotIcon, blurb: "Open issues", key: "i", command: "open-issues" },
   { id: "pulls", label: "Pull requests", icon: GitPullRequestIcon, blurb: "Open pull requests", key: "u", command: "open-pulls" },
-  { id: "agents", label: "Agents", icon: BotIcon, blurb: "Sub-agents and the conversations working for this one" },
-  { id: "processes", label: "Processes", icon: TerminalIcon, blurb: "Background shells, watch loops" },
 ] as const;
 
 type SurfaceId = (typeof SURFACES)[number]["id"] | PluginSurfaceId;

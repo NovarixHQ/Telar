@@ -1,7 +1,6 @@
 import type { GitHubCliAuth } from "@telar/engine-client";
 import type { GhRunner } from "./gh";
 
-/** `gh auth status` prints a masked token, so only the account name and a failure's first line leave this function. */
 export async function readCliAuth(gh: GhRunner, cwd: string): Promise<GitHubCliAuth> {
   const result = await gh(cwd, ["auth", "status", "--active"]);
   const output = `${result.stdout}\n${result.stderr}`;

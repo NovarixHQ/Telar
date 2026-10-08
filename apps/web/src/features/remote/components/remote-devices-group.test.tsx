@@ -73,3 +73,13 @@ test("only the app running the server is this device", () => {
   expect(text.match(/This device/g)).toHaveLength(1);
   expect(text).toContain("Chrome on mini browser ·");
 });
+
+test("the iOS app reads as its own name and as an iPhone or an iPad", () => {
+  const ios = { createdAt: 1, role: "full" as const, platform: "ios" as const };
+  const [phone, pad] = rows([
+    { ...ios, id: "dev_1", name: "Telar iPhone", identity: { kind: "phone", machine: "iPhone", os: "iOS" } },
+    { ...ios, id: "dev_2", name: "Studio", identity: { kind: "tablet", machine: "iPad", os: "iPadOS" } },
+  ]);
+  expect(phone).toContain("> Telar iPhone iPhone ·");
+  expect(pad).toContain("> Studio iPad ·");
+});

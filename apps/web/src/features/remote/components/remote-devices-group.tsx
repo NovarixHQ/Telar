@@ -93,6 +93,7 @@ type DeviceActions = {
 
 function DeviceRow({ device, busy, onRename, onRole, onRevoke }: { device: RemoteDevice } & DeviceActions) {
   const kind = device.identity?.kind ?? (device.platform === "ios" ? "phone" : device.platform);
+  const kindLabel = device.platform === "ios" ? (kind === "tablet" ? "iPad" : "iPhone") : kind;
   const declaredSource = [device.identity?.client, device.identity?.machine].filter(Boolean).join(" on ");
   const source = declaredSource && !device.name.includes(declaredSource) ? declaredSource : undefined;
 
@@ -102,7 +103,7 @@ function DeviceRow({ device, busy, onRename, onRole, onRevoke }: { device: Remot
       label={<DeviceName device={device} onRename={(name) => onRename(device.id, name)} />}
       hint={
         <span className="flex flex-wrap items-center gap-x-1.5">
-          {(source ?? kind) && <span>{source ?? kind} ·</span>}
+          {(source ?? kindLabel) && <span>{source ?? kindLabel} ·</span>}
           <Presence device={device} />
         </span>
       }

@@ -3,6 +3,8 @@ import type { HostRecord } from "../../platform/connection";
 
 export type PairedHost = HostRecord & { deviceId: string };
 
+export type ThisDevice = { name?: string; tablet: boolean };
+
 export type PairingOutcome = { ok: true; host: PairedHost } | { ok: false; message: string };
 
 const NOT_A_LINK = "That doesn't look like a Telar pairing link.";
@@ -15,7 +17,7 @@ async function json(response: Response): Promise<unknown> {
 }
 
 /** Checks which Mac the link points at, then spends its one-time code for a device token. */
-export async function pair(link: string, fetch: typeof globalThis.fetch = globalThis.fetch): Promise<PairingOutcome> {
+export async function pair(link: string, device: ThisDevice, fetch: typeof globalThis.fetch = globalThis.fetch): Promise<PairingOutcome> {
   const parsed = parsePairingUrl(link);
   if (!parsed) return { ok: false, message: NOT_A_LINK };
   let identity: HostIdentity;
@@ -31,7 +33,14 @@ export async function pair(link: string, fetch: typeof globalThis.fetch = global
     response = await fetch(`${parsed.baseUrl}/api/pair`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token: parsed.token, platform: "ios", kind: "phone", client: "Telar", os: "iOS" }),
+      body: JSON.stringify({
+        token: parsed.token,
+        platform: "ios",
+        kind: device.tablet ? "tablet" : "phone",
+        machine: device.tablet ? "iPad" : "iPhone",
+        os: device.tablet ? "iPadOS" : "iOS",
+        ...(device.name ? { deviceName: device.name } : {}),
+      }),
     });
   } catch {
     return { ok: false, message: UNREACHABLE };

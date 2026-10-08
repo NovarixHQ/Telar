@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RootStack } from "../../platform/navigation/routes";
 import { pair } from "./pairing";
 import { rememberHost } from "./registry";
+import { thisDevice } from "./this-device";
 
 export function PairScreen() {
   const { params } = useRoute<RouteProp<RootStack, "Pair">>();
@@ -16,7 +17,7 @@ export function PairScreen() {
   const submit = async (text: string) => {
     setPairing(true);
     setProblem(undefined);
-    const outcome = await pair(text);
+    const outcome = await pair(text, thisDevice());
     setPairing(false);
     if (!outcome.ok) return setProblem(outcome.message);
     await rememberHost(outcome.host);

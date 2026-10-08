@@ -31,6 +31,19 @@ function keyChord(key, platform = process.platform) {
   return { keyCode: ELECTRON_KEY_NAMES[name.toLowerCase()] || name, modifiers };
 }
 
+const EDIT_COMMANDS = { a: "selectAll", c: "copy", x: "cut", v: "paste", z: "undo" };
+const CDP_MODIFIERS = { alt: 1, control: 2, meta: 4, shift: 8 };
+
+function editChord({ keyCode, modifiers }, platform = process.platform) {
+  const primary = platform === "darwin" ? "meta" : "control";
+  if (!modifiers.includes(primary) || modifiers.some((modifier) => modifier !== primary && modifier !== "shift")) return undefined;
+  const letter = String(keyCode).toLowerCase();
+  const command = modifiers.includes("shift") ? (letter === "z" ? "redo" : undefined) : EDIT_COMMANDS[letter];
+  if (!command) return undefined;
+  const key = { key: letter, code: `Key${letter.toUpperCase()}`, windowsVirtualKeyCode: letter.toUpperCase().charCodeAt(0) };
+  return { ...key, modifiers: modifiers.reduce((bits, modifier) => bits | CDP_MODIFIERS[modifier], 0), commands: [command] };
+}
+
 const PAGE_DESCRIBE = `
   function describe(el) {
     const attr = (name) => (el.getAttribute && el.getAttribute(name)) || "";
@@ -108,4 +121,4 @@ function capCopied(text) {
   return `${cut}\n… [truncated]`;
 }
 
-module.exports = { keyChord, PAGE_AT_POINT, PAGE_FOCUSED_EDITABLE, PAGE_PASTE, PAGE_COPY, pageLabel, pointText, capCopied };
+module.exports = { keyChord, editChord, PAGE_AT_POINT, PAGE_FOCUSED_EDITABLE, PAGE_PASTE, PAGE_COPY, pageLabel, pointText, capCopied };

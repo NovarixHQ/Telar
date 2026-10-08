@@ -1,5 +1,7 @@
+import { homedir } from "node:os";
 import type {
   GitHubCheckLog,
+  GitHubCliAuth,
   GitHubCommentResult,
   GitHubFacets,
   GitHubIssueFilter,
@@ -16,6 +18,7 @@ import type {
   Project,
 } from "@telar/engine-client";
 import { assertId, EngineStateError, type Kernel } from "../../platform/kernel";
+import { readCliAuth } from "./cli-auth";
 import { readCheckLog, readIssue, readPull } from "./detail";
 import type { GhRunner } from "./gh";
 import { DEFAULT_ISSUE_FILTER, DEFAULT_PULL_FILTER, readForgeFacets, readGitHub } from "./lists";
@@ -65,6 +68,10 @@ export class GitHubStore {
     private readonly kernel: Kernel,
     private readonly deps: GitHubDeps,
   ) {}
+
+  cliAuth(): Promise<GitHubCliAuth> {
+    return readCliAuth(this.deps.gh, homedir());
+  }
 
   async list(projectId: string, options: { force?: boolean; issues?: GitHubIssueFilter; pulls?: GitHubPullFilter } = {}): Promise<GitHubSnapshot> {
     const project = this.deps.getProject(projectId);

@@ -4,7 +4,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import type { SessionChild } from "@telar/engine-client";
 import type { JournalTurn } from "@telar/client/journal";
-import { bareNotificationTurn, foldsIntoAgentRow, groupNotificationTurns, ROW, routineNotification, sessionsCreated, SessionLookup, type SessionFacts } from "@/features/transcript";
+import { bareNotificationTurn, groupNotificationTurns, ROW, routineNotification, sessionsCreated, SessionLookup, type SessionFacts } from "@/features/transcript";
 import { cn } from "@/ui/utils";
 import { sessionHref } from "../../session-list";
 import type { SessionDirectory } from "../hooks/use-session-directory";
@@ -81,7 +81,6 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
     const builders = anchored.get(turn.runId);
     return <Fragment key={turn.runId}>{renderTurn(turn, { ...(peerTitle ? { peerTitle } : {}), ...(builders ? { builders } : {}) })}</Fragment>;
   };
-  const folded = (turn: JournalTurn) => turn.runId !== activeRunId && !anchored.has(turn.runId) && bareNotificationTurn(turn) && foldsIntoAgentRow(turn.notification!, (id) => drawn.has(id));
   const rows = (group: readonly JournalTurn[]) => {
     if (group.length > 1 && group.every((turn) => quiet(turn) && turn.runId !== activeRunId && !anchored.has(turn.runId))) {
       return <ArrivalStrip key={group[0]!.runId} titles={group.map((turn) => titleOf(turn) ?? "Untitled session")}>{group.map(row)}</ArrivalStrip>;
@@ -93,5 +92,5 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
       </div>
     );
   };
-  return <SessionLookup.Provider value={lookup}>{groupNotificationTurns(turns.filter((turn) => !folded(turn)), activeRunId).map(rows)}</SessionLookup.Provider>;
+  return <SessionLookup.Provider value={lookup}>{groupNotificationTurns(turns, activeRunId).map(rows)}</SessionLookup.Provider>;
 }

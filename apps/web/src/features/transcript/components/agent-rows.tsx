@@ -8,7 +8,7 @@ import { ProviderIcon } from "@/features/providers";
 import { fmtElapsed } from "@/ui/format";
 import { useNow } from "@/ui/hooks/use-now";
 import { cn } from "@/ui/utils";
-import type { BuilderEnding } from "../builder-endings";
+import type { AgentFinished, BuilderEnding } from "../builder-endings";
 import { SessionLookup, type SessionFacts } from "./session-lookup";
 import { ROW } from "./transcript-fold";
 
@@ -175,4 +175,29 @@ export function FrozenAgentRows({ endings }: { endings: readonly BuilderEnding[]
     };
   });
   return <AgentRows agents={agents} />;
+}
+
+export function AgentFinishedRow({ label, failed, href }: { label: string; failed: boolean; href?: string }) {
+  return (
+    <div className={cn(ROW, "gap-2")} aria-label="Agent finished">
+      <BotIcon aria-hidden className={cn("size-3.5 shrink-0", failed ? "text-destructive" : "text-muted-foreground")} />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {href && (
+        <Link href={href} className="flex shrink-0 items-center gap-0.5 rounded px-1 text-2xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+          Open
+          <ChevronRightIcon aria-hidden className="size-3" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+export function BuildersFinishedRow({ finished, fallbackTitle }: { finished: AgentFinished; fallbackTitle?: string }) {
+  const lookup = useContext(SessionLookup);
+  const verb = finished.failed ? "failed" : "finished";
+  const [only] = finished.sessionIds;
+  if (finished.sessionIds.length > 1 || !only) return <AgentFinishedRow label={`${finished.sessionIds.length} builders ${verb}`} failed={finished.failed} />;
+  const facts = lookup(only);
+  const title = finished.titles[0] ?? facts?.title ?? fallbackTitle;
+  return <AgentFinishedRow label={title ? `Builder “${title}” ${verb}` : `A builder ${verb}`} failed={finished.failed} {...(facts?.href ? { href: facts.href } : {})} />;
 }

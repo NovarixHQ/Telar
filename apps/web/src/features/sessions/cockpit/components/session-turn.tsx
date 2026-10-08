@@ -1,12 +1,16 @@
 "use client";
 
-import { Fragment, memo, useEffect, useRef, useState } from "react";
+import { Fragment, memo, useContext, useEffect, useRef, useState } from "react";
 import { ChevronRightIcon, Minimize2Icon, ShieldCheckIcon } from "lucide-react";
 import type { EngineRequest, RequestDecision, SessionChild } from "@telar/engine-client";
 import { isActiveTurn, isCompacting, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@telar/client/journal";
 import {
+  AgentFinishedRow,
   AgentRows,
+  agentsFinished,
+  BuildersFinishedRow,
   LiveActivity,
+  SessionLookup,
   Marker,
   routineNotification,
   NotificationRow,
@@ -44,6 +48,11 @@ function WakeUpRow({ turn, roster }: { turn: JournalTurn; roster: readonly Journ
     ? `session …${turn.wakeReason.sessionId.slice(-6)}`
     : (task?.title ?? (task ? undefined : namedTask ? `task ${namedTask.slice(-6)}` : undefined));
   const body = turn.prompt.trim();
+  if (task?.kind === "agent" && !turn.decidedForBackgroundWork && !turn.wakeReason && (task.state === "completed" || task.state === "failed")) {
+    const name = task.title ?? task.role;
+    const verb = task.state === "failed" ? "failed" : "finished";
+    return <AgentFinishedRow label={name ? `Subagent “${name}” ${verb}` : `A subagent ${verb}`} failed={task.state === "failed"} />;
+  }
   return (
     <div className="rounded-md">
       <div className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs">
@@ -188,6 +197,7 @@ function SessionTurnBody({
   builders = [],
 }: SessionTurnProps) {
   const doing = turnActivity(turn);
+  const finished = useAgentsFinished(turn);
   const rowGestures = {
     ...(onInsert ? { onInsert } : {}),
     ...(onOpenFile ? { onOpenFile } : {}),
@@ -216,7 +226,7 @@ function SessionTurnBody({
     turn.state === "failed";
 
   if (turn.kind === "compact") return <CompactTurn turn={turn} rowGestures={rowGestures} />;
-  const opening = foldsOpening(turn) && !live && answerLane ? <NotificationRow detail={turn.notification!} {...(turn.sender ? { message: turn.prompt } : {})} {...(peerTitle ? { title: peerTitle } : {})} /> : undefined;
+  const opening = foldsOpening(turn, Boolean(finished)) && !live && answerLane ? <NotificationRow detail={turn.notification!} {...(turn.sender ? { message: turn.prompt } : {})} {...(peerTitle ? { title: peerTitle } : {})} /> : undefined;
   const boundary = (item: JournalItem) => (
     <div className={cn("mx-auto w-full min-w-0 max-w-(--chat-content-max-width)", item.detail.type === "user_message" && !item.detail.sender && !item.detail.wakeReason && "my-6")}>
       <TranscriptItem item={item} tasks={turn.tasks} {...rowGestures} {...(onOpenTab ? { onOpenTab } : {})} />
@@ -330,6 +340,7 @@ function TurnOpening({
   onOpenTab,
   peerTitle,
 }: RowGestures & { turn: JournalTurn; roster: readonly JournalTask[]; onOpenTab?: (tab: PanelTab) => void; peerTitle?: string }) {
+  const finished = useAgentsFinished(turn);
   return (
     <>
       {turn.kind !== "import" && turn.origin !== "provider" && turn.origin !== "session" && turn.origin !== "restart" && (
@@ -349,7 +360,9 @@ function TurnOpening({
       {/* The initiating machine message precedes every response and steer. */}
       {(turn.origin === "provider" || turn.origin === "session") && (
         <Message from="assistant"><MessageContent from="assistant">
-          {turn.notification ? (
+          {finished ? (
+            <BuildersFinishedRow finished={finished} {...(peerTitle ? { fallbackTitle: peerTitle } : {})} />
+          ) : turn.notification ? (
             <NotificationRow detail={turn.notification} {...(turn.sender ? { message: turn.prompt } : {})} {...(peerTitle ? { title: peerTitle } : {})} />
           ) : turn.origin === "session" && turn.sender ? (
             <AgentMessageBubble text={turn.prompt} sender={turn.sender} {...(turn.agentNotice ? { notice: turn.agentNotice } : {})} {...(turn.agentIntent ? { intent: turn.agentIntent } : {})} {...(turn.assignmentScope ? { scope: turn.assignmentScope } : {})} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
@@ -362,8 +375,13 @@ function TurnOpening({
   );
 }
 
-function foldsOpening(turn: JournalTurn): boolean {
-  return Boolean(turn.notification) && (turn.origin === "provider" || turn.origin === "session") && routineNotification(turn.notification!);
+function useAgentsFinished(turn: JournalTurn) {
+  const lookup = useContext(SessionLookup);
+  return turn.notification ? agentsFinished(turn.notification, (sessionId) => Boolean(lookup(sessionId)?.child)) : undefined;
+}
+
+function foldsOpening(turn: JournalTurn, finished: boolean): boolean {
+  return Boolean(turn.notification) && (turn.origin === "provider" || turn.origin === "session") && routineNotification(turn.notification!) && !finished;
 }
 
 // Lets the browser skip rendering an off-screen settled turn, at the height it last rendered.

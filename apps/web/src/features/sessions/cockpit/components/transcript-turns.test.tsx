@@ -118,24 +118,38 @@ describe("a builder's ending", () => {
       />,
     );
 
-  test("reads as that builder's row, ended, not as a generic notice", () => {
-    const html = renderEnding([ending("run_end", [{ sessionId: "s_a", state: "done", title: "Fix the rail", why: "Merged the fix" }])]);
-    expect(visibleText(html)).toContain("Fix the rail");
-    expect(visibleText(html)).toContain("Merged the fix");
-    expect(html).toContain('data-agent-state="done"');
+  test("opens the turn it woke with one line naming the builder, and Open goes to its session", () => {
+    const html = renderEnding([ending("run_end", [{ sessionId: "s_a", state: "done", title: "Fix the rail", why: "Merged the fix" }])], [child("s_a", { state: "done", endedAt: 2_000 })]);
+    expect(visibleText(html).replace(/\s+/g, " ").trim()).toBe("Builder “Fix the rail” finished Open");
+    expect(html).toContain('href="/projects/proj/sessions/s_a"');
     expect(visibleText(html)).not.toContain("Session finished a turn");
   });
 
-  test("several at once read as a group of ended rows", () => {
+  test("several at once are one line, failed if any failed", () => {
     const html = renderEnding(
       [ending("run_end", [{ sessionId: "s_a", state: "done", title: "One" }, { sessionId: "s_b", state: "failed", title: "Two", why: "tests fail" }])],
       [child("s_a", { state: "done", endedAt: 2_000 }), child("s_b", { state: "failed", endedAt: 3_000 })],
     );
-    expect(visibleText(html)).toContain("2 subagents");
-    expect(visibleText(html)).toContain("1 failed");
+    expect(visibleText(html).trim()).toBe("2 builders failed");
   });
 
-  test("an ended builder sits in its turn's work, and its ending draws no row of its own", () => {
+  test("a builder's result opens the woken turn with that line, above its answer, instead of a notice", () => {
+    const woken = arrival("run_result", "s_a", "result", "OK");
+    const answered = { ...woken, startedAt: 30, endedAt: 40, items: [...woken.items, { ...woken.items[0]!, id: "answer", streamedText: "Merging.", detail: { type: "assistant_message", text: "Merging." } as never }] };
+    const text = visibleText(renderEnding([answered], [child("s_a", { title: "Reply OK", state: "done", endedAt: 2_000 })]));
+    expect(text.indexOf("Builder “Reply OK” finished")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Builder “Reply OK” finished")).toBeLessThan(text.indexOf("Merging."));
+    expect(text).not.toContain("sent a result");
+  });
+
+  test("a provider sub-agent that wakes its parent opens the woken turn with the same line", () => {
+    const task = { id: "task_1", sessionId: HOST, runId: "run_dispatch", kind: "agent" as const, state: "completed" as const, title: "List files", startedAt: 1, updatedAt: 2, completedAt: 3, items: [] };
+    const woke = turn({ runId: "run_woke", origin: "provider", wokenBy: "task_1" });
+    const html = renderToStaticMarkup(<SessionTurn turn={woke} roster={[task]} requests={[]} sending={false} live={false} onDecide={() => {}} />);
+    expect(visibleText(html).trim()).toBe("Subagent “List files” finished");
+  });
+
+  test("an ended builder sits in its turn's work, and its ending adds only its finished line", () => {
     const html = renderEnding(
       [dispatch, ending("run_end", [{ sessionId: "s_a", state: "done", title: "Reply OK", why: "OK" }])],
       [child("s_a", { title: "Reply OK", state: "done", summary: "OK", endedAt: 24_000 })],

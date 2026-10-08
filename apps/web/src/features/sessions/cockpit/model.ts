@@ -49,7 +49,9 @@ type RowTurn = Pick<JournalTurn, "runId" | "state" | "held" | "decidedForBackgro
 // Background claims are not rows: each hides behind a host row (its spawner, else the nearest row) that renders its cards.
 // A claim with no possible host stays a row so its card still has somewhere to render.
 export function transcriptRows<T extends RowTurn>(transcript: readonly T[]): { shown: T[]; hostOf: Map<string, string> } {
-  const visible = transcript.filter((turn) => (turn.state !== "queued" || turn.held) && turn.state !== "steering" && turn.state !== "steered");
+  const working = transcript.some((turn) => turn.state === "claimed" || turn.state === "running" || turn.state === "steering");
+  const next = working ? undefined : transcript.find((turn) => turn.state === "queued" && !turn.held);
+  const visible = transcript.filter((turn) => (turn.state !== "queued" || turn.held || turn === next) && turn.state !== "steering" && turn.state !== "steered");
   const rows = visible.filter((turn) => !turn.decidedForBackgroundWork);
   const hostOf = new Map<string, string>();
   for (const claim of visible) {

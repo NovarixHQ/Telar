@@ -381,6 +381,20 @@ describe("a sub-agent's background claim is not a row in the main chat", () => {
     expect(shown.some((turn) => turn.runId === row)).toBe(true);
   });
 
+  test("the next queued turn is drawn when nothing runs ahead of it; one waiting behind a running turn is not", () => {
+    const idle = transcriptRows([
+      { runId: "run_done", state: "completed", tasks: [] },
+      { runId: "run_next", state: "queued", tasks: [] },
+      { runId: "run_after", state: "queued", tasks: [] },
+    ]);
+    expect(idle.shown.map((turn) => turn.runId)).toEqual(["run_done", "run_next"]);
+    const busy = transcriptRows([
+      { runId: "run_now", state: "running", tasks: [] },
+      { runId: "run_next", state: "queued", tasks: [] },
+    ]);
+    expect(busy.shown.map((turn) => turn.runId)).toEqual(["run_now"]);
+  });
+
   test("a shown answer carries its own read marker", () => {
     const { hostOf } = transcriptRows([{ runId: "run_ask", state: "completed", tasks: [] }]);
     expect(markerRowOf("run_ask", hostOf)).toBe("run_ask");

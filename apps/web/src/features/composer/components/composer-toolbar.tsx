@@ -11,7 +11,6 @@ import { useSwapFade } from "../hooks/use-composer-motion";
 import type { ComposerStash } from "../hooks/use-composer-stash";
 import { AccessControl } from "./access-control";
 import { AgentControl } from "./agent-control";
-import { ComposerOverflowMenu } from "./composer-overflow-menu";
 import { ControlDivider } from "./control-primitives";
 import { ReasoningControl } from "./reasoning-control";
 import type { ComposerProps } from "./composer-props";
@@ -93,7 +92,7 @@ export function StashBadge({ stash }: { stash: ComposerStash }) {
 
 type PillProps = Pick<
   ComposerProps,
-  "fresh" | "runtimeMode" | "envMode" | "onModelChange" | "onSwitchProvider" | "onRuntimeMode" | "onDriverChange" | "onEnvMode" | "onResumeAfterRateLimit"
+  "runtimeMode" | "onModelChange" | "onSwitchProvider" | "onRuntimeMode" | "onDriverChange" | "onResumeAfterRateLimit"
 > & {
   driver: ProviderDriverKind;
   choice: ModelChoice;
@@ -102,36 +101,22 @@ type PillProps = Pick<
   ultrathink: { active: boolean; toggle: () => void };
 };
 
-/** The pills while the composer's own container is wide enough, else the `···` menu carrying all of them. */
+/** Model, reasoning and access in one row; as the composer narrows, labels truncate, then fold to icons. */
 export function ComposerPills(props: PillProps) {
-  const { driver, choice, instanceId, runtimeMode, onModelChange, onRuntimeMode, onDriverChange, onEnvMode, onResumeAfterRateLimit, resumeAfterRateLimit, ultrathink } = props;
+  const { driver, choice, instanceId, runtimeMode, onModelChange, onRuntimeMode, onDriverChange, onResumeAfterRateLimit, resumeAfterRateLimit, ultrathink } = props;
   const shared = { driver, choice, ...(instanceId ? { instanceId } : {}), ...(onModelChange ? { onChange: onModelChange } : {}) };
   const limit = { ...(resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimit }), ...(onResumeAfterRateLimit ? { onResumeAfterRateLimit } : {}) };
   return (
     <>
       <AgentControl {...shared} {...(onDriverChange ? { onDriverChange } : {})} {...(props.onSwitchProvider ? { onSwitchProvider: props.onSwitchProvider } : {})} />
-      <div className="hidden items-center gap-1 @2xl/composer:flex">
-        <ControlDivider />
-        <ReasoningControl {...shared} ultrathink={ultrathink} />
-        {runtimeMode && (
-          <>
-            <ControlDivider />
-            <AccessControl runtimeMode={runtimeMode} onRuntimeMode={onRuntimeMode} driver={driver} {...limit} />
-          </>
-        )}
-      </div>
-      <div className="@2xl/composer:hidden">
-        <ComposerOverflowMenu
-          {...shared}
-          ultrathink={ultrathink}
-          fresh={props.fresh ?? false}
-          {...(runtimeMode ? { runtimeMode, onRuntimeMode } : {})}
-          {...(props.envMode ? { envMode: props.envMode } : {})}
-          {...(onDriverChange ? { onDriverChange } : {})}
-          {...(onEnvMode ? { onEnvMode } : {})}
-          {...limit}
-        />
-      </div>
+      <ControlDivider />
+      <ReasoningControl {...shared} ultrathink={ultrathink} />
+      {runtimeMode && (
+        <>
+          <ControlDivider />
+          <AccessControl runtimeMode={runtimeMode} onRuntimeMode={onRuntimeMode} driver={driver} {...limit} />
+        </>
+      )}
     </>
   );
 }

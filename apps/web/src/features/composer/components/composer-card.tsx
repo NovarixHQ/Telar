@@ -51,7 +51,6 @@ export function ComposerCard({
   placeholder,
   ready,
   compact,
-  controlsRef,
   draft,
   attachments,
   onAttach,
@@ -76,7 +75,6 @@ export function ComposerCard({
   placeholder: string;
   ready: boolean;
   compact: boolean;
-  controlsRef: (row: HTMLDivElement | null) => void;
   draft: string;
   attachments: File[];
   onAttach: (files: File[]) => void;
@@ -167,8 +165,8 @@ export function ComposerCard({
           {compact ? (
             <CompactControls addFiles={addFiles} onExpand={onExpand} trailing={trailing} />
           ) : (
-            <InputGroupAddon ref={controlsRef} align="block-end" className="min-h-10 flex-wrap justify-between gap-1 border-t border-border/40 px-2 pt-1 pb-1.5">
-              <div className="flex min-w-0 flex-wrap items-center gap-1">
+            <InputGroupAddon align="block-end" className="min-h-10 flex-nowrap justify-between gap-1 border-t border-border/40 px-2 pt-1 pb-1.5">
+              <div data-slot="composer-controls" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <AddContextMenu onPick={addFiles} />
                 <StashBadge stash={stash} />
                 {pills}

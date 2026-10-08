@@ -1,6 +1,6 @@
 "use client";
 
-import { effortLabel, ProviderIcon, driverLabel } from "@/features/providers";
+import { ProviderIcon, driverLabel } from "@/features/providers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { useModelPicker, type ModelPickerProps } from "../hooks/use-model-picker";
 import { ControlTrigger } from "./control-primitives";
@@ -10,9 +10,8 @@ import { ModelPickerList, ModelPickerRail } from "./model-picker-list";
 export function AgentControl(props: ModelPickerProps) {
   const { driver, choice, onChange, onDriverChange, onSwitchProvider } = props;
   const picker = useModelPicker(props);
-  const { open, label, models, catalogue, defaultEffort } = picker;
+  const { open, label, models, catalogue } = picker;
   const readOnly = !onChange;
-  const effort = choice.effort ?? defaultEffort;
 
   return (
     <Popover open={open} onOpenChange={(next: boolean) => (next ? picker.setOpen(true) : picker.close(driver))}>
@@ -22,7 +21,6 @@ export function AgentControl(props: ModelPickerProps) {
             open={open}
             icon={<ProviderIcon provider={driver} size={14} />}
             label={label}
-            {...(effort ? { detail: effortLabel(effort) } : {})}
             ariaLabel={`Model: ${label} on ${driverLabel(driver)}`}
             className="min-w-0 max-w-56 justify-start"
           />

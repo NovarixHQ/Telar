@@ -5,7 +5,7 @@ import { Composer } from "./composer";
 
 installTestDom();
 
-const layout = { width: 2000, height: 120, reduced: false, observers: new Set<() => void>() };
+const layout = { height: 120, reduced: false, observers: new Set<() => void>() };
 let animations: { target: HTMLElement; keyframes: Keyframe[] }[] = [];
 
 beforeAll(() => {
@@ -23,9 +23,7 @@ beforeAll(() => {
     }
   } as unknown as typeof ResizeObserver;
   window.matchMedia = ((query: string) => ({ matches: query.includes("reduced-motion") && layout.reduced, media: query })) as typeof window.matchMedia;
-  Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => layout.width });
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => layout.height });
-  Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => 0 });
   HTMLElement.prototype.animate = function (this: HTMLElement, keyframes: Keyframe[] | PropertyIndexedKeyframes | null) {
     animations.push({ target: this, keyframes: keyframes as Keyframe[] });
     return { cancel() {} } as Animation;
@@ -39,7 +37,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  Object.assign(layout, { width: 2000, height: 120, reduced: false });
+  Object.assign(layout, { height: 120, reduced: false });
 });
 
 function Box({ busy = false }: { busy?: boolean }) {
@@ -103,14 +101,6 @@ describe("the composer's transitions", () => {
     const host = await settled();
     layout.height = 44;
     await click(button(host, "scroll"));
-    expect(animations).toEqual([]);
-    expect(expand(host)).not.toBeNull();
-  });
-
-  test("the first paint does not animate, even when it opens narrow", async () => {
-    layout.width = 300;
-    const { host } = await mount(<Box />);
-    await flush();
     expect(animations).toEqual([]);
     expect(expand(host)).not.toBeNull();
   });

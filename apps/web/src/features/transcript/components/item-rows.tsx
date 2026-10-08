@@ -12,7 +12,7 @@ HourglassIcon,
 Minimize2Icon
 } from "lucide-react";
 import { itemLabel, itemText, type JournalItem, type JournalTurn } from "@telar/client/journal";
-import { fmtTokens } from "@/ui/format";
+import { fmtTokens, plural } from "@/ui/format";
 import { attachmentUrl } from "@/features/plugins";
 import { MessageMenu, MessageResponse, messagePlainText } from "@/ui/message";
 import { Shimmer } from "@/ui/shimmer";
@@ -170,7 +170,7 @@ export function ConversationImportRow({ item }: { item: JournalItem }) {
       <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-5 font-mono text-3xs opacity-70">
         {detail.sourceCwd && <span className="min-w-0 truncate">{detail.sourceCwd}</span>}
         <span>{detail.sourceSessionId}</span>
-        {detail.rows !== detail.records && <span>{detail.rows} rows shown</span>}
+        {detail.rows !== detail.records && <span>{plural(detail.rows, "row")} shown</span>}
       </p>
     </div>
   );

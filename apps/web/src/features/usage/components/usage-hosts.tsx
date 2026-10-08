@@ -2,6 +2,7 @@
 
 import { Segmented } from "@/features/settings";
 import { ALL_HOSTS, hostRows, type HostUsage } from "../hosts";
+import { plural } from "@/ui/format";
 import { formatTokens, formatUsd } from "../model";
 import type { Metric } from "./usage-page";
 
@@ -27,7 +28,7 @@ export function UsageHosts({ hosts, selected, onSelect, metric }: { hosts: HostU
               <tr key={row.hostId} className="border-b border-border/40">
                 <td className="px-2 py-1.5">{row.name}</td>
                 <td className="px-2 py-1.5 text-right text-xs text-muted-foreground">
-                  {row.error ? `Did not answer${row.processed > 0 ? " — showing its last report" : ""}` : row.loading && row.processed === 0 ? "Loading…" : `${row.sessions} session${row.sessions === 1 ? "" : "s"}`}
+                  {row.error ? `Did not answer${row.processed > 0 ? " — showing its last report" : ""}` : row.loading && row.processed === 0 ? "Loading…" : plural(row.sessions, "session")}
                 </td>
                 <td className="w-24 px-2 py-1.5 text-right tabular-nums">{row.error && row.processed === 0 ? "—" : figure(row)}</td>
               </tr>
@@ -35,7 +36,7 @@ export function UsageHosts({ hosts, selected, onSelect, metric }: { hosts: HostU
             <tr className="font-medium">
               <td className="px-2 py-1.5">Total</td>
               <td className="px-2 py-1.5 text-right text-xs text-muted-foreground">
-                {answered.length < rows.length ? `${answered.length} of ${rows.length} computers` : ""}
+                {answered.length < rows.length ? `${answered.length} of ${plural(rows.length, "computer")}` : ""}
               </td>
               <td className="w-24 px-2 py-1.5 text-right tabular-nums">{figure(total)}</td>
             </tr>

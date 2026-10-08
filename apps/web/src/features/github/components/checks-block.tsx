@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CheckIcon, ChevronRightIcon, CircleSlashIcon, ClockIcon, ExternalLinkIcon, GripVerticalIcon, XIcon } from "lucide-react";
 import type { GitHubCheck } from "@telar/engine-client";
+import { plural } from "@/ui/format";
 import { PanelDivider } from "@/ui/panel";
 import { Spinner } from "@/ui/spinner";
 import { checkReference, failingChecksReference, startReferenceDrag } from "@/features/composer";
@@ -39,7 +40,7 @@ function CheckLog({ log }: { log: CheckLogState | undefined }) {
   return (
     <>
       <pre className="max-h-64 overflow-auto rounded border border-border bg-card p-1.5 font-mono text-3xs leading-snug whitespace-pre-wrap">{log.lines.join("\n")}</pre>
-      {log.truncated && <p className="mt-0.5 text-3xs text-muted-foreground">The last {log.lines.length} lines.</p>}
+      {log.truncated && <p className="mt-0.5 text-3xs text-muted-foreground">The last {plural(log.lines.length, "line")}.</p>}
     </>
   );
 }

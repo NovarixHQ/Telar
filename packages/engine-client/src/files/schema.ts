@@ -25,6 +25,15 @@ export const WorkspaceFile = z.object({
 });
 export type WorkspaceFile = z.infer<typeof WorkspaceFile>;
 
+export const FileReference = z.object({
+  text: z.string().min(1),
+  path: z.string().min(1),
+  line: z.number().int().positive().optional(),
+});
+export type FileReference = z.infer<typeof FileReference>;
+
+export const MAX_FILE_REFERENCES = 200;
+
 const WorkspaceWriteRefusal = z.enum(["not_found", "binary", "too_large", "conflict"]);
 
 export const WorkspaceWriteResult = z.union([

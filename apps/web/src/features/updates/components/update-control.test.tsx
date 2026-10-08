@@ -303,3 +303,22 @@ describe("the toast", () => {
     both.unmount();
   });
 });
+
+describe("a build with no update feed", () => {
+  test("says so once, with no update status or channel beside it", async () => {
+    const configured = bridge.getPrefs;
+    bridge.getPrefs = async () => ({ channel: "beta", installOnQuit: false, channels: ["beta"], configured: false, logPath: "/dev/null" }) as UpdatePrefsInfo;
+    const view = mountSurface(<AboutSection />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const text = view.host.textContent ?? "";
+    expect(text.match(/No update feed/g)).toHaveLength(1);
+    expect(text).not.toContain("latest build");
+    expect(text).not.toContain("Update status");
+    expect(text).not.toContain("Channel");
+    view.unmount();
+    bridge.getPrefs = configured;
+  });
+});

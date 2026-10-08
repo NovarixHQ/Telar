@@ -14,7 +14,7 @@ export type AttachedTerminals = {
 /** How long a clock-settled session keeps its terminals, so a conversation that merely aged out keeps its dev server a while. */
 export const SETTLED_TERMINAL_GRACE_MS = 30 * 60_000;
 
-export const SETTLED_TERMINAL_LIMIT = 5;
+const SETTLED_TERMINAL_LIMIT = 5;
 
 export type SessionTerminalsHost = {
   now(): number;

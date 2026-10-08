@@ -1,4 +1,3 @@
-import path from "node:path";
 import {
   isBuiltInDriver,
   AgentOrientation as AgentOrientationSchema,
@@ -27,8 +26,6 @@ import {
   type TextGenPolicy,
 } from "@telar/engine-client";
 import { EngineStateError, STATE_VERSION, type Kernel } from "../../platform/kernel";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const RUNTIME_MODES = new Set<RuntimeMode>(["approval-required", "auto-accept-edits", "auto", "full-access"]);
 

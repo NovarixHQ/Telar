@@ -9,7 +9,7 @@ import {
   type RuntimeMode,
 } from "@telar/engine-client";
 import { useSessionDefaults } from "@/features/sessions";
-import { projectDraftModel, RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES, sessionModelSelection } from "@/features/providers";
+import { projectDraftModel, RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES, sessionModelSelection } from "@telar/client/providers";
 import { ModelChoiceControl } from "@/features/composer";
 import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 

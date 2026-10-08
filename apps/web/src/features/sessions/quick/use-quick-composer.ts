@@ -5,7 +5,7 @@ import type { Project } from "@telar/engine-client";
 import { asEngineError, createEngineApi } from "@/platform/engine";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { composerProject, MAX_ATTACHMENTS, readFrontDoorNote } from "@/features/composer";
-import { projectDraftModel } from "@/features/providers";
+import { projectDraftModel } from "@telar/client/providers";
 import { useDraftConfig } from "../cockpit/hooks/use-draft-config";
 import { startSession } from "../cockpit/start-session";
 import { sessionHref } from "../session-list";

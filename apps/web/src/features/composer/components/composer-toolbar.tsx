@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { CornerDownLeftIcon, LayersIcon, SquareIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
-import type { ModelChoice } from "@/features/providers";
+import type { ModelChoice } from "@telar/client/providers";
 import { InputGroupButton } from "@/ui/input-group";
 import { Spinner } from "@/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";

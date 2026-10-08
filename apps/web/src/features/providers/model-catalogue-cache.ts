@@ -3,8 +3,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { CustomProviderModel, ModelCatalogue, ModelOverlay, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
-import { familyKey } from "./model-families";
-import { readFavorites } from "./model-favorites";
+import { familyKey } from "@telar/client/providers";
+import { readFavorites } from "@telar/client/providers";
 
 export type ModelTarget = { driver: ProviderDriverKind; instanceId?: string };
 

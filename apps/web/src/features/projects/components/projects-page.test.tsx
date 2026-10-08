@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SETTINGS_SEARCH_INDEX, searchSettings } from "@/features/settings";
 import { projectSettingsHref } from "../project-settings-link";
 import { isTelarIcon, TELAR_ICONS, type ProviderModel } from "@telar/engine-client";
-import type { ModelChoice } from "@/features/providers/models";
+import type { ModelChoice } from "@telar/client/providers";
 import { modelOptionsOf } from "@/features/composer";
 import type { ScopedProject } from "./projects-page";
 

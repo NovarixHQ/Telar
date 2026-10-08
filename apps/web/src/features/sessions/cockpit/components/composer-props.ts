@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import type { ProviderDriverKind, Session } from "@telar/engine-client";
-import type { ModelChoice } from "@/features/providers";
+import type { ModelChoice } from "@telar/client/providers";
 import { recallablePrompts, type Composer } from "@/features/composer";
 import { wakeLabel } from "../../session-settling";
 import type { useComposerDraft } from "../hooks/use-composer-draft";

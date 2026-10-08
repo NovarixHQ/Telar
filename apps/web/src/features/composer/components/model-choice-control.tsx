@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { ProviderDriverKind } from "@telar/engine-client";
-import type { ModelChoice } from "@/features/providers";
+import type { ModelChoice } from "@telar/client/providers";
 import { AgentControl } from "./agent-control";
 import { ReasoningControl } from "./reasoning-control";
 

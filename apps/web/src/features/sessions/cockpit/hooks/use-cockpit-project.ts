@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createEngineApi } from "@/platform/engine";
 import { rememberedProjectName, writeFrontDoorNote } from "@/features/composer";
-import { projectDraftModel } from "@/features/providers";
+import { projectDraftModel } from "@telar/client/providers";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { cockpitPlugins } from "../model";
 

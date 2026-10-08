@@ -6,7 +6,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { connectionLabel, familySearchText, routeOf, routedModelLabel } from "./model-connections";
-import { groupFamilies } from "./model-families";
+import { groupFamilies } from "@telar/client/providers";
 import type { ProviderModel } from "@telar/engine-client";
 
 const row = (id: string): ProviderModel => ({

@@ -4,7 +4,7 @@
 
 import { useCallback, useId, useRef, useState } from "react";
 import { turnHasContent, type ProjectAvailability } from "@telar/engine-client";
-import { choiceOf } from "@/features/providers";
+import { choiceOf } from "@telar/client/providers";
 import { useCommandHandlers } from "@/features/commands";
 import { DictationButton, DictationGlow, useComposerDictation } from "@/features/dictation";
 import { cn } from "@/ui/utils";

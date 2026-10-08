@@ -1,6 +1,7 @@
 "use client";
 
-import { effortLabel, ProviderIcon, driverLabel } from "@/features/providers";
+import { ProviderIcon, driverLabel } from "@/features/providers";
+import { effortLabel } from "@telar/client/providers";
 import { Popover, PopoverContent } from "@/ui/popover";
 import { useModelPicker, type ModelPickerProps } from "../hooks/use-model-picker";
 import { PillTrigger, useSummon } from "./control-primitives";

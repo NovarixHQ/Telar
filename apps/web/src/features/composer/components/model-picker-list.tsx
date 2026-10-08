@@ -2,7 +2,8 @@
 
 import { ChevronRightIcon, SearchIcon, StarIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
-import { type ModelChoice, ProviderIcon, driverLabel } from "@/features/providers";
+import { ProviderIcon, driverLabel } from "@/features/providers";
+import { type ModelChoice } from "@telar/client/providers";
 import { cn } from "@/ui/utils";
 import type { ModelPicker } from "../hooks/use-model-picker";
 import { PROVIDERS } from "../model-options";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ShieldCheckIcon } from "lucide-react";
 import type { RuntimeMode } from "@telar/engine-client";
 import { Popover, PopoverContent } from "@/ui/popover";
-import { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
+import { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@telar/client/providers";
 import { ChoiceRow, MenuHeading, PillTrigger, useSummon } from "./control-primitives";
 
 export function AccessControl({ runtimeMode, onRuntimeMode, summon }: { runtimeMode: RuntimeMode; onRuntimeMode: (mode: RuntimeMode) => void; summon?: number | undefined }) {

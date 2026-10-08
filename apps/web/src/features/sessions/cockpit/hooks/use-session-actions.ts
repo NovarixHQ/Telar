@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { defaultInstanceIdForDriver, type ProviderDriverKind, type RequestDecision, type RuntimeMode } from "@telar/engine-client";
 import { asEngineError, createEngineApi, newRunId } from "@/platform/engine";
-import { sessionModelSelection, type ModelChoice } from "@/features/providers";
+import { sessionModelSelection, type ModelChoice } from "@telar/client/providers";
 import type { useSessionSync } from "./use-session-sync";
 
 const api = createEngineApi();

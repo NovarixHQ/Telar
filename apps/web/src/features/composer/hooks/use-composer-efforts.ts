@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import type { ProviderDriverKind } from "@telar/engine-client";
-import { type ModelChoice, useModelCatalogue } from "@/features/providers";
+import { useModelCatalogue } from "@/features/providers";
+import { type ModelChoice } from "@telar/client/providers";
 import { selectionOf } from "../model-options";
 
 /** The effort rows the `/` menu offers, from the same selection as the reasoning pill. */

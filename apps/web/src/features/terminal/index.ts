@@ -1,10 +1,11 @@
 export type { TerminalOpenRequest } from "./bridge";
 export { closeTerminalTab } from "./close";
 export { RunHeaderControl } from "./components/run-header-control";
+export { GroupedTerminalSurface } from "./components/grouped-terminal-surface";
 export { TerminalSurface } from "./components/terminal-surface";
-export { openTerminal, revealTerminal, startedCommand, syncRunTabs } from "./reveal";
+export { openTerminal, revealGroupedTerminal, revealTerminal, startedCommand, syncGroupedRuns, syncRunTabs } from "./reveal";
 export { isOpenTerminal, statusLabel } from "./run/presentation";
 export { createRunApi, type RunApi } from "./run/api";
 export type { RunView } from "./run/types";
 export { cssColorReader, cssVariableReader, loadTerminalFonts, terminalFont, terminalTheme } from "./theme";
-export { splitLegacyTerminalParams } from "./tab";
+export { arrangeTerminalTabs } from "./tab";

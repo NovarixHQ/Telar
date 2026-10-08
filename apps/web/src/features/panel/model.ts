@@ -231,14 +231,14 @@ export type LauncherRow = { id: PanelTab | "browser"; label: string; icon: Lucid
 
 /**
  * The launcher, shared by the empty panel and the "+": the Browser first when the cockpit can open one, then the surfaces.
- * A singleton already in the strip drops out; a multi-instance kind stays and opens another.
+ * A singleton already in the strip drops out; a multi-instance kind stays and opens another. Unless `flat`, the Terminal is a singleton.
  */
 export function launcherRows(
   tabs: readonly PanelTabItem[],
-  { enabledPlugins, pluginPanels, canOpenNew, browser }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; browser?: { unavailable?: string } },
+  { enabledPlugins, pluginPanels, canOpenNew, browser, flat = true }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; browser?: { unavailable?: string }; flat?: boolean },
 ): LauncherRow[] {
   const holdsKind = (kind: PanelTab) => tabs.some((entry) => entry.kind === kind);
-  const offersAnother = (kind: PanelTab) => MULTI_INSTANCE.has(kind) && canOpenNew;
+  const offersAnother = (kind: PanelTab) => MULTI_INSTANCE.has(kind) && canOpenNew && (flat || kind !== "terminal");
   const browserRow: LauncherRow[] = browser
     ? [{ id: "browser", label: BROWSER_SURFACE.label, icon: BROWSER_SURFACE.icon, key: BROWSER_SURFACE.key, another: false, ...(browser.unavailable ? { unavailable: browser.unavailable } : {}) }]
     : [];

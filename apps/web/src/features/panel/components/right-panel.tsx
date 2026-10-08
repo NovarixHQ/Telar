@@ -37,6 +37,7 @@ const PdfSurface = dynamic(() => import("@/features/files/components/pdf-surface
 const TableSurface = dynamic(() => import("@/features/files/components/table-surface").then((mod) => mod.TableSurface));
 const GitHubSurface = dynamic(() => import("@/features/github").then((mod) => mod.GitHubSurface));
 const TerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.TerminalSurface));
+const GroupedTerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.GroupedTerminalSurface));
 const SimulatorSurface = dynamic(() => import("@/features/simulators/components/simulator-surface").then((mod) => mod.SimulatorSurface));
 const ImageLightbox = dynamic(() => import("@/features/plugins/data-science/image-lightbox").then((mod) => mod.ImageLightbox));
 
@@ -77,9 +78,11 @@ export type RightPanelProps = {
   hostId?: string;
   /** False animates the width to zero; the cockpit keeps the panel mounted through the close. */
   open?: boolean;
+  /** One tab per browser page and per terminal; otherwise one Terminal tab holds a strip of them. */
+  flatTabs?: boolean;
 };
 
-type Forwarded = "sessionId" | "sessionTitle" | "projectId" | "branch" | "onOpenTab" | "onOpenNewTab" | "onOpenFileInNewTab" | "onInsertReference" | "onAttach" | "active" | "enabledPlugins" | "pluginPanels" | "events" | "hostId";
+type Forwarded = "sessionId" | "sessionTitle" | "projectId" | "branch" | "onOpenTab" | "onOpenNewTab" | "onOpenFileInNewTab" | "onInsertReference" | "onAttach" | "active" | "enabledPlugins" | "pluginPanels" | "events" | "hostId" | "flatTabs";
 
 /** One instance's surface, every callback already bound to that instance. */
 type SurfaceProps = Pick<RightPanelProps, Forwarded> & {
@@ -135,6 +138,18 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
         onOpenImage={onOpenImage}
         onOpenFile={(path) => props.onOpenTab(model.panelTabForPath(path, enabledPlugins))}
         panels={props.pluginPanels ?? model.NO_PANELS}
+      />
+    );
+  if (kind === "terminal" && props.flatTabs === false)
+    return (
+      <GroupedTerminalSurface
+        key={instanceKey}
+        {...scoped}
+        {...(hostId ? { hostId } : {})}
+        params={tab.params}
+        {...(onTabParams ? { onParams: onTabParams } : {})}
+        onCloseSelf={onCloseSelf}
+        visible={props.visible}
       />
     );
   if (kind === "terminal")
@@ -237,6 +252,7 @@ export function RightPanel(props: RightPanelProps) {
     enabledPlugins,
     pluginPanels,
     canOpenNew: onOpenNewTab !== undefined,
+    flat: props.flatTabs !== false,
     ...(onOpenBrowser ? { browser: browserUnavailable ? { unavailable: browserUnavailable } : {} } : {}),
   });
   const actions = { onOpenTab, ...(onOpenNewTab ? { onOpenNewTab } : {}), ...(onOpenBrowser ? { onOpenBrowser } : {}) };

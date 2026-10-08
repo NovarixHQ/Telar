@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import type { TerminalActivity, TerminalBridge } from "./bridge";
-import { closeTerminalTab, decideClose, endTerminal, mayClose } from "./close";
+import { closeTerminalTab, decideClose, endTerminal, idleChips, mayClose } from "./close";
+import type { RunView } from "./run/types";
 import { terminalTabParams } from "./tab";
+import { addShell, emptyWorkspace, setShellTerminal, upsertRunShell, workspaceParams } from "./workspace";
 
 const idle = (id: string): TerminalActivity => ({ id, active: false, processes: 0 });
 const busy = (id: string, processes: number, command?: string): TerminalActivity => ({
@@ -210,5 +212,41 @@ describe("closeTerminalTab", () => {
     const { bridge, closed } = fakeBridge([idle("term_old")]);
     await closeTerminalTab({ terminal: "term_old" }, { bridge });
     expect(closed).toEqual(["term_old"]);
+  });
+});
+
+describe("closing a grouped Terminal tab", () => {
+  const grouped = workspaceParams(
+    upsertRunShell(setShellTerminal(addShell(setShellTerminal(addShell(emptyWorkspace()), "shell", "t1")), "shell#2", "t2"), {
+      terminalId: "term_run",
+      title: "web dev",
+      run: { runId: "run_a", configId: "cfg" },
+    }),
+  );
+
+  test("asks once for the whole strip, naming what is busy, and no keeps every terminal running", async () => {
+    const { bridge, closed } = fakeBridge([busy("t1", 2, "bun dev"), idle("t2"), busy("term_run", 1)]);
+    const prompts: string[] = [];
+    expect(await closeTerminalTab(grouped, { bridge, confirm: (message) => (prompts.push(message), false) })).toBe(false);
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toStartWith("End 2 commands still running in this Terminal?");
+    expect(closed).toEqual([]);
+  });
+
+  test("yes ends every shell through the host and every run through the engine", async () => {
+    const { bridge, closed } = fakeBridge([busy("t1", 1, "vim"), idle("t2"), idle("term_run")]);
+    const stopped: string[] = [];
+    expect(await closeTerminalTab(grouped, { bridge, confirm: () => true, stopRun: async (id) => stopped.push(id) })).toBe(true);
+    expect(closed.sort()).toEqual(["t1", "t2"]);
+    expect(stopped).toEqual(["run_a"]);
+  });
+});
+
+describe("idleChips", () => {
+  test("idle shells and idle or ended runs; a busy shell, and anything unread, stays", () => {
+    const strip = upsertRunShell(setShellTerminal(addShell(setShellTerminal(addShell(emptyWorkspace()), "shell", "t1")), "shell#2", "t2"), { run: { runId: "r", configId: "" } });
+    const runs = new Map([["r", { runId: "r", status: "closed" } as RunView]]);
+    expect(idleChips(strip, runs, [busy("t1", 1), idle("t2")])).toEqual(["shell#2", "run"]);
+    expect(idleChips(strip, undefined, undefined)).toEqual([]);
   });
 });

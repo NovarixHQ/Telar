@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef } from "react";
 import { announcePromptShelfChanged } from "@/features/prompts";
 import { browserPanelTab, panelTabForPath, revealPanelTab, setPanelTabParams, type latestBrowserState } from "@/features/panel";
 import { sessionSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped } from "@/features/simulators";
-import { isOpenTerminal, revealTerminal, startedCommand, syncRunTabs, type RunView } from "@/features/terminal";
+import { isOpenTerminal, revealGroupedTerminal, revealTerminal, startedCommand, syncGroupedRuns, syncRunTabs, type RunView } from "@/features/terminal";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import { showSimulatorTab } from "../model";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 import type { useSessionSync } from "./use-session-sync";
 
 /** What the panel does when the journal says the agent opened a page, a display, a terminal or a prompt draft, or anyone opened a simulator in this session. */
-export function useJournalReactions({ sync: { events }, browser, enabledPlugins, panel: { revealSurface, mayReveal, updatePanel } }: {
+export function useJournalReactions({ sync: { events }, browser, enabledPlugins, panel: { revealSurface, mayReveal, updatePanel, flat } }: {
   sync: ReturnType<typeof useSessionSync>;
   browser: ReturnType<typeof latestBrowserState>;
   enabledPlugins: readonly string[];
@@ -61,12 +61,13 @@ export function useJournalReactions({ sync: { events }, browser, enabledPlugins,
       for (const run of terminals) seenTerminals.current.add(run.terminalId);
       const started = before ? terminals.filter((run) => isOpenTerminal(run) && startedCommand(run, before.get(run.runId))).reverse() : [];
       const show = before !== undefined && mayReveal();
+      const [sync, reveal] = flat ? [syncRunTabs, revealTerminal] : [syncGroupedRuns, revealGroupedTerminal];
       updatePanel((current) => {
-        const synced = syncRunTabs(current, terminals, "terminal", { dropMissing: before === undefined });
-        const added = fresh.reduce((state, run) => revealTerminal(state, run, "terminal", show), synced);
-        return show ? started.reduce((state, run) => revealTerminal(state, run, "terminal", true), added) : added;
+        const synced = sync(current, terminals, "terminal", { dropMissing: before === undefined });
+        const added = fresh.reduce((state, run) => reveal(state, run, "terminal", show), synced);
+        return show ? started.reduce((state, run) => reveal(state, run, "terminal", true), added) : added;
       });
     },
-    [updatePanel, mayReveal],
+    [updatePanel, mayReveal, flat],
   );
 }

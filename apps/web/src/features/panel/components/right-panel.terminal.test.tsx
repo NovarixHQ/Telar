@@ -125,7 +125,7 @@ afterEach(() => {
 /** A quiet moment — long enough for a frame, when there are frames. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-function show(tabs: PanelTabItem[], active: string | undefined) {
+function show(tabs: PanelTabItem[], active: string | undefined, flatTabs = true) {
   if (!mounted) {
     host = document.createElement("div");
     document.body.append(host);
@@ -143,6 +143,7 @@ function show(tabs: PanelTabItem[], active: string | undefined) {
         onOpenTab={() => {}}
         onCloseTab={() => {}}
         onClose={() => {}}
+        flatTabs={flatTabs}
       />,
     );
   });
@@ -236,5 +237,15 @@ describe("a Terminal you have opened stays mounted behind the tab you look at ne
     await until(() => emulators().length === 0, 1_000);
 
     expect(emulators()).toHaveLength(0);
+  });
+});
+
+describe("outside the flat-tabs trial", () => {
+  test("the one Terminal tab draws its strip of shells", async () => {
+    installBridge();
+    show([tab("terminal", "terminal"), tab("diff", "diff")], "terminal", false);
+    expect(await until(() => host?.querySelector('[role="tablist"][aria-label="Terminal tabs"]') != null)).toBe(true);
+    expect(await until(() => opened > 0)).toBe(true);
+    expect(host?.querySelector('button[aria-label="New shell"]')).not.toBe(null);
   });
 });

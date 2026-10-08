@@ -22,6 +22,7 @@ import type { ComposerEditorHandle } from "../components/composer-editor";
 const api = createEngineApi();
 
 const PATHS_FAILED: Completion = { id: "paths:failed", label: "Files", detail: "Could not read the files here.", glyph: "directory", action: { type: "insert", text: "" }, disabled: true };
+const PATHS_READING: Completion = { id: "paths:reading", label: "Reading files…", detail: "", glyph: "directory", action: { type: "insert", text: "" }, disabled: true };
 
 type CommandState = {
   busy: boolean;
@@ -33,7 +34,7 @@ type CommandState = {
   efforts: string[];
 };
 
-/** Read on the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again once `retry` changes. */
+/** Read on focus or the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again once `retry` changes. */
 function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<T>) | undefined, fallback: T, retry?: unknown) {
   // Keyed by checkout so one session's answer never serves another.
   const [cache, setCache] = useState<{ checkout: string; value: T; failed?: { retry: unknown } }>();
@@ -78,18 +79,20 @@ export function useComposerCompletions({
   // Escape hides the list without clearing the trigger; the next edit re-arms it.
   const [dismissed, setDismissed] = useState(false);
   const checkout = sessionId ?? (projectId ? `project:${projectId}` : "none");
+  const [primed, setPrimed] = useState<string>();
+  const wantPaths = trigger?.kind === "path" || primed === checkout;
 
   const listPaths = sessionId || projectId
     ? async () => buildPathIndex((sessionId ? await api.sessionFiles(sessionId) : await api.projectFiles(projectId!)).listing.files)
     : async () => [] as PathEntry[];
-  const paths = useLazyRead(trigger?.kind === "path", checkout, listPaths, [] as PathEntry[], trigger?.query);
+  const paths = useLazyRead(wantPaths, checkout, listPaths, [] as PathEntry[], trigger?.query);
   // This engine's sessions only: a reference to another host's session would not resolve here.
   const listSessions = async (): Promise<SessionCandidate[]> => {
     const live = await api.liveSessions();
     const names = new Map(live.projects.map((project) => [project.id, project.name]));
     return live.sessions.map(({ id, title, projectId, updatedAt }) => ({ id, title, projectId, updatedAt, projectName: projectId ? names.get(projectId) : undefined }));
   };
-  const sessions = useLazyRead(trigger?.kind === "path", checkout, listSessions, [] as SessionCandidate[]);
+  const sessions = useLazyRead(wantPaths, checkout, listSessions, [] as SessionCandidate[]);
   const listSkills = sessionId ? () => api.sessionSkills(sessionId) : projectId ? () => api.projectSkills(projectId, menuDriver) : undefined;
   const skills = useLazyRead<ProviderSkills>(trigger?.kind === "skill" || trigger?.kind === "command", checkout, listSkills, { skills: [], commands: [] });
 
@@ -99,7 +102,7 @@ export function useComposerCompletions({
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
     if (trigger.kind === "path") {
       const sessionRows = rankSessions(sessions.value ?? [], trigger.query, { sessionId, projectId });
-      const files = paths.failed ? [PATHS_FAILED] : rankPaths(paths.value ?? [], trigger.query, 12);
+      const files = paths.failed ? [PATHS_FAILED] : paths.value ? rankPaths(paths.value, trigger.query, 12) : [PATHS_READING];
       return [...files, ...sessionRows];
     }
     // Two ranked lists, not one: a plugin command must not outscore `/stop`.
@@ -149,7 +152,9 @@ export function useComposerCompletions({
   const heading = () =>
     trigger?.kind === "skill" ? "Skills" : trigger?.kind === "command" ? "Commands" : "Files and folders";
 
-  return { trigger, completions, open, loading, active, setActive, setDismissed, retrigger, edited, take, heading };
+  const prime = () => setPrimed(checkout);
+
+  return { trigger, completions, open, loading, active, setActive, setDismissed, retrigger, edited, take, heading, prime };
 }
 
 export type ComposerCompletions = ReturnType<typeof useComposerCompletions>;

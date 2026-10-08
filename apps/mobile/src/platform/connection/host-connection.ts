@@ -92,9 +92,14 @@ export class HostConnection {
     void this.connect();
   }
 
-  async request<T>(method: string, pathname: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  request<T>(method: string, pathname: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+    return this.call(IDEMPOTENT.has(method.toUpperCase()), (linked) => this.client.request<T>(method, pathname, body, linked), signal);
+  }
+
+  /** Runs `run` under this link's generation: a lost address re-probes, and an idempotent call is retried once on the new one. */
+  async call<T>(idempotent: boolean, run: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal): Promise<T> {
     try {
-      return await this.client.request<T>(method, pathname, body, anyOf(signal, this.generation.signal));
+      return await run(anyOf(signal, this.generation.signal));
     } catch (error) {
       if (isAbort(error)) throw error;
       if (!(error instanceof EngineClientError)) throw error;
@@ -102,9 +107,7 @@ export class HostConnection {
       else if (error.status === 421) this.block("misdirected");
       else if (error.status === undefined && this.current.kind === "online") {
         await this.connect();
-        if (IDEMPOTENT.has(method.toUpperCase()) && this.state.kind === "online" && !signal?.aborted) {
-          return this.client.request<T>(method, pathname, body, anyOf(signal, this.generation.signal));
-        }
+        if (idempotent && this.state.kind === "online" && !signal?.aborted) return run(anyOf(signal, this.generation.signal));
       }
       throw error;
     }

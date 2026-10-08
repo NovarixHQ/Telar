@@ -17,6 +17,7 @@ beforeEach(() => {
   reads = [];
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const path = new URL(String(input), "http://localhost").pathname;
+    if (path === "/api/sessions/stream") return new Response(null, { status: 404 });
     reads.push(path);
     const id = /\/api\/sessions\/([^/]+)\/children$/.exec(path)?.[1] ?? "";
     return Response.json({ children: answers[id] ?? [] });
@@ -65,7 +66,7 @@ async function advance(ms: number) {
 }
 
 describe("useSessionChildren", () => {
-  test("reads at once, every few seconds while a child works, and slowly once all have ended", async () => {
+  test("reads at once, every few seconds while a child works, and less and less often once all have ended", async () => {
     answers.parent = [child("a", "working")];
     await mount(<Probe sessionId="parent" />);
     await settle();
@@ -79,8 +80,9 @@ describe("useSessionChildren", () => {
     const before = reads.length;
     await advance(CHILDREN_LIVE_MS);
     expect(reads).toHaveLength(before);
-    for (let waited = CHILDREN_LIVE_MS; waited < CHILDREN_IDLE_MS; waited += CHILDREN_LIVE_MS) await advance(CHILDREN_LIVE_MS);
-    expect(reads).toHaveLength(before + 1);
+    for (let waited = 0; waited < 60_000; waited += 5_000) await advance(5_000);
+    expect(reads.length - before).toBeGreaterThan(0);
+    expect(reads.length - before).toBeLessThanOrEqual(2);
   });
 
   test("a grown transcript reads again without waiting for the next tick", async () => {
@@ -105,7 +107,8 @@ describe("useSessionChildren", () => {
 
   test("an engine that answers 404 is never asked again for that session", async () => {
     globalThis.fetch = (async (input: RequestInfo | URL) => {
-      reads.push(new URL(String(input), "http://localhost").pathname);
+      const path = new URL(String(input), "http://localhost").pathname;
+      if (path !== "/api/sessions/stream") reads.push(path);
       return Response.json({ error: { code: "not_found", message: "Not found" } }, { status: 404 });
     }) as typeof fetch;
     await mount(<Growing />);

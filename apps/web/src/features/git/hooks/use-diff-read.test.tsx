@@ -32,11 +32,22 @@ test("a slow diff read is never stacked by the timer", async () => {
     return new Promise<void>((resolve) => (finish = resolve));
   };
   root = createRoot(document.createElement("div"));
-  act(() => root!.render(<Refresher load={load} />));
+  act(() => root!.render(<Refresher load={load} active="running" />));
   await act(async () => jest.advanceTimersByTime(60_000));
   expect(calls).toBe(1);
   await act(async () => finish());
   await act(async () => jest.advanceTimersByTime(15_000));
+  expect(calls).toBe(2);
+});
+
+test("with no turn running, reads grow further apart", async () => {
+  let calls = 0;
+  const load = async () => {
+    calls += 1;
+  };
+  root = createRoot(document.createElement("div"));
+  act(() => root!.render(<Refresher load={load} active="completed" />));
+  for (let waited = 0; waited < 60_000; waited += 1_000) await act(async () => jest.advanceTimersByTime(1_000));
   expect(calls).toBe(2);
 });
 

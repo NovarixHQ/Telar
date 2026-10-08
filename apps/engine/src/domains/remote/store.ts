@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { cleanUpPairings } from "./cleanup";
 import type { DeviceIdentity, DevicePlatform, DeviceRole, ExposureMode, PairingRefusal, RemoteDevice } from "@telar/engine-client";
 
 export class RemoteStoreError extends Error {}
@@ -23,6 +24,7 @@ export interface RemoteFile {
   tailscaleServe?: boolean;
   devices: PairedDevice[];
   pairing?: PendingPairing;
+  pairingsCleaned?: true;
 }
 
 const PAIRING_TTL_MS = 5 * 60 * 1000;
@@ -112,6 +114,11 @@ export function createRemoteStore(dir: string) {
     ...deviceMethods(h),
     ...pairingMethods(h),
     ...exposureMethods(h),
+    cleanUpPairings(): void {
+      if (!fs.existsSync(file)) return;
+      const current = read();
+      if (cleanUpPairings(current)) write(current);
+    },
   };
 }
 

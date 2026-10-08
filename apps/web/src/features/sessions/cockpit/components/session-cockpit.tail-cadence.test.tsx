@@ -28,6 +28,7 @@ const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
 const { clearConnections } = await import("@telar/client/journal");
 const { TAIL_LIVE_MS, TAIL_SETTLED_MS } = await import("@telar/client/journal");
+const { fakeSessionsStream } = await import("@/test/sessions-stream");
 
 const STARTED = 1_700_000_000_000;
 
@@ -76,20 +77,25 @@ function completeTheTurn(sessionId: string) {
   pending.push({ id: nextEventId++, at: STARTED, sessionId, runId: "run_one", type: "turn.completed", resultText: "counted" } as EngineEvent);
 }
 
-/** Somebody else queues work into this conversation. */
+/** Somebody else queues work into this conversation; the engine's stream says so. */
 function acceptANewTurn(sessionId: string) {
   const next = { ...runningTurn("run_two"), sequence: 2, state: "queued" as const };
   rows = [...rows, next];
-  pending.push({ id: nextEventId++, at: STARTED, sessionId, runId: "run_two", type: "turn.accepted", turn: next, replayed: false } as EngineEvent);
+  const id = nextEventId++;
+  pending.push({ id, at: STARTED, sessionId, runId: "run_two", type: "turn.accepted", turn: next, replayed: false } as EngineEvent);
+  stream.announce({ sessionId, id, type: "turn.accepted" });
 }
 
 /** Every `/events` tail the fixture answered — the count under test. */
 let tails = 0;
+let stream = fakeSessionsStream();
+let streaming = true;
 const realFetch = globalThis.fetch;
 
 function wire() {
-  globalThis.fetch = (async (input: string | URL | Request) => {
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
+    if (url.includes("/api/sessions/stream")) return streaming ? stream.answer(init?.signal) : Response.json({}, { status: 404 });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
     if (url.includes("/events")) {
       tails += 1;
@@ -121,6 +127,8 @@ beforeEach(() => {
   mockNavigation();
   clearConnections();
   tails = 0;
+  stream = fakeSessionsStream();
+  streaming = true;
   pending = [];
   nextEventId = 2;
   rows = [runningTurn("run_one")];
@@ -148,11 +156,11 @@ async function flush() {
 /** Fake time, inside `act`, in small steps so each tick's read resolves before
  *  the next one is due, and the interval's setState lands in a commit. */
 const STEP_MS = 50;
-async function elapse(ms: number) {
+async function elapse(ms: number, stepMs = STEP_MS) {
   await act(async () => {
     let spent = 0;
     do {
-      const step = Math.min(STEP_MS, ms - spent);
+      const step = Math.min(stepMs, ms - spent);
       jest.advanceTimersByTime(step);
       spent += step;
       await flush();
@@ -206,6 +214,23 @@ describe("how often an open cockpit re-reads the journal", () => {
 
     const relived = await tailsInAWindow();
     expect(relived).toBeGreaterThanOrEqual(LIVE_TICKS);
+  });
+
+  test.each([
+    ["with the engine's stream", true],
+    ["on an engine without one", false],
+  ])("an idle session tails less and less often, %s", async (_, withStream) => {
+    streaming = withStream;
+    rows = [{ ...runningTurn("run_one"), state: "completed" }];
+    await open("cadence_idle");
+    const before = tails;
+    await elapse(60_000, 1_000);
+    expect(tails - before).toBeLessThanOrEqual(4);
+    if (!withStream) return;
+    const quiet = tails;
+    acceptANewTurn("cadence_idle");
+    await elapse(0);
+    expect(tails).toBe(quiet + 1);
   });
 
   test("and the transcript is whole across the slow stretch, not merely fast to arrive", async () => {

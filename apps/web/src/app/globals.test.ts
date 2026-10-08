@@ -161,6 +161,11 @@ describe("the design token palette", () => {
     const missing = bridged.filter((token) => rootTokens.has(token) && !darkTokens.has(token));
     expect(missing).toEqual([]);
   });
+
+  test("gives every dark token a light value", () => {
+    expect(darkTokens.size).toBeGreaterThan(20);
+    expect([...darkTokens].filter((token) => !rootTokens.has(token))).toEqual([]);
+  });
 });
 
 /**

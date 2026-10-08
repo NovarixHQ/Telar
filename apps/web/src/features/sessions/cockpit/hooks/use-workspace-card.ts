@@ -38,12 +38,12 @@ export function useWorkspaceCardOpen(): { open: boolean; toggle: () => void } {
 }
 
 /** A shared checkout reads against `HEAD`, as the Diff surface does: the HEAD recorded at session start goes stale once the branch moves. */
-export function useWorkspaceCardData(hostId: string, sessionId: string, open: boolean, shared: boolean) {
+export function useWorkspaceCardData(hostId: string, sessionId: string, open: boolean, shared: boolean, busy: boolean) {
   const [diff, setDiff] = useState<SessionDiff>();
   const load = useCallback(async () => {
     const read = await createEngineApi(hostFetcher(hostId)).sessionDiff(sessionId, shared ? { base: null } : {}).catch(() => undefined);
     if (read?.diff) setDiff(read.diff);
   }, [hostId, sessionId, shared]);
-  usePoll(load, open ? REFRESH_MS : null, { key: load });
+  usePoll(load, open ? REFRESH_MS : null, { key: load, backoff: !busy });
   return { diff, reload: load };
 }

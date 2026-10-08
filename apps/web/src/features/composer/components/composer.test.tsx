@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { act, useState } from "react";
-import type { RuntimeMode, Session } from "@telar/engine-client";
+import type { RuntimeMode, Session, UsageSnapshot } from "@telar/engine-client";
 import { activeComposer } from "@/features/composer";
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
 import { Composer } from "./composer";
@@ -30,11 +30,12 @@ type BoxProps = {
   session?: Session;
   runtimeMode?: RuntimeMode;
   sentPrompts?: string[];
+  usage?: UsageSnapshot;
   onSubmit?: () => void;
   onStop?: () => void;
 };
 
-function Box({ initial = "", files = [], busy = false, ready = true, compact = false, fresh = false, projectId, session, runtimeMode, sentPrompts, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, ready = true, compact = false, fresh = false, projectId, session, runtimeMode, sentPrompts, usage, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -60,6 +61,7 @@ function Box({ initial = "", files = [], busy = false, ready = true, compact = f
         {...(session ? { session } : {})}
         {...(runtimeMode ? { runtimeMode } : {})}
         {...(sentPrompts ? { sentPrompts } : {})}
+        {...(usage ? { usage } : {})}
       />
     </>
   );
@@ -523,4 +525,25 @@ describe("the / menu opens the pills' pickers", () => {
       expect(pill(label)?.getAttribute("aria-expanded")).toBe("true");
     });
   }
+});
+
+describe("the context ring", () => {
+  const usage: UsageSnapshot = { tokens: { input: 1, output: 1, cacheRead: 0, cacheCreate: 0 }, contextUsed: 73_000, contextMax: 200_000 };
+  const ring = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button[aria-label^="Context window"]')!;
+
+  test("an idle session with a known figure draws a still fill at its share, and nothing that loads", async () => {
+    const { host } = await composer({ usage });
+    expect(ring(host).getAttribute("aria-label")).toBe("Context window 36.5% used");
+    expect(ring(host).querySelector("svg animate, svg animateTransform")).toBeNull();
+    expect(host.querySelector('[role="status"]')).toBeNull();
+    const fill = ring(host).querySelector<SVGCircleElement>('[data-testid="context-fill"]')!;
+    const circumference = 2 * Math.PI * 11;
+    expect(Number(fill.getAttribute("stroke-dashoffset"))).toBeCloseTo(circumference * (1 - 0.365), 3);
+  });
+
+  test("a figure the provider never reported draws the empty track, not a partial arc", async () => {
+    const { host } = await composer();
+    expect(ring(host).getAttribute("aria-label")).toBe("Context window, size not reported");
+    expect(ring(host).querySelector('[data-testid="context-fill"]')).toBeNull();
+  });
 });

@@ -35,7 +35,7 @@ mock.module("next/navigation", () => ({
 let railLoads = 0;
 mock.module("@/features/sessions/rail/app-sidebar", () => {
   railLoads += 1;
-  return { AppSidebar: () => <div data-testid="app-rail">rail</div> };
+  return { AppSidebar: () => <div data-testid="app-rail">rail</div>, RaillessCommands: () => <div data-testid="command-host" /> };
 });
 
 const { AppShell } = await import("@/app/app-shell");
@@ -136,9 +136,10 @@ describe("the rail, per route", () => {
     expect(host!.textContent).toContain("conversation");
   });
 
-  test("settings still skips it too — the second route through the same door", async () => {
+  test("settings still skips it too, but keeps the command keys and the palette", async () => {
     await show("/settings");
     expect(rail()).toBeNull();
+    expect(host!.querySelector('[data-testid="command-host"]')).not.toBeNull();
   });
 });
 

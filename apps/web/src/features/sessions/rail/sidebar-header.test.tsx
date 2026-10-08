@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { act } from "react";
 import { buttonLabelled, click, flush, installTestDom, mount, press } from "@/test/dom";
-import { liveRow, loadRail, mountRail, project, pushes, stubRail } from "@/test/rail";
+import { liveRow, mountRail, project, pushes, stubRail } from "@/test/rail";
 import { SidebarProjectFilter } from "./sidebar-project-filter";
 import { SidebarSearchField } from "@/ui/sidebar-search-field";
 import { writeDraft } from "@/features/composer";
@@ -9,7 +9,7 @@ import { projectFilterKey } from "@/features/projects";
 import { canvasHref } from "../session-list";
 
 installTestDom();
-const { composerTargetOf, pickerTargetsFor } = await loadRail();
+const { composerTargetOf, pickerTargetsFor } = await import("./command-host");
 
 const byLabel = (label: string, root: ParentNode = document) => root.querySelector<HTMLElement>(`[aria-label="${label}"]`);
 const filterTrigger = () => document.querySelector<HTMLElement>('[aria-label="Filter by project"], [aria-label^="Filtering by"]');

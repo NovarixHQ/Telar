@@ -386,7 +386,7 @@ export function WorkspaceEnvironment({
     }
   }, [projectId, worktreeSessionId, onAvailability]);
 
-  usePoll(load, REFRESH_MS, { key: load });
+  usePoll(load, REFRESH_MS, { key: load, backoff: true });
 
   return <EnvironmentStrip {...props} {...(git ? { git } : {})} onRetry={load} />;
 }

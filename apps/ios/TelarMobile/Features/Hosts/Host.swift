@@ -193,7 +193,13 @@ enum HostAddresses {
     static func failoverOrder(_ host: Host, failed: String) -> [String] {
         let dead = HostBook.normalize(failed)
         let others = host.addresses.filter { HostBook.normalize($0) != dead }
-        return others.count == host.addresses.count ? others : others + [failed]
+        return others.count == host.addresses.count ? others : [failed] + others
+    }
+
+    static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if case EngineAPIError.transport(let inner) = error { return isCancellation(inner) }
+        return (error as? URLError)?.code == .cancelled
     }
 
     static func isTransportFailure(_ error: Error) -> Bool {

@@ -10,7 +10,6 @@ export * from "./github/query";
 export * from "./github/schema";
 export * from "./hosts/schema";
 export * from "./icons";
-export * from "./notes/schema";
 export * from "./plugins/schema";
 export * from "./plugins/toolchains";
 export * from "./projects/workspace";

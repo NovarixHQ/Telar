@@ -556,7 +556,6 @@ describe("the model-visible prefix", () => {
       orientation: TELAR_ORIENTATION,
       browserSocket: { url: `http://127.0.0.1:${browserToken.length}/v2/browser/mcp`, token: browserToken },
       sessions: {},
-      notes: {},
       prompts: {},
       display: {},
       run: {},

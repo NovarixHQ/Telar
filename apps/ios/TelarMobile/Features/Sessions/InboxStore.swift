@@ -164,6 +164,7 @@ func applyReadMark(_ sections: InboxSections, sessionId: EngineID, answer: ReadM
             unauthorized = false
             loaded = true
             recordedAt = nil
+        } catch where HostAddresses.isCancellation(error) {
         } catch {
             lastError = (error as? EngineAPIError)?.errorDescription ?? error.localizedDescription
             unauthorized = (error as? EngineAPIError)?.isUnauthorized == true

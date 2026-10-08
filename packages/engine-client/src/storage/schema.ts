@@ -7,7 +7,6 @@ export type StorageCategory =
   | "python"
   | "browser-profiles"
   | "usage"
-  | "notes"
   | "dictation"
   | "run"
   | "diagnostics"

@@ -6,7 +6,6 @@ import type { DisplayCapability } from "../../domains/agent-tools";
 import type { SimulatorCapability } from "../../domains/simulators";
 import { RELAY_RULE } from "../../domains/turns";
 import type { SessionsCapability } from "../../domains/sessions";
-import type { NotesCapability } from "../../domains/notes";
 import type { PromptsCapability } from "../../domains/prompts";
 import type { UsageDiagnosisCapability } from "../../domains/usage";
 import { agentEnv } from "../../platform/process/agent-env";
@@ -94,8 +93,6 @@ export type ClaudeTurnBindings = {
   signal: AbortSignal;
   canUseTool: SdkCanUseTool | undefined;
   sessions: SessionsCapability | undefined;
-  /** The project's notebook, scoped to this turn's project. */
-  notes: NotesCapability | undefined;
   /** The project's prompt shelf, scoped to this turn's project AND session. */
   prompts: PromptsCapability | undefined;
   display: DisplayCapability | undefined;

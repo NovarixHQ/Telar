@@ -34,7 +34,7 @@ import Observation
 
     private func transport(for id: HostID) -> HTTPTransport {
         if let existing = transports[id] { return existing }
-        let made = HTTPTransport()
+        let made = HTTPTransport(hostKey: id.uuidString)
         transports[id] = made
         return made
     }
@@ -63,7 +63,13 @@ import Observation
         if let current = host.baseURL, HostBook.normalize(current.absoluteString) != HostBook.normalize(failed.absoluteString) {
             return current
         }
-        return await reprobe(id, order: HostAddresses.failoverOrder(host, failed: failed.absoluteString))
+        let moved = await reprobe(id, order: HostAddresses.failoverOrder(host, failed: failed.absoluteString))
+        ConnectionLog.shared.note(id.uuidString, "failover from \(failed.absoluteString) to \(moved?.absoluteString ?? "nothing reachable")")
+        return moved
+    }
+
+    var connectionLogNames: [String: String] {
+        Dictionary(uniqueKeysWithValues: hosts.map { ($0.id.uuidString, $0.name) })
     }
 
     func refreshAddresses() async {
@@ -84,7 +90,10 @@ import Observation
         probes[id] = running
         let winner = await running.value
         probes[id] = nil
-        if let winner, book.markReachable(winner.absoluteString, for: id) { persist() }
+        if let winner, book.markReachable(winner.absoluteString, for: id) {
+            ConnectionLog.shared.note(id.uuidString, "base moved to \(winner.absoluteString)")
+            persist()
+        }
         return winner
     }
 

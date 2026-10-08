@@ -102,8 +102,8 @@ test("the reproducible tier is not carried, and neither is the live daemon's loc
     fs.writeFileSync(path.join(home, directory, "deep", "big"), "x".repeat(4096));
   }
   fs.writeFileSync(path.join(home, "engine.lock"), JSON.stringify({ host: "somewhere", pid: 1 }));
-  fs.mkdirSync(path.join(home, "notes"), { recursive: true });
-  fs.writeFileSync(path.join(home, "notes", "kept.json"), JSON.stringify({ note: "irreplaceable" }));
+  fs.mkdirSync(path.join(home, "dictation"), { recursive: true });
+  fs.writeFileSync(path.join(home, "dictation", "kept.json"), JSON.stringify({ kept: "irreplaceable" }));
 
   const destination = path.join(home, "..", `telar-copy-tiers-${Date.now()}`);
   homes.push(destination);
@@ -113,7 +113,7 @@ test("the reproducible tier is not carried, and neither is the live daemon's loc
   }
   // …and the irreplaceable tier IS carried, which is the other half: a copy
   // that skipped everything would pass the assertion above.
-  expect(JSON.parse(fs.readFileSync(path.join(destination, "notes", "kept.json"), "utf8"))).toEqual({ note: "irreplaceable" });
+  expect(JSON.parse(fs.readFileSync(path.join(destination, "dictation", "kept.json"), "utf8"))).toEqual({ kept: "irreplaceable" });
   expect(fs.existsSync(path.join(destination, "projects.json"))).toBe(true);
 });
 

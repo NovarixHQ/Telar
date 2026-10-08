@@ -14,7 +14,7 @@ One guide per feature:
 - [Integrated browser](user/browser.md)
 - [Agents working together](user/agents-together.md)
 - [Plugins](user/plugins.md)
-- [Notes and prompts](user/notes-and-prompts.md)
+- [Prompts](user/prompts.md)
 - [Schedules](user/schedules.md)
 - [iPhone](user/iphone.md)
 - [Remote access](user/remote-access.md)

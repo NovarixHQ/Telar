@@ -31,7 +31,6 @@ ModelCatalogue,
 ModelOverlay,
 CustomProviderModel,EngineHealth,ModelSelection,
 Project,
-ProjectNote,
 PreparedPrompt,ProviderDriverKind,PublishedAppearance,WorkspaceConfig,
 ProjectWorkspaceOverrides,
 ProjectWorkspaceView
@@ -239,19 +238,6 @@ export function settingsCalls(fetcher: Fetcher) {
         fetcher,
         "PATCH",
         `/api/provider-instances/${encodeURIComponent(instanceId)}/models`,
-        patch,
-      ),
-    /** A body may be empty: "+, type a title, come back to it" is the gesture,
-     *  and refusing the half-written note would lose the title just typed. */
-    createProjectNote: (projectId: string, input: { title: string; body?: string; pinned?: boolean }) =>
-      request<{ note: ProjectNote }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/notes`, input),
-    /** The author NEVER changes — the engine refuses a patch that names it, so a
-     *  note an agent wrote stays marked as one after the user rewrites it. */
-    updateProjectNote: (projectId: string, noteId: string, patch: { title?: string; body?: string; pinned?: boolean; order?: number }) =>
-      request<{ note: ProjectNote }>(
-        fetcher,
-        "PATCH",
-        `/api/projects/${encodeURIComponent(projectId)}/notes/${encodeURIComponent(noteId)}`,
         patch,
       ),
     /** `text` is required and may not be blank: a prepared prompt with no

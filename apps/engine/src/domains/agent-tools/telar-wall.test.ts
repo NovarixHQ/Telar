@@ -104,7 +104,7 @@ test("Claude, Codex and OpenCode are handed the same `telar` wall, once", async 
 
 test("the socket and the in-process transports collect the same list from the same capabilities", () => {
   const capability = new Proxy({}, { get: () => () => undefined });
-  const caps: TelarCapabilities = { sessions: capability, notes: capability, prompts: capability, display: capability, run: capability };
+  const caps: TelarCapabilities = { sessions: capability, prompts: capability, display: capability, run: capability };
   const tool = ((name: string) => ({ name })) as unknown as ToolFactory;
   const inProcess = (toSdkTools(telarWall(() => caps), tool) as { name: string }[]).map((entry) => entry.name);
   const socket = collectTelarWall(telarWall(() => caps)).map((entry) => entry.name);

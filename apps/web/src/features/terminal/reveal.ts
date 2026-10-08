@@ -2,9 +2,10 @@ import { closePanelTab, nextPanelTabId, revealPanelTab, setPanelTabParams, type 
 import { isOpenTerminal } from "./run/presentation";
 import type { RunView } from "./run/types";
 import { readTerminalTab, terminalTabParams, type TerminalTab } from "./tab";
+import { dropEndedRuns, readWorkspace, upsertRunShell, workspaceParams } from "./workspace";
 
 /** A run as its tab stores it. The terminal id is kept only while the terminal is open: the pane attaches to it. */
-function runTab(run: RunView): TerminalTab {
+function runTab(run: RunView): TerminalTab & { run: { runId: string; configId: string } } {
   return {
     ...(isOpenTerminal(run) ? { terminalId: run.terminalId } : {}),
     ...(run.title ? { title: run.title } : {}),
@@ -49,7 +50,40 @@ export function syncRunTabs<Kind extends string>(
   return next;
 }
 
-/** A person asked for this run: its tab is selected and the panel opens. */
-export function openTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind): PanelTabState<Kind> {
-  return revealTerminal(state, run, kind, true);
+/** Grouped: the run's chip joins the one Terminal tab; `show` also selects the chip and opens the panel on the tab. */
+export function revealGroupedTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind, show = false): PanelTabState<Kind> {
+  const held = state.tabs.find((tab) => tab.kind === kind);
+  const workspace = readWorkspace(held?.params ?? {});
+  const next = upsertRunShell(workspace, runTab(run), { focus: show });
+  const id = held?.id ?? nextPanelTabId(state, kind);
+  const params = next === workspace && held ? held.params : workspaceParams(next);
+  return revealPanelTab(held ? setPanelTabParams(state, id, params) : state, { id, kind, params }, show);
+}
+
+/** Grouped `syncRunTabs`: run chips follow the feed, ended ones go, and a strip left empty closes its tab. */
+export function syncGroupedRuns<Kind extends string>(
+  state: PanelTabState<Kind>,
+  terminals: readonly RunView[],
+  kind: Kind,
+  { dropMissing = false }: { dropMissing?: boolean } = {},
+): PanelTabState<Kind> {
+  const view = (runId: string) => terminals.find((entry) => entry.runId === runId);
+  let next = state;
+  for (const tab of state.tabs) {
+    if (tab.kind !== kind) continue;
+    const workspace = readWorkspace(tab.params);
+    let updated = dropEndedRuns(workspace, (runId) => (view(runId) ? isOpenTerminal(view(runId)) : undefined), { dropMissing });
+    for (const shell of updated.shells) {
+      const current = shell.run && view(shell.run.runId);
+      if (current) updated = upsertRunShell(updated, runTab(current));
+    }
+    if (updated === workspace) continue;
+    next = updated.shells.length === 0 ? closePanelTab(next, tab.id) : setPanelTabParams(next, tab.id, workspaceParams(updated));
+  }
+  return next;
+}
+
+/** A person asked for this run: its tab (or chip) is selected and the panel opens. */
+export function openTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind, flat = true): PanelTabState<Kind> {
+  return flat ? revealTerminal(state, run, kind, true) : revealGroupedTerminal(state, run, kind, true);
 }

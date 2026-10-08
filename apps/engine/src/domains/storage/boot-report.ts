@@ -1,5 +1,5 @@
 import type { EngineStore } from "../../state";
-import { retireAgentReport, retireAgentStore, sweepReport, sweepSpoolAndLooms } from "./decommission-sweep";
+import { retireAgentReport, retireAgentStore, sweepNotes, sweepReport, sweepSpoolAndLooms } from "./decommission-sweep";
 import { reapNodeModules, reapReport } from "./node-modules-reap";
 
 const count = (value: number) => value.toLocaleString("en-US");
@@ -37,8 +37,10 @@ export function reportBootHousekeeping(store: EngineStore, now: () => number, sa
   }
   const summarised = store.turnSummaryBackfill;
   if (summarised && summarised.turns > 0) say(`Telar engine: summarised ${count(summarised.turns)} turns across ${count(summarised.sessions)} sessions`);
-  const decommissioned = sweepReport(sweepSpoolAndLooms(store.paths.root));
-  if (decommissioned) say(decommissioned);
+  for (const sweep of [sweepSpoolAndLooms(store.paths.root), sweepNotes(store.paths.root)]) {
+    const line = sweepReport(sweep);
+    if (line) say(line);
+  }
   const retiredAgent = retireAgentReport(retireAgentStore(store.paths.root, now));
   if (retiredAgent) say(retiredAgent);
   // Once on the way up, so a drive already unplugged is known before the first listing.

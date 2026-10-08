@@ -5,7 +5,7 @@
  * That file runs against a real store on a real repository, because what it
  * asserts is that the RULES exist. This one asserts a NUMBER, and a number
  * needs a fixture big enough to break the thing being measured: 500 sessions,
- * a 5,000-event journal, 685 turns, 200 notes. Cutting 500 worktrees to get
+ * a 5,000-event journal and 685 turns. Cutting 500 worktrees to get
  * there would take minutes and prove nothing extra, so the capability here is a
  * fake — which is exactly right for a test about how much a wall SAYS rather
  * than about what the engine underneath it allows.
@@ -27,9 +27,8 @@
  * whose own paging is missing, and the second assertion is what says so.
  */
 import { describe, expect, test } from "bun:test";
-import type { EngineEvent, EngineRequest, ProjectNote, Session, Subscription, Turn } from "@telar/engine-client";
+import type { EngineEvent, EngineRequest, Session, Subscription, Turn } from "@telar/engine-client";
 import { sessionsTools, type SessionsCapability } from "../sessions";
-import { notesTools, type NotesCapability } from "../notes";
 import { displayTools, MAX_ANSWER_CHARS } from ".";
 import { TELAR_SKILL } from "../sessions";
 import { GREP_CONTEXT_CHARS, WHY_CHARS } from "../turns";
@@ -42,7 +41,6 @@ const FIND_LIMIT_MAX = 50;
 const SESSIONS = 500;
 const EVENTS = 5_000;
 const TURNS = 685; // the orchestrator session that prompted the issue
-const NOTES = 200;
 const REQUESTS = 200;
 const SUBSCRIPTIONS = 200;
 const DIFF_FILES = 500;
@@ -148,7 +146,7 @@ function journal(): EngineEvent[] {
 const EVENTS_FIXTURE = journal();
 const TURNS_FIXTURE = Array.from({ length: TURNS }, (_, index) => turn(index));
 
-function capabilities(): { sessions: SessionsCapability; notes: NotesCapability } {
+function capabilities(): { sessions: SessionsCapability } {
   const sessions: SessionsCapability = {
     self: { sessionId: SESSION_ID },
     capabilities: async () => ({ defaults: { envMode: "local" }, providers: [] }),
@@ -319,35 +317,13 @@ function capabilities(): { sessions: SessionsCapability; notes: NotesCapability 
     },
   };
 
-  const stamp = { label: "Thu 10:00", at: 1 };
-  const note = (index: number): ProjectNote =>
-    ({
-      id: `note_${index}`,
-      projectId: "p1",
-      title: `Note ${index}: what the reviewer keeps asking for`,
-      body: `Body ${index}. ${"A runbook is long, and this is what one looks like. ".repeat(60)}`,
-      created: stamp,
-      updated: stamp,
-      author: index % 2 === 0 ? "you" : "session",
-    }) as ProjectNote;
-
-  const notes: NotesCapability = {
-    self: { projectId: "p1" },
-    projects: async () => Array.from({ length: 12 }, (_, index) => ({ id: `project_${index}`, name: `project number ${index}` })),
-    list: async () => Array.from({ length: NOTES }, (_, index) => note(index)),
-    read: async () => ({ note: note(0), projectId: "p1" }),
-    create: async () => note(0),
-    update: async () => note(0),
-    remove: async () => true,
-  };
-  return { sessions, notes };
+  return { sessions };
 }
 
 function wall() {
   const { registered, factory } = register();
-  const { sessions, notes } = capabilities();
+  const { sessions } = capabilities();
   sessionsTools(factory, sessions);
-  notesTools(factory, notes);
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const tool = registered.find((entry) => entry.name === name);
     if (!tool) throw new Error(`no tool named ${name}`);
@@ -436,11 +412,6 @@ const CASES: Array<{ tool: string; args?: Record<string, unknown>; ceiling: numb
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "step", runId: RUN_ID, step: 12, maxChars: 64_000 }, ceiling: 66_000, why: "the most a caller may ask one step for" },
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "grep", pattern: "index.lock" }, ceiling: MAX_ANSWER_CHARS, why: "20 matches with 200 characters of context each" },
   { tool: "sessions_read", args: { sessionId: SESSION_ID, view: "grep", pattern: "index.lock", limit: 100 }, ceiling: MAX_ANSWER_CHARS, why: "the widest ask — 100 × 200 characters is past the backstop unbounded" },
-  { tool: "notes_list", args: { projects: true }, ceiling: 2_000, why: "12 projects" },
-  { tool: "notes_list", ceiling: MAX_ANSWER_CHARS, why: "200 notes as titles and previews" },
-  { tool: "notes_list", args: { noteId: "note_0" }, ceiling: MAX_ANSWER_CHARS, why: "one note, whole — this is the call that carries a body" },
-  { tool: "notes_write", args: { title: "t", body: "b" }, ceiling: MAX_ANSWER_CHARS, why: "the note it wrote, echoed back" },
-  { tool: "notes_delete", args: { noteId: "note_1" }, ceiling: 500, why: "a sentence" },
 ];
 
 describe("every tool answer is bounded", () => {
@@ -465,7 +436,7 @@ describe("every tool answer is bounded", () => {
     for (const { tool, args } of CASES) {
       const text = await call(tool, args ?? {});
       if (text.includes("more characters not shown")) clipped.push(tool);
-      // `notes_delete` and friends answer in prose; only JSON has to parse.
+      // Some answer in prose; only JSON has to parse.
       if (text.startsWith("{") || text.startsWith("[")) expect(() => JSON.parse(text) as unknown).not.toThrow();
     }
     expect(clipped).toEqual([]);
@@ -489,17 +460,17 @@ describe("every tool description is short enough to carry", () => {
     expect(over).toEqual([]);
   });
 
-  test("the two walls together cost under 6 KB of description", () => {
+  test("the wall costs under 6 KB of description", () => {
     const total = wall().registered.reduce((sum, entry) => sum + entry.description.length, 0);
     expect(total).toBeLessThanOrEqual(6_000);
   });
 
   // The count and `warp`'s absence are asserted together, so a re-add cannot pass by replacing something else.
-  test("`warp` is not on the wall, and the wall is fourteen tools", () => {
+  test("`warp` is not on the wall, and the wall is eleven tools", () => {
     const names = wall().registered.map((entry) => entry.name);
-    expect(names.length).toBe(14);
+    expect(names.length).toBe(11);
     expect(names).not.toContain("warp");
-    expect(names.every((name) => name.startsWith("sessions_") || name.startsWith("notes_"))).toBe(true);
+    expect(names.every((name) => name.startsWith("sessions_"))).toBe(true);
   });
 
   test("and every tool still says something — a cap is not an excuse for a blank", () => {
@@ -509,8 +480,8 @@ describe("every tool description is short enough to carry", () => {
   /**
    * THE OTHER SURFACE #515 NAMED, which the wall above cannot reach.
    *
-   * Item 5 of that issue capped "notes, display, warp, browser tools". Notes
-   * ride on `wall()`; browser has its own `BROWSER_DESCRIPTION_MAX_BYTES` test.
+   * Item 5 of that issue capped "display, warp, browser tools". Browser has its
+   * own `BROWSER_DESCRIPTION_MAX_BYTES` test.
    * `display_open` had no guard at all and had drifted to 655 characters —
    * carried in every turn of every session whether or not it is ever called.
    *
@@ -541,7 +512,7 @@ describe("every tool description is short enough to carry", () => {
    * teaches a dead tool is worse than no page.
    */
   test("what the cap displaced is in the skill, not deleted", () => {
-    for (const owed of ["sessions_send", "browser_tabs", "notes_write"]) {
+    for (const owed of ["sessions_send", "browser_tabs"]) {
       expect(TELAR_SKILL).toContain(owed);
     }
     for (const retired of ["warp", "export const meta", "pipeline(items, ...stages)", "parallel(thunks)", "agent(prompt, opts?)"]) {

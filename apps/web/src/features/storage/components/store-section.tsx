@@ -41,7 +41,7 @@ export function StoreSection() {
         hint={
           copied
             ? copied
-            : "History, settings and notes to a new folder. Checkouts and environments are re-made, not carried."
+            : "History and settings to a new folder. Checkouts and environments are re-made, not carried."
         }
         control={
           <Button size="sm" variant="outline" disabled={busy || copying} onClick={() => void copyStore()}>

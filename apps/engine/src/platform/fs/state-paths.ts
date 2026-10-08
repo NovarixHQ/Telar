@@ -42,6 +42,7 @@ export type EngineStatePaths = {
   decommissionMarker: string;
   retired: string;
   agentRetiredMarker: string;
+  notesRemovedMarker: string;
   browserProfiles: string;
   diagnostics: string;
   nodeModulesReaped: string;
@@ -93,6 +94,7 @@ export function statePaths(root: string): EngineStatePaths {
     decommissionMarker: path.join(resolved, "decommissioned-spool-looms"),
     retired: path.join(resolved, "retired"),
     agentRetiredMarker: path.join(resolved, "decommissioned-agent"),
+    notesRemovedMarker: path.join(resolved, "decommissioned-notes"),
     browserProfiles: path.join(resolved, "browser-profiles"),
     diagnostics: path.join(resolved, "diagnostics"),
     nodeModulesReaped: path.join(resolved, "node-modules-reaped"),

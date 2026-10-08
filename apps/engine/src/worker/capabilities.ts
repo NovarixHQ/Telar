@@ -1,6 +1,5 @@
 import type { WorkerClaim } from "@telar/engine-client";
 import { pluginCall, pluginToolModules } from "../domains/plugins";
-import { notesCapability } from "../domains/notes";
 import { sessionsCapability, windowedReads } from "../domains/sessions";
 import { promptsForComposer, type PromptsCapability } from "../domains/prompts";
 import { createDisplayCapability } from "../domains/agent-tools";
@@ -58,19 +57,6 @@ export function telarCapabilities(host: TurnHost, claim: WorkerClaim, runId: str
       return { turn: accepted.turn, replayed: accepted.replayed };
     },
   };
-  const notes = projectId
-    ? notesCapability(client, {
-        projectId,
-        read: async (noteId) => {
-          try {
-            return { note: (await client.projectNote(projectId, noteId)).note, projectId };
-          } catch {
-            return null;
-          }
-        },
-        updateFailureAsNull: true,
-      })
-    : undefined;
   const prompts = projectId ? promptsCapability(client, projectId, sessionId, (observation) => report([observation])) : undefined;
   const plugins = pluginCapabilities(host, sessionId, claim.plugins);
   const display =
@@ -86,7 +72,6 @@ export function telarCapabilities(host: TurnHost, claim: WorkerClaim, runId: str
   const simulators = claim.simulators ? clientSimulatorCapability(client, (observation) => report([observation]), claim.simulators.binDir) : undefined;
   return {
     sessions,
-    ...(notes ? { notes } : {}),
     ...(prompts ? { prompts } : {}),
     ...(display ? { display } : {}),
     ...(run ? { run } : {}),

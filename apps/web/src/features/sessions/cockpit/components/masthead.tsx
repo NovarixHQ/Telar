@@ -8,7 +8,7 @@ import { refusedBy, type EngineApiError } from "@/platform/engine";
 import { projectLabel } from "@/features/hosts";
 import { RunHeaderControl } from "@/features/terminal";
 import { hostName } from "@/platform/engine/host-client";
-import { cn } from "@/ui/utils";
+import { BreadcrumbSeparator, MainBreadcrumb, MainHeader } from "@/ui/main-header";
 import { MainSidebarTrigger, useMainIsLeftmost } from "@/ui/main-sidebar-trigger";
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { Button } from "@/ui/button";
@@ -99,15 +99,9 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
   };
 
   return (
-    <header
-      className={cn(
-        "app-drag flex min-h-[var(--titlebar-height)] shrink-0 items-center gap-2 py-1.5 pr-3 md:h-[var(--titlebar-band-height)] md:min-h-[var(--titlebar-band-height)] md:py-0",
-        // The traffic-light inset is measured from the content island, not the window edge.
-        mainIsLeftmost ? "pl-[max(16px,calc(var(--titlebar-inset)+var(--app-island-inset)))]" : "pl-4",
-      )}
-    >
+    <MainHeader leftmost={mainIsLeftmost}>
       <SessionActionContextMenu items={menuItems} {...(menu?.onOpen ? { onOpen: menu.onOpen } : {})}>
-        <div className="mr-1 flex min-w-0 flex-1 items-center gap-2 text-sm">
+        <MainBreadcrumb>
           {/* The folder glyph stands in while the rail is open, so the breadcrumb never shifts. */}
           <MainSidebarTrigger className="-mx-[7px]" fallback={<FolderGit2Icon className="size-3.5 shrink-0 text-muted-foreground" />} />
           {projectId === undefined ? (
@@ -120,7 +114,7 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
               {projectLabel({ name: projectName, hostName: hostName(hostId), resolved: projectResolved === true })}
             </Link>
           )}
-          <span className="shrink-0 text-border">/</span>
+          <BreadcrumbSeparator />
           {title === undefined ? (
             <span aria-hidden className="h-4 w-40 animate-pulse rounded-md bg-muted/60" />
           ) : editing ? (
@@ -128,10 +122,10 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
           ) : (
             <TitleMenu title={title} items={menuItems} open={menuOpen} onOpenChange={openMenu} onRename={beginRename} />
           )}
-        </div>
+        </MainBreadcrumb>
       </SessionActionContextMenu>
       <HeaderToggleGroup aria-label="Session controls" className="app-no-drag ml-auto">{panel}</HeaderToggleGroup>
-    </header>
+    </MainHeader>
   );
 }
 

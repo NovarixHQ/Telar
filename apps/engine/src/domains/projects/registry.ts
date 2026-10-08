@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   applyPluginPatch,
@@ -46,8 +47,22 @@ function parseRegistry(value: unknown): ProjectRegistryDocument {
   return { version: STATE_VERSION, projects: projects.data };
 }
 
-/** The real path of a readable directory, or a refusal saying why it is not one. */
-export function existingDirectory(root: unknown): string {
+function refuseBroadFolder(resolved: string, home: string): void {
+  let realHome = home;
+  try {
+    realHome = fs.realpathSync.native(home);
+  } catch {}
+  const holdsHome = realHome === resolved || realHome.startsWith(resolved.endsWith(path.sep) ? resolved : `${resolved}${path.sep}`);
+  if (resolved === path.parse(resolved).root || resolved === realHome) {
+    throw new EngineStateError("invalid_request", `${resolved} holds far more than one project. Choose the project's own folder inside it.`);
+  }
+  if (holdsHome && !fs.existsSync(path.join(resolved, ".git"))) {
+    throw new EngineStateError("invalid_request", `${resolved} holds your home folder and is not a repository. Choose the project's own folder.`);
+  }
+}
+
+/** The real path of a readable directory that can be one project, or a refusal saying why it is not one. */
+export function existingDirectory(root: unknown, home = os.homedir()): string {
   assertAbsolutePath(root, "project root");
   let resolved: string;
   let directory: boolean;
@@ -64,6 +79,7 @@ export function existingDirectory(root: unknown): string {
     );
   }
   if (!directory) throw new EngineStateError("invalid_request", "project root must be an existing directory");
+  refuseBroadFolder(resolved, home);
   return resolved;
 }
 

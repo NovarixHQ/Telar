@@ -19,6 +19,8 @@ final class HTTPTransport: @unchecked Sendable {
 
     var session: URLSession { lock.withLock { current } }
 
+    func streamSession() -> URLSession { URLSession(configuration: configuration) }
+
     @discardableResult
     func renew(replacing stale: URLSession? = nil) -> URLSession {
         lock.withLock {

@@ -122,6 +122,12 @@ struct HTTPEngineAPI: Sendable {
         let session = transport.session
         do {
             return try await session.data(for: request)
+        } catch let error as URLError where error.code == .cancelled && !Task.isCancelled && session !== transport.session {
+            do {
+                return try await transport.session.data(for: request)
+            } catch {
+                throw EngineAPIError.transport(error)
+            }
         } catch {
             guard HostAddresses.isTransportFailure(error) else { throw EngineAPIError.transport(error) }
             let fresh = transport.renew(replacing: session)

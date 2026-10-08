@@ -84,10 +84,11 @@ extension HTTPEngineAPI: TerminalAPI {
         var request = makeRequest(url(path, query: query))
         request.timeoutInterval = 60
         request.setValue("text/event-stream", forHTTPHeaderField: "accept")
-        let session = transport.session
+        let session = transport.streamSession()
         let onUnauthorized = self.onUnauthorized
         return AsyncThrowingStream { continuation in
             let task = Task {
+                defer { session.invalidateAndCancel() }
                 do {
                     let (bytes, response) = try await session.bytes(for: request)
                     let status = (response as? HTTPURLResponse)?.statusCode ?? 0

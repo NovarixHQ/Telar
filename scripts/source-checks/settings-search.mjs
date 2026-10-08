@@ -11,11 +11,13 @@ const NOT_SETTINGS = new Set([
   "No update feed in this build", "None yet", "Not available here", "The engine did not answer",
 ]);
 
-// Panes live in the settings components or in a feature that builds on the settings shell.
-const paneSources = () =>
-  filesUnder("apps/web/src", /\.tsx$/)
+// Panes live in the settings components or in a feature that builds on the settings shell; trial rows are drawn from experiments.ts.
+const paneSources = () => [
+  ...filesUnder("apps/web/src", /\.tsx$/)
     .filter((file) => file.startsWith(`${SETTINGS}components/`) || /\/settings-shell"|from "@\/features\/settings"/.test(read(file)))
-    .map(read);
+    .map(read),
+  read(`${SETTINGS}experiments.ts`),
+];
 
 /** Labels of every `<Row>`/`<ToggleRow>` with a fixed `label="…"`. */
 export function renderedLabels(sources) {

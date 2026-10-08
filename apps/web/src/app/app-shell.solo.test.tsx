@@ -153,4 +153,16 @@ describe("Settings › Back", () => {
     await show("/settings");
     expect(window.sessionStorage.getItem("telar:settings-return")).toBe("/projects/p1/sessions/s1?panel=diff");
   });
+
+  test("pairing is never where Back goes", async () => {
+    window.history.replaceState(null, "", "/projects/p1/sessions/s1");
+    await show("/projects/p1/sessions/s1");
+    window.history.replaceState(null, "", "/pair?code=abc");
+    await show("/pair");
+    expect(window.sessionStorage.getItem("telar:settings-return")).toBe("/projects/p1/sessions/s1");
+
+    window.history.replaceState(null, "", "/pairing-notes");
+    await show("/pairing-notes");
+    expect(window.sessionStorage.getItem("telar:settings-return")).toBe("/pairing-notes");
+  });
 });

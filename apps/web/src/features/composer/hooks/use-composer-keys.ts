@@ -105,7 +105,7 @@ export function composerKeyHandler({
       return;
     }
     if (stash.open && stashKeys(event, stash)) return;
-    if (menu.open && menu.completions.length > 0 && menuKeys(event, menu, pick)) return;
+    if (menu.open && (menu.completions.length > 0 || event.key === "Escape") && menuKeys(event, menu, pick)) return;
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       submit();

@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { registerComposer, type ComposerKind, type ComposerSubmit } from "../registry";
 import type { ComposerEditorHandle } from "../components/composer-editor";
 
-const NOT_READY = { ok: false as const, reason: "This conversation is not ready yet." };
+const NOT_READY = { ok: false as const, reason: "This session is not ready yet." };
 const OFF_SCREEN = { ok: false as const, reason: "The message box is not on screen." };
 
 /** Registers this composer for the page API and dictation, which call in from outside React. */

@@ -47,6 +47,20 @@ export function readSidebarCache(): SidebarCache {
   }
 }
 
+let parsedRaw: { raw: string | null; cache: SidebarCache } = { raw: null, cache: {} };
+
+/** The rail's last row for a session; the same object while the cache is unchanged, so it can feed useSyncExternalStore. */
+export function rememberedRow(hostId: string, sessionId: string): SidebarSession | undefined {
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(SIDEBAR_CACHE_KEY);
+  } catch {
+    return undefined;
+  }
+  if (raw !== parsedRaw.raw) parsedRaw = { raw, cache: parseSidebarCache(raw) };
+  return parsedRaw.cache[hostId]?.sessions.find((session) => session.id === sessionId);
+}
+
 export function writeSidebarCache(cache: SidebarCache): void {
   try {
     window.localStorage.setItem(SIDEBAR_CACHE_KEY, JSON.stringify(cache));

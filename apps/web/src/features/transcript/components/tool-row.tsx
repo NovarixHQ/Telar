@@ -3,10 +3,10 @@
 import { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import {
-ArrowUpRightIcon,ChevronRightIcon,FileTextIcon,
-GlobeIcon,PencilIcon,
+ArrowUpRightIcon,BlocksIcon,ChevronRightIcon,FileTextIcon,
+GlobeIcon,PanelRightIcon,PencilIcon,
 SearchIcon,
-TerminalIcon,WrenchIcon
+SquareTerminalIcon,TerminalIcon,WrenchIcon
 } from "lucide-react";
 import { isKnownPath, type Item } from "@telar/engine-client";
 import { toolOutput, type JournalItem } from "@/platform/engine";
@@ -20,7 +20,9 @@ import { ROW } from "./transcript-fold";
 import { cn } from "@/ui/utils";
 import { actionLabel, failed, liveActionLabel, preview, running } from "../model";
 import { sessionsLink } from "../sessions-tools";
+import { toolWords, type ToolKind } from "../tool-labels";
 import { TranscriptSession } from "./message-attachments";
+import { FileReferenceChip } from "./prompt-text";
 
 /** Deliberately small and literal. The lane is meant to be uniform and boring:
  *  an icon per tool would turn a long turn into a sticker album. The icon says
@@ -33,6 +35,19 @@ const TOOL_ICON: Partial<Record<Item["detail"]["type"], typeof WrenchIcon>> = {
   browser_action: GlobeIcon,
   mcp_tool_call: WrenchIcon,
   dynamic_tool_call: WrenchIcon,
+};
+
+const KIND_ICON: Record<ToolKind, typeof WrenchIcon> = {
+  command: TerminalIcon,
+  read: FileTextIcon,
+  edit: PencilIcon,
+  search: SearchIcon,
+  web: GlobeIcon,
+  browser: GlobeIcon,
+  page: PanelRightIcon,
+  terminal: SquareTerminalIcon,
+  tools: BlocksIcon,
+  other: WrenchIcon,
 };
 
 export type RowGestures = {
@@ -54,7 +69,7 @@ export function TranscriptWorkspace({ path, children }: { path?: string; childre
 /** The path a row is ABOUT, when it is about one — never the placeholder a
  *  call carries before its input has named the file. */
 export function rowPath(item: JournalItem): string | undefined {
-  const path = item.detail.type === "file_change" ? item.detail.change.path : item.detail.type === "file_read" ? item.detail.read.path : undefined;
+  const path = item.detail.type === "file_change" ? item.detail.change.path : item.detail.type === "file_read" ? item.detail.read.path : toolWords(item)?.file;
   return path && isKnownPath(path) ? path : undefined;
 }
 
@@ -111,7 +126,8 @@ export function ToolRow({ item, onInsert, onOpenFile, onOpenFileInNewTab }: { it
   const body = change?.unifiedDiff ?? output;
   const label = running(item) ? liveActionLabel(item) : actionLabel(item);
   const isError = failed(item);
-  const RowIcon = TOOL_ICON[item.detail.type] ?? WrenchIcon;
+  const kind = toolWords(item)?.kind;
+  const RowIcon = (kind && KIND_ICON[kind]) ?? TOOL_ICON[item.detail.type] ?? WrenchIcon;
   const command = item.detail.type === "command_execution" ? item.detail.command.command : undefined;
   const path = rowPath(item);
   // A row about nothing copyable gets no menu at all, rather than an empty
@@ -141,7 +157,11 @@ export function ToolRow({ item, onInsert, onOpenFile, onOpenFileInNewTab }: { it
             <>
               <RowIcon className={cn("size-3.5 shrink-0", isError ? "text-destructive" : "text-muted-foreground")} />
               <span className={cn("shrink-0", isError && "text-destructive")}>{label}</span>
-              {argument && <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">{argument}</span>}
+              {path ? (
+                <FileReferenceChip reference={{ text: path, path }} />
+              ) : (
+                argument && <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">{argument}</span>
+              )}
             </>
           )}
           {change && (change.linesAdded || change.linesRemoved) ? (

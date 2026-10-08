@@ -17,7 +17,7 @@ export function PairScreen() {
   const submit = async (text: string) => {
     setPairing(true);
     setProblem(undefined);
-    const outcome = await pair(text, thisDevice());
+    const outcome = await pair(text, await thisDevice());
     setPairing(false);
     if (!outcome.ok) return setProblem(outcome.message);
     await rememberHost(outcome.host);

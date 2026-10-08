@@ -67,6 +67,7 @@ export function SourceControlPage() {
       description="Read through a CLI you signed in to yourself. Telar holds no token of its own."
     >
       <Row
+        keywords={["gh", "git", "pull request", "issues", "token", "auth", "sign in", "cli", "forge", "gitlab"]}
         label="GitHub"
         icon={GitPullRequestIcon}
         {...(state.status === "unavailable"

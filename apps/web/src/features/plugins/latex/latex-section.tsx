@@ -145,12 +145,14 @@ export function LatexSection({ project, onChange }: { project: Project; onChange
         }
       >
         <Row
+          keywords={["latex", "tex", "enable", "plugin"]}
           label="LaTeX for this project"
           hint={enabled ? "Sessions get the latex_* tools and the LaTeX panel tab." : "Off. You can enable first, then choose or install a toolchain below."}
           {...(error ? { error } : {})}
           control={<Switch checked={enabled} disabled={saving} onCheckedChange={(next: boolean) => void save(latexToggle(project, next))} aria-label="Enable LaTeX for this project" />}
         />
         <Row
+          keywords={["main file", "main.tex", "document", "entry"]}
           label="Default document"
           hint={data?.mainCandidates.length ? "Used only when you press Compile without choosing a file. Agents can still compile any report by path." : "No .tex with \\documentclass found in the top folders — type a path, or ask the agent to inspect deeper."}
           control={

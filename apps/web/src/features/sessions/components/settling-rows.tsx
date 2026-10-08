@@ -86,6 +86,7 @@ export function SettlingRows() {
   return (
     <>
       <Row
+        keywords={["inbox", "archive", "auto", "shelf", "settled", "unsettle", "restore", "hidden", "put away", "quiet"]}
         label="Settle quiet sessions"
         {...(error ? { error } : {})}
         {...((hours === null) === (DEFAULT_INBOX_POLICY.autoSettleAfterHours === null)
@@ -102,6 +103,7 @@ export function SettlingRows() {
       />
       {hours !== null && (
         <Row
+          keywords={["hours", "days", "window"]}
           label="Settle quiet sessions after"
           hint="Pinned sessions and open questions stay put."
           {...(hours === DEFAULT_AUTO_SETTLE_HOURS
@@ -117,6 +119,7 @@ export function SettlingRows() {
         />
       )}
       <Row
+        keywords={["delegated", "errand", "coordinator", "handoff", "result", "settle"]}
         label="Settle delegated conversations after their result is delivered"
         control={
           <Switch
@@ -134,6 +137,7 @@ export function SettlingRows() {
       />
       {delegated !== null && (
         <Row
+          keywords={["hours", "days", "window", "delegated"]}
           label="Settle delegated conversations after"
           hint="A failed errand, a pinned row and an open question all stay put."
           {...(delegated === DEFAULT_SETTLE_DELEGATED_AFTER_HOURS

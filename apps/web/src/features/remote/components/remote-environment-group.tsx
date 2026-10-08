@@ -63,6 +63,7 @@ export function RemoteEnvironmentRows({
   return (
     <>
       <Row
+        keywords={["expose", "lan", "loopback", "address"]}
         label="Network access"
         icon={GlobeIcon}
         hint={<ExposureHint status={status} />}
@@ -80,6 +81,7 @@ export function RemoteEnvironmentRows({
         {changed === "network" && restart}
       </Row>
       <Row
+        keywords={["tailscale", "tailnet", "magicdns", "certificate", "serve"]}
         label="HTTPS on your private network"
         icon={LockIcon}
         hint={<HttpsHint status={status} />}

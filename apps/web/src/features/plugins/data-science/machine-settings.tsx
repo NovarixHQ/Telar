@@ -49,6 +49,7 @@ export function DataSciencePackagesRow({
 
   return (
     <Row
+      keywords={["pandas", "numpy", "packages", "pip", "environment", "data science"]}
       id="plugins-data-science-packages"
       icon={PackageIcon}
       label="Default packages"

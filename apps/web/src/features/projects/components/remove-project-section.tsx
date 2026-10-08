@@ -88,6 +88,7 @@ export function RemoveProjectSection({
     return (
       <SettingsGroup title="Removed from Telar" description="Put away — nothing on disk was touched.">
         <Row
+          keywords={["undo", "restore", "removed", "unarchive"]}
           label="Restore this project"
           hint="Same id, same settings, same sessions. Registering the folder again does this too."
           control={
@@ -114,6 +115,7 @@ export function RemoveProjectSection({
   return (
     <SettingsGroup title="Danger">
       <Row
+        keywords={["unregister", "delete", "forget", "put away"]}
         label="Remove project from Telar"
         hint="No new sessions can start on it. Files on disk are not touched, and you can put it back."
         control={

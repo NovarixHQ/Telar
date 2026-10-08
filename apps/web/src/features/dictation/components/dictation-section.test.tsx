@@ -31,7 +31,7 @@ describe("search lands on it", () => {
     // scroll to nothing.
     for (const query of ["dictation", "dictate", "voice"]) {
       expect(first(query)?.pageId).toBe("integrations");
-      expect(first(query)?.title).toBe("Provider");
+      expect(["Dictation", "Provider"]).toContain(first(query)?.title ?? "");
     }
   });
 

@@ -43,6 +43,7 @@ export function DictationSection() {
     <>
       <SettingsGroup title="Dictation" scope="mac">
         <Row
+          keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "provider", "off", "disable", "turn off", "turn on", "enable", "deepgram"]}
           label="Provider"
           icon={provider === "off" ? MicOffIcon : MicIcon}
           {...(PROVIDER_INFO[provider] ? { info: PROVIDER_INFO[provider] } : {})}
@@ -62,6 +63,7 @@ export function DictationSection() {
         {provider === "deepgram" && (
           <>
             <Row
+              keywords={["spanish", "english", "automatic", "multilingual", "locale"]}
               label="Language"
               icon={LanguagesIcon}
               {...(language === DICTATION_AUTOMATIC ? {} : { info: "Only this language is transcribed. More accurate within it, wrong for anything else." })}
@@ -77,6 +79,7 @@ export function DictationSection() {
               }
             />
             <Row
+              keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "deepgram", "key", "api key", "credential"]}
               label="Service key"
               icon={KeyRoundIcon}
               {...(configured ? { status: "set" } : {})}
@@ -113,6 +116,7 @@ export function DictationSection() {
               {keySaved && <p className="mt-2 text-xs text-muted-foreground">Saved.</p>}
             </Row>
             <Row
+              keywords={["dictation", "vocabulary", "glossary", "keyterm", "keyterms", "terms", "custom words", "jargon", "names", "spelling", "accuracy", "wrong word"]}
               label="Vocabulary"
               icon={BookMarkedIcon}
               info="Projects, branches and open conversations are sent automatically. This is for the names only you know."

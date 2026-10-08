@@ -223,6 +223,7 @@ export function UsageProvidersSection() {
   return (
     <>
       <SettingsGroup
+        keywords={["cliproxy", "cliproxyapi", "hub", "proxy", "quota", "limit", "limits", "usage", "pooled", "rate limit", "5h", "weekly", "remaining"]}
         title="Usage providers"
         description="Hubs that pool subscription accounts. Their remaining quota shows under Limits on the Usage page."
         {...(adding
@@ -253,6 +254,7 @@ export function UsageProvidersSection() {
 
       <SettingsGroup title="Diagnosis">
         <Row
+          keywords={["diagnose", "diagnosis", "high usage", "why", "tokens", "cost", "spend", "expensive", "report"]}
           icon={StethoscopeIcon}
           label="Diagnose usage"
           hint="An agent reads this computer's usage in the background, read-only, and explains what drives it."

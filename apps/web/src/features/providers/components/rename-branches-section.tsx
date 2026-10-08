@@ -11,6 +11,7 @@ export function RenameBranchesSection() {
   return (
     <SettingsGroup title="Branches">
       <ToggleRow
+        keywords={["git", "branch name", "title"]}
         label="Rename branches to match"
         hint="Only branches the engine cut. Yours keep their names."
         checked={policy.renameBranches}

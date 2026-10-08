@@ -28,6 +28,7 @@ export function DictationMicrophoneSection() {
   return (
     <SettingsGroup title="Microphone" scope="browser">
       <Row
+        keywords={["input", "device", "which microphone", "choose microphone", "headset", "airpods", "usb", "interface", "built-in", "default input", "wrong microphone"]}
         label="Input"
         icon={MicIcon}
         {...(gone ? { status: <span className="text-2xs text-muted-foreground">Not connected</span> } : {})}
@@ -51,6 +52,7 @@ export function DictationMicrophoneSection() {
         }
       />
       <Row
+        keywords={["level", "meter", "volume", "test microphone", "not hearing", "no audio", "silent", "muted", "dead", "check"]}
         label="Level"
         icon={AudioLinesIcon}
         {...(reading && !hearing(level) ? { hint: "Hearing nothing. Pick another input." } : {})}
@@ -68,6 +70,7 @@ export function DictationMicrophoneSection() {
         }
       />
       <Row
+        keywords={["demo", "preview", "try", "live", "test transcription", "interim", "rewritten", "see it working"]}
         label="Live transcript"
         icon={TypeIcon}
         {...(demo.error ? { error: demo.error.text } : {})}

@@ -40,6 +40,7 @@ export function NotificationSoundsRow() {
   const test = desktopTest();
   return (
     <Row
+      keywords={["sound", "chime", "audio", "mute", "silent", "hilo", "armonico", "felt"]}
       label="Notification sounds"
       icon={Volume2Icon}
       hint="The sound this computer's alerts play."

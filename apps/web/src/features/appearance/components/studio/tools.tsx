@@ -336,6 +336,7 @@ export function TypeTool({ appearance, onChange }: TypeToolProps) {
   return (
     <>
       <Row
+        keywords={["colour", "color", "highlight", "primary", "hue"]}
         label="Accent"
         hint="The one hue that means a person acted — buttons, links, the caret."
         control={<AccentSwatches value={appearance.accent} onChange={(accent) => onChange({ accent })} />}
@@ -396,6 +397,7 @@ export function TypeTool({ appearance, onChange }: TypeToolProps) {
 export function ShowThroughRow({ level, onChange, anchor }: { level: number; onChange: (next: number) => void; anchor?: string }) {
   return (
     <Row
+      keywords={["show-through", "show through", "opacity", "wallpaper", "backdrop", "layers"]}
       {...(anchor ? { id: anchor } : {})}
       label="Layers through canvas and rail"
       info="With Translucency on, this also sets how much of the desktop shows behind the window."

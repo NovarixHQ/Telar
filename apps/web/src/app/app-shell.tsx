@@ -26,6 +26,10 @@ function isSurfaceRoute(pathname: string): boolean {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  return usePathname() === "/pair" ? children : <CockpitShell>{children}</CockpitShell>;
+}
+
+function CockpitShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const settings = isSettingsRoute(pathname);
   const railless = settings || isSoloRoute(pathname) || isSurfaceRoute(pathname);

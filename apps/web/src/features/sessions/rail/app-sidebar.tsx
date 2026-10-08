@@ -6,10 +6,9 @@ import { useCommandHandlers } from "@/features/commands";
 import { HostMarksShown } from "@/features/hosts";
 import { projectSettingsHref } from "@/features/projects";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarRail, type SidebarResizableOptions, type SidebarWidthProposal, useSidebar } from "@/ui/sidebar";
-import { activeSessionFromPathname, canvasProjectFromPathname, SESSION_PAGE_SIZE, SETTLED_PAGE_SIZE } from "../session-list";
+import { activeSessionFromPathname, SESSION_PAGE_SIZE, SETTLED_PAGE_SIZE } from "../session-list";
 import { APP_SIDEBAR_MAIN_MIN_WIDTH, APP_SIDEBAR_STORAGE_KEY, keepsRoomForMain, SIDEBAR_RESIZE_MIN_WIDTH } from "@/ui/sidebar-width";
 import { AppSidebarFooterRow } from "./app-sidebar-footer";
-import { RailDrafts } from "./rail-drafts";
 import { AttentionRows, RailSessionList, RailShelves } from "./rail-list";
 import { TelarSidebarHeader } from "./rail-parts";
 import { RailSearch } from "./rail-search";
@@ -90,13 +89,6 @@ function SidebarBody() {
             }
             soleTargetName={soleTarget?.name}
             run={run}
-          />
-          <RailDrafts
-            projects={data.projects}
-            projectsShown={view.projectsShown}
-            query={query}
-            openCanvasProject={canvasProjectFromPathname(pathname)}
-            onNavigate={onNavigate}
           />
           {view.grouped && <AttentionRows rows={view.grouped.attention} env={view.env} />}
           <RailSessionList

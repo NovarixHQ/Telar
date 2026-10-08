@@ -1,6 +1,6 @@
 /** A bad slot must read as "no draft" or as the draft, never as a throw. */
 import { describe, expect, test } from "bun:test";
-import { listCanvasDrafts, readDraft, writeDraft, type DraftStorage } from "./draft";
+import { readDraft, writeDraft, type DraftStorage } from "./draft";
 
 function storage(initial: Record<string, string> = {}) {
   const slots = new Map(Object.entries(initial));
@@ -8,10 +8,6 @@ function storage(initial: Record<string, string> = {}) {
     getItem: (name: string) => slots.get(name) ?? null,
     setItem: (name: string, value: string) => void slots.set(name, value),
     removeItem: (name: string) => void slots.delete(name),
-    get length() {
-      return slots.size;
-    },
-    key: (index: number) => [...slots.keys()][index] ?? null,
     slots,
   } satisfies DraftStorage & { slots: Map<string, string> };
 }
@@ -65,15 +61,12 @@ describe("reading a slot another build wrote", () => {
     // The legacy slot shape was plain text, and such drafts still exist in real browsers.
     const store = storage({ "telar:draft:new:project_a": "written by the old build" });
     expect(readDraft(undefined, "project_a", store)).toBe("written by the old build");
-    expect(listCanvasDrafts(store)).toEqual([
-      { projectId: "project_a", text: "written by the old build", updatedAt: 0 },
-    ]);
   });
 
-  test("a legacy draft is re-dated by the next keystroke, not lost", () => {
+  test("a legacy draft is overwritten by the next keystroke, not lost", () => {
     const store = storage({ "telar:draft:new:project_a": "old" });
     writeDraft(undefined, "project_a", "old and then some", store);
-    expect(listCanvasDrafts(store)[0]?.updatedAt).toBeGreaterThan(0);
+    expect(readDraft(undefined, "project_a", store)).toBe("old and then some");
   });
 
   test("junk costs the draft, never a throw", () => {
@@ -89,51 +82,9 @@ describe("reading a slot another build wrote", () => {
     expect(readDraft(undefined, "project_a", storage({ "telar:draft:new:project_a": "[1,2]" }))).toBe("[1,2]");
   });
 
-  test("a slot with text but no age reads, and sorts last", () => {
+  test("a slot with text but no age reads", () => {
     const store = storage({ "telar:draft:new:project_a": '{"text":"aged out"}' });
-    expect(listCanvasDrafts(store)).toEqual([{ projectId: "project_a", text: "aged out", updatedAt: 0 }]);
-  });
-});
-
-describe("listing the rail's draft rows", () => {
-  test("canvas drafts only — a session's unsent text is not a second row", () => {
-    // The session already has a row in the list. Listing its half-written reply
-    // beside it would show one conversation twice.
-    const store = storage();
-    writeDraft(undefined, "project_a", "a started conversation", store);
-    writeDraft("session_7", "project_a", "a half-written reply", store);
-    expect(listCanvasDrafts(store).map((draft) => draft.projectId)).toEqual(["project_a"]);
-  });
-
-  test("newest first — the one you were just writing is on top", () => {
-    const store = storage({
-      "telar:draft:new:project_a": '{"text":"older","updatedAt":100}',
-      "telar:draft:new:project_b": '{"text":"newest","updatedAt":300}',
-      "telar:draft:new:project_c": '{"text":"middle","updatedAt":200}',
-    });
-    expect(listCanvasDrafts(store).map((draft) => draft.text)).toEqual(["newest", "middle", "older"]);
-  });
-
-  test("keys from elsewhere in the app are not drafts", () => {
-    const store = storage({
-      "telar:draft:new:project_a": '{"text":"mine","updatedAt":1}',
-      "telar:favorite-models:v2": '["claude-opus-5"]',
-      "telar:panel-tabs:session_7": "{}",
-      "some-other-app": "hello",
-    });
-    expect(listCanvasDrafts(store).map((draft) => draft.projectId)).toEqual(["project_a"]);
-  });
-
-  test("nothing stored is no drafts, not a failure", () => {
-    expect(listCanvasDrafts(storage())).toEqual([]);
-  });
-
-  test("sending a first message takes its draft row away", () => {
-    const store = storage();
-    writeDraft(undefined, "project_a", "the first message", store);
-    expect(listCanvasDrafts(store)).toHaveLength(1);
-    writeDraft(undefined, "project_a", "", store);
-    expect(listCanvasDrafts(store)).toEqual([]);
+    expect(readDraft(undefined, "project_a", store)).toBe("aged out");
   });
 });
 
@@ -150,14 +101,9 @@ describe("a hostile store", () => {
       removeItem: () => {
         throw new Error("denied");
       },
-      length: 1,
-      key: () => {
-        throw new Error("denied");
-      },
     };
     expect(() => writeDraft(undefined, "project_a", "typed", hostile)).not.toThrow();
     expect(readDraft(undefined, "project_a", hostile)).toBe("");
-    expect(listCanvasDrafts(hostile)).toEqual([]);
   });
 });
 

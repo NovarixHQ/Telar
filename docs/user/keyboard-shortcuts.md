@@ -7,11 +7,11 @@ Telar is built to be driven from the keyboard. Every shortcut can be changed, an
 Press ⌘K to open it. It has four sections, always in this order:
 
 - **Actions**: every command that can run where you are right now. A command whose surface isn't on screen (Send with no conversation open, Open Data in a project without the Data plugin) doesn't appear.
-- **Quick settings**: the colour scheme, the Look, the accent, text size, translucency and the rail. These apply on Enter instead of opening Settings, and show their current value.
+- **Quick settings**: the colour scheme, the accent, text size, translucency and the rail. These apply on Enter instead of opening Settings, and show their current value.
 - **Projects**: start a conversation in one.
 - **Recent conversations**: the eight most recent, across every project. Type to search all of them.
 
-Some rows open a second page (a project list, the Looks, the accents). Backspace in an empty field goes back.
+Some rows open a second page (a project list, the accents). Backspace in an empty field goes back.
 
 ## Default shortcuts
 

@@ -32,8 +32,8 @@ function wording(item: JournalItem): { key: string; words: Wording; title?: stri
     const raw = field(call.input, "title");
     const title = typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
     const words: Wording = title
-      ? { running: `Delegating “${title}”`, done: `Delegated “${title}”`, many: plural("Delegated", "tasks") }
-      : { running: "Delegating a task", done: "Delegated a task", many: plural("Delegated", "tasks") };
+      ? { running: `Starting builder “${title}”`, done: `Started builder “${title}”`, many: plural("Started", "builders") }
+      : { running: "Starting a builder", done: "Started a builder", many: plural("Started", "builders") };
     return { key: tool, words, ...(title ? { title } : {}) };
   }
   if (tool === "sessions_send") {

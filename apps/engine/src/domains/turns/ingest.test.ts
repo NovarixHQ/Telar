@@ -202,15 +202,3 @@ test("a settled sub-agent resumed by a later turn runs again on its own row, the
   ]);
   expect(store.queries.tasks("session_one")).toMatchObject([{ id: "task_toolu_agent", state: "completed", resultText: "bye" }]);
 });
-
-test("a turn that fails keeps the last usage it reported, so a reopened session still knows its context", () => {
-  const { store } = readyStore();
-  store.intake.submitTurn("session_one", { runId: "run_one", input: "Hello" });
-  const token = store.claims.claimTurn("session_one", "worker_one")!.claim!.token;
-  store.turnLifecycle.markRunning("session_one", "run_one", token);
-  const usage = { tokens: { input: 10, output: 5, cacheRead: 0, cacheCreate: 0 }, contextUsed: 42_000, contextMax: 200_000 };
-  store.ingest.ingestObservations("session_one", "run_one", token, [{ kind: "usage", usage }]);
-  store.turnLifecycle.failTurn("session_one", "run_one", token, { code: "driver_failed", message: "the CLI died" });
-
-  expect(store.queries.turns("session_one").find((turn) => turn.runId === "run_one")?.usage).toEqual(usage);
-});

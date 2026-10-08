@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { ARTIFACT_THEME_TOKENS, artifactTheme, artifactThemeCss, contrastRatio, cssColorToHex, mermaidThemeVariables } from "./artifact-theme";
 
-test("every colour form a Look or a browser produces comes out as hex", () => {
+test("every colour form an appearance or a browser produces comes out as hex", () => {
   expect(cssColorToHex("oklch(1 0 0)")).toBe("#ffffff");
   expect(cssColorToHex("oklch(0 0 0)")).toBe("#000000");
   expect(cssColorToHex("oklch(0.628 0.2577 29.23)")).toBe("#ff0000");
@@ -44,13 +44,13 @@ test("the css loses to the page's own rules and cannot escape its block", () => 
   expect(css.match(/[{}]/g)).toEqual(["{", "}"]);
 });
 
-test("mermaid is themed from the Look's colours, not only light or dark", () => {
+test("mermaid is themed from the appearance's colours, not only light or dark", () => {
   const theme = artifactTheme("dark", (token) => ({ "--card": "#222222", "--primary": "#3366ff", "--chart-1": "#ff8800", "--muted-foreground": "#999999" })[token] ?? "");
   expect(mermaidThemeVariables(theme)).toMatchObject({ darkMode: true, primaryColor: "#222222", mainBkg: "#222222", primaryBorderColor: "#3366ff", lineColor: "#999999", pie1: "#ff8800" });
   expect(mermaidThemeVariables(theme)).not.toHaveProperty("textColor");
 });
 
-test("the canvas the frame sits on replaces --background, so a see-through Look stays see-through", () => {
+test("the canvas the frame sits on replaces --background, so a see-through appearance stays see-through", () => {
   const look: Record<string, string> = { "--background": "#0a0a0a", "--card": "#161616", "--foreground": "#f5f5f5" };
   const theme = artifactTheme("dark", (token) => look[token] ?? "", { canvas: "transparent" });
   expect(theme.variables["--background"]).toBe("transparent");

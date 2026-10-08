@@ -1,9 +1,8 @@
-import type { GitCommitEntry, GitignoreRemoval, GitignoreResult, GitPushResult, Project } from "@telar/engine-client";
+import type { GitCommitEntry, GitPushResult, Project } from "@telar/engine-client";
 import type { AsyncGitRunner } from "../../platform/git/runner";
 import { EngineStateError, type Kernel } from "../../platform/kernel";
 import { workspaceRootOf, type SessionRecords } from "../sessions";
 import { cloneRepository, isCloneFailure } from "./clone";
-import { removeTelarGitignore, ensureTelarGitignore } from "./gitignore";
 import { commitSessionWork, pushSessionBranch } from "./push";
 
 type SessionGitDeps = {
@@ -14,7 +13,7 @@ type SessionGitDeps = {
   registerProject: (input: { name: string; root: string }) => Project;
 };
 
-/** The git a session's turns and buttons write: commit, push, clone and Telar's gitignore block. */
+/** The git a session's turns and buttons write: commit, push and clone. */
 export class SessionGit {
   constructor(
     private readonly kernel: Kernel,
@@ -48,15 +47,6 @@ export class SessionGit {
     } finally {
       this.deps.forgetGitReadsUnder(cwd);
     }
-  }
-
-  /** Telar's own ignore rules; the lines are the engine's, so a caller can only name the project. */
-  gitignore(projectId: string): GitignoreResult {
-    return ensureTelarGitignore(this.deps.getProject(projectId).root);
-  }
-
-  undoGitignore(projectId: string): GitignoreRemoval {
-    return removeTelarGitignore(this.deps.getProject(projectId).root);
   }
 
   /** Clones and registers what landed. A failed registration keeps the clone: it is the expensive, good half. */

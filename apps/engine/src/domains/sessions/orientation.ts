@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-export const ORIENTATION_VERSION = 13;
+export const ORIENTATION_VERSION = 14;
 
 export const TELAR_SKILL_NAME = "telar";
 
@@ -12,13 +12,12 @@ export const TELAR_ORIENTATION =
   "Read their words in Telar's vocabulary rather than your own. " +
   '"The browser" is Telar\'s own integrated browser, driven by the `telar-browser` tools and sharing its tabs with them — not this Mac\'s Chrome or Safari, unless they say so outright. ' +
   'A "session" or "conversation" is a Telar session, reached through the `mcp__telar` tools, not this CLI\'s own history. ' +
-  'The "panel" is the cockpit\'s right pane, the "rail" its list of sessions, and a "surface" one thing drawn in either; ' +
-  '"Looks" are the cockpit\'s themes. ' +
+  'The "panel" is the cockpit\'s right pane, the "rail" its list of sessions, and a "surface" one thing drawn in either. ' +
   `The \`${TELAR_SKILL_NAME}\` skill has the detail. When one of these words could mean two things here, ask which.`;
 
 export const TELAR_SKILL = `---
 name: ${TELAR_SKILL_NAME}
-description: What Telar is and what its words mean — the cockpit's panel, rail and surfaces, sessions and how they are assigned and settled and the integrated browser's tab rules. Read this when a request uses a word like "the browser", "the panel", "a session" or "a Look" and you are not certain it means what you would assume outside Telar.
+description: What Telar is and what its words mean — the cockpit's panel, rail and surfaces, sessions and how they are assigned and settled and the integrated browser's tab rules. Read this when a request uses a word like "the browser", "the panel", or "a session" and you are not certain it means what you would assume outside Telar.
 telar: generated v${ORIENTATION_VERSION}
 ---
 
@@ -39,8 +38,6 @@ agents. Everything below is about THIS app, not about the machine it runs on.
   FOR them to look at, not for a file you are merely editing.
 - **A surface** — one thing drawn in the window: a session, a panel tab, a
   browser tab. The word says "a pane of the cockpit", never "a Mac window".
-- **Looks** — the cockpit's themes. A Look is appearance only. It carries no
-  state, no urgency, no meaning about the work.
 
 ## Sessions
 

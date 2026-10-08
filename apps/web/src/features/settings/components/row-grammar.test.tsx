@@ -4,7 +4,6 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Project } from "@telar/engine-client";
-import { detachFromHost } from "@/features/appearance";
 
 GlobalRegistrator.register({ url: "http://mini.tailnet:3000/settings" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -18,9 +17,9 @@ mock.module("next/navigation", () => ({
 
 const { PackagesPanel } = await import("@/features/plugins/components/packages-panel");
 const { Dropdown } = await import("./settings-shell");
-const { TextGenSection } = await import("@/features/providers/components/textgen-section");
+const { WorkspaceSection } = await import("@/features/projects/components/workspace-section");
+const { OrganizationSection } = await import("@/features/sessions/components/organization-section");
 const { DataScienceSection } = await import("@/features/plugins/data-science/data-science-section");
-const { LooksSection } = await import("@/features/appearance/components/looks-section");
 
 test("the packages fields are Rows with names, not unlabelled blocks", () => {
   const html = renderToStaticMarkup(<PackagesPanel scope={{ projectId: "project_a" }} />);
@@ -67,7 +66,12 @@ test("a dropdown's trigger reads the chosen label, never the value", () => {
 });
 
 test("an enumeration setting is a dropdown, and a boolean is still a switch", async () => {
-  const view = await mountOffline(<TextGenSection />);
+  const view = await mountOffline(
+    <>
+      <WorkspaceSection />
+      <OrganizationSection />
+    </>,
+  );
   expect(view.host.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
   expect(view.host.querySelector("[aria-pressed]")).toBeNull();
   expect(view.host.querySelector('[role="switch"]')).not.toBeNull();
@@ -78,18 +82,4 @@ test("a plugin pane heads its groups with whose they are, never a bare 'Packages
   const html = renderToStaticMarkup(<DataScienceSection project={{ id: "project_1", name: "Telar", root: "/tmp/telar" } as Project} onChange={() => {}} />);
   expect(html).toContain(">Python tools<");
   expect(html).not.toContain(">Packages<");
-});
-
-test("the host-look row keeps Retry live when there is nothing to follow", async () => {
-  detachFromHost();
-  const { host, done } = await mountOffline(<LooksSection onWear={() => {}} />);
-  try {
-    const retry = [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry");
-    expect(host.textContent).toContain("The engine did not answer.");
-    expect(retry?.disabled).toBe(false);
-    expect(host.querySelector<HTMLButtonElement>('[aria-label="Follow the host\'s look"]')?.hasAttribute("data-disabled")).toBe(true);
-    expect(host.querySelector("#settings-row-appearance-host-look [inert]")).toBeNull();
-  } finally {
-    done();
-  }
 });

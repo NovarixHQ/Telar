@@ -2,7 +2,6 @@
 
 import { useListNav } from "@/ui/hooks/use-list-nav";
 import { useState } from "react";
-import { ShirtIcon } from "lucide-react";
 import {
   ProjectPalettePages,
   RegisteredToast,
@@ -146,23 +145,6 @@ export function CommandPalette({
               nav={nav}
               notice={notice}
               onTake={take}
-            />
-          ) : page === "looks" ? (
-            <QuickPage
-              title="Wear a look"
-              placeholder="Search your looks"
-              {...(notice ? { notice } : {})}
-              rows={quick.looks.map((look) => ({
-                key: look.id,
-                glyph: <ShirtIcon className="size-4 text-muted-foreground" />,
-                title: look.label,
-                on: look.id === quick.wornLookId,
-              }))}
-              onPick={(id) => {
-                const look = quick.looks.find((entry) => entry.id === id);
-                if (look) setNotice(quick.wearLook(look));
-              }}
-              onBack={() => walk("root")}
             />
           ) : page === "accent" ? (
             <QuickPage

@@ -2,7 +2,6 @@
 
 import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { detachFromHost } from "../host-follow";
 import { useTheme, type Theme } from "./theme-provider";
 
 const OPTIONS: Array<{ value: Theme; label: string; icon: typeof SunIcon }> = [
@@ -19,7 +18,6 @@ export function ThemeControl() {
       value={theme}
       onValueChange={(next) => {
         if (typeof next !== "string") return;
-        detachFromHost();
         setTheme(next as Theme);
       }}
     >

@@ -52,5 +52,5 @@ Delegated sessions are ordinary sessions in the rail. Open one to watch it or ta
 - A session never gets more access than the session that created it. If the coordinator has to ask before running commands, its workers have to ask too.
 - Something a session was denied stays denied when another session tries it. An agent can't get around a refusal by asking a peer.
 - A coordinator can answer an approval that a worker is waiting on, and Telar records who answered. It can't answer requests for secrets. It also can't merge work, archive sessions or delete them.
-- Sessions don't clean up after themselves, and every worktree session is a full checkout on your disk. Once its result has been delivered, a delegated session settles on its own after a while. Pinned sessions, failed errands and sessions with an open question stay in the list. Set this under Settings → General → Settling.
+- Sessions don't clean up after themselves, and every worktree session is a full checkout on your disk. Once its result has been delivered, a delegated session settles on its own after a while. Pinned sessions, failed errands and sessions with an open question stay in the list. Set this under Settings → General → Organization.
 - Settling a worker just moves it out of the way. It doesn't mean its work was accepted.

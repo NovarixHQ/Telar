@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
-import type { ModelChoice } from "@/features/providers";
+import { projectDraftModel, type ModelChoice } from "@/features/providers";
 import { useSessionDefaults } from "../../session-defaults";
 import type { ProjectDefaults } from "./use-cockpit-project";
 import type { DraftChoices } from "./use-session-browser";
@@ -51,12 +51,14 @@ export function useDraftConfig({ projectId, fresh, projectDefaults }: {
   const [model, setModel] = useState<ModelChoice>({});
   const [modelTouched, setModelTouched] = useState(false);
   const [seededModelFor, setSeededModelFor] = useState<string>();
-  // Keyed by project, so a canvas that moves to another project starts from that project's default.
-  if (fresh && !modelTouched && projectDefaults && projectDefaults.projectId === projectId && seededModelFor !== projectId) {
-    setSeededModelFor(projectId);
-    if (projectDefaults.model) {
-      setDriver(projectDefaults.model.driver);
-      setModel(projectDefaults.model.choice);
+  // Keyed by project, so a canvas that moves to another project starts from that project's default, else the Mac's.
+  const modelKey = projectId ?? "";
+  if (fresh && !modelTouched && !sessionDefaultsLoading && projectAnswered && seededModelFor !== modelKey) {
+    setSeededModelFor(modelKey);
+    const seed = (projectId !== undefined ? projectDefaults?.model : undefined) ?? projectDraftModel(sessionDefaults.defaultModel);
+    if (seed) {
+      setDriver(seed.driver);
+      setModel(seed.choice);
     }
   }
   // Each control sends the whole choice, so changing one knob keeps the rest of the project's default.

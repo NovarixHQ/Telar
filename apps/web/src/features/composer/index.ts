@@ -20,6 +20,7 @@ export {
 } from "./registry";
 export { chipIsDirectory, chipPath, replaceTextRange, segmentDraft } from "./tokens";
 export { AgentControl } from "./components/agent-control";
+export { ModelChoiceControl } from "./components/model-choice-control";
 export { Composer } from "./components/composer";
 export { ReasoningControl } from "./components/reasoning-control";
 export { MAX_ATTACHMENTS } from "./hooks/use-composer-stash";

@@ -20,7 +20,7 @@ The access mode decides what the agent may do without asking you:
 | Auto | `/auto` | A reviewer waves routine actions through |
 | Full access | `/full-access` | Nothing |
 
-Questions from the agent and requests for secrets always wait for you, in every mode. Set the default for new sessions in Settings → General → New sessions → Access. See [Permissions and requests](permissions.md).
+Questions from the agent and requests for secrets always wait for you, in every mode. Set the default for new sessions in Settings → General → New sessions → Access level. See [Permissions and requests](permissions.md).
 
 ## Attachments
 

@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { act } from "react";
-import { flush, installTestDom, mount } from "@/test/dom";
+import { buttonLabelled, click, flush, installTestDom, mount } from "@/test/dom";
 import { typeInto } from "@/test/type-into";
 
 mock.module("next/navigation", () => ({ useRouter: () => ({ replace: () => undefined }) }));
@@ -27,6 +27,24 @@ test("Enter on a retyped code pairs again, and the card shows it is working", as
   expect(answers).toHaveLength(2);
   expect(field().readOnly).toBe(true);
   expect(host.querySelector("button")!.textContent).toBe("Pairing…");
+});
+
+test("pairing this browser again sends the same client id", async () => {
+  const sent: { token: string; clientId?: string }[] = [];
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    sent.push(JSON.parse(String(init?.body)));
+    return Response.json({ error: { message: "That pairing code has expired." } }, { status: 401 });
+  }) as typeof fetch;
+  const { host } = await mount(<PairClient />);
+  await flush(() => Boolean(host.querySelector("input")));
+  await typeInto(host.querySelector("input")!, "48129037");
+  await click(buttonLabelled("Pair", host));
+  await flush(() => host.textContent!.includes("expired"));
+  await click(buttonLabelled("Pair", host));
+  await flush(() => sent.length === 2);
+  expect(sent[0]!.token).toBe("4812 9037");
+  expect(sent[0]!.clientId).toMatch(/^[0-9a-f-]{36}$/);
+  expect(sent[1]!.clientId).toBe(sent[0]!.clientId);
 });
 
 describe("formatTyped", () => {

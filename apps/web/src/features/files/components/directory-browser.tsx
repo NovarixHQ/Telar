@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ArrowLeftIcon, CornerDownLeftIcon, EyeIcon, EyeOffIcon, FolderIcon, GitBranchIcon, Loader2Icon } from "lucide-react";
 import type { DirectoryEntry, DirectoryListing } from "@telar/engine-client";
-import { clampIndex, directoryKey, expandTilde, foldHome, type DirectoryBrowserState } from "../directory-keys";
+import { clampIndex, directoryKey, expandTilde, foldHome, submitPath, type DirectoryBrowserState } from "../directory-keys";
 import { createEngineApi } from "@/platform/engine";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { hasNativeFolderPicker } from "@/platform/desktop/choose-directory";
@@ -63,9 +63,10 @@ export function DirectoryBrowser({
     rows.current?.querySelector(`[data-row="${at}"]`)?.scrollIntoView({ block: "nearest" });
   }, [at]);
 
+  const target = submitPath(state);
   const submit = () => {
-    if (busy || !listing) return;
-    onSubmit(listing.path);
+    if (busy || !target) return;
+    onSubmit(target);
   };
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -141,22 +142,12 @@ export function DirectoryBrowser({
         </p>
       )}
 
-      {unlisted && (
-        <div className="border-t px-3 py-2">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onSubmit(unlisted)}
-            className="max-w-full truncate rounded-sm text-2xs underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {actionLabel} {foldHome(unlisted, listing?.home ?? "")} anyway
-          </button>
-        </div>
-      )}
+      {unlisted && <AddAnyway label={`${actionLabel} ${foldHome(unlisted, listing?.home ?? "")} anyway`} busy={busy} onAdd={() => onSubmit(unlisted)} />}
 
       <DirectoryFooter
         listing={listing}
         busy={busy}
+        ready={Boolean(target)}
         actionLabel={actionLabel}
         onSubmit={submit}
         {...(onPickNatively && hasNativeFolderPicker() && (!hostId || hostId === LOCAL_HOST_ID) ? { onPickNatively } : {})}
@@ -240,6 +231,21 @@ function DirectoryRoots({ listing, onOpen }: { listing: DirectoryListing; onOpen
   );
 }
 
+function AddAnyway({ label, busy, onAdd }: { label: string; busy: boolean | undefined; onAdd: () => void }) {
+  return (
+    <div className="border-t px-3 py-2">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onAdd}
+        className="max-w-full truncate rounded-sm text-2xs underline underline-offset-2 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {label}
+      </button>
+    </div>
+  );
+}
+
 function unlistedPath(target: string | undefined, home: string | undefined): string | undefined {
   if (!target) return undefined;
   const path = home ? expandTilde(target, home) : target;
@@ -249,12 +255,14 @@ function unlistedPath(target: string | undefined, home: string | undefined): str
 function DirectoryFooter({
   listing,
   busy,
+  ready,
   actionLabel,
   onSubmit,
   onPickNatively,
 }: {
   listing: DirectoryListing | undefined;
   busy: boolean | undefined;
+  ready: boolean;
   actionLabel: string;
   onSubmit: () => void;
   onPickNatively?: (from: string | undefined) => void;
@@ -284,7 +292,7 @@ function DirectoryFooter({
       <button
         type="button"
         onClick={onSubmit}
-        disabled={Boolean(busy) || !listing}
+        disabled={Boolean(busy) || !ready}
         className={cn(
           "flex items-center gap-1.5 rounded-md bg-primary px-2 py-1 text-2xs font-medium text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:opacity-60",

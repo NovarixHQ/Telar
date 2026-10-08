@@ -1,6 +1,6 @@
 import type { Conditional, EngineTransport } from "../platform/transport";
 import { diffBaseQuery, filePatchQuery, type DiffBaseOption, type FilePatchOptions } from "./diff-query";
-import type { GitCommitEntry, GitFilePatch, GitignoreRemoval, GitignoreResult, GitOverview, GitPushResult, SessionDiff } from "./schema";
+import type { GitCommitEntry, GitFilePatch, GitOverview, GitPushResult, SessionDiff } from "./schema";
 
 const projectPath = (projectId: string) => `/v2/projects/${encodeURIComponent(projectId)}`;
 const sessionPath = (sessionId: string) => `/v2/sessions/${encodeURIComponent(sessionId)}`;
@@ -39,13 +39,5 @@ export const gitClient = {
 
   pushSessionBranch(this: EngineTransport, sessionId: string): Promise<GitPushResult> {
     return this.request("POST", `${sessionPath(sessionId)}/git/push`, {});
-  },
-
-  projectGitignore(this: EngineTransport, projectId: string): Promise<{ gitignore: GitignoreResult }> {
-    return this.request("POST", `${projectPath(projectId)}/gitignore`, {});
-  },
-
-  undoProjectGitignore(this: EngineTransport, projectId: string): Promise<{ gitignore: GitignoreRemoval }> {
-    return this.request("DELETE", `${projectPath(projectId)}/gitignore`);
   },
 };

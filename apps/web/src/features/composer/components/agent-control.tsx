@@ -1,9 +1,9 @@
 "use client";
 
 import { effortLabel, ProviderIcon, driverLabel } from "@/features/providers";
-import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+import { Popover, PopoverContent } from "@/ui/popover";
 import { useModelPicker, type ModelPickerProps } from "../hooks/use-model-picker";
-import { ControlTrigger } from "./control-primitives";
+import { PillTrigger } from "./control-primitives";
 import { ModelPickerList, ModelPickerRail } from "./model-picker-list";
 
 /** The model pill. A model change, or a switch to another provider's model, applies from the next turn. */
@@ -16,17 +16,14 @@ export function AgentControl(props: ModelPickerProps) {
 
   return (
     <Popover open={open} onOpenChange={(next: boolean) => (next ? picker.setOpen(true) : picker.close(driver))}>
-      <PopoverTrigger
-        render={
-          <ControlTrigger
-            open={open}
-            icon={<ProviderIcon provider={driver} size={14} />}
-            label={label}
-            {...(effort ? { detail: effortLabel(effort) } : {})}
-            ariaLabel={`Model: ${label} on ${driverLabel(driver)}`}
-            className="min-w-0 max-w-56 justify-start"
-          />
-        }
+      <PillTrigger
+        tip="Model"
+        open={open}
+        icon={<ProviderIcon provider={driver} size={14} />}
+        label={label}
+        {...(effort ? { detail: effortLabel(effort) } : {})}
+        ariaLabel={`Model: ${label} on ${driverLabel(driver)}`}
+        className="min-w-0 max-w-56 justify-start"
       />
       <PopoverContent
         align="start"

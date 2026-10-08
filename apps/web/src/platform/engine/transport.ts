@@ -2,7 +2,7 @@ import type { Conditional, EngineTransport } from "@telar/engine-client";
 import type {
 EngineErrorCode
 } from "@telar/engine-client";
-import { hostName, HOST_NAME_HEADER, LOCAL_HOST_ID, pinnedHost, type Fetcher } from "@/platform/engine/host-client";
+import { hostFromPathname, hostName, HOST_NAME_HEADER, LOCAL_HOST_ID, pinnedHost, type Fetcher } from "@/platform/engine/host-client";
 
 export type EngineApiErrorCode = EngineErrorCode | "cockpit_unauthorized";
 
@@ -121,9 +121,21 @@ async function send<T>(fetcher: Fetcher, method: string, pathname: string, body?
   return answer<T>(fetcher, response);
 }
 
+function askedThisCockpit(fetcher: Fetcher, pathname: string): boolean {
+  if (typeof window === "undefined" || pathname.startsWith("/api/hosts/")) return false;
+  return (pinnedHost(fetcher) ?? hostFromPathname(window.location.pathname)) === LOCAL_HOST_ID;
+}
+
+async function refusedAsUnpaired(response: Response): Promise<boolean> {
+  const payload = (await response.clone().json().catch(() => null)) as { error?: { code?: string } } | null;
+  return payload?.error?.code === "cockpit_unauthorized";
+}
+
 async function reach(fetcher: Fetcher, pathname: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetcher(pathname, init);
+    const response = await fetcher(pathname, init);
+    if (response.status === 401 && askedThisCockpit(fetcher, pathname) && (await refusedAsUnpaired(response))) window.location.replace("/pair");
+    return response;
   } catch (cause) {
     // An abort is the CALLER's decision arriving back, not the adapter being
     // away — it must surface as itself so the UI can say "Stopped".

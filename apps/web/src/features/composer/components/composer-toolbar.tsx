@@ -6,6 +6,7 @@ import type { ProviderDriverKind } from "@telar/engine-client";
 import type { ModelChoice } from "@/features/providers";
 import { InputGroupButton } from "@/ui/input-group";
 import { Spinner } from "@/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/ui/utils";
 import { useSwapFade } from "../hooks/use-composer-motion";
 import type { ComposerStash } from "../hooks/use-composer-stash";
@@ -21,6 +22,7 @@ export function SendButton({
   sending,
   hasContent,
   escArmed,
+  blocked,
   question,
   onStop,
   animate,
@@ -29,6 +31,7 @@ export function SendButton({
   sending: boolean;
   hasContent: boolean;
   escArmed: boolean;
+  blocked?: string | undefined;
   /** In question mode the button submits the form; the drawer keeps its own cancel. */
   question?: { label: string; ready: boolean };
   onStop: () => void;
@@ -38,29 +41,36 @@ export function SendButton({
   const stopping = busy && (escArmed || !hasContent) && !question;
   const label = question?.label ?? (escArmed ? "Press Escape again to stop" : stopping ? "Stop" : "Send");
   const armed = escArmed && !question;
+  const tip = question || stopping ? label : (blocked ?? label);
   useSwapFade(icon, armed ? "esc" : stopping ? "stop" : sending ? "sending" : "send", animate);
   return (
-    <InputGroupButton
-      type={stopping ? "button" : "submit"}
-      variant="default"
-      size="icon-sm"
-      aria-label={label}
-      title={question ? question.label : undefined}
-      onClick={stopping ? onStop : undefined}
-      className={cn(armed && "bg-destructive text-background hover:bg-destructive", !busy && !hasContent && "opacity-60", question && !question.ready && "opacity-60")}
-    >
-      <span ref={icon} className="flex items-center justify-center">
-        {armed ? (
-          <span className="text-3xs leading-none font-semibold tracking-tight">ESC</span>
-        ) : stopping ? (
-          <SquareIcon className="size-4" />
-        ) : sending ? (
-          <Spinner />
-        ) : (
-          <CornerDownLeftIcon className="size-4" />
-        )}
-      </span>
-    </InputGroupButton>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <InputGroupButton
+            type={stopping ? "button" : "submit"}
+            variant="default"
+            size="icon-sm"
+            aria-label={label}
+            onClick={stopping ? onStop : undefined}
+            className={cn(armed && "bg-destructive text-background hover:bg-destructive", (blocked || (!busy && !hasContent)) && "opacity-60", question && !question.ready && "opacity-60")}
+          >
+            <span ref={icon} className="flex items-center justify-center">
+              {armed ? (
+                <span className="text-3xs leading-none font-semibold tracking-tight">ESC</span>
+              ) : stopping ? (
+                <SquareIcon className="size-4" />
+              ) : sending ? (
+                <Spinner />
+              ) : (
+                <CornerDownLeftIcon className="size-4" />
+              )}
+            </span>
+          </InputGroupButton>
+        }
+      />
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
   );
 }
 

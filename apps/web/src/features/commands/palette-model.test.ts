@@ -42,7 +42,6 @@ const anything = () => true;
 
 const state = (over: Partial<QuickSettingsState> = {}): QuickSettingsState => ({
   scheme: "dark",
-  look: "",
   accent: "Indigo",
   fontSize: 16,
   translucent: false,
@@ -106,7 +105,6 @@ describe("the Quick settings rows", () => {
   test("always in this order, whatever the stores say", () => {
     expect(quickSettings(state()).map((row) => row.id)).toEqual([
       "quick-colour-scheme",
-      "quick-look",
       "quick-accent",
       "quick-font-size-smaller",
       "quick-font-size-larger",
@@ -129,14 +127,8 @@ describe("the Quick settings rows", () => {
     expect(rows({ railOpen: false })["quick-rail"]).toBe("Hidden");
   });
 
-  test("the Look row names the look being worn, and says nothing when none is", () => {
-    expect(quickSettings(state({ look: "Dusk" })).find((row) => row.id === "quick-look")?.value).toBe("Dusk");
-    expect(quickSettings(state()).find((row) => row.id === "quick-look")?.value).toBe("");
-  });
-
-  test("the two doors are doors; everything else applies in place", () => {
+  test("the accent row is a door; everything else applies in place", () => {
     const pages = Object.fromEntries(quickSettings(state()).map((row) => [row.id, row.page]));
-    expect(pages["quick-look"]).toBe("looks");
     expect(pages["quick-accent"]).toBe("accent");
     expect(pages["quick-colour-scheme"]).toBeUndefined();
     expect(pages["quick-rail"]).toBeUndefined();

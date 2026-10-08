@@ -4,4 +4,5 @@ export { REVIEW_STATUS_LETTER, REVIEW_STATUS_WORD } from "./session-review";
 export { type DiffTab, diffTabParams, readDiffTab } from "./diff-scope";
 export { type DiffTurn, diffTurns } from "./diff-turns";
 export { PublishBox } from "./components/publish-box";
+export { PublishRows } from "./components/publish-rows";
 export { useGitHubReady } from "./hooks/use-repo-reads";

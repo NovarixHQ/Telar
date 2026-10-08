@@ -70,6 +70,38 @@ test("the fifth wrong guess burns the code", async () => {
   expect((await call("POST", "/v2/remote/pair", { code: minted.code })).body.error.reason).toBe("none-pending");
 });
 
+test("pairing the same device again replaces its entry and revokes the old token", async () => {
+  const { call } = await engine();
+  const pairAs = async (body: Record<string, unknown>) => {
+    const { body: minted } = await call("POST", "/v2/remote/pairing");
+    return (await call("POST", "/v2/remote/pair", { code: minted.code, ...body })).body;
+  };
+  const admits = async (token: string) =>
+    (await call("POST", "/v2/auth/decide", { pathname: "/api/projects", method: "GET", authorization: `Bearer ${token}` })).body.allow;
+  const iphone = { name: "Telar iPhone", platform: "ios", clientId: "A1B2" };
+  await pairAs({ name: "Telar iPad", platform: "ios", clientId: "C3D4" });
+  const first = await pairAs(iphone);
+  await call("PATCH", `/v2/remote/devices/${first.deviceId}`, { role: "observer" });
+  const again = await pairAs({ ...iphone, name: "Facundo's iPhone" });
+  const safari = await pairAs({ name: "Safari · macOS", identity: { kind: "browser", address: "100.64.0.2" } });
+  const safariAgain = await pairAs({ name: "Safari · macOS", identity: { kind: "browser", address: "100.64.0.2" } });
+  await pairAs({ name: "Safari · macOS", identity: { kind: "browser", address: "100.64.0.3" } });
+
+  expect(again.deviceId).toBe(first.deviceId);
+  expect(safariAgain.deviceId).toBe(safari.deviceId);
+  expect(await admits(first.deviceToken)).toBe(false);
+  expect(await admits(again.deviceToken)).toBe(true);
+  expect(await admits(safari.deviceToken)).toBe(false);
+  const devices = (await call("GET", "/v2/remote")).body.devices as Array<{ name: string; role: string }>;
+  expect(devices.map((device) => [device.name, device.role])).toEqual([
+    ["Telar iPad", "full"],
+    ["Facundo's iPhone", "observer"],
+    ["Safari · macOS", "full"],
+    ["Safari · macOS", "full"],
+  ]);
+  expect(JSON.stringify(devices)).not.toContain("A1B2");
+});
+
 test("the status lists devices without token material", async () => {
   const { call, pair } = await engine();
   await pair();

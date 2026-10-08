@@ -59,19 +59,19 @@ const settled = { settledOverride: "settled", settledAt: NOW - 10 * MINUTE };
 describe("a settled row still running something", () => {
   test("wears the count, explains it on hover, and offers to close them", () => {
     const html = row(settled, { session_1: 2 }, { band: "settled" });
-    expect(html).toContain('title="2 terminals still open in this settled conversation, shells you opened included"');
+    expect(html).toContain('title="2 terminals still open in this settled session, shells you opened included"');
     expect(html).toContain('aria-label="Close its 2 terminals"');
   });
 
   test("with none, it wears nothing and offers nothing", () => {
     const html = row(settled, {}, { band: "settled" });
-    expect(html).not.toContain("still open in this settled conversation");
+    expect(html).not.toContain("still open in this settled session");
     expect(html).not.toContain("Close its");
   });
 
   test("an active row's terminals are its work: no count on it", () => {
     const html = row({}, { session_1: 2 });
-    expect(html).not.toContain("still open in this settled conversation");
+    expect(html).not.toContain("still open in this settled session");
     expect(html).not.toContain("Close its");
   });
 

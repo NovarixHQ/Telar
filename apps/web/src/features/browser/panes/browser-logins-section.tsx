@@ -26,6 +26,7 @@ export function LoginOfferToggle() {
   };
   return (
     <ToggleRow
+      keywords={["1password", "save login", "remember", "offer", "prompt", "password"]}
       label="Offer to remember after you sign in"
       hint="After you type a login in Telar's browser, ask whether agents may reuse it."
       checked={offer}
@@ -51,6 +52,7 @@ export function PasswordManagerToggles() {
   return (
     <>
       <ToggleRow
+        keywords={["1password", "extension", "autofill", "disable", "off", "credential", "integrations"]}
         label="Use a password manager in the browser"
         hint="Lets Telar's browser and agents fill logins from your password manager."
         info="Off hides its browser button and stops agents filling logins at once. Browsers already open keep its extension loaded until Telar restarts."
@@ -109,6 +111,7 @@ export function BrowserLoginsSection() {
 
   return (
     <SettingsGroup
+      keywords={["1password", "password", "credential", "autofill", "revoke", "vault", "integrations"]}
       title="Remembered logins"
       scope="mac"
       description="Logins you allowed agents to fill without asking again — 1Password still asks to unlock."

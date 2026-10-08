@@ -22,8 +22,9 @@ type BuildInfo = { appVersion?: string; health?: EngineHealth; unreachable?: boo
 function BuildRows({ appVersion, health, unreachable }: BuildInfo) {
   return (
     <>
-      <Row label="Version" control={<Mono>{appVersion ?? "—"}</Mono>} />
+      <Row keywords={["about", "this build"]} label="Version" control={<Mono>{appVersion ?? "—"}</Mono>} />
       <Row
+        keywords={["daemon", "offline", "health"]}
         label="Engine"
         hint={unreachable ? "Nothing is claiming turns; a message sent now stays queued." : undefined}
         control={
@@ -93,8 +94,9 @@ export function AboutSection(build: BuildInfo) {
   return (
     <SettingsGroup title="About">
       <BuildRows {...build} />
-      <Row label="Update status" hint={failure ?? updateStatusHint(status)} control={control} />
+      <Row keywords={["upgrade", "download", "version", "updates"]} label="Update status" hint={failure ?? updateStatusHint(status)} control={control} />
       <Row
+        keywords={["beta", "nightly", "stable", "release", "updates"]}
         label="Channel"
         {...(prefs && CHANNEL_HINT[prefs.channel] ? { hint: CHANNEL_HINT[prefs.channel] } : {})}
         control={
@@ -119,6 +121,7 @@ export function AboutSection(build: BuildInfo) {
         }
       />
       <Row
+        keywords={["restart", "automatic", "updates"]}
         label="Install on quit"
         control={
           <Switch

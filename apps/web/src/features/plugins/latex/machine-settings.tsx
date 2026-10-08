@@ -165,6 +165,7 @@ function ManagedTectonicRow({
 }) {
   return (
     <Row
+      keywords={["tectonic", "latex", "install", "tex", "download"]}
       id="plugins-latex-managed"
       icon={DownloadIcon}
       label="Telar (managed)"

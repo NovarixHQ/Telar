@@ -52,6 +52,7 @@ export function TextGenSection() {
   return (
     <SettingsGroup title="Text generation" scope="mac">
       <Row
+        keywords={["claude", "codex", "opencode", "driver"]}
         label="Written by"
         {...(error ? { error } : {})}
         {...(policy.driver === DEFAULT_TEXT_GEN_POLICY.driver
@@ -71,6 +72,7 @@ export function TextGenSection() {
         }
       />
       <Row
+        keywords={["title model", "textgen"]}
         label="Model"
         hint="Changing the provider above clears a pinned model."
         {...(pinned === DEFAULT_TEXT_GEN_POLICY.model
@@ -100,6 +102,7 @@ export function TextGenSection() {
         }
       />
       <Row
+        keywords={["reasoning", "thinking", "textgen"]}
         label="Effort"
         hint="How hard the model thinks before it names a session."
         {...(policy.effort === undefined ? {} : { onRevert: () => void save({ effort: null }) })}
@@ -117,6 +120,7 @@ export function TextGenSection() {
         }
       />
       <ToggleRow
+        keywords={["title", "rename", "automatic"]}
         label="Name sessions"
         checked={policy.titles}
         onCheckedChange={(next) => void save({ titles: next })}

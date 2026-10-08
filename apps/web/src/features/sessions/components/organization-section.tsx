@@ -17,6 +17,7 @@ function GroupByProjectRow() {
 
   return (
     <Row
+      keywords={["group by", "flat", "none", "list", "sidebar", "order", "newest"]}
       label="Group sessions by project"
       hint="Off, the rail is one list, newest first, with spawned sessions under the one that started them."
       {...(layout.mode === DEFAULT_SIDEBAR_LAYOUT.mode ? {} : { onRevert: () => void layout.setMode(DEFAULT_SIDEBAR_LAYOUT.mode) })}
@@ -41,6 +42,7 @@ function ContinueRows() {
   return (
     <>
       <ToggleRow
+        keywords={["rate limit", "usage limit", "resume", "five-hour", "weekly", "claude"]}
         label="Continue after a usage limit resets"
         icon={RefreshCwIcon}
         hint="A Claude turn stopped by a usage limit runs again once the limit lifts. A conversation can still change its own."
@@ -50,6 +52,7 @@ function ContinueRows() {
         {...(resumes ? {} : { onRevert: () => void save({ resumeAfterRateLimit: true }) })}
       />
       <Row
+        keywords={["resume", "restart", "update", "continue", "interrupted"]}
         label="Continue after Telar restarts"
         icon={RotateCcwIcon}
         hint="When Telar restarts to update, the sessions it stopped pick up where they left off."

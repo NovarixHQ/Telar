@@ -68,6 +68,7 @@ function RetentionRow() {
   if (!retention?.idleAfterDays) return null;
   return (
     <Row
+      keywords={["retention", "journal", "export", "retire", "idle"]}
       icon={HistoryIcon}
       label="Turn journal retention"
       hint={`Journals of conversations idle ${retention.idleAfterDays} days are moved to ${retention.exportTo ?? "an export folder"}.`}
@@ -129,6 +130,7 @@ export function CleanupSection() {
     <>
       <SettingsGroup title="Worktrees">
         <Row
+          keywords={["cleanup", "clean up", "disk", "space", "free", "full", "reclaim", "checkout", "idle", "old", "days"]}
           icon={ClockIcon}
           label="Delete inactive worktrees"
           hint="Releases the worktree of a session inactive this many days. Its branch and conversation are kept, and it comes back when you reopen the session."
@@ -146,6 +148,7 @@ export function CleanupSection() {
           }
         />
         <Row
+          keywords={["cleanup", "clean up", "disk", "space", "free", "reclaim", "checkout", "settled", "days"]}
           icon={MoonIcon}
           label="Release settled worktrees"
           hint="Releases a settled session's worktree after this many days; its branch and conversation are kept."
@@ -163,6 +166,7 @@ export function CleanupSection() {
           }
         />
         <ToggleRow
+          keywords={["cleanup", "clean up", "disk", "space", "reclaim", "checkout", "unchanged", "empty", "branch"]}
           icon={GitBranchIcon}
           label="Delete unchanged worktrees"
           hint="Releases the worktree of an idle session whose branch has no commits beyond the default branch."
@@ -171,6 +175,7 @@ export function CleanupSection() {
           {...errorFor("unchanged")}
         />
         <ToggleRow
+          keywords={["cleanup", "clean up", "disk", "space", "reclaim", "checkout", "archive"]}
           icon={ArchiveIcon}
           label="Delete worktrees of archived sessions"
           hint="Otherwise archiving keeps the worktree."
@@ -180,6 +185,7 @@ export function CleanupSection() {
         />
         <WorktreesRootRow onChanged={() => setRootVersion((version) => version + 1)} />
         <Row
+          keywords={["clean up now", "cleanup", "sweep", "free space", "disk", "run"]}
           icon={SparklesIcon}
           label="Clean up"
           hint={
@@ -201,6 +207,7 @@ export function CleanupSection() {
 
       <SettingsGroup title="Logs">
         <Row
+          keywords={["cleanup", "clean up", "disk", "space", "logs", "rotate", "days"]}
           icon={ScrollTextIcon}
           label="Delete old logs"
           hint="Rotated logs only."

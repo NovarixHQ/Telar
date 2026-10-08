@@ -48,14 +48,27 @@ const PAGES: SettingsPageSpec[] = [
   },
 ];
 const index = indexSettings(PAGES);
-const titles = (query: string) => searchSettings(index, query).map((entry) => entry.title);
+const isRow = (entry: { id: string }) => entry.id.startsWith("settings-row-");
+const titles = (query: string) => searchSettings(index, query).filter(isRow).map((entry) => entry.title);
 
 test("the index knows about panes nobody has opened", () => {
   // The whole point: rows are declared, so they are findable before the pane
   // that renders them has ever mounted.
-  expect(index.entries).toHaveLength(3);
-  expect(index.entries[0]?.id).toBe("settings-row-general-settling-settle-quiet-sessions");
-  expect(index.entries[0]?.pageLabel).toBe("General");
+  const rows = index.entries.filter(isRow);
+  expect(rows).toHaveLength(3);
+  expect(rows[0]?.id).toBe("settings-row-general-settling-settle-quiet-sessions");
+  expect(rows[0]?.pageLabel).toBe("General");
+});
+
+test("each pane and each titled group is a destination too", () => {
+  const others = index.entries.filter((entry) => !isRow(entry)).map((entry) => `${entry.id}=${entry.title}`);
+  expect(others).toEqual([
+    "settings-pane-general=General",
+    "settings-group-general-settling=Settling",
+    "settings-group-general-new-sessions=New sessions",
+    "settings-pane-remote=Remote access",
+    "settings-group-remote-pairing=Pairing",
+  ]);
 });
 
 test("the row whose title starts with the query leads", () => {
@@ -74,7 +87,7 @@ test("the title outranks the hint, and the hint outranks the pane", () => {
 });
 
 test("a keyword is matched but never shown", () => {
-  const hit = searchSettings(index, "worktree")[0];
+  const hit = searchSettings(index, "worktree").filter(isRow)[0];
   expect(hit?.title).toBe("Workspace");
   // Keywords ride with the hint for matching; the result still shows the row.
   expect(hit?.hint).toBe("Its own checkout and branch.");

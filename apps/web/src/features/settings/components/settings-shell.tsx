@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, Undo2Icon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/ui/utils";
-import { settingsRowId, type SettingsSearchEntry, type SettingsSearchIndex } from "../search";
+import { settingsGroupId, settingsRowId, type SettingsSearchEntry, type SettingsSearchIndex } from "../search";
 import { SettingsSearchNav } from "./settings-search-nav";
 import { Button } from "@/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
@@ -19,6 +19,7 @@ export type SettingsSection = {
   count?: number;
   scope?: SettingsScope;
   wide?: boolean;
+  keywords?: readonly string[];
 };
 
 const SettingsPaneContext = createContext<string | undefined>(undefined);
@@ -169,7 +170,7 @@ export function SettingsShell({
 
   const jumpTo = (entry: SettingsSearchEntry) => {
     onSelect(entry.pageId);
-    revealRow(entry.id);
+    if (!entry.id.startsWith("settings-pane-")) revealRow(entry.id);
   };
 
   const paneList = <SettingsPaneList sections={sections} active={active} onSelect={onSelect} />;
@@ -322,10 +323,12 @@ export function SettingsGroup({
   description?: ReactNode;
   action?: ReactNode;
   scope?: SettingsScope;
+  keywords?: readonly string[];
   children: ReactNode;
 }) {
+  const page = useContext(SettingsPaneContext);
   return (
-    <section className="mb-6 last:mb-0">
+    <section {...(typeof title === "string" ? { id: settingsGroupId({ ...(page ? { page } : {}), title }), tabIndex: -1 } : {})} className="mb-6 outline-none last:mb-0">
       {(title || description || action || scope) && (
         <div className="mb-2 flex items-start gap-3 px-4">
           <div className="min-w-0 flex-1">
@@ -372,6 +375,7 @@ export function Row({
   onRevert?: () => void;
   error?: ReactNode;
   unavailable?: { reason: ReactNode };
+  keywords?: readonly string[];
   children?: ReactNode;
 }) {
   const page = useContext(SettingsPaneContext);
@@ -556,6 +560,7 @@ export function ToggleRow({
   onRevert?: () => void;
   error?: ReactNode;
   unavailable?: { reason: ReactNode };
+  keywords?: readonly string[];
 }) {
   return (
     <Row

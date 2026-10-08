@@ -70,6 +70,7 @@ export function WorktreesRootRow({ onChanged }: { onChanged?: () => void }) {
 
   return (
     <Row
+      keywords={["worktree", "checkout", "external", "drive", "move", "space", "disk", "relocate", "worktree folder", "how many", "size"]}
       icon={FolderGitIcon}
       label="Worktree folder"
       hint={

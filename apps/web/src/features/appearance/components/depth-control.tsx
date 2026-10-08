@@ -13,6 +13,7 @@ const OPTIONS: { value: Depth; label: string; text: string }[] = [
 export function DepthControl({ value, onChange }: { value: Depth; onChange: (next: Depth) => void }) {
   return (
     <Row
+      keywords={["shadow", "elevation", "flat", "soft", "deep", "raised"]}
       label="Depth"
       icon={LayersIcon}
       hint="How far raised surfaces — cards, the composer, menus — sit off the page."

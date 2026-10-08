@@ -25,6 +25,7 @@ export function RemoteSection() {
     <>
       <SettingsGroup title="This Mac">
         <ToggleRow
+          keywords={["auth", "security", "phone", "ipad"]}
           label="Require pairing"
           icon={SmartphoneIcon}
           hint={

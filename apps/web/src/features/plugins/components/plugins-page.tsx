@@ -194,6 +194,7 @@ export function PluginsPage() {
 function AddPluginRow({ notice, disabled, onAdd }: { notice?: string; disabled: boolean; onAdd: (mode: "copy" | "link") => void }) {
   return (
     <Row
+      keywords={["install", "plugin", "folder", "link", "remove", "uninstall", "plugin.json"]}
       icon={FolderPlusIcon}
       label="Add plugin from folder"
       hint={notice ?? "Copy it in, or link it to keep editing it where it is."}

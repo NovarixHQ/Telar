@@ -99,6 +99,7 @@ export function AppearanceSection() {
         description="What the app looks like: a base colour the surfaces are derived from, and the layers over it. Light and dark are two states of one composition — you edit the one the window wears, set under Window below."
       >
         <Row
+          keywords={["colour", "color", "theme", "palette", "hue", "tint", "background", "canvas"]}
           label="Base"
           hint="The app colour. It decides the hue and how colourful the surfaces are; the lightness that keeps text readable is kept underneath."
           control={<BaseControl base={state.base} label={`${mode === "light" ? "Light" : "Dark"} base colour`} onChange={(base) => compose(setBase(mode, base))} />}
@@ -117,6 +118,7 @@ export function AppearanceSection() {
         />
 
         <Row
+          keywords={["light", "dark", "copy", "sync", "both"]}
           label="Match the other state"
           hint={`Give ${other} the same layers. It keeps its own base colour — that is the one thing the two states are never the same about.`}
           control={

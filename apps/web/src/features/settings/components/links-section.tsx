@@ -12,6 +12,7 @@ export function LinksSection() {
   return (
     <SettingsGroup title="Links" scope="browser">
       <Row
+        keywords={["external", "system browser", "tabs"]}
         label="Open in the session's browser"
         icon={ExternalLinkIcon}
         hint={

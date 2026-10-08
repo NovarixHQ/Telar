@@ -19,6 +19,10 @@ export function settingsRowId(parts: { page?: string; group?: string; label: str
   return `settings-row-${trail.join("-")}`;
 }
 
+export function settingsGroupId(parts: { page?: string; title: string }): string {
+  return `settings-group-${[parts.page, parts.title].map((part) => (part ? slug(part) : "")).filter(Boolean).join("-")}`;
+}
+
 type SettingsSearchIcon = ComponentType<{ className?: string }>;
 
 type SettingsRowSpec = {
@@ -27,11 +31,11 @@ type SettingsRowSpec = {
   hint?: string;
   keywords?: readonly string[];
   icon?: SettingsSearchIcon;
-  navigateOnly?: true;
 };
 
-type SettingsGroupSpec = {
+export type SettingsGroupSpec = {
   title?: string;
+  keywords?: readonly string[];
   rows: readonly SettingsRowSpec[];
 };
 
@@ -39,6 +43,7 @@ export type SettingsPageSpec = {
   id: string;
   label: string;
   icon?: SettingsSearchIcon;
+  keywords?: readonly string[];
   groups: readonly SettingsGroupSpec[];
 };
 
@@ -58,15 +63,22 @@ export type SettingsSearchIndex = { entries: readonly SettingsSearchEntry[] };
 export function indexSettings(pages: readonly SettingsPageSpec[]): SettingsSearchIndex {
   const entries: SettingsSearchEntry[] = [];
   for (const page of pages) {
-    for (const group of page.groups) {
-      for (const row of group.rows) {
+    const destinations = (group: SettingsGroupSpec): readonly SettingsRowSpec[] => {
+      if (!group.title || group.rows.some((row) => row.title === group.title)) return group.rows;
+      const heading = { id: settingsGroupId({ page: page.id, title: group.title }), title: group.title, ...(group.keywords ? { keywords: group.keywords } : {}) };
+      return [heading, ...group.rows];
+    };
+    const pageEntry = { id: `settings-pane-${page.id}`, title: page.label, ...(page.keywords ? { keywords: page.keywords } : {}) };
+    const groups: readonly SettingsGroupSpec[] = [{ rows: [pageEntry] }, ...page.groups];
+    for (const group of groups) {
+      for (const row of destinations(group)) {
         const id = row.id ?? settingsRowId({ page: page.id, ...(group.title ? { group: group.title } : {}), label: row.title });
         const icon = row.icon ?? page.icon;
         entries.push({
           id,
           title: row.title,
           ...(row.hint ? { hint: row.hint } : {}),
-          ...(group.title ? { group: group.title } : {}),
+          ...(group.title && row.title !== group.title ? { group: group.title } : {}),
           pageId: page.id,
           pageLabel: page.label,
           ...(icon ? { icon } : {}),

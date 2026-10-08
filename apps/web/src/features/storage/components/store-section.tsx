@@ -27,6 +27,7 @@ export function StoreSection() {
   return (
     <SettingsGroup title="Store">
       <Row
+        keywords={["external", "volume", "drive", "where", "path", "ssd"]}
         icon={HardDriveIcon}
         label="Data folder"
         hint={status?.pinnedByEnvironment ? `${status.path} (pinned by TELAR_HOME).` : where}
@@ -34,6 +35,7 @@ export function StoreSection() {
         {...(failure ? { error: failure } : {})}
       />
       <Row
+        keywords={["backup", "copy", "export", "move store"]}
         icon={CopyIcon}
         label="Safe copy"
         hint={
@@ -49,6 +51,7 @@ export function StoreSection() {
       />
       {status?.retired ? (
         <Row
+          keywords={["old store", "cleanup", "free space", "retired"]}
           icon={TrashIcon}
           label="Previous store"
           hint={

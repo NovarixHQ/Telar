@@ -34,6 +34,7 @@ export function projectTogglePatch(project: Project, pluginId: string, next: boo
   return toggle ? blockPatch(pluginId, toggle(project, next)) : enablePatch(pluginId, next);
 }
 
-export function machineRowsFor(pluginId: string): MachineSettingsBlock | undefined {
-  return panesFor(pluginId)?.machineRows;
+export function machineBlocksFor(pluginId: string): { machineRows?: MachineSettingsBlock } {
+  const machineRows = panesFor(pluginId)?.machineRows;
+  return machineRows ? { machineRows } : {};
 }

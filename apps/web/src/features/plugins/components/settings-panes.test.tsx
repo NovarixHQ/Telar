@@ -12,7 +12,7 @@ mock.module("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-const { machineRowsFor, projectPaneFor, SETTINGS_PANES } = await import("./settings-panes");
+const { machineBlocksFor, projectPaneFor, SETTINGS_PANES } = await import("./settings-panes");
 const { DataScienceSection } = await import("../data-science/data-science-section");
 const { DataSciencePackagesRow } = await import("../data-science/machine-settings");
 const { LatexSection } = await import("../latex/latex-section");
@@ -21,15 +21,15 @@ const { LatexDistributionRows } = await import("../latex/machine-settings");
 test("the two shipped features keep only what the generated pane cannot draw", () => {
   expect(projectPaneFor("data-science")).toBe(DataScienceSection);
   // The Mac scope is generated; each adds the one block its schema cannot express.
-  expect(machineRowsFor("data-science")).toBe(DataSciencePackagesRow);
+  expect(machineBlocksFor("data-science").machineRows).toBe(DataSciencePackagesRow);
   expect(projectPaneFor("latex")).toBe(LatexSection);
-  expect(machineRowsFor("latex")).toBe(LatexDistributionRows);
+  expect(machineBlocksFor("latex").machineRows).toBe(LatexDistributionRows);
   // Losing an id here would silently replace a working editor with a checkbox.
   expect(Object.keys(SETTINGS_PANES).sort()).toEqual(["data-science", "latex"]);
 });
 
 test("a plugin with no entry resolves to none — including an inherited key", () => {
   expect(projectPaneFor("hello")).toBeUndefined();
-  expect(machineRowsFor("hello")).toBeUndefined();
+  expect(machineBlocksFor("hello").machineRows).toBeUndefined();
   expect(projectPaneFor("constructor")).toBeUndefined();
 });

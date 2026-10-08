@@ -8,7 +8,7 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { chooseDirectory } from "@/platform/desktop/choose-directory";
 import { Switch } from "@/ui/switch";
-import { machineRowsFor } from "./settings-panes";
+import { machineBlocksFor } from "./settings-panes";
 import { GeneratedSettingsRows, pluginIcon } from "./generated-settings";
 import { NothingToConfigure } from "./plugin-settings";
 import { settingsFields } from "../settings-form";
@@ -32,7 +32,7 @@ function MachinePluginSettings({
   machine: ProjectPlugins | undefined;
   onMachine: (machine: ProjectPlugins) => void;
 }) {
-  const Rows = machineRowsFor(status.meta.id);
+  const { machineRows: Rows } = machineBlocksFor(status.meta.id);
   const fields = settingsFields(status.machineSettingsSchema);
   const section = status.meta.settings.find((entry) => entry.scope === "machine");
   if (fields.length === 0 && !Rows) return null;

@@ -194,6 +194,23 @@ describe("⌘S", () => {
   });
 });
 
+describe("an attachment thumbnail", () => {
+  test("enlarges the picked image when clicked", async () => {
+    const png = new File(["png"], "shot.png", { type: "image/png" });
+    const { host } = await composer({ files: [png] });
+    expect(document.querySelector('[role="dialog"] img[alt="shot.png"]')).toBeNull();
+    await click(host.querySelector('[aria-label="Enlarge shot.png"]')!);
+    await flush(() => Boolean(document.querySelector('[role="dialog"]')));
+    expect(document.querySelector('[role="dialog"] img[alt="shot.png"]')).not.toBeNull();
+  });
+
+  test("is not a button for a file that is not an image", async () => {
+    const pdf = new File(["%PDF"], "notes.pdf", { type: "application/pdf" });
+    const { host } = await composer({ files: [pdf] });
+    expect(host.querySelector('[aria-label="Enlarge notes.pdf"]')).toBeNull();
+  });
+});
+
 describe("prompt recall", () => {
   const sentPrompts = ["first", "second"];
 

@@ -19,7 +19,7 @@ import {
   wrapLinesSnapshot,
   writeWrapLines,
 } from "../editor-wrap";
-import { fileKind } from "../file-kinds";
+import { fileKind } from "@telar/client/files";
 import { rawFileUrl } from "../file-urls";
 import { useWorkspaceFileMenu, workspaceFilePath } from "../workspace-open";
 import { cn } from "@/ui/utils";

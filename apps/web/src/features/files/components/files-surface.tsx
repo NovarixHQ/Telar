@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { ChevronRightIcon, FolderIcon, FolderOpenIcon, FolderTreeIcon, HardDriveIcon, RotateCwIcon, SearchIcon } from "lucide-react";
 import type { GitChangeStatus, TurnState, WorkspaceListing } from "@telar/engine-client";
-import type { matchFiles } from "../file-tree";
+import type { matchFiles } from "@telar/client/files";
 import { useFilesTree, type FileTreeRowModel } from "../hooks/use-files-tree";
 import { directoryReference, fileReference, startReferenceDrag, type TelarReference } from "@telar/client/composer";
 import type { OpenIntent } from "../editor-workspace";

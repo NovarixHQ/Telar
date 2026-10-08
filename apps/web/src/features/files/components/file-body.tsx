@@ -18,7 +18,7 @@ import { FileKindIcon } from "./file-icon";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { PanelEmpty } from "@/ui/panel";
-import type { fileKind } from "../file-kinds";
+import type { fileKind } from "@telar/client/files";
 import { MAX_HIGHLIGHT_BYTES } from "../highlight";
 import type { MarkdownEditAction } from "../markdown-edit";
 import { cn } from "@/ui/utils";

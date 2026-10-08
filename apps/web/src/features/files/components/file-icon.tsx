@@ -19,7 +19,7 @@ import {
   SettingsIcon,
   TableIcon,
 } from "lucide-react";
-import { fileKind, type FileGlyph } from "../file-kinds";
+import { fileKind, type FileGlyph } from "@telar/client/files";
 import { cn } from "@/ui/utils";
 
 const GLYPHS: Record<FileGlyph, typeof FileIcon> = {

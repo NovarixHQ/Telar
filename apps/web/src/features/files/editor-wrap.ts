@@ -1,4 +1,4 @@
-import { fileKind, type FileKind } from "./file-kinds";
+import { fileKind, type FileKind } from "@telar/client/files";
 
 const STORAGE_KEY = "telar:editor-wrap";
 

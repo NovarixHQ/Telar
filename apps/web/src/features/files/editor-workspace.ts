@@ -1,5 +1,5 @@
 
-import { fileKind } from "./file-kinds";
+import { fileKind } from "@telar/client/files";
 import { viewerAvailable } from "@/features/plugins";
 
 export type EditorView = "code" | "notebook" | "table" | "pdf";

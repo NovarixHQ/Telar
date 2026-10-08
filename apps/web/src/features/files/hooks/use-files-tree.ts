@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GitChangeStatus, TurnState, WorkspaceListing } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
-import { ancestorsOf, buildFileTree, directoryPaths, flattenTree, matchFiles, type FileTreeNode } from "../file-tree";
+import { ancestorsOf, buildFileTree, directoryPaths, flattenTree, matchFiles, type FileTreeNode } from "@telar/client/files";
 import type { OpenIntent } from "../editor-workspace";
 
 const api = createEngineApi();

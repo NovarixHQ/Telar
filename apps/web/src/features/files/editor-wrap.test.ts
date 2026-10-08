@@ -1,6 +1,6 @@
 // Wrap is presentation only; nothing here can reach a file's contents.
 import { describe, expect, test } from "bun:test";
-import { fileKind } from "./file-kinds";
+import { fileKind } from "@telar/client/files";
 import { isProseFile, isProsePath, NOWRAP_CLASS, readWrapLines, WRAP_CLASS, writeWrapLines } from "./editor-wrap";
 
 const store = (seed: Record<string, string> = {}) => {

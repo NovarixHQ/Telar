@@ -1,7 +1,7 @@
 import { CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, type LucideIcon } from "lucide-react";
 import type { CommandId } from "@/features/commands";
 import type { BrowserProvider, BrowserTab } from "@telar/engine-client";
-import { fileKind } from "@/features/files";
+import { fileKind } from "@telar/client/files";
 import { isPluginSurface, PLUGIN_SURFACES, pluginSurfaces, viewerAvailable, type PluginSurfaceId, type PluginPanelSource } from "@/features/plugins";
 import type { PanelTabInstance, PanelTabParams } from "./tabs";
 

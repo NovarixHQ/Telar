@@ -7,7 +7,6 @@ import { fmtTokens } from "@/ui/format";
 import { driverLabel } from "@/features/providers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Button } from "@/ui/button";
-import { Switch } from "@/ui/switch";
 
 function compactTokens(value: number): string {
   return fmtTokens(value).replace(/\.0(?=[kM]$)/, "");
@@ -23,8 +22,6 @@ export function ContextPill({
   onCompact,
   compactDisabled,
   compactReason,
-  resumeAfterRateLimit,
-  onResumeAfterRateLimit,
 }: {
   usage?: UsageSnapshot;
   driver?: ProviderDriverKind;
@@ -32,9 +29,6 @@ export function ContextPill({
   onCompact?: () => void;
   compactDisabled?: boolean;
   compactReason?: string;
-  /** Absent means the driver's default, which is on for Claude. */
-  resumeAfterRateLimit?: boolean;
-  onResumeAfterRateLimit?: (next: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const used = usage?.contextUsed;
@@ -51,8 +45,6 @@ export function ContextPill({
       ? compactTokens(used)
       : `${usedPct.toFixed(1)}% · ${compactTokens(used)}/${compactTokens(max!)}`;
   const harness = driver ? driverLabel(driver) : "The harness";
-  // Claude only: the only provider whose limits the engine can schedule a resume from.
-  const limits = driver === "claude" ? onResumeAfterRateLimit : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -111,15 +103,6 @@ export function ContextPill({
               <Minimize2Icon className="size-3.5" />
               Compact now
             </button>
-          )}
-          {limits && (
-            <div className="mt-4 flex items-start gap-3 border-t border-border pt-4">
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Continue after a usage limit resets</span>
-                <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">A turn stopped by a usage limit runs again once the limit lifts.</span>
-              </span>
-              <Switch checked={resumeAfterRateLimit ?? true} onCheckedChange={(next) => limits(next)} aria-label="Continue after a usage limit resets" />
-            </div>
           )}
         </div>
       </PopoverContent>

@@ -1,10 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { act } from "react";
 import { installTestDom, mount, press } from "@/test/dom";
 import type { PanelTab, PanelTabItem } from "../model";
 import { RightPanel } from "./right-panel";
 
 installTestDom();
+
+const shell = window as unknown as { telarDesktop?: unknown };
+beforeEach(() => {
+  shell.telarDesktop = { terminal: {} };
+});
+afterEach(() => {
+  delete shell.telarDesktop;
+});
 
 async function panel({ tabs = [], browserUnavailable }: { tabs?: PanelTabItem[]; browserUnavailable?: string } = {}) {
   const opened: string[] = [];
@@ -79,5 +87,28 @@ describe("the + menu is the same launcher", () => {
     expect([...menu.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent).slice(0, 4)).toEqual(["Browserb", "Terminalt", "Editore", "New Diffd"]);
     await key("e", menu);
     expect(opened).toEqual(["editor"]);
+  });
+});
+
+describe("in a plain browser, which cannot open a shell", () => {
+  test("neither the launcher nor the + menu offers the Terminal, and t opens nothing", async () => {
+    delete shell.telarDesktop;
+    const { host, opened } = await panel();
+    expect(rowsIn(host).map((row) => row.textContent).slice(0, 3)).toEqual(["Browserb", "Editore", "Diffd"]);
+    await key("t");
+    expect(opened).toEqual([]);
+    await press(host.querySelector('[aria-label="Open a surface"]')!);
+    const items = [...document.querySelector('[role="menu"]')!.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent);
+    expect(items).not.toContain("Terminalt");
+  });
+
+  test("on another Mac's session the desktop app cannot open a shell either", async () => {
+    window.history.replaceState(null, "", "/hosts/other-mac/sessions/session_a");
+    try {
+      const { host } = await panel();
+      expect(rowsIn(host).map((row) => row.textContent)).not.toContain("Terminalt");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 });

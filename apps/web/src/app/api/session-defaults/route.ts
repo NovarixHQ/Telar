@@ -26,7 +26,6 @@ export const PATCH = engineRoute(async (request: Request) => {
       ...("envMode" in body ? { envMode: body.envMode as EnvMode } : {}),
       ...("resumeAfterRestart" in body ? { resumeAfterRestart: body.resumeAfterRestart as boolean } : {}),
       ...("runtimeMode" in body ? { runtimeMode: body.runtimeMode as RuntimeMode | null } : {}),
-      ...("resumeAfterRateLimit" in body ? { resumeAfterRateLimit: body.resumeAfterRateLimit as boolean } : {}),
       ...("defaultModel" in body ? { defaultModel: body.defaultModel as ModelSelection | null } : {}),
     }),
   );

@@ -82,15 +82,12 @@ function useExpanded(compact: boolean) {
   return [expanded, () => setExpanded(true)] as const;
 }
 
-function ComposerContext({ usage, session, onCompact, busy, sending, compacting, onResumeAfterRateLimit, resumeAfterRateLimitDefault }: ComposerProps) {
-  const resumes = session?.resumeAfterRateLimit ?? resumeAfterRateLimitDefault;
+function ComposerContext({ usage, session, onCompact, busy, sending, compacting }: ComposerProps) {
   return (
     <ContextPill
       {...(usage ? { usage } : {})}
       {...(session ? { driver: session.driver } : {})}
       {...(onCompact ? { onCompact } : {})}
-      {...(resumes === undefined ? {} : { resumeAfterRateLimit: resumes })}
-      {...(onResumeAfterRateLimit ? { onResumeAfterRateLimit } : {})}
       compactDisabled={busy || sending || Boolean(compacting)}
       compactReason={compactBlockedReason({ busy, ...(compacting ? { compacting } : {}) }) ?? "Sending…"}
     />

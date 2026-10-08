@@ -106,6 +106,12 @@ function rank(entry: SettingsSearchEntry, query: string, terms: readonly string[
   return undefined;
 }
 
+export function settingsHref(entry: Pick<SettingsSearchEntry, "id" | "pageId">): string {
+  const params = new URLSearchParams({ section: entry.pageId });
+  if (!entry.id.startsWith("settings-pane-")) params.set("row", entry.id);
+  return `/settings?${params}`;
+}
+
 export function searchSettings(
   index: SettingsSearchIndex,
   query: string,

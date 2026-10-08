@@ -156,6 +156,10 @@ function SidebarBody() {
             onRun={run}
             onChooseProject={(target) => startSession(composerTargetOf(target))}
             onOpenSession={openSession}
+            onNavigate={(href) => {
+              onNavigate();
+              router.push(href);
+            }}
             onRegistered={() => void data.loadAll()}
           />
         </Suspense>

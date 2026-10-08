@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 const target: NewConversationTarget = { id: "p1", name: "Alpha" };
-const session = { id: "s1", title: "Chat one", projectName: "Alpha" } as SidebarSession;
+const session = { id: "s1", title: "Chat one", projectName: "Alpha", worktreeBranch: "fix-rail", updatedAt: Date.now() } as SidebarSession;
 
 type Props = { open: boolean; page?: CommandPalettePage; query?: string };
 type Control = { set: (props: Props) => void };
@@ -35,6 +35,7 @@ function Harness({ log, ref, ...initial }: Props & { log: string[]; ref: Ref<Con
       onRun={(id) => log.push(`run:${id}`)}
       onChooseProject={(chosen) => log.push(`project:${chosen.id}`)}
       onOpenSession={(opened) => log.push(`session:${opened.id}`)}
+      onNavigate={(href) => log.push(`navigate:${href}`)}
       onRegistered={() => log.push("registered")}
     />
   );
@@ -59,6 +60,8 @@ function bind(...ids: CommandId[]) {
 const field = () => document.querySelector('[role="combobox"]') as HTMLInputElement;
 const options = () => [...document.querySelectorAll('[role="option"]')];
 const option = (label: string) => options().find((node) => node.textContent?.startsWith(label));
+const conversations = () =>
+  [...document.querySelectorAll('[role="group"][aria-label="Recent conversations"] [role="option"]')].map((node) => node.textContent);
 const highlighted = () => document.getElementById(field().getAttribute("aria-activedescendant") ?? "");
 
 async function key(init: KeyboardEventInit) {
@@ -112,7 +115,7 @@ test("the Accent page is a page of this dialog, and Backspace on an empty field 
 
   await clearField(field());
   await key({ key: "Backspace" });
-  expect(field().getAttribute("aria-label")).toBe("Search commands, projects and conversations");
+  expect(field().getAttribute("aria-label")).toBe("Search commands, settings, projects and conversations");
   expect(log).toEqual([]);
 });
 
@@ -160,7 +163,7 @@ test("a row that walks opens the project palette's own page without closing, and
   expect(field().getAttribute("aria-label")).toBe("Search projects");
   expect(log).toEqual([]);
   await key({ key: "Backspace" });
-  expect(field().getAttribute("aria-label")).toBe("Search commands, projects and conversations");
+  expect(field().getAttribute("aria-label")).toBe("Search commands, settings, projects and conversations");
 });
 
 test("any other command closes the dialog first, then runs", async () => {
@@ -176,7 +179,7 @@ test("a fresh palette every time, seeded with what the rail's field held", async
   await rerender({ open: false });
   await rerender({ open: true, query: "Chat" });
   expect(field().value).toBe("Chat");
-  expect(options().map((node) => node.textContent)).toEqual(["Chat oneAlpha"]);
+  expect(conversations()).toEqual(["Chat oneAlpha · #fix-railjust now"]);
   expect(field().getAttribute("aria-activedescendant")).toBe("command-palette-0");
 });
 
@@ -198,4 +201,28 @@ test("it searches what the rail hands it and reads nothing of its own", async ()
   await typeInto(field(), "Alpha");
   expect(options().map((node) => node.textContent)).toContain("AAlphaLocal");
   expect(calls).toEqual([]);
+});
+
+test("a settings row is found by name and opens its pane at that row", async () => {
+  const log = await openPalette();
+  await typeInto(field(), "colour scheme");
+  const group = document.querySelector('[role="group"][aria-label="Settings"]');
+  expect(group?.textContent).toContain("Colour scheme");
+  const row = [...group!.querySelectorAll('[role="option"]')].find((node) => node.textContent?.startsWith("Colour scheme"));
+  await click(row);
+  expect(log).toEqual(["open:false", "navigate:/settings?section=appearance&row=settings-row-appearance-colour-scheme"]);
+});
+
+test("a settings page is a result that opens the page itself", async () => {
+  const log = await openPalette();
+  await typeInto(field(), "notifications");
+  const row = [...document.querySelectorAll('[role="group"][aria-label="Settings"] [role="option"]')].find((node) => node.textContent === "Notifications");
+  await click(row);
+  expect(log).toEqual(["open:false", "navigate:/settings?section=notifications"]);
+});
+
+test("a conversation is found by its branch and shows where it lives", async () => {
+  await openPalette();
+  await typeInto(field(), "fix rail");
+  expect(conversations()).toEqual(["Chat oneAlpha · #fix-railjust now"]);
 });

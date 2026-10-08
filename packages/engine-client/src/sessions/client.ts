@@ -29,8 +29,6 @@ type SessionPatch = {
   settledOverride?: "settled" | "active" | null;
   /** `null` cancels the snooze. */
   snoozedUntil?: number | null;
-  /** `null` returns to the driver's default. */
-  resumeAfterRateLimit?: boolean | null;
 };
 
 type Settled = Promise<{ session: Session; ended?: SessionSettleEnded }>;

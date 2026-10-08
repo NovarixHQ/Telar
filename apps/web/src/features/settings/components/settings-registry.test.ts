@@ -13,7 +13,7 @@ test("every indexed pane is a pane the shell can actually select", () => {
 test("no two rows claim the same anchor", () => {
   const ids = SETTINGS_SEARCH_INDEX.entries.map((entry) => entry.id);
   expect(new Set(ids).size).toBe(ids.length);
-  expect(ids).toContain("settings-row-general-about-engine");
+  expect(ids).toContain("settings-row-general-about-version");
   expect(ids).toContain("settings-row-integrations-computer-use");
 });
 

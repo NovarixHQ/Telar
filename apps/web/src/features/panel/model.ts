@@ -24,16 +24,16 @@ const ALL_SURFACES: readonly Surface[] = [...SURFACES, ...PLUGIN_SURFACES];
 /** The launcher's Browser row: not a tab kind, since it starts the browser or shows the last page. */
 export const BROWSER_SURFACE = { label: "Browser", icon: GlobeIcon, key: "b", command: "open-browser" } as const satisfies Omit<Surface, "id" | "blurb">;
 
-export function surfaceCommands(enabledPlugins: readonly string[]): { command: CommandId; tab: PanelTab }[] {
-  return surfacesFor(enabledPlugins).flatMap((surface) => (surface.command ? [{ command: surface.command, tab: surface.id as PanelTab }] : []));
+export function surfaceCommands(enabledPlugins: readonly string[], { shells }: { shells: boolean }): { command: CommandId; tab: PanelTab }[] {
+  return surfacesFor(enabledPlugins, NO_PANELS, shells).flatMap((surface) => (surface.command ? [{ command: surface.command, tab: surface.id as PanelTab }] : []));
 }
 
 export const NO_PLUGINS: readonly string[] = [];
 export const NO_PANELS: readonly PluginPanelSource[] = [];
 
-/** The surfaces a project offers: the core ones, then the enabled plugins'. */
-function surfacesFor(enabledPlugins: readonly string[], pluginPanels: readonly PluginPanelSource[] = NO_PANELS): Surface[] {
-  return [...SURFACES, ...pluginSurfaces(enabledPlugins, pluginPanels.length > 0)];
+/** The surfaces a project offers: the core ones, then the enabled plugins'. The Terminal only where this client can open a shell. */
+function surfacesFor(enabledPlugins: readonly string[], pluginPanels: readonly PluginPanelSource[], shells: boolean): Surface[] {
+  return [...SURFACES.filter((surface) => shells || surface.id !== "terminal"), ...pluginSurfaces(enabledPlugins, pluginPanels.length > 0)];
 }
 
 /** File, issue and pull ids are requests to open something inside a surface, never tabs of their own. */
@@ -239,7 +239,7 @@ export type LauncherRow = { id: PanelTab | "browser"; label: string; icon: Lucid
  */
 export function launcherRows(
   tabs: readonly PanelTabItem[],
-  { enabledPlugins, pluginPanels, canOpenNew, browser, flat = true }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; browser?: { unavailable?: string }; flat?: boolean },
+  { enabledPlugins, pluginPanels, canOpenNew, shells, browser, flat = true }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; shells: boolean; browser?: { unavailable?: string }; flat?: boolean },
 ): LauncherRow[] {
   const holdsKind = (kind: PanelTab) => tabs.some((entry) => entry.kind === kind);
   const offersAnother = (kind: PanelTab) => MULTI_INSTANCE.has(kind) && canOpenNew && (flat || kind !== "terminal");
@@ -248,7 +248,7 @@ export function launcherRows(
     : [];
   return [
     ...browserRow,
-    ...surfacesFor(enabledPlugins, pluginPanels)
+    ...surfacesFor(enabledPlugins, pluginPanels, shells)
       .filter((surface) => !holdsKind(surface.id) || offersAnother(surface.id))
       .map((surface) => ({ id: surface.id as PanelTab, label: surface.label, icon: surface.icon, ...(surface.key ? { key: surface.key } : {}), another: holdsKind(surface.id) })),
   ];

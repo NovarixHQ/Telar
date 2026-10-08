@@ -25,6 +25,9 @@ import { COMMANDS, commandHandler, type CommandId } from "../commands";
 import { ACCENTS, ACCENT_LABELS, useQuickSettings } from "../quick-settings";
 import { useKeymap } from "../use-command-keys";
 import type { SidebarSession } from "@/features/sessions";
+import { SETTINGS_SEARCH_INDEX, searchSettings, settingsHref } from "@/features/settings";
+
+const SETTINGS_RESULT_LIMIT = 6;
 
 export type CommandPalettePage = "root" | PalettePage | PaletteQuickPage;
 
@@ -61,6 +64,7 @@ export function CommandPalette({
   onRun,
   onChooseProject,
   onOpenSession,
+  onNavigate,
   onRegistered,
 }: {
   open: boolean;
@@ -73,6 +77,7 @@ export function CommandPalette({
   onRun: (id: CommandId) => void;
   onChooseProject: (target: NewConversationTarget) => void;
   onOpenSession: (session: SidebarSession) => void;
+  onNavigate: (href: string) => void;
   onRegistered: () => void;
 }) {
   const keymap = useKeymap();
@@ -88,7 +93,8 @@ export function CommandPalette({
     (id) => Boolean(commandHandler(id)) || commandDestination(id, []).kind !== "noop",
     ["search-sessions", ...PALETTE_QUICK_COMMANDS],
   );
-  const sections = paletteSections({ actions, quick: quick.rows, targets, sessions, query });
+  const settings = searchSettings(SETTINGS_SEARCH_INDEX, query, { limit: SETTINGS_RESULT_LIMIT });
+  const sections = paletteSections({ actions, quick: quick.rows, targets, settings, sessions, query });
   const rows = paletteRows(sections);
   const nav = useListNav({ count: rows.length, onPick: (at) => take(rows[at]), idPrefix: "command-palette" });
   const setIndex = nav.setActive;
@@ -112,6 +118,11 @@ export function CommandPalette({
     if (row.kind === "session") {
       onOpenChange(false);
       onOpenSession(row.session);
+      return;
+    }
+    if (row.kind === "setting") {
+      onOpenChange(false);
+      onNavigate(settingsHref(row.entry));
       return;
     }
     if (row.kind === "quick") {

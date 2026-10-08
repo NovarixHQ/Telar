@@ -302,6 +302,12 @@ describe("what the corner button and the empty box say", () => {
     return document.querySelector("[data-slot=tooltip-content]")?.textContent;
   };
 
+  test("the empty box names its triggers", async () => {
+    const { host } = await composer();
+    expect(host.textContent).toContain("@ to reference");
+    expect(host.textContent).toContain("/ for commands");
+  });
+
   test("Send's tooltip says why a press would not send", async () => {
     const { host } = await composer({ initial: "go", ready: false });
     expect(await tooltip(send(host))).toBe("This conversation is not ready yet.");

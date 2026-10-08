@@ -34,7 +34,7 @@ const EDITOR_ID = "turn-prompt";
 function placeholderFor(ready: boolean, busy: boolean): string {
   if (!ready) return "Waiting for the session…";
   if (busy) return "Enter sends into the running turn…";
-  return "Ask for changes, or explore the project…";
+  return "Ask anything, @ to reference, $ for skills, / for commands";
 }
 
 function blockedReason(ready: boolean, driveAway: boolean, hasContent: boolean): string | undefined {

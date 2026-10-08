@@ -6,6 +6,7 @@ import { asEngineError, createEngineApi, isActiveTurn, loadOlderTurns, tailInter
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { headConnection, headKey, headStore, openHead, saveHead } from "../../session-heads";
+import { useSessionsStream } from "../../sessions-stream";
 import { decideStale } from "../stale-state";
 import { emptySessionData, sessionDataReducer, type SessionData } from "../session-data";
 
@@ -52,7 +53,6 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
   const syncQueue = useRef<Promise<void>>(Promise.resolve());
   const syncSession = useRef(syncKey);
   const syncGeneration = useRef(0);
-  const tailInFlight = useRef(false);
   const transcriptLanded = !sessionId || data.readKey === syncKey;
 
   const [transcriptSubject, setTranscriptSubject] = useState(syncKey);
@@ -67,7 +67,6 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
     syncSession.current = syncKey;
     syncGeneration.current += 1;
     syncQueue.current = Promise.resolve();
-    tailInFlight.current = false;
   }, [syncKey]);
 
   const enqueueSync = useCallback((operation: () => Promise<void>) => {
@@ -168,19 +167,40 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
     };
   }, [open, sessionId, fail, syncKey]);
 
-  usePoll((signal) => {
-    if (tailInFlight.current) return;
-    tailInFlight.current = true;
-    const generation = syncGeneration.current;
-    return pull("tail")
-      .catch((cause) => !signal.aborted && fail(cause, "Could not tail the session journal."))
-      .finally(() => {
-        if (generation === syncGeneration.current) tailInFlight.current = false;
-      });
-  }, sessionId ? tailIntervalMs(data.turns) : null, { immediate: false, key: syncKey });
+  useTail({ hostId, sessionId, syncKey, turns: data.turns, pull, fail });
 
   const setSession = useCallback((next: SetStateAction<Session | undefined>) => dispatch({ type: "session", next }), []);
   const clearTranscript = useCallback(() => dispatch({ type: "clear" }), []);
   const session = sessionId ? data.session : undefined;
   return { ...data, session, setSession, clearTranscript, loadOlder, loadingOlder, error, setError, stale, loading, updating: Boolean(sessionId) && reconciled !== syncKey, syncKey, transcriptLanded, hydrate };
+}
+
+type TailInput = {
+  hostId: string;
+  sessionId: string | undefined;
+  syncKey: string;
+  turns: SessionData["turns"];
+  pull: (type: "tail") => Promise<void>;
+  fail: (cause: unknown, fallback: string) => void;
+};
+
+/** Polls fast while a turn runs; settled, it backs off and the host's stream wakes it for this session's events. */
+function useTail({ hostId, sessionId, syncKey, turns, pull, fail }: TailInput) {
+  const inFlight = useRef<string>(undefined);
+  const live = turns.some((turn) => isActiveTurn(turn.state));
+  const wake = usePoll((signal) => {
+    if (inFlight.current === syncKey || !sessionId) return;
+    inFlight.current = syncKey;
+    const before = headConnection(hostId, sessionId).peek()?.cursor;
+    return pull("tail")
+      .then(() => headConnection(hostId, sessionId).peek()?.cursor !== before)
+      .catch((cause) => {
+        if (!signal.aborted) fail(cause, "Could not tail the session journal.");
+        return false;
+      })
+      .finally(() => {
+        if (inFlight.current === syncKey) inFlight.current = undefined;
+      });
+  }, sessionId ? tailIntervalMs(turns) : null, { immediate: false, key: syncKey, backoff: !live });
+  useSessionsStream(sessionId && hostId, (frame) => !live && frame.sessionId === sessionId && wake(), wake);
 }

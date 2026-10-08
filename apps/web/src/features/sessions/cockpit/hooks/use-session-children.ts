@@ -5,6 +5,7 @@ import { displayToolName, type SessionChild } from "@telar/engine-client";
 import { createEngineApi, EngineApiError, type JournalTurn } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
+import { changesRow, useSessionsStream } from "../../sessions-stream";
 
 export const CHILDREN_LIVE_MS = 3_000;
 export const CHILDREN_IDLE_MS = 15_000;
@@ -21,7 +22,7 @@ export function useSessionChildren(hostId: string, sessionId: string | undefined
   const children = held && held.owner === owner ? held.children : NONE;
   const lastRead = useRef<{ key: string; at: number }>(undefined);
   const key = `${owner}:${String(growth)}`;
-  usePoll(
+  const wake = usePoll(
     async (signal) => {
       if (!sessionId || !owner || unsupported.has(owner)) return;
       const quiet = !children.some(childPending);
@@ -36,10 +37,12 @@ export function useSessionChildren(hostId: string, sessionId: string | undefined
       if (signal.aborted) return;
       if (Array.isArray(answer?.children)) setHeld({ owner, children: answer.children });
       else if (unsupported.has(owner)) setHeld({ owner, children: [] });
+      return answer?.children.some(childPending);
     },
     owner && !unsupported.has(owner) ? CHILDREN_LIVE_MS : null,
-    { key },
+    { key, backoff: true },
   );
+  useSessionsStream(owner && hostId, (frame) => changesRow(frame) && children.some((child) => child.sessionId === frame.sessionId) && wake(), () => {});
   return children;
 }
 

@@ -8,6 +8,7 @@ import { PROJECTS_CHANGED_EVENT } from "@/features/projects";
 import { dedupeAcrossHosts } from "../session-groups";
 import { sessionKey, toSidebarSession, type SidebarSession } from "../session-list";
 import { applyRowChange, type SessionRowChange } from "../session-mutations";
+import { changesRow, useSessionsStream } from "../sessions-stream";
 import { readSettledCache, readSidebarCache, rememberRows, staleRows, writeSettledCache, writeSidebarCache } from "./sidebar-cache";
 import { observeSidebarLayout } from "./sidebar-layout";
 
@@ -130,7 +131,7 @@ function heldShelves(cache: HostCache): SidebarSession[] {
   return [...cache.pages].flatMap(([key, page]) => (key.endsWith(SHELF) ? page.sessions : []));
 }
 
-/** Every host's live sessions and projects, polled faster while anything runs. */
+/** Every host's live sessions and projects: polled faster while anything runs, backing off while idle, and re-read when this host's stream reports a row change. */
 export function useRailData() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [sessions, setSessions] = useState<SidebarSession[]>([]);
@@ -254,7 +255,8 @@ export function useRailData() {
   }, [loadAll]);
 
   const anyLive = sessions.some((session) => session.activity !== "idle" && session.activity !== "waiting" && session.activity !== "scheduled");
-  usePoll(loadAll, anyLive ? 3_000 : 10_000, { immediate: false });
+  const wake = usePoll(loadAll, anyLive ? 3_000 : 10_000, { immediate: false, backoff: !anyLive });
+  useSessionsStream(LOCAL_HOST_ID, (frame) => changesRow(frame) && wake(), wake);
 
   return {
     projects,

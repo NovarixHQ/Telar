@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { DiffBaseOption, SessionDiff, TurnState } from "@telar/engine-client";
-import { EngineApiError } from "@/platform/engine";
+import { EngineApiError, isActiveTurn } from "@/platform/engine";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { api } from "../api";
 
@@ -33,8 +33,8 @@ export function useDiffRead(sessionId: string | undefined, projectId: string | u
   return { diff, error, load };
 }
 
-/** Re-reads on a timer and whenever the turn state changes, so a settling turn re-reads at once. */
+/** Re-reads on a timer, backing off while no turn runs, and whenever the turn state changes, so a settling turn re-reads at once. */
 export function useDiffRefresh(load: () => Promise<void>, active: TurnState | undefined) {
   const key = useMemo(() => ({ load, active }), [load, active]);
-  usePoll(load, REFRESH_MS, { key });
+  usePoll(load, REFRESH_MS, { key, backoff: active === undefined || !isActiveTurn(active) });
 }

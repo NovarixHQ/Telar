@@ -87,8 +87,6 @@ const PATTERNS: { kind: ReferenceKind; pattern: RegExp; label: (match: RegExpExe
   { kind: "page", pattern: /the "([^"]*)" page open in the session's browser \(\S+?\)/g, label: (match) => match[1] || "page" },
   // Head line only, so the fenced log below stays visible.
   { kind: "check", pattern: /the "([^"]*)" check \([^)]*\)(?: — \S+)?/g, label: (match) => match[1] ?? "check" },
-  // `noteReference`; head line only. The literal `n-` + hex id keeps prose out.
-  { kind: "note", pattern: /the "([^"]*)" project note \(n-[0-9a-f]+\)/g, label: (match) => match[1] || "note" },
   // `sessionReference`, whole sentence, so the instructions it carries draw as part of the chip.
   {
     kind: "session",

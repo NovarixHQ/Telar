@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
 import type { ProviderDriverKind, ProviderSkills, RuntimeMode } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
-import { rankNotes, useProjectNotes } from "@/features/notes";
 import {
   availableCommands,
   buildPathIndex,
@@ -54,7 +53,7 @@ function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<
   return { value, reading };
 }
 
-/** `@` for notes and paths, `$` for skills, `/` for this box's commands then the provider's. */
+/** `@` for paths, `$` for skills, `/` for this box's commands then the provider's. */
 export function useComposerCompletions({
   editor,
   sessionId,
@@ -76,7 +75,6 @@ export function useComposerCompletions({
   // Escape hides the list without clearing the trigger; the next edit re-arms it.
   const [dismissed, setDismissed] = useState(false);
   const checkout = sessionId ?? (projectId ? `project:${projectId}` : "none");
-  const { notes } = useProjectNotes(projectId);
 
   const listPaths = sessionId || projectId
     ? async () => buildPathIndex((sessionId ? await api.sessionFiles(sessionId) : await api.projectFiles(projectId!)).listing.files)
@@ -97,10 +95,8 @@ export function useComposerCompletions({
     if (!trigger || dismissed) return [];
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
     if (trigger.kind === "path") {
-      // Notes and sessions take at most four rows each so a short query cannot bury the checkout.
-      const noteRows = rankNotes(notes, trigger.query);
       const sessionRows = rankSessions(sessions.value ?? [], trigger.query, { sessionId, projectId });
-      return [...noteRows, ...rankPaths(paths.value ?? [], trigger.query, Math.max(4, 12 - noteRows.length)), ...sessionRows];
+      return [...rankPaths(paths.value ?? [], trigger.query, 12), ...sessionRows];
     }
     // Two ranked lists, not one: a plugin command must not outscore `/stop`.
     const own = availableCommands({
@@ -116,7 +112,7 @@ export function useComposerCompletions({
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
     return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, notes, skills.value, busy, fresh, runtimeMode, menuDriver, compacting, envMode, choices, canResume]);
+  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, skills.value, busy, fresh, runtimeMode, menuDriver, compacting, envMode, choices, canResume]);
 
   // A list still fetching stays open and says so; `/` always has this box's own verbs to show.
   const loading = (trigger?.kind === "path" && paths.reading) || (trigger?.kind === "skill" && skills.reading);
@@ -148,7 +144,7 @@ export function useComposerCompletions({
   };
 
   const heading = () =>
-    trigger?.kind === "skill" ? "Skills" : trigger?.kind === "command" ? "Commands" : notes.length > 0 ? "Notes, files and folders" : "Files and folders";
+    trigger?.kind === "skill" ? "Skills" : trigger?.kind === "command" ? "Commands" : "Files and folders";
 
   return { trigger, completions, open, loading, active, setActive, setDismissed, retrigger, edited, take, heading };
 }

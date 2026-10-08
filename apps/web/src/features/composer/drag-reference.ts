@@ -1,7 +1,7 @@
 
 export const REFERENCE_MIME = "application/x-telar-reference+json";
 
-export type ReferenceKind = "issue" | "pull" | "file" | "page" | "task" | "check" | "note" | "skill" | "session";
+export type ReferenceKind = "issue" | "pull" | "file" | "page" | "task" | "check" | "skill" | "session";
 
 export type TelarReference = {
   kind: ReferenceKind;
@@ -108,15 +108,6 @@ export function failingChecksReference(
     label: `${checks.length} failing checks`,
     text: `${checks.length} failing checks:\n\n${checks.map((check) => checkReference(check).text).join("\n\n")}`,
   };
-}
-
-export function noteReference(note: { id: string; title: string; body: string }): TelarReference {
-  const head = `the "${safeTitle(note.title)}" project note (${note.id})`;
-  const body = note.body.trim();
-  if (!body) return { kind: "note", label: note.title, text: head };
-  const longest = Math.max(0, ...[...body.matchAll(/`+/g)].map((run) => run[0].length));
-  const fence = "`".repeat(Math.max(3, longest + 1));
-  return { kind: "note", label: note.title, text: `${head}:\n\n${fence}note\n${body}\n${fence}` };
 }
 
 export function skillReference(skill: { name: string }): TelarReference {

@@ -7,7 +7,7 @@ import type { ProviderDriverKind, ProviderSkill, ProviderSkillSource, RuntimeMod
 import { fileReference, directoryReference, sessionReference, skillReference } from "./drag-reference";
 import { insertRankedSearchResult, normalizeSearchQuery, scoreQueryMatch, type RankedSearchResult } from "@/ui/search-ranking";
 
-export type CompletionGlyph = "file" | "directory" | "note" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session";
+export type CompletionGlyph = "file" | "directory" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session";
 
 type CompletionAction =
   /** Replace the trigger with this text; the only action that touches the draft. */

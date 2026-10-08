@@ -174,9 +174,6 @@ const masthead = () => host!.querySelector("header");
 const sessionActions = () => host!.querySelector('[aria-label="Session actions"]');
 /** The breadcrumb's link out to the project canvas (`canvasHref`). */
 const canvasLink = () => host!.querySelector('a[href="/projects/project_1/sessions/new"]');
-/** The Notes popover's trigger — `WorkspaceInspector`, which is the only place
- *  in the app a note can be written. */
-const notes = () => host!.querySelector('[aria-label="Notes"]');
 /** The run control. Its label names the state it is in — "Run this project",
  *  "Run — set up a configuration", "Run: …" — so it is matched by the stem. */
 const runControl = () => host!.querySelector('[aria-label^="Run"]');
@@ -279,13 +276,10 @@ describe("the solo route carries no masthead", () => {
     expect(canvasLink()).toBeNull();
   });
 
-  test("but Notes and Run are rehomed, not dropped — each is the last door to itself", async () => {
+  test("but Run is rehomed, not dropped — it is the last door to itself", async () => {
     wire("session_solo_8");
     await show("session_solo_8", { solo: true });
     expect(masthead()).toBeNull();
-    // `WorkspaceInspector`: the only place a note can be written anywhere in
-    // the app. The composer's `@` reads the same notebook and cannot write one.
-    expect(notes()).not.toBeNull();
     // `RunHeaderControl`: setup and start live here or nowhere.
     expect(runControl()).not.toBeNull();
   });
@@ -296,7 +290,7 @@ describe("the solo route carries no masthead", () => {
     expect(host!.textContent).toContain(ANSWER);
     expect(masthead()).toBeNull();
     expect(sessionActions()).toBeNull();
-    expect(notes()).not.toBeNull();
+    expect(runControl()).not.toBeNull();
   });
 });
 
@@ -320,8 +314,6 @@ describe("the ordinary session route — this must not leak", () => {
     expect(host!.textContent).toContain("a conversation on its own");
     expect(sessionActions()).not.toBeNull();
     expect(canvasLink()).not.toBeNull();
-    expect(notes()).not.toBeNull();
-    expect(masthead()!.contains(notes()!)).toBe(true);
     // Run lives in the Workspace card here, never in the bar.
     expect(runControl()).not.toBeNull();
     expect(masthead()!.contains(runControl()!)).toBe(false);

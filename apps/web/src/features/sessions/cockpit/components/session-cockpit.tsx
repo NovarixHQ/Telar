@@ -3,7 +3,6 @@
 import { Suspense, useCallback, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
-import { WorkspaceInspector } from "@/features/sessions/components/workspace-inspector";
 import type { ConversationFollowHandle } from "@/ui/conversation";
 import { Composer } from "@/features/composer";
 import { canvasPanelKey, RailToggle, RightPanel } from "@/features/panel";
@@ -109,7 +108,7 @@ export function SessionCockpit({
     <main data-surfaces className="group/surfaces flex min-h-0 flex-1 overflow-hidden md:overflow-visible md:gap-2">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border md:group-has-[[data-panel-fullscreen]]/surfaces:shadow-none md:group-has-[[data-panel-fullscreen]]/surfaces:ring-0">
         {solo ? (
-          <SoloTools projectId={projectId} hostId={hostId} session={session} />
+          <SoloTools hostId={hostId} session={session} />
         ) : (
           <SessionMasthead
             projectId={projectId}
@@ -126,7 +125,6 @@ export function SessionCockpit({
                 {session && (
                   <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
                 )}
-                {(session?.projectId ?? projectId) !== undefined && <WorkspaceInspector projectId={(session?.projectId ?? projectId)!} />}
                 <RailToggle open={panel.open} onToggle={panelState.openPanel} />
               </>
             }

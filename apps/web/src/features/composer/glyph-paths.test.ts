@@ -5,7 +5,6 @@ import {
   directoryReference,
   fileReference,
   issueReference,
-  noteReference,
   pageReference,
   pullReference,
   sessionReference,
@@ -22,7 +21,6 @@ const EVERY_KIND: Record<ReferenceKind, ReturnType<typeof fileReference>> = {
   page: pageReference({ url: "https://example.test/" }),
   task: taskReference({ id: "task_a", title: "Audit", state: "completed" }),
   check: checkReference({ name: "typecheck", status: "completed", conclusion: "failure" }),
-  note: noteReference({ id: "n-abc123", title: "Deploy", body: "bun run ship" }),
   skill: skillReference({ name: "commit-messages" }),
   session: sessionReference({ id: "session_abc123", title: "Study handoff" }),
 };
@@ -34,7 +32,7 @@ describe("a chip can draw every reference there is", () => {
       expect(glyph.markup.length, `${kind} has markup`).toBeGreaterThan(0);
       expect(glyph.tint.length, `${kind} has a tint`).toBeGreaterThan(0);
     }
-    expect(Object.keys(EVERY_KIND)).toHaveLength(9);
+    expect(Object.keys(EVERY_KIND)).toHaveLength(8);
   });
 
   test("a file asks the second question and a directory does not", () => {

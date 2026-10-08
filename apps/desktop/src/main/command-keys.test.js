@@ -19,13 +19,13 @@ describe("the registry", () => {
     expect(keymapConflicts(defaultKeymap())).toEqual({});
   });
 
-  test("every command has an id, a label, a group and a CommandOrControl default", () => {
+  test("every command has an id, a label, a group and a CommandOrControl default, unless it is system-wide", () => {
     for (const command of COMMANDS) {
       expect(typeof command.id).toBe("string");
       expect(command.label.length).toBeGreaterThan(0);
       expect(command.group.length).toBeGreaterThan(0);
 
-      expect(command.defaultChord === "" || command.defaultChord.startsWith("CommandOrControl+")).toBe(true);
+      expect(command.global || command.defaultChord === "" || command.defaultChord.startsWith("CommandOrControl+")).toBe(true);
 
       expect(normalizeChord(command.defaultChord)).toBe(command.defaultChord);
     }

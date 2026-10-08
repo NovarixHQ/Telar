@@ -2,9 +2,12 @@
 
 import { Fragment, useState, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
+import type { SessionChild } from "@telar/engine-client";
 import type { JournalTurn } from "@/platform/engine";
-import { bareNotificationTurn, groupNotificationTurns, ROW, SessionTitles } from "@/features/transcript";
+import { AgentRows, bareNotificationTurn, groupNotificationTurns, ROW, SessionLookup, type SessionFacts } from "@/features/transcript";
 import { cn } from "@/ui/utils";
+import { sessionHref } from "../../session-list";
+import { childPending } from "../hooks/use-session-children";
 import type { SessionDirectory } from "../hooks/use-session-directory";
 
 export type TurnView = { peerTitle?: string };
@@ -29,29 +32,66 @@ function ArrivalStrip({ titles, children }: { titles: string[]; children: ReactN
   );
 }
 
-/** The sessions this transcript's notifications came from, so the cockpit can name them. */
-export function notifyingSessions(turns: readonly JournalTurn[]): string[] {
-  return [...new Set(turns.flatMap((turn) => [turn.notification?.sessionId, ...(turn.notification?.entries ?? []).map((entry) => entry.sessionId)]).filter((id): id is string => Boolean(id)))].sort();
+export function mentionedSessions(turns: readonly JournalTurn[], children: readonly SessionChild[]): string[] {
+  const notifying = turns.flatMap((turn) => [turn.notification?.sessionId, ...(turn.notification?.entries ?? []).map((entry) => entry.sessionId)]);
+  return [...new Set([...notifying, ...children.map((child) => child.sessionId)].filter((id): id is string => Boolean(id)))].sort();
 }
 
-export function TranscriptTurns({ turns, activeRunId, renderTurn, directory }: {
+/** Each child under the turn that tasked it; one whose turn is not loaded shows under the newest while it is still out. */
+function anchorChildren(turns: readonly JournalTurn[], children: readonly SessionChild[]): Map<string, SessionChild[]> {
+  const loaded = new Set(turns.map((turn) => turn.runId));
+  const newest = turns.at(-1)?.runId;
+  const anchored = new Map<string, SessionChild[]>();
+  for (const child of children) {
+    const anchor = child.parentRunId && loaded.has(child.parentRunId) ? child.parentRunId : childPending(child) ? newest : undefined;
+    if (anchor) anchored.set(anchor, [...(anchored.get(anchor) ?? []), child]);
+  }
+  return anchored;
+}
+
+export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, agents = [], hostId, projectId }: {
   turns: readonly JournalTurn[];
   directory: SessionDirectory;
+  agents?: readonly SessionChild[];
+  hostId?: string;
+  projectId?: string;
   activeRunId?: string;
   renderTurn: (turn: JournalTurn, view: TurnView) => ReactNode;
 }) {
   const known = new Map(turns.flatMap((turn) => (turn.notification?.entries ?? []).flatMap((entry) => (entry.sessionId && entry.title ? [[entry.sessionId, entry.title] as const] : []))));
-  const title = (sessionId: string) => known.get(sessionId)?.trim() || directory.get(sessionId)?.title?.trim();
+  const childOf = new Map(agents.map((child) => [child.sessionId, child]));
+  const lookup = (sessionId: string): SessionFacts => {
+    const child = childOf.get(sessionId);
+    const listed = directory.get(sessionId);
+    const title = known.get(sessionId)?.trim() || child?.title?.trim() || listed?.title?.trim();
+    const owner = listed?.projectId ?? (child ? projectId : undefined);
+    return {
+      ...(title ? { title } : {}),
+      ...(owner ? { href: sessionHref({ id: sessionId, projectId: owner, ...(hostId ? { hostId } : {}) }) } : {}),
+      ...(child ? { child } : {}),
+    };
+  };
+  const anchored = anchorChildren(turns, agents);
   const titleOf = (turn: JournalTurn) => {
     const sessionId = turn.notification?.sessionId;
-    return sessionId ? title(sessionId) : undefined;
+    return sessionId ? lookup(sessionId).title : undefined;
   };
   const row = (turn: JournalTurn) => {
     const peerTitle = titleOf(turn);
-    return <Fragment key={turn.runId}>{renderTurn(turn, peerTitle ? { peerTitle } : {})}</Fragment>;
+    const tasked = anchored.get(turn.runId);
+    return (
+      <Fragment key={turn.runId}>
+        {renderTurn(turn, peerTitle ? { peerTitle } : {})}
+        {tasked && (
+          <div className="mx-auto w-full max-w-(--chat-content-max-width)">
+            <AgentRows agents={tasked} />
+          </div>
+        )}
+      </Fragment>
+    );
   };
   const rows = (group: readonly JournalTurn[]) => {
-    if (group.length > 1 && group.every((turn) => quiet(turn) && turn.runId !== activeRunId)) {
+    if (group.length > 1 && group.every((turn) => quiet(turn) && turn.runId !== activeRunId && !anchored.has(turn.runId))) {
       return <ArrivalStrip key={group[0]!.runId} titles={group.map((turn) => titleOf(turn) ?? "Untitled session")}>{group.map(row)}</ArrivalStrip>;
     }
     if (group.length === 1) return row(group[0]!);
@@ -62,5 +102,5 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory }: {
     );
   };
   const drawn = groupNotificationTurns(turns, activeRunId).map(rows);
-  return <SessionTitles.Provider value={title}>{drawn}</SessionTitles.Provider>;
+  return <SessionLookup.Provider value={lookup}>{drawn}</SessionLookup.Provider>;
 }

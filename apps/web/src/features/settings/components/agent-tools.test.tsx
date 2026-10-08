@@ -230,10 +230,10 @@ describe("Telar orientation", () => {
     expect(host.textContent).toContain("The engine did not answer.");
   });
 
-  test("both switches move independently, and each is one patch", async () => {
+  test("one switch turns the paragraph and the skill on and off together", async () => {
     const host = await mountOrientation({ preamble: true, skill: true });
+    expect(host.querySelector('[aria-label="Install the telar skill"]')).toBeNull();
     await press(host.querySelector('[aria-label="Tell agents they are inside Telar"]')!);
-    await press(host.querySelector('[aria-label="Install the telar skill"]')!);
-    expect(called("PATCH /api/orientation").map((call) => call.body)).toEqual([{ preamble: false }, { skill: false }]);
+    expect(called("PATCH /api/orientation").map((call) => call.body)).toEqual([{ preamble: false, skill: false }]);
   });
 });

@@ -140,13 +140,15 @@ export function ComposerBanner({
   detail,
   action,
   actionLabel,
+  actionDisabled,
   onDismiss,
 }: {
   icon: ReactNode;
   title: string;
-  detail: string;
+  detail?: string;
   action?: () => void;
   actionLabel?: string;
+  actionDisabled?: boolean;
   onDismiss?: () => void;
 }) {
   return (
@@ -155,13 +157,14 @@ export function ComposerBanner({
         {icon}
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium">{title}</p>
-          <p className="truncate text-2xs text-muted-foreground">{detail}</p>
+          {detail && <p className="truncate text-2xs text-muted-foreground">{detail}</p>}
         </div>
         {action && actionLabel && (
           <button
             type="button"
             onClick={action}
-            className="shrink-0 rounded-md border border-border bg-background/80 px-2.5 py-1 text-2xs font-medium transition-colors hover:bg-accent"
+            disabled={actionDisabled}
+            className="shrink-0 rounded-md border border-border bg-background/80 px-2.5 py-1 text-2xs font-medium transition-colors hover:bg-accent disabled:opacity-60"
           >
             {actionLabel}
           </button>

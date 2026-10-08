@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CLEANUP_INACTIVE_DAYS, CLEANUP_LOG_DAYS, CLEANUP_SETTLED_DAYS, type CleanupPolicy, type CleanupReport, type CleanupState, type RetentionPolicy } from "@telar/engine-client";
-import { ArchiveIcon, ClockIcon, GitBranchIcon, HistoryIcon, MoonIcon, ScrollTextIcon } from "lucide-react";
+import { ArchiveIcon, ClockIcon, GitBranchIcon, HistoryIcon, MoonIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
 import { createEngineApi } from "@/platform/engine";
 import { fmtAgo, formatBytes } from "@/ui/format";
 import { Button } from "@/ui/button";
@@ -179,6 +179,22 @@ export function CleanupSection() {
           {...errorFor("archived")}
         />
         <WorktreesRootRow onChanged={() => setRootVersion((version) => version + 1)} />
+        <Row
+          icon={SparklesIcon}
+          label="Clean up"
+          hint={
+            <span role="status">
+              {state ? lastCleanupLabel(state.last) : "…"}
+              {ran && state?.last ? ` · ${runLabel(state.last)}` : ""}
+            </span>
+          }
+          {...(error?.key === "run" ? { error: error.message } : {})}
+          control={
+            <Button size="sm" variant="outline" disabled={!state || busy} onClick={() => void run()}>
+              {busy ? "Cleaning up…" : "Clean up now"}
+            </Button>
+          }
+        />
       </SettingsGroup>
 
       <WorktreeSummarySection version={rootVersion} />
@@ -203,16 +219,6 @@ export function CleanupSection() {
         <RetentionRow />
       </SettingsGroup>
 
-      <div className="mb-6 flex items-center gap-3 px-4 text-xs text-muted-foreground">
-        <span className="min-w-0 flex-1" role="status">
-          {state ? lastCleanupLabel(state.last) : "…"}
-          {ran && state?.last ? ` · ${runLabel(state.last)}` : ""}
-          {error?.key === "run" ? <span className="block text-destructive">{error.message}</span> : null}
-        </span>
-        <Button size="sm" variant="outline" disabled={!state || busy} onClick={() => void run()}>
-          {busy ? "Cleaning up…" : "Clean up now"}
-        </Button>
-      </div>
     </>
   );
 }

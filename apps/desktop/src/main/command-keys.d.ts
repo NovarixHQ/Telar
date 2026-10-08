@@ -1,9 +1,4 @@
-// Hand-written declaration for command-keys.js — apps/desktop has no tsconfig
-// of its own (it is plain-JS Electron main-process code, see main.js's header),
-// so this pairing is what lets apps/web's TypeScript resolve the relative import
-// in apps/web/src/features/commands/commands.ts without depending on allowJs's best-effort
-// inference of a CommonJS module's shape. The .js file is still what actually
-// ships and runs on both sides; this file only describes it.
+// Types for command-keys.js, which apps/web imports; apps/desktop has no tsconfig of its own.
 
 export type CommandKeyEventLike = {
   key: string;
@@ -34,6 +29,7 @@ export type Command = {
   defaultChord: string;
   menu?: CommandMenu;
   jump?: number;
+  global?: boolean;
 };
 
 /** A command id → its chord. "" means deliberately unbound. */
@@ -48,7 +44,7 @@ export function keymapOverrides(keymap: Readonly<Keymap>): Keymap;
 export function keymapConflicts(keymap: Readonly<Keymap>): Record<string, string[]>;
 export function chordForEvent(event: CommandKeyEventLike): string;
 export function resolveCommandForEvent(keymap: Readonly<Keymap>, event: CommandKeyEventLike): string | null;
-/** Which commands a surface's chord claim suppresses under this keymap (#656).
+/** Which commands a surface's chord claim suppresses under this keymap.
  *  Computed against the LIVE chords, so a rebind hands the chord back. */
 export function claimedCommandIds(keymap: Readonly<Keymap>, chords: readonly string[] | undefined): string[];
 export function menuCommands(keymap: Readonly<Keymap>, menu: CommandMenu): (Command & { accelerator: string })[];

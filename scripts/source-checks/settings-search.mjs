@@ -8,7 +8,7 @@ const SETTINGS = "apps/web/src/features/settings/";
 const NOT_SETTINGS = new Set([
   "Could not read plugins", "Could not save", "Desktop app only", "Detecting", "Did not start", "Loading", "No hubs configured",
   "No other TeX install found", "No phone can be reached yet", "No plugins registered", "No remembered logins", "No servers configured",
-  "No update feed in this build", "None yet", "Not available here", "Restart to apply", "The engine did not answer",
+  "No update feed in this build", "None yet", "Not available here", "The engine did not answer",
 ]);
 
 // Panes live in the settings components or in a feature that builds on the settings shell.

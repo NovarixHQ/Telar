@@ -57,6 +57,7 @@ const COMMANDS = [
 
   { id: "search-project-contents", label: "Search in Project…", group: "Panel", icon: "text-search", defaultChord: "CommandOrControl+Shift+F" },
 
+  { id: "quick-composer", label: "Quick Composer", group: "Application", icon: "square-pen", defaultChord: "Alt+Space", global: true },
   { id: "settings", label: "Settings…", group: "Application", icon: "settings", defaultChord: "CommandOrControl+,", menu: "file" },
   { id: "search-settings", label: "Search Settings…", group: "Application", icon: "settings-2", defaultChord: "CommandOrControl+Shift+,", menu: "file" },
 

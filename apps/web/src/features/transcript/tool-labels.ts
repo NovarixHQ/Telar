@@ -125,3 +125,14 @@ export function toolWords(item: JournalItem): ToolWords | undefined {
   const label = telar ? humanName(parsed.tool) : `${humanName(parsed.server)} · ${humanName(parsed.tool)}`;
   return words(verb(label, label, "other"), toolInputSummary(input));
 }
+
+/** What a call was handed, as the expanded row shows it: the raw command, or its input as JSON. */
+export function toolInput(item: JournalItem): string | undefined {
+  const detail = item.detail;
+  if (detail.type === "command_execution") return detail.command.command || undefined;
+  if (detail.type !== "mcp_tool_call" && detail.type !== "dynamic_tool_call" && detail.type !== "browser_action") return undefined;
+  const { input } = detail.call;
+  if (input === undefined || input === null) return undefined;
+  if (typeof input === "string") return input || undefined;
+  return typeof input === "object" && Object.keys(input).length === 0 ? undefined : JSON.stringify(input, null, 2);
+}

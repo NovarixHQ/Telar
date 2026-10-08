@@ -20,13 +20,10 @@ import { ROW } from "./transcript-fold";
 import { cn } from "@/ui/utils";
 import { actionLabel, failed, liveActionLabel, preview, running } from "../model";
 import { sessionsLink } from "../sessions-tools";
-import { toolWords, type ToolKind } from "../tool-labels";
+import { toolInput, toolWords, type ToolKind } from "../tool-labels";
 import { TranscriptSession } from "./message-attachments";
 import { FileReferenceChip } from "./prompt-text";
 
-/** Deliberately small and literal. The lane is meant to be uniform and boring:
- *  an icon per tool would turn a long turn into a sticker album. The icon says
- *  WHICH KIND of thing happened; the mono preview beside it says what. */
 const TOOL_ICON: Partial<Record<Item["detail"]["type"], typeof WrenchIcon>> = {
   command_execution: TerminalIcon,
   file_read: FileTextIcon,
@@ -119,11 +116,21 @@ function DiffBody({ diff }: { diff: string }) {
   );
 }
 
+function BodyPart({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-3xs text-muted-foreground">{label}</span>
+      <CodeSurface text={text} wrap />
+    </div>
+  );
+}
+
 export function ToolRow({ item, onInsert, onOpenFile, onOpenFileInNewTab }: { item: JournalItem } & RowGestures) {
   const [open, setOpen] = useState(false);
   const change = item.detail.type === "file_change" ? item.detail.change : undefined;
   const output = toolOutput(item);
-  const body = change?.unifiedDiff ?? output;
+  const input = change?.unifiedDiff ? undefined : toolInput(item);
+  const body = change?.unifiedDiff ?? (input || output ? [input, output].filter(Boolean).join("\n\n") : undefined);
   const label = running(item) ? liveActionLabel(item) : actionLabel(item);
   const isError = failed(item);
   const kind = toolWords(item)?.kind;
@@ -195,7 +202,14 @@ export function ToolRow({ item, onInsert, onOpenFile, onOpenFileInNewTab }: { it
       </div>
       {open && body && (
         <div className="ml-3 flex flex-col gap-2 border-l border-border/70 py-1 pr-1.5 pl-3">
-          {change?.unifiedDiff ? <DiffBody diff={change.unifiedDiff} /> : <CodeSurface text={output ?? ""} wrap />}
+          {change?.unifiedDiff ? (
+            <DiffBody diff={change.unifiedDiff} />
+          ) : (
+            <>
+              {input && <BodyPart label="Input" text={input} />}
+              {output && <BodyPart label="Output" text={output} />}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -207,11 +221,8 @@ export function ToolRow({ item, onInsert, onOpenFile, onOpenFileInNewTab }: { it
       <ContextMenuTrigger>{row}</ContextMenuTrigger>
       <ContextMenuContent className="w-auto">
         {command && <ContextMenuItem onClick={() => void navigator.clipboard.writeText(command)}>Copy command</ContextMenuItem>}
-        {body && (
-          <ContextMenuItem onClick={() => void navigator.clipboard.writeText(body)}>
-            {change?.unifiedDiff ? "Copy patch" : "Copy output"}
-          </ContextMenuItem>
-        )}
+        {change?.unifiedDiff && <ContextMenuItem onClick={() => void navigator.clipboard.writeText(change.unifiedDiff!)}>Copy patch</ContextMenuItem>}
+        {output && <ContextMenuItem onClick={() => void navigator.clipboard.writeText(output)}>Copy output</ContextMenuItem>}
         {path && (command || body) && <ContextMenuSeparator />}
         {path && onOpenFile && <ContextMenuItem onClick={() => onOpenFile(path)}>Open file in the Editor</ContextMenuItem>}
         {path && onOpenFileInNewTab && (

@@ -60,15 +60,10 @@ struct ItemRowView: View {
             Text(error.message)
                 .font(Theme.meta)
                 .foregroundStyle(Theme.statusRed)
+        case .providerSwitch(let detail):
+            divider(detail.label)
         case .contextCompaction(_, let pre, let post):
-            HStack(spacing: 8) {
-                Rectangle().fill(Theme.border).frame(height: 1)
-                Text(compactionLabel(pre: pre, post: post))
-                    .font(Theme.metaSmall)
-                    .foregroundStyle(Theme.textMuted)
-                    .fixedSize()
-                Rectangle().fill(Theme.border).frame(height: 1)
-            }
+            divider(compactionLabel(pre: pre, post: post))
         case .task:
 
             EmptyView()
@@ -132,6 +127,17 @@ struct ItemRowView: View {
         case .webSearch: "magnifyingglass"
         case .browserAction: "globe"
         default: "wrench.and.screwdriver"
+        }
+    }
+
+    private func divider(_ label: String) -> some View {
+        HStack(spacing: 8) {
+            Rectangle().fill(Theme.border).frame(height: 1)
+            Text(label)
+                .font(Theme.metaSmall)
+                .foregroundStyle(Theme.textMuted)
+                .fixedSize()
+            Rectangle().fill(Theme.border).frame(height: 1)
         }
     }
 

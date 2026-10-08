@@ -44,6 +44,7 @@ struct JournalItem: Identifiable, Equatable {
         case .plan: return "plan"
         case .task: return "task"
         case .contextCompaction: return "context_compaction"
+        case .providerSwitch: return "provider_switch"
         }
     }
 

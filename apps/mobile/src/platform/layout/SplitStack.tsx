@@ -9,12 +9,22 @@ import {
   type StaticConfig,
   type TypedNavigator,
 } from "@react-navigation/native";
-import { NativeStackView, type NativeStackNavigationEventMap, type NativeStackNavigationOptions, type NativeStackNavigatorProps, type NativeStackTypeBag } from "@react-navigation/native-stack";
-import type { ReactNode } from "react";
+import {
+  NativeStackView,
+  type NativeStackHeaderItem,
+  type NativeStackNavigationEventMap,
+  type NativeStackNavigationOptions,
+  type NativeStackNavigatorProps,
+  type NativeStackTypeBag,
+} from "@react-navigation/native-stack";
+import { useState, type ReactNode } from "react";
 import { Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Theme, type SymbolName } from "../../ui";
 import { isRegularWidth, selectionBase, SIDEBAR_WIDTH, splitColumns } from "./split";
+import { SplitColumnContext, type SplitColumn } from "./split-column";
 
 type State = StackNavigationState<ParamListBase>;
+type Descriptors = ReturnType<typeof useNavigationBuilder<State, SplitOptions, StackActionHelpers<ParamListBase>, NativeStackNavigationOptions, NativeStackNavigationEventMap>>["descriptors"];
 type SplitOptions = StackRouterOptions & { selection: readonly string[] };
 type Props = NativeStackNavigatorProps & {
   /** Routes that, opened from the sidebar, replace the detail column. */
@@ -22,10 +32,28 @@ type Props = NativeStackNavigatorProps & {
   /** Drawn in the detail column while nothing is chosen. */
   placeholder: ReactNode;
 };
+type Side = "unstable_headerLeftItems" | "unstable_headerRightItems";
 
 function SplitRouter({ selection, ...options }: SplitOptions): ReturnType<typeof StackRouter> {
   const router = StackRouter(options);
   return { ...router, getStateForAction: (state, action, config) => router.getStateForAction(selectionBase(state, action, selection), action, config) };
+}
+
+function sidebarButton(label: string, onPress: () => void): NativeStackHeaderItem {
+  return { type: "button", label, icon: { type: "sfSymbol", name: "sidebar.left" satisfies SymbolName }, tintColor: Theme.text, onPress };
+}
+
+/** The descriptors with one more toolbar button on a route: a separate glass group at the outer end, as Swift's sidebar toggle sits. */
+function withButton(descriptors: Descriptors, key: string | undefined, side: Side, item: NativeStackHeaderItem): Descriptors {
+  const descriptor = key ? descriptors[key] : undefined;
+  if (!key || !descriptor) return descriptors;
+  const own = descriptor.options[side];
+  const items: NativeStackNavigationOptions[Side] = (props) => {
+    const current = own?.(props) ?? [];
+    const gap: NativeStackHeaderItem[] = current.length ? [{ type: "spacing", spacing: 8 }] : [];
+    return side === "unstable_headerRightItems" ? [...current, ...gap, item] : [item, ...gap, ...current];
+  };
+  return { ...descriptors, [key]: { ...descriptor, options: { ...descriptor.options, [side]: items } } };
 }
 
 /** A native stack that, at regular width, pins its first route as a 300pt sidebar beside the rest, like a balanced NavigationSplitView. */
@@ -41,15 +69,32 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
     selection,
   });
   const { width } = useWindowDimensions();
-  const stack = (slice: State) => <NativeStackView state={slice} navigation={navigation} descriptors={descriptors} describe={describe} />;
+  const [hidden, setHidden] = useState(false);
+  const stack = (slice: State, shown: Descriptors) => <NativeStackView state={slice} navigation={navigation} descriptors={shown} describe={describe} />;
 
-  if (!isRegularWidth(width, Platform.OS === "ios" && Platform.isPad) || state.routes[0]?.name !== initialRouteName) return render(stack(state));
+  if (!isRegularWidth(width, Platform.OS === "ios" && Platform.isPad) || state.routes[0]?.name !== initialRouteName) return render(stack(state, descriptors));
   const { sidebar, detail } = splitColumns(state);
+  const chosen = detail?.routes[0];
+  const column: SplitColumn = {
+    sidebar: false,
+    sidebarHidden: hidden,
+    showSidebar: () => setHidden(false),
+    ...(chosen && selection.includes(chosen.name) && chosen.params ? { selected: chosen.params } : {}),
+  };
+  const toggled = hidden
+    ? withButton(descriptors, chosen?.key, "unstable_headerLeftItems", sidebarButton("Show Sidebar", () => setHidden(false)))
+    : withButton(descriptors, sidebar.routes[0]?.key, "unstable_headerRightItems", sidebarButton("Hide Sidebar", () => setHidden(true)));
   return render(
-    <View style={styles.row}>
-      <View style={styles.sidebar}>{stack({ ...sidebar, preloadedRoutes: [] })}</View>
-      <View style={styles.detail}>{detail ? stack(detail) : placeholder}</View>
-    </View>,
+    <SplitColumnContext.Provider value={column}>
+      <View style={styles.row}>
+        {hidden ? null : (
+          <View style={styles.sidebar}>
+            <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
+          </View>
+        )}
+        <View style={styles.detail}>{detail ? stack(detail, toggled) : placeholder}</View>
+      </View>
+    </SplitColumnContext.Provider>,
   );
 }
 

@@ -171,7 +171,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   const router = useRouter();
   const { open } = useWorkspaceCardOpen();
   const path = workspacePath(session.workspace);
-  const { diff, reload } = useWorkspaceCardData(hostId, session.id, open, session.workspace.mode === "local");
+  const { diff, reload } = useWorkspaceCardData(hostId, session.id, open);
   const [terminals, setTerminals] = useState<readonly RunView[]>([]);
   const publishable = Boolean(diff?.branch) && diff?.shared !== true;
   const github = useGitHubReady(open && publishable, session.projectId);

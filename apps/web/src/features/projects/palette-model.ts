@@ -99,7 +99,7 @@ export function folderName(root: string): string {
   );
 }
 
-export type Registered = { projectId: string; name: string; ignored: boolean; hostId?: string };
+export type Registered = { projectId: string; name: string; hostId?: string };
 
 export type HostChoice = { id: string; name: string; hint: string };
 

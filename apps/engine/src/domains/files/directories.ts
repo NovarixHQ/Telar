@@ -50,24 +50,9 @@ export function expandHome(raw: string | null | undefined, home: string): string
   return input;
 }
 
-export function browseRoots(deps: DirectoryDeps = {}): string[] {
-  const { home, mounts, exists } = resolveDeps(deps);
-  return [home, ...mounts.filter((mount) => exists(mount))];
-}
-
-export function within(root: string, target: string): boolean {
-  if (target === root) return true;
-  return target.startsWith(root.endsWith(path.sep) ? root : `${root}${path.sep}`);
-}
-
-function outsideMessage(roots: readonly string[]): string {
-  const [home, ...mounts] = roots;
-  const where = mounts.length > 0 ? `${home} or a mounted volume (${mounts.join(", ")})` : String(home);
-  return `Telar only browses ${where}. Type a path inside one of those.`;
-}
-
 function inCloudFolder(target: string, home: string): boolean {
-  return within(path.join(home, "Library", "CloudStorage"), target);
+  const cloud = path.join(home, "Library", "CloudStorage");
+  return target === cloud || target.startsWith(`${cloud}${path.sep}`);
 }
 
 const errorCode = (cause: unknown): string | undefined => (cause as { code?: string } | null)?.code;
@@ -132,11 +117,6 @@ export function listDirectories(
   }
   const folder = target;
 
-  const roots = browseRoots(resolved);
-  if (!roots.some((root) => within(root, folder))) {
-    return { code: "invalid_request", message: outsideMessage(roots) };
-  }
-
   let children: fs.Dirent[];
   try {
     children = readdir(folder);
@@ -179,7 +159,7 @@ export function listDirectories(
   return {
     path: folder,
     name: path.basename(folder) || folder,
-    parent: up !== folder && roots.some((root) => within(root, up)) ? up : null,
+    parent: up !== folder ? up : null,
     home,
     roots: listRoots(resolved),
     dirs,

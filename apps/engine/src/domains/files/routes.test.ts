@@ -94,14 +94,13 @@ test("a folder that is there but cannot be read is a 403, so the cockpit can sti
   expect(answer.body).toEqual({ error: { code: "invalid_request", message: expect.stringContaining("cloud folder") } });
 });
 
-test("the engine serves it behind its token and refuses paths outside home and the mounts", async () => {
+test("the engine serves it behind its token, outside home too", async () => {
   const daemon = await startEngine({ models: stubModels, engineRoot: scratch("telar-fs-engine-") });
   daemons.push(daemon);
   const get = (route: string, token = daemon.discovery.token) =>
     fetch(`http://127.0.0.1:${daemon.discovery.port}${route}`, { headers: { authorization: `Bearer ${token}` } });
 
   const outside = await get(`/v2/fs?path=${encodeURIComponent(scratch("telar-fs-outside-"))}`);
-  expect(outside.status).toBe(400);
-  expect(((await outside.json()) as { error: { code: string } }).error.code).toBe("invalid_request");
+  expect(outside.status).toBe(200);
   expect((await get("/v2/fs", "wrong")).status).toBe(401);
 });

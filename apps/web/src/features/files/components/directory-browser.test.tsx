@@ -64,6 +64,14 @@ async function key(target: Element, init: KeyboardEventInit) {
 }
 
 const field = (host: Element) => host.querySelector('[aria-label="Folder path"]') as HTMLInputElement;
+
+async function type(host: Element, text: string) {
+  await act(async () => {
+    const input = field(host);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, text);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
 const status = (host: Element) => host.querySelector('[role="status"]')?.textContent;
 
 test("the first paint is a field, a captioned list and a legend — never a blank panel", () => {
@@ -123,12 +131,12 @@ test("a pasted path opens at its nearest folder, says so, and browsing on clears
   expect(status(host)).toBeUndefined();
 });
 
-test("a pasted path the listing refuses falls back to home and says why", async () => {
-  const { list, calls } = lister((input) => (input.path ? new EngineApiError("not_found", "No such folder.") : listing("/Users/me")));
-  const host = await mountBrowser({ startAt: "~/nowhere", list });
-  await flush(() => calls.length > 1);
-  expect(calls[1]).toEqual({});
-  expect(status(host)).toBe("No such folder. Showing home instead.");
+test("a pasted path the listing refuses stays in the field and says why, without resetting to home", async () => {
+  const { list, calls } = lister((input) => (input.path ? new EngineApiError("not_found", "That folder does not exist.") : listing("/Users/me")));
+  const host = await mountBrowser({ startAt: "/tmp/x", list });
+  expect(calls).toEqual([{ path: "/tmp/x", nearest: true }]);
+  expect(field(host).value).toBe("/tmp/x");
+  expect(status(host)).toBe("That folder does not exist.");
 });
 
 test("a listing whose repository marks ran out of time says so", async () => {
@@ -204,11 +212,7 @@ test("a folder that is there but cannot be listed is offered as it is, and only 
   const { list } = lister((input) => (input.path === drive ? unreadable : listing(input.path ?? "/Users/me")));
   const host = await mountBrowser({ onSubmit: (path) => void submitted.push(path), list });
   await click(host.querySelector("#directory-browser-entry-0")!);
-  await act(async () => {
-    const input = field(host);
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, drive);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  await type(host, drive);
   await key(field(host), { key: "Enter" });
   expect(status(host)).toBe("macOS has not let Telar read this cloud folder.");
   await click(buttonLabelled("Add ~/Library/CloudStorage/GoogleDrive-me@example.com/My Drive anyway", host));
@@ -223,4 +227,22 @@ test("⌘Enter takes the folder being shown, even from a row's button", async ()
   const host = await mountBrowser({ onSubmit: (path) => void submitted.push(path), list: lister().list });
   await key(host.querySelector("#directory-browser-entry-1")!, { key: "Enter", metaKey: true });
   expect(submitted).toEqual(["/Users/me/code"]);
+});
+
+test("a typed path is what Add takes, expanded, never the folder still on screen", async () => {
+  const submitted: string[] = [];
+  const host = await mountBrowser({ onSubmit: (path) => void submitted.push(path), list: lister((input) => listing(input.path ?? "/Users/me")).list });
+  await type(host, "~/some/repo/");
+  await key(field(host), { key: "Enter", metaKey: true });
+  await click(buttonLabelled("Add⌘↵", host));
+  expect(submitted).toEqual(["/Users/me/some/repo", "/Users/me/some/repo"]);
+});
+
+test("a typed path that is not absolute leaves Add off rather than adding the folder on screen", async () => {
+  const submitted: string[] = [];
+  const host = await mountBrowser({ onSubmit: (path) => void submitted.push(path), list: lister().list });
+  await type(host, "some/repo");
+  await key(field(host), { key: "Enter", metaKey: true });
+  expect(buttonLabelled("Add⌘↵", host)?.hasAttribute("disabled")).toBe(true);
+  expect(submitted).toEqual([]);
 });

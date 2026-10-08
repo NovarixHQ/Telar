@@ -58,6 +58,9 @@ const FILE_TAB_PREFIXES = [FILE_PREFIX, NOTEBOOK_PREFIX, TABLE_PREFIX, PDF_PREFI
 
 const MULTI_INSTANCE: ReadonlySet<string> = new Set<string>(["editor", "diff", "terminal"]);
 
+const LIVE_BROWSER_PAGE_ID = "__integrated__";
+export const LIVE_BROWSER_TAB: PanelTab = `${BROWSER_PREFIX}${LIVE_BROWSER_PAGE_ID}`;
+
 const suffixed = (prefix: string) => (tab: string) => (tab.startsWith(prefix) ? tab.slice(prefix.length) : undefined);
 
 export const notebookPanelPath = suffixed(NOTEBOOK_PREFIX);
@@ -184,6 +187,7 @@ export function describePanelTab(tab: PanelTab, browser?: BrowserState, live?: r
     const surface = ALL_SURFACES.find((entry) => entry.id === tab)!;
     return { label: surface.label, icon: surface.icon, blurb: surface.blurb };
   }
+  if (tab === LIVE_BROWSER_TAB) return { label: "Browser", icon: GlobeIcon, blurb: "Integrated browser" };
   // The native browser's own list wins over the journal's, which lags or never names the native tab.
   const livePage = live?.find((entry) => entry.id === pageId);
   if (livePage) return { label: browserTabLabel(livePage), icon: GlobeIcon, blurb: livePage.url };

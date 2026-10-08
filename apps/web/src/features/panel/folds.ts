@@ -1,5 +1,5 @@
 import type { BrowserSnapshot, EngineEvent, Item } from "@telar/engine-client";
-import { browserPanelTab, browserTabId, type BrowserState } from "./model";
+import { browserPanelTab, browserTabId, LIVE_BROWSER_TAB, type BrowserState } from "./model";
 import { activePanelTab, closePanelTab, findPanelTab, revealPanelTab, type PanelTabInstance, type PanelTabState } from "./tabs";
 
 /** Path → how many times the journal says this session wrote it. Keyed as the tool wrote it, usually absolute. */
@@ -35,6 +35,43 @@ export function latestBrowserState(events: readonly EngineEvent[]): BrowserState
 
 export type NativePages = { tabs: readonly { id: string; active?: boolean; openedBy?: "agent" | "human" }[]; ended?: boolean; popped?: boolean };
 
+export function foldBrowserTabs<Kind extends string>(state: PanelTabState<Kind>): PanelTabState<Kind> {
+  const pages = state.tabs.filter((tab) => browserTabId(tab.kind) !== undefined);
+  if (pages.length === 0 || (pages.length === 1 && pages[0]!.kind === LIVE_BROWSER_TAB)) return state;
+  const live = { id: LIVE_BROWSER_TAB, kind: LIVE_BROWSER_TAB as Kind, params: {} };
+  const tabs = state.tabs.flatMap((tab) => (tab === pages[0] ? [live] : pages.includes(tab) ? [] : [tab]));
+  const activeTab = pages.some((tab) => tab.id === state.activeTab) ? LIVE_BROWSER_TAB : state.activeTab;
+  return { ...state, tabs, ...(activeTab ? { activeTab } : {}) };
+}
+
+export function unfoldBrowserTab<Kind extends string>(state: PanelTabState<Kind>, native: NativePages): PanelTabState<Kind> {
+  const live = findPanelTab(state, LIVE_BROWSER_TAB);
+  if (!live) return state;
+  const pages = native.ended || native.popped ? [] : native.tabs;
+  const fresh = pages.filter((page) => !findPanelTab(state, browserPanelTab(page.id))).map((page) => pageTab<Kind>(page.id));
+  const tabs = state.tabs.flatMap((tab) => (tab === live ? fresh : [tab]));
+  const shown = pages.find((page) => page.active) ?? pages.at(-1);
+  if (state.activeTab !== LIVE_BROWSER_TAB) return { ...state, tabs };
+  if (shown) return { ...state, tabs, activeTab: browserPanelTab(shown.id) };
+  return closePanelTab(state, LIVE_BROWSER_TAB);
+}
+
+export function agentBrowserActivity(events: readonly EngineEvent[], since: number, after: number): { acted: boolean; through: number } {
+  let acted = false;
+  let through = after;
+  for (const event of events) {
+    if (event.at < since || event.id <= after) continue;
+    if (event.type === "browser.state.changed") {
+      through = Math.max(through, event.id);
+      if (event.tabs.length > 0) acted = true;
+    } else if (event.type === "item.completed" && event.item.detail.type === "browser_action") {
+      through = Math.max(through, event.id);
+      if (event.item.status === "completed") acted = true;
+    }
+  }
+  return { acted, through };
+}
+
 /**
  * Mirror the session's native browser pages as panel tabs: a new page is added unselected, a closed one loses its tab,
  * and a change of the native active page since `lastActive` is followed while a page tab is in front.
@@ -42,7 +79,7 @@ export type NativePages = { tabs: readonly { id: string; active?: boolean; opene
  */
 export function syncPageTabs<Kind extends string>(state: PanelTabState<Kind>, native: NativePages, lastActive?: string, showAgentPages = false): PanelTabState<Kind> {
   const pages = native.ended ? [] : native.tabs;
-  let next = state;
+  let next = unfoldBrowserTab(state, native);
   if (!native.popped) {
     for (const page of pages) {
       const fresh = !findPanelTab(next, browserPanelTab(page.id));

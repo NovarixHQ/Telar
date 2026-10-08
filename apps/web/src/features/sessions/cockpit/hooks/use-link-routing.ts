@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { createEngineApi } from "@/platform/engine";
-import { browserPanelTab, issuePanelTab, pullPanelTab } from "@/features/panel";
+import { issuePanelTab, pullPanelTab } from "@/features/panel";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import { nativePageToShow } from "@/features/browser/native-pages";
 import { hostFetcher } from "@/platform/engine/host-client";
@@ -11,7 +11,7 @@ import { openUrlInSessionBrowser, parseForgeLink, sameRepository } from "../sess
 import type { useCockpitPanel } from "./use-cockpit-panel";
 
 /** Routes web links from the conversation (and ones claimed app-wide) to this project's forge tabs or the session browser. */
-export function useLinkRouting({ hostId, projectId, sessionId, solo, panel: { showPanelTab, updatePanel } }: {
+export function useLinkRouting({ hostId, projectId, sessionId, solo, panel: { showPanelTab, pageTab, updatePanel } }: {
   hostId: string;
   projectId: string | undefined;
   sessionId: string | undefined;
@@ -36,7 +36,7 @@ export function useLinkRouting({ hostId, projectId, sessionId, solo, panel: { sh
         const bridge = desktopBrowserBridge();
         if (landed === "native" && bridge && sessionId) {
           const page = await nativePageToShow(bridge, sessionId);
-          if (page) showPanelTab(browserPanelTab(page));
+          if (page) showPanelTab(pageTab(page));
           return;
         }
         if (landed === "engine") {
@@ -47,7 +47,7 @@ export function useLinkRouting({ hostId, projectId, sessionId, solo, panel: { sh
         openInSystemBrowser(href);
       })();
     },
-    [hostId, projectId, sessionId, showPanelTab, updatePanel],
+    [hostId, projectId, sessionId, showPanelTab, pageTab, updatePanel],
   );
   const onConversationClick = useCallback(
     (event: React.MouseEvent) => {

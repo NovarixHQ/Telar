@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { act, useState } from "react";
 import type { EngineEvent, SimulatorSummary } from "@telar/engine-client";
 import type { RunView } from "@/features/terminal";
@@ -21,6 +21,7 @@ function harness(initial: Strip, { touched = false, flat = true }: { touched?: b
     push = setEvents;
     strip = panel;
     report = useJournalReactions({
+      sessionId: "s",
       sync: { events } as never,
       browser: undefined,
       enabledPlugins: [],
@@ -156,4 +157,44 @@ test("grouped: an ended run loses its chip, and a strip of only that run closes"
   await runs([run("t1")]);
   await runs([{ ...run("t1"), status: "closed" } as RunView]);
   expect(strip().tabs.map((tab) => tab.id)).toEqual(["diff"]);
+});
+
+describe("outside the flat-tabs trial, in the desktop app", () => {
+  const browsed = (id: number) => ({ id, at: later(), sessionId: "s", type: "browser.state.changed", provider: "integrated", tabs: [{ id: "p1", title: "", url: "https://a.test/" }] }) as unknown as EngineEvent;
+  const desktop = (popped = false) => {
+    (window as unknown as { telarDesktop?: unknown }).telarDesktop = { browser: { getState: async () => ({ scopeKey: "s", tabs: [], popped }) } };
+  };
+  afterEach(() => {
+    delete (window as unknown as { telarDesktop?: unknown }).telarDesktop;
+  });
+
+  test("the agent browsing shows the one Browser tab", async () => {
+    desktop();
+    const { Probe, strip, push } = harness({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: false }, { flat: false });
+    await mount(<Probe />);
+    await push([browsed(1)]);
+    await flush(() => strip().tabs.length > 1);
+    expect(strip().tabs.map((tab) => tab.id)).toEqual(["diff", "browser:__integrated__"]);
+    expect(strip().activeTab).toBe("browser:__integrated__");
+    expect(strip().open).toBe(true);
+  });
+
+  test("the person's recent choice wins: the Browser tab is added, not shown", async () => {
+    desktop();
+    const { Probe, strip, push } = harness({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: true }, { flat: false, touched: true });
+    await mount(<Probe />);
+    await push([browsed(1)]);
+    await flush(() => strip().tabs.length > 1);
+    expect(strip().tabs.map((tab) => tab.id)).toEqual(["diff", "browser:__integrated__"]);
+    expect(strip().activeTab).toBe("diff");
+  });
+
+  test("nothing is added while the browser has its own window", async () => {
+    desktop(true);
+    const { Probe, strip, push } = harness({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: true }, { flat: false });
+    await mount(<Probe />);
+    await push([browsed(1)]);
+    await flush();
+    expect(strip().tabs.map((tab) => tab.id)).toEqual(["diff"]);
+  });
 });

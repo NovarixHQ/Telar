@@ -5,7 +5,7 @@ import type { ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { writeDraft, writeDraftFiles } from "@/features/composer";
 import { sessionModelSelection, type ModelChoice } from "@/features/providers";
-import { browserPanelTab, describeBrowserStart, latestBrowserState, type BrowserStartState } from "@/features/panel";
+import { browserPanelTab, describeBrowserStart, latestBrowserState, LIVE_BROWSER_TAB, type BrowserStartState } from "@/features/panel";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import { nativePageToShow, openNativePage } from "@/features/browser/native-pages";
 import { hostFetcher } from "@/platform/engine/host-client";
@@ -113,15 +113,27 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
     const bridge = desktopBrowserBridge();
     const page = bridge ? (target ? await nativePageToShow(bridge, target) : undefined) : (journalled.find((tab) => tab.active) ?? journalled.at(-1))?.id;
     if (!page) return false;
-    panel.showPanelTab(browserPanelTab(page));
+    panel.showPanelTab(bridge ? panel.pageTab(page) : browserPanelTab(page));
     return true;
+  }
+
+  async function openGroupedPage(): Promise<boolean> {
+    const bridge = desktopBrowserBridge();
+    if (panel.flat || !bridge || !sessionId) return false;
+    const opened = await openNativePage(bridge, sessionId).catch(() => undefined);
+    if (opened) panel.showPanelTab(LIVE_BROWSER_TAB);
+    return opened !== undefined;
   }
 
   async function openBrowser() {
     const bridge = desktopBrowserBridge();
-    const opened = bridge && sessionId ? await openNativePage(bridge, sessionId).catch(() => undefined) : undefined;
-    if (opened) return panel.showPanelTab(browserPanelTab(opened));
-    if (!bridge && (await showBrowser(sessionId, browser?.tabs ?? []))) return;
+    if (!panel.flat && bridge) {
+      if (await openGroupedPage()) return;
+    } else {
+      const opened = bridge && sessionId ? await openNativePage(bridge, sessionId).catch(() => undefined) : undefined;
+      if (opened) return panel.showPanelTab(browserPanelTab(opened));
+      if (!bridge && (await showBrowser(sessionId, browser?.tabs ?? []))) return;
+    }
     if (browserOpening.current) return;
     browserOpening.current = true;
     const origin = window.location.pathname;

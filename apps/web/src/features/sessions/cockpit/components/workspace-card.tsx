@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BotIcon, CopyIcon, FolderGitIcon, GitBranchIcon, GitCompareIcon, MessageSquarePlusIcon } from "lucide-react";
 import { type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
@@ -158,18 +158,43 @@ function CopyItem({ label, value }: { label: string; value: string | undefined }
   );
 }
 
-/** Takes its own space beside the conversation, or above it in a narrow column. Kept mounted while closed: the Run row's feed is what reveals new terminals. */
-export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, panel, onRunTerminals }: {
+function useDismiss(active: boolean, close: () => void) {
+  const frame = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) close();
+    };
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target || frame.current?.contains(target)) return;
+      if (target.closest('[aria-label="Workspace"], [data-slot$="-content"], [role="menu"], [role="dialog"]')) return;
+      close();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer);
+    };
+  }, [active, close]);
+  return frame;
+}
+
+/** Floats over the conversation's top right, under its toggle. Kept mounted while closed: the Run row's feed is what reveals new terminals. */
+export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, panel, dismissible, onRunTerminals }: {
   hostId: string;
   session: Session;
   agents: readonly SessionChild[];
   busy: boolean;
   backgroundTasks: number;
   panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab" | "flat">;
+  dismissible: boolean;
   onRunTerminals: (terminals: readonly RunView[]) => void;
 }) {
   const router = useRouter();
-  const { open } = useWorkspaceCardOpen();
+  const { open, toggle } = useWorkspaceCardOpen();
+  const frame = useDismiss(open && dismissible, toggle);
   const path = workspacePath(session.workspace);
   const { diff, reload } = useWorkspaceCardData(hostId, session.id, open, session.workspace.mode === "local");
   const [terminals, setTerminals] = useState<readonly RunView[]>([]);
@@ -177,7 +202,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   const github = useGitHubReady(open && publishable, session.projectId);
   const api = createEngineApi(hostFetcher(hostId));
   return (
-    <div className={cn("app-no-drag flex max-h-1/2 shrink-0 justify-end overflow-y-auto p-3 @3xl/conversation:max-h-full", !open && "hidden")}>
+    <div ref={frame} className={cn("app-no-drag absolute top-3 right-3 z-20 max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl [&>*]:max-w-full", !open && "hidden")}>
       <WorkspaceCardView
         path={path}
         worktree={session.workspace.mode === "worktree"}

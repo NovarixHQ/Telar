@@ -145,13 +145,39 @@ describe("the header's controls stay in the masthead", () => {
   });
 });
 
-describe("the Workspace card keeps clear of the conversation", () => {
-  test("it opens outside the transcript, the masthead and the panel, with the panel open", async () => {
+const key = (name: string) => act(() => void window.dispatchEvent(new KeyboardEvent("keydown", { key: name })));
+const pointerDown = (target: Element) => act(() => void target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+const cardOpen = () => workspaceToggle().getAttribute("aria-pressed") === "true";
+
+describe("the Workspace card floats over the conversation", () => {
+  test("it sits outside the transcript, so opening it moves no text", async () => {
     await show("session_header_3");
-    await press(labelled("Open right panel")!);
-    expect(workspaceToggle().getAttribute("aria-pressed")).toBe("true");
+    expect(cardOpen()).toBe(true);
     expect(conversation().contains(card())).toBe(false);
     expect(masthead().contains(card())).toBe(false);
+  });
+
+  test("with the panel closed it stays open through Esc and clicks on the conversation", async () => {
+    await show("session_header_4");
+    await key("Escape");
+    await pointerDown(conversation());
+    expect(cardOpen()).toBe(true);
+  });
+
+  test("with the panel open, Esc closes it", async () => {
+    await show("session_header_5");
+    await press(labelled("Open right panel")!);
     expect(panel()!.contains(card())).toBe(false);
+    await key("Escape");
+    expect(cardOpen()).toBe(false);
+  });
+
+  test("with the panel open, a click on the conversation closes it and a click inside does not", async () => {
+    await show("session_header_6");
+    await press(labelled("Open right panel")!);
+    await pointerDown(card());
+    expect(cardOpen()).toBe(true);
+    await pointerDown(conversation());
+    expect(cardOpen()).toBe(false);
   });
 });

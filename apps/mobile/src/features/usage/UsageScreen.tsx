@@ -1,5 +1,5 @@
 import { Button, ContentUnavailableView, HStack, Host, NavigationStack, Picker, ProgressView, Spacer, Text, Toolbar, ToolbarItem, VStack } from "@expo/ui/swift-ui";
-import { font, foregroundStyle, frame, lineLimit, monospacedDigit, padding, pickerStyle, tag } from "@expo/ui/swift-ui/modifiers";
+import { font, foregroundStyle, frame, lineLimit, monospacedDigit, padding, pickerStyle, tag, tint } from "@expo/ui/swift-ui/modifiers";
 import type { UsageReport } from "@telar/engine-client";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Icon, Theme } from "../../ui";
@@ -164,7 +164,7 @@ function UsagePage({ hostId }: { hostId?: string }) {
 export function UsageScreen({ hostId, onDone }: { hostId?: string; onDone: () => void }) {
   return (
     <Host style={{ flex: 1 }}>
-      <NavigationStack>
+      <NavigationStack modifiers={[tint(Theme.accent)]}>
         <Toolbar>
           <UsagePage {...(hostId ? { hostId } : {})} />
           <Toolbar.Content>

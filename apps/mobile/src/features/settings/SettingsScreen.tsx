@@ -1,4 +1,5 @@
 import { Button, Host, NavigationDestination, NavigationStack, Toolbar, ToolbarItem } from "@expo/ui/swift-ui";
+import { tint } from "@expo/ui/swift-ui/modifiers";
 import Constants from "expo-constants";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Platform, Share } from "react-native";
@@ -124,7 +125,7 @@ export function SettingsScreen({ onDone, onAddComputer, open = [] }: { onDone: (
 
   return (
     <Host style={{ flex: 1 }}>
-      <NavigationStack path={path} onPathChange={setPath}>
+      <NavigationStack path={path} onPathChange={setPath} modifiers={[tint(Theme.accent)]}>
         <Toolbar>
           <RootPage push={push} onAddComputer={onAddComputer} />
           <Toolbar.Content>

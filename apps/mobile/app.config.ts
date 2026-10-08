@@ -42,6 +42,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     ["expo-build-properties", { ios: { deploymentTarget: "18.0" } }],
+    ["expo-camera", { cameraPermission: "Telar scans the pairing code shown in the cockpit's Connections settings.", microphonePermission: false, recordAudioAndroid: false }],
     [
       "expo-audio",
       {

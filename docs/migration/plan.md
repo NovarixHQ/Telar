@@ -38,7 +38,7 @@ The target layout is in `docs/internals/architecture.md`, and it is in place in 
 
 ### Headless
 
-Done: remote (pairing, devices, settings), the access gate, `sessions/live` projects, `fs`, mobile push routes, the push worker and notification decider, the other-Macs book, the MCP OAuth callback, and `about`. Cockpit features call the engine through typed clients.
+Done: remote (pairing, devices, settings), the access gate, `sessions/live` projects, `fs`, mobile push routes, the push worker and notification decider, the other-Macs book, and `about`. Cockpit features call the engine through typed clients.
 
 Left, in order:
 1. Move forwarding to other Macs into the engine, then delete `browse` and `desktop/metrics` (the preload covers them).

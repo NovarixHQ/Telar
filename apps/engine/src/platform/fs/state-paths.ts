@@ -9,13 +9,10 @@ export type EngineStatePaths = {
   claudeCompactionMigration: string;
   fyiIntentMigration: string;
   sessions: string;
-  mcpServers: string;
   providerInstances: string;
   providerSecrets: string;
   modelOverlays: string;
   modelCatalogues: string;
-  mcpOAuth: string;
-  mcpOAuthPending: string;
   inbox: string;
   retention: string;
   orientation: string;
@@ -61,13 +58,10 @@ export function statePaths(root: string): EngineStatePaths {
     claudeCompactionMigration: path.join(resolved, "claude-compaction-migration.json"),
     fyiIntentMigration: path.join(resolved, "fyi-intent-migration.json"),
     sessions: path.join(resolved, "sessions"),
-    mcpServers: path.join(resolved, "mcp-servers.json"),
     providerInstances: path.join(resolved, "provider-instances.json"),
     providerSecrets: path.join(resolved, "provider-secrets.json"),
     modelOverlays: path.join(resolved, "model-overlays.json"),
     modelCatalogues: path.join(resolved, "model-catalogues.json"),
-    mcpOAuth: path.join(resolved, "mcp-oauth.json"),
-    mcpOAuthPending: path.join(resolved, "mcp-oauth-pending.json"),
     inbox: path.join(resolved, "inbox.json"),
     retention: path.join(resolved, "retention.json"),
     orientation: path.join(resolved, "orientation.json"),

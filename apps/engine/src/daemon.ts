@@ -4,9 +4,9 @@ import os from "node:os";
 import pkg from "../package.json" with { type: "json" };
 import path from "node:path";
 import { ENGINE_PROTOCOL_VERSION, ProviderDriverKind, type ComputerUseGrant, type EngineDiscovery, type EngineHealth, type EngineIdentity, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
-import { BUNDLED_SKILLS, mcpOAuthRoutes } from "./domains/agent-tools";
+import { BUNDLED_SKILLS } from "./domains/agent-tools";
 import { appearanceRoutes } from "./domains/appearance";
-import { browserRoutes, browserSessionRoutes } from "./domains/browser";
+import { browserSessionRoutes } from "./domains/browser";
 import { computerUseRoutes, createComputerUseGate, type ComputerUseGate } from "./domains/computer-use";
 import { dictationRoutes } from "./domains/dictation";
 import { filesRoutes, sessionFilesRoutes } from "./domains/files";
@@ -213,13 +213,11 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket)),
     ...hostsRoutes(hostsStore),
     ...identityRoutes(identity),
-    ...mcpOAuthRoutes(store, now),
     ...aboutRoutes(root),
     ...push.routes,
     ...settingsRoutes(store, syncOrientationSkill, (settings) => simulators.settingsChanged(settings)),
     ...simulatorsRoutes(simulators, options.simulators?.fetch),
     ...dictationRoutes(store.dictation, options.dictationFetch),
-    ...browserRoutes(store.paths.root),
     ...computerUseRoutes(computerUseGate, { ...(options.grantComputerUse ? { grant: options.grantComputerUse } : {}), ...(options.resetComputerUse ? { reset: options.resetComputerUse } : {}) }),
     ...storageRoutes(store, storageMeter),
     ...worktreesRoutes(store, storageMeter.checkoutsChanged),

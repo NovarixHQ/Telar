@@ -3,13 +3,9 @@ import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComputerUseStatus } from "@telar/engine-client";
 import { buttonLabelled as button, click, flush, mount, press, stubFetch, installTestDom, type Route } from "@/test/dom";
-import { typeInto } from "@/test/type-into";
-import { BrowserLoginsRows } from "@/features/browser/panes/browser-logins-section";
-import { McpServerRows } from "@/features/agent-tools/components/mcp-section";
 import { OrientationRow } from "@/features/agent-tools/components/orientation-section";
 import { ComputerUseProviders, ComputerUseRow, computerUseHint, computerUseState } from "@/features/providers/components/permissions-section";
 import { grantFollowUp, GRANT_POLL_MS, GRANT_WAIT_MS } from "@/features/providers/hooks/use-computer-use";
-import { SettingsGroup } from "./settings-shell";
 
 installTestDom();
 
@@ -158,64 +154,6 @@ describe("computer use", () => {
     await click(button("Show in Finder"));
     expect(called("POST /api/computer-use/reveal")).toHaveLength(1);
   });
-});
-
-describe("MCP servers", () => {
-  const empty = { "GET /api/mcp-servers": () => ({ mcpServers: [] }), "GET /api/mcp/oauth": () => ({ statuses: [] }) };
-
-  test("the empty list is one row, not a row and a pill", async () => {
-    stubEngine(empty);
-    const { host } = await mount(<McpServerRows />);
-    await flush(() => Boolean(host.textContent?.includes("No servers configured")));
-    expect(host.textContent).toContain("No servers configured");
-    expect(host.textContent).not.toContain("None");
-  });
-
-  test("Add opens the form inline under its row, Cancel closes it, and a saved server closes it too", async () => {
-    stubEngine({ ...empty, "PUT /api/mcp-servers": (body) => ({ mcpServer: body }) });
-    const { host } = await mount(<McpServerRows />);
-    await flush(() => Boolean(button("Add")));
-    expect(host.textContent).not.toContain("Add a server");
-
-    await click(button("Add"));
-    expect(host.textContent).toContain("Add a server");
-    expect(button("Add")).toBeUndefined();
-    await click(button("Cancel"));
-    expect(host.textContent).not.toContain("Add a server");
-
-    await click(button("Add"));
-    await typeInto(host.querySelector('[aria-label="Server id"]') as HTMLInputElement, "linear");
-    await typeInto(host.querySelector('[aria-label="Command"]') as HTMLInputElement, "node server.js --port 9000");
-    await click(button("Add server"));
-    expect(called("PUT /api/mcp-servers").map((call) => call.body)).toEqual([
-      { id: "linear", spec: { transport: "stdio", command: "node", args: ["server.js", "--port", "9000"] } },
-    ]);
-    expect(host.textContent).not.toContain("Add a server");
-  });
-
-  test("a project's list folds the machine-wide servers it inherits in as a quiet list, with the sign-in outcome inline", async () => {
-    window.history.replaceState(null, "", "/settings?section=projects&mcpConnected=linear");
-    const machineWide = { id: "github", label: "Code host", enabled: true, spec: { transport: "http", url: "https://example.com/mcp" } };
-    stubEngine({
-      "GET /api/projects/p1/mcp-servers": () => ({ mcpServers: [], effective: [machineWide] }),
-      "GET /api/mcp/oauth": () => ({ statuses: [] }),
-    });
-    const { host } = await mount(
-      <SettingsGroup title="Agent tools">
-        <McpServerRows scope={{ projectId: "p1", projectName: "Telar" }} />
-      </SettingsGroup>,
-    );
-    await flush(() => Boolean(host.textContent?.includes("Also in play here")) && Boolean(host.textContent?.includes("Signed in to linear")));
-    expect(host.querySelectorAll("section")).toHaveLength(1);
-    expect(host.querySelector('[id$="also-in-play-here"]')?.textContent).toContain("Code host");
-  });
-});
-
-test("remembered logins' empty state is a row that says Telar asks before every fill", async () => {
-  stubEngine({ "GET /api/browser-logins": () => ({ logins: [] }) });
-  const { host } = await mount(<BrowserLoginsRows />);
-  await flush(() => Boolean(host.textContent?.includes("No remembered logins")));
-  expect(host.querySelector('[id$="no-remembered-logins"]')?.textContent).toContain("Telar asks before every fill");
 });
 
 describe("Telar orientation", () => {

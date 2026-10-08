@@ -1,7 +1,7 @@
-import type { McpServer, NotificationDetail, TurnAttachment } from "@telar/engine-client";
+import type { ComputerUseServer, NotificationDetail, TurnAttachment } from "@telar/engine-client";
 import { TELAR_BROWSER_MCP_SERVER, TELAR_MCP_SERVER } from "@telar/engine-client";
 import { RELAY_RULE } from "../../domains/turns";
-import { claimHasComputerUse } from "../../domains/computer-use";
+import { COMPUTER_USE_SERVER_ID } from "../../domains/computer-use";
 import { type DriverRun, withAttachedFiles } from "../contract";
 import { TELAR_TOOL_CALL_TIMEOUT_MS } from "../../domains/agent-tools";
 import { driverBriefings } from "../briefings";
@@ -57,41 +57,30 @@ export function codexSandboxPolicy(sandbox: CodexThreadConfig["sandbox"], cwd: s
   };
 }
 
-// Named after `~/.codex/config.toml`'s own fields. Headers may carry tokens because the overlay travels on stdin.
-export function codexMcpServers(servers: McpServer[] | undefined): Record<string, Record<string, unknown>> | undefined {
-  if (!servers?.length) return undefined;
-  const out: Record<string, Record<string, unknown>> = {};
-  for (const server of servers) {
-    if (server.spec.transport === "stdio") {
-      out[server.id] = {
-        command: server.spec.command,
-        ...(server.spec.args?.length ? { args: server.spec.args } : {}),
-        ...(server.spec.env && Object.keys(server.spec.env).length > 0 ? { env: server.spec.env } : {}),
-      };
-      continue;
-    }
-    out[server.id] = {
-      url: server.spec.url,
-      ...(server.spec.headers && Object.keys(server.spec.headers).length > 0 ? { http_headers: server.spec.headers } : {}),
-    };
-  }
-  return out;
+export function codexComputerUse(server: ComputerUseServer | undefined): Record<string, Record<string, unknown>> | undefined {
+  if (!server) return undefined;
+  return {
+    [COMPUTER_USE_SERVER_ID]: {
+      command: server.command,
+      ...(server.args.length ? { args: server.args } : {}),
+      ...(server.env && Object.keys(server.env).length > 0 ? { env: server.env } : {}),
+    },
+  };
 }
 
 const bearer = (lease: { url: string; token: string }) => ({ url: lease.url, http_headers: { Authorization: `Bearer ${lease.token}` } });
 
 // Omitted when empty: an empty `mcp_servers` would read as "forget the ones in config.toml".
-// Telar's entries go last so they shadow a colliding user server.
 function codexConfigOverlay(run: DriverRun, windowConfig: Record<string, number>) {
   const mcpServers = {
-    ...codexMcpServers(run.mcpServers),
+    ...codexComputerUse(run.computerUse),
     ...(run.browserSocket ? { [TELAR_BROWSER_MCP_SERVER]: bearer(run.browserSocket) } : {}),
     ...(run.telarSocketLease ? { [TELAR_MCP_SERVER]: { ...bearer(run.telarSocketLease), tool_timeout_sec: TELAR_TOOL_CALL_TIMEOUT_MS / 1_000 } } : {}),
   };
   const hasMcpServers = Object.keys(mcpServers).length > 0;
   const overlay = {
     ...(hasMcpServers ? { mcp_servers: mcpServers } : {}),
-    ...(claimHasComputerUse(run.mcpServers) ? { features: { computer_use: false } } : {}),
+    ...(run.computerUse ? { features: { computer_use: false } } : {}),
     ...windowConfig,
   };
   return { overlay: Object.keys(overlay).length > 0 ? overlay : undefined, hasMcpServers };

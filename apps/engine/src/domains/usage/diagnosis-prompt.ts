@@ -11,7 +11,7 @@ const LAYOUT = `Telar's data folder (your working folder; every path below is re
   - events(session_id, id, value): the raw journal; value.type 'usage.updated' carries usage.tokens per provider call. Large; filter by session_id.
   - schedules(id, session_id, rule, enabled, next_run_at, last_run_at): rule is JSON, {"kind":"interval","everyMs":…} or {"kind":"fixed",…}.
 - diagnostics/usage/<id>/digest.json: the digest this run was given. Start here.
-- session-defaults.json, text-generation.json (the model that names sessions), orientation.json, retention.json, cleanup.json, mcp-servers.json, provider-instances.json, model-overlays.json, claude-default-model.json, claude-long-window-migration.json, claude-compaction-migration.json: settings, as JSON.
+- session-defaults.json, text-generation.json (the model that names sessions), orientation.json, retention.json, cleanup.json, provider-instances.json, model-overlays.json, claude-default-model.json, claude-long-window-migration.json, claude-compaction-migration.json: settings, as JSON.
 - usage-scan-cache.json, usage-model-rates.json: the Usage page's caches of the providers' own logs and prices.
 - projects.json: registered projects. worktrees/: sessions' git checkouts (people's code; do not read it, it says nothing about usage).
 - sessions/<id>/: attachments and setup logs. diagnostics/: engine logs.
@@ -33,7 +33,7 @@ Known patterns and their fixes (fix.setting is one of ${USAGE_FIX_SETTINGS.join(
 - wake_heavy: fewer, batched results to the orchestrator; settle delegated conversations sooner (settle-delegated).
 - frequent_schedule: lengthen the schedule or point it at a small, fresh session (schedules).
 - rate_limit_loops: run fewer sessions at once (none).
-- big_tool_outputs: narrower commands and fewer MCP servers (mcp-servers).
+- big_tool_outputs: narrower commands and fewer MCP servers (none).
 - generated text on a large model: a small model for session names (generated-text-model).
 - outside_telar: only "outside" transcripts count, those with no Telar marker. Say what share that is; never conclude Telar is not the cause from the gap between the logs and this data folder (none).
 - store_misses_telar_runs: this data folder holds little of the Telar use in the logs. Say so plainly and base findings on claudeLogs (none).`;

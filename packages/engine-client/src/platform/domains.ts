@@ -1,4 +1,3 @@
-import { agentToolsClient } from "../agent-tools/client";
 import { appearanceClient } from "../appearance/client";
 import { browserClient } from "../browser/client";
 import { computerUseClient } from "../computer-use/client";
@@ -23,10 +22,9 @@ import type { EngineTransport } from "./transport";
 
 type Methods<T> = { [K in keyof T]: OmitThisParameter<T[K]> };
 
-export const domainClients = [agentToolsClient, appearanceClient, browserClient, computerUseClient, dictationClient, filesClient, gitClient, githubClient, pluginsClient, projectsClient, promptsClient, providersClient, schedulesClient, sessionsClient, settingsClient, simulatorsClient, storageClient, terminalClient, turnsClient, usageClient, worktreesClient];
+export const domainClients = [appearanceClient, browserClient, computerUseClient, dictationClient, filesClient, gitClient, githubClient, pluginsClient, projectsClient, promptsClient, providersClient, schedulesClient, sessionsClient, settingsClient, simulatorsClient, storageClient, terminalClient, turnsClient, usageClient, worktreesClient];
 
-export type EngineDomainMethods = Methods<typeof agentToolsClient> &
-  Methods<typeof appearanceClient> &
+export type EngineDomainMethods = Methods<typeof appearanceClient> &
   Methods<typeof browserClient> &
   Methods<typeof computerUseClient> &
   Methods<typeof dictationClient> &

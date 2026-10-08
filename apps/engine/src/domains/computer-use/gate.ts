@@ -9,14 +9,14 @@ import {
   type ComputerUseGrant,
   type ComputerUsePane,
   type ComputerUsePermission,
+  type ComputerUseServer,
   type ComputerUseStatus,
-  type McpServer,
   type ProviderDriverKind,
 } from "@telar/engine-client";
 
 export const COMPUTER_USE_SERVER_ID = "mac";
 
-export type ResolvedComputerUse = { server: McpServer; backend: ComputerUseBackend; helper?: BundledHelper };
+export type ResolvedComputerUse = { server: ComputerUseServer; backend: ComputerUseBackend; helper?: BundledHelper };
 
 const CUA_APP_BINARY = "/Applications/CuaDriver.app/Contents/MacOS/cua-driver";
 const cuaSymlink = (home: string) => path.join(home, ".local", "bin", "cua-driver");
@@ -78,28 +78,17 @@ export function helperResetCommands(bundleId: string): { command: string; args: 
   return ["Accessibility", "ScreenCapture"].map((service) => ({ command: "/usr/bin/tccutil", args: ["reset", service, bundleId] }));
 }
 
-function server(command: string, args: string[], at: number, env?: Record<string, string>): McpServer {
-  return {
-    id: COMPUTER_USE_SERVER_ID,
-    label: "Computer Use (Mac)",
-    enabled: true,
-    spec: { transport: "stdio", command, args, ...(env ? { env } : {}) },
-    createdAt: at,
-    updatedAt: at,
-  };
-}
-
-function resolveCua(env: Record<string, string | undefined>, home: string, exists: (candidate: string) => boolean, at: number): ResolvedComputerUse | undefined {
+function resolveCua(env: Record<string, string | undefined>, home: string, exists: (candidate: string) => boolean): ResolvedComputerUse | undefined {
   const bundledApp = env.TELAR_COMPUTER_USE_HELPER?.trim();
   if (bundledApp) {
     const helper = bundledHelper(bundledApp, home);
     if (!exists(helper.binary)) return undefined;
-    return { backend: "cua", helper, server: server(helper.binary, ["mcp", "--socket", helper.socket], at, { ...helper.env, CUA_DRIVER_EMBEDDED: "1" }) };
+    return { backend: "cua", helper, server: { command: helper.binary, args: ["mcp", "--socket", helper.socket], env: { ...helper.env, CUA_DRIVER_EMBEDDED: "1" } } };
   }
   const override = env.CUA_DRIVER_BIN?.trim();
   const command = [override, cuaSymlink(home), CUA_APP_BINARY].find((candidate): candidate is string => Boolean(candidate) && exists(candidate!));
   if (!command) return undefined;
-  return { backend: "cua", server: server(command, ["mcp"], at) };
+  return { backend: "cua", server: { command, args: ["mcp"] } };
 }
 
 function socketListening(socket: string, timeoutMs = 1_000): Promise<boolean> {
@@ -251,8 +240,7 @@ export function resolveComputerUse(probe: ComputerUseProbe = {}): ResolvedComput
 
   const exists = probe.exists ?? fs.existsSync;
   const home = probe.home ?? os.homedir();
-  const at = (probe.now ?? Date.now)();
-  return resolveCua(env, home, exists, at);
+  return resolveCua(env, home, exists);
 }
 
 export const SETTINGS_PANE_URL: Record<ComputerUsePane, string> = {
@@ -300,11 +288,11 @@ const PANE_LABEL: Record<ComputerUsePane, string> = { accessibility: "Accessibil
 
 export async function grantComputerUseAccess(probe: ComputerUseProbe = {}, deps: HelperDeps = {}): Promise<ComputerUseGrant> {
   const resolved = resolveComputerUse(probe);
-  if (!resolved || resolved.server.spec.transport !== "stdio") return { started: false };
+  if (!resolved) return { started: false };
   const { helper } = resolved;
   if (!helper) {
     try {
-      (deps.spawn ?? spawn)(resolved.server.spec.command, ["permissions", "grant"], { stdio: "ignore", detached: true }).unref();
+      (deps.spawn ?? spawn)(resolved.server.command, ["permissions", "grant"], { stdio: "ignore", detached: true }).unref();
       return { started: true, backend: "cua" };
     } catch (error) {
       return { started: false, backend: "cua", message: error instanceof Error ? error.message : "cua-driver did not start." };
@@ -466,8 +454,8 @@ function running(pattern: string): Promise<boolean> {
 
 export async function computerUseStatus(probe: ComputerUseProbe = {}, timeoutMs = 30_000, deps: HelperDeps = {}): Promise<ComputerUseStatus> {
   const resolved = resolveComputerUse(probe);
-  if (!resolved || resolved.server.spec.transport !== "stdio") return { installed: false, hostRunning: false };
-  const spec = resolved.server.spec;
+  if (!resolved) return { installed: false, hostRunning: false };
+  const spec = resolved.server;
   const { helper } = resolved;
   if (helper) {
     let up = await ensureHelperDaemon(helper, deps);
@@ -563,18 +551,6 @@ export function createComputerUseGate(
   };
 }
 
-export function withComputerUse(
-  servers: readonly McpServer[],
-  allServers: readonly McpServer[],
-  driver: ProviderDriverKind,
-  resolved: ResolvedComputerUse | undefined,
-): McpServer[] {
-  if (!resolved) return [...servers];
-  if (!driverTakesComputerUse(driver)) return [...servers];
-  if (allServers.some((server) => server.id === COMPUTER_USE_SERVER_ID)) return [...servers];
-  return [...servers, resolved.server];
-}
-
-export function claimHasComputerUse(servers: readonly McpServer[] | undefined): boolean {
-  return Boolean(servers?.some((server) => server.id === COMPUTER_USE_SERVER_ID));
+export function claimComputerUse(driver: ProviderDriverKind, resolved: ResolvedComputerUse | undefined): ComputerUseServer | undefined {
+  return resolved && driverTakesComputerUse(driver) ? resolved.server : undefined;
 }

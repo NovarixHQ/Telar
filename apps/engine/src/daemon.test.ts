@@ -187,32 +187,6 @@ test("attachments upload as raw bytes, ride the turn, and the browser answers ev
   });
 });
 
-test("MCP servers are environment-scoped and survive a daemon restart", async () => {
-  const stateRoot = root();
-  const first = await startEngine({ models: stubModels, engineRoot: stateRoot });
-  daemons.push(first);
-  const client = new EngineClient(first.discovery);
-  await client.saveMcpServer({ id: "linear", label: "Linear", spec: { transport: "http", url: "https://mcp.linear.app" } });
-  await expect(client.listMcpServers()).resolves.toEqual({
-    mcpServers: [expect.objectContaining({ id: "linear", label: "Linear", enabled: true })],
-  });
-  await expect(client.saveMcpServer({ id: "bad", spec: { transport: "smoke-signal" } as never })).rejects.toBeInstanceOf(
-    EngineClientError,
-  );
-  await first.close();
-  daemons.length = 0;
-
-  // Written beside projects.json rather than into a session, so a tool
-  // configured once is still configured after a restart.
-  const second = await startEngine({ models: stubModels, engineRoot: stateRoot });
-  daemons.push(second);
-  const reconnected = new EngineClient(second.discovery);
-  await expect(reconnected.listMcpServers()).resolves.toEqual({
-    mcpServers: [expect.objectContaining({ id: "linear" })],
-  });
-  await expect(reconnected.removeMcpServer("linear")).resolves.toEqual({ removed: true });
-});
-
 test("the provider registry answers with its probe, and never with a secret", async () => {
   const daemon = await startEngine({ models: stubModels,
     engineRoot: root(),

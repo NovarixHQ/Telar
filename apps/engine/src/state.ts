@@ -16,7 +16,6 @@ import { ProjectProbes, ProjectRegistry, ProjectRemounts, WorkspaceConfigStore }
 import { Kernel } from "./platform/kernel";
 import { SettingsStore } from "./domains/settings";
 import { AppearanceStore } from "./domains/appearance";
-import { McpOAuthStore, McpServers } from "./domains/agent-tools";
 import { chosenModel, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
 import { DataScienceOps, LatexOps, PluginToolchains } from "./domains/plugins";
 import { UsageLimitSources } from "./domains/usage";
@@ -78,8 +77,6 @@ export class EngineStore {
   readonly kernel: Kernel<EngineNotifier>;
   readonly settings: SettingsStore;
   readonly appearance: AppearanceStore;
-  readonly mcpOAuth: McpOAuthStore;
-  readonly mcpServers: McpServers;
   readonly providers: ProviderRegistry;
   readonly usageSources: UsageLimitSources;
   readonly projectProbes: ProjectProbes;
@@ -237,7 +234,7 @@ export class EngineStore {
     });
     this.kernel = new Kernel({ paths: this.paths, now, executionStore, notifier: options.notifier });
     ({
-      settings: this.settings, appearance: this.appearance, mcpOAuth: this.mcpOAuth, mcpServers: this.mcpServers, usageSources: this.usageSources,
+      settings: this.settings, appearance: this.appearance, usageSources: this.usageSources,
       projectProbes: this.projectProbes, projectRegistry: this.projectRegistry, catalogues: this.catalogues, providers: this.providers, toolchains: this.toolchains, github: this.github, browser: this.browser, remounts: this.remounts,
     } = this.leafStores(options));
     ({
@@ -535,8 +532,6 @@ export class EngineStore {
   private leafStores(options: { models?: typeof readModelCatalogue; cliVersion?: (driver: ProviderDriverKind) => Promise<InstalledCli>; manifest?: ModelManifest }) {
     const settings = new SettingsStore(this.kernel, () => this.enforceTerminalLimitSoon());
     const appearance = new AppearanceStore(this.kernel);
-    const mcpOAuth = new McpOAuthStore(this.kernel);
-    const mcpServers = new McpServers(this.kernel, { requireProject: (id) => void this.projectRegistry.get(id), forgetGrant: (id, projectId) => mcpOAuth.delete(id, projectId) });
     const usageSources = new UsageLimitSources(this.kernel);
     const projectProbes = new ProjectProbes(this.kernel, {
       asyncGit: this.asyncGit,
@@ -572,7 +567,7 @@ export class EngineStore {
       getSession: (id) => this.records.get(id),
       runningRunId: (id) => this.sessionQueues.read(id).turns.find((turn) => turn.state === "running")?.runId,
     });
-    return { settings, appearance, mcpOAuth, mcpServers, usageSources, projectProbes, projectRegistry, catalogues, providers, toolchains, github, browser, remounts };
+    return { settings, appearance, usageSources, projectProbes, projectRegistry, catalogues, providers, toolchains, github, browser, remounts };
   }
 
   /** How many projects the legacy-field fold changed on this open (0 on most). */
@@ -619,7 +614,6 @@ export class EngineStore {
       fireSubscriptions: (id, kind, turn, context) => this.wakes.fireSubscriptions(id, kind, turn, context),
       flushPendingNotifications: (id) => this.wakes.flushPendingNotifications(id),
       getSessionDefaults: () => this.settings.sessionDefaults(),
-      listMcpServers: () => this.mcpServers.list(),
       resolveProviderInstance: (instanceId, driver) => this.providers.resolve(instanceId, driver),
       getProject: (id) => this.projectRegistry.get(id),
       resolveDataScience: (session) => this.toolchains.resolveDataScience(session),

@@ -11,7 +11,7 @@ export type TurnState = {
   sdk: ClaudeSdk;
   cwd: string;
   sdkEffort: ClaudeEffort | undefined;
-  userServers: Record<string, unknown> | undefined;
+  computerUseServer: Record<string, unknown> | undefined;
   contextEnv: Record<string, string> | undefined;
   compactionEnv: Record<string, string | undefined> | undefined;
   defaultEnv: Record<string, string>;

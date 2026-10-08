@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AutoCompact, McpServer, NotificationDetail, RequestDecision, TurnObservation } from "@telar/engine-client";
+import type { AutoCompact, ComputerUseServer, NotificationDetail, RequestDecision, TurnObservation } from "@telar/engine-client";
 import { createCodexDriver, type CodexDriverOptions } from "../src/drivers/codex";
 import type { DriverRequest } from "../src/drivers";
 import type { SteerMailbox } from "../src/domains/turns";
@@ -61,7 +61,7 @@ type RunOptions = {
   onRequest?: (request: DriverRequest) => Promise<RequestDecision | { decision: RequestDecision; answers?: Record<string, unknown> }>;
   controller?: AbortController;
   options?: CodexDriverOptions;
-  mcpServers?: McpServer[];
+  computerUse?: ComputerUseServer;
   browserSocket?: { url: string; token: string };
   telarSocketLease?: { url: string; token: string; generation: string };
   steer?: SteerMailbox;
@@ -89,7 +89,7 @@ export function runTurn(scenario: string, run: RunOptions = {}) {
     onObservations: async (batch) => void observations.push(...batch),
     ...(run.providerSessionId ? { providerSessionId: run.providerSessionId } : {}),
     ...(run.onRequest ? { onRequest: run.onRequest } : {}),
-    ...(run.mcpServers ? { mcpServers: run.mcpServers } : {}),
+    ...(run.computerUse ? { computerUse: run.computerUse } : {}),
     ...(run.browserSocket ? { browserSocket: run.browserSocket } : {}),
     ...(run.telarSocketLease ? { telarSocketLease: run.telarSocketLease } : {}),
     ...(run.steer ? { steer: run.steer } : {}),
@@ -103,15 +103,6 @@ export function runTurn(scenario: string, run: RunOptions = {}) {
   });
   return { result, observations, controller };
 }
-
-export const mcp = (id: string, spec: McpServer["spec"]): McpServer => ({
-  id,
-  label: id,
-  enabled: true,
-  spec,
-  createdAt: 0,
-  updatedAt: 0,
-});
 
 export const started = (observations: TurnObservation[]) => observations.filter((o) => o.kind === "item.started");
 export const completed = (observations: TurnObservation[]) => observations.filter((o) => o.kind === "item.completed");

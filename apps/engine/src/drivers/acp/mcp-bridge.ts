@@ -5,11 +5,9 @@ import { TELAR_BROWSER_MCP_SERVER, TELAR_MCP_SERVER } from "@telar/engine-client
 import type { DriverRun } from "../contract";
 
 type NameValue = { name: string; value: string };
-export type AcpMcpServer = { name: string; command: string; args: string[]; env: NameValue[] } | { type: "http"; name: string; url: string; headers: NameValue[] };
+type AcpMcpServer = { name: string; command: string; args: string[]; env: NameValue[] };
 
 const BRIDGE_LEASE = "TELAR_MCP_BRIDGE_LEASE";
-
-const pairs = (record: Record<string, string> | undefined): NameValue[] => Object.entries(record ?? {}).map(([name, value]) => ({ name, value }));
 
 export type Lease = { url: string; token: string };
 
@@ -24,13 +22,8 @@ function bridge(name: string, leaseFile: string): AcpMcpServer {
   return { name, command: process.execPath, args: process.argv[1] ? [process.argv[1]] : [], env };
 }
 
-export function acpMcpServers(run: DriverRun, http: boolean, leaseDir: string): AcpMcpServer[] {
+export function acpMcpServers(run: DriverRun, leaseDir: string): AcpMcpServer[] {
   const servers: AcpMcpServer[] = [];
-  for (const server of run.mcpServers ?? []) {
-    const { spec } = server;
-    if (spec.transport === "stdio") servers.push({ name: server.id, command: spec.command, args: spec.args ?? [], env: pairs(spec.env) });
-    else if (http) servers.push({ type: "http", name: server.id, url: spec.url, headers: pairs(spec.headers) });
-  }
   const telar: Array<[string, { url: string; token: string } | undefined]> = [
     [TELAR_BROWSER_MCP_SERVER, run.browserSocket],
     [TELAR_MCP_SERVER, run.telarSocketLease],

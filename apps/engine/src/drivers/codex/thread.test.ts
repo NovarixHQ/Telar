@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { DriverRun } from "../contract";
-import { mcp, PEER } from "../../../test/codex-harness";
-import { codexMcpServers, codexNotificationInstruction, codexSandboxPolicy, codexThreadParams, codexTurnInput, defaultThreadConfig } from "./thread";
+import { PEER } from "../../../test/codex-harness";
+import { codexComputerUse, codexNotificationInstruction, codexSandboxPolicy, codexThreadParams, codexTurnInput, defaultThreadConfig } from "./thread";
 
 test("an image attachment becomes a localImage element, and every file is named in the text with its path", () => {
   const input = codexTurnInput("look", [
@@ -23,14 +23,9 @@ test("an image-only message is the image's path in the text, then the localImage
 });
 
 test("the translation names Codex's fields, not the contract's", () => {
-  expect(codexMcpServers([mcp("events", { transport: "sse", url: "https://mcp.example.com/sse" })])).toEqual({
-    events: { url: "https://mcp.example.com/sse" },
-  });
-  expect(codexMcpServers([mcp("bare", { transport: "stdio", command: "node", args: [], env: {} })])).toEqual({
-    bare: { command: "node" },
-  });
-  expect(codexMcpServers([])).toBeUndefined();
-  expect(codexMcpServers(undefined)).toBeUndefined();
+  expect(codexComputerUse({ command: "cua-driver", args: ["mcp"], env: { A: "1" } })).toEqual({ mac: { command: "cua-driver", args: ["mcp"], env: { A: "1" } } });
+  expect(codexComputerUse({ command: "bare", args: [], env: {} })).toEqual({ mac: { command: "bare" } });
+  expect(codexComputerUse(undefined)).toBeUndefined();
 });
 
 test("a wake and a parked request say which they are, in the header", () => {

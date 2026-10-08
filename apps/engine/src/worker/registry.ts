@@ -14,7 +14,6 @@ type RegisteredWorker = {
   heartbeatAt: number;
   claimSeq: number;
   claimResult: WorkerClaim | undefined;
-  claimBusy: Promise<void> | undefined;
 };
 
 type RegistryOptions = { now: () => number; leaseMs: number; onRetired?: (workerId: string) => void };
@@ -50,7 +49,7 @@ export function createWorkerRegistry(store: EngineStore, { now, leaseMs, onRetir
       prune();
       if (workers.has(workerId)) throw new HttpError(409, "conflict", "worker id is already registered");
       const at = now();
-      workers.set(workerId, { workerId, registeredAt: at, heartbeatAt: at, claimSeq: 0, claimResult: undefined, claimBusy: undefined });
+      workers.set(workerId, { workerId, registeredAt: at, heartbeatAt: at, claimSeq: 0, claimResult: undefined });
       return { worker: { workerId }, heartbeatIntervalMs: Math.max(50, Math.floor(leaseMs / 3)) };
     },
     workerHeartbeat: async (workerId, _signal, acknowledgedTaskStops) => {
@@ -71,26 +70,13 @@ export function createWorkerRegistry(store: EngineStore, { now, leaseMs, onRetir
       if (typeof seq !== "number" || !Number.isSafeInteger(seq) || seq < 1) {
         throw new HttpError(400, "invalid_request", "claim sequence must be a positive integer");
       }
-      // One claim at a time per worker, so the authorize await cannot interleave a duplicate.
-      const previous = worker.claimBusy ?? Promise.resolve();
-      let release!: () => void;
-      worker.claimBusy = new Promise<void>((resolve) => (release = resolve));
-      await previous;
-      try {
-        if (active(workerId) !== worker) throw new HttpError(503, "worker_unavailable", "worker registration retired");
-        if (seq === worker.claimSeq) return { claim: worker.claimResult };
-        if (seq < worker.claimSeq) throw new HttpError(409, "conflict", "claim sequence superseded");
-        if (seq !== worker.claimSeq + 1) throw new HttpError(400, "invalid_request", "claim sequence out of order");
-        // The claim is synchronous under the state lock; attaching OAuth bearers is a network call.
-        const claimed = store.claims.claimNextTurn(workerId);
-        const authorized = claimed ? await store.mcpOAuth.authorizeClaim(claimed) : undefined;
-        if (active(workerId) !== worker) throw new HttpError(503, "worker_unavailable", "worker registration retired");
-        worker.claimSeq = seq;
-        worker.claimResult = authorized;
-        return { claim: authorized };
-      } finally {
-        release();
-      }
+      if (seq === worker.claimSeq) return { claim: worker.claimResult };
+      if (seq < worker.claimSeq) throw new HttpError(409, "conflict", "claim sequence superseded");
+      if (seq !== worker.claimSeq + 1) throw new HttpError(400, "invalid_request", "claim sequence out of order");
+      const claimed = store.claims.claimNextTurn(workerId);
+      worker.claimSeq = seq;
+      worker.claimResult = claimed;
+      return { claim: claimed };
     },
   };
 

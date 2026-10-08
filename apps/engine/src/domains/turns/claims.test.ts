@@ -34,20 +34,13 @@ test("a daemon-injected computer-use resolver reaches a claim", () => {
   const stateRoot = root();
   const resolved = {
     backend: "cua" as const,
-    server: {
-      id: "mac",
-      label: "Computer Use (Mac)",
-      enabled: true,
-      spec: { transport: "stdio" as const, command: "/fake/cua-driver", args: ["mcp"] },
-      createdAt: 0,
-      updatedAt: 0,
-    },
+    server: { command: "/fake/cua-driver", args: ["mcp"] },
   };
   const store = new EngineStore(stateRoot, () => 100, { computerUse: () => resolved });
   store.projectRegistry.register({ id: "project_one", name: "One", root: "/tmp" });
   store.lifecycle.createSession({ id: "session_one", projectId: "project_one" });
   store.intake.submitTurn("session_one", { runId: "run_one", input: "Hi" });
-  expect(store.claims.claimNextTurn("worker_one")?.mcpServers?.map((server) => server.id)).toEqual(["mac"]);
+  expect(store.claims.claimNextTurn("worker_one")?.computerUse).toEqual({ command: "/fake/cua-driver", args: ["mcp"] });
 });
 
 test("a turn's service tier and ultracode reach the claim beside its model", () => {

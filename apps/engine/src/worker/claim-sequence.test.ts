@@ -96,12 +96,7 @@ test("a sequence that skips ahead is refused rather than allocating", async () =
   expect((await client.session("session_one")).turns[0]?.state).toBe("queued");
 });
 
-test("concurrent duplicates of one sequence allocate ONCE, even across the authorize await", async () => {
-  /**
-   * The claim branch authorizes MCP servers over the network before replying,
-   * so two duplicates interleaving between the watermark check and the cache
-   * would both allocate. The route serialises per worker.
-   */
+test("concurrent duplicates of one sequence allocate ONCE", async () => {
   const { client } = await engine();
   await client.registerWorker("worker_race");
   await client.submitTurn("session_one", { runId: "run_one", input: "Hello" });
@@ -191,35 +186,3 @@ test("a claim delivered AFTER stop never executes, and its token cannot start a 
   expect(token).toBeString();
 });
 
-test("a claim waiting behind authorization cannot allocate after its worker retires", async () => {
-  let time = 0;
-  const daemon = await startEngine({ models: stubModels, engineRoot: home(), now: () => time, workerLeaseMs: 1000 });
-  daemons.push(daemon);
-  const client = new EngineClient(daemon.discovery);
-  await client.registerProject({ id: "project_one", name: "One", root: "/tmp" });
-  await client.createSession({ id: "session_one", projectId: "project_one" });
-  await client.registerWorker("worker_old");
-  await client.submitTurn("session_one", { runId: "run_one", input: "first" });
-  const authorize = daemon.store.mcpOAuth.authorizeClaim.bind(daemon.store.mcpOAuth);
-  let entered!: () => void;
-  const started = new Promise<void>(resolve => { entered = resolve; });
-  let release!: () => void;
-  const barrier = new Promise<void>(resolve => { release = resolve; });
-  daemon.store.mcpOAuth.authorizeClaim = async claim => { entered(); await barrier; return authorize(claim); };
-  const first = client.claimTurn("worker_old", 1).catch(error => error);
-  await started;
-  const next = client.claimTurn("worker_old", 2).catch(error => error);
-  // Ensure the second request reaches the serialized claim queue.
-  await new Promise(resolve => setTimeout(resolve, 30));
-  time = 2000;
-  await client.health();
-  await client.registerWorker("worker_new");
-  await client.submitTurn("session_one", { runId: "run_new", input: "fresh message" });
-  release();
-  expect(await first).toMatchObject({ code: "worker_unavailable" });
-  expect(await next).toMatchObject({ code: "worker_unavailable" });
-  expect((await client.session("session_one")).turns.map(t => [t.runId, t.state])).toEqual([
-    ["run_one", "stopped"], ["run_new", "queued"],
-  ]);
-  expect((await client.claimTurn("worker_new", 1)).claim?.turn.runId).toBe("run_new");
-});

@@ -46,7 +46,6 @@ const identityOf = (run: DriverRun): string =>
     run.cwd ?? null,
     run.env ?? null,
     run.providerInstanceId ?? null,
-    (run.mcpServers ?? []).map((server) => server.id).sort(),
     Boolean(run.telarSocketLease),
     Boolean(run.browserSocket),
   ]);
@@ -91,8 +90,7 @@ export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
         }),
       );
       const capabilities = record(initialized.agentCapabilities);
-      const http = record(capabilities.mcpCapabilities).http === true;
-      const created = record(await rpc.request("session/new", { cwd: run.cwd ?? os.homedir(), mcpServers: acpMcpServers(run, http, leaseDir) }));
+      const created = record(await rpc.request("session/new", { cwd: run.cwd ?? os.homedir(), mcpServers: acpMcpServers(run, leaseDir) }));
       if (typeof created.sessionId !== "string") throw new Error("the agent started no session");
       runtime.sessionId = created.sessionId;
       runtime.options = configOptions(created);

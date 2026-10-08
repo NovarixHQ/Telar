@@ -13,6 +13,13 @@ export function driverTakesComputerUse(driver: ProviderDriverKind): boolean {
   return COMPUTER_USE_DRIVERS.includes(driver);
 }
 
+export const ComputerUseServer = z.object({
+  command: z.string().min(1),
+  args: z.array(z.string()),
+  env: z.record(z.string(), z.string()).optional(),
+});
+export type ComputerUseServer = z.infer<typeof ComputerUseServer>;
+
 export const ComputerUsePane = z.enum(["accessibility", "screen-recording"]);
 export type ComputerUsePane = z.infer<typeof ComputerUsePane>;
 

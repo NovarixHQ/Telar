@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import type { McpServer, NotificationDetail, TurnAttachment } from "@telar/engine-client";
+import type { ComputerUseServer, NotificationDetail, TurnAttachment } from "@telar/engine-client";
+import { COMPUTER_USE_SERVER_ID } from "../../domains/computer-use";
 import { claudeFixedWindowOf } from "../../domains/providers";
 import type { RunCapability } from "../../domains/terminal";
 import type { DisplayCapability } from "../../domains/agent-tools";
@@ -104,28 +105,16 @@ export type ClaudeTurnBindings = {
   usageDiagnosis: UsageDiagnosisCapability | undefined;
 };
 
-export function claudeMcpServers(servers: McpServer[] | undefined): Record<string, SdkMcpServer> | undefined {
-  if (!servers || servers.length === 0) return undefined;
-  const out: Record<string, SdkMcpServer> = {};
-  for (const server of servers) {
-    if (server.spec.transport === "stdio") {
-      out[server.id] = {
-        type: "stdio",
-        command: server.spec.command,
-        ...(server.spec.args ? { args: server.spec.args } : {}),
-        // Overlaid on the worker's environment rather than replacing it: an MCP
-        // server still needs PATH and HOME like any other child process.
-        ...(server.spec.env ? { env: { ...agentEnv(), ...server.spec.env } } : {}),
-      };
-      continue;
-    }
-    out[server.id] = {
-      type: server.spec.transport,
-      url: server.spec.url,
-      ...(server.spec.headers ? { headers: server.spec.headers } : {}),
-    };
-  }
-  return out;
+export function claudeComputerUse(server: ComputerUseServer | undefined): Record<string, SdkMcpServer> | undefined {
+  if (!server) return undefined;
+  return {
+    [COMPUTER_USE_SERVER_ID]: {
+      type: "stdio",
+      command: server.command,
+      args: server.args,
+      ...(server.env ? { env: { ...agentEnv(), ...server.env } } : {}),
+    },
+  };
 }
 
 const CLAUDE_1M_FAMILY_ALIAS = /^(opus|sonnet|fable)(?:$|[-[])/i;

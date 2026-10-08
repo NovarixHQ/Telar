@@ -1,6 +1,6 @@
-import { isBuiltInDriver, resolveMcpServers, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
+import { isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
-import { positiveParam, stringValue } from "../../platform/http/params";
+import { positiveParam } from "../../platform/http/params";
 import { ok, type Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
 import { runCliUpdate, type CliUpdateRun } from "./cli-updates";
@@ -100,43 +100,6 @@ function modelRoutes(store: EngineStore): Route[] {
   ];
 }
 
-const PROJECT_MCP_SLOT = /^\/v2\/projects\/([^/]+)\/mcp-servers\/([A-Za-z0-9_-]+)$/;
-const GLOBAL_MCP_SLOT = /^\/v2\/mcp-servers\/([A-Za-z0-9_-]+)$/;
-
-/** The machine's servers live at `/v2/mcp-servers`, one project's under `/v2/projects/:id/mcp-servers`. */
-function mcpServerRoutes(store: EngineStore): Route[] {
-  const save = (id: string, projectId: string | undefined, input: Record<string, unknown>) =>
-    ok({
-      mcpServer: store.mcpServers.save({
-        id,
-        ...(projectId === undefined ? {} : { projectId }),
-        ...(input.label === undefined ? {} : { label: stringValue(input.label, "mcp server label")! }),
-        ...(typeof input.enabled === "boolean" ? { enabled: input.enabled } : {}),
-        spec: input.spec,
-      }),
-    });
-  return [
-    { method: "GET", path: "/v2/mcp-servers", auth: "engine", handle: () => ok({ mcpServers: store.mcpServers.list({ projectId: null }) }) },
-    {
-      method: "GET",
-      path: /^\/v2\/projects\/([^/]+)\/mcp-servers$/,
-      auth: "engine",
-      handle: ({ params }) =>
-        ok({ mcpServers: store.mcpServers.list({ projectId: params[0]! }), effective: resolveMcpServers(store.mcpServers.list(), params[0]!) }),
-    },
-    { method: "PUT", path: PROJECT_MCP_SLOT, auth: "engine", handle: ({ body, params }) => save(params[1]!, params[0]!, body) },
-    { method: "PUT", path: GLOBAL_MCP_SLOT, auth: "engine", handle: ({ body, params }) => save(params[0]!, undefined, body) },
-    {
-      method: "DELETE",
-      path: PROJECT_MCP_SLOT,
-      auth: "engine",
-      body: "raw",
-      handle: ({ params }) => ok({ removed: store.mcpServers.remove(params[1]!, params[0]!) }),
-    },
-    { method: "DELETE", path: GLOBAL_MCP_SLOT, auth: "engine", body: "raw", handle: ({ params }) => ok({ removed: store.mcpServers.remove(params[0]!, undefined) }) },
-  ];
-}
-
 const INSTANCE = /^\/v2\/provider-instances\/([A-Za-z][A-Za-z0-9_-]*)$/;
 const INSTANCE_MODELS = /^\/v2\/provider-instances\/([A-Za-z][A-Za-z0-9_-]*)\/models$/;
 const INSTANCE_LIMITS = /^\/v2\/provider-instances\/([A-Za-z][A-Za-z0-9_-]*)\/limits$/;
@@ -213,5 +176,5 @@ function providerInstanceRoutes(store: EngineStore, deps: ProviderRouteDeps): Ro
 }
 
 export function providersRoutes(store: EngineStore, deps: ProviderRouteDeps): Route[] {
-  return [...modelRoutes(store), ...mcpServerRoutes(store), ...providerInstanceRoutes(store, deps), ...agentRoutes(store, deps.agents)];
+  return [...modelRoutes(store), ...providerInstanceRoutes(store, deps), ...agentRoutes(store, deps.agents)];
 }

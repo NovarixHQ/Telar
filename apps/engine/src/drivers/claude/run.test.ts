@@ -258,7 +258,7 @@ test("an image-only message reaches Claude as the image and a note naming it —
   expect(content[1]).toEqual({ type: "text", text: `Attached files:\n- shot.png (image, shown above) at ${file}` });
 });
 
-test("the user's MCP servers reach the SDK, and Telar's own key wins a collision", async () => {
+test("computer use reaches the SDK as the `mac` stdio server", async () => {
   let servers: Record<string, unknown> | undefined;
   const driver = createClaudeDriver(async () => ({
     async *query(input) {
@@ -266,14 +266,8 @@ test("the user's MCP servers reach the SDK, and Telar's own key wins a collision
       yield { type: "result", subtype: "success" };
     },
   }));
-  await run(driver, {
-    mcpServers: [
-      { id: "linear", label: "Linear", enabled: true, createdAt: 1, updatedAt: 1, spec: { transport: "http", url: "https://mcp.linear.app" } },
-      { id: "tools", label: "Tools", enabled: true, createdAt: 1, updatedAt: 1, spec: { transport: "stdio", command: "node", args: ["s.js"] } },
-    ],
-  }).result;
-  expect(servers?.linear).toEqual({ type: "http", url: "https://mcp.linear.app" });
-  expect(servers?.tools).toEqual({ type: "stdio", command: "node", args: ["s.js"] });
+  await run(driver, { computerUse: { command: "cua-driver", args: ["mcp"] } }).result;
+  expect(servers?.mac).toEqual({ type: "stdio", command: "cua-driver", args: ["mcp"] });
 });
 
 test("ultracode reaches the SDK as a setting beside fast mode, never as prompt text", async () => {

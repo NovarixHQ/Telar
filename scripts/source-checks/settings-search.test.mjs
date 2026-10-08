@@ -1,7 +1,21 @@
 import { expect, test } from "bun:test";
-import { renderedLabels } from "./settings-search.mjs";
+import { collectSettingsPages } from "../settings-index.mjs";
 
-test("a fixed row label is read off Row and ToggleRow, not off anything else", () => {
-  const labels = renderedLabels(['<Row label="Name sessions" hint="x" />', '<ToggleRow\n  label="Settle quiet sessions"\n/>', '<Button label="Save" />']);
-  expect([...labels]).toEqual(["Name sessions", "Settle quiet sessions"]);
+const pages = collectSettingsPages();
+const group = (page, title) => pages.find((entry) => entry.id === page)?.groups.find((entry) => entry.title === title);
+
+test("a row is indexed on the pane and under the group that render it", () => {
+  expect(group("notifications", "Alerts")?.rows.map((row) => row.title)).toContain("Notify on");
+  expect(group("storage", "Terminals")?.rows.map((row) => row.title)).toEqual(["Terminals settled sessions may keep open"]);
+});
+
+test("rows a component draws inside its own group's children take that group", () => {
+  expect(group("connections", "Devices that reach this Mac")?.rows.map((row) => row.title)).toEqual(["Pair a device", "Revoke all other devices"]);
+});
+
+test("rows built from a list and plugin panes are found, and state rows are not", () => {
+  expect(group("projects", "New worktrees")?.rows.map((row) => row.title)).toContain("Ports");
+  expect(group("projects", "LaTeX")?.rows.map((row) => row.title)).toContain("LaTeX for this project");
+  const titles = pages.flatMap((page) => page.groups.flatMap((entry) => entry.rows.map((row) => row.title)));
+  expect(titles).not.toContain("Loading");
 });

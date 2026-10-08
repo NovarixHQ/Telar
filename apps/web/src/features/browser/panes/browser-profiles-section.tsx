@@ -196,6 +196,7 @@ export function BrowserProfilesSection() {
   return (
     <>
       <SettingsGroup
+        keywords={["cookies", "account", "sign in", "chrome", "profile", "default", "browser", "integrations"]}
         title="Browser profiles"
         scope="mac"
         description="Each one is a separate set of cookies and logins for Telar's own browser."
@@ -292,7 +293,7 @@ function SitePermissionsGroup() {
       {error && <p className="text-xs text-destructive">{error}</p>}
       {profiles === undefined && !error && <Spinner className="size-4" />}
       {profiles?.length === 0 && (
-        <Row label="Nothing decided yet" hint="Telar asks the first time a site wants something, over the browser's address bar." />
+        <Row keywords={["camera", "microphone", "mic", "webcam", "notifications", "location", "geolocation", "clipboard", "screen share", "screen sharing", "permission", "permissions", "allow", "block", "revoke", "site"]} label="Nothing decided yet" hint="Telar asks the first time a site wants something, over the browser's address bar." />
       )}
       {profiles?.map((profile) =>
         profile.origins.map((site) => (

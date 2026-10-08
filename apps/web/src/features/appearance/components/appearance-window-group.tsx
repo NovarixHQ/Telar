@@ -51,6 +51,7 @@ export function AppearanceWindowGroup({
   return (
     <SettingsGroup title="Window" description="How this window itself is drawn. None of it travels in a look — it belongs to this machine.">
       <Row
+        keywords={["light", "dark", "system", "theme", "mode"]}
         label="Colour scheme"
         hint="Which state this window wears — and the one the composer above edits."
         control={<ThemeControl />}
@@ -58,6 +59,7 @@ export function AppearanceWindowGroup({
       {hasBridge && windowSupported ? (
         <>
           <Row
+            keywords={["glass", "blur", "clear", "frost", "vibrancy", "transparent"]}
             label="Translucency"
             hint="Rebuilds the window."
             control={
@@ -78,6 +80,7 @@ export function AppearanceWindowGroup({
       )}
       <ShowThroughRow level={appearance.translucencyLevel} onChange={(translucencyLevel) => onChange({ translucencyLevel })} />
       <Row
+        keywords={["wide", "full", "comfortable", "column", "measure", "transcript"]}
         label="Chat width"
         hint="How wide the conversation and the composer can grow."
         control={

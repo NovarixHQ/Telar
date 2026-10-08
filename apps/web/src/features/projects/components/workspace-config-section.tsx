@@ -370,6 +370,7 @@ function DependenciesRow({ view, writer }: { view: ProjectWorkspaceView; writer:
   const inherited = resolveWorkspace(view.machine, view.proposal.config, { ...view.overrides, dependencies: undefined }).effective.dependencies;
   return (
     <Row
+      keywords={["node_modules", "venv", "install", "share", "symlink", "disk"]}
       label="Dependencies"
       icon={BoxesIcon}
       hint="How a new worktree gets node_modules and .venv: install them with the setup command, share the checkout's, or neither."
@@ -432,6 +433,7 @@ export function ProjectWorkspaceRows({ view, writer }: { view: ProjectWorkspaceV
     <SettingsGroup title="New worktrees">
       {view.proposal.error && (
         <Row
+          keywords={["config file", "committed", "telar.json", "repo"]}
           label="Repo file"
           icon={FileWarningIcon}
           hint={`Could not read .telar/workspace.json, so nothing is inherited from it: ${view.proposal.error}`}
@@ -443,6 +445,7 @@ export function ProjectWorkspaceRows({ view, writer }: { view: ProjectWorkspaceV
         const inherited = effective[field];
         return (
           <Row
+            keywords={["install", "bootstrap", "prepare", "script", "timeout", "env", "variables", "export", "port", "server", "collide", "build output", "regenerate", "cache", "generated"]}
             key={field}
             label={label}
             icon={icon}
@@ -504,7 +507,7 @@ export function ProjectWorkspaceSection({ projectId }: { projectId: string }) {
   if (failed) {
     return (
       <SettingsGroup title="New worktrees">
-        <Row label="Worktree preparation" icon={FileWarningIcon} error={failed} />
+        <Row keywords={["setup", "prepare", "inherit", "worktree"]} label="Worktree preparation" icon={FileWarningIcon} error={failed} />
       </SettingsGroup>
     );
   }

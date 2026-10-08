@@ -136,6 +136,7 @@ export function PairDeviceRow({
   const showing = minted !== null && !expired;
   return (
     <Row
+      keywords={["qr", "link", "token", "pairing code", "phone", "ipad"]}
       label="Pair a device"
       icon={SmartphoneIcon}
       hint={expired ? "That code expired. Show a new one." : "One code, one device. Shown once and never stored."}

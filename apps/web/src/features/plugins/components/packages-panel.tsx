@@ -187,6 +187,7 @@ function EnvironmentFields({
       )}
 
       <Row
+        keywords={["pip", "package", "install", "dependencies"]}
         icon={DownloadIcon}
         label="Install packages"
         hint={environment?.command ? COMMAND_HINT[environment.command] : "Names, optionally with versions. Enter installs."}
@@ -211,6 +212,7 @@ function EnvironmentFields({
 
       {installable.length > 0 && !dense && (
         <Row
+          keywords={["requirements", "pyproject", "dependencies", "sync"]}
           icon={PackageIcon}
           label="The project's own dependencies"
           hint="Install everything the checkout already declares."

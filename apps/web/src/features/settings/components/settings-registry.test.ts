@@ -2,7 +2,8 @@ import { expect, test } from "bun:test";
 import type { PluginStatus } from "@telar/engine-client";
 import { searchSettings } from "../search";
 import { SETTINGS_SEARCH_INDEX, SETTINGS_SEARCH_PAGES } from "../registry";
-import { SECTION_IDS, settingsSearchIndex } from "../settings-sections";
+import { settingsSearchIndex } from "../registry";
+import { SECTION_IDS } from "../settings-sections";
 
 test("every indexed pane is a pane the shell can actually select", () => {
   for (const page of SETTINGS_SEARCH_PAGES) {
@@ -29,7 +30,7 @@ test("the questions a person actually types find the row", () => {
   expect(first("cookies")).toBe("Browser profiles");
   // Half-remembered, and in the wrong number.
   expect(first("name session")).toBe("Name sessions");
-  expect(searchSettings(SETTINGS_SEARCH_INDEX, "nothing here at all")).toEqual([]);
+  expect(searchSettings(SETTINGS_SEARCH_INDEX, "zebra quantum")).toEqual([]);
 });
 
 test("every indexed row is declared on the pane that actually renders it", () => {
@@ -43,7 +44,8 @@ test("every indexed row is declared on the pane that actually renders it", () =>
     "Notify on": "notifications",
     "Continue after Telar restarts": "general",
     "Settle quiet sessions": "general",
-    "Add a login": "providers",
+    Phones: "notifications",
+    Providers: "providers",
   };
   for (const [title, pageId] of Object.entries(paneOf)) {
     const entry = SETTINGS_SEARCH_INDEX.entries.find((candidate) => candidate.title === title);
@@ -75,4 +77,15 @@ test("generated plugin rows join the index on the Projects and Plugins panes", a
 
   const bespoke = settingsSearchIndex([plugin], (scope) => scope === "project");
   expect(searchSettings(bespoke, "output folder").map((hit) => hit.pageId)).toEqual(["plugins"]);
+});
+
+test("search finds every row the panes render, by its own name", () => {
+  for (const page of SETTINGS_SEARCH_PAGES) {
+    for (const group of page.groups) {
+      for (const row of group.rows) {
+        const hits = searchSettings(SETTINGS_SEARCH_INDEX, row.title).map((hit) => `${hit.pageId}:${hit.title}`);
+        expect(hits).toContain(`${page.id}:${row.title}`);
+      }
+    }
+  }
 });

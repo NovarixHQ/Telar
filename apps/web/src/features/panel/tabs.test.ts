@@ -396,6 +396,22 @@ describe("round-trips instances", () => {
 });
 });
 
+describe("revealPanelTab with show", () => {
+  test("adds the tab, selects it and opens the panel", () => {
+    const next = revealPanelTab({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: false }, { id: "terminal", kind: "terminal", params: {} }, true);
+    expect(next.tabs.map((tab) => tab.id)).toEqual(["diff", "terminal"]);
+    expect(next.activeTab).toBe("terminal");
+    expect(next.open).toBe(true);
+  });
+
+  test("brings an existing tab forward, and is the same object when it is already in front", () => {
+    const state = { tabs: [{ id: "diff", kind: "diff", params: {} }, { id: "terminal", kind: "terminal", params: {} }], activeTab: "diff", open: true };
+    const next = revealPanelTab(state, state.tabs[1]!, true);
+    expect(next.activeTab).toBe("terminal");
+    expect(revealPanelTab(next, state.tabs[1]!, true)).toBe(next);
+  });
+});
+
 describe("revealPanelTab", () => {
   const browser: PanelTabInstance = { id: "browser", kind: "browser", params: {} };
   const diff: PanelTabInstance = { id: "diff", kind: "diff", params: {} };

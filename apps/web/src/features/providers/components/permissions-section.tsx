@@ -94,6 +94,7 @@ export function PermissionsSection() {
   return (
     <SettingsGroup>
       <Row
+        keywords={["cua", "driver", "automation", "engine", "access", "permission", "privacy", "accessibility", "screen recording", "grant"]}
         label="Computer use"
         icon={MonitorIcon}
         info={bundled ? `${GATE_INFO} ${FINDER_INFO} ${REMOVE_INFO}` : GATE_INFO}

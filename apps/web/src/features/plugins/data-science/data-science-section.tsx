@@ -138,6 +138,7 @@ export function DataScienceSection({ project, onChange }: { project: Project; on
         }
       >
         <Row
+          keywords={["python", "jupyter", "notebook", "kernel", "enable", "plugin"]}
           label="Data science for this project"
           hint={enabled ? (current ? "Sessions get notebook and ds_* tools." : "On, but no environment is selected yet. Set one up below or ask the agent.") : current ? "Off. The chosen environment is kept." : "Off. You can turn it on before the environment exists."}
           {...(error ? { error } : {})}
@@ -350,6 +351,7 @@ function ToolchainRows({ toolchain, loading, onJob }: { toolchain?: DataScienceT
   return (
     <>
       <Row
+        keywords={["python", "install", "package manager"]}
         label="uv"
         hint={toolchain.uv ? "Makes venvs and installs packages, fast. Also fetches Python versions." : "Not installed. Telar makes environments with uv; without it only conda environments can be created."}
         control={
@@ -361,6 +363,7 @@ function ToolchainRows({ toolchain, loading, onJob }: { toolchain?: DataScienceT
         }
       />
       <Row
+        keywords={["anaconda", "miniconda", "environment"]}
         label="conda"
         hint={toolchain.conda ? `${toolchain.conda.flavour} at ${toolchain.conda.path}` : "Not installed. Optional — for conda environments and conda-forge packages, via Miniforge."}
         control={
@@ -372,6 +375,7 @@ function ToolchainRows({ toolchain, loading, onJob }: { toolchain?: DataScienceT
         }
       />
       <Row
+        keywords={["interpreter", "version", "install python"]}
         label="Python"
         hint={installed.length ? `Installed: ${installed.map((p) => p.version).join(", ")}` : "No Python on this machine yet."}
         {...(error ? { error } : {})}

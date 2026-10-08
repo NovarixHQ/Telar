@@ -173,6 +173,7 @@ export function RevokeOthersRow({ count, onConfirm }: { count: number; onConfirm
   }, [armed]);
   return (
     <Row
+      keywords={["sign out", "logout", "lost", "stolen"]}
       label="Revoke all other devices"
       hint="Keeps this one — the lost-phone button. Any of them can pair again with a new code."
       control={

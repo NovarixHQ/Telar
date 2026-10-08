@@ -18,6 +18,7 @@ export function WorkspaceSection() {
       description="Settings holds the defaults. A project can override them, and the composer changes only its own session."
     >
       <Row
+        keywords={["worktree", "branch", "git", "isolation"]}
         label="Workspace"
         icon={FolderGitIcon}
         hint={
@@ -44,6 +45,7 @@ export function WorkspaceSection() {
         }
       />
       <Row
+        keywords={["permissions", "supervised", "auto", "full access", "approval", "runtime mode", "prompts"]}
         label="Access"
         icon={ShieldCheckIcon}
         hint={`${RUNTIME_MODE_HELP[access]}. A conversation can still change its own.`}

@@ -39,6 +39,7 @@ export function SettledTerminalsSection() {
   return (
     <SettingsGroup title="Terminals">
       <Row
+        keywords={["terminal", "process", "dev server", "shell", "limit", "cap", "running", "settled"]}
         label="Terminals settled sessions may keep open"
         info="Counted across every project on this computer, shells you opened included. Past it, the session settled longest ago has its terminals closed first, and its row says so. Settling one yourself closes its terminals at once; one settled automatically keeps them for 30 minutes."
         {...(error ? { error } : {})}

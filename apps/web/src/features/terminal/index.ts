@@ -2,7 +2,7 @@ export type { TerminalOpenRequest } from "./bridge";
 export { closeTerminalTab } from "./close";
 export { RunHeaderControl } from "./components/run-header-control";
 export { TerminalSurface } from "./components/terminal-surface";
-export { openTerminal, revealTerminal, syncRunTabs } from "./reveal";
+export { openTerminal, revealTerminal, startedCommand, syncRunTabs } from "./reveal";
 export { isOpenTerminal, statusLabel } from "./run/presentation";
 export { createRunApi, type RunApi } from "./run/api";
 export type { RunView } from "./run/types";

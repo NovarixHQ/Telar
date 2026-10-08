@@ -33,17 +33,22 @@ export function latestBrowserState(events: readonly EngineEvent[]): BrowserState
   return state;
 }
 
-export type NativePages = { tabs: readonly { id: string; active?: boolean }[]; ended?: boolean; popped?: boolean };
+export type NativePages = { tabs: readonly { id: string; active?: boolean; openedBy?: "agent" | "human" }[]; ended?: boolean; popped?: boolean };
 
 /**
  * Mirror the session's native browser pages as panel tabs: a new page is added unselected, a closed one loses its tab,
  * and a change of the native active page since `lastActive` is followed while a page tab is in front.
- * Adds nothing while the browser is in its own window. Returns the same object when nothing changes.
+ * `showAgentPages` shows a page the agent opened. Adds nothing while popped out; same object when unchanged.
  */
-export function syncPageTabs<Kind extends string>(state: PanelTabState<Kind>, native: NativePages, lastActive?: string): PanelTabState<Kind> {
+export function syncPageTabs<Kind extends string>(state: PanelTabState<Kind>, native: NativePages, lastActive?: string, showAgentPages = false): PanelTabState<Kind> {
   const pages = native.ended ? [] : native.tabs;
   let next = state;
-  if (!native.popped) for (const page of pages) next = revealPanelTab(next, pageTab<Kind>(page.id));
+  if (!native.popped) {
+    for (const page of pages) {
+      const fresh = !findPanelTab(next, browserPanelTab(page.id));
+      next = revealPanelTab(next, pageTab<Kind>(page.id), fresh && showAgentPages && page.openedBy === "agent");
+    }
+  }
   const active = pages.find((page) => page.active)?.id;
   const front = activePanelTab(next);
   const follow = active !== undefined && active !== lastActive && front !== undefined && browserTabId(front.kind) !== undefined && front.id !== browserPanelTab(active);

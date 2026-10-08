@@ -79,6 +79,7 @@ export function OtherHostsSection() {
         <HostRow key={host.id} host={host} {...(hostError?.id === host.id ? { error: hostError.message } : {})} onRename={(name) => void rename(host.id, name)} onRemove={() => void remove(host.id)} />
       ))}
       <Row
+        keywords={["host", "pair", "second machine", "remote", "mac", "computer"]}
         label="Add a computer"
         {...(error ? { error } : {})}
         control={

@@ -161,6 +161,7 @@ export function PushNotificationsGroup() {
       <SettingsGroup title="Alerts">
         {notifyOn && (
           <Row
+            keywords={["duplicate", "twice", "desktop notifications", "banner", "iphone", "mac", "idle", "away", "push"]}
             label="Notify on"
             icon={BellIcon}
             hint="Which device each alert goes to."
@@ -180,7 +181,7 @@ export function PushNotificationsGroup() {
         )}
         <NotificationSoundsRow />
       </SettingsGroup>
-      <SettingsGroup title="Phones" action={<Badge variant={headline.ok ? "outline" : "destructive"}>{headline.label}</Badge>}>
+      <SettingsGroup keywords={["notifications", "apns", "alerts", "push", "relay", "phone", "not working", "test notification", "paused", "registered"]} title="Phones" action={<Badge variant={headline.ok ? "outline" : "destructive"}>{headline.label}</Badge>}>
         <Row id="push-phones" label={phone.label} icon={SmartphoneIcon} {...(phone.hint ? { hint: phone.hint } : {})} info={phone.info} control={null}>
           {details.length > 0 && (
             <details className="mt-1 text-xs text-muted-foreground">

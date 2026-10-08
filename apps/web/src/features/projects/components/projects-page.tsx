@@ -83,6 +83,7 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
   return (
     <SettingsGroup title="Identity">
       <Row
+        keywords={["rename", "title", "project name"]}
         label="Name"
         icon={FolderKanbanIcon}
         hint="Shown in the rail, the pickers and session headers. The folder on disk is not renamed."
@@ -100,6 +101,7 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
         {...(blockedReason(project, "rename it") ? { unavailable: { reason: blockedReason(project, "rename it")! } } : {})}
       />
       <Row
+        keywords={["avatar", "favicon", "logo", "mark"]}
         label="Icon"
         icon={ImageIcon}
         hint={
@@ -124,6 +126,7 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
       />
       {project && (
         <Row
+          keywords={["root", "path", "folder", "directory"]}
           label="Checkout"
           icon={FolderGitIcon}
           hint={gone ? "This folder is gone. Choose where it is now, and its sessions and settings follow." : "Sessions run here, or in a worktree cut from it."}
@@ -164,6 +167,7 @@ export function ProjectModelOptionsRow({
   const set = Object.keys(options).length > 0;
   return (
     <Row
+      keywords={["effort", "reasoning", "fast mode", "per project"]}
       label="Model options"
       icon={GaugeIcon}
       hint="New conversations in this project start with this model and these options."
@@ -208,6 +212,7 @@ export function ProjectConversationRows({
   return (
     <SettingsGroup title="New conversations">
       <Row
+        keywords={["model", "per project", "default"]}
         label="Default model"
         icon={SparklesIcon}
         hint={
@@ -242,6 +247,7 @@ export function ProjectConversationRows({
           : {})}
       />
       <Row
+        keywords={["worktree", "checkout", "workspace", "branch"]}
         label="Where new conversations start"
         icon={FolderGitIcon}
         hint={

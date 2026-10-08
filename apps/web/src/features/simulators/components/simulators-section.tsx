@@ -49,6 +49,7 @@ export function SimulatorsSection() {
   return (
     <SettingsGroup title="Simulators">
       <Row
+        keywords={["simulator", "emulator", "iphone", "ios", "android", "device", "xcode", "agent", "agent-device", "tap", "automation"]}
         label="Simulators"
         hint="Who may list, start and use the simulators on this Mac."
         info="Turning them on downloads a helper the first time and runs it on this Mac only; letting agents in also downloads the command they tap and type with. Turning them off stops the helper, and simulators that are running keep running."

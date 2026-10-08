@@ -327,14 +327,16 @@ function TurnOpening({
     <>
       {turn.kind !== "import" && turn.origin !== "provider" && turn.origin !== "session" && turn.origin !== "restart" && (
         // `markdown={false}`: the typed draft is not Markdown, so "Copy as Markdown" would mislabel it.
-        <div className="mb-1">
-          <MessageMenu text={turn.prompt} markdown={false} {...(onInsert ? { onQuote: onInsert } : {})}>
-            <div className="group/message">
-              <ConversationMessage text={turn.prompt} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
-              <MessageActions text={turn.prompt} at={turn.acceptedAt} align="end" />
-            </div>
-          </MessageMenu>
-        </div>
+        <MessageMenu text={turn.prompt} markdown={false} {...(onInsert ? { onQuote: onInsert } : {})}>
+          <div className="group/message">
+            <ConversationMessage
+              text={turn.prompt}
+              {...(turn.attachments ? { attachments: turn.attachments } : {})}
+              {...(onOpenTab ? { onOpenTab } : {})}
+              footer={<MessageActions text={turn.prompt} at={turn.acceptedAt} align="end" />}
+            />
+          </div>
+        </MessageMenu>
       )}
 
       {/* The initiating machine message precedes every response and steer. */}

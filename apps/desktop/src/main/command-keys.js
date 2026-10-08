@@ -12,7 +12,8 @@ const COMMANDS = [
 
   { id: "toggle-dictation", label: "Dictate", group: "Conversation", icon: "mic", defaultChord: "CommandOrControl+D" },
 
-  { id: "reveal-in-finder", label: "Reveal in Finder", group: "Conversation", icon: "folder-open", defaultChord: "CommandOrControl+O", menu: "file" },
+  { id: "open-in-app", label: "Open in Preferred App", group: "Conversation", icon: "external-link", defaultChord: "CommandOrControl+O", menu: "file" },
+  { id: "reveal-in-finder", label: "Reveal in Finder", group: "Conversation", icon: "folder-open", defaultChord: "CommandOrControl+Alt+O", menu: "file" },
 
   { id: "toggle-workspace", label: "Toggle Workspace", group: "Conversation", icon: "folder-git-2", defaultChord: "CommandOrControl+Alt+W" },
 

@@ -92,9 +92,10 @@ describe("the menu is built from the stored map, not the defaults", () => {
     }
   });
 
-  test("Reveal in Finder is a File menu row with ⌘O on it", () => {
-    const item = menuCommands(defaultKeymap(), "file").find((command) => command.id === "reveal-in-finder");
-    expect(item).toMatchObject({ label: "Reveal in Finder", accelerator: "CommandOrControl+O" });
+  test("the File menu opens the workspace on ⌘O and reveals it on ⌥⌘O", () => {
+    const file = menuCommands(defaultKeymap(), "file");
+    expect(file.find((command) => command.id === "open-in-app")).toMatchObject({ label: "Open in Preferred App", accelerator: "CommandOrControl+O" });
+    expect(file.find((command) => command.id === "reveal-in-finder")).toMatchObject({ label: "Reveal in Finder", accelerator: "CommandOrControl+Alt+O" });
   });
 });
 

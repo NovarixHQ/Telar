@@ -25,6 +25,7 @@ export type CommandId =
   | "send"
   | "stop-turn"
   | "toggle-dictation"
+  | "open-in-app"
   | "reveal-in-finder"
   | "pin-session"
   | "toggle-workspace"

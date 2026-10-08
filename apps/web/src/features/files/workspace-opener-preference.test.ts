@@ -325,23 +325,3 @@ describe("what the left half says", () => {
     expect(workspaceOpenerPrimaryLabel([])).toBe("Open");
   });
 });
-
-describe("the shortcut hint", () => {
-  test("it rides the preferred row only — the menu teaches the one you use", () => {
-    const entries = workspaceOpenerEntries({ openers: INSTALLED, preferred: "zed", shortcut: "⌘⏎" });
-    expect(entries[0]).toMatchObject({ id: "zed", shortcut: "⌘⏎" });
-    expect(entries.slice(1).every((entry) => entry.shortcut === undefined)).toBe(true);
-  });
-
-  test("nothing is passed, so nothing is promised", () => {
-    // ⌘O reveals in Finder (lib/commands.ts) but the button does not hand that
-    // chord down, and a hint the caller never supplied would be invented.
-    const entries = workspaceOpenerEntries({ openers: INSTALLED, preferred: "zed" });
-    expect(entries.every((entry) => entry.shortcut === undefined)).toBe(true);
-  });
-
-  test("with no preference there is no row to teach it on", () => {
-    const entries = workspaceOpenerEntries({ openers: INSTALLED, shortcut: "⌘⏎" });
-    expect(entries.every((entry) => entry.shortcut === undefined)).toBe(true);
-  });
-});

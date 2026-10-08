@@ -56,10 +56,26 @@ export function OpenWorkspaceRow({
 
   useEffect(() => (open ? refresh() : undefined), [open, refresh]);
 
+  const entries = workspaceOpenerEntries({ openers: answer?.openers ?? [], preferred, revealIconDataUrl: answer?.revealIconDataUrl });
+  const primary = answer === undefined ? undefined : workspaceOpenerPrimary(entries);
+  const primaryLabel = primary ? workspaceOpenerPrimaryLabel(entries) : "Open";
+
+  const act = (entry: WorkspaceOpenerEntry) => {
+    setError(undefined);
+    if (remembersOpener(entry)) writePreferredOpener(hostId, entry.id);
+    void (entry.kind === "reveal" ? bridge!.reveal(path!) : bridge!.open(path!, entry.openerId))
+      .then((result) => {
+        if (!result.ok) setError(result.error ?? "That folder could not be opened.");
+        else setOpen(false);
+      })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "That folder could not be opened."));
+  };
+
   const canReveal = !blocker && Boolean(bridge) && Boolean(path);
   useCommandHandlers(
     canReveal
       ? {
+          "open-in-app": () => (primary ? act(primary) : setOpen(true)),
           "reveal-in-finder": () => {
             setError(undefined);
             void bridge!
@@ -76,25 +92,10 @@ export function OpenWorkspaceRow({
           },
         }
       : {},
-    [canReveal],
+    [canReveal, primary],
   );
 
   if (!bridge && typeof window !== "undefined" && !(window as { telarDesktop?: unknown }).telarDesktop) return null;
-
-  const entries = workspaceOpenerEntries({ openers: answer?.openers ?? [], preferred, revealIconDataUrl: answer?.revealIconDataUrl });
-  const primary = answer === undefined ? undefined : workspaceOpenerPrimary(entries);
-  const primaryLabel = primary ? workspaceOpenerPrimaryLabel(entries) : "Open";
-
-  const act = (entry: WorkspaceOpenerEntry) => {
-    setError(undefined);
-    if (remembersOpener(entry)) writePreferredOpener(hostId, entry.id);
-    void (entry.kind === "reveal" ? bridge!.reveal(path!) : bridge!.open(path!, entry.openerId))
-      .then((result) => {
-        if (!result.ok) setError(result.error ?? "That folder could not be opened.");
-        else setOpen(false);
-      })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "That folder could not be opened."));
-  };
 
   const row = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent/60";
 
@@ -120,7 +121,7 @@ export function OpenWorkspaceRow({
           >
             <OpenerIcon icon={primary?.icon} iconDataUrl={primary?.iconDataUrl} />
             <span className="min-w-0 flex-1 truncate">{primaryLabel}</span>
-            {primary?.kind === "reveal" && canReveal && <KeyHint command="reveal-in-finder" />}
+            {primary && <KeyHint command="open-in-app" />}
           </SplitRowMain>
         </SplitRow>
       )}
@@ -140,7 +141,7 @@ export function OpenWorkspaceRow({
                   <button type="button" title={entry.path} onClick={() => act(entry)} className={row}>
                     <OpenerIcon icon={entry.icon} iconDataUrl={entry.iconDataUrl} />
                     <span className="min-w-0 flex-1 truncate">{entry.label}</span>
-                    {entry.shortcut && <span className="shrink-0 text-2xs tracking-widest text-muted-foreground">{entry.shortcut}</span>}
+                    {entry === primary && <KeyHint command="open-in-app" />}
                     {entry.kind === "reveal" && canReveal && <KeyHint command="reveal-in-finder" />}
                   </button>
                 )}

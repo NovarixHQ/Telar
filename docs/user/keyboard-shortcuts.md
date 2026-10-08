@@ -26,7 +26,8 @@ On a Mac, ⌘ is Command and ⌥ is Option. In a browser on another system, Ctrl
 | ⌘Return | Send |
 | ⌘. | Stop the running turn |
 | ⌘D | Dictate |
-| ⌘O | Reveal in Finder |
+| ⌘O | Open the workspace in your preferred app |
+| ⌥⌘O | Reveal in Finder |
 | ⌘P | Pin or unpin the conversation |
 | ⌘K | Command palette |
 | ⌘B | Show or hide the rail |

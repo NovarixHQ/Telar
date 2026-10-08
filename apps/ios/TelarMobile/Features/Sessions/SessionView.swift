@@ -245,7 +245,6 @@ struct SessionView: View {
     private var presence: some View {
         notices
             .onDisappear {
-                store.sync.stop()
                 receipt?.dispose()
                 receipt = nil
                 if MobileNotifications.shared.visibleSession?.sessionId == sessionId && MobileNotifications.shared.visibleSession?.hostId == hostId {
@@ -261,9 +260,8 @@ struct SessionView: View {
             .onChange(of: scenePhase) { _, phase in
 
                 if phase == .active {
-                    store.sync.start()
                     if let hostId { MobileNotifications.shared.visibleSession = .init(hostId: hostId, sessionId: sessionId) }
-                } else { store.sync.stop(); MobileNotifications.shared.visibleSession = nil }
+                } else { MobileNotifications.shared.visibleSession = nil }
             }
             .onChange(of: store.sync.connection) { _, connection in
                 if connection == .gone { dismiss() }
@@ -294,9 +292,10 @@ struct SessionView: View {
 
     private var polling: some View {
         stack
+            .task(id: scenePhase == .active) {
+                if scenePhase == .active { await store.sync.follow() }
+            }
             .task {
-                store.sync.start()
-
                 if receipt == nil {
                     let api = self.api
                     let sync = store.sync

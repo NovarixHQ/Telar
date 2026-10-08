@@ -112,9 +112,9 @@ struct RootView: View {
         .onChange(of: inbox.onCards) { _, sessions in
             if scenePhase == .active { MobileNotifications.shared.startCard(sessions, projectName: inbox.projectName) }
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase) { previous, phase in
             if phase == .active {
-                settings.renewConnections()
+                if previous == .background { settings.renewConnections() }
                 inbox.start()
                 MobileNotifications.shared.startCard(inbox.onCards, projectName: inbox.projectName)
                 Task { await MobileNotifications.shared.syncRegistrations() }

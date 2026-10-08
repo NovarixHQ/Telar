@@ -18,7 +18,7 @@ import {
   type NativeStackTypeBag,
 } from "@react-navigation/native-stack";
 import { useState, type ReactNode } from "react";
-import { Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
+import { LayoutAnimation, Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Theme, type SymbolName } from "../../ui";
 import { isRegularWidth } from "./size-class";
@@ -74,6 +74,11 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   });
   const { width } = useWindowDimensions();
   const [hidden, setHidden] = useState(false);
+  const setSidebarHidden = (next: boolean) => {
+    if (next === hidden) return;
+    LayoutAnimation.configureNext(LayoutAnimation.create(280, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
+    setHidden(next);
+  };
   const stack = (slice: State, shown: Descriptors) => <NativeStackView state={slice} navigation={navigation} descriptors={shown} describe={describe} />;
 
   if (!isRegularWidth(width, Platform.OS === "ios" && Platform.isPad) || state.routes[0]?.name !== initialRouteName) return render(stack(state, descriptors));
@@ -82,17 +87,20 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   const column: SplitColumn = {
     sidebar: false,
     sidebarHidden: hidden,
-    showSidebar: () => setHidden(false),
+    showSidebar: () => setSidebarHidden(false),
+    setSidebarHidden,
     ...(chosen && selection.includes(chosen.name) && chosen.params ? { selected: chosen.params } : {}),
   };
   const toggled = hidden
-    ? withButton(descriptors, chosen?.key, "unstable_headerLeftItems", sidebarButton("Show Sidebar", () => setHidden(false)))
-    : withButton(descriptors, sidebar.routes[0]?.key, "unstable_headerRightItems", sidebarButton("Hide Sidebar", () => setHidden(true)));
+    ? withButton(descriptors, chosen?.key, "unstable_headerLeftItems", sidebarButton("Show Sidebar", () => setSidebarHidden(false)))
+    : withButton(descriptors, sidebar.routes[0]?.key, "unstable_headerRightItems", sidebarButton("Hide Sidebar", () => setSidebarHidden(true)));
   return render(
     <SplitColumnContext.Provider value={column}>
       <View style={styles.row}>
-        <View style={hidden ? styles.hidden : styles.sidebar}>
-          <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
+        <View style={[styles.clip, { width: hidden ? 0 : SIDEBAR_WIDTH }]}>
+          <View style={styles.sidebar}>
+            <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
+          </View>
         </View>
         <View style={styles.detail}>{detail ? stack(detail, toggled) : <SafeAreaProvider>{placeholder}</SafeAreaProvider>}</View>
       </View>
@@ -108,7 +116,7 @@ export function createSplitStackNavigator<const ParamList extends ParamListBase>
 
 const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: "row" },
-  sidebar: { width: SIDEBAR_WIDTH },
-  hidden: { width: 0, overflow: "hidden" },
+  clip: { overflow: "hidden" },
+  sidebar: { position: "absolute", top: 0, bottom: 0, right: 0, width: SIDEBAR_WIDTH },
   detail: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
 });

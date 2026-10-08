@@ -41,7 +41,7 @@ export function AppearancePage() {
   const { chatWidth } = useAppSettings();
   return (
     <SettingsPage title="Appearance">
-      <SettingsGroup label="Conversation" footer="How wide the conversation and the composer can grow.">
+      <SettingsGroup label="Session" footer="How wide the session and the composer can grow.">
         <CardRow icon="arrow.left.and.right" title="Chat width">
           <Picker<string> selection={chatWidth} onSelectionChange={(width) => appSettings.set("chatWidth", width as ChatWidth)} modifiers={[pickerStyle("segmented"), fixedSize()]}>
             {chatWidths.map((width) => (

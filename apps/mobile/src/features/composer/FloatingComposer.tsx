@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { RequestDecision } from "@telar/engine-client";
 import { Keyboard, Settings, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -150,6 +150,8 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
     void send(text);
   });
 
+  const controls = useMemo(() => (host && session ? <SessionMenus host={host} session={session} onChanged={(work) => void act(() => work)} /> : undefined), [host, session]);
+
   const shownProblem = problem ?? dictation.problem;
   return (
     <View
@@ -173,7 +175,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
           slot={slot}
           onSlot={() => void (slot.kind === "stop" ? stop() : send())}
           menu={{
-            controls: host && session ? <SessionMenus host={host} session={session} onChanged={(work) => void act(() => work)} /> : undefined,
+            controls,
             onCommands: () => setDraft(openingCommands(draft)),
             onAttach: (kind) => void attachments.pick(kind),
             ...(stash.canStash ? { onStash: stash.stash } : {}),

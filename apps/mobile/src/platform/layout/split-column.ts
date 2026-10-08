@@ -7,9 +7,10 @@ export type SplitColumn = {
   selected?: object;
   sidebarHidden: boolean;
   showSidebar: () => void;
+  setSidebarHidden: (hidden: boolean) => void;
 };
 
-export const SplitColumnContext = createContext<SplitColumn>({ sidebar: false, sidebarHidden: false, showSidebar: () => {} });
+export const SplitColumnContext = createContext<SplitColumn>({ sidebar: false, sidebarHidden: false, showSidebar: () => {}, setSidebarHidden: () => {} });
 
 /** Where the calling screen is drawn: in the iPad sidebar, the detail column, or a phone's single stack. */
 export const useSplitColumn = () => useContext(SplitColumnContext);

@@ -54,3 +54,9 @@ export function typeset(tex: string, display: boolean): Typeset | null {
   cache.set(key, result);
   return result;
 }
+
+const EX_PER_EM = 0.442;
+
+export function mathScale(textSize: number, display: boolean, fontScale: number): number {
+  return (display ? textSize * 1.2 : textSize) * fontScale * EX_PER_EM;
+}

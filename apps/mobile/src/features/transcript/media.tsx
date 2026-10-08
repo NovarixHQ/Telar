@@ -1,22 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
-import { Image, StyleSheet, Text, useColorScheme, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from "react-native";
 import { SvgXml } from "react-native-svg";
 import { palette, Theme } from "../../ui";
-import { typeset } from "./math";
+import { mathScale, typeset } from "./math";
 import { MONO } from "./native";
 
-// MathJax sizes in ex of its New Computer Modern font; Swift draws display maths at 18pt and inline at 15pt.
-const EX_PER_EM = 0.442;
-
 /** A TeX formula drawn natively; when MathJax can't typeset it, its source in mono. */
-export function MathView({ tex, display }: { tex: string; display: boolean }) {
+export function MathView({ tex, display, size = 15 }: { tex: string; display: boolean; size?: number }) {
   const dark = useColorScheme() === "dark";
+  const { fontScale } = useWindowDimensions();
+  const [room, setRoom] = useState(0);
   const set = useMemo(() => typeset(tex, display), [tex, display]);
   if (!set) return <Text style={styles.source}>{`$$${tex}$$`}</Text>;
-  const ex = (display ? 18 : 15) * EX_PER_EM;
-  const svg = <SvgXml xml={set.xml.replaceAll("currentColor", dark ? palette.text.dark : palette.text.light)} width={set.width * ex} height={set.height * ex} accessibilityLabel={tex} />;
+  const ex = mathScale(size, display, fontScale);
+  const width = set.width * ex;
+  const svg = <SvgXml xml={set.xml.replaceAll("currentColor", dark ? palette.text.dark : palette.text.light)} width={width} height={set.height * ex} accessibilityLabel={tex} />;
   if (!display) return <View style={{ transform: [{ translateY: set.depth * ex }] }}>{svg}</View>;
-  return <View style={styles.display}>{svg}</View>;
+  return (
+    <View onLayout={({ nativeEvent }) => setRoom(nativeEvent.layout.width)}>
+      {room > 0 && width > room ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {svg}
+        </ScrollView>
+      ) : (
+        <View style={styles.display}>{svg}</View>
+      )}
+    </View>
+  );
 }
 
 /** A remote image in a reply, as wide as the column at its own aspect ratio. */

@@ -11,12 +11,14 @@ type Icon = Extract<NonNullable<NativeStackHeaderItemButton["icon"]>, { type: "s
 const symbol = (name: Icon["name"]): Icon => ({ type: "sfSymbol", name });
 
 /** The Swift app's session toolbar: an inline title, the panel button and the actions menu. */
-export function useSessionHeader(host: HostConnection | undefined, sessionId: string, session: Session | undefined, fallbackTitle: string | undefined, act: (work: () => Promise<unknown>) => void) {
+export function useSessionHeader(host: HostConnection | undefined, sessionId: string, session: Session | undefined, fallbackTitle: string | undefined, act: (work: () => Promise<unknown>) => void, openPanel: (tab?: "diff") => void) {
   const navigation = useNavigation<NavigationProp<RootStack>>();
   const title = session?.title || fallbackTitle || "Session";
   const settled = session?.settledOverride === "settled";
   const perform = useRef(act);
   perform.current = act;
+  const panel = useRef(openPanel);
+  panel.current = openPanel;
 
   useLayoutEffect(() => {
     const update = (patch: Parameters<HostConnection["client"]["updateSession"]>[1]) => {
@@ -24,13 +26,10 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
     };
     const rename = () =>
       Alert.prompt("Rename session", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Rename", isPreferred: true, onPress: (next?: string) => next?.trim() && update({ title: next.trim() }) }], "plain-text", title);
-    const openPanel = (tab?: "diff") => {
-      if (host) navigation.navigate("Panel", { hostId: host.hostId, sessionId, ...(tab ? { tab } : {}) });
-    };
     const options: NativeStackNavigationOptions = {
       title,
       unstable_headerRightItems: (): NativeStackHeaderItem[] => [
-        { type: "button", label: "Panel", icon: symbol("sidebar.trailing"), tintColor: Theme.textMuted, onPress: () => openPanel(), accessibilityLabel: "Panel" },
+        { type: "button", label: "Panel", icon: symbol("sidebar.trailing"), tintColor: Theme.textMuted, onPress: () => panel.current(), accessibilityLabel: "Panel" },
         {
           type: "menu",
           label: "Session actions",
@@ -41,7 +40,7 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
             title,
             items: [
               { type: "submenu", label: "Edit", inline: true, items: [{ type: "action", label: "Rename", icon: symbol("pencil"), onPress: rename }] },
-              { type: "submenu", label: "Panel", inline: true, items: [{ type: "action", label: "Diff", icon: symbol("plusminus"), onPress: () => openPanel("diff") }] },
+              { type: "submenu", label: "Panel", inline: true, items: [{ type: "action", label: "Diff", icon: symbol("plusminus"), onPress: () => panel.current("diff") }] },
               {
                 type: "submenu",
                 label: "Shelf",

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { itemText, type JournalItem } from "@telar/client/journal";
 import { ArtifactCard } from "./Artifact";
 import { providerSwitchLabel } from "./layout";
 import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./notices";
 import { Markdown } from "./Markdown";
+import { isPlainProse } from "./markdown-blocks";
 import { advanceReveal, REVEAL_FRAME_MS, revealed, revealText, stepReveal, type Reveal } from "./reveal";
 import { Radius, Theme, type SymbolName } from "../../ui";
 import { MONO, Symbol, TextSize } from "./native";
@@ -106,15 +107,18 @@ export function ItemRow({ item }: { item: JournalItem }) {
 /** Hugs its longest wrapped line, as SwiftUI does, instead of keeping the width it wrapped at. */
 export function UserBubble({ text, attachments = 0 }: { text: string; attachments?: number }) {
   const blank = !text.trim();
+  const plain = useMemo(() => isPlainProse(text), [text]);
   const [hug, setHug] = useState<number>();
   return (
     <View style={styles.bubbleRow}>
-      <View style={[styles.bubble, hug !== undefined && { width: hug + 24 }]}>
+      <View style={[styles.bubble, hug !== undefined && { width: hug + 24 }, !plain && styles.richBubble]}>
         {blank && attachments ? (
           <View style={styles.imageLabel}>
             <Symbol name="photo" size={TextSize.body} color={Theme.textMuted} />
             <Text style={[styles.bubbleText, styles.muted]}>Image</Text>
           </View>
+        ) : !plain ? (
+          <Markdown text={text} size={TextSize.body} />
         ) : (
           <Text
             selectable
@@ -181,6 +185,7 @@ const styles = StyleSheet.create({
   planStep: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   bubbleRow: { flexDirection: "row", justifyContent: "flex-end", paddingLeft: 32 },
   bubble: { padding: 12, borderRadius: Radius.bubble, backgroundColor: Theme.subtle, flexShrink: 1 },
+  richBubble: { flexGrow: 1 },
   bubbleText: { fontSize: TextSize.body, lineHeight: TextSize.body * 1.2 + 4, color: Theme.text },
   imageLabel: { flexDirection: "row", alignItems: "center", gap: 6 },
   notice: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },

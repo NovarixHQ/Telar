@@ -30,6 +30,12 @@ export function markdownBlocks(text: string): Token[] {
   return marked.lexer(text);
 }
 
+const plainInline = (token: Token): boolean => (token.type === "text" || token.type === "escape") && (!("tokens" in token) || !token.tokens || token.tokens.every(plainInline));
+
+export function isPlainProse(text: string): boolean {
+  return markdownBlocks(text).every((block) => block.type === "space" || (block.type === "paragraph" && (block.tokens ?? []).every(plainInline)));
+}
+
 const FENCE_ALIASES: Record<string, string | null> = {
   sh: "bash", shell: "bash", console: "bash", zsh: "bash",
   ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript", node: "javascript",

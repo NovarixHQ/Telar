@@ -27,7 +27,7 @@ function version(): string {
   return build ? `${config?.version ?? "?"} (${build})` : (config?.version ?? "?");
 }
 
-function RootPage({ push }: { push: Push }) {
+function RootPage({ push, onUsage }: { push: Push; onUsage: () => void }) {
   const settings = useAppSettings();
   const rows = useHosts(hosts);
   const exportLog = () => {
@@ -46,6 +46,8 @@ function RootPage({ push }: { push: Push }) {
         ) : null}
         <CardDivider />
         <CardNavRow icon="bell.badge" title="Notifications" subtitle={notificationsSummary(settings)} onPress={() => push({ page: "notifications" })} />
+        <CardDivider />
+        <CardNavRow icon="chart.bar" title="Usage" subtitle="What each computer's agents spent" onPress={onUsage} />
       </SettingsCard>
       <ConnectionsSection onHost={(hostId) => push({ page: "host", hostId })} onAdd={() => push({ page: "connect" })} />
       <SettingsGroup label="About">
@@ -99,7 +101,7 @@ function page(destination: Destination, { push, pop }: Stack): ReactNode {
  * The Settings sheet: present it modally with no header; it draws its own stack and Done.
  * `open` pushes pages at once, e.g. `[{ page: "devices", hostId }]`.
  */
-export function SettingsScreen({ onDone, open = [] }: { onDone: () => void; open?: Destination[] }) {
+export function SettingsScreen({ onDone, onUsage, open = [] }: { onDone: () => void; onUsage: () => void; open?: Destination[] }) {
   const [path, setPath] = useState(() => open.map(destinationValue));
   const push: Push = (destination) => setPath((current) => [...current, destinationValue(destination)]);
   const pop = () => setPath((current) => current.slice(0, -1));
@@ -112,7 +114,7 @@ export function SettingsScreen({ onDone, open = [] }: { onDone: () => void; open
     <Host style={{ flex: 1 }}>
       <NavigationStack path={path} onPathChange={setPath} modifiers={[tint(Theme.accent)]}>
         <Toolbar>
-          <RootPage push={push} />
+          <RootPage push={push} onUsage={onUsage} />
           <Toolbar.Content>
             <ToolbarItem placement="confirmationAction">
               <Button label="Done" onPress={onDone} />

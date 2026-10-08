@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { fencedLanguage, highlightCode, markdownBlocks } from "./markdown-blocks";
+import { fencedLanguage, highlightCode, isPlainProse, markdownBlocks } from "./markdown-blocks";
 
 test("a reply splits into the blocks the transcript draws", () => {
   const blocks = markdownBlocks("# Plan\n\nSome **bold** and `code`.\n\n> quoted\n\n- [x] done\n- next\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```ts\nconst a = 1;\n```\n\n---");
@@ -35,4 +35,13 @@ test("$$ math is a display block on its own lines and inline inside a sentence",
   const sentence = blocks.filter((block) => block.type === "paragraph")[1] as { tokens: { type: string; text?: string }[] };
   expect(sentence.tokens.map((token) => token.type)).toEqual(["text", "mathInline", "text", "codespan", "text"]);
   expect(sentence.tokens[3]).toMatchObject({ text: "$$code$$" });
+});
+
+test("a prompt with no Markdown or maths stays plain prose", () => {
+  expect(isPlainProse("Fix the build, then run the tests.\n\nThanks")).toBe(true);
+  expect(isPlainProse("cost is 2 * 3 dollars")).toBe(true);
+  expect(isPlainProse("Use **bold** here")).toBe(false);
+  expect(isPlainProse("- one\n- two")).toBe(false);
+  expect(isPlainProse("```ts\nconst a = 1;\n```")).toBe(false);
+  expect(isPlainProse("Solve $$x^2 = 4$$")).toBe(false);
 });

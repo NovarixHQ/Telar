@@ -30,7 +30,7 @@ export function App() {
       <Stack.Navigator
         initialRouteName="Rail"
         selection={["Session"]}
-        placeholder={<DetailPlaceholder onNewConversation={() => navigation.navigate("Unavailable", { title: "New conversation", systemImage: "square.and.pencil" })} />}
+        placeholder={<DetailPlaceholder onNewSession={() => navigation.navigate("Unavailable", { title: "New session", systemImage: "square.and.pencil" })} />}
         screenOptions={{ headerLargeTitle: true }}
       >
         <Stack.Screen name="Rail" component={RailScreen} options={{ title: "Telar" }} />
@@ -39,9 +39,9 @@ export function App() {
           <Stack.Screen name="Unavailable" component={Unavailable} options={({ route }) => ({ title: route.params.title })} />
         </Stack.Group>
         <Stack.Screen name="Session" component={SessionScreen} options={({ route }) => ({ title: route.params.title ?? "Session", headerLargeTitle: false, headerTransparent: true, headerShadowVisible: false, headerBackButtonDisplayMode: "minimal" })} />
-        <Stack.Screen name="Panel" component={PanelScreen} options={{ title: "Panel", headerLargeTitle: false }} />
+        <Stack.Screen name="Panel" component={PanelScreen} options={{ title: "Panel", headerShown: false }} />
         <Stack.Screen name="Settings" options={{ presentation: "modal", headerShown: false }}>
-          {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} />}
+          {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} onUsage={() => navigation.navigate("Usage")} />}
         </Stack.Screen>
         <Stack.Screen name="Usage" options={{ presentation: "modal", headerShown: false }}>
           {({ navigation, route }) => <UsageScreen {...(route.params?.hostId ? { hostId: route.params.hostId } : {})} onDone={() => navigation.goBack()} />}

@@ -53,7 +53,7 @@ export function StashSheet({ open, entries, onClose, onPick, onDrop }: Props) {
                 <ContentUnavailableView
                   title="Nothing stashed"
                   systemImage="tray"
-                  description="Choose Stash this prompt from the composer's + menu to set a draft aside for another conversation."
+                  description="Choose Stash this prompt from the composer's + menu to set a draft aside for another session."
                   modifiers={[navigationTitle("Stash"), navigationBarTitleDisplayMode("inline")]}
                 />
               ) : (

@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo, type ReactNode } from "react";
+import { createContext, Fragment, memo, useContext, useMemo, type ReactNode } from "react";
 import { DynamicColorIOS, Linking, ScrollView, StyleSheet, Text, View, type ColorValue, type TextStyle } from "react-native";
 import type { Tokens } from "marked";
 import { fencedLanguage, highlightCode, markdownBlocks, type Token } from "./markdown-blocks";
@@ -7,7 +7,7 @@ import { copyAction, LongPressMenu } from "./chrome";
 import { MarkdownImage, MathView } from "./media";
 import { MONO, Symbol } from "./native";
 
-const SIZE = 15;
+const BASE = 15;
 const HEADINGS: Record<number, { scale: number; top: number; bottom: number; muted?: boolean }> = {
   1: { scale: 1.4, top: 16, bottom: 8 },
   2: { scale: 1.2, top: 14, bottom: 6 },
@@ -32,22 +32,24 @@ const SYNTAX: Record<string, ColorValue> = {
 const SYNTAX_BASE = tone("#383A42", "#ABB2BF");
 const syntaxColor = (scope: string) => SYNTAX[scope] ?? SYNTAX[scope.split(" ")[0]!] ?? SYNTAX_BASE;
 
-function inline(tokens: readonly Token[] | undefined, key = ""): ReactNode[] {
+type Styles = Sheet["styles"];
+
+function inline(tokens: readonly Token[] | undefined, styles: Styles, key = ""): ReactNode[] {
   return (tokens ?? []).map((token, index) => {
     const id = `${key}${index}`;
     switch (token.type) {
       case "text":
-        return token.tokens ? <Fragment key={id}>{inline(token.tokens, `${id}.`)}</Fragment> : token.text;
+        return token.tokens ? <Fragment key={id}>{inline(token.tokens, styles, `${id}.`)}</Fragment> : token.text;
       case "strong":
-        return <Text key={id} style={styles.strong}>{inline(token.tokens, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.strong}>{inline(token.tokens, styles, `${id}.`)}</Text>;
       case "em":
-        return <Text key={id} style={styles.em}>{inline(token.tokens, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.em}>{inline(token.tokens, styles, `${id}.`)}</Text>;
       case "del":
-        return <Text key={id} style={styles.del}>{inline(token.tokens, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.del}>{inline(token.tokens, styles, `${id}.`)}</Text>;
       case "codespan":
         return <Text key={id} style={styles.codespan}>{token.text}</Text>;
       case "link":
-        return <Text key={id} style={styles.link} onPress={() => void Linking.openURL(token.href)}>{inline(token.tokens, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.link} onPress={() => void Linking.openURL(token.href)}>{inline(token.tokens, styles, `${id}.`)}</Text>;
       case "image":
         return <Text key={id} style={styles.link} onPress={() => void Linking.openURL(token.href)}>{token.text || token.href}</Text>;
       case "br":
@@ -55,7 +57,7 @@ function inline(tokens: readonly Token[] | undefined, key = ""): ReactNode[] {
       case "checkbox":
         return null;
       case "mathInline":
-        return <MathView key={id} tex={token.text as string} display={false} />;
+        return <MathView key={id} tex={token.text as string} display={false} size={styles.paragraph.fontSize} />;
       default:
         return "text" in token && typeof token.text === "string" ? token.text : token.raw;
     }
@@ -72,10 +74,12 @@ function marginOf(token: Token): Margin {
 }
 
 function Paragraph({ tokens, style }: { tokens: readonly Token[] | undefined; style?: TextStyle }) {
-  return <Text selectable style={[styles.paragraph, style]}>{inline(tokens)}</Text>;
+  const { styles } = useContext(SheetContext);
+  return <Text selectable style={[styles.paragraph, style]}>{inline(tokens, styles)}</Text>;
 }
 
 function CodeBlock({ token }: { token: Tokens.Code }) {
+  const { styles } = useContext(SheetContext);
   const language = fencedLanguage(token.lang);
   const spans = useMemo(() => highlightCode(token.text, language), [token.text, language]);
   return (
@@ -92,6 +96,7 @@ function CodeBlock({ token }: { token: Tokens.Code }) {
 }
 
 function Table({ token }: { token: Tokens.Table }) {
+  const { styles } = useContext(SheetContext);
   const columns = token.header.map((head, column) => [head, ...token.rows.map((row) => row[column])]);
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableScroll}>
@@ -100,7 +105,7 @@ function Table({ token }: { token: Tokens.Table }) {
           <View key={column} style={column > 0 && styles.tableColumn}>
             {cells.map((cell, row) => (
               <View key={row} style={[styles.cell, row > 0 && styles.cellRule, row > 0 && row % 2 === 0 && styles.cellStripe]}>
-                <Text selectable numberOfLines={1} style={[styles.cellText, row === 0 && styles.strong]}>{inline(cell?.tokens)}</Text>
+                <Text selectable numberOfLines={1} style={[styles.cellText, row === 0 && styles.strong]}>{inline(cell?.tokens, styles)}</Text>
               </View>
             ))}
           </View>
@@ -111,6 +116,7 @@ function Table({ token }: { token: Tokens.Table }) {
 }
 
 function List({ token, muted }: { token: Tokens.List; muted: boolean }) {
+  const { styles, size } = useContext(SheetContext);
   const start = typeof token.start === "number" ? token.start : 1;
   return (
     <View style={styles.list}>
@@ -118,7 +124,7 @@ function List({ token, muted }: { token: Tokens.List; muted: boolean }) {
         <View key={index} style={styles.listItem}>
           <View style={styles.marker}>
             {item.task ? (
-              <Symbol name={item.checked ? "checkmark.square.fill" : "square"} size={SIZE} color={item.checked ? Theme.accent : Theme.textMuted} />
+              <Symbol name={item.checked ? "checkmark.square.fill" : "square"} size={size} color={item.checked ? Theme.accent : Theme.textMuted} />
             ) : (
               token.ordered ? <Text style={[styles.paragraph, muted && styles.muted]}>{`${start + index}.`}</Text> : <View style={[styles.bullet, muted && styles.bulletMuted]} />
             )}
@@ -133,6 +139,7 @@ function List({ token, muted }: { token: Tokens.List; muted: boolean }) {
 }
 
 function Block({ token, muted }: { token: Token; muted: boolean }) {
+  const { styles, size } = useContext(SheetContext);
   const tint = muted ? styles.muted : undefined;
   switch (token.type) {
     case "paragraph":
@@ -141,12 +148,12 @@ function Block({ token, muted }: { token: Token; muted: boolean }) {
       }
       return <Paragraph tokens={token.tokens} {...(tint ? { style: tint } : {})} />;
     case "mathBlock":
-      return <MathView tex={token.text as string} display />;
+      return <MathView tex={token.text as string} display size={size} />;
     case "text":
       return <Paragraph tokens={token.tokens ?? [{ type: "text", raw: token.raw, text: token.text }]} {...(tint ? { style: tint } : {})} />;
     case "heading": {
       const heading = HEADINGS[token.depth] ?? HEADINGS[6]!;
-      return <Paragraph tokens={token.tokens} style={{ fontSize: SIZE * heading.scale, lineHeight: SIZE * heading.scale * 1.25, fontWeight: "600", ...(heading.muted || muted ? { color: Theme.textMuted } : {}) }} />;
+      return <Paragraph tokens={token.tokens} style={{ fontSize: size * heading.scale, lineHeight: size * heading.scale * 1.25, fontWeight: "600", ...(heading.muted || muted ? { color: Theme.textMuted } : {}) }} />;
     }
     case "code":
       return <CodeBlock token={token as Tokens.Code} />;
@@ -186,43 +193,55 @@ function Blocks({ tokens, muted = false }: { tokens: readonly Token[]; muted?: b
 }
 
 /** An agent's words: GFM at 15pt in the Swift app's MarkdownUI theme. */
-export const Markdown = memo(function Markdown({ text }: { text: string }) {
+export const Markdown = memo(function Markdown({ text, size = BASE }: { text: string; size?: number }) {
   const tokens = useMemo(() => markdownBlocks(text), [text]);
   return (
-    <View>
-      <Blocks tokens={tokens} />
-    </View>
+    <SheetContext.Provider value={sheetFor(size)}>
+      <View>
+        <Blocks tokens={tokens} />
+      </View>
+    </SheetContext.Provider>
   );
 });
 
-const styles = StyleSheet.create({
-  // MarkdownUI adds 0.3em between lines only; the negative margin takes it off a lone line.
-  paragraph: { fontSize: SIZE, lineHeight: SIZE * 1.5, marginVertical: -SIZE * 0.15, color: Theme.text },
-  muted: { color: Theme.textMuted },
-  strong: { fontWeight: "600" },
-  em: { fontStyle: "italic" },
-  del: { textDecorationLine: "line-through" },
-  link: { color: Theme.accent },
-  codespan: { fontFamily: MONO, fontSize: SIZE * 0.88, backgroundColor: Theme.codeBackground },
-  codeBlock: { backgroundColor: Theme.codeBackground, borderRadius: Radius.row, borderWidth: 1, borderColor: faded("border", 0.6), overflow: "hidden" },
-  codePad: { padding: 10 },
-  code: { fontFamily: MONO, fontSize: 13, color: SYNTAX_BASE },
-  codePlain: { color: Theme.text, lineHeight: 13 * 1.4 },
-  quote: { flexDirection: "row" },
-  quoteBar: { width: 3, borderRadius: 2, backgroundColor: Theme.border },
-  quoteBody: { flex: 1, paddingLeft: 12 },
-  list: { gap: SIZE * 0.2 },
-  listItem: { flexDirection: "row", paddingLeft: 8 },
-  marker: { width: 24, alignItems: "center" },
-  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: Theme.text },
-  bulletMuted: { backgroundColor: Theme.textMuted },
-  itemBody: { flex: 1 },
-  tableScroll: { flexGrow: 0 },
-  table: { flexDirection: "row", borderWidth: 1, borderColor: Theme.border },
-  tableColumn: { borderLeftWidth: 1, borderColor: Theme.border },
-  cell: { paddingVertical: 5, paddingHorizontal: 10 },
-  cellRule: { borderTopWidth: 1, borderColor: Theme.border },
-  cellStripe: { backgroundColor: Theme.subtle },
-  cellText: { fontSize: SIZE * 0.92, color: Theme.text },
-  rule: { height: 1, backgroundColor: Theme.border },
-});
+function sheet(size: number) {
+  return StyleSheet.create({
+    paragraph: { fontSize: size, lineHeight: size * 1.5, marginVertical: -size * 0.15, color: Theme.text },
+    muted: { color: Theme.textMuted },
+    strong: { fontWeight: "600" },
+    em: { fontStyle: "italic" },
+    del: { textDecorationLine: "line-through" },
+    link: { color: Theme.accent },
+    codespan: { fontFamily: MONO, fontSize: size * 0.88, backgroundColor: Theme.codeBackground },
+    codeBlock: { backgroundColor: Theme.codeBackground, borderRadius: Radius.row, borderWidth: 1, borderColor: faded("border", 0.6), overflow: "hidden" },
+    codePad: { padding: 10 },
+    code: { fontFamily: MONO, fontSize: 13, color: SYNTAX_BASE },
+    codePlain: { color: Theme.text, lineHeight: 13 * 1.4 },
+    quote: { flexDirection: "row" },
+    quoteBar: { width: 3, borderRadius: 2, backgroundColor: Theme.border },
+    quoteBody: { flex: 1, paddingLeft: 12 },
+    list: { gap: size * 0.2 },
+    listItem: { flexDirection: "row", paddingLeft: 8 },
+    marker: { width: 24, alignItems: "center" },
+    bullet: { width: 6, height: 6, borderRadius: 3, marginTop: size * 0.4, backgroundColor: Theme.text },
+    bulletMuted: { backgroundColor: Theme.textMuted },
+    itemBody: { flex: 1 },
+    tableScroll: { flexGrow: 0 },
+    table: { flexDirection: "row", borderWidth: 1, borderColor: Theme.border },
+    tableColumn: { borderLeftWidth: 1, borderColor: Theme.border },
+    cell: { paddingVertical: 5, paddingHorizontal: 10 },
+    cellRule: { borderTopWidth: 1, borderColor: Theme.border },
+    cellStripe: { backgroundColor: Theme.subtle },
+    cellText: { fontSize: size * 0.92, color: Theme.text },
+    rule: { height: 1, backgroundColor: Theme.border },
+  });
+}
+
+type Sheet = { size: number; styles: ReturnType<typeof sheet> };
+const sheets = new Map<number, Sheet>();
+function sheetFor(size: number): Sheet {
+  let found = sheets.get(size);
+  if (!found) sheets.set(size, (found = { size, styles: sheet(size) }));
+  return found;
+}
+const SheetContext = createContext<Sheet>(sheetFor(BASE));

@@ -1,3 +1,5 @@
+import { TranscriptionRefused } from "./grant";
+
 const LISTEN_URL = "https://api.deepgram.com/v1/listen";
 
 /** The same model and formatting the cockpit asks for, for one recorded clip. */
@@ -33,6 +35,6 @@ export async function transcribe(
     headers: { authorization: `Bearer ${grant.token}`, "content-type": clip.type || "audio/mp4" },
     body: clip,
   });
-  if (!response.ok) throw new Error(`The transcription service refused the recording (status ${response.status}).`);
+  if (!response.ok) throw new TranscriptionRefused(`The transcription service refused the recording (status ${response.status}).`);
   return readTranscript(await response.json());
 }

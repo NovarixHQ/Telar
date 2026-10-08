@@ -91,7 +91,7 @@ describe("children under the turn that tasked them", () => {
   });
 
   test("a waiting child says so, an ended one gives its summary", () => {
-    expect(visibleText(withAgents([dispatch], [child("s_a", { state: "waiting" })]))).toContain("waiting on you");
+    expect(visibleText(withAgents([dispatch], [child("s_a", { state: "waiting" })]))).toContain("Waiting on you");
     expect(visibleText(withAgents([dispatch], [child("s_a", { state: "done", summary: "Merged it", endedAt: 2_000 })]))).toContain("Merged it");
   });
 

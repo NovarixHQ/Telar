@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { EditorViewState } from "../editor-workspace";
 import { carryTokens, highlight, type HighlightedLine } from "../highlight";
+import { lineOffset, subscribeRevealedLines, takeRevealedLine } from "../line-reveal";
 
 const HIGHLIGHT_DELAY_MS = 120;
 
@@ -23,6 +24,39 @@ export function useHighlightedLines(draft: string | undefined, lang: string | un
   }, [draft, lang]);
   const coloured = useMemo(() => (tokenised && draft !== undefined ? carryTokens(tokenised, draft) : undefined), [tokenised, draft]);
   return { lines, coloured };
+}
+
+export function useLineReveal(
+  path: string,
+  draft: string | undefined,
+  textareaRef: RefObject<HTMLTextAreaElement | null>,
+  scrollerRef: RefObject<HTMLDivElement | null>,
+) {
+  const [line, setLine] = useState<number>();
+  useEffect(() => {
+    const take = () => {
+      const next = takeRevealedLine(path);
+      if (next !== undefined) setLine(next);
+    };
+    take();
+    return subscribeRevealedLines(take);
+  }, [path]);
+  const loaded = draft !== undefined;
+  useEffect(() => {
+    if (line === undefined || !loaded) return;
+    const frame = requestAnimationFrame(() => {
+      setLine(undefined);
+      const area = textareaRef.current;
+      if (!area) return;
+      const offset = lineOffset(area.value, line);
+      area.focus({ preventScroll: true });
+      area.setSelectionRange(offset, offset);
+      const scroller = scrollerRef.current;
+      const height = Number.parseFloat(getComputedStyle(area).lineHeight) || 20;
+      if (scroller) scroller.scrollTop = Math.max(0, (line - 1) * height - scroller.clientHeight / 3);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [line, loaded, textareaRef, scrollerRef]);
 }
 
 /** Puts caret and scroll back once the text lands, and returns the callback that records them. */

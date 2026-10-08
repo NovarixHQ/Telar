@@ -1,5 +1,5 @@
 import type { EngineTransport } from "../platform/transport";
-import type { WorkspaceFile, WorkspaceListing, WorkspaceWriteResult } from "./schema";
+import type { FileReference, WorkspaceFile, WorkspaceListing, WorkspaceWriteResult } from "./schema";
 
 type Owner = "projects" | "sessions";
 type Bytes = { data: Uint8Array; contentType: string };
@@ -23,6 +23,10 @@ export const filesClient = {
 
   sessionFile(this: EngineTransport, sessionId: string, path: string): Promise<{ file: WorkspaceFile }> {
     return this.request("GET", files("sessions", sessionId, path));
+  },
+
+  sessionFileReferences(this: EngineTransport, sessionId: string, texts: readonly string[]): Promise<{ references: FileReference[] }> {
+    return this.request("POST", `${files("sessions", sessionId)}/references`, { texts });
   },
 
   projectFileBytes(this: EngineTransport, projectId: string, path: string): Promise<Bytes> {

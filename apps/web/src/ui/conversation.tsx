@@ -2,7 +2,7 @@
 
 import type { ComponentProps, ReactNode, Ref } from "react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from "react";
-import { ArrowDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { Button } from "@/ui/button";
 import { shouldRefollow } from "@/ui/scroll-follow";
@@ -212,27 +212,26 @@ export const ConversationContent = ({ className, ...props }: ConversationContent
   />
 );
 
-export const ConversationScrollButton = ({ className, ...props }: ComponentProps<typeof Button>) => {
+export const ConversationScrollButton = () => {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
   const onClick = useCallback(() => {
-    void scrollToBottom();
+    void scrollToBottom({ animation: "smooth" });
   }, [scrollToBottom]);
 
   if (isAtBottom) return null;
   return (
-    <Button
-      className={cn(
-        "absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full shadow-2 dark:bg-background dark:hover:bg-muted",
-        className,
-      )}
-      onClick={onClick}
-      size="icon"
-      type="button"
-      variant="outline"
-      aria-label="Jump to the newest message"
-      {...props}
-    >
-      <ArrowDownIcon className="size-4" />
-    </Button>
+    <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
+      <Button
+        className="pointer-events-auto rounded-full border-border/60 bg-background/80 text-foreground shadow-2 backdrop-blur-md hover:border-border dark:bg-background/70"
+        onClick={onClick}
+        onPointerDown={(event) => event.preventDefault()}
+        size="xs"
+        type="button"
+        variant="outline"
+      >
+        <ChevronDownIcon className="size-3.5" />
+        Scroll to end
+      </Button>
+    </div>
   );
 };

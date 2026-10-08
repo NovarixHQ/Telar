@@ -209,3 +209,14 @@ test("a layout stored as grouped moves to one list once, and a later choice of g
     reopened.kernel.executionStore.close();
   }
 });
+
+test("the default model round-trips, clears with null and refuses a selection that names nothing", () => {
+  const { store } = readyStore();
+  expect(store.settings.setSessionDefaults({ defaultModel: { instanceId: "claude", model: "opus", effort: "high" } }).defaultModel).toEqual({
+    instanceId: "claude",
+    model: "opus",
+    effort: "high",
+  });
+  expect(() => store.settings.setSessionDefaults({ defaultModel: { instanceId: "claude" } })).toThrow(EngineStateError);
+  expect(store.settings.setSessionDefaults({ defaultModel: null })).toEqual({ envMode: "local" });
+});

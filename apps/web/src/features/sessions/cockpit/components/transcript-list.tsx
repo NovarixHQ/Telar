@@ -44,7 +44,8 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const directory = useSessionDirectory(props.hostId, mentionedSessions(shown, props.agents));
   const items = useMemo(() => shown.flatMap((turn) => turn.items), [shown]);
   const sessionId = session?.id;
-  const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId } : undefined), [sessionId, props.hostId]);
+  const driver = session?.driver;
+  const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId, ...(driver ? { driver } : {}) } : undefined), [sessionId, props.hostId, driver]);
   const turnRow = (turn: JournalTurn, { peerTitle }: TurnView) => (
     <Fragment key={turn.runId}>
       <TurnFrame skippable={turn.runId !== active?.runId}>

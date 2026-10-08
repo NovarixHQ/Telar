@@ -46,6 +46,12 @@ describe("a reasoning row with no text", () => {
     expect(renderToStaticMarkup(<TranscriptItem item={thought("completed", 900, "hmm")} />)).toContain("aria-expanded");
   });
 
+  test("a settled thought is labelled by its first line", () => {
+    const label = text(thought("completed", 900, "Check the fold first.\nThen the pill."));
+    expect(label).toContain("Check the fold first.");
+    expect(label).not.toContain("Then the pill.");
+  });
+
   test("the run's row filter keeps it, live and settled", () => {
     const group = (item: JournalItem, live: boolean) =>
       renderToStaticMarkup(<ActivityGroup items={[item]} live={live} tasks={[]} />).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");

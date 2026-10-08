@@ -20,7 +20,7 @@ export async function shellFiles() {
       const next = from ? `${from}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         if (entry.name === "node_modules" || entry.name === "release" || entry.name === ".git") continue;
-        if (entry.name.startsWith(".next")) continue;
+        if (entry.name.startsWith(".next") || next === "apps/mobile/ios") continue;
         await walk(next);
       } else if (entry.name.endsWith(".sh")) {
         found.push(next);

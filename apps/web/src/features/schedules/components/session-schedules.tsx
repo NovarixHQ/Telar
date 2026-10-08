@@ -7,6 +7,7 @@ import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { inZone, lastRunSentence, ruleLabel } from "../schedules";
 import { Button } from "@/ui/button";
+import { HeaderToggle } from "@/ui/header-toggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 
@@ -70,11 +71,11 @@ export function SessionSchedules({ sessionId, hostId, refreshKey }: { sessionId:
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button type="button" variant="outline" size="sm" aria-label={label} aria-expanded={open} title={label} className="h-7 gap-1 px-2 text-muted-foreground" />
+          <HeaderToggle aria-label={label} aria-expanded={open} title={label} />
         }
       >
-        <AlarmClockIcon className="size-4" />
-        <span className="text-xs tabular-nums">{schedules.length}</span>
+        <AlarmClockIcon />
+        <span className="absolute -top-1 -right-1 min-w-3.5 rounded-full bg-primary px-1 text-center text-4xs leading-3.5 font-semibold text-primary-foreground tabular-nums">{schedules.length}</span>
       </PopoverTrigger>
       <PopoverContent
         align="end"

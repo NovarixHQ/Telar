@@ -62,6 +62,14 @@
         "test/**/*.ts"
       ]
     },
+    "apps/mobile": {
+      "project": [
+        "**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "expo-updates"
+      ]
+    },
     "workers/updates-proxy": {
       "entry": [
         "src/index.js"

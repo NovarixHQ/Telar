@@ -2,14 +2,13 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BotIcon, CopyIcon, FolderGit2Icon, FolderGitIcon, GitBranchIcon, GitCompareIcon, MessageSquarePlusIcon } from "lucide-react";
+import { BotIcon, CopyIcon, FolderGitIcon, GitBranchIcon, GitCompareIcon, MessageSquarePlusIcon } from "lucide-react";
 import { type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
 import { OpenWorkspaceRow } from "@/features/files";
 import { PublishRows, useGitHubReady } from "@/features/git";
 import { isOpenTerminal, openTerminal, RunRow, statusLabel, type RunView } from "@/features/terminal";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
-import { Button } from "@/ui/button";
 import { ActionRow, RowMeta, SplitRow, SplitRowChevron } from "@/ui/action-row";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { cn } from "@/ui/utils";
@@ -173,7 +172,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   const router = useRouter();
   const { open } = useWorkspaceCardOpen();
   const path = workspacePath(session.workspace);
-  const { diff, reload } = useWorkspaceCardData(hostId, session.id, open);
+  const { diff, reload } = useWorkspaceCardData(hostId, session.id, open, session.workspace.mode === "local");
   const [terminals, setTerminals] = useState<readonly RunView[]>([]);
   const publishable = Boolean(diff?.branch) && diff?.shared !== true;
   const github = useGitHubReady(open && publishable, session.projectId);
@@ -227,14 +226,5 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}
       />
     </div>
-  );
-}
-
-export function WorkspaceCardToggle() {
-  const { open, toggle } = useWorkspaceCardOpen();
-  return (
-    <Button type="button" variant="ghost" size="icon-sm" aria-label="Workspace" aria-pressed={open} title="Workspace (⌥⌘W)" onClick={toggle} className={cn("text-muted-foreground", open && "bg-accent text-foreground")}>
-      <FolderGit2Icon />
-    </Button>
   );
 }

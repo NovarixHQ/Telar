@@ -35,7 +35,7 @@ export function AccessControl({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<ControlTrigger open={open} icon={<ShieldCheckIcon className="size-3.5" />} label={label} ariaLabel={`Access: ${mode}`} />} />
+      <PopoverTrigger render={<ControlTrigger open={open} icon={<ShieldCheckIcon className="size-3.5" />} label={label} fold="xl" ariaLabel={`Access: ${mode}`} />} />
       <PopoverContent align="start" side="top" sideOffset={8} className="w-[min(20rem,calc(100vw-2rem))] gap-0 rounded-2xl p-1.5">
         <MenuHeading>Access</MenuHeading>
         {RUNTIME_MODES.map((option) => (

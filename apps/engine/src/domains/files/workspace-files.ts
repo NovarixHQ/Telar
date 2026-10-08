@@ -1,5 +1,6 @@
-import type { WorkspaceFile, WorkspaceWriteResult } from "@telar/engine-client";
+import type { FileReference, WorkspaceFile, WorkspaceListing, WorkspaceWriteResult } from "@telar/engine-client";
 import { readFencedAsync, readFencedBytes, writeFenced } from "./fenced";
+import { resolveFileReferences } from "./references";
 
 type FileBytes = { data: Buffer; mediaType: string; bytes: number };
 
@@ -15,6 +16,10 @@ export class WorkspaceFiles {
 
   session(sessionId: string, target: string): Promise<WorkspaceFile> {
     return readFencedAsync(this.deps.sessionRoot(sessionId), target, "session workspace");
+  }
+
+  sessionReferences(sessionId: string, texts: readonly string[], listing: () => Promise<WorkspaceListing>): Promise<FileReference[]> {
+    return resolveFileReferences(this.deps.sessionRoot(sessionId), texts, listing);
   }
 
   projectBytes(projectId: string, target: string): Promise<FileBytes> {

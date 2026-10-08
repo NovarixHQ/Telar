@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { closeNativePage, nativePageToShow } from "./native-pages";
+import { closeNativePage, isClosingPage, nativePageToShow } from "./native-pages";
 import type { DesktopBrowserBridge, DesktopBrowserTab } from "./types";
 
 function fakeBridge(ids: string[], active?: string) {
@@ -38,6 +38,15 @@ describe("closeNativePage", () => {
     const { bridge, calls } = fakeBridge(["a"]);
     await closeNativePage(bridge, "s1", "a");
     expect(calls).toEqual([["release", "s1", true, { closedByPerson: true }]]);
+  });
+
+  test("a page counts as closing from the call until the shell has dropped it", async () => {
+    const { bridge } = fakeBridge(["a", "b"]);
+    const closed = closeNativePage(bridge, "s1", "b");
+    expect(isClosingPage("s1", "b")).toBe(true);
+    expect(isClosingPage("s1", "a")).toBe(false);
+    await closed;
+    expect(isClosingPage("s1", "b")).toBe(false);
   });
 
   test("a page the shell no longer has closes nothing", async () => {

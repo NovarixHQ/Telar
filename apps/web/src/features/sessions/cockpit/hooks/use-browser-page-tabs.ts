@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
+import { isClosingPage } from "@/features/browser/native-pages";
 import { syncPageTabs, type NativePages, type PanelTab, type PanelTabState } from "@/features/panel";
 
 /** In the desktop app, one panel tab per page of the session's native browser, kept in step with it. */
@@ -16,8 +17,9 @@ export function useBrowserPageTabs(
     let cancelled = false;
     let lastActive: string | undefined;
     let read = false;
-    const take = (native: NativePages) => {
+    const take = (state: NativePages) => {
       if (cancelled) return;
+      const native = { ...state, tabs: state.tabs.filter((page) => !isClosingPage(sessionId, page.id)) };
       const active = native.tabs.find((page) => page.active)?.id;
       // The first read sets the baseline: a restored panel keeps the page it was on.
       const since = read ? lastActive : active;

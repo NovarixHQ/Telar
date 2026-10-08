@@ -76,7 +76,7 @@ function commonPrefix(names: readonly string[]): string {
   return prefix;
 }
 
-export function typedName({ field, path, home }: { field: string; path: string; home: string }): string | undefined {
+function typedName({ field, path, home }: { field: string; path: string; home: string }): string | undefined {
   const cut = field.lastIndexOf(SEP);
   if (cut === -1 || !path) return undefined;
   return expandTilde(field.slice(0, cut + 1), home) === trimEnd(path) ? field.slice(cut + 1) : undefined;

@@ -82,12 +82,15 @@ function useExpanded(compact: boolean) {
   return [expanded, () => setExpanded(true)] as const;
 }
 
-function ComposerContext({ usage, session, onCompact, busy, sending, compacting }: ComposerProps) {
+function ComposerContext({ usage, session, onCompact, busy, sending, compacting, onResumeAfterRateLimit, resumeAfterRateLimitDefault }: ComposerProps) {
+  const resumes = session?.resumeAfterRateLimit ?? resumeAfterRateLimitDefault;
   return (
     <ContextPill
       {...(usage ? { usage } : {})}
       {...(session ? { driver: session.driver } : {})}
       {...(onCompact ? { onCompact } : {})}
+      {...(resumes === undefined ? {} : { resumeAfterRateLimit: resumes })}
+      {...(onResumeAfterRateLimit ? { onResumeAfterRateLimit } : {})}
       compactDisabled={busy || sending || Boolean(compacting)}
       compactReason={compactBlockedReason({ busy, ...(compacting ? { compacting } : {}) }) ?? "Sending…"}
     />
@@ -141,7 +144,6 @@ export function Composer(props: ComposerProps) {
       driver={activeDriver}
       choice={choice}
       instanceId={session?.providerInstanceId}
-      resumeAfterRateLimit={session?.resumeAfterRateLimit ?? props.resumeAfterRateLimitDefault}
       ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }}
     />
   );

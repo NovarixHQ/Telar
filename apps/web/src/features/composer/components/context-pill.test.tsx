@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buttonLabelled, click, installTestDom, mount } from "@/test/dom";
-import { BackgroundPresence } from "./context-pill";
+import { BackgroundPresence, ContextPill } from "./context-pill";
 
 installTestDom();
 
@@ -17,5 +17,25 @@ describe("the background banner", () => {
   test("nothing running draws nothing", async () => {
     const { host } = await mount(<BackgroundPresence count={0} onStop={() => {}} />);
     expect(host.textContent).toBe("");
+  });
+});
+
+describe("usage limits, in the usage wheel", () => {
+  const wheel = () => document.querySelector<HTMLElement>('button[aria-label^="Context window"]')!;
+  const toggle = () => document.querySelector<HTMLElement>('[aria-label="Continue after a usage limit resets"]');
+
+  test("a Claude session can choose to continue once a limit resets", async () => {
+    const picked: boolean[] = [];
+    await mount(<ContextPill driver="claude" onResumeAfterRateLimit={(next) => picked.push(next)} />);
+    await click(wheel());
+    expect(toggle()?.getAttribute("aria-checked")).toBe("true");
+    await click(toggle()!);
+    expect(picked).toEqual([false]);
+  });
+
+  test("another provider is not offered it", async () => {
+    await mount(<ContextPill driver="codex" onResumeAfterRateLimit={() => {}} />);
+    await click(wheel());
+    expect(toggle()).toBeNull();
   });
 });

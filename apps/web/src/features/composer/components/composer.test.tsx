@@ -386,3 +386,23 @@ describe("a narrow column, such as one beside an open panel", () => {
     expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
   });
 });
+
+describe("the access pill", () => {
+  const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
+  const pill = (host: HTMLElement) => host.querySelector<HTMLElement>('[aria-label^="Access:"]')!;
+
+  test("names the access level in effect", async () => {
+    expect(pill((await composer({ session, runtimeMode: "full-access" })).host).textContent).toContain("Full access");
+  });
+
+  test("auto says what it is, so it never reads as the reasoning pill's Auto", async () => {
+    expect(pill((await composer({ session, runtimeMode: "auto" })).host).textContent).toContain("Auto access");
+  });
+
+  test("its menu is only access", async () => {
+    const { host } = await composer({ session, runtimeMode: "full-access" });
+    await click(pill(host));
+    expect(document.body.textContent).toContain("Supervised");
+    expect(document.body.textContent).not.toContain("Usage limits");
+  });
+});

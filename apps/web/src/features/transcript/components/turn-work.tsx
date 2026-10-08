@@ -10,7 +10,6 @@ import { HarnessConsultRow } from "./activity";
 import { RowGestures, WorkspaceContext } from "./tool-row";
 import { TranscriptItem } from "./transcript-item";
 
-/** `8.0s`, `42s`, `1m 14s`, `2h 3m`. */
 export function formatWorkDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms < 1_000) return "<1s";
   if (ms < 10_000) return `${(Math.floor(ms / 100) / 10).toFixed(1)}s`;
@@ -27,7 +26,6 @@ export function workedForLabel(startedAt: number | undefined, endedAt: number | 
   return `Worked for ${formatWorkDuration(endedAt - startedAt)}`;
 }
 
-/** A finished turn's work behind one header. Spawned agents still out and artifacts stay visible while it is folded. */
 export function TurnWork({
   items,
   tasks,

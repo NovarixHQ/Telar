@@ -370,12 +370,21 @@ export function TurnFrame({ skippable, children }: { skippable: boolean; childre
 }
 
 export function EmptyTranscript({ loading }: { loading: boolean }) {
+  if (loading) {
+    return (
+      <div role="status" aria-busy="true" aria-label="Loading session" className="mx-auto w-full max-w-(--chat-content-max-width) space-y-6 py-6">
+        <div className="ml-auto h-10 w-2/5 animate-pulse rounded-md bg-muted/60" />
+        <div className="space-y-2">
+          <div className="h-4 w-11/12 animate-pulse rounded-md bg-muted/60" />
+          <div className="h-4 w-2/3 animate-pulse rounded-md bg-muted/60" />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-1 py-16 text-center">
-      <p className="text-sm font-medium">{loading ? "Hydrating transcript…" : "Ready for its first turn"}</p>
-      <p className="text-sm text-muted-foreground">
-        {loading ? "Reading the durable journal from the engine." : "Ask for changes, or explore the project."}
-      </p>
+      <p className="text-sm font-medium">Ready for its first turn</p>
+      <p className="text-sm text-muted-foreground">Ask for changes, or explore the project.</p>
     </div>
   );
 }

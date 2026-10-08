@@ -310,7 +310,7 @@ describe("what the corner button and the empty box say", () => {
 
   test("Send's tooltip says why a press would not send", async () => {
     const { host } = await composer({ initial: "go", ready: false });
-    expect(await tooltip(send(host))).toBe("This conversation is not ready yet.");
+    expect(await tooltip(send(host))).toBe("This session is not ready yet.");
   });
 
   test("a ready Send's tooltip just names it", async () => {

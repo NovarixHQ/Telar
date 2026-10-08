@@ -31,14 +31,13 @@ import { ComposerPills, SendButton } from "./composer-toolbar";
 // External clients already reach for this id.
 const EDITOR_ID = "turn-prompt";
 
-function placeholderFor(ready: boolean, busy: boolean): string {
-  if (!ready) return "Waiting for the session…";
+function placeholderFor(busy: boolean): string {
   if (busy) return "Enter sends into the running turn…";
   return "Ask anything, @ to reference, $ for skills, / for commands";
 }
 
 function blockedReason(ready: boolean, driveAway: boolean, hasContent: boolean): string | undefined {
-  if (!ready) return "This conversation is not ready yet.";
+  if (!ready) return "This session is not ready yet.";
   if (driveAway) return "The project's files are not reachable right now.";
   if (!hasContent) return "There is nothing to send.";
   return undefined;
@@ -200,7 +199,7 @@ export function Composer(props: ComposerProps) {
                 editorId={EDITOR_ID}
                 kind={kind}
                 text={question.boxText}
-                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(ready, busy)}
+                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(busy)}
                 ready={ready}
                 compact={compactNow}
                 draft={draft}

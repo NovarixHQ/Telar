@@ -24,9 +24,9 @@ struct FileBody: View {
         case .image:
             ImageFileView(api: api, sessionId: sessionId, path: file.path, active: active)
         case .prose:
-            TextFileView(api: api, sessionId: sessionId, hostId: hostId, path: file.path, active: active, editable: true, root: root, onSaveState: onSaveState)
+            TextFileView(api: api, sessionId: sessionId, hostId: hostId, path: file.path, active: active, prose: true, root: root, onSaveState: onSaveState)
         case .code, .binary:
-            TextFileView(api: api, sessionId: sessionId, hostId: hostId, path: file.path, active: active, editable: false, root: root, onSaveState: onSaveState)
+            TextFileView(api: api, sessionId: sessionId, hostId: hostId, path: file.path, active: active, prose: false, root: root, onSaveState: onSaveState)
         }
     }
 }

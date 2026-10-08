@@ -4,18 +4,6 @@ import UIKit
 enum CodeLayout {
     static let tabStop = 4
 
-    static func columns(_ line: some StringProtocol) -> Int {
-        var columns = 0
-        for character in line {
-            if character == "\t" {
-                columns += tabStop - (columns % tabStop)
-            } else {
-                columns += width(of: character)
-            }
-        }
-        return columns
-    }
-
     static func widestLineColumns(_ text: some StringProtocol) -> Int {
         var widest = 0
         var line = 0
@@ -61,16 +49,38 @@ enum CodeLayout {
     static func contentWidth(columns: Int, advance: CGFloat) -> CGFloat {
         CGFloat(max(columns, 0) + 1) * advance
     }
+}
 
-    @MainActor static func advance(ofSize size: CGFloat) -> CGFloat {
-        if let cached = advances[size] { return cached }
-        let font = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
-        let width = ("0" as NSString).size(withAttributes: [.font: font]).width
-        advances[size] = width
-        return width
+struct LineIndex {
+    private let starts: [Int]
+
+    init(_ text: NSString) {
+        var starts = [0]
+        let length = text.length
+        var buffer = [unichar](repeating: 0, count: 4096)
+        var offset = 0
+        while offset < length {
+            let count = min(buffer.count, length - offset)
+            text.getCharacters(&buffer, range: NSRange(location: offset, length: count))
+            for index in 0..<count where buffer[index] == 0x0A {
+                starts.append(offset + index + 1)
+            }
+            offset += count
+        }
+        self.starts = starts
     }
 
-    @MainActor private static var advances: [CGFloat: CGFloat] = [:]
+    var count: Int { starts.count }
+
+    func line(startingAt offset: Int) -> Int? {
+        var low = 0, high = starts.count - 1
+        while low <= high {
+            let middle = (low + high) / 2
+            if starts[middle] == offset { return middle + 1 }
+            if starts[middle] < offset { low = middle + 1 } else { high = middle - 1 }
+        }
+        return nil
+    }
 }
 
 struct InteractivePopGate: UIViewRepresentable {

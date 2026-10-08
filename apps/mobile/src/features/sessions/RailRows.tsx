@@ -7,6 +7,7 @@ import {
   foregroundStyle,
   frame,
   lineLimit,
+  listRowBackground,
   monospacedDigit,
   offset,
   onTapGesture,
@@ -20,6 +21,7 @@ import { faded, HostMark, Icon, ProjectAvatar, ProviderIcon, SteppedPulseDot, Th
 import { useProjectIcon } from "../projects";
 import type { RailFamily } from "./nesting";
 import type { RailRow, RailStatus } from "./rail";
+import { useRailLayout } from "./rail-layout";
 
 function StatusSlot({ status }: { status: RailStatus }) {
   switch (status.kind) {
@@ -139,8 +141,11 @@ const accentColor = { amber: Theme.amber, accent: Theme.accent };
 export function RailRowView({ row, host, slim, nested, stale, family, onOpen }: RowProps & { slim?: boolean; nested?: boolean; stale: boolean; family?: { family: RailFamily; open: boolean; onToggle: () => void }; onOpen: () => void }) {
   const disclosure = family ? <FamilyToggle {...family} /> : null;
   const body = slim || nested ? <SlimBody row={row} host={host} /> : <CardBody row={row} host={host} disclosure={disclosure} />;
+  const { sidebar, rowFill, selected } = useRailLayout();
+  const chosen = selected?.hostId === row.hostId && selected.sessionId === row.sessionId;
+  const fill = sidebar ? (chosen ? Theme.accent : rowFill) : undefined;
   return (
-    <HStack spacing={11} modifiers={[contentShape(shapes.rectangle()), onTapGesture(onOpen), accessibilityAddTraits(["isButton"])]}>
+    <HStack spacing={11} modifiers={[contentShape(shapes.rectangle()), onTapGesture(onOpen), accessibilityAddTraits(["isButton"]), ...(fill ? [listRowBackground(fill)] : [])]}>
         <Overlay alignment="leading" modifiers={[opacity(stale ? 0.6 : 1), padding({ leading: nested ? 12 : 0 })]}>
           {body}
           {!slim && !nested && row.accent ? (
@@ -149,7 +154,7 @@ export function RailRowView({ row, host, slim, nested, stale, family, onOpen }: 
             </Overlay.Content>
           ) : null}
         </Overlay>
-        <Icon name="chevron.forward" textStyle="footnote" weight="semibold" modifiers={[foregroundStyle({ type: "hierarchical", style: "tertiary" }), padding({ trailing: 2 })]} />
+        {sidebar ? null : <Icon name="chevron.forward" textStyle="footnote" weight="semibold" modifiers={[foregroundStyle({ type: "hierarchical", style: "tertiary" }), padding({ trailing: 2 })]} />}
     </HStack>
   );
 }

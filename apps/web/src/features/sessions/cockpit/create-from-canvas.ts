@@ -2,6 +2,7 @@ import type { ProviderDriverKind, Session } from "@telar/engine-client";
 import type { createEngineApi } from "@/platform/engine";
 import { sessionHref } from "../session-list";
 import { newSessionId } from "../session-mutations";
+import { creationBody } from "./start-session";
 
 type CanvasSession = {
   projectId: string;
@@ -20,14 +21,7 @@ export async function createFromCanvas(
   const id = newSessionId();
   const canvas = window.location.pathname;
   window.history.replaceState(null, "", sessionHref({ id, projectId, hostId }));
-  const created = await api.createSession(projectId, {
-    id,
-    title,
-    driver,
-    envMode,
-    ...(envMode === "worktree" && base.baseRef ? { baseRef: base.baseRef } : {}),
-    ...(envMode === "worktree" && base.branchName ? { branchName: base.branchName } : {}),
-  }).catch((cause: unknown) => {
+  const created = await api.createSession(projectId, creationBody(id, title, { driver, envMode, base })).catch((cause: unknown) => {
     window.history.replaceState(null, "", canvas);
     throw cause;
   });

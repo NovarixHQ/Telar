@@ -1,4 +1,4 @@
-import type { ClaudeConversation, EngineRequest, ProviderDriverKind, RuntimeMode, Session, UsageSnapshot } from "@telar/engine-client";
+import type { ClaudeConversation, EngineRequest, ProviderDriverKind, RuntimeMode, Session, SessionChildState, UsageSnapshot } from "@telar/engine-client";
 import type { ModelChoice } from "@/features/providers";
 import type { ComposerKind } from "../registry";
 
@@ -42,6 +42,8 @@ export type ComposerProps = {
   /** The countdown label, present only while a snooze is live. */
   snoozeWakeIn?: string;
   onWake?: () => void;
+  /** This session's builders by state, while any is still out, and the brake for all of them. */
+  builders?: { counts: Partial<Record<SessionChildState, number>>; stopping: boolean; onStopAll: () => void };
   /** Submits a `/compact` turn; passed on Claude sessions only. */
   onCompact?: () => void;
   /** While present, the editor is the question's custom answer and Enter advances or answers. */

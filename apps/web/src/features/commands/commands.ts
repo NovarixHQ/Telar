@@ -49,6 +49,7 @@ export type CommandId =
   | "toggle-devtools"
   | "go-to-file"
   | "search-project-contents"
+  | "quick-composer"
   | "settings"
   | "search-settings"
   | "appearance"

@@ -25,12 +25,13 @@ import { useLinkRouting } from "../hooks/use-link-routing";
 import { useNavigationMarks } from "../hooks/use-navigation-marks";
 import { useSessionActions } from "../hooks/use-session-actions";
 import { useSessionBrowser } from "../hooks/use-session-browser";
+import { useBuildersBanner } from "../hooks/use-builders-banner";
+import { childrenGrowth, useSessionChildren } from "../hooks/use-session-children";
 import { useSessionSync } from "../hooks/use-session-sync";
 import { useSettling } from "../hooks/use-settling";
 import { useSubmit } from "../hooks/use-submit";
 import { useTitleMenu } from "../hooks/use-title-menu";
 import { useTranscriptModel } from "../hooks/use-transcript-model";
-import { useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 import { composerProps } from "./composer-props";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
@@ -77,9 +78,8 @@ export function SessionCockpit({
   const { panel, showPanelTab } = panelState;
   const panelPresence = usePanelPresence(!solo && panel.open);
   const browser = useSessionBrowser({ hostId, sessionId, projectId, sync, draft: draftConfig, composer, panel: panelState, setCreatedSessionId });
-  const workspaceCard = useWorkspaceCardOpen();
   useCockpitCommands({
-    solo, enabledPlugins, panel: panelState, openBrowser: () => void browser.openBrowser(), toggleWorkspace: workspaceCard.toggle,
+    solo, enabledPlugins, panel: panelState, openBrowser: () => void browser.openBrowser(),
     pinSession: () => {
       if (!sessionId) return;
       void settling.patchFromMenu({ settledOverride: pinToggleOverride(session?.settledOverride) }, "Could not change the session's pin.");
@@ -89,6 +89,8 @@ export function SessionCockpit({
   const revealNewTerminals = useJournalReactions({ sessionId, sync, browser: browser.browser, enabledPlugins, panel: panelState });
   const model = useTranscriptModel(sessionId, sync, showPanelTab);
   const { active } = model;
+  const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));
+  const builders = useBuildersBanner(hostId, agents);
   const settling = useSettling(hostId, sessionId, sync);
   const actions = useSessionActions(sessionId, sync);
   const submit = useSubmit({
@@ -119,7 +121,7 @@ export function SessionCockpit({
             onRename={(next) => void actions.rename(next)}
             panel={
               <>
-                {session && <WorkspaceCardToggle open={workspaceCard.open} onToggle={workspaceCard.toggle} />}
+                {session && <WorkspaceCardToggle />}
                 {/* Keyed by host and session: a different machine is a different mount. The last turn's state is the refresh cue. */}
                 {session && (
                   <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
@@ -136,11 +138,10 @@ export function SessionCockpit({
               key={`${hostId}:${session.id}`}
               hostId={hostId}
               session={session}
-              open={workspaceCard.open}
+              agents={agents}
               busy={Boolean(active)}
               backgroundTasks={model.backgroundTasks}
               panel={panelState}
-              onClose={workspaceCard.toggle}
               onRunTerminals={revealNewTerminals}
             />
           )}
@@ -154,6 +155,7 @@ export function SessionCockpit({
             projectId={projectId}
             hostId={hostId}
             fresh={fresh}
+            agents={agents}
             turn={{
               roster: model.roster,
               sending: actions.sending,
@@ -169,6 +171,7 @@ export function SessionCockpit({
               // Not while a conversation is opening: a composer changing height would move the viewport again.
               compact: readingBack && transcriptLanded,
               contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
+              builders,
             })}
           />
           {floating && sessionId && (

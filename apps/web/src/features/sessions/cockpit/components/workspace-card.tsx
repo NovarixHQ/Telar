@@ -13,7 +13,7 @@ import { Button } from "@/ui/button";
 import { cn } from "@/ui/utils";
 import { sessionHref } from "../../session-list";
 import type { useCockpitPanel } from "../hooks/use-cockpit-panel";
-import { useWorkspaceCardData } from "../hooks/use-workspace-card";
+import { useWorkspaceCardData, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 
 const CHILD_STATE: Record<SessionChild["state"], string> = { working: "Running", waiting: "Waiting", done: "Done", failed: "Failed", stopped: "Stopped" };
 
@@ -126,19 +126,19 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
 }
 
 /** Floats over the conversation's top right. Kept mounted while closed: the Run menu's feed is what reveals new terminals. */
-export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, panel, onClose, onRunTerminals }: {
+export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, panel, onRunTerminals }: {
   hostId: string;
   session: Session;
-  open: boolean;
+  agents: readonly SessionChild[];
   busy: boolean;
   backgroundTasks: number;
   panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab">;
-  onClose: () => void;
   onRunTerminals: (terminals: readonly RunView[]) => void;
 }) {
   const router = useRouter();
+  const { open, toggle } = useWorkspaceCardOpen();
   const path = workspacePath(session.workspace);
-  const { diff, children, reload } = useWorkspaceCardData(hostId, session.id, open);
+  const { diff, reload } = useWorkspaceCardData(hostId, session.id, open);
   const [terminals, setTerminals] = useState<readonly RunView[]>([]);
   const publishable = Boolean(diff?.branch) && diff?.shared !== true;
   const github = useGitHubReady(open && publishable, session.projectId);
@@ -151,7 +151,7 @@ export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, pa
         diff={diff}
         terminals={terminals}
         backgroundTasks={backgroundTasks}
-        agents={children}
+        agents={agents}
         {...(path === undefined
           ? {}
           : {
@@ -186,7 +186,7 @@ export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, pa
               ),
             }
           : {})}
-        onClose={onClose}
+        onClose={toggle}
         onOpenTerminal={(run) => panel.updatePanel((current) => openTerminal(current, run, "terminal"))}
         onOpenChanges={() => panel.showPanelTab("diff")}
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}
@@ -195,9 +195,10 @@ export function WorkspaceCard({ hostId, session, open, busy, backgroundTasks, pa
   );
 }
 
-export function WorkspaceCardToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+export function WorkspaceCardToggle() {
+  const { open, toggle } = useWorkspaceCardOpen();
   return (
-    <Button type="button" variant="ghost" size="icon-sm" aria-label="Workspace" aria-pressed={open} title="Workspace (⌥⌘W)" onClick={onToggle} className={cn("text-muted-foreground", open && "bg-accent text-foreground")}>
+    <Button type="button" variant="ghost" size="icon-sm" aria-label="Workspace" aria-pressed={open} title="Workspace (⌥⌘W)" onClick={toggle} className={cn("text-muted-foreground", open && "bg-accent text-foreground")}>
       <FolderGit2Icon />
     </Button>
   );

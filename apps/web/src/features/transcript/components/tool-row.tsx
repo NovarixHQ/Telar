@@ -1,14 +1,16 @@
 "use client";
 
-import { createContext, useState } from "react";
+import { createContext, useContext, useState } from "react";
+import Link from "next/link";
 import {
-ChevronRightIcon,FileTextIcon,
+ArrowUpRightIcon,ChevronRightIcon,FileTextIcon,
 GlobeIcon,PencilIcon,
 SearchIcon,
 TerminalIcon,WrenchIcon
 } from "lucide-react";
 import { isKnownPath, type Item } from "@telar/engine-client";
 import { toolOutput, type JournalItem } from "@/platform/engine";
+import { hostPrefix } from "@/platform/engine/host-client";
 import { fileReference } from "@/features/composer";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { Shimmer } from "@/ui/shimmer";
@@ -17,6 +19,8 @@ import { Badge } from "@/ui/badge";
 import { ROW } from "./transcript-fold";
 import { cn } from "@/ui/utils";
 import { actionLabel, failed, liveActionLabel, preview, running } from "../model";
+import { sessionsLink } from "../sessions-tools";
+import { TranscriptSession } from "./message-attachments";
 
 /** Deliberately small and literal. The lane is meant to be uniform and boring:
  *  an icon per tool would turn a long turn into a sticker album. The icon says
@@ -38,8 +42,6 @@ export type RowGestures = {
   /** Open a path in the Editor — the cockpit's own `showPanelTab`, which reads
    *  a file-shaped id and routes it there. */
   onOpenFile?: (path: string) => void;
-  /** Open a path in a NEW Editor tab (#322), so a file the agent touched can be
-   *  read beside whatever the Editor already holds. */
   onOpenFileInNewTab?: (path: string) => void;
 };
 
@@ -118,50 +120,59 @@ export function ToolRow({ item, onInsert, onOpenFile, onOpenFileInNewTab }: { it
   // Nothing readable about the input: the row is the verb, once, rather than
   // the verb followed by an empty mono slot.
   const argument = preview(item);
+  const source = useContext(TranscriptSession);
+  const link = sessionsLink(item);
 
   const row = (
     <div className={cn("rounded-md", isError && "bg-destructive/10")}>
-      <button
-        type="button"
-        className={cn(ROW, body && "hover:bg-muted/60")}
-        disabled={!body}
-        aria-expanded={body ? open : undefined}
-        onClick={() => setOpen((current) => !current)}
-      >
-        {running(item) ? (
-          <Shimmer as="span" className="min-w-0 flex-1 truncate text-left text-xs">
-            {argument ? `${label} · ${argument}` : `${label}…`}
-          </Shimmer>
-        ) : (
-          <>
-            <RowIcon className={cn("size-3.5 shrink-0", isError ? "text-destructive" : "text-muted-foreground")} />
-            <span className={cn("shrink-0", isError && "text-destructive")}>{label}</span>
-            {argument && <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">{argument}</span>}
-          </>
+      <div className="flex min-w-0 items-center">
+        <button
+          type="button"
+          className={cn(ROW, body && "hover:bg-muted/60")}
+          disabled={!body}
+          aria-expanded={body ? open : undefined}
+          onClick={() => setOpen((current) => !current)}
+        >
+          {running(item) ? (
+            <Shimmer as="span" className="min-w-0 flex-1 truncate text-left text-xs">
+              {argument ? `${label} · ${argument}` : `${label}…`}
+            </Shimmer>
+          ) : (
+            <>
+              <RowIcon className={cn("size-3.5 shrink-0", isError ? "text-destructive" : "text-muted-foreground")} />
+              <span className={cn("shrink-0", isError && "text-destructive")}>{label}</span>
+              {argument && <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">{argument}</span>}
+            </>
+          )}
+          {change && (change.linesAdded || change.linesRemoved) ? (
+            <span className="shrink-0 font-mono text-3xs">
+              {change.linesAdded ? <span className="text-success">+{change.linesAdded}</span> : null}
+              {change.linesAdded && change.linesRemoved ? " " : null}
+              {change.linesRemoved ? <span className="text-destructive">−{change.linesRemoved}</span> : null}
+            </span>
+          ) : null}
+          {change?.diffTruncated && (
+            <Badge variant="outline" className="shrink-0 px-1 py-0 text-4xs font-normal text-warning" title="Only the beginning of this patch was recorded">
+              patch cut short
+            </Badge>
+          )}
+          {item.status === "declined" && (
+            <Badge variant="destructive" className="shrink-0 px-1 py-0 text-4xs">
+              declined
+            </Badge>
+          )}
+          {body && (
+            <ChevronRightIcon
+              className={cn("ml-auto size-3 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+            />
+          )}
+        </button>
+        {link && (
+          <Link href={`${hostPrefix(source?.hostId)}${link}`} aria-label={`Open: ${label}`} className="shrink-0 rounded p-1 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+            <ArrowUpRightIcon className="size-3" />
+          </Link>
         )}
-        {change && (change.linesAdded || change.linesRemoved) ? (
-          <span className="shrink-0 font-mono text-3xs">
-            {change.linesAdded ? <span className="text-success">+{change.linesAdded}</span> : null}
-            {change.linesAdded && change.linesRemoved ? " " : null}
-            {change.linesRemoved ? <span className="text-destructive">−{change.linesRemoved}</span> : null}
-          </span>
-        ) : null}
-        {change?.diffTruncated && (
-          <Badge variant="outline" className="shrink-0 px-1 py-0 text-4xs font-normal text-warning" title="Only the beginning of this patch was recorded">
-            patch cut short
-          </Badge>
-        )}
-        {item.status === "declined" && (
-          <Badge variant="destructive" className="shrink-0 px-1 py-0 text-4xs">
-            declined
-          </Badge>
-        )}
-        {body && (
-          <ChevronRightIcon
-            className={cn("ml-auto size-3 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
-          />
-        )}
-      </button>
+      </div>
       {open && body && (
         <div className="ml-3 flex flex-col gap-2 border-l border-border/70 py-1 pr-1.5 pl-3">
           {change?.unifiedDiff ? <DiffBody diff={change.unifiedDiff} /> : <CodeSurface text={output ?? ""} wrap />}
@@ -183,8 +194,6 @@ export function ToolRow({ item, onInsert, onOpenFile, onOpenFileInNewTab }: { it
         )}
         {path && (command || body) && <ContextMenuSeparator />}
         {path && onOpenFile && <ContextMenuItem onClick={() => onOpenFile(path)}>Open file in the Editor</ContextMenuItem>}
-        {/* …or in an Editor of its own, so this file can be read beside the one
-            already open rather than replacing it (#322). */}
         {path && onOpenFileInNewTab && (
           <ContextMenuItem onClick={() => onOpenFileInNewTab(path)}>Open in a new panel tab</ContextMenuItem>
         )}

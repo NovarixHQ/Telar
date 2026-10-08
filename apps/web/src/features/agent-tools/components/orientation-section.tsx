@@ -43,62 +43,41 @@ export function OrientationSection() {
 
   useRestoreDefaults(() => save({ ...DEFAULT_AGENT_ORIENTATION }));
 
+  const on = policy.preamble || policy.skill;
+  const fallback = DEFAULT_AGENT_ORIENTATION.preamble || DEFAULT_AGENT_ORIENTATION.skill;
+
   return (
-    <SettingsGroup
-      title="Telar orientation"
-      description="What Telar itself writes into an agent's context, before you have said anything."
-    >
+    <SettingsGroup title="Agent tools">
       <Row
         label="Tell agents they are inside Telar"
-        hint="One paragraph per turn: that “the browser” is Telar's, that a session is a Telar session, and what the panel, the rail and Looks are."
+        hint="A paragraph each turn and a skill file for each provider, so agents read Telar's words the way you mean them."
+        info="The paragraph says that the browser is Telar's, that a session is a Telar session, and what the panel, the rail and Looks are. The skill has the detail. Turning this off deletes the skill file."
         {...(error ? { error } : {})}
-        {...(policy.preamble === DEFAULT_AGENT_ORIENTATION.preamble
-          ? {}
-          : { onRevert: () => void save({ preamble: DEFAULT_AGENT_ORIENTATION.preamble }) })}
+        {...(on === fallback ? {} : { onRevert: () => void save({ ...DEFAULT_AGENT_ORIENTATION }) })}
         control={
           <Switch
-            checked={policy.preamble}
+            checked={on}
             disabled={loading}
-            onCheckedChange={(next: boolean) => void save({ preamble: next })}
+            onCheckedChange={(next: boolean) => void save({ preamble: next, skill: next })}
             aria-label="Tell agents they are inside Telar"
           />
         }
-      />
-      <Row
-        label={
-          <button
-            type="button"
-            onClick={() => setShowing((open) => !open)}
-            aria-expanded={showing}
-            className="flex items-center gap-1 rounded-sm text-left text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ChevronRightIcon className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${showing ? "rotate-90" : ""}`} />
-            Show the text
-          </button>
-        }
-        id="settings-row-integrations-telar-orientation-show-the-text"
       >
+        <button
+          type="button"
+          onClick={() => setShowing((open) => !open)}
+          aria-expanded={showing}
+          className="mt-1.5 flex items-center gap-1 rounded-sm text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ChevronRightIcon className={`size-3 shrink-0 transition-transform ${showing ? "rotate-90" : ""}`} />
+          Show the text
+        </button>
         {showing && (
           <p className="mt-2 whitespace-pre-wrap rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed text-muted-foreground">
             {text || "The engine did not answer."}
           </p>
         )}
       </Row>
-      <Row
-        label="Install the telar skill"
-        hint="A SKILL.md in each provider's skills directory, with the detail: the panel's tabs, how sessions are assigned and settled, the browser's tab rules. Turning this off deletes it."
-        {...(policy.skill === DEFAULT_AGENT_ORIENTATION.skill
-          ? {}
-          : { onRevert: () => void save({ skill: DEFAULT_AGENT_ORIENTATION.skill }) })}
-        control={
-          <Switch
-            checked={policy.skill}
-            disabled={loading}
-            onCheckedChange={(next: boolean) => void save({ skill: next })}
-            aria-label="Install the telar skill"
-          />
-        }
-      />
     </SettingsGroup>
   );
 }

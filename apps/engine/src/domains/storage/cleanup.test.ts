@@ -25,31 +25,29 @@ const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd,
 
 const OFF = { ...DEFAULT_CLEANUP_POLICY, settledDays: null };
 
-test("the plan asks only what the switches ask, and never twice for a released checkout", () => {
+test("off plans nothing, and a released checkout is never planned twice", () => {
   const now = 40 * DAY;
   const sessions = [
-    { sessionId: "old", path: "/w/old", archived: false, released: false, lastActiveAt: 0 },
-    { sessionId: "fresh", path: "/w/fresh", archived: false, released: false, lastActiveAt: 39 * DAY },
-    { sessionId: "archived", path: "/w/archived", archived: true, released: false, lastActiveAt: 0 },
-    { sessionId: "gone", path: "/w/gone", archived: false, released: true, lastActiveAt: 0 },
+    { sessionId: "old", path: "/w/old", archived: false, released: false, settledAt: 0 },
+    { sessionId: "gone", path: "/w/gone", archived: false, released: true, settledAt: 0 },
   ];
   expect(planWorktreeCleanup(sessions, OFF, now)).toEqual([]);
-  expect(planWorktreeCleanup(sessions, { ...OFF, inactiveDays: 30 }, now)).toEqual([{ sessionId: "old", path: "/w/old", reason: "inactive" }]);
-  expect(planWorktreeCleanup(sessions, { ...OFF, archived: true, unchanged: true }, now)).toEqual([
-    { sessionId: "old", path: "/w/old", reason: "unchanged" },
-    { sessionId: "fresh", path: "/w/fresh", reason: "unchanged" },
-    { sessionId: "archived", path: "/w/archived", reason: "archived" },
-  ]);
+  expect(planWorktreeCleanup(sessions, DEFAULT_CLEANUP_POLICY, now)).toEqual([{ sessionId: "old", path: "/w/old", reason: "settled" }]);
 });
 
-test("by default a session settled three days is planned for release, and a live or freshly settled one is not", () => {
+test("by default a session settled or archived three days is planned for release, and a live or recent one is not", () => {
   const now = 40 * DAY;
   const sessions = [
-    { sessionId: "long", path: "/w/long", archived: false, released: false, lastActiveAt: 0, settledAt: 36 * DAY },
-    { sessionId: "recent", path: "/w/recent", archived: false, released: false, lastActiveAt: 0, settledAt: 38 * DAY },
-    { sessionId: "live", path: "/w/live", archived: false, released: false, lastActiveAt: 0 },
+    { sessionId: "long", path: "/w/long", archived: false, released: false, settledAt: 36 * DAY },
+    { sessionId: "recent", path: "/w/recent", archived: false, released: false, settledAt: 38 * DAY },
+    { sessionId: "live", path: "/w/live", archived: false, released: false },
+    { sessionId: "archived", path: "/w/archived", archived: true, released: false, settledAt: 30 * DAY },
+    { sessionId: "just-archived", path: "/w/just-archived", archived: true, released: false, settledAt: 39 * DAY },
   ];
-  expect(planWorktreeCleanup(sessions, DEFAULT_CLEANUP_POLICY, now)).toEqual([{ sessionId: "long", path: "/w/long", reason: "settled" }]);
+  expect(planWorktreeCleanup(sessions, DEFAULT_CLEANUP_POLICY, now)).toEqual([
+    { sessionId: "long", path: "/w/long", reason: "settled" },
+    { sessionId: "archived", path: "/w/archived", reason: "archived" },
+  ]);
 });
 
 test("a volume that is missing or stops answering is skipped whole, and the others are still swept", async () => {
@@ -147,39 +145,31 @@ async function setup() {
   return { store, root, checkout, branch: session.workspace.branch, advance: (ms: number) => (now += ms) };
 }
 
-test("with every switch off, a sweep touches nothing and records an empty result", async () => {
+test("with removal off, a sweep touches nothing and records an empty result", async () => {
   const { store, checkout, advance } = await setup();
   store.cleanup.setPolicy({ settledDays: null });
+  store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
   advance(60 * DAY);
   await store.worktrees.runCleanup();
   expect(fs.existsSync(checkout)).toBe(true);
   expect(store.cleanup.last()).toMatchObject({ released: 0, logs: 0, freedBytes: 0 });
 });
 
-test("an inactive session's checkout is released past the window, and the branch survives", async () => {
+test("an archived session keeps its checkout until the window passes, then it is released and the branch survives", async () => {
   const { store, root, checkout, branch, advance } = await setup();
   git(checkout, "push", "-q", "origin", branch);
-  store.cleanup.setPolicy({ inactiveDays: 7 });
+  store.cleanup.setPolicy({ settledDays: 7 });
+  store.lifecycle.archiveSession("session_one");
   advance(3 * DAY);
   await store.worktrees.runCleanup();
-  expect(fs.existsSync(checkout)).toBe(true);
+  expect(fs.existsSync(path.join(checkout, "README.md"))).toBe(true);
   advance(5 * DAY);
   await store.worktrees.runCleanup();
   expect(fs.existsSync(checkout)).toBe(false);
   expect(git(root, "branch", "--list", branch)).toContain(branch);
   expect(store.cleanup.last()).toMatchObject({ released: 1 });
   const session = store.records.get("session_one");
-  expect(session.workspace.mode === "worktree" && session.workspace.released?.reason).toBe("inactive");
-});
-
-test("the fixed rules hold whatever the switches say: uncommitted work is skipped", async () => {
-  const { store, checkout, advance } = await setup();
-  fs.writeFileSync(path.join(checkout, "README.md"), "edited\n");
-  store.cleanup.setPolicy({ inactiveDays: 3 });
-  advance(10 * DAY);
-  await store.worktrees.runCleanup();
-  expect(fs.existsSync(checkout)).toBe(true);
-  expect(store.cleanup.last()).toMatchObject({ released: 0, skipped: 1 });
+  expect(session.workspace.mode === "worktree" && session.workspace.released?.reason).toBe("archived");
 });
 
 test("a settled session's clean, pushed worktree is released after three days by default, and comes back on reopening", async () => {
@@ -219,31 +209,14 @@ test("the settled release never touches a dirty or an unpushed worktree", async 
   expect(unpushed.store.cleanup.last()).toMatchObject({ released: 0, skipped: 1 });
 });
 
-test("unchanged: an idle session with no commits beyond the default branch is released; one with work is not", async () => {
-  const withWork = await setup();
-  fs.writeFileSync(path.join(withWork.checkout, "feature.txt"), "work\n");
-  git(withWork.checkout, "add", "-A");
-  git(withWork.checkout, "commit", "-qm", "feature");
-  git(withWork.checkout, "push", "-q", "origin", withWork.branch);
-  withWork.store.cleanup.setPolicy({ unchanged: true });
-  await withWork.store.worktrees.runCleanup();
-  expect(fs.existsSync(withWork.checkout)).toBe(true);
-
-  const empty = await setup();
-  empty.store.cleanup.setPolicy({ unchanged: true });
-  await empty.store.worktrees.runCleanup();
-  expect(fs.existsSync(empty.checkout)).toBe(false);
-  const session = empty.store.records.get("session_one");
-  expect(session.workspace.mode === "worktree" && session.workspace.released?.reason).toBe("unchanged");
-});
-
-test("unchanged never releases a session that is not idle", async () => {
-  const { store, checkout } = await setup();
+test("the sweep never releases a session that is not idle", async () => {
+  const { store, checkout, advance } = await setup();
+  store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
   store.intake.submitTurn("session_one", { runId: "run_busy", input: "working" });
-  store.cleanup.setPolicy({ unchanged: true });
+  advance(10 * DAY);
   await store.worktrees.runCleanup();
   expect(fs.existsSync(checkout)).toBe(true);
-  expect(store.cleanup.last()).toMatchObject({ released: 0, skipped: 1 });
+  expect(store.cleanup.last()).toMatchObject({ released: 0 });
 });
 
 function backgroundTask(store: EngineStore, state: "running" | "waiting", options: { ambient?: boolean } = {}) {
@@ -261,7 +234,7 @@ test("live background work: the sweep leaves a monitoring session's checkout alo
   const { store, checkout, advance } = await setup();
   backgroundTask(store, "running");
   expect(store.records.get("session_one").activity).toBe("monitoring");
-  store.cleanup.setPolicy({ unchanged: true, inactiveDays: 7 });
+  store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
   advance(30 * DAY);
   await store.worktrees.runCleanup();
   expect(fs.existsSync(checkout)).toBe(true);
@@ -272,10 +245,12 @@ test("live background work: the sweep leaves a monitoring session's checkout alo
 
 test("paused or ambient background tasks are not live work: the sweep and the reaper may take the checkout", async () => {
   for (const [state, ambient] of [["waiting", false], ["running", true]] as const) {
-    const { store, checkout } = await setup();
+    const { store, checkout, branch, advance } = await setup();
+    git(checkout, "push", "-q", "origin", branch);
     backgroundTask(store, state, ambient ? { ambient } : {});
     expect(store.records.get("session_one").activity).toBe("idle");
-    store.cleanup.setPolicy({ unchanged: true });
+    store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
+    advance(10 * DAY);
     await store.worktrees.runCleanup();
     expect(fs.existsSync(checkout), `${state}${ambient ? " ambient" : ""}`).toBe(false);
     const archived = await setup();
@@ -285,10 +260,12 @@ test("paused or ambient background tasks are not live work: the sweep and the re
   }
 });
 
-test("an open terminal: the unchanged sweep skips the session's checkout, and the reaper counts it live (#883)", async () => {
-  const { store, checkout } = await setup();
+test("an open terminal: the sweep skips the session's checkout, and the reaper counts it live (#883)", async () => {
+  const { store, checkout, branch, advance } = await setup();
+  git(checkout, "push", "-q", "origin", branch);
   store.sessionTerminals.attach({ openCount: (sessionId) => (sessionId === "session_one" ? 1 : 0), openSessions: () => ["session_one"], closeSession: async () => 1 });
-  store.cleanup.setPolicy({ unchanged: true });
+  store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
+  advance(10 * DAY);
   await store.worktrees.runCleanup();
   expect(fs.existsSync(checkout)).toBe(true);
   expect(store.cleanup.last()).toMatchObject({ released: 0, skipped: 1 });
@@ -296,23 +273,18 @@ test("an open terminal: the unchanged sweep skips the session's checkout, and th
   expect(store.worktrees.reapable()).toEqual([expect.objectContaining({ sessionId: "session_one", live: true })]);
 });
 
-test("archiving keeps the checkout unless the switch is on, and a kept one drops its build output", async () => {
-  const off = await setup();
-  fs.appendFileSync(path.join(off.root, ".git/info/exclude"), ".next/\n");
-  fs.mkdirSync(path.join(off.checkout, "web/.next/cache"), { recursive: true });
-  off.store.lifecycle.archiveSession("session_one");
-  await until("the build output is gone", () => !fs.existsSync(path.join(off.checkout, "web/.next")));
-  expect(fs.existsSync(path.join(off.checkout, "README.md"))).toBe(true);
-
-  const on = await setup();
-  on.store.cleanup.setPolicy({ archived: true });
-  on.store.lifecycle.archiveSession("session_one");
-  await until("the checkout is gone", () => !fs.existsSync(on.checkout));
+test("archiving keeps the checkout and drops its build output", async () => {
+  const { store, root, checkout } = await setup();
+  fs.appendFileSync(path.join(root, ".git/info/exclude"), ".next/\n");
+  fs.mkdirSync(path.join(checkout, "web/.next/cache"), { recursive: true });
+  store.lifecycle.archiveSession("session_one");
+  await until("the build output is gone", () => !fs.existsSync(path.join(checkout, "web/.next")));
+  expect(fs.existsSync(path.join(checkout, "README.md"))).toBe(true);
 });
 
 test("a policy outside the offered choices is refused", () => {
   const home = tmp("telar-cleanup-policy-");
   const store = new EngineStore(home, () => 1);
-  expect(store.cleanup.setPolicy({ inactiveDays: 5 })).toBeUndefined();
+  expect(store.cleanup.setPolicy({ settledDays: 5 })).toBeUndefined();
   expect(store.cleanup.setPolicy({ logsDays: 30 })).toEqual({ ...DEFAULT_CLEANUP_POLICY, logsDays: 30 });
 });

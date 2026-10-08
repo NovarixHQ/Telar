@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CLEANUP_INACTIVE_DAYS, CLEANUP_LOG_DAYS, CLEANUP_SETTLED_DAYS, DEFAULT_CLEANUP_POLICY, type CleanupPolicy, type CleanupReport, type CleanupState, type RetentionPolicy } from "@telar/engine-client";
-import { ArchiveIcon, ClockIcon, GitBranchIcon, HistoryIcon, MoonIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
+import { CLEANUP_LOG_DAYS, CLEANUP_SETTLED_DAYS, DEFAULT_CLEANUP_POLICY, type CleanupPolicy, type CleanupReport, type CleanupState, type RetentionPolicy } from "@telar/engine-client";
+import { ClockIcon, HistoryIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
 import { createEngineApi } from "@/platform/engine";
 import { fmtAgo, formatBytes } from "@/ui/format";
 import { Button } from "@/ui/button";
-import { Dropdown, Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
+import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 import { WorktreeSummarySection } from "./worktree-summary-section";
 import { WorktreesRootRow } from "./worktrees-root-section";
 
 const api = createEngineApi();
 
 export const FIXED_RULES =
-  "Never touched: a worktree with uncommitted changes, unpushed commits, a turn in flight or a running process, or one Telar did not create.";
-
-const SETTLED_INFO = "Only a worktree with no uncommitted changes and every commit on a remote branch. Reopening the session makes it again from its branch.";
+  "Never touched: a worktree with uncommitted changes, unpushed commits, a turn in flight or a running process, or one Telar did not create. The branch and conversation are always kept.";
 
 type Days = "off" | `${number}`;
 
@@ -132,58 +130,22 @@ export function CleanupSection() {
     <>
       <SettingsGroup title="Worktrees">
         <Row
-          keywords={["cleanup", "clean up", "disk", "space", "free", "full", "reclaim", "checkout", "idle", "old", "days"]}
+          keywords={["cleanup", "clean up", "disk", "space", "free", "full", "reclaim", "checkout", "idle", "inactive", "settled", "archived", "old", "days"]}
           icon={ClockIcon}
-          label="Delete inactive worktrees"
-          hint="Releases the worktree of a session inactive this many days. Its branch and conversation are kept, and it comes back when you reopen the session."
+          label="Remove worktrees"
+          hint="Removes a settled or archived session's worktree after this many days; it comes back when you reopen the session."
           info={FIXED_RULES}
-          {...errorFor("inactiveDays")}
-          control={
-            <Dropdown<Days>
-              value={policy?.inactiveDays ? `${policy.inactiveDays}` : "off"}
-              label="Delete inactive worktrees"
-              className="w-28"
-              disabled={!policy}
-              onChange={(next) => void save({ inactiveDays: next === "off" ? null : (Number(next) as CleanupPolicy["inactiveDays"]) })}
-              options={daysOptions(CLEANUP_INACTIVE_DAYS)}
-            />
-          }
-        />
-        <Row
-          keywords={["cleanup", "clean up", "disk", "space", "free", "reclaim", "checkout", "settled", "days"]}
-          icon={MoonIcon}
-          label="Release settled worktrees"
-          hint="Releases a settled session's worktree after this many days; its branch and conversation are kept."
-          info={SETTLED_INFO}
           {...errorFor("settledDays")}
           control={
             <Dropdown<Days>
               value={policy?.settledDays ? `${policy.settledDays}` : "off"}
-              label="Release settled worktrees"
+              label="Remove worktrees"
               className="w-28"
               disabled={!policy}
               onChange={(next) => void save({ settledDays: next === "off" ? null : (Number(next) as CleanupPolicy["settledDays"]) })}
               options={daysOptions(CLEANUP_SETTLED_DAYS)}
             />
           }
-        />
-        <ToggleRow
-          keywords={["cleanup", "clean up", "disk", "space", "reclaim", "checkout", "unchanged", "empty", "branch"]}
-          icon={GitBranchIcon}
-          label="Delete unchanged worktrees"
-          hint="Releases the worktree of an idle session whose branch has no commits beyond the default branch."
-          checked={policy?.unchanged ?? false}
-          onCheckedChange={(unchanged) => void save({ unchanged })}
-          {...errorFor("unchanged")}
-        />
-        <ToggleRow
-          keywords={["cleanup", "clean up", "disk", "space", "reclaim", "checkout", "archive"]}
-          icon={ArchiveIcon}
-          label="Delete worktrees of archived sessions"
-          hint="Otherwise archiving keeps the worktree."
-          checked={policy?.archived ?? false}
-          onCheckedChange={(archived) => void save({ archived })}
-          {...errorFor("archived")}
         />
         <WorktreesRootRow onChanged={() => setRootVersion((version) => version + 1)} />
         <Row

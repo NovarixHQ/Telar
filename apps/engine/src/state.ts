@@ -499,7 +499,6 @@ export class EngineStore {
       startSetup: (sessionId, worktree) => this.startWorktreeSetup(sessionId, worktree),
       releaseBrowser: (sessionId, reason) => this.browser.release(sessionId, reason),
       releasePlugins: (sessionId, reason) => this.pluginDoors.release(sessionId, reason),
-      releasesArchivedCheckouts: () => this.cleanup.policy().archived,
       reviewChildren: () => this.children.review(),
     });
   }

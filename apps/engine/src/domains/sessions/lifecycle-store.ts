@@ -88,7 +88,6 @@ type LifecycleHost = {
   startSetup(sessionId: string, worktree: string): Promise<void>;
   releaseBrowser(sessionId: string, reason: string): Promise<unknown> | void;
   releasePlugins(sessionId: string, reason: string): void;
-  releasesArchivedCheckouts(): boolean;
   /** A session was settled or archived: the children it held, and its own record, change. */
   reviewChildren(): void;
 };
@@ -456,13 +455,13 @@ export class SessionLifecycle {
     void this.host.releaseBrowser(sessionId, "session archived");
     this.releaseDataScience(session, "session archived");
 
-    // A worktree implies a project; the checkout goes only when asked (Storage's policy, or a caller giving it back).
+    // A worktree implies a project; the checkout goes only when a caller gives it back, otherwise Storage's sweep takes it later.
     if (session.workspace.mode === "worktree" && session.projectId && !session.workspace.released) {
       const project = this.host.getProject(session.projectId);
       // Best-effort. A leaked directory is bounded inside the engine's own
       // root and is reapable later; refusing to archive because git was
       // unhappy would strand the session in a state a human cannot leave.
-      if (options.releaseCheckout ?? this.host.releasesArchivedCheckouts()) this.releaseWorktree(project, session.workspace.path);
+      if (options.releaseCheckout) this.releaseWorktree(project, session.workspace.path);
       else this.pruneWorktree(project, session.workspace.path);
     }
     const at = this.kernel.now();

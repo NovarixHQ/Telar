@@ -400,6 +400,14 @@ describe("the @ menu before the listing arrives", () => {
     expect(rows[0]).toContain("Reading files…");
   });
 
+  test("with only session matches there is no Files and folders heading", async () => {
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/sessions/live": live });
+    await type(editor, "@parser");
+    await flush(() => menu(host)?.textContent?.includes("Pair on the parser") ?? false);
+    expect(menu(host)!.textContent).not.toContain("Files and folders");
+    expect(menu(host)!.textContent).toContain("Sessions");
+  });
+
   test("focusing the box reads the listing before @ is typed", async () => {
     const { editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/sessions/live": live });
     act(() => {

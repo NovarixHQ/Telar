@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/ui/utils";
 import { useSwapFade } from "../hooks/use-composer-motion";
 import type { ComposerStash } from "../hooks/use-composer-stash";
+import type { ComposerPicker } from "../completions";
 import { AccessControl } from "./access-control";
 import { AgentControl } from "./agent-control";
 import { ControlDivider } from "./control-primitives";
@@ -109,22 +110,24 @@ type PillProps = Pick<
   instanceId: string | undefined;
   resumeAfterRateLimit: boolean | undefined;
   ultrathink: { active: boolean; toggle: () => void };
+  summon: { picker: ComposerPicker; at: number } | undefined;
 };
 
 /** Model, reasoning and access in one row; as the composer narrows, labels truncate, then fold to icons. */
 export function ComposerPills(props: PillProps) {
-  const { driver, choice, instanceId, runtimeMode, onModelChange, onRuntimeMode, onDriverChange, onResumeAfterRateLimit, resumeAfterRateLimit, ultrathink } = props;
+  const { driver, choice, instanceId, runtimeMode, onModelChange, onRuntimeMode, onDriverChange, onResumeAfterRateLimit, resumeAfterRateLimit, ultrathink, summon } = props;
+  const summoned = (picker: ComposerPicker) => (summon?.picker === picker ? summon.at : undefined);
   const shared = { driver, choice, ...(instanceId ? { instanceId } : {}), ...(onModelChange ? { onChange: onModelChange } : {}) };
   const limit = { ...(resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimit }), ...(onResumeAfterRateLimit ? { onResumeAfterRateLimit } : {}) };
   return (
     <>
-      <AgentControl {...shared} {...(onDriverChange ? { onDriverChange } : {})} {...(props.onSwitchProvider ? { onSwitchProvider: props.onSwitchProvider } : {})} />
+      <AgentControl {...shared} summon={summoned("model")} {...(onDriverChange ? { onDriverChange } : {})} {...(props.onSwitchProvider ? { onSwitchProvider: props.onSwitchProvider } : {})} />
       <ControlDivider />
       <ReasoningControl {...shared} ultrathink={ultrathink} />
       {runtimeMode && (
         <>
           <ControlDivider />
-          <AccessControl runtimeMode={runtimeMode} onRuntimeMode={onRuntimeMode} driver={driver} {...limit} />
+          <AccessControl runtimeMode={runtimeMode} onRuntimeMode={onRuntimeMode} driver={driver} summon={summoned("access")} {...limit} />
         </>
       )}
     </>

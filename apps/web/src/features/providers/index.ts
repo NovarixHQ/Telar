@@ -12,7 +12,6 @@ export {
   pickInFamily,
   rowFor,
   rowOf,
-  stripWindow,
   toggleFamilyFavorite,
   visibleModels,
   WINDOW_LABEL,

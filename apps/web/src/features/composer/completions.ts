@@ -3,7 +3,7 @@
  * provider's commands) and `$` (the provider's skills). A completion is either text or an action.
  */
 
-import type { ProviderDriverKind, ProviderSkill, ProviderSkillSource, RuntimeMode } from "@telar/engine-client";
+import type { ProviderDriverKind, ProviderSkill, ProviderSkillSource } from "@telar/engine-client";
 import { fileReference, directoryReference, sessionReference, skillReference } from "./drag-reference";
 import { insertRankedSearchResult, normalizeSearchQuery, scoreQueryMatch, type RankedSearchResult } from "@/ui/search-ranking";
 
@@ -12,14 +12,15 @@ export type CompletionGlyph = "file" | "directory" | "access" | "model" | "effor
 type CompletionAction =
   /** Replace the trigger with this text; the only action that touches the draft. */
   | { type: "insert"; text: string }
-  | { type: "runtime-mode"; mode: RuntimeMode }
+  | { type: "picker"; picker: ComposerPicker }
   | { type: "env-mode"; mode: "local" | "worktree" }
   | { type: "driver"; driver: ProviderDriverKind }
-  | { type: "model"; model: string }
   | { type: "effort"; effort: string }
   | { type: "compact" }
   | { type: "resume" }
   | { type: "stop" };
+
+export type ComposerPicker = "model" | "access";
 
 export type Completion = {
   id: string;
@@ -143,14 +144,13 @@ export function rankSessions(
 type CommandContext = {
   busy: boolean;
   fresh: boolean;
-  runtimeMode?: RuntimeMode;
+  /** The pills on show; each one's picker gets a `/` row. */
+  pickers?: { model: boolean; access: boolean };
   /** The agent that will receive the next message: the session's, or the canvas's before it exists. */
   driver?: ProviderDriverKind;
   /** Only ever true on an existing session; see `compactBlockedReason`. */
   compacting?: boolean;
   envMode?: "local" | "worktree";
-  /** Already folded to one per family by the caller. */
-  models?: readonly { id: string; label: string }[];
   /** Effort levels the selected model publishes; empty means no `/effort` row. */
   efforts?: readonly string[];
   /** `onAdopt` is set and no session exists yet; mirrors the picker link's `fresh && onAdopt` gate. */
@@ -181,13 +181,6 @@ export function compactBlockedReason(state: { busy: boolean; compacting?: boolea
   return undefined;
 }
 
-const ACCESS_COMMANDS: { slug: string; mode: RuntimeMode; detail: string }[] = [
-  { slug: "supervised", mode: "approval-required", detail: "Ask before commands and file changes." },
-  { slug: "auto-edits", mode: "auto-accept-edits", detail: "Auto-approve edits, ask before other actions." },
-  { slug: "auto", mode: "auto", detail: "A reviewer approves routine actions; risky ones still ask." },
-  { slug: "full-access", mode: "full-access", detail: "Allow commands and edits without prompts." },
-];
-
 /**
  * Commands that would do nothing are not offered (`/stop` needs a running turn, `/worktree`
  * a session not yet created). The one already in effect is listed and marked "(current)".
@@ -195,24 +188,11 @@ const ACCESS_COMMANDS: { slug: string; mode: RuntimeMode; detail: string }[] = [
 export function availableCommands(context: CommandContext): Completion[] {
   const commands: Completion[] = [];
 
-  for (const { slug, mode, detail } of ACCESS_COMMANDS) {
-    commands.push({
-      id: `access:${mode}`,
-      label: `/${slug}`,
-      detail: context.runtimeMode === mode ? `${detail} (current)` : detail,
-      glyph: "access",
-      action: { type: "runtime-mode", mode },
-    });
+  if (context.pickers?.model) {
+    commands.push({ id: "model", label: "/model", detail: "Switch the model for this conversation.", glyph: "model", action: { type: "picker", picker: "model" } });
   }
-
-  for (const model of context.models ?? []) {
-    commands.push({
-      id: `model:${model.id}`,
-      label: `/model ${model.label}`,
-      detail: "Run the next turn on this model.",
-      glyph: "model",
-      action: { type: "model", model: model.id },
-    });
+  if (context.pickers?.access) {
+    commands.push({ id: "access", label: "/access", detail: "Choose what the agent may do without asking.", glyph: "access", action: { type: "picker", picker: "access" } });
   }
 
   for (const effort of context.efforts ?? []) {

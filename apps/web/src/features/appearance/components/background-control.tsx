@@ -71,7 +71,7 @@ export function BackgroundControl({ value, onChange }: { value: Background; onCh
   return (
     <>
       <div
-        className={cn("contents", dragging && "[&>div]:rounded-md [&>div]:bg-muted/50")}
+        className={cn("transition-colors", dragging && "bg-muted/50")}
         onDragOver={(event) => {
           event.preventDefault();
           setDragging(true);

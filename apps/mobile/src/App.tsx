@@ -2,8 +2,8 @@ import { NavigationContainer, type LinkingOptions } from "@react-navigation/nati
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
-import { DiffScreen } from "./features/git";
 import { hosts, HostsScreen, PairScreen } from "./features/hosts";
+import { PanelScreen } from "./features/panel";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
 import type { RootStack } from "./platform/navigation/routes";
 import { navigationTheme } from "./platform/navigation/theme";
@@ -16,7 +16,7 @@ async function initialUrl(): Promise<string | null | undefined> {
   return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
 }
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId", Session: "session/:hostId/:sessionId", Diff: "diff/:hostId/:sessionId" } }, getInitialURL: initialUrl };
+const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } }, getInitialURL: initialUrl };
 
 export function App() {
   const scheme = useColorScheme() === "dark" ? "dark" : "light";
@@ -34,11 +34,11 @@ export function App() {
             title: route.params.title ?? "",
             headerLargeTitle: false,
             headerRight: () => (
-              <Button title="Diff" onPress={() => navigation.navigate("Diff", { hostId: route.params.hostId, sessionId: route.params.sessionId })} />
+              <Button title="Panel" onPress={() => navigation.navigate("Panel", { hostId: route.params.hostId, sessionId: route.params.sessionId })} />
             ),
           })}
         />
-        <Stack.Screen name="Diff" component={DiffScreen} options={{ title: "Diff", headerLargeTitle: false }} />
+        <Stack.Screen name="Panel" component={PanelScreen} options={{ title: "Panel", headerLargeTitle: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

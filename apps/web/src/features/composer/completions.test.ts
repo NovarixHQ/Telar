@@ -76,6 +76,21 @@ describe("ranking paths", () => {
     expect(ranked).toHaveLength(3);
   });
 
+  test("a shorter path wins among equally good basename matches", () => {
+    const repo = buildPathIndex(["apps/web/src/app/page.tsx", "apps/web/package.json", "package.json"]);
+    expect(rankPaths(repo, "pa").map((completion) => completion.path).slice(0, 2)).toEqual(["package.json", "apps/web/package.json"]);
+  });
+
+  test("an exact basename, extension aside, outranks a longer prefix match", () => {
+    const repo = buildPathIndex(["packages/core/index.ts", "package.json"]);
+    expect(rankPaths(repo, "package")[0]?.path).toBe("package.json");
+  });
+
+  test("a basename prefix outranks a folder prefix, which outranks a fuzzy match", () => {
+    const repo = buildPathIndex(["store/deep/x.ts", "src/stereo.ts", "src/storage.ts"]);
+    expect(rankPaths(repo, "sto").map((completion) => completion.path)).toEqual(["store/", "src/storage.ts", "store/deep/", "store/deep/x.ts", "src/stereo.ts"]);
+  });
+
   test("a query that matches nothing returns nothing rather than everything", () => {
     expect(rankPaths(index, "zzzzzzz")).toEqual([]);
   });

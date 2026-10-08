@@ -14,7 +14,7 @@ import { hasUltrathink, toggleUltrathink } from "../model-options";
 import { useComposerCommandChoices } from "../hooks/use-composer-command-choices";
 import { useComposerCompletions } from "../hooks/use-composer-completions";
 import { useComposerMotion } from "../hooks/use-composer-motion";
-import { composerKeyHandler, useEscArm } from "../hooks/use-composer-keys";
+import { composerKeyHandler, useEscArm, usePromptRecall } from "../hooks/use-composer-keys";
 import { useComposerRegistration } from "../hooks/use-composer-registration";
 import { MAX_ATTACHMENTS, useComposerStash } from "../hooks/use-composer-stash";
 import { useDropTarget } from "../hooks/use-drop-target";
@@ -127,7 +127,8 @@ export function Composer(props: ComposerProps) {
     const action = menu.take(completion);
     if (action && action.type !== "insert") runAction(action, props, startResume);
   };
-  const onKeyDown = composerKeyHandler({ draft, attachments, busy, questionActive: question.active, stash, menu, pick, submit: () => void trySubmit(), esc });
+  const recall = usePromptRecall(props.sentPrompts, session?.id ?? `fresh:${projectId}`, draft, onDraftChange);
+  const onKeyDown = composerKeyHandler({ draft, attachments, busy, questionActive: question.active, stash, menu, pick, submit: () => void trySubmit(), recall, esc });
   useCommandHandlers({ "focus-composer": () => editor.current?.focus(), send: () => void trySubmit(), "stop-turn": () => busy && onStop() });
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));

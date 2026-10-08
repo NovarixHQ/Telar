@@ -29,11 +29,12 @@ type BoxProps = {
   projectId?: string;
   session?: Session;
   runtimeMode?: RuntimeMode;
+  sentPrompts?: string[];
   onSubmit?: () => void;
   onStop?: () => void;
 };
 
-function Box({ initial = "", files = [], busy = false, ready = true, compact = false, fresh = false, projectId, session, runtimeMode, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, ready = true, compact = false, fresh = false, projectId, session, runtimeMode, sentPrompts, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -58,6 +59,7 @@ function Box({ initial = "", files = [], busy = false, ready = true, compact = f
         {...(projectId ? { projectId } : {})}
         {...(session ? { session } : {})}
         {...(runtimeMode ? { runtimeMode } : {})}
+        {...(sentPrompts ? { sentPrompts } : {})}
       />
     </>
   );
@@ -189,6 +191,43 @@ describe("⌘S", () => {
     await flush();
     expect(draft()).toBe("");
     expect(stashed().map((entry) => entry.prompt)).toEqual(["/"]);
+  });
+});
+
+describe("prompt recall", () => {
+  const sentPrompts = ["first", "second"];
+
+  test("↑ in an empty box walks back through sent prompts, and ↓ walks forward to the empty draft", async () => {
+    const { editor, draft } = await composer({ sentPrompts });
+    expect(key(editor, { key: "ArrowUp" }).defaultPrevented).toBe(true);
+    await flush();
+    expect(draft()).toBe("second");
+    key(editor, { key: "ArrowUp" });
+    await flush();
+    expect(draft()).toBe("first");
+    key(editor, { key: "ArrowDown" });
+    await flush();
+    expect(draft()).toBe("second");
+    key(editor, { key: "ArrowDown" });
+    await flush();
+    expect(draft()).toBe("");
+    expect(key(editor, { key: "ArrowDown" }).defaultPrevented).toBe(false);
+  });
+
+  test("↑ with words in the box moves the caret instead", async () => {
+    const { editor, draft } = await composer({ initial: "typing", sentPrompts });
+    expect(key(editor, { key: "ArrowUp" }).defaultPrevented).toBe(false);
+    await flush();
+    expect(draft()).toBe("typing");
+  });
+
+  test("an edited recall stops browsing", async () => {
+    const { editor, draft } = await composer({ sentPrompts });
+    key(editor, { key: "ArrowUp" });
+    await flush();
+    await type(editor, "x");
+    expect(draft()).toBe("xsecond");
+    expect(key(editor, { key: "ArrowUp" }).defaultPrevented).toBe(false);
   });
 });
 

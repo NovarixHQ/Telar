@@ -83,10 +83,11 @@ function TabChip({
           <button
             type="button"
             aria-label={`Close ${label}`}
+            draggable={false}
             onClick={() => onCloseTab(id)}
             className={cn(
               "ml-1 rounded p-0.5 text-muted-foreground transition-opacity hover:bg-background hover:text-foreground focus-visible:opacity-100",
-              on ? "opacity-70" : "opacity-0 group-hover/tab:opacity-70",
+              on ? "opacity-70" : "opacity-0 group-hover/tab:opacity-70 pointer-coarse:opacity-70",
             )}
           >
             <XIcon className="size-3" />

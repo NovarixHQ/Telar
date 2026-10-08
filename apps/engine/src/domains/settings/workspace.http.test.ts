@@ -60,18 +60,12 @@ test("a malformed proposal costs the proposal and says why; the machine layer st
   expect(view.proposal.error).toContain("not JSON");
   expect(view.effective).toEqual({ setup: { command: "bun install" } });
 
-  propose(checkout, { artifacts: [{ path: "../outside" }] });
-  expect((await readWorkspaceProposal(checkout)).error).toContain("inside the worktree");
+  propose(checkout, { env: { "NOT-A-NAME": "x" } });
+  expect((await readWorkspaceProposal(checkout)).error).toContain("env.NOT-A-NAME");
 });
 
-test("writes refuse paths that leave the worktree and names that no shell could export", () => {
+test("writes refuse a dependency mode and names that no shell could export", () => {
   const store = new WorkspaceConfigStore(path.join(root(), "workspace.json"));
-  expect(store.setMachine({ artifacts: [{ path: "/Users/someone" }] })).toMatchObject({ ok: false });
-  expect(store.setMachine({ artifacts: [{ path: "a/../../b" }] })).toMatchObject({ ok: false });
-  expect(store.setMachine({ artifacts: [{ path: "C:\\Users\\someone" }] })).toMatchObject({ ok: false });
-  expect(store.setMachine({ artifacts: [{ path: "a\\..\\..\\b" }] })).toMatchObject({ ok: false });
-  expect(store.setMachine({ artifacts: [{ path: "\\\\server\\share" }] })).toMatchObject({ ok: false });
-  expect(store.setMachine({ artifacts: [{ path: "apps\\web\\node_modules" }] })).toMatchObject({ ok: true });
   expect(store.setMachine({ dependencies: "copy" })).toMatchObject({ ok: false });
   store.setMachine({});
   expect(store.setMachine({ env: { "NOT-A-NAME": "x" } })).toMatchObject({ ok: false });

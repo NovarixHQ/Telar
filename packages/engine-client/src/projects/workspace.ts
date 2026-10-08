@@ -6,13 +6,6 @@ export const WORKSPACE_SCHEMA_VERSION = 1;
  *  rather than exported as something no process can read. */
 export const WorkspaceEnvName = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "not a valid environment variable name");
 
-export const WorkspaceRelativePath = z
-  .string()
-  .min(1)
-  .refine((value) => !/^([/\\~]|[A-Za-z]:)/.test(value), "must be relative to the worktree")
-  .refine((value) => !value.split(/[/\\]/).includes(".."), "must stay inside the worktree")
-  .refine((value) => !value.includes("\0"), "must not contain a NUL byte");
-
 export const WorkspaceSetup = z.object({
   /** Run in the new worktree, in the background, with `env` and the ports. */
   command: z.string().min(1),
@@ -34,26 +27,17 @@ export type WorkspacePorts = z.infer<typeof WorkspacePorts>;
 export const WorkspaceDependencies = z.enum(["install", "share", "none"]);
 export type WorkspaceDependencies = z.infer<typeof WorkspaceDependencies>;
 
-export const WorkspaceArtifact = z.object({
-  /** May carry `*` in a segment: `apps/ios/DerivedData-*`. */
-  path: WorkspaceRelativePath,
-  /** The command that rebuilds it, shown beside the row. Never run by Telar. */
-  regen: z.string().optional(),
-});
-export type WorkspaceArtifact = z.infer<typeof WorkspaceArtifact>;
-
 export const WorkspaceConfig = z.object({
   setup: WorkspaceSetup.optional(),
   env: z.record(WorkspaceEnvName, z.string()).optional(),
   ports: WorkspacePorts.optional(),
   dependencies: WorkspaceDependencies.optional(),
-  artifacts: z.array(WorkspaceArtifact).max(64).optional(),
   /** Reserved for the execution policy; accepted and stored, read by nothing yet. */
   execution: z.unknown().optional(),
 });
 export type WorkspaceConfig = z.infer<typeof WorkspaceConfig>;
 
-export const WORKSPACE_FIELDS = ["setup", "env", "ports", "dependencies", "artifacts", "execution"] as const;
+export const WORKSPACE_FIELDS = ["setup", "env", "ports", "dependencies", "execution"] as const;
 export type WorkspaceField = (typeof WORKSPACE_FIELDS)[number];
 
 /** A project's overrides: absent inherits, `null` is off, a value replaces. */
@@ -62,7 +46,6 @@ export const ProjectWorkspaceOverrides = z.object({
   env: z.record(WorkspaceEnvName, z.string()).nullable().optional(),
   ports: WorkspacePorts.nullable().optional(),
   dependencies: WorkspaceDependencies.optional(),
-  artifacts: z.array(WorkspaceArtifact).max(64).nullable().optional(),
   execution: z.unknown().optional(),
 });
 export type ProjectWorkspaceOverrides = z.infer<typeof ProjectWorkspaceOverrides>;

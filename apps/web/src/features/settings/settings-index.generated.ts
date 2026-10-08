@@ -112,7 +112,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Setup","hint":"Runs in the background in each new worktree, with the variables and ports below.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Environment","hint":"Exported to the setup command.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Ports","hint":"One stable port per name, exported under that name.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
-      {"title":"Artifacts","hint":"Output a worktree can regenerate. Telar never runs the command.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Dependencies","hint":"How a new worktree gets node_modules and .venv: install them with the setup command, share the checkout's, or neither.","keywords":["node_modules","venv","install","share","symlink","disk"]},
     ] },
     { "title":"Data science", rows: [

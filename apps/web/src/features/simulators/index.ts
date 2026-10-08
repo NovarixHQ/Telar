@@ -1,2 +1,3 @@
+export { createSimulatorsApi, releaseSimulatorTab } from "./api";
 export { floatKey, useSimulatorFloat } from "./float";
-export { agentSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped, withSimulatorShown } from "./tabs";
+export { sessionSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped, withSimulatorShown } from "./tabs";

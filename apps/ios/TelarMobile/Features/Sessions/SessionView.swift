@@ -171,9 +171,13 @@ struct SessionView: View {
             }
     }
 
+    private var sessionSimulatorsRunning: [SimulatorSummary] {
+        runningInSession(simulatorWatch.running, store.sync.simulatorIds)
+    }
+
     private func panelView(_ presentation: PanelPresentation, canFillWindow: Bool) -> PanelView {
         PanelView(api: api, panelAPI: panelAPI, sessionId: sessionId, hostId: hostId,
-                  simulators: simulatorWatch.running, agentSimulatorId: store.sync.agentSimulatorId, hostName: hostName, active: turnActive, panel: panel,
+                  simulators: simulatorWatch.running, simulatorIds: store.sync.simulatorIds, hostName: hostName, active: turnActive, panel: panel,
                   presentation: presentation, canFillWindow: canFillWindow, onClose: { panel.close() })
     }
 
@@ -227,8 +231,8 @@ struct SessionView: View {
                 syncSidebar(open: true)
             }
             .onChange(of: store.sync.displayOpens.count) { watchDisplayOpens() }
-            .onChange(of: store.sync.agentSimulatorId) { _, id in
-                if id != nil { panel.open(.simulator) }
+            .onChange(of: store.sync.simulatorIds) { old, new in
+                if let latest = new.last, latest != old.last, !old.contains(latest) || new.count >= old.count { panel.open(.simulator) }
             }
     }
 
@@ -496,8 +500,8 @@ struct SessionView: View {
                     }
                 }
             }
-            if let simulatorsAPI, !simulatorWatch.running.isEmpty {
-                SimulatorPill(api: simulatorsAPI, running: preferringAgent(simulatorWatch.running, store.sync.agentSimulatorId))
+            if let simulatorsAPI, !sessionSimulatorsRunning.isEmpty {
+                SimulatorPill(api: simulatorsAPI, running: sessionSimulatorsRunning)
             }
             if let tally = agents.tally {
                 AgentsPill(tally: tally, watch: agents, hostId: hostId)

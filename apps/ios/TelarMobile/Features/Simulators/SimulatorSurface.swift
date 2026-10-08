@@ -3,7 +3,8 @@ import SwiftUI
 struct SimulatorSurface: View {
     let api: any SimulatorsAPI
     let running: [SimulatorSummary]
-    let preferred: String?
+    let sessionId: EngineID
+    let owned: [String]
 
     var body: some View {
         if running.isEmpty {
@@ -25,8 +26,11 @@ struct SimulatorSurface: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityElement(children: .combine)
         } else {
-            let selected = running.contains { $0.id == preferred } ? preferred : running.first?.id
-            SimulatorViewer(api: api, simulators: running, selectedId: selected, embedded: true)
+            let selected = runningInSession(running, owned).first?.id ?? running.first?.id
+            SimulatorViewer(api: api, simulators: running, selectedId: selected, embedded: true) { id in
+                guard !owned.contains(id) else { return }
+                Task { try? await api.showSessionSimulator(sessionId, id, shown: true) }
+            }
                 .id(running.map(\.id).joined(separator: ","))
         }
     }

@@ -36,6 +36,10 @@ export const simulatorsClient = {
     return this.request("POST", simulatorPath(id, "input"), { events });
   },
 
+  showSessionSimulator(this: EngineTransport, sessionId: string, id: string, shown: boolean): Promise<{ simulator?: SimulatorSummary }> {
+    return this.request("POST", `/v2/sessions/${encodeURIComponent(sessionId)}/simulators/${encodeURIComponent(id)}`, { shown });
+  },
+
   simulatorStreamTicket(this: EngineTransport): Promise<SimulatorStreamTicket> {
     return this.request("GET", "/v2/simulators/stream-ticket");
   },

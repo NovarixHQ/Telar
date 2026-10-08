@@ -117,3 +117,20 @@ test("a minted ticket admits a hub read at the gate, and only while the device t
   expect(unpaired.headers.get("cache-control")).toBe("no-store");
   expect(await decide(STREAM, "GET", ((await unpaired.json()) as { ticket: string }).ticket)).toEqual({ allow: false, code: "cockpit_unauthorized" });
 });
+
+test("a person opening a simulator in a session journals its summary there, and releasing it journals the close", async () => {
+  const { client } = await engine({ ready: true });
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "telar-simulator-session-"));
+  closers.push(async () => fs.rmSync(project, { recursive: true, force: true }));
+  await client.registerProject({ id: "project_sim", name: "sim", root: project });
+  await client.createSession({ id: "session_sim", projectId: "project_sim" });
+
+  expect(await client.showSessionSimulator("session_sim", "A1B2-UDID", true)).toEqual({ simulator: iPhone() });
+  expect(await client.showSessionSimulator("session_sim", "A1B2-UDID", false)).toEqual({});
+  expect(await codeOf(client.showSessionSimulator("session_sim", "nope", true))).toBe("not_found");
+  expect(await codeOf(client.showSessionSimulator("session_gone", "A1B2-UDID", true))).toBe("not_found");
+  const journalled = (await client.events("session_sim")).events.flatMap((event) =>
+    event.type === "simulator.opened" ? [`opened ${event.simulator.id}`] : event.type === "simulator.closed" ? [`closed ${event.simulatorId}`] : [],
+  );
+  expect(journalled).toEqual(["opened A1B2-UDID", "closed A1B2-UDID"]);
+});

@@ -15,6 +15,10 @@ function fakeApi(initial: SimulatorsState, chrome: SimulatorChrome | null = null
   const calls: Array<[string, ...unknown[]]> = [];
   const api: SimulatorsApi = {
     simulators: async () => ({ simulators: state }),
+    showSessionSimulator: async (sessionId, id, shown) => {
+      calls.push(["showSessionSimulator", sessionId, id, shown]);
+      return {};
+    },
     setSimulatorSettings: async (patch) => {
       calls.push(["setSimulatorSettings", patch]);
       state = { ...state, status: "ready" };
@@ -53,10 +57,10 @@ const ready = (simulators: SimulatorSummary[]): SimulatorsState => ({ status: "r
 const button = (label: string) => document.querySelector(`[aria-label="${label}"]`) as HTMLElement | null;
 const text = (label: string) => [...document.querySelectorAll("button")].find((node) => node.textContent?.trim() === label);
 
-async function surface(state: SimulatorsState, config?: Record<string, unknown>, chrome?: SimulatorChrome) {
+async function surface(state: SimulatorsState, config?: Record<string, unknown>, chrome?: SimulatorChrome, sessionId?: string) {
   globalThis.fetch = (async (url: string) => (config && String(url).includes("/config") ? Response.json(config) : new Response("{}", { status: 404 }))) as unknown as typeof fetch;
   const fake = fakeApi(state, chrome);
-  const { host } = await mount(<SimulatorSurface api={fake.api} visible />);
+  const { host } = await mount(<SimulatorSurface api={fake.api} visible {...(sessionId ? { sessionId } : {})} />);
   await flush(() => !host.textContent?.includes("Looking for simulators"));
   return { host, ...fake };
 }
@@ -106,6 +110,18 @@ test("the toolbar sends Home and Rotate as input, each Rotate turns one step fur
   await flush(() => !button("Simulator controls"));
   expect(calls.at(-1)).toEqual(["shutdownSimulator", "A1B2"]);
   expect(host.querySelectorAll('[role="tab"]')).toHaveLength(1);
+});
+
+test("in a session, opening a simulator claims it there, and closing its tab or powering it off releases it", async () => {
+  const { calls } = await surface(ready([iPhone(true)]), undefined, undefined, "s1");
+  const claims = () => calls.filter((call) => call[0] === "showSessionSimulator").map((call) => call.slice(1));
+  await click(text("Open"));
+  await click(button("Close iPhone 16")!);
+  expect(claims()).toEqual([["s1", "A1B2", true], ["s1", "A1B2", false]]);
+  await click(text("Open"));
+  await click(button("Power off")!);
+  await flush(() => calls.some((call) => call[0] === "shutdownSimulator") && claims().length === 4);
+  expect(claims().slice(2)).toEqual([["s1", "A1B2", true], ["s1", "A1B2", false]]);
 });
 
 test("a press on the screen is a touch at its place in the frame, and a key is its HID usage", async () => {

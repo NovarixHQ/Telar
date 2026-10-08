@@ -4,6 +4,7 @@ protocol SimulatorsAPI: RemoteAPI {
     func simulators() async throws -> SimulatorsState
     func bootSimulator(_ id: String) async throws -> SimulatorSummary
     func shutdownSimulator(_ id: String) async throws -> SimulatorSummary
+    func showSessionSimulator(_ sessionId: EngineID, _ id: String, shown: Bool) async throws
     func simulatorScreen(_ id: String) async throws -> SimulatorScreen
     func sendSimulatorInput(_ id: String, events: [SimulatorInput]) async throws
     func simulatorStreamRequest(_ id: String, base: URL?) -> URLRequest
@@ -27,6 +28,10 @@ extension HTTPEngineAPI: SimulatorsAPI {
     func shutdownSimulator(_ id: String) async throws -> SimulatorSummary {
         let wrapped: WrappedSimulator = try await post("api/simulators/\(escape(id))/shutdown", body: [:])
         return wrapped.simulator
+    }
+
+    func showSessionSimulator(_ sessionId: EngineID, _ id: String, shown: Bool) async throws {
+        let _: IgnoredBody = try await post("api/sessions/\(escape(sessionId))/simulators/\(escape(id))", body: ["shown": AnyEncodable(shown)])
     }
 
     func simulatorScreen(_ id: String) async throws -> SimulatorScreen {

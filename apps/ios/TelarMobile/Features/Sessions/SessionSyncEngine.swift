@@ -30,7 +30,7 @@ enum SyncConnectionState: Equatable {
 
     private(set) var kernelSignals = KernelSignals()
 
-    private(set) var agentSimulatorId: String?
+    private(set) var simulatorIds: [String] = []
 
     struct DisplayOpen: Equatable, Identifiable {
         var id: Int
@@ -180,7 +180,7 @@ enum SyncConnectionState: Equatable {
             page = hydrated.snapshot.page
             events = hydrated.events
             cursor = hydrated.cursor
-            agentSimulatorId = agentSimulator(agentSimulatorId, after: hydrated.events)
+            simulatorIds = sessionSimulators(simulatorIds, after: hydrated.events)
             refold()
             connection = .live
             recordedAt = nil
@@ -230,7 +230,7 @@ enum SyncConnectionState: Equatable {
             }
         }
         if !tail.events.isEmpty || tail.snapshot != nil {
-            agentSimulatorId = agentSimulator(agentSimulatorId, after: tail.events)
+            simulatorIds = sessionSimulators(simulatorIds, after: tail.events)
             events = appendJournalEvents(events, tail.events)
             if let reflected = tail.snapshot?.cursor { events.removeAll { $0.id <= reflected } }
             refold()

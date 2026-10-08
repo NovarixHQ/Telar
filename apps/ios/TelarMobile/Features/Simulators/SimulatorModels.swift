@@ -95,19 +95,16 @@ enum SimulatorInput: Encodable, Equatable, Sendable {
     }
 }
 
-func agentSimulator(_ current: String?, after events: [EngineEvent]) -> String? {
-    events.reduce(current) { latest, event in
+func sessionSimulators(_ current: [String], after events: [EngineEvent]) -> [String] {
+    events.reduce(current) { ids, event in
         switch event.payload {
-        case .simulatorOpened(let simulator): simulator.id
-        case .simulatorClosed(let id): latest == id ? nil : latest
-        default: latest
+        case .simulatorOpened(let simulator): ids.filter { $0 != simulator.id } + [simulator.id]
+        case .simulatorClosed(let id): ids.filter { $0 != id }
+        default: ids
         }
     }
 }
 
-func preferringAgent(_ running: [SimulatorSummary], _ agentId: String?) -> [SimulatorSummary] {
-    guard let agentId, let index = running.firstIndex(where: { $0.id == agentId }) else { return running }
-    var ordered = running
-    ordered.insert(ordered.remove(at: index), at: 0)
-    return ordered
+func runningInSession(_ running: [SimulatorSummary], _ ids: [String]) -> [SimulatorSummary] {
+    ids.reversed().compactMap { id in running.first { $0.id == id } }
 }

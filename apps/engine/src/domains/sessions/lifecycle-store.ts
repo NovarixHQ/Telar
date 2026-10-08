@@ -73,7 +73,7 @@ type LifecycleHost = {
   assertProjectAvailable(projectId: string): void;
   projectAvailability(project: Project): ProjectAvailability;
   projectOfSession(session: Session): Project | undefined;
-  sessionDefaults(): { envMode?: EnvMode; runtimeMode?: RuntimeMode };
+  sessionDefaults(): { envMode?: EnvMode; runtimeMode?: RuntimeMode; defaultModel?: ModelSelectionValue };
   requireInstance(instanceId: string): ProviderInstance;
   cachedModels(driver: ProviderDriverKind): ModelCatalogue["models"] | undefined;
   chooseModel(driver: ProviderDriverKind, instanceId: string, choice: AgentModelChoice): ModelSelectionValue | undefined;
@@ -132,7 +132,13 @@ export class SessionLifecycle {
       if (input.baseRef !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._/@{}-]{0,200}$/.test(input.baseRef)) {
         throw new EngineStateError("invalid_request", "base ref is not a usable git ref name");
       }
-      const chosen = input.providerInstanceId === undefined ? undefined : this.host.requireInstance(input.providerInstanceId);
+      const standing = project?.defaultModel ?? this.host.sessionDefaults().defaultModel;
+      const chosen =
+        input.providerInstanceId !== undefined
+          ? this.host.requireInstance(input.providerInstanceId)
+          : input.driver === undefined && standing
+            ? this.enabledInstance(standing.instanceId)
+            : undefined;
       const driver = chosen?.driver ?? input.driver ?? "claude";
       if (!isKnownDriver(driver)) {
         throw new EngineStateError("invalid_request", "unknown provider driver");
@@ -195,8 +201,8 @@ export class SessionLifecycle {
         driver,
         ...(() => {
           if (picked) return { model: picked };
-          if (!project?.defaultModel || project.defaultModel.instanceId !== instanceId) return {};
-          const model = this.supportedOptions(driver, project.defaultModel);
+          if (!standing || standing.instanceId !== instanceId) return {};
+          const model = this.supportedOptions(driver, standing);
           return model ? { model } : {};
         })(),
         workspace,
@@ -236,7 +242,16 @@ export class SessionLifecycle {
     });
   }
 
-  /** A project's stored model selection without the options its model no longer offers, read from the cached catalogue. */
+  private enabledInstance(instanceId: string): ProviderInstance | undefined {
+    try {
+      const instance = this.host.requireInstance(instanceId);
+      return instance.enabled ? instance : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** A stored default model selection without the options its model no longer offers, read from the cached catalogue. */
   private supportedOptions(driver: ProviderDriverKind, selection: ModelSelection): ModelSelection | undefined {
     const listed = this.host.cachedModels(driver);
     if (!listed) return selection;

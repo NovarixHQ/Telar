@@ -404,15 +404,16 @@ export function Row({
             {status && <span className="shrink-0">{status}</span>}
             <span className="flex size-3 shrink-0 items-center justify-center">
               {onRevert && (
-                <button
-                  type="button"
-                  title="Back to the default"
-                  aria-label="Revert to the default"
-                  onClick={onRevert}
-                  className="text-muted-foreground/60 transition-colors hover:text-foreground"
-                >
-                  <Undo2Icon className="size-3" />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button variant="ghost" size="icon-xs" aria-label="Revert to the default" onClick={onRevert} className="size-5 shrink-0 text-muted-foreground/60 hover:text-foreground">
+                        <Undo2Icon className="size-3" />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Back to the default</TooltipContent>
+                </Tooltip>
               )}
             </span>
           </div>

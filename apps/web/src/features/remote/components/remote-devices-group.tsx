@@ -19,7 +19,7 @@ const KIND_ICONS: Record<string, typeof MonitorIcon> = {
   service: ServerIcon,
 };
 
-function DeviceName({ device, isSelf, onRename }: { device: RemoteDevice; isSelf: boolean; onRename: (name: string) => void }) {
+function DeviceName({ device, onRename }: { device: RemoteDevice; onRename: (name: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(device.name);
   const kind = device.identity?.kind ?? (device.platform === "ios" ? "phone" : device.platform);
@@ -68,7 +68,6 @@ function DeviceName({ device, isSelf, onRename }: { device: RemoteDevice; isSelf
         </button>
         {whereabouts && <span className="block truncate text-2xs font-normal text-muted-foreground">{whereabouts}</span>}
       </span>
-      {isSelf && <Badge variant="outline">This device</Badge>}
     </span>
   );
 }
@@ -92,15 +91,15 @@ type DeviceActions = {
   onRevoke: (id: string) => void;
 };
 
-function DeviceRow({ device, isSelf, busy, onRename, onRole, onRevoke }: { device: RemoteDevice; isSelf: boolean } & DeviceActions) {
+function DeviceRow({ device, busy, onRename, onRole, onRevoke }: { device: RemoteDevice } & DeviceActions) {
   const kind = device.identity?.kind ?? (device.platform === "ios" ? "phone" : device.platform);
-  const declaredSource = [device.identity?.client, device.identity?.machine].filter(Boolean).join(" · ");
+  const declaredSource = [device.identity?.client, device.identity?.machine].filter(Boolean).join(" on ");
   const source = declaredSource && !device.name.includes(declaredSource) ? declaredSource : undefined;
 
   return (
     <Row
       id={`settings-device-${device.id}`}
-      label={<DeviceName device={device} isSelf={isSelf} onRename={(name) => onRename(device.id, name)} />}
+      label={<DeviceName device={device} onRename={(name) => onRename(device.id, name)} />}
       hint={
         <span className="flex flex-wrap items-center gap-x-1.5">
           {(source ?? kind) && <span>{source ?? kind} ·</span>}
@@ -148,7 +147,7 @@ export function RemoteDevicesGroup({ status, children, ...actions }: { status: R
         ? {
             action: (
               <Badge variant="outline" title="Runs the server — always connected, nothing to revoke">
-                {status.host.isCaller ? "This app" : "Host"} · {status.host.name}
+                {status.host.isCaller ? "This device" : "Host"} · {status.host.name}
               </Badge>
             ),
           }
@@ -157,7 +156,7 @@ export function RemoteDevicesGroup({ status, children, ...actions }: { status: R
       {status.devices.length === 0 ? (
         <Row label="None yet" hint="Devices appear here as they pair." control={null} />
       ) : (
-        <SettingsList label="Paired devices">{status.devices.map((device) => <DeviceRow key={device.id} device={device} isSelf={device.id === status.callerDeviceId} {...actions} />)}</SettingsList>
+        <SettingsList label="Paired devices">{status.devices.map((device) => <DeviceRow key={device.id} device={device} {...actions} />)}</SettingsList>
       )}
       {children}
     </SettingsGroup>

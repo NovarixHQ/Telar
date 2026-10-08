@@ -1,0 +1,11 @@
+{"direction": "out", "line": {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": 1}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": 1, "agentCapabilities": {"loadSession": true, "mcpCapabilities": {"http": false}}, "agentInfo": {"name": "sample-agent", "version": "0.9.2"}}}}
+{"direction": "out", "line": {"jsonrpc": "2.0", "id": 2, "method": "session/new", "params": {"cwd": "/tmp/project", "mcpServers": []}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "id": 2, "result": {"sessionId": "rec-1", "modes": {"currentModeId": "default", "availableModes": [{"id": "default", "name": "Default"}]}}}}
+{"direction": "out", "line": {"jsonrpc": "2.0", "id": 3, "method": "session/prompt", "params": {"sessionId": "rec-1", "prompt": [{"type": "text", "text": "read the readme"}]}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "rec-1", "update": {"sessionUpdate": "available_commands_update", "availableCommands": [{"name": "memory", "description": "Manage memory"}]}}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "rec-1", "update": {"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": "I should open README.md."}}}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "rec-1", "update": {"sessionUpdate": "tool_call", "toolCallId": "read_file-1", "title": "ReadFile README.md", "kind": "read", "status": "in_progress", "locations": [{"path": "/tmp/project/README.md"}]}}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "rec-1", "update": {"sessionUpdate": "tool_call_update", "toolCallId": "read_file-1", "status": "completed", "content": [{"type": "content", "content": {"type": "text", "text": "# Project"}}]}}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "rec-1", "update": {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "The readme is a single heading."}}}}}
+{"direction": "in", "line": {"jsonrpc": "2.0", "id": 3, "result": {"stopReason": "end_turn"}}}

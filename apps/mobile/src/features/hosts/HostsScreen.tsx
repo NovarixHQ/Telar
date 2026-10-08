@@ -1,3 +1,4 @@
+import { Host } from "@expo/ui/swift-ui";
 import { useNavigation, type NavigationProp } from "@react-navigation/native";
 import { present } from "../../platform/connection";
 import type { RootStack } from "../../platform/navigation/routes";
@@ -12,20 +13,22 @@ export function HostsScreen() {
   const navigation = useNavigation<NavigationProp<RootStack>>();
   if (rows.length === 0) return <WelcomeScreen />;
   return (
-    <SettingsPage>
-      <SettingsGroup label="Sessions">
-        {rows.flatMap(({ connection, state }, index) => [
-          ...(index > 0 ? [<CardDivider key={`${connection.hostId}-divider`} />] : []),
-          <CardNavRow
-            key={connection.hostId}
-            icon="text.bubble"
-            title={connection.name}
-            subtitle={present(state, Date.now()).label}
-            onPress={() => navigation.navigate("Sessions", { hostId: connection.hostId, hostName: connection.name })}
-          />,
-        ])}
-      </SettingsGroup>
-      <ConnectionsSection />
-    </SettingsPage>
+    <Host style={{ flex: 1 }}>
+      <SettingsPage title="Telar">
+        <SettingsGroup label="Sessions">
+          {rows.flatMap(({ connection, state }, index) => [
+            ...(index > 0 ? [<CardDivider key={`${connection.hostId}-divider`} />] : []),
+            <CardNavRow
+              key={connection.hostId}
+              icon="text.bubble"
+              title={connection.name}
+              subtitle={present(state, Date.now()).label}
+              onPress={() => navigation.navigate("Sessions", { hostId: connection.hostId, hostName: connection.name })}
+            />,
+          ])}
+        </SettingsGroup>
+        <ConnectionsSection onHost={(hostId) => navigation.navigate("HostSettings", { hostId })} onAdd={() => navigation.navigate("Pair")} />
+      </SettingsPage>
+    </Host>
   );
 }

@@ -1,8 +1,8 @@
-import { Button, Host, Text, VStack } from "@expo/ui/swift-ui";
-import { buttonStyle, font, foregroundStyle, frame, padding } from "@expo/ui/swift-ui/modifiers";
+import { BottomSheet, Button, RNHostView, Text, VStack } from "@expo/ui/swift-ui";
+import { background, buttonStyle, font, foregroundStyle, frame, padding } from "@expo/ui/swift-ui/modifiers";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import { useEffect, useRef, useState } from "react";
-import { Modal, StyleSheet, View, type GestureResponderEvent } from "react-native";
+import { StyleSheet, View, type GestureResponderEvent } from "react-native";
 import { Theme, Type } from "../../ui";
 import { pinchZoom, scanGate, touchSpread } from "./scan-gate";
 
@@ -84,7 +84,7 @@ function Preview({ onScan }: { onScan: (payload: string) => void }) {
   );
 }
 
-/** Full-bleed camera that hands back the first pairing link it reads, with Swift's bottom bar. */
+/** A sheet of full-bleed camera that hands back the first pairing link it reads, with Swift's bottom bar. Place it inside a SwiftUI host. */
 export function QRScanner({ visible, onPaired, onClose }: { visible: boolean; onPaired: (link: string) => void; onClose: () => void }) {
   const [rejected, setRejected] = useState(false);
   const gate = useRef(scanGate());
@@ -104,24 +104,22 @@ export function QRScanner({ visible, onPaired, onClose }: { visible: boolean; on
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.sheet}>
-        <Preview onScan={onScan} />
-        <Host matchContents={{ vertical: true }} style={styles.bar}>
-          <VStack spacing={8} modifiers={[frame({ maxWidth: Infinity }), padding({ vertical: 10 })]}>
-            {rejected ? <Text modifiers={[Type.meta, foregroundStyle(Theme.amber)]}>That code is not a Telar pairing link.</Text> : null}
-            <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>Pinch to zoom · tap to focus and expose</Text>
-            <Button label="Cancel" onPress={onClose} modifiers={[buttonStyle("borderless"), font({ textStyle: "body", weight: "medium" }), padding({ vertical: 8 })]} />
-          </VStack>
-        </Host>
-      </View>
-    </Modal>
+    <BottomSheet isPresented={visible} onIsPresentedChange={(presented) => !presented && onClose()}>
+      <VStack spacing={0}>
+        <VStack modifiers={[frame({ maxWidth: Infinity, maxHeight: Infinity })]}>
+          <RNHostView>{visible ? <Preview onScan={onScan} /> : <View />}</RNHostView>
+        </VStack>
+        <VStack spacing={8} modifiers={[frame({ maxWidth: Infinity }), padding({ vertical: 10 }), background(Theme.canvas)]}>
+          {rejected ? <Text modifiers={[Type.meta, foregroundStyle(Theme.amber)]}>That code is not a Telar pairing link.</Text> : null}
+          <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>Pinch to zoom · tap to focus and expose</Text>
+          <Button label="Cancel" onPress={onClose} modifiers={[buttonStyle("borderless"), font({ textStyle: "body", weight: "medium" }), padding({ vertical: 8 })]} />
+        </VStack>
+      </VStack>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: Theme.canvas },
   preview: { flex: 1, backgroundColor: "#000", overflow: "hidden" },
-  bar: { backgroundColor: Theme.canvas },
   ring: { position: "absolute", width: 72, height: 72, borderWidth: 1.5, borderRadius: 8, borderColor: "#FFCC00" },
 });

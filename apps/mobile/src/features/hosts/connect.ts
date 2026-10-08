@@ -1,5 +1,7 @@
 import { EngineHealth, HostIdentity } from "@telar/engine-client";
-import type { Banner } from "./settings-kit";
+import type { SymbolName } from "../../ui";
+
+export type Banner = { icon: SymbolName; tone: "emerald" | "amber" | "red"; title: string; detail?: string };
 
 export type ProbeResult =
   | { kind: "ok"; daemonId: string; workerRegistered: boolean; identity?: HostIdentity }

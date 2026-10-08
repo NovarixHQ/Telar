@@ -7,7 +7,7 @@ import { writeDraft, writeDraftFiles } from "@/features/composer";
 import { sessionModelSelection, type ModelChoice } from "@/features/providers";
 import { browserPanelTab, describeBrowserStart, latestBrowserState, type BrowserStartState } from "@/features/panel";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
-import { nativePageToShow } from "@/features/browser/native-pages";
+import { nativePageToShow, openNativePage } from "@/features/browser/native-pages";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { sessionHref } from "../../session-list";
 import { newSessionId } from "../../session-mutations";
@@ -118,7 +118,10 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
   }
 
   async function openBrowser() {
-    if (await showBrowser(sessionId, browser?.tabs ?? [])) return;
+    const bridge = desktopBrowserBridge();
+    const opened = bridge && sessionId ? await openNativePage(bridge, sessionId).catch(() => undefined) : undefined;
+    if (opened) return panel.showPanelTab(browserPanelTab(opened));
+    if (!bridge && (await showBrowser(sessionId, browser?.tabs ?? []))) return;
     if (browserOpening.current) return;
     browserOpening.current = true;
     const origin = window.location.pathname;

@@ -9,15 +9,15 @@ import { useSplitColumn } from "./split-column";
 const NAV_BAR = 38;
 
 /** The empty detail column on iPad, before a session is chosen. */
-export function DetailPlaceholder({ onNewConversation }: { onNewConversation?: () => void }) {
+export function DetailPlaceholder({ onNewSession }: { onNewSession?: () => void }) {
   const { sidebarHidden, showSidebar } = useSplitColumn();
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.column}>
       <Host style={styles.column}>
         <VStack spacing={0} modifiers={[padding({ top: NAV_BAR }), frame({ maxWidth: Infinity, maxHeight: Infinity })]}>
-          <ContentUnavailableView title="Your work, within reach" systemImage="text.bubble" description="Choose a session from the sidebar, or start a conversation." modifiers={[fixedSize({ vertical: true })]} />
-          {onNewConversation ? <Button label="New conversation" onPress={onNewConversation} modifiers={[buttonStyle("borderedProminent"), controlSize("small"), tint(Theme.accent), padding({ top: -16 })]} /> : null}
+          <ContentUnavailableView title="Your work, within reach" systemImage="text.bubble" description="Choose a session from the sidebar, or start a new one." modifiers={[fixedSize({ vertical: true })]} />
+          {onNewSession ? <Button label="New session" onPress={onNewSession} modifiers={[buttonStyle("borderedProminent"), controlSize("small"), tint(Theme.accent), padding({ top: -16 })]} /> : null}
         </VStack>
       </Host>
       {sidebarHidden ? (

@@ -65,7 +65,7 @@ function useToolbar(navigation: Navigation, rail: MergedRail, filter: string | u
       ],
       unstable_headerRightItems: () => [
         { type: "button", label: "Add project", icon: sfSymbol("folder.badge.plus"), tintColor: Theme.accent, onPress: () => navigation.navigate("Unavailable", { title: "Add project", systemImage: "folder.badge.plus" }) },
-        { type: "button", label: "New conversation", icon: sfSymbol("square.and.pencil"), tintColor: Theme.accent, onPress: () => navigation.navigate("Unavailable", { title: "New conversation", systemImage: "square.and.pencil" }) },
+        { type: "button", label: "New session", icon: sfSymbol("square.and.pencil"), tintColor: Theme.accent, onPress: () => navigation.navigate("Unavailable", { title: "New session", systemImage: "square.and.pencil" }) },
       ],
     });
   }, [navigation, computers, filter, setFilter]);

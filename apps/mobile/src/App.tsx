@@ -30,7 +30,7 @@ export function App() {
       <Stack.Navigator
         initialRouteName="Rail"
         selection={["Session"]}
-        placeholder={<DetailPlaceholder onNewConversation={() => navigation.navigate("Unavailable", { title: "New conversation", systemImage: "square.and.pencil" })} />}
+        placeholder={<DetailPlaceholder onNewSession={() => navigation.navigate("Unavailable", { title: "New session", systemImage: "square.and.pencil" })} />}
         screenOptions={{ headerLargeTitle: true }}
       >
         <Stack.Screen name="Rail" component={RailScreen} options={{ title: "Telar" }} />

@@ -35,7 +35,7 @@ export function WelcomeScreen() {
         </VStack>
         <Text modifiers={[font({ size: 40, weight: "bold" }), foregroundStyle(Theme.text), padding({ bottom: 10 })]}>Telar</Text>
         <Text modifiers={[font({ textStyle: "body" }), muted, multilineTextAlignment("center"), padding({ bottom: 6 })]}>Your work, within reach.</Text>
-        <Text modifiers={[footnote, muted, multilineTextAlignment("center")]}>{"Follow your agents. Review their work.\nPick up the conversation anywhere."}</Text>
+        <Text modifiers={[footnote, muted, multilineTextAlignment("center")]}>{"Follow your agents. Review their work.\nPick up any session anywhere."}</Text>
         <Spacer />
         {busy ? <ProgressView modifiers={[padding({ bottom: 24 })]} /> : null}
         {error ? (

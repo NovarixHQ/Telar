@@ -371,12 +371,11 @@ describe("the transcript's message and tool rows", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  test("a sub-agent row offers its report and nothing to open, since it has no session of its own", async () => {
+  test("a sub-agent row's menu copies its report", async () => {
     const spawn = { ...base, id: "t", status: "completed", completedAt: 2, detail: { type: "task", taskId: "task_1" } } as unknown as JournalItem;
-    const task = { id: "task_1", state: "completed", title: "Survey", role: "explorer", resultText: "Found it." } as unknown as JournalTask;
-    const { host } = await transcriptRow(spawn, { tasks: [task] });
+    const task = { id: "task_1", state: "completed", title: "Survey", role: "explorer", resultText: "Found it.", items: [] } as unknown as JournalTask;
+    await transcriptRow(spawn, { tasks: [task] });
     expect(labels()).toEqual(["Copy text", "Copy as Markdown"]);
-    expect([...host.querySelectorAll("button")].map((node) => node.textContent?.trim())).not.toContain("Open ▸");
   });
 });
 

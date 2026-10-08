@@ -81,7 +81,6 @@ function AgentFace({ agent, chevron, open }: { agent: AgentView; chevron: boolea
 const FACE = cn(ROW, "group/agent gap-2.5 py-1.5");
 const ACTIONABLE = "cursor-pointer transition-colors hover:bg-muted/50";
 
-/** An agent row that opens its work in place; `children` is drawn only while open. */
 export function AgentDisclosure({ agent, children }: { agent: AgentView; children?: ReactNode }) {
   const [open, setOpen] = useState(false);
   if (!children) return <div className={FACE} data-agent-state={agent.state}><AgentFace agent={agent} chevron={false} /></div>;

@@ -39,29 +39,26 @@ function viewOf(item: JournalItem, task: JournalTask | undefined, driver: AgentV
   };
 }
 
-/** A provider's own sub-agent: opens in place to the steps it took and the report it returned. */
 export function TaskAgentRow({ item, task, tasks, ...gestures }: { item: JournalItem; task: JournalTask | undefined; tasks: readonly JournalTask[] } & RowGestures) {
   const driver = useContext(TranscriptSession)?.driver;
   const view = viewOf(item, task, driver);
   const steps = task?.items ?? [];
   const report = task?.failure ?? task?.resultText;
   const opens = steps.length > 0 || Boolean(report);
-  return (
+  const row = (
     <AgentDisclosure agent={view}>
       {opens && (
         <>
           {steps.length > 0 && <LiveActivity items={steps} tasks={[...tasks]} liveTail={view.state === "working"} {...gestures} />}
-          {task?.failure ? (
-            <p className="text-xs text-destructive">{task.failure}</p>
-          ) : (
-            report && (
-              <MessageMenu text={report} {...(gestures.onInsert ? { onQuote: gestures.onInsert } : {})}>
-                <MessageResponse>{report}</MessageResponse>
-              </MessageMenu>
-            )
-          )}
+          {task?.failure ? <p className="text-xs text-destructive">{task.failure}</p> : report && <MessageResponse>{report}</MessageResponse>}
         </>
       )}
     </AgentDisclosure>
+  );
+  if (!report) return row;
+  return (
+    <MessageMenu text={report} {...(gestures.onInsert ? { onQuote: gestures.onInsert } : {})}>
+      {row}
+    </MessageMenu>
   );
 }

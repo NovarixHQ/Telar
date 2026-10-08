@@ -326,11 +326,13 @@ function TurnOpening({
     <>
       {turn.kind !== "import" && turn.origin !== "provider" && turn.origin !== "session" && turn.origin !== "restart" && (
         // `markdown={false}`: the typed draft is not Markdown, so "Copy as Markdown" would mislabel it.
-        <div className="group/message mb-1">
+        <div className="mb-1">
           <MessageMenu text={turn.prompt} markdown={false} {...(onInsert ? { onQuote: onInsert } : {})}>
-            <ConversationMessage text={turn.prompt} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
+            <div className="group/message">
+              <ConversationMessage text={turn.prompt} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
+              <MessageActions text={turn.prompt} at={turn.acceptedAt} align="end" />
+            </div>
           </MessageMenu>
-          <MessageActions text={turn.prompt} at={turn.acceptedAt} align="end" />
         </div>
       )}
 

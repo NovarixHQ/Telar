@@ -59,12 +59,12 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
     const text = itemText(item);
     if (running(item)) return <MessageResponse streaming>{text}</MessageResponse>;
     return (
-      <div className="group/message">
-        <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
+      <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
+        <div className="group/message">
           <AgentMarkdown text={text} onOpenFile={onOpenFile} />
-        </MessageMenu>
-        <MessageActions text={text} at={item.completedAt ?? item.startedAt} />
-      </div>
+          <MessageActions text={text} at={item.completedAt ?? item.startedAt} />
+        </div>
+      </MessageMenu>
     );
   }
   // Forward compatibility: an unrecognised row is still a row. A silently

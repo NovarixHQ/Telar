@@ -20,7 +20,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStack } from "../../platform/navigation/routes";
-import { hosts, NoComputers } from "../hosts";
+import { hosts, WelcomeScreen } from "../hosts";
 import { Icon, Theme, type SymbolName } from "../../ui";
 import { inboxFor } from "./inboxes";
 import { nestRail, type NestedRow } from "./nesting";
@@ -131,7 +131,7 @@ export function RailScreen() {
   const rail = useMergedRail(chosen);
   useToolbar(navigation, rail, rail.filter, setFilter, setQuery);
 
-  if (rail.computers.length === 0) return <NoComputers onPair={() => navigation.navigate("Pair")} />;
+  if (rail.computers.length === 0) return <WelcomeScreen />;
 
   const hostName = (hostId: string) => rail.computers.find((computer) => computer.hostId === hostId)?.name;
   const markFor = (row: RailRow) => (rail.computers.length > 1 ? (hostName(row.hostId) ?? "Computer") : undefined);

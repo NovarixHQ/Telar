@@ -18,9 +18,13 @@ test("a message is posted as a new turn with a run id minted on the phone", asyn
   const host = new HostConnection({ hostId: HOST, name: "Mini", token: "tlr_phone", paired: [MAC] }, { fetch: network.fetch, clock: fakeClock() });
   host.start();
   await until(host, "online");
-  await sendMessage(host, "s1", "hello", "run_fixed");
+  await sendMessage(host, "s1", "hello", [], "run_fixed");
+  await sendMessage(host, "s1", "see this", ["att_1"], "run_two");
   expect(network.seen.at(-1)).toMatchObject({ url: `${MAC}/api/sessions/s1/turns`, method: "POST" });
-  expect(bodies).toEqual([{ runId: "run_fixed", input: "hello" }]);
+  expect(bodies).toEqual([
+    { runId: "run_fixed", input: "hello" },
+    { runId: "run_two", input: "see this", attachments: ["att_1"] },
+  ]);
 });
 
 test("a send that loses its address is not posted twice", async () => {

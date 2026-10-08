@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { ProviderModel } from "@telar/engine-client";
-import { accessMenu, modelMenu } from "./model-menu";
+import { accessMenu, modelMenu, providerFamilies } from "./model-menu";
 
 const model = (id: string, over: Partial<ProviderModel> = {}): ProviderModel => ({
   id,
@@ -72,4 +72,12 @@ test("access modes read as the Swift app names them", () => {
   expect(menu.label).toBe("Auto");
   expect(menu.options.map((option) => `${option.label}${option.selected ? " ✓" : ""}`)).toEqual(["Supervised", "Auto-accept edits", "Auto ✓", "Full access"]);
   expect(accessMenu(undefined).label).toBe("Configuration");
+});
+
+test("another provider's families move to its row and keep only what it offers", () => {
+  const codex = [model("gpt-5", { label: "GPT-5", isDefault: true, efforts: ["low", "high"] }), model("gpt-old", { label: "Old", hidden: true })];
+  const options = providerFamilies(codex, { model: "opus", effort: "xhigh", fastMode: true, ultracode: true }, "standard", "codex");
+  expect(options.map((option) => [option.label, option.selected])).toEqual([["GPT-5", false]]);
+  expect(options[0]!.choice).toEqual({ model: "gpt-5" });
+  expect(providerFamilies(codex, { effort: "high" }, "standard", "codex", "gpt-5")[0]).toMatchObject({ selected: true, choice: { model: "gpt-5", effort: "high" } });
 });

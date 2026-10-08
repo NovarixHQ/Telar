@@ -1,10 +1,10 @@
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { PlatformColor, StyleSheet, Text, TextInput, View, type TextInputInstance } from "react-native";
-import type { DictationPhase } from "../dictation";
+import { CaretPill, type DictationPhase } from "../dictation";
 import { MicButton, ROW, SlotButton } from "./buttons";
 import { Glass } from "./chrome";
 import type { Completion } from "./completions";
-import { PlusMenu } from "./PlusMenu";
+import { PlusMenu, type PlusMenuProps } from "./PlusMenu";
 import type { Slot } from "./slot";
 import { SuggestionList } from "./SuggestionList";
 import { Radius, Theme } from "../../ui";
@@ -12,16 +12,17 @@ import { Radius, Theme } from "../../ui";
 type Props = {
   draft: string;
   onDraft: (text: string) => void;
+  caret: number;
   onCaret: (caret: number) => void;
   /** Changing it gives a fresh field: a multiline field emptied in code keeps its old height otherwise. */
   resetKey: number;
   placeholder: string;
   slot: Slot;
   onSlot: () => void;
-  controls?: ReactNode;
-  onCommands: () => void;
-  onStop?: () => void;
-  dictation?: { phase: DictationPhase; toggle: () => void };
+  menu: PlusMenuProps;
+  above?: ReactNode;
+  below?: ReactNode;
+  dictation?: { phase: DictationPhase; language: string | undefined; toggle: () => void };
   suggestions?: { rows: Completion[]; loading: boolean; onPick: (row: Completion) => void };
 };
 
@@ -29,15 +30,17 @@ const LINE = 21;
 const MAX_LINES = 6;
 
 /** The row the Swift app draws: plus menu, the glass field with its mic, and the send or stop circle. */
-export function Composer({ draft, onDraft, onCaret, resetKey, placeholder, slot, onSlot, controls, onCommands, onStop, dictation, suggestions }: Props) {
+export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, below, dictation, suggestions }: Props) {
   const field = useRef<TextInputInstance>(null);
+  const [caretAt, setCaretAt] = useState({ x: 0, y: 0 });
   const listening = dictation?.phase === "recording";
   const strip = listening ? "Listening…" : dictation?.phase === "transcribing" ? "Transcribing…" : undefined;
   return (
     <View>
       {suggestions && (suggestions.rows.length > 0 || suggestions.loading) ? <SuggestionList {...suggestions} /> : null}
+      {above}
       <View style={styles.row}>
-        <PlusMenu controls={controls} onCommands={() => (onCommands(), field.current?.focus())} {...(onStop ? { onStop } : {})} />
+        <PlusMenu {...menu} onCommands={() => (menu.onCommands(), field.current?.focus())} />
         <View style={styles.pill}>
           <Glass radius={Radius.composer} lifted />
           {strip ? <Text style={styles.strip} accessibilityLabel={listening ? "Listening" : strip}>{strip}</Text> : null}
@@ -57,11 +60,27 @@ export function Composer({ draft, onDraft, onCaret, resetKey, placeholder, slot,
               onSelectionChange={(event) => onCaret(event.nativeEvent.selection.end)}
               multiline
             />
+            {listening ? (
+              <>
+                <Text
+                  style={styles.measure}
+                  accessible={false}
+                  onTextLayout={({ nativeEvent }) => {
+                    const last = nativeEvent.lines.at(-1);
+                    setCaretAt(last ? { x: last.x + last.width, y: last.y } : { x: 0, y: 0 });
+                  }}
+                >
+                  {draft.slice(0, caret)}
+                </Text>
+                <CaretPill language={dictation.language} x={16 + Math.max(caretAt.x - 2, 0)} y={12 + Math.max(caretAt.y - 24, 0)} />
+              </>
+            ) : null}
             {dictation ? <MicButton listening={listening} busy={dictation.phase === "transcribing"} onPress={dictation.toggle} /> : null}
           </View>
         </View>
         <SlotButton slot={slot} onPress={onSlot} />
       </View>
+      {below}
     </View>
   );
 }
@@ -75,4 +94,5 @@ const styles = StyleSheet.create({
   inputAlone: { paddingRight: 16 },
   placeholder: { position: "absolute", left: 16, right: 16, top: 12, fontSize: 16, lineHeight: LINE, color: PlatformColor("placeholderText") },
   placeholderBesideMic: { right: ROW },
+  measure: { position: "absolute", left: 16, right: ROW, top: 12, fontSize: 16, lineHeight: LINE, opacity: 0 },
 });

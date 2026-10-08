@@ -1,11 +1,13 @@
 import { Button, Host, HStack, Menu, ScrollView, Spacer, Text } from "@expo/ui/swift-ui";
 import { accessibilityLabel, disabled, foregroundStyle, frame, lineLimit, padding, textSelection } from "@expo/ui/swift-ui/modifiers";
 import type { RequestDecision } from "@telar/engine-client";
+import { useState } from "react";
 import type { ColorValue } from "react-native";
 import { faded, Icon, rowButton, StatusCard, Theme, Type, type SymbolName } from "../../ui";
+import { DeclineSheet } from "./DeclineSheet";
 import type { RequestCard } from "./requests";
 
-type Props = { cards: RequestCard[]; deciding?: string; onDecide: (requestId: string, decision: RequestDecision) => void };
+type Props = { cards: RequestCard[]; deciding?: string; onDecide: (requestId: string, decision: RequestDecision, reason?: string) => void };
 
 const GHOSTS: { decision: RequestDecision; label: string; tint: ColorValue }[] = [
   { decision: "decline", label: "Decline", tint: Theme.red },
@@ -24,7 +26,7 @@ function Preview({ text, maxHeight }: { text: string; maxHeight: number }) {
   return <ScrollView modifiers={[frame({ maxHeight })]}>{line}</ScrollView>;
 }
 
-function Buttons({ card, busy, onDecide }: { card: RequestCard; busy: boolean; onDecide: Props["onDecide"] }) {
+function Buttons({ card, busy, onDecide, onDecline }: { card: RequestCard; busy: boolean; onDecide: Props["onDecide"]; onDecline: () => void }) {
   return (
     <HStack spacing={4} modifiers={[padding({ top: 2 }), disabled(busy)]}>
       <Menu label={<Icon name="ellipsis" size={12} color={Theme.textMuted} modifiers={[frame({ width: 28, height: 28 })]} />} modifiers={[accessibilityLabel("More")]}>
@@ -32,7 +34,7 @@ function Buttons({ card, busy, onDecide }: { card: RequestCard; busy: boolean; o
       </Menu>
       <Spacer />
       {GHOSTS.map(({ decision, label, tint }) => (
-        <Button key={decision} onPress={() => onDecide(card.id, decision)} modifiers={rowButton}>
+        <Button key={decision} onPress={() => (decision === "decline" ? onDecline() : onDecide(card.id, decision))} modifiers={rowButton}>
           <Text modifiers={[Type.slimMedium, foregroundStyle(tint), padding({ horizontal: 10 }), frame({ height: 30 })]}>{label}</Text>
         </Button>
       ))}
@@ -42,7 +44,20 @@ function Buttons({ card, busy, onDecide }: { card: RequestCard; busy: boolean; o
 
 /** Each open request as the Swift app's amber status card, answered with ghost buttons in its order. */
 export function RequestCards({ cards, deciding, onDecide }: Props) {
-  return cards.map((card) => (
+  const [declining, setDeclining] = useState<string>();
+  const sheet = (
+    <DeclineSheet
+      key="decline"
+      open={declining !== undefined}
+      onCancel={() => setDeclining(undefined)}
+      onDecline={(reason) => {
+        if (declining) onDecide(declining, "decline", reason);
+        setDeclining(undefined);
+      }}
+    />
+  );
+  if (cards.length === 0) return null;
+  return [sheet, ...cards.map((card) => (
     <Host key={card.id} matchContents={{ vertical: true }}>
       <StatusCard tint="amber" spacing={8}>
         <HStack spacing={6}>
@@ -53,11 +68,11 @@ export function RequestCards({ cards, deciding, onDecide }: Props) {
         {card.preview ? <Preview {...card.preview} /> : null}
         {card.note ? <Text modifiers={[Type.slim, foregroundStyle(Theme.text)]}>{card.note}</Text> : null}
         {card.decidable ? (
-          <Buttons card={card} busy={deciding === card.id} onDecide={onDecide} />
+          <Buttons card={card} busy={deciding === card.id} onDecide={onDecide} onDecline={() => setDeclining(card.id)} />
         ) : (
           <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>Answer this one on the computer for now.</Text>
         )}
       </StatusCard>
     </Host>
-  ));
+  ))];
 }

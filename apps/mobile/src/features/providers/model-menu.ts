@@ -11,6 +11,7 @@ import {
   RUNTIME_MODES,
   WINDOW_LABEL,
   windowsOf,
+  type ContextWindow,
   type ModelChoice,
 } from "@telar/client/providers";
 
@@ -18,7 +19,7 @@ export type MenuOption = { key: string; label: string; subtitle?: string; select
 
 type MenuSection = { title: string; options: MenuOption[] };
 
-export type ModelMenu = { label: string; families: MenuOption[]; sections: MenuSection[] };
+export type ModelMenu = { label: string; window: ContextWindow; families: MenuOption[]; sections: MenuSection[] };
 
 const ULTRACODE = "Extra-high reasoning that can also plan and run multi-step workflows on its own.";
 
@@ -47,6 +48,12 @@ function levelLabel(choice: ModelChoice, row: ProviderModel | undefined): string
   if (choice.ultracode) return "Ultracode";
   if (!row || row.efforts.length === 0) return undefined;
   return row.defaultEffort ? effortLabel(row.defaultEffort) : "Auto";
+}
+
+/** A provider's families, each a move to its row in the current context window; on another provider that switches the session to it. */
+export function providerFamilies(models: readonly ProviderModel[], choice: ModelChoice, window: ContextWindow, driver: ProviderDriverKind, selectedFamily?: string): MenuOption[] {
+  const families = groupFamilies(models.filter((model) => !model.hidden)).filter((family) => !family.hidden);
+  return families.map((family) => ({ key: family.id, label: family.label, selected: family.id === selectedFamily, choice: moving(choice, pickInFamily(family, window), driver) }));
 }
 
 /** The session's model menu as the phone's Swift app draws it: families, then the options the chosen row offers. */
@@ -112,7 +119,8 @@ export function modelMenu(models: readonly ProviderModel[], choice: ModelChoice,
   const label = [family?.label ?? "Model", levelLabel(choice, row), windows.length > 1 ? WINDOW_LABEL[window] : undefined, choice.fastMode ? "Fast" : undefined];
   return {
     label: label.filter(Boolean).join(" · "),
-    families: families.map((option) => ({ key: option.id, label: option.label, selected: option === family, choice: moving(choice, pickInFamily(option, window), driver) })),
+    window,
+    families: providerFamilies(models, choice, window, driver, family?.id),
     sections,
   };
 }

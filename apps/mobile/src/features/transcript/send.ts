@@ -7,6 +7,6 @@ export function newRunId(random: () => number = Math.random): string {
 }
 
 /** The run id is minted before the request, so a retry of the same message is the same turn, never a second one. */
-export function sendMessage(host: HostConnection, sessionId: string, text: string, runId: string = newRunId()) {
-  return host.call(false, () => host.client.submitTurn(sessionId, { runId, input: text }));
+export function sendMessage(host: HostConnection, sessionId: string, text: string, attachments: readonly string[] = [], runId: string = newRunId()) {
+  return host.call(false, () => host.client.submitTurn(sessionId, { runId, input: text, ...(attachments.length ? { attachments: [...attachments] } : {}) }));
 }

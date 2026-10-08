@@ -1,6 +1,5 @@
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useState } from "react";
-import { isActiveTurn } from "@telar/client/journal";
 import { KeyboardAvoidingView, StyleSheet } from "react-native";
 import { FloatingComposer } from "../composer";
 import { hosts, useHosts } from "../hosts";
@@ -21,7 +20,6 @@ export function SessionScreen() {
   const [footer, setFooter] = useState(0);
   const [pin, setPin] = useState(0);
   const [problem, setProblem] = useState<string>();
-  const working = feed.turns.some((turn) => isActiveTurn(turn.state));
   const { rows: railRows } = useRail(params.hostId);
 
   const act = async (work: () => Promise<unknown>) => {
@@ -68,8 +66,6 @@ export function SessionScreen() {
         host={host}
         hostId={params.hostId}
         sessionId={params.sessionId}
-        head={feed.head}
-        working={working}
         mentions={railRows}
         notices={notices}
         {...(params.draft ? { initialDraft: params.draft } : {})}

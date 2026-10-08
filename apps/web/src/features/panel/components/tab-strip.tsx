@@ -102,7 +102,7 @@ function TabChip({
   );
 }
 
-/** The panel's top bar: the tabs, the "+" chooser, and the panel's own controls. In fullscreen it is the window's titlebar. */
+/** The panel's top bar: the tabs, the "+" chooser, and fullscreen. Closing lives in the masthead, except in fullscreen where this is the window's titlebar. */
 export function TabStrip(strip: StripProps) {
   const { tabs, sessionId, fullscreen, launcher, browserStart = { status: "idle" } } = strip;
   const menu = useState<string>();
@@ -151,12 +151,16 @@ export function TabStrip(strip: StripProps) {
         >
           {fullscreen ? <Minimize2Icon className="size-4" /> : <Maximize2Icon className="size-4" />}
         </button>
-        <button type="button" aria-label="Close right panel" title="Close right panel" onClick={strip.onClose} className={CONTROL}>
-          <PanelRightCloseIcon className="size-4" />
-        </button>
-        <span className="hidden @lg/strip:contents">
-          <KeyHint command="toggle-panel" />
-        </span>
+        {fullscreen && (
+          <>
+            <button type="button" aria-label="Close right panel" title="Close right panel" onClick={strip.onClose} className={CONTROL}>
+              <PanelRightCloseIcon className="size-4" />
+            </button>
+            <span className="hidden @lg/strip:contents">
+              <KeyHint command="toggle-panel" />
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

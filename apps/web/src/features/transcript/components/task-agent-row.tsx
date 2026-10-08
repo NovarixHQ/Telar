@@ -23,7 +23,7 @@ function firstLine(text: string | undefined): string | undefined {
   return line?.replace(/^[\s#>*-]+/, "").replace(/[`*_]/g, "").trim() || undefined;
 }
 
-function viewOf(item: JournalItem, task: JournalTask | undefined, driver: AgentView["provider"]): AgentView {
+export function taskAgentView(item: JournalItem, task: JournalTask | undefined, driver: AgentView["provider"]): AgentView {
   const state = task ? STATE[task.state] : item.status === "inProgress" ? "working" : item.status === "failed" ? "failed" : "done";
   const last = task?.items.at(-1);
   const line = state === "working" ? (last ? itemLabel(last) : undefined) : firstLine(task?.failure ?? task?.resultText);
@@ -31,7 +31,6 @@ function viewOf(item: JournalItem, task: JournalTask | undefined, driver: AgentV
   return {
     state,
     title: task?.title ?? item.title ?? task?.role ?? "Sub-agent",
-    ...(task?.role && task.role !== task.title ? { role: task.role } : {}),
     ...(line ? { line } : {}),
     ...(driver ? { provider: driver } : {}),
     startedAt: task?.startedAt ?? item.startedAt,
@@ -41,7 +40,7 @@ function viewOf(item: JournalItem, task: JournalTask | undefined, driver: AgentV
 
 export function TaskAgentRow({ item, task, tasks, ...gestures }: { item: JournalItem; task: JournalTask | undefined; tasks: readonly JournalTask[] } & RowGestures) {
   const driver = useContext(TranscriptSession)?.driver;
-  const view = viewOf(item, task, driver);
+  const view = taskAgentView(item, task, driver);
   const steps = task?.items ?? [];
   const report = task?.failure ?? task?.resultText;
   const opens = steps.length > 0 || Boolean(report);

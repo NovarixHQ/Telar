@@ -79,6 +79,6 @@ describe("a provider sub-agent row", () => {
   test("a sub-agent with nothing recorded does not pretend to open", async () => {
     const { host } = await render(handle("inProgress"), task({ items: [] }));
     expect(host.querySelector("button[aria-expanded]")).toBeNull();
-    expect(host.textContent).toContain("Working");
+    expect(host.querySelector('[aria-label="working"]')).not.toBeNull();
   });
 });

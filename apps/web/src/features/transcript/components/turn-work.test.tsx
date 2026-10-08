@@ -23,6 +23,21 @@ const artifact = (id: string): JournalItem => ({
   detail: { type: "artifact", artifact: { id: "artifact_1", kind: "html", title: "Chart", attachmentId: "att_1", version: 1 } },
 });
 
+const spawn = (n: number): JournalItem => ({ ...base, id: `item_toolu_${n}`, status: "completed", title: `Agent ${n}`, detail: { type: "task", taskId: `task_${n}` } });
+const agent = (n: number, resultText: string): JournalTask => ({
+  id: `task_${n}`,
+  sessionId: "session_1",
+  runId: "run_1",
+  kind: "agent",
+  state: "completed",
+  title: n === 1 ? "List files" : "Summarise README",
+  startedAt: 1,
+  updatedAt: 2,
+  completedAt: 2,
+  resultText,
+  items: [],
+});
+
 let root: Root | undefined;
 afterEach(() => {
   act(() => root?.unmount());
@@ -68,6 +83,17 @@ describe("a finished turn's work", () => {
     const host = mount([ran("a", "bun test"), artifact("art")]);
     expect(host.textContent).not.toContain("bun test");
     expect(host.querySelector('figure[aria-label="Chart"]')).not.toBeNull();
+  });
+
+  test("keeps adjacent sub-agents on screen as one row while any is out, and folds them once all are done", () => {
+    const working = { ...agent(2, ""), state: "running" as const };
+    const host = mount([ran("a", "bun test"), spawn(1), spawn(2)], [agent(1, "Twelve files."), working]);
+    expect(host.textContent).not.toContain("bun test");
+    expect(host.textContent).toContain("2 subagents");
+    expect(host.textContent).toContain("1 working");
+
+    act(() => root!.render(<TurnWork items={[ran("a", "bun test"), spawn(1), spawn(2)]} tasks={[agent(1, "Twelve files."), agent(2, "A local engine.")]} label="Worked for 1m 14s" />));
+    expect(host.textContent).not.toContain("subagents");
   });
 
   test("draws nothing when the turn did no work", () => {

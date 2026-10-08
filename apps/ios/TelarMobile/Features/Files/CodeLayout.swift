@@ -49,6 +49,16 @@ enum CodeLayout {
     static func contentWidth(columns: Int, advance: CGFloat) -> CGFloat {
         CGFloat(max(columns, 0) + 1) * advance
     }
+
+    @MainActor static func advance(ofSize size: CGFloat) -> CGFloat {
+        if let cached = advances[size] { return cached }
+        let font = UIFont.monospacedSystemFont(ofSize: size, weight: .regular)
+        let width = ("0" as NSString).size(withAttributes: [.font: font]).width
+        advances[size] = width
+        return width
+    }
+
+    @MainActor private static var advances: [CGFloat: CGFloat] = [:]
 }
 
 struct LineIndex {

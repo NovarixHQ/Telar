@@ -2,7 +2,7 @@ const { describe, expect, test } = require("bun:test");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { DEV_SOUNDS, createChime } = require("./notification-sound");
+const { DEV_SOUNDS, SOUNDS, SOUND_FILES, createChime } = require("./notification-sound");
 const { createDesktopNotifier, DESKTOP_NOTICE } = require("./desktop-notifications");
 
 class FakeNotification {
@@ -20,7 +20,7 @@ class FakeNotification {
   close() {}
 }
 
-function show(packaged, sound, allowed = true) {
+function show(packaged, kind = "finished", allowed = true) {
   FakeNotification.allowed = allowed;
   const made = [];
   const played = [];
@@ -29,49 +29,38 @@ function show(packaged, sound, allowed = true) {
     send() {}, context: () => ({}), open() {}, chime: createChime({ packaged, play: (file) => played.push(file) }),
   });
   notifier.handleServerMessage({
-    type: DESKTOP_NOTICE, kind: "finished", sessionId: "s1", title: "Fix the build",
-    body: "A session finished. Its result is ready to review.", path: "/main", ...(sound === undefined ? {} : { sound }),
+    type: DESKTOP_NOTICE, kind, sessionId: "s1", title: "Fix the build",
+    body: "A session finished. Its result is ready to review.", path: "/main", sound: "telar-hilo-done",
   });
-  return { notifier, made, options: made[0].options, played };
+  return { options: made[0].options, played };
 }
 
 const IOS_SOUNDS = path.join(__dirname, "..", "..", "..", "ios", "TelarMobile", "Sounds");
 
 describe("a banner's sound", () => {
-  test("packaged, macOS plays the bundled .caf itself and the shell plays nothing", () => {
-    const { options, played } = show(true, "telar-hilo-done");
+  test("packaged, macOS plays Felt's bundled .caf for the kind, whatever the notice names, and the shell plays nothing", () => {
+    expect([show(true, "finished"), show(true, "blocked"), show(true, "failed")].map(({ options }) => options.sound)).toEqual([
+      "telar-felt-done.caf", "telar-felt-needs.caf", "telar-felt-error.caf",
+    ]);
+    const { options, played } = show(true);
     expect(options.silent).toBeUndefined();
-    expect(options.sound).toBe("telar-hilo-done.caf");
     expect(played).toEqual([]);
   });
 
-  test("every sound the engine can name ships as a .caf the packaged app bundles", () => {
-    for (const set of ["hilo", "armonico", "felt"]) {
-      for (const kind of ["done", "needs", "error"]) expect(fs.existsSync(path.join(IOS_SOUNDS, `telar-${set}-${kind}.caf`))).toBe(true);
-    }
+  test("every sound a banner can name ships as a .caf the packaged app bundles", () => {
+    for (const file of SOUND_FILES) expect(fs.existsSync(path.join(IOS_SOUNDS, file))).toBe(true);
   });
 
   test("in dev, the banner is silent and the shell plays the cockpit's copy", () => {
-    const { options, played } = show(false, "telar-felt-needs");
+    const { options, played } = show(false, "blocked");
     expect(options).toMatchObject({ silent: true });
     expect(options.sound).toBeUndefined();
     expect(played).toEqual([path.join(DEV_SOUNDS, "telar-felt-needs.wav")]);
-    expect(fs.existsSync(played[0])).toBe(true);
+    for (const name of Object.values(SOUNDS)) expect(fs.existsSync(path.join(DEV_SOUNDS, `${name}.wav`))).toBe(true);
   });
 
   test("a banner macOS refuses to show makes no sound in dev", () => {
-    expect(show(false, "telar-hilo-done", false).played).toEqual([]);
-  });
-
-  test("Off, or a sound it doesn't know, is silence rather than the system default", () => {
-    for (const packaged of [true, false]) {
-      for (const sound of [undefined, "Basso", "../../etc/passwd"]) {
-        const { options, played } = show(packaged, sound);
-        expect(options.silent).toBe(true);
-        expect(options.sound).toBeUndefined();
-        expect(played).toEqual([]);
-      }
-    }
+    expect(show(false, "finished", false).played).toEqual([]);
   });
 });
 
@@ -91,13 +80,11 @@ function install({ from, home }, packaged = true) {
 }
 
 describe("installing the sounds into ~/Library/Sounds", () => {
-  test("packaged, every sound lands under the exact name the banner asks for, and nothing else does", () => {
+  test("packaged, Felt's sounds land under the exact names the banner asks for, and nothing else does", () => {
     const locations = tempHome();
     expect(install(locations)).toEqual([]);
-    const files = fs.readdirSync(locations.to).sort();
-    expect(files).toHaveLength(9);
-    expect(files).toContain(show(true, "telar-hilo-done").options.sound);
-    expect(fs.readFileSync(path.join(locations.to, "telar-hilo-done.caf"))).toEqual(fs.readFileSync(path.join(locations.from, "telar-hilo-done.caf")));
+    expect(fs.readdirSync(locations.to).sort()).toEqual([...SOUND_FILES].sort());
+    expect(fs.readFileSync(path.join(locations.to, "telar-felt-done.caf"))).toEqual(fs.readFileSync(path.join(locations.from, "telar-felt-done.caf")));
   });
 
   test("a changed or damaged sound is replaced, and the user's own sounds are left alone", () => {
@@ -106,12 +93,12 @@ describe("installing the sounds into ~/Library/Sounds", () => {
     fs.writeFileSync(path.join(locations.to, "Mine.aiff"), "mine");
     install(locations);
     fs.writeFileSync(path.join(locations.from, "telar-felt-needs.caf"), "a new take");
-    fs.writeFileSync(path.join(locations.to, "telar-hilo-error.caf"), "");
+    fs.writeFileSync(path.join(locations.to, "telar-felt-error.caf"), "");
     install(locations);
     expect(fs.readFileSync(path.join(locations.to, "telar-felt-needs.caf"), "utf8")).toBe("a new take");
-    expect(fs.readFileSync(path.join(locations.to, "telar-hilo-error.caf"))).toEqual(fs.readFileSync(path.join(locations.from, "telar-hilo-error.caf")));
+    expect(fs.readFileSync(path.join(locations.to, "telar-felt-error.caf"))).toEqual(fs.readFileSync(path.join(locations.from, "telar-felt-error.caf")));
     expect(fs.readFileSync(path.join(locations.to, "Mine.aiff"), "utf8")).toBe("mine");
-    expect(fs.readdirSync(locations.to)).toHaveLength(10);
+    expect(fs.readdirSync(locations.to)).toHaveLength(4);
   });
 
   test("when the folder can't be written, it logs and the banner still names the sound", () => {
@@ -119,26 +106,12 @@ describe("installing the sounds into ~/Library/Sounds", () => {
     fs.mkdirSync(path.dirname(locations.to), { recursive: true });
     fs.writeFileSync(locations.to, "not a folder");
     expect(install(locations)).toHaveLength(1);
-    expect(show(true, "telar-armonico-done").options.sound).toBe("telar-armonico-done.caf");
+    expect(show(true, "failed").options.sound).toBe("telar-felt-error.caf");
   });
 
   test("in dev, nothing is installed", () => {
     const locations = tempHome();
     install(locations, false);
     expect(fs.existsSync(path.join(locations.home, "Library"))).toBe(false);
-  });
-});
-
-describe("a test notification", () => {
-  test("shows a real banner with the chosen set's sound", () => {
-    const { notifier, made } = show(true, undefined);
-    expect(notifier.test("armonico")).toEqual({ ok: true });
-    expect(made[1].options).toMatchObject({ title: "Telar", sound: "telar-armonico-done.caf" });
-  });
-
-  test("refuses Off or a name it doesn't know", () => {
-    const { notifier, made } = show(true, undefined);
-    for (const sounds of ["off", "../x", undefined]) expect(notifier.test(sounds)).toEqual({ ok: false });
-    expect(made).toHaveLength(1);
   });
 });

@@ -55,7 +55,7 @@ function verifyPackagedComputerUse(appPath, pin, deps = {}) {
   return { helper, binary };
 }
 
-const SOUND_NAMES = ["hilo", "armonico", "felt"].flatMap((set) => ["done", "needs", "error"].map((kind) => `telar-${set}-${kind}.caf`));
+const { SOUND_FILES: SOUND_NAMES } = require("../src/main/notification-sound");
 
 function verifyPackagedSounds(appPath) {
   const dir = path.join(appPath, "Contents", "Resources");

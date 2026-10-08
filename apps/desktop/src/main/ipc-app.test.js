@@ -3,14 +3,13 @@ const { electron, eventFrom, FakeBrowserWindow, FakeWebContents, resetElectron }
 const { registerAppIpc } = require("./ipc-app");
 const { rememberWindowUrl } = require("./browser-hosts");
 const { linkRouting } = require("./window-links");
+const { readNotificationPrefs, writeNotificationPrefs } = require("./notification-prefs");
 
 let opened;
-let tested;
 beforeEach(() => {
   resetElectron();
   opened = [];
-  tested = [];
-  registerAppIpc({ createWindow: (url) => opened.push(url), testNotification: (sounds) => (tested.push(sounds), { ok: true }) });
+  registerAppIpc({ createWindow: (url) => opened.push(url) });
 });
 
 function cockpitAt(url) {
@@ -48,11 +47,15 @@ describe("telar:app:open-window", () => {
   });
 });
 
-describe("telar:notifications:test", () => {
-  test("sends the chosen set to the notifier", async () => {
+describe("desktop notifications on or off", () => {
+  test("are on until turned off, keep the choice, and ignore anything but true or false", async () => {
+    writeNotificationPrefs({});
     const win = cockpitAt("http://127.0.0.1:42731/");
-    expect(await electron.ipcMain.invoke("telar:notifications:test", eventFrom(win), { sounds: "felt" })).toEqual({ ok: true });
-    expect(tested).toEqual(["felt"]);
+    expect(await electron.ipcMain.invoke("telar:notifications:get", eventFrom(win))).toEqual({ enabled: true });
+    expect(await electron.ipcMain.invoke("telar:notifications:set", eventFrom(win), { enabled: false })).toEqual({ enabled: false });
+    expect(await electron.ipcMain.invoke("telar:notifications:set", eventFrom(win), { enabled: "yes" })).toEqual({ enabled: false });
+    expect(readNotificationPrefs()).toEqual({ enabled: false });
+    expect(await electron.ipcMain.invoke("telar:notifications:set", eventFrom(win), { enabled: true })).toEqual({ enabled: true });
   });
 });
 

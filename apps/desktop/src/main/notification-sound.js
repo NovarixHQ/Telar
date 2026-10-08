@@ -4,7 +4,8 @@ const { execFile } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const SOUND = /^telar-(hilo|armonico|felt)-(done|needs|error)$/;
+const SOUNDS = { finished: "telar-felt-done", blocked: "telar-felt-needs", failed: "telar-felt-error" };
+const SOUND_FILES = Object.values(SOUNDS).map((name) => `${name}.caf`);
 const DEV_SOUNDS = path.join(__dirname, "..", "..", "..", "web", "public", "sounds");
 
 function unchanged(file, bytes) {
@@ -20,7 +21,7 @@ function installSounds({ from, home, log = () => {} }) {
   try {
     fs.mkdirSync(to, { recursive: true });
     for (const file of fs.readdirSync(from)) {
-      if (!file.endsWith(".caf") || !SOUND.test(path.basename(file, ".caf"))) continue;
+      if (!SOUND_FILES.includes(file)) continue;
       try {
         const bytes = fs.readFileSync(path.join(from, file));
         const target = path.join(to, file);
@@ -42,11 +43,11 @@ function createChime({ packaged, dir = DEV_SOUNDS, play = (file) => execFile("af
     install(locations) {
       if (packaged) installSounds(locations);
     },
-    options: (sound) => (packaged && SOUND.test(sound) ? { sound: `${sound}.caf` } : { silent: true }),
-    shown(sound) {
-      if (!packaged && SOUND.test(sound)) play(path.join(dir, `${sound}.wav`));
+    options: (kind) => (packaged && SOUNDS[kind] ? { sound: `${SOUNDS[kind]}.caf` } : { silent: true }),
+    shown(kind) {
+      if (!packaged && SOUNDS[kind]) play(path.join(dir, `${SOUNDS[kind]}.wav`));
     },
   };
 }
 
-module.exports = { SOUND, DEV_SOUNDS, createChime };
+module.exports = { SOUNDS, SOUND_FILES, DEV_SOUNDS, createChime };

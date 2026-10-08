@@ -13,12 +13,12 @@ function appWith(names) {
 }
 
 describe("the packaged notification sounds", () => {
-  test("every set and kind as a .caf passes", () => {
+  test("the Felt sound for each kind as a .caf passes", () => {
     const all = fs.readdirSync(path.join(__dirname, "..", "..", "ios", "TelarMobile", "Sounds")).filter((name) => /^telar-.*\.caf$/.test(name));
-    expect(verifyPackagedSounds(appWith(all))).toBe(9);
+    expect(verifyPackagedSounds(appWith(all))).toBe(3);
   });
 
   test("a missing sound fails the build and names it", () => {
-    expect(() => verifyPackagedSounds(appWith(["telar-hilo-done.caf"]))).toThrow("telar-felt-error.caf");
+    expect(() => verifyPackagedSounds(appWith(["telar-felt-done.caf"]))).toThrow("telar-felt-error.caf");
   });
 });

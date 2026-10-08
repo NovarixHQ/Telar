@@ -27,7 +27,7 @@ class FakeNotification {
   }
 }
 
-function harness(context = {}) {
+function harness(context = {}, enabled = () => true) {
   FakeNotification.made = [];
   const sent = [];
   const opened = [];
@@ -37,6 +37,7 @@ function harness(context = {}) {
     context: () => context,
     open: (route) => opened.push(route),
     chime: { options: () => ({ silent: true }), shown() {} },
+    enabled,
   });
   return { notifier, sent, opened };
 }
@@ -133,6 +134,16 @@ describe("the banner and its actions", () => {
     banner.handlers.click();
     expect(opened).toEqual(["/projects/p1/sessions/s1"]);
     expect(sent).toEqual([]);
+  });
+
+  test("nothing is shown while desktop notifications are off, and the next notice shows once they are on", () => {
+    let on = false;
+    const { notifier } = harness({}, () => on);
+    notifier.handleServerMessage(notice());
+    expect(FakeNotification.made).toHaveLength(0);
+    on = true;
+    notifier.handleServerMessage(notice());
+    expect(FakeNotification.made).toHaveLength(1);
   });
 
   test("nothing is shown for the session already on screen", () => {

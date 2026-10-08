@@ -5,8 +5,9 @@ const { lastWindowUrl } = require("./browser-hosts");
 const { linkRouting } = require("./window-links");
 const { lastRunawayNotice, processMetricsReader } = require("./renderer-watch");
 const { lastEngineRestart } = require("./engine-child");
+const { readNotificationPrefs, writeNotificationPrefs } = require("./notification-prefs");
 
-function registerAppIpc({ createWindow, testNotification }) {
+function registerAppIpc({ createWindow }) {
   const unreadByWindow = new Map();
   const showUnread = () => {
     const counts = [...unreadByWindow].map(([sender, { count, openUnread }]) =>
@@ -28,7 +29,14 @@ function registerAppIpc({ createWindow, testNotification }) {
     showUnread();
   });
 
-  ipcMain.handle("telar:notifications:test", (_event, input) => testNotification(input?.sounds));
+  ipcMain.handle("telar:notifications:get", () => readNotificationPrefs());
+
+  ipcMain.handle("telar:notifications:set", (_event, input) => {
+    if (typeof input?.enabled !== "boolean") return readNotificationPrefs();
+    const next = { enabled: input.enabled };
+    writeNotificationPrefs(next);
+    return next;
+  });
 
   ipcMain.handle("telar:metrics:read", () => processMetricsReader().summary());
 

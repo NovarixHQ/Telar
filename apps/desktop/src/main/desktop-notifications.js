@@ -1,7 +1,5 @@
 "use strict";
 
-const { SOUND } = require("./notification-sound");
-
 const DESKTOP_NOTICE = "telar:desktop-notification";
 const DESKTOP_APPROVE = "telar:desktop-notification:approve";
 const DESKTOP_APPROVED = "telar:desktop-notification:approved";
@@ -16,10 +14,10 @@ const appPath = (value) =>
 
 function parseNotice(message) {
   if (!message || typeof message !== "object" || message.type !== DESKTOP_NOTICE) return null;
-  const { kind, sessionId, title, body, path, request, sound } = message;
+  const { kind, sessionId, title, body, path, request } = message;
   if (!KINDS.has(kind) || !text(sessionId, 256) || !text(title, 160) || !text(body, 200) || !appPath(path)) return null;
   if (request !== undefined && !text(request, 256)) return null;
-  return { kind, sessionId, title, body, path, ...(request === undefined ? {} : { request }), ...(SOUND.test(sound) ? { sound } : {}) };
+  return { kind, sessionId, title, body, path, ...(request === undefined ? {} : { request }) };
 }
 
 function routeOf(url) {
@@ -62,7 +60,7 @@ function createPresenceReporter({ sample, send, setInterval: every = setInterval
   };
 }
 
-function createDesktopNotifier({ Notification, send, context, open, chime }) {
+function createDesktopNotifier({ Notification, send, context, open, chime, enabled = () => true }) {
   const live = new Map();
 
   const pending = new Map();
@@ -73,7 +71,7 @@ function createDesktopNotifier({ Notification, send, context, open, chime }) {
     const banner = new Notification({
       title: notice.title,
       body: notice.body,
-      ...chime.options(notice.sound),
+      ...chime.options(notice.kind),
       actions: approvable ? [{ type: "button", text: "Approve" }, { type: "button", text: "Open" }] : [{ type: "button", text: "Open" }],
     });
     const forget = () => {
@@ -92,7 +90,7 @@ function createDesktopNotifier({ Notification, send, context, open, chime }) {
       } else open(notice.path);
     });
     banner.on("close", forget);
-    banner.on("show", () => chime.shown(notice.sound));
+    banner.on("show", () => chime.shown(notice.kind));
     live.set(notice.sessionId, banner);
     banner.show();
   }
@@ -111,16 +109,8 @@ function createDesktopNotifier({ Notification, send, context, open, chime }) {
         return;
       }
       const notice = parseNotice(message);
-      if (!notice || !shouldNotifyDesktop(notice, context())) return;
+      if (!notice || !enabled() || !shouldNotifyDesktop(notice, context())) return;
       show(notice);
-    },
-    test(sounds) {
-      const sound = `telar-${sounds}-done`;
-      if (!SOUND.test(sound)) return { ok: false };
-      const banner = new Notification({ title: "Telar", body: "This is how your alerts sound on this computer.", ...chime.options(sound) });
-      banner.on("show", () => chime.shown(sound));
-      banner.show();
-      return { ok: true };
     },
     liveCount: () => live.size,
   };

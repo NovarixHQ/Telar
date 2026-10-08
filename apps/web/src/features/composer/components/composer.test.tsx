@@ -343,13 +343,15 @@ describe("the @ menu", () => {
     const { host, editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => answer(), "GET /api/sessions/live": live });
     await type(editor, "@");
     await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
+    const reads = () => calls.filter((call) => call.route === "GET /api/projects/project_a/files").length;
+    const failedReads = reads();
 
     answer = listing(["README.md"]);
     act(() => void activeComposer()!.replace(0, 1, ""));
     await flush();
     await type(editor, "@");
     await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
-    expect(calls.filter((call) => call.route === "GET /api/projects/project_a/files")).toHaveLength(2);
+    expect(reads()).toBe(failedReads + 1);
   });
 
   const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
@@ -373,12 +375,39 @@ describe("the @ menu", () => {
     await type(editor, "@p");
     await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
     expect(menu(host)?.textContent).toContain("Pair on the parser");
+    const reads = () => calls.filter((call) => call.route === "GET /api/sessions/session_a/files").length;
+    const failedReads = reads();
 
     answer = listing(files);
     act(() => void activeComposer()!.replace(2, 2, "a"));
     await flush(() => menu(host)?.textContent?.includes("page.tsx") ?? false);
     expect(menu(host)?.textContent).not.toContain("Could not read the files here.");
-    expect(calls.filter((call) => call.route === "GET /api/sessions/session_a/files")).toHaveLength(2);
+    expect(reads()).toBe(failedReads + 1);
+  });
+});
+
+describe("the @ menu before the listing arrives", () => {
+  const live = () => ({ sessions: [{ id: "session_b", title: "Pair on the parser", projectId: "project_a", updatedAt: 1 }], projects: [{ id: "project_a", name: "ozom" }] });
+  const menu = (host: HTMLElement) => host.querySelector('[role="listbox"][aria-label="Files and folders"]');
+
+  test("a pending listing shows a reading row under the heading, not an empty heading", async () => {
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/sessions/live": live });
+    const answered = globalThis.fetch;
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => (String(input).endsWith("/files") ? new Promise(() => {}) : answered(input, init))) as typeof fetch;
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("Pair on the parser") ?? false);
+    const rows = [...menu(host)!.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
+    expect(rows[0]).toContain("Reading files…");
+  });
+
+  test("focusing the box reads the listing before @ is typed", async () => {
+    const { editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/sessions/live": live });
+    act(() => {
+      editor.focus();
+      editor.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    });
+    await flush(() => calls.some((call) => call.route === "GET /api/projects/project_a/files"));
+    expect(calls.map((call) => call.route)).toContain("GET /api/projects/project_a/files");
   });
 });
 

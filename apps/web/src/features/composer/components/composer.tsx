@@ -200,7 +200,10 @@ export function Composer(props: ComposerProps) {
                 onEdit={onEdit}
                 onSelectionChange={() => !question.active && menu.retrigger(draft)}
                 onKeyDown={onKeyDown}
-                onFocus={() => markComposerActive(token)}
+                onFocus={() => {
+                  markComposerActive(token);
+                  menu.prime();
+                }}
                 stash={stash}
                 menu={menu}
                 pick={pick}

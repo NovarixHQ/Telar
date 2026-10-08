@@ -11,12 +11,8 @@ export function AccessControl({ runtimeMode, onRuntimeMode, summon }: { runtimeM
   const [open, setOpen] = useState(false);
   useSummon(summon, () => setOpen(true));
   const mode = RUNTIME_MODE_LABELS[runtimeMode];
-  // "Auto" would read the same as the reasoning pill's Auto beside it.
-  const label = runtimeMode === "auto" ? "Access" : mode;
-  const pick = (run: () => void) => () => {
-    run();
-    setOpen(false);
-  };
+  // "Auto" alone would read as the reasoning pill's Auto beside it.
+  const label = runtimeMode === "auto" ? "Auto access" : mode;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -29,7 +25,10 @@ export function AccessControl({ runtimeMode, onRuntimeMode, summon }: { runtimeM
             label={RUNTIME_MODE_LABELS[option]}
             description={RUNTIME_MODE_HELP[option]}
             selected={option === runtimeMode}
-            onSelect={pick(() => onRuntimeMode(option))}
+            onSelect={() => {
+              onRuntimeMode(option);
+              setOpen(false);
+            }}
           />
         ))}
       </PopoverContent>

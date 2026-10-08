@@ -24,7 +24,7 @@ test("⌘K opens the palette on a page with no rail, with the conversations in i
   });
   await flush(() => document.querySelector('[role="combobox"]') !== null);
 
-  expect(document.querySelector('[role="combobox"]')?.getAttribute("aria-label")).toBe("Search commands, settings, projects and conversations");
-  const conversations = document.querySelector('[role="group"][aria-label="Recent conversations"]');
+  expect(document.querySelector('[role="combobox"]')?.getAttribute("aria-label")).toBe("Search commands, settings, projects and sessions");
+  const conversations = document.querySelector('[role="group"][aria-label="Recent sessions"]');
   expect(conversations?.textContent).toContain("Fix the rail");
 });

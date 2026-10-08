@@ -3,7 +3,7 @@ import type { HostRecord } from "../../platform/connection";
 
 export type PairedHost = HostRecord & { deviceId: string };
 
-export type ThisDevice = { name?: string; tablet: boolean };
+export type ThisDevice = { name?: string; tablet: boolean; clientId?: string };
 
 export type PairingOutcome = { ok: true; host: PairedHost } | { ok: false; message: string };
 
@@ -40,6 +40,7 @@ export async function pair(link: string, device: ThisDevice, fetch: typeof globa
         machine: device.tablet ? "iPad" : "iPhone",
         os: device.tablet ? "iPadOS" : "iOS",
         ...(device.name ? { deviceName: device.name } : {}),
+        ...(device.clientId ? { clientId: device.clientId } : {}),
       }),
     });
   } catch {

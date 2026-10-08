@@ -12,6 +12,8 @@ const autoUpdater = Object.assign(new (require("node:events"))(), {
   },
 });
 mock.module("electron-updater", () => ({ autoUpdater, CancellationToken: class {} }));
+const prefs = require("./update-prefs");
+mock.module("./update-prefs", () => ({ ...prefs, updateProxyKey: () => "test-key" }));
 
 const { registerUpdates } = require("./updates");
 const hosts = require("./browser-hosts");
@@ -75,6 +77,40 @@ describe("telar:updates:install", () => {
     electron.app.isPackaged = false;
     expect(await electron.ipcMain.invoke("telar:updates:install", {})).toEqual({ status: "unsupported" });
     expect(fs.existsSync(marker())).toBe(false);
+  });
+});
+
+describe("telar:updates:check", () => {
+  const pushed = () => cockpit.window.webContents.sent.filter((m) => m.channel === "telar:updates:status").map((m) => m.payload);
+  const check = async (answer) => {
+    autoUpdater.checkForUpdates = answer;
+    cockpit.window.webContents.sent = [];
+    return electron.ipcMain.invoke("telar:updates:check", {});
+  };
+
+  test("a failed check answers and broadcasts the error instead of swallowing it", async () => {
+    const result = await check(() => Promise.reject(new Error("feed returned 502")));
+    expect(result).toEqual({ status: "error", message: "feed returned 502" });
+    expect(pushed()).toEqual([result]);
+  });
+
+  test("a cancelled check ends in an error, not silence", async () => {
+    const result = await check(() => Promise.reject(Object.assign(new Error("cancelled"), { name: "CancellationError" })));
+    expect(result).toEqual({ status: "error", message: "The update check was cancelled. Check again to retry." });
+    expect(pushed()).toEqual([result]);
+  });
+
+  test("a check that resolves null with no events still ends", async () => {
+    const result = await check(() => Promise.resolve(null));
+    expect(result.status).toBe("error");
+    expect(pushed()).toEqual([result]);
+  });
+
+  test("a finished check answers with what it found", async () => {
+    const latest = await check(() => Promise.resolve({ isUpdateAvailable: false, updateInfo: { version: "0.3.0" } }));
+    expect(latest).toEqual({ status: "not-available", version: "0.3.0" });
+    const found = await check(() => Promise.resolve({ isUpdateAvailable: true, updateInfo: { version: "0.3.1" } }));
+    expect(found).toEqual({ status: "available", version: "0.3.1" });
   });
 });
 

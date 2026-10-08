@@ -23,7 +23,7 @@ type Script = {
   /** Hold that pull open until released, to drive the push/pull race. */
   deferStatus: boolean;
   prefs: Partial<UpdatePrefsInfo>;
-  checkAnswer: { status: string } | undefined;
+  checkAnswer: UpdateStatus | undefined;
   rejectCheck: string | null;
   rejectInstall: string | null;
   rejectPrefs: boolean;
@@ -305,6 +305,36 @@ describe("the press that checks", () => {
     expect(probe.update.busy).toBe(false);
     expect(probe.update.label).toContain("packaged locally");
     probe.unmount();
+  });
+
+  test("the shell's answer ends the check when no push ever comes", async () => {
+    script.checkAnswer = { status: "error", message: "The update check was cancelled. Check again to retry." };
+    const probe = mount();
+    await settle();
+    await probe.press();
+    await settle();
+    expect(probe.update.busy).toBe(false);
+    expect(probe.update.label).toBe("Update failed: The update check was cancelled. Check again to retry.");
+    script.checkAnswer = { status: "not-available", version: "0.3.0" };
+    await probe.press();
+    await settle();
+    expect(probe.update.status.status).toBe("not-available");
+    expect(probe.update.busy).toBe(false);
+    probe.unmount();
+  });
+
+  test("an answer does not rewind a download that a push already started", async () => {
+    let answer: (status: UpdateStatus) => void = () => {};
+    const check = bridge.check;
+    bridge.check = () => new Promise((resolve) => (answer = resolve));
+    const probe = mount();
+    await settle();
+    await probe.press();
+    await push({ status: "downloading", version: "0.3.1", percent: 5 });
+    await act(async () => answer({ status: "available", version: "0.3.1" }));
+    expect(probe.update.status.status).toBe("downloading");
+    probe.unmount();
+    bridge.check = check;
   });
 
   test("a rejected check says why and can be pressed again", async () => {

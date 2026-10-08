@@ -29,6 +29,19 @@ function updateLogger() {
   };
 }
 
+function checkOutcome({ timedOut, error, value }) {
+  if (timedOut) {
+    return { status: "error", message: `Update check timed out after ${Math.round(updateWatchdog.CHECK_TIMEOUT_MS / 1000)}s. Check again to retry.` };
+  }
+  if (error) {
+    if (updateWatchdog.isCancellationError(error)) return { status: "error", message: "The update check was cancelled. Check again to retry." };
+    return { status: "error", message: error.message || String(error) };
+  }
+  if (!value) return { status: "error", message: "The updater skipped the check. Check again to retry." };
+  const version = value.updateInfo?.version;
+  return { status: value.isUpdateAvailable ? "available" : "not-available", ...(version ? { version } : {}) };
+}
+
 function createUpdater(main) {
   const { telarHome } = main;
   let lastUpdateStatus = null;
@@ -89,14 +102,14 @@ function createUpdater(main) {
 
   async function checkForUpdates() {
     const outcome = await updateWatchdog.settleWithin(autoUpdater.checkForUpdates(), updateWatchdog.CHECK_TIMEOUT_MS);
-    if (!outcome.timedOut) return outcome.value ?? null;
-
-    updateWatchdog.clearCachedCheckPromise(autoUpdater);
-    autoUpdater.logger?.warn?.(`update check did not answer within ${updateWatchdog.CHECK_TIMEOUT_MS / 1000}s — giving up on it`);
-    broadcastUpdateStatus("error", {
-      message: `Update check timed out after ${Math.round(updateWatchdog.CHECK_TIMEOUT_MS / 1000)}s. Check again to retry.`,
-    });
-    return null;
+    if (outcome.timedOut) {
+      updateWatchdog.clearCachedCheckPromise(autoUpdater);
+      autoUpdater.logger?.warn?.(`update check did not answer within ${updateWatchdog.CHECK_TIMEOUT_MS / 1000}s — giving up on it`);
+    }
+    const { status, ...extra } = checkOutcome(outcome);
+    const downloadAhead = ["available", "downloading", "downloaded", "restarting"].includes(lastUpdateStatus?.status);
+    if (!(status === "available" && downloadAhead)) broadcastUpdateStatus(status, extra);
+    return lastUpdateStatus;
   }
 
   function applyUpdatePrefs(prefs) {
@@ -188,8 +201,7 @@ function registerUpdates(main) {
     }
 
     if (plan === "restart") abandonDownload(downloadWatch.settle(), "went quiet while the machine slept");
-    await checkForUpdates();
-    return { status: "checking" };
+    return checkForUpdates();
   });
 
   const installGate = createInstallGate();

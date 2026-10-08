@@ -166,7 +166,7 @@ export function TabStrip(strip: StripProps) {
           {fullscreen ? <Minimize2Icon className="size-4" /> : <Maximize2Icon className="size-4" />}
         </button>
       </div>
-      {strip.controls && <HeaderToggleGroup aria-label="Session controls">{strip.controls}</HeaderToggleGroup>}
+      {strip.controls && <HeaderToggleGroup aria-label="Panel controls">{strip.controls}</HeaderToggleGroup>}
     </div>
   );
 }

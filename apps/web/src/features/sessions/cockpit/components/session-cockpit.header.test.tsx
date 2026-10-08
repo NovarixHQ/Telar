@@ -122,29 +122,29 @@ const card = () => host!.querySelector('[aria-label="Workspace card"]')!;
 const labelled = (label: string) => host!.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 const workspaceToggle = () => labelled("Workspace")!;
 
-const controls = () => host!.querySelectorAll('[role="group"][aria-label="Session controls"]');
+const panelToggles = () => host!.querySelectorAll('button[aria-label="Open right panel"], button[aria-label="Close right panel"]');
 
-describe("the header's controls hold the window's top-right corner", () => {
-  test("they sit in the masthead while the panel is closed and in the panel's strip while it is open", async () => {
+describe("the header's controls", () => {
+  test("Workspace stays in the chat header; the panel toggle moves to the panel's strip while it is open", async () => {
     await show("session_header_1");
     expect(panel()).toBeNull();
     expect(masthead().contains(workspaceToggle())).toBe(true);
     expect(masthead().contains(labelled("Open right panel"))).toBe(true);
 
     await press(labelled("Open right panel")!);
-    expect(controls()).toHaveLength(1);
-    expect(panel()!.contains(workspaceToggle())).toBe(true);
+    expect(panelToggles()).toHaveLength(1);
     expect(panel()!.contains(labelled("Close right panel"))).toBe(true);
-    expect(masthead().contains(workspaceToggle())).toBe(false);
+    expect(masthead().contains(workspaceToggle())).toBe(true);
+    expect(panel()!.contains(workspaceToggle())).toBe(false);
   });
 
   test("the same button closes the panel it opened", async () => {
     await show("session_header_2");
     await press(labelled("Open right panel")!);
     await press(labelled("Close right panel")!);
-    expect(controls()).toHaveLength(1);
+    expect(panelToggles()).toHaveLength(1);
     expect(labelled("Open right panel")).not.toBeNull();
-    expect(labelled("Close right panel")).toBeNull();
+    expect(masthead().contains(workspaceToggle())).toBe(true);
   });
 });
 

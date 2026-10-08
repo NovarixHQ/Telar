@@ -1,14 +1,10 @@
 import { useRoute, type RouteProp } from "@react-navigation/native";
-import { useEffect, useRef, useState } from "react";
-import type { RequestDecision } from "@telar/engine-client";
+import { useState } from "react";
 import { isActiveTurn } from "@telar/client/journal";
-import { KeyboardAvoidingView, Settings, StyleSheet, View } from "react-native";
-import { Composer } from "../composer";
-import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
-import { SessionControls } from "../providers";
+import { KeyboardAvoidingView, StyleSheet } from "react-native";
+import { FloatingComposer } from "../composer";
 import { hosts, useHosts } from "../hosts";
-import { feedOf, sendMessage, TranscriptScroll, useFeed } from "../transcript";
-import { answerRequest, openRequests, RequestCards, stopSession } from "../turns";
+import { feedOf, TranscriptScroll, useFeed } from "../transcript";
 import { present } from "../../platform/connection";
 import { Theme } from "../../ui";
 import { useSessionHeader } from "./session-header";
@@ -22,18 +18,11 @@ export function SessionScreen() {
   const host = hosts.get(params.hostId);
   const connection = rows.find((row) => row.connection === host)?.state;
   const feed = useFeed(host, params.sessionId);
-  const [draft, setDraft] = useState(params.draft ?? "");
-  const [sending, setSending] = useState(false);
-  const [unsent, setUnsent] = useState<{ text: string; error: string }>();
-  const [problem, setProblem] = useState<string>();
+  const [footer, setFooter] = useState(0);
   const [pin, setPin] = useState(0);
-  const [deciding, setDeciding] = useState<string>();
-  const dictationAvailable = useDictationAvailable(host);
-  const dictation = useDictation(host, (words) => setDraft((current) => appendSpoken(current, words)));
+  const [problem, setProblem] = useState<string>();
   const working = feed.turns.some((turn) => isActiveTurn(turn.state));
   const { rows: railRows } = useRail(params.hostId);
-  const projectId = feed.head?.session.projectId;
-  const mentions = { targets: railRows, current: { sessionId: params.sessionId, ...(projectId ? { projectId } : {}) } };
 
   const act = async (work: () => Promise<unknown>) => {
     setProblem(undefined);
@@ -46,48 +35,24 @@ export function SessionScreen() {
   };
   useSessionHeader(host, params.sessionId, feed.head?.session, params.title, (work) => void act(work));
 
-  const send = async (typed: string) => {
-    const text = typed.trim();
-    if (!host || !text) return;
-    setSending(true);
-    setUnsent(undefined);
-    setDraft("");
-    setPin((value) => value + 1);
-    try {
-      await sendMessage(host, params.sessionId, text);
-      await feedOf(host, params.sessionId)?.refresh();
-    } catch (error) {
-      setUnsent({ text, error: error instanceof Error ? error.message : String(error) });
-    }
-    setSending(false);
-  };
-
-  const stop = async () => {
-    if (!host) return;
-    setSending(true);
-    await act(() => stopSession(host, params.sessionId));
-    setSending(false);
-  };
-
-  const decide = async (requestId: string, decision: RequestDecision) => {
-    if (!host) return;
-    setDeciding(requestId);
-    await act(() => answerRequest(host, params.sessionId, requestId, decision));
-    setDeciding(undefined);
-  };
-
-  // `-telarSendOnOpen <text>` at launch sends it once the session has loaded, so a simulator can test sending without a tap.
-  const sentOnOpen = useRef(false);
-  useEffect(() => {
-    const text: unknown = Settings.get("telarSendOnOpen");
-    if (sentOnOpen.current || !feed.head || typeof text !== "string" || !text) return;
-    sentOnOpen.current = true;
-    void send(text);
-  });
-
   const offline = connection && connection.kind !== "online" && connection.kind !== "connecting" ? present(connection, Date.now()).label : undefined;
   const lost = offline ?? feed.failed;
-  const failure = problem ?? dictation.problem;
+  const notices = (
+    <>
+      {lost ? (
+        <StatusNotice
+          tint="amber"
+          icon="wifi.exclamationmark"
+          text={feed.head ? `Showing what was recorded — ${lost}` : lost}
+          actions={[{ label: "Retry", onPress: () => {
+            host?.wake("reconnect");
+            void feedOf(host, params.sessionId)?.refresh();
+          } }]}
+        />
+      ) : null}
+      {problem ? <StatusNotice tint="red" text={problem} /> : null}
+    </>
+  );
 
   return (
     <KeyboardAvoidingView style={styles.screen} behavior="padding">
@@ -95,37 +60,25 @@ export function SessionScreen() {
         turns={feed.turns}
         loading={!feed.head && !feed.failed}
         pin={pin}
+        bottomInset={footer}
         older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
       />
-      <View style={styles.footer}>
-        {lost ? (
-          <StatusNotice
-            tint="amber"
-            icon="wifi.exclamationmark"
-            text={feed.head ? `Showing what was recorded — ${lost}` : lost}
-            actions={[{ label: "Retry", onPress: () => {
-              host?.wake("reconnect");
-              void feedOf(host, params.sessionId)?.refresh();
-            } }]}
-          />
-        ) : null}
-        <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
-        {unsent ? (
-          <StatusNotice
-            tint="red"
-            text={`Not sent — ${unsent.error}`}
-            actions={[{ label: "Retry", onPress: () => void send(unsent.text) }, { label: "Discard", destructive: true, onPress: () => setUnsent(undefined) }]}
-          />
-        ) : null}
-        {failure ? <StatusNotice tint="red" text={failure} /> : null}
-      </View>
-      {host && feed.head ? <SessionControls host={host} session={feed.head.session} onChanged={(work) => void act(() => work)} /> : null}
-      <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send(draft)} onStop={() => void stop()} mentions={mentions} {...(dictationAvailable ? { dictation } : {})} />
+      <FloatingComposer
+        host={host}
+        hostId={params.hostId}
+        sessionId={params.sessionId}
+        head={feed.head}
+        working={working}
+        mentions={railRows}
+        notices={notices}
+        {...(params.draft ? { initialDraft: params.draft } : {})}
+        onHeight={setFooter}
+        onSent={() => setPin((value) => value + 1)}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Theme.canvas },
-  footer: { gap: 12, paddingHorizontal: 16 },
 });

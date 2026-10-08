@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { ProviderModel } from "@telar/engine-client";
-import { accessMenu, chooseFamily, modelMenu } from "./model-menu";
+import { accessMenu, modelMenu } from "./model-menu";
 
 const model = (id: string, over: Partial<ProviderModel> = {}): ProviderModel => ({
   id,
@@ -16,39 +16,60 @@ const model = (id: string, over: Partial<ProviderModel> = {}): ProviderModel => 
 });
 
 const MODELS = [
-  model("opus", { label: "Opus 5.5", isDefault: true, defaultEffort: "high", efforts: ["low", "medium", "high", "xhigh"] }),
+  model("opus", { label: "Opus 5.5", isDefault: true, defaultEffort: "high", defaultWindow: true, efforts: ["low", "medium", "high", "xhigh"], fastMode: true }),
   model("opus[1m]", { label: "Opus 5.5 (1M context)", defaultEffort: "high", efforts: ["low", "medium", "high", "xhigh"] }),
   model("haiku", { label: "Haiku 4.5", efforts: [] }),
   model("old", { label: "Old", hidden: true }),
 ];
 
-test("the menu names the session's family and effort, and lists families without the hidden ones", () => {
-  const menu = modelMenu(MODELS, { model: "opus[1m]", effort: "xhigh" });
-  expect(menu.label).toBe("Opus 5.5 · Extra high");
+const titles = (menu: ReturnType<typeof modelMenu>) => menu.sections.map((section) => section.title);
+const picked = (menu: ReturnType<typeof modelMenu>, title: string) => menu.sections.find((section) => section.title === title)?.options.filter((option) => option.selected).map((option) => option.label);
+
+test("the pill names the family, level, window and fast mode", () => {
+  expect(modelMenu(MODELS, { model: "opus[1m]", effort: "xhigh" }, "claude").label).toBe("Opus 5.5 · Extra high · 1M");
+  expect(modelMenu(MODELS, { fastMode: true }, "claude").label).toBe("Opus 5.5 · High · 200k · Fast");
+  expect(modelMenu(MODELS, { model: "haiku" }, "claude").label).toBe("Haiku 4.5");
+});
+
+test("the menu lists visible families and the sections the chosen row offers", () => {
+  const menu = modelMenu(MODELS, {}, "claude");
   expect(menu.families.map((family) => [family.label, family.selected])).toEqual([
     ["Opus 5.5", true],
     ["Haiku 4.5", false],
   ]);
-  expect(menu.efforts.map((effort) => effort.label)).toEqual(["Low", "Medium", "High · Default", "Extra high"]);
-  expect(menu.efforts.find((effort) => effort.selected)?.value).toBe("xhigh");
+  expect(titles(menu)).toEqual(["Reasoning", "Context window", "Fast mode"]);
+  expect(menu.sections[0]!.options.map((option) => option.label)).toEqual(["Low", "Medium", "High · Default", "Extra high", "Ultracode"]);
+  expect(picked(menu, "Reasoning")).toEqual(["High · Default"]);
+  expect(picked(menu, "Context window")).toEqual(["200k · Default"]);
+  expect(picked(menu, "Fast mode")).toEqual(["Off · Default"]);
+  expect(titles(modelMenu(MODELS, { model: "haiku" }, "claude"))).toEqual([]);
 });
 
-test("with nothing chosen the default family and its default effort are marked", () => {
-  const menu = modelMenu(MODELS, undefined);
-  expect(menu.label).toBe("Opus 5.5");
-  expect(menu.efforts.filter((effort) => effort.selected).map((effort) => effort.value)).toEqual(["high"]);
+test("ultracode is Claude's, and choosing it clears the effort", () => {
+  const menu = modelMenu(MODELS, { effort: "low" }, "claude");
+  expect(menu.sections[0]!.options.find((option) => option.key === "ultracode")?.choice).toEqual({ model: "opus", ultracode: true, effort: undefined });
+  expect(modelMenu(MODELS, {}, "codex").sections[0]!.options.some((option) => option.key === "ultracode")).toBe(false);
 });
 
-test("moving family keeps the context window and drops an effort the new model lacks", () => {
-  expect(chooseFamily(MODELS, { model: "haiku" }, "opus")).toEqual({ model: "opus" });
-  expect(chooseFamily(MODELS, { model: "opus[1m]", effort: "xhigh" }, "haiku")).toEqual({ model: "haiku" });
+test("the default effort is stored as no effort, and moving family drops what the new row lacks", () => {
+  const menu = modelMenu(MODELS, { model: "opus[1m]", effort: "xhigh", fastMode: true }, "claude");
+  expect(menu.sections[0]!.options.find((option) => option.key === "high")?.choice).toMatchObject({ effort: undefined });
+  expect(menu.families.find((family) => family.label === "Haiku 4.5")?.choice).toEqual({ model: "haiku" });
+  expect(menu.sections.find((section) => section.title === "Context window")?.options[0]?.choice).toEqual({ model: "opus", effort: "xhigh", fastMode: true });
+  expect(modelMenu(MODELS, { model: "opus", fastMode: true }, "claude").sections.find((section) => section.title === "Context window")?.options[1]?.choice).toEqual({ model: "opus[1m]" });
 });
 
-test("access modes read as the cockpit names them", () => {
-  expect(accessMenu("auto").options.map((option) => `${option.label}${option.selected ? " ✓" : ""}`)).toEqual([
-    "Supervised",
-    "Auto-accept edits",
-    "Auto ✓",
-    "Full access",
-  ]);
+test("service tiers offer Auto unless the row has a default", () => {
+  const tiers = [{ id: "flex", name: "Flex" }, { id: "priority", name: "Priority", description: "Faster" }];
+  const menu = modelMenu([model("gpt", { isDefault: true, efforts: [], serviceTiers: tiers })], { serviceTier: "priority" }, "codex");
+  expect(menu.sections.map((section) => [section.title, section.options.map((option) => option.label)])).toEqual([["Service tier", ["Auto", "Flex", "Priority"]]]);
+  expect(picked(menu, "Service tier")).toEqual(["Priority"]);
+  expect(menu.sections[0]!.options[2]!.subtitle).toBe("Faster");
+});
+
+test("access modes read as the Swift app names them", () => {
+  const menu = accessMenu("auto");
+  expect(menu.label).toBe("Auto");
+  expect(menu.options.map((option) => `${option.label}${option.selected ? " ✓" : ""}`)).toEqual(["Supervised", "Auto-accept edits", "Auto ✓", "Full access"]);
+  expect(accessMenu(undefined).label).toBe("Configuration");
 });

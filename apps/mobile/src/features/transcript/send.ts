@@ -1,6 +1,6 @@
 import type { HostConnection } from "../../platform/connection";
 
-function newRunId(random: () => number = Math.random): string {
+export function newRunId(random: () => number = Math.random): string {
   let hex = "";
   while (hex.length < 32) hex += Math.floor(random() * 16).toString(16);
   return `run_${hex}`;

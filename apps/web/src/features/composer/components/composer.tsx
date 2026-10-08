@@ -135,7 +135,6 @@ export function Composer(props: ComposerProps) {
       driver={activeDriver}
       choice={choice}
       instanceId={session?.providerInstanceId}
-      resumeAfterRateLimit={session?.resumeAfterRateLimit ?? props.resumeAfterRateLimitDefault}
       ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }}
     />
   );

@@ -84,7 +84,6 @@ test("a standing access mode opens new sessions in it, and a creator's ceiling s
   expect(store.lifecycle.createSession({ id: "session_attended", projectId: "project_one", detached: false }).runtimeMode).toBe("approval-required");
 
   expect(() => store.settings.setSessionDefaults({ runtimeMode: "yolo" })).toThrow(EngineStateError);
-  expect(() => store.settings.setSessionDefaults({ resumeAfterRateLimit: "yes" })).toThrow(EngineStateError);
   // `null` clears it back to the posture's own default.
   expect(store.settings.setSessionDefaults({ runtimeMode: null })).toEqual({ envMode: "local" });
   expect(store.lifecycle.createSession({ id: "session_plain", projectId: "project_one" }).runtimeMode).toBe("auto");

@@ -276,7 +276,7 @@ describe("a rate-limited turn resumes itself once the limit resets", () => {
     });
   }
 
-  const turnOf = (store: EngineStore, runId: string) => store.queries.turns("session_one").find((candidate) => candidate.runId === runId)!;
+  const turnOf = (store: EngineStore, runId: string, sessionId = "session_one") => store.queries.turns(sessionId).find((candidate) => candidate.runId === runId)!;
 
   test("the failure records when the limit lifts, and refuses to exist without it", () => {
     const { store } = limitedStore();
@@ -314,27 +314,8 @@ describe("a rate-limited turn resumes itself once the limit resets", () => {
     expect(store.queries.readEvents("session_one").some((event) => event.type === "turn.requeued" && event.reason === "rate_limit_reset")).toBeTrue();
   });
 
-  test("with the setting off the turn stays failed, and is not reconsidered on every poll", () => {
+  test("a Claude turn resumes, and another provider's stays failed without being reconsidered on every poll", () => {
     const { store, setNow } = limitedStore();
-    store.lifecycle.updateSession("session_one", { resumeAfterRateLimit: false });
-    hitTheLimit(store, "run_one", 5_000);
-
-    setNow(6_000);
-    expect(store.claims.claimNextTurn("worker_one")).toBeUndefined();
-    const settled = turnOf(store, "run_one");
-    expect(settled.state).toBe("failed");
-    // Stamped, so `queueConcernsAWorker` stops matching it: without this the
-    // session would sit in the live index being re-examined for the life of the
-    // daemon. The reset time SURVIVES, because the row still shows it.
-    expect(settled.failure).toMatchObject({ code: "rate_limited", resumeAt: 5_000, resumeDecidedAt: 6_000 });
-    expect(store.queries.readEvents("session_one").some((event) => event.type === "turn.requeued" && event.reason === "rate_limit_reset")).toBeFalse();
-  });
-
-  test("the default is on for Claude and off for another provider, without writing either down", () => {
-    const { store, setNow } = limitedStore();
-    // Nothing stored: a session made before the setting existed behaves like
-    // one made after it.
-    expect(store.records.get("session_one").resumeAfterRateLimit).toBeUndefined();
     hitTheLimit(store, "run_one", 5_000);
     setNow(5_001);
     expect(store.claims.claimNextTurn("worker_one")?.turn.runId).toBe("run_one");
@@ -345,23 +326,12 @@ describe("a rate-limited turn resumes itself once the limit resets", () => {
     const token = codex.claims.claimTurn("session_codex", "worker_one")!.claim!.token;
     codex.turnLifecycle.markRunning("session_codex", "run_codex", token);
     codex.turnLifecycle.failTurn("session_codex", "run_codex", token, { code: "rate_limited", message: "limited", resumeAt: 5_000 });
-    setCodexNow(5_001);
+    setCodexNow(6_000);
     expect(codex.claims.claimNextTurn("worker_one")).toBeUndefined();
-  });
-
-  test("a session that never chose follows the standing default, and its own choice still wins", () => {
-    const { store, setNow } = limitedStore();
-    store.settings.setSessionDefaults({ resumeAfterRateLimit: false });
-    hitTheLimit(store, "run_one", 5_000);
-    setNow(5_001);
-    expect(store.claims.claimNextTurn("worker_one")).toBeUndefined();
-
-    const { store: chosen, setNow: setChosenNow } = limitedStore();
-    chosen.settings.setSessionDefaults({ resumeAfterRateLimit: false });
-    chosen.lifecycle.updateSession("session_one", { resumeAfterRateLimit: true });
-    hitTheLimit(chosen, "run_one", 5_000);
-    setChosenNow(5_001);
-    expect(chosen.claims.claimNextTurn("worker_one")?.turn.runId).toBe("run_one");
+    const settled = turnOf(codex, "run_codex", "session_codex");
+    expect(settled.state).toBe("failed");
+    // Stamped, so `queueConcernsAWorker` stops matching it; the reset time survives because the row still shows it.
+    expect(settled.failure).toMatchObject({ code: "rate_limited", resumeAt: 5_000, resumeDecidedAt: 6_000 });
   });
 
   // A failed `rate_limited` turn must keep its session in the cold-built live index, or a limit that

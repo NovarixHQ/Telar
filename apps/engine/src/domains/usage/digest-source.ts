@@ -53,7 +53,6 @@ export async function usageDigestFor(store: EngineStore, exclude?: (sessionId: s
     ...(exclude ? { exclude } : {}),
     config: {
       defaultRuntimeMode: defaults.runtimeMode ?? "default",
-      continueAfterReset: defaults.resumeAfterRateLimit ?? true,
       generatedTextTitles: textGen.titles,
       generatedTextModel: textGen.model ?? "default",
       generatedTextEffort: textGen.effort ?? "default",

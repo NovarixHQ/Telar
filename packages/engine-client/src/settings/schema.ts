@@ -37,8 +37,6 @@ export const SessionDefaults = z.object({
   resumeAfterRestart: z.boolean().optional(),
   /** Absent keeps the posture's own default; a creator's ceiling still narrows it. */
   runtimeMode: RuntimeMode.optional(),
-  /** Absent is on. */
-  resumeAfterRateLimit: z.boolean().optional(),
   defaultModel: ModelSelection.optional(),
 });
 export type SessionDefaults = z.infer<typeof SessionDefaults>;
@@ -48,7 +46,6 @@ export type SessionDefaultsPatch = {
   envMode?: EnvMode;
   resumeAfterRestart?: boolean;
   runtimeMode?: RuntimeMode | null;
-  resumeAfterRateLimit?: boolean;
   defaultModel?: ModelSelection | null;
 };
 

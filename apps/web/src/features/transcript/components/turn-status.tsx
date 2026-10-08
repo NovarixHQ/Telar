@@ -1,6 +1,7 @@
 "use client";
 
 import { useNow } from "@/ui/hooks/use-now";
+import { fmtElapsed } from "@/ui/format";
 import {
 HourglassIcon,TriangleAlertIcon
 } from "lucide-react";
@@ -89,9 +90,6 @@ export function TurnFailureRow({
 /** Seconds of silence before the indicator flips to its long-silence state. */
 const SILENCE_THRESHOLD = 20;
 
-const formatElapsed = (seconds: number) =>
-  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
-
 export function WorkingIndicator({
   label,
   startedAt,
@@ -129,10 +127,10 @@ export function WorkingIndicator({
       <Shimmer as="span" className={cn("text-2xs", silent && "text-warning/80")}>
         {label}
       </Shimmer>
-      <span className="shrink-0 font-mono tabular-nums">{formatElapsed(elapsed)}</span>
+      <span className="shrink-0 font-mono tabular-nums">{fmtElapsed(elapsed)}</span>
       {/* A run that has said nothing for 20s is the case a detached session most
           needs surfaced — it is the difference between slow and stuck. */}
-      {silent && <span className="shrink-0 font-mono tabular-nums text-warning">· no output {formatElapsed(quiet)}</span>}
+      {silent && <span className="shrink-0 font-mono tabular-nums text-warning">· no output {fmtElapsed(quiet)}</span>}
     </div>
   );
 }

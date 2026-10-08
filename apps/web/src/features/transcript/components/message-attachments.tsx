@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useState } from "react";
 import { PaperclipIcon } from "lucide-react";
-import type { TurnAttachment } from "@telar/engine-client";
+import type { ProviderDriverKind, TurnAttachment } from "@telar/engine-client";
 import { attachmentUrl, humanBytes, ImageLightbox } from "@/features/plugins";
 
-/** The session, and the host it lives on, whose attachment route serves the files drawn below it. */
-export const TranscriptSession = createContext<{ sessionId: string; hostId?: string } | undefined>(undefined);
+/** The session, the host it lives on, and the provider it runs on, for the rows drawn below it. */
+export const TranscriptSession = createContext<{ sessionId: string; hostId?: string; driver?: ProviderDriverKind } | undefined>(undefined);
 
 const CHIP = "flex items-center gap-1.5 rounded-md bg-background/60 px-2 py-1 text-2xs text-muted-foreground";
 

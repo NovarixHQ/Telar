@@ -11,8 +11,9 @@ import { type OpenTab } from "./conversation-message";
 import { RowGestures, ToolRow } from "./tool-row";
 import { ProviderSwitchRow } from "./provider-switch-row";
 import { running, transcriptTasks } from "../model";
-import { AgentRow, CompactionRow, ConversationImportRow, PlanRow, PlotRow, ProviderWaitRow, ReasoningRow, SteeredMessageRow } from "./item-rows";
+import { CompactionRow, ConversationImportRow, PlanRow, PlotRow, ProviderWaitRow, ReasoningRow, SteeredMessageRow } from "./item-rows";
 import { NotificationRow } from "./notification-row";
+import { TaskAgentRow } from "./task-agent-row";
 
 export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, onOpenFileInNewTab }: {
   item: JournalItem;
@@ -28,7 +29,7 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
     // A backgrounded SHELL spawned as a task is the `Ran command` row already
     // beside it; only a delegate earns an agent row.
     if (task && !transcriptTasks([task]).length) return null;
-    return <AgentRow item={item} task={task} {...(onInsert ? { onInsert } : {})} />;
+    return <TaskAgentRow item={item} task={task} tasks={tasks ?? []} {...gestures} />;
   }
   if (item.detail.type === "artifact") return <ArtifactCard sessionId={item.sessionId} artifact={item.detail.artifact} />;
   if (item.detail.type === "plan") return <PlanRow item={item} />;

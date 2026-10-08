@@ -160,7 +160,8 @@ export function CardField({ label, placeholder, field, mono = false, keyboard = 
 /** Swift's PrimaryActionButton: a full-width 50pt accent slab, radius 16, with a spinner while busy. */
 export function PrimaryActionButton({ title, busy = false, enabled = true, onPress }: { title: string; busy?: boolean; enabled?: boolean; onPress: () => void }) {
   return (
-    <Button onPress={onPress} modifiers={[buttonStyle("plain"), disabled(!enabled || busy)]}>
+    // Not `disabled`: SwiftUI would dim the slab a second time over its own muted colours.
+    <Button onPress={() => enabled && !busy && onPress()} modifiers={[buttonStyle("plain")]}>
       <HStack
         modifiers={[
           frame({ maxWidth: Infinity, minHeight: 50, maxHeight: 50 }),

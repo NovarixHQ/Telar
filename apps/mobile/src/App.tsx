@@ -25,8 +25,8 @@ export function App() {
       <StatusBar style="auto" />
       <Stack.Navigator screenOptions={{ headerLargeTitle: true }}>
         <Stack.Screen name="Hosts" component={HostsScreen} options={{ title: "Telar" }} />
-        <Stack.Screen name="Pair" component={ConnectScreen} options={{ title: "Connect to Telar" }} />
-        <Stack.Screen name="HostSettings" component={HostSettingsScreen} options={{ title: "Computer" }} />
+        <Stack.Screen name="Pair" component={ConnectScreen} options={{ title: "Connect to Telar", headerBackButtonDisplayMode: "minimal" }} />
+        <Stack.Screen name="HostSettings" component={HostSettingsScreen} options={{ title: "Computer", headerBackButtonDisplayMode: "minimal" }} />
         <Stack.Screen name="Sessions" component={SessionsScreen} options={({ route }) => ({ title: route.params.hostName ?? hosts.get(route.params.hostId)?.name ?? "Sessions" })} />
         <Stack.Screen
           name="Session"

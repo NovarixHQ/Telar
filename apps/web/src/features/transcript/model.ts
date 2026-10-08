@@ -6,6 +6,7 @@ import { itemLabel, itemText, type JournalItem, type JournalTask, type JournalTu
 import { notificationHead, notificationVerbs, quotedMessage, type NotificationSubject } from "./notifications";
 import { CONSULT_TALLY_LABEL, harnessConsult } from "./harness-paths";
 import { toolInputSummary } from "./tool-input-summary";
+import { toolWords } from "./tool-labels";
 import { rowPath } from "./components/tool-row";
 import { sessionsActionLabel, sessionsLabelSaysAll, sessionsTally } from "./sessions-tools";
 
@@ -13,6 +14,8 @@ import { sessionsActionLabel, sessionsLabelSaysAll, sessionsTally } from "./sess
 export function actionLabel(item: JournalItem): string {
   const sessions = sessionsActionLabel(item, false);
   if (sessions) return sessions;
+  const tool = toolWords(item);
+  if (tool) return tool.done;
   switch (item.detail.type) {
     case "command_execution":
       return "Ran command";
@@ -26,8 +29,6 @@ export function actionLabel(item: JournalItem): string {
           : "Edited file";
     case "web_search":
       return "Searched web";
-    case "browser_action":
-      return "Browsed";
     case "assistant_message":
       return "Said";
     default:
@@ -39,6 +40,8 @@ export function actionLabel(item: JournalItem): string {
 export function liveActionLabel(item: JournalItem): string {
   const sessions = sessionsActionLabel(item, true);
   if (sessions) return sessions;
+  const tool = toolWords(item);
+  if (tool) return tool.running;
   switch (item.detail.type) {
     case "command_execution":
       return "Running command";
@@ -52,8 +55,6 @@ export function liveActionLabel(item: JournalItem): string {
           : "Editing file";
     case "web_search":
       return "Searching web";
-    case "browser_action":
-      return "Browsing";
     default:
       return actionLabel(item);
   }
@@ -61,9 +62,11 @@ export function liveActionLabel(item: JournalItem): string {
 
 export function preview(item: JournalItem): string {
   if (sessionsLabelSaysAll(item)) return "";
-  const raw =
-    item.detail.type === "command_execution"
-      ? item.detail.command.command
+  const tool = toolWords(item);
+  const raw = tool
+    ? (tool.file ?? tool.subject ?? "")
+    : item.detail.type === "command_execution"
+      ? (item.detail.command.command.split(/\r?\n/).find((line) => line.trim()) ?? "")
       : item.detail.type === "file_read" || item.detail.type === "file_change"
         ? (rowPath(item) ?? "")
         : item.detail.type === "web_search"

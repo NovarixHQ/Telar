@@ -94,7 +94,7 @@ function stubShelf() {
       return new Promise<Response>((resolve) => state.release.push(() => resolve(answer())));
     }
     if (url.includes("/api/sessions/live") && ifNoneMatch === "lean-1") return new Response(null, { status: 304, headers: { etag: "lean-1" } });
-    if (url.includes("/api/sessions/live")) return Response.json({ projects: [], sessions: [row("open one")], settledCount: 1 }, { headers: { etag: "lean-1" } });
+    if (url.includes("/api/sessions/live")) return Response.json({ projects: [], sessions: [row("open one")], settledByProject: { p1: 1 } }, { headers: { etag: "lean-1" } });
     return Response.json({});
   }) as typeof fetch;
   return { shelfReads, state };

@@ -1,0 +1,35 @@
+import Foundation
+
+final class HTTPTransport: @unchecked Sendable {
+    private let lock = NSLock()
+    private let configuration: URLSessionConfiguration
+    private var current: URLSession
+
+    init(configuration: URLSessionConfiguration = HTTPTransport.engineConfiguration) {
+        self.configuration = configuration
+        current = URLSession(configuration: configuration)
+    }
+
+    static var engineConfiguration: URLSessionConfiguration {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.waitsForConnectivity = false
+        return config
+    }
+
+    var session: URLSession { lock.withLock { current } }
+
+    @discardableResult
+    func renew(replacing stale: URLSession? = nil) -> URLSession {
+        lock.withLock {
+            guard stale == nil || stale === current else { return current }
+            current.finishTasksAndInvalidate()
+            current = URLSession(configuration: configuration)
+            return current
+        }
+    }
+
+    func invalidate() {
+        lock.withLock { current.finishTasksAndInvalidate() }
+    }
+}

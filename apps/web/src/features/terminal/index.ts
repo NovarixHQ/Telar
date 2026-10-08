@@ -1,6 +1,7 @@
 export type { TerminalOpenRequest } from "./bridge";
 export { closeTerminalTab } from "./close";
 export { RunHeaderControl } from "./components/run-header-control";
+export { RunRow } from "./components/run-row";
 export { GroupedTerminalSurface } from "./components/grouped-terminal-surface";
 export { TerminalSurface } from "./components/terminal-surface";
 export { openTerminal, revealGroupedTerminal, revealTerminal, startedCommand, syncGroupedRuns, syncRunTabs } from "./reveal";

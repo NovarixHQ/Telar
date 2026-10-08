@@ -173,8 +173,8 @@ describe("the call sites #401 lists", () => {
     };
     (window as { telarDesktop?: unknown }).telarDesktop = { workspace: bridge };
     try {
-      const { OpenWorkspaceButton } = await import("@/features/files/components/open-workspace-button");
-      const host = await mount(<OpenWorkspaceButton path="/work/telar" />);
+      const { OpenWorkspaceRow } = await import("@/features/files/components/open-workspace-row");
+      const host = await mount(<OpenWorkspaceRow path="/work/telar" />);
       await act(async () => (host.querySelector('[aria-label="Choose an app to open this folder with"]') as HTMLElement).click());
       await hold(true);
       const reveal = [...document.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Reveal in Finder"));

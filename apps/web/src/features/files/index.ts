@@ -2,7 +2,7 @@ export { DirectoryBrowser } from "./components/directory-browser";
 export { FileViewSurface } from "./components/file-view-surface";
 export { EditorAddressRow } from "./components/editor-chrome";
 export { FileKindIcon } from "./components/file-icon";
-export { OpenWorkspaceButton } from "./components/open-workspace-button";
+export { OpenWorkspaceRow } from "./components/open-workspace-row";
 export { OpenerIcon } from "./components/opener-icon";
 export { OverlayEditor } from "./components/overlay-editor";
 export { claimCellDraft, claimCellDrafts, draftScope, forgetCellDraft, newDraftOwner, rememberCellDraft } from "./editor-drafts";

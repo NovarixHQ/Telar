@@ -6,7 +6,7 @@ import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
 import { usePublish, type PublishVerbs } from "../hooks/use-publish";
 
-type Publish = ReturnType<typeof usePublish>;
+export type Publish = ReturnType<typeof usePublish>;
 
 /**
  * Push and open-a-pull-request, each armed by one press and sent by a second.
@@ -32,7 +32,7 @@ export function PublishBox({
   suggestion: string;
 }) {
   const publish = usePublish({ sendPush, sendPullRequest, onPublished, suggestion });
-  const { armed, pushProblem, pullProblem, opened } = publish;
+  const { armed } = publish;
   const published = ahead !== undefined;
   const count = published ? ahead : commitsSinceBase;
 
@@ -40,6 +40,24 @@ export function PublishBox({
     <div className="border-t border-border px-3 py-2">
       <p className="mb-1.5 truncate font-mono text-4xs tracking-[0.08em] text-muted-foreground uppercase">publish {branch}</p>
 
+      <PublishStatus publish={publish} />
+
+      {armed === "push" ? (
+        <PushConfirm publish={publish} branch={branch} count={count} published={published} />
+      ) : armed === "pull" ? (
+        <PullRequestForm publish={publish} />
+      ) : (
+        <PublishArms publish={publish} github={github} ahead={ahead} commitsSinceBase={commitsSinceBase} busy={busy} />
+      )}
+    </div>
+  );
+}
+
+/** What the publish flow has to say: a pull request it opened, and the refusals either arm last got. */
+export function PublishStatus({ publish }: { publish: Publish }) {
+  const { pushProblem, pullProblem, opened } = publish;
+  return (
+    <>
       {opened && (
         <p className="mb-2 flex items-start gap-1.5 rounded-md tint-success px-2.5 py-1.5 text-2xs leading-snug text-success">
           <GitPullRequestArrowIcon className="mt-0.5 size-3.5 shrink-0" />
@@ -66,19 +84,11 @@ export function PublishBox({
           {pullProblem.message && !pullProblem.url && <span className="block text-muted-foreground">{pullProblem.message}</span>}
         </PublishProblem>
       )}
-
-      {armed === "push" ? (
-        <PushConfirm publish={publish} branch={branch} count={count} published={published} />
-      ) : armed === "pull" ? (
-        <PullRequestForm publish={publish} />
-      ) : (
-        <PublishArms publish={publish} github={github} ahead={ahead} commitsSinceBase={commitsSinceBase} busy={busy} />
-      )}
-    </div>
+    </>
   );
 }
 
-function PushConfirm({ publish, branch, count, published }: { publish: Publish; branch: string; count: number; published: boolean }) {
+export function PushConfirm({ publish, branch, count, published }: { publish: Publish; branch: string; count: number; published: boolean }) {
   const { working } = publish;
   return (
     <div className="flex flex-col gap-2">
@@ -102,7 +112,7 @@ function PushConfirm({ publish, branch, count, published }: { publish: Publish; 
   );
 }
 
-function PullRequestForm({ publish }: { publish: Publish }) {
+export function PullRequestForm({ publish }: { publish: Publish }) {
   const { working, title, body } = publish;
   return (
     <div className="flex flex-col gap-2">

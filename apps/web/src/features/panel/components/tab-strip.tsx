@@ -7,7 +7,7 @@ import { KeyHint } from "@/features/commands";
 import { cn } from "@/ui/utils";
 import { useLivePages } from "../hooks/use-live-pages";
 import { useTabDrag } from "../hooks/use-tab-drag";
-import { describePanelTabInstance, type BrowserState, type LauncherRow, type LivePage, type PanelTabItem } from "../model";
+import { describePanelTabInstance, filePanelTabPath, type BrowserState, type LauncherRow, type LivePage, type PanelTabItem } from "../model";
 import type { RightPanelProps } from "./right-panel";
 import type { LauncherActions } from "./launcher";
 import { SurfaceChooser } from "./surface-chooser";
@@ -46,6 +46,8 @@ function TabChip({
   const on = id === strip.tab;
   const { label, icon: Icon, missing } = describePanelTabInstance(entry, { ...(strip.browser ? { browser: strip.browser } : {}), ...(live ? { live } : {}), duplicate });
   const insert = drag.insert?.id === id ? drag.insert.side : undefined;
+  const right = tabs.slice(tabs.findIndex((other) => other.id === id) + 1);
+  const path = entry.params.path ?? filePanelTabPath(entry.kind);
   return (
     <span
       {...drag.handlers(id)}
@@ -91,8 +93,19 @@ function TabChip({
           </button>
         </ContextMenuTrigger>
         <ContextMenuContent>
+          {path && (
+            <>
+              <ContextMenuItem onClick={() => void navigator.clipboard.writeText(path)}>Copy path</ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
           <ContextMenuItem onClick={() => onCloseTab(id)}>Close</ContextMenuItem>
-          <ContextMenuItem onClick={() => tabs.filter((other) => other.id !== id).forEach((other) => onCloseTab(other.id))}>Close others</ContextMenuItem>
+          <ContextMenuItem disabled={tabs.length <= 1} onClick={() => tabs.filter((other) => other.id !== id).forEach((other) => onCloseTab(other.id))}>
+            Close others
+          </ContextMenuItem>
+          <ContextMenuItem disabled={right.length === 0} onClick={() => right.forEach((other) => onCloseTab(other.id))}>
+            Close to the right
+          </ContextMenuItem>
           <ContextMenuItem onClick={() => tabs.forEach((other) => onCloseTab(other.id))}>Close all</ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={onToggleFullscreen}>{fullscreen ? "Exit fullscreen" : "Fill the window"}</ContextMenuItem>

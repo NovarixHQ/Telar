@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { SharedAppearance } from "@telar/engine-client";
+import { DEFAULT_BACKGROUND, type Background, type SharedAppearance } from "@telar/engine-client";
 import { parseAppearance } from "./appearance";
 
 const APPEARANCE_KEY = "telar-appearance";
@@ -15,8 +15,9 @@ export function currentShared(): SharedAppearance {
   return pickShared(parseAppearance(raw));
 }
 
-export function pickShared(appearance: SharedAppearance): SharedAppearance {
+export function pickShared(appearance: SharedAppearance): SharedAppearance & { background: Background } {
   return {
+    background: appearance.background ?? DEFAULT_BACKGROUND,
     accent: appearance.accent,
     fontSans: appearance.fontSans,
     fontMono: appearance.fontMono,

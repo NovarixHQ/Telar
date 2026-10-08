@@ -8,6 +8,7 @@ import { useTheme } from "./theme-provider";
 import { SchemeTiles } from "./scheme-tiles";
 import { FontPicker } from "./font-picker";
 import { DepthControl } from "./depth-control";
+import { BackgroundControl } from "./background-control";
 import { AppearanceWindowGroup } from "./appearance-window-group";
 import { CodeSpecimen, InterfaceSpecimen, TerminalSpecimen } from "./studio/type-specimen";
 
@@ -77,6 +78,7 @@ export function AppearanceSection() {
           control={<AccentSwatches value={appearance.accent} onChange={(accent) => setAppearance({ accent })} />}
         />
         <DepthControl value={appearance.depth} onChange={(depth) => setAppearance({ depth })} />
+        <BackgroundControl value={appearance.background} onChange={(patch) => setAppearance({ background: { ...appearance.background, ...patch } })} />
       </SettingsGroup>
 
       <SettingsGroup title="Typography">

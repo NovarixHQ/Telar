@@ -112,8 +112,70 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
   return (allowed as readonly string[]).includes(value as string) ? (value as T) : fallback;
 }
 
+export const BACKGROUND_KINDS = ["none", "gradient", "image"] as const;
+export type BackgroundKind = (typeof BACKGROUND_KINDS)[number];
+
+export const BACKGROUND_GRADIENTS = ["aurora", "dusk", "deep-sea", "nebula", "custom"] as const;
+export type BackgroundGradient = (typeof BACKGROUND_GRADIENTS)[number];
+
+export const MIN_BACKGROUND_STRENGTH = 10;
+export const MAX_BACKGROUND_STRENGTH = 100;
+
+const MAX_BACKGROUND_IMAGE_CHARS = 6 * 1024 * 1024;
+
+export type Background = {
+  kind: BackgroundKind;
+  gradient: BackgroundGradient;
+  colours: [string, string];
+  image: string;
+  strength: number;
+};
+
+export const DEFAULT_BACKGROUND: Background = {
+  kind: "none",
+  gradient: "aurora",
+  colours: ["#6366f1", "#ec4899"],
+  image: "",
+  strength: 60,
+};
+
+const isHexColour = (value: unknown): value is string => typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+
+const isBackgroundImage = (value: unknown): value is string =>
+  typeof value === "string" && value.length <= MAX_BACKGROUND_IMAGE_CHARS && /^data:image\/[a-z+]+;base64,[A-Za-z0-9+/]+=*$/.test(value);
+
+export function parseBackground(value: unknown): Background {
+  if (!isRecord(value)) return DEFAULT_BACKGROUND;
+  const colours = Array.isArray(value.colours) && isHexColour(value.colours[0]) && isHexColour(value.colours[1]) ? value.colours : DEFAULT_BACKGROUND.colours;
+  return {
+    kind: oneOf<BackgroundKind>(value.kind, BACKGROUND_KINDS, "none"),
+    gradient: oneOf<BackgroundGradient>(value.gradient, BACKGROUND_GRADIENTS, DEFAULT_BACKGROUND.gradient),
+    colours: [colours[0], colours[1]],
+    image: isBackgroundImage(value.image) ? value.image : "",
+    strength: clampInt(value.strength, MIN_BACKGROUND_STRENGTH, MAX_BACKGROUND_STRENGTH, DEFAULT_BACKGROUND.strength),
+  };
+}
+
+function backgroundFromLayers(value: Record<string, unknown>): Background {
+  const composition = isRecord(value.composition) ? value.composition : {};
+  const state = [composition.light, composition.dark].find((half) => isRecord(half) && Array.isArray(half.layers) && half.layers.length > 0);
+  const layer: unknown = isRecord(state) && Array.isArray(state.layers) ? state.layers[0] : undefined;
+  if (!isRecord(layer)) return DEFAULT_BACKGROUND;
+  const strength = clampInt(layer.opacity, MIN_BACKGROUND_STRENGTH, MAX_BACKGROUND_STRENGTH, DEFAULT_BACKGROUND.strength);
+  const image = isRecord(value.images) && typeof layer.id === "string" ? value.images[layer.id] : undefined;
+  if (layer.type === "image" && isBackgroundImage(image)) return { ...DEFAULT_BACKGROUND, kind: "image", image, strength };
+  if (layer.type !== "gradient") return DEFAULT_BACKGROUND;
+  const stops = isRecord(layer.spec) && Array.isArray(layer.spec.stops) ? layer.spec.stops.map((stop) => (isRecord(stop) ? stop.color : undefined)) : [];
+  const first = stops[0];
+  const last = stops[stops.length - 1];
+  if (isHexColour(first) && isHexColour(last)) return { ...DEFAULT_BACKGROUND, kind: "gradient", gradient: "custom", colours: [first, last], strength };
+  const preset = oneOf<BackgroundGradient | "none">(layer.presetId, BACKGROUND_GRADIENTS, "none");
+  return preset === "none" || preset === "custom" ? DEFAULT_BACKGROUND : { ...DEFAULT_BACKGROUND, kind: "gradient", gradient: preset, strength };
+}
+
 /** What every window connected to a host wears: the host's one appearance. */
 export type SharedAppearance = {
+  background?: Background;
   accent: Accent;
   fontSans: AppFont;
   fontMono: AppFont;
@@ -126,7 +188,9 @@ export type SharedAppearance = {
 };
 
 function parseSharedAppearance(value: Record<string, unknown>): SharedAppearance {
+  const background = "background" in value ? parseBackground(value.background) : backgroundFromLayers(value);
   return {
+    ...(background.kind === "none" ? {} : { background }),
     accent: oneOf<Accent>(value.accent, ACCENTS, DEFAULT_ACCENT),
     fontSans: oneOf<AppFont>(value.fontSans, APP_FONTS, DEFAULT_SANS_FONT),
     fontMono: oneOf<AppFont>(value.fontMono, APP_FONTS, DEFAULT_MONO_FONT),

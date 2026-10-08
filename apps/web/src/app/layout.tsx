@@ -25,7 +25,7 @@ import "streamdown/styles.css";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import { ClipboardShim } from "@/platform/desktop/clipboard-shim";
-import { APPEARANCE_INIT_SCRIPT, AppearanceProvider, ThemeProvider, THEME_INIT_SCRIPT } from "@/features/appearance";
+import { APPEARANCE_INIT_SCRIPT, AppearanceProvider, BACKGROUND_INIT_SCRIPT, ThemeProvider, THEME_INIT_SCRIPT } from "@/features/appearance";
 import { AppShell } from "@/app/app-shell";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -143,8 +143,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {/* Accent, typefaces and translucency, applied the same pre-paint way
             and for the same reason — see lib/appearance.ts. */}
         <Script id="telar-appearance-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: APPEARANCE_INIT_SCRIPT }} />
+        <Script id="telar-background-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: BACKGROUND_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full">
+        <div id="app-backdrop" aria-hidden="true" />
         <ClipboardShim />
         <ThemeProvider>
           <AppearanceProvider>

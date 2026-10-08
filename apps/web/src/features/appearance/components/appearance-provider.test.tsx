@@ -52,7 +52,7 @@ const hostAppearance = {
 
 const stored = () => JSON.parse(window.localStorage.getItem("telar-appearance") ?? "{}") as Record<string, unknown>;
 
-test("a window wears the host's appearance, even one stored with layers and custom colours, and shares what it changes", async () => {
+test("a window wears the host's appearance, even one stored with layers, and shares what it changes", async () => {
   const restoreTimers = fakeLongTimers();
   try {
     window.localStorage.setItem("telar-looks", "[]");
@@ -71,6 +71,8 @@ test("a window wears the host's appearance, even one stored with layers and cust
     expect(stored()).toMatchObject({ accent: "sea", fontSize: 15 });
     expect(window.localStorage.getItem("telar-theme")).toBe("light");
     expect(stored()).not.toHaveProperty("composition");
+    expect(stored().background).toMatchObject({ kind: "image", image: "data:image/webp;base64,AAAA" });
+    expect(document.documentElement.getAttribute("data-backdrop")).toBe("image");
     expect(window.localStorage.getItem("telar-looks")).toBeNull();
     expect(window.localStorage.getItem("telar-theme-css")).toBeNull();
 
@@ -81,7 +83,7 @@ test("a window wears the host's appearance, even one stored with layers and cust
     await runDebounced();
     const puts = calls.filter((call) => call.route === "PUT /api/appearance");
     expect(puts).toHaveLength(1);
-    expect(puts[0]!.body).toMatchObject({ version: 3, accent: "rose", fontSize: 15, scheme: "light" });
+    expect(puts[0]!.body).toMatchObject({ version: 3, accent: "rose", fontSize: 15, scheme: "light", background: { kind: "image", image: "data:image/webp;base64,AAAA" } });
     expect(puts[0]!.body).not.toHaveProperty("composition");
   } finally {
     restoreTimers();

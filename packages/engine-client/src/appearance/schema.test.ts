@@ -5,7 +5,7 @@ function published(patch: Record<string, unknown> = {}): Record<string, unknown>
   return { version: 3, ...patch };
 }
 
-test("an appearance stored with layers and custom colours still opens, without them", () => {
+test("an appearance stored with layers opens with its first layer as the background, and nothing else of them", () => {
   const legacy = published({
     accent: "sea",
     fontSize: 15,
@@ -16,9 +16,40 @@ test("an appearance stored with layers and custom colours still opens, without t
     images: { wallpaper: "data:image/webp;base64,AAAA" },
   });
   const opened = parsePublishedAppearance(legacy)!;
-  expect(opened).toMatchObject({ accent: "sea", fontSize: 15, scheme: "system" });
+  expect(opened).toMatchObject({ accent: "sea", fontSize: 15, scheme: "system", background: { kind: "gradient", gradient: "dusk", strength: 60 } });
   expect(opened).not.toHaveProperty("composition");
   expect(opened).not.toHaveProperty("images");
+
+  const layered = (layer: unknown, images: Record<string, string> = {}) =>
+    parsePublishedAppearance(published({ composition: { light: { layers: [] }, dark: { layers: [layer] } }, images }))?.background;
+  expect(layered({ type: "image", id: "wallpaper", opacity: 40 }, { wallpaper: "data:image/webp;base64,AAAA" })).toMatchObject({
+    kind: "image",
+    image: "data:image/webp;base64,AAAA",
+    strength: 40,
+  });
+  expect(layered({ type: "gradient", spec: { stops: [{ color: "#112233" }, { color: "#ffffff" }, { color: "#445566" }] } })).toMatchObject({
+    kind: "gradient",
+    gradient: "custom",
+    colours: ["#112233", "#445566"],
+  });
+  expect(layered({ type: "image", id: "missing" })).toBeUndefined();
+  expect(layered({ type: "custom-gradient", css: "linear-gradient(red, blue)" })).toBeUndefined();
+});
+
+test("a stored appearance without a background loads as none, and a background is kept only when it is safe to paint", () => {
+  expect(parsePublishedAppearance(published())).not.toHaveProperty("background");
+  const background = (value: unknown) => parsePublishedAppearance(published({ background: value }))?.background;
+  expect(background({ kind: "none", image: "data:image/png;base64,AAAA" })).toBeUndefined();
+  expect(background({ kind: "image", image: "data:image/png;base64,AAAA", strength: 5 })).toEqual({
+    kind: "image",
+    gradient: "aurora",
+    colours: ["#6366f1", "#ec4899"],
+    image: "data:image/png;base64,AAAA",
+    strength: 10,
+  });
+  expect(background({ kind: "image", image: 'data:image/png;base64,AA");}html{display:none' })?.image).toBe("");
+  expect(background({ kind: "gradient", gradient: "custom", colours: ["red;}", "#000000"] })?.colours).toEqual(["#6366f1", "#ec4899"]);
+  expect(background({ kind: "gradient", gradient: "sunburst" })?.gradient).toBe("aurora");
 });
 
 test("a published appearance is total, gated, and refused only when it is not one", () => {

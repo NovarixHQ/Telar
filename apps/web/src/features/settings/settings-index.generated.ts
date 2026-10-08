@@ -32,6 +32,8 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Colour scheme","hint":"Light, dark, or whatever the system uses.","keywords":["light","dark","system","theme","mode"]},
       {"title":"Accent","hint":"The colour of buttons, links and the caret.","keywords":["colour","color","highlight","primary","hue"]},
       {"title":"Depth","hint":"How far cards, the composer and menus lift off the page.","keywords":["shadow","elevation","flat","soft","deep","raised"]},
+      {"title":"Background","hint":"A gradient or picture behind the whole window.","keywords":["wallpaper","image","picture","gradient","backdrop","photo"]},
+      {"title":"Strength","hint":"How strongly the background shows behind the interface.","keywords":["opacity","intensity","fade","wallpaper","backdrop"]},
     ] },
     { "title":"Typography", rows: [
       {"title":"Interface font","hint":"Everything outside code blocks and the terminal.","keywords":["font","typeface","text size","sans"]},

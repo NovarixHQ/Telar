@@ -157,10 +157,10 @@ describe("the settings row", () => {
     return { host, updates };
   }
 
-  test("wears the profile's own glyph rather than a generic person icon", async () => {
+  test("its marks show the profile's own glyph and colour rather than a generic person icon", async () => {
     const { host } = await mountSection();
-    const glyph = host.querySelector("svg.lucide-briefcase[style*='--subject-sea']");
-    expect(glyph).toBeTruthy();
+    expect(host.querySelector('[aria-label="Icon for Work"] svg.lucide-briefcase')).toBeTruthy();
+    expect(host.querySelector('[aria-label="Colour for Work"]')?.innerHTML).toContain("var(--subject-sea)");
   });
 
   test("each mark is written on its own, so setting one cannot clear the other", async () => {

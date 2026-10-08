@@ -1,6 +1,14 @@
 import type { EngineRequest, FileChangeKind } from "@telar/engine-client";
 
-export type RequestCard = { id: string; title: string; body?: string; mono: boolean; decidable: boolean };
+export type RequestCard = {
+  id: string;
+  symbol: string;
+  title: string;
+  cwd?: string;
+  preview?: { text: string; maxHeight: number };
+  note?: string;
+  decidable: boolean;
+};
 
 const KIND_VERB: Record<FileChangeKind, string> = { create: "Create", edit: "Edit", delete: "Delete", rename: "Rename" };
 
@@ -13,24 +21,30 @@ function pretty(value: unknown): string | undefined {
   }
 }
 
-/** What an open request asks, as the phone shows it above the composer. */
+/** `mcp__server__tool` reads as `tool`, as the transcript names it. */
+function toolName(name: string): string {
+  const parts = name.split("__");
+  return name.startsWith("mcp__") && parts.length >= 3 && parts[1] ? parts.slice(2).join("__") : name;
+}
+
+/** What an open request asks, with the Swift app's symbol and title for its kind. */
 function requestCard(request: EngineRequest): RequestCard {
-  const { detail } = request;
+  const { id, detail } = request;
   switch (detail.kind) {
     case "command_execution":
-      return { id: request.id, title: "Run a command", body: detail.command.cwd ? `${detail.command.command}\nin ${detail.command.cwd}` : detail.command.command, mono: true, decidable: true };
+      return { id, symbol: "terminal", title: "Run a command", ...(detail.command.cwd ? { cwd: detail.command.cwd } : {}), preview: { text: detail.command.command, maxHeight: 80 }, decidable: true };
     case "file_change":
-      return { id: request.id, title: `${KIND_VERB[detail.change.kind]} ${detail.change.path}`, ...(detail.change.unifiedDiff ? { body: detail.change.unifiedDiff } : {}), mono: true, decidable: true };
+      return { id, symbol: "pencil.line", title: `${KIND_VERB[detail.change.kind]} ${detail.change.path}`, ...(detail.change.unifiedDiff ? { preview: { text: detail.change.unifiedDiff, maxHeight: 160 } } : {}), decidable: true };
     case "file_read":
-      return { id: request.id, title: `Read ${detail.read.path}`, mono: true, decidable: true };
+      return { id, symbol: "doc.text", title: `Read ${detail.read.path}`, decidable: true };
     case "tool_call": {
       const input = pretty(detail.call.input);
-      return { id: request.id, title: `Use ${detail.call.name}`, ...(input ? { body: input } : {}), mono: true, decidable: true };
+      return { id, symbol: "wrench.and.screwdriver", title: toolName(detail.call.name), ...(input ? { preview: { text: input, maxHeight: 160 } } : {}), decidable: true };
     }
     case "user_input":
-      return { id: request.id, title: detail.prompt, body: "Answer this one on the computer for now.", mono: false, decidable: false };
+      return { id, symbol: "questionmark.bubble", title: "Question", note: detail.prompt, decidable: false };
     case "secret_access":
-      return { id: request.id, title: `Fill a login for ${detail.secret.origin}`, body: "Answer this one on the computer for now.", mono: false, decidable: false };
+      return { id, symbol: "key.fill", title: "Fill a login", cwd: detail.secret.origin, decidable: false };
   }
 }
 

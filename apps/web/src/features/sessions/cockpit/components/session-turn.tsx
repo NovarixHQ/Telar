@@ -17,13 +17,14 @@ import {
   WorkingIndicator,
   workedForLabel,
   withoutOpeningNotification,
+  AgentMarkdown,
   AgentMessageBubble,
   ConversationMessage,
 } from "@/features/transcript";
 import type { PanelTab } from "@/features/panel";
 import { cn } from "@/ui/utils";
 import { ApprovalCard } from "../../components/approval-card";
-import { Message, MessageContent, MessageMenu, MessageResponse } from "@/ui/message";
+import { Message, MessageContent, MessageMenu } from "@/ui/message";
 import { CodeSurface } from "@/ui/code-surface";
 import { describeTurnState, wakeUpLabel } from "../model";
 
@@ -256,7 +257,7 @@ function SessionTurnBody({
               ))}
             </>
           )}
-          {!streamedAnswer && turn.resultText && <MessageResponse>{turn.resultText}</MessageResponse>}
+          {!streamedAnswer && turn.resultText && <AgentMarkdown text={turn.resultText} onOpenFile={onOpenFile} />}
           {turn.failure && (
             <TurnFailureRow
               failure={turn.failure}

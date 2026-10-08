@@ -20,4 +20,5 @@ export {
   turnActivity,
   withoutOpeningNotification,
 } from "./model";
+export { AgentMarkdown } from "./components/agent-markdown";
 export { AgentMessageBubble, ConversationMessage } from "./components/conversation-message";

@@ -184,7 +184,16 @@ describe("the call sites #401 lists", () => {
     }
   });
 
-  test("the panel's tab strip: both arrows while there is a tab to step to, and the toggle always", async () => {
+  test("the masthead's panel toggle wears its chord, open or closed", async () => {
+    const { RailToggle } = await import("@/features/panel");
+    const closed = await mount(<RailToggle open={false} onToggle={() => {}} />);
+    const open = await mount(<RailToggle open onToggle={() => {}} />);
+    await hold(true);
+    expect(caps(closed).length).toBeGreaterThan(0);
+    expect(caps(open)).toEqual(caps(closed));
+  });
+
+  test("the panel's tab strip: both arrows while there is a tab to step to", async () => {
     const { RightPanel } = await import("@/features/panel");
     const panel = (tabs: PanelTabItem[]) =>
       mount(
@@ -194,8 +203,8 @@ describe("the call sites #401 lists", () => {
     const one = await panel([{ id: "editor", kind: "editor", params: {} } as PanelTabItem]);
     const two = await panel([{ id: "editor", kind: "editor", params: {} } as PanelTabItem, { id: "issues", kind: "issues", params: {} } as PanelTabItem]);
     await hold(true);
-    expect(hints(one)).toBe(1);
-    expect(hints(two)).toBe(3);
+    expect(hints(one)).toBe(0);
+    expect(hints(two)).toBe(2);
   });
 });
 

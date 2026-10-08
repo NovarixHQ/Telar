@@ -83,75 +83,34 @@ export function SettlingRows() {
     }),
   );
 
+  const settleControl = ({ value, fallback, label, key }: { value: number | null; fallback: number; label: string; key: "autoSettleAfterHours" | "settleDelegatedAfterHours" }) => (
+    <div className="flex items-center gap-3">
+      {value !== null && <WindowInput hours={value} label={`${label} after`} onCommit={(next) => void save({ [key]: next })} />}
+      <Switch checked={value !== null} disabled={loading} onCheckedChange={(next: boolean) => void save({ [key]: next ? fallback : null })} aria-label={label} />
+    </div>
+  );
+
   return (
     <>
       <Row
-        keywords={["inbox", "archive", "auto", "shelf", "settled", "unsettle", "restore", "hidden", "put away", "quiet"]}
+        keywords={["inbox", "archive", "auto", "shelf", "settled", "unsettle", "restore", "hidden", "put away", "quiet", "hours", "days", "window"]}
         label="Settle quiet sessions"
+        hint="Pinned sessions and open questions stay put."
         {...(error ? { error } : {})}
-        {...((hours === null) === (DEFAULT_INBOX_POLICY.autoSettleAfterHours === null)
+        {...(hours === DEFAULT_INBOX_POLICY.autoSettleAfterHours
           ? {}
           : { onRevert: () => void save({ autoSettleAfterHours: DEFAULT_INBOX_POLICY.autoSettleAfterHours }) })}
-        control={
-          <Switch
-            checked={hours !== null}
-            disabled={loading}
-            onCheckedChange={(next: boolean) => void save({ autoSettleAfterHours: next ? DEFAULT_AUTO_SETTLE_HOURS : null })}
-            aria-label="Settle quiet sessions"
-          />
-        }
+        control={settleControl({ value: hours, fallback: DEFAULT_AUTO_SETTLE_HOURS, label: "Settle quiet sessions", key: "autoSettleAfterHours" })}
       />
-      {hours !== null && (
-        <Row
-          keywords={["hours", "days", "window"]}
-          label="Settle quiet sessions after"
-          hint="Pinned sessions and open questions stay put."
-          {...(hours === DEFAULT_AUTO_SETTLE_HOURS
-            ? {}
-            : { onRevert: () => void save({ autoSettleAfterHours: DEFAULT_AUTO_SETTLE_HOURS }) })}
-          control={
-            <WindowInput
-              hours={hours}
-              label="How long a session must be quiet before it settles"
-              onCommit={(next) => void save({ autoSettleAfterHours: next })}
-            />
-          }
-        />
-      )}
       <Row
-        keywords={["delegated", "errand", "coordinator", "handoff", "result", "settle"]}
-        label="Settle delegated conversations after their result is delivered"
-        control={
-          <Switch
-            checked={delegated !== null}
-            disabled={loading}
-            onCheckedChange={(next: boolean) =>
-              void save({ settleDelegatedAfterHours: next ? DEFAULT_SETTLE_DELEGATED_AFTER_HOURS : null })
-            }
-            aria-label="Settle delegated conversations after their result is delivered"
-          />
-        }
-        {...((delegated === null) === (DEFAULT_INBOX_POLICY.settleDelegatedAfterHours === null)
+        keywords={["delegated", "errand", "coordinator", "handoff", "result", "settle", "hours", "days", "window"]}
+        label="Settle delegated sessions"
+        hint="Once their result is delivered. A failed errand, a pinned row and an open question all stay put."
+        {...(delegated === DEFAULT_INBOX_POLICY.settleDelegatedAfterHours
           ? {}
           : { onRevert: () => void save({ settleDelegatedAfterHours: DEFAULT_INBOX_POLICY.settleDelegatedAfterHours }) })}
+        control={settleControl({ value: delegated, fallback: DEFAULT_SETTLE_DELEGATED_AFTER_HOURS, label: "Settle delegated sessions", key: "settleDelegatedAfterHours" })}
       />
-      {delegated !== null && (
-        <Row
-          keywords={["hours", "days", "window", "delegated"]}
-          label="Settle delegated conversations after"
-          hint="A failed errand, a pinned row and an open question all stay put."
-          {...(delegated === DEFAULT_SETTLE_DELEGATED_AFTER_HOURS
-            ? {}
-            : { onRevert: () => void save({ settleDelegatedAfterHours: DEFAULT_SETTLE_DELEGATED_AFTER_HOURS }) })}
-          control={
-            <WindowInput
-              hours={delegated}
-              label="How long after delivery a delegated conversation settles"
-              onCommit={(next) => void save({ settleDelegatedAfterHours: next })}
-            />
-          }
-        />
-      )}
     </>
   );
 }

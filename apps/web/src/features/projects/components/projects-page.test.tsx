@@ -16,7 +16,8 @@ mock.module("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {}, back: () => {}, forward: () => {}, prefetch: () => {} }),
 }));
 
-const { ProjectConversationRows, ProjectIdentityRows, ProjectModelOptionsRow, ProjectsPage } = await import("./projects-page");
+const { ProjectConversationRows, ProjectIdentityRows, ProjectsPage } = await import("./projects-page");
+const { ProjectModelOptionsRow } = await import("./model-options-row");
 
 GlobalRegistrator.register({ url: "http://localhost/settings" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

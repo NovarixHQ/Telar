@@ -79,9 +79,9 @@ async function mount() {
 }
 
 const QUIET = "Settle quiet sessions";
-const DELEGATED = "Settle delegated conversations after their result is delivered";
-const QUIET_WINDOW = "How long a session must be quiet before it settles";
-const DELEGATED_WINDOW = "How long after delivery a delegated conversation settles";
+const DELEGATED = "Settle delegated sessions";
+const QUIET_WINDOW = "Settle quiet sessions after";
+const DELEGATED_WINDOW = "Settle delegated sessions after";
 
 test("each switch patches its own key only", async () => {
   const view = await mount();
@@ -91,7 +91,7 @@ test("each switch patches its own key only", async () => {
   view.done();
 });
 
-test("each duration appears only while its own switch is on, under its own anchor", async () => {
+test("each duration sits in its switch's row and appears only while the switch is on", async () => {
   policy = { ...policy, autoSettleAfterHours: null };
   const view = await mount();
   expect(view.labelled(QUIET_WINDOW)).toBeNull();
@@ -99,7 +99,7 @@ test("each duration appears only while its own switch is on, under its own ancho
   await view.click(view.labelled(DELEGATED));
   expect(view.labelled(DELEGATED_WINDOW)).toBeNull();
   await view.click(view.labelled(QUIET));
-  expect(view.host.querySelector(`#settings-row-organization-settle-quiet-sessions-after [aria-label="${QUIET_WINDOW}"]`)).not.toBeNull();
+  expect(view.host.querySelector(`#settings-row-organization-settle-quiet-sessions [aria-label="${QUIET_WINDOW}"]`)).not.toBeNull();
   view.done();
 });
 
@@ -109,7 +109,7 @@ test("the delegated window reverts to the protocol's default, an hour", async ()
   expect(DEFAULT_INBOX_POLICY.autoSettleAfterHours).not.toBe(DEFAULT_SETTLE_DELEGATED_AFTER_HOURS);
   policy = { ...policy, settleDelegatedAfterHours: 5 };
   const view = await mount();
-  await view.click(view.host.querySelector('#settings-row-organization-settle-delegated-conversations-after [aria-label="Revert to the default"]'));
+  await view.click(view.host.querySelector('#settings-row-organization-settle-delegated-sessions [aria-label="Revert to the default"]'));
   expect(patches).toEqual([{ settleDelegatedAfterHours: DEFAULT_SETTLE_DELEGATED_AFTER_HOURS }]);
   view.done();
 });

@@ -17,7 +17,8 @@ mock.module("next/navigation", () => ({
 
 const { PackagesPanel } = await import("@/features/plugins/components/packages-panel");
 const { Dropdown } = await import("./settings-shell");
-const { TextGenSection } = await import("@/features/providers/components/textgen-section");
+const { WorkspaceSection } = await import("@/features/projects/components/workspace-section");
+const { OrganizationSection } = await import("@/features/sessions/components/organization-section");
 const { DataScienceSection } = await import("@/features/plugins/data-science/data-science-section");
 
 test("the packages fields are Rows with names, not unlabelled blocks", () => {
@@ -65,7 +66,12 @@ test("a dropdown's trigger reads the chosen label, never the value", () => {
 });
 
 test("an enumeration setting is a dropdown, and a boolean is still a switch", async () => {
-  const view = await mountOffline(<TextGenSection />);
+  const view = await mountOffline(
+    <>
+      <WorkspaceSection />
+      <OrganizationSection />
+    </>,
+  );
   expect(view.host.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
   expect(view.host.querySelector("[aria-pressed]")).toBeNull();
   expect(view.host.querySelector('[role="switch"]')).not.toBeNull();

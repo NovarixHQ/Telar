@@ -10,7 +10,7 @@ import { LinksSection } from "./links-section";
 import { SECTIONS } from "../settings-sections";
 import { Row, SettingsGroup, ToggleRow } from "./settings-shell";
 import { TextGenSection } from "@/features/providers/components/textgen-section";
-import { WorkspaceSection } from "@/features/projects";
+import { WorkspaceSection } from "@/features/projects/components/workspace-section";
 
 test("a group's scope renders as a quiet label, with its meaning behind the ⓘ", () => {
   const html = renderToStaticMarkup(

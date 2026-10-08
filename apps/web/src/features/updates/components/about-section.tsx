@@ -91,6 +91,20 @@ export function AboutSection(build: BuildInfo) {
     </span>
   );
 
+  if (prefs && !prefs.configured) {
+    return (
+      <SettingsGroup title="About">
+        <BuildRows {...build} />
+        <Row
+          icon={MonitorIcon}
+          keywords={["upgrade", "download", "updates", "channel"]}
+          label="No update feed in this build"
+          hint="It was packaged locally, so it never checks for or installs updates."
+        />
+      </SettingsGroup>
+    );
+  }
+
   return (
     <SettingsGroup title="About">
       <BuildRows {...build} />
@@ -131,13 +145,6 @@ export function AboutSection(build: BuildInfo) {
           />
         }
       />
-      {prefs && !prefs.configured && (
-        <Row
-          icon={MonitorIcon}
-          label="No update feed in this build"
-          hint="This build was packaged locally, so nothing will check or install. Preferences are still saved."
-        />
-      )}
     </SettingsGroup>
   );
 }

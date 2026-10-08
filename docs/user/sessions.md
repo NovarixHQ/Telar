@@ -40,4 +40,4 @@ Shortcuts: ⌘1–⌘9 jump to the rows in your list (snoozed and settled rows a
 
 ## Titles
 
-Telar replaces the placeholder title with a short generated one, and can also rename the branch it created to match. It never changes a title you set yourself. Rename a session by double-clicking it. Settings → General → Text generation holds both switches and picks the provider, model and effort that write titles.
+Telar replaces the placeholder title with a short generated one and renames the branch it created to match. It never changes a title or branch you named yourself. Rename a session by double-clicking it. Settings → General → Naming turns this off and picks the provider, model and effort that write titles.

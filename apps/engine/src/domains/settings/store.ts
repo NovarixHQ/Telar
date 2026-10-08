@@ -287,10 +287,9 @@ export class SettingsStore {
   }
 
   /** A driver change drops the model: model ids mean nothing across harnesses. */
-  setTextGen(patch: { titles?: unknown; renameBranches?: unknown; driver?: unknown; model?: unknown; effort?: unknown }): TextGenPolicy {
+  setTextGen(patch: { titles?: unknown; driver?: unknown; model?: unknown; effort?: unknown }): TextGenPolicy {
     const next: TextGenPolicy = { ...this.textGen() };
     if (patch.titles !== undefined) next.titles = boolean(patch.titles, "titles must be a boolean");
-    if (patch.renameBranches !== undefined) next.renameBranches = boolean(patch.renameBranches, "renameBranches must be a boolean");
     if (patch.driver !== undefined) {
       if (!isBuiltInDriver(patch.driver)) {
         throw new EngineStateError("invalid_request", "text generation driver must be claude, codex or opencode");

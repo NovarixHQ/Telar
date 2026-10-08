@@ -61,7 +61,7 @@ export const settingsClient = {
   /** `model: null` returns to the driver's default; an absent field is left alone. */
   setTextGenPolicy(
     this: EngineTransport,
-    patch: { titles?: boolean; renameBranches?: boolean; driver?: ProviderDriverKind; model?: string | null; effort?: TextGenEffort | null },
+    patch: { titles?: boolean; driver?: ProviderDriverKind; model?: string | null; effort?: TextGenEffort | null },
   ): Promise<{ textGen: TextGenPolicy }> {
     return this.request("PATCH", "/v2/textgen", patch);
   },

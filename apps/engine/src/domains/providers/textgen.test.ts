@@ -98,7 +98,6 @@ describe("text generation policy", () => {
     const store = new EngineStore(tmp("telar-tg-state-"), () => 100);
     expect(store.settings.textGen()).toEqual(DEFAULT_TEXT_GEN_POLICY);
     expect(store.settings.setTextGen({ titles: false, model: "sonnet" })).toEqual({ ...DEFAULT_TEXT_GEN_POLICY, titles: false, model: "sonnet" });
-    expect(store.settings.setTextGen({ renameBranches: false }).model).toBe("sonnet");
     const swapped = store.settings.setTextGen({ driver: "codex" });
     expect(swapped.driver).toBe("codex");
     expect(swapped.model).toBeUndefined();
@@ -197,7 +196,7 @@ describe("each provider answers one bare call from an empty scratch directory", 
     fs.writeFileSync(path.join(config, "settings.json"), JSON.stringify({ env: { ANTHROPIC_BASE_URL: "https://gateway.test", ANTHROPIC_AUTH_TOKEN: "t0ken" } }));
     const cli = fakeCli("claude", `echo '{"structured_output":{"title":"Queue refill race"}}'`);
     const store: RegenerateStore = {
-      settings: { textGen: () => ({ titles: true, renameBranches: false, driver: "claude" }) },
+      settings: { textGen: () => ({ titles: true, driver: "claude" }) },
       records: { get: () => ({ title: "fix it", state: "active" }) },
       providers: { resolve: () => ({ enabled: true, binaryPath: cli.binaryPath, configDir: config, env: [{ name: "ANTHROPIC_BASE_URL", value: "https://instance.test" }] }) },
       queries: { items: () => [{ id: "item_1", runId: "run_one", sessionId: "session_one", status: "completed", detail: { type: "user_message", text: "fix it" }, startedAt: 1 } as Item] },
@@ -285,7 +284,7 @@ describe("maybeRetitleSession", () => {
     const calls: { generate: unknown[]; updates: { title: string }[]; renamed: string[] } = { generate: [], updates: [], renamed: [] };
     let title = overrides.title ?? "fix the thing";
     const store: RetitleStore = {
-      settings: { textGen: () => overrides.policy ?? { titles: true, renameBranches: true, driver: "claude", model: "haiku" } },
+      settings: { textGen: () => overrides.policy ?? { titles: true, driver: "claude", model: "haiku" } },
       records: { get: () => ({ title, state: "active" }) },
       providers: { resolve: () => ({ enabled: true, env: [{ name: "A", value: "b" }] }) },
       catalogues: { cachedRows: () => overrides.rows?.map((id) => ({ id })) },
@@ -318,7 +317,7 @@ describe("maybeRetitleSession", () => {
 
   test("a provider with its own config dir titles as that account, not the ambient one", async () => {
     const store: RetitleStore = {
-      settings: { textGen: () => ({ titles: true, renameBranches: false, driver: "claude", model: "haiku" }) },
+      settings: { textGen: () => ({ titles: true, driver: "claude", model: "haiku" }) },
       records: { get: () => ({ title: "fix the thing", state: "active" }) },
       providers: { resolve: () => ({ enabled: true, configDir: "/tmp/claude-work", env: [] }) },
       lifecycle: { updateSession: () => undefined, refreshWorktreeBranchFromTitle: () => undefined },
@@ -333,7 +332,7 @@ describe("maybeRetitleSession", () => {
   });
 
   test("OpenCode titles with the cheapest model it lists when the stored one is not an OpenCode id", async () => {
-    const { calls, run } = harness({ policy: { titles: true, renameBranches: true, driver: "opencode", model: "haiku" }, rows: ["google/gemini-3.1-pro", "anthropic/claude-haiku-4-5"] });
+    const { calls, run } = harness({ policy: { titles: true, driver: "opencode", model: "haiku" }, rows: ["google/gemini-3.1-pro", "anthropic/claude-haiku-4-5"] });
     await run();
     expect(calls.generate[0]).toMatchObject({ driver: "opencode", model: "anthropic/claude-haiku-4-5" });
     expect(calls.updates).toEqual([{ title: "A Real Title" }]);
@@ -347,7 +346,7 @@ describe("maybeRetitleSession", () => {
   });
 
   test("switched off, it does not even ask", async () => {
-    const { calls, run } = harness({ policy: { titles: false, renameBranches: true, driver: "claude" } });
+    const { calls, run } = harness({ policy: { titles: false, driver: "claude" } });
     await run();
     expect(calls.generate).toHaveLength(0);
   });
@@ -374,11 +373,11 @@ describe("maybeRetitleSession", () => {
     expect(calls.renamed).toHaveLength(0);
   });
 
-  test("branch renaming honours its own switch", async () => {
-    const { calls, run } = harness({ policy: { titles: true, renameBranches: false, driver: "claude" } });
+  test("a generated title renames the engine's branch to match", async () => {
+    const { calls, run } = harness({ policy: { titles: true, driver: "claude" } });
     await run();
     expect(calls.updates).toHaveLength(1);
-    expect(calls.renamed).toHaveLength(0);
+    expect(calls.renamed).toEqual(["session_one"]);
   });
 });
 
@@ -393,7 +392,7 @@ describe("regenerateSessionTitle", () => {
     else process.env.TELAR_TEXTGEN = previous;
   });
 
-  type Overrides = Partial<{ title: string; titleAfter: string; answer: Record<string, unknown> | undefined; failure: string; items: Item[]; renameBranches: boolean }>;
+  type Overrides = Partial<{ title: string; titleAfter: string; answer: Record<string, unknown> | undefined; failure: string; items: Item[] }>;
 
   const item = (index: number, detail: Item["detail"]): Item =>
     ({ id: `item_${index}`, runId: "run_one", sessionId: "session_one", status: "completed", detail, startedAt: index }) as Item;
@@ -407,7 +406,7 @@ describe("regenerateSessionTitle", () => {
     const calls: { prompts: string[]; inputs: unknown[]; updates: { title: string }[]; renamed: string[] } = { prompts: [], inputs: [], updates: [], renamed: [] };
     let title = overrides.title ?? "My own name";
     const store: RegenerateStore = {
-      settings: { textGen: () => ({ titles: false, renameBranches: overrides.renameBranches ?? true, driver: "claude", model: "haiku", effort: "medium" }) },
+      settings: { textGen: () => ({ titles: false, driver: "claude", model: "haiku", effort: "medium" }) },
       records: { get: () => ({ title, state: "active" }) },
       providers: { resolve: () => ({ enabled: true, env: [] }) },
       queries: { items: () => overrides.items ?? conversation },
@@ -472,11 +471,5 @@ describe("regenerateSessionTitle", () => {
     const { calls, run } = harness({ items: [] });
     await expect(run()).rejects.toThrow(EngineStateError);
     expect(calls.inputs).toHaveLength(0);
-  });
-
-  test("branch renaming honours its own switch", async () => {
-    const { calls, run } = harness({ renameBranches: false });
-    await run();
-    expect(calls.renamed).toHaveLength(0);
   });
 });

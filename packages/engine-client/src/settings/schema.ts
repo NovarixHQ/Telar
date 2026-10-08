@@ -62,16 +62,15 @@ export const TextGenEffort = z.enum(["low", "medium", "high"]);
 export type TextGenEffort = z.infer<typeof TextGenEffort>;
 
 export const TextGenPolicy = z.object({
+  /** Also renames the engine-cut `telar/…` branch to match, never one a human named. */
   titles: z.boolean(),
-  /** Renames only engine-cut `telar/…` branches, never one a human named. */
-  renameBranches: z.boolean(),
   driver: ProviderDriverKind,
   model: z.string().min(1).max(120).optional(),
   effort: TextGenEffort.optional(),
 });
 export type TextGenPolicy = z.infer<typeof TextGenPolicy>;
 
-export const DEFAULT_TEXT_GEN_POLICY: TextGenPolicy = { titles: true, renameBranches: true, driver: "claude", model: "haiku" };
+export const DEFAULT_TEXT_GEN_POLICY: TextGenPolicy = { titles: true, driver: "claude", model: "haiku" };
 
 export const SimulatorSettings = z.object({
   enabled: z.boolean(),

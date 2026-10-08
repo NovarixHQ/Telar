@@ -15,8 +15,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
     { "title":"Naming", rows: [
       {"title":"Written by","hint":"The provider, model and effort that name sessions and branches.","keywords":["claude","codex","opencode","driver","title model","textgen","reasoning","thinking","effort"]},
-      {"title":"Name sessions","keywords":["title","rename","automatic"]},
-      {"title":"Name branches","hint":"Renames branches the engine cut to match the session. Yours keep their names.","keywords":["git","branch name","title","rename branches"]},
+      {"title":"Name sessions","hint":"Titles each session from its first message and renames the branch Telar cut for it to match.","keywords":["title","rename","automatic","git","branch name","rename branches"]},
     ] },
     { "title":"Notifications", rows: [
       {"title":"Desktop notifications","hint":"A banner when a session finishes, fails, or needs your input or approval.","keywords":["alerts","banner","desktop notifications","notify","sound","finished","failed","approval"]},

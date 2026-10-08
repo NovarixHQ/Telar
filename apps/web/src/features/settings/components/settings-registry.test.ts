@@ -20,7 +20,8 @@ test("no two rows claim the same anchor", () => {
 
 test("the questions a person actually types find the row", () => {
   const first = (query: string) => searchSettings(SETTINGS_SEARCH_INDEX, query)[0]?.title;
-  expect(first("settle")).toBe("Settle quiet sessions");
+  expect(first("settle")).toBe("Settle sessions");
+  expect(first("rename branch")).toBe("Name sessions");
   // A title that starts with the word leads; the cleanup row is still found.
   expect(first("worktree")).toBe("Worktree preparation");
   expect(searchSettings(SETTINGS_SEARCH_INDEX, "worktree").map((hit) => hit.title)).toContain("Remove worktrees");
@@ -39,11 +40,10 @@ test("every indexed row is declared on the pane that actually renders it", () =>
     "Device hub": "integrations",
     "Browser profiles": "integrations",
     "Add a computer": "connections",
-    "Name branches": "general",
-    "Terminals settled sessions may keep open": "general",
+    "Name sessions": "general",
     "Desktop notifications": "general",
     "Continue after Telar restarts": "general",
-    "Settle quiet sessions": "general",
+    "Settle sessions": "general",
     Providers: "providers",
   };
   for (const [title, pageId] of Object.entries(paneOf)) {

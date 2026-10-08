@@ -2,69 +2,76 @@ import fs from "node:fs";
 import path from "node:path";
 import { statePaths } from "../../platform/fs/state-paths";
 
-function directorySize(directory: string): { bytes: number; files: number } {
+function sizeOf(target: string): { bytes: number; files: number } {
+  let stat: fs.Stats;
+  try {
+    stat = fs.lstatSync(target);
+  } catch {
+    return { bytes: 0, files: 0 };
+  }
+  if (!stat.isDirectory()) return { bytes: stat.size, files: 1 };
   let bytes = 0;
   let files = 0;
-  let entries: fs.Dirent[];
+  let names: string[];
   try {
-    entries = fs.readdirSync(directory, { withFileTypes: true });
+    names = fs.readdirSync(target);
   } catch {
     return { bytes, files };
   }
-  for (const entry of entries) {
-    const full = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      const inner = directorySize(full);
-      bytes += inner.bytes;
-      files += inner.files;
-      continue;
-    }
-    try {
-      bytes += fs.statSync(full).size;
-      files += 1;
-    } catch {
-    }
+  for (const name of names) {
+    const inner = sizeOf(path.join(target, name));
+    bytes += inner.bytes;
+    files += inner.files;
   }
   return { bytes, files };
 }
 
-type SweptDirectory = { what: string; bytes: number; files: number };
+type SweptPath = { what: string; bytes: number; files: number };
 
 export type DecommissionSweep = {
-  removed: SweptDirectory[];
+  removed: SweptPath[];
+  why: string;
 };
 
-export function sweepSpoolAndLooms(engineRoot: string): DecommissionSweep {
-  const resolved = path.resolve(engineRoot);
-  const marker = statePaths(resolved).decommissionMarker;
-  if (fs.existsSync(marker)) return { removed: [] };
-
-  const targets: { what: string; directory: string }[] = [
-    { what: "the Spool's store", directory: path.join(resolved, "spool") },
-    { what: "the Looms", directory: path.join(path.dirname(resolved), "looms") },
-  ];
-
-  const removed: SweptDirectory[] = [];
+/** Deletes each target, then writes `marker` so later starts skip it; a target that will not go is retried next start. */
+function sweepOnce(engineRoot: string, marker: string, why: string, targets: { what: string; path: string }[]): DecommissionSweep {
+  if (fs.existsSync(marker)) return { removed: [], why };
+  const removed: SweptPath[] = [];
   let failed = false;
-  for (const { what, directory } of targets) {
-    if (!fs.existsSync(directory)) continue;
-    const { bytes, files } = directorySize(directory);
+  for (const target of targets) {
+    if (!fs.existsSync(target.path)) continue;
+    const { bytes, files } = sizeOf(target.path);
     try {
-      fs.rmSync(directory, { recursive: true, force: true });
-      removed.push({ what, bytes, files });
+      fs.rmSync(target.path, { recursive: true, force: true });
+      removed.push({ what: target.what, bytes, files });
     } catch {
       failed = true;
     }
   }
-
   if (!failed) {
     try {
-      fs.mkdirSync(resolved, { recursive: true });
+      fs.mkdirSync(engineRoot, { recursive: true });
       fs.writeFileSync(marker, `${new Date().toISOString()}\n`, "utf8");
     } catch {
     }
   }
-  return { removed };
+  return { removed, why };
+}
+
+export function sweepSpoolAndLooms(engineRoot: string): DecommissionSweep {
+  const resolved = path.resolve(engineRoot);
+  return sweepOnce(resolved, statePaths(resolved).decommissionMarker, "the Spool and the Looms are decommissioned (#501)", [
+    { what: "the Spool's store", path: path.join(resolved, "spool") },
+    { what: "the Looms", path: path.join(path.dirname(resolved), "looms") },
+  ]);
+}
+
+export function sweepNotes(engineRoot: string): DecommissionSweep {
+  const paths = statePaths(path.resolve(engineRoot));
+  return sweepOnce(paths.root, paths.notesRemovedMarker, "project notes were removed from Telar", [
+    { what: "the project notes", path: path.join(paths.root, "notes") },
+    { what: "the notes socket's secret", path: path.join(paths.root, "notes-mcp-secret.json") },
+  ]);
 }
 
 export function sweepReport(sweep: DecommissionSweep): string | undefined {
@@ -73,7 +80,7 @@ export function sweepReport(sweep: DecommissionSweep): string | undefined {
     const size = bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.ceil(bytes / 1000)} KB`;
     return `${what} (${files.toLocaleString("en-US")} ${files === 1 ? "file" : "files"}, ${size})`;
   });
-  return `Telar engine: removed ${parts.join(" and ")} — the Spool and the Looms are decommissioned (#501)`;
+  return `Telar engine: removed ${parts.join(" and ")} — ${sweep.why}`;
 }
 
 export type AgentRetirement =

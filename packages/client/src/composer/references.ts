@@ -3,6 +3,9 @@ export const REFERENCE_MIME = "application/x-telar-reference+json";
 
 export type ReferenceKind = "issue" | "pull" | "file" | "page" | "task" | "check" | "skill" | "session";
 
+/** The two slots of a drag payload these functions use; a DOM `DataTransfer` is one. */
+export type ReferenceSlots = { setData(type: string, data: string): void; getData(type: string): string; effectAllowed?: string };
+
 export type TelarReference = {
   kind: ReferenceKind;
   label: string;
@@ -132,13 +135,13 @@ export function taskReference(task: { id: string; title?: string; state: string 
   return { kind: "task", label: name, text: `the "${name}" sub-agent (${task.state})` };
 }
 
-export function startReferenceDrag(transfer: DataTransfer, reference: TelarReference): void {
+export function startReferenceDrag(transfer: ReferenceSlots, reference: TelarReference): void {
   transfer.setData(REFERENCE_MIME, JSON.stringify(reference));
   transfer.setData("text/plain", reference.text);
   transfer.effectAllowed = "copy";
 }
 
-export function readReferenceDrag(transfer: DataTransfer): TelarReference | undefined {
+export function readReferenceDrag(transfer: ReferenceSlots): TelarReference | undefined {
   const raw = transfer.getData(REFERENCE_MIME);
   if (!raw) return undefined;
   try {

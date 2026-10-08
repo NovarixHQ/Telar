@@ -6,11 +6,11 @@ import { MAX_THREAD_COMMENTS, parseComments, parseReviews } from "./threads";
 import { failed, ok, runner } from "./test-helpers";
 
 describe("classifyGhFailure", () => {
-  test("tells the five kinds of nothing apart", () => {
+  test("tells the six kinds of nothing apart", () => {
     expect(classifyGhFailure(failed("", 127)).unavailable).toBe("not_installed");
     expect(classifyGhFailure(failed("gh: To get started with GitHub CLI, please run: gh auth login")).unavailable).toBe("not_authenticated");
     expect(classifyGhFailure(failed("failed to run git: fatal: not a git repository")).unavailable).toBe("no_repository");
-    expect(classifyGhFailure(failed("failed to run git: no git remotes found")).unavailable).toBe("no_repository");
+    expect(classifyGhFailure(failed("no git remotes found")).unavailable).toBe("no_remote");
   });
 
   test("A CHECKOUT THAT DOES NOT EXIST ON THIS MACHINE IS NOT A MISSING `gh`", async () => {

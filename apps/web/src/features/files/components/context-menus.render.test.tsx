@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ContextMenu } from "@/ui/context-menu";
 import { RightPanel, type PanelTabItem } from "@/features/panel";
 import { click, flush, installTestDom, mount, stubFetch } from "@/test/dom";
-import { directoryReference, fileReference, type TelarReference } from "@/features/composer/drag-reference";
+import { directoryReference, fileReference, type TelarReference } from "@telar/client/composer";
 import type { EditorState } from "../editor-workspace";
 import { nativeViewOverlayHidden } from "@/platform/desktop/native-view-overlay";
 import type { WorkspaceFileMenu } from "../workspace-open";
@@ -319,7 +319,7 @@ describe("the right panel's tab strip", () => {
   async function mountPanel(tabs: PanelTabItem[] = TABS, extra: Partial<React.ComponentProps<typeof RightPanel>> = {}) {
     const closed: string[] = [];
     const { host } = await mount(
-      <RightPanel sessionId="s1" projectId="p1" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={(id) => closed.push(id)} onClose={() => {}} {...extra} />,
+      <RightPanel sessionId="s1" projectId="p1" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={(id) => closed.push(id)} {...extra} />,
     );
     const chip = (index: number) => host.querySelectorAll('[role="tab"]')[index]!;
     return { host, closed, chip };

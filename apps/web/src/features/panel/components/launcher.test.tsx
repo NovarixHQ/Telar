@@ -28,7 +28,7 @@ async function panel({ tabs = [], browserUnavailable }: { tabs?: PanelTabItem[];
       onOpenBrowser={() => opened.push("browser")}
       {...(browserUnavailable ? { browserUnavailable } : {})}
       onCloseTab={() => {}}
-      onClose={() => {}}
+     
     />,
   );
   return { ...view, opened };

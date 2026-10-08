@@ -37,12 +37,10 @@ function ChildrenToggle({ summary, count, open, onToggle }: { summary: ChildSumm
 
 function FlatRow({
   session,
-  variant,
   context,
   disclosure,
 }: {
   session: SidebarSession;
-  variant: "card" | "slim";
   context: RowContext;
   disclosure?: React.ReactNode;
 }) {
@@ -53,7 +51,6 @@ function FlatRow({
       session={session}
       active={key === context.activeSessionId}
       showProject
-      variant={variant}
       band={context.bandFor(session)}
       renderedAt={context.renderedAt}
       onRowChanged={context.onRowChanged}
@@ -69,11 +66,11 @@ function FlatEntryItem({ entry, open, onToggle, context }: { entry: FlatEntry; o
   const disclosure = summary && <ChildrenToggle summary={summary} count={entry.children.length} open={open} onToggle={onToggle} />;
   return (
     <div>
-      <FlatRow session={entry.session} variant="card" context={context} {...(disclosure ? { disclosure } : {})} />
+      <FlatRow session={entry.session} context={context} {...(disclosure ? { disclosure } : {})} />
       {shown.length > 0 && (
         <div className="ml-3" role="group" aria-label={`Started from ${entry.session.title || "this session"}`}>
           {shown.map((child) => (
-            <FlatRow key={sessionKey(child)} session={child} variant="slim" context={context} />
+            <FlatRow key={sessionKey(child)} session={child} context={context} />
           ))}
         </div>
       )}

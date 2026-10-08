@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { chipBasename, chipIsDirectory, chipPath, detectComposerTrigger, replaceTextRange, segmentDraft } from "./tokens";
-import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, pageReference, pullReference, sessionReference, skillReference, taskReference } from "./drag-reference";
+import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, pageReference, pullReference, sessionReference, skillReference, taskReference } from "@telar/client/composer";
 
 describe("what the caret is in the middle of", () => {
   test("an at-sign opens the path menu and carries what follows it", () => {

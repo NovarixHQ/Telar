@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { GitHubIssue, GitOverview } from "@telar/engine-client";
-import { readDraft, writeDraft, insertReference } from "@/features/composer";
+import { readDraft, writeDraft } from "@/features/composer";
+import { insertReference } from "@telar/client/composer";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { canvasHref } from "@/features/sessions";
 import { issueSessionStart } from "../model";

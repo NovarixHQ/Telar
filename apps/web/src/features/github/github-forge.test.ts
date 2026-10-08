@@ -307,7 +307,7 @@ describe("an author's avatar", () => {
 
 describe("the sentences", () => {
   test("every way a read can be unavailable has one, and every refusal too", () => {
-    for (const reason of ["not_installed", "not_authenticated", "no_repository", "not_github", "not_found", "failed"] as const) {
+    for (const reason of ["not_installed", "not_authenticated", "no_repository", "no_remote", "not_github", "not_found", "failed"] as const) {
       expect(UNAVAILABLE[reason].title.length).toBeGreaterThan(0);
     }
     for (const refusal of ["not_open", "conflicted", "blocked", "head_moved", "method_not_allowed", "not_permitted", "failed"] as const) {

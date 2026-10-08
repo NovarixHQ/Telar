@@ -2,7 +2,7 @@ import { EngineClientError, type EngineClient, type PushRelayStatus } from "@tel
 import { fail, ok, type Route } from "../../platform/http/route";
 import { desktopInUse, desktopStream, handleDesktopMessage, noteConnectedMac } from "./desktop";
 import { isNotificationSounds, isNotifyOn, readNotifyOn, readSounds, writeNotifyOn, writeSounds } from "./prefs";
-import { activityReport, parseRegistration, pushAvailable, pushConfigured, PushInputError, readPushRecords, saveRegistration } from "./push";
+import { activityReport, parseRegistration, pushAvailable, pushConfigured, PushInputError, readPushRecords, saveRegistration, writePushRecords } from "./push";
 import { clearedSessions, parseReadStateIds } from "./read-sync";
 import { pushPausedUntil, sendRelayTest, startMobilePushWorker } from "./worker";
 
@@ -60,6 +60,10 @@ export function pushRoutes(deps: PushRouteDeps): Route[] {
       path: /^\/v2\/push\/devices\/([^/]+)$/,
       auth: "engine",
       handle({ body, params: [deviceId] }) {
+        if (body.simulator === true) {
+          writePushRecords(readPushRecords().filter((record) => record.deviceId !== deviceId));
+          return ok({ configured: false });
+        }
         let registration;
         try {
           registration = parseRegistration(body);

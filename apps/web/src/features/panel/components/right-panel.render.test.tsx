@@ -52,7 +52,7 @@ const render = (tabs: PanelTabItem[], active?: string) =>
       onTabChange={() => {}}
       onOpenTab={() => {}}
       onCloseTab={() => {}}
-      onClose={() => {}}
+     
     />,
   );
 

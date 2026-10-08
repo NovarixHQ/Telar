@@ -144,7 +144,7 @@ describe("the call sites #401 lists", () => {
     const session = { id: "session_1", title: "Exoplanets", projectId: "p1", activity: "idle", createdAt: 1, updatedAt: 1 } as SidebarSession;
     return mount(
       <SidebarProvider>
-        <SessionRow session={session} active={false} showProject={false} variant="card" jumpSlot={1} renderedAt={1} onRowChanged={() => {}} />
+        <SessionRow session={session} active={false} showProject={false} jumpSlot={1} renderedAt={1} onRowChanged={() => {}} />
       </SidebarProvider>,
     );
   }
@@ -207,7 +207,7 @@ describe("the call sites #401 lists", () => {
     const { RightPanel } = await import("@/features/panel");
     const panel = (tabs: PanelTabItem[]) =>
       mount(
-        <RightPanel sessionId="session_a" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />,
+        <RightPanel sessionId="session_a" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} />,
       );
     const hints = (host: HTMLElement) => host.querySelectorAll("[data-slot=key-hint]").length;
     const one = await panel([{ id: "editor", kind: "editor", params: {} } as PanelTabItem]);

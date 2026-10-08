@@ -17,6 +17,9 @@ struct PushRegistration: Encodable {
     var hostName: String? = nil
     var relay: RelayCredential? = nil
     var relayCard = true
+    #if targetEnvironment(simulator)
+    var simulator = true
+    #endif
 }
 struct PushStatus: Decodable {
     var configured: Bool

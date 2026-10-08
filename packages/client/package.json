@@ -6,7 +6,8 @@
   "exports": {
     "./journal": "./src/journal/index.ts",
     "./journal/fixtures": "./src/journal/fixtures.ts",
-    "./providers": "./src/providers/index.ts"
+    "./providers": "./src/providers/index.ts",
+    "./composer": "./src/composer/references.ts"
   },
   "scripts": {
     "test": "bun test --timeout 20000",

@@ -1,5 +1,5 @@
 import type { GitHubCheck, GitHubIssueFilter, GitHubMergeMethod, GitHubPullFilter, GitOverview } from "@telar/engine-client";
-import { issueReference } from "@/features/composer";
+import { issueReference } from "@telar/client/composer";
 import type { ForgeFilterChip } from "./github-forge";
 import { canvasHref } from "@/features/sessions";
 import { awayReason, isAway } from "@/features/projects";

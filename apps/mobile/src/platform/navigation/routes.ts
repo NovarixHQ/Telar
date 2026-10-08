@@ -5,5 +5,5 @@ export type RootStack = {
   Pair: { link?: string } | undefined;
   Sessions: { hostId: string; hostName?: string };
   Diff: { hostId: string; sessionId: string };
-  Session: { hostId: string; sessionId: Session["id"]; title?: string };
+  Session: { hostId: string; sessionId: Session["id"]; title?: string; draft?: string };
 };

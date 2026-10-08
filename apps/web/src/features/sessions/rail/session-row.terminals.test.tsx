@@ -46,7 +46,6 @@ const row = (over: Record<string, unknown>, terminals: Record<string, number>, {
         session={toSidebarSession(liveRow(over), "exoplanets", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, terminals["session_1"])}
         active={false}
         showProject={false}
-        variant={band === "settled" ? "slim" : "card"}
         {...(band ? { band } : {})}
         renderedAt={NOW}
         onRowChanged={() => {}}

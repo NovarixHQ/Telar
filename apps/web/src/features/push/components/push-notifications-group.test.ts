@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
-import { click, flush, mount, stubFetch, installTestDom } from "@/test/dom";
+import { click, flush, mount, press, stubFetch, installTestDom } from "@/test/dom";
 import { detailLines, deviceLine, NOT_REGISTERED, NOTIFY_ON_LABELS, pausedLine, phoneRow, phoneSummary, PushNotificationsGroup, relayHeadline, testLine } from "./push-notifications-group";
 import { DEFAULT_NOTIFY_ON, NOTIFY_ON_VALUES, type NotifyOn, type PushRelayStatus } from "@telar/engine-client";
 import { SETTINGS_SEARCH_INDEX } from "@/features/settings";
@@ -24,8 +24,17 @@ async function mountPane(status: PushRelayStatus, notifyOn: NotifyOn = "both", s
 describe("Notify on", () => {
   test("offers exactly the server's three answers, in the owner's words, default first", () => {
     expect(Object.keys(NOTIFY_ON_LABELS)).toEqual([...NOTIFY_ON_VALUES]);
-    expect(Object.values(NOTIFY_ON_LABELS)).toEqual(["This computer when active", "iPhone only", "Both"]);
-    expect(NOTIFY_ON_LABELS[DEFAULT_NOTIFY_ON]).toBe("This computer when active");
+    expect(NOTIFY_ON_LABELS[DEFAULT_NOTIFY_ON]).toBe("Active device");
+  });
+
+  test("the select shows the stored answer and lists one short phrase per answer", async () => {
+    const { host, unmount } = await mountPane({ configured: true, devices: [] }, "mac");
+    const trigger = host.querySelector('[aria-label="Notify on"]')!;
+    expect(trigger.textContent).toContain("Active device");
+    await press(trigger);
+    const options = [...document.querySelectorAll('[role="option"]')].map((option) => option.textContent?.trim());
+    expect(options).toEqual(["Active device", "iPhone only", "Both"]);
+    unmount();
   });
 
   test("the row shows the stored choice where search points, and reverting writes the default", async () => {
@@ -36,7 +45,7 @@ describe("Notify on", () => {
       await click(host.querySelector('[aria-label="Revert to the default"]')!);
       expect(calls.filter((call) => call.route.startsWith("PUT")).map((call) => call.body)).toEqual([{ notifyOn: "mac" }]);
       // A refused write shows the stored value again, and says so.
-      expect(host.textContent).toContain(saves ? "This computer when active" : "Couldn't save. Try again.");
+      expect(host.textContent).toContain(saves ? "Active device" : "Couldn't save. Try again.");
       expect(host.textContent?.includes("Both")).toBe(!saves);
       unmount();
     }

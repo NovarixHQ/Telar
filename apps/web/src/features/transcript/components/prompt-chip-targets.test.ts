@@ -10,7 +10,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import { panelTabFor } from "./prompt-text";
-import { checkReference, directoryReference, fileReference, issueReference, pageReference, pullReference, taskReference } from "@/features/composer/drag-reference";
+import { checkReference, directoryReference, fileReference, issueReference, pageReference, pullReference, taskReference } from "@telar/client/composer";
 
 describe("panelTabFor", () => {
   test("an issue and a pull request open their own tab, by number", () => {

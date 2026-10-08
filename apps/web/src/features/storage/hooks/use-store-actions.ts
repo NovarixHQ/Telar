@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { chooseDirectory } from "@/platform/desktop/choose-directory";
 import { createEngineApi } from "@/platform/engine";
-import { formatBytes } from "@/ui/format";
+import { formatBytes, plural } from "@/ui/format";
 import { desktopStore } from "../desktop-store";
 
 const api = createEngineApi();
@@ -26,7 +26,7 @@ export function useStoreActions(refresh: () => void) {
     try {
       const destination = `${chosen.path.replace(/\/$/, "")}/telar-store-${new Date().toISOString().replace(/[:.]/g, "-")}`;
       const { copy } = await api.copyStore(destination);
-      setCopied(`Copied ${copy.files.toLocaleString()} files (${formatBytes(copy.bytes)}) to ${copy.root}.`);
+      setCopied(`Copied ${plural(copy.files, "file")} (${formatBytes(copy.bytes)}) to ${copy.root}.`);
     } catch (cause) {
       setFailure(cause instanceof Error ? cause.message : "Telar could not write the copy.");
     } finally {

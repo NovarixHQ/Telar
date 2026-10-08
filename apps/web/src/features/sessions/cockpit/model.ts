@@ -1,7 +1,7 @@
 import { BotIcon, ClockIcon, TerminalIcon } from "lucide-react";
 import { pluginEnabled, readProjectPlugins, type TurnState } from "@telar/engine-client";
 import type { JournalTask, JournalTurn } from "@telar/client/journal";
-import { insertReference } from "@/features/composer";
+import { insertReference } from "@telar/client/composer";
 import { nextPanelTabId, revealPanelTab, setPanelTabParams, type PanelTab, type PanelTabState } from "@/features/panel";
 import { SIMULATOR_SURFACE, withSimulatorShown } from "@/features/simulators";
 

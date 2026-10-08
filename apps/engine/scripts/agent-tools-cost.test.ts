@@ -21,11 +21,11 @@ test("an Anthropic request with full schemas counts only Telar's tools", () => {
 });
 
 test("deferred Telar tools are counted once by name from the messages", () => {
-  const listing = "mcp__telar__sessions_read\nmcp__telar__notes_list\nmcp__telar__sessions_read";
+  const listing = "mcp__telar__sessions_read\nmcp__telar__prompt_list\nmcp__telar__sessions_read";
   const cost = telarToolCost({ tools: [{ name: "ToolSearch" }], messages: [{ role: "system", content: [{ type: "text", text: listing }] }] });
   expect(cost.fullSchemas).toBe(0);
   expect(cost.deferredNames).toBe(2);
-  expect(cost.deferredNameBytes).toBe("mcp__telar__sessions_read\nmcp__telar__notes_list".length);
+  expect(cost.deferredNameBytes).toBe("mcp__telar__sessions_read\nmcp__telar__prompt_list".length);
 });
 
 test("OpenAI chat tools are named through their function", () => {

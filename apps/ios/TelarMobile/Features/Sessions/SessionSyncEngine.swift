@@ -267,6 +267,7 @@ enum SyncConnectionState: Equatable {
     }
 
     private func fail(_ error: Error) {
+        if HostAddresses.isCancellation(error) { return }
         if let apiError = error as? EngineAPIError, apiError.isNotFound {
             connection = .gone
 

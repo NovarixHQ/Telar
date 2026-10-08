@@ -35,7 +35,6 @@ export {
   issueReference,
   lineRangeReference,
   type LineSide,
-  noteReference,
   pullReference,
   sessionReference,
   startReferenceDrag,

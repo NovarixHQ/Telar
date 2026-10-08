@@ -21,7 +21,7 @@ Use these words. When you name things in code, use them too.
 - **turn**: one message plus everything the agent did to answer it. **Run**: a turn's id.
 - **journal**: the durable per-session event log (SQLite). **Items**: the rows the transcript is folded from.
 - **provider**: an agent runtime (Claude Code, Codex, OpenCode). **Driver**: the engine code that runs one.
-- **agent tools**: the MCP tools Telar gives agents (`sessions_*`, `notes_*`, `prompt_*`, `display_*`, `terminal_*`, browser tools). They are assembled once by `telarWall`.
+- **agent tools**: the MCP tools Telar gives agents (`sessions_*`, `prompt_*`, `display_*`, `terminal_*`, browser tools). They are assembled once by `telarWall`.
 - **request**: a permission prompt parked for a person (the permission gate).
 - **steering**: a message sent into a turn that is already running.
 - **Switch provider**: moving a session to another provider mid-conversation; the new provider gets the turns it has not seen as context.
@@ -41,7 +41,7 @@ Use these words. When you name things in code, use them too.
 - `packages/engine-client`: the engine's protocol (zod schemas) and typed HTTP client. It is the only contract between the apps.
 - `workers/push-relay`, `workers/updates-proxy`: Cloudflare Workers for push and desktop updates.
 
-Every feature belongs to a **domain**: one folder, with the same name in every app. The domains are `sessions turns projects worktrees providers agent-tools plugins computer-use files git github terminal browser simulators remote hosts push appearance settings dictation notes prompts usage schedules storage updates`.
+Every feature belongs to a **domain**: one folder, with the same name in every app. The domains are `sessions turns projects worktrees providers agent-tools plugins computer-use files git github terminal browser simulators remote hosts push appearance settings dictation prompts usage schedules storage updates`.
 - Engine: `src/domains/<name>/`.
 - Web: `src/features/<name>/`.
 - Contract: `packages/engine-client/src/<name>/`.

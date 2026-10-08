@@ -111,10 +111,7 @@ describe("smoke: every migrated domain through the typed client", () => {
     expect((await client.settleSession(LOCAL, false)).session.settledOverride).toBe("active");
   });
 
-  test("notes and prompts", async () => {
-    const { note } = await client.createProjectNote(PROJECT, { title: "Smoke", body: "checked" });
-    expect((await client.projectNotes(PROJECT)).notes.map((row) => row.id)).toContain(note.id);
-    expect((await client.deleteProjectNote(PROJECT, note.id)).deleted).toBe(true);
+  test("prompts", async () => {
     const { prompt } = await client.createProjectPrompt(PROJECT, { title: "Again", text: "run it again" });
     expect((await client.projectPrompts(PROJECT)).prompts.map((row) => row.id)).toContain(prompt.id);
   });

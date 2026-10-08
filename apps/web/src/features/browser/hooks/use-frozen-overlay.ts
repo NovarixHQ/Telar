@@ -10,6 +10,11 @@ type OverlayBridge = {
 
 type FrozenOverlayFrame = { src: string; left: number; top: number; width: number; height: number };
 
+function hiddenBySuspense(host: HTMLElement | null): boolean {
+  for (let node = host; node; node = node.parentElement) if (node.style.display === "none") return true;
+  return false;
+}
+
 export function useFrozenOverlay(bridge: OverlayBridge, scopeKey: string, hostRef: RefObject<HTMLElement | null>, overlayRef: RefObject<boolean>) {
   const [frozenFrame, setFrozenFrame] = useState<FrozenOverlayFrame>();
   useEffect(() => {
@@ -23,7 +28,7 @@ export function useFrozenOverlay(bridge: OverlayBridge, scopeKey: string, hostRe
         return bridge.freezeView(scopeKey);
       },
       show: async () => {
-        if (mounted) await bridge.setVisible(scopeKey, true);
+        if (mounted && !hiddenBySuspense(hostRef.current)) await bridge.setVisible(scopeKey, true);
       },
       paint: (frame) => {
         if (!mounted) return;

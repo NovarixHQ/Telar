@@ -28,3 +28,10 @@ export async function nativePageToShow(bridge: DesktopBrowserBridge, scopeKey: s
   const tabs = await bridge.getState(scopeKey).then((state) => state.tabs, () => []);
   return (tabs.find((tab) => tab.active) ?? tabs.at(-1))?.id;
 }
+
+export async function openNativePage(bridge: DesktopBrowserBridge, scopeKey: string): Promise<string | undefined> {
+  const { tabs } = await bridge.getState(scopeKey).catch(() => ({ tabs: [] }));
+  if (tabs.length === 0) return undefined;
+  const next = await bridge.action(scopeKey, { action: "new" });
+  return (next.tabs.find((tab) => tab.active) ?? next.tabs.at(-1))?.id;
+}

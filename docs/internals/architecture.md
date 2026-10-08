@@ -31,7 +31,7 @@ A domain is one feature, and it has the same name in every app:
 | Agents | `providers` `agent-tools` `plugins` `computer-use` |
 | Workspace | `files` `git` `github` `terminal` `browser` `simulators` |
 | Access | `remote` `hosts` `push` |
-| Experience | `appearance` `settings` `dictation` `notes` `prompts` |
+| Experience | `appearance` `settings` `dictation` `prompts` |
 | Operations | `usage` `schedules` `storage` `updates` |
 
 The cockpit has four UI-only features with no engine domain: `commands`, `composer`, `transcript` and `panel`.

@@ -195,7 +195,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
 
 // The query options and the reuse fingerprint are computed together so they cannot disagree.
 function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void {
-  const { signal, fastMode, ultracode, mcpServers: userMcpServers, env, binaryPath, extraArgs, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, notes, prompts, display, simulators, usageDiagnosis } = input;
+  const { signal, fastMode, ultracode, mcpServers: userMcpServers, env, binaryPath, extraArgs, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, prompts, display, simulators, usageDiagnosis } = input;
   const { resolveExecutable } = deps;
   /** The `claude` binary this turn runs on, resolved once: the query below
    *  takes it as `pathToClaudeCodeExecutable`, and the fingerprint records
@@ -209,7 +209,6 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     signal,
     canUseTool: turn.canUseTool,
     sessions,
-    notes,
     prompts,
     display,
     simulators,
@@ -234,11 +233,8 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     servers: canonicalServers(userMcpServers),
     browser: browserSocket ?? null,
     sessions: Boolean(sessions),
-    // Same rule: the toolkits are baked into the query at creation, so a
-    // project-less session gaining a project must cold-start rather than
-    // keep advertising a wall it no longer lacks.
-    notes: Boolean(notes),
-    // Same rule again: the prompt wall is baked into the query at creation.
+    // The toolkits are baked into the query at creation, so a project-less
+    // session gaining a project must cold-start to advertise them.
     prompts: Boolean(prompts),
     display: Boolean(display),
     simulators: Boolean(simulators),

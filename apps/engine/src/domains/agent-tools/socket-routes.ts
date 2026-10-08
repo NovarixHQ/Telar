@@ -7,7 +7,7 @@ import { ok, type Route } from "../../platform/http/route";
  */
 export function mcpSocketRoute(
   path: string,
-  auth: "sessions-socket" | "notes-socket",
+  auth: "sessions-socket",
   name: string,
   handleMessage: (message: Record<string, unknown>) => Promise<unknown>,
 ): Route {

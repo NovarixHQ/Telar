@@ -19,7 +19,7 @@ export type Route = {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "*";
   path: string | RegExp;
   /** Which secret opens it: the engine token, or one socket's own. */
-  auth: "engine" | "sessions-socket" | "notes-socket";
+  auth: "engine" | "sessions-socket";
   body?: "raw";
   handle(input: RouteInput): RouteAnswer | undefined | Promise<RouteAnswer | undefined>;
 };

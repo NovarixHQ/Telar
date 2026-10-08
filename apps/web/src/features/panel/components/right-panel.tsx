@@ -37,6 +37,7 @@ const PdfSurface = dynamic(() => import("@/features/files/components/pdf-surface
 const TableSurface = dynamic(() => import("@/features/files/components/table-surface").then((mod) => mod.TableSurface));
 const GitHubSurface = dynamic(() => import("@/features/github").then((mod) => mod.GitHubSurface));
 const TerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.TerminalSurface));
+const GroupedTerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.GroupedTerminalSurface));
 const SimulatorSurface = dynamic(() => import("@/features/simulators/components/simulator-surface").then((mod) => mod.SimulatorSurface));
 const ImageLightbox = dynamic(() => import("@/features/plugins/data-science/image-lightbox").then((mod) => mod.ImageLightbox));
 
@@ -77,9 +78,11 @@ export type RightPanelProps = {
   hostId?: string;
   /** False animates the width to zero; the cockpit keeps the panel mounted through the close. */
   open?: boolean;
+  /** One tab per browser page and per terminal; otherwise one Terminal tab holds a strip of them. */
+  flatTabs?: boolean;
 };
 
-type Forwarded = "sessionId" | "sessionTitle" | "projectId" | "branch" | "onOpenTab" | "onOpenNewTab" | "onOpenFileInNewTab" | "onInsertReference" | "onAttach" | "active" | "enabledPlugins" | "pluginPanels" | "events" | "hostId";
+type Forwarded = "sessionId" | "sessionTitle" | "projectId" | "branch" | "onOpenTab" | "onOpenNewTab" | "onOpenFileInNewTab" | "onInsertReference" | "onAttach" | "active" | "enabledPlugins" | "pluginPanels" | "events" | "hostId" | "flatTabs";
 
 /** One instance's surface, every callback already bound to that instance. */
 type SurfaceProps = Pick<RightPanelProps, Forwarded> & {
@@ -137,6 +140,18 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
         panels={props.pluginPanels ?? model.NO_PANELS}
       />
     );
+  if (kind === "terminal" && props.flatTabs === false)
+    return (
+      <GroupedTerminalSurface
+        key={instanceKey}
+        {...scoped}
+        {...(hostId ? { hostId } : {})}
+        params={tab.params}
+        {...(onTabParams ? { onParams: onTabParams } : {})}
+        onCloseSelf={onCloseSelf}
+        visible={props.visible}
+      />
+    );
   if (kind === "terminal")
     return (
       <TerminalSurface
@@ -165,8 +180,9 @@ function recordSurface(props: SurfaceProps): ReactNode {
   if (pageId !== undefined) {
     const bridge = desktopBrowserBridge();
     // Keyed by the session's one native scope, so moving between its page tabs keeps the surface mounted.
+    const live = kind === model.LIVE_BROWSER_TAB ? { onEnded: props.onCloseSelf } : { pageId };
     if (bridge && sessionId)
-      return <DesktopBrowserSurface key={sessionId} bridge={bridge} scopeKey={sessionId} pageId={pageId} {...(projectId ? { projectId } : {})} {...(props.onAttach ? { onAttach: props.onAttach } : {})} />;
+      return <DesktopBrowserSurface key={sessionId} bridge={bridge} scopeKey={sessionId} {...live} {...(projectId ? { projectId } : {})} {...(props.onAttach ? { onAttach: props.onAttach } : {})} />;
     return <BrowserScreenshotSurface pageId={pageId} {...(browser ? { state: browser } : {})} {...(sessionId ? { sessionId } : {})} />;
   }
   if (kind === "diff")
@@ -228,10 +244,16 @@ export function RightPanel(props: RightPanelProps) {
   const activeTab = useMemo(() => tabs.find((entry) => entry.id === tab), [tabs, tab]);
   const [lightbox, setLightbox] = useState<string>();
   const keptTerminals = useKeptTerminals(tabs, activeTab);
+  const showingPage = activeTab !== undefined && model.browserTabId(activeTab.kind) !== undefined;
+  useEffect(() => {
+    if (showingPage || !sessionId) return;
+    void desktopBrowserBridge()?.setVisible(sessionId, false).catch(() => undefined);
+  }, [showingPage, sessionId]);
   const launcher = model.launcherRows(tabs, {
     enabledPlugins,
     pluginPanels,
     canOpenNew: onOpenNewTab !== undefined,
+    flat: props.flatTabs !== false,
     ...(onOpenBrowser ? { browser: browserUnavailable ? { unavailable: browserUnavailable } : {} } : {}),
   });
   const actions = { onOpenTab, ...(onOpenNewTab ? { onOpenNewTab } : {}), ...(onOpenBrowser ? { onOpenBrowser } : {}) };

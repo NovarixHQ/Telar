@@ -63,7 +63,7 @@ async function capture(): Promise<void> {
 
   const withPlugins = process.argv.includes("--plugins");
   const plugins = withPlugins ? Object.fromEntries(pluginToolModules().map((module) => [module.meta.id, {}])) : {};
-  const caps = { sessions: {}, notes: {}, prompts: {}, display: {}, run: {}, plugins };
+  const caps = { sessions: {}, prompts: {}, display: {}, run: {}, plugins };
   const telarLease = (await new TelarToolSocket().bind(() => collectTelarWall(telarWall(() => caps))))!;
   const browserLease = await new BrowserToolSocket({ tools: BROWSER_TOOLS, run: async () => ({ content: [] }) } as never).bind({ scopeKey: "cost", sessionId: "cost" } as never);
   const leases = { telar: telarLease, "telar-browser": browserLease };

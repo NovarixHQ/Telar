@@ -9,7 +9,6 @@ import { projectLabel } from "@/features/hosts";
 import { RunHeaderControl } from "@/features/terminal";
 import { hostName } from "@/platform/engine/host-client";
 import { cn } from "@/ui/utils";
-import { WorkspaceInspector } from "../../components/workspace-inspector";
 import { MainSidebarTrigger, useMainIsLeftmost } from "@/ui/main-sidebar-trigger";
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { Button } from "@/ui/button";
@@ -226,15 +225,12 @@ function TitleMenu({ title, items, open, onOpenChange, onRename }: {
   );
 }
 
-export function SoloTools({ projectId, hostId, session }: { projectId?: string; hostId: string; session?: Session }) {
-  const notesProjectId = session?.projectId ?? projectId;
-  const runnable = session !== undefined && workspacePath(session.workspace) !== undefined;
-  if (notesProjectId === undefined && !runnable) return null;
+export function SoloTools({ hostId, session }: { hostId: string; session?: Session }) {
+  if (session === undefined || workspacePath(session.workspace) === undefined) return null;
   return (
     <div className="relative z-20 h-0 shrink-0">
       <div className="app-no-drag absolute right-3 top-3 flex items-center gap-2">
-        {runnable && <RunHeaderControl key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} />}
-        {notesProjectId !== undefined && <WorkspaceInspector projectId={notesProjectId} />}
+        <RunHeaderControl key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} />
       </div>
     </div>
   );

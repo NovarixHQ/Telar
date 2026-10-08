@@ -47,5 +47,6 @@ export function rightPanelProps({ open, hostId, sessionId, projectId, sync, mode
     hostId,
     enabledPlugins,
     pluginPanels,
+    flatTabs: panel.flat,
   };
 }

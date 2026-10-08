@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { retireAgentReport, retireAgentStore, sweepReport, sweepSpoolAndLooms } from "./decommission-sweep";
+import { retireAgentReport, retireAgentStore, sweepNotes, sweepReport, sweepSpoolAndLooms } from "./decommission-sweep";
 import { statePaths } from "../../platform/fs/state-paths";
 import { DIRECTORY_CATEGORIES } from "./measure";
 
@@ -90,6 +90,50 @@ test("a directory that cannot be removed leaves the home alone and is retried", 
   const retry = sweepSpoolAndLooms(engineRoot);
   expect(retry.removed.map((entry) => entry.what)).toEqual(["the Spool's store"]);
   expect(fs.existsSync(spool)).toBe(false);
+});
+
+const writeNotes = () => {
+  fs.mkdirSync(path.join(engineRoot, "notes"), { recursive: true });
+  fs.writeFileSync(path.join(engineRoot, "notes", "project_one.json"), '[{"id":"n-1"}]');
+  fs.writeFileSync(path.join(engineRoot, "notes-mcp-secret.json"), '{"secret":"placeholder"}');
+};
+
+test("the notes directory and the notes socket's secret go, and nothing else does", () => {
+  writeNotes();
+  fs.writeFileSync(path.join(engineRoot, "projects.json"), "{}");
+  fs.writeFileSync(path.join(engineRoot, "sessions-mcp-secret.json"), "{}");
+
+  const sweep = sweepNotes(engineRoot);
+
+  expect(fs.existsSync(path.join(engineRoot, "notes"))).toBe(false);
+  expect(fs.existsSync(path.join(engineRoot, "notes-mcp-secret.json"))).toBe(false);
+  expect(fs.readdirSync(engineRoot).sort()).toEqual(["decommissioned-notes", "projects.json", "sessions-mcp-secret.json"]);
+  expect(sweep.removed).toEqual([
+    { what: "the project notes", bytes: 14, files: 1 },
+    { what: "the notes socket's secret", bytes: 24, files: 1 },
+  ]);
+  expect(sweepReport(sweep)).toContain("project notes were removed");
+});
+
+test("notes are swept once, and a home that never had them says nothing", () => {
+  const first = sweepNotes(engineRoot);
+  expect(sweepReport(first)).toBeUndefined();
+  writeNotes();
+  expect(sweepNotes(engineRoot).removed).toEqual([]);
+  expect(fs.existsSync(path.join(engineRoot, "notes"))).toBe(true);
+});
+
+test("a notes directory that cannot be removed is retried on the next start", () => {
+  writeNotes();
+  fs.chmodSync(engineRoot, 0o500);
+  try {
+    expect(sweepNotes(engineRoot).removed).toEqual([]);
+  } finally {
+    fs.chmodSync(engineRoot, 0o700);
+  }
+  expect(fs.existsSync(statePaths(engineRoot).notesRemovedMarker)).toBe(false);
+  expect(sweepNotes(engineRoot).removed).toHaveLength(2);
+  expect(fs.existsSync(path.join(engineRoot, "notes"))).toBe(false);
 });
 
 const AT = Date.parse("2026-09-23T10:04:05.006Z");

@@ -71,7 +71,7 @@ function announce(hostId: string, policy: InboxPolicy): void {
 export type InboxPolicyHandle = {
   policy: InboxPolicy;
   loading: boolean;
-  save: (patch: { autoSettleAfterHours?: number | null; settleDelegatedAfterHours?: number | null; settledTerminalLimit?: number }) => Promise<void>;
+  save: (patch: { autoSettleAfterHours?: number | null }) => Promise<void>;
   error?: string;
 };
 
@@ -116,7 +116,7 @@ export function useInboxPolicy(): InboxPolicyHandle {
     };
   }, [hostId]);
 
-  const save = useCallback(async (patch: { autoSettleAfterHours?: number | null; settleDelegatedAfterHours?: number | null; settledTerminalLimit?: number }) => {
+  const save = useCallback(async (patch: { autoSettleAfterHours?: number | null }) => {
     const asked = hostId;
     try {
       const result = await apiFor(asked).setInbox(patch);

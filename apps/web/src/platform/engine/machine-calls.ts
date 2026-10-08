@@ -150,7 +150,7 @@ export function settingsCalls(fetcher: Fetcher) {
     /** How this machine's inbox bands — the auto-settle window, or `null` for
      *  no clock at all. One answer for every client of this engine. */
     inbox: () => request<{ inbox: InboxPolicy }>(fetcher, "GET", "/api/inbox"),
-    setInbox: (patch: { autoSettleAfterHours?: number | null; settleDelegatedAfterHours?: number | null; settledTerminalLimit?: number }) =>
+    setInbox: (patch: { autoSettleAfterHours?: number | null }) =>
       request<{ inbox: InboxPolicy }>(fetcher, "PATCH", "/api/inbox", patch),
     /** How worktrees are prepared — `protocol/workspace.ts`. Both writes are
      *  whole-layer PUTs: the body IS the new layer, not a patch onto it. */

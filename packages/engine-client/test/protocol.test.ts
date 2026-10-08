@@ -20,7 +20,7 @@ import {
   safeParseEvent,
   type Task,
 } from "../src/protocol";
-import { DEFAULT_SETTLE_DELEGATED_AFTER_HOURS, InboxPolicy, MAX_AUTO_SETTLE_HOURS } from "../src/settings/schema";
+import { InboxPolicy, MAX_AUTO_SETTLE_HOURS } from "../src/settings/schema";
 import { forgeQuery, parseForgeQuery } from "../src/github/query";
 import * as packageRoot from "../src/index";
 
@@ -133,22 +133,15 @@ describe("Session", () => {
 });
 
 describe("InboxPolicy", () => {
-  test("a policy written before the delegation grace keeps its own window", () => {
-    const parsed = InboxPolicy.safeParse({ autoSettleAfterHours: 6 });
-    expect(parsed.success).toBe(true);
-    expect(parsed.success && parsed.data.autoSettleAfterHours).toBe(6);
-    expect(parsed.success && parsed.data.settleDelegatedAfterHours).toBe(DEFAULT_SETTLE_DELEGATED_AFTER_HOURS);
+  test("one window, where `null` is the off switch", () => {
+    expect(InboxPolicy.parse({ autoSettleAfterHours: 6 })).toEqual({ autoSettleAfterHours: 6 });
+    expect(InboxPolicy.parse({ autoSettleAfterHours: null })).toEqual({ autoSettleAfterHours: null });
   });
 
-  test("`null` is the off switch, and is distinct from the default", () => {
-    const parsed = InboxPolicy.safeParse({ autoSettleAfterHours: null, settleDelegatedAfterHours: null });
-    expect(parsed.success && parsed.data.settleDelegatedAfterHours).toBeNull();
-  });
-
-  test("the grace shares the quiet window's bounds", () => {
-    expect(InboxPolicy.safeParse({ autoSettleAfterHours: 24, settleDelegatedAfterHours: 0 }).success).toBe(false);
-    expect(InboxPolicy.safeParse({ autoSettleAfterHours: 24, settleDelegatedAfterHours: 1.5 }).success).toBe(false);
-    expect(InboxPolicy.safeParse({ autoSettleAfterHours: 24, settleDelegatedAfterHours: MAX_AUTO_SETTLE_HOURS + 1 }).success).toBe(false);
+  test("the window is whole hours within its bounds", () => {
+    expect(InboxPolicy.safeParse({ autoSettleAfterHours: 0 }).success).toBe(false);
+    expect(InboxPolicy.safeParse({ autoSettleAfterHours: 1.5 }).success).toBe(false);
+    expect(InboxPolicy.safeParse({ autoSettleAfterHours: MAX_AUTO_SETTLE_HOURS + 1 }).success).toBe(false);
   });
 });
 

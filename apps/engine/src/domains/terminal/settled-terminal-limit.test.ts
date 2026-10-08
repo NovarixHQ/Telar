@@ -2,7 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DEFAULT_SETTLED_TERMINAL_LIMIT, type RunView } from "@telar/engine-client";
+import type { RunView } from "@telar/engine-client";
 import { terminalLauncher } from "./launcher";
 import { RunManager } from "./manager";
 import { type StartRunInput } from "./live-run";
@@ -110,11 +110,10 @@ async function scene() {
 
 test("past the limit, the session settled longest ago closes first, as Telar, and says so", async () => {
   const { host, manager, store, closedByPerson, open, settle } = await scene();
-  store.settings.setInbox({ settledTerminalLimit: 3 });
   const run = await open("session_one");
   host.personShell("session_two");
   host.personShell("session_two");
-  host.personShell("session_three");
+  for (let index = 0; index < 3; index += 1) host.personShell("session_three");
   for (let index = 0; index < 4; index += 1) host.personShell("session_four");
   settle("session_one");
   settle("session_two");
@@ -137,13 +136,12 @@ test("past the limit, the session settled longest ago closes first, as Telar, an
   expect(await store.sessionTerminals.enforceLimit()).toEqual([]);
 });
 
-test("the setting is the limit: five by default, lowering it applies it, and a bad value is refused", async () => {
+test("five terminals across settled sessions is the limit", async () => {
   const { host, store, settle } = await scene();
-  expect(store.settings.inbox().settledTerminalLimit).toBe(DEFAULT_SETTLED_TERMINAL_LIMIT);
-  expect(DEFAULT_SETTLED_TERMINAL_LIMIT).toBe(5);
   host.personShell("session_one");
   host.personShell("session_two");
   host.personShell("session_two");
+  host.personShell("session_three");
   host.personShell("session_three");
   settle("session_one");
   settle("session_two");
@@ -152,14 +150,10 @@ test("the setting is the limit: five by default, lowering it applies it, and a b
   expect(await store.sessionTerminals.enforceLimit()).toEqual([]);
   expect(host.sessionCloses).toEqual([]);
 
-  store.settings.setInbox({ settledTerminalLimit: 1 });
-  expect(await store.sessionTerminals.enforceLimit()).toEqual(["session_one", "session_two"]);
-  expect(host.sessionCloses).toEqual(["session_one", "session_two"]);
-  expect(host.held("session_three")).toBe(1);
-
-  expect(() => store.settings.setInbox({ settledTerminalLimit: -1 })).toThrow(/settled terminal limit/);
-  expect(() => store.settings.setInbox({ settledTerminalLimit: 2.5 })).toThrow(/settled terminal limit/);
-  expect(store.settings.inbox().settledTerminalLimit).toBe(1);
+  host.personShell("session_three");
+  await store.sessionTerminals.refresh();
+  expect(await store.sessionTerminals.enforceLimit()).toEqual(["session_one"]);
+  expect(host.held("session_three")).toBe(3);
 });
 
 test("the automatic settle's sweep closes a shell the person opened, which only the host can see", async () => {

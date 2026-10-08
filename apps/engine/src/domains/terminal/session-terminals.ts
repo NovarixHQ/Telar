@@ -14,9 +14,11 @@ export type AttachedTerminals = {
 /** How long a clock-settled session keeps its terminals, so a conversation that merely aged out keeps its dev server a while. */
 export const SETTLED_TERMINAL_GRACE_MS = 30 * 60_000;
 
+export const SETTLED_TERMINAL_LIMIT = 5;
+
 export type SessionTerminalsHost = {
   now(): number;
-  inboxPolicy(): Pick<InboxPolicy, "autoSettleAfterHours" | "settledTerminalLimit">;
+  inboxPolicy(): InboxPolicy;
   /** Writes the record without touching `updatedAt`: closing a settled session's terminals must not pull it off the shelf. */
   recordSession(session: Session): void;
 };
@@ -194,7 +196,7 @@ export class SessionTerminals {
   }
 
   /**
-   * No more than `settledTerminalLimit` terminals across settled sessions: past it, the session settled longest ago
+   * No more than `SETTLED_TERMINAL_LIMIT` terminals across settled sessions: past it, the session settled longest ago
    * (`settledAt`, or last activity plus the window for the clock) is closed first. Answers the sessions it closed.
    */
   enforceLimit(): Promise<string[]> {
@@ -207,7 +209,6 @@ export class SessionTerminals {
 
   private async checkLimit(): Promise<string[]> {
     if (!this.terminals) return [];
-    const limit = this.host.inboxPolicy().settledTerminalLimit;
     const at = this.index.settlingClock();
     const windowMs = (at.autoSettleAfterHours ?? 0) * 60 * 60_000;
     const settled: Array<{ sessionId: string; count: number; since: number }> = [];
@@ -226,7 +227,7 @@ export class SessionTerminals {
     let total = settled.reduce((sum, entry) => sum + entry.count, 0);
     const closed: string[] = [];
     for (const entry of settled.sort((a, b) => a.since - b.since)) {
-      if (total <= limit) break;
+      if (total <= SETTLED_TERMINAL_LIMIT) break;
       try {
         const ended = await this.terminals.closeSession(entry.sessionId);
         this.recordClosed(entry.sessionId, Math.max(ended, entry.count), "limit");

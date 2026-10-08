@@ -4,24 +4,13 @@ import { EnvMode, ModelSelection, ProviderDriverKind, RuntimeMode } from "../pro
 export const MIN_AUTO_SETTLE_HOURS = 1;
 export const MAX_AUTO_SETTLE_HOURS = 90 * 24;
 export const DEFAULT_AUTO_SETTLE_HOURS = 3 * 24;
-export const DEFAULT_SETTLE_DELEGATED_AFTER_HOURS = 1;
-export const DEFAULT_SETTLED_TERMINAL_LIMIT = 5;
-export const MAX_SETTLED_TERMINAL_LIMIT = 99;
-
-const settleHours = z.number().int().min(MIN_AUTO_SETTLE_HOURS).max(MAX_AUTO_SETTLE_HOURS).nullable();
 
 export const InboxPolicy = z.object({
-  autoSettleAfterHours: settleHours,
-  settleDelegatedAfterHours: settleHours.default(DEFAULT_SETTLE_DELEGATED_AFTER_HOURS),
-  settledTerminalLimit: z.number().int().min(0).max(MAX_SETTLED_TERMINAL_LIMIT).default(DEFAULT_SETTLED_TERMINAL_LIMIT),
+  autoSettleAfterHours: z.number().int().min(MIN_AUTO_SETTLE_HOURS).max(MAX_AUTO_SETTLE_HOURS).nullable(),
 });
 export type InboxPolicy = z.infer<typeof InboxPolicy>;
 
-export const DEFAULT_INBOX_POLICY: InboxPolicy = {
-  autoSettleAfterHours: DEFAULT_AUTO_SETTLE_HOURS,
-  settleDelegatedAfterHours: DEFAULT_SETTLE_DELEGATED_AFTER_HOURS,
-  settledTerminalLimit: DEFAULT_SETTLED_TERMINAL_LIMIT,
-};
+export const DEFAULT_INBOX_POLICY: InboxPolicy = { autoSettleAfterHours: DEFAULT_AUTO_SETTLE_HOURS };
 
 export const AgentOrientation = z.object({
   preamble: z.boolean(),

@@ -2,10 +2,10 @@ import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { DEFAULT_INBOX_POLICY, DEFAULT_SETTLE_DELEGATED_AFTER_HOURS, type InboxPolicy } from "@telar/engine-client";
+import { DEFAULT_INBOX_POLICY, type InboxPolicy } from "@telar/engine-client";
 import { forgetInboxPolicies } from "../inbox-policy";
 import { SettingsGroup } from "@/features/settings";
-import { SettlingRows } from "./settling-rows";
+import { SettlingRow } from "./settling-row";
 
 GlobalRegistrator.register({ url: "http://localhost/settings" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -51,7 +51,7 @@ async function mount() {
   const root = createRoot(host);
   await act(async () => root.render(
       <SettingsGroup title="Organization">
-        <SettlingRows />
+        <SettlingRow />
       </SettingsGroup>,
     ));
   await flush();
@@ -78,45 +78,31 @@ async function mount() {
   };
 }
 
-const QUIET = "Settle quiet sessions";
-const DELEGATED = "Settle delegated sessions";
-const QUIET_WINDOW = "Settle quiet sessions after";
-const DELEGATED_WINDOW = "Settle delegated sessions after";
+const SWITCH = "Settle sessions";
+const WINDOW = "Settle sessions after";
 
-test("each switch patches its own key only", async () => {
+test("one switch turns the single settle window off and on", async () => {
   const view = await mount();
-  await view.click(view.labelled(DELEGATED));
-  await view.click(view.labelled(QUIET));
-  expect(patches).toEqual([{ settleDelegatedAfterHours: null }, { autoSettleAfterHours: null }]);
+  await view.click(view.labelled(SWITCH));
+  expect(view.labelled(WINDOW)).toBeNull();
+  await view.click(view.labelled(SWITCH));
+  expect(patches).toEqual([{ autoSettleAfterHours: null }, { autoSettleAfterHours: DEFAULT_INBOX_POLICY.autoSettleAfterHours }]);
+  expect(view.host.querySelector(`#settings-row-organization-settle-sessions [aria-label="${WINDOW}"]`)).not.toBeNull();
   view.done();
 });
 
-test("each duration sits in its switch's row and appears only while the switch is on", async () => {
-  policy = { ...policy, autoSettleAfterHours: null };
+test("the window reverts to the protocol's default", async () => {
+  policy = { autoSettleAfterHours: 5 };
   const view = await mount();
-  expect(view.labelled(QUIET_WINDOW)).toBeNull();
-  expect(view.labelled(DELEGATED_WINDOW)).not.toBeNull();
-  await view.click(view.labelled(DELEGATED));
-  expect(view.labelled(DELEGATED_WINDOW)).toBeNull();
-  await view.click(view.labelled(QUIET));
-  expect(view.host.querySelector(`#settings-row-organization-settle-quiet-sessions [aria-label="${QUIET_WINDOW}"]`)).not.toBeNull();
+  await view.click(view.host.querySelector('#settings-row-organization-settle-sessions [aria-label="Revert to the default"]'));
+  expect(patches).toEqual([{ autoSettleAfterHours: DEFAULT_INBOX_POLICY.autoSettleAfterHours }]);
   view.done();
 });
 
-test("the delegated window reverts to the protocol's default, an hour", async () => {
-  expect(DEFAULT_INBOX_POLICY.settleDelegatedAfterHours).toBe(DEFAULT_SETTLE_DELEGATED_AFTER_HOURS);
-  expect(DEFAULT_SETTLE_DELEGATED_AFTER_HOURS).toBe(1);
-  expect(DEFAULT_INBOX_POLICY.autoSettleAfterHours).not.toBe(DEFAULT_SETTLE_DELEGATED_AFTER_HOURS);
-  policy = { ...policy, settleDelegatedAfterHours: 5 };
+test("typing a duration patches the window", async () => {
+  policy = { autoSettleAfterHours: 24 };
   const view = await mount();
-  await view.click(view.host.querySelector('#settings-row-organization-settle-delegated-sessions [aria-label="Revert to the default"]'));
-  expect(patches).toEqual([{ settleDelegatedAfterHours: DEFAULT_SETTLE_DELEGATED_AFTER_HOURS }]);
-  view.done();
-});
-
-test("typing a duration patches that window alone", async () => {
-  const view = await mount();
-  await view.type(DELEGATED_WINDOW, "3");
-  expect(patches).toEqual([{ settleDelegatedAfterHours: 3 }]);
+  await view.type(WINDOW, "3");
+  expect(patches).toEqual([{ autoSettleAfterHours: 72 }]);
   view.done();
 });

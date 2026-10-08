@@ -12,8 +12,7 @@ test("the inbox policy is one document, defaulted rather than absent", () => {
   // says how long anything stays in the list at all — and it is on the engine
   // so the desktop shell and a browser tab band the same sessions the same way.
   const { store } = readyStore();
-  // The delegation grace rides the same document (#378) and defaults with it.
-  const grace = { settleDelegatedAfterHours: 1, settledTerminalLimit: 5 };
+  const grace = {};
   expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 72, ...grace });
 
   expect(store.settings.setInbox({ autoSettleAfterHours: 14 })).toEqual({ autoSettleAfterHours: 14, ...grace });
@@ -34,21 +33,29 @@ test("the inbox policy is one document, defaulted rather than absent", () => {
 
 test("a days-shaped inbox document from before the hours move still means what it said", () => {
   const { store, root: stateRoot } = readyStore();
-  const grace = { settleDelegatedAfterHours: 1, settledTerminalLimit: 5 };
+  const grace = {};
   fs.writeFileSync(path.join(stateRoot, "inbox.json"), '{"version":2,"autoSettleAfterDays":2}');
   expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 48, ...grace });
   fs.writeFileSync(path.join(stateRoot, "inbox.json"), '{"version":2,"autoSettleAfterDays":null}');
   expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: null, ...grace });
 });
 
-test("a policy written before the delegation grace keeps its own window — #378", () => {
-  // THE FIELD IS DEFAULTED RATHER THAN REQUIRED FOR EXACTLY THIS. A required
-  // one would fail the schema on every stored document, and a failed parse
-  // here answers with the whole default — silently replacing the window
-  // somebody chose with 72 hours.
+test("a policy from before the settle windows merged keeps the shorter window while both were on", () => {
   const { store, root: stateRoot } = readyStore();
-  fs.writeFileSync(path.join(stateRoot, "inbox.json"), '{"version":2,"autoSettleAfterHours":6}');
-  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 6, settleDelegatedAfterHours: 1, settledTerminalLimit: 5 });
+  const inbox = path.join(stateRoot, "inbox.json");
+  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":6}');
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 6 });
+  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":72,"settleDelegatedAfterHours":1,"settledTerminalLimit":5}');
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 1 });
+  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":4,"settleDelegatedAfterHours":24}');
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 4 });
+  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":48,"settleDelegatedAfterHours":null}');
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 48 });
+  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":null,"settleDelegatedAfterHours":1}');
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: null });
+  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":72,"settleDelegatedAfterHours":1}');
+  store.settings.setInbox({});
+  expect(JSON.parse(fs.readFileSync(inbox, "utf8"))).toEqual({ version: expect.any(Number), autoSettleAfterHours: 1 });
 });
 
 test("the standing session defaults round-trip, and refuse a mode that is not one", () => {
@@ -185,7 +192,7 @@ test("a malformed inbox document costs the preference, never the sidebar", () =>
   // server is a server that must not run. A malformed settling window is a
   // preference, and the worst it can do is band a list wrongly.
   const { store, root: stateRoot } = readyStore();
-  const whole = { autoSettleAfterHours: 72, settleDelegatedAfterHours: 1, settledTerminalLimit: 5 };
+  const whole = { autoSettleAfterHours: 72 };
   fs.writeFileSync(path.join(stateRoot, "inbox.json"), '{"version":1,"autoSettleAfterDays":"soon"}');
   expect(store.settings.inbox()).toEqual(whole);
   fs.writeFileSync(path.join(stateRoot, "inbox.json"), "not json at all");

@@ -336,7 +336,7 @@ export class EngineStore {
       scanQueue: (id) => this.sessionQueues.scan(id),
       delegatesOf: (id) => this.kernel.executionStore.delegatesOf(id),
       assignedTurns: (id) => this.sessionQueues.assigned(id),
-      settleDelegatedAfterHours: () => this.settings.inbox().settleDelegatedAfterHours,
+      autoSettleAfterHours: () => this.settings.inbox().autoSettleAfterHours,
       settled: () => this.children.review(),
       onShelfGrew: () => this.enforceTerminalLimitSoon(),
       stopBackgroundTasks: (id, reason) => this.worker.stopBackgroundTasks(id, reason),
@@ -530,7 +530,7 @@ export class EngineStore {
 
   /** The per-document stores that sit beside the sessions modules, built on the kernel. */
   private leafStores(options: { models?: typeof readModelCatalogue; cliVersion?: (driver: ProviderDriverKind) => Promise<InstalledCli>; manifest?: ModelManifest }) {
-    const settings = new SettingsStore(this.kernel, () => this.enforceTerminalLimitSoon());
+    const settings = new SettingsStore(this.kernel);
     const appearance = new AppearanceStore(this.kernel);
     const usageSources = new UsageLimitSources(this.kernel);
     const projectProbes = new ProjectProbes(this.kernel, {

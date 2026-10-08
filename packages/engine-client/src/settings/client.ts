@@ -12,7 +12,7 @@ export const settingsClient = {
   /** `null` turns a window off. */
   setInboxPolicy(
     this: EngineTransport,
-    patch: { autoSettleAfterHours?: number | null; settleDelegatedAfterHours?: number | null; settledTerminalLimit?: number },
+    patch: { autoSettleAfterHours?: number | null },
   ): Promise<{ inbox: InboxPolicy }> {
     return this.request("PATCH", "/v2/inbox", patch);
   },

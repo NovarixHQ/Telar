@@ -12,7 +12,6 @@ import {
   InboxPolicy as InboxPolicySchema,
   MAX_AUTO_SETTLE_HOURS,
   MAX_RETENTION_DAYS,
-  MAX_SETTLED_TERMINAL_LIMIT,
   MAX_SIDEBAR_PROJECT_ORDER,
   MAX_SIDEBAR_SESSION_ORDER,
   MIN_AUTO_SETTLE_HOURS,
@@ -51,6 +50,11 @@ const cloneSidebarLayout = (layout: SidebarLayout): SidebarLayout => ({
   mode: layout.mode,
 });
 
+function withLegacyDelegatedWindow(quiet: number | null, delegated: unknown): number | null {
+  if (quiet === null || typeof delegated !== "number" || !Number.isInteger(delegated) || delegated < MIN_AUTO_SETTLE_HOURS) return quiet;
+  return Math.min(quiet, delegated);
+}
+
 function boolean(value: unknown, message: string): boolean {
   if (typeof value !== "boolean") throw new EngineStateError("invalid_request", message);
   return value;
@@ -58,52 +62,35 @@ function boolean(value: unknown, message: string): boolean {
 
 /** A broken file costs only its preference: getters fall back to the shipped default, setters patch only the keys present. */
 export class SettingsStore {
-  constructor(
-    private readonly kernel: Kernel,
-    private readonly onTerminalLimitChanged: () => void = () => {},
-  ) {}
+  constructor(private readonly kernel: Kernel) {}
 
   inbox(): InboxPolicy {
     try {
-      const stored = this.kernel.readDocument(this.kernel.paths.inbox);
+      const stored = this.kernel.readDocument(this.kernel.paths.inbox) as { autoSettleAfterDays?: unknown; settleDelegatedAfterHours?: unknown } | undefined;
       const parsed = InboxPolicySchema.safeParse(stored);
-      if (parsed.success) return parsed.data;
-      // A document from before the hours move still means what it said.
-      const days = (stored as { autoSettleAfterDays?: unknown } | undefined)?.autoSettleAfterDays;
-      if (days === null) return { ...DEFAULT_INBOX_POLICY, autoSettleAfterHours: null };
-      if (typeof days === "number" && Number.isInteger(days) && days >= 1 && days <= 90) {
-        return { ...DEFAULT_INBOX_POLICY, autoSettleAfterHours: days * 24 };
-      }
+      if (parsed.success) return { autoSettleAfterHours: withLegacyDelegatedWindow(parsed.data.autoSettleAfterHours, stored?.settleDelegatedAfterHours) };
+      const days = stored?.autoSettleAfterDays;
+      if (days === null) return { autoSettleAfterHours: null };
+      if (typeof days === "number" && Number.isInteger(days) && days >= 1 && days <= 90) return { autoSettleAfterHours: days * 24 };
       return { ...DEFAULT_INBOX_POLICY };
     } catch {
       return { ...DEFAULT_INBOX_POLICY };
     }
   }
 
-  setInbox(patch: { autoSettleAfterHours?: unknown; settleDelegatedAfterHours?: unknown; settledTerminalLimit?: unknown }): InboxPolicy {
+  setInbox(patch: { autoSettleAfterHours?: unknown }): InboxPolicy {
     const next: InboxPolicy = { ...this.inbox() };
-    const window = (value: unknown, what: string): number | null => {
-      if (value === null) return null;
-      const parsed = InboxPolicySchema.shape.autoSettleAfterHours.safeParse(value);
+    if (patch.autoSettleAfterHours !== undefined) {
+      const parsed = InboxPolicySchema.shape.autoSettleAfterHours.safeParse(patch.autoSettleAfterHours);
       if (!parsed.success) {
         throw new EngineStateError(
           "invalid_request",
-          `${what} must be a whole number of hours between ${MIN_AUTO_SETTLE_HOURS} and ${MAX_AUTO_SETTLE_HOURS}, or null`,
+          `auto-settle window must be a whole number of hours between ${MIN_AUTO_SETTLE_HOURS} and ${MAX_AUTO_SETTLE_HOURS}, or null`,
         );
       }
-      return parsed.data;
-    };
-    if (patch.autoSettleAfterHours !== undefined) next.autoSettleAfterHours = window(patch.autoSettleAfterHours, "auto-settle window");
-    if (patch.settleDelegatedAfterHours !== undefined) next.settleDelegatedAfterHours = window(patch.settleDelegatedAfterHours, "delegation grace");
-    if (patch.settledTerminalLimit !== undefined) {
-      const parsed = InboxPolicySchema.shape.settledTerminalLimit.safeParse(patch.settledTerminalLimit);
-      if (!parsed.success) {
-        throw new EngineStateError("invalid_request", `settled terminal limit must be a whole number between 0 and ${MAX_SETTLED_TERMINAL_LIMIT}`);
-      }
-      next.settledTerminalLimit = parsed.data;
+      next.autoSettleAfterHours = parsed.data;
     }
     this.kernel.writeDocument(this.kernel.paths.inbox, { version: STATE_VERSION, ...next });
-    if (patch.settledTerminalLimit !== undefined) this.onTerminalLimitChanged();
     return { ...next };
   }
 

@@ -19,7 +19,7 @@ type SettlerDeps = {
   scanQueue: (sessionId: string) => SessionQueue;
   delegatesOf: (coordinatorSessionId: string) => string[];
   assignedTurns: (sessionId: string) => Turn[];
-  settleDelegatedAfterHours: () => number | null;
+  autoSettleAfterHours: () => number | null;
   settled: (sessionId: string) => void;
   onShelfGrew: () => void;
   stopBackgroundTasks: (sessionId: string, reason: string) => number;
@@ -55,7 +55,7 @@ export class SessionSettler {
 
   /** The slow half: a grace that came due while nothing happened. Returns the sessions it settled. */
   sweepDelegated(): string[] {
-    if (this.deps.settleDelegatedAfterHours() === null) return [];
+    if (this.deps.autoSettleAfterHours() === null) return [];
     const settled: string[] = [];
     for (const sessionId of this.kernel.executionStore.unsettledSessionIds()) {
       try {
@@ -113,7 +113,7 @@ export class SessionSettler {
     );
     const outcome = delegationSettle({
       now: this.kernel.now(),
-      graceHours: this.deps.settleDelegatedAfterHours(),
+      graceHours: this.deps.autoSettleAfterHours(),
       delegateSessionId: sessionId,
       assignments,
       // A coordinator that no longer exists reads as an empty queue: "no delivery", not a settle on an absence.

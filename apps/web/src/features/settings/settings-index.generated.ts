@@ -11,9 +11,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
     { "title":"Rail", rows: [
       {"title":"Group sessions by project","hint":"Off, the rail is one list, newest first, with spawned sessions under the one that started them.","keywords":["group by","flat","none","list","sidebar","order","newest"]},
-      {"title":"Settle quiet sessions","hint":"Pinned sessions and open questions stay put.","keywords":["inbox","archive","auto","shelf","settled","unsettle","restore","hidden","put away","quiet","hours","days","window"]},
-      {"title":"Settle delegated sessions","hint":"Once their result is delivered. A failed errand, a pinned row and an open question all stay put.","keywords":["delegated","errand","coordinator","handoff","result","settle","hours","days","window"]},
-      {"title":"Terminals settled sessions may keep open","keywords":["terminal","process","dev server","shell","limit","cap","running","settled"]},
+      {"title":"Settle sessions","hint":"A quiet session, or a delegated one whose result was delivered, leaves the rail after this long unless it is pinned or waiting on you.","keywords":["inbox","archive","auto","shelf","settled","unsettle","restore","hidden","put away","quiet","delegated","errand","result","hours","days","window"]},
     ] },
     { "title":"Naming", rows: [
       {"title":"Written by","hint":"The provider, model and effort that name sessions and branches.","keywords":["claude","codex","opencode","driver","title model","textgen","reasoning","thinking","effort"]},

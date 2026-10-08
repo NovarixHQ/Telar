@@ -1,7 +1,8 @@
 import { NavigationContainer, type LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { Linking, Settings } from "react-native";
+import { Button, Linking, Settings } from "react-native";
+import { FileScreen, FilesScreen } from "./features/files";
 import { hosts, HostsScreen, PairScreen } from "./features/hosts";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
 import type { RootStack } from "./platform/navigation/routes";
@@ -14,7 +15,7 @@ async function initialUrl(): Promise<string | null | undefined> {
   return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
 }
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId", Session: "session/:hostId/:sessionId" } }, getInitialURL: initialUrl };
+const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId", Session: "session/:hostId/:sessionId", Files: "files/:hostId/:sessionId", File: "file/:hostId/:sessionId/:path" } }, getInitialURL: initialUrl };
 
 export function App() {
   return (
@@ -27,8 +28,16 @@ export function App() {
         <Stack.Screen
           name="Session"
           component={SessionScreen}
-          options={({ route }) => ({ title: route.params.title ?? "", headerLargeTitle: false })}
+          options={({ route, navigation }) => ({
+            title: route.params.title ?? "",
+            headerLargeTitle: false,
+            headerRight: () => (
+              <Button title="Files" onPress={() => navigation.navigate("Files", { hostId: route.params.hostId, sessionId: route.params.sessionId })} />
+            ),
+          })}
         />
+        <Stack.Screen name="Files" component={FilesScreen} options={{ title: "Files", headerLargeTitle: false }} />
+        <Stack.Screen name="File" component={FileScreen} options={{ headerLargeTitle: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

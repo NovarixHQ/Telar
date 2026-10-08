@@ -10,7 +10,7 @@ import { ROW, StepFold } from "./transcript-fold";
 import { cn } from "@/ui/utils";
 import { RowGestures, WorkspaceContext } from "./tool-row";
 import { clusterAgents, cutAroundStandingRows, itemFailed, renderable, segmentActivity, tallyParts } from "../model";
-import { AgentCluster, useAgentLive } from "./agent-cluster";
+import { AgentCluster, useIsAgent } from "./agent-cluster";
 import { TranscriptItem } from "./transcript-item";
 
 export function LiveActivity({
@@ -57,18 +57,15 @@ export function ActivityGroup({
   tasks: JournalTask[];
 } & RowGestures) {
   const rows = useMemo(() => renderable(items, tasks), [items, tasks]);
-  const agentLive = useAgentLive(tasks);
   const open = { ...(onInsert ? { onInsert } : {}), ...(onOpenFile ? { onOpenFile } : {}), ...(onOpenFileInNewTab ? { onOpenFileInNewTab } : {}) };
   if (rows.length === 0) return null;
   if (live) return <LiveRun rows={rows} tasks={tasks} {...open} />;
-  const cuts = cutAroundStandingRows(rows, agentLive);
+  const cuts = cutAroundStandingRows(rows);
   return (
     <div className="flex w-full min-w-0 flex-col gap-0.5 text-xs">
       {cuts.map((cut) =>
         cut.kind === "row" ? (
           <TranscriptItem key={cut.item.id} item={cut.item} tasks={tasks} {...open} />
-        ) : cut.kind === "agents" ? (
-          <AgentCluster key={cut.items[0]!.id} items={cut.items} tasks={tasks} {...open} />
         ) : (
           <SettledRun key={cut.items[0]!.id} rows={cut.items} tasks={tasks} {...open} />
         ),
@@ -100,7 +97,7 @@ function HarnessConsultRow({ label, items, tasks, ...gestures }: { label: string
 
 export function TranscriptRows({ rows, tasks, ...gestures }: { rows: readonly JournalItem[]; tasks: JournalTask[] } & RowGestures) {
   const workspace = useContext(WorkspaceContext);
-  const agentLive = useAgentLive(tasks);
+  const isAgent = useIsAgent(tasks);
   const segments = useMemo(() => foldHarnessRows(rows, workspace), [rows, workspace]);
   return (
     <>
@@ -108,7 +105,7 @@ export function TranscriptRows({ rows, tasks, ...gestures }: { rows: readonly Jo
         segment.kind === "consult" ? (
           <HarnessConsultRow key={segment.items[0]!.id} label={segment.label} items={segment.items} tasks={tasks} {...gestures} />
         ) : (
-          clusterAgents(segment.items, agentLive).map((cut) =>
+          clusterAgents(segment.items, isAgent).map((cut) =>
             cut.kind === "agents" ? (
               <AgentCluster key={cut.items[0]!.id} items={cut.items} tasks={tasks} {...gestures} />
             ) : (

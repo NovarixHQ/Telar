@@ -139,39 +139,23 @@ export function renderable(items: JournalItem[], tasks: readonly JournalTask[] =
   });
 }
 
-export type AgentLive = (item: JournalItem) => boolean | undefined;
-
-export const taskLiveness = (tasks: readonly JournalTask[]): AgentLive => (item) => {
-  if (item.detail.type !== "task") return undefined;
-  const taskId = item.detail.taskId;
-  const state = tasks.find((candidate) => candidate.id === taskId)?.state;
-  return state === "running" || state === "pending" || state === "waiting";
-};
-
-export type AgentCut = { kind: "run"; items: JournalItem[] } | { kind: "row"; item: JournalItem } | { kind: "agents"; items: JournalItem[] };
-
-/** Adjacent agents are one group; it stands outside a fold while any of them is out. An artifact always stands. */
-export function cutAroundStandingRows(items: JournalItem[], live: AgentLive): AgentCut[] {
-  const out: AgentCut[] = [];
-  const toRun = (each: readonly JournalItem[]) => {
+/** An artifact never folds. */
+export function cutAroundStandingRows(items: JournalItem[]): Array<{ kind: "run"; items: JournalItem[] } | { kind: "row"; item: JournalItem }> {
+  const out: Array<{ kind: "run"; items: JournalItem[] } | { kind: "row"; item: JournalItem }> = [];
+  for (const item of items) {
     const last = out.at(-1);
-    if (last?.kind === "run") last.items.push(...each);
-    else out.push({ kind: "run", items: [...each] });
-  };
-  for (const cut of clusterAgents(items, live)) {
-    if (cut.kind === "agents" && cut.items.some((item) => live(item))) out.push(cut);
-    else if (cut.kind === "agents") toRun(cut.items);
-    else if (cut.item.detail.type === "artifact") out.push(cut);
-    else toRun([cut.item]);
+    if (item.detail.type === "artifact") out.push({ kind: "row", item });
+    else if (last?.kind === "run") last.items.push(item);
+    else out.push({ kind: "run", items: [item] });
   }
   return out;
 }
 
-export function clusterAgents(items: readonly JournalItem[], live: AgentLive): Array<{ kind: "row"; item: JournalItem } | { kind: "agents"; items: JournalItem[] }> {
+export function clusterAgents(items: readonly JournalItem[], isAgent: (item: JournalItem) => boolean): Array<{ kind: "row"; item: JournalItem } | { kind: "agents"; items: JournalItem[] }> {
   const out: Array<{ kind: "row"; item: JournalItem } | { kind: "agents"; items: JournalItem[] }> = [];
   for (const item of items) {
     const last = out.at(-1);
-    if (live(item) === undefined) out.push({ kind: "row", item });
+    if (!isAgent(item)) out.push({ kind: "row", item });
     else if (last?.kind === "agents") last.items.push(item);
     else out.push({ kind: "agents", items: [item] });
   }

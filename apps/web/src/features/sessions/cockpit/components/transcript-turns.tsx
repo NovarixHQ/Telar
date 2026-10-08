@@ -4,10 +4,9 @@ import { Fragment, useState, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import type { SessionChild } from "@telar/engine-client";
 import type { JournalTurn } from "@telar/client/journal";
-import { AgentRows, bareNotificationTurn, foldsIntoAgentRow, groupNotificationTurns, ROW, routineNotification, sessionsCreated, SessionLookup, type SessionFacts } from "@/features/transcript";
+import { bareNotificationTurn, foldsIntoAgentRow, groupNotificationTurns, ROW, routineNotification, sessionsCreated, SessionLookup, type SessionFacts } from "@/features/transcript";
 import { cn } from "@/ui/utils";
 import { sessionHref } from "../../session-list";
-import { childPending } from "../hooks/use-session-children";
 import type { SessionDirectory } from "../hooks/use-session-directory";
 
 export type TurnView = { peerTitle?: string; builders?: readonly SessionChild[] };
@@ -35,15 +34,14 @@ export function mentionedSessions(turns: readonly JournalTurn[], children: reado
   return [...new Set([...notifying, ...children.map((child) => child.sessionId)].filter((id): id is string => Boolean(id)))].sort();
 }
 
-/** Each child not already drawn where it was created goes under the turn that tasked it; one whose turn is not loaded shows under the newest while it is still out. */
+/** Each child not already drawn where it was created belongs to the work of the turn that tasked it. */
 function anchorChildren(turns: readonly JournalTurn[], children: readonly SessionChild[], inline: ReadonlySet<string>): Map<string, SessionChild[]> {
   const loaded = new Set(turns.map((turn) => turn.runId));
-  const newest = turns.at(-1)?.runId;
   const anchored = new Map<string, SessionChild[]>();
   for (const child of children) {
-    if (inline.has(child.sessionId)) continue;
-    const anchor = child.parentRunId && loaded.has(child.parentRunId) ? child.parentRunId : childPending(child) ? newest : undefined;
-    if (anchor) anchored.set(anchor, [...(anchored.get(anchor) ?? []), child]);
+    const anchor = child.parentRunId;
+    if (inline.has(child.sessionId) || !anchor || !loaded.has(anchor)) continue;
+    anchored.set(anchor, [...(anchored.get(anchor) ?? []), child]);
   }
   return anchored;
 }
@@ -80,19 +78,8 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
   };
   const row = (turn: JournalTurn) => {
     const peerTitle = titleOf(turn);
-    const anchoredHere = anchored.get(turn.runId);
-    const settled = anchoredHere && turn.runId !== activeRunId && !anchoredHere.some(childPending) ? anchoredHere : undefined;
-    const tasked = settled ? undefined : anchoredHere;
-    return (
-      <Fragment key={turn.runId}>
-        {renderTurn(turn, { ...(peerTitle ? { peerTitle } : {}), ...(settled ? { builders: settled } : {}) })}
-        {tasked && (
-          <div className="mx-auto w-full max-w-(--chat-content-max-width)">
-            <AgentRows agents={tasked} />
-          </div>
-        )}
-      </Fragment>
-    );
+    const builders = anchored.get(turn.runId);
+    return <Fragment key={turn.runId}>{renderTurn(turn, { ...(peerTitle ? { peerTitle } : {}), ...(builders ? { builders } : {}) })}</Fragment>;
   };
   const folded = (turn: JournalTurn) => turn.runId !== activeRunId && !anchored.has(turn.runId) && bareNotificationTurn(turn) && foldsIntoAgentRow(turn.notification!, (id) => drawn.has(id));
   const rows = (group: readonly JournalTurn[]) => {

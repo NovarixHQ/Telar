@@ -31,7 +31,7 @@ const DOT: Record<SessionChildState, string> = {
   stopped: "bg-muted-foreground/50",
 };
 
-export const agentPending = (agent: { state: SessionChildState }) => agent.state === "working" || agent.state === "waiting";
+const agentPending = (agent: { state: SessionChildState }) => agent.state === "working" || agent.state === "waiting";
 
 const seconds = (ms: number) => Math.max(0, Math.floor(ms / 1000));
 

@@ -5,7 +5,6 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { type JournalItem, type JournalTask } from "@telar/client/journal";
 import { cutAroundStandingRows, failedCount, renderable } from "../model";
 import { TranscriptRows } from "./activity";
-import { AgentCluster, useAgentLive } from "./agent-cluster";
 import { RowGestures } from "./tool-row";
 import { TranscriptItem } from "./transcript-item";
 
@@ -36,9 +35,8 @@ export function TurnWork({
 }: { items: readonly JournalItem[]; tasks: JournalTask[]; label: string; detail?: string; lead?: ReactNode; trail?: ReactNode } & RowGestures) {
   const [open, setOpen] = useState(false);
   const rows = useMemo(() => renderable([...items], tasks), [items, tasks]);
-  const agentLive = useAgentLive(tasks);
   if (rows.length === 0 && !lead && !trail) return null;
-  const standing = cutAroundStandingRows(rows, agentLive).flatMap((cut) => (cut.kind === "run" ? [] : [cut]));
+  const standing = cutAroundStandingRows(rows).flatMap((cut) => (cut.kind === "row" ? [cut.item] : []));
   const failures = failedCount(rows, tasks);
   const Chevron = open ? ChevronDownIcon : ChevronRightIcon;
   return (
@@ -61,13 +59,7 @@ export function TurnWork({
           {trail}
         </>
       ) : (
-        standing.map((cut) =>
-          cut.kind === "agents" ? (
-            <AgentCluster key={cut.items[0]!.id} items={cut.items} tasks={tasks} {...gestures} />
-          ) : (
-            <TranscriptItem key={cut.item.id} item={cut.item} tasks={tasks} {...gestures} />
-          ),
-        )
+        standing.map((item) => <TranscriptItem key={item.id} item={item} tasks={tasks} {...gestures} />)
       )}
     </div>
   );

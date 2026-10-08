@@ -81,38 +81,15 @@ const withAgents = (turns: JournalTurn[], agents: SessionChild[]) =>
     />,
   );
 
-describe("children under the turn that tasked them", () => {
-  test("a working child is a row after its turn, with what it is doing and a link to it", () => {
-    const text = visibleText(withAgents([dispatch, later], [child("s_a", { title: "Fix the rail", progress: "Running tests", provider: "codex" })]));
-    expect(text.indexOf("Fix the rail")).toBeGreaterThan(text.indexOf("turn:run_dispatch"));
-    expect(text.indexOf("Fix the rail")).toBeLessThan(text.indexOf("turn:run_later"));
-    expect(text).toContain("Running tests");
-    expect(withAgents([dispatch], [child("s_a", { title: "Fix the rail" })])).toContain('href="/projects/proj/sessions/s_a"');
+describe("children belong to the work of the turn that tasked them", () => {
+  test("working or ended, a child is handed to its turn and never drawn after it", () => {
+    const text = visibleText(withAgents([dispatch, later], [child("s_a", { title: "Fix the rail", progress: "Running tests" }), child("s_b", { title: "Merge", state: "done", endedAt: 2_000 })]));
+    expect(text.replace(/\s+/g, " ").trim()).toBe("turn:run_dispatch folded:Fix the rail folded:Merge turn:run_later");
   });
 
-  test("a waiting child says so, an ended one gives its summary", () => {
-    expect(visibleText(withAgents([dispatch], [child("s_a", { state: "waiting" })]))).toContain("Waiting on you");
-    expect(visibleText(withAgents([dispatch], [child("s_a", { title: "Merge", state: "done", summary: "Merged it", endedAt: 2_000 })]))).toContain("folded:Merge");
-  });
-
-  test("several from one turn are one row that counts them, closed until opened", () => {
-    const html = withAgents([dispatch], [child("s_a", { title: "One" }), child("s_b", { title: "Two" }), child("s_c", { title: "Three", state: "done", endedAt: 2_000 })]);
-    expect(visibleText(html)).toContain("3 subagents");
-    expect(visibleText(html)).toContain("2 working");
-    expect(visibleText(html)).not.toContain("Three");
-  });
-
-  test("once every one has ended they fold into the turn that tasked them", () => {
-    const text = visibleText(withAgents([dispatch], [child("s_a", { title: "One", state: "done" }), child("s_b", { title: "Two", state: "failed" })]));
-    expect(text).toContain("turn:run_dispatch folded:One folded:Two");
-    expect(text).not.toContain("subagents");
-  });
-
-  test("a child whose turn is not loaded shows under the newest turn while it is out, and not once it has ended", () => {
+  test("a child whose turn is not loaded is not drawn at all", () => {
     const stray = child("s_a", { title: "Older errand", parentRunId: "run_unloaded" });
-    const text = visibleText(withAgents([dispatch, later], [stray]));
-    expect(text.indexOf("Older errand")).toBeGreaterThan(text.indexOf("turn:run_later"));
-    expect(withAgents([dispatch, later], [{ ...stray, state: "done" }])).not.toContain("Older errand");
+    expect(visibleText(withAgents([dispatch, later], [stray]))).not.toContain("Older errand");
   });
 });
 
@@ -195,12 +172,10 @@ describe("two sub-agents and a builder from one turn", () => {
       />,
     );
 
-  test("while they work they are one row outside the fold, and the builder is not drawn twice", () => {
+  test("while they work they stay inside the turn's work like every other step", () => {
     const text = visibleText(draw([fanOut("running")], [builder("working")]));
-    expect(text).toContain("3 subagents");
-    expect(text).toContain("3 working");
-    expect(text).not.toContain("Started builder");
-    expect(text.split("Reply OK").length - 1).toBeLessThanOrEqual(1);
+    for (const outside of ["subagents", "working", "Reply OK", "Started builder", "List files"]) expect(text).not.toContain(outside);
+    expect(text).toContain("Worked");
   });
 
   test("the builder's result does not add a row of its own", () => {
@@ -218,10 +193,10 @@ describe("two sub-agents and a builder from one turn", () => {
     for (const leftover of ["subagents", "Reply OK", "Started builder", "List files"]) expect(text).not.toContain(leftover);
   });
 
-  test("a builder drawn under its turn stays out while it works and folds in once it has ended", () => {
+  test("a builder with no matching call is drawn inside its turn's work, working or ended", () => {
     const blind = { ...create, detail: { type: "mcp_tool_call" as const, call: { name: "mcp__telar__sessions_create", input: { title: "Reply OK" } } } };
     const dispatched = (state: "running" | "completed") => ({ ...fanOut(state), items: [spawn(1), spawn(2), blind] });
-    expect(visibleText(draw([dispatched("running")], [builder("working")]))).toContain("Reply OK");
+    expect(visibleText(draw([dispatched("running")], [builder("working")]))).not.toContain("Reply OK");
     expect(visibleText(draw([dispatched("completed")], [builder("done")]))).not.toContain("Reply OK");
   });
 

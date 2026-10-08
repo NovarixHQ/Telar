@@ -2,9 +2,8 @@
 
 import { useCallback, useContext } from "react";
 import type { JournalItem, JournalTask } from "@telar/client/journal";
-import type { AgentLive } from "../model";
 import { sessionsCreated } from "../sessions-tools";
-import { AgentCard, agentPending, sessionAgentView, type AgentView } from "./agent-rows";
+import { AgentCard, sessionAgentView, type AgentView } from "./agent-rows";
 import { TranscriptSession } from "./message-attachments";
 import { SessionLookup } from "./session-lookup";
 import { taskAgentView } from "./task-agent-row";
@@ -28,12 +27,9 @@ function useAgentView(tasks: readonly JournalTask[]): (item: JournalItem) => Age
   );
 }
 
-export function useAgentLive(tasks: readonly JournalTask[]): AgentLive {
+export function useIsAgent(tasks: readonly JournalTask[]): (item: JournalItem) => boolean {
   const view = useAgentView(tasks);
-  return useCallback((item: JournalItem) => {
-    const agent = view(item);
-    return agent && agentPending(agent);
-  }, [view]);
+  return useCallback((item: JournalItem) => view(item) !== undefined, [view]);
 }
 
 export function AgentCluster({ items, tasks, ...gestures }: { items: readonly JournalItem[]; tasks: readonly JournalTask[] } & RowGestures) {

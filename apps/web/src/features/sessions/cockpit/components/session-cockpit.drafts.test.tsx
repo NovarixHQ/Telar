@@ -209,6 +209,41 @@ describe("the first message, before the engine has it", () => {
   });
 });
 
+describe("the first message, once the engine confirms it", () => {
+  test("stays the same bubble: the confirmed turn reuses the sent one's node, with the reply under it", async () => {
+    let submitted: { runId: string; input: string } | undefined;
+    let onSubmit = () => {};
+    const submittedOnce = new Promise<void>((resolve) => (onSubmit = resolve));
+    wire();
+    const engine = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if ((init?.method ?? "GET") === "POST" && url.includes("/turns")) {
+        submitted = JSON.parse(String(init!.body));
+        onSubmit();
+      }
+      if (url.includes("/bootstrap")) {
+        await submittedOnce;
+        if (!submitted) throw new Error("unreachable");
+        const id = /sessions\/([^/?]+)/.exec(url)![1]!;
+        const turn = { runId: submitted.runId, sessionId: id, sequence: 1, input: submitted.input, origin: "user", state: "completed", acceptedAt: 1, updatedAt: 2, resultText: "Mapped them." };
+        return Response.json({ session: record(id), turns: [turn], items: [], tasks: [], requests: [], cursor: 2, events: [], subscriptions: [] });
+      }
+      return engine(input, init);
+    }) as typeof fetch;
+    const { host } = await open();
+    await type(host, "map the exoplanets");
+    await send(host);
+    await settle();
+    const sent = host.querySelector('[data-role="user"]');
+    await flush(() => Boolean(host.textContent?.includes("Mapped them.")));
+
+    expect(host.textContent).toContain("Mapped them.");
+    expect(bubbles(host)).toEqual(["map the exoplanets"]);
+    expect(host.querySelector('[data-role="user"]')).toBe(sent);
+  });
+});
+
 describe("switching conversations", () => {
   test("saves the outgoing draft under its own conversation and loads the incoming one's", async () => {
     writeDraft("session_drafts_a", "project_1", "");

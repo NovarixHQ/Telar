@@ -60,9 +60,9 @@ export class EngineClient implements EngineTransport {
   }
 
   async liveSessionsMatching(
-    options: { etag?: string; all?: boolean } = {},
+    options: { etag?: string; all?: boolean; signal?: AbortSignal } = {},
   ): Promise<{ notModified: true; etag: string } | (LiveSessionsAnswer & { notModified?: false; etag?: string })> {
-    const read = await this.requestIfChanged<LiveSessionsAnswer>(options.all ? "/v2/sessions/live?all=1" : "/v2/sessions/live", options.etag, "liveSessionsMatching");
+    const read = await this.requestIfChanged<LiveSessionsAnswer>(options.all ? "/v2/sessions/live?all=1" : "/v2/sessions/live", options.etag, "liveSessionsMatching", options.signal);
     if (read.unchanged) return { notModified: true, etag: read.etag ?? options.etag ?? "" };
     return { ...read.payload, ...(read.etag === undefined ? {} : { etag: read.etag }) };
   }
@@ -117,8 +117,8 @@ export class EngineClient implements EngineTransport {
     return payload as T;
   }
 
-  async requestIfChanged<T>(pathname: string, etag?: string, operation?: string): Promise<Conditional<T>> {
-    const response = await this.send(pathname, { method: "GET", headers: etag ? { "if-none-match": etag } : {} }, operation);
+  async requestIfChanged<T>(pathname: string, etag?: string, operation?: string, signal?: AbortSignal): Promise<Conditional<T>> {
+    const response = await this.send(pathname, { method: "GET", headers: etag ? { "if-none-match": etag } : {}, ...(signal ? { signal } : {}) }, operation);
     const tag = response.headers.get("etag") ?? undefined;
     if (response.status === 304) return { unchanged: true, ...(tag ? { etag: tag } : {}) };
     return { unchanged: false, payload: await this.parse<T>(response, operation), ...(tag ? { etag: tag } : {}) };

@@ -11,10 +11,10 @@ Loader2Icon,
 HourglassIcon,
 Minimize2Icon
 } from "lucide-react";
-import { itemLabel, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@/platform/engine";
+import { itemLabel, itemText, type JournalItem, type JournalTurn } from "@/platform/engine";
 import { fmtTokens } from "@/ui/format";
 import { attachmentUrl } from "@/features/plugins";
-import { MessageMenu, MessageResponse } from "@/ui/message";
+import { MessageMenu } from "@/ui/message";
 import { Shimmer } from "@/ui/shimmer";
 import { ROW } from "./transcript-fold";
 import { AgentMessageBubble, ConversationMessage, type OpenTab } from "./conversation-message";
@@ -127,77 +127,6 @@ export function PlanRow({ item }: { item: JournalItem }) {
     </div>
   );
 }
-
-export function AgentRow({ item, task, onInsert }: { item: JournalItem; task: JournalTask | undefined } & Pick<RowGestures, "onInsert">) {
-  const [open, setOpen] = useState(false);
-  const state = task?.state ?? (item.status === "inProgress" ? "running" : item.status === "failed" ? "failed" : "completed");
-  const live = state === "running" || state === "pending" || state === "waiting";
-  const isError = state === "failed";
-  const label = task?.title ?? item.title ?? task?.role ?? "Sub-agent";
-  const role = task?.role;
-  const body = task?.resultText ?? task?.failure;
-  const tokens = task?.usage ? task.usage.tokens.input + task.usage.tokens.output : undefined;
-  const status = AGENT_STATE[state];
-
-  const row = (
-    <div className={cn("rounded-md", isError && "bg-destructive/10")}>
-      <div className={cn(ROW, "gap-2")}>
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          disabled={!body}
-          aria-expanded={body ? open : undefined}
-          onClick={() => setOpen((current) => !current)}
-        >
-          <BotIcon className={cn("size-3.5 shrink-0", isError ? "text-destructive" : "text-muted-foreground")} />
-          {live ? (
-            <Shimmer as="span" className="min-w-0 flex-1 truncate text-left text-xs">
-              {`${live && state === "running" ? "Running" : "Kicked off"}${role ? ` ${role}` : " agent"} · ${label}`}
-            </Shimmer>
-          ) : (
-            <>
-              <span className={cn("shrink-0", isError && "text-destructive")}>{`Ran${role ? ` ${role}` : " agent"}`}</span>
-              <span className="min-w-0 truncate font-mono text-2xs text-muted-foreground">{label}</span>
-            </>
-          )}
-          {body && (
-            <ChevronRightIcon className={cn("size-3 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
-          )}
-        </button>
-        <span className={cn("shrink-0 font-mono text-3xs tabular-nums", isError ? "text-destructive" : "text-muted-foreground")}>
-          {status}
-          {tokens ? ` · ${fmtTokens(tokens)}` : ""}
-        </span>
-      </div>
-      {open && body && (
-        <div className="ml-3 border-l border-border/70 py-1 pr-1.5 pl-3">
-          {task?.failure ? (
-            <p className="text-xs text-destructive">{task.failure}</p>
-          ) : (
-            <MessageResponse>{body}</MessageResponse>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  if (!body) return row;
-  return (
-    <MessageMenu text={body} {...(onInsert ? { onQuote: onInsert } : {})}>
-      {row}
-    </MessageMenu>
-  );
-}
-
-/** The agent row's state word. */
-const AGENT_STATE: Record<JournalTask["state"], string> = {
-  pending: "queued",
-  running: "running",
-  waiting: "waiting",
-  completed: "done",
-  failed: "failed",
-  stopped: "stopped",
-};
 
 export function CompactionRow({ item }: { item: JournalItem }) {
   // WHILE IT RUNS, THE WORKING LINE SAYS IT — "Compacting context" with its

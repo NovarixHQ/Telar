@@ -1,8 +1,8 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
 import type { JournalTurn } from "@telar/client/journal";
-import { ItemRow, NestedDetail, Notice, UserBubble } from "./ItemRow";
-import { turnLayout, type Activity, type Ending, type Fold } from "./layout";
+import { ItemRow, NestedDetail, NoticeLine, NoticeRow, UserBubble } from "./ItemRow";
+import { groupTurns, turnLayout, type Activity, type Ending, type Fold } from "./layout";
 import { Theme } from "../../ui";
 import { PulseDot, Symbol, TextSize } from "./native";
 
@@ -102,7 +102,8 @@ const TurnView = memo(function TurnView({ turn }: { turn: JournalTurn }) {
   return (
     <View style={styles.turn}>
       {opener?.kind === "bubble" ? <UserBubble text={opener.text} attachments={opener.attachments} /> : null}
-      {opener?.kind === "notice" ? <Notice icon={opener.icon} text={opener.text} /> : null}
+      {opener?.kind === "notice" ? <NoticeRow notice={opener.notice} /> : null}
+      {opener?.kind === "compact" ? <NoticeLine icon="arrow.down.right.and.arrow.up.left" text={opener.text} /> : null}
       {layout.body.map((activity) => (
         <ActivityRow key={activity.kind === "fold" ? `fold/${activity.id}` : activity.item.id} activity={activity} />
       ))}
@@ -111,13 +112,22 @@ const TurnView = memo(function TurnView({ turn }: { turn: JournalTurn }) {
   );
 });
 
-/** One view per turn, as direct children of the scroll view so prepended pages keep the reader's place. */
+/** One view per turn group, as direct children of the scroll view so prepended pages keep the reader's place. */
 export function Transcript({ turns }: { turns: readonly JournalTurn[] }) {
-  return turns.map((turn) => <TurnView key={turn.runId} turn={turn} />);
+  return groupTurns(turns).map((group) =>
+    group.length === 1 ? (
+      <TurnView key={group[0]!.runId} turn={group[0]!} />
+    ) : (
+      <View key={group[0]!.runId} style={styles.group}>
+        {group.map((turn) => <TurnView key={turn.runId} turn={turn} />)}
+      </View>
+    ),
+  );
 }
 
 const styles = StyleSheet.create({
   turn: { gap: 10 },
+  group: { gap: 2 },
   stack: { gap: 6 },
   foldHeader: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },
   chevron: { opacity: 0.6 },

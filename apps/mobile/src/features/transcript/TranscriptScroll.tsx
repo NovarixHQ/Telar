@@ -17,6 +17,9 @@ type Props = {
   children?: ReactNode;
 };
 
+// Swift's 12pt column padding plus the read-receipt marker and stack spacing after the last turn.
+const TAIL_GAP = 28;
+
 const metricsOf = ({ contentOffset, layoutMeasurement, contentSize }: NativeScrollEvent) => ({ offset: contentOffset.y, viewport: layoutMeasurement.height, content: contentSize.height });
 
 /** The transcript follows its tail until the reader scrolls up; a jump button brings it back. */
@@ -46,7 +49,7 @@ export function TranscriptScroll({ turns, loading, older, pin, bottomInset = 0, 
       <ScrollView
         ref={scroll}
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: 12 + bottomInset }]}
+        contentContainerStyle={[styles.content, { paddingBottom: TAIL_GAP + bottomInset }]}
         scrollIndicatorInsets={{ bottom: bottomInset }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"

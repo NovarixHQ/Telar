@@ -1,19 +1,17 @@
 import { displayToolName } from "@telar/engine-client";
 import { isActiveTurn, isCompacting, itemLabel, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@telar/client/journal";
+import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./notices";
 
 /** A run of steps drawn as one fold: live shows "+N earlier steps" over the newest, settled shows "N steps · tally". */
 export type Fold = { kind: "fold"; id: string; items: JournalItem[]; live: boolean; failed: boolean; tally: string };
 export type Activity = { kind: "item"; item: JournalItem } | Fold;
 
-type Opener =
-  | { kind: "bubble"; text: string; attachments: number }
-  | { kind: "notice"; icon: "bell" | "arrow.left.arrow.right" | "arrow.down.right.and.arrow.up.left"; text: string };
+type Opener = { kind: "bubble"; text: string; attachments: number } | { kind: "notice"; notice: Notice } | { kind: "compact"; text: string };
 
 export type Ending = { kind: "working"; label: "Working" | "Queued" | "Compacting context" } | { kind: "failed"; text: string } | { kind: "stopped" };
 
 export type TurnLayout = { runId: string; opener?: Opener; body: Activity[]; ending?: Ending };
 
-export const firstLine = (text: string) => text.split("\n").find((line) => line.trim())?.trim() ?? "";
 
 const DRIVER: Record<string, string> = { claude: "Claude", codex: "Codex", opencode: "OpenCode", telar: "Telar" };
 type SwitchSide = { driver: string; model?: string | undefined };
@@ -97,13 +95,13 @@ function compactTurn(turn: JournalTurn): TurnLayout {
   const compactions = turn.items.filter((item) => item.detail.type === "context_compaction");
   if (compactions.length) return { runId: turn.runId, body: compactions.map((item) => ({ kind: "item", item })) };
   const text = isActiveTurn(turn.state) ? "Compacting context…" : turn.state === "failed" ? "Compaction failed" : "Context compaction requested";
-  return { runId: turn.runId, opener: { kind: "notice", icon: "arrow.down.right.and.arrow.up.left", text }, body: [] };
+  return { runId: turn.runId, opener: { kind: "compact", text }, body: [] };
 }
 
 function opener(turn: JournalTurn): Opener {
-  if (turn.notification) return { kind: "notice", icon: "bell", text: firstLine(turn.notification.summary) };
-  if (turn.wakeReason || turn.origin === "provider") return { kind: "notice", icon: "bell", text: firstLine(turn.agentNotice ?? turn.prompt) || "Woken" };
-  if (turn.sender) return { kind: "notice", icon: "arrow.left.arrow.right", text: firstLine(turn.agentNotice ?? turn.prompt) };
+  if (turn.notification) return { kind: "notice", notice: notificationNotice(turn.notification, turn.sender ? turn.prompt : undefined) };
+  if (turn.wakeReason || turn.origin === "provider") return { kind: "notice", notice: wakeNotice(turn.wakeReason, turn.origin === "provider" ? { task: Boolean(turn.wokenBy) } : undefined, turn.agentNotice, turn.prompt) };
+  if (turn.sender) return { kind: "notice", notice: agentNotice(turn.agentIntent, turn.agentNotice, turn.prompt) };
   return { kind: "bubble", text: turn.prompt, attachments: turn.attachments?.length ?? 0 };
 }
 
@@ -114,10 +112,30 @@ function ending(turn: JournalTurn): Ending | undefined {
   return { kind: "working", label: isCompacting(turn) ? "Compacting context" : turn.state === "queued" ? "Queued" : "Working" };
 }
 
+const ownNotification = (turn: JournalTurn) => (turn.notification && (turn.origin === "session" || turn.origin === "provider") ? `notification_${turn.runId}` : undefined);
+
+// A notification that woke the session and produced nothing: drawn as one line, stacked with the next.
+function bareNotification(turn: JournalTurn): boolean {
+  if (!turn.notification || turn.items.some((item) => item.id !== ownNotification(turn))) return false;
+  if (turn.resultText || turn.failure || turn.usage || isActiveTurn(turn.state)) return false;
+  return turn.state !== "failed" && turn.state !== "stopped" && turn.state !== "discarded";
+}
+
+/** Runs of bare notification turns sit 2pt apart instead of a turn's 16pt, as in the Swift transcript. */
+export function groupTurns(turns: readonly JournalTurn[]): JournalTurn[][] {
+  const groups: JournalTurn[][] = [];
+  for (const turn of turns) {
+    const previous = groups.at(-1)?.at(-1);
+    if (previous && turn.notification && bareNotification(previous)) groups.at(-1)!.push(turn);
+    else groups.push([turn]);
+  }
+  return groups;
+}
+
 /** One turn as the Swift app draws it: earlier responses as segments, the answer's steps folded above its closing prose. */
 export function turnLayout(turn: JournalTurn): TurnLayout {
   if (turn.kind === "compact") return compactTurn(turn);
-  const own = turn.notification && (turn.origin === "session" || turn.origin === "provider") ? `notification_${turn.runId}` : undefined;
+  const own = ownNotification(turn);
   const items = turn.items.filter((item) => item.id !== own);
   const responses: { boundary?: JournalItem; items: JournalItem[] }[] = [{ items: [] }];
   for (const item of items) {

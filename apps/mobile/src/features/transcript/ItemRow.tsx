@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { itemLabel, itemText, type JournalItem } from "@telar/client/journal";
-import { firstLine, providerSwitchLabel } from "./layout";
+import { providerSwitchLabel } from "./layout";
+import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./notices";
 import { Markdown } from "./Markdown";
 import { advanceReveal, REVEAL_FRAME_MS, revealed, revealText, stepReveal, type Reveal } from "./reveal";
 import { Radius, Theme, type SymbolName } from "../../ui";
@@ -112,9 +113,9 @@ export function ItemRow({ item }: { item: JournalItem }) {
       return <Divider label={detail.preTokens !== undefined && detail.postTokens !== undefined ? `Context compacted ${Math.floor(detail.preTokens / 1000)}k → ${Math.floor(detail.postTokens / 1000)}k` : "Context compacted"} />;
     case "user_message":
       if (!detail.wakeReason && !detail.sender) return <UserBubble text={itemText(item)} attachments={detail.attachments?.length ?? 0} />;
-      return <Notice icon={detail.wakeReason ? "bell" : "arrow.left.arrow.right"} text={firstLine(detail.notice ?? itemText(item))} />;
+      return <NoticeRow notice={detail.wakeReason ? wakeNotice(detail.wakeReason, undefined, detail.notice, itemText(item)) : agentNotice(undefined, detail.notice, itemText(item))} />;
     case "notification":
-      return <Notice icon="bell" text={firstLine(detail.notification.summary)} />;
+      return <NoticeRow notice={notificationNotice(detail.notification)} />;
     default:
       return <ToolChip icon={TOOL_ICON[detail.type] ?? "wrench.and.screwdriver"} label={itemLabel(item)} status={item.status} />;
   }
@@ -148,11 +149,36 @@ export function UserBubble({ text, attachments = 0 }: { text: string; attachment
   );
 }
 
-export function Notice({ icon, text }: { icon: SymbolName; text: string }) {
+export function NoticeLine({ icon, text }: { icon: SymbolName; text: string }) {
   return (
     <View style={styles.notice}>
       <Symbol name={icon} size={TextSize.caption} color={Theme.textMuted} />
       <Text style={styles.meta} numberOfLines={2}>{text}</Text>
+    </View>
+  );
+}
+
+export function NoticeRow({ notice }: { notice: Notice }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.stack}>
+      <Pressable disabled={!notice.body} onPress={() => setOpen((value) => !value)} style={styles.notice} accessibilityRole={notice.body ? "button" : "text"}>
+        <Symbol name={notice.icon} size={TextSize.caption} color={Theme.textMuted} />
+        <Text style={styles.meta} numberOfLines={2}>{notice.verb}</Text>
+        {notice.head ? <Text style={[styles.monoSmall, styles.shrink]} numberOfLines={1}>{notice.head}</Text> : null}
+        {notice.extra.map((part) => <Text key={part} style={styles.monoSmall} numberOfLines={1}>{part}</Text>)}
+        <View style={styles.fill} />
+        {notice.body ? (
+          <View style={open && styles.turned}>
+            <Symbol name="chevron.right" size={TextSize.caption} color={Theme.textMuted} />
+          </View>
+        ) : null}
+      </Pressable>
+      {open && notice.body ? (
+        <NestedDetail>
+          <Text selectable style={styles.meta}>{notice.body}</Text>
+        </NestedDetail>
+      ) : null}
     </View>
   );
 }
@@ -179,4 +205,8 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: TextSize.body, lineHeight: TextSize.body * 1.2 + 4, color: Theme.text },
   imageLabel: { flexDirection: "row", alignItems: "center", gap: 6 },
   notice: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },
+  monoSmall: { fontFamily: MONO, fontSize: TextSize.caption2, color: Theme.textMuted },
+  shrink: { flexShrink: 1 },
+  fill: { flex: 1 },
+  turned: { transform: [{ rotate: "90deg" }] },
 });

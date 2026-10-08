@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { Item, Turn } from "@telar/engine-client";
 import { projectJournal } from "@telar/client/journal";
 import { item, turn } from "@telar/client/journal/fixtures";
-import { turnLayout, type Activity } from "./layout";
+import { groupTurns, turnLayout, type Activity } from "./layout";
 
 const ran = (id: string, status: Item["status"] = "completed") => item({ id, status, title: `cmd ${id}`, detail: { type: "command_execution", command: { command: id } } as never });
 const edited = (id: string) => item({ id, status: "completed", title: id, detail: { type: "file_change", change: { path: id, kind: "edit" } } as never });
@@ -49,4 +49,18 @@ test("a steer splits the turn: the earlier response folds on its own above the m
 test("empty thoughts are dropped from a fold", () => {
   const thought = item({ id: "think", status: "completed", detail: { type: "reasoning", text: "  " } });
   expect(shape(layoutOf("completed", [thought, ran("a"), said("end", "Done.")]).body)).toEqual(["fold(a)", "end"]);
+});
+
+test("bare notification turns stack together, and a turn that answered starts a new group", () => {
+  const note = { kind: "wake", wakeKind: "turn_completed", summary: "done", fetch: { sessionId: "s", runId: "r" }, body: "" };
+  const turns = projectJournal(
+    [
+      { ...turn, runId: "a", sequence: 1, state: "completed", origin: "session", notification: note },
+      { ...turn, runId: "b", sequence: 2, state: "completed", origin: "session", notification: note },
+      { ...turn, runId: "c", sequence: 3, state: "completed" },
+    ] as never,
+    [said("reply", "Seen.")].map((row) => ({ ...row, runId: "c" })),
+    [],
+  );
+  expect(groupTurns(turns).map((group) => group.map((one) => one.runId))).toEqual([["a", "b"], ["c"]]);
 });

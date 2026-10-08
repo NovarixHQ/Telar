@@ -294,6 +294,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   });
   const remoteDir = options.remoteDir ?? remoteDirFor(root);
   const remoteStore = createRemoteStore(remoteDir);
+  remoteStore.cleanUpPairings();
   const openStreams = new Set<OpenStream>();
   const hostsStore = createHostsStore(remoteDir);
   const push = createPushService({ remoteDir, pairedDevices: () => remoteStore.read().devices, pairedHosts: () => hostsStore.read().hosts, openStreams });

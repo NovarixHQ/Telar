@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { buttonLabelled, click, installTestDom, mount, press } from "@/test/dom";
-import { EXPERIMENTS, type Experiment } from "../experiments";
+import { EXPERIMENTS, type Experiment } from "../experiment-list";
 import { ExperimentalSection } from "./experimental-section";
 
 installTestDom();

@@ -3,7 +3,7 @@ import { pluginSettingsSearchEntries } from "@/features/plugins";
 import { indexSettings, type SettingsPageSpec, type SettingsSearchIndex } from "./search";
 import { SECTIONS } from "./settings-sections";
 import { GENERATED_PAGES } from "./settings-index.generated";
-import { EXPERIMENTS } from "./experiments";
+import { EXPERIMENTS } from "./experiment-list";
 
 export const SETTINGS_SEARCH_PAGES: readonly SettingsPageSpec[] = SECTIONS.map((section) => ({
   id: section.id,

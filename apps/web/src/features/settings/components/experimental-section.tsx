@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ChevronRightIcon, FlaskConicalIcon } from "lucide-react";
-import { decideByLabel, EXPERIMENTS, setExperiment, useExperiment, type Experiment } from "../experiments";
+import { decideByLabel, EXPERIMENTS, type Experiment } from "../experiment-list";
+import { setExperiment, useExperiment } from "../experiments";
 import { Row, SettingsGroup, ToggleRow, usePendingReveal, useRestoreDefaults } from "./settings-shell";
 
 function ExperimentRow({ experiment }: { experiment: Experiment }) {

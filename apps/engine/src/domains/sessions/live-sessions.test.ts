@@ -40,6 +40,19 @@ test("the shelf read answers the settled rows alone, and `all` is the list and t
   expect(store.live.rows({ shelf: true }).settledCount).toBe(2);
 });
 
+test("the settled count is what the Settled shelf draws: no drafts, no snoozed rows, split by project", () => {
+  const store = shelfStore();
+  store.lifecycle.createSession({ id: "session_draft", projectId: "project_one", title: "draft", draft: true });
+  store.lifecycle.updateSession("session_draft", { settledOverride: "settled" });
+  const before = store.live.revision();
+  store.lifecycle.updateSession("session_three", { snoozedUntil: Date.now() + 86_400_000 });
+  expect(store.live.revision()).toBeGreaterThan(before);
+  expect(ids(store.live.rows({ shelf: true }))).toEqual(["session_draft", "session_three", "session_two"]);
+  const lean = store.live.rows();
+  expect(lean.settledCount).toBe(1);
+  expect(lean.settledByProject).toEqual({ project_one: 1 });
+});
+
 test("work on an open session leaves the shelf's revision alone; a change to the shelf moves it", () => {
   const store = shelfStore();
   const shelf = store.live.revision({ shelf: true });

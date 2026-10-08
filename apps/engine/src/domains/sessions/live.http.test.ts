@@ -168,10 +168,10 @@ test("the default answer carries only the rows a rail draws, and says how many i
   const settled = Math.ceil(267 / 3);
   expect(before.sessions).toHaveLength(267);
   expect(after.sessions).toHaveLength(267 - settled);
-  // The count rides BOTH answers: the narrow one needs it to draw a shelf
-  // header, and the wide one must not contradict the narrow one about it.
-  expect(after.settledCount).toBe(settled);
-  expect(before.settledCount).toBe(settled);
+  // The count rides both answers and is the Settled shelf's: a settled row that is also snoozed is drawn under Snoozed.
+  const snoozedToo = Math.ceil(267 / 15);
+  expect(after.settledCount).toBe(settled - snoozedToo);
+  expect(before.settledCount).toBe(settled - snoozedToo);
 
   // And the bytes, which are the point. Bounded as a RATIO rather than a byte
   // count for the reason the per-row bound above is a ratio: the fixture's
@@ -245,7 +245,7 @@ test("a blocker, a pin and a draft all survive the filter — the rows it must n
   expect(rows.has(draft)).toBe(true);
   expect(rows.has(pinnedSettled)).toBe(false);
   expect(rows.has(settledDraft)).toBe(false);
-  expect(store.live.rows().settledCount).toBe(2);
+  expect(store.live.rows().settledCount).toBe(1);
   // And `?all=1` is the same list with nothing held back.
   expect(store.live.rows({ all: true }).sessions).toHaveLength(4);
 });

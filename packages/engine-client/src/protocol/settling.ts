@@ -133,3 +133,16 @@ export function isShelved(
   if (session.draft && !session.archived && session.settledOverride !== "settled") return false;
   return isSettled(session, activity, options);
 }
+
+export type RailBand = "pinned" | "active" | "snoozed" | "settled";
+
+export function railBand(
+  session: SettleableSession & { draft?: unknown },
+  activity: SettlingActivity,
+  options: SettlingOptions,
+): RailBand | undefined {
+  if (session.draft) return undefined;
+  if (isSnoozed(session, activity, options)) return "snoozed";
+  if (session.settledOverride === "active") return "pinned";
+  return isSettled(session, activity, options) ? "settled" : "active";
+}

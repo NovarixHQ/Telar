@@ -127,6 +127,7 @@ export type LiveSessionsAnswer = {
   inbox?: InboxPolicy;
   revision?: number;
   settledCount?: number;
+  settledByProject?: Record<string, number>;
   terminals?: Record<string, number>;
   /** Never sent; present so `unchanged` narrows the union without a cast. */
   unchanged?: false;

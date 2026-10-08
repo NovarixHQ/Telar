@@ -1,5 +1,5 @@
 import path from "node:path";
-import { isShelved, settlingActivityOf, type Session, type Turn } from "@telar/engine-client";
+import { isShelved, railBand, settlingActivityOf, type Session, type Turn } from "@telar/engine-client";
 import type { SessionIndexRow } from "../../platform/db/tables";
 import { ID, type Kernel } from "../../platform/kernel";
 import { parseSession, sessionMetadataFile } from "./metadata";
@@ -42,6 +42,11 @@ export const indexRow = (session: Session): SessionIndexRow => ({
 /** The clients' own shelving rule, asked of a row instead of a record; the two must never disagree. */
 export function rowIsShelved(row: SessionIndexRow, at: SettlingClock): boolean {
   return isShelved({ ...row, archived: row.archived, draft: row.draft }, settlingActivityOf(row), at);
+}
+
+/** The project ("" for none) a row counts toward on the rail's Settled shelf, or undefined when it is drawn elsewhere or not at all. */
+export function settledShelfProject(row: SessionIndexRow, at: SettlingClock): string | undefined {
+  return railBand(row, settlingActivityOf(row), at) === "settled" ? (row.projectId ?? "") : undefined;
 }
 
 /**
@@ -199,11 +204,11 @@ export class SessionIndex {
     }
   }
 
-  // Crossing between list and shelf is membership, which every reader must see.
+  // Crossing between list and shelf, or in or out of a settled count, is membership, which every reader must see.
   private noteRevision(before: SessionIndexRow | undefined, after: SessionIndexRow, at: SettlingClock): void {
     const shelved = after.state !== "active" || rowIsShelved(after, at);
-    const wasShelved = before === undefined ? undefined : before.state !== "active" || rowIsShelved(before, at);
-    if (before === undefined || wasShelved !== shelved) {
+    const place = (row: SessionIndexRow) => (row.state !== "active" ? "gone" : rowIsShelved(row, at) ? `shelf:${settledShelfProject(row, at) ?? "-"}` : "list");
+    if (before === undefined || place(before) !== place(after)) {
       this.bumpMembership();
       return;
     }

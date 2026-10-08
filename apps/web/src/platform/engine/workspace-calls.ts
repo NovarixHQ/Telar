@@ -1,4 +1,5 @@
 import type {
+AgentCatalog,
 BrowserSnapshot,
 ClaudeConversation,
 ConversationImportDetail,DataScienceInstallCommand,
@@ -235,8 +236,6 @@ export function integrationCalls(fetcher: Fetcher) {
       /** A whole percentage of the model's window; `null` returns this login to
        *  the cockpit's default. */
       contextNoticePercent?: number | null;
-      /** When this login's sessions compact; `null` returns it to the
-       *  provider's default. */
       autoCompact?: AutoCompact | null;
       configDir?: string | null;
       binaryPath?: string | null;
@@ -253,6 +252,9 @@ export function integrationCalls(fetcher: Fetcher) {
         "/api/provider-instances",
         input,
       ),
+    agentCatalog: (options: { refresh?: boolean } = {}) => request<AgentCatalog>(fetcher, "GET", `/api/agent-catalog${options.refresh ? "?refresh=1" : ""}`),
+    installAgent: (agentId: string) =>
+      request<{ providerInstance: ProviderInstance }>(fetcher, "POST", `/api/agent-catalog/${encodeURIComponent(agentId)}/install`, {}),
     providerLimits: (instanceId: string) =>
       request<{ windows: UsageLimitWindow[] }>(fetcher, "GET", `/api/provider-instances/${encodeURIComponent(instanceId)}/limits`),
   };

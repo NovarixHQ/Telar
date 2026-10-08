@@ -131,3 +131,16 @@ export const DEFAULT_MODEL_OVERLAY: Omit<ModelOverlay, "instanceId" | "updatedAt
   order: [],
   custom: [],
 };
+
+export type AgentCatalogEntry = {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  website?: string;
+  distribution?: "binary" | "npm" | "uv";
+  verified: boolean;
+  installed?: { version: string; instanceId: string };
+};
+
+export type AgentCatalog = { agents: AgentCatalogEntry[]; fetchedAt?: number; message?: string };

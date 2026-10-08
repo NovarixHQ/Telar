@@ -45,6 +45,8 @@ export type EngineStatePaths = {
   browserProfiles: string;
   diagnostics: string;
   nodeModulesReaped: string;
+  agents: string;
+  agentCatalog: string;
 };
 
 export function statePaths(root: string): EngineStatePaths {
@@ -94,5 +96,7 @@ export function statePaths(root: string): EngineStatePaths {
     browserProfiles: path.join(resolved, "browser-profiles"),
     diagnostics: path.join(resolved, "diagnostics"),
     nodeModulesReaped: path.join(resolved, "node-modules-reaped"),
+    agents: path.join(resolved, "agents"),
+    agentCatalog: path.join(resolved, "agent-catalog.json"),
   };
 }

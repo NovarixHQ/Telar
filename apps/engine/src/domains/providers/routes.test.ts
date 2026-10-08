@@ -53,3 +53,43 @@ test("an agent login needs the command that starts it, and has no model list of 
   expect(saved.providerInstance).toMatchObject({ driver: "acp", binaryPath: "/opt/agents/sample", extraArgs: "--acp" });
   await expect(client.modelCatalogue("acp")).resolves.toMatchObject({ catalogue: { driver: "acp", models: [] } });
 });
+
+test("the agent catalog lists what installs here, and an install becomes an agent login pinned to its version", async () => {
+  const registry = {
+    agents: [
+      { id: "sample", name: "Sample", version: "1.2.3", description: "An agent", distribution: { npx: { package: "@example/acp@1.2.3", args: ["--acp"] } } },
+      { id: "nowhere", name: "Nowhere", version: "1.0.0", description: "", distribution: { binary: { "plan9-mips": { archive: "https://example.test/x", cmd: "x" } } } },
+      { id: "Bad Id", name: "Broken", version: "1", distribution: {} },
+    ],
+  };
+  let fetches = 0;
+  const engineRoot = fs.mkdtempSync(path.join(os.tmpdir(), "telar-provider-routes-"));
+  roots.push(engineRoot);
+  const daemon = await startEngine({
+    models: stubModels,
+    engineRoot,
+    agentInstall: {
+      fetch: (async () => {
+        fetches++;
+        return Response.json(registry);
+      }) as unknown as typeof fetch,
+      which: () => "/bin/bun",
+      run: async (_command, _args, { cwd }) => {
+        fs.mkdirSync(path.join(cwd, "node_modules", "@example", "acp"), { recursive: true });
+        fs.writeFileSync(path.join(cwd, "node_modules", "@example", "acp", "package.json"), JSON.stringify({ bin: "cli.js" }));
+      },
+    },
+  });
+  daemons.push(daemon);
+  const client = new EngineClient(daemon.discovery);
+
+  const catalog = await client.agentCatalog();
+  expect(catalog.agents.map((agent) => [agent.id, agent.distribution ?? null])).toEqual([["sample", "npm"], ["nowhere", null]]);
+  await client.agentCatalog();
+  expect(fetches).toBe(1);
+
+  const { providerInstance } = await client.installAgent("sample");
+  expect(providerInstance).toMatchObject({ id: "agent_sample", driver: "acp", displayName: "Sample", extraArgs: "--acp", binaryPath: path.join(engineRoot, "agents", "sample", "1.2.3", "node_modules", ".bin", "acp") });
+  expect((await client.agentCatalog()).agents[0]).toMatchObject({ installed: { version: "1.2.3", instanceId: "agent_sample" } });
+  await expect(client.installAgent("absent")).rejects.toMatchObject({ status: 404 });
+});

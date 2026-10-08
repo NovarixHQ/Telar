@@ -6,6 +6,7 @@ import type { EngineStore } from "../../state";
 import { runCliUpdate, type CliUpdateRun } from "./cli-updates";
 import { createProviderProber, type VersionProbe } from "./instances";
 import { readProviderLimits } from "./limits";
+import { agentRoutes, type AgentRouteDeps } from "./agent-routes";
 import { runStructuredForPolicy } from "./textgen";
 
 type ProviderRouteDeps = {
@@ -13,6 +14,7 @@ type ProviderRouteDeps = {
   probeVersion?: (driver: ProviderDriverKind, binaryPath: string | undefined, force: boolean) => Promise<VersionProbe>;
   runUpdate?: (driver: BuiltInDriver, binaryPath: string | undefined) => Promise<CliUpdateRun>;
   readLimits?: (instance: ProviderInstance) => Promise<UsageLimitWindow[]>;
+  agents?: AgentRouteDeps;
 };
 
 const only = (input: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> =>
@@ -211,5 +213,5 @@ function providerInstanceRoutes(store: EngineStore, deps: ProviderRouteDeps): Ro
 }
 
 export function providersRoutes(store: EngineStore, deps: ProviderRouteDeps): Route[] {
-  return [...modelRoutes(store), ...mcpServerRoutes(store), ...providerInstanceRoutes(store, deps)];
+  return [...modelRoutes(store), ...mcpServerRoutes(store), ...providerInstanceRoutes(store, deps), ...agentRoutes(store, deps.agents)];
 }

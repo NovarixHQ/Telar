@@ -38,5 +38,6 @@ export {
 export { ProviderRegistry } from "./registry";
 export { installedCli, ModelCatalogues, type InstalledCli } from "./catalogues";
 export { providersRoutes } from "./routes";
+export { type AgentRouteDeps } from "./agent-routes";
 export { sessionProviderRoutes, type ProviderSkillsOptions } from "./session-routes";
 export { ConversationAdoption } from "./adoption";

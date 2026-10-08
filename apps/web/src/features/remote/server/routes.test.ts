@@ -196,7 +196,7 @@ describe("pairing routes", () => {
     await pairPost(pairRequest(await mintToken(), {}, { deviceName: "Old phone" }));
     await pairPost(pairRequest(await mintToken(), {}, { deviceName: "Laptop" }));
     const anonymous = await devicesDeleteOthers(new Request("http://x/api/remote/devices", { method: "DELETE" }));
-    expect(anonymous.status).toBe(401);
+    expect(anonymous.status).toBe(400);
     const response = await devicesDeleteOthers(
       new Request("http://x/api/remote/devices", {
         method: "DELETE",

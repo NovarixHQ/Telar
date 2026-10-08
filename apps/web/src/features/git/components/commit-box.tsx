@@ -18,7 +18,6 @@ export function CommitBox({
   files,
   countIncomplete,
   busy,
-  workspacePath,
   onCommitted,
 }: {
   sessionId: string;
@@ -26,7 +25,6 @@ export function CommitBox({
   files: number;
   countIncomplete?: boolean;
   busy: boolean;
-  workspacePath: string;
   onCommitted: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -101,10 +99,6 @@ export function CommitBox({
           {blocked && <span className="text-2xs text-muted-foreground">{blocked}</span>}
         </div>
       )}
-      <p className="mt-2 text-2xs leading-snug text-muted-foreground">
-        Staging, branch switching and discarding are absent — irreversible next to a running agent. Use a terminal in{" "}
-        <span className="break-all font-mono">{workspacePath}</span>.
-      </p>
     </div>
   );
 }

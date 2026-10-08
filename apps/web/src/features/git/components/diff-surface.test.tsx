@@ -52,6 +52,7 @@ test("every file opens expanded, listed once, with no prose under the figures", 
   expect(host.querySelectorAll(".diff-code-view").length).toBe(2);
   expect(host.querySelectorAll('[role="tree"]').length).toBe(0);
   expect(host.textContent).not.toContain("Everything uncommitted in this project");
+  expect(host.textContent).not.toContain("uncommitted work");
 });
 
 test("a file's chevron folds just that file, and Collapse all folds the rest", async () => {

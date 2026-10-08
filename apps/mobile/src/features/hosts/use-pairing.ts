@@ -13,7 +13,7 @@ export function usePairing() {
   const [error, setError] = useState<string>();
   const run = async (link: string): Promise<PairedHost | undefined> => {
     setBusy(true);
-    const outcome = await pair(link, thisDevice());
+    const outcome = await pair(link, await thisDevice());
     setBusy(false);
     if (!outcome.ok) {
       setError(outcome.message);

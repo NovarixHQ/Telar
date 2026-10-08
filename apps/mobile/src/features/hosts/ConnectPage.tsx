@@ -18,7 +18,7 @@ const Banner = ({ banner }: { banner: Banner }) => <StatusBanner icon={banner.ic
  * Swift's ConnectView: reach a cockpit by address, pair it by code or link, and test the link.
  * Without `hostId` it adds a computer; with `link` it pairs that link on open. Push it on a SwiftUI stack.
  */
-function ConnectPage({ hostId: initialHost, link: seededLink }: { hostId?: string; link?: string }) {
+export function ConnectPage({ hostId: initialHost, link: seededLink }: { hostId?: string; link?: string }) {
   useHosts(hosts);
   const [hostId, setHostId] = useState(initialHost);
   const target = hostId ? pairedHost(hostId) : undefined;
@@ -161,7 +161,7 @@ export function ConnectScreen() {
   const { params } = useRoute<RouteProp<RootStack, "Pair">>();
   return (
     <Host style={{ flex: 1 }}>
-      <ConnectPage {...(params?.hostId ? { hostId: params.hostId } : {})} {...(params?.link ? { link: params.link } : {})} />
+      <ConnectPage {...(params?.link ? { link: params.link } : {})} />
     </Host>
   );
 }

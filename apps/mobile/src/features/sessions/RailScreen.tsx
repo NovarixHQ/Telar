@@ -175,7 +175,7 @@ export function RailScreen() {
           )}
         </List>
       </Host>
-      <BottomBar onSettings={() => navigation.navigate("Settings")} onUsage={() => navigation.navigate("Unavailable", { title: "Usage", systemImage: "chart.bar" })} />
+      <BottomBar onSettings={() => navigation.navigate("Settings")} onUsage={() => navigation.navigate("Usage")} />
     </View>
   );
 }

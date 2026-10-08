@@ -1,8 +1,5 @@
-import { Button, ConfirmationDialog, Host, Text } from "@expo/ui/swift-ui";
-import { useNavigation, useRoute, type NavigationProp, type RouteProp } from "@react-navigation/native";
+import { Button, ConfirmationDialog, Text } from "@expo/ui/swift-ui";
 import { useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
-import type { RootStack } from "../../platform/navigation/routes";
 import { Theme } from "../../ui";
 import { connectionRowSubtitle } from "./connect";
 import { CardField, useField } from "./fields";
@@ -13,7 +10,7 @@ import { useHosts } from "./use-hosts";
 type HostPageLinks = { onConnection: () => void; onDevices: () => void; onDictation: () => void; onSimulators: () => void; onRemoved: () => void };
 
 /** One computer's page in Settings: its name, how it is reached, and removing it from this phone. Push it on a SwiftUI stack. */
-function HostSettingsPage({ hostId, onConnection, onDevices, onDictation, onSimulators, onRemoved }: { hostId: string } & HostPageLinks) {
+export function HostSettingsPage({ hostId, onConnection, onDevices, onDictation, onSimulators, onRemoved }: { hostId: string } & HostPageLinks) {
   useHosts(hosts);
   const host = pairedHost(hostId);
   const state = hosts.get(hostId)?.state;
@@ -70,27 +67,5 @@ function HostSettingsPage({ hostId, onConnection, onDevices, onDictation, onSimu
         </ConfirmationDialog>
       </SettingsGroup>
     </SettingsPage>
-  );
-}
-
-const notYet = (title: string) => () => Alert.alert(title, "Not available on the phone yet.");
-
-/** The `HostSettings` route, until Settings pushes the page on its own stack. */
-export function HostSettingsScreen() {
-  const { params } = useRoute<RouteProp<RootStack, "HostSettings">>();
-  const navigation = useNavigation<NavigationProp<RootStack>>();
-  const name = pairedHost(params.hostId)?.name;
-  useEffect(() => navigation.setOptions({ title: name ?? "Computer" }), [navigation, name]);
-  return (
-    <Host style={{ flex: 1 }}>
-      <HostSettingsPage
-        hostId={params.hostId}
-        onConnection={() => navigation.navigate("Pair", { hostId: params.hostId })}
-        onDevices={notYet("Devices")}
-        onDictation={notYet("Dictation")}
-        onSimulators={notYet("Simulators")}
-        onRemoved={() => navigation.goBack()}
-      />
-    </Host>
   );
 }

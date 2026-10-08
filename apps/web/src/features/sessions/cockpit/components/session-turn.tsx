@@ -5,7 +5,6 @@ import { ChevronRightIcon, Minimize2Icon, ShieldCheckIcon } from "lucide-react";
 import type { EngineRequest, RequestDecision } from "@telar/engine-client";
 import { isActiveTurn, isCompacting, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@/platform/engine";
 import {
-  ActivityGroup,
   LiveActivity,
   Marker,
   NotificationRow,
@@ -14,7 +13,9 @@ import {
   TranscriptItem,
   turnActivity,
   TurnFailureRow,
+  TurnWork,
   WorkingIndicator,
+  workedForLabel,
   withoutOpeningNotification,
   AgentMessageBubble,
   ConversationMessage,
@@ -243,7 +244,13 @@ function SessionTurnBody({
             <LiveActivity items={answering.items} tasks={turn.tasks} {...rowGestures} />
           ) : (
             <>
-              <ActivityGroup items={activity} tasks={turn.tasks} live={false} {...rowGestures} />
+              <TurnWork
+                items={activity}
+                tasks={turn.tasks}
+                label={workedForLabel(turn.startedAt, turn.endedAt)}
+                {...(turn.usage ? { detail: `${(turn.usage.tokens.input + turn.usage.tokens.output).toLocaleString()} tokens` } : {})}
+                {...rowGestures}
+              />
               {closing.map((item) => (
                 <TranscriptItem key={item.id} item={item} tasks={turn.tasks} {...rowGestures} />
               ))}
@@ -272,11 +279,6 @@ function SessionTurnBody({
               startedAt={turn.startedAt}
               {...(turn.lastActivityAt ? { lastActivityAt: turn.lastActivityAt } : {})}
             />
-          )}
-          {turn.usage && !live && (
-            <p className="font-mono text-3xs text-muted-foreground/70 tabular-nums">
-              {(turn.usage.tokens.input + turn.usage.tokens.output).toLocaleString()} tokens
-            </p>
           )}
           {turn.state === "failed" && <p className="mt-2 text-sm text-muted-foreground">This turn ended early. Your history is saved; send a new message to continue.</p>}
         </MessageContent>

@@ -69,7 +69,7 @@ export function ReasoningRow({ item }: { item: JournalItem }) {
         <span aria-hidden className="shrink-0">
           ✻
         </span>
-        <span className="min-w-0 flex-1 truncate italic">Thought</span>
+        <span className="min-w-0 flex-1 truncate italic">{text.trim().split("\n", 1)[0]}</span>
         <ChevronRightIcon className={cn("size-3 shrink-0 transition-transform", open && "rotate-90")} />
       </button>
       {open && (

@@ -73,7 +73,7 @@ export function ActivityGroup({
   );
 }
 
-function HarnessConsultRow({ label, items, tasks, ...gestures }: { label: string; items: JournalItem[]; tasks: JournalTask[] } & RowGestures) {
+export function HarnessConsultRow({ label, items, tasks, ...gestures }: { label: string; items: JournalItem[]; tasks: JournalTask[] } & RowGestures) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-md">

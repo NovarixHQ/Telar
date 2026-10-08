@@ -90,7 +90,7 @@ export function SessionScreen() {
   const failure = problem ?? dictation.problem;
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior="padding" keyboardVerticalOffset={100}>
+    <KeyboardAvoidingView style={styles.screen} behavior="padding">
       <TranscriptScroll
         turns={feed.turns}
         loading={!feed.head && !feed.failed}

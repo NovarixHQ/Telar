@@ -42,6 +42,7 @@ export function TranscriptScroll({ turns, loading, older, pin, children }: Props
         ref={scroll}
         style={styles.scroll}
         contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"
         maintainVisibleContentPosition={{ minIndexForVisible: older ? 1 : 0 }}
         scrollEventThrottle={32}

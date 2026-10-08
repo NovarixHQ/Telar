@@ -6,6 +6,7 @@ import {
   RECENT_CONVERSATION_LIMIT,
   matchActions,
   matchQuick,
+  matchRank,
   paletteActions,
   paletteRows,
   paletteSections,
@@ -98,6 +99,28 @@ describe("the Actions section is the registry, filtered", () => {
     expect(matchActions(actions, "APPEARANCE").map((action) => action.id)).toEqual(["appearance"]);
     expect(matchActions(actions, "   ").length).toBe(actions.length);
     expect(matchActions(actions, "nothing like this")).toEqual([]);
+  });
+});
+
+describe("ranking", () => {
+  test("exact beats prefix beats contains, and an earlier field beats a later one", () => {
+    const exact = matchRank(["settings"], "Settings")!;
+    const prefix = matchRank(["Settings…"], "set")!;
+    const contains = matchRank(["Search Settings…"], "settings")!;
+    const scattered = matchRank(["Search Settings…"], "settings search")!;
+    expect(exact).toBeGreaterThan(prefix);
+    expect(prefix).toBeGreaterThan(contains);
+    expect(contains).toBeGreaterThan(scattered);
+    expect(matchRank(["Other", "Settings"], "settings")!).toBeLessThan(contains);
+  });
+
+  test("a word nothing holds rules the item out", () => {
+    expect(matchRank(["Settings…", "settings"], "open settings")).toBeUndefined();
+  });
+
+  test("actions put the closest label first", () => {
+    const actions = paletteActions(COMMANDS, defaultKeymap(), anything);
+    expect(matchActions(actions, "settings").map((action) => action.id).slice(0, 1)).toEqual(["settings"]);
   });
 });
 
@@ -200,6 +223,28 @@ describe("the recent conversations", () => {
   test("it matches the project and the Mac, because the row says both", () => {
     expect(recentSessions(sessions, "notes").map((row) => row.id)).toEqual(["s3"]);
     expect(recentSessions(sessions, "mini").map((row) => row.id)).toEqual(["s4"]);
+  });
+
+  test("each word may sit anywhere in the row, in any order", () => {
+    expect(recentSessions(sessions, "palette telar").map((row) => row.id)).toEqual(["s2"]);
+    expect(recentSessions(sessions, "palette notes")).toEqual([]);
+  });
+
+  test("it finds a conversation by its branch and by its id", () => {
+    const rows = [session("a", "One", 1, { worktreeBranch: "fix/rail-gap" }), session("b", "Two", 2, { projectBranch: "main" }), session("session_9f2c", "Three", 3)];
+    expect(recentSessions(rows, "rail gap").map((row) => row.id)).toEqual(["a"]);
+    expect(recentSessions(rows, "main").map((row) => row.id)).toEqual(["b"]);
+    expect(recentSessions(rows, "9f2c").map((row) => row.id)).toEqual(["session_9f2c"]);
+  });
+
+  test("an exact title wins; other title matches go newest first; a title beats a project", () => {
+    const rows = [
+      session("older-prefix", "Palette work", 1),
+      session("project", "Unrelated", 9, { projectName: "Palette" }),
+      session("newer-contains", "Fix the palette", 5),
+      session("exact", "Palette", 0),
+    ];
+    expect(recentSessions(rows, "palette").map((row) => row.id)).toEqual(["exact", "newer-contains", "older-prefix", "project"]);
   });
 
   test("a row's key carries its Mac, since two Macs can mint one session id", () => {

@@ -11,7 +11,7 @@ const KEY = panelKey("host-1", "session-1");
 test("a new session's panel opens empty, offering every surface", () => {
   const panel = createPanelModel(KEY, memory());
   panel.open();
-  expect(panel.state()).toEqual({ isOpen: true, tabs: [], active: undefined });
+  expect(panel.state()).toEqual({ isOpen: true, fullScreen: false, tabs: [], active: undefined });
   expect(panel.openable()).toEqual(["diff", "editor", "agents", "simulator", "terminal", "browser"]);
 });
 
@@ -21,8 +21,8 @@ test("tabs, the active tab and openness come back for the same session only", ()
   panel.open("diff");
   panel.open("editor");
   panel.select("diff");
-  expect(createPanelModel(KEY, storage).state()).toEqual({ isOpen: true, tabs: ["diff", "editor"], active: "diff" });
-  expect(createPanelModel(panelKey("host-1", "session-2"), storage).state()).toEqual({ isOpen: false, tabs: [], active: undefined });
+  expect(createPanelModel(KEY, storage).state()).toEqual({ isOpen: true, fullScreen: false, tabs: ["diff", "editor"], active: "diff" });
+  expect(createPanelModel(panelKey("host-1", "session-2"), storage).state()).toEqual({ isOpen: false, fullScreen: false, tabs: [], active: undefined });
 });
 
 test("closing the active tab moves to the one after it, or the last", () => {
@@ -43,15 +43,15 @@ test("a dismissed panel keeps its tabs closed, and a saved one with no tabs rest
   const panel = createPanelModel(KEY, storage);
   panel.open("diff");
   panel.close();
-  expect(createPanelModel(KEY, storage).state()).toEqual({ isOpen: false, tabs: ["diff"], active: "diff" });
-  const empty = memory({ [KEY]: JSON.stringify({ isOpen: true, tabs: [] }) });
+  expect(createPanelModel(KEY, storage).state()).toEqual({ isOpen: false, fullScreen: false, tabs: ["diff"], active: "diff" });
+  const empty = memory({ [KEY]: JSON.stringify({ isOpen: true, fullScreen: false, tabs: [] }) });
   expect(createPanelModel(KEY, empty).state().isOpen).toBe(false);
 });
 
 test("unknown tabs, a stale active tab and garbage are dropped on restore", () => {
-  const stale = memory({ [KEY]: JSON.stringify({ isOpen: true, tabs: ["diff", "page:9", "diff", "agents"], active: "page:9" }) });
-  expect(createPanelModel(KEY, stale).state()).toEqual({ isOpen: true, tabs: ["diff", "agents"], active: "diff" });
-  expect(createPanelModel(KEY, memory({ [KEY]: "{not json" })).state()).toEqual({ isOpen: false, tabs: [], active: undefined });
+  const stale = memory({ [KEY]: JSON.stringify({ isOpen: true, fullScreen: false, tabs: ["diff", "page:9", "diff", "agents"], active: "page:9" }) });
+  expect(createPanelModel(KEY, stale).state()).toEqual({ isOpen: true, fullScreen: false, tabs: ["diff", "agents"], active: "diff" });
+  expect(createPanelModel(KEY, memory({ [KEY]: "{not json" })).state()).toEqual({ isOpen: false, fullScreen: false, tabs: [], active: undefined });
 });
 
 test("subscribers hear every change", () => {
@@ -63,4 +63,17 @@ test("subscribers hear every change", () => {
   stop();
   panel.close();
   expect(heard).toBe(1);
+});
+
+test("filling the window opens the panel, survives a relaunch and ends when the panel closes", () => {
+  const storage = memory();
+  const panel = createPanelModel(KEY, storage);
+  panel.setFullScreen(true);
+  expect(panel.state()).toMatchObject({ isOpen: true, fullScreen: true });
+  panel.open("diff");
+  expect(createPanelModel(KEY, storage).state()).toMatchObject({ isOpen: true, fullScreen: true, active: "diff" });
+  panel.close();
+  expect(panel.state()).toMatchObject({ isOpen: false, fullScreen: false });
+  panel.open();
+  expect(panel.state().fullScreen).toBe(false);
 });

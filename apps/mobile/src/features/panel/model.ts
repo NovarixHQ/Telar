@@ -1,6 +1,6 @@
 import { CORE_TABS, isPanelTab, type PanelTab } from "./tabs";
 
-export type PanelState = { isOpen: boolean; tabs: PanelTab[]; active: PanelTab | undefined };
+export type PanelState = { isOpen: boolean; fullScreen: boolean; tabs: PanelTab[]; active: PanelTab | undefined };
 
 /** Where a panel's state is kept between launches: UserDefaults in the app, a map in tests. */
 export type PanelStorage = { get(key: string): unknown; set(key: string, value: string): void };
@@ -10,6 +10,7 @@ export type PanelModel = {
   subscribe(listener: () => void): () => void;
   open(tab?: PanelTab): void;
   close(): void;
+  setFullScreen(full: boolean): void;
   select(tab: PanelTab): void;
   closeTab(tab: PanelTab): void;
   openable(): PanelTab[];
@@ -24,7 +25,8 @@ function restorePanel(raw: unknown): PanelState {
   } catch {}
   const tabs = Array.isArray(saved.tabs) ? [...new Set(saved.tabs.filter(isPanelTab))] : [];
   const active = isPanelTab(saved.active) && tabs.includes(saved.active) ? saved.active : tabs[0];
-  return { isOpen: saved.isOpen === true && tabs.length > 0, tabs, active };
+  const isOpen = saved.isOpen === true && tabs.length > 0;
+  return { isOpen, fullScreen: isOpen && saved.fullScreen === true, tabs, active };
 }
 
 /** One session's panel: its tabs, the active one and whether it is open, saved on every change. */
@@ -44,10 +46,13 @@ export function createPanelModel(key: string, storage: PanelStorage): PanelModel
     },
     open(tab) {
       const tabs = tab && !state.tabs.includes(tab) ? [...state.tabs, tab] : state.tabs;
-      commit({ isOpen: true, tabs, active: tab ?? state.active });
+      commit({ ...state, isOpen: true, tabs, active: tab ?? state.active });
     },
     close() {
-      if (state.isOpen) commit({ ...state, isOpen: false });
+      if (state.isOpen || state.fullScreen) commit({ ...state, isOpen: false, fullScreen: false });
+    },
+    setFullScreen(full) {
+      if (full !== state.fullScreen) commit({ ...state, fullScreen: full, isOpen: state.isOpen || full });
     },
     select(tab) {
       if (state.active !== tab && state.tabs.includes(tab)) commit({ ...state, active: tab });

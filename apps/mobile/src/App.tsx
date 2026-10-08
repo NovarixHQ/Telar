@@ -39,7 +39,7 @@ export function App() {
           <Stack.Screen name="Unavailable" component={Unavailable} options={({ route }) => ({ title: route.params.title })} />
         </Stack.Group>
         <Stack.Screen name="Session" component={SessionScreen} options={({ route }) => ({ title: route.params.title ?? "Session", headerLargeTitle: false, headerTransparent: true, headerShadowVisible: false, headerBackButtonDisplayMode: "minimal" })} />
-        <Stack.Screen name="Panel" component={PanelScreen} options={{ title: "Panel", headerLargeTitle: false }} />
+        <Stack.Screen name="Panel" component={PanelScreen} options={{ title: "Panel", headerShown: false }} />
         <Stack.Screen name="Settings" options={{ presentation: "modal", headerShown: false }}>
           {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} />}
         </Stack.Screen>

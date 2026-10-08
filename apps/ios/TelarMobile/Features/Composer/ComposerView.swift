@@ -33,6 +33,7 @@ struct ComposerView: View {
     @State private var canDictate = false
     @State private var skillsCache = ComposerSkillsCache()
     @State private var trigger: ComposerTrigger?
+    @State private var mentions: (key: String, value: ComposerMentions)?
     @State private var activeSuggestion = 0
     @State private var dismissedDraft: String?
     @Environment(\.colorScheme) private var scheme
@@ -93,8 +94,13 @@ struct ComposerView: View {
         .onChange(of: draft) { _, _ in retrigger(edited: true) }
         .onChange(of: caretRect) { _, _ in retrigger(edited: false) }
         .onChange(of: isListening) { _, _ in retrigger(edited: false) }
-        .task(id: trigger == nil ? nil : host.skillsKey) {
-            guard trigger != nil, let key = host.skillsKey else { return }
+        .task(id: trigger?.kind == .mention ? host.mentionsKey : nil) {
+            guard trigger?.kind == .mention, let key = host.mentionsKey, mentions?.key != key else { return }
+            let host = host
+            if let read = try? await host.readMentions() { mentions = (key, read) }
+        }
+        .task(id: trigger == nil || trigger?.kind == .mention ? nil : host.skillsKey) {
+            guard trigger != nil, trigger?.kind != .mention, let key = host.skillsKey else { return }
             let host = host
             await skillsCache.load(key) { try await host.readSkills() }
         }
@@ -393,11 +399,12 @@ struct ComposerView: View {
     private var suggestions: [ComposerCompletion] {
         guard let trigger, dismissedDraft != draft else { return [] }
         let skills = host.skillsKey.map { skillsCache.skills(for: $0) } ?? .empty
-        return ComposerCompletions.list(for: trigger, context: host.commandContext, skills: skills)
+        let here = mentions.flatMap { $0.key == host.mentionsKey ? $0.value : nil } ?? ComposerMentions()
+        return ComposerCompletions.list(for: trigger, context: host.commandContext, skills: skills, mentions: here)
     }
 
     private var loadingSkills: Bool {
-        guard let key = host.skillsKey else { return false }
+        guard trigger?.kind != .mention, let key = host.skillsKey else { return false }
         return skillsCache.loading && skillsCache.key != key
     }
 

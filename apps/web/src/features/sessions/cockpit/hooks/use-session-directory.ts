@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 
-export type SessionDirectory = ReadonlyMap<string, { title?: string }>;
+export type SessionDirectory = ReadonlyMap<string, { title?: string; projectId?: string }>;
 
 const EMPTY: SessionDirectory = new Map();
 
@@ -21,7 +21,7 @@ export function useSessionDirectory(hostId: string, sessionIds: readonly string[
         if (stale) return;
         setDirectory(new Map(list.sessions.filter((session) => ids.has(session.id)).map((session) => [
           session.id,
-          { title: session.title },
+          { title: session.title, ...(session.projectId ? { projectId: session.projectId } : {}) },
         ])));
       }, () => {});
     return () => {

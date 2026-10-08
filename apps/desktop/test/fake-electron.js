@@ -106,7 +106,19 @@ class FakeBrowserWindow extends Emitter {
     return this.destroyed;
   }
   isVisible() {
-    return false;
+    return this.visible === true;
+  }
+  hide() {
+    this.visible = false;
+  }
+  setPosition(x, y) {
+    this.bounds = { ...this.bounds, x, y };
+  }
+  setContentSize(width, height) {
+    this.bounds = { ...this.bounds, width, height };
+  }
+  getMediaSourceId() {
+    return `window:${FakeBrowserWindow.all.indexOf(this) + 1}:0`;
   }
   isMinimized() {
     return false;
@@ -127,7 +139,9 @@ class FakeBrowserWindow extends Emitter {
   setBackgroundColor(color) {
     this.backgroundColor = color;
   }
-  show() {}
+  show() {
+    this.visible = true;
+  }
   focus() {
     FakeBrowserWindow.focused = this;
     this.emit("focus");
@@ -156,6 +170,30 @@ const ipcMain = {
   },
 };
 
+class FakeNotification extends Emitter {
+  static shown = [];
+  constructor(options) {
+    super();
+    this.options = options;
+  }
+  show() {
+    FakeNotification.shown.push(this);
+  }
+}
+
+const globalShortcut = {
+  registered: new Map(),
+  refused: new Set(),
+  register(chord, callback) {
+    if (globalShortcut.refused.has(chord)) return false;
+    globalShortcut.registered.set(chord, callback);
+    return true;
+  },
+  isRegistered: (chord) => globalShortcut.registered.has(chord),
+  unregister: (chord) => globalShortcut.registered.delete(chord),
+  press: (chord) => globalShortcut.registered.get(chord)?.(),
+};
+
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "telar-fake-electron-"));
 
 const electron = {
@@ -173,6 +211,8 @@ const electron = {
     getName: () => "Telar",
     getVersion: () => "0.0.0-test",
     quit: () => { electron.app.quits += 1; },
+    focused: 0,
+    focus: () => { electron.app.focused += 1; },
     badgeCount: 0,
     setBadgeCount: (count) => { electron.app.badgeCount = count; return true; },
   }),
@@ -183,7 +223,9 @@ const electron = {
     showErrorBox: (title, detail) => electron.dialog.shown.push({ kind: "error", title, detail }),
     showMessageBoxSync: (options) => { electron.dialog.shown.push({ kind: "message", ...options }); return 0; },
   },
+  globalShortcut,
   ipcMain,
+  Notification: FakeNotification,
   ipcRenderer: Object.assign(new Emitter(), {
     invoked: [],
     invoke: (channel, payload) => { electron.ipcRenderer.invoked.push([channel, payload]); return Promise.resolve(); },
@@ -207,6 +249,14 @@ const electron = {
   },
   shell: { opened: [], openExternal: (url) => { electron.shell.opened.push(url); return Promise.resolve(); }, showItemInFolder: (target) => electron.shell.opened.push(target), openPath: (target) => { electron.shell.opened.push(target); return Promise.resolve(""); } },
   webContents: { getAllWebContents: () => [] },
+  systemPreferences: {
+    trusted: false,
+    prompted: 0,
+    screen: "denied",
+    isTrustedAccessibilityClient: (prompt) => { if (prompt) electron.systemPreferences.prompted += 1; return electron.systemPreferences.trusted; },
+    getMediaAccessStatus: () => electron.systemPreferences.screen,
+  },
+  desktopCapturer: { sources: [], getSources: async () => electron.desktopCapturer.sources },
 };
 
 mock.module("electron", () => electron);
@@ -226,6 +276,12 @@ function resetElectron() {
   electron.app.name = "Telar";
   electron.app.isPackaged = false;
   electron.app.badgeCount = 0;
+  electron.app.focused = 0;
+  globalShortcut.registered.clear();
+  globalShortcut.refused.clear();
+  FakeNotification.shown = [];
+  Object.assign(electron.systemPreferences, { trusted: false, prompted: 0, screen: "denied" });
+  electron.desktopCapturer.sources = [];
   electron.nativeTheme.shouldUseDarkColors = false;
   electron.screen.displays = [{ id: 1, workArea: { x: 0, y: 25, width: 1440, height: 875 } }];
   electron.screen.cursor = { x: 0, y: 0 };
@@ -237,4 +293,4 @@ function eventFrom(win, { sender = win.webContents, frame = win.webContents.main
   return { sender, senderFrame: frame };
 }
 
-module.exports = { electron, eventFrom, FakeBrowserWindow, FakeWebContents, resetElectron, userData };
+module.exports = { electron, eventFrom, FakeBrowserWindow, FakeNotification, FakeWebContents, resetElectron, userData };

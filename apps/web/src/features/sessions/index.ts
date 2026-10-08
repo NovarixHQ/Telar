@@ -4,3 +4,4 @@ export { groupSessions, railJumpSlots, railRowsForCommandKeys } from "./session-
 export { canvasHref, deriveSessionList, sessionHref, sessionKey, type SidebarSession } from "./session-list";
 export { forgetHostHeads } from "./session-heads";
 export { appendToDraft } from "./cockpit/model";
+export { QuickComposer } from "./quick/quick-composer";

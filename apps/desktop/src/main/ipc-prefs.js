@@ -9,7 +9,7 @@ const {
   writeKeybindingOverrides,
 } = require("./app-menu");
 
-function registerPrefsIpc() {
+function registerPrefsIpc({ onKeymap = () => {}, onCapture = () => {} } = {}) {
   ipcMain.handle("telar:appearance:setTheme", (_event, theme) => {
     if (theme === "light" || theme === "dark" || theme === "system") nativeTheme.themeSource = theme;
   });
@@ -18,6 +18,7 @@ function registerPrefsIpc() {
 
   ipcMain.handle("telar:keybindings:capture", (event, capturing) => {
     const win = BrowserWindow.fromWebContents(event.sender);
+    onCapture(Boolean(capturing));
     return win ? setChordCapture(win, Boolean(capturing)) : false;
   });
 
@@ -30,6 +31,7 @@ function registerPrefsIpc() {
     const stored = keymapOverrides(mergeKeymap(overrides));
     writeKeybindingOverrides(stored);
     buildApplicationMenu(mergeKeymap(stored));
+    onKeymap(mergeKeymap(stored));
     return stored;
   });
 

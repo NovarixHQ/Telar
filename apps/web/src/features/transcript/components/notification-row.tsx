@@ -1,27 +1,29 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { useContext, useState } from "react";
 import {
 ChevronRightIcon
 } from "lucide-react";
 import { type JournalTurn } from "@/platform/engine";
 import { ROW } from "./transcript-fold";
 import { cn } from "@/ui/utils";
+import { builderEndings } from "../builder-endings";
 import { notificationLabel } from "../model";
-
-/** Names the sessions a notification row mentions; ids are never shown. */
-export const SessionTitles = createContext<(sessionId: string) => string | undefined>(() => undefined);
+import { FrozenAgentRows } from "./agent-rows";
+import { SessionLookup } from "./session-lookup";
 
 export function NotificationRow({ detail, message, title }: { detail: NonNullable<JournalTurn["notification"]>; message?: string; title?: string }) {
   const [open, setOpen] = useState(false);
   const [reading, setReading] = useState(false);
-  const titleOf = useContext(SessionTitles);
+  const lookup = useContext(SessionLookup);
   const { verb, Icon, head } = notificationLabel(detail, message);
   const mentioned = detail.entries?.length ? detail.entries : [{ sessionId: detail.sessionId, title: undefined }];
-  const named = title ?? [...new Set(mentioned.flatMap((each) => (each.sessionId ? (each.title ?? titleOf(each.sessionId) ?? []) : [])))].join(", ");
+  const named = title ?? [...new Set(mentioned.flatMap((each) => (each.sessionId ? (each.title ?? lookup(each.sessionId)?.title ?? []) : [])))].join(", ");
   const body = detail.body.trim();
   const entries = detail.entries ?? [];
   const peerMessage = detail.kind === "peer_message" && message && message.trim() !== body ? message.trim() : undefined;
+  const endings = builderEndings(detail);
+  if (endings) return <FrozenAgentRows endings={endings} />;
   return (
     <div className="min-w-0" aria-label="Notification">
       <button

@@ -1,16 +1,16 @@
 "use client";
 
 import type { RefObject } from "react";
-import { seedSessionTitle, turnHasContent, type ClaudeConversation, type TurnModelSelection } from "@telar/engine-client";
+import { seedSessionTitle, turnHasContent, type ClaudeConversation } from "@telar/engine-client";
 import { asEngineError, createEngineApi, EngineApiError, newRunId } from "@/platform/engine";
 import { isCompactDraft, writeDraft, writeDraftFiles } from "@/features/composer";
 import { splitImages } from "@/features/prompts";
-import { choiceNamesAnything, choiceOf, sessionModelSelection } from "@/features/providers";
 import type { ConversationFollowHandle } from "@/ui/conversation";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { sessionHref } from "../../session-list";
 import { handOffCanvas } from "../canvas-handoff";
 import { createFromCanvas } from "../create-from-canvas";
+import { applyCreationChoices, uploadAndSubmit } from "../start-session";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 import type { useComposerDraft } from "./use-composer-draft";
 import type { useDraftConfig } from "./use-draft-config";
@@ -94,27 +94,16 @@ export function useSubmit(args: Args) {
         const title = seedSessionTitle(text, splitImages(files).images.map((file) => file.name));
         const { session: created } = await createFromCanvas(api, { projectId, hostId, title, driver: draft.driver, envMode: draft.envMode, base: draft.base });
         target = created.id;
-        const model = sessionModelSelection(created.providerInstanceId, draft.pick);
-        const creationPatch = { ...(draft.runtimeModeTouched ? { runtimeMode: draft.runtimeMode } : {}), ...(model ? { model } : {}) };
-        const patched = Object.keys(creationPatch).length > 0 ? (await api.updateSession(target, creationPatch)).session : undefined;
+        const patched = await applyCreationChoices(api, created, draft);
         if (patched) setSession(patched);
         landOn(target, projectId);
         if (!patched) setSession(created);
       }
-      const attachmentIds: string[] = [];
-      for (const file of files) attachmentIds.push((await api.uploadAttachment(target, file)).attachment.id);
-      const pending = session?.model ?? draft.pick;
-      await api.submitTurn(target, {
-        runId,
-        input: text,
-        ...(choiceNamesAnything(pending) ? { model: choiceOf(pending) as TurnModelSelection } : {}),
-        ...(attachmentIds.length > 0 ? { attachments: attachmentIds } : {}),
-      });
+      await uploadAndSubmit(api, target, { runId, text, files, pick: session?.model ?? draft.pick });
       // A just-created session is hydrated by the effect keyed on `sessionId`; this closure holds the old id.
       if (sessionId) await sync.hydrate();
       setError(undefined);
     } catch (cause) {
-      // Give the words and the files back.
       composer.setDraft(text);
       composer.setDraftRunId(runId);
       composer.setAttachments(files);

@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, type ComponentProps, type RefObject } from "react";
 import { ClockIcon, TriangleAlertIcon } from "lucide-react";
-import { workspacePath, type EngineRequest } from "@telar/engine-client";
+import { workspacePath, type EngineRequest, type SessionChild } from "@telar/engine-client";
 import type { JournalTurn } from "@/platform/engine";
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { Button } from "@/ui/button";
@@ -16,7 +16,7 @@ import { SessionProblem } from "./masthead";
 import { ReadReceiptMarker, type useReadReceipt } from "./read-receipt";
 import { EmptyTranscript, SessionTurn, TurnFrame } from "./session-turn";
 import { useSessionDirectory } from "../hooks/use-session-directory";
-import { notifyingSessions, TranscriptTurns, type TurnView } from "./transcript-turns";
+import { mentionedSessions, TranscriptTurns, type TurnView } from "./transcript-turns";
 
 type TurnProps = ComponentProps<typeof SessionTurn>;
 
@@ -31,6 +31,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   projectId: string | undefined;
   hostId: string;
   fresh: boolean;
+  agents: readonly SessionChild[];
   turn: Pick<TurnProps, "roster" | "sending" | "onInsert" | "onOpenTab" | "onOpenFile" | "onOpenFileInNewTab" | "onDecide">;
   onResumeNow: (runId: string) => void;
 }) {
@@ -40,7 +41,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const { shown, hostOf } = transcriptRows(model.transcript);
   const hostRun = (request: EngineRequest) => hostOf.get(request.runId) ?? request.runId;
   const markerRow = markerRowOf(newestResultRunId, hostOf);
-  const directory = useSessionDirectory(props.hostId, notifyingSessions(shown));
+  const directory = useSessionDirectory(props.hostId, mentionedSessions(shown, props.agents));
   const items = useMemo(() => shown.flatMap((turn) => turn.items), [shown]);
   const sessionId = session?.id;
   const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId } : undefined), [sessionId, props.hostId]);
@@ -97,6 +98,9 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
               {...(active ? { activeRunId: active.runId } : {})}
               renderTurn={turnRow}
               directory={directory}
+              agents={props.agents}
+              hostId={props.hostId}
+              {...(session?.projectId ? { projectId: session.projectId } : {})}
             />
             </ArtifactShelf>
           </TranscriptWorkspace>

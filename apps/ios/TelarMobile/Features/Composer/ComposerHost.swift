@@ -13,6 +13,7 @@ import Foundation
 
     var commandContext: ComposerCommandContext { get }
     var skillsKey: String? { get }
+    var mentionsKey: String? { get }
 
     func send(_ text: String) async
     func stop() async
@@ -21,6 +22,7 @@ import Foundation
     func promote(_ runId: String) async
     func withdraw(_ runId: String) async
     func readSkills() async throws -> ProviderSkills
+    func readMentions() async throws -> ComposerMentions
     func perform(_ action: ComposerCommandAction) async
 }
 
@@ -41,6 +43,7 @@ struct SessionComposerHost: ComposerHost {
     }
 
     var skillsKey: String? { store.sync.session.map { "session:\($0.id):\($0.driver)" } }
+    var mentionsKey: String? { store.sync.session.map { "session:\($0.id)" } }
 
     func send(_ text: String) async { await store.send(text) }
     func stop() async { await store.stopActiveTurn() }
@@ -54,6 +57,12 @@ struct SessionComposerHost: ComposerHost {
     func readSkills() async throws -> ProviderSkills {
         guard let id = store.sync.session?.id else { return .empty }
         return try await store.api.sessionSkills(id)
+    }
+
+    func readMentions() async throws -> ComposerMentions {
+        let live = try await store.api.liveSessions()
+        let session = store.sync.session
+        return ComposerMentions(sessions: live.sessions, projects: live.projects, sessionId: session?.id, projectId: session?.projectId)
     }
 
     func perform(_ action: ComposerCommandAction) async {

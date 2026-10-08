@@ -4,6 +4,7 @@ import type { RequestDecision } from "@telar/engine-client";
 import { isActiveTurn } from "@telar/client/journal";
 import { ActivityIndicator, KeyboardAvoidingView, ScrollView, Settings, StyleSheet, Text, type ScrollViewInstance } from "react-native";
 import { Composer } from "../composer";
+import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { SessionControls } from "../providers";
 import { hosts, useHosts } from "../hosts";
 import { feedOf, sendMessage, transcriptRows, useFeed, type TranscriptRow } from "../transcript";
@@ -34,6 +35,8 @@ export function SessionScreen() {
   const [problem, setProblem] = useState<string>();
   const scroll = useRef<ScrollViewInstance>(null);
   const [deciding, setDeciding] = useState<string>();
+  const dictationAvailable = useDictationAvailable(host);
+  const dictation = useDictation(host, (words) => setDraft((current) => appendSpoken(current, words)));
   const rows = transcriptRows(feed.turns);
   const working = feed.turns.some((turn) => isActiveTurn(turn.state));
   const { rows: railRows } = useRail(params.hostId);
@@ -92,9 +95,9 @@ export function SessionScreen() {
         {feed.failed ? <Text style={[styles.tool, styles.failed]}>{feed.failed}</Text> : null}
       </ScrollView>
       <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
-      {problem ? <Text style={[styles.problem, styles.failed]}>{problem}</Text> : null}
+      {problem || dictation.problem ? <Text style={[styles.problem, styles.failed]}>{problem ?? dictation.problem}</Text> : null}
       {host && feed.head ? <SessionControls host={host} session={feed.head.session} onChanged={(work) => void act(() => work)} /> : null}
-      <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} mentions={mentions} />
+      <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} mentions={mentions} {...(dictationAvailable ? { dictation } : {})} />
     </KeyboardAvoidingView>
   );
 }

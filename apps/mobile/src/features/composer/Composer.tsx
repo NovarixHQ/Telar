@@ -8,11 +8,12 @@ type Props = {
   working: boolean;
   onSend: () => void;
   onStop: () => void;
+  dictation?: { phase: "idle" | "recording" | "transcribing"; toggle: () => void };
   mentions: { targets: readonly MentionTarget[]; current: { sessionId: string; projectId?: string } };
 };
 
 /** Send while a turn runs steers it; the button becomes Stop only while the box is empty. */
-export function Composer({ draft, onDraft, busy, working, onSend, onStop, mentions }: Props) {
+export function Composer({ draft, onDraft, busy, working, onSend, onStop, mentions, dictation }: Props) {
   const empty = !draft.trim();
   const stop = working && empty;
   const typing = mentionQuery(draft);
@@ -31,6 +32,17 @@ export function Composer({ draft, onDraft, busy, working, onSend, onStop, mentio
       ) : null}
       <View style={styles.composer}>
         <TextInput style={styles.input} placeholder="Message" value={draft} onChangeText={onDraft} multiline editable={!busy} />
+        {dictation ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={dictation.phase === "recording" ? "Stop dictating" : "Dictate"}
+            onPress={dictation.toggle}
+            disabled={dictation.phase === "transcribing"}
+            style={[styles.mic, dictation.phase === "recording" && styles.micOn]}
+          >
+            {dictation.phase === "transcribing" ? <ActivityIndicator /> : <Text style={[styles.micLabel, dictation.phase === "recording" && styles.micLabelOn]}>{dictation.phase === "recording" ? "■" : "🎙"}</Text>}
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={stop ? "Stop" : working ? "Queue" : "Send"}
@@ -56,4 +68,8 @@ const styles = StyleSheet.create({
   stop: { backgroundColor: "#D70015" },
   label: { color: "white", fontSize: 18, fontWeight: "700" },
   disabled: { opacity: 0.4 },
+  mic: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "#F2F2F7" },
+  micOn: { backgroundColor: "#FFE5E5" },
+  micLabel: { fontSize: 17 },
+  micLabelOn: { color: "#D70015" },
 });

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { dataUri } from "./icons";
+import { dataUri } from "./data-uri";
 
 test("dataUri base64-encodes the bytes with padding", () => {
   const encode = (text: string) => dataUri(new TextEncoder().encode(text), "image/png");

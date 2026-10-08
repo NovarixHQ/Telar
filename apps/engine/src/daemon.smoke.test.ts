@@ -153,7 +153,7 @@ describe("smoke: every migrated domain through the typed client", () => {
   test("plugins, storage, appearance and settings answer", async () => {
     expect((await client.machinePlugins()).plugins.length).toBeGreaterThan(0);
     expect((await client.storage()).storage.root).toBeString();
-    expect((await client.appearanceHome()).looks).toBeArray();
+    expect((await client.appearance()).appearance).toBeNull();
     expect((await client.inboxPolicy()).inbox).toBeObject();
     expect((await client.usageLimitSources()).sources).toBeArray();
     expect((await client.worktreesRoot()).worktreesRoot.kind).toBeString();

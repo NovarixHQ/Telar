@@ -11,13 +11,12 @@ export const PALETTE_SUB_PAGES: Partial<Record<CommandId, PaletteSubPage>> = {
   "add-project": "sources",
 };
 
-export type PaletteQuickPage = "looks" | "accent";
+export type PaletteQuickPage = "accent";
 
 export const PALETTE_QUICK_COMMANDS: readonly CommandId[] = ["toggle-rail"];
 
 export type QuickSettingId =
   | "quick-colour-scheme"
-  | "quick-look"
   | "quick-accent"
   | "quick-font-size-smaller"
   | "quick-font-size-larger"
@@ -34,7 +33,6 @@ export type PaletteQuickSetting = {
 
 export type QuickSettingsState = {
   scheme: "light" | "dark" | "system";
-  look: string;
   accent: string;
   fontSize: number;
   translucent: boolean;
@@ -51,13 +49,6 @@ export function quickSettings(state: QuickSettingsState): PaletteQuickSetting[] 
       label: "Colour scheme",
       value: SCHEME_LABELS[state.scheme],
       icon: "sun-moon",
-    },
-    {
-      id: "quick-look",
-      label: "Wear look…",
-      value: state.look,
-      icon: "shirt",
-      page: "looks",
     },
     {
       id: "quick-accent",

@@ -125,14 +125,6 @@ export const DEFAULT_TRANSLUCENCY_LEVEL = 50;
 
 /* ═══════════════════════════════════════ the backdrop vocabulary + gates ═══ */
 
-export type BackdropFit = "cover" | "fill" | "tile";
-export const BACKDROP_FITS = ["cover", "fill", "tile"] as const;
-
-export const MAX_BACKDROP_BLUR = 40; // px
-export const MAX_BACKDROP_DIM = 80; // %
-
-export type BackdropLayers = { light: string; dark: string; size?: string; position?: string; repeat?: string };
-
 export function isSafeColour(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 128 && !/[;{}<>]/.test(value);
 }
@@ -482,15 +474,6 @@ export function parseSceneImages(raw: string | null): Record<string, string> {
   return images;
 }
 
-/* ═══════════════════════════════════════════════════════════ the Look ═══ */
-
-export type LookBackdrop =
-  | { kind: "none" }
-  | { kind: "gradient"; id: string; dim?: number; resolved: BackdropLayers }
-  | { kind: "custom-gradient"; light: string; dark: string; dim?: number; resolved: BackdropLayers }
-  | { kind: "image"; fit: BackdropFit; blur: number; dim: number; image: string }
-  | { kind: "scene"; scene: Scene; sceneDark: Scene; images: Record<string, string>; dim?: number; resolved: BackdropLayers };
-
 /* ═══════════════════════════════════════════════════ the composition ═══ */
 
 export type CompositionState = {
@@ -503,10 +486,22 @@ export type CompositionState = {
 
 export type Composition = { light: CompositionState; dark: CompositionState };
 
-/** The base the identity look wears — Telar's own canvas, which derives to
- *  Telar's own palette because that is the spine the engine keeps. */
+/** Telar's own canvas, which derives to Telar's own palette. */
 export const DEFAULT_BASE_LIGHT = "#f8f8f9";
 export const DEFAULT_BASE_DARK = "#252525";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return (allowed as readonly string[]).includes(value as string) ? (value as T) : fallback;
+}
 
 export function parseCompositionState(value: unknown, mode: "light" | "dark", presets: ScenePresets = DEFAULT_SCENE_PRESETS): CompositionState {
   const fallbackBase = mode === "light" ? DEFAULT_BASE_LIGHT : DEFAULT_BASE_DARK;
@@ -533,11 +528,10 @@ export function parseComposition(value: unknown, presets: ScenePresets = DEFAULT
   };
 }
 
-export type Look = {
-  version: 2;
-  id: string;
-  label: string;
-  /** What the app looks like, in both states. */
+/* ═══════════════════════════════════════════════ the shared appearance ═══ */
+
+/** What every window connected to a host wears: the host's one appearance. */
+export type SharedAppearance = {
   composition: Composition;
   images: Record<string, string>;
   accent: Accent;
@@ -551,126 +545,6 @@ export type Look = {
   depth: Depth;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function clampInt(value: unknown, min: number, max: number, fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(value)));
-}
-
-function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
-  return (allowed as readonly string[]).includes(value as string) ? (value as T) : fallback;
-}
-
-/** A half, filled from the Telar base for anything missing or unsafe — the
- *  same "concrete or default" contract the editor gets, so a partial file
- *  paints a complete theme rather than a half-styled app. */
-export function parseThemeHalf(value: unknown, mode: "light" | "dark"): ThemeHalf {
-  const base = mode === "light" ? TELAR_LIGHT : TELAR_DARK;
-  if (!isRecord(value)) return { ...base };
-  const half: ThemeHalf = { ...base };
-  for (const token of THEME_TOKENS) {
-    const candidate = value[token];
-    if (isSafeColour(candidate)) half[token] = candidate;
-  }
-  return half;
-}
-
-function parseLayers(value: unknown, check: (candidate: unknown) => candidate is string): BackdropLayers | undefined {
-  if (!isRecord(value) || !check(value.light)) return undefined;
-  const list = (candidate: unknown) =>
-    typeof candidate === "string" && candidate.length > 0 && !candidate.includes(";") && !candidate.includes("}") ? candidate : undefined;
-  const size = list(value.size);
-  const position = list(value.position);
-  const repeat = list(value.repeat);
-  return {
-    light: value.light,
-    dark: check(value.dark) ? value.dark : value.light,
-    ...(size ? { size } : {}),
-    ...(position ? { position } : {}),
-    ...(repeat ? { repeat } : {}),
-  };
-}
-
-export function parseLookBackdrop(value: unknown, presets: ScenePresets = DEFAULT_SCENE_PRESETS): LookBackdrop {
-  if (!isRecord(value)) return { kind: "none" };
-  // Absent stays absent — a missing dim must not round-trip into `dim: 0`.
-  const dim = (raw: unknown): { dim?: number } => {
-    const clamped = clampInt(raw, 0, MAX_BACKDROP_DIM, 0);
-    return clamped > 0 ? { dim: clamped } : {};
-  };
-  if (value.kind === "gradient" && typeof value.id === "string" && value.id.length > 0) {
-    const resolved = parseLayers(value.resolved, isGradientValue);
-    return resolved ? { kind: "gradient", id: value.id, ...dim(value.dim), resolved } : { kind: "none" };
-  }
-  if (value.kind === "custom-gradient") {
-    const resolved = parseLayers(value.resolved, isGradientValue);
-    if (!resolved || !isGradientValue(value.light)) return { kind: "none" };
-    return { kind: "custom-gradient", light: value.light, dark: isGradientValue(value.dark) ? value.dark : value.light, ...dim(value.dim), resolved };
-  }
-  if (value.kind === "image") {
-    // An image choice resolves through the image payload, not through layers,
-    // so the data URL IS the payload — and without it there is nothing to paint.
-    if (typeof value.image !== "string" || !value.image.startsWith("data:image/")) return { kind: "none" };
-    return {
-      kind: "image",
-      fit: oneOf<BackdropFit>(value.fit, BACKDROP_FITS, "cover"),
-      blur: clampInt(value.blur, 0, MAX_BACKDROP_BLUR, 0),
-      dim: clampInt(value.dim, 0, MAX_BACKDROP_DIM, 0),
-      image: value.image,
-    };
-  }
-  if (value.kind === "scene") {
-    const resolved = parseLayers(value.resolved, isSceneValue);
-    if (!resolved) return { kind: "none" };
-    // Round-tripped through the composer's own parsers: the same clamping and
-    // the same "only real image data URLs" filter the composer applies. Twice,
-    // once per state — see the `scene` variant above.
-    const raw = JSON.stringify(value.scene ?? null);
-    const images = parseSceneImages(JSON.stringify(value.images ?? null));
-    return { kind: "scene", scene: parseScene(raw, presets, "light"), sceneDark: parseScene(raw, presets, "dark"), images, ...dim(value.dim), resolved };
-  }
-  return { kind: "none" };
-}
-
-export function compositionFromV1(
-  theme: { light: ThemeHalf; dark: ThemeHalf },
-  backdrop: LookBackdrop,
-  presets: ScenePresets = DEFAULT_SCENE_PRESETS,
-): { composition: Composition; images: Record<string, string> } {
-  const images: Record<string, string> = {};
-  const layers: SceneLayer[] = [];
-  // The one kind whose two states genuinely differ: everything else is one
-  // stored value, so the dark stack is a copy of the light one.
-  let darkOverride: SceneLayer[] | undefined;
-  if (backdrop.kind === "gradient") {
-    layers.push({ type: "gradient", spec: expandGradientPreset(backdrop.id, presets, "light"), opacity: SCENE_LIMITS.opacity.max });
-    darkOverride = [{ type: "gradient", spec: expandGradientPreset(backdrop.id, presets, "dark"), opacity: SCENE_LIMITS.opacity.max }];
-  } else if (backdrop.kind === "custom-gradient") {
-    const spec = (css: string, mode: "light" | "dark") => parseGradientCss(css) ?? DEFAULT_GRADIENT_SPECS[mode];
-    layers.push({ type: "gradient", spec: spec(backdrop.light, "light"), opacity: SCENE_LIMITS.opacity.max });
-    darkOverride = [{ type: "gradient", spec: spec(backdrop.dark, "dark"), opacity: SCENE_LIMITS.opacity.max }];
-  } else if (backdrop.kind === "image") {
-    const id = "migrated";
-    images[id] = backdrop.image;
-    layers.push({ type: "image", id, x: 50, y: 50, scale: 100, opacity: SCENE_LIMITS.opacity.max, tiled: backdrop.fit === "tile" });
-  } else if (backdrop.kind === "scene") {
-    layers.push(...backdrop.scene.layers);
-    darkOverride = backdrop.sceneDark.layers.map((layer) => ({ ...layer }));
-    Object.assign(images, backdrop.images);
-  }
-  const darkLayers = darkOverride ?? layers.map((layer) => ({ ...layer }));
-  const state = (half: ThemeHalf, stack: SceneLayer[]): CompositionState => ({
-    base: half.background,
-    layers: stack,
-    overrides: { ...half },
-  });
-  return { composition: { light: state(theme.light, layers), dark: state(theme.dark, darkLayers) }, images };
-}
-
-/** The image map, keeping only entries that are actually image data URLs. */
 function parseImages(value: unknown): Record<string, string> {
   const images: Record<string, string> = {};
   if (!isRecord(value)) return images;
@@ -680,40 +554,18 @@ function parseImages(value: unknown): Record<string, string> {
   return images;
 }
 
-/** One Look, or undefined when there is not even an id and a label to show —
- *  the only two members a card cannot be drawn without. */
-export function parseLook(value: unknown, presets: ScenePresets = DEFAULT_SCENE_PRESETS): Look | undefined {
-  if (!isRecord(value)) return undefined;
-  if (typeof value.id !== "string" || value.id.length === 0) return undefined;
-  if (typeof value.label !== "string") return undefined;
-  const migrated = !isRecord(value.composition) && isRecord(value.theme);
-  const old = isRecord(value.theme) ? value.theme : {};
-  const fromV1 = migrated
-    ? compositionFromV1(
-        { light: parseThemeHalf(old.light, "light"), dark: parseThemeHalf(old.dark, "dark") },
-        parseLookBackdrop(value.backdrop, presets),
-        presets,
-      )
-    : undefined;
+export function parseSharedAppearance(value: Record<string, unknown>, presets: ScenePresets = DEFAULT_SCENE_PRESETS): SharedAppearance {
   return {
-    version: 2,
-    id: value.id,
-    label: value.label,
-    composition: fromV1 ? fromV1.composition : parseComposition(value.composition, presets),
-    images: fromV1 ? fromV1.images : parseImages(value.images),
+    composition: parseComposition(value.composition, presets),
+    images: parseImages(value.images),
     accent: oneOf<Accent>(value.accent, ACCENTS, DEFAULT_ACCENT),
     fontSans: oneOf<AppFont>(value.fontSans, APP_FONTS, DEFAULT_SANS_FONT),
     fontMono: oneOf<AppFont>(value.fontMono, APP_FONTS, DEFAULT_MONO_FONT),
     fontSansCustom: typeof value.fontSansCustom === "string" ? value.fontSansCustom : "",
     fontMonoCustom: typeof value.fontMonoCustom === "string" ? value.fontMonoCustom : "",
     fontSize: clampInt(value.fontSize, MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_FONT_SIZE),
-    // Absent in every Look written before this field existed, and a total
-    // parser must not reject those — it defaults, like every other member.
     fontMonoSize: clampInt(value.fontMonoSize, MIN_MONO_FONT_SIZE, MAX_MONO_FONT_SIZE, DEFAULT_MONO_FONT_SIZE),
     translucencyLevel: clampInt(value.translucencyLevel, MIN_TRANSLUCENCY, MAX_TRANSLUCENCY, DEFAULT_TRANSLUCENCY_LEVEL),
-    // Absent in every Look written before the elevation ladder existed, which
-    // is exactly what the default is for — an older file wears "soft" and
-    // looks the way it always did.
     depth: oneOf<Depth>(value.depth, DEPTHS, DEFAULT_DEPTH),
   };
 }
@@ -734,14 +586,13 @@ export type PublishedResolved = {
   fontFaces?: string;
 };
 
-export type PublishedAppearance = {
-  version: 2;
+export type PublishedAppearance = SharedAppearance & {
+  version: 3;
   updatedAtHint: number;
   scheme: PublishedScheme;
   translucent: boolean;
   frost: PublishedFrost;
   resolved?: PublishedResolved;
-  look: Look;
 };
 
 /** A resolved CSS value that is not a colour — a font stack. Same reasoning as
@@ -775,17 +626,15 @@ function parseResolved(value: unknown): PublishedResolved | undefined {
 }
 
 export function parsePublishedAppearance(value: unknown, presets: ScenePresets = DEFAULT_SCENE_PRESETS): PublishedAppearance | undefined {
-  if (!isRecord(value)) return undefined;
-  const look = parseLook(value.look, presets);
-  if (!look) return undefined;
+  if (!isRecord(value) || !isRecord(value.composition)) return undefined;
   const resolved = parseResolved(value.resolved);
   return {
-    version: 2,
+    ...parseSharedAppearance(value, presets),
+    version: 3,
     updatedAtHint: typeof value.updatedAtHint === "number" && Number.isFinite(value.updatedAtHint) ? value.updatedAtHint : 0,
     scheme: oneOf<PublishedScheme>(value.scheme, ["light", "dark", "system"], "system"),
     translucent: value.translucent === true,
     frost: oneOf<PublishedFrost>(value.frost, ["blur", "clear"], "blur"),
     ...(resolved ? { resolved } : {}),
-    look,
   };
 }

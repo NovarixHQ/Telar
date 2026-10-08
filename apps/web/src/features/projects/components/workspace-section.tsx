@@ -1,22 +1,66 @@
 "use client";
 
-import { FolderGitIcon, ShieldCheckIcon } from "lucide-react";
-import { DEFAULT_DETACHED_RUNTIME_MODE, DEFAULT_SESSION_DEFAULTS, type EnvMode, type RuntimeMode } from "@telar/engine-client";
+import { FolderGitIcon, LayersIcon, ShieldCheckIcon, SparklesIcon } from "lucide-react";
+import {
+  DEFAULT_DETACHED_RUNTIME_MODE,
+  DEFAULT_SESSION_DEFAULTS,
+  defaultInstanceIdForDriver,
+  type EnvMode,
+  type RuntimeMode,
+} from "@telar/engine-client";
 import { useSessionDefaults } from "@/features/sessions";
-import { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
+import { projectDraftModel, RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES, sessionModelSelection } from "@/features/providers";
+import { ModelChoiceControl } from "@/features/composer";
 import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 
 export function WorkspaceSection() {
   const { defaults, loading, save, error } = useSessionDefaults();
-  useRestoreDefaults(() => save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode, runtimeMode: null }));
+  useRestoreDefaults(() => save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode, runtimeMode: null, defaultModel: null }));
   const access = defaults.runtimeMode ?? DEFAULT_DETACHED_RUNTIME_MODE;
+  const model = projectDraftModel(defaults.defaultModel);
 
   return (
-    <SettingsGroup
-      title="New sessions"
-      scope="mac"
-      description="Settings holds the defaults. A project can override them, and the composer changes only its own session."
-    >
+    <SettingsGroup title="New sessions" scope="mac">
+      <Row
+        keywords={["provider", "default model", "effort", "reasoning", "fast mode", "claude", "codex", "opencode"]}
+        label="Model"
+        icon={SparklesIcon}
+        status={
+          <span title="A project can override this" aria-label="A project can override this" className="flex text-muted-foreground/70">
+            <LayersIcon className="size-3" />
+          </span>
+        }
+        hint="The provider, model and options a new session starts with."
+        info="A project's own default model wins over this one, and the composer still changes the session in front of you."
+        {...(error ? { error } : {})}
+        {...(defaults.defaultModel ? { onRevert: () => void save({ defaultModel: null }) } : {})}
+        control={
+          loading ? null : (
+            <ModelChoiceControl
+              driver={model?.driver ?? "claude"}
+              choice={model?.choice ?? {}}
+              onChange={(driver, next) => void save({ defaultModel: sessionModelSelection(defaultInstanceIdForDriver(driver), next) ?? null })}
+            />
+          )
+        }
+      />
+      <Row
+        keywords={["permissions", "supervised", "auto", "full access", "approval", "runtime mode", "prompts"]}
+        label="Access level"
+        icon={ShieldCheckIcon}
+        hint={`${RUNTIME_MODE_HELP[access]}. A session can still change its own.`}
+        {...(defaults.runtimeMode === undefined ? {} : { onRevert: () => void save({ runtimeMode: null }) })}
+        control={
+          loading ? null : (
+            <Dropdown<RuntimeMode>
+              value={access}
+              label="Access level"
+              onChange={(next) => void save({ runtimeMode: next })}
+              options={RUNTIME_MODES.map((mode) => ({ value: mode, label: RUNTIME_MODE_LABELS[mode] }))}
+            />
+          )
+        }
+      />
       <Row
         keywords={["worktree", "branch", "git", "isolation"]}
         label="Workspace"
@@ -26,7 +70,6 @@ export function WorkspaceSection() {
             ? "Each session gets its own checkout and branch, so two can edit the repo at once. A project without git falls back to the project checkout."
             : "Sessions share the project's checkout. Two at once will collide."
         }
-        {...(error ? { error } : {})}
         {...(defaults.envMode === DEFAULT_SESSION_DEFAULTS.envMode
           ? {}
           : { onRevert: () => void save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode }) })}
@@ -40,23 +83,6 @@ export function WorkspaceSection() {
                 { value: "local", label: "Project checkout" },
                 { value: "worktree", label: "Own worktree" },
               ]}
-            />
-          )
-        }
-      />
-      <Row
-        keywords={["permissions", "supervised", "auto", "full access", "approval", "runtime mode", "prompts"]}
-        label="Access"
-        icon={ShieldCheckIcon}
-        hint={`${RUNTIME_MODE_HELP[access]}. A conversation can still change its own.`}
-        {...(defaults.runtimeMode === undefined ? {} : { onRevert: () => void save({ runtimeMode: null }) })}
-        control={
-          loading ? null : (
-            <Dropdown<RuntimeMode>
-              value={access}
-              label="Default access"
-              onChange={(next) => void save({ runtimeMode: next })}
-              options={RUNTIME_MODES.map((mode) => ({ value: mode, label: RUNTIME_MODE_LABELS[mode] }))}
             />
           )
         }

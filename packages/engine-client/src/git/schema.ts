@@ -73,5 +73,3 @@ export type GitOverview = {
 };
 
 export type GitignoreResult = { added: string[]; present: string[]; path: string; created: boolean };
-
-export type GitignoreRemoval = { removed: string[]; path: string };

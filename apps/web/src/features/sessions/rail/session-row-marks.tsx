@@ -25,13 +25,12 @@ function TickingDuration({ startedAt }: { startedAt: number }) {
 function DriveStatus({ session, away }: { session: SidebarSession; away: Away }) {
   return (
     <span
-      className={`inline-flex min-w-0 shrink items-center gap-1 text-2xs font-medium text-muted-foreground ${yieldOnHover}`}
+      role="img"
+      aria-label={awayLabel(away)}
       title={awayReason(away, session.projectName)}
+      className={`shrink-0 text-muted-foreground ${yieldOnHover}`}
     >
-      <HardDriveIcon className="size-3 shrink-0" />
-      <span role="status" className="truncate">
-        {awayLabel(away)}
-      </span>
+      <HardDriveIcon className="size-3" />
     </span>
   );
 }
@@ -64,7 +63,9 @@ function PreparationStatus({ preparation }: { preparation: NonNullable<SidebarSe
 export function RowStatus({ session, band, renderedAt }: { session: SidebarSession; band: SessionBand; renderedAt: number }) {
   if (isAway(session.projectAvailability)) return <DriveStatus session={session} away={session.projectAvailability} />;
   if (session.preparation) return <PreparationStatus preparation={session.preparation} />;
-  if (session.draft) return <span className={`shrink-0 text-2xs text-sidebar-foreground/45 ${yieldOnHover}`}>Draft</span>;
+  if (session.draft) {
+    return <span className={`shrink-0 text-2xs tabular-nums text-sidebar-foreground/45 ${yieldOnHover}`}>Draft · {fmtAgo(session.updatedAt, renderedAt)}</span>;
+  }
   if (band === "snoozed" && session.snoozedUntil !== undefined) {
     return (
       <span className={`inline-flex shrink-0 items-center gap-1 text-2xs tabular-nums text-sidebar-foreground/45 ${yieldOnHover}`}>

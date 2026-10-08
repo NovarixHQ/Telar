@@ -89,7 +89,7 @@ export function isToolItem(item: JournalItem): boolean {
 /** The output body of a finished tool call, when it has one. */
 export function toolOutput(item: JournalItem): string | undefined {
   if (item.detail.type === "command_execution") return item.detail.command.outputPreview;
-  if (item.detail.type === "mcp_tool_call" || item.detail.type === "dynamic_tool_call") {
+  if (item.detail.type === "mcp_tool_call" || item.detail.type === "dynamic_tool_call" || item.detail.type === "browser_action") {
     const output = item.detail.call.output;
     return typeof output === "string" ? output : output === undefined ? undefined : JSON.stringify(output, null, 2);
   }

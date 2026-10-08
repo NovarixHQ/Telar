@@ -13,7 +13,7 @@ Use these words. When you name things in code, use them too.
 - **worker**: the engine process that claims turns and runs a provider. An engine has one worker embedded, or supervises one.
 - **cockpit**: the UI (`apps/web`), shown in the desktop app, a browser or on a phone.
 - **rail**: the cockpit's left list of sessions. **Panel**: the right pane. **Surface**: one thing drawn in the panel (diff, files, browser, terminal…).
-- **Looks**: the cockpit's themes.
+- **Appearance**: the cockpit's one theme, stored on the host and worn by every connected window.
 - **project**: a directory registered with the engine. **Checkout**: the project's own tree.
 - **session**: one conversation with an agent on a project.
   - `local` means it works in the project's checkout.

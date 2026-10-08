@@ -3,7 +3,6 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  browseRoots,
   compareNames,
   expandHome,
   GIT_PROBE_BUDGET_MS,
@@ -11,7 +10,6 @@ import {
   listDirectories,
   listRoots,
   MAX_ENTRIES,
-  within,
   type DirectoryOutcome,
 } from "./directories";
 import type { DirectoryListing } from "@telar/engine-client";
@@ -53,30 +51,6 @@ describe("expandHome", () => {
   });
 });
 
-describe("within", () => {
-  test("containment is tested on a separator boundary", () => {
-    expect(within("/Users/someone", "/Users/someone")).toBe(true);
-    expect(within("/Users/someone", "/Users/someone/code")).toBe(true);
-    expect(within("/Users/some", "/Users/someone")).toBe(false);
-    expect(within("/Users/someone", "/Users")).toBe(false);
-  });
-});
-
-describe("browseRoots", () => {
-  test("home, plus this platform's mount points when they exist", () => {
-    expect(browseRoots({ home: "/Users/someone", platform: "darwin", exists: () => true })).toEqual([
-      "/Users/someone",
-      "/Volumes",
-    ]);
-    expect(browseRoots({ home: "/home/someone", platform: "linux", exists: () => true })).toEqual([
-      "/home/someone",
-      "/media",
-      "/mnt",
-    ]);
-    expect(browseRoots({ home: "/Users/someone", platform: "darwin", exists: () => false })).toEqual(["/Users/someone"]);
-  });
-});
-
 describe("listDirectories", () => {
   test("directories only — files are not folders and are not listed", () => {
     const home = scratchHome();
@@ -94,7 +68,7 @@ describe("listDirectories", () => {
     expect(result.name).toBe(path.basename(home));
     expect(result.home).toBe(home);
     expect(result.dirs[0]).toEqual({ name: "code", path: path.join(home, "code"), git: false, hidden: false });
-    expect(result.parent).toBeNull();
+    expect(result.parent).toBe(path.dirname(home));
   });
 
   test("~/child expands, and its parent is the way back", () => {
@@ -138,14 +112,14 @@ describe("listDirectories", () => {
     expect(compareNames("run-2", "run-10")).toBeLessThan(0);
   });
 
-  test("a path outside home and the mount points is refused BY NAME", () => {
+  test("a folder outside home is browsable, and its parents lead up to the root", () => {
     const home = scratchHome();
     const outside = scratchHome();
-    const refused = listDirectories({ path: outside }, { home, mounts: ["/Volumes"], exists: () => true });
-    expect(refused).toMatchObject({ code: "invalid_request" });
-    if (!isDirectoryFailure(refused)) throw new Error("expected a refusal");
-    expect(refused.message).toContain(home);
-    expect(refused.message).toContain("/Volumes");
+    mkdirSync(path.join(outside, "x"));
+    const result = listing(listDirectories({ path: outside }, { home, mounts: [] }));
+    expect(result.dirs.map((entry) => entry.name)).toEqual(["x"]);
+    expect(result.parent).toBe(path.dirname(outside));
+    expect(listing(listDirectories({ path: "/" }, { home, mounts: [] })).parent).toBeNull();
   });
 
   test("a mounted volume is browsable, because that is where a second checkout lives", () => {
@@ -156,7 +130,6 @@ describe("listDirectories", () => {
     expect(result.path).toBe(path.join(volumes, "Backup"));
     expect(result.dirs.map((entry) => entry.name)).toEqual(["telar"]);
     expect(result.parent).toBe(volumes);
-    expect(listing(listDirectories({ path: volumes }, { home, mounts: [volumes] })).parent).toBeNull();
   });
 
   test("the roots offer home and each mounted drive, by the name a person calls it", () => {
@@ -192,17 +165,6 @@ describe("listDirectories", () => {
     mkdirSync(path.join(home, "code"));
     symlinkSync(home, path.join(home, "loop"));
     expect(names(listDirectories({}, { home, platform: "darwin" }))).toEqual(["code"]);
-  });
-
-  test("a symlink out of home is not a way around the root check", () => {
-    const home = scratchHome();
-    const outside = scratchHome();
-    mkdirSync(path.join(outside, "secrets"));
-    symlinkSync(outside, path.join(home, "escape"));
-    expect(names(listDirectories({}, { home, platform: "darwin" }))).toEqual([]);
-    expect(listDirectories({ path: path.join(home, "escape") }, { home, platform: "darwin" })).toMatchObject({
-      code: "invalid_request",
-    });
   });
 
   test("a link that resolves through itself is a refusal, not a hang", () => {
@@ -295,11 +257,12 @@ describe("a cloud folder", () => {
     expect(listDirectories({ path: gone }, { home, platform: "darwin" })).toMatchObject({ code: "not_found" });
   });
 
-  test("walking up never walks out of the roots", () => {
+  test("a typed path outside home walks up to the nearest folder that exists", () => {
     const home = scratchHome();
-    const outside = listDirectories({ path: "/telar-nowhere-9f3/x", nearest: true }, { home, platform: "darwin", mounts: [] });
-    expect(outside).toMatchObject({ code: "invalid_request" });
-    expect(message(outside)).toContain(home);
+    const outside = scratchHome();
+    const walked = listing(listDirectories({ path: path.join(outside, "x", "y"), nearest: true }, { home, platform: "darwin", mounts: [] }));
+    expect(walked.path).toBe(outside);
+    expect(walked.missing).toBe(path.join(outside, "x", "y"));
   });
 
   test("a typeless entry is asked by lstat, and one that fails does not fail the listing", () => {

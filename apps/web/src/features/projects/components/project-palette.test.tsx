@@ -302,15 +302,14 @@ test("only a path is a path", () => {
   expect(pathRequest("'/Users/me/code\"")).toBeUndefined();
 });
 
-const registerRoutes = (gitignore: Route = () => ({ gitignore: {} })) => ({
+const registerRoutes = () => ({
   "GET /api/fs": () => listing("/Users/me/code/telar"),
   "POST /api/projects": (body: unknown) => ({ project: { id: "project_new", name: (body as { name: string }).name } }),
   "POST /api/projects/clone": () => ({ project: { id: "project_new", name: "repo" } }),
-  "POST /api/projects/project_new/gitignore": gitignore,
-  "DELETE /api/projects/project_new/gitignore": () => ({ gitignore: { removed: [] } }),
+  "DELETE /api/projects/project_new": () => ({ project: { id: "project_new" }, sessions: 0 }),
 });
 
-test("Local folder with a pasted path opens the browser at it, and Add registers it with Telar's files ignored", async () => {
+test("Local folder with a pasted path opens the browser at it, Add registers only that, and Undo removes it", async () => {
   const { calls, urls } = engine(registerRoutes());
   let announced = 0;
   const count = () => (announced += 1);
@@ -328,35 +327,45 @@ test("Local folder with a pasted path opens the browser at it, and Add registers
   expect(calls.map((call) => call.route).filter((route) => route !== "GET /api/hosts")).toEqual([
     "GET /api/fs",
     "POST /api/projects",
-    "POST /api/projects/project_new/gitignore",
   ]);
   expect(calls.find((call) => call.route === "POST /api/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
   expect(log).toEqual(["open:false", "registered"]);
   window.removeEventListener(PROJECTS_CHANGED_EVENT, count);
   expect(announced).toBe(1);
   expect(page()).toContain("telar was added.");
-  expect(page()).toContain("Telar's files are ignored in its .gitignore.");
 
   await click(buttonLabelled("Undo"));
-  await flush(() => page().includes("taken back out"));
-  expect(calls.at(-1)!.route).toBe("DELETE /api/projects/project_new/gitignore");
+  await flush(() => page().includes("telar was removed again."));
+  expect(calls.at(-1)!.route).toBe("DELETE /api/projects/project_new");
   expect(buttonLabelled("Undo")).toBeUndefined();
   expect(log.at(-1)).toBe("registered");
 });
 
-test("a gitignore that cannot be written leaves the project registered and says so", async () => {
-  engine(
-    registerRoutes(() => {
-      throw new Error("read-only");
-    }),
-  );
+test("a path typed into the browser is what ⌘↵ adds, not the folder still being shown", async () => {
+  const { calls } = engine(registerRoutes());
+  const { log } = await openPalette({ page: "sources" });
+  await key({ key: "Enter" });
+  await flush(() => Boolean(buttonLabelled("Add⌘↵")));
+  await clearField(field());
+  await typeInto(field(), "~/some/repo");
+  await key({ key: "Enter", metaKey: true });
+  await flush(() => log.includes("registered"));
+  expect(calls.find((call) => call.route === "POST /api/projects")?.body).toEqual({ name: "repo", root: "/Users/me/some/repo" });
+});
+
+test("a refused folder keeps the dialog open and says why", async () => {
+  engine({
+    ...registerRoutes(),
+    "POST /api/projects": () => {
+      throw new Error("/Users/me holds far more than one project. Choose the project's own folder inside it.");
+    },
+  });
   const { log } = await openPalette({ page: "sources" });
   await key({ key: "Enter" });
   await flush(() => Boolean(buttonLabelled("Add⌘↵")));
   await click(buttonLabelled("Add⌘↵"));
-  await flush(() => log.includes("registered"));
-  expect(page()).toContain("Telar's files could not be added to its .gitignore.");
-  expect(buttonLabelled("Undo")).toBeUndefined();
+  await flush(() => page().includes("far more than one project"));
+  expect(log).not.toContain("registered");
 });
 
 test("a clone row with nothing to clone asks for the URL, refuses junk, then asks where to put it", async () => {
@@ -426,7 +435,7 @@ describe("a Google Drive folder", () => {
     const { log } = await openPalette({ page: "sources" });
     await typeInto(field(), drive);
     await key({ key: "Enter" });
-    const anyway = () => buttonLabelled("Add ~/Library/CloudStorage/GoogleDrive-me@example.com/My Drive/[01] Work/repo anyway");
+    const anyway = () => buttonLabelled(`Add ${drive} anyway`);
     await flush(() => Boolean(anyway()));
     expect(page()).toContain("macOS has not let Telar read this cloud folder.");
     await click(anyway());
@@ -470,7 +479,7 @@ describe("where Backspace goes", () => {
 });
 
 test("the registered toast takes the native browser view down while it shows", async () => {
-  const { unmount } = await mount(<RegisteredToast toast={{ projectId: "p1", name: "telar", ignored: true }} onDismiss={() => {}} onChanged={() => {}} />);
+  const { unmount } = await mount(<RegisteredToast toast={{ projectId: "p1", name: "telar" }} onDismiss={() => {}} onChanged={() => {}} />);
   expect(nativeViewOverlayHidden()).toBe(true);
   unmount();
   expect(nativeViewOverlayHidden()).toBe(false);
@@ -483,7 +492,6 @@ describe("with another computer paired", () => {
     "GET /api/hosts": () => ({ hosts: [mini] }),
     "GET /api/hosts/host_mini/fs": () => listing("/Users/mini/code/site"),
     "POST /api/hosts/host_mini/projects": (body: unknown) => ({ project: { id: "project_far", name: (body as { name: string }).name } }),
-    "POST /api/hosts/host_mini/projects/project_far/gitignore": () => ({ gitignore: {} }),
   };
   afterEach(() => delete (window as { telarDesktop?: unknown }).telarDesktop);
 
@@ -505,7 +513,6 @@ describe("with another computer paired", () => {
     await flush(() => log.includes("registered"));
     expect(calls.find((call) => call.route === "POST /api/hosts/host_mini/projects")?.body).toEqual({ name: "site", root: "/Users/mini/code/site" });
     expect(calls.some((call) => call.route === "POST /api/projects")).toBe(false);
-    expect(calls.some((call) => call.route === "POST /api/hosts/host_mini/projects/project_far/gitignore")).toBe(true);
   });
 
   test("this computer keeps the local engine, and Backspace on its sources goes back to the computers", async () => {

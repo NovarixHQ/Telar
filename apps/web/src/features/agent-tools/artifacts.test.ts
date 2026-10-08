@@ -16,11 +16,11 @@ test("a frame id cannot close the reporting script", () => {
   expect(artifactDocument("<svg/>", "</script><script>alert(1)</script>", look)).not.toContain("</script><script>alert(1)");
 });
 
-test("a Look token cannot break out of the injected style", () => {
+test("an appearance token cannot break out of the injected style", () => {
   expect(artifactDocument("<p>x</p>", "f1", { ...look, variables: { "--font-sans": "x}</style><script>alert(1)</script>" } })).not.toContain("</style><script>alert(1)");
 });
 
-test("the Look is in the head as hex before the page's first paint, and the page's own rules come after it", () => {
+test("the appearance is in the head as hex before the page's first paint, and the page's own rules come after it", () => {
   const doc = artifactDocument("<style>:root{--background:pink}</style><p>x</p>", "f1", look);
   const sheet = /<style>(:where\(:root\)\{color-scheme:dark;[^<]*)<\/style>/.exec(doc)?.[1];
   expect(sheet).toMatch(/--background:#[0-9a-f]{6};/);
@@ -37,7 +37,7 @@ function runFrame(doc: string) {
   return document;
 }
 
-test("a Look change posted into the frame restyles it in place, and only its parent may post one", () => {
+test("an appearance change posted into the frame restyles it in place, and only its parent may post one", () => {
   const frame = runFrame(artifactDocument("<p id='kept'>x</p>", "f1", look));
   const kept = frame.getElementById("kept");
   const next = artifactTheme("light", (token) => ({ "--background": "#000000" })[token] ?? "");
@@ -52,7 +52,7 @@ test("a Look change posted into the frame restyles it in place, and only its par
   expect(frame.getElementById("kept")).toBe(kept);
 });
 
-test("the Look's font faces lead the frame, and faces posted later replace them", () => {
+test("the appearance's font faces lead the frame, and faces posted later replace them", () => {
   const geist = '@font-face{font-family:"Geist";src:url(data:font/woff2;base64,d09GMg==)}';
   const mono = '@font-face{font-family:"Geist Mono";src:url(data:font/woff2;base64,d09GMg==)}';
   const doc = artifactDocument("<p>x</p>", "f1", { ...look, fonts: geist });

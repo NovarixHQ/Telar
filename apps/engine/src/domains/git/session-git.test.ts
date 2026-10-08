@@ -62,20 +62,3 @@ describe("cloneProject", () => {
     expect(calls).toEqual([]);
   });
 });
-
-test("the gitignore write has an undo, and it is the project's own block only", () => {
-  // Adding a project ignores Telar's files WITHOUT asking now, so the toast's
-  // Undo has to reach the engine — and reach only what the engine wrote.
-  const projectRoot = fs.realpathSync.native(root());
-  fs.writeFileSync(path.join(projectRoot, ".gitignore"), "node_modules/\n");
-  const store = new EngineStore(root(), () => 100, { git: () => ({ status: 0, stdout: "", stderr: "" }) });
-  store.projectRegistry.register({ id: "project_one", name: "One", root: projectRoot });
-
-  const added = store.sessionGit.gitignore("project_one");
-  expect(added.added.length).toBeGreaterThan(0);
-  const removal = store.sessionGit.undoGitignore("project_one");
-  expect(removal.removed).toEqual(added.added);
-  expect(fs.readFileSync(path.join(projectRoot, ".gitignore"), "utf8")).toBe("node_modules/\n");
-  // Twice is not an error: the toast may arrive after a hand edit.
-  expect(store.sessionGit.undoGitignore("project_one").removed).toEqual([]);
-});

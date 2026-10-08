@@ -33,8 +33,8 @@ const visible = (html: string) => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, 
 describe("sessions tool rows", () => {
   test("a delegation reads in its tense, named once", () => {
     const create = call("sessions_create", { title: "Fix the rail", projectId: "p" });
-    expect(visible(text(create))).toBe("Delegated “Fix the rail”");
-    expect(visible(text({ ...create, status: "inProgress" }))).toContain("Delegating “Fix the rail”…");
+    expect(visible(text(create))).toBe("Started builder “Fix the rail”");
+    expect(visible(text({ ...create, status: "inProgress" }))).toContain("Starting builder “Fix the rail”…");
   });
 
   test("a message reads as what it was for", () => {
@@ -62,8 +62,8 @@ describe("sessions tool rows", () => {
       call("sessions_read", { sessionId: "x" }),
       call("sessions_read", { sessionId: "y" }),
     ];
-    expect(tallyParts(items)).toEqual(["Delegated 3 tasks", "Tasked 2 sessions", "Read 2 sessions"]);
-    expect(tallyParts([call("sessions_create", { title: "Only" })])).toEqual(["Delegated “Only”"]);
+    expect(tallyParts(items)).toEqual(["Started 3 builders", "Tasked 2 sessions", "Read 2 sessions"]);
+    expect(tallyParts([call("sessions_create", { title: "Only" })])).toEqual(["Started builder “Only”"]);
   });
 
   test("a call that hands back a session's link opens it, through the host it came from", () => {

@@ -74,7 +74,7 @@ export function RailSessionList(props: ListProps & { canStart: boolean; onAddPro
         <ContextMenuContent className="w-56">
           <ContextMenuItem disabled={!canStart} onClick={() => startSession()}>
             <MessageSquarePlusIcon />
-            New conversation
+            New session
           </ContextMenuItem>
           <ContextMenuItem onClick={onAddProject}>
             <FolderPlusIcon />
@@ -165,7 +165,6 @@ function RailRows(props: ListProps) {
             session={session}
             active={sessionKey(session) === env.activeSessionId}
             showProject
-            variant={query ? "slim" : "card"}
             band={env.bandFor(session)}
             searchSelected={Boolean(query) && index === props.selectedSearchIndex}
             searchable={Boolean(query)}

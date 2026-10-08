@@ -319,6 +319,7 @@ export class EngineStore {
     this.claudeLongWindowMigration = migrateBareClaudeIds(this.kernel, () => this.records.ids(), this.catalogues.manifest);
     this.claudeCompactionMigration = migrateClaudeCompactionToLimits(this.kernel);
     this.pluginFieldMigration = migrateLegacyPluginFieldsOnOpen(this.kernel);
+    this.appearance.migrateFromLooks();
   }
 
   /** The turn modules the worker and the wakes run through. */

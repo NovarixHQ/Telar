@@ -1,20 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ACCENTS,
-  applyLook,
-  MAX_FONT_SIZE,
-  MIN_FONT_SIZE,
-  sameComposition,
-  useAppearance,
-  useComposition,
-  useLooks,
-  useTheme,
-  type Accent,
-  type Look,
-  type Theme,
-} from "@/features/appearance";
+import { ACCENTS, MAX_FONT_SIZE, MIN_FONT_SIZE, useAppearance, useTheme, type Accent, type Theme } from "@/features/appearance";
 import { desktopAppearance } from "@/platform/desktop/desktop-appearance";
 import { quickSettings, type PaletteQuickSetting, type QuickSettingId } from "./palette-model";
 import { runCommand } from "./commands";
@@ -34,19 +21,14 @@ const SCHEME_CYCLE: Record<Theme, Theme> = { light: "dark", dark: "system", syst
 
 export type QuickSettings = {
   rows: PaletteQuickSetting[];
-  looks: Look[];
-  wornLookId: string | undefined;
   accent: Accent;
   apply: (id: QuickSettingId) => string | undefined;
-  wearLook: (look: Look) => string | undefined;
   setAccent: (accent: Accent) => void;
 };
 
 export function useQuickSettings({ railOpen }: { railOpen: boolean }): QuickSettings {
   const { theme, setTheme } = useTheme();
   const { appearance, setAppearance } = useAppearance();
-  const { composition } = useComposition();
-  const looks = useLooks();
 
   const [translucency, setTranslucency] = useState(false);
   useEffect(() => {
@@ -62,23 +44,18 @@ export function useQuickSettings({ railOpen }: { railOpen: boolean }): QuickSett
     };
   }, []);
 
-  const worn = looks.find((look) => look.accent === appearance.accent && sameComposition(look.composition, composition));
-
   const rows = useMemo(
     () =>
       quickSettings({
         scheme: theme,
-        look: worn?.label ?? "",
         accent: ACCENT_LABELS[appearance.accent],
         fontSize: appearance.fontSize,
         translucent: appearance.translucent,
         translucency,
         railOpen,
       }),
-    [theme, worn?.label, appearance.accent, appearance.fontSize, appearance.translucent, translucency, railOpen],
+    [theme, appearance.accent, appearance.fontSize, appearance.translucent, translucency, railOpen],
   );
-
-  const wearLook = useCallback((look: Look) => applyLook(look, setAppearance), [setAppearance]);
 
   const setAccent = useCallback((accent: Accent) => setAppearance({ accent }), [setAppearance]);
 
@@ -103,7 +80,6 @@ export function useQuickSettings({ railOpen }: { railOpen: boolean }): QuickSett
         case "quick-rail":
           runCommand("toggle-rail");
           return undefined;
-        case "quick-look":
         case "quick-accent":
           return undefined;
       }
@@ -113,11 +89,8 @@ export function useQuickSettings({ railOpen }: { railOpen: boolean }): QuickSett
 
   return {
     rows,
-    looks,
-    wornLookId: worn?.id,
     accent: appearance.accent,
     apply,
-    wearLook,
     setAccent,
   };
 }

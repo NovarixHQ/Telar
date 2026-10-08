@@ -17,7 +17,6 @@ import {
   THEME_CSS_KEY,
   writeComposition,
 } from "./composition";
-import { BUILT_IN_LOOKS } from "./built-in-looks";
 import { BACKDROP_CSS_KEY, parseBackdropCss } from "./backdrop";
 import { composeGradient, GRADIENT_STARTERS } from "./gradient-starters";
 import { splitTopLevel } from "./scene-composer";
@@ -67,17 +66,7 @@ describe("compileComposition", () => {
     const { light, dark } = blocks(compileComposition(tinted));
     expect(declared(light)).toEqual(declared(dark));
     for (const token of THEME_TOKENS) expect(light).not.toContain(`--${token}: ${TELAR_LIGHT[token]};`);
-  });
-
-  test("every tinted built-in Look declares the same tokens in both states, the dark border kept translucent", () => {
-    for (const look of BUILT_IN_LOOKS) {
-      const css = compileComposition(look.composition);
-      if (css === "") continue; // Telar itself
-      const { light, dark } = blocks(css);
-      expect(declared(light), look.id).toEqual(declared(dark));
-      expect(light, look.id).toContain("--border:");
-      expect(dark, look.id).toContain(`--border: ${TELAR_DARK.border};`);
-    }
+    expect(dark).toContain(`--border: ${TELAR_DARK.border};`);
   });
 
   test("a hand-set override reaches the stylesheet, and the other state declares its own value", () => {
@@ -104,11 +93,11 @@ describe("recompileStaleCss", () => {
   });
 
   test("rewrites a cached stylesheet the current compiler disagrees with", () => {
-    const grove = BUILT_IN_LOOKS.find((look) => look.id === "built-in-grove")!;
-    writeComposition(grove.composition, grove.images);
+    const grove = patchState(patchState(composition(), "light", { base: "#49b668" }), "dark", { base: "#49b677" });
+    writeComposition(grove, {});
     window.localStorage.setItem(THEME_CSS_KEY, "html:root { --border: oklch(0.91 0.0154 150.0); }");
     recompileStaleCss();
-    expect(window.localStorage.getItem(THEME_CSS_KEY)).toBe(compileComposition(grove.composition));
+    expect(window.localStorage.getItem(THEME_CSS_KEY)).toBe(compileComposition(grove));
   });
 
   test("leaves an agreeing cache alone, and writes nothing for the identity composition", () => {
@@ -123,12 +112,8 @@ describe("compileComposition repairs the ink, never the card", () => {
   const TONES = ["success", "warning", "destructive"] as const;
   const stateDeclarations = (css: string) => TONES.filter((tone) => css.includes(`--${tone}:`));
 
-  test("nothing this build ships draws a single state declaration", () => {
+  test("Telar's default draws nothing at all", () => {
     expect(compileComposition(DEFAULT_COMPOSITION)).toBe("");
-    for (const look of BUILT_IN_LOOKS) {
-      expect(stateDeclarations(compileComposition(look.composition)), `look ${look.id}`).toEqual([]);
-    }
-    expect(BUILT_IN_LOOKS.length).toBeGreaterThan(0);
   });
 
   test("a card that strands the ink draws the ink, and leaves the card alone", () => {
@@ -150,7 +135,6 @@ describe("compileComposition repairs the ink, never the card", () => {
     expect(stateDeclarations(compileComposition(unrescuable))).toEqual([]);
     expect(strandedTones(unrescuable)).toEqual([...TONES]);
     expect(strandedTones(DEFAULT_COMPOSITION)).toEqual([]);
-    for (const look of BUILT_IN_LOOKS) expect(strandedTones(look.composition), `look ${look.id}`).toEqual([]);
   });
 });
 

@@ -5,23 +5,21 @@ import type { SettingsGroupSpec } from "./search";
 export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGroupSpec[] }[] = [
   { id: "general", groups: [
     { "title":"New sessions", rows: [
+      {"title":"Model","hint":"The provider, model and options a new session starts with.","keywords":["provider","default model","effort","reasoning","fast mode","claude","codex","opencode"],"icon":SparklesIcon},
+      {"title":"Access level","keywords":["permissions","supervised","auto","full access","approval","runtime mode","prompts"],"icon":ShieldCheckIcon},
       {"title":"Workspace","keywords":["worktree","branch","git","isolation"],"icon":FolderGitIcon},
-      {"title":"Access","keywords":["permissions","supervised","auto","full access","approval","runtime mode","prompts"],"icon":ShieldCheckIcon},
     ] },
     { "title":"Organization", rows: [
-      {"title":"Group sessions by project","hint":"Off, the rail is one list, newest first, with spawned sessions under the one that started them.","keywords":["group by","flat","none","list","sidebar","order","newest"]},
-      {"title":"Settle quiet sessions","keywords":["inbox","archive","auto","shelf","settled","unsettle","restore","hidden","put away","quiet"]},
-      {"title":"Settle quiet sessions after","hint":"Pinned sessions and open questions stay put.","keywords":["hours","days","window"]},
-      {"title":"Settle delegated conversations after their result is delivered","keywords":["delegated","errand","coordinator","handoff","result","settle"]},
-      {"title":"Settle delegated conversations after","hint":"A failed errand, a pinned row and an open question all stay put.","keywords":["hours","days","window","delegated"]},
-      {"title":"Continue after a usage limit resets","hint":"A Claude turn stopped by a usage limit runs again once the limit lifts. A conversation can still change its own.","keywords":["rate limit","usage limit","resume","five-hour","weekly","claude"],"icon":RefreshCwIcon},
+      {"title":"Settle quiet sessions","hint":"Pinned sessions and open questions stay put.","keywords":["inbox","archive","auto","shelf","settled","unsettle","restore","hidden","put away","quiet","hours","days","window"]},
+      {"title":"Settle delegated sessions","hint":"Once their result is delivered. A failed errand, a pinned row and an open question all stay put.","keywords":["delegated","errand","coordinator","handoff","result","settle","hours","days","window"]},
+      {"title":"Continue after a usage limit resets","hint":"A Claude turn stopped by a usage limit runs again once the limit lifts. A session can still change its own.","keywords":["rate limit","usage limit","resume","five-hour","weekly","claude"],"icon":RefreshCwIcon},
       {"title":"Continue after Telar restarts","hint":"When Telar restarts to update, the sessions it stopped pick up where they left off.","keywords":["resume","restart","update","continue","interrupted"],"icon":RotateCcwIcon},
+      {"title":"Group sessions by project","hint":"Off, the rail is one list, newest first, with spawned sessions under the one that started them.","keywords":["group by","flat","none","list","sidebar","order","newest"]},
     ] },
     { "title":"Text generation", rows: [
-      {"title":"Written by","keywords":["claude","codex","opencode","driver"]},
-      {"title":"Model","hint":"Changing the provider above clears a pinned model.","keywords":["title model","textgen"]},
-      {"title":"Effort","hint":"How hard the model thinks before it names a session.","keywords":["reasoning","thinking","textgen"]},
+      {"title":"Written by","hint":"The provider, model and effort that name sessions and branches.","keywords":["claude","codex","opencode","driver","title model","textgen","reasoning","thinking","effort"]},
       {"title":"Name sessions","keywords":["title","rename","automatic"]},
+      {"title":"Name branches","hint":"Renames branches the engine cut to match the session. Yours keep their names.","keywords":["git","branch name","title","rename branches"]},
     ] },
     { "title":"About", rows: [
       {"title":"Version","keywords":["about","this build"]},
@@ -34,7 +32,8 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
   ] },
   { id: "appearance", groups: [
-    { "title":"Looks", rows: [
+    { rows: [
+      {"title":"Colour scheme","hint":"Which state the app wears, and the one Background edits.","keywords":["light","dark","system","theme","mode"]},
     ] },
     { "title":"Background", rows: [
       {"title":"Base","hint":"The app colour. It decides the hue and how colourful the surfaces are; the lightness that keeps text readable is kept underneath.","keywords":["colour","color","theme","palette","hue","tint","background","canvas"]},
@@ -45,7 +44,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Depth","hint":"How far raised surfaces — cards, the composer, menus — sit off the page.","keywords":["shadow","elevation","flat","soft","deep","raised"],"icon":LayersIcon},
     ] },
     { "title":"Window", rows: [
-      {"title":"Colour scheme","hint":"Which state this window wears — and the one the composer above edits.","keywords":["light","dark","system","theme","mode"]},
       {"title":"Translucency","hint":"Rebuilds the window.","keywords":["glass","blur","clear","frost","vibrancy","transparent"]},
       {"title":"Layers through canvas and rail","keywords":["show-through","show through","opacity","wallpaper","backdrop","layers"]},
       {"title":"Chat width","hint":"How wide the conversation and the composer can grow.","keywords":["wide","full","comfortable","column","measure","transcript"]},
@@ -183,9 +181,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "source-control", groups: [
     { "title":"Source control", rows: [
       {"title":"GitHub","keywords":["gh","git","pull request","issues","token","auth","sign in","cli","forge","gitlab"],"icon":GitPullRequestIcon},
-    ] },
-    { "title":"Branches", rows: [
-      {"title":"Rename branches to match","hint":"Only branches the engine cut. Yours keep their names.","keywords":["git","branch name","title"]},
     ] },
   ] },
   { id: "storage", groups: [

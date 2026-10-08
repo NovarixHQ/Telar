@@ -29,7 +29,6 @@ const ProvidersSection = dynamic(() => import("@/features/providers/components/p
 const RemoteSection = dynamic(() => import("@/features/remote/components/remote-section").then((mod) => mod.RemoteSection));
 const PushNotificationsGroup = dynamic(() => import("@/features/push").then((mod) => mod.PushNotificationsGroup));
 const SourceControlPage = dynamic(() => import("@/features/github/components/source-control-page").then((mod) => mod.SourceControlPage));
-const RenameBranchesSection = dynamic(() => import("@/features/providers/components/rename-branches-section").then((mod) => mod.RenameBranchesSection));
 const OtherHostsSection = dynamic(() => import("@/features/hosts/components/other-hosts-section").then((mod) => mod.OtherHostsSection));
 const TextGenSection = dynamic(() => import("@/features/providers/components/textgen-section").then((mod) => mod.TextGenSection));
 const PluginsPage = dynamic(() => import("@/features/plugins/components/plugins-page").then((mod) => mod.PluginsPage));
@@ -76,7 +75,6 @@ export function SettingsPage() {
   return (
     <SettingsShell
       title="Settings"
-      subtitle="cockpit"
       sections={SECTIONS}
       active={active}
       onSelect={setActive}
@@ -127,12 +125,7 @@ export function SettingsPage() {
 
         {active === "notifications" && <PushNotificationsGroup />}
 
-        {active === "source-control" && (
-          <>
-            <SourceControlPage />
-            <RenameBranchesSection />
-          </>
-        )}
+        {active === "source-control" && <SourceControlPage />}
 
         {active === "storage" && (
           <>

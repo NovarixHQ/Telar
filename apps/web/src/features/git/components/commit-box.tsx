@@ -33,6 +33,7 @@ export function CommitBox({
   const [message, setMessage] = useState(suggestion);
   const [working, setWorking] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string }>();
+  const blocked = busy ? "A turn is running; the agent may be mid-write" : files === 0 && !countIncomplete ? "Nothing to commit" : undefined;
 
   const commit = async () => {
     setWorking(true);
@@ -83,20 +84,22 @@ export function CommitBox({
           </div>
         </div>
       ) : (
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={busy || (files === 0 && !countIncomplete)}
-          title={busy ? "A turn is running — the agent may be mid-write" : undefined}
-          onClick={() => {
-            setMessage(suggestion);
-            setOpen(true);
-          }}
-        >
-          <GitCommitHorizontalIcon />
-          Commit everything…
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            disabled={Boolean(blocked)}
+            onClick={() => {
+              setMessage(suggestion);
+              setOpen(true);
+            }}
+          >
+            <GitCommitHorizontalIcon />
+            Commit everything…
+          </Button>
+          {blocked && <span className="text-2xs text-muted-foreground">{blocked}</span>}
+        </div>
       )}
       <p className="mt-2 text-2xs leading-snug text-muted-foreground">
         Staging, branch switching and discarding are absent — irreversible next to a running agent. Use a terminal in{" "}

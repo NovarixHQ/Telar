@@ -32,6 +32,7 @@ import {
 import { Button } from "@/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { Spinner } from "@/ui/spinner";
+import { ConfirmDialog } from "@/ui/confirm-dialog";
 import { dropdownSessionMenuParts, SessionActionContextMenu, SessionActionMenuItems } from "../components/session-action-menu";
 import { MoveSessionDialog, useRailParentTitle } from "./move-session-dialog";
 
@@ -69,11 +70,12 @@ export type SessionRowMenuProps = {
 function useSessionRowMenu({ session, activity = {}, now, settled, active, onRename, onRowChanged, onLeave }: SessionRowMenuProps): {
   items: SessionActionItem[];
   busy: boolean;
-  picker: React.ReactNode;
+  dialogs: React.ReactNode;
 } {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const parentTitle = useRailParentTitle(session);
   const handOff = (to?: string) => void handOffRow({ row: session, ...(to ? { to } : {}), onRowChanged: onRowChanged ?? (() => {}) });
 
@@ -112,15 +114,12 @@ function useSessionRowMenu({ session, activity = {}, now, settled, active, onRen
     projectSettings: ({ projectId }) => router.push(projectSettingsHref(projectId)),
     moveTo: () => setMoving(true),
     detach: () => handOff(),
-    remove: () => {
-      const name = session.title || "Untitled session";
-      if (!window.confirm(`Delete "${name}"?`)) return;
-      if (!window.confirm(`This removes the transcript and the worktree for "${name}". It cannot be undone.`)) return;
-      void mutate({ removed: sessionKey(session) }, () => deleteSession(session)).then(() => {
-        if (active) onLeave?.();
-      });
-    },
+    remove: () => setDeleting(true),
   };
+  const remove = () =>
+    void mutate({ removed: sessionKey(session) }, () => deleteSession(session)).then(() => {
+      if (active) onLeave?.();
+    });
 
   const items = buildSessionActionMenuItems({
     session: menuTarget(session, settled, parentTitle),
@@ -132,18 +131,34 @@ function useSessionRowMenu({ session, activity = {}, now, settled, active, onRen
     },
     actions,
   });
-  const picker = parentTitle === undefined ? null : (
-    <MoveSessionDialog
-      session={session}
-      open={moving}
-      onOpenChange={setMoving}
-      onPick={(to) => {
-        setMoving(false);
-        handOff(to.id);
-      }}
-    />
+  const dialogs = (
+    <>
+      {parentTitle === undefined ? null : (
+        <MoveSessionDialog
+          session={session}
+          open={moving}
+          onOpenChange={setMoving}
+          onPick={(to) => {
+            setMoving(false);
+            handOff(to.id);
+          }}
+        />
+      )}
+      <ConfirmDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        title={`Delete “${session.title || "Untitled session"}”?`}
+        description={
+          session.worktreeBranch
+            ? `This removes its transcript and its worktree on ${session.worktreeBranch}. It cannot be undone.`
+            : "This removes its transcript. It cannot be undone."
+        }
+        confirmLabel="Delete"
+        onConfirm={remove}
+      />
+    </>
   );
-  return { items, busy, picker };
+  return { items, busy, dialogs };
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -155,22 +170,22 @@ async function copyToClipboard(text: string): Promise<void> {
 }
 
 export function SessionRowContextMenu({ children, ...props }: SessionRowMenuProps & { children: React.ReactNode }) {
-  const { items, picker } = useSessionRowMenu(props);
+  const { items, dialogs } = useSessionRowMenu(props);
   return (
     <>
       <SessionActionContextMenu items={items}>{children}</SessionActionContextMenu>
-      {picker}
+      {dialogs}
     </>
   );
 }
 
 export function SessionInboxMenu({ className, ...props }: SessionRowMenuProps & { className?: string }) {
-  const { items, busy, picker } = useSessionRowMenu(props);
+  const { items, busy, dialogs } = useSessionRowMenu(props);
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      {picker}
+      {dialogs}
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger
           render={

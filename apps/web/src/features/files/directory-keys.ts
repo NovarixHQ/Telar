@@ -53,6 +53,13 @@ export function edited(state: DirectoryBrowserState): boolean {
   return state.field !== directoryField(state.path, state.home);
 }
 
+/** What Add takes: the typed path once the field is edited, else the folder on screen. */
+export function submitPath(state: DirectoryBrowserState): string | undefined {
+  if (!edited(state)) return state.path || undefined;
+  const typed = state.home ? expandTilde(state.field, state.home) : state.field.trim();
+  return typed.startsWith(SEP) ? typed : undefined;
+}
+
 export function clampIndex(index: number, length: number): number {
   if (length === 0) return -1;
   return Math.min(Math.max(index, 0), length - 1);
@@ -89,7 +96,10 @@ export function completion(state: DirectoryBrowserState): string | undefined {
 export function directoryKey(state: DirectoryBrowserState, key: DirectoryKey): DirectoryAction {
   const command = Boolean(key.meta || key.ctrl);
 
-  if (command && key.key === "Enter") return { type: "submit", path: state.path };
+  if (command && key.key === "Enter") {
+    const path = submitPath(state);
+    return path ? { type: "submit", path } : { type: "none" };
+  }
   if (command && key.key === ".") return { type: "hidden", hidden: !state.hidden };
 
   if (key.key === "ArrowDown" || key.key === "ArrowUp") {

@@ -143,7 +143,6 @@ function SettingsPaneHeader({
 
 export function SettingsShell({
   title,
-  subtitle,
   sections,
   active,
   onSelect,
@@ -153,7 +152,6 @@ export function SettingsShell({
   children,
 }: {
   title: ReactNode;
-  subtitle?: ReactNode;
   sections: SettingsSection[];
   active: string;
   onSelect: (id: string) => void;
@@ -201,9 +199,6 @@ export function SettingsShell({
             <h2 className="font-heading text-sm font-semibold tracking-tight text-foreground">
               {title}
             </h2>
-            {subtitle && (
-              <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>
-            )}
           </div>
         </div>
         {search ? (

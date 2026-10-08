@@ -4,7 +4,6 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Appearance, ChatWidth, Frost } from "../appearance";
 import { desktopAppearance } from "@/platform/desktop/desktop-appearance";
 import { Row, Segmented, SettingsGroup } from "@/features/settings";
-import { ThemeControl } from "./theme-control";
 import { ShowThroughRow } from "./studio/tools";
 
 const subscribeToNothing = () => () => {};
@@ -16,11 +15,9 @@ type Glass = "off" | Frost;
 export function AppearanceWindowGroup({
   appearance,
   setAppearance,
-  onChange,
 }: {
   appearance: Appearance;
   setAppearance: (patch: Partial<Appearance>) => void;
-  onChange: (patch: Partial<Appearance>) => void;
 }) {
   const hasBridge = useSyncExternalStore(subscribeToNothing, bridgeIsPresent, noBridgeOnTheServer);
   const [windowSupported, setWindowSupported] = useState(false);
@@ -44,18 +41,12 @@ export function AppearanceWindowGroup({
 
   const setGlass = (next: Glass) => {
     const patch = next === "off" ? { translucent: false } : { translucent: true, frost: next };
-    onChange(patch);
+    setAppearance(patch);
     void desktopAppearance()?.set(patch);
   };
 
   return (
-    <SettingsGroup title="Window" description="How this window itself is drawn. None of it travels in a look — it belongs to this machine.">
-      <Row
-        keywords={["light", "dark", "system", "theme", "mode"]}
-        label="Colour scheme"
-        hint="Which state this window wears — and the one the composer above edits."
-        control={<ThemeControl />}
-      />
+    <SettingsGroup title="Window" description="How the window is drawn around the conversation.">
       {hasBridge && windowSupported ? (
         <>
           <Row
@@ -78,7 +69,7 @@ export function AppearanceWindowGroup({
       ) : (
         <p className="py-3 text-xs text-muted-foreground">Translucency needs the macOS desktop app.</p>
       )}
-      <ShowThroughRow level={appearance.translucencyLevel} onChange={(translucencyLevel) => onChange({ translucencyLevel })} />
+      <ShowThroughRow level={appearance.translucencyLevel} onChange={(translucencyLevel) => setAppearance({ translucencyLevel })} />
       <Row
         keywords={["wide", "full", "comfortable", "column", "measure", "transcript"]}
         label="Chat width"
@@ -86,7 +77,7 @@ export function AppearanceWindowGroup({
         control={
           <Segmented<ChatWidth>
             value={appearance.chatWidth}
-            onChange={(chatWidth) => onChange({ chatWidth })}
+            onChange={(chatWidth) => setAppearance({ chatWidth })}
             options={[
               { value: "comfortable", label: "Comfortable" },
               { value: "wide", label: "Wide" },

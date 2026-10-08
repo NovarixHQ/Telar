@@ -60,6 +60,13 @@ describe("filling the window with the panel", () => {
     expect(stored()).toBe(true);
   });
 
+  test("offers its own close only while it fills the window and hides the masthead", async () => {
+    const { host } = await mount(<Shell />);
+    expect(host.querySelector('button[aria-label="Close right panel"]')).toBeNull();
+    await click(labelled(host, "Fill the window"));
+    expect(labelled(host, "Close right panel")).not.toBeNull();
+  });
+
   test("closing the panel while it fills the window brings the rail back", async () => {
     const { host } = await mount(<Shell />);
     await click(labelled(host, "Fill the window"));

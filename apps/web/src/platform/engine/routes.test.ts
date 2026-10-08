@@ -138,9 +138,11 @@ describe("engine route adapters", () => {
     process.env.TELAR_COCKPIT = "1";
     daemons.push(await startEngine({ engineRoot: path.join(home, "engine") }));
 
-    const outside = await fsGet(new Request(`http://cockpit.test/api/fs?path=${encodeURIComponent(home)}&ignored=1`));
-    expect(outside.status).toBe(400);
-    expect((await outside.json()).error.code).toBe("invalid_request");
+    const listed = await fsGet(new Request(`http://cockpit.test/api/fs?path=${encodeURIComponent(home)}&ignored=1`));
+    expect(listed.status).toBe(200);
+    const relative = await fsGet(new Request("http://cockpit.test/api/fs?path=code"));
+    expect(relative.status).toBe(400);
+    expect((await relative.json()).error.code).toBe("invalid_request");
   });
 
   test("the live list carries who each session is working for", async () => {

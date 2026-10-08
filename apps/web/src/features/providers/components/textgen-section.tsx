@@ -1,122 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { DEFAULT_TEXT_GEN_POLICY, type ProviderDriverKind, type ProviderModel, type TextGenEffort } from "@telar/engine-client";
-import { createEngineApi } from "@/platform/engine";
-import { useModelCatalogueGeneration } from "../model-catalogue-cache";
+import { DEFAULT_TEXT_GEN_POLICY, type TextGenEffort } from "@telar/engine-client";
+import { ModelChoiceControl } from "@/features/composer";
 import { useTextGenPolicy } from "../text-gen-policy";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { Dropdown, Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
+import { Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
 
-const api = createEngineApi();
-
-const DRIVER_DEFAULT = "__driver-default";
+const DEFAULT_WRITER = { driver: DEFAULT_TEXT_GEN_POLICY.driver, model: DEFAULT_TEXT_GEN_POLICY.model ?? null, effort: null };
 
 export function TextGenSection() {
   const { policy, loading, error, save } = useTextGenPolicy();
-  const [catalogue, setCatalogue] = useState<{ driver: ProviderDriverKind; models: ProviderModel[] }>();
-
-  const driver = policy.driver;
-  const epoch = useModelCatalogueGeneration();
-  useEffect(() => {
-    let live = true;
-    void api
-      .modelCatalogue(driver)
-      .then(({ catalogue: answer }) => {
-        if (live) {
-          setCatalogue({
-            driver: answer.driver,
-            models: answer.models.filter((model) => !model.hidden && !model.hiddenByUser),
-          });
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [driver, epoch]);
-  const models = catalogue?.driver === driver ? catalogue.models : [];
 
   useRestoreDefaults(async () => {
-    await save({
-      driver: DEFAULT_TEXT_GEN_POLICY.driver,
-      titles: DEFAULT_TEXT_GEN_POLICY.titles,
-    });
-    await save({ model: DEFAULT_TEXT_GEN_POLICY.model ?? null, effort: null });
+    await save({ driver: DEFAULT_TEXT_GEN_POLICY.driver, titles: DEFAULT_TEXT_GEN_POLICY.titles, renameBranches: DEFAULT_TEXT_GEN_POLICY.renameBranches });
+    await save({ model: DEFAULT_WRITER.model, effort: null });
   });
 
-  const pinned = policy.model;
-  const listed = pinned !== undefined && models.some((model) => model.id === pinned);
-  const pinnedLabel = pinned === undefined ? "Smallest listed" : (models.find((model) => model.id === pinned)?.label ?? pinned);
+  const atDefault = policy.driver === DEFAULT_TEXT_GEN_POLICY.driver && policy.model === DEFAULT_TEXT_GEN_POLICY.model && policy.effort === undefined;
 
   return (
     <SettingsGroup title="Text generation" scope="mac">
       <Row
-        keywords={["claude", "codex", "opencode", "driver"]}
+        keywords={["claude", "codex", "opencode", "driver", "title model", "textgen", "reasoning", "thinking", "effort"]}
         label="Written by"
+        hint="The provider, model and effort that name sessions and branches."
         {...(error ? { error } : {})}
-        {...(policy.driver === DEFAULT_TEXT_GEN_POLICY.driver
-          ? {}
-          : { onRevert: () => void save({ driver: DEFAULT_TEXT_GEN_POLICY.driver }) })}
+        {...(atDefault ? {} : { onRevert: () => void save(DEFAULT_WRITER) })}
         control={
-          <Dropdown<ProviderDriverKind>
-            value={policy.driver}
-            label="Written by"
-            onChange={(next) => void save({ driver: next })}
-            options={[
-              { value: "claude", label: "Claude" },
-              { value: "codex", label: "Codex" },
-              { value: "opencode", label: "OpenCode" },
-            ]}
-          />
-        }
-      />
-      <Row
-        keywords={["title model", "textgen"]}
-        label="Model"
-        hint="Changing the provider above clears a pinned model."
-        {...(pinned === DEFAULT_TEXT_GEN_POLICY.model
-          ? {}
-          : { onRevert: () => void save({ model: DEFAULT_TEXT_GEN_POLICY.model ?? null }) })}
-        control={
-          <Select
-            value={pinned ?? DRIVER_DEFAULT}
-            onValueChange={(next) => {
-              if (typeof next === "string") void save({ model: next === DRIVER_DEFAULT ? null : next });
-            }}
-            disabled={loading}
-          >
-            <SelectTrigger size="sm" className="w-44">
-              <SelectValue>{pinnedLabel}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={DRIVER_DEFAULT}>Smallest listed</SelectItem>
-              {pinned !== undefined && !listed && <SelectItem value={pinned}>{pinned}</SelectItem>}
-              {models.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  {model.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
-      <Row
-        keywords={["reasoning", "thinking", "textgen"]}
-        label="Effort"
-        hint="How hard the model thinks before it names a session."
-        {...(policy.effort === undefined ? {} : { onRevert: () => void save({ effort: null }) })}
-        control={
-          <Dropdown<TextGenEffort>
-            value={policy.effort ?? "low"}
-            label="Effort"
-            onChange={(next) => void save({ effort: next === "low" ? null : next })}
-            options={[
-              { value: "low", label: "Low" },
-              { value: "medium", label: "Medium" },
-              { value: "high", label: "High" },
-            ]}
-          />
+          loading ? null : (
+            <ModelChoiceControl
+              driver={policy.driver}
+              choice={{ ...(policy.model ? { model: policy.model } : {}), ...(policy.effort ? { effort: policy.effort } : {}) }}
+              onChange={(driver, next) =>
+                void save({ driver, model: next.model ?? null, effort: (next.effort as TextGenEffort | undefined) ?? null })
+              }
+            />
+          )
         }
       />
       <ToggleRow
@@ -127,6 +45,17 @@ export function TextGenSection() {
         {...(policy.titles === DEFAULT_TEXT_GEN_POLICY.titles
           ? {}
           : { onRevert: () => void save({ titles: DEFAULT_TEXT_GEN_POLICY.titles }) })}
+      />
+      <ToggleRow
+        keywords={["git", "branch name", "title", "rename branches"]}
+        label="Name branches"
+        hint="Renames branches the engine cut to match the session. Yours keep their names."
+        checked={policy.renameBranches}
+        onCheckedChange={(next) => void save({ renameBranches: next })}
+        {...(policy.titles ? {} : { unavailable: { reason: "Needs Name sessions." } })}
+        {...(policy.renameBranches === DEFAULT_TEXT_GEN_POLICY.renameBranches
+          ? {}
+          : { onRevert: () => void save({ renameBranches: DEFAULT_TEXT_GEN_POLICY.renameBranches }) })}
       />
     </SettingsGroup>
   );

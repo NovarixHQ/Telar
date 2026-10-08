@@ -13,7 +13,7 @@ import {
   type latestBrowserState,
 } from "@/features/panel";
 import { agentSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped } from "@/features/simulators";
-import { freshTerminals, revealTerminal, type RunView } from "@/features/terminal";
+import { isOpenTerminal, revealTerminal, syncRunTabs, type RunView } from "@/features/terminal";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import { showSimulatorTab } from "../model";
 import type { useCockpitPanel } from "./use-cockpit-panel";
@@ -70,14 +70,16 @@ export function useJournalReactions({ sessionId, sync: { events }, browser, enab
     }
   }, [events, enabledPlugins, sessionId, showPanelTab, updatePanel]);
 
+  // Every open run gets a tab once; a run whose tab the person closed is not brought back by the frame reporting the close.
   const seenTerminals = useRef<Set<string>>(new Set());
+  const firstRunRead = useRef(true);
   return useCallback(
     (terminals: readonly RunView[]) => {
-      if (mountedAt.current === 0) mountedAt.current = Date.now();
-      const fresh = freshTerminals(terminals, mountedAt.current, seenTerminals.current);
+      const dropMissing = firstRunRead.current;
+      firstRunRead.current = false;
+      const fresh = terminals.filter((run) => isOpenTerminal(run) && !seenTerminals.current.has(run.terminalId)).reverse();
       for (const run of terminals) seenTerminals.current.add(run.terminalId);
-      if (fresh.length === 0) return;
-      updatePanel((current) => fresh.reduce((state, run) => revealTerminal(state, run, "terminal"), current));
+      updatePanel((current) => fresh.reduce((state, run) => revealTerminal(state, run, "terminal"), syncRunTabs(current, terminals, "terminal", { dropMissing })));
     },
     [updatePanel],
   );

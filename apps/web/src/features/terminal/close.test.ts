@@ -1,26 +1,7 @@
-/**
- * CLOSE = KILL, AND WHEN TO ASK FIRST.
- *
- * The rule under test: a close asks only when something is running, in plain
- * words that name the command and how many processes it would end; an idle
- * terminal closes without a word; a question nobody could answer counts as
- * busy. And closing the whole Terminal tab ends every terminal in it — runs
- * included, through the engine — behind ONE question.
- */
 import { describe, expect, test } from "bun:test";
 import type { TerminalActivity, TerminalBridge } from "./bridge";
-import { closeTerminalTab, decideClose, endTerminal, idleChips, mayClose } from "./close";
-import type { RunView } from "./run/types";
-import {
-  addShell,
-  emptyWorkspace,
-  nextShellId,
-  setShellTerminal,
-  upsertRunShell,
-  workspaceParams,
-  TERMINAL_ID_PARAM,
-  TERMINAL_WORKSPACE_PARAM,
-} from "./workspace";
+import { closeTerminalTab, decideClose, endTerminal, mayClose } from "./close";
+import { terminalTabParams } from "./tab";
 
 const idle = (id: string): TerminalActivity => ({ id, active: false, processes: 0 });
 const busy = (id: string, processes: number, command?: string): TerminalActivity => ({
@@ -70,7 +51,7 @@ describe("decideClose", () => {
     expect(first).toContain("…");
   });
 
-  test("the whole tab asks once, listing only what is busy", () => {
+  test("several targets ask once, listing only what is busy", () => {
     const decision = decideClose(
       [
         { id: "t1", label: "Shell 1" },
@@ -78,18 +59,17 @@ describe("decideClose", () => {
         { id: "t3", label: "api", command: "bun run api" },
       ],
       [idle("t1"), busy("t2", 4), busy("t3", 2)],
-      "tab",
     );
     expect(decision.action).toBe("confirm");
     if (decision.action !== "confirm") return;
-    expect(decision.message.split("\n")[0]).toBe("End 2 commands still running in this Terminal?");
+    expect(decision.message.split("\n")[0]).toBe("End 2 commands still running?");
     expect(decision.message).toContain("• “bun run dev” (4 processes)");
     expect(decision.message).toContain("• “bun run api” (2 processes)");
     expect(decision.message).not.toContain("Shell 1");
   });
 
   test("the copy names no product", () => {
-    const decision = decideClose([{ id: "t1", label: "Shell 1" }], [busy("t1", 3, "vim")], "tab");
+    const decision = decideClose([{ id: "t1", label: "Shell 1" }], [busy("t1", 3, "vim")]);
     for (const name of ["Electron", "xterm", "node-pty", "Claude"]) {
       expect(decision.action === "confirm" && decision.message).not.toContain(name);
     }
@@ -181,102 +161,54 @@ describe("endTerminal", () => {
 });
 
 describe("closeTerminalTab", () => {
-  /** A tab carrying shells, each attached to its own PTY, plus optional runs. */
-  function tab(shells: string[], runs: Array<{ runId: string; open: boolean }> = []): Record<string, string> {
-    let state = emptyWorkspace();
-    for (const terminal of shells) {
-      const id = nextShellId(state);
-      state = setShellTerminal(addShell(state, id), id, terminal);
-    }
-    for (const run of runs) {
-      state = upsertRunShell(state, { runId: run.runId, configId: "cfg", title: run.runId, ...(run.open ? { terminalId: run.runId } : {}) });
-    }
-    return workspaceParams(state);
-  }
+  const shell = (terminalId: string) => terminalTabParams({ terminalId });
+  const run = (runId: string, terminalId?: string) => terminalTabParams({ ...(terminalId ? { terminalId } : {}), title: "web dev", run: { runId, configId: "cfg" } });
 
-  test("an idle tab closes every shell without asking", async () => {
-    const { bridge, closed } = fakeBridge([idle("t1"), idle("t2"), idle("t3")]);
-    const ok = await closeTerminalTab(tab(["t1", "t2", "t3"]), { bridge, confirm: () => false });
-    expect(ok).toBe(true);
-    expect(closed).toEqual(["t1", "t2", "t3"]);
-  });
-
-  /**
-   * THE OLD EXCEPTION, REVERSED. A run's terminal used to be spared by a tab
-   * close because a run belonged to the project. It belongs to the session's
-   * Terminal now, so closing the tab ends it — through the engine.
-   */
-  test("runs in the tab are ended through the engine, shells through the host", async () => {
-    const { bridge, closed } = fakeBridge([idle("t1"), idle("run_a")]);
-    const stopped: string[] = [];
-    const ok = await closeTerminalTab(tab(["t1"], [{ runId: "run_a", open: true }]), {
-      bridge,
-      stopRun: async (id) => stopped.push(id),
-      confirm: () => false,
-    });
-    expect(ok).toBe(true);
+  test("an idle shell closes without asking", async () => {
+    const { bridge, closed } = fakeBridge([idle("t1")]);
+    let prompted = 0;
+    expect(await closeTerminalTab(shell("t1"), { bridge, confirm: () => ((prompted += 1), false) })).toBe(true);
+    expect(prompted).toBe(0);
     expect(closed).toEqual(["t1"]);
-    expect(stopped).toEqual(["run_a"]);
   });
 
-  test("a run that had already ended has nothing to end", async () => {
-    const { bridge } = fakeBridge([]);
-    const stopped: string[] = [];
-    await closeTerminalTab(tab([], [{ runId: "run_old", open: false }]), { bridge, stopRun: async (id) => stopped.push(id) });
-    expect(stopped).toEqual([]);
-  });
-
-  test("anything busy asks ONCE, and no keeps every terminal running", async () => {
-    const { bridge, closed } = fakeBridge([busy("t1", 1, "vim"), busy("run_a", 4)]);
-    const stopped: string[] = [];
+  test("a busy shell asks once, and no keeps it running", async () => {
+    const { bridge, closed } = fakeBridge([busy("t1", 1, "vim")]);
     const prompts: string[] = [];
-    const ok = await closeTerminalTab(tab(["t1"], [{ runId: "run_a", open: true }]), {
-      bridge,
-      stopRun: async (id) => stopped.push(id),
-      confirm: (message) => (prompts.push(message), false),
-    });
-    expect(ok).toBe(false);
-    expect(prompts.length).toBe(1);
-    expect(prompts[0]).toStartWith("End 2 commands still running in this Terminal?");
+    expect(await closeTerminalTab(shell("t1"), { bridge, confirm: (message) => (prompts.push(message), false) })).toBe(false);
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toStartWith("End “vim” (1 process)?");
     expect(closed).toEqual([]);
-    expect(stopped).toEqual([]);
   });
 
-  test("a tab written before the strip existed still has its one shell closed", async () => {
-    const { bridge, closed } = fakeBridge([idle("term_old")]);
-    await closeTerminalTab({ [TERMINAL_ID_PARAM]: "term_old" }, { bridge });
-    expect(closed).toEqual(["term_old"]);
+  test("a run is ended through the engine by its run id, not closed by the host", async () => {
+    const { bridge, closed } = fakeBridge([idle("term_run")]);
+    const stopped: string[] = [];
+    expect(await closeTerminalTab(run("run_a", "term_run"), { bridge, stopRun: async (id) => stopped.push(id) })).toBe(true);
+    expect(stopped).toEqual(["run_a"]);
+    expect(closed).toEqual([]);
   });
 
-  test("a tab that never attached to anything closes nothing and asks nothing", async () => {
+  test("a run whose terminal is gone is still ended through the engine", async () => {
+    const { bridge, asked } = fakeBridge([]);
+    const stopped: string[] = [];
+    expect(await closeTerminalTab(run("run_old"), { bridge, stopRun: async (id) => stopped.push(id) })).toBe(true);
+    expect(asked).toEqual([]);
+    expect(stopped).toEqual(["run_old"]);
+  });
+
+  test("a tab that never attached asks nothing and ends nothing", async () => {
     const { bridge, asked, closed } = fakeBridge([]);
-    expect(await closeTerminalTab({}, { bridge })).toBe(true);
-    expect(await closeTerminalTab({ [TERMINAL_WORKSPACE_PARAM]: "not json" }, { bridge })).toBe(true);
+    const stopped: string[] = [];
+    expect(await closeTerminalTab({}, { bridge, stopRun: async (id) => stopped.push(id) })).toBe(true);
     expect(asked).toEqual([]);
     expect(closed).toEqual([]);
-  });
-});
-
-describe("idleChips", () => {
-  const view = (runId: string, status: RunView["status"], activity: RunView["activity"]) => ({ runId, terminalId: runId, status, activity }) as RunView;
-  const strip = () => {
-    let workspace = setShellTerminal(addShell(emptyWorkspace()), "shell", "pty_idle");
-    workspace = setShellTerminal(addShell(workspace), nextShellId(workspace), "pty_busy");
-    for (const runId of ["run_idle", "run_busy", "run_ended"]) workspace = upsertRunShell(workspace, { runId, configId: "", terminalId: runId });
-    return workspace;
-  };
-  const runs = new Map([
-    ["run_idle", view("run_idle", "running", "idle")],
-    ["run_busy", view("run_busy", "running", "busy")],
-    ["run_ended", view("run_ended", "closed", "idle")],
-  ]);
-
-  test("idle and ended terminals are picked; busy ones are kept", () => {
-    expect(idleChips(strip(), runs, [idle("pty_idle"), busy("pty_busy", 2)])).toEqual(["shell", "run", "run#3"]);
+    expect(stopped).toEqual([]);
   });
 
-  test("activity nobody could read keeps that kind of terminal", () => {
-    expect(idleChips(strip(), undefined, [idle("pty_idle"), busy("pty_busy", 2)])).toEqual(["shell"]);
-    expect(idleChips(strip(), runs, undefined)).toEqual(["run", "run#3"]);
+  test("a tab carrying only the old terminal param still has its shell closed", async () => {
+    const { bridge, closed } = fakeBridge([idle("term_old")]);
+    await closeTerminalTab({ terminal: "term_old" }, { bridge });
+    expect(closed).toEqual(["term_old"]);
   });
 });

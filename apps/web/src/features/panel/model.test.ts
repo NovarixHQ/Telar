@@ -60,17 +60,14 @@ describe("the Terminal surface", () => {
     expect(blurb.length).toBeGreaterThan(0);
   });
 
-  test("is SINGLE-instance — a second shell is an inner tab, not an outer one", () => {
-    // A Terminal carries its own strip of shells; the Editor and the Diff are still two.
-    expect(isMultiInstancePanelTab("terminal")).toBe(false);
+  test("is multi-instance, like the Editor and the Diff", () => {
+    expect(isMultiInstancePanelTab("terminal")).toBe(true);
     expect(isMultiInstancePanelTab("editor")).toBe(true);
     expect(isMultiInstancePanelTab("diff")).toBe(true);
     expect(isMultiInstancePanelTab("processes")).toBe(false);
   });
 
   test("asking for a terminal twice focuses the one you have", () => {
-    // The gesture that used to mint `terminal#2` is now the `+` inside the
-    // surface, where a second shell costs no room in this strip.
     let state = openPanelTab(emptyPanelTabs<PanelTab>(), "terminal");
     state = openPanelTab(state, "terminal");
     expect(state.tabs.map((entry) => entry.id)).toEqual(["terminal"]);
@@ -219,9 +216,11 @@ describe("a surface's letter", () => {
     }
   });
 
-  test("an open singleton leaves the launcher; a second Diff stays as another", () => {
-    const rows = launcherRows([{ id: "terminal", kind: "terminal", params: {} }, { id: "diff", kind: "diff", params: {} }], { enabledPlugins: [], pluginPanels: [], canOpenNew: true });
-    expect(rows.some((row) => row.id === "terminal")).toBe(false);
+  test("an open singleton leaves the launcher; a second Terminal or Diff stays as another", () => {
+    const open = [{ id: "issues", kind: "issues", params: {} }, { id: "terminal", kind: "terminal", params: {} }, { id: "diff", kind: "diff", params: {} }] as const;
+    const rows = launcherRows([...open], { enabledPlugins: [], pluginPanels: [], canOpenNew: true });
+    expect(rows.some((row) => row.id === "issues")).toBe(false);
+    expect(rows.find((row) => row.id === "terminal")?.another).toBe(true);
     expect(rows.find((row) => row.id === "diff")?.another).toBe(true);
     expect(rows.some((row) => row.id === "browser")).toBe(false);
   });

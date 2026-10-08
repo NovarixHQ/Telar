@@ -42,7 +42,7 @@ export function settingsRoutes(
       path: "/v2/session-defaults",
       auth: "engine",
       handle: ({ body }) =>
-        ok({ sessionDefaults: store.settings.setSessionDefaults(present(body, ["envMode", "resumeAfterRestart", "runtimeMode", "resumeAfterRateLimit", "defaultModel"])) }),
+        ok({ sessionDefaults: store.settings.setSessionDefaults(present(body, ["envMode", "resumeAfterRestart", "runtimeMode", "defaultModel"])) }),
     },
     { method: "GET", path: "/v2/workspace", auth: "engine", handle: () => ok({ machine: store.workspace.machine() }) },
     {

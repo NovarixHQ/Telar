@@ -2,13 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { DownloadIcon, MonitorIcon, PowerIcon, RefreshCwIcon } from "lucide-react";
-import type { EngineHealth } from "@telar/engine-client";
-import { Badge } from "@/ui/badge";
 import { CHANNEL_HINT, desktopUpdates, updateStatusHint, useDesktopUpdate, type UpdatePrefsInfo } from "../desktop-updates";
 import { Row, SettingsGroup } from "@/features/settings";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
-import { Switch } from "@/ui/switch";
 import { UpdateToast } from "./update-toast";
 import { RestartUpdateDialog } from "./restart-update-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
@@ -17,31 +14,11 @@ function Mono({ children }: { children: ReactNode }) {
   return <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{children}</code>;
 }
 
-type BuildInfo = { appVersion?: string; health?: EngineHealth; unreachable?: boolean };
-
-function BuildRows({ appVersion, health, unreachable }: BuildInfo) {
-  return (
-    <>
-      <Row keywords={["about", "this build"]} label="Version" control={<Mono>{appVersion ?? "—"}</Mono>} />
-      <Row
-        keywords={["daemon", "offline", "health"]}
-        label="Engine"
-        hint={unreachable ? "Nothing is claiming turns; a message sent now stays queued." : undefined}
-        control={
-          unreachable ? (
-            <Badge variant="outline">Not answering</Badge>
-          ) : health?.worker.registered ? (
-            <Badge variant="secondary">Running</Badge>
-          ) : (
-            <Badge variant="outline">No worker</Badge>
-          )
-        }
-      />
-    </>
-  );
+function VersionRow({ appVersion }: { appVersion?: string }) {
+  return <Row keywords={["about", "this build"]} label="Version" control={<Mono>{appVersion ?? "—"}</Mono>} />;
 }
 
-export function AboutSection(build: BuildInfo) {
+export function AboutSection({ appVersion }: { appVersion?: string }) {
   const { supported: isDesktop, status, action, label, busy, failure, act, restart } = useDesktopUpdate();
   const [prefs, setPrefs] = useState<UpdatePrefsInfo | null>(null);
 
@@ -60,7 +37,7 @@ export function AboutSection(build: BuildInfo) {
   if (!isDesktop) {
     return (
       <SettingsGroup title="About">
-        <BuildRows {...build} />
+        <VersionRow {...(appVersion ? { appVersion } : {})} />
         <Row icon={MonitorIcon} label="Desktop app only" hint="Only the desktop app updates itself." />
       </SettingsGroup>
     );
@@ -94,7 +71,7 @@ export function AboutSection(build: BuildInfo) {
   if (prefs && !prefs.configured) {
     return (
       <SettingsGroup title="About">
-        <BuildRows {...build} />
+        <VersionRow {...(appVersion ? { appVersion } : {})} />
         <Row
           icon={MonitorIcon}
           keywords={["upgrade", "download", "updates", "channel"]}
@@ -107,7 +84,7 @@ export function AboutSection(build: BuildInfo) {
 
   return (
     <SettingsGroup title="About">
-      <BuildRows {...build} />
+      <VersionRow {...(appVersion ? { appVersion } : {})} />
       <Row keywords={["upgrade", "download", "version", "updates"]} label="Update status" hint={failure ?? updateStatusHint(status)} control={control} />
       <Row
         keywords={["beta", "nightly", "stable", "release", "updates"]}
@@ -132,17 +109,6 @@ export function AboutSection(build: BuildInfo) {
               ))}
             </SelectContent>
           </Select>
-        }
-      />
-      <Row
-        keywords={["restart", "automatic", "updates"]}
-        label="Install on quit"
-        control={
-          <Switch
-            checked={prefs?.installOnQuit ?? false}
-            onCheckedChange={(installOnQuit) => void savePrefs({ installOnQuit })}
-            disabled={!prefs}
-          />
         }
       />
     </SettingsGroup>

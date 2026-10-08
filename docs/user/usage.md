@@ -33,9 +33,4 @@ Without a hub, this section is hidden and the page reports spend only.
 
 ## Continuing after a limit
 
-For Claude, a turn stopped by the five-hour or weekly limit runs again on its own once the limit lifts, and picks up where it left off.
-
-- To change the default for new conversations, go to Settings → General → **Continue after a reset**.
-- To change it for one conversation, use the composer's Access menu → Usage limits: **Continue after a reset** or **Stay stopped**.
-
-This only applies to Claude, which is the only provider that reports when its limits reset.
+For Claude, a turn stopped by the five-hour or weekly limit runs again on its own once the limit lifts, and picks up where it left off. This only applies to Claude, which is the only provider that reports when its limits reset.

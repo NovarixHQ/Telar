@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { createEngineApi, EngineApiError } from "./client";
 
 describe("the package's domain methods over the cockpit's /api proxy", () => {
@@ -21,5 +21,32 @@ describe("the package's domain methods over the cockpit's /api proxy", () => {
     const refusal = await api.projectGit("gone").catch((error: unknown) => error);
     expect(refusal).toBeInstanceOf(EngineApiError);
     expect((refusal as EngineApiError).message).toBe("No such project.");
+  });
+});
+
+describe("a browser the engine does not know", () => {
+  const host = globalThis as { window?: unknown };
+  const before = host.window;
+  const unpaired = async () => Response.json({ error: { code: "cockpit_unauthorized", message: "Pair this device with the Telar cockpit to use it." } }, { status: 401 });
+  const visit = (pathname: string) => {
+    const visited: string[] = [];
+    host.window = { location: { pathname, replace: (to: string) => visited.push(to) } };
+    return visited;
+  };
+  afterEach(() => {
+    host.window = before;
+  });
+
+  test("is sent to the pairing page", async () => {
+    const visited = visit("/projects/p1");
+    await createEngineApi(unpaired).projectGit("p1").catch(() => undefined);
+    expect(visited).toEqual(["/pair"]);
+  });
+
+  test("a refusal from another Mac stays an error on this page", async () => {
+    const visited = visit("/hosts/mini/projects/p1");
+    const refusal = await createEngineApi(unpaired).projectGit("p1").catch((error: unknown) => error);
+    expect((refusal as EngineApiError).code).toBe("cockpit_unauthorized");
+    expect(visited).toEqual([]);
   });
 });

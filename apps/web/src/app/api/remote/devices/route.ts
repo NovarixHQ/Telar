@@ -8,8 +8,8 @@ export const DELETE = engineRoute(async (request: Request) => {
   const caller = (await identifyCaller(request)).device;
   if (!caller) {
     return Response.json(
-      { error: { code: "cockpit_unauthorized", message: "This device isn't paired, so there is nothing to keep." } },
-      { status: 401 },
+      { error: { code: "invalid_request", message: "This device isn't paired, so there is nothing to keep." } },
+      { status: 400 },
     );
   }
   return engineForward(request, `/v2/remote/devices?keep=${encodeURIComponent(caller.id)}`);

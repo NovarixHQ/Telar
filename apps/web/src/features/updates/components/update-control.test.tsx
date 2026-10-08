@@ -60,8 +60,8 @@ const bridge: UpdatesBridge = {
     return () => listeners.delete(listener);
   },
   status: async () => null,
-  getPrefs: async () => ({ channel: "beta", installOnQuit: false, channels: ["beta"], configured: true, logPath: "/dev/null" }) as UpdatePrefsInfo,
-  setPrefs: async () => ({ channel: "beta", installOnQuit: false }),
+  getPrefs: async () => ({ channel: "beta", channels: ["beta"], configured: true, logPath: "/dev/null" }) as UpdatePrefsInfo,
+  setPrefs: async () => ({ channel: "beta" }),
 };
 (globalThis as { window: { telarDesktop?: unknown } }).window.telarDesktop = { updates: bridge };
 
@@ -307,7 +307,7 @@ describe("the toast", () => {
 describe("a build with no update feed", () => {
   test("says so once, with no update status or channel beside it", async () => {
     const configured = bridge.getPrefs;
-    bridge.getPrefs = async () => ({ channel: "beta", installOnQuit: false, channels: ["beta"], configured: false, logPath: "/dev/null" }) as UpdatePrefsInfo;
+    bridge.getPrefs = async () => ({ channel: "beta", channels: ["beta"], configured: false, logPath: "/dev/null" }) as UpdatePrefsInfo;
     const view = mountSurface(<AboutSection />);
     await act(async () => {
       await Promise.resolve();

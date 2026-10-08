@@ -88,7 +88,7 @@ export function settleClosesText(terminals: number | undefined): string | undefi
 }
 
 export function settledTerminalsHint(terminals: number): string {
-  return `${terminalsWord(terminals)} still open in this settled conversation, shells you opened included`;
+  return `${terminalsWord(terminals)} still open in this settled session, shells you opened included`;
 }
 
 export function terminalsClosedHint(
@@ -97,7 +97,7 @@ export function terminalsClosedHint(
   const closed = session.terminalsClosed;
   if (!closed || closed.at < session.updatedAt) return undefined;
   return closed.reason === "limit"
-    ? `Telar closed its ${terminalsWord(closed.terminals)}: settled conversations had more open than the limit in Settings, and this one was settled longest ago`
+    ? `Telar closed its ${terminalsWord(closed.terminals)}: settled sessions had more open than the limit in Settings, and this one was settled longest ago`
     : `Telar closed its ${terminalsWord(closed.terminals)} 30 minutes after it settled on its own`;
 }
 

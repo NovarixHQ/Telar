@@ -1,5 +1,6 @@
 export { LiveActivity } from "./components/activity";
 export { sessionWakeLabel } from "./components/item-rows";
+export { MessageActions } from "./components/message-actions";
 export { TranscriptSession } from "./components/message-attachments";
 export { AgentRows } from "./components/agent-rows";
 export { NotificationRow } from "./components/notification-row";
@@ -20,4 +21,5 @@ export {
   turnActivity,
   withoutOpeningNotification,
 } from "./model";
+export { AgentMarkdown } from "./components/agent-markdown";
 export { AgentMessageBubble, ConversationMessage } from "./components/conversation-message";

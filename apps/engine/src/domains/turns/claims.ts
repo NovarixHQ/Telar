@@ -193,13 +193,6 @@ export class TurnClaims {
     this.deps.flushPendingNotifications(sessionId);
   }
 
-  // Absent means yes for Claude (asking the standing default) and no otherwise; only an explicit choice is stored.
-  private resumesAfterRateLimit(session: Session): boolean {
-    // Resolved at read time, so changing the standing default reaches every
-    // session that never chose for itself.
-    return session.resumeAfterRateLimit ?? (session.driver === "claude" && this.deps.getSessionDefaults().resumeAfterRateLimit !== false);
-  }
-
   private lastProgressOf(sessionId: string, turn: Turn): number {
     const seen = this.kernel.runProgress.get(sessionId);
     if (seen?.runId === turn.runId) return seen.at;
@@ -246,7 +239,7 @@ export class TurnClaims {
     const session = this.deps.records.get(sessionId);
     if (session.paused || session.state === "archived") return;
 
-    const resuming = this.resumesAfterRateLimit(session);
+    const resuming = session.driver === "claude";
     const requeued: Turn[] = [];
     for (const turn of queue.turns) {
       if (!due(turn)) continue;

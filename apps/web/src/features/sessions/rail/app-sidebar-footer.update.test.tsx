@@ -51,7 +51,7 @@ function shell(status: UpdateStatus, terminals = { count: 0, commands: [] as str
         return () => undefined;
       },
       status: async () => status,
-      getPrefs: async () => ({ channel: "beta", channels: ["beta"], installOnQuit: false, configured: true }),
+      getPrefs: async () => ({ channel: "beta", channels: ["beta"], configured: true }),
       setPrefs: async (patch: unknown) => patch,
     },
   };

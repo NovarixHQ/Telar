@@ -57,7 +57,7 @@ function inline(tokens: readonly Token[] | undefined, styles: Styles, key = ""):
       case "checkbox":
         return null;
       case "mathInline":
-        return <MathView key={id} tex={token.text as string} display={false} />;
+        return <MathView key={id} tex={token.text as string} display={false} size={styles.paragraph.fontSize} />;
       default:
         return "text" in token && typeof token.text === "string" ? token.text : token.raw;
     }
@@ -148,7 +148,7 @@ function Block({ token, muted }: { token: Token; muted: boolean }) {
       }
       return <Paragraph tokens={token.tokens} {...(tint ? { style: tint } : {})} />;
     case "mathBlock":
-      return <MathView tex={token.text as string} display />;
+      return <MathView tex={token.text as string} display size={size} />;
     case "text":
       return <Paragraph tokens={token.tokens ?? [{ type: "text", raw: token.raw, text: token.text }]} {...(tint ? { style: tint } : {})} />;
     case "heading": {

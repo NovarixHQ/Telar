@@ -1,0 +1,171 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { itemLabel, itemText, type JournalItem } from "@telar/client/journal";
+import { firstLine, providerSwitchLabel } from "./layout";
+import { Markdown } from "./Markdown";
+import { advanceReveal, REVEAL_FRAME_MS, revealed, revealText, stepReveal, type Reveal } from "./reveal";
+import { MONO, SteppedPulseDot, Symbol, TextSize, Theme, type SFSymbol } from "./temp-ui";
+
+const TOOL_ICON: Partial<Record<JournalItem["detail"]["type"], SFSymbol>> = {
+  command_execution: "terminal",
+  file_change: "pencil.line",
+  file_read: "doc.text",
+  web_search: "magnifyingglass",
+  browser_action: "globe",
+  task: "person.2",
+  unknown: "questionmark.diamond",
+};
+
+function ToolChip({ icon, label, status }: { icon: SFSymbol; label: string; status?: JournalItem["status"] }) {
+  return (
+    <View style={styles.chip}>
+      <View style={styles.glyph}>
+        <Symbol name={icon} size={TextSize.footnote} weight="medium" color={Theme.textMuted} />
+      </View>
+      <Text style={styles.chipLabel} numberOfLines={1} ellipsizeMode="middle">{label}</Text>
+      {status === "inProgress" ? <SteppedPulseDot /> : null}
+      {status === "failed" ? <Symbol name="xmark" size={TextSize.caption} weight="semibold" color={Theme.red} /> : null}
+      {status === "declined" ? <Symbol name="hand.raised" size={TextSize.caption} color={Theme.amber} /> : null}
+    </View>
+  );
+}
+
+export function NestedDetail({ children }: { children: ReactNode }) {
+  return (
+    <View style={styles.nested}>
+      <View style={styles.nestedRule} />
+      <View style={styles.nestedBody}>{children}</View>
+    </View>
+  );
+}
+
+function Divider({ label }: { label: string }) {
+  return (
+    <View style={styles.divider}>
+      <View style={styles.dividerRule} />
+      <Text style={styles.metaSmall}>{label}</Text>
+      <View style={styles.dividerRule} />
+    </View>
+  );
+}
+
+function Thought({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Pressable onPress={() => setOpen((value) => !value)} style={styles.stack}>
+      <ToolChip icon="brain" label="Thought" />
+      {open ? (
+        <NestedDetail>
+          <Text selectable style={styles.meta}>{text}</Text>
+        </NestedDetail>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/** Streamed prose is revealed at the pace it arrives instead of in poll-sized jumps. */
+function StreamingMarkdown({ text, streaming }: { text: string; streaming: boolean }) {
+  const pace = useRef<{ state: Reveal; rendered: string }>({ state: revealed(text.length, Date.now()), rendered: text });
+  const [, redraw] = useState(0);
+  if (pace.current.rendered !== text) pace.current = { state: stepReveal(pace.current.state, pace.current.rendered, text, Date.now()), rendered: text };
+  useEffect(() => {
+    if (!streaming) return;
+    const timer = setInterval(() => {
+      const { state } = pace.current;
+      if (state.shown >= state.target) return;
+      pace.current = { ...pace.current, state: advanceReveal(state, Date.now()) };
+      redraw((frame) => frame + 1);
+    }, REVEAL_FRAME_MS);
+    return () => clearInterval(timer);
+  }, [streaming]);
+  return <Markdown text={streaming ? revealText(text, pace.current.state.shown) : text} />;
+}
+
+export function ItemRow({ item }: { item: JournalItem }) {
+  const { detail } = item;
+  switch (detail.type) {
+    case "assistant_message":
+      return <StreamingMarkdown text={itemText(item)} streaming={item.status === "inProgress"} />;
+    case "reasoning":
+      return <Thought text={itemText(item)} />;
+    case "plan":
+      return (
+        <NestedDetail>
+          {detail.plan.steps.map((step, index) => (
+            <View key={index} style={styles.planStep}>
+              <Symbol
+                name={step.status === "completed" ? "checkmark.circle.fill" : step.status === "inProgress" ? "circle.dotted.circle" : "circle"}
+                size={TextSize.footnote}
+                color={step.status === "completed" ? Theme.emerald : Theme.textMuted}
+              />
+              <Text style={[styles.meta, step.status !== "completed" && styles.text, step.status === "completed" && styles.done]}>{step.step}</Text>
+            </View>
+          ))}
+        </NestedDetail>
+      );
+    case "error":
+      return <Text style={[styles.meta, styles.red]}>{detail.error.message}</Text>;
+    case "provider_switch":
+      return <Divider label={providerSwitchLabel(detail)} />;
+    case "context_compaction":
+      return <Divider label={detail.preTokens !== undefined && detail.postTokens !== undefined ? `Context compacted ${Math.floor(detail.preTokens / 1000)}k → ${Math.floor(detail.postTokens / 1000)}k` : "Context compacted"} />;
+    case "user_message":
+      if (!detail.wakeReason && !detail.sender) return <UserBubble text={itemText(item)} attachments={detail.attachments?.length ?? 0} />;
+      return <Notice icon={detail.wakeReason ? "bell" : "arrow.left.arrow.right"} text={firstLine(detail.notice ?? itemText(item))} />;
+    case "notification":
+      return <Notice icon="bell" text={firstLine(detail.notification.summary)} />;
+    default:
+      return <ToolChip icon={TOOL_ICON[detail.type] ?? "wrench.and.screwdriver"} label={itemLabel(item)} status={item.status} />;
+  }
+}
+
+export function UserBubble({ text, attachments = 0 }: { text: string; attachments?: number }) {
+  const blank = !text.trim();
+  return (
+    <View style={styles.bubbleRow}>
+      <View style={styles.bubble}>
+        {blank && attachments ? (
+          <View style={styles.imageLabel}>
+            <Symbol name="photo" size={TextSize.body} color={Theme.textMuted} />
+            <Text style={[styles.bubbleText, styles.muted]}>Image</Text>
+          </View>
+        ) : (
+          <Text selectable style={styles.bubbleText}>{text}</Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+export function Notice({ icon, text }: { icon: SFSymbol; text: string }) {
+  return (
+    <View style={styles.notice}>
+      <Symbol name={icon} size={TextSize.caption} color={Theme.textMuted} />
+      <Text style={styles.meta} numberOfLines={2}>{text}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  stack: { gap: 6 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },
+  glyph: { width: 24, height: 24, alignItems: "center", justifyContent: "center", opacity: 0.7 },
+  chipLabel: { flexShrink: 1, fontFamily: MONO, fontSize: TextSize.caption, color: Theme.textMuted },
+  nested: { flexDirection: "row", gap: 12, paddingTop: 2 },
+  nestedRule: { width: 1, marginLeft: 12, backgroundColor: Theme.border },
+  nestedBody: { flex: 1, gap: 5 },
+  divider: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dividerRule: { flex: 1, height: 1, backgroundColor: Theme.border },
+  meta: { fontSize: TextSize.caption, color: Theme.textMuted },
+  metaSmall: { fontSize: TextSize.caption2, color: Theme.textMuted },
+  text: { color: Theme.text },
+  done: { textDecorationLine: "line-through" },
+  red: { color: Theme.red },
+  muted: { color: Theme.textMuted },
+  planStep: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  bubbleRow: { flexDirection: "row", justifyContent: "flex-end", paddingLeft: 24 },
+  bubble: { padding: 12, borderRadius: Theme.radiusBubble, backgroundColor: Theme.messageSurface, flexShrink: 1 },
+  bubbleText: { fontSize: TextSize.body, lineHeight: TextSize.body * 1.2 + 4, color: Theme.text },
+  imageLabel: { flexDirection: "row", alignItems: "center", gap: 6 },
+  notice: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },
+});

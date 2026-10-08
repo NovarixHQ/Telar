@@ -1,7 +1,6 @@
 "use client";
 
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
-import { Maximize2Icon } from "lucide-react";
 import { InputGroup, InputGroupAddon } from "@/ui/input-group";
 import { cn } from "@/ui/utils";
 import type { ComposerCompletions } from "../hooks/use-composer-completions";
@@ -25,24 +24,6 @@ const keepSelectionMenu = (event: React.MouseEvent<HTMLDivElement>) => {
   event.nativeEvent.stopImmediatePropagation();
 };
 
-function CompactControls({ addFiles, onExpand, trailing }: { addFiles: (files: File[]) => void; onExpand: () => void; trailing: ReactNode }) {
-  return (
-    <InputGroupAddon align="inline-end" className="gap-1 self-end py-1.5 pr-1.5">
-      <button
-        type="button"
-        aria-label="Open the full composer"
-        title="Open the full composer"
-        onClick={onExpand}
-        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-      >
-        <Maximize2Icon className="size-3.5" />
-      </button>
-      <AddContextMenu onPick={addFiles} />
-      {trailing}
-    </InputGroupAddon>
-  );
-}
-
 export function ComposerCard({
   editor,
   editorId,
@@ -50,7 +31,6 @@ export function ComposerCard({
   text,
   placeholder,
   ready,
-  compact,
   draft,
   attachments,
   onAttach,
@@ -60,7 +40,6 @@ export function ComposerCard({
   onSelectionChange,
   onKeyDown,
   onFocus,
-  onExpand,
   stash,
   menu,
   pick,
@@ -74,7 +53,6 @@ export function ComposerCard({
   text: string;
   placeholder: string;
   ready: boolean;
-  compact: boolean;
   draft: string;
   attachments: File[];
   onAttach: (files: File[]) => void;
@@ -84,13 +62,12 @@ export function ComposerCard({
   onSelectionChange: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   onFocus: () => void;
-  onExpand: () => void;
   stash: ComposerStash;
   menu: ComposerCompletions;
   pick: (completion: Completion) => void;
   drop: ReturnType<typeof useDropTarget>;
   pills: ReactNode;
-  /** The context ring, dictation and send; while compact, dictation and send. */
+  /** The context ring, dictation and send. */
   trailing: ReactNode;
 }) {
   const chrome = { draft, attachments, stashing: stash.stashing, onClear: () => onDraftChange(""), onStash: () => void stash.stash() };
@@ -121,7 +98,7 @@ export function ComposerCard({
       <ComposerChromeMenu {...chrome}>
         <InputGroup
           {...drop.handlers}
-          className={cn("rounded-2xl border-border/80 bg-card/95 shadow-2 backdrop-blur-xl", dropping && "relative border-ring ring-2 ring-ring/40", compact && "h-auto")}
+          className={cn("rounded-2xl border-border/80 bg-card/95 shadow-2 backdrop-blur-xl", dropping && "relative border-ring ring-2 ring-ring/40")}
         >
           {dropping && (
             <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-3.5 z-10 flex justify-center">
@@ -146,8 +123,6 @@ export function ComposerCard({
               onKeyDown={onKeyDown}
               onPasteFiles={addFiles}
               onFocus={onFocus}
-              compact={compact}
-              {...(compact ? { className: "min-w-0 flex-1" } : {})}
             />
           </div>
           {attachments.length > 0 && (
@@ -162,18 +137,14 @@ export function ComposerCard({
               })}
             </InputGroupAddon>
           )}
-          {compact ? (
-            <CompactControls addFiles={addFiles} onExpand={onExpand} trailing={trailing} />
-          ) : (
-            <InputGroupAddon align="block-end" className="min-h-10 flex-nowrap justify-between gap-1 border-t border-border/40 px-2 pt-1 pb-1.5">
-              <div data-slot="composer-controls" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <AddContextMenu onPick={addFiles} />
-                <StashBadge stash={stash} />
-                {pills}
-              </div>
-              <div className="ml-auto flex shrink-0 items-center gap-1.5 self-end">{trailing}</div>
-            </InputGroupAddon>
-          )}
+          <InputGroupAddon align="block-end" className="min-h-10 flex-nowrap justify-between gap-1 border-t border-border/40 px-2 pt-1 pb-1.5">
+            <div data-slot="composer-controls" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <AddContextMenu onPick={addFiles} />
+              <StashBadge stash={stash} />
+              {pills}
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-1.5 self-end">{trailing}</div>
+          </InputGroupAddon>
         </InputGroup>
       </ComposerChromeMenu>
     </div>

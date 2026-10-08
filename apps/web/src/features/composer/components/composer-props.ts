@@ -5,8 +5,6 @@ import type { ComposerKind } from "../registry";
 export type ComposerProps = {
   draft: string;
   ready: boolean;
-  /** Scrolled back through the transcript: one line, pills in a tray. Anything that needs the full box keeps it. */
-  compact?: boolean;
   /** Names the editable root and is what the page API reports. */
   kind?: ComposerKind;
   /** Picked files not yet sent; the cockpit owns them because it uploads them with the submit. */

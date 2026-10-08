@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { bands, numberColumn, preparePatch, textPieces } from "./prepare";
+import { bands, numberColumn, preparedPatch, preparePatch, preparePatchSoon, textPieces } from "./prepare";
 
 const PATCH = ["@@ -1,3 +1,3 @@", " const a = 1;", "-const limit = 400;", "+const limit = 800;", "\\ No newline at end of file"].join("\n");
 
@@ -47,4 +47,18 @@ test("tints group into positioned bands and the gutter is one column per side", 
   ]);
   expect(numberColumn(lines, "old")).toBe([" ", "1", "2", " ", " "].join("\n"));
   expect(numberColumn(lines, "new")).toBe([" ", "1", " ", "2", " "].join("\n"));
+});
+
+test("queued patches are prepared in turn, and a cancelled one is skipped", async () => {
+  const done: string[] = [];
+  const cancel = preparePatchSoon("src/c.ts", PATCH, () => done.push("c"));
+  const last = new Promise<void>((resolve) => preparePatchSoon("src/d.ts", PATCH, () => {
+    done.push("d");
+    resolve();
+  }));
+  cancel();
+  await last;
+  expect(done).toEqual(["d"]);
+  expect(preparedPatch("src/d.ts", PATCH)).toBeDefined();
+  expect(preparedPatch("src/c.ts", PATCH)).toBeUndefined();
 });

@@ -29,15 +29,22 @@ function toLine(row: PatchRow, runs: ReturnType<typeof lineRuns>): Line {
   return { kind: row.kind, ...numbers, pieces };
 }
 
-/** A patch parsed, word-diffed and highlighted once, and kept while it is among the last few patches on screen. */
-export function preparePatch(path: string, patch: string): Line[] {
+/** The prepared lines if this patch was prepared recently. */
+export function preparedPatch(path: string, patch: string): Line[] | undefined {
   const key = `${path}\n${patch}`;
   const cached = cache.get(key);
   if (cached) {
     cache.delete(key);
     cache.set(key, cached);
-    return cached;
   }
+  return cached;
+}
+
+/** A patch parsed, word-diffed and highlighted once, and kept while it is among the last few patches on screen. */
+export function preparePatch(path: string, patch: string): Line[] {
+  const cached = preparedPatch(path, patch);
+  if (cached) return cached;
+  const key = `${path}\n${patch}`;
   const rows = parsePatch(patch);
   const language = languageFor(path);
   const tokens = rowTokens(rows, (lines) => highlightLines(lines, language));
@@ -80,3 +87,30 @@ export function bands(lines: Line[], tinted: (kind: PatchRow["kind"]) => boolean
 }
 
 export const numberColumn = (lines: Line[], side: "old" | "new") => lines.map((line) => (line[side] === undefined ? " " : String(line[side]))).join("\n");
+
+type Job = { path: string; patch: string; done: (lines: Line[]) => void; cancelled: boolean };
+const queue: Job[] = [];
+let draining = false;
+
+function drain() {
+  const job = queue.shift();
+  if (!job) {
+    draining = false;
+    return;
+  }
+  if (!job.cancelled) job.done(preparePatch(job.path, job.patch));
+  setTimeout(drain, 0);
+}
+
+/** Prepares patches one per tick, so a batch of rows arriving together never highlights in a single frame. Returns a cancel. */
+export function preparePatchSoon(path: string, patch: string, done: (lines: Line[]) => void): () => void {
+  const job: Job = { path, patch, done, cancelled: false };
+  queue.push(job);
+  if (!draining) {
+    draining = true;
+    setTimeout(drain, 0);
+  }
+  return () => {
+    job.cancelled = true;
+  };
+}

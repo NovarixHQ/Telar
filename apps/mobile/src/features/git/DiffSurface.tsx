@@ -143,8 +143,8 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
       keyExtractor={(item) => item.key}
       renderItem={render}
       initialNumToRender={8}
-      maxToRenderPerBatch={4}
-      windowSize={5}
+      maxToRenderPerBatch={3}
+      windowSize={3}
       removeClippedSubviews
       refreshControl={
         <RefreshControl

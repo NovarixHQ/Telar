@@ -1,107 +1,151 @@
-import { Button, HStack, ProgressView, Rectangle, ScrollView, Text, VStack } from "@expo/ui/swift-ui";
-import { background, bold, buttonStyle, clipShape, fixedSize, font, foregroundStyle, frame, italic, lineLimit, onGeometryChange, padding, textSelection } from "@expo/ui/swift-ui/modifiers";
+import { Button, HStack, ProgressView, Rectangle, ScrollView, Text, VStack, ZStack } from "@expo/ui/swift-ui";
+import {
+  background,
+  bold,
+  buttonStyle,
+  clipShape,
+  fixedSize,
+  font,
+  foregroundStyle,
+  frame,
+  italic,
+  lineHeight,
+  multilineTextAlignment,
+  onAppear,
+  onDisappear,
+  onGeometryChange,
+  padding,
+  textSelection,
+  type ModifierConfig,
+} from "@expo/ui/swift-ui/modifiers";
 import type { GitFileChange, GitFilePatch } from "@telar/engine-client";
-import { useEffect, useMemo, useState } from "react";
-import { DynamicColorIOS, type ColorValue } from "react-native";
+import { memo, useEffect, useMemo, useState } from "react";
+import { DynamicColorIOS, Platform, type ColorValue } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { faded, Theme, Type } from "../../ui";
-import { highlightLines, languageFor } from "./highlight";
-import { parsePatch, type PatchRow } from "./patch";
-import { lineRuns, rowTokens, type Run } from "./runs";
+import type { PatchRow } from "./patch";
+import { bands, numberColumn, preparePatch, textPieces, type Line, type Piece, type Tone } from "./prepare";
 import { atomOne } from "./syntax";
 
 const LINE_CAP = 400;
 const ROW_HEIGHT = 17;
 const DIGIT_ADVANCE = 6.6;
 const code = font({ textStyle: "caption", design: "monospaced" });
-const syntaxColour = Object.fromEntries(Object.entries(atomOne).map(([name, pair]) => [name, DynamicColorIOS(pair)])) as Record<keyof typeof atomOne, ColorValue>;
+const CLEAR = "#00000000";
+// `lineHeight` is iOS 26+; before it each line is its own Text pinned to the row height.
+// A lineHeight Text whose line is empty lays out with a NaN frame and crashes the List, so empty lines carry a space.
+const EXACT_LINES = Platform.OS === "ios" && Number.parseInt(String(Platform.Version), 10) >= 26;
+const fill = (height: number) => frame({ minWidth: 0, maxWidth: Infinity, minHeight: height, maxHeight: height });
 
-function tint(kind: PatchRow["kind"]): ColorValue | undefined {
-  if (kind === "add") return faded("emerald", 0.1);
-  if (kind === "del") return faded("red", 0.1);
-  if (kind === "hunk") return faded("sky", 0.06);
-  return undefined;
-}
+const syntax = Object.fromEntries(Object.entries(atomOne).map(([name, pair]) => [name, DynamicColorIOS(pair)])) as Record<keyof typeof atomOne, ColorValue>;
+const toneColour = (tone: Tone): ColorValue => (tone === "text" ? Theme.text : tone === "sky" ? Theme.sky : tone === "muted" ? Theme.textMuted : syntax[tone]);
 
-const tinted = (kind: PatchRow["kind"]) => {
-  const colour = tint(kind);
-  return colour ? [background(colour)] : [];
-};
+const TINT: Partial<Record<PatchRow["kind"], ColorValue>> = { add: faded("emerald", 0.1), del: faded("red", 0.1), hunk: faded("sky", 0.06) };
+const MARK: Partial<Record<PatchRow["kind"], ColorValue>> = { add: faded("emerald", 0.3), del: faded("red", 0.3) };
 
-function runModifiers(run: Run, mark: ColorValue | undefined) {
-  return [
-    foregroundStyle(run.style ? syntaxColour[run.style.colour] : Theme.text),
-    ...(run.style?.italic ? [italic()] : []),
-    ...(run.style?.bold ? [bold()] : []),
-    ...(mark && run.marked ? [background(mark)] : []),
-  ];
-}
-
-function CodeLine({ row, runs }: { row: PatchRow; runs: Run[] }) {
-  const frameRow = [padding({ horizontal: 6 }), frame({ maxWidth: Infinity, minHeight: ROW_HEIGHT, maxHeight: ROW_HEIGHT, alignment: "leading" }), ...tinted(row.kind)];
-  if (row.kind === "hunk" || row.kind === "note") {
-    const text = row.kind === "note" ? `\\ ${row.text}` : row.text;
-    return <Text modifiers={[code, foregroundStyle(row.kind === "hunk" ? Theme.sky : Theme.textMuted), lineLimit(1), fixedSize(), ...frameRow]}>{text}</Text>;
-  }
-  const mark = runs.some((run) => run.marked) ? faded(row.kind === "add" ? "emerald" : "red", 0.3) : undefined;
-  if (mark) {
-    return (
-      <HStack spacing={0} modifiers={frameRow}>
-        {runs.map((run, index) => (
-          <Text key={index} modifiers={[code, lineLimit(1), fixedSize(), ...runModifiers(run, mark)]}>
-            {run.text}
-          </Text>
-        ))}
-      </HStack>
-    );
-  }
-  if (runs.length === 0) return <Text modifiers={[code, ...frameRow]}> </Text>;
+function Tints({ lines }: { lines: Line[] }) {
   return (
-    <Text modifiers={[code, lineLimit(1), fixedSize(), ...frameRow]}>
-      {runs.map((run, index) => (
-        <Text key={index} modifiers={runModifiers(run, undefined)}>
-          {run.text}
+    <VStack spacing={0} modifiers={[frame({ maxWidth: Infinity, alignment: "top" })]}>
+      {bands(lines, (kind) => kind in TINT).map((band, index) => (
+        <Rectangle key={index} modifiers={[foregroundStyle(TINT[band.kind] ?? CLEAR), fill(band.rows * ROW_HEIGHT)]} />
+      ))}
+    </VStack>
+  );
+}
+
+/** Word-diff marks drawn under the code: the same runs in clear ink, so each mark lands exactly on its characters. */
+function Marks({ lines }: { lines: Line[] }) {
+  const groups: { start: number; rows: number; line?: Line }[] = [];
+  lines.forEach((line, index) => {
+    const last = groups.at(-1);
+    if (line.marks.length > 0) groups.push({ start: index, rows: 1, line });
+    else if (last && !last.line) last.rows++;
+    else groups.push({ start: index, rows: 1 });
+  });
+  return (
+    <VStack alignment="leading" spacing={0}>
+      {groups.map((group) =>
+        group.line ? (
+          <HStack key={group.start} spacing={0} modifiers={[padding({ horizontal: 6 }), frame({ height: ROW_HEIGHT })]}>
+            {group.line.marks.map((mark, index) => (
+              <Text key={index} modifiers={[code, foregroundStyle(CLEAR), fixedSize(), ...(mark.marked ? [background(MARK[group.line!.kind] ?? CLEAR)] : [])]}>
+                {mark.text}
+              </Text>
+            ))}
+          </HStack>
+        ) : (
+          <Rectangle key={group.start} modifiers={[foregroundStyle(CLEAR), frame({ width: 1, height: group.rows * ROW_HEIGHT })]} />
+        ),
+      )}
+    </VStack>
+  );
+}
+
+function Pieces({ pieces, modifiers }: { pieces: Piece[]; modifiers: ModifierConfig[] }) {
+  return (
+    <Text modifiers={modifiers}>
+      {pieces.map((piece, index) => (
+        <Text key={index} modifiers={[foregroundStyle(toneColour(piece.tone)), ...(piece.italic ? [italic()] : []), ...(piece.bold ? [bold()] : [])]}>
+          {piece.text}
         </Text>
       ))}
     </Text>
   );
 }
 
-function LineNumber({ value, width }: { value: number | undefined; width: number }) {
-  return <Text modifiers={[font({ textStyle: "caption2", design: "monospaced" }), foregroundStyle(faded("textMuted", 0.8)), frame({ width, alignment: "trailing" })]}>{value === undefined ? "" : String(value)}</Text>;
+const row = frame({ height: ROW_HEIGHT, alignment: "leading" });
+
+function Code({ lines }: { lines: Line[] }) {
+  const pieces = useMemo(() => (EXACT_LINES ? [textPieces(lines)] : lines.map((line) => textPieces([line]))), [lines]);
+  if (EXACT_LINES) return <Pieces pieces={pieces[0]!} modifiers={[code, lineHeight(ROW_HEIGHT), fixedSize(), padding({ horizontal: 6 })]} />;
+  return (
+    <VStack alignment="leading" spacing={0}>
+      {pieces.map((line, index) => (
+        <Pieces key={index} pieces={line} modifiers={[code, fixedSize(), padding({ horizontal: 6 }), row]} />
+      ))}
+    </VStack>
+  );
 }
 
-/** The gutter stays put while the code scrolls sideways under it. */
-function PatchRows({ rows, path }: { rows: PatchRow[]; path: string }) {
+function Numbers({ lines, side, width }: { lines: Line[]; side: "old" | "new"; width: number }) {
+  const column = useMemo(() => numberColumn(lines, side), [lines, side]);
+  const style = [font({ textStyle: "caption2", design: "monospaced" }), foregroundStyle(faded("textMuted", 0.8))];
+  if (EXACT_LINES) return <Text modifiers={[...style, lineHeight(ROW_HEIGHT), multilineTextAlignment("trailing"), fixedSize(), frame({ width, alignment: "topTrailing" })]}>{column}</Text>;
+  return (
+    <VStack alignment="trailing" spacing={0} modifiers={[frame({ width, alignment: "topTrailing" })]}>
+      {column.split("\n").map((value, index) => (
+        <Text key={index} modifiers={[...style, frame({ height: ROW_HEIGHT })]}>{value}</Text>
+      ))}
+    </VStack>
+  );
+}
+
+/** The gutter stays put while the code scrolls sideways under it. Each column is one Text, so a long patch is a handful of views. */
+const PatchRows = memo(function PatchRows({ lines }: { lines: Line[] }) {
   const [viewport, setViewport] = useState(0);
-  const runs = useMemo(() => {
-    const language = languageFor(path);
-    const tokens = rowTokens(rows, (lines) => highlightLines(lines, language));
-    return rows.map((row, index) => (row.kind === "hunk" || row.kind === "note" ? [] : lineRuns(row.text, tokens[index], row.changed)));
-  }, [rows, path]);
-  const digits = String(rows.reduce((most, row) => Math.max(most, "old" in row ? (row.old ?? 0) : 0, "new" in row ? (row.new ?? 0) : 0), 0)).length;
-  const column = digits * DIGIT_ADVANCE + 6;
+  const digits = String(lines.reduce((most, line) => Math.max(most, line.old ?? 0, line.new ?? 0), 0)).length;
+  const width = digits * DIGIT_ADVANCE + 6;
+  const height = lines.length * ROW_HEIGHT;
   return (
     <HStack alignment="top" spacing={0} modifiers={[background(Theme.codeBackground), clipShape("roundedRectangle", 8), textSelection(true)]}>
-      <VStack alignment="trailing" spacing={0}>
-        {rows.map((row, index) => (
-          <HStack key={index} spacing={0} modifiers={[padding({ trailing: 4 }), frame({ height: ROW_HEIGHT }), ...tinted(row.kind)]}>
-            <LineNumber value={"old" in row ? row.old : undefined} width={column} />
-            <LineNumber value={"new" in row ? row.new : undefined} width={column} />
-          </HStack>
-        ))}
-      </VStack>
-      <Rectangle modifiers={[foregroundStyle(faded("border", 0.6)), frame({ width: 1, height: rows.length * ROW_HEIGHT })]} />
-      <ScrollView axes="horizontal" showsIndicators={false} modifiers={[onGeometryChange(({ width }) => setViewport(width))]}>
-        <VStack alignment="leading" spacing={0} modifiers={[frame({ minWidth: viewport, alignment: "leading" })]}>
-          {rows.map((row, index) => (
-            <CodeLine key={index} row={row} runs={runs[index]!} />
-          ))}
-        </VStack>
+      <ZStack alignment="topLeading" modifiers={[frame({ width: width * 2 + 4, height, alignment: "topLeading" })]}>
+        <Tints lines={lines} />
+        <HStack alignment="top" spacing={0} modifiers={[padding({ trailing: 4 })]}>
+          <Numbers lines={lines} side="old" width={width} />
+          <Numbers lines={lines} side="new" width={width} />
+        </HStack>
+      </ZStack>
+      <Rectangle modifiers={[foregroundStyle(faded("border", 0.6)), frame({ width: 1, height })]} />
+      <ScrollView axes="horizontal" showsIndicators={false} modifiers={[onGeometryChange(({ width: next }) => setViewport(next))]}>
+        <ZStack alignment="topLeading" modifiers={[frame({ minWidth: viewport, minHeight: height, maxHeight: height, alignment: "topLeading" })]}>
+          <Tints lines={lines} />
+          <Marks lines={lines} />
+          <Code lines={lines} />
+        </ZStack>
       </ScrollView>
     </HStack>
   );
-}
+});
 
 const Caption = ({ text, colour = Theme.textMuted }: { text: string; colour?: ColorValue }) => <Text modifiers={[Type.meta, foregroundStyle(colour)]}>{text}</Text>;
 
@@ -112,40 +156,55 @@ function noteFor(file: GitFileChange, patch: GitFilePatch): string | undefined {
   return undefined;
 }
 
-/** One file's patch, read when it opens and again on every `generation`. */
+type Read = { patch: GitFilePatch; lines: Line[] };
+
+/** One file's patch. It is read the first time its row scrolls into view, as Swift's `.task` does, and its views are dropped while off screen. */
 export function PatchBody({ host, sessionId, file, generation }: { host: HostConnection; sessionId: string; file: GitFileChange; generation: number }) {
-  const [patch, setPatch] = useState<GitFilePatch>();
+  const [seen, setSeen] = useState(false);
+  const [onScreen, setOnScreen] = useState(false);
+  const [height, setHeight] = useState(0);
+  const [read, setRead] = useState<Read>();
   const [error, setError] = useState<string>();
   const [showAll, setShowAll] = useState(false);
+
   useEffect(() => {
-    if (file.binary) return;
+    if (file.binary || !seen) return;
     let live = true;
     host
       .call(true, () => host.client.sessionFilePatch(sessionId, file.path, file.status === "untracked" ? { untracked: true } : {}))
-      .then(({ file: read }) => {
+      .then(({ file: patch }) => {
         if (!live) return;
-        setPatch(read);
+        setRead({ patch, lines: noteFor(file, patch) ? [] : preparePatch(file.path, patch.patch) });
         setError(undefined);
       })
       .catch((failure: unknown) => live && setError(failure instanceof Error ? failure.message : String(failure)));
     return () => {
       live = false;
     };
-  }, [host, sessionId, file.path, file.status, file.binary, generation]);
-  const rows = useMemo(() => (patch ? parsePatch(patch.patch) : []), [patch]);
-  const shown = showAll ? rows.length : Math.min(rows.length, LINE_CAP);
-  const visible = useMemo(() => (shown === rows.length ? rows : rows.slice(0, shown)), [rows, shown]);
+  }, [host, sessionId, file, seen, generation]);
+
+  const lines = read?.lines ?? [];
+  const shown = showAll ? lines.length : Math.min(lines.length, LINE_CAP);
+  const visible = useMemo(() => (shown === lines.length ? lines : lines.slice(0, shown)), [lines, shown]);
+  const watch = [
+    onAppear(() => {
+      setSeen(true);
+      setOnScreen(true);
+    }),
+    onDisappear(() => setOnScreen(false)),
+  ];
 
   if (file.binary) return <Caption text="Binary file — no text diff to show." />;
-  if (!patch) return error ? <Caption text={error} colour={Theme.red} /> : <ProgressView modifiers={[frame({ maxWidth: Infinity })]} />;
-  const note = noteFor(file, patch);
+  if (!read) return error ? <Caption text={error} colour={Theme.red} /> : <ProgressView modifiers={[frame({ maxWidth: Infinity }), ...watch]} />;
+  const note = noteFor(file, read.patch);
   if (note) return <Caption text={note} />;
-  if (rows.length === 0) return <Caption text="No textual difference." />;
+  if (lines.length === 0) return <Caption text="No textual difference." />;
+  if (!onScreen && height > 0) return <Rectangle modifiers={[foregroundStyle(CLEAR), fill(height), ...watch]} />;
   return (
-    <VStack alignment="leading" spacing={6}>
-      <PatchRows rows={visible} path={file.path} />
-      {shown < rows.length ? <Button label={`Show ${rows.length - shown} more lines`} onPress={() => setShowAll(true)} modifiers={[buttonStyle("borderless"), font({ textStyle: "caption", weight: "medium" }), foregroundStyle(Theme.textMuted)]} /> : null}
-      {patch.incomplete === "truncated" ? <Caption text="git cut this diff short." /> : null}
+    <VStack alignment="leading" spacing={6} modifiers={[...watch, onGeometryChange(({ height: next }) => setHeight(next))]}>
+      <PatchRows lines={visible} />
+      {shown < lines.length ? <Button label={`Show ${lines.length - shown} more lines`} onPress={() => setShowAll(true)} modifiers={[buttonStyle("borderless"), font({ textStyle: "caption", weight: "medium" }), foregroundStyle(Theme.textMuted)]} /> : null}
+      {read.patch.incomplete === "truncated" ? <Caption text="git cut this diff short." /> : null}
     </VStack>
   );
 }

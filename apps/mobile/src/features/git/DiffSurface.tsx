@@ -17,7 +17,7 @@ import {
   scrollContentBackground,
 } from "@expo/ui/swift-ui/modifiers";
 import type { GitFileChange, SessionDiff } from "@telar/engine-client";
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { TurboModuleRegistry, type TurboModule } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { bandCaption, faded, Theme } from "../../ui";
@@ -40,7 +40,7 @@ function FileMenuItems({ file, onOpenFile }: { file: GitFileChange; onOpenFile?:
   );
 }
 
-function FileRows({ host, sessionId, file, generation, onOpenFile }: { host: HostConnection; sessionId: string; file: GitFileChange; generation: number; onOpenFile?: (path: string) => void }) {
+const FileRows = memo(function FileRows({ host, sessionId, file, generation, onOpenFile }: { host: HostConnection; sessionId: string; file: GitFileChange; generation: number; onOpenFile?: (path: string) => void }) {
   const [open, setOpen] = useState(true);
   return (
     <>
@@ -61,7 +61,7 @@ function FileRows({ host, sessionId, file, generation, onOpenFile }: { host: Hos
       ) : null}
     </>
   );
-}
+});
 
 function DiffList({ host, sessionId, diff, generation, reload, onOpenFile }: { host: HostConnection; sessionId: string; diff: SessionDiff; generation: number; reload: () => Promise<void>; onOpenFile?: (path: string) => void }) {
   const now = Date.now();

@@ -36,6 +36,13 @@ describe("paired mobile push registration", () => {
     expect((await call("PUT", "/v2/push/devices/phone", { ...input, deviceId: "someone-else" })).status).toBe(200);
     expect(readPushRecords().map((r) => r.deviceId)).toEqual(["phone"]);
   });
+  test("a simulator is never kept as a phone, and its old registration is dropped", async () => {
+    const call = setup();
+    await call("PUT", "/v2/push/devices/phone", input);
+    expect((await call("PUT", "/v2/push/devices/phone", { ...input, simulator: true })).body).toEqual({ configured: false });
+    expect(readPushRecords()).toEqual([]);
+    expect((await call("GET", "/v2/push/relay")).body).toMatchObject({ devices: [] });
+  });
   test("rejects invalid registrations", async () => {
     const call = setup();
     expect((await call("PUT", "/v2/push/devices/phone", { ...input, topic: "other.app" })).status).toBe(400);

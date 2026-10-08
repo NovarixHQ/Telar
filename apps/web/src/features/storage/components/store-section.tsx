@@ -1,6 +1,5 @@
 "use client";
 
-import { CopyIcon, HardDriveIcon, TrashIcon } from "lucide-react";
 import { formatBytes } from "@/ui/format";
 import { REMOVABLE_DRIVE_WARNING, useStoreStatus } from "../desktop-store";
 import { useStoreActions } from "../hooks/use-store-actions";
@@ -14,7 +13,7 @@ export function StoreSection() {
   if (!supported) {
     return (
       <SettingsGroup title="Store">
-        <Row icon={HardDriveIcon} label="Desktop app only" hint="This browser tab has no store of its own." />
+        <Row label="Desktop app only" hint="This browser tab has no store of its own." />
       </SettingsGroup>
     );
   }
@@ -28,7 +27,6 @@ export function StoreSection() {
     <SettingsGroup title="Store">
       <Row
         keywords={["external", "volume", "drive", "where", "path", "ssd"]}
-        icon={HardDriveIcon}
         label="Data folder"
         hint={status?.pinnedByEnvironment ? `${status.path} (pinned by TELAR_HOME).` : where}
         {...(status?.volume ? { info: REMOVABLE_DRIVE_WARNING } : {})}
@@ -36,7 +34,6 @@ export function StoreSection() {
       />
       <Row
         keywords={["backup", "copy", "export", "move store"]}
-        icon={CopyIcon}
         label="Safe copy"
         hint={
           copied
@@ -52,7 +49,6 @@ export function StoreSection() {
       {status?.retired ? (
         <Row
           keywords={["old store", "cleanup", "free space", "retired"]}
-          icon={TrashIcon}
           label="Previous store"
           hint={
             status.retired.removable

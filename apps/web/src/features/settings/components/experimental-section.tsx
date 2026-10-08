@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRightIcon, FlaskConicalIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { decideByLabel, EXPERIMENTS, type Experiment } from "../experiment-list";
 import { setExperiment, useExperiment } from "../experiments";
 import { Row, SettingsGroup, ToggleRow, usePendingReveal, useRestoreDefaults } from "./settings-shell";
@@ -11,7 +11,6 @@ function ExperimentRow({ experiment }: { experiment: Experiment }) {
   return (
     <ToggleRow
       label={experiment.label}
-      icon={FlaskConicalIcon}
       hint={`${experiment.hint} Decide by ${decideByLabel(experiment.decideBy)}.`}
       checked={on}
       onCheckedChange={set}

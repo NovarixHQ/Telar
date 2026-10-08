@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { BlocksIcon, CircleAlertIcon } from "lucide-react";
 import type { PluginStatus, Project, ProjectPlugins } from "@telar/engine-client";
 import { machineAllows, pluginEnabled, readProjectPlugins } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
@@ -108,8 +107,8 @@ export function ProjectPluginList({
       param="plugin"
       description="Which of this computer's plugins this project has opted into."
       items={items}
-      empty={<Row icon={BlocksIcon} label="No plugins registered" control={<Badge variant="outline">None</Badge>} />}
-      footer={error && <Row icon={CircleAlertIcon} label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />}
+      empty={<Row label="No plugins registered" control={<Badge variant="outline">None</Badge>} />}
+      footer={error && <Row label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />}
     />
   );
 }

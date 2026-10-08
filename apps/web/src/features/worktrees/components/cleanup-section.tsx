@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { CLEANUP_LOG_DAYS, CLEANUP_SETTLED_DAYS, DEFAULT_CLEANUP_POLICY, type CleanupPolicy, type CleanupReport, type CleanupState, type RetentionPolicy } from "@telar/engine-client";
-import { ClockIcon, HistoryIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
 import { createEngineApi } from "@/platform/engine";
 import { fmtAgo, formatBytes, plural } from "@/ui/format";
 import { Button } from "@/ui/button";
@@ -67,7 +66,6 @@ function RetentionRow() {
   return (
     <Row
       keywords={["retention", "journal", "export", "retire", "idle"]}
-      icon={HistoryIcon}
       label="Turn journal retention"
       hint={`Journals of sessions idle ${plural(retention.idleAfterDays, "day")} are moved to ${retention.exportTo ?? "an export folder"}.`}
       {...(retentionError ? { error: retentionError } : {})}
@@ -131,7 +129,6 @@ export function CleanupSection() {
       <SettingsGroup title="Worktrees">
         <Row
           keywords={["cleanup", "clean up", "disk", "space", "free", "full", "reclaim", "checkout", "idle", "inactive", "settled", "archived", "old", "days"]}
-          icon={ClockIcon}
           label="Remove worktrees"
           hint="Removes a settled or archived session's worktree after this many days; it comes back when you reopen the session."
           info={FIXED_RULES}
@@ -150,7 +147,6 @@ export function CleanupSection() {
         <WorktreesRootRow onChanged={() => setRootVersion((version) => version + 1)} />
         <Row
           keywords={["clean up now", "cleanup", "sweep", "free space", "disk", "run"]}
-          icon={SparklesIcon}
           label="Clean up"
           hint={
             <span role="status">
@@ -172,7 +168,6 @@ export function CleanupSection() {
       <SettingsGroup title="Logs">
         <Row
           keywords={["cleanup", "clean up", "disk", "space", "logs", "rotate", "days"]}
-          icon={ScrollTextIcon}
           label="Delete old logs"
           hint="Rotated logs only."
           {...errorFor("logsDays")}

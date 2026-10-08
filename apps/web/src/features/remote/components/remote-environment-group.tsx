@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { GlobeIcon, LockIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { desktopApp } from "@/platform/desktop/desktop-app";
 import { Row } from "@/features/settings";
@@ -65,7 +64,6 @@ export function RemoteEnvironmentRows({
       <Row
         keywords={["expose", "lan", "loopback", "address"]}
         label="Network access"
-        icon={GlobeIcon}
         hint={<ExposureHint status={status} />}
         control={
           <Switch
@@ -83,7 +81,6 @@ export function RemoteEnvironmentRows({
       <Row
         keywords={["tailscale", "tailnet", "magicdns", "certificate", "serve"]}
         label="HTTPS on your private network"
-        icon={LockIcon}
         hint={<HttpsHint status={status} />}
         info={HTTPS_INFO}
         {...(status.tailscaleServeError ? { error: describeServeError(status.tailscaleServeError) } : {})}

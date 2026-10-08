@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GitPullRequestIcon, RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon } from "lucide-react";
 import type { GitHubCliAuth } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { UNAVAILABLE } from "../github-forge";
@@ -58,7 +58,6 @@ export function SourceControlPage() {
       <Row
         keywords={["gh", "git", "pull request", "issues", "token", "auth", "sign in", "cli", "forge", "gitlab"]}
         label="GitHub"
-        icon={GitPullRequestIcon}
         {...(detail ? { hint: detail } : {})}
         {...("signedIn" in state && state.signedIn && state.account ? { status: <Badge variant="outline">{state.account}</Badge> } : {})}
         control={

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { PlusIcon, ServerIcon, StethoscopeIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import type { UsageLimitSource } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { Badge } from "@/ui/badge";
@@ -180,7 +180,6 @@ function HubRow({ source, onChange }: { source: UsageLimitSource; onChange: () =
   return (
     <Row
       id={`providers-usage-hub-${source.id}`}
-      icon={ServerIcon}
       label={source.label ?? source.url}
       hint={source.url}
       status={source.keyRedacted ? undefined : <Badge variant="outline">No key</Badge>}
@@ -243,7 +242,6 @@ export function UsageProvidersSection() {
           <Row label="Loading" control={<Badge variant="outline">…</Badge>} />
         ) : sources.length === 0 ? (
           <Row
-            icon={ServerIcon}
             label="No hubs configured"
             hint="Without one, Usage reports what this computer spent and nothing about how much of a pooled plan is left."
           />
@@ -255,7 +253,6 @@ export function UsageProvidersSection() {
       <SettingsGroup title="Diagnosis">
         <Row
           keywords={["diagnose", "diagnosis", "high usage", "why", "tokens", "cost", "spend", "expensive", "report"]}
-          icon={StethoscopeIcon}
           label="Diagnose usage"
           hint="An agent reads this computer's usage in the background, read-only, and explains what drives it."
           control={

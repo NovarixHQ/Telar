@@ -175,7 +175,6 @@ function EnvironmentFields({
     <Fields dense={dense}>
       {environment && (
         <Row
-          icon={PackageIcon}
           label="Environment"
           hint={environment.python}
           status={<Badge variant="secondary">{MANAGER_LABEL[environment.manager]}</Badge>}
@@ -189,7 +188,6 @@ function EnvironmentFields({
 
       <Row
         keywords={["pip", "package", "install", "dependencies"]}
-        icon={DownloadIcon}
         label="Install packages"
         hint={environment?.command ? COMMAND_HINT[environment.command] : "Names, optionally with versions. Enter installs."}
         {...(environment ? {} : { unavailable: { reason: "No Python environment was resolved for this project." } })}
@@ -214,7 +212,6 @@ function EnvironmentFields({
       {installable.length > 0 && !dense && (
         <Row
           keywords={["requirements", "pyproject", "dependencies", "sync"]}
-          icon={PackageIcon}
           label="The project's own dependencies"
           hint="Install everything the checkout already declares."
           control={

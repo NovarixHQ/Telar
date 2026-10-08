@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ReleasableState, WorktreeLocation, WorktreeLocationMove, WorktreeMoveResult, WorktreeState, WorktreeSummary, WorktreeTally } from "@telar/engine-client";
-import { ArchiveIcon, CircleDotIcon, ClockIcon, GitMergeIcon, FolderIcon, HardDriveIcon, MoonIcon, UnlinkIcon } from "lucide-react";
 import { createEngineApi } from "@/platform/engine";
 import { fmtAgo, formatBytes, plural } from "@/ui/format";
 import { Badge } from "@/ui/badge";
@@ -55,13 +54,13 @@ function outcomeCounts(result: WorktreeMoveResult): string {
   return `Moved ${result.moved.length} · stayed ${result.skipped.length - failed} · failed ${failed}`;
 }
 
-const STATES: Record<WorktreeState, { label: (days: number) => string; icon: typeof ClockIcon; verb?: string }> = {
-  "in-use": { label: () => "In use", icon: CircleDotIcon },
-  archived: { label: () => "Archived sessions", icon: ArchiveIcon, verb: "Release" },
-  orphaned: { label: () => "No session", icon: UnlinkIcon, verb: "Remove" },
-  unchanged: { label: () => "No commits beyond the default branch", icon: GitMergeIcon, verb: "Release" },
-  idle: { label: (days) => `Idle more than ${plural(days, "day")}`, icon: ClockIcon, verb: "Release" },
-  recent: { label: () => "Settled recently", icon: MoonIcon },
+const STATES: Record<WorktreeState, { label: (days: number) => string; verb?: string }> = {
+  "in-use": { label: () => "In use" },
+  archived: { label: () => "Archived sessions", verb: "Release" },
+  orphaned: { label: () => "No session", verb: "Remove" },
+  unchanged: { label: () => "No commits beyond the default branch", verb: "Release" },
+  idle: { label: (days) => `Idle more than ${plural(days, "day")}`, verb: "Release" },
+  recent: { label: () => "Settled recently" },
 };
 
 function releaseLabel(state: WorktreeState, releasable: WorktreeTally): string | undefined {
@@ -95,7 +94,6 @@ function LocationRow({ location, current, onMoved }: { location: WorktreeLocatio
 
   return (
     <Row
-      icon={location.volume ? HardDriveIcon : FolderIcon}
       label={<span title={location.folder}>{location.label}</span>}
       status={location.current ? <Badge variant="secondary">current</Badge> : !location.present ? <Badge variant="outline">not connected</Badge> : undefined}
       hint={
@@ -160,7 +158,6 @@ function StateRow({ entry, idleDays, onReleased }: { entry: WorktreeSummary["sta
 
   return (
     <Row
-      icon={meta.icon}
       label={meta.label(idleDays)}
       hint={result ?? tallyLabel(entry.worktrees)}
       {...(failure ? { error: failure } : {})}

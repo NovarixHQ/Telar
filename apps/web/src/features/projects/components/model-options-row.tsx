@@ -1,6 +1,5 @@
 "use client";
 
-import { GaugeIcon } from "lucide-react";
 import type { ProviderDriverKind, ProviderModel } from "@telar/engine-client";
 import { choiceOf, type ModelChoice } from "@telar/client/providers";
 import { modelOptionsOf, ReasoningControl } from "@/features/composer";
@@ -33,7 +32,6 @@ export function ProjectModelOptionsRow({
     <Row
       keywords={["effort", "reasoning", "fast mode", "per project"]}
       label="Model options"
-      icon={GaugeIcon}
       hint="New sessions in this project start with this model and these options."
       info="Only the options the chosen model offers are shown. Picking a model that lacks one drops it, and the composer still overrides them for the session in front of you."
       {...(status ? { status } : {})}

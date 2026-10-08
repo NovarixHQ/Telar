@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SmartphoneIcon } from "lucide-react";
 import { Row, SettingsGroup, ToggleRow } from "@/features/settings";
 import { useRemoteStatus } from "../hooks/use-remote-status";
 import { RemoteDevicesGroup, RevokeOthersRow } from "./remote-devices-group";
@@ -27,7 +26,6 @@ export function RemoteSection() {
         <ToggleRow
           keywords={["auth", "security", "phone", "ipad"]}
           label="Require pairing"
-          icon={SmartphoneIcon}
           hint={
             status.requireAuth
               ? "Unpaired devices are refused. The app running the server is always in."

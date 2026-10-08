@@ -3,7 +3,6 @@
 import { driverLabel } from "./provider-icon";
 
 import { useState } from "react";
-import { MonitorIcon } from "lucide-react";
 import { driverTakesComputerUse, type ComputerUseStatus } from "@telar/engine-client";
 import { useComputerUse } from "../hooks/use-computer-use";
 import { DRIVERS } from "../provider-instances";
@@ -96,7 +95,6 @@ export function PermissionsSection() {
       <Row
         keywords={["cua", "driver", "automation", "engine", "access", "permission", "privacy", "accessibility", "screen recording", "grant"]}
         label="Computer use"
-        icon={MonitorIcon}
         info={bundled ? `${GATE_INFO} ${FINDER_INFO} ${REMOVE_INFO}` : GATE_INFO}
         {...(hint ? { hint } : {})}
         {...(error ?? status?.message ? { error: error ?? status?.message } : {})}

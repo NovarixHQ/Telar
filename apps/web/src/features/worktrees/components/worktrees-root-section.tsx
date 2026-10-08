@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { WorktreesRoot } from "@telar/engine-client";
-import { FolderGitIcon } from "lucide-react";
 import { chooseDirectory } from "@/platform/desktop/choose-directory";
 import { createEngineApi } from "@/platform/engine";
 import { REMOVABLE_DRIVE_WARNING } from "@/features/storage";
@@ -71,7 +70,6 @@ export function WorktreesRootRow({ onChanged }: { onChanged?: () => void }) {
   return (
     <Row
       keywords={["worktree", "checkout", "external", "drive", "move", "space", "disk", "relocate", "worktree folder", "how many", "size"]}
-      icon={FolderGitIcon}
       label="Worktree folder"
       hint={
         state ? (

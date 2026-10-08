@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CircleAlertIcon, DownloadIcon, HardDriveIcon } from "lucide-react";
 import type { LatexToolchain, ManagedTectonic, PluginLatexEngine, ProjectPlugins } from "@telar/engine-client";
 import { latexMachineSettings } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
@@ -120,7 +119,6 @@ export function LatexDistributionSettings({
 
         {found.length === 0 && (
           <Row
-            icon={HardDriveIcon}
             label="No other TeX install found"
             hint="Telar's own Tectonic above needs nothing installed; TeX Live and a system Tectonic are found here when they are present."
             control={<Badge variant="outline">None</Badge>}
@@ -132,7 +130,6 @@ export function LatexDistributionSettings({
           return (
             <Row
               key={`${choice.kind}:${choice.path}`}
-              icon={HardDriveIcon}
               label={choice.kind === "tectonic" ? "Tectonic" : "TeX Live"}
               hint={choice.path}
               control={
@@ -144,7 +141,7 @@ export function LatexDistributionSettings({
           );
         })}
 
-        {error && <Row icon={CircleAlertIcon} label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />}
+        {error && <Row label="Could not save" hint={error} control={<Badge variant="outline">Error</Badge>} />}
       </SettingsGroup>
     </>
   );
@@ -167,7 +164,6 @@ function ManagedTectonicRow({
     <Row
       keywords={["tectonic", "latex", "install", "tex", "download"]}
       id="plugins-latex-managed"
-      icon={DownloadIcon}
       label="Telar (managed)"
       status={
         selected ? <Badge variant="outline">Default</Badge> : undefined

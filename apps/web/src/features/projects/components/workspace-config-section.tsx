@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentType, type KeyboardEvent } from "react";
-import { BoxesIcon, FileWarningIcon, NetworkIcon, PackageIcon, TerminalIcon, VariableIcon } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   resolveWorkspace,
   type ProjectWorkspaceOverrides,
@@ -125,20 +124,18 @@ const TEXT: { [F in TextField]: TextSpec<F> } = {
   },
 };
 
-const ROWS: { field: ModeField; label: string; icon: ComponentType<{ className?: string }>; hint: string; info?: string }[] = [
-  { field: "setup", label: "Setup", icon: TerminalIcon, hint: "Runs in the background in each new worktree, with the variables and ports below." },
+const ROWS: { field: ModeField; label: string; hint: string; info?: string }[] = [
+  { field: "setup", label: "Setup", hint: "Runs in the background in each new worktree, with the variables and ports below." },
   {
     field: "env",
     label: "Environment",
-    icon: VariableIcon,
     hint: "Exported to the setup command.",
     info: "Merges by key: this computer < the repo's .telar/workspace.json < this project.",
   },
-  { field: "ports", label: "Ports", icon: NetworkIcon, hint: "One stable port per name, exported under that name." },
+  { field: "ports", label: "Ports", hint: "One stable port per name, exported under that name." },
   {
     field: "artifacts",
     label: "Artifacts",
-    icon: PackageIcon,
     hint: "Output a worktree can regenerate. Telar never runs the command.",
     info: `One per line: a path, optionally followed by ${ARTIFACT_SEPARATOR} and the command that rebuilds it. * matches within one path segment.`,
   },
@@ -372,7 +369,6 @@ function DependenciesRow({ view, writer }: { view: ProjectWorkspaceView; writer:
     <Row
       keywords={["node_modules", "venv", "install", "share", "symlink", "disk"]}
       label="Dependencies"
-      icon={BoxesIcon}
       hint="How a new worktree gets node_modules and .venv: install them with the setup command, share the checkout's, or neither."
       info="Share skips the setup command and uses no extra disk, but a package installed or removed in the worktree changes the checkout's too, and a branch that changes the lockfile needs Install."
       {...rowState(writer, "dependencies")}
@@ -435,11 +431,10 @@ export function ProjectWorkspaceRows({ view, writer }: { view: ProjectWorkspaceV
         <Row
           keywords={["config file", "committed", "telar.json", "repo"]}
           label="Repo file"
-          icon={FileWarningIcon}
           hint={`Could not read .telar/workspace.json, so nothing is inherited from it: ${view.proposal.error}`}
         />
       )}
-      {ROWS.map(({ field, label, icon, hint, info }) => {
+      {ROWS.map(({ field, label, hint, info }) => {
         const mode = modeOf(field);
         const { effective, sources } = resolveWorkspace(view.machine, view.proposal.config, { ...view.overrides, [field]: undefined });
         const inherited = effective[field];
@@ -448,7 +443,6 @@ export function ProjectWorkspaceRows({ view, writer }: { view: ProjectWorkspaceV
             keywords={["install", "bootstrap", "prepare", "script", "timeout", "env", "variables", "export", "port", "server", "collide", "build output", "regenerate", "cache", "generated"]}
             key={field}
             label={label}
-            icon={icon}
             hint={hint}
             {...(info ? { info } : {})}
             {...rowState(writer, field)}
@@ -507,7 +501,7 @@ export function ProjectWorkspaceSection({ projectId }: { projectId: string }) {
   if (failed) {
     return (
       <SettingsGroup title="New worktrees">
-        <Row keywords={["setup", "prepare", "inherit", "worktree"]} label="Worktree preparation" icon={FileWarningIcon} error={failed} />
+        <Row keywords={["setup", "prepare", "inherit", "worktree"]} label="Worktree preparation" error={failed} />
       </SettingsGroup>
     );
   }

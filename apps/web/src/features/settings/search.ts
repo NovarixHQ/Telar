@@ -30,7 +30,6 @@ type SettingsRowSpec = {
   title: string;
   hint?: string;
   keywords?: readonly string[];
-  icon?: SettingsSearchIcon;
 };
 
 export type SettingsGroupSpec = {
@@ -73,7 +72,6 @@ export function indexSettings(pages: readonly SettingsPageSpec[]): SettingsSearc
     for (const group of groups) {
       for (const row of destinations(group)) {
         const id = row.id ?? settingsRowId({ page: page.id, ...(group.title ? { group: group.title } : {}), label: row.title });
-        const icon = row.icon ?? page.icon;
         entries.push({
           id,
           title: row.title,
@@ -81,7 +79,7 @@ export function indexSettings(pages: readonly SettingsPageSpec[]): SettingsSearc
           ...(group.title && row.title !== group.title ? { group: group.title } : {}),
           pageId: page.id,
           pageLabel: page.label,
-          ...(icon ? { icon } : {}),
+          ...(page.icon ? { icon: page.icon } : {}),
           folded: {
             title: foldForSearch(row.title),
             hint: foldForSearch([row.hint, ...(row.keywords ?? [])].filter(Boolean).join(" ")),

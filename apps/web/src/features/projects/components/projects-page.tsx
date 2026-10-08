@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  FolderGitIcon,
-  FolderKanbanIcon,
-  ImageIcon,
-  MonitorIcon,
-  SparklesIcon,
-} from "lucide-react";
+import { FolderKanbanIcon, MonitorIcon } from "lucide-react";
 import type { EnvMode, PluginStatus, Project, ProjectPlugins, ProviderDriverKind, ProviderInstance } from "@telar/engine-client";
 import { defaultInstanceIdForDriver } from "@telar/engine-client";
 import type { PublicHost } from "@telar/engine-client";
@@ -86,7 +80,6 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
       <Row
         keywords={["rename", "title", "project name"]}
         label="Name"
-        icon={FolderKanbanIcon}
         hint="Shown in the rail, the pickers and session headers. The folder on disk is not renamed."
         {...(savingFor("name") ? { status: savingFor("name") } : {})}
         {...(errorFor("name") ? { error: errorFor("name") } : {})}
@@ -104,7 +97,6 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
       <Row
         keywords={["avatar", "favicon", "logo", "mark"]}
         label="Icon"
-        icon={ImageIcon}
         hint={
           picked
             ? "Your pick, which beats whatever icon the checkout carries. Auto-detect goes back to the file."
@@ -129,7 +121,6 @@ export function ProjectIdentityRows({ project, writer, onMoved }: { project?: Sc
         <Row
           keywords={["root", "path", "folder", "directory"]}
           label="Checkout"
-          icon={FolderGitIcon}
           hint={gone ? "This folder is gone. Choose where it is now, and its sessions and settings follow." : "Sessions run here, or in a worktree cut from it."}
           control={
             <span className="flex items-center gap-2">
@@ -176,7 +167,6 @@ export function ProjectConversationRows({
       <Row
         keywords={["model", "per project", "default"]}
         label="Default model"
-        icon={SparklesIcon}
         hint={
           stored
             ? "Sessions in this project open on this. The composer still overrides it for the one in front of you."
@@ -211,7 +201,6 @@ export function ProjectConversationRows({
       <Row
         keywords={["worktree", "checkout", "workspace", "branch"]}
         label="Where new sessions start"
-        icon={FolderGitIcon}
         hint={
           project?.envMode === undefined
             ? `Following the app default, which says ${envMode === "worktree" ? "each session gets its own checkout" : "sessions share the project's checkout"}. Change that on General ▸ Workspace, or pin an answer here.`

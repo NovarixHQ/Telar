@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { DictationProviderId } from "@telar/engine-client";
-import { BookMarkedIcon, KeyRoundIcon, LanguagesIcon, MicIcon, MicOffIcon } from "lucide-react";
 import { DICTATION_AUTOMATIC } from "../automatic";
 import { useDictationSettings } from "../settings";
 import { Button } from "@/ui/button";
@@ -48,7 +47,6 @@ export function DictationSection() {
         <Row
           keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "provider", "off", "disable", "turn off", "turn on", "enable", "deepgram"]}
           label="Provider"
-          icon={provider === "off" ? MicOffIcon : MicIcon}
           {...(PROVIDER_INFO[provider] ? { info: PROVIDER_INFO[provider] } : {})}
           {...(PROVIDERS.some(({ id }) => id === provider) ? {} : { hint: "Not a provider this build can drive. Update Telar, or pick another." })}
           {...(error ? { error } : {})}
@@ -68,7 +66,6 @@ export function DictationSection() {
             <Row
               keywords={["spanish", "english", "automatic", "multilingual", "locale"]}
               label="Language"
-              icon={LanguagesIcon}
               {...(language === DICTATION_AUTOMATIC ? {} : { info: "Only this language is transcribed. More accurate within it, wrong for anything else." })}
               control={
                 <Dropdown<string>
@@ -84,7 +81,6 @@ export function DictationSection() {
             <Row
               keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "deepgram", "key", "api key", "credential"]}
               label="Service key"
-              icon={KeyRoundIcon}
               {...(configured ? { status: "set" } : {})}
               info="The key stays on this computer. Browsers and phones get a five-minute token instead."
               control={
@@ -121,7 +117,6 @@ export function DictationSection() {
             <Row
               keywords={["dictation", "vocabulary", "glossary", "keyterm", "keyterms", "terms", "custom words", "jargon", "names", "spelling", "accuracy", "wrong word"]}
               label="Vocabulary"
-              icon={BookMarkedIcon}
               info="Projects, branches and open sessions are sent automatically. This is for the names only you know."
               control={
                 <Textarea

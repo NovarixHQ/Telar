@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GlobeIcon, PlugIcon, PlusIcon, Settings2Icon, TerminalIcon, XIcon } from "lucide-react";
+import { PlusIcon, Settings2Icon, XIcon } from "lucide-react";
 import type { McpOAuthStatus, McpServer, McpServerSpec } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { cn } from "@/ui/utils";
@@ -71,7 +71,6 @@ function ServerRow({
   return (
     <>
       <Row
-        icon={server.spec.transport === "stdio" ? TerminalIcon : GlobeIcon}
         label={server.label}
         hint={describe(server.spec)}
         control={
@@ -373,7 +372,7 @@ export function McpSection({ scope }: { scope?: McpScope } = {}) {
         ) : servers === undefined ? (
           <Row label="Loading" control={<Badge variant="outline">…</Badge>} />
         ) : servers.length === 0 ? (
-          <Row icon={PlugIcon} label="No servers configured" hint="Telar's own tools are always available and not listed here." />
+          <Row label="No servers configured" hint="Telar's own tools are always available and not listed here." />
         ) : (
           <SettingsList label="Servers">
             {servers.map((server) => (
@@ -401,7 +400,6 @@ export function McpSection({ scope }: { scope?: McpScope } = {}) {
           {inherited.map((server) => (
             <Row
               key={server.id}
-              icon={server.spec.transport === "stdio" ? TerminalIcon : GlobeIcon}
               label={server.label}
               hint={describe(server.spec)}
               control={<Badge variant={server.enabled ? "secondary" : "outline"}>{server.enabled ? "Machine-wide" : "Off"}</Badge>}

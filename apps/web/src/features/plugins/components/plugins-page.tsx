@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { BlocksIcon, CircleAlertIcon, FolderPlusIcon } from "lucide-react";
 import type { PluginStatus, ProjectPlugins } from "@telar/engine-client";
 import { machineAllows } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
@@ -126,7 +125,7 @@ export function PluginsPage() {
   if (error) {
     return (
       <SettingsGroup title="Plugins">
-        <Row icon={CircleAlertIcon} label="Could not read plugins" hint={error} control={<Badge variant="outline">Error</Badge>} />
+        <Row label="Could not read plugins" hint={error} control={<Badge variant="outline">Error</Badge>} />
       </SettingsGroup>
     );
   }
@@ -185,7 +184,7 @@ export function PluginsPage() {
       param="plugin"
       description="Turning one off here makes it unavailable in every project on this computer."
       items={items}
-      empty={<Row icon={BlocksIcon} label="No plugins registered" control={<Badge variant="outline">None</Badge>} />}
+      empty={<Row label="No plugins registered" control={<Badge variant="outline">None</Badge>} />}
       footer={<AddPluginRow notice={notice} disabled={busy !== undefined} onAdd={(mode) => void add(mode)} />}
     />
   );
@@ -195,7 +194,6 @@ function AddPluginRow({ notice, disabled, onAdd }: { notice?: string; disabled: 
   return (
     <Row
       keywords={["install", "plugin", "folder", "link", "remove", "uninstall", "plugin.json"]}
-      icon={FolderPlusIcon}
       label="Add plugin from folder"
       hint={notice ?? "Copy it in, or link it to keep editing it where it is."}
       control={
@@ -218,7 +216,6 @@ function MachinePluginPage({ status, remove, settings }: { status: PluginStatus;
       {remove && (
         <SettingsGroup>
           <Row
-            icon={FolderPlusIcon}
             label={status.installed?.linked ? "Linked from a folder" : "Copied from a folder"}
             hint={status.installed?.linked ? "Removing it drops the link; the folder stays." : "Removing it deletes Telar's copy."}
             control={remove}

@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderGitIcon, LayersIcon, ShieldCheckIcon, SparklesIcon } from "lucide-react";
+import { LayersIcon } from "lucide-react";
 import {
   DEFAULT_DETACHED_RUNTIME_MODE,
   DEFAULT_SESSION_DEFAULTS,
@@ -24,7 +24,6 @@ export function WorkspaceSection() {
       <Row
         keywords={["provider", "default model", "effort", "reasoning", "fast mode", "claude", "codex", "opencode"]}
         label="Model"
-        icon={SparklesIcon}
         status={
           <span title="A project can override this" aria-label="A project can override this" className="flex text-muted-foreground/70">
             <LayersIcon className="size-3" />
@@ -47,7 +46,6 @@ export function WorkspaceSection() {
       <Row
         keywords={["permissions", "supervised", "auto", "full access", "approval", "runtime mode", "prompts"]}
         label="Access level"
-        icon={ShieldCheckIcon}
         hint={`${RUNTIME_MODE_HELP[access]}. A session can still change its own.`}
         {...(defaults.runtimeMode === undefined ? {} : { onRevert: () => void save({ runtimeMode: null }) })}
         control={
@@ -64,7 +62,6 @@ export function WorkspaceSection() {
       <Row
         keywords={["worktree", "branch", "git", "isolation"]}
         label="Workspace"
-        icon={FolderGitIcon}
         hint={
           defaults.envMode === "worktree"
             ? "Each session gets its own checkout and branch, so two can edit the repo at once. A project without git falls back to the project checkout."

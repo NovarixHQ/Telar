@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckIcon, CopyIcon, SmartphoneIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { CopyCommand } from "@/ui/copy-command";
 import { cn } from "@/ui/utils";
@@ -138,7 +138,6 @@ export function PairDeviceRow({
     <Row
       keywords={["qr", "link", "token", "pairing code", "phone", "ipad"]}
       label="Pair a device"
-      icon={SmartphoneIcon}
       hint={expired ? "That code expired. Show a new one." : "One code, one device. Shown once and never stored."}
       info="A code lives five minutes, and is destroyed after five wrong tries."
       control={

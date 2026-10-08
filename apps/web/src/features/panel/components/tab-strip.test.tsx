@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { act } from "react";
+import { act, useState } from "react";
 import { filePanelTab, type PanelTabItem } from "../model";
-import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
+import { closePanelTab, type PanelTabState } from "../tabs";
+import { installTestDom, mount, flush, click, press, stubFetch } from "@/test/dom";
 import { SidebarProvider } from "@/ui/sidebar";
 import { RightPanel } from "./right-panel";
 
@@ -40,6 +41,31 @@ const rows = () => [...document.querySelectorAll('[role="menuitem"]')];
 const labels = () => rows().map((row) => row.textContent?.trim());
 const row = (label: string) => rows().find((each) => each.textContent?.trim() === label)!;
 const disabled = (label: string) => row(label).hasAttribute("data-disabled");
+
+describe("a tab's close button", () => {
+  function Strip() {
+    const [state, setState] = useState<PanelTabState<string>>({ tabs: [...TABS], activeTab: "diff", open: true });
+    return (
+      <SidebarProvider storageKey="tab-strip-test">
+        <RightPanel sessionId="s1" projectId="p1" tabs={state.tabs as PanelTabItem[]} {...(state.activeTab ? { tab: state.activeTab } : {})} open onTabChange={(id) => setState((current) => ({ ...current, activeTab: id }))} onOpenTab={() => {}} onCloseTab={(id) => setState((current) => closePanelTab(current, id))} onClose={() => {}} />
+      </SidebarProvider>
+    );
+  }
+  const strip = (host: HTMLElement) => [...host.querySelectorAll('[role="tab"]')].map((tab) => tab.getAttribute("aria-controls"));
+
+  test("one press closes a tab that is not in front, and the front tab stays", async () => {
+    const { host } = await mount(<Strip />);
+    await press(host.querySelector('[aria-label^="Close"]')!);
+    expect(strip(host)).toEqual(["right-panel-diff", "right-panel-file:docs/notes.md"]);
+    expect(host.querySelector('[aria-selected="true"]')?.getAttribute("aria-controls")).toBe("right-panel-diff");
+  });
+
+  test("one press closes the tab in front", async () => {
+    const { host } = await mount(<Strip />);
+    await press(host.querySelectorAll('[aria-label^="Close"]')[1]!);
+    expect(strip(host)).toEqual(["right-panel-editor", "right-panel-file:docs/notes.md"]);
+  });
+});
 
 describe("the panel tab's menu", () => {
   test("a tab with a path offers Copy path, and copies it", async () => {

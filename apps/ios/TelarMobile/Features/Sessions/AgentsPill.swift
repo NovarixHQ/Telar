@@ -11,6 +11,9 @@ import SwiftUI
                 let list = try await api.sessionChildren(sessionId)
                 if list != children { children = list }
             } catch EngineAPIError.transport {
+            } catch let error as EngineAPIError where error.isNotFound {
+                children = []
+                return
             } catch {
                 children = []
             }

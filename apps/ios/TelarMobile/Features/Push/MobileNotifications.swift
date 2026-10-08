@@ -126,24 +126,29 @@ struct PushStatus: Decodable {
         let allowed = authorization.authorizationStatus == .authorized || authorization.authorizationStatus == .provisional
         var next = PushReadiness()
         let relayTokens = RelayTokens(token: token, card: liveCard.flatMap { activityTokens[$0.id] })
-        for host in settings.hosts {
-            guard let api = settings.api(for: host.id) else { continue }
-            let mutedSessions = muted.compactMap { URL(string: $0).flatMap(ScopedSessionID.init(url:)) }.filter { $0.hostId == host.id }.map(\.sessionId)
-            #if DEBUG
-            let sandbox = true
-            #else
-            let sandbox = false
-            #endif
-            let relay = await PushRelayClient.shared.credential(for: host.id.uuidString, tokens: relayTokens)
-            do {
-                let reply = try await api.registerPush(.init(hostId: host.id.uuidString, token: token,
-                    topic: Bundle.main.bundleIdentifier ?? "io.github.novarix.telar", sandbox: sandbox,
-                    enabled: enabled && allowed, completions: completions, previews: previews, sounds: sounds.rawValue,
-                    mutedSessions: mutedSessions,
-                    liveActivities: liveActivities && ActivityAuthorizationInfo().areActivitiesEnabled,
-                    hostName: host.name, relay: relay))
-                if !reply.configured { next.notSending.insert(host.id) }
-            } catch { next.unreachable.insert(host.id) }
+        await withTaskGroup(of: (HostID, Bool?).self) { group in
+            for host in settings.hosts {
+                guard let api = settings.api(for: host.id) else { continue }
+                let mutedSessions = muted.compactMap { URL(string: $0).flatMap(ScopedSessionID.init(url:)) }.filter { $0.hostId == host.id }.map(\.sessionId)
+                #if DEBUG
+                let sandbox = true
+                #else
+                let sandbox = false
+                #endif
+                group.addTask { @MainActor in
+                    let relay = await PushRelayClient.shared.credential(for: host.id.uuidString, tokens: relayTokens)
+                    let reply = try? await api.registerPush(.init(hostId: host.id.uuidString, token: token,
+                        topic: Bundle.main.bundleIdentifier ?? "io.github.novarix.telar", sandbox: sandbox,
+                        enabled: self.enabled && allowed, completions: self.completions, previews: self.previews, sounds: self.sounds.rawValue,
+                        mutedSessions: mutedSessions,
+                        liveActivities: self.liveActivities && ActivityAuthorizationInfo().areActivitiesEnabled,
+                        hostName: host.name, relay: relay))
+                    return (host.id, reply?.configured)
+                }
+            }
+            for await (id, configured) in group {
+                if configured == nil { next.unreachable.insert(id) } else if configured == false { next.notSending.insert(id) }
+            }
         }
         next.deviceUnsupported = PushRelayClient.shared.unavailable
         readiness = next

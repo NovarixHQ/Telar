@@ -45,7 +45,7 @@ import Observation
 
     func reconnect(_ id: HostID) async {
         transports[id]?.renew()
-        if let host = book.host(id) { _ = await reprobe(id, order: host.addresses) }
+        if let host = book.host(id) { _ = await reprobe(id, order: host.probeOrder) }
     }
 
     func clearRevokedToken(_ id: HostID) {
@@ -63,8 +63,9 @@ import Observation
         if let current = host.baseURL, HostBook.normalize(current.absoluteString) != HostBook.normalize(failed.absoluteString) {
             return current
         }
-        let moved = await reprobe(id, order: HostAddresses.failoverOrder(host, failed: failed.absoluteString))
-        ConnectionLog.shared.note(id.uuidString, "failover from \(failed.absoluteString) to \(moved?.absoluteString ?? "nothing reachable")")
+        let order = HostAddresses.failoverOrder(host, failed: failed.absoluteString)
+        let moved = await reprobe(id, order: order)
+        ConnectionLog.shared.note(id.uuidString, "failover from \(failed.absoluteString) to \(moved?.absoluteString ?? "nothing reachable"), tried \(order.joined(separator: " "))")
         return moved
     }
 
@@ -74,7 +75,7 @@ import Observation
 
     func refreshAddresses() async {
         for host in hosts {
-            guard await reprobe(host.id, order: host.addresses) != nil, let api = api(for: host.id) else { continue }
+            guard await reprobe(host.id, order: host.probeOrder) != nil, let api = api(for: host.id) else { continue }
             if let health = try? await api.health() { recordDaemonId(health.daemonId, for: host.id) }
             guard let status = try? await api.remoteStatus() else { continue }
             if book.learnAddresses(status.dialableAddresses, for: host.id) { persist() }

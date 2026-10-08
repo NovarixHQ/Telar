@@ -8,22 +8,24 @@ struct Host: Identifiable, Codable, Equatable, Hashable {
     var baseURLString: String
     var addresses: [String]
     var daemonId: String?
+    var pairedURLString: String?
     var addedAt: Date
     var migratedFromSingle: Bool
 
     init(id: HostID = HostID(), name: String, baseURLString: String, addresses: [String] = [],
-         daemonId: String? = nil, addedAt: Date = Date(), migratedFromSingle: Bool = false) {
+         daemonId: String? = nil, pairedURLString: String? = nil, addedAt: Date = Date(), migratedFromSingle: Bool = false) {
         self.id = id
         self.name = name
         self.baseURLString = baseURLString
-        self.addresses = HostAddresses.merge(preferred: baseURLString, known: addresses)
+        self.pairedURLString = pairedURLString
+        self.addresses = HostAddresses.merge(preferred: baseURLString, known: (pairedURLString.map { [$0] } ?? []) + addresses)
         self.daemonId = daemonId
         self.addedAt = addedAt
         self.migratedFromSingle = migratedFromSingle
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, baseURLString, addresses, daemonId, addedAt, migratedFromSingle
+        case id, name, baseURLString, addresses, daemonId, pairedURLString, addedAt, migratedFromSingle
     }
 
     init(from decoder: Decoder) throws {
@@ -35,9 +37,16 @@ struct Host: Identifiable, Codable, Equatable, Hashable {
             baseURLString: base,
             addresses: try container.decodeIfPresent([String].self, forKey: .addresses) ?? [],
             daemonId: try container.decodeIfPresent(String.self, forKey: .daemonId),
+            pairedURLString: try container.decodeIfPresent(String.self, forKey: .pairedURLString),
             addedAt: try container.decode(Date.self, forKey: .addedAt),
             migratedFromSingle: try container.decodeIfPresent(Bool.self, forKey: .migratedFromSingle) ?? false
         )
+    }
+
+    var pinned: [String] { (pairedURLString.map { [$0] } ?? []) + addresses }
+
+    var probeOrder: [String] {
+        HostAddresses.merge(preferred: pairedURLString ?? baseURLString, known: [baseURLString] + addresses)
     }
 
     func isKnown(at urlString: String) -> Bool {
@@ -97,8 +106,9 @@ struct HostBook: Equatable {
         let byEngine = daemonId.flatMap { id in hosts.firstIndex { $0.daemonId == id } }
         if let index = byEngine ?? hosts.firstIndex(where: { $0.isKnown(at: baseURLString) }) {
             hosts[index].baseURLString = baseURLString
+            hosts[index].pairedURLString = baseURLString
             hosts[index].addresses = HostAddresses.merge(
-                preferred: baseURLString, known: hosts[index].addresses, learned: addresses
+                preferred: baseURLString, known: hosts[index].pinned, learned: addresses
             )
             if let daemonId { hosts[index].daemonId = daemonId }
             if let name { hosts[index].name = name }
@@ -108,7 +118,7 @@ struct HostBook: Equatable {
         let host = Host(
             id: id(), name: name ?? fallbackName, baseURLString: baseURLString,
             addresses: HostAddresses.merge(preferred: baseURLString, known: [], learned: addresses),
-            daemonId: daemonId, addedAt: now
+            daemonId: daemonId, pairedURLString: baseURLString, addedAt: now
         )
         hosts.append(host)
         return .added(host.id)
@@ -117,7 +127,7 @@ struct HostBook: Equatable {
     mutating func learnAddresses(_ learned: [String], for id: HostID) -> Bool {
         guard let index = hosts.firstIndex(where: { $0.id == id }) else { return false }
         let merged = HostAddresses.merge(
-            preferred: hosts[index].baseURLString, known: hosts[index].addresses, learned: learned
+            preferred: hosts[index].baseURLString, known: hosts[index].pinned, learned: learned
         )
         guard merged != hosts[index].addresses else { return false }
         hosts[index].addresses = merged
@@ -130,7 +140,7 @@ struct HostBook: Equatable {
               HostBook.normalize(known) != HostBook.normalize(hosts[index].baseURLString)
         else { return false }
         hosts[index].baseURLString = known
-        hosts[index].addresses = HostAddresses.merge(preferred: known, known: hosts[index].addresses)
+        hosts[index].addresses = HostAddresses.merge(preferred: known, known: hosts[index].pinned)
         return true
     }
 
@@ -143,6 +153,7 @@ struct HostBook: Equatable {
             hosts[older].addresses = HostAddresses.merge(
                 preferred: hosts[newer].baseURLString, known: hosts[newer].addresses, learned: hosts[older].addresses
             )
+            hosts[older].pairedURLString = hosts[newer].pairedURLString ?? hosts[older].pairedURLString
             hosts[older].daemonId = daemonId
             hosts.remove(at: newer)
             return true
@@ -176,7 +187,7 @@ enum HostAddresses {
     static func merge(preferred: String, known: [String], learned: [String] = []) -> [String] {
         var seen: Set<String> = []
         var merged: [String] = []
-        for (index, candidate) in ([preferred] + learned + known).enumerated() {
+        for (index, candidate) in ([preferred] + known + learned).enumerated() {
             guard !candidate.isEmpty, index == 0 || isDialable(candidate),
                   seen.insert(HostBook.normalize(candidate)).inserted else { continue }
             merged.append(candidate)
@@ -192,8 +203,8 @@ enum HostAddresses {
 
     static func failoverOrder(_ host: Host, failed: String) -> [String] {
         let dead = HostBook.normalize(failed)
-        let others = host.addresses.filter { HostBook.normalize($0) != dead }
-        return others.count == host.addresses.count ? others : [failed] + others
+        let others = host.probeOrder.filter { HostBook.normalize($0) != dead }
+        return others.count == host.probeOrder.count ? others : [failed] + others
     }
 
     static func isCancellation(_ error: Error) -> Bool {

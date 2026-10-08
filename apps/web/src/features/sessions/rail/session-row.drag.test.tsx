@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { act } from "react";
 import { installTestDom, mount } from "@/test/dom";
-import { sessionReference } from "@/features/composer";
+import { sessionReference } from "@telar/client/composer";
 import type { SidebarSession } from "../session-list";
 
 installTestDom();
@@ -34,7 +34,7 @@ function fakeTransfer() {
 async function dragRow(drag?: React.ComponentProps<typeof SessionRow>["drag"]) {
   await mount(
     <SidebarProvider>
-      <SessionRow session={session} active={false} showProject={false} variant="slim" band="active" renderedAt={0} onRowChanged={() => {}} {...(drag ? { drag } : {})} />
+      <SessionRow session={session} active={false} showProject={false} band="active" renderedAt={0} onRowChanged={() => {}} {...(drag ? { drag } : {})} />
     </SidebarProvider>,
   );
   const handle = document.querySelector('[draggable="true"]')!;

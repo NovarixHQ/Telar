@@ -16,6 +16,7 @@ import {
   ContextMenuTrigger,
 } from "@/ui/context-menu";
 import { PanelEmpty } from "@/ui/panel";
+import { plural } from "@/ui/format";
 import { Spinner } from "@/ui/spinner";
 import { cn } from "@/ui/utils";
 
@@ -141,7 +142,7 @@ export function TableSurface({ path, sessionId, active }: { path: string; sessio
       <EditorAddressRow
         path={path}
         icon={<TableIcon className="size-3.5 shrink-0 text-muted-foreground" />}
-        {...(meta ? { detail: `${meta.total.toLocaleString()} rows × ${meta.columns.length}${meta.truncated ? " · partial read" : ""}` } : {})}
+        {...(meta ? { detail: `${plural(meta.total, "row")} × ${meta.columns.length}${meta.truncated ? " · partial read" : ""}` } : {})}
       />
       {error ? (
         <PanelEmpty icon={<TableIcon />} title="Could not read this table">{error}</PanelEmpty>

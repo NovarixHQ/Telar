@@ -11,7 +11,7 @@ import { cn } from "@/ui/utils";
 import { compactBlockedReason, isResumeDraft, type Completion, type ComposerPicker } from "../completions";
 import { markComposerActive, type ComposerSubmit } from "../registry";
 import { hasUltrathink, toggleUltrathink } from "../model-options";
-import { useComposerEfforts } from "../hooks/use-composer-efforts";
+import { useHasEfforts } from "../hooks/use-composer-efforts";
 import { useComposerCompletions } from "../hooks/use-composer-completions";
 import { useComposerMotion } from "../hooks/use-composer-motion";
 import { composerKeyHandler, useEscArm, usePromptRecall } from "../hooks/use-composer-keys";
@@ -63,10 +63,8 @@ function useSubmitGate(props: ComposerProps, question: { active: boolean; advanc
 }
 
 function runAction(action: Completion["action"], props: ComposerProps, startResume: () => void) {
-  const choice = choiceOf(props.session?.model ?? props.pendingModel);
   if (action.type === "env-mode") props.onEnvMode?.(action.mode);
   if (action.type === "driver") props.onDriverChange?.(action.driver);
-  if (action.type === "effort") props.onModelChange?.({ ...choice, effort: action.effort });
   if (action.type === "compact") props.onCompact?.();
   if (action.type === "resume") startResume();
   if (action.type === "stop") props.onStop();
@@ -104,7 +102,7 @@ export function Composer(props: ComposerProps) {
   const dictation = useComposerDictation(token);
   const esc = useEscArm(busy, onStop);
   const stash = useComposerStash({ draft, attachments, projectId, sessionId: session?.id, onDraftChange, onAttach, editor });
-  const efforts = useComposerEfforts(activeDriver, choice, session?.providerInstanceId);
+  const hasEfforts = useHasEfforts(activeDriver, choice, session?.providerInstanceId);
   const pillsShown = Boolean(session || (fresh && driver));
   const menu = useComposerCompletions({
     editor,
@@ -112,7 +110,7 @@ export function Composer(props: ComposerProps) {
     projectId,
     menuDriver: fresh ? driver : session?.driver,
     blocked: question.active,
-    commands: { busy, fresh, pickers: { model: pillsShown, access: pillsShown && Boolean(props.runtimeMode) }, envMode: props.envMode, compacting: props.compacting, canResume: Boolean(props.onAdopt), efforts },
+    commands: { busy, fresh, pickers: { model: pillsShown, effort: pillsShown && hasEfforts, access: pillsShown && Boolean(props.runtimeMode) }, envMode: props.envMode, compacting: props.compacting, canResume: Boolean(props.onAdopt) },
   });
   const pick = (completion: Completion) => {
     const action = menu.take(completion);
@@ -202,7 +200,10 @@ export function Composer(props: ComposerProps) {
                 onEdit={onEdit}
                 onSelectionChange={() => !question.active && menu.retrigger(draft)}
                 onKeyDown={onKeyDown}
-                onFocus={() => markComposerActive(token)}
+                onFocus={() => {
+                  markComposerActive(token);
+                  menu.prime();
+                }}
                 stash={stash}
                 menu={menu}
                 pick={pick}

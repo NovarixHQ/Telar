@@ -41,7 +41,8 @@ export function classifyGhFailure(result: GhResult): { unavailable: GitHubUnavai
   if (text.includes("not logged in") || text.includes("authentication") || text.includes("gh auth login")) {
     return { unavailable: "not_authenticated" };
   }
-  if (text.includes("not a git repository") || text.includes("no git remotes") || text.includes("could not determine")) {
+  if (text.includes("no git remotes")) return { unavailable: "no_remote" };
+  if (text.includes("not a git repository") || text.includes("could not determine")) {
     return { unavailable: "no_repository" };
   }
   const message = result.stderr.trim() || result.stdout.trim();

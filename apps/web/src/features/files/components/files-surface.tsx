@@ -5,7 +5,7 @@ import { ChevronRightIcon, FolderIcon, FolderOpenIcon, FolderTreeIcon, HardDrive
 import type { GitChangeStatus, TurnState, WorkspaceListing } from "@telar/engine-client";
 import type { matchFiles } from "../file-tree";
 import { useFilesTree, type FileTreeRowModel } from "../hooks/use-files-tree";
-import { directoryReference, fileReference, startReferenceDrag, type TelarReference } from "@/features/composer";
+import { directoryReference, fileReference, startReferenceDrag, type TelarReference } from "@telar/client/composer";
 import type { OpenIntent } from "../editor-workspace";
 import { REVIEW_STATUS_LETTER, REVIEW_STATUS_WORD } from "@/features/git";
 import { useWorkspaceFileMenu, workspaceFilePath, type WorkspaceFileMenu } from "../workspace-open";
@@ -14,6 +14,7 @@ import { FileKindIcon } from "./file-icon";
 import { OpenerIcon } from "./opener-icon";
 import { PanelEmpty, PanelRow } from "@/ui/panel";
 import { awayReason, awayTitle, isAway } from "@/features/projects";
+import { plural } from "@/ui/format";
 import { Spinner } from "@/ui/spinner";
 import {
   ContextMenu,
@@ -253,7 +254,7 @@ function FilesFooter({ listing, searching, searched }: { listing: WorkspaceListi
         ? `${searched.matches.toLocaleString("en-US")} of ${listing.files.length.toLocaleString("en-US")} paths match${
             searched.truncated ? `, showing the first ${searched.files.length}` : ""
           }.`
-        : `${listing.files.length.toLocaleString("en-US")} files${listing.truncated ? " (capped)" : ""} · ${
+        : `${plural(listing.files.length, "file")}${listing.truncated ? " (capped)" : ""} · ${
             listing.repository ? "tracked and unignored, from git" : "walked — this directory is not a repository"
           }`}
     </p>

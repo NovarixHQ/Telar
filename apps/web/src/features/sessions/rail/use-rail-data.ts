@@ -77,7 +77,7 @@ function toHostPage(result: LiveSessionsPage, host: { id: string; name: string }
   const remotes = new Map(result.projects.map((project) => [project.id, project.remoteUrl]));
   const availability = new Map(result.projects.map((project) => [project.id, project.availability]));
   const titles = new Map(result.sessions.map((session) => [session.id, session.title]));
-  const sessions = result.sessions.map((session) =>
+  const sessions = result.sessions.filter((session) => !session.draft).map((session) =>
     toSidebarSession(
       session,
       session.projectId ? names.get(session.projectId) : undefined,

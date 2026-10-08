@@ -4,7 +4,7 @@ import { useState } from "react";
 import { GlobeIcon } from "lucide-react";
 import type { BrowserProvider, BrowserSnapshot } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
-import { browserPageReference, startReferenceDrag } from "@/features/composer";
+import { browserPageReference, startReferenceDrag } from "@telar/client/composer";
 import { Badge } from "@/ui/badge";
 import { Spinner } from "@/ui/spinner";
 import { PanelEmpty } from "@/ui/panel";

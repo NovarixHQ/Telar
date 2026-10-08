@@ -19,7 +19,6 @@ export const SETTLED_PAGE_SIZE = 10;
 export const SETTLED_AFTER_MS = DEFAULT_AUTO_SETTLE_HOURS * 60 * 60 * 1000;
 
 export type SidebarSession = {
-  draft?: boolean;
   id: string;
   title: string;
   hostId?: string;
@@ -82,7 +81,6 @@ export function toSidebarSession(
     title: session.title,
     ...(assignments && assignments.length > 0 ? { assignments } : {}),
     ...(session.startedFrom ? { startedFrom: session.startedFrom } : {}),
-    ...(session.draft ? { draft: true } : {}),
     ...(host ? { hostId: host.id, hostName: host.name } : {}),
     projectId: session.projectId,
     ...(projectName ? { projectName } : {}),

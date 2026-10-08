@@ -123,7 +123,6 @@ export function SessionShelf({
               session={session}
               active={sessionKey(session) === activeSessionId}
               showProject
-              variant="slim"
               band={bandFor(session)}
               renderedAt={renderedAt}
               onRowChanged={onRowChanged}

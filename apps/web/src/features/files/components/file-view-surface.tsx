@@ -8,7 +8,7 @@ import { MessageResponse } from "@/ui/message";
 import { PanelEmpty } from "@/ui/panel";
 import { Spinner } from "@/ui/spinner";
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from "@/ui/context-menu";
-import type { TelarReference } from "@/features/composer";
+import type { TelarReference } from "@telar/client/composer";
 import type { EditorViewState } from "../editor-workspace";
 import {
   isProseFile,

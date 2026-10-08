@@ -71,8 +71,8 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
   session?: Session;
   fallbackTitle?: string;
   onRename: (title: string) => void;
-  /** The session panel's triggers, so the masthead never holds the session's items and events. */
-  panel: React.ReactNode;
+  /** The session panel's triggers, absent while the panel holds them. */
+  panel?: React.ReactNode;
   menu?: Omit<SessionActionMenuState, "actions"> & { actions: Omit<SessionActionHandlers, "rename">; onOpen?: () => void };
 }) {
   const [editing, setEditing] = useState(false);
@@ -130,7 +130,7 @@ export function SessionMasthead({ projectId, hostId, projectName, projectResolve
           )}
         </div>
       </SessionActionContextMenu>
-      <HeaderToggleGroup aria-label="Session controls" className="app-no-drag ml-auto">{panel}</HeaderToggleGroup>
+      {panel && <HeaderToggleGroup aria-label="Session controls" className="app-no-drag ml-auto">{panel}</HeaderToggleGroup>}
     </header>
   );
 }

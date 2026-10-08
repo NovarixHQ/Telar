@@ -1,10 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { act, useState } from "react";
-import type { RuntimeMode, Session, UsageSnapshot } from "@telar/engine-client";
+import type { ModelCatalogue, ProviderModel, RuntimeMode, Session, UsageSnapshot } from "@telar/engine-client";
+import type { ModelChoice } from "@telar/client/providers";
 import { activeComposer } from "@/features/composer";
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
 import { Composer } from "./composer";
 import { draftAfterStash } from "../hooks/use-composer-stash";
+import { forgetModelCatalogues } from "@/features/providers/model-catalogue-cache";
 
 installTestDom();
 
@@ -32,9 +34,10 @@ type BoxProps = {
   usage?: UsageSnapshot;
   onSubmit?: () => void;
   onStop?: () => void;
+  onModelChange?: (next: ModelChoice) => void;
 };
 
-function Box({ initial = "", files = [], busy = false, ready = true, fresh = false, projectId, session, runtimeMode, sentPrompts, usage, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, ready = true, fresh = false, projectId, session, runtimeMode, sentPrompts, usage, onSubmit = () => {}, onStop = () => {}, onModelChange }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -60,6 +63,7 @@ function Box({ initial = "", files = [], busy = false, ready = true, fresh = fal
         {...(runtimeMode ? { runtimeMode } : {})}
         {...(sentPrompts ? { sentPrompts } : {})}
         {...(usage ? { usage } : {})}
+        {...(onModelChange ? { onModelChange } : {})}
       />
     </>
   );
@@ -339,13 +343,15 @@ describe("the @ menu", () => {
     const { host, editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => answer(), "GET /api/sessions/live": live });
     await type(editor, "@");
     await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
+    const reads = () => calls.filter((call) => call.route === "GET /api/projects/project_a/files").length;
+    const failedReads = reads();
 
     answer = listing(["README.md"]);
     act(() => void activeComposer()!.replace(0, 1, ""));
     await flush();
     await type(editor, "@");
     await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
-    expect(calls.filter((call) => call.route === "GET /api/projects/project_a/files")).toHaveLength(2);
+    expect(reads()).toBe(failedReads + 1);
   });
 
   const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
@@ -369,12 +375,39 @@ describe("the @ menu", () => {
     await type(editor, "@p");
     await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
     expect(menu(host)?.textContent).toContain("Pair on the parser");
+    const reads = () => calls.filter((call) => call.route === "GET /api/sessions/session_a/files").length;
+    const failedReads = reads();
 
     answer = listing(files);
     act(() => void activeComposer()!.replace(2, 2, "a"));
     await flush(() => menu(host)?.textContent?.includes("page.tsx") ?? false);
     expect(menu(host)?.textContent).not.toContain("Could not read the files here.");
-    expect(calls.filter((call) => call.route === "GET /api/sessions/session_a/files")).toHaveLength(2);
+    expect(reads()).toBe(failedReads + 1);
+  });
+});
+
+describe("the @ menu before the listing arrives", () => {
+  const live = () => ({ sessions: [{ id: "session_b", title: "Pair on the parser", projectId: "project_a", updatedAt: 1 }], projects: [{ id: "project_a", name: "ozom" }] });
+  const menu = (host: HTMLElement) => host.querySelector('[role="listbox"][aria-label="Files and folders"]');
+
+  test("a pending listing shows a reading row under the heading, not an empty heading", async () => {
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/sessions/live": live });
+    const answered = globalThis.fetch;
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => (String(input).endsWith("/files") ? new Promise(() => {}) : answered(input, init))) as typeof fetch;
+    await type(editor, "@");
+    await flush(() => menu(host)?.textContent?.includes("Pair on the parser") ?? false);
+    const rows = [...menu(host)!.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
+    expect(rows[0]).toContain("Reading files…");
+  });
+
+  test("focusing the box reads the listing before @ is typed", async () => {
+    const { editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/sessions/live": live });
+    act(() => {
+      editor.focus();
+      editor.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    });
+    await flush(() => calls.some((call) => call.route === "GET /api/projects/project_a/files"));
+    expect(calls.map((call) => call.route)).toContain("GET /api/projects/project_a/files");
   });
 });
 
@@ -514,6 +547,38 @@ describe("the / menu opens the pills' pickers", () => {
       expect(pill(label)?.getAttribute("aria-expanded")).toBe("true");
     });
   }
+});
+
+describe("/effort opens the reasoning picker", () => {
+  const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
+  const opus = { id: "opus", label: "Opus", isDefault: true, hidden: false, efforts: ["low", "medium", "high", "xhigh", "max"], defaultEffort: "high", fastMode: false, hiddenByUser: false, legacy: false, source: "provider" } as ProviderModel;
+  const catalogue: ModelCatalogue = { driver: "claude", instanceId: "claude", models: [opus], source: "provider", readAt: 0 };
+  const routes = { "GET /api/models": () => ({ catalogue }) };
+  const options = (host: HTMLElement) => [...host.querySelectorAll('[role="listbox"] [role="option"]')].map((row) => row.textContent ?? "");
+  const pill = () => document.querySelector<HTMLElement>('[aria-label^="Reasoning effort:"]');
+
+  beforeEach(() => forgetModelCatalogues());
+  afterEach(() => forgetModelCatalogues());
+
+  test("typing /eff shows one row, not one per level", async () => {
+    const { host, editor } = await composer({ session }, routes);
+    await type(editor, "/eff");
+    expect(options(host).filter((row) => row.startsWith("/effort"))).toHaveLength(1);
+  });
+
+  test("choosing it clears the box and opens the picker, where a level sets the effort", async () => {
+    const picks: ModelChoice[] = [];
+    const { editor, draft } = await composer({ session, onModelChange: (next) => picks.push(next) }, routes);
+    await type(editor, "/eff");
+    expect(pill()?.getAttribute("aria-expanded")).not.toBe("true");
+    key(editor, { key: "Enter" });
+    await flush();
+    expect(draft()).toBe("");
+    expect(pill()?.getAttribute("aria-expanded")).toBe("true");
+    const low = [...document.querySelectorAll<HTMLButtonElement>("[data-option-row]")].find((row) => row.textContent?.startsWith("Low"));
+    await click(low);
+    expect(picks.at(-1)).toMatchObject({ effort: "low" });
+  });
 });
 
 describe("the context ring", () => {

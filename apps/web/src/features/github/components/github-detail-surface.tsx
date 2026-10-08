@@ -5,7 +5,7 @@ import type { GitHubLink } from "@telar/engine-client";
 import { Badge } from "@/ui/badge";
 import { PanelEmpty } from "@/ui/panel";
 import { Spinner } from "@/ui/spinner";
-import { issueReference, pullReference, startReferenceDrag } from "@/features/composer";
+import { issueReference, pullReference, startReferenceDrag } from "@telar/client/composer";
 import { createEngineApi } from "@/platform/engine";
 import { buildForgeTimeline, issueStatus, pullStatus, STATUS_LABEL, STATUS_TONE, UNAVAILABLE, type ForgeStatus } from "../github-forge";
 import { cn } from "@/ui/utils";

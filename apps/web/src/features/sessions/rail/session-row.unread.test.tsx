@@ -31,14 +31,13 @@ const liveRow = (over: Record<string, unknown> = {}) =>
     ...over,
   });
 
-const row = (over: Record<string, unknown> = {}, { active = false, variant = "slim" }: { active?: boolean; variant?: "card" | "slim" } = {}) =>
+const row = (over: Record<string, unknown> = {}, { active = false }: { active?: boolean } = {}) =>
   renderToStaticMarkup(
     <SidebarProvider>
       <SessionRow
         session={toSidebarSession(liveRow(over), "exoplanets")}
         active={active}
         showProject={false}
-        variant={variant}
         renderedAt={NOW}
         onRowChanged={() => {}}
       />
@@ -46,9 +45,8 @@ const row = (over: Record<string, unknown> = {}, { active = false, variant = "sl
   );
 
 describe("the rail marks a finished answer nobody has read", () => {
-  test("a session whose newest answer is unread shows the dot, slim and card alike", () => {
+  test("a session whose newest answer is unread shows the dot", () => {
     expect(row()).toContain(UNREAD);
-    expect(row({}, { variant: "card" })).toContain(UNREAD);
   });
 
   test("the dot clears once the receipt reaches the newest answer", () => {

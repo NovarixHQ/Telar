@@ -152,3 +152,20 @@ test("a row change makes the next pass read the shelf again", async () => {
   await act(async () => into.current!.loadAll());
   expect(shelfReads).toHaveLength(2);
 });
+
+test("a draft nobody has sent to is not a row until its first message lands", async () => {
+  window.localStorage.clear();
+  const draft = row("Browser draft", { draft: true });
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes("/api/hosts")) return Response.json({ hosts: [] });
+    if (url.includes("/api/sessions/live")) return Response.json({ projects: [], sessions: [draft, row("open one")] });
+    return Response.json({});
+  }) as typeof fetch;
+  const { host, into } = await mountShelf();
+  expect(host.textContent).toBe("open one");
+  delete (draft as { draft?: boolean }).draft;
+  draft.title = "Fix the login form";
+  await act(async () => into.current!.loadAll());
+  expect(host.textContent).toBe("Fix the login form,open one");
+});

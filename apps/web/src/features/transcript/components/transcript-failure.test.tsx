@@ -2,14 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TurnFailureRow } from "./turn-status";
 
-/**
- * #290 — ONE OF A TURN'S FAILURES IS NOT A FAULT.
- *
- * Every failure used to render as the same attention marker holding the
- * provider's sentence. That is right for a crash and wrong for a usage limit,
- * which is a wait with a known end: the useful fact is the time it lifts, the
- * session is not broken, and there is something the person can do about it.
- */
 describe("a turn waiting for a usage limit to reset", () => {
   const render = (props: Parameters<typeof TurnFailureRow>[0]) => renderToStaticMarkup(<TurnFailureRow {...props} />);
   /** Read back through the same rule the row uses, so the test asserts the
@@ -61,15 +53,42 @@ describe("a turn waiting for a usage limit to reset", () => {
     expect(markup).not.toContain("Waiting for the");
   });
 
-  test("a folder failure leads with Telar's reading and keeps the provider's words behind a toggle", () => {
+});
+
+describe("a failed turn", () => {
+  const render = (props: Parameters<typeof TurnFailureRow>[0]) => renderToStaticMarkup(<TurnFailureRow {...props} />);
+  const visible = (markup: string) => markup.split("<details")[0]!;
+
+  test("a missing folder says only that it stopped; the remedy stays with the banner", () => {
     const markup = render({
-      failure: "This session's folder isn't reachable: /Volumes/Work/app. Permission was denied by macOS or a security tool.",
+      failure: "This session's folder isn't reachable: /private/tmp/exoplanets. The folder no longer exists; it may have been moved or deleted. Restore it, or re-register the project with its current location, and retry.",
       code: "workspace_unavailable",
-      detail: "Claude Code process exited with code 1. stderr: error: An unknown error occurred (Unexpected)",
+      detail: "Claude Code process exited with code 1.",
     });
-    expect(markup.indexOf("isn&#x27;t reachable")).toBeLessThan(markup.indexOf("<details"));
+    expect(visible(markup)).toContain("Stopped: the project folder isn&#x27;t reachable");
+    expect(visible(markup)).not.toContain("re-register");
     expect(markup).toContain("<summary");
-    expect(markup).toContain("What the provider said");
-    expect(markup).toContain("An unknown error occurred (Unexpected)");
+    expect(markup).toContain("/private/tmp/exoplanets");
+    expect(markup).toContain("Claude Code process exited with code 1.");
   });
+
+  test("shows the first sentence and keeps the rest behind Details", () => {
+    const markup = render({ failure: "The provider is not installed. Install it from Settings, then retry.", code: "provider_unavailable" });
+    expect(visible(markup)).toContain("The provider is not installed.");
+    expect(visible(markup)).not.toContain("Install it from Settings");
+    expect(markup).toContain("Install it from Settings, then retry.");
+  });
+
+  test("a one-sentence failure has no disclosure", () => {
+    expect(render({ failure: "the CLI died", code: "driver_failed" })).not.toContain("<details");
+  });
+
+  for (const code of ["provider_unavailable", "driver_failed", "budget_exhausted", "interrupted", "internal_error", "rate_limited", "workspace_unavailable"] as const) {
+    test(`${code} renders as one status row with its details behind a disclosure`, () => {
+      const markup = render({ failure: "Something stopped. More here.", code });
+      expect(markup.match(/role="status"/g)).toHaveLength(1);
+      expect(visible(markup)).not.toContain("More here.");
+      expect(markup).toContain("More here.");
+    });
+  }
 });

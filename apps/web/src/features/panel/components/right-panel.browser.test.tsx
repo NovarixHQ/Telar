@@ -50,7 +50,7 @@ test("a page tab draws the session's one browser on that page, and moving betwee
   function Panel() {
     const [active, setActive] = useState("browser:a");
     select = setActive;
-    return <RightPanel sessionId="session_a" projectId="project_a" tabs={tabs} tab={active} onTabChange={setActive} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />;
+    return <RightPanel sessionId="session_a" projectId="project_a" tabs={tabs} tab={active} onTabChange={setActive} onOpenTab={() => {}} onCloseTab={() => {}} />;
   }
   const { host } = await mount(<Panel />);
   await flush(() => host.querySelector('[aria-label="Address"]') !== null);
@@ -74,7 +74,7 @@ async function nativeViewAt(strip: PanelTabItem[], steps: string[], flatTabs = t
     function Panel() {
       const [active, setActive] = useState(steps[0]!);
       select = setActive;
-      return <RightPanel sessionId="session_a" projectId="project_a" tabs={strip} tab={active} onTabChange={setActive} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} flatTabs={flatTabs} />;
+      return <RightPanel sessionId="session_a" projectId="project_a" tabs={strip} tab={active} onTabChange={setActive} onOpenTab={() => {}} onCloseTab={() => {}} flatTabs={flatTabs} />;
     }
     await mount(<Panel />);
     const seen: boolean[] = [];
@@ -107,7 +107,7 @@ test("outside the flat-tabs trial the one Browser tab draws the browser's own pa
   const browser = installBrowser();
   const live: PanelTabItem[] = [{ id: "browser:__integrated__", kind: "browser:__integrated__", params: {} }];
   const { host } = await mount(
-    <RightPanel sessionId="session_a" projectId="project_a" tabs={live} tab="browser:__integrated__" onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} flatTabs={false} />,
+    <RightPanel sessionId="session_a" projectId="project_a" tabs={live} tab="browser:__integrated__" onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} flatTabs={false} />,
   );
   await flush(() => host.querySelector('[aria-label="New tab"]') !== null);
   expect(host.querySelector('[aria-label="New tab"]')).not.toBeNull();

@@ -28,7 +28,7 @@ const TABS = [
 async function openMenu(tabs: PanelTabItem[], index: number) {
   const { host } = await mount(
     <SidebarProvider storageKey="tab-strip-test">
-      <RightPanel sessionId="s1" projectId="p1" tabs={tabs} tab="diff" open onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={(id) => void closed.push(id)} onClose={() => {}} />
+      <RightPanel sessionId="s1" projectId="p1" tabs={tabs} tab="diff" open onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={(id) => void closed.push(id)} />
     </SidebarProvider>,
   );
   const chip = host.querySelectorAll('[role="tab"]')[index]!;

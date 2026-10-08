@@ -23,7 +23,7 @@ function Shell() {
       <button type="button" onClick={() => setOpen(false)}>
         close panel
       </button>
-      <RightPanel sessionId="session_a" projectId="project_a" tabs={tabs} tab="editor" open={open} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />
+      <RightPanel sessionId="session_a" projectId="project_a" tabs={tabs} tab="editor" open={open} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} />
     </SidebarProvider>
   );
 }
@@ -58,13 +58,6 @@ describe("filling the window with the panel", () => {
     await click(labelled(host, "Exit fullscreen"));
     expect(rail(host)).toBe("collapsed");
     expect(stored()).toBe(true);
-  });
-
-  test("offers its own close only while it fills the window and hides the masthead", async () => {
-    const { host } = await mount(<Shell />);
-    expect(host.querySelector('button[aria-label="Close right panel"]')).toBeNull();
-    await click(labelled(host, "Fill the window"));
-    expect(labelled(host, "Close right panel")).not.toBeNull();
   });
 
   test("closing the panel while it fills the window brings the rail back", async () => {

@@ -207,7 +207,7 @@ describe("the call sites #401 lists", () => {
     const { RightPanel } = await import("@/features/panel");
     const panel = (tabs: PanelTabItem[]) =>
       mount(
-        <RightPanel sessionId="session_a" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />,
+        <RightPanel sessionId="session_a" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} />,
       );
     const hints = (host: HTMLElement) => host.querySelectorAll("[data-slot=key-hint]").length;
     const one = await panel([{ id: "editor", kind: "editor", params: {} } as PanelTabItem]);

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { act, useCallback, useState } from "react";
-import { installTestDom, mount, flush } from "@/test/dom";
+import { click, installTestDom, mount, flush } from "@/test/dom";
 import { closeNativePage } from "@/features/browser/native-pages";
 import type { DesktopBrowserBridge, DesktopBrowserPanelState } from "@/features/browser/types";
 import { browserPanelTab, closePanelTab, type PanelTab, type PanelTabState } from "@/features/panel";
@@ -32,22 +32,23 @@ function fakeShell(ids: string[]) {
   return { bridge, emit: () => listeners.forEach((listener) => listener(state())), finish: () => finishClose() };
 }
 
-let strip: PanelTabState<PanelTab> | undefined;
-let close: ((id: string) => void) | undefined;
-
 function Panel({ bridge }: { bridge: DesktopBrowserBridge }) {
   const [panel, setPanel] = useState<PanelTabState<PanelTab>>({ tabs: [], open: true });
   const update = useCallback((next: (current: PanelTabState<PanelTab>) => PanelTabState<PanelTab>) => setPanel(next), []);
   useBrowserPageTabs("s1", update, () => false);
-  strip = panel;
-  close = (id) => {
+  const close = (id: string) => {
     void closeNativePage(bridge, "s1", id);
     update((current) => closePanelTab(current, browserPanelTab(id)));
   };
-  return null;
+  return (
+    <>
+      <ul>{panel.tabs.map((tab) => <li key={tab.id}>{tab.id}</li>)}</ul>
+      <button type="button" onClick={() => close("b")}>close b</button>
+    </>
+  );
 }
 
-const ids = () => strip!.tabs.map((tab) => tab.id);
+const ids = () => [...document.querySelectorAll("li")].map((node) => node.textContent);
 
 afterEach(() => {
   delete (window as { telarDesktop?: unknown }).telarDesktop;
@@ -61,7 +62,7 @@ describe("closing a page's tab", () => {
     await flush(() => ids().length === 2);
     expect(ids()).toEqual([browserPanelTab("a"), browserPanelTab("b")]);
 
-    await act(async () => close!("b"));
+    await click(document.querySelector("button")!);
     await act(async () => shell.emit());
     expect(ids()).toEqual([browserPanelTab("a")]);
 

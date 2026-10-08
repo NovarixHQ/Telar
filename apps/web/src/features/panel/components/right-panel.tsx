@@ -286,15 +286,15 @@ export function RightPanel(props: RightPanelProps) {
       {...(fullscreen ? { "data-panel-fullscreen": "" } : {})}
       style={{ "--right-panel-width": `${width}px` } as CSSProperties}
       className={cn(
-        "relative flex shrink-0 flex-col",
-        "transition-[width] duration-200 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
+        "relative flex shrink-0 flex-col md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border",
+        "transition-[width,margin] duration-200 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
         // `!open` first, so a close collapses from fullscreen too.
-        !open ? "w-0 min-w-0 overflow-hidden pointer-events-none" : fullscreen ? "w-full max-w-none" : "w-(--right-panel-width) max-w-[calc(100%-24rem)]",
+        !open ? "w-0 min-w-0 overflow-hidden pointer-events-none" : fullscreen ? "w-full max-w-none" : "w-(--right-panel-width) max-w-[calc(100%-24rem)] md:ml-2",
       )}
     >
       {!fullscreen && <RightPanelResizeHandle panelRef={panelRef} />}
       <TabStrip {...props} browser={browser} launcher={launcher} actions={actions} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} />
-      <div {...(tab ? { id: `right-panel-${tab}`, role: "tabpanel" } : {})} className="min-h-0 flex-1 overflow-y-auto">
+      <div {...(tab ? { id: `right-panel-${tab}`, role: "tabpanel" } : {})} className="min-h-0 flex-1 overflow-y-auto md:rounded-b-xl">
         {/* A Terminal once shown stays mounted and hidden: remounting rebuilds every emulator and replays its bytes. */}
         {keptTerminals.map((id) => {
           const entry = tabs.find((candidate) => candidate.id === id);

@@ -1,58 +1,78 @@
+import { Button, Host, HStack, Menu, ScrollView, Spacer, Text } from "@expo/ui/swift-ui";
+import { accessibilityLabel, disabled, foregroundStyle, frame, lineLimit, padding, textSelection } from "@expo/ui/swift-ui/modifiers";
 import type { RequestDecision } from "@telar/engine-client";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import type { ColorValue } from "react-native";
+import { faded, Icon, rowButton, StatusCard, Theme, Type, type SymbolName } from "../../ui";
+import { DeclineSheet } from "./DeclineSheet";
 import type { RequestCard } from "./requests";
 
-type Props = { cards: RequestCard[]; deciding?: string; onDecide: (requestId: string, decision: RequestDecision) => void };
+type Props = { cards: RequestCard[]; deciding?: string; onDecide: (requestId: string, decision: RequestDecision, reason?: string) => void };
 
-const BUTTONS: { decision: RequestDecision; label: string }[] = [
-  { decision: "accept", label: "Approve" },
-  { decision: "acceptForSession", label: "Always allow" },
-  { decision: "decline", label: "Decline" },
+const GHOSTS: { decision: RequestDecision; label: string; tint: ColorValue }[] = [
+  { decision: "decline", label: "Decline", tint: Theme.red },
+  { decision: "acceptForSession", label: "Always allow", tint: Theme.textMuted },
+  { decision: "accept", label: "Approve", tint: Theme.text },
 ];
 
-export function RequestCards({ cards, deciding, onDecide }: Props) {
+function Preview({ text, maxHeight }: { text: string; maxHeight: number }) {
+  const alone = maxHeight <= 80;
+  const line = (
+    <ScrollView axes="horizontal" showsIndicators={false} modifiers={[alone ? frame({ minHeight: 80, maxHeight: 80 }) : frame({ maxHeight: 80 })]}>
+      <Text modifiers={[Type.monoSmall, foregroundStyle(faded("text", 0.85)), textSelection(true)]}>{text}</Text>
+    </ScrollView>
+  );
+  if (alone) return line;
+  return <ScrollView modifiers={[frame({ maxHeight })]}>{line}</ScrollView>;
+}
+
+function Buttons({ card, busy, onDecide, onDecline }: { card: RequestCard; busy: boolean; onDecide: Props["onDecide"]; onDecline: () => void }) {
   return (
-    <>
-      {cards.map((card) => (
-        <View key={card.id} style={styles.card}>
-          <Text style={styles.title}>{card.title}</Text>
-          {card.body ? (
-            <ScrollView horizontal={card.mono} style={styles.bodyBox}>
-              <Text style={[styles.body, card.mono && styles.mono]} numberOfLines={card.mono ? 8 : undefined}>
-                {card.body}
-              </Text>
-            </ScrollView>
-          ) : null}
-          {card.decidable ? (
-            <View style={styles.buttons}>
-              {BUTTONS.map(({ decision, label }) => (
-                <Pressable
-                  key={decision}
-                  accessibilityRole="button"
-                  disabled={deciding === card.id}
-                  onPress={() => onDecide(card.id, decision)}
-                  style={[styles.button, decision === "accept" && styles.primary]}
-                >
-                  <Text style={[styles.buttonLabel, decision === "accept" && styles.primaryLabel]}>{label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-        </View>
+    <HStack spacing={4} modifiers={[padding({ top: 2 }), disabled(busy)]}>
+      <Menu label={<Icon name="ellipsis" size={12} color={Theme.textMuted} modifiers={[frame({ width: 28, height: 28 })]} />} modifiers={[accessibilityLabel("More")]}>
+        <Button label="Withdraw the turn" role="destructive" onPress={() => onDecide(card.id, "cancel")} />
+      </Menu>
+      <Spacer />
+      {GHOSTS.map(({ decision, label, tint }) => (
+        <Button key={decision} onPress={() => (decision === "decline" ? onDecline() : onDecide(card.id, decision))} modifiers={rowButton}>
+          <Text modifiers={[Type.slimMedium, foregroundStyle(tint), padding({ horizontal: 10 }), frame({ height: 30 })]}>{label}</Text>
+        </Button>
       ))}
-    </>
+    </HStack>
   );
 }
 
-const styles = StyleSheet.create({
-  card: { marginHorizontal: 10, marginBottom: 8, padding: 12, gap: 8, borderRadius: 14, backgroundColor: "#FFF4E0", borderWidth: 1, borderColor: "#F5C26B" },
-  title: { fontSize: 15, fontWeight: "600", color: "#1C1C1E" },
-  bodyBox: { maxHeight: 160 },
-  body: { fontSize: 13, color: "#3A3A3C" },
-  mono: { fontFamily: "Menlo" },
-  buttons: { flexDirection: "row", gap: 8 },
-  button: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: "white" },
-  primary: { backgroundColor: "#0A84FF" },
-  buttonLabel: { fontSize: 14, fontWeight: "600", color: "#0A84FF" },
-  primaryLabel: { color: "white" },
-});
+/** Each open request as the Swift app's amber status card, answered with ghost buttons in its order. */
+export function RequestCards({ cards, deciding, onDecide }: Props) {
+  const [declining, setDeclining] = useState<string>();
+  const sheet = (
+    <DeclineSheet
+      key="decline"
+      open={declining !== undefined}
+      onCancel={() => setDeclining(undefined)}
+      onDecline={(reason) => {
+        if (declining) onDecide(declining, "decline", reason);
+        setDeclining(undefined);
+      }}
+    />
+  );
+  if (cards.length === 0) return null;
+  return [sheet, ...cards.map((card) => (
+    <Host key={card.id} matchContents={{ vertical: true }}>
+      <StatusCard tint="amber" spacing={8}>
+        <HStack spacing={6}>
+          <Icon name={card.symbol as SymbolName} textStyle="footnote" weight="medium" color={Theme.amber} />
+          <Text modifiers={[Type.slimMedium, foregroundStyle(Theme.text), lineLimit(2)]}>{card.title}</Text>
+        </HStack>
+        {card.cwd ? <Text modifiers={[Type.monoSmall, foregroundStyle(faded("textMuted", 0.7)), lineLimit(1)]}>{card.cwd}</Text> : null}
+        {card.preview ? <Preview {...card.preview} /> : null}
+        {card.note ? <Text modifiers={[Type.slim, foregroundStyle(Theme.text)]}>{card.note}</Text> : null}
+        {card.decidable ? (
+          <Buttons card={card} busy={deciding === card.id} onDecide={onDecide} onDecline={() => setDeclining(card.id)} />
+        ) : (
+          <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>Answer this one on the computer for now.</Text>
+        )}
+      </StatusCard>
+    </Host>
+  ))];
+}

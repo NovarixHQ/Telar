@@ -24,13 +24,15 @@ export function HostMark({ hostId, name, size }: { hostId: string; name: string;
   );
 }
 
-export type ProjectMark = { name?: string; iconName?: string; iconEmoji?: string };
+export type ProjectMark = { name?: string; iconName?: string; iconEmoji?: string; image?: string };
 
-export function ProjectAvatar({ name, iconName, iconEmoji, size = 16 }: ProjectMark & { size?: number }) {
+/** A project's symbol, emoji or uploaded image (an image URI), else its initial in its hashed hue. */
+export function ProjectAvatar({ name, iconName, iconEmoji, image, size = 16 }: ProjectMark & { size?: number }) {
   const trimmed = name?.trim() ?? "";
   const symbol = telarIconSymbol(iconName);
   if (symbol) return <Image systemName={symbol as SymbolName} modifiers={[font({ size: size * 0.82 }), frame({ width: size, height: size }), accessibilityHidden()]} />;
   if (iconEmoji) return <Text modifiers={[font({ size: Math.round(size * 0.72) }), frame({ width: size, height: size }), accessibilityHidden()]}>{iconEmoji}</Text>;
+  if (image) return <Image uiImage={image} modifiers={[resizable(), aspectRatio({ contentMode: "fill" }), frame({ width: size, height: size }), clipShape("roundedRectangle", size / 4), accessibilityHidden()]} />;
   if (!trimmed) {
     return <Image systemName="folder" modifiers={[font({ size: size * 0.75 }), foregroundStyle(faded("textMuted", 0.6)), frame({ width: size, height: size }), accessibilityHidden()]} />;
   }

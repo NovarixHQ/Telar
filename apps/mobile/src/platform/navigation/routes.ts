@@ -1,9 +1,11 @@
 import type { Session } from "@telar/engine-client";
 
 export type RootStack = {
-  Hosts: undefined;
+  Rail: undefined;
+  Settings: undefined;
+  Unavailable: { title: string; systemImage: "folder.badge.plus" | "square.and.pencil" };
   Pair: { link?: string } | undefined;
-  Sessions: { hostId: string; hostName?: string };
-  Diff: { hostId: string; sessionId: string };
+  Panel: { hostId: string; sessionId: string; tab?: string };
+  Usage: { hostId?: string } | undefined;
   Session: { hostId: string; sessionId: Session["id"]; title?: string; draft?: string };
 };

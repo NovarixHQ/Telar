@@ -8,8 +8,8 @@ export type ThisDevice = { name?: string; tablet: boolean; clientId?: string };
 export type PairingOutcome = { ok: true; host: PairedHost } | { ok: false; message: string };
 
 const NOT_A_LINK = "That doesn't look like a Telar pairing link.";
-const UNREACHABLE =
-  "Couldn't reach that computer. Check that this phone is on the same Wi-Fi, or that Tailscale is on for a 100.x address.";
+const unreachable = (baseUrl: string) =>
+  `Couldn't reach ${new URL(baseUrl).hostname}. If that's a local address, check this phone is on the same wifi and Telar may use the local network; if it's a 100.x address, check Tailscale is connected on this phone.`;
 const TOO_OLD = "Telar on that computer is too old to pair with this app. Update it and try again.";
 
 async function json(response: Response): Promise<unknown> {
@@ -26,7 +26,7 @@ export async function pair(link: string, device: ThisDevice, fetch: typeof globa
     if (!answer.success) return { ok: false, message: TOO_OLD };
     identity = answer.data;
   } catch {
-    return { ok: false, message: UNREACHABLE };
+    return { ok: false, message: unreachable(parsed.baseUrl) };
   }
   let response: Response;
   try {
@@ -44,7 +44,7 @@ export async function pair(link: string, device: ThisDevice, fetch: typeof globa
       }),
     });
   } catch {
-    return { ok: false, message: UNREACHABLE };
+    return { ok: false, message: unreachable(parsed.baseUrl) };
   }
   const body = (await json(response)) as { deviceToken?: unknown; deviceId?: unknown; error?: { message?: unknown } } | null;
   if (!response.ok || typeof body?.deviceToken !== "string" || typeof body.deviceId !== "string") {

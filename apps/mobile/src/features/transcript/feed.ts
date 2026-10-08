@@ -1,7 +1,9 @@
-import { INITIAL_TURNS, projectJournal, SessionConnection, tailIntervalMs, type HydratedSession, type JournalTurn, type SessionSyncApi } from "@telar/client/journal";
+import { INITIAL_TURNS, loadOlderTurns, mergeOlderPage, projectJournal, SessionConnection, tailIntervalMs, type HydratedSession, type JournalTurn, type SessionSyncApi } from "@telar/client/journal";
+import type { SnapshotPage } from "@telar/engine-client";
 import { systemClock, type Clock, type HostConnection } from "../../platform/connection";
 
-export type FeedSnapshot = { head?: HydratedSession; turns: JournalTurn[]; failed?: string };
+export type FeedSnapshot = { head?: HydratedSession; turns: JournalTurn[]; failed?: string; hasOlder?: boolean; loadingOlder?: boolean };
+type OlderRows = Parameters<typeof mergeOlderPage>[1];
 
 const isAbort = (error: unknown): boolean => (error as { name?: unknown } | null)?.name === "AbortError";
 
@@ -20,6 +22,9 @@ function syncApi(host: HostConnection): SessionSyncApi {
 export class SessionFeed {
   private current: FeedSnapshot = { turns: [] };
   private readonly session: SessionConnection;
+  private readonly api: SessionSyncApi;
+  private older: OlderRows = { turns: [], items: [], tasks: [] };
+  private olderPage?: SnapshotPage;
   private readonly listeners = new Set<() => void>();
   private cancelNext: () => void = () => {};
   private running = false;
@@ -28,10 +33,11 @@ export class SessionFeed {
 
   constructor(
     private readonly host: HostConnection,
-    sessionId: string,
+    private readonly sessionId: string,
     private readonly clock: Clock = systemClock,
   ) {
-    this.session = new SessionConnection(syncApi(host), sessionId, { turns: INITIAL_TURNS });
+    this.api = syncApi(host);
+    this.session = new SessionConnection(this.api, sessionId, { turns: INITIAL_TURNS });
   }
 
   get snapshot(): FeedSnapshot {
@@ -63,13 +69,35 @@ export class SessionFeed {
     return this.tick();
   }
 
+  /** Prepends the page of turns above the oldest one shown. */
+  async loadOlder(): Promise<void> {
+    const page = this.olderPage ?? this.current.head?.page;
+    if (this.current.loadingOlder || !page?.more || !page.before) return;
+    this.set({ ...this.current, loadingOlder: true });
+    try {
+      const fetched = await loadOlderTurns(this.api, this.sessionId, page.before);
+      this.older = mergeOlderPage(this.older, fetched);
+      this.olderPage = fetched.page ?? { before: null, more: false };
+      this.show(this.current.head, { loadingOlder: false });
+    } catch (error) {
+      this.set({ ...this.current, loadingOlder: false, failed: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  private show(head: HydratedSession | undefined, extra: Partial<FeedSnapshot> = {}): void {
+    if (!head) return this.set({ ...this.current, ...extra });
+    const rows = mergeOlderPage(head, this.older);
+    const page = this.olderPage ?? head.page;
+    this.set({ ...this.current, ...extra, head, turns: projectJournal(rows.turns, rows.items, head.events, rows.tasks), hasOlder: Boolean(page?.more && page.before), failed: undefined });
+  }
+
   private async tick(): Promise<void> {
     this.cancelNext();
     if (!this.running || this.host.state.kind !== "online") return;
     try {
       const head = await (this.opened ? this.session.read() : this.session.open());
       this.opened = true;
-      if (head !== this.current.head) this.set({ head, turns: projectJournal(head.turns, head.items, head.events, head.tasks) });
+      if (head !== this.current.head) this.show(head);
       else if (this.current.failed) this.set({ ...this.current, failed: undefined });
     } catch (error) {
       if (isAbort(error)) return;

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BotIcon, FolderGit2Icon, FolderGitIcon, GitBranchIcon, GitCompareIcon, SquareTerminalIcon, XIcon } from "lucide-react";
+import { BotIcon, FolderGit2Icon, FolderGitIcon, GitBranchIcon, GitCompareIcon, SquareTerminalIcon } from "lucide-react";
 import { type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
 import { OpenWorkspaceButton } from "@/features/files";
 import { PublishBox, useGitHubReady } from "@/features/git";
@@ -45,7 +45,6 @@ export type WorkspaceCardViewProps = {
   run?: ReactNode;
   editor?: ReactNode;
   publish?: ReactNode;
-  onClose: () => void;
   onOpenTerminal: (run: RunView) => void;
   onOpenChanges?: () => void;
   onOpenAgent: (agent: SessionChild) => void;
@@ -57,7 +56,7 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
   const open = props.terminals.filter(isOpenTerminal);
   const working = agents.filter((agent) => agent.state === "working").length;
   return (
-    <div role="complementary" aria-label="Workspace card" className="relative w-72 overflow-hidden rounded-xl border border-border/80 bg-popover/95 text-popover-foreground shadow-2 backdrop-blur-xl">
+    <div role="complementary" aria-label="Workspace card" className="w-72 overflow-hidden rounded-xl border border-border/80 bg-popover/95 text-popover-foreground shadow-2 backdrop-blur-xl">
       <Section title="Workspace">
         <div className={ROW}>
           {worktree ? <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" /> : <FolderGitIcon className="size-3.5 shrink-0 text-muted-foreground" />}
@@ -118,9 +117,6 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
           ))}
         </Section>
       )}
-      <Button type="button" variant="ghost" size="icon-xs" aria-label="Close workspace" className="absolute top-1.5 right-1.5 text-muted-foreground" onClick={props.onClose}>
-        <XIcon />
-      </Button>
     </div>
   );
 }
@@ -136,7 +132,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   onRunTerminals: (terminals: readonly RunView[]) => void;
 }) {
   const router = useRouter();
-  const { open, toggle } = useWorkspaceCardOpen();
+  const { open } = useWorkspaceCardOpen();
   const path = workspacePath(session.workspace);
   const { diff, reload } = useWorkspaceCardData(hostId, session.id, open);
   const [terminals, setTerminals] = useState<readonly RunView[]>([]);
@@ -186,7 +182,6 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
               ),
             }
           : {})}
-        onClose={toggle}
         onOpenTerminal={(run) => panel.updatePanel((current) => openTerminal(current, run, "terminal"))}
         onOpenChanges={() => panel.showPanelTab("diff")}
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}

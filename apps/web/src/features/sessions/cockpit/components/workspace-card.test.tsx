@@ -63,7 +63,6 @@ async function mount(over: Partial<WorkspaceCardViewProps> = {}) {
     terminals: [terminal(), terminal({ terminalId: "term_old", runId: "term_old", title: "old", status: "exited" })],
     backgroundTasks: 0,
     agents: [agent, { ...agent, sessionId: "session_done", title: "T3 research", state: "done" }],
-    onClose: mock(),
     onOpenTerminal: mock(),
     onOpenChanges: mock(),
     onOpenAgent: mock(),
@@ -126,11 +125,5 @@ describe("the Workspace card", () => {
   test("background processes are counted", async () => {
     const { host } = await mount({ backgroundTasks: 2 });
     expect(section(host, "Workspace")!.textContent).toContain("2 background processes");
-  });
-
-  test("the close button closes it", async () => {
-    const { host, props } = await mount();
-    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Close workspace"]')!.click());
-    expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 });

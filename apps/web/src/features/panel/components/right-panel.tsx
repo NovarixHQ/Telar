@@ -41,7 +41,7 @@ const GitHubSurface = dynamic(() => import("@/features/github").then((mod) => mo
 const TerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.TerminalSurface));
 const GroupedTerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.GroupedTerminalSurface));
 const SimulatorSurface = dynamic(() => import("@/features/simulators/components/simulator-surface").then((mod) => mod.SimulatorSurface));
-const ImageLightbox = dynamic(() => import("@/features/plugins/data-science/image-lightbox").then((mod) => mod.ImageLightbox));
+const ImageLightbox = dynamic(() => import("@/ui/image-lightbox").then((mod) => mod.ImageLightbox));
 
 export type RightPanelProps = {
   active?: TurnState;

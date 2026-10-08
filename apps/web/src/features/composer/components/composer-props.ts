@@ -53,6 +53,7 @@ export type ComposerProps = {
   compacting?: boolean;
   /** This login's heavy-context threshold, as a whole percentage. */
   contextNoticePercent?: number;
+  sentPrompts?: readonly string[];
   onDraftChange: (draft: string) => void;
   onSubmit: () => void;
   onStop: () => void;

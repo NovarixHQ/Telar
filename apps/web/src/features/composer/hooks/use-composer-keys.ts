@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { Completion } from "../completions";
+import { stepRecall, type PromptRecall } from "../prompt-recall";
 import { isStashable, type ComposerStash } from "./use-composer-stash";
 import type { ComposerCompletions } from "./use-composer-completions";
 
@@ -71,7 +72,19 @@ function menuKeys(event: KeyboardEvent<HTMLDivElement>, menu: ComposerCompletion
   return true;
 }
 
-/** The editor's keys, in order: ⌘S, an open stash list, an open completion list, then send, stop and disarm. */
+export function usePromptRecall(prompts: readonly string[] | undefined, scope: string, draft: string, onDraftChange: (draft: string) => void) {
+  const recall = useRef<{ scope: string; at: PromptRecall }>(undefined);
+  return (direction: "back" | "forward") => {
+    const current = recall.current?.scope === scope ? recall.current.at : undefined;
+    const step = stepRecall(direction, prompts ?? [], current, draft);
+    if (!step) return false;
+    recall.current = step.recall && { scope, at: step.recall };
+    onDraftChange(step.draft);
+    return true;
+  };
+}
+
+/** The editor's keys, in order: ⌘S, an open stash list, an open completion list, then send, recall, stop and disarm. */
 export function composerKeyHandler({
   draft,
   attachments,
@@ -81,6 +94,7 @@ export function composerKeyHandler({
   menu,
   pick,
   submit,
+  recall,
   esc,
 }: {
   draft: string;
@@ -91,6 +105,7 @@ export function composerKeyHandler({
   menu: ComposerCompletions;
   pick: (completion: Completion) => void;
   submit: () => void;
+  recall: ReturnType<typeof usePromptRecall>;
   esc: ReturnType<typeof useEscArm>;
 }) {
   return (event: KeyboardEvent<HTMLDivElement>) => {
@@ -113,6 +128,11 @@ export function composerKeyHandler({
     }
     // While a question is open the draft is parked, so stop and disarm do not apply.
     if (questionActive) return;
+    const plain = !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey;
+    if (plain && (event.key === "ArrowUp" || event.key === "ArrowDown") && recall(event.key === "ArrowUp" ? "back" : "forward")) {
+      event.preventDefault();
+      return;
+    }
     if (event.key === "Escape" && busy) {
       event.preventDefault();
       esc.press();

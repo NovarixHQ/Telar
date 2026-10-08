@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import type { ProviderDriverKind, Session } from "@telar/engine-client";
 import type { ModelChoice } from "@/features/providers";
-import type { Composer } from "@/features/composer";
+import { recallablePrompts, type Composer } from "@/features/composer";
 import { wakeLabel } from "../../session-settling";
 import type { useComposerDraft } from "../hooks/use-composer-draft";
 import type { useDraftConfig } from "../hooks/use-draft-config";
@@ -72,6 +72,7 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
           onCancelQuestion: (requestId: string) => void actions.decideRequest(requestId, "cancel"),
         }
       : {}),
+    sentPrompts: recallablePrompts(model.transcript),
     onDraftChange: composer.changeDraft,
     onSubmit: () => void submit.submit(),
     onStop: () => void actions.stop(),

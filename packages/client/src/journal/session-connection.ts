@@ -1,6 +1,6 @@
 import type { EngineEvent, SessionSnapshot, SnapshotWindow, Task } from "@telar/engine-client";
-import { appendJournalEvents } from "@telar/client/journal";
-import { hydrateSession, mergeRows, needsSessionSnapshot, tailSession, type HydratedSession, type SessionSyncApi } from "@telar/client/journal";
+import { appendJournalEvents } from "./journal";
+import { hydrateSession, mergeRows, needsSessionSnapshot, tailSession, type HydratedSession, type SessionSyncApi } from "./session-sync";
 
 type Update = { events: EngineEvent[]; cursor: number; snapshot?: SessionSnapshot };
 

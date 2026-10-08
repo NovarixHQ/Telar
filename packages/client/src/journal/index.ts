@@ -16,3 +16,4 @@ export {
   type HydratedSession,
   type SessionSyncApi,
 } from "./session-sync";
+export { clearConnections, headBytes, SessionConnection, sessionConnection } from "./session-connection";

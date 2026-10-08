@@ -26,7 +26,7 @@ mockNavigation();
 
 const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearConnections } = await import("@/platform/engine");
+const { clearConnections } = await import("@telar/client/journal");
 const { TAIL_LIVE_MS, TAIL_SETTLED_MS } = await import("@telar/client/journal");
 
 const STARTED = 1_700_000_000_000;

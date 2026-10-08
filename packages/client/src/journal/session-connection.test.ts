@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import type { EngineEvent, SessionBootstrap, SessionDelta, SessionSnapshot, Turn } from "@telar/engine-client";
-import { envelope, item, turn } from "@telar/client/journal/fixtures";
-import { projectJournal } from "@telar/client/journal";
-import { itemText } from "@telar/client/journal";
+import { envelope, item, turn } from "./fixtures";
+import { projectJournal } from "./journal";
+import { itemText } from "./journal-items";
 import { clearConnections, HEAD_MEMORY_BYTES, heldConnections, HEADS_IN_MEMORY, SessionConnection, sessionConnection } from "./session-connection";
-import { hydrateSession, type HydratedSession, type SessionSyncApi } from "@telar/client/journal";
+import { hydrateSession, type HydratedSession, type SessionSyncApi } from "./session-sync";
 const initial = { session: { id: "session_1" }, turns: [], items: [], tasks: [], requests: [], cursor: 3 } as unknown as SessionSnapshot;
 test("surface reads share one hydration and an outage retains projection and cursor atomically", async () => {
   let release!: () => void;
@@ -64,8 +64,9 @@ test("a task whose turn left the snapshot window still ends when its completion 
 
 test("Swift and web consume the same engine-produced OpenCode prefix fixture", async () => {
   const { Session, Item, Turn } = await import("@telar/engine-client");
-  const { projectJournal, itemText } = await import("@telar/client/journal");
-  const raw = await import("../../../../ios/Fixtures/engine-revision.json");
+  const { projectJournal } = await import("./journal");
+  const { itemText } = await import("./journal-items");
+  const raw = await import("../../../../apps/ios/Fixtures/engine-revision.json");
   const snapshot = { ...raw.default, session: Session.parse(raw.default.session), items: raw.default.items.map((item) => Item.parse(item)), turns: raw.default.turns.map((turn) => Turn.parse(turn)) };
   expect(snapshot.session.driver).toBe("opencode");
   expect(snapshot.turns[1]?.state).toBe("queued");

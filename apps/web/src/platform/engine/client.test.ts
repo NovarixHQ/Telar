@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createEngineApi, newRunId, EngineApiError, OPEN_BUDGET, READ_BUDGET } from "./client";
-import { SessionConnection } from "./session-connection";
+import { SessionConnection } from "@telar/client/journal";
 
 /** Counts concurrent requests; each call yields a macrotask so over-budget callers really wait. */
 function countingWire(answer: (pathname: string) => unknown = () => ({})) {

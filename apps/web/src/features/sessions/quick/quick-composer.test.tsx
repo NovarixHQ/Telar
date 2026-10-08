@@ -23,7 +23,7 @@ mock.module("next/navigation", () => ({
 
 const { QuickComposer } = await import("./quick-composer");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearConnections } = await import("@/platform/engine");
+const { clearConnections } = await import("@telar/client/journal");
 
 type Call = { method: string; url: string; body: unknown };
 let calls: Call[] = [];

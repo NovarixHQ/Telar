@@ -8,7 +8,6 @@ import { CHANNEL_HINT, desktopUpdates, updateStatusHint, useDesktopUpdate, type 
 import { Row, SettingsGroup } from "@/features/settings";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
-import { Switch } from "@/ui/switch";
 import { UpdateToast } from "./update-toast";
 import { RestartUpdateDialog } from "./restart-update-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
@@ -132,17 +131,6 @@ export function AboutSection(build: BuildInfo) {
               ))}
             </SelectContent>
           </Select>
-        }
-      />
-      <Row
-        keywords={["restart", "automatic", "updates"]}
-        label="Install on quit"
-        control={
-          <Switch
-            checked={prefs?.installOnQuit ?? false}
-            onCheckedChange={(installOnQuit) => void savePrefs({ installOnQuit })}
-            disabled={!prefs}
-          />
         }
       />
     </SettingsGroup>

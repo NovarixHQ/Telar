@@ -7,7 +7,7 @@ import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row, SettingsGroup } from "@/features/settings/components/settings-shell";
 
 const api = createEngineApi();
 

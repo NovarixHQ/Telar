@@ -1,6 +1,6 @@
 import { USAGE_FIX_SETTINGS } from "@telar/engine-client";
 
-export const USAGE_DIAGNOSIS_PROMPT_VERSION = 2;
+export const USAGE_DIAGNOSIS_PROMPT_VERSION = 3;
 
 const LAYOUT = `Telar's data folder (your working folder; every path below is relative to it):
 - execution.sqlite: the engine's database. Query it with usage_sql (one SELECT at a time, 200 rows at most). Tables:
@@ -32,7 +32,7 @@ Known patterns and their fixes (fix.setting is one of ${USAGE_FIX_SETTINGS.join(
 - opus_builders, high_effort, wide_fan_out: run builders on a smaller model at medium effort (new-sessions-model, new-sessions-effort).
 - wake_heavy: fewer, batched results to the orchestrator; settle delegated conversations sooner (settle-delegated).
 - frequent_schedule: lengthen the schedule or point it at a small, fresh session (schedules).
-- rate_limit_loops: turn off continuing after a reset, or run fewer sessions at once (continue-after-reset).
+- rate_limit_loops: run fewer sessions at once (none).
 - big_tool_outputs: narrower commands and fewer MCP servers (mcp-servers).
 - generated text on a large model: a small model for session names (generated-text-model).
 - outside_telar: only "outside" transcripts count, those with no Telar marker. Say what share that is; never conclude Telar is not the cause from the gap between the logs and this data folder (none).

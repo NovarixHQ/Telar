@@ -25,7 +25,6 @@ const MODELS: { value: Model; label: string }[] = [
 const FIX_LABEL: Record<UsageDiagnosisReport["findings"][number]["fix"]["setting"], string> = {
   "new-sessions-model": "Settings → New sessions → Model",
   "new-sessions-effort": "Settings → New sessions → Effort",
-  "continue-after-reset": "Settings → New sessions → Continue after a reset",
   "settle-delegated": "Settings → Settling",
   "generated-text-model": "Settings → General → Text generation → Model",
   compaction: "Settings → Providers → Compaction",
@@ -118,7 +117,7 @@ function Report({ diagnosis, report }: { diagnosis: UsageDiagnosis; report: Usag
               </p>
             )}
             <p className="mt-2 text-sm">
-              <span className="text-muted-foreground">{FIX_LABEL[finding.fix.setting]}: </span>
+              <span className="text-muted-foreground">{FIX_LABEL[finding.fix.setting] ?? FIX_LABEL.none}: </span>
               {finding.fix.action}
             </p>
           </li>

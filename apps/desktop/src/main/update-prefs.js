@@ -17,11 +17,10 @@ function updateLogPath() {
 }
 
 const UPDATE_CHANNELS = ["beta", "nightly"];
-const DEFAULT_UPDATE_PREFS = { channel: "beta", installOnQuit: false };
+const DEFAULT_UPDATE_PREFS = { channel: "beta" };
 
 const validUpdatePrefs = (raw) => ({
   channel: UPDATE_CHANNELS.includes(raw.channel) ? raw.channel : DEFAULT_UPDATE_PREFS.channel,
-  installOnQuit: raw.installOnQuit === true,
 });
 
 const updatePrefs = jsonPrefs("update-prefs.json", DEFAULT_UPDATE_PREFS, validUpdatePrefs, "update prefs");

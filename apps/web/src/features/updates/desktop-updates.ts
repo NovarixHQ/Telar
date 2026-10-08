@@ -12,7 +12,6 @@ export type UpdateStatus = {
 
 type UpdatePrefs = {
   channel: string;
-  installOnQuit: boolean;
 };
 
 export type UpdatePrefsInfo = UpdatePrefs & {

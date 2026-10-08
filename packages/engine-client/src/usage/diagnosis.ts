@@ -68,7 +68,6 @@ export type UsageDigest = {
 export const USAGE_FIX_SETTINGS = [
   "new-sessions-model",
   "new-sessions-effort",
-  "continue-after-reset",
   "settle-delegated",
   "generated-text-model",
   "compaction",

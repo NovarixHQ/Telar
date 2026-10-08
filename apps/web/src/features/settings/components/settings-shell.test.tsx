@@ -64,6 +64,25 @@ test("the revert slot is reserved whether or not the arrow is in it", () => {
   expect(reverting).toContain("Revert to the default");
 });
 
+test("the revert arrow is a focusable button: focus names it, a press reverts", async () => {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  let reverts = 0;
+  await act(async () => root.render(<Row label="Model" onRevert={() => reverts++} control={<span>gpt</span>} />));
+  const arrow = host.querySelector<HTMLButtonElement>('button[aria-label="Revert to the default"]')!;
+  await act(async () => {
+    arrow.focus();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(document.activeElement).toBe(arrow);
+  expect(document.querySelector("[data-slot=tooltip-content]")?.textContent).toBe("Back to the default");
+  await act(async () => arrow.click());
+  expect(reverts).toBe(1);
+  act(() => root.unmount());
+  host.remove();
+});
+
 test("a refused write reads under the hint, and does not take its place", () => {
   const html = renderToStaticMarkup(
     <Row

@@ -89,7 +89,6 @@ export function describeReview(review: SessionReview): string {
 
 export type ReviewFraming = {
   headline: string;
-  note: string;
   journal: boolean;
 };
 
@@ -98,27 +97,8 @@ export function reviewFraming(diff: SessionDiff, review: SessionReview, session:
   const figures = describeReview(review);
   return {
     headline: shared ? `The project checkout — ${figures}` : figures,
-    note: reviewNote(diff, session, shared),
     journal: session && !shared,
   };
-}
-
-function reviewNote(diff: SessionDiff, session: boolean, shared: boolean): string {
-  if (!session) return "Everything uncommitted in this project right now.";
-  const checkout = "This session shares the project checkout with your editor and every other local session";
-  if (!diff.base) {
-    return shared
-      ? `${checkout}, and no starting commit was recorded — so this counts only what is uncommitted there, not what it wrote.`
-      : "No starting commit was recorded, so this counts only what is uncommitted.";
-  }
-  if (shared) {
-    return diff.filesIncomplete
-      ? `${checkout}. This is what differs there since it started — as much of it as git reported — which is not the same as what it wrote.`
-      : `${checkout}. This is what differs there since it started, which is not the same as what it wrote.`;
-  }
-  return diff.filesIncomplete
-    ? "What this session changed, committed and uncommitted — as much of it as git reported."
-    : "Everything this session changed, committed and uncommitted.";
 }
 
 export const REVIEW_STATUS_LETTER: Record<GitFileChange["status"], string> = {

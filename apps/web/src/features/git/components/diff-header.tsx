@@ -7,7 +7,7 @@ import type { DiffTurn } from "../diff-turns";
 import { cn } from "@/ui/utils";
 import { DiffScopePicker } from "./diff-scope-picker";
 
-/** The scope, the branch, the headline figure and what it answers, and the tab's filter field. */
+/** The scope, the branch, the headline figures, and the tab's filter field. */
 export function DiffHeader({
   tab,
   onTabChange,
@@ -17,9 +17,6 @@ export function DiffHeader({
   diff,
   fromGit,
   headline,
-  note,
-  trimmed,
-  filesInAll,
   refreshing,
   onRefresh,
 }: {
@@ -31,9 +28,6 @@ export function DiffHeader({
   diff: SessionDiff;
   fromGit: boolean;
   headline: string;
-  note: string;
-  trimmed: string | undefined;
-  filesInAll: number;
   refreshing: boolean;
   onRefresh: () => void;
 }) {
@@ -64,15 +58,17 @@ export function DiffHeader({
           <RotateCwIcon className={cn("size-3", refreshing && "animate-spin")} />
         </button>
       </div>
-      <p className={cn("mt-1 text-sm font-medium tabular-nums", fromGit && diff.filesIncomplete && "text-warning")}>
+      <p className={cn("mt-1 text-xs font-medium tabular-nums", fromGit && diff.filesIncomplete && "text-warning")}>
         {headline}
         {fromGit && diff.filesIncomplete && <span className="ml-1.5 text-2xs font-normal">· incomplete</span>}
-      </p>
-      <p className="mt-0.5 text-2xs leading-snug text-muted-foreground">
-        {note}
-        {trimmed ? ` Filtered to ${trimmed} — ${filesInAll} ${filesInAll === 1 ? "file" : "files"} in all.` : ""}
-        {fromGit && tab.kind !== "turn" && diff.ahead !== undefined && diff.ahead > 0 ? ` ${diff.ahead} ahead of upstream.` : ""}
-        {fromGit && diff.truncated ? " The list below is capped; the figures above are not." : ""}
+        {fromGit && tab.kind !== "turn" && diff.ahead !== undefined && diff.ahead > 0 && (
+          <span className="ml-1.5 text-2xs font-normal text-muted-foreground">· {diff.ahead} ahead</span>
+        )}
+        {fromGit && diff.truncated && (
+          <span className="ml-1.5 text-2xs font-normal text-muted-foreground" title="The list is capped; the figures are not.">
+            · list capped
+          </span>
+        )}
       </p>
       {onTabChange && <DiffFilterField tab={tab} onTabChange={onTabChange} />}
     </div>

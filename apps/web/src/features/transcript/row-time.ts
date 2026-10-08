@@ -6,7 +6,6 @@ function startOfDay(at: number): number {
   return date.getTime();
 }
 
-/** A transcript row's time: the clock alone today, with the day before it otherwise. */
 export function rowTime(at: number, now = Date.now()): { label: string; full: string } {
   const date = new Date(at);
   const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });

@@ -5,7 +5,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/ui/utils";
 import { rowTime } from "../row-time";
 
-/** Time and Copy under a message, shown while its `group/message` is hovered or holds focus. */
 export function MessageActions({ text, at, align = "start" }: { text: string; at?: number | undefined; align?: "start" | "end" }) {
   const time = at === undefined ? undefined : { ...rowTime(at), iso: new Date(at).toISOString() };
   return (

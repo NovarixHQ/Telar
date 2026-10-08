@@ -163,71 +163,73 @@ export function Composer(props: ComposerProps) {
   };
 
   return (
-    <div
-      ref={root}
-      className={cn(
-        "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) shrink-0 flex-col gap-1.5 px-4 pt-2 pb-5",
-        "transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
-        fresh && "-translate-y-[calc(45dvh-7.5rem)]",
-      )}
-    >
-      <ComposerHead props={props} resuming={resuming} onResuming={setResuming} note={stash.note} onDismissNote={() => stash.setNote(undefined)} />
-      <div ref={box}>
-        <ComposerBanners {...props} />
-        {question.active && props.question && (
-          <ComposerQuestionDrawer
-            fields={question.fields}
-            draft={question.answer}
-            onDraft={question.setAnswer}
-            sending={sending}
-            onCancelTurn={() => props.question && props.onCancelQuestion?.(props.question.id)}
-          />
+    <div className="w-full shrink-0 px-4">
+      <div
+        ref={root}
+        className={cn(
+          "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-1.5 pt-2 pb-5",
+          "transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
+          fresh && "-translate-y-[calc(45dvh-7.5rem)]",
         )}
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            trySubmit();
-          }}
-        >
-          <DictationGlow phase={dictation.phase} stream={dictation.stream}>
-            <ComposerCard
-              editor={editor}
-              editorId={EDITOR_ID}
-              kind={kind}
-              text={question.boxText}
-              placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(ready, busy)}
-              ready={ready}
-              compact={compactNow}
-              controlsRef={row}
-              draft={draft}
-              attachments={attachments}
-              onAttach={onAttach}
-              addFiles={addFiles}
-              onDraftChange={onDraftChange}
-              onEdit={onEdit}
-              onSelectionChange={() => !question.active && menu.retrigger(draft)}
-              onKeyDown={onKeyDown}
-              onFocus={() => markComposerActive(token)}
-              onExpand={() => {
-                expand();
-                editor.current?.focus();
-              }}
-              stash={stash}
-              menu={menu}
-              pick={pick}
-              drop={drop}
-              pills={!narrow && pills}
-              trailing={
-                <>
-                  {!compactNow && <ComposerContext {...props} />}
-                  <DictationButton dictation={dictation} />
-                  {send}
-                </>
-              }
+      >
+        <ComposerHead props={props} resuming={resuming} onResuming={setResuming} note={stash.note} onDismissNote={() => stash.setNote(undefined)} />
+        <div ref={box}>
+          <ComposerBanners {...props} />
+          {question.active && props.question && (
+            <ComposerQuestionDrawer
+              fields={question.fields}
+              draft={question.answer}
+              onDraft={question.setAnswer}
+              sending={sending}
+              onCancelTurn={() => props.question && props.onCancelQuestion?.(props.question.id)}
             />
-          </DictationGlow>
-        </form>
-        <ComposerFoot props={props} tray={compactNow || narrow} compact={compactNow} pills={pills} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
+          )}
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              trySubmit();
+            }}
+          >
+            <DictationGlow phase={dictation.phase} stream={dictation.stream}>
+              <ComposerCard
+                editor={editor}
+                editorId={EDITOR_ID}
+                kind={kind}
+                text={question.boxText}
+                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(ready, busy)}
+                ready={ready}
+                compact={compactNow}
+                controlsRef={row}
+                draft={draft}
+                attachments={attachments}
+                onAttach={onAttach}
+                addFiles={addFiles}
+                onDraftChange={onDraftChange}
+                onEdit={onEdit}
+                onSelectionChange={() => !question.active && menu.retrigger(draft)}
+                onKeyDown={onKeyDown}
+                onFocus={() => markComposerActive(token)}
+                onExpand={() => {
+                  expand();
+                  editor.current?.focus();
+                }}
+                stash={stash}
+                menu={menu}
+                pick={pick}
+                drop={drop}
+                pills={!narrow && pills}
+                trailing={
+                  <>
+                    {!compactNow && <ComposerContext {...props} />}
+                    <DictationButton dictation={dictation} />
+                    {send}
+                  </>
+                }
+              />
+            </DictationGlow>
+          </form>
+          <ComposerFoot props={props} tray={compactNow || narrow} compact={compactNow} pills={pills} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
+        </div>
       </div>
     </div>
   );

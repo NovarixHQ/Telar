@@ -16,7 +16,6 @@ export const SECTIONS: SettingsSection[] = [
     label: "Providers",
     icon: PlugIcon,
     scope: "mac",
-    wide: true,
     keywords: ["login", "add a login", "account", "claude", "codex", "api key", "sign in", "auth", "provider"],
   },
   { id: "integrations", label: "Integrations", icon: PlugZapIcon, keywords: ["mcp", "stdio", "sse", "http", "tool", "server", "add a server"] },
@@ -25,7 +24,6 @@ export const SECTIONS: SettingsSection[] = [
     label: "Plugins",
     icon: BlocksIcon,
     scope: "mac",
-    wide: true,
     keywords: ["latex", "data science", "extension", "enable", "tectonic", "tex distribution", "texlive", "default engine", "packages", "default python"],
   },
   {
@@ -33,7 +31,6 @@ export const SECTIONS: SettingsSection[] = [
     label: "Projects",
     icon: FolderKanbanIcon,
     scope: "project",
-    wide: true,
     keywords: ["host", "paired", "remote", "other mac", "machine", "computer", "scope", "pick", "select", "all projects", "registry"],
   },
   { id: "notifications", label: "Notifications", icon: BellIcon, scope: "mac" },

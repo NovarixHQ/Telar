@@ -36,6 +36,8 @@ export function ReasoningControl({
   const readOnly = !onChange;
   const suffix = windowSuffix(activeWindow, windows);
   const { label, isDefault } = reasoningPillLabel(choice.effort, defaultEffort, suffix, choice.ultracode);
+  const tier = choice.serviceTier ? row?.serviceTiers?.find((entry) => entry.id === choice.serviceTier)?.name ?? choice.serviceTier : undefined;
+  const detail = [choice.fastMode ? "Fast" : undefined, tier].filter(Boolean).join(" · ");
   const spoken = choice.ultracode
     ? "Ultracode"
     : choice.effort
@@ -43,8 +45,6 @@ export function ReasoningControl({
       : defaultEffort
         ? `${effortLabel(defaultEffort)} (default)`
         : "Auto";
-  const tier = choice.serviceTier ? row?.serviceTiers?.find((entry) => entry.id === choice.serviceTier)?.name ?? choice.serviceTier : undefined;
-  const detail = [choice.fastMode ? "Fast" : undefined, tier].filter(Boolean).join(" · ");
 
   useEffect(() => {
     if (!open) return;
@@ -88,6 +88,7 @@ export function ReasoningControl({
             icon={<GaugeIcon className="size-3.5" />}
             label={label}
             {...(isDefault && defaultEffort ? { title: "The model's default. Pick a level to change it." } : {})}
+            fold="md"
             {...(detail ? { detail } : {})}
             ariaLabel={`Reasoning effort: ${spoken}${suffix ? `, ${suffix} context` : ""}`}
           />

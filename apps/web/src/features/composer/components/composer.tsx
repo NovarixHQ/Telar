@@ -13,7 +13,6 @@ import { markComposerActive, type ComposerSubmit } from "../registry";
 import { hasUltrathink, toggleUltrathink } from "../model-options";
 import { useComposerCommandChoices } from "../hooks/use-composer-command-choices";
 import { useComposerCompletions } from "../hooks/use-composer-completions";
-import { useComposerFit } from "../hooks/use-composer-fit";
 import { useComposerMotion } from "../hooks/use-composer-motion";
 import { composerKeyHandler, useEscArm } from "../hooks/use-composer-keys";
 import { useComposerRegistration } from "../hooks/use-composer-registration";
@@ -70,11 +69,11 @@ function runAction(action: Completion["action"], props: ComposerProps, startResu
   if (action.type === "stop") props.onStop();
 }
 
-/** Opened from the compact card; back to compact once the reader returns to the bottom, or the column turns narrow. */
-function useExpanded(compact: boolean, narrow: boolean) {
-  const [state, setState] = useState({ expanded: false, narrow });
-  if (state.narrow !== narrow || (!compact && !narrow && state.expanded)) setState({ expanded: false, narrow });
-  return [state.expanded, () => setState({ expanded: true, narrow })] as const;
+/** Opened from the compact card; back to compact once the reader returns to the bottom. */
+function useExpanded(compact: boolean) {
+  const [expanded, setExpanded] = useState(false);
+  if (!compact && expanded) setExpanded(false);
+  return [expanded, () => setExpanded(true)] as const;
 }
 
 function ComposerContext({ usage, session, onCompact, busy, sending, compacting }: ComposerProps) {
@@ -95,8 +94,7 @@ export function Composer(props: ComposerProps) {
   const box = useRef<HTMLDivElement>(null);
   // Reported up by the environment strip, which already polls the project's git state.
   const [driveAway, setDriveAway] = useState<Exclude<ProjectAvailability, "available">>();
-  const { root, row, narrow } = useComposerFit();
-  const [expanded, expand] = useExpanded(compact, narrow);
+  const [expanded, expand] = useExpanded(compact);
   const [resuming, setResuming] = useState(false);
   const startResume = useCallback(() => setResuming(true), []);
   const token = useId();
@@ -128,8 +126,8 @@ export function Composer(props: ComposerProps) {
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
   const drop = useDropTarget(editor, addFiles);
-  const compactNow = ((compact && !fresh) || narrow) && !expanded && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0;
-  const shape = [compactNow, narrow, attachments.length > 0, question.active, Boolean(driveAway)].join();
+  const compactNow = compact && !fresh && !expanded && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0;
+  const shape = [compactNow, attachments.length > 0, question.active, Boolean(driveAway)].join();
   const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
   const pills = (session || (fresh && driver)) && (
     <ComposerPills
@@ -165,7 +163,6 @@ export function Composer(props: ComposerProps) {
   return (
     <div className="w-full shrink-0 px-4">
       <div
-        ref={root}
         className={cn(
           "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-1.5 pt-2 pb-5",
           "transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
@@ -199,7 +196,6 @@ export function Composer(props: ComposerProps) {
                 placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(ready, busy)}
                 ready={ready}
                 compact={compactNow}
-                controlsRef={row}
                 draft={draft}
                 attachments={attachments}
                 onAttach={onAttach}
@@ -217,7 +213,7 @@ export function Composer(props: ComposerProps) {
                 menu={menu}
                 pick={pick}
                 drop={drop}
-                pills={!narrow && pills}
+                pills={pills}
                 trailing={
                   <>
                     {!compactNow && <ComposerContext {...props} />}
@@ -228,7 +224,7 @@ export function Composer(props: ComposerProps) {
               />
             </DictationGlow>
           </form>
-          <ComposerFoot props={props} tray={compactNow || narrow} compact={compactNow} pills={pills} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
+          <ComposerFoot props={props} tray={compactNow} compact={compactNow} pills={pills} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
         </div>
       </div>
     </div>

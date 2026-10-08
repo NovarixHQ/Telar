@@ -15,29 +15,29 @@ function controlClass(open: boolean, disabled?: boolean) {
 }
 
 export function ControlDivider() {
-  return <span aria-hidden className="h-4 w-px shrink-0 bg-border" />;
+  return <span aria-hidden className="h-4 w-px shrink-0 bg-border @max-md/composer:hidden" />;
 }
+
+// Inside a narrow composer a pill drops its words, keeping its icon; elsewhere it always shows them.
+const FOLD = { md: "@max-md/composer:hidden", xl: "@max-xl/composer:hidden" } as const;
 
 type ControlTriggerProps = ComponentPropsWithoutRef<"button"> & {
   open: boolean;
   icon: ReactNode;
   label: string;
-  /** Shown only while the row is folded, so a folded pill's value stays visible. */
+  /** The composer width below which only the icon shows. */
+  fold?: keyof typeof FOLD;
+  /** Shown outside the composer, whose row already spells it out in the next pill. */
   detail?: string;
   ariaLabel: string;
 };
 
 export const ControlTrigger = forwardRef<HTMLButtonElement, ControlTriggerProps>(
-  ({ open, icon, label, detail, ariaLabel, className, ...props }, ref) => (
-    <button {...props} ref={ref} type="button" className={cn(controlClass(open, props.disabled), className)} aria-label={ariaLabel}>
+  ({ open, icon, label, fold, detail, ariaLabel, className, ...props }, ref) => (
+    <button {...props} ref={ref} type="button" className={cn(controlClass(open, props.disabled), fold && "shrink-0", className)} aria-label={ariaLabel}>
       <span className="flex shrink-0 [&_svg]:size-3.5">{icon}</span>
-      <span className="max-w-48 truncate text-foreground">{label}</span>
-      {detail ? (
-        <>
-          <span className="text-muted-foreground/40 @2xl/composer:hidden">·</span>
-          <span className="max-w-24 truncate @2xl/composer:hidden">{detail}</span>
-        </>
-      ) : null}
+      <span className={cn("min-w-0 max-w-48 truncate text-foreground", fold && FOLD[fold])}>{label}</span>
+      {detail ? <span className="max-w-24 truncate before:mr-1.5 before:text-muted-foreground/40 before:content-['·'] @min-[0px]/composer:hidden">{detail}</span> : null}
       <ChevronDownIcon className="size-3 shrink-0 opacity-60" />
     </button>
   ),

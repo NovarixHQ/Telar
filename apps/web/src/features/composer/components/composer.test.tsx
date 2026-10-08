@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { act, useState } from "react";
-import type { Session } from "@telar/engine-client";
+import type { RuntimeMode, Session } from "@telar/engine-client";
 import { activeComposer } from "@/features/composer";
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
 import { Composer } from "./composer";
@@ -27,11 +27,12 @@ type BoxProps = {
   fresh?: boolean;
   projectId?: string;
   session?: Session;
+  runtimeMode?: RuntimeMode;
   onSubmit?: () => void;
   onStop?: () => void;
 };
 
-function Box({ initial = "", files = [], busy = false, compact = false, fresh = false, projectId, session, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, compact = false, fresh = false, projectId, session, runtimeMode, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -55,6 +56,7 @@ function Box({ initial = "", files = [], busy = false, compact = false, fresh = 
         onRuntimeMode={() => {}}
         {...(projectId ? { projectId } : {})}
         {...(session ? { session } : {})}
+        {...(runtimeMode ? { runtimeMode } : {})}
       />
     </>
   );
@@ -97,7 +99,7 @@ async function type(editor: HTMLElement, text: string) {
   await flush();
 }
 
-const layout = { width: 0, item: 40, observers: new Set<() => void>() };
+const layout = { width: 0, observers: new Set<() => void>() };
 
 beforeAll(() => {
   globalThis.ResizeObserver = class {
@@ -114,12 +116,10 @@ beforeAll(() => {
     }
   } as unknown as typeof ResizeObserver;
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => layout.width });
-  Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => (layout.width ? layout.item : 0) });
 });
 
 afterEach(() => {
   layout.width = 0;
-  layout.item = 40;
 });
 
 async function narrowable(props: BoxProps, width: number) {
@@ -327,99 +327,36 @@ describe("the compact composer, while reading back", () => {
   });
 });
 
-describe("a composer too narrow for its controls", () => {
+describe("a narrow column, such as one beside an open panel", () => {
   const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
-  const shot = () => new File(["x"], "shot.png", { type: "image/png" });
-  const model = (root: ParentNode) => root.querySelector('[aria-label^="Model:"]');
+  const row = (host: HTMLElement) => host.querySelector("[data-slot=composer-controls]");
   const tray = (host: HTMLElement) => host.querySelector("[data-slot=composer-foot]")!;
-  const oneLine = (host: HTMLElement) => model(tray(host)) !== null;
+  const expand = (host: HTMLElement) => host.querySelector('button[aria-label="Open the full composer"]');
 
-  const expand = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button[aria-label="Open the full composer"]');
-  const collapsed = "calc(5lh + 1.25rem)";
-
-  test("narrow shows the collapsed composer it takes while reading back", async () => {
-    const { host, editor } = await narrowable({ session }, 100);
-    expect(expand(host)).not.toBeNull();
-    expect(editor.style.maxHeight).toBe(collapsed);
-    expect(oneLine(host)).toBe(true);
-    expect(host.querySelector('button[aria-label="Send"]')).not.toBeNull();
-  });
-
-  test("focusing and typing while narrow keeps it collapsed, and Enter sends", async () => {
-    let sends = 0;
-    const { host, editor } = await narrowable({ session, onSubmit: () => sends++ }, 100);
-    await click(editor);
-    await type(editor, "quick note");
-    key(editor, { key: "Enter" });
-    await flush();
-    expect(sends).toBe(1);
-    expect(expand(host)).not.toBeNull();
-    expect(oneLine(host)).toBe(true);
-  });
-
-  test("expanded while narrow, the full box keeps the model in the tray", async () => {
-    const { host, editor } = await narrowable({ session, initial: "longer thought" }, 100);
-    await click(expand(host)!);
+  test("keeps the full composer with model, reasoning and access in the toolbar row", async () => {
+    const { host, editor } = await narrowable({ session, runtimeMode: "full-access" }, 320);
     expect(expand(host)).toBeNull();
     expect(editor.style.maxHeight).toBe("");
-    expect(oneLine(host)).toBe(true);
-    expect(editor.textContent).toBe("longer thought");
+    expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
+    expect(row(host)?.querySelector('[aria-label^="Reasoning effort:"]')).not.toBeNull();
+    expect(row(host)?.querySelector('[aria-label^="Access:"]')).not.toBeNull();
+    expect(tray(host).querySelector('[aria-label^="Model:"]')).toBeNull();
+    expect(host.querySelector('[aria-label="More composer settings"]')).toBeNull();
   });
 
-  test("wide keeps the full composer, with the model in the card", async () => {
-    const { host } = await narrowable({ session }, 2000);
-    expect(oneLine(host)).toBe(false);
-    expect(model(host)).not.toBeNull();
-  });
-
-  test("the words, the attachments and the focus survive switching both ways", async () => {
-    const { host, editor, resize } = await narrowable({ session, initial: "half a thought", files: [shot()] }, 2000);
+  test("narrowing a wide composer leaves the controls where they were, with the draft and focus", async () => {
+    const { host, editor, resize } = await narrowable({ session, initial: "half a thought" }, 2000);
     act(() => editor.focus());
-    await resize(100);
-    expect(oneLine(host)).toBe(true);
-    expect(host.querySelector("[data-slot=composer-editor]")).toBe(editor);
-    expect(editor.textContent).toBe("half a thought");
-    expect(host.textContent).toContain("shot.png");
-    expect(document.activeElement).toBe(editor);
-    await resize(2000);
-    expect(oneLine(host)).toBe(false);
-    expect(editor.textContent).toBe("half a thought");
-    expect(host.textContent).toContain("shot.png");
-    expect(document.activeElement).toBe(editor);
-  });
-
-  test("it turns mini below a 784px column and comes back only at 800, so the edge never flickers", async () => {
-    const { host, resize } = await narrowable({ session }, 2000);
-    expect(oneLine(host)).toBe(false);
-    await resize(783);
-    const flips: boolean[] = [];
-    for (const width of [790, 784, 799, 786, 783]) {
-      await resize(width);
-      flips.push(oneLine(host));
-    }
-    expect(flips.every(Boolean)).toBe(true);
-    await resize(800);
-    expect(oneLine(host)).toBe(false);
-    await resize(790);
-    expect(oneLine(host)).toBe(false);
-  });
-
-  test("controls that would wrap in a wider column still turn it mini", async () => {
-    layout.item = 400;
-    const { host } = await narrowable({ session }, 1000);
-    expect(expand(host)).not.toBeNull();
-  });
-
-  test("a new conversation's canvas is mini too", async () => {
-    const { host } = await narrowable({ fresh: true }, 500);
-    expect(expand(host)).not.toBeNull();
-  });
-
-  test("a composer opened full while reading back turns mini once the column narrows", async () => {
-    const { host, resize } = await narrowable({ session, compact: true }, 2000);
-    await click(expand(host)!);
+    await resize(320);
+    expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
     expect(expand(host)).toBeNull();
-    await resize(600);
-    expect(expand(host)).not.toBeNull();
+    expect(editor.textContent).toBe("half a thought");
+    expect(document.activeElement).toBe(editor);
+  });
+
+  test("a new conversation's canvas stays full too", async () => {
+    const { host } = await narrowable({ fresh: true }, 320);
+    expect(expand(host)).toBeNull();
+    expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
   });
 });

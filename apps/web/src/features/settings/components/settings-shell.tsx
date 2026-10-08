@@ -149,6 +149,7 @@ export function SettingsShell({
   backHref,
   headerActions,
   search,
+  reveal,
   children,
 }: {
   title: ReactNode;
@@ -158,12 +159,16 @@ export function SettingsShell({
   backHref?: string;
   headerActions?: ReactNode;
   search?: SettingsSearchIndex;
+  reveal?: string;
   children: ReactNode;
 }) {
   const activeSection = sections.find((s) => s.id === active) ?? sections[0];
   const { restorers, registry: restoreRegistry } = useRestoreRegistry();
   const { navWidth, wrapperRef, startDrag } = useSettingsNavResize();
   const [pendingRow, revealRow] = useRevealRow();
+  useEffect(() => {
+    if (reveal) revealRow(reveal);
+  }, [reveal, revealRow]);
 
   const jumpTo = (entry: SettingsSearchEntry) => {
     onSelect(entry.pageId);

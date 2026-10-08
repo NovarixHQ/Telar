@@ -41,7 +41,7 @@ const WorkspaceSection = dynamic(() => import("@/features/projects/components/wo
 const api = createEngineApi();
 
 export function SettingsPage() {
-  const [active, setActive] = useSectionFromUrl("general", SECTION_IDS);
+  const [active, setActive, revealRow] = useSectionFromUrl("general", SECTION_IDS);
   const backHref = useSettingsReturnPath();
   const [about, setAbout] = useState<{ appVersion: string }>();
   const [health, setHealth] = useState<EngineHealth>();
@@ -80,6 +80,7 @@ export function SettingsPage() {
       onSelect={setActive}
       backHref={backHref}
       search={search}
+      {...(revealRow ? { reveal: revealRow } : {})}
     >
       <Suspense fallback={null}>
         {active === "general" && (

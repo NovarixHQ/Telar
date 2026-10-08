@@ -31,6 +31,8 @@ import { useSettling } from "../hooks/use-settling";
 import { useSubmit } from "../hooks/use-submit";
 import { useTitleMenu } from "../hooks/use-title-menu";
 import { useTranscriptModel } from "../hooks/use-transcript-model";
+import { cn } from "@/ui/utils";
+import { useCardPlacement, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 import { pendingStillShown, type PendingTurn } from "../pending-turn";
 import { composerProps } from "./composer-props";
 import { rightPanelProps } from "./right-panel-props";
@@ -94,6 +96,9 @@ export function SessionCockpit({
   const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));
   const builders = useBuildersBanner(hostId, agents);
   const subagents = useMemo(() => cardSubagents(model.transcript), [model.transcript]);
+  const measureChat = useCardPlacement(panel.open);
+  const card = useWorkspaceCardOpen();
+  const docked = !solo && Boolean(session) && card.open && card.placement === "docked";
   const settling = useSettling(hostId, sessionId, sync);
   const actions = useSessionActions(sessionId, sync);
   const submit = useSubmit({
@@ -138,11 +143,11 @@ export function SessionCockpit({
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <div ref={measureChat} className={cn("relative flex min-h-0 flex-1 flex-col", docked && "pr-[calc(18rem+2.75rem)]")}>
             {!solo && session && (
               <WorkspaceCard
                 key={`${hostId}:${session.id}`} hostId={hostId} session={session} agents={agents} subagents={subagents} busy={Boolean(active)}
-                backgroundTasks={model.backgroundTasks} panel={panelState} dismissible={panel.open} onRunTerminals={revealNewTerminals}
+                backgroundTasks={model.backgroundTasks} panel={panelState} onRunTerminals={revealNewTerminals}
               />
             )}
             <TranscriptList

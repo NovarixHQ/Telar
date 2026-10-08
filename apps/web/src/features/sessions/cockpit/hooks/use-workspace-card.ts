@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { SessionDiff } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
@@ -8,9 +8,16 @@ import { usePoll } from "@/ui/hooks/use-poll";
 
 const OPEN_KEY = "telar:workspace-card";
 const REFRESH_MS = 15_000;
+const CARD_WIDTH = 288;
+const READABLE_CHAT = 640;
+export const DOCK_MIN_WIDTH = CARD_WIDTH + 12 + 32 + READABLE_CHAT + 20;
 const listeners = new Set<() => void>();
 
-function readOpen(): boolean {
+export type CardPlacement = "docked" | "popover";
+let placement: CardPlacement = "docked";
+let popoverOpen = false;
+
+function readDocked(): boolean {
   try {
     return window.localStorage.getItem(OPEN_KEY) !== "closed";
   } catch {
@@ -23,18 +30,53 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-/** One choice for every conversation: the card stays where the person left it. */
-export function useWorkspaceCardOpen(): { open: boolean; toggle: () => void } {
-  const open = useSyncExternalStore(subscribe, readOpen, () => false);
-  const toggle = useCallback(() => {
-    try {
-      window.localStorage.setItem(OPEN_KEY, readOpen() ? "closed" : "open");
-    } catch {
-      return;
+const notify = () => {
+  for (const listener of listeners) listener();
+};
+
+export function cardPlacement(chatWidth: number, panelOpen: boolean): CardPlacement {
+  return panelOpen || chatWidth < DOCK_MIN_WIDTH ? "popover" : "docked";
+}
+
+export function setCardPlacement(next: CardPlacement) {
+  if (next === placement) return;
+  placement = next;
+  popoverOpen = false;
+  notify();
+}
+
+/** Docked, the card stays where the person left it; as a popover it opens on demand and closes when it loses focus. */
+export function useWorkspaceCardOpen(): { open: boolean; placement: CardPlacement; toggle: () => void; close: () => void } {
+  const snapshot = useSyncExternalStore(subscribe, () => `${placement}:${placement === "docked" ? readDocked() : popoverOpen}`, () => "docked:false");
+  const [shown, open] = snapshot.split(":") as [CardPlacement, string];
+  const set = useCallback((next: boolean) => {
+    if (placement === "popover") popoverOpen = next;
+    else {
+      try {
+        window.localStorage.setItem(OPEN_KEY, next ? "open" : "closed");
+      } catch {
+        return;
+      }
     }
-    for (const listener of listeners) listener();
+    notify();
   }, []);
-  return { open, toggle };
+  const toggle = useCallback(() => set(placement === "popover" ? !popoverOpen : !readDocked()), [set]);
+  const close = useCallback(() => set(false), [set]);
+  return { open: open === "true", placement: shown, toggle, close };
+}
+
+export function useCardPlacement(panelOpen: boolean) {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!element) return;
+    const place = () => setCardPlacement(cardPlacement(element.clientWidth, panelOpen));
+    place();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(place);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element, panelOpen]);
+  return setElement;
 }
 
 /** A shared checkout reads against `HEAD`, as the Diff surface does: the HEAD recorded at session start goes stale once the branch moves. */

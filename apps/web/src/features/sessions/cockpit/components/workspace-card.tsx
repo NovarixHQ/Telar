@@ -16,7 +16,7 @@ import { cn } from "@/ui/utils";
 import { canvasHref, sessionHref } from "../../session-list";
 import type { useCockpitPanel } from "../hooks/use-cockpit-panel";
 import type { CardSubagent } from "../model";
-import { useWorkspaceCardData, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
+import { useWorkspaceCardData, useWorkspaceCardOpen, type CardPlacement } from "../hooks/use-workspace-card";
 
 const CHILD_STATE: Record<SessionChild["state"], string> = { working: "Running", waiting: "Waiting", done: "Done", failed: "Failed", stopped: "Stopped" };
 
@@ -214,8 +214,21 @@ function useDismiss(active: boolean, close: () => void) {
   return frame;
 }
 
-/** Floats over the conversation's top right, under its toggle. Kept mounted while closed: the Run row's feed is what reveals new terminals. */
-export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgroundTasks, panel, dismissible, onRunTerminals }: {
+export function WorkspaceCardFrame({ open, placement, onClose, children }: { open: boolean; placement: CardPlacement; onClose: () => void; children: ReactNode }) {
+  const frame = useDismiss(open && placement === "popover", onClose);
+  return (
+    <div
+      ref={frame}
+      data-placement={placement}
+      className={cn("app-no-drag absolute right-3 max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl [&>*]:max-w-full", placement === "docked" ? "top-3 z-20" : "top-1 z-30 shadow-3", !open && "hidden")}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Kept mounted while closed: the Run row's feed is what reveals new terminals. */
+export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgroundTasks, panel, onRunTerminals }: {
   hostId: string;
   session: Session;
   agents: readonly SessionChild[];
@@ -223,12 +236,10 @@ export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgr
   busy: boolean;
   backgroundTasks: number;
   panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab" | "flat">;
-  dismissible: boolean;
   onRunTerminals: (terminals: readonly RunView[]) => void;
 }) {
   const router = useRouter();
-  const { open, toggle } = useWorkspaceCardOpen();
-  const frame = useDismiss(open && dismissible, toggle);
+  const { open, placement, close } = useWorkspaceCardOpen();
   const path = workspacePath(session.workspace);
   const { diff, reload } = useWorkspaceCardData(hostId, session.id, open, session.workspace.mode === "local", busy);
   const [terminals, setTerminals] = useState<readonly RunView[]>([]);
@@ -236,7 +247,7 @@ export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgr
   const github = useGitHubReady(open && publishable, session.projectId);
   const api = createEngineApi(hostFetcher(hostId));
   return (
-    <div ref={frame} className={cn("app-no-drag order-first mx-3 mt-3 max-h-[45%] shrink-0 overflow-y-auto rounded-2xl md:order-last md:mr-3 md:ml-0 md:max-h-[calc(100%-1.5rem)] md:self-start [&>*]:max-w-full max-md:[&>*]:w-full", !open && "hidden")}>
+    <WorkspaceCardFrame open={open} placement={placement} onClose={close}>
       <WorkspaceCardView
         path={path}
         worktree={session.workspace.mode === "worktree"}
@@ -285,6 +296,6 @@ export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgr
         onOpenChanges={() => panel.showPanelTab("diff")}
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}
       />
-    </div>
+    </WorkspaceCardFrame>
   );
 }

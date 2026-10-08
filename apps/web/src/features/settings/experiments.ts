@@ -20,7 +20,7 @@ function readExperiment(id: string): boolean {
   }
 }
 
-function setExperiment(id: string, on: boolean): void {
+export function setExperiment(id: string, on: boolean): void {
   try {
     if (on) window.localStorage.setItem(KEY(id), "on");
     else window.localStorage.removeItem(KEY(id));

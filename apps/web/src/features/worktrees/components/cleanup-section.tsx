@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CLEANUP_INACTIVE_DAYS, CLEANUP_LOG_DAYS, CLEANUP_SETTLED_DAYS, type CleanupPolicy, type CleanupReport, type CleanupState, type RetentionPolicy } from "@telar/engine-client";
+import { CLEANUP_INACTIVE_DAYS, CLEANUP_LOG_DAYS, CLEANUP_SETTLED_DAYS, DEFAULT_CLEANUP_POLICY, type CleanupPolicy, type CleanupReport, type CleanupState, type RetentionPolicy } from "@telar/engine-client";
 import { ArchiveIcon, ClockIcon, GitBranchIcon, HistoryIcon, MoonIcon, ScrollTextIcon, SparklesIcon } from "lucide-react";
 import { createEngineApi } from "@/platform/engine";
 import { fmtAgo, formatBytes } from "@/ui/format";
 import { Button } from "@/ui/button";
-import { Dropdown, Row, SettingsGroup, ToggleRow } from "@/features/settings";
+import { Dropdown, Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
 import { WorktreeSummarySection } from "./worktree-summary-section";
 import { WorktreesRootRow } from "./worktrees-root-section";
 
@@ -108,6 +108,8 @@ export function CleanupSection() {
       setError({ key, message: reason(cause, "That could not be saved.") });
     }
   };
+
+  useRestoreDefaults(() => save({ ...DEFAULT_CLEANUP_POLICY }));
 
   const run = async () => {
     setRunning(true);

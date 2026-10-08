@@ -1,11 +1,9 @@
 import crypto from "node:crypto";
 import {
   defaultInstanceIdForDriver,
-  resolveMcpServers,
   STALLED_AFTER_MS,
   workspacePath,
   type AgentOrientation,
-  type McpServer,
   type ModelSelection,
   type Project,
   type ProviderDriverKind,
@@ -21,7 +19,7 @@ import {
   type EngineRequest,
 } from "@telar/engine-client";
 import { assertId, EngineStateError, type Kernel } from "../../platform/kernel";
-import { withComputerUse, type ResolvedComputerUse } from "../computer-use";
+import { claimComputerUse, type ResolvedComputerUse } from "../computer-use";
 import type { ModelCatalogues } from "../providers";
 import {
   awaitsRateLimitSweep,
@@ -65,7 +63,6 @@ type ClaimDeps = {
   fireSubscriptions: (sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"]; request?: EngineRequest }) => void;
   flushPendingNotifications: (sessionId: string) => void;
   getSessionDefaults: () => SessionDefaults;
-  listMcpServers: () => McpServer[];
   resolveProviderInstance: (instanceId: string, driver: ProviderDriverKind) => ProviderInstance;
   getProject: (projectId: string) => Project;
   resolveDataScience: (session: Session) => unknown;
@@ -370,13 +367,7 @@ export class TurnClaims {
     // control is read here without ever passing through a patch — and the
     // claim is the one place that decides what actually runs.
     const model = this.claimModelSelection(session.driver, turn.model ?? session.model, session.providerInstanceId ?? defaultInstanceIdForDriver(session.driver));
-    const registered = resolveMcpServers(this.deps.listMcpServers(), session.projectId);
-    const mcpServers = withComputerUse(
-      registered.filter((server) => server.enabled),
-      registered,
-      session.driver,
-      this.deps.computerUse(),
-    );
+    const computerUse = claimComputerUse(session.driver, this.deps.computerUse());
     const providerInstance = this.deps.resolveProviderInstance(session.providerInstanceId, session.driver);
     return {
       sessionId: session.id,
@@ -403,9 +394,7 @@ export class TurnClaims {
       // to the next turn the worker picks up rather than to the one it is
       // already running.
       ...(model ? { model } : {}),
-      // Filtered to the enabled ones in the engine, so "disabled" is decided
-      // in exactly one place rather than trusted to every worker.
-      ...(mcpServers.length > 0 ? { mcpServers } : {}),
+      ...(computerUse ? { computerUse } : {}),
       ...(() => {
         const resolves: Record<string, () => unknown> = {
           "data-science": () => this.deps.resolveDataScience(session),

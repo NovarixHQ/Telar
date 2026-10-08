@@ -13,11 +13,11 @@ import { Dropdown, Row, useRestoreDefaults } from "@/features/settings";
 
 const PROVIDERS: { id: DictationProviderId; label: string }[] = [
   { id: "off", label: "Off" },
-  { id: "deepgram", label: "Cloud service" },
+  { id: "deepgram", label: "Deepgram" },
 ];
 
 const PROVIDER_INFO: Partial<Record<DictationProviderId, string>> = {
-  deepgram: "Audio goes from the device straight to the service; it does not pass through this computer.",
+  deepgram: "Audio goes from the device straight to Deepgram; it does not pass through this computer.",
 };
 
 export function DictationRows() {
@@ -47,7 +47,7 @@ export function DictationRows() {
         keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "provider", "off", "disable", "turn off", "turn on", "enable", "deepgram"]}
         label="Provider"
         {...(PROVIDER_INFO[provider] ? { info: PROVIDER_INFO[provider] } : {})}
-        {...(PROVIDERS.some(({ id }) => id === provider) ? {} : { hint: "Not a provider this build can drive. Update Telar, or pick another." })}
+        hint={PROVIDERS.some(({ id }) => id === provider) ? "Dictation turns your speech into text with Deepgram, a cloud transcription service." : "Not a provider this build can drive. Update Telar, or pick another."}
         {...(error ? { error } : {})}
         control={
           <Dropdown<DictationProviderId>
@@ -79,16 +79,16 @@ export function DictationRows() {
           />
           <Row
             keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "deepgram", "key", "api key", "credential"]}
-            label="Service key"
+            label="Deepgram API key"
             {...(configured ? { status: "set" } : {})}
-            info="The key stays on this computer. Browsers and phones get a five-minute token instead."
+            info="Sign up at console.deepgram.com and create a key under API Keys. It stays on this computer; browsers and phones get a five-minute token instead."
             control={
               <div className="flex items-center gap-2">
                 <Input
                   type="password"
                   className="h-8 w-56 font-mono text-xs"
-                  aria-label="Service key"
-                  placeholder={configured ? "A key is saved" : "Paste the service's API key"}
+                  aria-label="Deepgram API key"
+                  placeholder={configured ? "A key is saved" : "Paste your Deepgram API key"}
                   value={key}
                   disabled={loading}
                   onChange={(event) => {

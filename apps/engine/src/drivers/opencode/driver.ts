@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { AssistantMessage, Message, SessionStatus, Part, PermissionRequest, QuestionRequest, Config } from "@opencode-ai/sdk/v2";
 import { TELAR_MCP_SERVER, TELAR_BROWSER_MCP_SERVER, type ItemDetail, type TurnObservation, type UserInputField } from "@telar/engine-client";
 import { TELAR_TOOL_CALL_TIMEOUT_MS } from "../../domains/agent-tools";
+import { COMPUTER_USE_SERVER_ID } from "../../domains/computer-use";
 import { normalizeOutcome, type DriverRun, type TurnDriver, withAttachedFiles } from "../contract";
 import { startOpenCodeRuntime, type OpenCodeRuntime } from "./runtime";
 import { OPENCODE_CAPABILITIES } from "../capabilities";
@@ -17,11 +18,7 @@ const MCP_REGISTER_TIMEOUT_MS = 35_000;
 
 export function mcpConfiguration(input: DriverRun): NonNullable<Config["mcp"]> {
   const mcp: NonNullable<Config["mcp"]> = {};
-  for (const server of input.mcpServers ?? []) {
-    const spec = server.spec;
-    if (spec.transport === "stdio") mcp[server.id] = { type: "local", command: [spec.command, ...(spec.args ?? [])], environment: spec.env };
-    else mcp[server.id] = { type: "remote", url: spec.url, headers: spec.headers, oauth: false };
-  }
+  if (input.computerUse) mcp[COMPUTER_USE_SERVER_ID] = { type: "local", command: [input.computerUse.command, ...input.computerUse.args], environment: input.computerUse.env };
   for (const [name, socket] of [
     [TELAR_MCP_SERVER, input.telarSocketLease],
     [TELAR_BROWSER_MCP_SERVER, input.browserSocket],

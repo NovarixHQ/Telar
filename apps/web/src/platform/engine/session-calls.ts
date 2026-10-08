@@ -1,7 +1,7 @@
 import type {
 ComputerUseGrant,
 ComputerUseStatus,
-RememberedLogin,EventPage,ModelSelection,TurnAttachment,
+EventPage,ModelSelection,TurnAttachment,
 TurnModelSelection,
 ProviderDriverKind,EngineRequest,
 RequestDecision,
@@ -124,11 +124,6 @@ export function turnCalls(fetcher: Fetcher) {
     /** Clears the bundled helper's grants only; `reset: false` without one. */
     resetComputerUseAccess: () =>
       request<{ reset: boolean; message?: string }>(fetcher, "POST", "/api/computer-use/reset", {}),
-    /** The logins a person allowed agents to fill without being asked again —
-     *  metadata only, never a value. Revoking is the only write. */
-    browserLogins: () => request<{ logins: RememberedLogin[] }>(fetcher, "GET", "/api/browser-logins"),
-    revokeBrowserLogin: (id: string) =>
-      request<{ ok: boolean }>(fetcher, "DELETE", `/api/browser-logins/${encodeURIComponent(id)}`),
     regenerateSessionTitle: (sessionId: string) =>
       request<{ session: Session; changed: boolean }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/regenerate-title`, {}),
     handOffSession: (sessionId: string, to?: string) =>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  confirmProfileClear,
   confirmProfileDeletion,
   desktopBrowserProfiles,
   describeProfileUse,
@@ -9,25 +10,17 @@ import {
   whyUndeletable,
   type BrowserProfile,
 } from "../desktop-browser-profiles";
-import {
-  desktopSitePermissions,
-  describeSitePermission,
-  siteLabel,
-  type SitePermissionKind,
-  type SitePermissionProfile,
-} from "../desktop-site-permissions";
-import { PermissionKindIcon } from "../components/permission-prompt";
 import { NewBrowserProfileDialog } from "../components/profile-prompt";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Spinner } from "@/ui/spinner";
 import { ProfileColorPicker, ProfileIconPicker } from "./browser-profile-marks";
-import { Row, SettingsList } from "@/features/settings";
+import { Row } from "@/features/settings";
 
 type ProfilesBridge = NonNullable<ReturnType<typeof desktopBrowserProfiles>>;
 
-function ProfileRow({
+function ProfileItem({
   profile,
   profiles,
   bridge,
@@ -48,92 +41,105 @@ function ProfileRow({
   onError: (message: string) => void;
   act: (write: () => Promise<{ profiles: BrowserProfile[] }>) => void;
 }) {
+  const undeletable = bridge.deleteProfile ? whyUndeletable(profile) : undefined;
   return (
-
-    <Row
-      {...(error ? { error } : {})}
-      label={
-        <span className="flex items-center gap-2">
-          <span className="truncate">{profile.label}</span>
+    <li data-profile={profile.id} className="flex items-start gap-2 border-t border-border/50 py-2">
+      <ProfileIconPicker
+        profile={profile.label}
+        {...(profile.icon ? { icon: profile.icon } : {})}
+        disabled={busy}
+        onPick={(icon) => act(() => bridge.updateProfile({ profileId: profile.id, icon }))}
+      />
+      <ProfileColorPicker
+        profile={profile.label}
+        {...(profile.color ? { color: profile.color } : {})}
+        disabled={busy}
+        onPick={(color) => act(() => bridge.updateProfile({ profileId: profile.id, color }))}
+      />
+      <div className="min-w-0 flex-1">
+        <p className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-medium">{profile.label}</span>
           {profile.isDefault && profile.label.trim().toLowerCase() !== "default" && <Badge variant="secondary">Default</Badge>}
           {profile.account && <span className="truncate font-mono text-3xs text-muted-foreground">{profile.account}</span>}
-        </span>
-      }
-      hint={describeProfileUse(profile)}
-      control={
-        <div className="flex items-center gap-1">
-          <ProfileIconPicker
-            profile={profile.label}
-            {...(profile.icon ? { icon: profile.icon } : {})}
-            disabled={busy}
-            onPick={(icon) => act(() => bridge.updateProfile({ profileId: profile.id, icon }))}
-          />
-          <ProfileColorPicker
-            profile={profile.label}
-            {...(profile.color ? { color: profile.color } : {})}
-            disabled={busy}
-            onPick={(color) => act(() => bridge.updateProfile({ profileId: profile.id, color }))}
-          />
-          {!profile.isDefault && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy}
-              title="Every project that has not picked a profile browses here from now on. Projects already assigned somewhere are not moved."
-              onClick={() => act(() => bridge.setDefaultProfile(profile.id))}
-            >
-              Make default
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" onClick={() => onRenaming(!renaming)}>
-            {renaming ? "Done" : "Rename"}
-          </Button>
-          {bridge.deleteProfile && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy || Boolean(whyUndeletable(profile))}
-              {...(whyUndeletable(profile) ? { "aria-describedby": `profile-undeletable-${profile.id}` } : {})}
-              title={whyUndeletable(profile) ?? "Delete this profile and its cookies."}
-              className="text-destructive hover:text-destructive"
-              onClick={() => {
-                if (!window.confirm(confirmProfileDeletion(profile, profiles))) return;
-                act(() => bridge.deleteProfile!(profile.id));
-              }}
-            >
-              Delete
-            </Button>
-          )}
-        </div>
-      }
-    >
-      {bridge.deleteProfile && whyUndeletable(profile) && (
-        <p id={`profile-undeletable-${profile.id}`} className="mt-1 text-xs leading-snug text-muted-foreground/80">
-          {whyUndeletable(profile)}
         </p>
-      )}
-      {renaming && (
-        <form
-          className="mt-2 flex items-center gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const label = String(new FormData(event.currentTarget).get("label") ?? "");
-            const problem = profileNameProblem(label, profiles, profile.id);
-            if (problem) {
-              onError(problem);
-              return;
-            }
-            onRenaming(false);
-            act(() => bridge.updateProfile({ profileId: profile.id, label: label.trim() }));
-          }}
-        >
-          <Input name="label" defaultValue={profile.label} aria-label={`Rename ${profile.label}`} className="h-8 max-w-56" />
-          <Button type="submit" size="sm" variant="secondary">
-            Save
+        <p className="truncate text-xs text-muted-foreground">{describeProfileUse(profile)}</p>
+        {undeletable && (
+          <p id={`profile-undeletable-${profile.id}`} className="text-xs leading-snug text-muted-foreground/80">
+            {undeletable}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-1 text-xs leading-snug text-destructive">
+            {error}
+          </p>
+        )}
+        {renaming && (
+          <form
+            className="mt-2 flex items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const label = String(new FormData(event.currentTarget).get("label") ?? "");
+              const problem = profileNameProblem(label, profiles, profile.id);
+              if (problem) {
+                onError(problem);
+                return;
+              }
+              onRenaming(false);
+              act(() => bridge.updateProfile({ profileId: profile.id, label: label.trim() }));
+            }}
+          >
+            <Input name="label" defaultValue={profile.label} aria-label={`Rename ${profile.label}`} className="h-7 max-w-56" />
+            <Button type="submit" size="xs" variant="secondary">
+              Save
+            </Button>
+          </form>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-0.5">
+        {!profile.isDefault && (
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={busy}
+            title="Every project that has not picked a profile browses here from now on. Projects already assigned somewhere are not moved."
+            onClick={() => act(() => bridge.setDefaultProfile(profile.id))}
+          >
+            Make default
           </Button>
-        </form>
-      )}
-    </Row>
+        )}
+        <Button size="xs" variant="ghost" onClick={() => onRenaming(!renaming)}>
+          {renaming ? "Done" : "Rename"}
+        </Button>
+        {bridge.clearProfileData && (
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm(confirmProfileClear(profile))) return;
+              act(() => bridge.clearProfileData!(profile.id));
+            }}
+          >
+            Clear cookies and cache
+          </Button>
+        )}
+        {bridge.deleteProfile && (
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={busy || Boolean(undeletable)}
+            {...(undeletable ? { "aria-describedby": `profile-undeletable-${profile.id}` } : {})}
+            className="text-destructive hover:text-destructive"
+            onClick={() => {
+              if (!window.confirm(confirmProfileDeletion(profile, profiles))) return;
+              act(() => bridge.deleteProfile!(profile.id));
+            }}
+          >
+            Delete
+          </Button>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -177,27 +183,26 @@ export function BrowserProfilesRows() {
   };
 
   return (
-    <>
-      <Row
-        keywords={["cookies", "account", "sign in", "chrome", "profile", "default", "browser", "integrations"]}
-        label="Browser profiles"
-        hint="Each one is a separate set of cookies and logins for Telar's own browser."
-        {...(bridge && profiles === undefined && !error ? { status: <Spinner className="size-4" /> } : {})}
-        {...(error && !error.at ? { error: error.message } : {})}
-        control={
-          bridge ? (
-            <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
-              New profile
-            </Button>
-          ) : (
-            <Badge variant="outline">Desktop app only</Badge>
-          )
-        }
-      />
-      {bridge && (
-        <SettingsList label="Browser profiles">
-          {profiles?.map((profile) => (
-            <ProfileRow
+    <Row
+      keywords={["cookies", "cache", "clear", "account", "sign in", "chrome", "profile", "default", "browser", "integrations"]}
+      label="Browser profiles"
+      hint="Each one is a separate set of cookies and logins for Telar's own browser."
+      {...(bridge && profiles === undefined && !error ? { status: <Spinner className="size-4" /> } : {})}
+      {...(error && !error.at ? { error: error.message } : {})}
+      control={
+        bridge ? (
+          <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
+            New profile
+          </Button>
+        ) : (
+          <Badge variant="outline">Desktop app only</Badge>
+        )
+      }
+    >
+      {bridge && profiles && profiles.length > 0 && (
+        <ul aria-label="Browser profiles" className="mt-2">
+          {profiles.map((profile) => (
+            <ProfileItem
               key={profile.id}
               profile={profile}
               profiles={profiles}
@@ -210,107 +215,9 @@ export function BrowserProfilesRows() {
               act={(write) => void act(profile.id, write)}
             />
           ))}
-        </SettingsList>
+        </ul>
       )}
-      {bridge && (
-        <NewBrowserProfileDialog open={creating} onOpenChange={setCreating} existing={profiles ?? []} onCreated={() => void load()} />
-      )}
-    </>
-  );
-}
-
-export function SitePermissionsRows() {
-  const [profiles, setProfiles] = useState<SitePermissionProfile[]>();
-  const [error, setError] = useState<string>();
-  const [busy, setBusy] = useState<string>();
-  const bridge = desktopSitePermissions();
-  const supported = Boolean(bridge?.sitePermissions && bridge?.forgetSitePermission);
-
-  const load = useCallback(async () => {
-    const reader = desktopSitePermissions();
-    if (!reader?.sitePermissions) return;
-    try {
-      const answer = await reader.sitePermissions({});
-      setProfiles("profiles" in answer ? answer.profiles : []);
-      setError(undefined);
-    } catch {
-      setError("The desktop shell did not answer; its browser host may still be starting.");
-    }
-  }, []);
-
-  useEffect(() => {
-    const task = window.setTimeout(() => void load(), 0);
-    return () => window.clearTimeout(task);
-  }, [load]);
-
-  const forget = async (key: string, input: { partition: string; origin: string; kind?: SitePermissionKind }) => {
-    if (!bridge?.forgetSitePermission) return;
-    setBusy(key);
-    setError(undefined);
-    try {
-      setProfiles((await bridge.forgetSitePermission(input)).profiles);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "That permission could not be forgotten.");
-      await load();
-    } finally {
-      setBusy(undefined);
-    }
-  };
-
-  return (
-    <>
-      <Row
-        keywords={["camera", "microphone", "mic", "webcam", "notifications", "location", "geolocation", "clipboard", "screen share", "screen sharing", "permission", "permissions", "allow", "block", "revoke", "site"]}
-        label="Site permissions"
-        hint="Camera, microphone, notifications, location, clipboard and screen sharing, as you answered them."
-        {...(supported && profiles === undefined && !error ? { status: <Spinner className="size-4" /> } : {})}
-        {...(error ? { error } : {})}
-        {...(supported ? {} : { control: <Badge variant="outline">Desktop app only</Badge> })}
-      />
-      {profiles?.length === 0 && (
-        <Row label="Nothing decided yet" hint="Telar asks the first time a site wants something, over the browser's address bar." />
-      )}
-      <SettingsList label="Site permissions">
-        {profiles?.map((profile) =>
-          profile.origins.map((site) => (
-            <Row
-              key={`${profile.partition}:${site.origin}`}
-              id={`settings-row-site-permission-${profile.partition}-${site.origin}`}
-              label={<span className="truncate font-mono text-[0.75rem]">{siteLabel(site.origin)}</span>}
-              hint={`${profile.label} · ${site.kinds.map(describeSitePermission).join(", ")}`}
-              control={
-                <div className="flex items-center gap-1">
-                  {site.kinds.map((record) => (
-                    <button
-                      key={record.kind}
-                      type="button"
-                      disabled={busy === `${profile.partition}:${site.origin}`}
-                      aria-label={`Forget ${describeSitePermission(record)} for ${siteLabel(site.origin)} in ${profile.label}`}
-                      title={`${describeSitePermission(record)} — forget this answer. The site asks again next time.`}
-                      className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
-                      onClick={() =>
-                        void forget(`${profile.partition}:${site.origin}`, { partition: profile.partition, origin: site.origin, kind: record.kind })
-                      }
-                    >
-                      <PermissionKindIcon kind={record.kind} className={record.decision === "block" ? "opacity-50" : undefined} />
-                    </button>
-                  ))}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy === `${profile.partition}:${site.origin}`}
-                    title={`Forget every answer given to ${siteLabel(site.origin)} in ${profile.label}. Nothing is signed out; the site asks again next time.`}
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => void forget(`${profile.partition}:${site.origin}`, { partition: profile.partition, origin: site.origin })}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              }
-            />
-          )),
-        )}
-      </SettingsList>
-    </>
+      {bridge && <NewBrowserProfileDialog open={creating} onOpenChange={setCreating} existing={profiles ?? []} onCreated={() => void load()} />}
+    </Row>
   );
 }

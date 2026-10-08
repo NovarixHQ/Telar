@@ -11,15 +11,6 @@ export function canonicalJson(value: unknown): string {
   return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
 }
 
-export function canonicalServers<T extends { id: string; enabled?: boolean; spec: unknown }>(
-  servers: readonly T[] | undefined,
-): { id: string; enabled: boolean | undefined; spec: unknown }[] | null {
-  if (!servers) return null;
-  const byId = new Map<string, { id: string; enabled: boolean | undefined; spec: unknown }>();
-  for (const server of servers) byId.set(server.id, { id: server.id, enabled: server.enabled, spec: server.spec });
-  return [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-}
-
 export function resolveChildEnv(
   base: Record<string, string | undefined>,
   ...patches: (Record<string, string | undefined> | undefined)[]

@@ -1,4 +1,4 @@
-import type { AutoCompact, Item, McpServer, NotificationDetail, TaskSeed, TurnAttachment, RequestDecision, RequestDefault, RequestDetail, RequestKind, TurnObservation, UsageSnapshot, UserInputField } from "@telar/engine-client";
+import type { AutoCompact, ComputerUseServer, Item, NotificationDetail, TaskSeed, TurnAttachment, RequestDecision, RequestDefault, RequestDetail, RequestKind, TurnObservation, UsageSnapshot, UserInputField } from "@telar/engine-client";
 import type { SessionsCapability } from "../domains/sessions";
 import type { DriverCapabilities } from "./capabilities";
 import type { PromptsCapability } from "../domains/prompts";
@@ -50,7 +50,7 @@ export type DriverRun = {
   readOnly?: boolean;
   usageDiagnosis?: UsageDiagnosisCapability;
   attachments?: TurnAttachment[];
-  mcpServers?: McpServer[];
+  computerUse?: ComputerUseServer;
   env?: Record<string, string | undefined>;
   binaryPath?: string;
   extraArgs?: string[];

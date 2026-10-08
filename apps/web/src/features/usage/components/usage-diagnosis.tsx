@@ -29,7 +29,6 @@ const FIX_LABEL: Record<UsageDiagnosisReport["findings"][number]["fix"]["setting
   "generated-text-model": "Settings → General → Naming → Written by",
   compaction: "Settings → Providers → Compaction",
   schedules: "The session's schedule",
-  "mcp-servers": "Settings → Integrations → Agent tools",
   none: "Nothing in Telar",
 };
 

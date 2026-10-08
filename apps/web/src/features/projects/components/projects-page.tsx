@@ -19,7 +19,6 @@ import { ProjectModelOptionsRow } from "./model-options-row";
 import { ChooseProjectFolder } from "./choose-project-folder";
 import { ProjectIconPicker } from "./project-icon-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { McpServerRows } from "@/features/agent-tools";
 import { RemoveProjectRow } from "./remove-project-row";
 import { Dropdown, Row, Segmented, SettingsGroup } from "@/features/settings";
 import { ProjectWorkspaceSection } from "./workspace-config-section";
@@ -423,9 +422,6 @@ export function ProjectsPage() {
       {project && !project.hostId && (
         <>
           <ProjectWorkspaceSection key={project.id} projectId={project.id} />
-          <SettingsGroup title="Agent tools">
-            <McpServerRows scope={{ projectId: project.id, projectName: project.name }} />
-          </SettingsGroup>
         </>
       )}
 

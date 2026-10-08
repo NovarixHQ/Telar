@@ -142,13 +142,6 @@ class SitePermissionStore {
       .map((origin) => ({ origin, kinds: this.listOrigin(partition, origin) }))
       .filter((entry) => entry.kinds.length);
   }
-
-  all() {
-    return Object.keys(this.document.partitions)
-      .sort()
-      .map((partition) => ({ partition, origins: this.list(partition) }))
-      .filter((entry) => entry.origins.length);
-  }
 }
 
 function blankDocument() {

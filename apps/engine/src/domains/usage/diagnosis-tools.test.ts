@@ -34,7 +34,7 @@ test("a diagnosis claim runs in the engine's folder with nothing of the person's
   const { store, claim } = running("usage-diagnosis");
 
   expect(claim).toMatchObject({ readOnly: true, projectRoot: store.paths.root });
-  expect(claim.mcpServers).toBeUndefined();
+  expect(claim.computerUse).toBeUndefined();
   expect(claim.plugins).toBeUndefined();
   expect(claim.orientation).toBeUndefined();
 });

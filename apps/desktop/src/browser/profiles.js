@@ -1,6 +1,5 @@
 const { requireProjectKey } = require("./browser-profiles");
 const { pushCapped } = require("./render");
-const { PERMISSION_KINDS } = require("./site-permissions");
 
 module.exports = {
   declareProfile(scopeKey, projectKey) {
@@ -121,6 +120,12 @@ module.exports = {
     this.profiles.eraseData(removed.partition);
     this.persist();
     return { ...removed, sessions: scopes.size, tabs };
+  },
+
+  async clearProfileData(profileId) {
+    const ses = this.sessionFor(this.profiles.require(profileId).partition);
+    await ses.clearStorageData();
+    await ses.clearCache();
   },
 
   extensionHostFor(partition) {
@@ -253,30 +258,13 @@ module.exports = {
 
   scopeSitePermissions(scopeKey, origin) {
     const partition = this.partitionOf(scopeKey);
-    return origin
-      ? { partition, origin, kinds: this.sitePermissions.listOrigin(partition, origin) }
-      : { partition, origins: this.sitePermissions.list(partition) };
+    return { partition, origin, kinds: this.sitePermissions.listOrigin(partition, origin) };
   },
 
-  listSitePermissions() {
-    const labels = new Map(this.profiles.list().map((profile) => [profile.partition, profile]));
-    return {
-      kinds: PERMISSION_KINDS,
-      profiles: this.sitePermissions.all().map((entry) => ({
-        partition: entry.partition,
-
-        profileId: labels.get(entry.partition)?.id ?? null,
-        label: labels.get(entry.partition)?.label ?? entry.partition,
-        origins: entry.origins,
-      })),
-    };
-  },
-
-  forgetSitePermission({ partition, scopeKey, origin, kind } = {}) {
-    const jar = partition || this.partitionOf(scopeKey);
+  forgetSitePermission({ scopeKey, origin, kind } = {}) {
     if (!origin) throw new Error("Forgetting a site permission needs the origin it was given to.");
-    this.sitePermissions.forget(jar, origin, kind === undefined || kind === null ? undefined : kind);
-    return this.listSitePermissions();
+    this.sitePermissions.forget(this.partitionOf(scopeKey), origin, kind === undefined || kind === null ? undefined : kind);
+    return this.scopeSitePermissions(scopeKey, origin);
   },
 
   reportPermissionDenied(context) {

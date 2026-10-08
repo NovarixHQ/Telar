@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     createProfile: (input) => ipcRenderer.invoke("telar:browser:create-profile", input),
     updateProfile: (input) => ipcRenderer.invoke("telar:browser:update-profile", input),
     deleteProfile: (profileId) => ipcRenderer.invoke("telar:browser:delete-profile", { profileId }),
+    clearProfileData: (profileId) => ipcRenderer.invoke("telar:browser:clear-profile-data", { profileId }),
     setDefaultProfile: (profileId) => ipcRenderer.invoke("telar:browser:set-default-profile", { profileId }),
     assignProjectProfile: (input) => ipcRenderer.invoke("telar:browser:assign-project-profile", input),
     setScopeProfile: (scopeKey, profileId) => ipcRenderer.invoke("telar:browser:set-scope-profile", { scopeKey, profileId }),

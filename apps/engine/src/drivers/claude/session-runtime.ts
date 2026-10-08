@@ -51,8 +51,8 @@ export const buildRuntime = (ctx: RuntimeCtx): ClaudeSessionRuntime<ClaudeTurnBi
     : undefined;
 
   const mcpServers =
-    ctx.turn.userServers || telarServer || telarBrowserServer
-      ? { ...ctx.turn.userServers, ...telarBrowserServer, ...telarServer }
+    ctx.turn.computerUseServer || telarServer || telarBrowserServer
+      ? { ...ctx.turn.computerUseServer, ...telarBrowserServer, ...telarServer }
       : undefined;
 
   const feed = new MessageFeed();

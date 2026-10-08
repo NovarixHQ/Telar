@@ -26,7 +26,7 @@ const KIND_ICONS: Record<SitePermissionKind, LucideIcon> = {
   "display-capture": ScreenShareIcon,
 };
 
-export function PermissionKindIcon({ kind, className }: { kind: SitePermissionKind; className?: string }) {
+function PermissionKindIcon({ kind, className }: { kind: SitePermissionKind; className?: string }) {
   const Icon = KIND_ICONS[kind] ?? GlobeIcon;
   return <Icon aria-hidden className={cn("size-3.5", className)} />;
 }

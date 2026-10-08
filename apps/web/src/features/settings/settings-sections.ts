@@ -17,7 +17,7 @@ export const SECTIONS: SettingsSection[] = [
     icon: PlugIcon,
     keywords: ["login", "add a login", "account", "claude", "codex", "api key", "sign in", "auth", "provider"],
   },
-  { id: "integrations", label: "Integrations", icon: PlugZapIcon, keywords: ["mcp", "stdio", "sse", "http", "tool", "server", "add a server"] },
+  { id: "integrations", label: "Integrations", icon: PlugZapIcon, keywords: ["tool"] },
   {
     id: "plugins",
     label: "Plugins",

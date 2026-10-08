@@ -4,9 +4,7 @@ BrowserSnapshot,
 ClaudeConversation,
 ConversationImportDetail,DataScienceInstallCommand,
 DataScienceManager,
-DataSciencePackage,DataScienceRequirementsSource,LatexCompileStatus,LatexDiagnostic,LatexToolchain,McpOAuthStatus,
-McpServer,
-McpServerSpec,TurnAttachment,ProviderDriverKind,
+DataSciencePackage,DataScienceRequirementsSource,LatexCompileStatus,LatexDiagnostic,LatexToolchain,TurnAttachment,ProviderDriverKind,
 ProviderSkills,
 ProviderInstance,
 ProviderInstanceEnvVar,
@@ -181,47 +179,6 @@ export function integrationCalls(fetcher: Fetcher) {
      *  for a client with no native shell (a remote cockpit, a phone). */
     browserOpen: (sessionId: string, url: string) =>
       request<{ browser: BrowserSnapshot }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/browser/open`, { url }),
-    /** The MACHINE-WIDE MCP servers — the ones every project sees. A project's
-     *  own live under `projectMcpServers`, and the URL is what says which scope
-     *  a write lands in. */
-    mcpServers: () => request<{ mcpServers: McpServer[] }>(fetcher, "GET", "/api/mcp-servers"),
-    /** This project's servers, plus `effective` — the merge its sessions run
-     *  with, computed by the engine rather than re-derived here. */
-    projectMcpServers: (projectId: string) =>
-      request<{ mcpServers: McpServer[]; effective: McpServer[] }>(
-        fetcher,
-        "GET",
-        `/api/projects/${encodeURIComponent(projectId)}/mcp-servers`,
-      ),
-    saveMcpServer: (input: { id: string; projectId?: string; label?: string; enabled?: boolean; spec: McpServerSpec }) => {
-      const { projectId, ...rest } = input;
-      return request<{ mcpServer: McpServer }>(
-        fetcher,
-        "PUT",
-        projectId ? `/api/projects/${encodeURIComponent(projectId)}/mcp-servers` : "/api/mcp-servers",
-        rest,
-      );
-    },
-    mcpOAuthStatus: (projectId?: string) =>
-      request<{ statuses: McpOAuthStatus[] }>(
-        fetcher,
-        "GET",
-        projectId ? `/api/mcp/oauth?projectId=${encodeURIComponent(projectId)}` : "/api/mcp/oauth",
-      ),
-    /** Returns the URL to send the browser to. The redirect origin is decided by
-     *  the route from the request, never passed from here — it is the one field
-     *  in an OAuth flow that must not be client-chosen. */
-    connectMcpOAuth: (serverId: string, projectId?: string) =>
-      request<{ authorizationUrl: string }>(fetcher, "POST", "/api/mcp/oauth", {
-        serverId,
-        ...(projectId ? { projectId } : {}),
-      }),
-    disconnectMcpOAuth: (serverId: string, projectId?: string) =>
-      request<{ removed: boolean }>(fetcher, "POST", "/api/mcp/oauth", {
-        action: "disconnect",
-        serverId,
-        ...(projectId ? { projectId } : {}),
-      }),
     providerInstances: (options: { refresh?: boolean } = {}) =>
       request<{ providerInstances: ProviderInstance[]; probes: ProviderProbe[] }>(
         fetcher,

@@ -13,7 +13,7 @@ export const INDEX_FILE = "apps/web/src/features/settings/settings-index.generat
 // Rows that are a state the pane is in, not a setting.
 export const NOT_SETTINGS = new Set([
   "Also in play here", "Could not read plugins", "Could not save", "Desktop app only", "Detecting", "Did not start", "Loading", "No hubs configured",
-  "No other TeX install found", "No plugins registered", "No remembered logins", "No servers configured", "Nothing decided yet", "Nothing on trial",
+  "No other TeX install found", "No plugins registered", "Nothing on trial",
   "No update feed in this build", "None yet", "Not available here", "Pairing is off", "The engine did not answer",
 ]);
 

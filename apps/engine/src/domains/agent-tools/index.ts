@@ -2,9 +2,6 @@ export { createDisplayCapability, DISPLAY_BRIEFING, type DisplayCapability, disp
 export { PreviewRendering, type PreviewRenderer, type PreviewRequest } from "./display-preview";
 export { advertiseLeanSchemas, collectTools, connectCard, ensureSecretFile, handleSocketMessage, readSocketBody, type SocketTool, toolInputSchema } from "./mcp-socket";
 export { BUNDLED_SKILLS, ORCHESTRATE_SKILL, ORCHESTRATE_SKILL_NAME } from "./orchestrate-skill";
-export { mcpOAuthRoutes } from "./routes";
 export { collectTelarWall, type TelarCapabilities, type TelarSocketLease, TelarToolSocket, telarWall, toSdkTools } from "./telar-socket";
 export { clampLimit, err, failure, fillWithin, json, MAX_ANSWER_CHARS, ok, TELAR_TOOL_CALL_TIMEOUT_MS, type ToolFactory } from "./tool-kit";
-export { McpOAuthStore } from "./mcp-oauth-store";
-export { McpServers } from "./mcp-servers";
 export { mcpSocketRoute } from "./socket-routes";

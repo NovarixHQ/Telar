@@ -3,13 +3,12 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { ComputerUseStatus, McpServer } from "@telar/engine-client";
+import type { ComputerUseStatus } from "@telar/engine-client";
 import {
   bundledHelper,
-  claimHasComputerUse,
+  claimComputerUse,
   classifyProbeError,
   COMPUTER_USE_HELPER_BUNDLE_ID,
-  COMPUTER_USE_SERVER_ID,
   computerUseStatus,
   createComputerUseGate,
   ensureHelperDaemon,
@@ -23,7 +22,6 @@ import {
   revealComputerUseHelper,
   SETTINGS_PANE_URL,
   type HelperDeps,
-  withComputerUse,
   type ComputerUseProbe,
   type ResolvedComputerUse,
 } from "./gate";
@@ -44,15 +42,14 @@ describe("resolveComputerUse", () => {
   test("cua-driver resolves as a plain stdio `mcp` server", () => {
     const resolved = resolveComputerUse(cuaOnly());
     expect(resolved?.backend).toBe("cua");
-    expect(resolved?.server.id).toBe("mac");
-    expect(resolved?.server.spec).toEqual({ transport: "stdio", command: CUA_SYMLINK, args: ["mcp"] });
+    expect(resolved?.server).toEqual({ command: CUA_SYMLINK, args: ["mcp"] });
   });
 
   test("CUA_DRIVER_BIN overrides the search — a bundled app can point here", () => {
     const bundled = "/Applications/Telar.app/Contents/Resources/cua-driver";
     const resolved = resolveComputerUse(cuaOnly({ env: { CUA_DRIVER_BIN: bundled }, exists: (c: string) => c === bundled }));
     expect(resolved?.backend).toBe("cua");
-    expect(resolved?.server.spec.transport === "stdio" && resolved.server.spec.command).toBe(bundled);
+    expect(resolved?.server.command).toBe(bundled);
   });
 
   test("no driver, nothing — kill switch and platform guard too", () => {
@@ -72,8 +69,8 @@ describe("the helper bundled inside Telar.app", () => {
     expect(resolveComputerUse(bundled())?.helper?.binary).toBe(BINARY);
     const env = resolveComputerUse(cuaOnly({ env: { CUA_DRIVER_BIN: "/opt/cua-driver" }, exists: () => true }));
     expect(env?.helper).toBeUndefined();
-    expect(env?.server.spec.transport === "stdio" && env.server.spec.command).toBe("/opt/cua-driver");
-    expect(resolveComputerUse(cuaOnly())?.server.spec).toEqual({ transport: "stdio", command: CUA_SYMLINK, args: ["mcp"] });
+    expect(env?.server.command).toBe("/opt/cua-driver");
+    expect(resolveComputerUse(cuaOnly())?.server).toEqual({ command: CUA_SYMLINK, args: ["mcp"] });
   });
 
   test("a packaged Telar with a helper never falls back, even with cua installed and CUA_DRIVER_BIN set", () => {
@@ -95,9 +92,9 @@ describe("the helper bundled inside Telar.app", () => {
   });
 
   test("the MCP proxy talks to OUR socket and may never launch CuaDriver.app", () => {
-    const spec = resolveComputerUse(bundled())!.server.spec;
-    expect(spec.transport === "stdio" && spec.args).toEqual(["mcp", "--socket", bundledHelper(APP, HOME).socket]);
-    expect(spec.transport === "stdio" && spec.env?.CUA_DRIVER_EMBEDDED).toBe("1");
+    const spec = resolveComputerUse(bundled())!.server;
+    expect(spec.args).toEqual(["mcp", "--socket", bundledHelper(APP, HOME).socket]);
+    expect(spec.env?.CUA_DRIVER_EMBEDDED).toBe("1");
   });
 
   test("the daemon is launched through LaunchServices from the helper's own bundle, gate off, on our socket", () => {
@@ -457,7 +454,7 @@ describe("the claim gate — no working computer use, no tools", () => {
     const { gate } = gateAnswering(status("granted"));
     await gate.measure();
     expect(gate.forClaim()?.backend).toBe("cua");
-    expect(withComputerUse([], [], "claude", gate.forClaim()).map((s) => s.id)).toEqual([COMPUTER_USE_SERVER_ID]);
+    expect(claimComputerUse("claude", gate.forClaim())).toEqual(gate.forClaim()!.server);
   });
 
   test("anything but `granted` injects nothing", async () => {
@@ -466,16 +463,8 @@ describe("the claim gate — no working computer use, no tools", () => {
       const { gate } = gateAnswering(answer);
       await gate.measure();
       expect(gate.forClaim()).toBeUndefined();
-      expect(withComputerUse([], [], "claude", gate.forClaim())).toEqual([]);
+      expect(claimComputerUse("claude", gate.forClaim())).toBeUndefined();
     }
-  });
-
-  test("a user's own `mac` still wins over a granted gate — enabled or disabled", async () => {
-    const { gate } = gateAnswering(status("granted"));
-    await gate.measure();
-    const theirs: McpServer = { id: COMPUTER_USE_SERVER_ID, label: "theirs", enabled: true, spec: { transport: "stdio", command: "/bin/echo" }, createdAt: 0, updatedAt: 0 };
-    expect(withComputerUse([theirs], [theirs], "claude", gate.forClaim())).toEqual([theirs]);
-    expect(withComputerUse([], [{ ...theirs, enabled: false }], "claude", gate.forClaim())).toEqual([]);
   });
 
   test("concurrent measurements share one probe, stamped with the injected clock", async () => {
@@ -512,45 +501,16 @@ describe("the claim gate — no working computer use, no tools", () => {
   });
 });
 
-describe("withComputerUse — who gets it", () => {
+describe("claimComputerUse — who gets it", () => {
   const cua = resolveComputerUse(cuaOnly())!;
-  const user = (id: string, enabled = true): McpServer => ({
-    id,
-    label: id,
-    enabled,
-    spec: { transport: "stdio", command: "/bin/echo" },
-    createdAt: 0,
-    updatedAt: 0,
-  });
 
   test("it goes to every provider Telar drives", () => {
-    expect(withComputerUse([], [], "claude", cua).map((s) => s.id)).toEqual([COMPUTER_USE_SERVER_ID]);
-    expect(withComputerUse([], [], "opencode", cua).map((s) => s.id)).toEqual([COMPUTER_USE_SERVER_ID]);
+    for (const driver of ["claude", "codex", "opencode"]) expect(claimComputerUse(driver, cua)).toEqual(cua.server);
   });
 
-  test("Codex gets it too (#521)", () => {
-    expect(withComputerUse([], [], "codex", cua).map((s) => s.id)).toEqual([COMPUTER_USE_SERVER_ID]);
-  });
-
-  test("an uninstalled machine injects nothing, silently", () => {
-    expect(withComputerUse([user("linear")], [user("linear")], "claude", undefined).map((s) => s.id)).toEqual(["linear"]);
-  });
-
-  test("a user's own entry wins — including a DISABLED one", () => {
-    const theirs = user(COMPUTER_USE_SERVER_ID);
-    expect(withComputerUse([theirs], [theirs], "claude", cua)).toEqual([theirs]);
-    const disabled = user(COMPUTER_USE_SERVER_ID, false);
-    expect(withComputerUse([], [disabled], "opencode", cua)).toEqual([]);
-  });
-});
-
-describe("claimHasComputerUse — the Codex native-disable signal", () => {
-  const mac: McpServer = { id: COMPUTER_USE_SERVER_ID, label: "mac", enabled: true, spec: { transport: "stdio", command: "cua-driver", args: ["mcp"] }, createdAt: 0, updatedAt: 0 };
-  test("true only when Telar's own server is present", () => {
-    expect(claimHasComputerUse([mac])).toBe(true);
-    expect(claimHasComputerUse([{ ...mac, id: "linear" }])).toBe(false);
-    expect(claimHasComputerUse([])).toBe(false);
-    expect(claimHasComputerUse(undefined)).toBe(false);
+  test("an ACP agent and an uninstalled machine get nothing", () => {
+    expect(claimComputerUse("acp", cua)).toBeUndefined();
+    expect(claimComputerUse("claude", undefined)).toBeUndefined();
   });
 });
 

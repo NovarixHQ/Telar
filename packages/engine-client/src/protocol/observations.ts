@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { Artifact, McpServer } from "../agent-tools/schema";
+import { Artifact } from "../agent-tools/schema";
+import { ComputerUseServer } from "../computer-use/schema";
 import { ProviderInstance } from "../providers/schema";
 import {
   AgentModelChoice,
@@ -95,7 +96,7 @@ export const WorkerClaim = z.object({
   driver: ProviderDriverKind,
   providerInstanceId: ProviderInstanceId,
   model: ModelSelection.optional(),
-  mcpServers: z.array(McpServer).optional(),
+  computerUse: ComputerUseServer.optional(),
   plugins: z.array(z.string().min(1)).optional(),
   providerInstance: ProviderInstance.optional(),
   project: z.string().min(1).optional(),

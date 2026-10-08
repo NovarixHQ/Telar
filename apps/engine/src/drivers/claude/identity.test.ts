@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   canonicalEnvPatch,
   canonicalJson,
-  canonicalServers,
   changedFields,
   fieldDigests,
   resolveChildEnv,
@@ -24,18 +23,6 @@ describe("canonical identity", () => {
 
   test("array order IS identity — a command's arguments are a sequence, not a set", () => {
     expect(canonicalJson(["--port", "1"])).not.toBe(canonicalJson(["1", "--port"]));
-  });
-
-  test("servers are deduplicated last-wins then sorted, matching what the record downstream keeps", () => {
-    const listed = canonicalServers([
-      { id: "b", enabled: true, spec: { transport: "stdio", command: "b" } },
-      { id: "a", enabled: true, spec: { transport: "stdio", command: "first" } },
-      { id: "a", enabled: true, spec: { transport: "stdio", command: "last" } },
-    ]);
-    expect(listed?.map((server) => server.id)).toEqual(["a", "b"]);
-    expect(listed?.[0]?.spec).toMatchObject({ command: "last" });
-    expect(canonicalServers(undefined)).toBeNull();
-    expect(canonicalServers([])).toEqual([]);
   });
 
   test("resolveChildEnv DELETES a key the patch maps to undefined, rather than leaving it present", () => {

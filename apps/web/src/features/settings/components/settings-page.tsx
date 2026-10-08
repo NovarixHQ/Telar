@@ -20,8 +20,7 @@ const AppearanceSection = dynamic(() => import("@/features/appearance/components
 const RailSection = dynamic(() => import("@/features/sessions/components/rail-section").then((mod) => mod.RailSection), { loading: SectionSkeleton });
 const ContinueAfterRestartRow = dynamic(() => import("@/features/sessions/components/rail-section").then((mod) => mod.ContinueAfterRestartRow));
 const DictationRows = dynamic(() => import("@/features/dictation/components/dictation-section").then((mod) => mod.DictationRows));
-const McpServerRows = dynamic(() => import("@/features/agent-tools/components/mcp-section").then((mod) => mod.McpServerRows));
-const SimulatorsRow = dynamic(() => import("@/features/simulators/components/simulators-section").then((mod) => mod.SimulatorsRow));
+const SimulatorsRows = dynamic(() => import("@/features/simulators/components/simulators-section").then((mod) => mod.SimulatorsRows));
 const OrientationRow = dynamic(() => import("@/features/agent-tools/components/orientation-section").then((mod) => mod.OrientationRow));
 const BrowserGroup = dynamic(() => import("@/features/browser/panes/browser-group").then((mod) => mod.BrowserGroup), { loading: SectionSkeleton });
 const KeybindingsPage = dynamic(() => import("@/features/commands/components/keybindings-page").then((mod) => mod.KeybindingsPage), { loading: SectionSkeleton });
@@ -109,12 +108,11 @@ export function SettingsPage() {
         <Suspense fallback={<SettingsSkeleton />}>
           <BrowserGroup />
           <SettingsGroup title="Simulators">
-            <SimulatorsRow />
-            <ComputerUseRow />
+            <SimulatorsRows />
           </SettingsGroup>
           <SettingsGroup title="Agent tools">
             <OrientationRow />
-            <McpServerRows />
+            <ComputerUseRow />
           </SettingsGroup>
           <SettingsGroup title="Voice" scope="mac">
             <DictationRows />

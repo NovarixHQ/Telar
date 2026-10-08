@@ -69,22 +69,6 @@ export type SecretCandidate = z.infer<typeof SecretCandidate>;
 export const SecretFieldKind = z.enum(["username", "password", "otp", "field"]);
 export type SecretFieldKind = z.infer<typeof SecretFieldKind>;
 
-export const RememberedLogin = z.object({
-  id: z.string().min(1),
-  profileId: z.string().min(1),
-  profileLabel: z.string().optional(),
-  /** The exact origin, scheme included. A grant for one says nothing about
-   *  another host of the same registrable domain. */
-  origin: z.string().min(1),
-  itemId: z.string().min(1),
-  itemTitle: z.string().min(1),
-  vault: z.string().optional(),
-  fields: z.array(z.object({ kind: SecretFieldKind, label: z.string().optional() })).min(1),
-  createdAt: z.number(),
-  lastUsedAt: z.number().optional(),
-});
-export type RememberedLogin = z.infer<typeof RememberedLogin>;
-
 /**
  * What a `secret_access` request shows the human: where the fill lands, which
  * kinds of values are wanted, and which items qualify. The human's pick comes

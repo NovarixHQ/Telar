@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 import { isBackgroundWork, claudeCompactionEnv, type ItemDetail, type TaskSeed } from "@telar/engine-client";
 import { claudeEffortFor, claudeWindowTokensOf, requireCli, withClaudeSettingsEnv } from "../../domains/providers";
-import { canonicalEnvPatch, canonicalJson, canonicalServers, changedFields, fieldDigest, fieldDigests, resolveChildEnv } from "./identity";
+import { canonicalEnvPatch, canonicalJson, changedFields, fieldDigest, fieldDigests, resolveChildEnv } from "./identity";
 import { ClaudeRuntimeStore, IDLE_RUNTIME_MS, UNATTENDED_BACKGROUND_WORK_MS } from "./runtime";
 import { framedSteerText } from "../../domains/turns";
 import { ProviderUnavailableError, requireCwd, type DriverResult, type DriverRun, type TurnDriver } from "../contract";
-import { claudeInitialContent, claudeNotificationOrigin, claudeNotificationContent, claudeStreamingInputEnabled, claudeMcpServers, claudeContextEnvForModel, claudeToolSearchEnv, SESSION_STATE_ENV, claudeWindowOf, selectedContextMaxFromModel, claudeEffort, type ClaudeTurnBindings, type ClaudeSdk } from "./sdk";
+import { claudeInitialContent, claudeNotificationOrigin, claudeNotificationContent, claudeStreamingInputEnabled, claudeComputerUse, claudeContextEnvForModel, claudeToolSearchEnv, SESSION_STATE_ENV, claudeWindowOf, selectedContextMaxFromModel, claudeEffort, type ClaudeTurnBindings, type ClaudeSdk } from "./sdk";
 import { str } from "./mapping";
 import { isTerminalTaskState } from "./tasks";
 import { providerWaitFrom, RateLimitedError, PROVIDER_SILENCE_MS, END_TURN_GRACE_MS } from "./limits";
@@ -101,7 +101,7 @@ type DriverDeps = {
 type TurnScope = Awaited<ReturnType<typeof openTurn>>;
 
 async function openTurn(deps: DriverDeps, input: DriverRun) {
-  const { prompt, notification, sessionId, cwd: claimedCwd, model, effort, fastMode, ultracode, attachments, mcpServers: userMcpServers, autoCompact, onObservations, onRequest, providerSessionId, browserSocket, tasks: seededTasks, session: sessionHooks } = input;
+  const { prompt, notification, sessionId, cwd: claimedCwd, model, effort, fastMode, ultracode, attachments, computerUse, autoCompact, onObservations, onRequest, providerSessionId, browserSocket, tasks: seededTasks, session: sessionHooks } = input;
   const { loadSdk, providerSilenceMs, backgroundClaimLingerMs, runtimes } = deps;
   const turn = {} as TurnState;
   const { flush, flushSoon, emit } = createEmitter(turn);
@@ -118,7 +118,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
   turn.cwd = requireCwd(claimedCwd, "Claude Code");
   // The manifest maps an effort a model runs under another name (Opus 4.7: xhigh → max).
   turn.sdkEffort = claudeEffort(claudeEffortFor(model, effort));
-  turn.userServers = claudeMcpServers(userMcpServers);
+  turn.computerUseServer = claudeComputerUse(computerUse);
   turn.contextEnv = claudeContextEnvForModel(model);
   // The login's per-class limit (#587), for the window this model runs.
   // After the login's own patch, so the setting beats a stale row.
@@ -195,7 +195,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
 
 // The query options and the reuse fingerprint are computed together so they cannot disagree.
 function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void {
-  const { signal, fastMode, ultracode, mcpServers: userMcpServers, env, binaryPath, extraArgs, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, prompts, display, simulators, usageDiagnosis } = input;
+  const { signal, fastMode, ultracode, computerUse, env, binaryPath, extraArgs, providerInstanceId, browserSocket, orientation, mainBriefing, run, plugins, sessions, prompts, display, simulators, usageDiagnosis } = input;
   const { resolveExecutable } = deps;
   /** The `claude` binary this turn runs on, resolved once: the query below
    *  takes it as `pathToClaudeCodeExecutable`, and the fingerprint records
@@ -230,7 +230,7 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     ultracode: ultracode ?? null,
     executable: turn.executable ?? null,
     extraArgs: extraArgs ?? null,
-    servers: canonicalServers(userMcpServers),
+    computerUse: computerUse ?? null,
     browser: browserSocket ?? null,
     sessions: Boolean(sessions),
     // The toolkits are baked into the query at creation, so a project-less

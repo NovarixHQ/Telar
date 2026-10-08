@@ -143,7 +143,7 @@ describe("what the pane shows before anybody has chosen", () => {
 
     expect(host.textContent).toContain("Provider");
     // No credential is asked for until somebody says whose it would be.
-    expect(host.querySelector('input[aria-label="Service key"]')).toBeNull();
+    expect(host.querySelector('input[aria-label="Deepgram API key"]')).toBeNull();
     // And Off explains itself: no hint under it, no ⓘ beside it.
     expect(host.textContent).not.toContain("mic button");
     expect(infos(host)).toBe("");
@@ -156,7 +156,7 @@ describe("what the pane shows before anybody has chosen", () => {
 
   test("the provider trigger reads the provider's name, not its id (#318)", async () => {
     const { host, unmount } = await pane({ provider: "deepgram", configured: true, language: "multi", languages: [] });
-    expect(host.querySelector('[aria-label="Dictation provider"] [data-slot="select-value"]')?.textContent).toBe("Cloud service");
+    expect(host.querySelector('[aria-label="Dictation provider"] [data-slot="select-value"]')?.textContent).toBe("Deepgram");
     await unmount();
   });
 

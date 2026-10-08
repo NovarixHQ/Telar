@@ -171,18 +171,11 @@ test("a model id with no connection prefix is REFUSED, not silently defaulted", 
   expect(f.calls.some((call) => call.path.endsWith("/prompt_async"))).toBe(false);
 });
 
-const macServer = {
-  id: "mac",
-  label: "Computer Use (Mac)",
-  enabled: true,
-  spec: { transport: "stdio" as const, command: "/Users/tester/.local/bin/cua-driver", args: ["mcp"] },
-  createdAt: 0,
-  updatedAt: 0,
-};
+const macServer = { command: "/Users/tester/.local/bin/cua-driver", args: ["mcp"] };
 
 test("the computer-use server is registered with the running OpenCode server, not just configured", async () => {
   const f = fixture();
-  await f.driver.run({ ...f.input, mcpServers: [macServer] });
+  await f.driver.run({ ...f.input, computerUse: macServer });
   expect(f.calls.find((call) => call.path === "/mcp")?.body).toEqual({
     name: "mac",
     config: { type: "local", command: ["/Users/tester/.local/bin/cua-driver", "mcp"] },
@@ -192,8 +185,8 @@ test("the computer-use server is registered with the running OpenCode server, no
 
 test("a server that will not register costs its tools, not the turn", async () => {
   const f = fixture({ mcpAddFails: true });
-  expect((await f.driver.run({ ...f.input, mcpServers: [macServer] })).text).toBe("Hello");
-  await f.driver.run({ ...f.input, runId: "run_two", mcpServers: [macServer] });
+  expect((await f.driver.run({ ...f.input, computerUse: macServer })).text).toBe("Hello");
+  await f.driver.run({ ...f.input, runId: "run_two", computerUse: macServer });
   expect(f.calls.filter((call) => call.path === "/mcp")).toHaveLength(2);
   f.driver.dispose?.();
 });

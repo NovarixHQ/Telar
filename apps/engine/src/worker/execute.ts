@@ -194,7 +194,7 @@ function driverRun(
     ...(model?.serviceTier ? { serviceTier: model.serviceTier } : {}),
     ...(model?.ultracode === undefined ? {} : { ultracode: model.ultracode }),
     ...(claim.turn.attachments?.length ? { attachments: claim.turn.attachments.map(webImageOf) } : {}),
-    ...(claim.mcpServers?.length ? { mcpServers: claim.mcpServers } : {}),
+    ...(claim.computerUse ? { computerUse: claim.computerUse } : {}),
     ...(claim.tasks?.length ? { tasks: claim.tasks } : {}),
     ...(claim.orientation ? { orientation: claim.orientation } : {}),
     ...(claim.readOnly ? { readOnly: true } : {}),

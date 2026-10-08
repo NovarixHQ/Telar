@@ -343,7 +343,7 @@ describe("the pane", () => {
     const view = await mount(<ProjectsPage />);
     expect(view.scope()).toBe("All projects");
     expect(view.host.textContent).toContain("Which of this computer's plugins this project has opted into.");
-    expect(view.host.textContent).not.toContain("Only this project's sessions see these.");
+    expect(view.host.textContent).not.toContain("Remove project from Telar");
     await press(view.trigger());
     expect(options()).toEqual(["All projects", "Telar", "Other"]);
     view.done();
@@ -365,7 +365,6 @@ describe("the pane", () => {
   test("a named local project gets its own groups and the plugin list", async () => {
     const view = await mount(<ProjectsPage />);
     const text = view.host.textContent ?? "";
-    expect(text).toContain("Only this project's sessions see these.");
     expect(text).toContain("Remove project from Telar");
     expect(text).toContain("Which of this computer's plugins this project has opted into.");
     view.done();
@@ -421,7 +420,7 @@ describe("the pane", () => {
     expect(view.scope()).toBe("Far");
     expect(view.host.textContent).toContain("Registered on mini");
     expect(view.host.textContent).toContain("Which of this computer's plugins this project has opted into.");
-    expect(view.host.textContent).not.toContain("Only this project's sessions see these.");
+    expect(view.host.textContent).not.toContain("Remove project from Telar");
 
     await rename(view.host.querySelector<HTMLInputElement>('[aria-label="Project name"]')!, "Near");
     expect(calls.some((call) => call.method === "PATCH")).toBe(false);

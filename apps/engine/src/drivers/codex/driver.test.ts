@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { AutoCompact } from "@telar/engine-client";
 import { ProviderUnavailableError } from "../contract";
 import { SteerMailbox } from "../../domains/turns";
-import { clearWire, completed, deltas, mcp, PEER, runTurn, scratchPath, sent, started, useFakeCodex, wire } from "../../../test/codex-harness";
+import { clearWire, completed, deltas, PEER, runTurn, scratchPath, sent, started, useFakeCodex, wire } from "../../../test/codex-harness";
 
 useFakeCodex();
 
@@ -97,25 +97,9 @@ test("Never and Default write nothing, and read no catalog", async () => {
   expect(reads).toBe(0);
 });
 
-test("the user's MCP servers ride thread/start's config overlay", async () => {
-  await runTurn("plain", {
-    mcpServers: [
-      mcp("local", { transport: "stdio", command: "node", args: ["server.js"], env: { TOKEN: "x" } }),
-      mcp("linear", { transport: "http", url: "https://mcp.linear.app/mcp", headers: { Authorization: "Bearer managed" } }),
-    ],
-  }).result;
-
-  expect(sent("thread/start").config).toEqual({
-    mcp_servers: {
-      local: { command: "node", args: ["server.js"], env: { TOKEN: "x" } },
-      linear: { url: "https://mcp.linear.app/mcp", http_headers: { Authorization: "Bearer managed" } },
-    },
-  });
-});
-
 test("Telar's own computer use turns off Codex's native one — for this thread only", async () => {
   await runTurn("plain", {
-    mcpServers: [mcp("mac", { transport: "stdio", command: "/usr/local/bin/cua-driver", args: ["mcp"] })],
+    computerUse: { command: "/usr/local/bin/cua-driver", args: ["mcp"] },
   }).result;
 
   expect(sent("thread/start").config).toEqual({
@@ -124,24 +108,20 @@ test("Telar's own computer use turns off Codex's native one — for this thread 
   });
 });
 
-test("a claim WITHOUT the mac server leaves Codex's native computer use alone", async () => {
-  await runTurn("plain", {
-    mcpServers: [mcp("linear", { transport: "http", url: "https://mcp.linear.app/mcp" })],
-  }).result;
+test("a claim WITHOUT computer use leaves Codex's native computer use alone", async () => {
+  await runTurn("plain", { browserSocket: { url: "http://127.0.0.1:1234/v2/browser/mcp", token: "tok" } }).result;
   const config = sent("thread/start").config as { features?: unknown };
   expect(config.features).toBeUndefined();
 });
 
-test("the browser socket rides the SAME overlay, Telar last, and the token never touches argv", async () => {
+test("the browser socket rides the config overlay, and the token never touches argv", async () => {
   const lease = { url: "http://127.0.0.1:1234/v2/browser/mcp", token: "tok_secret_abc" };
   await runTurn("plain", {
     browserSocket: lease,
-    mcpServers: [mcp("linear", { transport: "http", url: "https://mcp.linear.app/mcp", headers: { Authorization: "Bearer managed" } })],
   }).result;
 
   expect(sent("thread/start").config).toEqual({
     mcp_servers: {
-      linear: { url: "https://mcp.linear.app/mcp", http_headers: { Authorization: "Bearer managed" } },
       "telar-browser": { url: lease.url, http_headers: { Authorization: "Bearer tok_secret_abc" } },
     },
   });

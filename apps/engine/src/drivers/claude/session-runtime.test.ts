@@ -225,7 +225,7 @@ describe("the session runtime", () => {
   });
 });
 
-  test("a re-stamped MCP server record does not cold-start the process — only id and spec are identity", async () => {
+  test("an unchanged computer-use server reuses the process; a changed one cold-starts it", async () => {
     let queryCalls = 0;
     const driver = createClaudeDriver(async () => ({
       async *query({ prompt }: { prompt: AsyncIterable<unknown> }) {
@@ -236,17 +236,10 @@ describe("the session runtime", () => {
         }
       },
     }) as never);
-    const serverAt = (at: number) => [
-      { id: "mac", label: "Computer Use (Mac)", enabled: true, createdAt: at, updatedAt: at, spec: { transport: "stdio", command: "cua", args: ["mcp"] } },
-    ];
-    await run(driver, { sessionId: "session_stamped", mcpServers: serverAt(1) }).result;
-    await run(driver, { sessionId: "session_stamped", mcpServers: serverAt(2) }).result;
+    await run(driver, { sessionId: "session_stamped", computerUse: { command: "cua", args: ["mcp"] } }).result;
+    await run(driver, { sessionId: "session_stamped", computerUse: { command: "cua", args: ["mcp"] } }).result;
     expect(queryCalls).toBe(1);
-    // A change to the SPEC is real identity and still recreates.
-    await run(driver, {
-      sessionId: "session_stamped",
-      mcpServers: [{ id: "mac", label: "Computer Use (Mac)", enabled: true, createdAt: 3, updatedAt: 3, spec: { transport: "stdio", command: "elsewhere", args: ["mcp"] } }],
-    }).result;
+    await run(driver, { sessionId: "session_stamped", computerUse: { command: "elsewhere", args: ["mcp"] } }).result;
     expect(queryCalls).toBe(2);
   });
 
@@ -369,7 +362,7 @@ describe("the session runtime", () => {
     expect(ended).toEqual(["query_1"]);
   });
 
-  test("an env patch reordered but unchanged reuses the process; a reordered server list does too", async () => {
+  test("an env patch reordered but unchanged reuses the process", async () => {
     let queryCalls = 0;
     const driver = createClaudeDriver(async () => ({
       async *query({ prompt }: { prompt: AsyncIterable<unknown> }) {
@@ -380,16 +373,13 @@ describe("the session runtime", () => {
         }
       },
     }) as never);
-    const server = (id: string) => ({ id, label: id, enabled: true, createdAt: 1, updatedAt: 1, spec: { transport: "stdio", command: id, args: ["mcp"] } });
     await run(driver, {
       sessionId: "session_ordered",
       env: { CLAUDE_CONFIG_DIR: "/tmp/cfg", ANTHROPIC_BASE_URL: "http://127.0.0.1:8317" },
-      mcpServers: [server("alpha"), server("beta")],
     }).result;
     await run(driver, {
       sessionId: "session_ordered",
       env: { ANTHROPIC_BASE_URL: "http://127.0.0.1:8317", CLAUDE_CONFIG_DIR: "/tmp/cfg" },
-      mcpServers: [server("beta"), server("alpha")],
     }).result;
     expect(queryCalls).toBe(1);
   });

@@ -57,7 +57,6 @@ export async function usageDigestFor(store: EngineStore, exclude?: (sessionId: s
       generatedTextModel: textGen.model ?? "default",
       generatedTextEffort: textGen.effort ?? "default",
       orientation: store.settings.orientation().preamble,
-      mcpServers: store.mcpServers.list().filter((server) => server.enabled).length,
       projects: projects.size,
     },
   });

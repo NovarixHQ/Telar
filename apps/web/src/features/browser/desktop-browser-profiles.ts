@@ -28,6 +28,7 @@ export type BrowserProfilesBridge = {
   updateProfile: (input: { profileId: string; label?: string; account?: string; icon?: string | null; color?: string | null }) => Promise<{ profiles: BrowserProfile[] }>;
   setDefaultProfile: (profileId: string) => Promise<{ profiles: BrowserProfile[] }>;
   deleteProfile?: (profileId: string) => Promise<{ profiles: BrowserProfile[] }>;
+  clearProfileData?: (profileId: string) => Promise<{ profiles: BrowserProfile[] }>;
 };
 
 export function desktopBrowserProfiles(): BrowserProfilesBridge | undefined {
@@ -60,6 +61,10 @@ export function confirmProfileDeletion(profile: BrowserProfile, profiles: Browse
   ].filter(Boolean);
   const moved = users.length ? ` ${users.join(" and ")} will use ${fallback ? `"${fallback}"` : "the default"} instead.` : "";
   return `Delete "${profile.label}"?${moved} Its cookies and site data are deleted.`;
+}
+
+export function confirmProfileClear(profile: BrowserProfile): string {
+  return `Clear cookies and cache for "${profile.label}"? Every site in it signs you out.`;
 }
 
 export function profileNameProblem(label: string, existing: BrowserProfile[], ignoreId?: string): string | undefined {

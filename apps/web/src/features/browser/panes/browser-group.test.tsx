@@ -54,18 +54,37 @@ test("a profile name is required and may not repeat another", () => {
   expect(profileNameProblem("Personal", [profile()])).toBeUndefined();
 });
 
-test("a browser tab says profiles and site permissions are desktop-only rather than offering dead controls", () => {
+test("a browser tab says profiles are desktop-only rather than offering dead controls", () => {
   const html = renderToStaticMarkup(<BrowserGroup />);
-  expect(html.match(/Desktop app only/g)).toHaveLength(2);
+  expect(html.match(/Desktop app only/g)).toHaveLength(1);
   expect(html).not.toContain("New profile");
 });
 
-test("the Browser group is one section: links, profiles, then remembered logins, then site permissions", () => {
+test("the Browser group is one section: links, then profiles, with no list of logins or site answers", () => {
   const html = renderToStaticMarkup(<BrowserGroup />);
   expect(html.match(/<section/g)).toHaveLength(1);
-  const order = ["Open in the session&#x27;s browser", "Browser profiles", "Remembered logins", "Site permissions"].map((text) => html.indexOf(text));
-  expect(order.every((at) => at > -1)).toBe(true);
-  expect(order).toEqual([...order].sort((a, b) => a - b));
+  expect(html.indexOf("Open in the session&#x27;s browser")).toBeLessThan(html.indexOf("Browser profiles"));
+  expect(html).not.toContain("Remembered logins");
+  expect(html).not.toContain("Site permissions");
+});
+
+test("profiles sit as a list inside the Browser profiles row", async () => {
+  const host = await mountSection([profile(), profile({ id: "bp_b", label: "Spare" })]);
+  const list = host.querySelector('ul[aria-label="Browser profiles"]')!;
+  expect(list.closest("div.flex-wrap")?.textContent).toContain("Each one is a separate set of cookies");
+  expect([...list.querySelectorAll("li")].map((item) => item.querySelector("p span")?.textContent)).toEqual(["Work", "Spare"]);
+});
+
+test("Clear cookies and cache asks first, then clears that profile alone", async () => {
+  const cleared: string[] = [];
+  const asked: string[] = [];
+  window.confirm = (message?: string) => (asked.push(String(message)), true);
+  const host = await mountSection([profile()], {
+    clearProfileData: async (id: string) => (cleared.push(id), { profiles: [profile()] }),
+  });
+  await click(buttonLabelled("Clear cookies and cache", host)!);
+  expect(asked).toEqual(['Clear cookies and cache for "Work"? Every site in it signs you out.']);
+  expect(cleared).toEqual(["bp_0123456789abcdef"]);
 });
 
 test("a shell without a delete handler offers no Delete button", async () => {

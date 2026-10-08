@@ -14,7 +14,8 @@ test("no two rows claim the same anchor", () => {
   const ids = SETTINGS_SEARCH_INDEX.entries.map((entry) => entry.id);
   expect(new Set(ids).size).toBe(ids.length);
   expect(ids).toContain("settings-row-general-about-version");
-  expect(ids).toContain("settings-row-integrations-simulators-computer-use");
+  expect(ids).toContain("settings-row-integrations-agent-tools-computer-use");
+  expect(ids).toContain("settings-row-integrations-simulators-agent-device-access");
 });
 
 test("the questions a person actually types find the row", () => {
@@ -26,7 +27,7 @@ test("the questions a person actually types find the row", () => {
   expect(searchSettings(SETTINGS_SEARCH_INDEX, "worktree").map((hit) => hit.title)).toContain("Workspace");
   // A symptom, not a destination.
   expect(first("disk space")).toBe("Remove worktrees");
-  expect(searchSettings(SETTINGS_SEARCH_INDEX, "1password").slice(0, 3).map((hit) => hit.title)).toContain("Remembered logins");
+  expect(searchSettings(SETTINGS_SEARCH_INDEX, "1password").slice(0, 3).map((hit) => hit.title)).toContain("Use a password manager in the browser");
   expect(first("cookies")).toBe("Browser profiles");
   // Half-remembered, and in the wrong number.
   expect(first("name session")).toBe("Name sessions");
@@ -35,9 +36,8 @@ test("the questions a person actually types find the row", () => {
 
 test("every indexed row is declared on the pane that actually renders it", () => {
   const paneOf: Record<string, string> = {
-    "Remembered logins": "integrations",
+    "Device hub": "integrations",
     "Browser profiles": "integrations",
-    "Tool servers": "integrations",
     "Add a computer": "connections",
     "Name branches": "general",
     "Terminals settled sessions may keep open": "general",

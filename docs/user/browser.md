@@ -24,6 +24,7 @@ A profile is a separate set of cookies, storage and logins. Use one per account 
 - Create profiles from the browser's profile picker or in Settings → Integrations. Each needs a name, and can get an icon and a colour so you can tell them apart in the toolbar.
 - Changing the default moves every project that hasn't picked its own.
 - Deleting a profile sends its projects back to the default, and their tabs reopen signed out.
+- Clear cookies and cache, on a profile's row in Settings → Integrations, signs that profile out of every site and keeps the profile.
 
 ## Filling logins from 1Password
 
@@ -31,7 +32,7 @@ An agent can ask to sign in to a site with a login from your 1Password. Telar sh
 
 This needs the 1Password CLI, with "Integrate with 1Password CLI" turned on in the 1Password app's Developer settings. 1Password asks you to unlock as usual.
 
-The request has an unticked box to let agents use that login again without asking. It covers only that login, in that profile, on that exact address. Settings → Integrations → Remembered logins lists these and lets you revoke each one. Telar can also ask after you sign in yourself; that offer is off until you turn on "Offer to remember after you sign in" there.
+The request has an unticked box to let agents use that login again without asking. It covers only that login, in that profile, on that exact address. Telar can also ask after you sign in yourself; that offer is off until you turn on "Offer to remember after you sign in" there.
 
 Settings → Integrations → "Use a password manager in the browser" turns all of this off: no extension is loaded, the toolbar button, the strip below and the remember offers disappear, and `browser_fill_secret` tells the agent the setting is off. It starts on only if the 1Password app is installed. Turning it off applies to filling and the browser's buttons at once; browsers already open keep the extension loaded until Telar restarts.
 
@@ -53,7 +54,7 @@ Use the pen to mark up what you see. Telar freezes the page and gives you a rect
 
 ## Site permissions
 
-The first time a site wants the camera, microphone, notifications, location, the clipboard or screen sharing, Telar asks from the address bar. Settings → Integrations → Site permissions lists your answers so you can change them.
+The first time a site wants the camera, microphone, notifications, location, the clipboard or screen sharing, Telar asks from the address bar. The site-permissions button in the address bar shows that site's answers so you can change them.
 
 ## What's not obvious
 

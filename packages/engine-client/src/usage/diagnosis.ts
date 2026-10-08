@@ -72,7 +72,6 @@ export const USAGE_FIX_SETTINGS = [
   "generated-text-model",
   "compaction",
   "schedules",
-  "mcp-servers",
   "none",
 ] as const;
 

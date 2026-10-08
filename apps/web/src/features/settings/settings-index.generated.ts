@@ -57,24 +57,22 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "integrations", groups: [
     { "title":"Browser", rows: [
       {"title":"Open in the session's browser","keywords":["external","system browser","tabs","links"]},
-      {"title":"Browser profiles","hint":"Each one is a separate set of cookies and logins for Telar's own browser.","keywords":["cookies","account","sign in","chrome","profile","default","browser","integrations"]},
+      {"title":"Browser profiles","hint":"Each one is a separate set of cookies and logins for Telar's own browser.","keywords":["cookies","cache","clear","account","sign in","chrome","profile","default","browser","integrations"]},
       {"title":"Offer to remember after you sign in","hint":"After you type a login in Telar's browser, ask whether agents may reuse it.","keywords":["1password","save login","remember","offer","prompt","password"]},
       {"title":"Use a password manager in the browser","hint":"Lets Telar's browser and agents fill logins from your password manager.","keywords":["1password","extension","autofill","disable","off","credential","integrations"]},
-      {"title":"Remembered logins","hint":"Logins you allowed agents to fill without asking again.","keywords":["1password","password","credential","autofill","revoke","vault","integrations"]},
-      {"title":"Site permissions","hint":"Camera, microphone, notifications, location, clipboard and screen sharing, as you answered them.","keywords":["camera","microphone","mic","webcam","notifications","location","geolocation","clipboard","screen share","screen sharing","permission","permissions","allow","block","revoke","site"]},
     ] },
     { "title":"Simulators", rows: [
-      {"title":"Simulators","hint":"Who may list, start and use the simulators on this Mac.","keywords":["simulator","emulator","iphone","ios","android","device","xcode","agent","agent-device","tap","automation"]},
-      {"title":"Computer use","keywords":["cua","driver","automation","engine","access","permission","privacy","accessibility","screen recording","grant"]},
+      {"title":"Device hub","hint":"Enable this Mac to open its simulators and emulators.","keywords":["simulator","emulator","iphone","ios","android","device","xcode","hub","install","enable"]},
+      {"title":"Agent device access","hint":"Allow new agent sessions to start and control this Mac's simulators and emulators, with the tools they need set up automatically.","keywords":["simulator","emulator","device","agent","agent-device","tap","automation","access","control"]},
     ] },
     { "title":"Agent tools", rows: [
       {"title":"Tell agents they are inside Telar","hint":"A paragraph each turn and a skill file for each provider, so agents read Telar's words the way you mean them.","keywords":["orientation","preamble","system prompt","prompt","context","skill","SKILL.md","instructions","telar","show the text"]},
-      {"title":"Tool servers","keywords":["mcp","server","servers","tools","machine-wide","stdio","http","sse","sign in","oauth"]},
+      {"title":"Computer use","keywords":["cua","driver","automation","engine","access","permission","privacy","accessibility","screen recording","grant"]},
     ] },
     { "title":"Voice", rows: [
       {"title":"Provider","keywords":["dictation","dictate","microphone","mic","voice","speech","transcribe","transcription","provider","off","disable","turn off","turn on","enable","deepgram"]},
       {"title":"Language","keywords":["spanish","english","automatic","multilingual","locale"]},
-      {"title":"Service key","keywords":["dictation","dictate","microphone","mic","voice","speech","transcribe","transcription","deepgram","key","api key","credential"]},
+      {"title":"Deepgram API key","keywords":["dictation","dictate","microphone","mic","voice","speech","transcribe","transcription","deepgram","key","api key","credential"]},
       {"title":"Vocabulary","keywords":["dictation","vocabulary","glossary","keyterm","keyterms","terms","custom words","jargon","names","spelling","accuracy","wrong word"]},
       {"title":"Input","keywords":["input","device","which microphone","choose microphone","headset","airpods","usb","interface","built-in","default input","wrong microphone"]},
       {"title":"Level","keywords":["level","meter","volume","test microphone","not hearing","no audio","silent","muted","dead","check"]},
@@ -114,9 +112,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Ports","hint":"One stable port per name, exported under that name.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Artifacts","hint":"Output a worktree can regenerate. Telar never runs the command.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Dependencies","hint":"How a new worktree gets node_modules and .venv: install them with the setup command, share the checkout's, or neither.","keywords":["node_modules","venv","install","share","symlink","disk"]},
-    ] },
-    { "title":"Agent tools", rows: [
-      {"title":"Tool servers","keywords":["mcp","server","servers","tools","machine-wide","stdio","http","sse","sign in","oauth"]},
     ] },
     { "title":"Data science", rows: [
       {"title":"Data science for this project","keywords":["python","jupyter","notebook","kernel","enable","plugin"]},

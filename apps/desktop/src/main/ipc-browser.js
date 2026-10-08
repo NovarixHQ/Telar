@@ -100,6 +100,12 @@ function registerProfileIpc() {
     return { profiles: manager.listProfiles(), removed };
   });
 
+  ipcMain.handle("telar:browser:clear-profile-data", async (event, input) => {
+    const manager = requireCockpitSender(event, "clear a browser profile's data");
+    await manager.clearProfileData(input?.profileId);
+    return { profiles: manager.listProfiles() };
+  });
+
   ipcMain.handle("telar:browser:set-default-profile", (event, input) => {
     const manager = requireBrowserManager(event);
     manager.profiles.setDefault(input?.profileId);
@@ -131,16 +137,13 @@ function registerProfileIpc() {
     prompts: requireBrowserManager(event).pendingPermissionPrompts(scopeKey || undefined),
   }));
 
-  ipcMain.handle("telar:browser:site-permissions", (event, input) => {
-    const manager = requireBrowserManager(event);
-    if (!input?.scopeKey) return manager.listSitePermissions();
-    return manager.scopeSitePermissions(input.scopeKey, input?.origin || undefined);
-  });
+  ipcMain.handle("telar:browser:site-permissions", (event, input) =>
+    requireBrowserManager(event).scopeSitePermissions(input?.scopeKey, input?.origin),
+  );
 
   ipcMain.handle("telar:browser:forget-site-permission", (event, input) =>
     requireCockpitSender(event, "change a site permission").forgetSitePermission({
-      ...(input?.partition ? { partition: input.partition } : {}),
-      ...(input?.scopeKey ? { scopeKey: input.scopeKey } : {}),
+      scopeKey: input?.scopeKey,
       origin: input?.origin,
       ...(input?.kind ? { kind: input.kind } : {}),
     }),

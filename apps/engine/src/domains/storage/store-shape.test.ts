@@ -155,7 +155,6 @@ function drive(engineRoot: string): EngineStore {
   ]);
   store.turnLifecycle.completeTurn("session_one", "run_one", token, { text: "done" });
   store.records.markRead("session_one", "run_one");
-  store.mcpServers.save({ id: "linear", spec: { transport: "stdio", command: "linear-mcp", args: [] } });
   store.settings.setSessionDefaults({ envMode: "local" });
   store.appearance.set({ look: { name: "something" } });
   return store;

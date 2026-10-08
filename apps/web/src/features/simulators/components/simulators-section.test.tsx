@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { SimulatorSettings } from "@telar/engine-client";
-import { buttonLabelled, flush, installTestDom, mount, press, stubFetch } from "@/test/dom";
-import { SimulatorsRow } from "./simulators-section";
+import { flush, installTestDom, mount, press, stubFetch } from "@/test/dom";
+import { SimulatorsRows } from "./simulators-section";
 
 installTestDom();
 
@@ -15,38 +15,37 @@ async function mountSection(initial: SimulatorSettings, refuse?: string) {
       return { simulatorSettings: settings };
     },
   });
-  const { host } = await mount(<SimulatorsRow />);
+  const { host } = await mount(<SimulatorsRows />);
   await flush(() => calls.some((call) => call.route === "GET /api/simulator-settings"));
   await flush();
-  const option = (label: string) => buttonLabelled(label, host)!;
-  const chosen = () => host.querySelector('[aria-pressed="true"]')?.textContent;
+  const switches = () => [...host.querySelectorAll<HTMLElement>('[role="switch"]')];
+  const checked = () => switches().map((element) => element.getAttribute("aria-checked") === "true");
   const patches = () => calls.filter((call) => call.route === "PATCH /api/simulator-settings").map((call) => call.body);
-  return { host, option, chosen, patches };
+  return { host, switches, checked, patches };
 }
 
-test("one row says who may use simulators, from the engine's answer", async () => {
-  const { host, chosen } = await mountSection({ enabled: true, agentAccess: true });
-  expect(chosen()).toBe("You and agents");
-  expect(host.querySelector('[role="switch"]')).toBeNull();
+test("the device hub and agent device access are two switches, read from the engine", async () => {
+  const { host, checked } = await mountSection({ enabled: true, agentAccess: true });
+  expect(host.textContent).toContain("Device hub");
+  expect(host.textContent).toContain("Agent device access");
+  expect(checked()).toEqual([true, true]);
 });
 
-test("each choice is one patch that sets both keys", async () => {
-  const { option, chosen, patches } = await mountSection({ enabled: false, agentAccess: false });
-  expect(chosen()).toBe("Off");
-  await press(option("You and agents"));
-  await press(option("You"));
-  await press(option("Off"));
-  expect(patches()).toEqual([
-    { enabled: true, agentAccess: true },
-    { enabled: true, agentAccess: false },
-    { enabled: false, agentAccess: false },
-  ]);
-  expect(chosen()).toBe("Off");
+test("agent access waits for the hub, and turning the hub off takes agents with it", async () => {
+  const { host, switches, checked, patches } = await mountSection({ enabled: false, agentAccess: false });
+  expect(host.textContent).toContain("Turn on the device hub first.");
+
+  await press(switches()[0]!);
+  await press(switches()[1]!);
+  expect(checked()).toEqual([true, true]);
+  await press(switches()[0]!);
+  expect(patches()).toEqual([{ enabled: true }, { agentAccess: true }, { enabled: false, agentAccess: false }]);
+  expect(checked()).toEqual([false, false]);
 });
 
-test("a refused change shows the engine's reason in the row and keeps the choice where it was", async () => {
-  const { host, option, chosen } = await mountSection({ enabled: false, agentAccess: false }, "simulators are not available");
-  await press(option("You"));
+test("a refused change shows the engine's reason on its row and keeps the switch where it was", async () => {
+  const { host, switches, checked } = await mountSection({ enabled: false, agentAccess: false }, "simulators are not available");
+  await press(switches()[0]!);
   expect(host.querySelector('[role="alert"]')?.textContent).toContain("simulators are not available");
-  expect(chosen()).toBe("Off");
+  expect(checked()).toEqual([false, false]);
 });

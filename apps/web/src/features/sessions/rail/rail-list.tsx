@@ -165,7 +165,6 @@ function RailRows(props: ListProps) {
             session={session}
             active={sessionKey(session) === env.activeSessionId}
             showProject
-            variant={query ? "slim" : "card"}
             band={env.bandFor(session)}
             searchSelected={Boolean(query) && index === props.selectedSearchIndex}
             searchable={Boolean(query)}

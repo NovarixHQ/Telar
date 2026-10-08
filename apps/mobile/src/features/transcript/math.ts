@@ -1,3 +1,4 @@
+import "./mathjax-env";
 import { liteAdaptor } from "@mathjax/src/js/adaptors/liteAdaptor.js";
 import { RegisterHTMLHandler } from "@mathjax/src/js/handlers/html.js";
 import "@mathjax/src/js/input/tex/ams/AmsConfiguration.js";

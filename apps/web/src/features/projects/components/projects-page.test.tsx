@@ -343,7 +343,7 @@ describe("the pane", () => {
     const view = await mount(<ProjectsPage />);
     expect(view.scope()).toBe("All projects");
     expect(view.host.textContent).toContain("Which of this computer's plugins this project has opted into.");
-    expect(view.host.textContent).not.toContain("Tool servers only this project's sessions see.");
+    expect(view.host.textContent).not.toContain("Only this project's sessions see these.");
     await press(view.trigger());
     expect(options()).toEqual(["All projects", "Telar", "Other"]);
     view.done();
@@ -365,9 +365,39 @@ describe("the pane", () => {
   test("a named local project gets its own groups and the plugin list", async () => {
     const view = await mount(<ProjectsPage />);
     const text = view.host.textContent ?? "";
-    expect(text).toContain("Tool servers only this project's sessions see.");
+    expect(text).toContain("Only this project's sessions see these.");
     expect(text).toContain("Remove project from Telar");
     expect(text).toContain("Which of this computer's plugins this project has opted into.");
+    view.done();
+  });
+
+  test("removing sits in the Project group, beside the name", async () => {
+    const view = await mount(<ProjectsPage />);
+    const group = view.host.querySelector("#settings-group-project")!;
+    expect(group.textContent).toContain("Name");
+    expect(group.textContent).toContain("Remove project from Telar");
+    expect(group.textContent).not.toContain("Restore this project");
+    view.done();
+  });
+
+  test("a removed project's row offers Restore in the same place, and Restore puts it back", async () => {
+    local = [project({ removedAt: 5 } as Partial<ScopedProject>)];
+    const mocked = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/projects/project_abc/restore" && init?.method === "POST") {
+        calls.push({ method: "POST", url: String(input) });
+        return json({ project: project() });
+      }
+      return mocked(input, init);
+    }) as typeof fetch;
+
+    const view = await mount(<ProjectsPage />);
+    const group = () => view.host.querySelector("#settings-group-project")!;
+    expect(group().textContent).toContain("Restore this project");
+    expect(group().textContent).not.toContain("Remove project from Telar");
+    await press(view.button("Restore"));
+    expect(calls.some((call) => call.url === "/api/projects/project_abc/restore")).toBe(true);
+    expect(group().textContent).toContain("Remove project from Telar");
     view.done();
   });
 
@@ -391,7 +421,7 @@ describe("the pane", () => {
     expect(view.scope()).toBe("Far");
     expect(view.host.textContent).toContain("Registered on mini");
     expect(view.host.textContent).toContain("Which of this computer's plugins this project has opted into.");
-    expect(view.host.textContent).not.toContain("Tool servers only this project's sessions see.");
+    expect(view.host.textContent).not.toContain("Only this project's sessions see these.");
 
     await rename(view.host.querySelector<HTMLInputElement>('[aria-label="Project name"]')!, "Near");
     expect(calls.some((call) => call.method === "PATCH")).toBe(false);

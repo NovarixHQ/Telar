@@ -8,8 +8,8 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/dialog";
 import { Spinner } from "@/ui/spinner";
-import { Row, SettingsGroup } from "@/features/settings";
-import { WorktreeListSection } from "./worktree-list-section";
+import { Row } from "@/features/settings";
+import { WorktreeList } from "./worktree-list";
 
 const api = createEngineApi();
 const POLL_MS = 3_000;
@@ -183,7 +183,7 @@ function StateRow({ entry, idleDays, onReleased }: { entry: WorktreeSummary["sta
   );
 }
 
-export function WorktreeSummarySection({ version = 0 }: { version?: number }) {
+export function WorktreeSummaryRows({ version = 0 }: { version?: number }) {
   const [summary, setSummary] = useState<WorktreeSummary>();
   const [loading, setLoading] = useState(false);
   const [failure, setFailure] = useState<string>();
@@ -222,10 +222,11 @@ export function WorktreeSummarySection({ version = 0 }: { version?: number }) {
 
   return (
     <>
-      <SettingsGroup
-        title="Where worktrees live"
-        description={[summary?.blocker, away, failure ?? checked, summary?.partial ? "Some folders could not be read, so sizes are a floor." : undefined, watchers].filter(Boolean).join(" ")}
-        action={
+      <Row
+        keywords={["disk", "size", "drive", "volume", "location", "file watchers", "move"]}
+        label="Where worktrees live"
+        hint={[summary?.blocker, away, failure ?? checked, summary?.partial ? "Some folders could not be read, so sizes are a floor." : undefined, watchers].filter(Boolean).join(" ")}
+        control={
           <span className="flex items-center gap-2 whitespace-nowrap">
             {loading ? <Spinner className="size-3.5" /> : null}
             <Button size="sm" variant="ghost" disabled={loading} onClick={() => void load(true)}>
@@ -237,28 +238,30 @@ export function WorktreeSummarySection({ version = 0 }: { version?: number }) {
           </span>
         }
       >
-        {summary?.locations.map((location) => (
-          <LocationRow key={location.folder} location={location} current={current} onMoved={() => void load(true)} />
-        ))}
-      </SettingsGroup>
+        <Dialog open={listing} onOpenChange={setListing}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>All worktrees</DialogTitle>
+            </DialogHeader>
+            {listing ? <WorktreeList onChanged={() => void load(true)} /> : null}
+          </DialogContent>
+        </Dialog>
+      </Row>
+
+      {summary?.locations.map((location) => (
+        <LocationRow key={location.folder} location={location} current={current} onMoved={() => void load(true)} />
+      ))}
 
       {summary ? (
-        <SettingsGroup title="By state" description="Each worktree is counted once. Only worktrees proven safe to lose are released; branches and sessions are kept.">
-          {occupied.length === 0 ? <div className="py-3 text-xs text-muted-foreground">No worktrees in any state.</div> : null}
-          {occupied.map((entry) => (
-            <StateRow key={entry.state} entry={entry} idleDays={summary.idleDays} onReleased={() => void load(true)} />
-          ))}
-        </SettingsGroup>
+        <Row
+          keywords={["release", "idle", "archived", "orphaned", "reclaim"]}
+          label="By state"
+          hint={occupied.length === 0 ? "No worktrees in any state." : "Each worktree is counted once, and only those proven safe to lose are released; branches and sessions are kept."}
+        />
       ) : null}
-
-      <Dialog open={listing} onOpenChange={setListing}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>All worktrees</DialogTitle>
-          </DialogHeader>
-          {listing ? <WorktreeListSection onChanged={() => void load(true)} /> : null}
-        </DialogContent>
-      </Dialog>
+      {summary
+        ? occupied.map((entry) => <StateRow key={entry.state} entry={entry} idleDays={summary.idleDays} onReleased={() => void load(true)} />)
+        : null}
     </>
   );
 }

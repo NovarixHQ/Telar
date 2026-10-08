@@ -276,7 +276,7 @@ function MoreRows({ shown, total, onMore }: { shown: number; total: number; onMo
   );
 }
 
-export function WorktreeListSection({ onChanged }: { onChanged?: () => void }) {
+export function WorktreeList({ onChanged }: { onChanged?: () => void }) {
   const [inventory, setInventory] = useState<WorktreeInventory>();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string>();
@@ -354,7 +354,7 @@ export function WorktreeListSection({ onChanged }: { onChanged?: () => void }) {
 
   if (inventory?.blocker) {
     return (
-      <SettingsGroup title="Checkouts" description={inventory.blocker}>
+      <SettingsGroup description={inventory.blocker}>
         <div className="py-3 text-xs text-muted-foreground">
           Plug the drive back in and this fills itself.
         </div>

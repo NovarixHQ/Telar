@@ -63,14 +63,14 @@ function captions(): string[] {
 
 describe("the pane is a stack of settings groups", () => {
   test("every group is on the page at once, in reading order", () => {
-    expect(captions()).toEqual(["Background", "Type and surfaces", "Window"]);
+    expect(captions()).toEqual(["Theme", "Window"]);
   });
 
-  test("the colour scheme leads, outside any group, and Restore Telar's default closes the pane", () => {
+  test("the colour scheme leads the Theme group, and Restore Telar's default closes the pane", () => {
     const scheme = host.querySelector('[aria-label="Colour scheme"]');
-    expect(scheme?.closest("section")).toBeNull();
     const firstGroup = host.querySelector("section")!;
-    expect(scheme!.compareDocumentPosition(firstGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(scheme?.closest("section")).toBe(firstGroup);
+    expect(firstGroup.querySelector('[id^="settings-row-"]')?.id).toBe("settings-row-theme-colour-scheme");
     const buttons = [...host.querySelectorAll("button")];
     expect(buttons.at(-1)?.textContent).toBe("Restore Telar's default");
   });
@@ -98,8 +98,8 @@ describe("the rows settings search points at", () => {
     const ids = indexed.map((entry: { id: string }) => entry.id);
     expect(ids).toContain("settings-row-appearance-window-translucency");
     expect(ids).toContain("settings-row-appearance-window-layers-through-canvas-and-rail");
-    expect(ids).toContain("settings-row-appearance-type-and-surfaces-accent");
-    expect(ids).toContain("settings-row-appearance-background-base");
+    expect(ids).toContain("settings-row-appearance-theme-accent");
+    expect(ids).toContain("settings-row-appearance-theme-base");
   });
 
   test("the rows on the page derive the GROUP half of those ids", () => {
@@ -116,8 +116,8 @@ describe("the rows settings search points at", () => {
      * not assertable in a browser tab; the rest are.
      */
     expect(host.querySelector("#settings-row-window-layers-through-canvas-and-rail")).not.toBeNull();
-    expect(host.querySelector("#settings-row-type-and-surfaces-accent")).not.toBeNull();
-    expect(host.querySelector("#settings-row-background-base")).not.toBeNull();
+    expect(host.querySelector("#settings-row-theme-accent")).not.toBeNull();
+    expect(host.querySelector("#settings-row-theme-base")).not.toBeNull();
   });
 
   test("no row claims an anchor twice", () => {
@@ -138,9 +138,9 @@ describe("the rows settings search points at", () => {
  * colour, a stack of layers over it, and the sixteen tokens folded away as
  * OVERRIDES of what the base derived.
  */
-describe("the Background group", () => {
+describe("the Theme group", () => {
   function composerGroup(): HTMLElement | null {
-    return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Background") ?? null;
+    return [...host.querySelectorAll("section")].find((section) => section.querySelector("h4")?.textContent === "Theme") ?? null;
   }
 
   test("it carries no light/dark switch of its own: Colour scheme is the one", () => {
@@ -152,7 +152,7 @@ describe("the Background group", () => {
 
   test("the base leads, and the layers follow it", () => {
     const group = composerGroup();
-    expect(group?.querySelector("#settings-row-background-base")).not.toBeNull();
+    expect(group?.querySelector("#settings-row-theme-base")).not.toBeNull();
     const html = group?.innerHTML ?? "";
     expect(html.indexOf("Base")).toBeGreaterThan(-1);
     expect(html.indexOf("Base")).toBeLessThan(html.indexOf("Layers"));

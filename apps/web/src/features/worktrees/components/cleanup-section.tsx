@@ -6,7 +6,7 @@ import { createEngineApi } from "@/platform/engine";
 import { fmtAgo, formatBytes, plural } from "@/ui/format";
 import { Button } from "@/ui/button";
 import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
-import { WorktreeSummarySection } from "./worktree-summary-section";
+import { WorktreeSummaryRows } from "./worktree-summary-rows";
 import { WorktreesRootRow } from "./worktrees-root-section";
 
 const api = createEngineApi();
@@ -144,7 +144,6 @@ export function CleanupSection() {
             />
           }
         />
-        <WorktreesRootRow onChanged={() => setRootVersion((version) => version + 1)} />
         <Row
           keywords={["clean up now", "cleanup", "sweep", "free space", "disk", "run"]}
           label="Clean up"
@@ -161,9 +160,9 @@ export function CleanupSection() {
             </Button>
           }
         />
+        <WorktreesRootRow onChanged={() => setRootVersion((version) => version + 1)} />
+        <WorktreeSummaryRows version={rootVersion} />
       </SettingsGroup>
-
-      <WorktreeSummarySection version={rootVersion} />
 
       <SettingsGroup title="Logs">
         <Row
@@ -184,7 +183,6 @@ export function CleanupSection() {
         />
         <RetentionRow />
       </SettingsGroup>
-
     </>
   );
 }

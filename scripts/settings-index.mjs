@@ -12,9 +12,9 @@ export const INDEX_FILE = "apps/web/src/features/settings/settings-index.generat
 
 // Rows that are a state the pane is in, not a setting.
 export const NOT_SETTINGS = new Set([
-  "Could not read plugins", "Could not save", "Desktop app only", "Detecting", "Did not start", "Loading", "No hubs configured",
-  "No other TeX install found", "No plugins registered", "No remembered logins", "No servers configured", "Nothing on trial",
-  "No update feed in this build", "None yet", "Not available here", "The engine did not answer",
+  "Also in play here", "Could not read plugins", "Could not save", "Desktop app only", "Detecting", "Did not start", "Loading", "No hubs configured",
+  "No other TeX install found", "No plugins registered", "No remembered logins", "No servers configured", "Nothing decided yet", "Nothing on trial",
+  "No update feed in this build", "None yet", "Not available here", "Pairing is off", "The engine did not answer",
 ]);
 
 const parsed = new Map();
@@ -215,7 +215,7 @@ function sectionBranches() {
 }
 
 const PLUGIN_PANES = path.join(WEB, "features/plugins/components/settings-panes.tsx");
-const PANE_PAGE = { project: "projects", machineGroups: "plugins", machineRows: "plugins" };
+const PANE_PAGE = { project: { page: "projects" }, machineRows: { page: "plugins", group: "Plugin defaults" } };
 
 /** Components registered in SETTINGS_PANES, which the panes look up by plugin id at runtime. */
 function pluginPaneRoots() {
@@ -223,7 +223,7 @@ function pluginPaneRoots() {
   const visit = (node) => {
     if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && PANE_PAGE[node.name.text] && ts.isIdentifier(node.initializer)) {
       const definition = definitionOf(PLUGIN_PANES, node.initializer.text);
-      if (definition) roots.push({ id: PANE_PAGE[node.name.text], ...definition });
+      if (definition) roots.push({ id: PANE_PAGE[node.name.text].page, group: PANE_PAGE[node.name.text].group, ...definition });
     }
     ts.forEachChild(node, visit);
   };
@@ -237,7 +237,7 @@ export function collectSettingsPages() {
   for (const { id, node } of sectionBranches()) {
     const rows = [];
     collect(PAGE, node, undefined, rows, new Set());
-    for (const root of roots.filter((candidate) => candidate.id === id)) collect(root.file, root.node, undefined, rows, new Set());
+    for (const root of roots.filter((candidate) => candidate.id === id)) collect(root.file, root.node, root.group, rows, new Set());
     const seen = new Set();
     const groups = [];
     for (const row of rows) {

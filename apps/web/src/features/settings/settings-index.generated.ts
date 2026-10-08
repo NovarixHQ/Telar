@@ -7,14 +7,15 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Model","hint":"The provider, model and options a new session starts with.","keywords":["provider","default model","effort","reasoning","fast mode","claude","codex","opencode"]},
       {"title":"Access level","keywords":["permissions","supervised","auto","full access","approval","runtime mode","prompts"]},
       {"title":"Workspace","keywords":["worktree","branch","git","isolation"]},
+      {"title":"Continue after Telar restarts","hint":"When Telar restarts to update, the sessions it stopped pick up where they left off.","keywords":["resume","restart","update","continue","interrupted"]},
     ] },
-    { "title":"Organization", rows: [
+    { "title":"Rail", rows: [
+      {"title":"Group sessions by project","hint":"Off, the rail is one list, newest first, with spawned sessions under the one that started them.","keywords":["group by","flat","none","list","sidebar","order","newest"]},
       {"title":"Settle quiet sessions","hint":"Pinned sessions and open questions stay put.","keywords":["inbox","archive","auto","shelf","settled","unsettle","restore","hidden","put away","quiet","hours","days","window"]},
       {"title":"Settle delegated sessions","hint":"Once their result is delivered. A failed errand, a pinned row and an open question all stay put.","keywords":["delegated","errand","coordinator","handoff","result","settle","hours","days","window"]},
-      {"title":"Continue after Telar restarts","hint":"When Telar restarts to update, the sessions it stopped pick up where they left off.","keywords":["resume","restart","update","continue","interrupted"]},
-      {"title":"Group sessions by project","hint":"Off, the rail is one list, newest first, with spawned sessions under the one that started them.","keywords":["group by","flat","none","list","sidebar","order","newest"]},
+      {"title":"Terminals settled sessions may keep open","keywords":["terminal","process","dev server","shell","limit","cap","running","settled"]},
     ] },
-    { "title":"Text generation", rows: [
+    { "title":"Naming", rows: [
       {"title":"Written by","hint":"The provider, model and effort that name sessions and branches.","keywords":["claude","codex","opencode","driver","title model","textgen","reasoning","thinking","effort"]},
       {"title":"Name sessions","keywords":["title","rename","automatic"]},
       {"title":"Name branches","hint":"Renames branches the engine cut to match the session. Yours keep their names.","keywords":["git","branch name","title","rename branches"]},
@@ -23,19 +24,14 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Version","keywords":["about","this build"]},
       {"title":"Update status","keywords":["upgrade","download","version","updates"]},
       {"title":"Channel","keywords":["beta","nightly","stable","release","updates"]},
-    ] },
-    { "title":"Experimental", rows: [
+      {"title":"Experiments","hint":"Big changes on trial, each with a date to decide."},
     ] },
   ] },
   { id: "appearance", groups: [
-    { rows: [
-      {"title":"Colour scheme","hint":"Which state the app wears, and the one Background edits.","keywords":["light","dark","system","theme","mode"]},
-    ] },
-    { "title":"Background", rows: [
+    { "title":"Theme", rows: [
+      {"title":"Colour scheme","hint":"Which state the app wears, and the one the rows below edit.","keywords":["light","dark","system","theme","mode"]},
       {"title":"Base","hint":"The app colour. It decides the hue and how colourful the surfaces are; the lightness that keeps text readable is kept underneath.","keywords":["colour","color","theme","palette","hue","tint","background","canvas"]},
       {"title":"Match the other state","keywords":["light","dark","copy","sync","both"]},
-    ] },
-    { "title":"Type and surfaces", rows: [
       {"title":"Accent","hint":"The one hue that means a person acted — buttons, links, the caret.","keywords":["colour","color","highlight","primary","hue"]},
       {"title":"Depth","hint":"How far raised surfaces — cards, the composer, menus — sit off the page.","keywords":["shadow","elevation","flat","soft","deep","raised"]},
     ] },
@@ -57,40 +53,27 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
   ] },
   { id: "integrations", groups: [
-    { "title":"Browser profiles","keywords":["cookies","account","sign in","chrome","profile","default","browser","integrations"], rows: [
-    ] },
-    { "title":"Site permissions", rows: [
-      {"title":"Nothing decided yet","hint":"Telar asks the first time a site wants something, over the browser's address bar.","keywords":["camera","microphone","mic","webcam","notifications","location","geolocation","clipboard","screen share","screen sharing","permission","permissions","allow","block","revoke","site"]},
-    ] },
-    { "title":"Remembered logins","keywords":["1password","password","credential","autofill","revoke","vault","integrations"], rows: [
+    { "title":"Browser", rows: [
+      {"title":"Open in the session's browser","keywords":["external","system browser","tabs","links"]},
+      {"title":"Browser profiles","hint":"Each one is a separate set of cookies and logins for Telar's own browser.","keywords":["cookies","account","sign in","chrome","profile","default","browser","integrations"]},
       {"title":"Offer to remember after you sign in","hint":"After you type a login in Telar's browser, ask whether agents may reuse it.","keywords":["1password","save login","remember","offer","prompt","password"]},
       {"title":"Use a password manager in the browser","hint":"Lets Telar's browser and agents fill logins from your password manager.","keywords":["1password","extension","autofill","disable","off","credential","integrations"]},
-    ] },
-    { "title":"Links", rows: [
-      {"title":"Open in the session's browser","keywords":["external","system browser","tabs"]},
+      {"title":"Remembered logins","hint":"Logins you allowed agents to fill without asking again.","keywords":["1password","password","credential","autofill","revoke","vault","integrations"]},
+      {"title":"Site permissions","hint":"Camera, microphone, notifications, location, clipboard and screen sharing, as you answered them.","keywords":["camera","microphone","mic","webcam","notifications","location","geolocation","clipboard","screen share","screen sharing","permission","permissions","allow","block","revoke","site"]},
     ] },
     { "title":"Simulators", rows: [
       {"title":"Simulators","hint":"Who may list, start and use the simulators on this Mac.","keywords":["simulator","emulator","iphone","ios","android","device","xcode","agent","agent-device","tap","automation"]},
+      {"title":"Computer use","keywords":["cua","driver","automation","engine","access","permission","privacy","accessibility","screen recording","grant"]},
     ] },
     { "title":"Agent tools", rows: [
       {"title":"Tell agents they are inside Telar","hint":"A paragraph each turn and a skill file for each provider, so agents read Telar's words the way you mean them.","keywords":["orientation","preamble","system prompt","prompt","context","skill","SKILL.md","instructions","telar","show the text"]},
+      {"title":"Tool servers","keywords":["mcp","server","servers","tools","machine-wide","stdio","http","sse","sign in","oauth"]},
     ] },
-    { "title":"Sign-in", rows: [
-    ] },
-    { "title":"Add a server", rows: [
-    ] },
-    { "title":"Also in play here", rows: [
-    ] },
-    { rows: [
-      {"title":"Computer use","keywords":["cua","driver","automation","engine","access","permission","privacy","accessibility","screen recording","grant"]},
-    ] },
-    { "title":"Dictation", rows: [
+    { "title":"Voice", rows: [
       {"title":"Provider","keywords":["dictation","dictate","microphone","mic","voice","speech","transcribe","transcription","provider","off","disable","turn off","turn on","enable","deepgram"]},
       {"title":"Language","keywords":["spanish","english","automatic","multilingual","locale"]},
       {"title":"Service key","keywords":["dictation","dictate","microphone","mic","voice","speech","transcribe","transcription","deepgram","key","api key","credential"]},
       {"title":"Vocabulary","keywords":["dictation","vocabulary","glossary","keyterm","keyterms","terms","custom words","jargon","names","spelling","accuracy","wrong word"]},
-    ] },
-    { "title":"Microphone", rows: [
       {"title":"Input","keywords":["input","device","which microphone","choose microphone","headset","airpods","usb","interface","built-in","default input","wrong microphone"]},
       {"title":"Level","keywords":["level","meter","volume","test microphone","not hearing","no audio","silent","muted","dead","check"]},
       {"title":"Live transcript","keywords":["demo","preview","try","live","test transcription","interim","rewritten","see it working"]},
@@ -99,30 +82,27 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "plugins", groups: [
     { "title":"Plugins", rows: [
     ] },
+    { "title":"Plugin defaults", rows: [
+      {"title":"Default packages","hint":"Installed into environments Telar creates from here on. Nothing is installed into an environment that already exists.","keywords":["pandas","numpy","packages","pip","environment","data science"],"id":"plugins-data-science-packages"},
+      {"title":"TeX distribution","hint":"What this computer compiles with when a project has not chosen its own.","keywords":["latex","tex","tex live","tectonic","distribution","compiler"],"id":"plugins-latex-distribution"},
+      {"title":"Telar (managed)","keywords":["tectonic","latex","install","tex","download"],"id":"plugins-latex-managed"},
+    ] },
     { rows: [
       {"title":"Add plugin from folder","keywords":["install","plugin","folder","link","remove","uninstall","plugin.json"]},
-      {"title":"Default packages","hint":"Installed into environments Telar creates from here on. Nothing is installed into an environment that already exists.","keywords":["pandas","numpy","packages","pip","environment","data science"],"id":"plugins-data-science-packages"},
-    ] },
-    { "title":"TeX distribution", rows: [
-      {"title":"Telar (managed)","keywords":["tectonic","latex","install","tex","download"],"id":"plugins-latex-managed"},
     ] },
   ] },
   { id: "projects", groups: [
-    { "title":"Identity", rows: [
+    { "title":"Project", rows: [
       {"title":"Name","hint":"Shown in the rail, the pickers and session headers. The folder on disk is not renamed.","keywords":["rename","title","project name"]},
       {"title":"Icon","keywords":["avatar","favicon","logo","mark"]},
       {"title":"Checkout","keywords":["root","path","folder","directory"]},
+      {"title":"Restore this project","hint":"Put away with nothing on disk touched; restoring brings back the same settings and sessions.","keywords":["undo","restore","removed","unarchive"]},
+      {"title":"Remove project from Telar","hint":"No new sessions can start on it. Files on disk are not touched, and you can put it back.","keywords":["unregister","delete","forget","put away"]},
     ] },
     { "title":"New sessions", rows: [
       {"title":"Default model","keywords":["model","per project","default"]},
       {"title":"Model options","hint":"New sessions in this project start with this model and these options.","keywords":["effort","reasoning","fast mode","per project"]},
       {"title":"Where new sessions start","keywords":["worktree","checkout","workspace","branch"]},
-    ] },
-    { "title":"Sign-in", rows: [
-    ] },
-    { "title":"Add a server", rows: [
-    ] },
-    { "title":"Also in play here", rows: [
     ] },
     { "title":"New worktrees", rows: [
       {"title":"Worktree preparation","keywords":["setup","prepare","inherit","worktree"]},
@@ -133,25 +113,17 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Artifacts","hint":"Output a worktree can regenerate. Telar never runs the command.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Dependencies","hint":"How a new worktree gets node_modules and .venv: install them with the setup command, share the checkout's, or neither.","keywords":["node_modules","venv","install","share","symlink","disk"]},
     ] },
-    { "title":"Removed from Telar", rows: [
-      {"title":"Restore this project","hint":"Same id, same settings, same sessions. Registering the folder again does this too.","keywords":["undo","restore","removed","unarchive"]},
-    ] },
-    { "title":"Danger", rows: [
-      {"title":"Remove project from Telar","hint":"No new sessions can start on it. Files on disk are not touched, and you can put it back.","keywords":["unregister","delete","forget","put away"]},
+    { "title":"Agent tools", rows: [
+      {"title":"Tool servers","keywords":["mcp","server","servers","tools","machine-wide","stdio","http","sse","sign in","oauth"]},
     ] },
     { "title":"Data science", rows: [
       {"title":"Data science for this project","keywords":["python","jupyter","notebook","kernel","enable","plugin"]},
-    ] },
-    { "title":"Python tools", rows: [
+      {"title":"Python tools","hint":"What environments are made with.","keywords":["uv","conda","toolchain","detect"]},
       {"title":"uv","keywords":["python","install","package manager"]},
       {"title":"conda","keywords":["anaconda","miniconda","environment"]},
       {"title":"Python","keywords":["interpreter","version","install python"]},
-    ] },
-    { "title":"Environments", rows: [
-    ] },
-    { "title":"Python packages", rows: [
-    ] },
-    { "title":"Environment", rows: [
+      {"title":"Environments","hint":"Where the kernel runs and what it can import.","keywords":["venv","kernel","interpreter"]},
+      {"title":"Python packages","keywords":["pip","package","installed"]},
       {"title":"Environment"},
       {"title":"Install packages","keywords":["pip","package","install","dependencies"]},
       {"title":"The project's own dependencies","hint":"Install everything the checkout already declares.","keywords":["requirements","pyproject","dependencies","sync"]},
@@ -160,10 +132,8 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"LaTeX for this project","keywords":["latex","tex","enable","plugin"]},
       {"title":"Default document","keywords":["main file","main.tex","document","entry"]},
       {"title":"Engine","hint":"What latexmk drives. pdflatex unless the document needs system fonts (xelatex, lualatex)."},
-    ] },
-    { "title":"Distributions", rows: [
-    ] },
-    { "title":"TeX packages", rows: [
+      {"title":"Distributions","hint":"What compiles this project.","keywords":["tex live","toolchain","detect"]},
+      {"title":"TeX packages","keywords":["tlmgr","package","install"]},
     ] },
   ] },
   { id: "notifications", groups: [
@@ -182,24 +152,17 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "storage", groups: [
     { "title":"Worktrees", rows: [
       {"title":"Remove worktrees","hint":"Removes a settled or archived session's worktree after this many days; it comes back when you reopen the session.","keywords":["cleanup","clean up","disk","space","free","full","reclaim","checkout","idle","inactive","settled","archived","old","days"]},
-      {"title":"Worktree folder","keywords":["worktree","checkout","external","drive","move","space","disk","relocate","worktree folder","how many","size"]},
       {"title":"Clean up","keywords":["clean up now","cleanup","sweep","free space","disk","run"]},
-    ] },
-    { "title":"Where worktrees live", rows: [
-    ] },
-    { "title":"By state", rows: [
-    ] },
-    { "title":"Checkouts", rows: [
+      {"title":"Worktree folder","keywords":["worktree","checkout","external","drive","move","space","disk","relocate","worktree folder","how many","size"]},
+      {"title":"Where worktrees live","keywords":["disk","size","drive","volume","location","file watchers","move"]},
+      {"title":"By state","keywords":["release","idle","archived","orphaned","reclaim"]},
     ] },
     { "title":"Logs", rows: [
       {"title":"Delete old logs","hint":"Rotated logs only.","keywords":["cleanup","clean up","disk","space","logs","rotate","days"]},
       {"title":"Turn journal retention","keywords":["retention","journal","export","retire","idle"]},
     ] },
-    { "title":"Terminals", rows: [
-      {"title":"Terminals settled sessions may keep open","keywords":["terminal","process","dev server","shell","limit","cap","running","settled"]},
-    ] },
-    { "title":"Store", rows: [
-      {"title":"Data folder","keywords":["external","volume","drive","where","path","ssd"]},
+    { "title":"Data folder", rows: [
+      {"title":"Location","keywords":["external","volume","drive","where","path","ssd"]},
       {"title":"Safe copy","keywords":["backup","copy","export","move store"]},
       {"title":"Previous store","keywords":["old store","cleanup","free space","retired"]},
     ] },
@@ -210,12 +173,10 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Network access","keywords":["expose","lan","loopback","address"]},
       {"title":"HTTPS on your private network","keywords":["tailscale","tailnet","magicdns","certificate","serve"]},
     ] },
-    { "title":"Devices that reach this Mac", rows: [
+    { "title":"Paired", rows: [
       {"title":"Pair a device","keywords":["qr","link","token","pairing code","phone","ipad"]},
       {"title":"Revoke all other devices","hint":"Keeps this one — the lost-phone button. Any of them can pair again with a new code.","keywords":["sign out","logout","lost","stolen"]},
-    ] },
-    { "title":"Computers this Mac reaches", rows: [
-      {"title":"Add a computer","keywords":["host","pair","second machine","remote","mac","computer"]},
+      {"title":"Add a computer","hint":"Shows another Mac's sessions in this rail.","keywords":["host","pair","second machine","remote","mac","computer"]},
     ] },
   ] },
 ];

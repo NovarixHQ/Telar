@@ -18,13 +18,13 @@ mock.module("next/navigation", () => ({
 const { PackagesPanel } = await import("@/features/plugins/components/packages-panel");
 const { Dropdown } = await import("./settings-shell");
 const { WorkspaceSection } = await import("@/features/projects/components/workspace-section");
-const { OrganizationSection } = await import("@/features/sessions/components/organization-section");
+const { RailSection } = await import("@/features/sessions/components/rail-section");
 const { DataScienceSection } = await import("@/features/plugins/data-science/data-science-section");
 
 test("the packages fields are Rows with names, not unlabelled blocks", () => {
   const html = renderToStaticMarkup(<PackagesPanel scope={{ projectId: "project_a" }} />);
   expect(html).toContain("Install packages");
-  expect(html).toContain('id="settings-row-environment-install-packages"');
+  expect(html).toContain('id="settings-row-install-packages"');
   expect(html).toContain('<span class="flex size-3 shrink-0 items-center justify-center">');
 });
 
@@ -34,11 +34,11 @@ test("with no environment resolved, the install field says so instead of sitting
   expect(html).toContain("inert=");
 });
 
-test("the session's narrow column keeps the rows and drops the group frame", () => {
+test("the packages fields never draw a group of their own, in a session's column or a settings pane", () => {
   const dense = renderToStaticMarkup(<PackagesPanel scope={{ sessionId: "session_a" }} dense />);
   expect(dense).toContain("Install packages");
   expect(dense).not.toContain("<h4");
-  expect(renderToStaticMarkup(<PackagesPanel scope={{ projectId: "project_a" }} />)).toContain("<h4");
+  expect(renderToStaticMarkup(<PackagesPanel scope={{ projectId: "project_a" }} />)).not.toContain("<h4");
 });
 
 async function mountOffline(node: React.ReactNode) {
@@ -69,7 +69,7 @@ test("an enumeration setting is a dropdown, and a boolean is still a switch", as
   const view = await mountOffline(
     <>
       <WorkspaceSection />
-      <OrganizationSection />
+      <RailSection />
     </>,
   );
   expect(view.host.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
@@ -78,8 +78,11 @@ test("an enumeration setting is a dropdown, and a boolean is still a switch", as
   view.done();
 });
 
-test("a plugin pane heads its groups with whose they are, never a bare 'Packages'", () => {
+test("a plugin pane is one group named for the plugin, its parts rows inside it", () => {
   const html = renderToStaticMarkup(<DataScienceSection project={{ id: "project_1", name: "Telar", root: "/tmp/telar" } as Project} onChange={() => {}} />);
+  expect(html.match(/<h4/g)).toHaveLength(1);
+  expect(html).toContain(">Data science</h4>");
   expect(html).toContain(">Python tools<");
+  expect(html).toContain(">Environments<");
   expect(html).not.toContain(">Packages<");
 });

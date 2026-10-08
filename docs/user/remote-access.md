@@ -46,7 +46,7 @@ Forgetting the pairing on a phone only removes it from that phone. To cut the ph
 You can bring another Mac's conversations into this one's rail.
 
 1. On the other Mac, turn on network access and pairing, then show a pairing code and copy the link.
-2. On this Mac, go to Settings → Connections → Computers this Mac reaches, paste the link, and choose Pair.
+2. On this Mac, go to Settings → Connections → Paired → Add a computer, paste the link, and choose Pair.
 
 That Mac's conversations appear in your rail, marked with its name, and you work on them from here. You can rename it here.
 

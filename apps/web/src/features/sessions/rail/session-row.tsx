@@ -142,7 +142,7 @@ function RenameInput({ title, onCommit, onCancel }: { title: string; onCommit: (
 
 /** Any row drags into a composer as a session reference; rows in a reorderable band also move. */
 function DragFrame({ drag, session, children }: { drag?: RowDrag; session: SidebarSession; children: React.ReactNode }) {
-  const referable = !session.draft && (!session.hostId || session.hostId === LOCAL_HOST_ID);
+  const referable = !session.hostId || session.hostId === LOCAL_HOST_ID;
   if (!drag && !referable) return children;
   const onDragStart = (event: React.DragEvent) => {
     drag?.onDragStart(event);

@@ -201,8 +201,20 @@ struct SessionSidebar: View {
 
     private var failureBanners: some View {
         ForEach(inbox.failures) { failure in
-            Label(failure.needsPairing ? "\(hostName(failure.hostId)) needs pairing" : "\(hostName(failure.hostId)) is offline · showing saved sessions", systemImage: failure.needsPairing ? "lock" : "wifi.slash")
-                .font(.caption).foregroundStyle(Theme.statusAmber)
+            HStack {
+                Label(failure.needsPairing ? "\(hostName(failure.hostId)) needs pairing" : "\(hostName(failure.hostId)) is offline · showing saved sessions", systemImage: failure.needsPairing ? "lock" : "wifi.slash")
+                Spacer(minLength: 4)
+                if !failure.needsPairing {
+                    Button("Retry") {
+                        Task {
+                            await settings.reconnect(failure.hostId)
+                            await inbox.refresh()
+                        }
+                    }
+                    .buttonStyle(.borderless).fontWeight(.medium)
+                }
+            }
+            .font(.caption).foregroundStyle(Theme.statusAmber)
         }
     }
 

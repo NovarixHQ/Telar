@@ -11,6 +11,7 @@ import { rememberSettingsReturn } from "@/features/settings";
 import { useRouteSwap } from "./route-swap";
 
 const AppSidebar = dynamic(() => import("@/features/sessions/rail/app-sidebar").then((mod) => mod.AppSidebar));
+const RaillessCommands = dynamic(() => import("@/features/sessions/rail/app-sidebar").then((mod) => mod.RaillessCommands));
 
 function isSettingsRoute(pathname: string): boolean {
   return pathname === "/settings" || /^\/projects\/[^/]+\/settings(\/|$)/.test(pathname);
@@ -44,11 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [pathname]);
   return (
     <SidebarProvider ref={shell} storageKey={APP_SIDEBAR_STORAGE_KEY} className="app-ground bg-sidebar">
-      {!railless && (
-        <Suspense fallback={null}>
-          <AppSidebar />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>{settings ? <RaillessCommands /> : !railless && <AppSidebar />}</Suspense>
       <SidebarInset
         className={cn(
           "flex h-dvh min-w-0 flex-col",

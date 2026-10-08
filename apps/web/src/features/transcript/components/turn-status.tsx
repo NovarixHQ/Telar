@@ -2,28 +2,51 @@
 
 import { useNow } from "@/ui/hooks/use-now";
 import { fmtElapsed } from "@/ui/format";
-import {
-HourglassIcon,TriangleAlertIcon
-} from "lucide-react";
+import { HourglassIcon, TriangleAlertIcon } from "lucide-react";
 import { type RateLimitType, type TurnFailureCode } from "@telar/engine-client";
 import { Shimmer } from "@/ui/shimmer";
 import { cn } from "@/ui/utils";
 
-
-export function Marker({ children, attention }: { children: React.ReactNode; attention?: boolean }) {
+export function Marker({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 py-0.5">
       <span className="h-px flex-1 bg-border" />
-      <span
-        className={cn(
-          "flex max-w-[80%] items-center gap-1.5 rounded-full border border-dashed px-2.5 py-0.5 text-center font-mono text-4xs",
-          attention ? "border-warning/40 text-warning" : "border-border text-muted-foreground",
-        )}
-      >
-        {attention && <TriangleAlertIcon className="size-3" />}
+      <span className="flex max-w-[80%] items-center gap-1.5 rounded-full border border-dashed border-border px-2.5 py-0.5 text-center font-mono text-4xs text-muted-foreground">
         {children}
       </span>
       <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+// The folder banner under the composer carries the remedy, so the row only names the stop.
+const BRIEF: Partial<Record<TurnFailureCode, string>> = {
+  workspace_unavailable: "Stopped: the project folder isn't reachable",
+};
+
+/** The failure's first sentence leads; the rest waits behind the disclosure. */
+function splitFailure(failure: string, code?: TurnFailureCode): { lead: string; rest: string } {
+  const brief = code && BRIEF[code];
+  if (brief) return { lead: brief, rest: failure };
+  const [lead = failure, ...rest] = failure.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  return { lead, rest: rest.join(" ") };
+}
+
+function FailureRow({ failure, code, detail }: { failure: string; code?: TurnFailureCode | undefined; detail?: string | undefined }) {
+  const { lead, rest } = splitFailure(failure, code);
+  const more = [rest, detail].filter(Boolean).join("\n\n");
+  return (
+    <div role="status" className="py-0.5 text-sm text-muted-foreground">
+      <div className="flex items-start gap-2">
+        <TriangleAlertIcon aria-hidden className="mt-0.5 size-3.5 shrink-0 text-warning" />
+        <span className="min-w-0 flex-1">{lead}</span>
+      </div>
+      {more && (
+        <details className="mt-1 pl-5.5 text-xs">
+          <summary className="cursor-pointer select-none">Details</summary>
+          <p className="mt-1 whitespace-pre-wrap break-words">{more}</p>
+        </details>
+      )}
     </div>
   );
 }
@@ -46,19 +69,8 @@ export function TurnFailureRow({
   resuming?: boolean;
 }) {
   // A limit with no reset time cannot promise one, so it falls back to the
-  // ordinary marker rather than rendering "resets at Invalid Date".
-  if (code !== "rate_limited" || resumeAt === undefined) {
-    if (!detail) return <Marker attention>{failure}</Marker>;
-    return (
-      <div>
-        <Marker attention>{failure}</Marker>
-        <details className="mt-1 text-2xs text-muted-foreground">
-          <summary className="cursor-pointer select-none">What the provider said</summary>
-          <pre className="mt-1 whitespace-pre-wrap break-words font-mono">{detail}</pre>
-        </details>
-      </div>
-    );
-  }
+  // ordinary row rather than rendering "resets at Invalid Date".
+  if (code !== "rate_limited" || resumeAt === undefined) return <FailureRow failure={failure} code={code} detail={detail} />;
   const resets = new Date(resumeAt);
   const sameDay = resets.toDateString() === new Date().toDateString();
   const at = sameDay
@@ -68,7 +80,7 @@ export function TurnFailureRow({
   // the same rule `titleForProviderWait` follows in the engine.
   const limit = limitType && limitType !== "other" ? `${limitType.replaceAll("_", " ")} ` : "";
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 text-xs text-muted-foreground">
+    <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 text-sm text-muted-foreground">
       <HourglassIcon className="size-3.5 shrink-0" />
       <span className="min-w-0 flex-1">
         Waiting for the {limit}limit to reset at {at}

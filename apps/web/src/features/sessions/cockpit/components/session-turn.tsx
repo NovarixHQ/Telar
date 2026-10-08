@@ -282,7 +282,7 @@ function SessionTurnBody({
               {...(turn.lastActivityAt ? { lastActivityAt: turn.lastActivityAt } : {})}
             />
           )}
-          {turn.state === "failed" && <p className="mt-2 text-sm text-muted-foreground">This turn ended early. Your history is saved; send a new message to continue.</p>}
+          {turn.state === "failed" && !turn.failure && <p className="mt-2 text-sm text-muted-foreground">This turn ended early. Your history is saved; send a new message to continue.</p>}
         </MessageContent>
       </Message>
       )}

@@ -1,4 +1,5 @@
-import { isBuiltInDriver, type BuiltInDriver } from "@telar/engine-client";
+import { ACP_DRIVER } from "@telar/engine-client";
+import { createAcpDriver } from "./acp";
 import { BROWSER_TOOLS, BrowserToolSocket, type BrowserSocketCapability, type EngineBrowser } from "../domains/browser";
 import { createClaudeDriver } from "./claude";
 import type { DriverSelector } from "../worker";
@@ -44,6 +45,6 @@ export function createBrowserToolSocket(browser: EngineBrowser): BrowserToolSock
 export function createDefaultDrivers(): DriverSelector {
   const claude = createClaudeDriver();
   const codex = createCodexDriver();
-  const byKind: Record<BuiltInDriver, TurnDriver> = { claude, codex, opencode: createOpenCodeDriver() };
-  return (kind) => (isBuiltInDriver(kind) ? byKind[kind] : undefined);
+  const byKind: Record<string, TurnDriver> = { claude, codex, opencode: createOpenCodeDriver(), [ACP_DRIVER]: createAcpDriver() };
+  return (kind) => byKind[kind];
 }

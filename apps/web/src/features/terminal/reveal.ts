@@ -44,3 +44,9 @@ export function syncRunTabs<Kind extends string>(
   }
   return next;
 }
+
+/** A person asked for this run: its tab is selected and the panel opens. */
+export function openTerminal<Kind extends string>(state: PanelTabState<Kind>, run: RunView, kind: Kind): PanelTabState<Kind> {
+  const revealed = revealTerminal(state, run, kind);
+  return { ...revealed, activeTab: tabForRun(revealed, kind, run.runId)!.id, open: true };
+}

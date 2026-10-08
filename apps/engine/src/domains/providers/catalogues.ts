@@ -3,6 +3,7 @@ import {
   CustomProviderModel,
   DEFAULT_MODEL_OVERLAY,
   defaultInstanceIdForDriver,
+  ACP_DRIVER,
   isBuiltInDriver,
   ModelCatalogue as ModelCatalogueSchema,
   ModelOverlay as ModelOverlaySchema,
@@ -110,6 +111,7 @@ export class ModelCatalogues {
   }
 
   async catalogue(driver: ProviderDriverKind, options: { force?: boolean; instanceId?: string } = {}): Promise<ModelCatalogue> {
+    if (driver === ACP_DRIVER) return { driver, models: [], source: "builtin", readAt: this.kernel.now(), message: "This agent picks its own model." };
     if (!isBuiltInDriver(driver)) throw new EngineStateError("invalid_request", "unknown provider driver");
     let raw: ModelCatalogue;
     const known = this.stored().get(driver);

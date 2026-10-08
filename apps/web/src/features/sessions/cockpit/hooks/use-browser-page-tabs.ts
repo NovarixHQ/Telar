@@ -2,11 +2,10 @@
 
 import { useEffect } from "react";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
-import { syncPageTabs, type NativePages } from "@/features/panel";
-import type { useCockpitPanel } from "./use-cockpit-panel";
+import { syncPageTabs, type NativePages, type PanelTab, type PanelTabState } from "@/features/panel";
 
 /** In the desktop app, one panel tab per page of the session's native browser, kept in step with it. */
-export function useBrowserPageTabs(sessionId: string | undefined, { updatePanel }: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel">) {
+export function useBrowserPageTabs(sessionId: string | undefined, updatePanel: (next: (current: PanelTabState<PanelTab>) => PanelTabState<PanelTab>) => void) {
   useEffect(() => {
     const bridge = desktopBrowserBridge();
     if (!bridge || !sessionId) return;

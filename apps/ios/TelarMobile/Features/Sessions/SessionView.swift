@@ -13,6 +13,7 @@ struct SessionView: View {
 
     @State private var panel: PanelModel
     @State private var simulatorWatch = SimulatorWatch()
+    @State private var agents = AgentsWatch()
 
     @State private var inspectorShown = false
     @State private var pushShown = false
@@ -303,6 +304,9 @@ struct SessionView: View {
                 }
             }
             .onChange(of: receiptWorld) { sendReceiptIfEarned() }
+            .task(id: agentsPulse(visibleTurns, active: scenePhase == .active)) {
+                if scenePhase == .active, let agentsAPI = api as? any AgentsAPI { await agents.follow(agentsAPI, sessionId: sessionId) }
+            }
     }
 
     private var stack: some View {
@@ -483,6 +487,9 @@ struct SessionView: View {
             if let simulatorsAPI, !simulatorWatch.running.isEmpty {
                 SimulatorPill(api: simulatorsAPI, running: preferringAgent(simulatorWatch.running, store.sync.agentSimulatorId))
             }
+            if let tally = agents.tally {
+                AgentsPill(tally: tally, watch: agents, hostId: hostId)
+            }
             ComposerView(
                 draft: $draft,
                 focus: $composerFocused,
@@ -529,37 +536,5 @@ struct SessionView: View {
                 }
             )
         }
-    }
-}
-
-struct ComposerScrim: View {
-    var body: some View {
-        Rectangle()
-            .fill(.bar)
-            .mask {
-                LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.35)],
-                               startPoint: .top, endPoint: .bottom)
-            }
-            .ignoresSafeArea(edges: .bottom)
-            .allowsHitTesting(false)
-    }
-}
-
-struct StatusCard<Content: View>: View {
-    let tint: Color
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        content
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tint.opacity(0.06))
-            .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(Theme.border, lineWidth: 1)
-            )
     }
 }

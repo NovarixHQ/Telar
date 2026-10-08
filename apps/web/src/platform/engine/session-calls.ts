@@ -4,7 +4,6 @@ ComputerUseStatus,
 RememberedLogin,EventPage,ModelSelection,TurnAttachment,
 TurnModelSelection,
 ProviderDriverKind,EngineRequest,
-HeldReports,
 RequestDecision,
 RuntimeMode,Session,
 SessionBootstrap,
@@ -14,9 +13,7 @@ SessionSnapshot,
 SnapshotWindow,
 Turn,
 TurnSubmissionResult,PluginStatus,
-ProjectPlugins,
-Subscription,
-WakeKind,TaskOutputPage
+ProjectPlugins
 } from "@telar/engine-client";
 import { snapshotQuery } from "@telar/engine-client";
 import { EngineApiError, opens, request, requestIfChanged, type EngineApiErrorCode } from "./transport";
@@ -36,20 +33,6 @@ export function sessionCalls(fetcher: Fetcher) {
   return {
     sessions: (projectId: string) =>
       request<{ sessions: Session[] }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/sessions`),
-    // `assignments` rides this list so Related work needs no per-session
-    // history read. Optional: an older engine does not send it.
-    /**
-     * FOLLOWING — who this session is woken by. One-directional and revocable;
-     * it changes what wakes you and confers nothing else.
-     */
-    sessionSubscriptions: (sessionId: string) =>
-      request<{ subscriptions: Subscription[] }>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/subscriptions`),
-    follow: (sessionId: string, input: { targetSessionId: string; events?: WakeKind[]; once?: boolean }) =>
-      request<{ subscription: Subscription }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/subscriptions`, input),
-    unfollow: (subscriptionId: string, subscriberSessionId?: string) =>
-      request<{ removed: boolean }>(fetcher, "DELETE", `/api/subscriptions/${encodeURIComponent(subscriptionId)}`, {
-        ...(subscriberSessionId ? { subscriberSessionId } : {}),
-      }),
     machinePlugins: () => request<{ plugins: PluginStatus[]; machine: ProjectPlugins }>(fetcher, "GET", "/api/plugins"),
     installPlugin: (input: { path: string; mode: "copy" | "link" }) =>
       request<{ plugin: PluginStatus }>(fetcher, "POST", "/api/plugins/installed", input),
@@ -126,9 +109,6 @@ export function sessionCalls(fetcher: Fetcher) {
         resumeAfterRateLimit?: boolean | null;
       },
     ) => request<{ session: Session; ended?: SessionSettleEnded }>(fetcher, "PATCH", `/api/sessions/${encodeURIComponent(sessionId)}`, patch),
-    /** How many peer reports the session is holding; not on the session record. */
-    sessionHeldReports: (sessionId: string) =>
-      request<HeldReports>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/held-reports`),
     markSessionRead: (sessionId: string, runId: string) =>
       request<{ session: Session }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/read`, { runId }),
   };
@@ -228,13 +208,6 @@ export function turnCalls(fetcher: Fetcher) {
     /** Close a session's terminals, as the person (#883). */
     closeSessionTerminals: (sessionId: string) =>
       request<{ closed: number }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/terminals/close`, {}),
-    /** A page of a background task's log from byte `after`; without it, the tail. */
-    taskOutput: (sessionId: string, taskId: string, after?: number) =>
-      request<TaskOutputPage>(
-        fetcher,
-        "GET",
-        `/api/sessions/${encodeURIComponent(sessionId)}/tasks/${encodeURIComponent(taskId)}/output${after === undefined ? "" : `?after=${after}`}`,
-      ),
     discardAmbiguousTurn: (sessionId: string, runId: string) =>
       request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/discard`, {}),
     /** Run a message recovery held, now that a person has re-read it. Dropping

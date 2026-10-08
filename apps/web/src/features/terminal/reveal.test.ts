@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { RunView } from "./run/types";
 import type { PanelTabInstance, PanelTabState } from "@/features/panel";
-import { revealTerminal, syncRunTabs } from "./reveal";
+import { openTerminal, revealTerminal, syncRunTabs } from "./reveal";
 import { readTerminalTab, terminalTabParams } from "./tab";
 
 const view = (over: Partial<RunView> = {}): RunView => ({
@@ -91,5 +91,16 @@ describe("syncRunTabs", () => {
   test("a feed that changes nothing returns the same state", () => {
     const state = withRun();
     expect(syncRunTabs(state, [view()], "terminal")).toBe(state);
+  });
+});
+
+describe("openTerminal", () => {
+  test("a row in the Workspace card selects that run's tab and opens the panel", () => {
+    const state: PanelTabState<string> = { tabs: [diff], activeTab: "diff", open: false };
+    const other = revealTerminal(state, view({ terminalId: "a", runId: "a" }), "terminal");
+    const next = openTerminal(other, view({ terminalId: "b", runId: "b" }), "terminal");
+    expect(next.open).toBe(true);
+    expect(tabOf(next, next.activeTab!).run?.runId).toBe("b");
+    expect(openTerminal(next, view({ terminalId: "a", runId: "a" }), "terminal").tabs).toHaveLength(3);
   });
 });

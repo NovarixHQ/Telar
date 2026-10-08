@@ -9,28 +9,21 @@ import { Switch } from "@/ui/switch";
 import { describeServeError } from "../tailscale-serve";
 import type { RemoteStatus } from "../api";
 
-function TailscaleHint({ status }: { status: RemoteStatus }) {
-  const magicdns = status.endpoints.find((endpoint) => endpoint.kind === "magicdns");
-  if (magicdns) {
+function HttpsHint({ status }: { status: RemoteStatus }) {
+  const secure = status.endpoints.find((endpoint) => endpoint.kind === "magicdns");
+  if (secure) {
     return (
       <>
-        Served at <span className="font-mono text-foreground">{magicdns.url}/</span> — a real certificate, so phone browsers get a secure context.
+        Served at <span className="font-mono text-foreground">{secure.url}/</span>, with a real certificate.
       </>
     );
   }
-  if (status.tailscaleServeError) return <span className="text-destructive">{describeServeError(status.tailscaleServeError)}</span>;
-  if (status.tailscaleServe) return "Publishes at the next launch. Needs Tailscale running, with HTTPS certificates on for your tailnet.";
-  return (
-    <>
-      Expose this cockpit through a MagicDNS HTTPS URL — a real certificate, so phone browsers get a secure context.{" "}
-      <span className="text-foreground">
-        Issuing it publishes this machine&rsquo;s name to a public Certificate Transparency log, permanently. Rename the machine in Tailscale first if
-        it carries yours.
-      </span>{" "}
-      Dictation also works over an <span className="font-mono text-foreground">ssh -L</span> tunnel, which needs neither.
-    </>
-  );
+  if (status.tailscaleServe) return "Publishes at the next launch.";
+  return "A real certificate at a private-network name, so phone browsers get a secure context.";
 }
+
+const HTTPS_INFO =
+  "Needs your private network's app running, with HTTPS certificates turned on for the network. Issuing a certificate publishes this machine's name to a public certificate log, permanently, so rename the machine first if it carries yours. Dictation also works over an ssh -L tunnel, which needs neither.";
 
 function ExposureHint({ status }: { status: RemoteStatus }) {
   if (status.exposure !== "network-accessible") return "Listening on 127.0.0.1 only — this machine is the only one that can reach it.";
@@ -89,7 +82,9 @@ export function RemoteEnvironmentRows({
       <Row
         label="HTTPS on your private network"
         icon={LockIcon}
-        hint={<TailscaleHint status={status} />}
+        hint={<HttpsHint status={status} />}
+        info={HTTPS_INFO}
+        {...(status.tailscaleServeError ? { error: describeServeError(status.tailscaleServeError) } : {})}
         control={
           <Switch
             aria-label="HTTPS on your private network"

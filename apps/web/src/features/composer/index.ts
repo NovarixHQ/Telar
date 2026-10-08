@@ -39,7 +39,6 @@ export {
   pullReference,
   sessionReference,
   startReferenceDrag,
-  taskReference,
   type TelarReference,
 } from "./drag-reference";
 export { chipGlyphFor } from "./glyph-paths";

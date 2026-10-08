@@ -1,7 +1,8 @@
 import {
   AUTO_COMPACT_MAX_TOKENS,
   BUILT_IN_DRIVERS,
-  isBuiltInDriver,
+  ACP_DRIVER,
+  isKnownDriver,
   AutoCompact as AutoCompactSchema,
   defaultInstanceIdForDriver,
   ProviderInstance as ProviderInstanceSchema,
@@ -114,8 +115,8 @@ export class ProviderRegistry {
     const instances = this.read();
     const existing = instances.find((instance) => instance.id === input.id);
     const driver = input.driver === undefined ? existing?.driver : input.driver;
-    if (!isBuiltInDriver(driver)) {
-      throw new EngineStateError("invalid_request", "provider instance driver must be claude, codex, opencode or telar");
+    if (!isKnownDriver(driver)) {
+      throw new EngineStateError("invalid_request", "provider instance driver must be claude, codex, opencode or acp");
     }
     if (existing && existing.driver !== driver) throw new EngineStateError("conflict", "a provider instance cannot change driver");
     const at = this.kernel.now();
@@ -165,6 +166,7 @@ export class ProviderRegistry {
         return value.trim();
       }),
     };
+    if (driver === ACP_DRIVER && !instance.binaryPath) throw new EngineStateError("invalid_request", "an agent needs the command that starts it");
     const parsed = ProviderInstanceSchema.safeParse(instance);
     if (!parsed.success) throw new EngineStateError("invalid_request", "provider instance configuration is invalid");
     const next = existing ? instances.map((entry) => (entry.id === instance.id ? parsed.data : entry)) : [...instances, parsed.data];
@@ -230,7 +232,7 @@ export class ProviderRegistry {
     }
     const rows = Array.isArray(stored.providerInstances) ? stored.providerInstances : [];
     const kept = rows.filter(
-      (row) => !(typeof row === "object" && row !== null && !isBuiltInDriver((row as { driver?: unknown }).driver)),
+      (row) => !(typeof row === "object" && row !== null && !isKnownDriver((row as { driver?: unknown }).driver)),
     );
     if (kept.length !== rows.length) {
       this.writeInstances(kept);

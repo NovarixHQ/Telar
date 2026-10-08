@@ -320,9 +320,11 @@ describe("the ordinary session route — this must not leak", () => {
     expect(host!.textContent).toContain("a conversation on its own");
     expect(sessionActions()).not.toBeNull();
     expect(canvasLink()).not.toBeNull();
-    // And the two that moved are still in the bar here, not duplicated out of it.
     expect(notes()).not.toBeNull();
     expect(masthead()!.contains(notes()!)).toBe(true);
-    expect(masthead()!.contains(runControl()!)).toBe(true);
+    // Run lives in the Workspace card here, never in the bar.
+    expect(runControl()).not.toBeNull();
+    expect(masthead()!.contains(runControl()!)).toBe(false);
+    expect(host!.querySelector('[aria-label="Workspace card"]')!.contains(runControl()!)).toBe(true);
   });
 });

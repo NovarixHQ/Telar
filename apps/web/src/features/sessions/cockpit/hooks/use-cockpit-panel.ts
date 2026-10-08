@@ -30,6 +30,7 @@ import {
   type PanelTabParams,
   type PanelTabState,
 } from "@/features/panel";
+import { useBrowserPageTabs } from "./use-browser-page-tabs";
 import { closeTerminalTab, createRunApi, splitLegacyTerminalParams } from "@/features/terminal";
 
 /** Rail (16rem) + conversation floor (24rem) + panel floor (20rem), rounded up. */
@@ -132,6 +133,8 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
     },
     [panelKey],
   );
+
+  useBrowserPageTabs(sessionId, updatePanel);
 
   const { open: railOpen, setOpen: setRailOpen } = useSidebar();
   const makeRoomForPanel = useCallback(() => {

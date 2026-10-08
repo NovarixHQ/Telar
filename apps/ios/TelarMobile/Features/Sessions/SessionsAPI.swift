@@ -17,6 +17,7 @@ protocol SessionsAPI: Sendable {
     func inboxPolicy() async throws -> InboxPolicy
     func sidebarLayout() async throws -> SidebarLayout
     func sessionSubscriptions(_ id: EngineID) async throws -> [Subscription]
+    func sessionChildren(_ id: EngineID) async throws -> [SessionChild]
 }
 
 extension SessionsAPI {
@@ -27,6 +28,8 @@ extension SessionsAPI {
     func deleteSession(_ id: EngineID) async throws {}
 
     func sessionSubscriptions(_ id: EngineID) async throws -> [Subscription] { [] }
+
+    func sessionChildren(_ id: EngineID) async throws -> [SessionChild] { [] }
 
     func liveSessions(matching etag: String?, since: Int?, all: Bool) async throws -> LiveSessionsRead {
         LiveSessionsRead(live: try await liveSessions(), etag: nil, data: nil)
@@ -242,5 +245,11 @@ extension HTTPEngineAPI: SessionsAPI {
         struct Reply: Decodable { var subscriptions: [Skippable<Subscription>] }
         let reply: Reply = try await get("api/sessions/\(escape(id))/subscriptions")
         return reply.subscriptions.compactMap(\.value)
+    }
+
+    func sessionChildren(_ id: EngineID) async throws -> [SessionChild] {
+        struct Reply: Decodable { var children: [Skippable<SessionChild>] }
+        let reply: Reply = try await get("api/sessions/\(escape(id))/children")
+        return reply.children.compactMap(\.value)
     }
 }

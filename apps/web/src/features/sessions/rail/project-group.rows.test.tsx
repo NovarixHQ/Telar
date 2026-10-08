@@ -7,10 +7,7 @@
  * handed it over — a shape that says "this belongs to that", which is exactly
  * what a separate conversation with its own worktree and its own life does not.
  *
- * So the group draws what it holds, in the order it holds it, at one level. The
- * relationship itself is not lost: it is stated on the panel's Agents surface,
- * where a row has room to say what the errand was and how it went (see
- * `related-conversations.tsx`).
+ * So the group draws what it holds, in the order it holds it, at one level.
  *
  * RENDERED RATHER THAN SCANNED. `sidebar-bands.test.ts` reads the rail's source
  * for the call sites that no longer exist; this asks the question a reader

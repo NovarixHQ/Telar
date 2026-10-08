@@ -33,6 +33,7 @@ const EXPECTED_IDS: CommandId[] = [
   "stop-turn",
   "toggle-dictation",
   "reveal-in-finder",
+  "toggle-workspace",
   "pin-session",
   "search-sessions",
   "add-project",

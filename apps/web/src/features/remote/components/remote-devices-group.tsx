@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { TerminalIcon, ServerIcon, GlobeIcon, CircleHelpIcon, MonitorIcon, SmartphoneIcon, XIcon } from "lucide-react";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
@@ -66,7 +66,7 @@ function DeviceName({ device, isSelf, onRename }: { device: RemoteDevice; isSelf
         >
           {device.name}
         </button>
-        {whereabouts && <span className="block truncate text-2xs text-muted-foreground">{whereabouts}</span>}
+        {whereabouts && <span className="block truncate text-2xs font-normal text-muted-foreground">{whereabouts}</span>}
       </span>
       {isSelf && <Badge variant="outline">This device</Badge>}
     </span>
@@ -98,19 +98,20 @@ function DeviceRow({ device, isSelf, busy, onRename, onRole, onRevoke }: { devic
   const source = declaredSource && !device.name.includes(declaredSource) ? declaredSource : undefined;
 
   return (
-    <tr className="border-b border-border/40 align-middle last:border-0">
-      <td className="py-2 pr-3 pl-4">
-        <DeviceName device={device} isSelf={isSelf} onRename={(name) => onRename(device.id, name)} />
-      </td>
-      <td className="py-2 pr-3 text-muted-foreground">{source ?? kind ?? "—"}</td>
-      <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground">
-        <Presence device={device} />
-      </td>
-      <td className="py-2 pr-4">
-        <div className="flex items-center justify-end gap-1.5">
+    <Row
+      id={`settings-device-${device.id}`}
+      label={<DeviceName device={device} isSelf={isSelf} onRename={(name) => onRename(device.id, name)} />}
+      hint={
+        <span className="flex flex-wrap items-center gap-x-1.5">
+          {(source ?? kind) && <span>{source ?? kind} ·</span>}
+          <Presence device={device} />
+        </span>
+      }
+      control={
+        <div className="flex items-center gap-1.5">
           <Dropdown<"full" | "observer">
             value={device.role}
-            className="h-6 w-28"
+            className="w-28"
             label={`What ${device.name} may do`}
             disabled={busy}
             onChange={(role) => {
@@ -131,12 +132,12 @@ function DeviceRow({ device, isSelf, busy, onRename, onRole, onRevoke }: { devic
             <XIcon className="size-3.5" />
           </Button>
         </div>
-      </td>
-    </tr>
+      }
+    />
   );
 }
 
-export function RemoteDevicesGroup({ status, ...actions }: { status: RemoteStatus } & DeviceActions) {
+export function RemoteDevicesGroup({ status, children, ...actions }: { status: RemoteStatus; children?: ReactNode } & DeviceActions) {
   return (
     <SettingsGroup
       title="Devices that reach this Mac"
@@ -156,24 +157,9 @@ export function RemoteDevicesGroup({ status, ...actions }: { status: RemoteStatu
       {status.devices.length === 0 ? (
         <Row label="None yet" hint="Devices appear here as they pair." control={null} />
       ) : (
-        <div className="-mx-4 max-h-80 overflow-y-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-card">
-              <tr className="border-b border-border/40 text-2xs font-normal tracking-wide text-muted-foreground uppercase">
-                <th scope="col" className="py-1.5 pr-3 pl-4 font-normal">Device</th>
-                <th scope="col" className="py-1.5 pr-3 font-normal">Kind</th>
-                <th scope="col" className="py-1.5 pr-3 font-normal">Status</th>
-                <th scope="col" className="py-1.5 pr-4 text-right font-normal">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {status.devices.map((device) => (
-                <DeviceRow key={device.id} device={device} isSelf={device.id === status.callerDeviceId} {...actions} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        status.devices.map((device) => <DeviceRow key={device.id} device={device} isSelf={device.id === status.callerDeviceId} {...actions} />)
       )}
+      {children}
     </SettingsGroup>
   );
 }

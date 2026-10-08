@@ -38,7 +38,7 @@ describe("panelTabFor", () => {
 
   test("the three kinds with nothing to address open nothing", () => {
     // A page carries a URL, and the browser surface addresses tabs by the
-    // ENGINE's id. A task names a sub-agent the Agents panel addresses by id. A
+    // ENGINE's id. A task names a sub-agent, which has no surface. A
     // check belongs to a pull request's own view. None of the three references
     // carries the handle its surface needs.
     expect(panelTabFor(pageReference({ title: "Docs", url: "https://example.com/docs" }))).toBeUndefined();

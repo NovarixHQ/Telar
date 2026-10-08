@@ -36,7 +36,7 @@ export function ComposerHead({
           {...(session?.providerInstanceId ? { instanceId: session.providerInstanceId } : {})}
         />
       )}
-      <BackgroundPresence count={props.backgroundTasks} onStop={props.onStopBackground} {...(props.onViewBackground ? { onView: props.onViewBackground } : {})} />
+      <BackgroundPresence count={props.backgroundTasks} onStop={props.onStopBackground} />
       {note && <ComposerNote note={note} onDismiss={onDismissNote} />}
     </>
   );
@@ -58,7 +58,7 @@ export function ComposerFoot({
   hidden: boolean;
   onAvailability: (availability: Exclude<ProjectAvailability, "available"> | undefined) => void;
 }) {
-  const { projectId, projectName, session, envMode, onEnvMode, pendingBase, onBase, onOpenChanges } = props;
+  const { projectId, projectName, session, envMode, onEnvMode, pendingBase, onBase } = props;
   return (
     <div
       data-slot="composer-foot"
@@ -82,7 +82,6 @@ export function ComposerFoot({
             {...(onEnvMode ? { onEnvMode } : {})}
             {...(pendingBase ? { pendingBase } : {})}
             {...(onBase ? { onBase } : {})}
-            {...(onOpenChanges ? { onOpenChanges } : {})}
           />
         </div>
       )}

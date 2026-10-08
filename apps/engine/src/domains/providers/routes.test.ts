@@ -45,3 +45,11 @@ test("extra arguments are kept as typed, cleared by null, and an unclosed quote 
   const cleared = await client.saveProviderInstance({ id: "codex", extraArgs: null });
   expect(cleared.providerInstance.extraArgs).toBeUndefined();
 });
+
+test("an agent login needs the command that starts it, and has no model list of its own", async () => {
+  const client = await engine();
+  await expect(client.saveProviderInstance({ id: "agent_sample", driver: "acp" })).rejects.toMatchObject({ status: 400 });
+  const saved = await client.saveProviderInstance({ id: "agent_sample", driver: "acp", displayName: "Sample", binaryPath: "/opt/agents/sample", extraArgs: "--acp" });
+  expect(saved.providerInstance).toMatchObject({ driver: "acp", binaryPath: "/opt/agents/sample", extraArgs: "--acp" });
+  await expect(client.modelCatalogue("acp")).resolves.toMatchObject({ catalogue: { driver: "acp", models: [] } });
+});

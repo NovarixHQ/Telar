@@ -191,8 +191,8 @@ describe("the call sites #401 lists", () => {
         <RightPanel sessionId="session_a" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} onClose={() => {}} />,
       );
     const hints = (host: HTMLElement) => host.querySelectorAll("[data-slot=key-hint]").length;
-    const one = await panel([{ id: "agents", kind: "agents", params: {} } as PanelTabItem]);
-    const two = await panel([{ id: "agents", kind: "agents", params: {} } as PanelTabItem, { id: "processes", kind: "processes", params: {} } as PanelTabItem]);
+    const one = await panel([{ id: "editor", kind: "editor", params: {} } as PanelTabItem]);
+    const two = await panel([{ id: "editor", kind: "editor", params: {} } as PanelTabItem, { id: "issues", kind: "issues", params: {} } as PanelTabItem]);
     await hold(true);
     expect(hints(one)).toBe(1);
     expect(hints(two)).toBe(3);

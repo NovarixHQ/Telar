@@ -30,8 +30,6 @@ export function rightPanelProps({ open, hostId, sessionId, projectId, sync, mode
     ...(session?.workspace.mode === "worktree" ? { branch: session.workspace.branch } : {}),
     items: sync.items,
     turns: sync.turns,
-    tasks: model.roster,
-    ...(model.focusedTask ? { focusedTask: model.focusedTask } : {}),
     onOpenBrowser: browser.openBrowser,
     browserStart: browser.browserStart,
     ...(browser.browserUnavailable ? { browserUnavailable: browser.browserUnavailable } : {}),

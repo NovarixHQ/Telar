@@ -5,6 +5,7 @@ import { connectEngine } from "@telar/engine-client/node";
 import { BrowserRuntime } from "../domains/browser";
 import { createBrowserToolSocket, createDefaultDrivers } from "../drivers";
 import { hydrateHostPath } from "../platform/process/host-path";
+import { isMcpBridgeProcess, runMcpBridge } from "../drivers/acp/mcp-bridge";
 import { TelarToolSocket } from "../domains/agent-tools";
 import { createLoginGrantStore } from "../domains/browser";
 import { bundledPluginToolModules, externalPluginsDir, externalToolModule, loadInstalledPlugins, setPluginToolModules } from "../domains/plugins";
@@ -13,6 +14,7 @@ import { statePaths } from "../platform/fs/state-paths";
 import { EngineWorker, workerConcurrencyFromEnv } from ".";
 import { WorkerReconnectController } from "./supervisor";
 
+if (isMcpBridgeProcess()) process.exit(await runMcpBridge().then(() => 0));
 hydrateHostPath();
 
 const root = engineRootFromEnv();

@@ -13,10 +13,9 @@ import { running, transcriptTasks } from "../model";
 import { AgentRow, CompactionRow, ConversationImportRow, PlanRow, PlotRow, ProviderWaitRow, ReasoningRow, SteeredMessageRow } from "./item-rows";
 import { NotificationRow } from "./notification-row";
 
-export function TranscriptItem({ item, tasks, onOpenAgent, onOpenTab, onInsert, onOpenFile, onOpenFileInNewTab }: {
+export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, onOpenFileInNewTab }: {
   item: JournalItem;
   tasks?: readonly JournalTask[];
-  onOpenAgent?: (taskId: string) => void;
   /** So a message steered into a running turn opens its references exactly
    *  as the same message sent idle does. */
   onOpenTab?: OpenTab;
@@ -28,7 +27,7 @@ export function TranscriptItem({ item, tasks, onOpenAgent, onOpenTab, onInsert, 
     // A backgrounded SHELL spawned as a task is the `Ran command` row already
     // beside it; only a delegate earns an agent row.
     if (task && !transcriptTasks([task]).length) return null;
-    return <AgentRow item={item} task={task} {...(onOpenAgent ? { onOpen: onOpenAgent } : {})} {...(onInsert ? { onInsert } : {})} />;
+    return <AgentRow item={item} task={task} {...(onInsert ? { onInsert } : {})} />;
   }
   if (item.detail.type === "artifact") return <ArtifactCard sessionId={item.sessionId} artifact={item.detail.artifact} />;
   if (item.detail.type === "plan") return <PlanRow item={item} />;

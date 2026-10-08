@@ -16,7 +16,6 @@ import { hostFromPathname } from "@/platform/engine/host-client";
 import { canvasHref } from "../../session-list";
 import { pinToggleOverride, showSimulatorTab } from "../model";
 import { useCockpitCommands } from "../hooks/use-cockpit-commands";
-import { useBrowserPageTabs } from "../hooks/use-browser-page-tabs";
 import { useCockpitPanel } from "../hooks/use-cockpit-panel";
 import { useCockpitProject } from "../hooks/use-cockpit-project";
 import { useComposerDraft } from "../hooks/use-composer-draft";
@@ -36,6 +35,7 @@ import { useTranscriptModel } from "../hooks/use-transcript-model";
 import { composerProps } from "./composer-props";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
+import { WorkspaceCard, WorkspaceCardToggle } from "./workspace-card";
 import { useReadReceipt } from "./read-receipt";
 import { TranscriptList } from "./transcript-list";
 
@@ -75,7 +75,6 @@ export function SessionCockpit({
   const pluginPanels = usePluginPanels(hostId, enabledPlugins);
   const panelKey = sessionId ?? (projectId === undefined ? "main" : canvasPanelKey(projectId));
   const panelState = useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId });
-  useBrowserPageTabs(sessionId, panelState);
   const { panel, showPanelTab } = panelState;
   const panelPresence = usePanelPresence(!solo && panel.open);
   const browser = useSessionBrowser({ hostId, sessionId, projectId, sync, draft: draftConfig, composer, panel: panelState, setCreatedSessionId });
@@ -88,7 +87,7 @@ export function SessionCockpit({
   });
   const onConversationClick = useLinkRouting({ hostId, projectId, sessionId, solo, panel: panelState });
   const revealNewTerminals = useJournalReactions({ sync, browser: browser.browser, enabledPlugins, panel: panelState });
-  const model = useTranscriptModel(sessionId, sync, showPanelTab);
+  const model = useTranscriptModel(sessionId, sync);
   const { active } = model;
   const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));
   const builders = useBuildersBanner(hostId, agents);
@@ -104,7 +103,7 @@ export function SessionCockpit({
   const floating = useSimulatorFloat(sessionId && !solo ? floatKey(hostId, sessionId) : undefined).simulator;
   const panelGestures = solo
     ? {}
-    : { onOpenAgent: model.showAgent, onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
+    : { onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
 
   return (
     <main data-surfaces className="group/surfaces flex min-h-0 flex-1 overflow-hidden md:overflow-visible md:gap-2">
@@ -120,10 +119,9 @@ export function SessionCockpit({
             session={session}
             {...(headerMenu ? { menu: headerMenu } : {})}
             onRename={(next) => void actions.rename(next)}
-            onWatchRun={() => showPanelTab("terminal")}
-            onRunTerminals={revealNewTerminals}
             panel={
               <>
+                {session && <WorkspaceCardToggle />}
                 {/* Keyed by host and session: a different machine is a different mount. The last turn's state is the refresh cue. */}
                 {session && (
                   <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
@@ -135,6 +133,18 @@ export function SessionCockpit({
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
+          {!solo && session && (
+            <WorkspaceCard
+              key={`${hostId}:${session.id}`}
+              hostId={hostId}
+              session={session}
+              agents={agents}
+              busy={Boolean(active)}
+              backgroundTasks={model.backgroundTasks}
+              panel={panelState}
+              onRunTerminals={revealNewTerminals}
+            />
+          )}
           <TranscriptList
             sync={sync}
             model={model}
@@ -157,7 +167,7 @@ export function SessionCockpit({
           />
           <Composer
             {...composerProps({
-              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit, showPanelTab,
+              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,
               // Not while a conversation is opening: a composer changing height would move the viewport again.
               compact: readingBack && transcriptLanded,
               contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),

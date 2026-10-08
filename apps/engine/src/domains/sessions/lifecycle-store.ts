@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  isBuiltInDriver,
+  ACP_DRIVER,
+  isKnownDriver,
   DEFAULT_ATTENDED_RUNTIME_MODE,
   DEFAULT_DETACHED_RUNTIME_MODE,
   defaultInstanceIdForDriver,
@@ -133,9 +134,10 @@ export class SessionLifecycle {
       }
       const chosen = input.providerInstanceId === undefined ? undefined : this.host.requireInstance(input.providerInstanceId);
       const driver = chosen?.driver ?? input.driver ?? "claude";
-      if (!isBuiltInDriver(driver)) {
+      if (!isKnownDriver(driver)) {
         throw new EngineStateError("invalid_request", "unknown provider driver");
       }
+      if (driver === ACP_DRIVER && !chosen) throw new EngineStateError("invalid_request", "choose which agent runs this session");
       if (chosen && !chosen.enabled) throw new EngineStateError("conflict", "that provider instance is switched off");
       const instanceId = chosen?.id ?? defaultInstanceIdForDriver(driver);
       const picked = input.model ? this.host.chooseModel(driver, instanceId, input.model) : undefined;

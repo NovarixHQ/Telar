@@ -24,7 +24,7 @@ Questions from the agent and requests for secrets always wait for you, in every 
 
 ## Attachments
 
-Add up to 16 photos or files with the add menu, by pasting, or by dropping them on the box. You can also drop a file from the panel, or a note, as a reference. It's inserted as a chip instead of attached.
+Add up to 16 photos or files with the add menu, by pasting, or by dropping them on the box. You can also drop a file from the panel as a reference. It's inserted as a chip instead of attached.
 
 ## Slash commands and mentions
 
@@ -47,7 +47,7 @@ When the agent asks you something, the question opens right above the composer, 
 ## Drafts and the stash
 
 - Whatever you type is kept as a draft per session, even if you close Telar.
-- ⌘S sets the current message aside in the stash. ⌘S with an empty box opens the stash. Picking a prompt puts it back in the box and removes it from the stash. Prompts that agents prepared for you appear there too, under "Drafted for you". See [Notes and prompts](notes-and-prompts.md).
+- ⌘S sets the current message aside in the stash. ⌘S with an empty box opens the stash. Picking a prompt puts it back in the box and removes it from the stash. Prompts that agents prepared for you appear there too, under "Drafted for you". See [Prompts](prompts.md).
 
 ## Dictation
 

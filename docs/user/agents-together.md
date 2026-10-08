@@ -32,7 +32,7 @@ The coordinator doesn't poll. It sends the tasks and ends its turn: every task i
 
 Type `/orchestrate` in the composer and paste your list. The orchestrate skill has the coordinator:
 
-1. read the project's rules note in the notebook, if there is one,
+1. read the project's rules in its AGENTS.md or CLAUDE.md,
 2. turn the list into one task per issue, and ask you only about decisions that are yours,
 3. start one worktree session per task and brief each one,
 4. check each result before anything is merged, and merge only with your permission,
@@ -41,7 +41,7 @@ Type `/orchestrate` in the composer and paste your list. The orchestrate skill h
 
 `/orchestrate` shows up only when the skill is installed. Telar installs it together with the telar skill, under Settings → Integrations → Telar orientation.
 
-Standing rules that differ per project, such as who may merge or how many workers may run at once, belong in a note in that project's notebook. The coordinator reads it before it starts.
+Standing rules that differ per project, such as who may merge or how many workers may run at once, belong in that project's AGENTS.md or CLAUDE.md. The coordinator reads them before it starts.
 
 ## Seeing who works for whom
 

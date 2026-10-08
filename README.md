@@ -24,7 +24,7 @@ Settings → Providers shows the exact binary and version that will answer you.
 - **Agents that coordinate.** A session can start other sessions, hand them work and collect their results.
 - **An integrated browser and terminals**, so an agent can check its own work.
 - **Plugins**: Data Science notebooks, LaTeX, and plugins you write yourself.
-- **A notebook per project**, and prompts you can reuse.
+- **Prompts you can reuse**, set aside by you or drafted by an agent.
 - **iPhone app** with notifications and a Live Activity.
 
 ## Install

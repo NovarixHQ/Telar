@@ -4,7 +4,6 @@ import type { FileReference, WorkspaceListing } from "@telar/engine-client";
 
 const POSITION = /(?::(\d+)(?:[:-]\d+)?|#L(\d+)(?:-L?\d+)?)$/;
 
-/** `src/a.ts:42` → the path and its line; text that cannot be a path is refused before any disk read. */
 export function parseFileReference(text: string): { target: string; line?: number } | undefined {
   const trimmed = text.trim();
   if (!trimmed || /[\s`'"<>|*?]/.test(trimmed) || trimmed.includes("://")) return undefined;
@@ -27,10 +26,6 @@ function uniqueSuffixMatch(files: readonly string[], target: string): string | u
   return found;
 }
 
-/**
- * The texts that name a file inside `root`: an exact path first, then a bare or partial path
- * that ends exactly one listed file. A truncated listing cannot prove a match is the only one.
- */
 export async function resolveFileReferences(
   root: string,
   texts: readonly string[],

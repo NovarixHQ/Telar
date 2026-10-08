@@ -26,7 +26,6 @@ function InlineCode({ className, children, ...props }: ComponentProps<"code"> & 
 
 const COMPONENTS = { inlineCode: InlineCode };
 
-/** A finished agent message, with inline code that names a file in the checkout drawn as a chip. */
 export function AgentMarkdown({ text, onOpenFile }: { text: string; onOpenFile?: ((path: string) => void) | undefined }) {
   const files = useFileReferences(text);
   const value = useMemo(() => ({ files, onOpen: onOpenFile }), [files, onOpenFile]);

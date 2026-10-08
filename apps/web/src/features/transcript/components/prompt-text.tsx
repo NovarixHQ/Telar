@@ -69,7 +69,6 @@ function ReferenceChip({ reference, onOpen }: { reference: TelarReference; onOpe
   );
 }
 
-/** Inline code that names a file in the checkout: its icon and name, opening it at the line it mentions. */
 export function FileReferenceChip({ reference, onOpen }: { reference: FileReference; onOpen?: ((path: string) => void) | undefined }) {
   const name = reference.path.slice(reference.path.lastIndexOf("/") + 1);
   const open = () => {

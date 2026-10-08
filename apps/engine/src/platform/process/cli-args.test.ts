@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { cliFlags, tokenizeCliArgs } from "./cli-args";
+import { cliFlags, quoteCliArgs, tokenizeCliArgs } from "./cli-args";
 
 test("splits on whitespace and keeps quoted runs whole", () => {
   expect(tokenizeCliArgs("")).toEqual([]);
@@ -14,4 +14,9 @@ test("an unclosed quote is refused rather than guessed at", () => {
 
 test("flags read as a map, a bare flag as null", () => {
   expect(cliFlags(["--chrome", "--effort", "high", "--mode=plan", "stray", "-x"])).toEqual({ chrome: null, effort: "high", mode: "plan" });
+});
+
+test("quoted arguments read back as the same list", () => {
+  const args = ["--acp", "two words", "it's", "", "--key=value"];
+  expect(tokenizeCliArgs(quoteCliArgs(args))).toEqual(args);
 });

@@ -1,7 +1,5 @@
 "use client";
 
-import { driverLabel } from "./provider-icon";
-
 import { useState } from "react";
 import { PlusIcon, RotateCwIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
@@ -20,7 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/dialog";
-import { ProviderIcon } from "./provider-icon";
+import { driverLabel, ProviderIcon } from "./provider-icon";
+import { AgentCatalog } from "./agent-catalog";
+import { useExperiment } from "@/features/settings/experiments";
 import { ProviderInstanceCard } from "./provider-instance-card";
 import { instanceStatus, ProviderMark } from "./provider-instance-header";
 import { Switch } from "@/ui/switch";
@@ -196,6 +196,7 @@ export function ProvidersSection() {
   const { instances, probes, inheritance, updating, errors, rechecking, updateReport, setInherited } = providers;
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState<string>();
+  const [catalogEnabled] = useExperiment("agent-catalog");
 
   const probeFor = (id: string) => probes.find((probe) => probe.instanceId === id);
 
@@ -276,6 +277,15 @@ export function ProvidersSection() {
           </div>
         }
       />
+      {catalogEnabled && (
+        <AgentCatalog
+          onInstalled={(id) => {
+            setAdded(id);
+            void providers.load();
+            announceProviderInstancesChanged();
+          }}
+        />
+      )}
       <AddInstanceDialog
         open={adding}
         onOpenChange={setAdding}

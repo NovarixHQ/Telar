@@ -47,3 +47,6 @@ export function cliFlags(args: readonly string[]): Record<string, string | null>
   }
   return flags;
 }
+
+export const quoteCliArgs = (args: readonly string[]): string =>
+  args.map((arg) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", `'"'"'`)}'`)).join(" ");

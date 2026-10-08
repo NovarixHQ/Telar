@@ -54,6 +54,8 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "keybindings", groups: [
   ] },
   { id: "providers", groups: [
+    { "title":"Agent catalog", rows: [
+    ] },
     { "title":"Usage providers","keywords":["cliproxy","cliproxyapi","hub","proxy","quota","limit","limits","usage","pooled","rate limit","5h","weekly","remaining"], rows: [
     ] },
     { "title":"Diagnosis", rows: [

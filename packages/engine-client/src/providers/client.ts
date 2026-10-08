@@ -3,7 +3,7 @@ import type { ClaudeConversation, ProviderSkills, Session, Turn } from "../proto
 import type { ConversationImportDetail } from "../protocol/items";
 import type { EngineTransport } from "../platform/transport";
 import type { UsageLimitWindow } from "../usage/schema";
-import type { AutoCompact, CustomProviderModel, ModelCatalogue, ModelOverlay, ProviderInstance, ProviderInstanceEnvVar, ProviderProbe, ProviderUpdateRun } from "./schema";
+import type { AgentCatalog, AutoCompact, CustomProviderModel, ModelCatalogue, ModelOverlay, ProviderInstance, ProviderInstanceEnvVar, ProviderProbe, ProviderUpdateRun } from "./schema";
 
 type ProviderInstances = { providerInstances: ProviderInstance[]; probes: ProviderProbe[] };
 
@@ -42,6 +42,14 @@ export const providersClient = {
 
   providerLimits(this: EngineTransport, id: string): Promise<{ windows: UsageLimitWindow[] }> {
     return this.request("GET", `${instancePath(id)}/limits`);
+  },
+
+  agentCatalog(this: EngineTransport, options: { refresh?: boolean } = {}): Promise<AgentCatalog> {
+    return this.request("GET", `/v2/agent-catalog${options.refresh ? "?refresh=1" : ""}`);
+  },
+
+  installAgent(this: EngineTransport, agentId: string): Promise<{ providerInstance: ProviderInstance }> {
+    return this.request("POST", `/v2/agent-catalog/${encodeURIComponent(agentId)}/install`, {});
   },
 
   /** Refused for a driver's built-in slot. */

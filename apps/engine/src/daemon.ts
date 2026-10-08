@@ -16,7 +16,7 @@ import { notesRoutes, notesSocketDoor, ProjectNotesError } from "./domains/notes
 import { createEnginePlugins, externalPluginsDir, PluginInputError, pluginRoutes, pluginScopedRoutes, pluginSessionRoutes } from "./domains/plugins";
 import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
-import { maybeRetitleSession, maybeRetitleWithContext, providersRoutes, readModelCatalogue, sessionProviderRoutes, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
+import { maybeRetitleSession, maybeRetitleWithContext, providersRoutes, readModelCatalogue, sessionProviderRoutes, type AgentRouteDeps, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
 import { createPushService } from "./domains/push";
 import { createRemoteStore, remoteDirFor, remoteRoutes } from "./domains/remote";
 import { schedulesRoutes } from "./domains/schedules";
@@ -95,6 +95,7 @@ export type EngineDaemonOptions = {
   /** A test must never actually run a global install. */
   runProviderUpdate?: (driver: ProviderDriverKind, binaryPath: string | undefined) => Promise<CliUpdateRun>;
   readProviderLimits?: (instance: ProviderInstance) => Promise<UsageLimitWindow[]>;
+  agentInstall?: AgentRouteDeps;
   providerSkills?: ProviderSkillsOptions;
   /** The real gate probes cua-driver, which can put a permissions panel on screen. */
   computerUseGate?: ComputerUseGate;
@@ -224,7 +225,7 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...storageRoutes(store, storageMeter),
     ...worktreesRoutes(store, storageMeter.checkoutsChanged),
     ...usageRoutes(store),
-    ...providersRoutes(store, { now, ...(options.probeProviderVersion ? { probeVersion: options.probeProviderVersion } : {}), ...(options.runProviderUpdate ? { runUpdate: options.runProviderUpdate } : {}), ...(options.readProviderLimits ? { readLimits: options.readProviderLimits } : {}) }),
+    ...providersRoutes(store, { now, ...(options.probeProviderVersion ? { probeVersion: options.probeProviderVersion } : {}), ...(options.runProviderUpdate ? { runUpdate: options.runProviderUpdate } : {}), ...(options.readProviderLimits ? { readLimits: options.readProviderLimits } : {}), ...(options.agentInstall ? { agents: options.agentInstall } : {}) }),
     ...appearanceRoutes(store),
     ...promptsRoutes(store),
     ...notesRoutes(store, { port, secret: notesDoor.secret }),

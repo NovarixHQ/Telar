@@ -6,6 +6,7 @@ TriangleAlertIcon
 import { ArtifactCard } from "@/features/agent-tools";
 import { isToolItem, itemLabel, itemText, type JournalItem, type JournalTask } from "@/platform/engine";
 import { MessageMenu, MessageResponse } from "@/ui/message";
+import { AgentMarkdown } from "./agent-markdown";
 import { type OpenTab } from "./conversation-message";
 import { RowGestures, ToolRow } from "./tool-row";
 import { ProviderSwitchRow } from "./provider-switch-row";
@@ -52,14 +53,12 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
     );
   }
   if (item.detail.type === "assistant_message") {
-    // NO MENU WHILE IT IS STILL BEING WRITTEN. Copying or quoting half a
-    // sentence gives you half a sentence, and the reader cannot tell from the
-    // clipboard that the rest arrived a moment later.
+    // No menu and no chips while it streams: a copy would hold half a sentence.
     const text = itemText(item);
     if (running(item)) return <MessageResponse streaming>{text}</MessageResponse>;
     return (
       <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
-        <MessageResponse>{text}</MessageResponse>
+        <AgentMarkdown text={text} onOpenFile={onOpenFile} />
       </MessageMenu>
     );
   }

@@ -17,6 +17,7 @@ export {
   writeEditor,
 } from "./editor-workspace";
 export { type FileGlyph, fileKind } from "./file-kinds";
+export { revealLine } from "./line-reveal";
 export { buildFileTree, directoryPaths, type FileTreeRow, flattenTree } from "./file-tree";
 export { workspaceOpenBlocker, workspaceOpener, type WorkspaceOpenersAnswer } from "./workspace-open";
 export {

@@ -468,7 +468,7 @@ describe("the pane sits in the same reading column as every other", () => {
     // The SAME class, not merely a narrow one: the regression this guards is a
     // per-pane branch coming back, whatever width it picks.
     expect(appearance).toBe(general);
-    expect(appearance).toContain("max-w-2xl");
+    expect(appearance).toContain("max-w-4xl");
   });
 });
 

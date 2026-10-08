@@ -3,10 +3,11 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
 import { DiffScreen } from "./features/git";
-import { hosts, HostsScreen, PairScreen } from "./features/hosts";
-import { SessionScreen, SessionsScreen } from "./features/sessions";
+import { HostsScreen, PairScreen } from "./features/hosts";
+import { RailScreen, SessionScreen } from "./features/sessions";
 import type { RootStack } from "./platform/navigation/routes";
 import { navigationTheme } from "./platform/navigation/theme";
+import { Unavailable } from "./platform/navigation/Unavailable";
 
 const Stack = createNativeStackNavigator<RootStack>();
 
@@ -16,7 +17,7 @@ async function initialUrl(): Promise<string | null | undefined> {
   return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
 }
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair", Sessions: "host/:hostId", Session: "session/:hostId/:sessionId", Diff: "diff/:hostId/:sessionId" } }, getInitialURL: initialUrl };
+const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { initialRouteName: "Rail", screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Diff: "diff/:hostId/:sessionId" } }, getInitialURL: initialUrl };
 
 export function App() {
   const scheme = useColorScheme() === "dark" ? "dark" : "light";
@@ -24,20 +25,13 @@ export function App() {
     <NavigationContainer linking={linking} theme={navigationTheme(scheme)}>
       <StatusBar style="auto" />
       <Stack.Navigator screenOptions={{ headerLargeTitle: true }}>
-        <Stack.Screen name="Hosts" component={HostsScreen} options={{ title: "Telar" }} />
+        <Stack.Screen name="Rail" component={RailScreen} options={{ title: "Telar" }} />
         <Stack.Screen name="Pair" component={PairScreen} options={{ title: "Pair a computer", presentation: "formSheet", headerLargeTitle: false, sheetAllowedDetents: [0.6, 1] }} />
-        <Stack.Screen name="Sessions" component={SessionsScreen} options={({ route }) => ({ title: route.params.hostName ?? hosts.get(route.params.hostId)?.name ?? "Sessions" })} />
-        <Stack.Screen
-          name="Session"
-          component={SessionScreen}
-          options={({ route, navigation }) => ({
-            title: route.params.title ?? "",
-            headerLargeTitle: false,
-            headerRight: () => (
-              <Button title="Diff" onPress={() => navigation.navigate("Diff", { hostId: route.params.hostId, sessionId: route.params.sessionId })} />
-            ),
-          })}
-        />
+        <Stack.Group screenOptions={({ navigation }) => ({ presentation: "modal", headerLargeTitle: false, headerRight: () => <Button title="Done" onPress={() => navigation.goBack()} /> })}>
+          <Stack.Screen name="Settings" component={HostsScreen} options={{ title: "Settings" }} />
+          <Stack.Screen name="Unavailable" component={Unavailable} options={({ route }) => ({ title: route.params.title })} />
+        </Stack.Group>
+        <Stack.Screen name="Session" component={SessionScreen} options={({ route }) => ({ title: route.params.title ?? "Session", headerLargeTitle: false, headerTransparent: true, headerShadowVisible: false, headerBackButtonDisplayMode: "minimal" })} />
         <Stack.Screen name="Diff" component={DiffScreen} options={{ title: "Diff", headerLargeTitle: false }} />
       </Stack.Navigator>
     </NavigationContainer>

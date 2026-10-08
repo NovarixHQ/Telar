@@ -22,7 +22,7 @@ export function PairScreen() {
     if (!outcome.ok) return setProblem(outcome.message);
     await rememberHost(outcome.host);
     if (navigation.canGoBack()) navigation.goBack();
-    else navigation.navigate("Hosts");
+    else navigation.navigate("Rail");
   };
 
   const opened = useRef(false);

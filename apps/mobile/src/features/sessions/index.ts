@@ -1,2 +1,4 @@
+export { RailScreen } from "./RailScreen";
 export { SessionScreen } from "./SessionScreen";
-export { SessionsScreen } from "./SessionsScreen";
+/** @public */
+export { RailLayoutContext, type RailLayout } from "./rail-layout";

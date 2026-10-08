@@ -1,4 +1,4 @@
-export { HostsScreen } from "./HostsScreen";
+export { HostsScreen, NoComputers } from "./HostsScreen";
 export { PairScreen } from "./PairScreen";
 export { hosts } from "./registry";
 export { useHosts } from "./use-hosts";

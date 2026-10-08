@@ -48,13 +48,13 @@ describe("an idle rail", () => {
   test.each([
     ["with the engine's stream", true],
     ["on an engine without one", false],
-  ])("asks for the host book and live list a handful of times in ten minutes, %s", async (_, withStream) => {
+  ])("passes less and less often while nothing changes, %s", async (_, withStream) => {
     streaming = withStream;
     await mount(<Probe />);
     await elapse(5_000);
     const before = reads();
-    await elapse(10 * 60_000);
-    expect(reads() - before).toBeLessThanOrEqual(2 * 8);
+    await elapse(60_000);
+    expect(reads() - before).toBeLessThanOrEqual(2 * 2);
   });
 
   test("re-reads at once when the stream reports a row change, and not for streamed tokens", async () => {

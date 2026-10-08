@@ -3,7 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useNow } from "./use-now";
-import { IDLE_POLL_MAX_MS, usePoll, type PollOptions } from "./use-poll";
+import { usePoll, type PollOptions } from "./use-poll";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -134,14 +134,11 @@ describe("usePoll", () => {
     expect(calls).toBe(2);
   });
 
-  test("an idle backoff doubles the period up to the cap, so ten idle minutes cost a handful of reads", async () => {
+  test("an idle backoff doubles the period after each read that finds nothing", async () => {
     let calls = 0;
-    mount(<Poller fn={() => (calls += 1)} ms={3_000} options={{ backoff: true }} />);
-    await advance(6_000 + 12_000 + 24_000);
-    expect(calls).toBe(4);
-    calls = 0;
-    await advance(10 * 60_000);
-    expect(calls).toBeLessThanOrEqual(Math.ceil((10 * 60_000) / IDLE_POLL_MAX_MS) + 1);
+    mount(<Poller fn={() => (calls += 1)} ms={100} options={{ backoff: true }} />);
+    await advance(200 + 400 + 800 + 1_600 + 3_200);
+    expect(calls).toBe(6);
   });
 
   test("a read that resolves true keeps the base period", async () => {

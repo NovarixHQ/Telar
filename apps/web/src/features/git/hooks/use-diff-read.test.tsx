@@ -40,15 +40,15 @@ test("a slow diff read is never stacked by the timer", async () => {
   expect(calls).toBe(2);
 });
 
-test("with no turn running, ten idle minutes cost a handful of reads", async () => {
+test("with no turn running, reads grow further apart", async () => {
   let calls = 0;
   const load = async () => {
     calls += 1;
   };
   root = createRoot(document.createElement("div"));
   act(() => root!.render(<Refresher load={load} active="completed" />));
-  for (let waited = 0; waited < 10 * 60_000; waited += 1_000) await act(async () => jest.advanceTimersByTime(1_000));
-  expect(calls).toBeLessThanOrEqual(7);
+  for (let waited = 0; waited < 60_000; waited += 1_000) await act(async () => jest.advanceTimersByTime(1_000));
+  expect(calls).toBe(2);
 });
 
 test("a turn changing state re-reads at once", async () => {

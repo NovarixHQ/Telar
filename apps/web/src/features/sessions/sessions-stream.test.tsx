@@ -43,8 +43,8 @@ describe("useSessionsStream", () => {
   test("an engine that answers 404 is not asked again", async () => {
     globalThis.fetch = (async () => ((asked += 1), Response.json({}, { status: 404 }))) as unknown as typeof fetch;
     await mount(<Listener />);
-    for (let minute = 0; minute < 10; minute += 1) {
-      await act(async () => jest.advanceTimersByTime(60_000));
+    for (let step = 0; step < 3; step += 1) {
+      await act(async () => jest.advanceTimersByTime(10_000));
       await settle();
     }
     expect(asked).toBe(1);

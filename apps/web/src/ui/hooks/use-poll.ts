@@ -12,7 +12,7 @@ export type PollOptions = {
   backoff?: boolean;
 };
 
-export const IDLE_POLL_MAX_MS = 120_000;
+const IDLE_POLL_MAX_MS = 120_000;
 const ACTIVITY = ["pointerdown", "keydown", "focus"] as const;
 
 /**

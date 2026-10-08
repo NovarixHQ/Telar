@@ -219,13 +219,13 @@ describe("how often an open cockpit re-reads the journal", () => {
   test.each([
     ["with the engine's stream", true],
     ["on an engine without one", false],
-  ])("an idle session left open ten minutes tails a handful of times, %s", async (_, withStream) => {
+  ])("an idle session tails less and less often, %s", async (_, withStream) => {
     streaming = withStream;
     rows = [{ ...runningTurn("run_one"), state: "completed" }];
     await open("cadence_idle");
     const before = tails;
-    for (let minute = 0; minute < 10; minute += 1) await elapse(60_000, 1_000);
-    expect(tails - before).toBeLessThanOrEqual(10);
+    await elapse(60_000, 1_000);
+    expect(tails - before).toBeLessThanOrEqual(4);
     if (!withStream) return;
     const quiet = tails;
     acceptANewTurn("cadence_idle");

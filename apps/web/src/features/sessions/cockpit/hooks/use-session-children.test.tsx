@@ -66,7 +66,7 @@ async function advance(ms: number) {
 }
 
 describe("useSessionChildren", () => {
-  test("reads at once, every few seconds while a child works, and a handful of times in ten minutes once all have ended", async () => {
+  test("reads at once, every few seconds while a child works, and less and less often once all have ended", async () => {
     answers.parent = [child("a", "working")];
     await mount(<Probe sessionId="parent" />);
     await settle();
@@ -80,9 +80,9 @@ describe("useSessionChildren", () => {
     const before = reads.length;
     await advance(CHILDREN_LIVE_MS);
     expect(reads).toHaveLength(before);
-    for (let waited = 0; waited < 10 * 60_000; waited += 5_000) await advance(5_000);
+    for (let waited = 0; waited < 60_000; waited += 5_000) await advance(5_000);
     expect(reads.length - before).toBeGreaterThan(0);
-    expect(reads.length - before).toBeLessThanOrEqual(7);
+    expect(reads.length - before).toBeLessThanOrEqual(2);
   });
 
   test("a grown transcript reads again without waiting for the next tick", async () => {

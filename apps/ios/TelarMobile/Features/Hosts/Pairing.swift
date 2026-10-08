@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 enum Pairing {
     static func parsePairingURL(_ text: String) -> (base: URL, token: String)? {
@@ -33,7 +34,8 @@ enum Pairing {
     static func complete(
         _ link: (base: URL, token: String), settings: AppSettings, deviceName: String, session: URLSession = .shared
     ) async throws -> HostID {
-        let paired = try await exchange(base: link.base, token: link.token, deviceName: deviceName, session: session)
+        let clientId = UIDevice.current.identifierForVendor?.uuidString
+        let paired = try await exchange(base: link.base, token: link.token, deviceName: deviceName, clientId: clientId, session: session)
         let health = try? await HTTPEngineAPI(baseURL: link.base, deviceToken: paired.deviceToken).health()
         return settings.upsert(
             baseURLString: link.base.absoluteString, token: paired.deviceToken,
@@ -54,12 +56,14 @@ enum Pairing {
     }
 
     static func exchange(
-        base: URL, token: String, deviceName: String, session: URLSession = .shared
+        base: URL, token: String, deviceName: String, clientId: String?, session: URLSession = .shared
     ) async throws -> ExchangeResponse {
         var request = URLRequest(url: base.appending(path: "api/pair"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.httpBody = try JSONEncoder().encode(["token": token, "deviceName": deviceName, "platform": "ios"])
+        var body = ["token": token, "deviceName": deviceName, "platform": "ios"]
+        if let clientId { body["clientId"] = clientId }
+        request.httpBody = try JSONEncoder().encode(body)
         let (data, response) = try await session.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {

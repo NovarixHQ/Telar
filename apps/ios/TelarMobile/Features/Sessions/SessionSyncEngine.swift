@@ -52,6 +52,7 @@ enum SyncConnectionState: Equatable {
     private var events: [EngineEvent] = []
     private var cursor = 0
     private var loop: Task<Void, Never>?
+    private var followers = 0
 
     private var restoring: Task<Void, Never>?
 
@@ -82,17 +83,23 @@ enum SyncConnectionState: Equatable {
 
     private var headKey: ScopedSessionID? { cache.map { ScopedSessionID(hostId: $0.hostId, sessionId: sessionId) } }
 
-    func start() {
-        guard loop == nil else { return }
-        loop = Task { [weak self] in
-            await self?.run()
-        }
-    }
-
     func stop() {
         loop?.cancel()
         loop = nil
         stash()
+    }
+
+    func follow() async {
+        followers += 1
+        let mine = followers
+        loop?.cancel()
+        let task = Task { [weak self] in _ = await self?.run() }
+        loop = task
+        await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+        if followers == mine {
+            loop = nil
+            stash()
+        }
     }
 
     func refresh() async {

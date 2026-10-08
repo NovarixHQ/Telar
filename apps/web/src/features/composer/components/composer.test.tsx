@@ -1,10 +1,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { act, useState } from "react";
-import type { RuntimeMode, Session, UsageSnapshot } from "@telar/engine-client";
+import type { ModelCatalogue, ProviderModel, RuntimeMode, Session, UsageSnapshot } from "@telar/engine-client";
+import type { ModelChoice } from "@telar/client/providers";
 import { activeComposer } from "@/features/composer";
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
 import { Composer } from "./composer";
 import { draftAfterStash } from "../hooks/use-composer-stash";
+import { forgetModelCatalogues } from "@/features/providers/model-catalogue-cache";
 
 installTestDom();
 
@@ -32,9 +34,10 @@ type BoxProps = {
   usage?: UsageSnapshot;
   onSubmit?: () => void;
   onStop?: () => void;
+  onModelChange?: (next: ModelChoice) => void;
 };
 
-function Box({ initial = "", files = [], busy = false, ready = true, fresh = false, projectId, session, runtimeMode, sentPrompts, usage, onSubmit = () => {}, onStop = () => {} }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, ready = true, fresh = false, projectId, session, runtimeMode, sentPrompts, usage, onSubmit = () => {}, onStop = () => {}, onModelChange }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -60,6 +63,7 @@ function Box({ initial = "", files = [], busy = false, ready = true, fresh = fal
         {...(runtimeMode ? { runtimeMode } : {})}
         {...(sentPrompts ? { sentPrompts } : {})}
         {...(usage ? { usage } : {})}
+        {...(onModelChange ? { onModelChange } : {})}
       />
     </>
   );
@@ -514,6 +518,38 @@ describe("the / menu opens the pills' pickers", () => {
       expect(pill(label)?.getAttribute("aria-expanded")).toBe("true");
     });
   }
+});
+
+describe("/effort opens the reasoning picker", () => {
+  const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
+  const opus = { id: "opus", label: "Opus", isDefault: true, hidden: false, efforts: ["low", "medium", "high", "xhigh", "max"], defaultEffort: "high", fastMode: false, hiddenByUser: false, legacy: false, source: "provider" } as ProviderModel;
+  const catalogue: ModelCatalogue = { driver: "claude", instanceId: "claude", models: [opus], source: "provider", readAt: 0 };
+  const routes = { "GET /api/models": () => ({ catalogue }) };
+  const options = (host: HTMLElement) => [...host.querySelectorAll('[role="listbox"] [role="option"]')].map((row) => row.textContent ?? "");
+  const pill = () => document.querySelector<HTMLElement>('[aria-label^="Reasoning effort:"]');
+
+  beforeEach(() => forgetModelCatalogues());
+  afterEach(() => forgetModelCatalogues());
+
+  test("typing /eff shows one row, not one per level", async () => {
+    const { host, editor } = await composer({ session }, routes);
+    await type(editor, "/eff");
+    expect(options(host).filter((row) => row.startsWith("/effort"))).toHaveLength(1);
+  });
+
+  test("choosing it clears the box and opens the picker, where a level sets the effort", async () => {
+    const picks: ModelChoice[] = [];
+    const { editor, draft } = await composer({ session, onModelChange: (next) => picks.push(next) }, routes);
+    await type(editor, "/eff");
+    expect(pill()?.getAttribute("aria-expanded")).not.toBe("true");
+    key(editor, { key: "Enter" });
+    await flush();
+    expect(draft()).toBe("");
+    expect(pill()?.getAttribute("aria-expanded")).toBe("true");
+    const low = [...document.querySelectorAll<HTMLButtonElement>("[data-option-row]")].find((row) => row.textContent?.startsWith("Low"));
+    await click(low);
+    expect(picks.at(-1)).toMatchObject({ effort: "low" });
+  });
 });
 
 describe("the context ring", () => {

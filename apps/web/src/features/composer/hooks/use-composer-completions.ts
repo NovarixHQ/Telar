@@ -13,6 +13,7 @@ import {
   rankSessions,
   rankSkills,
   type Completion,
+  type ComposerPicker,
   type PathEntry,
   type SessionCandidate,
 } from "../completions";
@@ -26,11 +27,10 @@ const PATHS_FAILED: Completion = { id: "paths:failed", label: "Files", detail: "
 type CommandState = {
   busy: boolean;
   fresh: boolean;
-  pickers: { model: boolean; access: boolean };
+  pickers: Record<ComposerPicker, boolean>;
   envMode: "local" | "worktree" | undefined;
   compacting: boolean | undefined;
   canResume: boolean;
-  efforts: string[];
 };
 
 /** Read on the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again once `retry` changes. */
@@ -93,7 +93,7 @@ export function useComposerCompletions({
   const listSkills = sessionId ? () => api.sessionSkills(sessionId) : projectId ? () => api.projectSkills(projectId, menuDriver) : undefined;
   const skills = useLazyRead<ProviderSkills>(trigger?.kind === "skill" || trigger?.kind === "command", checkout, listSkills, { skills: [], commands: [] });
 
-  const { busy, fresh, pickers: { model: modelPicker, access: accessPicker }, envMode, compacting, canResume, efforts } = commands;
+  const { busy, fresh, pickers: { model: modelPicker, effort: effortPicker, access: accessPicker }, envMode, compacting, canResume } = commands;
   const completions = useMemo<Completion[]>(() => {
     if (!trigger || dismissed) return [];
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
@@ -106,16 +106,15 @@ export function useComposerCompletions({
     const own = availableCommands({
       busy,
       fresh,
-      pickers: { model: modelPicker, access: accessPicker },
+      pickers: { model: modelPicker, effort: effortPicker, access: accessPicker },
       ...(menuDriver ? { driver: menuDriver } : {}),
       ...(compacting ? { compacting } : {}),
       ...(envMode ? { envMode } : {}),
-      efforts,
       canResume,
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
     return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, paths.failed, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, accessPicker, menuDriver, compacting, envMode, efforts, canResume]);
+  }, [trigger, dismissed, paths.value, paths.failed, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, effortPicker, accessPicker, menuDriver, compacting, envMode, canResume]);
 
   // `@` always opens, so an empty or unreadable listing says so instead of looking like a dead key.
   const loading = (trigger?.kind === "path" && (paths.reading || sessions.reading)) || (trigger?.kind === "skill" && skills.reading);

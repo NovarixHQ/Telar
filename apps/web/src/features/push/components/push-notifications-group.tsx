@@ -118,7 +118,7 @@ export function phoneRow(status: PushRelayStatus, summary: { label: string; ok: 
 }
 
 export const NOTIFY_ON_LABELS: Record<NotifyOn, string> = {
-  mac: "This computer when active",
+  mac: "Active device",
   iphone: "iPhone only",
   both: "Both",
 };
@@ -175,7 +175,6 @@ export function PushNotificationsGroup() {
                 value={notifyOn}
                 onChange={(next) => void saveNotifyOn(next)}
                 options={(Object.keys(NOTIFY_ON_LABELS) as NotifyOn[]).map((value) => ({ value, label: NOTIFY_ON_LABELS[value] }))}
-                className="w-48"
                 label="Notify on"
               />
             }

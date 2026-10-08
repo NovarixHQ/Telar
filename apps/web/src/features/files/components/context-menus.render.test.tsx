@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ContextMenu } from "@/ui/context-menu";
 import { RightPanel, type PanelTabItem } from "@/features/panel";
 import { click, flush, installTestDom, mount, stubFetch } from "@/test/dom";
-import { directoryReference, fileReference, type TelarReference } from "@/features/composer/drag-reference";
+import { directoryReference, fileReference, type TelarReference } from "@telar/client/composer";
 import type { EditorState } from "../editor-workspace";
 import { nativeViewOverlayHidden } from "@/platform/desktop/native-view-overlay";
 import type { WorkspaceFileMenu } from "../workspace-open";

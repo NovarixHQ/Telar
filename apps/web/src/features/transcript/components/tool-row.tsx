@@ -11,7 +11,7 @@ SquareTerminalIcon,TerminalIcon,WrenchIcon
 import { isKnownPath, type Item } from "@telar/engine-client";
 import { toolOutput, type JournalItem } from "@telar/client/journal";
 import { hostPrefix } from "@/platform/engine/host-client";
-import { fileReference } from "@/features/composer";
+import { fileReference } from "@telar/client/composer";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { Shimmer } from "@/ui/shimmer";
 import { CODE_SURFACE_FRAME, CODE_SURFACE_LINES, CODE_SURFACE_TEXT, CodeSurface, CopyButton, foldLines } from "@/ui/code-surface";

@@ -14,7 +14,7 @@ import type { RailJumpSlot } from "../session-groups";
 import { KeyHintOverlay } from "@/features/commands";
 import { useSidebar } from "@/ui/sidebar";
 import { cn } from "@/ui/utils";
-import { sessionReference, startReferenceDrag } from "@/features/composer";
+import { sessionReference, startReferenceDrag } from "@telar/client/composer";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { useRowWarmth } from "./use-row-warmth";
 import { RowMarks, RowStatus } from "./session-row-marks";

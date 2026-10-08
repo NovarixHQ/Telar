@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { fileReference, startReferenceDrag } from "@/features/composer";
+import { fileReference, startReferenceDrag } from "@telar/client/composer";
 import { FileKindIcon } from "./file-icon";
 import { cn } from "@/ui/utils";
 

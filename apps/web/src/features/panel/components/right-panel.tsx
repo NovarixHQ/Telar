@@ -6,7 +6,7 @@ import type { EngineEvent, Item, Turn, TurnState } from "@telar/engine-client";
 import { attachmentUrl, PluginSurface, type PluginPanelSource, isPluginSurface } from "@/features/plugins";
 import { desktopBrowserBridge } from "@/features/browser";
 import { diffTabParams, readDiffTab, type DiffTab, diffTurns, type DiffTurn } from "@/features/git";
-import type { TelarReference } from "@/features/composer";
+import type { TelarReference } from "@telar/client/composer";
 import type { EditorState, OpenIntent } from "@/features/files";
 import { forgeParams, readForgeOpen, type ForgeOpen } from "@/features/github";
 import { SurfaceBoundary } from "@/ui/load-failure";

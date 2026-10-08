@@ -5,7 +5,7 @@ import { ChevronRightIcon, FolderIcon, FolderOpenIcon, FolderTreeIcon, HardDrive
 import type { GitChangeStatus, TurnState, WorkspaceListing } from "@telar/engine-client";
 import type { matchFiles } from "../file-tree";
 import { useFilesTree, type FileTreeRowModel } from "../hooks/use-files-tree";
-import { directoryReference, fileReference, startReferenceDrag, type TelarReference } from "@/features/composer";
+import { directoryReference, fileReference, startReferenceDrag, type TelarReference } from "@telar/client/composer";
 import type { OpenIntent } from "../editor-workspace";
 import { REVIEW_STATUS_LETTER, REVIEW_STATUS_WORD } from "@/features/git";
 import { useWorkspaceFileMenu, workspaceFilePath, type WorkspaceFileMenu } from "../workspace-open";

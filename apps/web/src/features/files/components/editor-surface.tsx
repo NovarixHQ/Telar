@@ -12,7 +12,7 @@ import {
   type EditorViewState,
 } from "../editor-workspace";
 import { draftScope } from "../editor-drafts";
-import type { TelarReference } from "@/features/composer";
+import type { TelarReference } from "@telar/client/composer";
 import { useWorkspaceFileMenu } from "../workspace-open";
 import { useEditorTabs, type SaveState } from "../hooks/use-editor-tabs";
 import { EDITOR_HEADER_ROW } from "./editor-chrome";

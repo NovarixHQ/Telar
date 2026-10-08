@@ -3,7 +3,7 @@
 import { parsePatchFiles, type SelectedLineRange } from "@pierre/diffs";
 import { PatchDiff } from "@pierre/diffs/react";
 
-import type { LineSide } from "@/features/composer";
+import type { LineSide } from "@telar/client/composer";
 
 export type PatchReading = {
   complaint?: string;

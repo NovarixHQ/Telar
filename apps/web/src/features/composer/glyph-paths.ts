@@ -1,6 +1,6 @@
 
 import { chipIsDirectory, chipPath } from "./tokens";
-import type { TelarReference } from "./drag-reference";
+import type { TelarReference } from "@telar/client/composer";
 import { fileKind, type FileGlyph } from "@/features/files";
 
 const FILE_GLYPH_MARKUP: Record<FileGlyph, string> = {

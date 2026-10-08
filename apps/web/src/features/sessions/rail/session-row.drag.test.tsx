@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { act } from "react";
 import { installTestDom, mount } from "@/test/dom";
-import { sessionReference } from "@/features/composer";
+import { sessionReference } from "@telar/client/composer";
 import type { SidebarSession } from "../session-list";
 
 installTestDom();

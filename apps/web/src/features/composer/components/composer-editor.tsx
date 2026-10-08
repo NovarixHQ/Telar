@@ -6,7 +6,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ForwardedRef, type RefObject } from "react";
 import { CHIP_CLASS, CHIP_ICON_CLASS, CHIP_LABEL_CLASS, chipTitle } from "../chip";
 import { replaceTextRange, segmentDraft } from "../tokens";
-import { insertReference, type TelarReference } from "../drag-reference";
+import { insertReference, type TelarReference } from "@telar/client/composer";
 import { chipGlyphFor, glyphElement } from "../glyph-paths";
 import { cn } from "@/ui/utils";
 

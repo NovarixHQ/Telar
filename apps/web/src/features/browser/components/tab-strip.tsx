@@ -3,7 +3,7 @@
 import { CodeXmlIcon, Loader2Icon, MoonIcon, PlusIcon, UserRoundIcon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { describePermissionKinds } from "../desktop-site-permissions";
-import { browserPageReference, startReferenceDrag } from "@/features/composer";
+import { browserPageReference, startReferenceDrag } from "@telar/client/composer";
 import { cn } from "@/ui/utils";
 import type { BrowserUi } from "../hooks/use-browser-session";
 import type { DesktopBrowserTab } from "../types";

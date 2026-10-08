@@ -5,7 +5,7 @@ import { CheckIcon, ChevronRightIcon, CircleSlashIcon, ClockIcon, ExternalLinkIc
 import type { GitHubCheck } from "@telar/engine-client";
 import { PanelDivider } from "@/ui/panel";
 import { Spinner } from "@/ui/spinner";
-import { checkReference, failingChecksReference, startReferenceDrag } from "@/features/composer";
+import { checkReference, failingChecksReference, startReferenceDrag } from "@telar/client/composer";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { checkHeadline, checkSummary } from "../github-forge";
 import { cn } from "@/ui/utils";

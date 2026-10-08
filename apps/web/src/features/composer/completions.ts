@@ -4,7 +4,7 @@
  */
 
 import type { ProviderDriverKind, ProviderSkill, ProviderSkillSource } from "@telar/engine-client";
-import { fileReference, directoryReference, sessionReference, skillReference } from "./drag-reference";
+import { fileReference, directoryReference, sessionReference, skillReference } from "@telar/client/composer";
 import { insertRankedSearchResult, normalizeSearchQuery, scoreQueryMatch, type RankedSearchResult } from "@/ui/search-ranking";
 
 export type CompletionGlyph = "file" | "directory" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session";

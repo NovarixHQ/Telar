@@ -14,7 +14,7 @@ import {
   rankSessions,
   rankSkills,
 } from "./completions";
-import { directoryReference, fileReference, sessionReference, skillReference } from "./drag-reference";
+import { directoryReference, fileReference, sessionReference, skillReference } from "@telar/client/composer";
 
 const FILES = [
   "README.md",

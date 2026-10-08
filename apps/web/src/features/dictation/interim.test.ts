@@ -3,7 +3,7 @@
  * spacing `insertReference` adds is what a naive span swallows.
  */
 import { describe, expect, test } from "bun:test";
-import { insertReference } from "@/features/composer/drag-reference";
+import { insertReference } from "@telar/client/composer";
 import { replaceTextRange } from "@/features/composer";
 import { createDictationWriter, insertedSpan, type DictationBox } from "./interim";
 

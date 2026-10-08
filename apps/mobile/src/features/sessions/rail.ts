@@ -15,6 +15,7 @@ export type RailRow = {
   hostId: string;
   sessionId: string;
   title: string;
+  projectId?: string;
   projectName?: string;
   status: RailStatus;
   unread: boolean;
@@ -67,6 +68,7 @@ export function railRows(inboxes: readonly HostInbox[], now: number): RailRow[] 
         hostId,
         sessionId: session.id,
         title: session.title.trim() || "Untitled session",
+        ...(session.projectId ? { projectId: session.projectId } : {}),
         ...(session.projectId && projects.has(session.projectId) ? { projectName: projects.get(session.projectId)! } : {}),
         status: statusOf(session, now),
         unread: !working && hasUnreadResult(session),

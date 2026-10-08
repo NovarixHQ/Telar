@@ -14,7 +14,8 @@ import {
   REFERENCE_MIME,
   startReferenceDrag,
   taskReference,
-} from "./drag-reference";
+  type ReferenceSlots,
+} from "./references";
 
 /** The two-slot subset of DataTransfer these functions touch. */
 function transfer() {
@@ -23,7 +24,7 @@ function transfer() {
     effectAllowed: "none",
     setData: (type: string, value: string) => void slots.set(type, value),
     getData: (type: string) => slots.get(type) ?? "",
-  } as unknown as DataTransfer;
+  } as unknown as ReferenceSlots;
 }
 
 describe("what a reference says", () => {

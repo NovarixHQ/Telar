@@ -95,7 +95,7 @@ export function PaletteRootPage({
     <div className="contents" onKeyDown={nav.onKeyDown}>
       <DialogTitle className="sr-only">Command palette</DialogTitle>
       <DialogDescription className="sr-only">
-        Search this app&apos;s commands, settings, projects, and the conversations you were last in.
+        Search this app&apos;s commands, settings, projects, and the sessions you were last in.
       </DialogDescription>
 
       <div className="flex items-center gap-2 border-b px-3 py-2.5">
@@ -104,8 +104,8 @@ export function PaletteRootPage({
           autoFocus
           value={query}
           onChange={(event) => onQuery(event.target.value)}
-          placeholder="Search commands, settings, projects and conversations"
-          aria-label="Search commands, settings, projects and conversations"
+          placeholder="Search commands, settings, projects and sessions"
+          aria-label="Search commands, settings, projects and sessions"
           role="combobox"
           aria-expanded={count > 0}
           aria-controls="command-palette-results"
@@ -114,7 +114,7 @@ export function PaletteRootPage({
         />
       </div>
 
-      <div id="command-palette-results" role="listbox" aria-label="Commands, settings, projects and conversations" className="max-h-80 overflow-y-auto p-1.5">
+      <div id="command-palette-results" role="listbox" aria-label="Commands, settings, projects and sessions" className="max-h-80 overflow-y-auto p-1.5">
         {count === 0 && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Nothing matches that.</p>}
         {sections.map((section, sectionAt) => (
           <div key={section.id} role="group" aria-label={section.title}>

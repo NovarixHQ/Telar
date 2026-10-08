@@ -144,11 +144,11 @@ describe("static rows", () => {
     expect(html).toContain("Name");
     expect(html).toContain("Icon");
     expect(html).toContain("Default model");
-    expect(html).toContain("Where new conversations start");
+    expect(html).toContain("Where new sessions start");
     expect(html).toContain("Select a project to rename it.");
     expect(html).toContain("Select a project to mark it.");
-    expect(html).toContain("Select a project to set the model its conversations open on.");
-    expect(html).toContain("Select a project to say where its conversations start.");
+    expect(html).toContain("Select a project to set the model its sessions open on.");
+    expect(html).toContain("Select a project to say where its sessions start.");
   });
 
   test("an inert row's control is rendered and taken out of reach, never removed", () => {
@@ -224,7 +224,7 @@ describe("static rows", () => {
     expect(html).toContain(">Inherit (Own worktree)<");
     expect(html).not.toContain(">__follow-app<");
     expect(renderToStaticMarkup(<ProjectConversationRows project={project()} envMode="local" />)).toContain(">Inherit (Project checkout)<");
-    expect(html).toContain('aria-label="Where new conversations start"');
+    expect(html).toContain('aria-label="Where new sessions start"');
     expect(html).not.toContain("aria-pressed");
   });
 
@@ -256,7 +256,7 @@ describe("model rows", () => {
       renderToStaticMarkup(<ProjectModelOptionsRow driver="claude" choice={choice} models={MODELS} onChange={() => undefined} />);
     const opus = render({ model: "opus", effort: "medium", fastMode: true });
     expect(opus).toContain("Model options");
-    expect(opus).toContain("New conversations in this project start with this model and these options.");
+    expect(opus).toContain("New sessions in this project start with this model and these options.");
     expect(opus).toContain("Medium");
     expect(opus).toContain("Fast");
     expect(render({ model: "haiku" })).toBe("");
@@ -313,7 +313,7 @@ describe("row writes", () => {
   test("the workspace row pins either answer, and Inherit writes null", async () => {
     const { saved, writer } = writerSpy();
     const view = await mount(<ProjectConversationRows project={project({ envMode: "local" })} envMode="worktree" writer={writer} />);
-    const trigger = view.host.querySelector('[aria-label="Where new conversations start"]')!;
+    const trigger = view.host.querySelector('[aria-label="Where new sessions start"]')!;
     await press(trigger);
     expect(options()).toEqual(["Inherit (Own worktree)", "Project checkout", "Own worktree"]);
     await press(option("Own worktree"));

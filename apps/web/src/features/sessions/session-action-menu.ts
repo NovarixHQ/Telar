@@ -84,7 +84,7 @@ export type SessionActionMenuState = {
 };
 
 const NO_PROJECT = "This session belongs to no project.";
-const ARCHIVED = "This conversation is over.";
+const ARCHIVED = "This session is over.";
 const WAITING = "Something here is waiting on you.";
 const RUNNING_DELETE = "A turn is running. Stop it before deleting.";
 const WAITING_DELETE = "A request here is waiting on you. Answer or stop it first.";

@@ -46,7 +46,7 @@ export function AppearanceWindowGroup({
   };
 
   return (
-    <SettingsGroup title="Window" description="How the window is drawn around the conversation.">
+    <SettingsGroup title="Window" description="How the window is drawn around the transcript.">
       {hasBridge && windowSupported ? (
         <>
           <Row
@@ -73,7 +73,7 @@ export function AppearanceWindowGroup({
       <Row
         keywords={["wide", "full", "comfortable", "column", "measure", "transcript"]}
         label="Chat width"
-        hint="How wide the conversation and the composer can grow."
+        hint="How wide the transcript and the composer can grow."
         control={
           <Segmented<ChatWidth>
             value={appearance.chatWidth}

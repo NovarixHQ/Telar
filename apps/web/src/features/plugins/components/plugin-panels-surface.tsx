@@ -43,7 +43,7 @@ export function PluginPanelsSurface({
     return () => window.clearTimeout(task);
   }, [read, active]);
 
-  if (!sessionId) return <p className="p-4 text-xs text-muted-foreground">Start the conversation to see plugin panels.</p>;
+  if (!sessionId) return <p className="p-4 text-xs text-muted-foreground">Start the session to see plugin panels.</p>;
   if (!source) return <p className="p-4 text-xs text-muted-foreground">No enabled plugin has a panel.</p>;
 
   const act = async (block: Extract<PluginPanelBlock, { type: "action" }>, index: number) => {

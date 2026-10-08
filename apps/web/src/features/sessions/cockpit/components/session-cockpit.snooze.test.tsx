@@ -190,7 +190,7 @@ const sessionActions = () => host!.querySelector<HTMLElement>('[aria-label="Sess
 const screenText = () => host!.textContent?.replace(/\s+/g, " ").trim() ?? "";
 const wakeButton = () => [...host!.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Wake now");
 
-const SNOOZED = "This conversation is snoozed";
+const SNOOZED = "This session is snoozed";
 
 /** Open the title menu, walk into Snooze, and take the first preset. The real
  *  control, not a handler reached around it — the claim is about the screen. */

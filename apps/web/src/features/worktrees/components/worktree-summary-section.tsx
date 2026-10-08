@@ -247,7 +247,7 @@ export function WorktreeSummarySection({ version = 0 }: { version?: number }) {
       </SettingsGroup>
 
       {summary ? (
-        <SettingsGroup title="By state" description="Each worktree is counted once. Only worktrees proven safe to lose are released; branches and conversations are kept.">
+        <SettingsGroup title="By state" description="Each worktree is counted once. Only worktrees proven safe to lose are released; branches and sessions are kept.">
           {occupied.length === 0 ? <div className="py-3 text-xs text-muted-foreground">No worktrees in any state.</div> : null}
           {occupied.map((entry) => (
             <StateRow key={entry.state} entry={entry} idleDays={summary.idleDays} onReleased={() => void load(true)} />

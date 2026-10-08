@@ -121,7 +121,7 @@ export function DictationSection() {
               keywords={["dictation", "vocabulary", "glossary", "keyterm", "keyterms", "terms", "custom words", "jargon", "names", "spelling", "accuracy", "wrong word"]}
               label="Vocabulary"
               icon={BookMarkedIcon}
-              info="Projects, branches and open conversations are sent automatically. This is for the names only you know."
+              info="Projects, branches and open sessions are sent automatically. This is for the names only you know."
               control={
                 <Textarea
                   className="h-28 w-64 font-mono text-xs"
@@ -138,7 +138,7 @@ export function DictationSection() {
                 <p className="mt-2 text-xs text-muted-foreground">
                   {`The service took ${keyterms.sent} of the ${keyterms.built} words Telar sent it last time. `}
                   {keyterms.reason === "refused"
-                    ? "Over budget: branch names go first, then projects, then old conversations. This box is never cut."
+                    ? "Over budget: branch names go first, then projects, then old sessions. This box is never cut."
                     : "Telar sent the number it can prove is safe; the next press tries the full list again."}
                 </p>
               )}

@@ -173,7 +173,7 @@ const SECTION_TITLES: Record<PaletteSectionId, string> = {
   quick: "Quick settings",
   projects: "Projects",
   settings: "Settings",
-  sessions: "Recent conversations",
+  sessions: "Recent sessions",
 };
 
 export function paletteActions(

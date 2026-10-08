@@ -40,7 +40,7 @@ export function ComposerBanners({ fresh, session, settled, settledEnded, onUnset
       {settled && (
         <ComposerBanner
           icon={<CircleCheckIcon className="size-4 shrink-0 text-muted-foreground" />}
-          title="This conversation is settled"
+          title="This session is settled"
           detail={`${settledEnded ? `${settledEnded} ` : ""}Sending a message returns it to the list in the sidebar.`}
           {...(onUnsettle ? { action: onUnsettle, actionLabel: "Un-settle" } : {})}
         />
@@ -48,7 +48,7 @@ export function ComposerBanners({ fresh, session, settled, settledEnded, onUnset
       {snoozeWakeIn && (
         <ComposerBanner
           icon={<AlarmClockIcon className="size-4 shrink-0 text-muted-foreground" />}
-          title="This conversation is snoozed"
+          title="This session is snoozed"
           detail={`It comes back to the list in ${snoozeWakeIn}, or as soon as it answers you.`}
           {...(onWake ? { action: onWake, actionLabel: "Wake now" } : {})}
         />

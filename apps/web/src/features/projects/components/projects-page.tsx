@@ -171,15 +171,15 @@ export function ProjectConversationRows({
   const models = useModelCatalogue(driver, instanceId)?.models;
 
   return (
-    <SettingsGroup title="New conversations">
+    <SettingsGroup title="New sessions">
       <Row
         keywords={["model", "per project", "default"]}
         label="Default model"
         icon={SparklesIcon}
         hint={
           stored
-            ? "Conversations in this project open on this. The composer still overrides it for the one in front of you."
-            : "Nothing stored, so a conversation opens on the provider's own default. Pick one to make this project differ."
+            ? "Sessions in this project open on this. The composer still overrides it for the one in front of you."
+            : "Nothing stored, so a session opens on the provider's own default. Pick one to make this project differ."
         }
         {...(savingFor("defaultModel") ? { status: savingFor("defaultModel") } : {})}
         {...(errorFor("defaultModel") ? { error: errorFor("defaultModel") } : {})}
@@ -193,7 +193,7 @@ export function ProjectConversationRows({
             onDriverChange={setPicked}
           />
         }
-        {...(blockedReason(project, "set the model its conversations open on") ? { unavailable: { reason: blockedReason(project, "set the model its conversations open on")! } } : {})}
+        {...(blockedReason(project, "set the model its sessions open on") ? { unavailable: { reason: blockedReason(project, "set the model its sessions open on")! } } : {})}
       />
       <ProjectModelOptionsRow
         driver={driver}
@@ -203,13 +203,13 @@ export function ProjectConversationRows({
         onChange={(next) => commitModel(next, "modelOptions")}
         {...(savingFor("modelOptions") ? { status: savingFor("modelOptions") } : {})}
         {...(errorFor("modelOptions") ? { error: errorFor("modelOptions") } : {})}
-        {...(blockedReason(project, "set the options its conversations open with")
-          ? { unavailable: blockedReason(project, "set the options its conversations open with")! }
+        {...(blockedReason(project, "set the options its sessions open with")
+          ? { unavailable: blockedReason(project, "set the options its sessions open with")! }
           : {})}
       />
       <Row
         keywords={["worktree", "checkout", "workspace", "branch"]}
-        label="Where new conversations start"
+        label="Where new sessions start"
         icon={FolderGitIcon}
         hint={
           project?.envMode === undefined
@@ -223,7 +223,7 @@ export function ProjectConversationRows({
         control={
           <Dropdown<string>
             value={project?.envMode ?? FOLLOW_APP}
-            label="Where new conversations start"
+            label="Where new sessions start"
             onChange={(next) => writer?.save("envMode", { envMode: next === FOLLOW_APP ? null : (next as EnvMode) })}
             options={[
               { value: FOLLOW_APP, label: `Inherit (${envMode === "worktree" ? "Own worktree" : "Project checkout"})` },
@@ -232,7 +232,7 @@ export function ProjectConversationRows({
             ]}
           />
         }
-        {...(blockedReason(project, "say where its conversations start") ? { unavailable: { reason: blockedReason(project, "say where its conversations start")! } } : {})}
+        {...(blockedReason(project, "say where its sessions start") ? { unavailable: { reason: blockedReason(project, "say where its sessions start")! } } : {})}
       />
     </SettingsGroup>
   );

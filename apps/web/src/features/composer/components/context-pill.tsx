@@ -93,7 +93,7 @@ export function ContextPill({
             <button
               type="button"
               disabled={compactDisabled}
-              title={compactDisabled ? compactReason : "Summarise the conversation to free space"}
+              title={compactDisabled ? compactReason : "Summarise the session to free space"}
               onClick={() => {
                 setOpen(false);
                 onCompact();

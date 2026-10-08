@@ -236,7 +236,7 @@ function DiffFooter({
         </>
       ) : (
         <p className="border-t border-border p-3 text-2xs leading-snug text-muted-foreground">
-          The project&rsquo;s own uncommitted work, before this conversation starts.
+          The project&rsquo;s own uncommitted work, before this session starts.
         </p>
       )}
     </div>

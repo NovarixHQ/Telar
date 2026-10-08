@@ -279,7 +279,7 @@ export function CompactionField({
           ? "The provider decides when a session compacts."
           : mode === "never"
             ? "A session grows until the model refuses the prompt; compacting by hand still works."
-            : "A session compacts once its conversation reaches the limit for its model's context window."}
+            : "A session compacts once its transcript reaches the limit for its model's context window."}
       </p>
     </div>
   );

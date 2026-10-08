@@ -119,7 +119,7 @@ export function SessionCockpit({
             projectName={projectName ?? remembered?.projectName}
             projectResolved={projectResolved}
             session={session}
-            fallbackTitle={fresh ? "New conversation" : remembered?.title}
+            fallbackTitle={fresh ? "New session" : remembered?.title}
             {...(headerMenu ? { menu: headerMenu } : {})}
             onRename={(next) => void actions.rename(next)}
             panel={

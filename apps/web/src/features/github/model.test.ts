@@ -47,7 +47,7 @@ describe("when it cannot", () => {
 
     expect(start).toEqual({
       ok: false,
-      reason: "The drive holding TelarVR Work is not connected. Plug it back in; its conversations and settings are all still here. There is nowhere to cut a worktree until it is back.",
+      reason: "The drive holding TelarVR Work is not connected. Plug it back in; its sessions and settings are all still here. There is nowhere to cut a worktree until it is back.",
     });
   });
 

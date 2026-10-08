@@ -94,8 +94,8 @@ export function RailSearch({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="New conversation"
-            title={soleTargetName ? `New conversation in ${soleTargetName}` : "New conversation — choose the project"}
+            aria-label="New session"
+            title={soleTargetName ? `New session in ${soleTargetName}` : "New session — choose the project"}
             onClick={() => run("new-conversation")}
           >
             <MessageSquarePlusIcon />

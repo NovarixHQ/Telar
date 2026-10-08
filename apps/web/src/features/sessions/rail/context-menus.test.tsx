@@ -93,16 +93,16 @@ describe("the project header's menu", () => {
   test("seven verbs in order, Move up disabled on the first group, and no session verbs", async () => {
     const { trigger } = await railWith(TWO, TWO_ROWS);
     await rightClick(trigger("One"));
-    expect(labels()).toEqual(["New conversation here", "Project settings", "Collapse", "Collapse others", "Move up", "Move down"]);
+    expect(labels()).toEqual(["New session here", "Project settings", "Collapse", "Collapse others", "Move up", "Move down"]);
     expect(disabled("Move up")).toBe(true);
     expect(disabled("Move down")).toBe(false);
     expect(labels()).not.toContain("Delete session");
   });
 
-  test("New conversation here and Project settings go where the header's own controls go", async () => {
+  test("New session here and Project settings go where the header's own controls go", async () => {
     const { trigger } = await railWith(TWO, TWO_ROWS);
     await rightClick(trigger("One"));
-    await click(item("New conversation here"));
+    await click(item("New session here"));
     await rightClick(trigger("Two"));
     await click(item("Project settings"));
     expect(pushes).toEqual([canvasHref("p1"), projectSettingsHref("p2")]);
@@ -176,7 +176,7 @@ describe("the project header, mounted alone", () => {
 
   test("the + beside the header is outside the menu's reach", async () => {
     const { host } = await mountHeader();
-    await rightClick(host.querySelector('[aria-label="New conversation in Telar"]')!);
+    await rightClick(host.querySelector('[aria-label="New session in Telar"]')!);
     expect(labels()).toEqual([]);
   });
 
@@ -213,16 +213,16 @@ describe("the project header, mounted alone", () => {
 describe("the rail's empty space", () => {
   const empty = (host: HTMLElement) => host.querySelector("#sidebar-session-results")!;
 
-  test("offers New conversation, Add project and the fold-all pair", async () => {
+  test("offers New session, Add project and the fold-all pair", async () => {
     const { host } = await railWith(TWO, TWO_ROWS);
     await rightClick(empty(host));
-    expect(labels()).toEqual(["New conversation", "Add project", "Collapse all projects", "Expand all"]);
+    expect(labels()).toEqual(["New session", "Add project", "Collapse all projects", "Expand all"]);
   });
 
-  test("New conversation opens the sole project's canvas, like the header button", async () => {
+  test("New session opens the sole project's canvas, like the header button", async () => {
     const { host } = await railWith([project("p1", "One")], [liveRow("a")]);
     await rightClick(empty(host));
-    await click(item("New conversation"));
+    await click(item("New session"));
     expect(pushes).toEqual([canvasHref("p1")]);
   });
 

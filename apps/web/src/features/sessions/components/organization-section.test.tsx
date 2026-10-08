@@ -23,7 +23,7 @@ function stubLayout(mode?: "grouped" | "flat") {
 }
 
 const toggle = () => document.querySelector<HTMLElement>('[aria-label="Group sessions by project"]')!;
-const projectHeads = (host: HTMLElement) => host.querySelectorAll('[aria-label^="New conversation in "]').length;
+const projectHeads = (host: HTMLElement) => host.querySelectorAll('[aria-label^="New session in "]').length;
 
 test("with no mode chosen, the rail is one list and the switch is off", async () => {
   const patches = stubLayout();

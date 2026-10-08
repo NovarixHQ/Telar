@@ -158,7 +158,7 @@ function DragFrame({ drag, session, children }: { drag?: RowDrag; session: Sideb
       onDragOver={drag?.onDragOver}
       onDragLeave={drag?.onDragLeave}
       onDrop={drag?.onDrop}
-      title={drag ? "Drag to move this conversation, or into a message to reference it" : "Drag into a message to reference this conversation"}
+      title={drag ? "Drag to move this session, or into a message to reference it" : "Drag into a message to reference this session"}
       className={cn(
         "cursor-grab rounded-md transition-opacity active:cursor-grabbing",
         drag?.dragging && "opacity-40",

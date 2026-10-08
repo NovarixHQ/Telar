@@ -1,16 +1,3 @@
-/**
- * THE CAPS A CONTROL WEARS — issue #401.
- *
- * WHAT HAS TO BE TRUE, and none of it is about styling: the caps come from the
- * LIVE keymap (a rebound chord shows the rebound keys, an unbound one shows
- * nothing at all), the held-gated form is absent until ⌘ is down, and the
- * `always` form — the search field's ⌘K, which was a hardcoded `<kbd>` before
- * this pass — draws without one.
- *
- * Rendered rather than asserted against source, because the interesting claim
- * is what a person sees for a given keymap, and the keymap is a store this
- * component reads through `useSyncExternalStore` rather than a prop.
- */
 import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
@@ -150,19 +137,41 @@ describe("the call sites #401 lists", () => {
       redirect: navigation.redirect,
     }));
 
-  test("a rail row wears its jump number while the modifier is held", async () => {
+  async function mountJumpRow() {
     installNavigation();
     const { SessionRow } = await import("@/features/sessions/rail/session-row");
     const { SidebarProvider } = await import("@/ui/sidebar");
     const session = { id: "session_1", title: "Exoplanets", projectId: "p1", activity: "idle", createdAt: 1, updatedAt: 1 } as SidebarSession;
-    const host = await mount(
+    return mount(
       <SidebarProvider>
         <SessionRow session={session} active={false} showProject={false} variant="card" jumpSlot={1} renderedAt={1} onRowChanged={() => {}} />
       </SidebarProvider>,
     );
-    expect(caps(host)).toEqual([]);
+  }
+
+  test("in the desktop app a rail row wears its jump number while the modifier is held", async () => {
+    (window as { telarDesktop?: unknown }).telarDesktop = { isDesktop: true };
+    try {
+      const host = await mountJumpRow();
+      expect(caps(host)).toEqual([]);
+      await hold(true);
+      expect(caps(host)).toEqual(["⌘", "1"]);
+    } finally {
+      delete (window as { telarDesktop?: unknown }).telarDesktop;
+    }
+  });
+
+  test("in a browser, where ⌘1 switches tabs, the rail promises no jump number", async () => {
+    const host = await mountJumpRow();
     await hold(true);
-    expect(caps(host)).toEqual(["⌘", "1"]);
+    expect(caps(host)).toEqual([]);
+  });
+
+  test("in a browser a jump rebound off ⌘1–9 shows its chord", async () => {
+    setChord("jump-1", "CommandOrControl+Alt+1");
+    const host = await mountJumpRow();
+    await hold(true);
+    expect(caps(host)).toEqual(["⌘", "⌥", "1"]);
   });
 
   test("the Open menu's reveal row, which is the row ⌘O acts on", async () => {

@@ -9,6 +9,15 @@ import { cn } from "@/ui/utils";
 
 const APPEAR = "animate-in fade-in-0 duration-[80ms] motion-reduce:animate-none";
 
+// Browsers switch tabs on ⌘1–9 before the page sees the key; only the desktop app receives them.
+const TAB_SWITCH = /^CommandOrControl\+[1-9]$/;
+
+function reachable(chord: string): boolean {
+  if (!chord) return false;
+  if (!TAB_SWITCH.test(chord)) return true;
+  return typeof window !== "undefined" && (window as { telarDesktop?: { isDesktop?: boolean } }).telarDesktop?.isDesktop === true;
+}
+
 export function KeyHint({
   command,
   always = false,
@@ -21,7 +30,8 @@ export function KeyHint({
   const keymap = useKeymap();
   const platform = useKeyCapPlatform();
   const held = useModifierHeld();
-  const caps = keyCaps(keymap[command] ?? "", platform);
+  const chord = keymap[command] ?? "";
+  const caps = reachable(chord) ? keyCaps(chord, platform) : [];
   if (caps.length === 0) return null;
   if (!always && !held) return null;
   return (
@@ -53,7 +63,7 @@ export function KeyHintOverlay({
 }) {
   const keymap = useKeymap();
   const held = useModifierHeld();
-  const showing = held && Boolean(keymap[command]);
+  const showing = held && reachable(keymap[command] ?? "");
   return (
     <span className={cn("relative inline-flex shrink-0 items-center", className)}>
       <span className={cn("transition-opacity duration-[80ms] motion-reduce:transition-none", showing && "opacity-20")}>{children}</span>

@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { DiffBaseOption, SessionDiff, TurnState } from "@telar/engine-client";
-import { EngineApiError, isActiveTurn } from "@/platform/engine";
+import { isActiveTurn } from "@telar/client/journal";
+import { EngineApiError } from "@/platform/engine";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { api } from "../api";
 

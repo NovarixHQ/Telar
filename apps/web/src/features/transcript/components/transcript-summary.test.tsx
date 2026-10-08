@@ -14,7 +14,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { tallyParts } from "../model";
 import { ActivityGroup } from "./activity";
-import type { JournalItem } from "@/platform/engine";
+import type { JournalItem } from "@telar/client/journal";
 
 const base = { runId: "run_1", sessionId: "session_1", startedAt: 1, streamedText: "", openedBy: 0 } as const;
 

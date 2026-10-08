@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SessionTurn } from "@/features/sessions/cockpit";
-import type { JournalTurn } from "@/platform/engine";
+import type { JournalTurn } from "@telar/client/journal";
 
 const failed = (extra: Partial<JournalTurn>): JournalTurn => ({
   runId: "run_1",

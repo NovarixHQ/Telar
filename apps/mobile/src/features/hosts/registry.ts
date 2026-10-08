@@ -1,4 +1,5 @@
-import { HostRegistry, wakeOnForeground } from "../../platform/connection";
+import { HostRegistry } from "../../platform/connection";
+import { wakeOnForeground } from "../../platform/connection/app-wakeups";
 import type { PairedHost } from "./pairing";
 import { loadHosts, saveHosts } from "./storage";
 

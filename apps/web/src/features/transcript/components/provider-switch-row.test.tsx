@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { JournalItem } from "@/platform/engine";
+import type { JournalItem } from "@telar/client/journal";
 import { ProviderSwitchRow } from "./provider-switch-row";
 
 const item = (carriedTurns: number) =>

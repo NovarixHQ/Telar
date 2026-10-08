@@ -4,7 +4,7 @@ import {
 TriangleAlertIcon
 } from "lucide-react";
 import { ArtifactCard } from "@/features/agent-tools";
-import { isToolItem, itemLabel, itemText, type JournalItem, type JournalTask } from "@/platform/engine";
+import { isToolItem, itemLabel, itemText, type JournalItem, type JournalTask } from "@telar/client/journal";
 import { MessageMenu, MessageResponse } from "@/ui/message";
 import { AgentMarkdown } from "./agent-markdown";
 import { MessageActions } from "./message-actions";

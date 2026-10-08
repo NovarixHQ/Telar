@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { EngineEvent, Item, Task, Turn } from "@telar/engine-client";
-import { envelope, item, turn } from "@/test/journal-fixtures";
+import { envelope, item, turn } from "./fixtures";
 import { projectJournal } from "./journal";
 import { itemLabel } from "./journal-items";
 import { createJournalProjector } from "./journal-projector";

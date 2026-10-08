@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { item, turn } from "@/test/journal-fixtures";
+import { item, turn } from "./fixtures";
 import { projectJournal } from "./journal";
 import { isCompacting, isToolItem, itemLabel, toolOutput } from "./journal-items";
 

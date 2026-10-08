@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { displayToolName, type SessionChild } from "@telar/engine-client";
-import { createEngineApi, EngineApiError, type JournalTurn } from "@/platform/engine";
+import { createEngineApi, EngineApiError } from "@/platform/engine";
+import { type JournalTurn } from "@telar/client/journal";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { changesRow, useSessionsStream } from "../../sessions-stream";

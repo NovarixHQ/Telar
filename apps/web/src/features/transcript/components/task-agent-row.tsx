@@ -2,7 +2,7 @@
 
 import { useContext } from "react";
 import type { SessionChildState } from "@telar/engine-client";
-import { itemLabel, type JournalItem, type JournalTask } from "@/platform/engine";
+import { itemLabel, type JournalItem, type JournalTask } from "@telar/client/journal";
 import { MessageMenu, MessageResponse } from "@/ui/message";
 import { LiveActivity } from "./activity";
 import { AgentDisclosure, type AgentView } from "./agent-rows";

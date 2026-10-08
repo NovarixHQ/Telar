@@ -3,7 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Item, Turn } from "@telar/engine-client";
-import { projectJournal, type JournalTurn } from "@/platform/engine";
+import { projectJournal, type JournalTurn } from "@telar/client/journal";
 import { SessionTurn } from "./session-turn";
 
 GlobalRegistrator.register({ url: "http://localhost/" });

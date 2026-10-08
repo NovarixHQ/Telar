@@ -1,0 +1,21 @@
+{
+  "name": "@telar/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./journal": "./src/journal/index.ts",
+    "./journal/fixtures": "./src/journal/fixtures.ts"
+  },
+  "scripts": {
+    "test": "bun test --timeout 20000",
+    "typecheck": "bunx --bun tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@telar/engine-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.11",
+    "typescript": "^6.0.3"
+  }
+}

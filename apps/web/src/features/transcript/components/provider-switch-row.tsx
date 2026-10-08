@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeftRightIcon } from "lucide-react";
-import type { JournalItem } from "@/platform/engine";
+import type { JournalItem } from "@telar/client/journal";
 import { driverLabel } from "@/features/providers";
 import { ROW } from "./transcript-fold";
 

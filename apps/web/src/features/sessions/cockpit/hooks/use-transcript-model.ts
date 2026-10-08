@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createJournalProjector, hostPassiveArrivals, isActiveTurn, isCompacting, taskRoster } from "@/platform/engine";
+import { createJournalProjector, hostPassiveArrivals, isActiveTurn, isCompacting, taskRoster } from "@telar/client/journal";
 import { questionFields } from "@/features/composer";
 import { actionableRequests } from "../failed-turn-recovery";
 import { stillWorking } from "../background-presence";

@@ -16,7 +16,7 @@ func segmentActivity(_ items: [JournalItem]) -> [ActivitySegment] {
     var segments: [ActivitySegment] = []
     for item in items {
         switch item.detail {
-        case .assistantMessage, .userMessage, .plan, .contextCompaction, .artifact:
+        case .assistantMessage, .userMessage, .plan, .contextCompaction, .providerSwitch, .artifact:
             segments.append(.row(item))
         default:
             if case .run(var run)? = segments.last {

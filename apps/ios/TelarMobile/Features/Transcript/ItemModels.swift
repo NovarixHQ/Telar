@@ -157,6 +157,24 @@ struct Artifact: Codable, Equatable {
     var height: Int?
 }
 
+struct ProviderSwitchDetail: Equatable {
+    struct Side: Decodable, Equatable {
+        var driver: String
+        var model: String?
+
+        var label: String { model.map { "\(usageDriverLabel(driver)) · \($0)" } ?? usageDriverLabel(driver) }
+    }
+
+    var from: Side
+    var to: Side
+    var carriedTurns: Int
+
+    var label: String {
+        let carried = carriedTurns == 0 ? "" : carriedTurns == 1 ? " · 1 turn carried" : " · \(carriedTurns) turns carried"
+        return "Switched from \(from.label) to \(to.label)\(carried)"
+    }
+}
+
 enum ItemDetail: Equatable {
     case userMessage(UserMessageDetail)
     case notification(NotificationDetail)
@@ -172,6 +190,7 @@ enum ItemDetail: Equatable {
     case browserAction(call: ToolCallDetail, url: String?)
     case task(taskId: EngineID)
     case contextCompaction(reason: String?, preTokens: Int?, postTokens: Int?)
+    case providerSwitch(ProviderSwitchDetail)
     case error(ErrorDetail)
     case artifact(Artifact)
     case unknown(label: String?)
@@ -183,6 +202,7 @@ extension ItemDetail: Decodable {
         case url, taskId, reason, preTokens, postTokens, error, label
         case attachments, sender, notice, wakeReason
         case notification, artifact
+        case from, to, carriedTurns
     }
 
     init(from decoder: Decoder) throws {
@@ -238,6 +258,13 @@ extension ItemDetail: Decodable {
                 preTokens: try? c.decodeIfPresent(Int.self, forKey: .preTokens),
                 postTokens: try? c.decodeIfPresent(Int.self, forKey: .postTokens)
             )
+        case "provider_switch":
+            if let from = try? c.decode(ProviderSwitchDetail.Side.self, forKey: .from),
+               let to = try? c.decode(ProviderSwitchDetail.Side.self, forKey: .to) {
+                self = .providerSwitch(ProviderSwitchDetail(from: from, to: to, carriedTurns: (try? c.decode(Int.self, forKey: .carriedTurns)) ?? 0))
+            } else {
+                self = fallback()
+            }
         case "error":
             self = (try? c.decode(ErrorDetail.self, forKey: .error)).map { .error($0) } ?? fallback()
         case "artifact":

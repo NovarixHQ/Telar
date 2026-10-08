@@ -7,6 +7,7 @@ import { writeDraft, writeDraftFiles } from "@/features/composer";
 import { sessionModelSelection, type ModelChoice } from "@/features/providers";
 import { browserPanelTab, describeBrowserStart, latestBrowserState, type BrowserStartState } from "@/features/panel";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
+import { nativePageToShow } from "@/features/browser/native-pages";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { sessionHref } from "../../session-list";
 import { newSessionId } from "../../session-mutations";
@@ -107,16 +108,17 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
     try { return await flight; } finally { browserDraftFlight.current = null; }
   }
 
-  function showBrowser(pages: readonly { id: string; active?: boolean }[]): boolean {
-    const page = pages.find((tab) => tab.active) ?? pages.at(-1);
+  // In the desktop app the native browser's own pages are the truth; the journal lags them.
+  async function showBrowser(target: string | undefined, journalled: readonly { id: string; active?: boolean }[]): Promise<boolean> {
+    const bridge = desktopBrowserBridge();
+    const page = bridge ? (target ? await nativePageToShow(bridge, target) : undefined) : (journalled.find((tab) => tab.active) ?? journalled.at(-1))?.id;
     if (!page) return false;
-    if (desktopBrowserBridge()) panel.showSessionBrowser();
-    else panel.showPanelTab(browserPanelTab(page.id));
+    panel.showPanelTab(browserPanelTab(page));
     return true;
   }
 
   async function openBrowser() {
-    if (showBrowser(browser?.tabs ?? [])) return;
+    if (await showBrowser(sessionId, browser?.tabs ?? [])) return;
     if (browserOpening.current) return;
     browserOpening.current = true;
     const origin = window.location.pathname;
@@ -133,7 +135,7 @@ export function useSessionBrowser({ hostId, sessionId, projectId, sync, draft, c
       const result = await browserApi.browserState(target, { start: true });
       if (window.location.pathname !== destination) return;
       setBrowserStart(describeBrowserStart(result.browser));
-      showBrowser(result.browser.tabs);
+      await showBrowser(target, result.browser.tabs);
     } catch (error) {
       if (window.location.pathname === origin || window.location.pathname === destination) {
         setBrowserStart({ status: "error", message: error instanceof Error ? error.message : "The engine could not start a browser." });

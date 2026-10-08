@@ -102,7 +102,7 @@ async function mount(
   state: DesktopBrowserPanelState,
   extra: Partial<DesktopBrowserBridge> = {},
   onAttach?: (files: readonly File[], caption?: string) => void,
-  surface: { inWindow?: boolean; onEnded?: () => void } = {},
+  surface: { inWindow?: boolean; onEnded?: () => void; pageId?: string } = {},
 ) {
   const recorded = makeBridge(state, extra);
   const host = document.createElement("div");
@@ -522,6 +522,24 @@ const extensionWithHelperExit = (lastExitCode: number) => ({
   name: "1Password",
   phase: "ready" as const,
   health: { workerErrors: {}, native: { state: "unavailable" as const, helpers: 0, lastExitCode } },
+});
+
+describe("a panel tab for one page", () => {
+  const twoPages = () => panelState({ tabs: [tab(), tab({ index: 1, id: "tab_2", title: "Docs", active: false })] });
+
+  test("draws no strip of its own and brings its page to the front", async () => {
+    const { actions, host } = await mount(twoPages(), {}, undefined, { pageId: "tab_2" });
+    await waitFor(() => actions.length > 0);
+    expect(host.querySelector('[role="tab"]')).toBeNull();
+    expect(host.querySelector('[aria-label="New tab"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Address"]')).not.toBeNull();
+    expect(actions).toEqual([{ action: "select", index: 1 }]);
+  });
+
+  test("selects nothing when its page is already in front", async () => {
+    const { actions } = await mount(twoPages(), {}, undefined, { pageId: "tab_1" });
+    expect(actions).toEqual([]);
+  });
 });
 
 describe("a password manager that refuses this browser", () => {

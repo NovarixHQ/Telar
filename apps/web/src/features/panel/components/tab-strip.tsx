@@ -7,7 +7,7 @@ import { KeyHint } from "@/features/commands";
 import { cn } from "@/ui/utils";
 import { useLivePages } from "../hooks/use-live-pages";
 import { useTabDrag } from "../hooks/use-tab-drag";
-import { browserScopeKey, browserTabId, describePanelTabInstance, type BrowserState, type LauncherRow, type LivePage, type PanelTabItem } from "../model";
+import { describePanelTabInstance, type BrowserState, type LauncherRow, type LivePage, type PanelTabItem } from "../model";
 import type { RightPanelProps } from "./right-panel";
 import type { LauncherActions } from "./launcher";
 import { SurfaceChooser } from "./surface-chooser";
@@ -107,11 +107,7 @@ export function TabStrip(strip: StripProps) {
   const { tabs, sessionId, fullscreen, launcher, browserStart = { status: "idle" } } = strip;
   const menu = useState<string>();
   const drag = useTabDrag(tabs, strip.onMoveTab);
-  const browserScopes = useMemo(
-    () => (sessionId ? tabs.filter((entry) => browserTabId(entry.kind) !== undefined).map((entry) => browserScopeKey(sessionId, entry.id)) : []),
-    [sessionId, tabs],
-  );
-  const livePages = useLivePages(browserScopes);
+  const livePages = useLivePages(sessionId);
   const duplicated = useMemo(() => {
     const counted = new Map<string, number>();
     for (const entry of tabs) counted.set(entry.kind, (counted.get(entry.kind) ?? 0) + 1);
@@ -131,7 +127,7 @@ export function TabStrip(strip: StripProps) {
             key={entry.id}
             entry={entry}
             strip={strip}
-            live={sessionId ? livePages?.get(browserScopeKey(sessionId, entry.id)) : undefined}
+            live={livePages}
             duplicate={duplicated.has(entry.kind)}
             drag={drag}
             menu={menu}

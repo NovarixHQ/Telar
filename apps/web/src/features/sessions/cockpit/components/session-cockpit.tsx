@@ -86,7 +86,7 @@ export function SessionCockpit({
     },
   });
   const onConversationClick = useLinkRouting({ hostId, projectId, sessionId, solo, panel: panelState });
-  const revealNewTerminals = useJournalReactions({ sessionId, sync, browser: browser.browser, enabledPlugins, panel: panelState });
+  const revealNewTerminals = useJournalReactions({ sync, browser: browser.browser, enabledPlugins, panel: panelState });
   const model = useTranscriptModel(sessionId, sync);
   const { active } = model;
   const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));

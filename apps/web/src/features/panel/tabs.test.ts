@@ -3,7 +3,6 @@ import {
   activePanelTab,
   addPanelTab,
   closePanelTab,
-  collapsePanelTabs,
   emptyPanelTabs,
   movePanelTab,
   nextPanelTabId,
@@ -16,38 +15,12 @@ import {
   type PanelTabInstance,
   type PanelTabState,
 } from "./tabs";
-import { browserPanelTab, browserTabId, browserTabLabel, describePanelTab, describePanelTabInstance, isPanelTab, LIVE_BROWSER_TAB, panelTabSuffix, type PanelTab } from "./model";
+import { browserPanelTab, browserTabId, browserTabLabel, describePanelTabInstance, isPanelTab, panelTabSuffix, type PanelTab } from "./model";
 
 /** The strip as kinds, which is what every assertion below is actually about —
  *  ids are an implementation detail except where a test says otherwise. */
 const kinds = <Kind extends string>(state: PanelTabState<Kind>) => state.tabs.map((tab) => tab.kind);
 const ids = <Kind extends string>(state: PanelTabState<Kind>) => state.tabs.map((tab) => tab.id);
-
-describe("collapsePanelTabs, for browser pages (desktop upgrade path)", () => {
-  const isBrowser = (kind: PanelTab) => browserTabId(kind) !== undefined;
-  const instance = (kind: PanelTab): PanelTabInstance<PanelTab> => ({ id: kind, kind, params: {} });
-  test("replaces every per-page browser tab with ONE, preserving order and active", () => {
-    const state: PanelTabState<PanelTab> = {
-      tabs: [instance("issues"), instance(browserPanelTab("p1")), instance("diff"), instance(browserPanelTab("p2"))],
-      activeTab: browserPanelTab("p2"),
-      open: true,
-    };
-    const collapsed = collapsePanelTabs(state, isBrowser, LIVE_BROWSER_TAB);
-    expect(kinds(collapsed)).toEqual(["issues", LIVE_BROWSER_TAB, "diff"]);
-    expect(collapsed.activeTab).toBe(LIVE_BROWSER_TAB); // active was a browser page
-    expect(collapsed.open).toBe(true);
-  });
-  test("leaves a state with no browser tabs untouched, and keeps a non-browser active tab", () => {
-    const state: PanelTabState<PanelTab> = { tabs: [instance("issues"), instance("diff")], activeTab: "diff", open: true };
-    expect(collapsePanelTabs(state, isBrowser, LIVE_BROWSER_TAB)).toBe(state);
-    const withBrowser: PanelTabState<PanelTab> = { tabs: [instance(browserPanelTab("p1")), instance("editor")], activeTab: "editor", open: true };
-    expect(collapsePanelTabs(withBrowser, isBrowser, LIVE_BROWSER_TAB).activeTab).toBe("editor");
-  });
-  test("the collapsed tab describes as a single Browser surface", () => {
-    expect(describePanelTab(LIVE_BROWSER_TAB).label).toBe("Browser");
-    expect(describePanelTab(LIVE_BROWSER_TAB).missing).toBeUndefined();
-  });
-});
 
 type Tab = "agents" | "changes" | "usage" | "editor" | `browser:${string}`;
 const state = (tabs: Tab[], activeTab?: Tab, open = true): PanelTabState<Tab> => ({
@@ -279,14 +252,6 @@ describe("the suffix that tells two tabs of a kind apart", () => {
   test("a title param names the tab outright, sibling or not", () => {
     expect(describePanelTabInstance({ id: "terminal#2", kind: "terminal", params: { title: "vim" } }, { duplicate: true }).label).toBe("vim");
     expect(describePanelTabInstance({ id: "terminal", kind: "terminal", params: { title: "vim" } }).label).toBe("vim");
-  });
-
-  test("a second Browser is named by the page it is actually showing", () => {
-    // The native view owns the pages, so its live tab list is the only thing
-    // that knows what this browser is on.
-    const live = [{ id: "t1", title: "Example", url: "http://localhost:3000/x", active: true }];
-    const described = describePanelTabInstance({ id: `${LIVE_BROWSER_TAB}#2`, kind: LIVE_BROWSER_TAB, params: {} }, { live, duplicate: true });
-    expect(described.label).toBe("Browser · localhost:3000");
   });
 });
 

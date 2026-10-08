@@ -15,7 +15,7 @@ import Observation
     private(set) var pendingAttachments: [TurnAttachment] = [] { didSet { persistAttachments() } }
     private(set) var attachmentPreviews: [EngineID: Data] = [:]
     private(set) var uploading = false
-    private(set) var catalogue: ModelCatalogue?
+    private(set) var catalogues: [String: ModelCatalogue] = [:]
 
     let api: any EngineAPI
     private let sessionId: EngineID
@@ -108,18 +108,18 @@ import Observation
     }
 
     func loadModels() async {
-        guard catalogue == nil, let driver = sync.session?.driver else { return }
-        catalogue = try? await api.models(driver: driver)
+        for driver in ["claude", "codex", "opencode"] where catalogues[driver] == nil {
+            if let catalogue = try? await api.models(driver: driver) { catalogues[driver] = catalogue }
+        }
     }
 
     func setModelChoice(_ choice: ModelChoice) async {
         await perform {
-            var instanceId = self.sync.session?.model?.instanceId ?? self.sync.session?.providerInstanceId
+            let switching = choice.driver != self.sync.session?.driver
+            var instanceId = switching ? nil : self.sync.session?.model?.instanceId ?? self.sync.session?.providerInstanceId
             if instanceId == nil {
                 let instances = try await self.api.providerInstances()
-                instanceId = instances.first {
-                    $0.enabled && $0.driver == self.sync.session?.driver
-                }?.id
+                instanceId = instances.first { $0.enabled && $0.driver == choice.driver }?.id
             }
             guard let instanceId else {
                 throw EngineAPIError.engine(code: "invalid_request", message: "No provider instance for this driver.", status: 400)

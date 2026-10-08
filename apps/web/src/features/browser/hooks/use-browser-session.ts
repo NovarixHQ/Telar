@@ -42,6 +42,8 @@ export type BrowserProps = {
   onAttach?: (files: readonly File[], caption?: string) => void;
   onEnded?: () => void;
   inWindow?: boolean;
+  /** The page the panel tab is for: the scope is made to show it, and the panel's strip stands in for the browser's own. */
+  pageId?: string;
 };
 
 type SyncRefs = {
@@ -376,6 +378,17 @@ export function useDeviceSize({ bridge, scopeKey }: BrowserProps, s: BrowserStor
     void bridge.action(scopeKey, { action: "resize", index: activeTab.index, width: size.width, height: size.height, live: true }).catch(() => {});
   };
   return { commitSize, stepSize, liveResize };
+}
+
+/** Selects `pageId` natively when the panel moves to it; a later native change is the panel's to follow, not to undo. */
+export function useShownPage(pageId: string | undefined, s: BrowserStore, act: Act) {
+  const requested = useRef<string | undefined>(undefined);
+  const page = pageId === undefined ? undefined : s.state?.tabs.find((tab) => tab.id === pageId);
+  useEffect(() => {
+    if (!page || requested.current === page.id) return;
+    requested.current = page.id;
+    if (!page.active) void act({ action: "select", index: page.index });
+  }, [page, act]);
 }
 
 // ⌘1..⌘9 are claimed only while focus is in this chrome: when the page has focus the

@@ -1,6 +1,7 @@
 import {
   AudioLinesIcon,
   BlocksIcon,
+  FlaskConicalIcon,
   FolderPlusIcon,
   BookMarkedIcon,
   CameraIcon,
@@ -32,6 +33,7 @@ import {
   WrenchIcon,
 } from "lucide-react";
 import type { SettingsPageSpec } from "./search";
+import { EXPERIMENTS } from "./experiments";
 
 export const APP_PAGES: SettingsPageSpec[] = [
   {
@@ -131,6 +133,15 @@ export const APP_PAGES: SettingsPageSpec[] = [
             icon: SparklesIcon,
           },
         ],
+      },
+      {
+        title: "Experimental",
+        rows: EXPERIMENTS.map((experiment) => ({
+          title: experiment.label,
+          hint: experiment.hint,
+          keywords: ["experiment", "trial", "beta", "preview"],
+          icon: FlaskConicalIcon,
+        })),
       },
       {
         title: "About",

@@ -7,7 +7,6 @@ import { z } from "zod";
 import { checkArgs } from "./strict-args";
 import { err, type ToolFactory } from "./tool-kit";
 import { displayTools } from "./display-tools";
-import { notesTools } from "../notes";
 import { pluginToolModules } from "../plugins";
 import { promptsTools } from "../prompts";
 import { simulatorTools } from "../simulators";
@@ -49,7 +48,6 @@ export function collectTelarWall(parts: readonly TelarWallPart[]): SocketTool[] 
 
 export type TelarCapabilities = {
   sessions?: unknown;
-  notes?: unknown;
   prompts?: unknown;
   display?: unknown;
   run?: unknown;
@@ -61,7 +59,6 @@ export type TelarCapabilities = {
 export function telarWall(caps: () => TelarCapabilities | undefined): TelarWallPart[] {
   return [
     { name: "sessions", build: sessionsTools as never, capability: () => caps()?.sessions },
-    { name: "notes", build: notesTools as never, capability: () => caps()?.notes },
     { name: "prompts", build: promptsTools as never, capability: () => caps()?.prompts },
     { name: "display", build: displayTools as never, capability: () => caps()?.display },
     { name: "run", build: runTools as never, capability: () => caps()?.run },

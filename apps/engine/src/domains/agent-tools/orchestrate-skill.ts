@@ -16,10 +16,9 @@ has the session mechanics; this is the workflow.
 
 ## 0. Read the project's standing rules
 
-Check the project notebook (\`notes_list\`) for a rules note: branch and PR
-conventions, who may merge, release gates, a concurrency or load cap, commit
-style. If there is none and you learn rules along the way, offer to write one
-so the next brief does not retype them. Rules there beat defaults here.
+Read the project's agent instructions (AGENTS.md, CLAUDE.md) for its rules:
+branch and PR conventions, who may merge, release gates, a concurrency or load
+cap, commit style. Rules there beat defaults here.
 
 ## 1. Triage
 

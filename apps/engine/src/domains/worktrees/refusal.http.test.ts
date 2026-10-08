@@ -8,8 +8,8 @@
  * for the row, on the stated grounds that the caller is still there to be told
  * (see worktree.ts's header on the #496 seam).
  *
- * AND THEN THE HTTP BOUNDARY THREW THEM AWAY. `WorktreeError` is neither an
- * `EngineStateError` nor a `ProjectNotesError`, so `errorFor` fell through to
+ * AND THEN THE HTTP BOUNDARY THREW THEM AWAY. `WorktreeError` was not an
+ * `EngineStateError`, so `errorFor` fell through to
  * `500 internal_error, "engine encountered an internal error"` — five careful
  * sentences replaced by one that says nothing, in front of the one gesture whose
  * whole promise is that it refuses with the reason (#695's row action). This file

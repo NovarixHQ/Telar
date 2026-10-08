@@ -12,7 +12,7 @@ function recordingCaps(): { caps: TelarCapabilities; calls: string[] } {
   const capability = new Proxy({}, { get: (_, prop) => (...args: unknown[]) => { calls.push(String(prop)); return Promise.resolve({ args }); } });
   setPluginToolModules(bundledPluginToolModules({ TELAR_PLUGIN_HELLO: "1" }));
   const plugins = Object.fromEntries(pluginToolModules().map((module) => [module.meta.id, capability]));
-  return { caps: { sessions: capability, notes: capability, prompts: capability, display: capability, run: capability, plugins }, calls };
+  return { caps: { sessions: capability, prompts: capability, display: capability, run: capability, plugins }, calls };
 }
 
 async function socketCall(caps: TelarCapabilities, name: string, args: unknown) {
@@ -50,9 +50,9 @@ test("an unknown argument is refused in-process too, and nothing runs", async ()
 
 test("known arguments still reach the tool", async () => {
   const { caps, calls } = recordingCaps();
-  await socketCall(caps, "notes_list", { projects: true });
-  await sdkHandler(caps, "notes_list")({ projects: true });
-  expect(calls).toEqual(["projects", "projects"]);
+  await socketCall(caps, "prompt_list", { promptId: "p" });
+  await sdkHandler(caps, "prompt_list")({ promptId: "p" });
+  expect(calls).toEqual(["list", "list"]);
 });
 
 test("every agent tool advertises that it takes no undeclared argument, at any depth", () => {

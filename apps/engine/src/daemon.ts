@@ -12,7 +12,6 @@ import { filesRoutes, sessionFilesRoutes } from "./domains/files";
 import { sessionGitRoutes } from "./domains/git";
 import { githubRoutes, sessionGitHubRoutes, type GhRunner } from "./domains/github";
 import { createHostsStore, hostsRoutes } from "./domains/hosts";
-import { notesRoutes, notesSocketDoor, ProjectNotesError } from "./domains/notes";
 import { createEnginePlugins, externalPluginsDir, PluginInputError, pluginRoutes, pluginScopedRoutes, pluginSessionRoutes } from "./domains/plugins";
 import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
@@ -116,7 +115,7 @@ export type EngineDaemon = {
 
 function domainError(error: unknown): HttpError | undefined {
   if (error instanceof PluginInputError || error instanceof WorktreeError) return new HttpError(400, "invalid_request", error.message);
-  if (error instanceof ProjectNotesError || error instanceof PreparedPromptsError) {
+  if (error instanceof PreparedPromptsError) {
     return new HttpError(error.code === "not_found" ? 404 : 400, error.code, error.message);
   }
   return undefined;
@@ -193,7 +192,6 @@ type RouteContext = {
   computerUseGate: ComputerUseGate;
   simulators: Simulators;
   storageMeter: ReturnType<typeof createStorageMeter>;
-  notesDoor: ReturnType<typeof notesSocketDoor>;
   sessionsDoor: ReturnType<typeof sessionsSocketDoor>;
   daemonId: string;
   openStreams: Set<OpenStream>;
@@ -202,14 +200,12 @@ type RouteContext = {
   runMount: ReturnType<typeof createRunMount>;
   workers: ReturnType<typeof createWorkerRegistry>;
   health: () => EngineHealth;
-  port: () => number;
 };
 
 function engineRoutes(ctx: RouteContext): Route[] {
-  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, notesDoor, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, port } = ctx;
+  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health } = ctx;
   return [
     sessionsDoor.route,
-    notesDoor.route,
     { method: "GET", path: "/v2/health", auth: "engine", handle: () => ({ status: 200, body: health() }) },
     ...filesRoutes(),
     ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket)),
@@ -228,7 +224,6 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...providersRoutes(store, { now, ...(options.probeProviderVersion ? { probeVersion: options.probeProviderVersion } : {}), ...(options.runProviderUpdate ? { runUpdate: options.runProviderUpdate } : {}), ...(options.readProviderLimits ? { readLimits: options.readProviderLimits } : {}), ...(options.agentInstall ? { agents: options.agentInstall } : {}) }),
     ...appearanceRoutes(store),
     ...promptsRoutes(store),
-    ...notesRoutes(store, { port, secret: notesDoor.secret }),
     ...sessionsRoutes(store, { daemonId, openStreams, mcpInfo: sessionsDoor.card }),
     ...schedulesRoutes(store),
     ...workerRoutes(execution),
@@ -329,17 +324,15 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   });
   let port = 0;
   const sessionsDoor = sessionsSocketDoor(store, () => port);
-  const notesDoor = notesSocketDoor(store);
-  const secrets: Record<Route["auth"], () => string> = { engine: () => token, "sessions-socket": sessionsDoor.secret, "notes-socket": notesDoor.secret };
+  const secrets: Record<Route["auth"], () => string> = { engine: () => token, "sessions-socket": sessionsDoor.secret };
   const refusals: Record<Route["auth"], string> = {
     engine: "engine authentication failed",
     "sessions-socket": "the sessions socket answers to its own secret — see /v2/sessions/mcp-info",
-    "notes-socket": "the notes socket answers to its own secret — see /v2/notes/mcp-info",
   };
   const authorize = (auth: Route["auth"], request: http.IncomingMessage): void => {
     if (!bearerIsValid(request.headers.authorization, secrets[auth]())) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
   };
-  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, notesDoor, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, port: () => port });
+  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health });
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run }));
 
   try {

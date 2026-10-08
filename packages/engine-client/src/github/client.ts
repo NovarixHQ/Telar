@@ -2,6 +2,7 @@ import type { EngineTransport } from "../platform/transport";
 import { forgeQuery } from "./query";
 import type {
   GitHubCheckLog,
+  GitHubCliAuth,
   GitHubFacets,
   GitHubIssueFilter,
   GitHubIssueRead,
@@ -26,6 +27,10 @@ const sessionPullPath = (sessionId: string) => `/v2/sessions/${encodeURIComponen
 const refreshed = (options: { refresh?: boolean }) => (options.refresh ? "?refresh=1" : "");
 
 export const githubClient = {
+  githubCliAuth(this: EngineTransport): Promise<{ auth: GitHubCliAuth }> {
+    return this.request("GET", "/v2/github/cli");
+  },
+
   /** Cached for thirty seconds in the engine; `refresh` is a person pressing the button. */
   projectGitHub(
     this: EngineTransport,

@@ -36,7 +36,7 @@ In the app, go to Settings → Notifications & activities and turn on Notificati
 
 There's nothing to set up on the Mac. The phone registers itself when you turn notifications on, and the Mac then sends it a test notification. If none arrives, open Telar on the phone so it registers again.
 
-The phone gets every alert its own settings ask for, whatever the Mac is doing. The Mac shows its own banners unless you turn off **Desktop notifications** in Settings → General, and never for the conversation in front of you.
+Every alert goes to every device: the phone gets each one its own settings ask for, whatever the Mac is doing, and the Mac shows its own banners unless you turn off **Desktop notifications** in Settings → General. Reading the conversation on any device clears the alert on the others.
 
 Notifications need a real iPhone that passes Apple's app check. If the app says notifications can't be set up on this device, everything else still works.
 

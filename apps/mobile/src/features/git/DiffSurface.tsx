@@ -1,99 +1,60 @@
-import { Button, ContentUnavailableView, ContextMenu, HStack, Label, List, ProgressView, Section, Text } from "@expo/ui/swift-ui";
-import {
-  background,
-  buttonStyle,
-  disabled,
-  font,
-  foregroundStyle,
-  frame,
-  listRowBackground,
-  listRowInsets,
-  listRowSeparator,
-  listRowSeparatorTint,
-  listStyle,
-  monospacedDigit,
-  padding,
-  refreshable,
-  scrollContentBackground,
-} from "@expo/ui/swift-ui/modifiers";
-import type { GitFileChange, SessionDiff } from "@telar/engine-client";
-import { memo, useCallback, useEffect, useState } from "react";
-import { TurboModuleRegistry, type TurboModule } from "react-native";
+import { Button, ContextMenu, HStack, Host, Label, Text as SwiftText } from "@expo/ui/swift-ui";
+import { buttonStyle, disabled, font, foregroundStyle, monospacedDigit, padding } from "@expo/ui/swift-ui/modifiers";
+import type { GitCommitEntry, GitFileChange, SessionDiff } from "@telar/engine-client";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TurboModuleRegistry, View, type TurboModule } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { bandCaption, faded, Theme } from "../../ui";
 import { DiffCommitRow, DiffFileRow, DiffSummary } from "./DiffRows";
 import { PatchBody } from "./PatchBody";
 import { diffNotes, fileLine } from "./summary";
 
-const CLEAR = "#00000000";
-const separator = faded("border", 0.6);
-const plainRow = [listRowBackground(CLEAR), listRowSeparator("hidden")];
+type Item =
+  | { key: string; type: "summary" }
+  | { key: string; type: "file"; file: GitFileChange; open: boolean }
+  | { key: string; type: "patch"; file: GitFileChange }
+  | { key: string; type: "commits" }
+  | { key: string; type: "commit"; commit: GitCommitEntry }
+  | { key: string; type: "empty" };
 
 const clipboard = TurboModuleRegistry.get<TurboModule & { setString(text: string): void }>("Clipboard");
 
-function FileMenuItems({ file, onOpenFile }: { file: GitFileChange; onOpenFile?: (path: string) => void }) {
-  return (
-    <>
-      {file.status === "deleted" ? null : <Button label="Open in Editor" systemImage="sidebar.trailing" onPress={() => onOpenFile?.(file.path)} modifiers={onOpenFile ? [] : [disabled(true)]} />}
-      {clipboard ? <Button label="Copy path" systemImage="doc.on.doc" onPress={() => clipboard.setString(file.path)} /> : null}
-    </>
-  );
-}
+/** A SwiftUI row inside the list; the list mounts only the rows near the screen, so only those pay for a host. */
+const SwiftRow = ({ children, separator }: { children: ReactNode; separator?: boolean }) => (
+  <View>
+    <Host matchContents={{ vertical: true }}>{children}</Host>
+    {separator ? <View style={styles.separator} /> : null}
+  </View>
+);
 
-const FileRows = memo(function FileRows({ host, sessionId, file, generation, onOpenFile }: { host: HostConnection; sessionId: string; file: GitFileChange; generation: number; onOpenFile?: (path: string) => void }) {
-  const [open, setOpen] = useState(true);
+const FileRow = memo(function FileRow({ file, open, onToggle, onOpenFile }: { file: GitFileChange; open: boolean; onToggle: (path: string) => void; onOpenFile?: (path: string) => void }) {
   return (
-    <>
-      <ContextMenu modifiers={[listRowBackground(CLEAR), listRowSeparatorTint(separator), listRowInsets({ top: 0, leading: 16, bottom: 0, trailing: 16 })]}>
+    <SwiftRow separator>
+      <ContextMenu modifiers={[padding({ horizontal: 16 })]}>
         <ContextMenu.Items>
-          <FileMenuItems file={file} {...(onOpenFile ? { onOpenFile } : {})} />
+          {file.status === "deleted" ? null : <Button label="Open in Editor" systemImage="sidebar.trailing" onPress={() => onOpenFile?.(file.path)} modifiers={onOpenFile ? [] : [disabled(true)]} />}
+          {clipboard ? <Button label="Copy path" systemImage="doc.on.doc" onPress={() => clipboard.setString(file.path)} /> : null}
         </ContextMenu.Items>
         <ContextMenu.Trigger>
-          <Button onPress={() => setOpen(!open)} modifiers={[buttonStyle("plain")]}>
+          <Button onPress={() => onToggle(file.path)} modifiers={[buttonStyle("plain")]}>
             <DiffFileRow line={fileLine(file)} open={open} />
           </Button>
         </ContextMenu.Trigger>
       </ContextMenu>
-      {open ? (
-        <HStack modifiers={[...plainRow, listRowInsets({ top: 0, leading: 16, bottom: 10, trailing: 16 })]}>
-          <PatchBody host={host} sessionId={sessionId} file={file} generation={generation} />
-        </HStack>
-      ) : null}
-    </>
+    </SwiftRow>
   );
 });
 
-function DiffList({ host, sessionId, diff, generation, reload, onOpenFile }: { host: HostConnection; sessionId: string; diff: SessionDiff; generation: number; reload: () => Promise<void>; onOpenFile?: (path: string) => void }) {
-  const now = Date.now();
-  return (
-    <List modifiers={[listStyle("plain"), scrollContentBackground("hidden"), background(Theme.canvas), refreshable(reload)]}>
-      <HStack modifiers={[...plainRow, listRowInsets({ top: 14, leading: 16, bottom: 10, trailing: 16 })]}>
-        <DiffSummary diff={diff} notes={diffNotes(diff)} />
-      </HStack>
-      {diff.files.map((file) => (
-        <FileRows key={file.path} host={host} sessionId={sessionId} file={file} generation={generation} {...(onOpenFile ? { onOpenFile } : {})} />
-      ))}
-      {diff.commits.length > 0 ? (
-        <Section
-          header={
-            <HStack spacing={6} modifiers={[...bandCaption, padding({ top: 12 })]}>
-              <Text>Commits</Text>
-              <Text modifiers={[monospacedDigit()]}>{String(diff.commits.length)}</Text>
-            </HStack>
-          }
-        >
-          {diff.commits.map((commit) => (
-            <HStack key={commit.sha} modifiers={[listRowBackground(CLEAR), listRowSeparatorTint(separator), listRowInsets({ top: 4, leading: 16, bottom: 4, trailing: 16 })]}>
-              <DiffCommitRow commit={commit} now={now} />
-            </HStack>
-          ))}
-        </Section>
-      ) : null}
-      {diff.files.length === 0 && diff.commits.length === 0 && !diff.filesIncomplete ? (
-        <Label title="No changes yet." systemImage="checkmark.circle" modifiers={[...plainRow, font({ textStyle: "subheadline" }), foregroundStyle(Theme.textMuted)]} />
-      ) : null}
-    </List>
-  );
+function items(diff: SessionDiff, collapsed: ReadonlySet<string>): Item[] {
+  const list: Item[] = [{ key: "summary", type: "summary" }];
+  for (const file of diff.files) {
+    const open = !collapsed.has(file.path);
+    list.push({ key: `file:${file.path}`, type: "file", file, open });
+    if (open) list.push({ key: `patch:${file.path}`, type: "patch", file });
+  }
+  if (diff.commits.length > 0) list.push({ key: "commits", type: "commits" }, ...diff.commits.map((commit) => ({ key: `commit:${commit.sha}`, type: "commit" as const, commit })));
+  if (diff.files.length === 0 && diff.commits.length === 0 && !diff.filesIncomplete) list.push({ key: "empty", type: "empty" });
+  return list;
 }
 
 /** What a session changed: a summary, each file's patch, and its commits. Pull to read it again. */
@@ -101,6 +62,8 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
   const [diff, setDiff] = useState<SessionDiff>();
   const [failed, setFailed] = useState<string>();
   const [generation, setGeneration] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -116,7 +79,90 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
     void load();
   }, [load]);
 
-  if (diff) return <DiffList host={host} sessionId={sessionId} diff={diff} generation={generation} reload={load} {...(onOpenFile ? { onOpenFile } : {})} />;
-  if (failed) return <ContentUnavailableView title="Could not load changes" systemImage="xmark.circle" description={failed} modifiers={[background(Theme.canvas)]} />;
-  return <ProgressView modifiers={[frame({ maxWidth: Infinity, maxHeight: Infinity }), background(Theme.canvas)]} />;
+  const toggle = useCallback((path: string) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (!next.delete(path)) next.add(path);
+      return next;
+    });
+  }, []);
+
+  const data = useMemo(() => (diff ? items(diff, collapsed) : []), [diff, collapsed]);
+
+  const render = useCallback(
+    ({ item }: { item: Item }) => {
+      switch (item.type) {
+        case "summary":
+          return (
+            <SwiftRow>
+              <HStack modifiers={[padding({ top: 14, leading: 16, bottom: 10, trailing: 16 })]}>{diff ? <DiffSummary diff={diff} notes={diffNotes(diff)} /> : null}</HStack>
+            </SwiftRow>
+          );
+        case "file":
+          return <FileRow file={item.file} open={item.open} onToggle={toggle} {...(onOpenFile ? { onOpenFile } : {})} />;
+        case "patch":
+          return (
+            <View style={styles.patch}>
+              <PatchBody host={host} sessionId={sessionId} file={item.file} generation={generation} />
+            </View>
+          );
+        case "commits":
+          return (
+            <SwiftRow>
+              <HStack spacing={6} modifiers={[...bandCaption, padding({ top: 24, leading: 16, bottom: 6, trailing: 16 })]}>
+                <SwiftText>Commits</SwiftText>
+                <SwiftText modifiers={[monospacedDigit()]}>{String(diff?.commits.length ?? 0)}</SwiftText>
+              </HStack>
+            </SwiftRow>
+          );
+        case "commit":
+          return (
+            <SwiftRow separator>
+              <HStack modifiers={[padding({ horizontal: 16, vertical: 4 })]}>
+                <DiffCommitRow commit={item.commit} now={Date.now()} />
+              </HStack>
+            </SwiftRow>
+          );
+        case "empty":
+          return (
+            <SwiftRow>
+              <Label title="No changes yet." systemImage="checkmark.circle" modifiers={[padding({ horizontal: 16, vertical: 8 }), font({ textStyle: "subheadline" }), foregroundStyle(Theme.textMuted)]} />
+            </SwiftRow>
+          );
+      }
+    },
+    [diff, generation, host, sessionId, toggle, onOpenFile],
+  );
+
+  if (failed && !diff) return <Text style={styles.failed}>{`Could not load changes\n${failed}`}</Text>;
+  if (!diff) return <ActivityIndicator style={styles.loading} />;
+  return (
+    <FlatList
+      style={styles.list}
+      data={data}
+      keyExtractor={(item) => item.key}
+      renderItem={render}
+      initialNumToRender={8}
+      maxToRenderPerBatch={4}
+      windowSize={5}
+      removeClippedSubviews
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => {
+            setRefreshing(true);
+            void load().finally(() => setRefreshing(false));
+          }}
+        />
+      }
+    />
+  );
 }
+
+const styles = StyleSheet.create({
+  list: { flex: 1, backgroundColor: Theme.canvas },
+  loading: { flex: 1, backgroundColor: Theme.canvas },
+  patch: { paddingHorizontal: 16, paddingBottom: 10 },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 62, marginRight: 16, backgroundColor: faded("border", 0.6) },
+  failed: { flex: 1, padding: 24, textAlign: "center", fontSize: 15, color: Theme.textMuted, backgroundColor: Theme.canvas },
+});

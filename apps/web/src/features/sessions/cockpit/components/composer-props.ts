@@ -78,8 +78,6 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
     onStopBackground: () => void actions.stopBackground(),
     // Before a session exists both choices are held locally and applied by the patch that follows creation.
     onRuntimeMode: fresh ? draft.chooseRuntimeMode : (mode) => void actions.setRuntimeMode(mode),
-    ...(fresh ? {} : { onResumeAfterRateLimit: (next: boolean) => void actions.setResumeAfterRateLimit(next) }),
-    ...(draft.sessionDefaults.resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimitDefault: draft.sessionDefaults.resumeAfterRateLimit }),
     onModelChange: fresh ? draft.chooseModel : (next) => void actions.setModel(next),
     ...(fresh ? {} : { onSwitchProvider: (driver: ProviderDriverKind, next: ModelChoice) => void actions.switchProvider(driver, next) }),
   };

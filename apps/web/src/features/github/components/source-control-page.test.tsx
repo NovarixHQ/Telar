@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { searchSettings, SETTINGS_SEARCH_INDEX } from "@/features/settings";
-import { SourceControlPage, readGhState } from "./source-control-page";
+import { SourceControlPage } from "./source-control-page";
 
 GlobalRegistrator.register({ url: "http://localhost/settings" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -13,18 +13,6 @@ afterAll(async () => await GlobalRegistrator.unregister());
 const flush = async () => {
   for (let i = 0; i < 20; i++) await act(async () => await Promise.resolve());
 };
-
-test("no GitHub remote means gh works, not that anything is wrong", () => {
-  expect(readGhState({ unavailable: "no_repository" })).toEqual({ status: "ready" });
-  expect(readGhState({ repository: "NovarixHQ/Telar" })).toEqual({ status: "ready", repository: "NovarixHQ/Telar" });
-  expect(readGhState({ unavailable: "not_github" })).toEqual({ status: "ready" });
-});
-
-test("the two machine-level failures are carried through as themselves", () => {
-  expect(readGhState({ unavailable: "not_installed" })).toEqual({ status: "unavailable", reason: "not_installed" });
-  expect(readGhState({ unavailable: "not_authenticated" })).toEqual({ status: "unavailable", reason: "not_authenticated" });
-  expect(readGhState({ unavailable: "failed", message: "dial tcp: i/o timeout" })).toEqual({ status: "unavailable", reason: "failed", message: "dial tcp: i/o timeout" });
-});
 
 test("the row is drawn before the probe answers", () => {
   const html = renderToStaticMarkup(<SourceControlPage />);
@@ -39,33 +27,72 @@ test("no row exists only to say a thing does not exist", () => {
   expect(html).not.toContain("Not supported");
 });
 
-test("a broken gh names the command that fixes it, and Check again re-asks", async () => {
-  let github: Record<string, unknown> = { unavailable: "not_installed" };
+function serve(answer: () => Response) {
   const asked: string[] = [];
   const [realFetch, realSetTimeout] = [globalThis.fetch, window.setTimeout];
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     asked.push(String(input));
-    const body = String(input) === "/api/projects" ? { projects: [{ id: "project_a", name: "A", root: "/a" }] } : { github };
-    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    return answer();
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void) => void queueMicrotask(fn)) as unknown as typeof window.setTimeout;
-  const host = document.createElement("div");
-  const root = createRoot(host);
-  try {
-    await act(async () => root.render(<SourceControlPage />));
-    await flush();
-    expect(host.textContent).toContain("brew install gh");
-
-    github = { unavailable: "not_authenticated" };
-    await act(async () => host.querySelector<HTMLElement>('[aria-label="Check gh again"]')!.click());
-    await flush();
-    expect(host.textContent).toContain("gh auth login");
-    expect(host.textContent).not.toContain("brew install gh");
-    expect(asked.at(-1)).toBe("/api/projects/project_a/github?refresh=1");
-  } finally {
-    act(() => root.unmount());
+  const restore = () => {
     globalThis.fetch = realFetch;
     window.setTimeout = realSetTimeout;
+  };
+  return { asked, restore };
+}
+
+const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+
+async function mount() {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  await act(async () => root.render(<SourceControlPage />));
+  await flush();
+  return { host, unmount: () => act(() => root.unmount()) };
+}
+
+test("a broken gh names the command that fixes it, and Check again re-asks the machine, not a project", async () => {
+  let auth: Record<string, unknown> = { signedIn: false, unavailable: "not_installed" };
+  const { asked, restore } = serve(() => json({ auth }));
+  const page = await mount();
+  try {
+    expect(page.host.textContent).toContain("brew install gh");
+
+    auth = { signedIn: false, unavailable: "not_authenticated" };
+    await act(async () => page.host.querySelector<HTMLElement>('[aria-label="Check gh again"]')!.click());
+    await flush();
+    expect(page.host.textContent).toContain("gh auth login");
+    expect(page.host.textContent).not.toContain("brew install gh");
+    expect(asked).toEqual(["/api/github/cli", "/api/github/cli"]);
+  } finally {
+    page.unmount();
+    restore();
+  }
+});
+
+test("a signed-in gh shows the account, whatever projects exist", async () => {
+  const { restore } = serve(() => json({ auth: { signedIn: true, account: "octo-cat" } }));
+  const page = await mount();
+  try {
+    expect(page.host.textContent).toContain("Authenticated");
+    expect(page.host.textContent).toContain("octo-cat");
+    expect(page.host.textContent).not.toContain("Project folder not found");
+  } finally {
+    page.unmount();
+    restore();
+  }
+});
+
+test("an engine that does not answer says so on the row", async () => {
+  const { restore } = serve(() => new Response("{}", { status: 503 }));
+  const page = await mount();
+  try {
+    expect(page.host.textContent).toContain("gh could not answer");
+    expect(page.host.textContent).toContain("gh auth status");
+  } finally {
+    page.unmount();
+    restore();
   }
 });
 

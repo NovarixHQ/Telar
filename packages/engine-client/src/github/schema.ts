@@ -4,6 +4,10 @@ type Refused<R> = { refusal: R; message?: string };
 
 export type GitHubUnavailable = "not_installed" | "not_authenticated" | "no_repository" | "no_checkout" | "not_github" | "failed";
 
+export type GitHubCliAuth =
+  | { signedIn: true; account?: string }
+  | { signedIn: false; unavailable: "not_installed" | "not_authenticated" | "failed"; message?: string };
+
 type GitHubLabel = { name: string; color?: string };
 
 export type GitHubLink = { number: number; url: string; repository?: string };

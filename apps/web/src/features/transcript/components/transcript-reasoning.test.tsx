@@ -63,3 +63,15 @@ describe("a reasoning row with no text", () => {
     expect(group(thought("completed"), false)).not.toContain("Thought");
   });
 });
+
+describe("a reasoning row with text", () => {
+  test("collapsed, it previews the first line without Markdown marks", () => {
+    expect(text(thought("completed", undefined, "**Planning** the `fix`\nthen more"))).toContain("Planning the fix");
+  });
+
+  test("streaming, its Markdown is rendered rather than shown as marks", () => {
+    const shown = text(thought("inProgress", undefined, "Check **this** first"));
+    expect(shown).toContain("Check this first");
+    expect(shown).not.toContain("**");
+  });
+});

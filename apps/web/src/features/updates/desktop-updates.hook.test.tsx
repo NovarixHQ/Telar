@@ -57,9 +57,9 @@ const bridge: UpdatesBridge = {
   getPrefs: async () => {
     calls.push("getPrefs");
     if (script.rejectPrefs) throw new Error("prefs store unreadable (scripted)");
-    return { channel: "beta", installOnQuit: false, channels: ["beta"], configured: true, logPath: "/dev/null", ...script.prefs } as UpdatePrefsInfo;
+    return { channel: "beta", channels: ["beta"], configured: true, logPath: "/dev/null", ...script.prefs } as UpdatePrefsInfo;
   },
-  setPrefs: async () => ({ channel: "beta", installOnQuit: false }),
+  setPrefs: async () => ({ channel: "beta" }),
 };
 
 const seatBridge = () => {

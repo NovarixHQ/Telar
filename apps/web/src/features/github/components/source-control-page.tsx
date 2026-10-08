@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { GitPullRequestIcon, RefreshCwIcon } from "lucide-react";
-import type { GitHubUnavailable } from "@telar/engine-client";
+import type { GitHubCliAuth } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { UNAVAILABLE } from "../github-forge";
 import { Badge } from "@/ui/badge";
@@ -12,47 +12,35 @@ import { Row, SettingsGroup } from "@/features/settings";
 
 const api = createEngineApi();
 
-export type GhState =
-  | { status: "checking" }
-  | { status: "ready"; repository?: string }
-  | { status: "unavailable"; reason: Exclude<GitHubUnavailable, "no_repository" | "not_github">; message?: string }
-  | { status: "no_projects" };
+type Unavailable = Extract<GitHubCliAuth, { signedIn: false }>;
+type GhState = { status: "checking" } | GitHubCliAuth;
 
-export function readGhState(snapshot: { unavailable?: GitHubUnavailable; message?: string; repository?: string }): GhState {
-  const reason = snapshot.unavailable;
-  if (reason === undefined || reason === "no_repository" || reason === "not_github") {
-    return { status: "ready", ...(snapshot.repository ? { repository: snapshot.repository } : {}) };
-  }
-  return { status: "unavailable", reason, ...(snapshot.message ? { message: snapshot.message } : {}) };
-}
-
-const FIX: Record<Exclude<GitHubUnavailable, "no_repository" | "not_github">, string> = {
+const FIX: Record<Unavailable["unavailable"], string> = {
   not_installed: "Install the GitHub CLI — `brew install gh` on macOS, or your own package manager — then run `gh auth login`.",
   not_authenticated: "Run `gh auth login` in a terminal on this machine. Sign-in lives outside Telar, the same as it does for Claude and Codex.",
-  no_checkout: "Move the project's folder back, or re-register the project pointing at where it lives now.",
   failed: "Run `gh auth status` in a terminal on this machine to see what it says.",
 };
 
+function hint(state: GhState): string | undefined {
+  if ("status" in state || state.signedIn) return undefined;
+  return [UNAVAILABLE[state.unavailable].detail, state.message, FIX[state.unavailable]].filter(Boolean).join(" ");
+}
+
 function GhStatus({ state }: { state: GhState }) {
-  if (state.status === "checking") return <Spinner />;
-  if (state.status === "ready") return <Badge variant="secondary">Authenticated</Badge>;
-  if (state.status === "no_projects") return <Badge variant="outline">Not checked</Badge>;
-  return <Badge variant="outline">{UNAVAILABLE[state.reason].title}</Badge>;
+  if ("status" in state) return <Spinner />;
+  if (state.signedIn) return <Badge variant="secondary">Authenticated</Badge>;
+  return <Badge variant="outline">{UNAVAILABLE[state.unavailable].title}</Badge>;
 }
 
 export function SourceControlPage() {
   const [state, setState] = useState<GhState>({ status: "checking" });
 
-  const probe = useCallback(async (refresh = false) => {
+  const probe = useCallback(async () => {
     setState({ status: "checking" });
     try {
-      const { projects } = await api.projects();
-      const first = projects[0];
-      if (!first) return setState({ status: "no_projects" });
-      const { github } = await api.projectGitHub(first.id, refresh ? { refresh: true } : {});
-      setState(readGhState(github));
+      setState((await api.githubCliAuth()).auth);
     } catch (cause) {
-      setState({ status: "unavailable", reason: "failed", message: cause instanceof Error ? cause.message : "The engine did not answer." });
+      setState({ signedIn: false, unavailable: "failed", message: cause instanceof Error ? cause.message : "The engine did not answer." });
     }
   }, []);
 
@@ -61,6 +49,7 @@ export function SourceControlPage() {
     return () => window.clearTimeout(task);
   }, [probe]);
 
+  const detail = hint(state);
   return (
     <SettingsGroup
       title="Source control"
@@ -70,20 +59,16 @@ export function SourceControlPage() {
         keywords={["gh", "git", "pull request", "issues", "token", "auth", "sign in", "cli", "forge", "gitlab"]}
         label="GitHub"
         icon={GitPullRequestIcon}
-        {...(state.status === "unavailable"
-          ? { hint: `${UNAVAILABLE[state.reason].detail} ${FIX[state.reason]}` }
-          : state.status === "no_projects"
-            ? { hint: "Register a project and this fills in — there is no checkout to ask gh from yet." }
-            : {})}
-        {...(state.status === "ready" && state.repository ? { status: <Badge variant="outline">{state.repository}</Badge> } : {})}
+        {...(detail ? { hint: detail } : {})}
+        {...("signedIn" in state && state.signedIn && state.account ? { status: <Badge variant="outline">{state.account}</Badge> } : {})}
         control={
           <div className="flex items-center gap-2">
             <GhStatus state={state} />
             <Button
               size="sm"
               variant="outline"
-              disabled={state.status === "checking"}
-              onClick={() => void probe(true)}
+              disabled={"status" in state}
+              onClick={() => void probe()}
               aria-label="Check gh again"
             >
               <RefreshCwIcon className="size-3.5" />

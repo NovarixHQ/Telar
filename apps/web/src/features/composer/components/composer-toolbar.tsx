@@ -103,22 +103,20 @@ export function StashBadge({ stash }: { stash: ComposerStash }) {
 
 type PillProps = Pick<
   ComposerProps,
-  "runtimeMode" | "onModelChange" | "onSwitchProvider" | "onRuntimeMode" | "onDriverChange" | "onResumeAfterRateLimit"
+  "runtimeMode" | "onModelChange" | "onSwitchProvider" | "onRuntimeMode" | "onDriverChange"
 > & {
   driver: ProviderDriverKind;
   choice: ModelChoice;
   instanceId: string | undefined;
-  resumeAfterRateLimit: boolean | undefined;
   ultrathink: { active: boolean; toggle: () => void };
   summon: { picker: ComposerPicker; at: number } | undefined;
 };
 
 /** Model, reasoning and access in one row; as the composer narrows, labels truncate, then fold to icons. */
 export function ComposerPills(props: PillProps) {
-  const { driver, choice, instanceId, runtimeMode, onModelChange, onRuntimeMode, onDriverChange, onResumeAfterRateLimit, resumeAfterRateLimit, ultrathink, summon } = props;
+  const { driver, choice, instanceId, runtimeMode, onModelChange, onRuntimeMode, onDriverChange, ultrathink, summon } = props;
   const summoned = (picker: ComposerPicker) => (summon?.picker === picker ? summon.at : undefined);
   const shared = { driver, choice, ...(instanceId ? { instanceId } : {}), ...(onModelChange ? { onChange: onModelChange } : {}) };
-  const limit = { ...(resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimit }), ...(onResumeAfterRateLimit ? { onResumeAfterRateLimit } : {}) };
   return (
     <>
       <AgentControl {...shared} summon={summoned("model")} {...(onDriverChange ? { onDriverChange } : {})} {...(props.onSwitchProvider ? { onSwitchProvider: props.onSwitchProvider } : {})} />
@@ -127,7 +125,7 @@ export function ComposerPills(props: PillProps) {
       {runtimeMode && (
         <>
           <ControlDivider />
-          <AccessControl runtimeMode={runtimeMode} onRuntimeMode={onRuntimeMode} driver={driver} summon={summoned("access")} {...limit} />
+          <AccessControl runtimeMode={runtimeMode} onRuntimeMode={onRuntimeMode} summon={summoned("access")} />
         </>
       )}
     </>

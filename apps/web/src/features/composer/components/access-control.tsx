@@ -2,35 +2,17 @@
 
 import { useState } from "react";
 import { ShieldCheckIcon } from "lucide-react";
-import type { ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
+import type { RuntimeMode } from "@telar/engine-client";
 import { Popover, PopoverContent } from "@/ui/popover";
 import { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
 import { ChoiceRow, MenuHeading, PillTrigger, useSummon } from "./control-primitives";
 
-export function AccessControl({
-  runtimeMode,
-  onRuntimeMode,
-  driver,
-  resumeAfterRateLimit,
-  onResumeAfterRateLimit,
-  summon,
-}: {
-  runtimeMode: RuntimeMode;
-  onRuntimeMode: (mode: RuntimeMode) => void;
-  driver?: ProviderDriverKind;
-  /** Absent means the driver's default, which is on for Claude. */
-  resumeAfterRateLimit?: boolean;
-  onResumeAfterRateLimit?: (next: boolean) => void;
-  summon?: number | undefined;
-}) {
+export function AccessControl({ runtimeMode, onRuntimeMode, summon }: { runtimeMode: RuntimeMode; onRuntimeMode: (mode: RuntimeMode) => void; summon?: number | undefined }) {
   const [open, setOpen] = useState(false);
   useSummon(summon, () => setOpen(true));
   const mode = RUNTIME_MODE_LABELS[runtimeMode];
   // "Auto" would read the same as the reasoning pill's Auto beside it.
   const label = runtimeMode === "auto" ? "Access" : mode;
-  // Claude only: the only provider whose limits the engine can schedule a resume from.
-  const limits = driver === "claude" && onResumeAfterRateLimit;
-  const resumes = resumeAfterRateLimit ?? true;
   const pick = (run: () => void) => () => {
     run();
     setOpen(false);
@@ -50,23 +32,6 @@ export function AccessControl({
             onSelect={pick(() => onRuntimeMode(option))}
           />
         ))}
-        {limits && (
-          <>
-            <MenuHeading>Usage limits</MenuHeading>
-            <ChoiceRow
-              label="Continue after a reset"
-              description="A turn stopped by the five-hour or weekly limit runs again once the limit lifts, carrying on where it left off."
-              selected={resumes}
-              onSelect={pick(() => onResumeAfterRateLimit(true))}
-            />
-            <ChoiceRow
-              label="Stay stopped"
-              description="The turn stays failed and shows when the limit resets, with a Resume now button."
-              selected={!resumes}
-              onSelect={pick(() => onResumeAfterRateLimit(false))}
-            />
-          </>
-        )}
       </PopoverContent>
     </Popover>
   );

@@ -15,7 +15,6 @@ export const SECTIONS: SettingsSection[] = [
     id: "providers",
     label: "Providers",
     icon: PlugIcon,
-    scope: "mac",
     keywords: ["login", "add a login", "account", "claude", "codex", "api key", "sign in", "auth", "provider"],
   },
   { id: "integrations", label: "Integrations", icon: PlugZapIcon, keywords: ["mcp", "stdio", "sse", "http", "tool", "server", "add a server"] },
@@ -23,7 +22,6 @@ export const SECTIONS: SettingsSection[] = [
     id: "plugins",
     label: "Plugins",
     icon: BlocksIcon,
-    scope: "mac",
     keywords: ["latex", "data science", "extension", "enable", "tectonic", "tex distribution", "texlive", "default engine", "packages", "default python"],
   },
   {
@@ -33,10 +31,10 @@ export const SECTIONS: SettingsSection[] = [
     scope: "project",
     keywords: ["host", "paired", "remote", "other mac", "machine", "computer", "scope", "pick", "select", "all projects", "registry"],
   },
-  { id: "notifications", label: "Notifications", icon: BellIcon, scope: "mac" },
-  { id: "source-control", label: "Source control", icon: GitPullRequestIcon, scope: "mac" },
-  { id: "storage", label: "Storage", icon: HardDriveIcon, scope: "mac" },
-  { id: "connections", label: "Connections", icon: SmartphoneIcon, scope: "mac" },
+  { id: "notifications", label: "Notifications", icon: BellIcon },
+  { id: "source-control", label: "Source control", icon: GitPullRequestIcon },
+  { id: "storage", label: "Storage", icon: HardDriveIcon },
+  { id: "connections", label: "Connections", icon: SmartphoneIcon },
 ];
 
 export const SECTION_IDS = SECTIONS.map((section) => section.id);

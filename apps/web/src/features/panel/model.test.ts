@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { defaultKeymap, resolveCommandForEvent } from "@/features/commands";
 import {
   BROWSER_SURFACE,
+  launcherRowForKey,
   launcherRows,
   surfaceCommands,
   browserPanelTab,
@@ -176,8 +177,8 @@ describe("a browser tab's label comes from the live page when the shell has one"
 
 describe("a surface's letter", () => {
   test("its ⌘⇧ chord opens the same surface from anywhere, plugins included", () => {
-    const rows = launcherRows([], { enabledPlugins: ["data-science", "latex"], pluginPanels: [], canOpenNew: true, browser: {} });
-    const commands = new Map<string, string>([["browser", BROWSER_SURFACE.command], ...surfaceCommands(["data-science", "latex"]).map(({ command, tab }) => [tab, command] as [string, string])]);
+    const rows = launcherRows([], { enabledPlugins: ["data-science", "latex"], pluginPanels: [], canOpenNew: true, shells: true, browser: {} });
+    const commands = new Map<string, string>([["browser", BROWSER_SURFACE.command], ...surfaceCommands(["data-science", "latex"], { shells: true }).map(({ command, tab }) => [tab, command] as [string, string])]);
     const keyed = rows.filter((row) => row.key);
     expect(keyed.map((row) => row.key)).toEqual(["b", "t", "e", "d", "s", "i", "u", "a", "x"]);
     for (const row of keyed) {
@@ -188,7 +189,7 @@ describe("a surface's letter", () => {
 
   test("an open singleton leaves the launcher; a second Terminal or Diff stays as another", () => {
     const open = [{ id: "issues", kind: "issues", params: {} }, { id: "terminal", kind: "terminal", params: {} }, { id: "diff", kind: "diff", params: {} }] as const;
-    const rows = launcherRows([...open], { enabledPlugins: [], pluginPanels: [], canOpenNew: true });
+    const rows = launcherRows([...open], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: true });
     expect(rows.some((row) => row.id === "issues")).toBe(false);
     expect(rows.find((row) => row.id === "terminal")?.another).toBe(true);
     expect(rows.find((row) => row.id === "diff")?.another).toBe(true);
@@ -201,13 +202,21 @@ describe("a surface's letter", () => {
   });
 
   test("outside the flat-tabs trial the open Terminal is a singleton, since it holds every shell", () => {
-    const rows = launcherRows([{ id: "terminal", kind: "terminal", params: {} }], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, flat: false });
+    const rows = launcherRows([{ id: "terminal", kind: "terminal", params: {} }], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: true, flat: false });
     expect(rows.some((row) => row.id === "terminal")).toBe(false);
   });
 
   test("offers no Agents or Processes surface", () => {
-    const labels = launcherRows([], { enabledPlugins: [], pluginPanels: [], canOpenNew: true }).map((row) => row.label);
+    const labels = launcherRows([], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: true }).map((row) => row.label);
     expect(labels).not.toContain("Agents");
     expect(labels).not.toContain("Processes");
+  });
+
+  test("a client that cannot open a shell is offered no Terminal, by letter or by chord", () => {
+    const rows = launcherRows([], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: false });
+    expect(rows.map((row) => row.id)).not.toContain("terminal");
+    expect(launcherRowForKey(rows, "t")).toBeUndefined();
+    expect(surfaceCommands([], { shells: false }).map((entry) => entry.command)).not.toContain("open-terminal");
+    expect(surfaceCommands([], { shells: true }).map((entry) => entry.command)).toContain("open-terminal");
   });
 });

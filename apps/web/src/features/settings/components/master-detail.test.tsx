@@ -115,12 +115,13 @@ test("the detail card stays put and only its inside scrolls, with the chosen ite
   expect(markup).toContain("@min-[44rem]/master:h-[min(44rem,calc(100dvh-11rem))]");
 });
 
-test("the pinned header names the chosen item and carries its control", async () => {
+test("the pinned header names the chosen item, and its control stays on the list row alone", async () => {
   const view = await mount(<MasterDetail title="Plugins" param="plugin" items={ITEMS} />);
   await act(async () => view.option("beta").click());
   const header = view.host.querySelector('[data-detail-for="beta"] [data-detail-header]')!;
   expect(header.textContent).toContain("BETA");
-  expect(header.querySelector('[aria-label="beta switch"]')).not.toBeNull();
+  expect(view.host.querySelectorAll('[aria-label="beta switch"]')).toHaveLength(1);
+  expect(header.querySelector('[aria-label="beta switch"]')).toBeNull();
   view.done();
 });
 

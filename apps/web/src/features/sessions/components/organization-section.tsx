@@ -1,11 +1,11 @@
 "use client";
 
-import { RefreshCwIcon, RotateCcwIcon } from "lucide-react";
+import { RotateCcwIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { DEFAULT_SIDEBAR_LAYOUT, LOCAL_HOST_ID } from "@telar/engine-client";
 import { Switch } from "@/ui/switch";
 import { hostFromPathname } from "@/platform/engine/host-client";
-import { Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
+import { Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 import { useSidebarLayout } from "../rail/sidebar-layout";
 import { useSessionDefaults } from "../session-defaults";
 import { SettlingRows } from "./settling-rows";
@@ -33,41 +33,29 @@ function GroupByProjectRow() {
   );
 }
 
-function ContinueRows() {
+function ContinueAfterRestartRow() {
   const { defaults, loading, save, error } = useSessionDefaults();
-  useRestoreDefaults(() => save({ resumeAfterRateLimit: true, resumeAfterRestart: false }));
-  const resumes = defaults.resumeAfterRateLimit !== false;
+  useRestoreDefaults(() => save({ resumeAfterRestart: false }));
   const restarts = defaults.resumeAfterRestart === true;
 
   return (
-    <>
-      <ToggleRow
-        keywords={["rate limit", "usage limit", "resume", "five-hour", "weekly", "claude"]}
-        label="Continue after a usage limit resets"
-        icon={RefreshCwIcon}
-        hint="A Claude turn stopped by a usage limit runs again once the limit lifts. A session can still change its own."
-        checked={resumes}
-        onCheckedChange={(next) => void save({ resumeAfterRateLimit: next })}
-        {...(error ? { error } : {})}
-        {...(resumes ? {} : { onRevert: () => void save({ resumeAfterRateLimit: true }) })}
-      />
-      <Row
-        keywords={["resume", "restart", "update", "continue", "interrupted"]}
-        label="Continue after Telar restarts"
-        icon={RotateCcwIcon}
-        hint="When Telar restarts to update, the sessions it stopped pick up where they left off."
-        info="Only a restart to install an update counts; a crash never resumes anything. Each stopped session gets one message saying Telar restarted, marked as automatic. Terminals and runs are not restarted, and a session you stopped or settled is left alone."
-        {...(restarts ? { onRevert: () => void save({ resumeAfterRestart: false }) } : {})}
-        control={
-          <Switch
-            aria-label="Continue after Telar restarts"
-            checked={restarts}
-            onCheckedChange={(resumeAfterRestart) => void save({ resumeAfterRestart })}
-            disabled={loading}
-          />
-        }
-      />
-    </>
+    <Row
+      keywords={["resume", "restart", "update", "continue", "interrupted"]}
+      label="Continue after Telar restarts"
+      icon={RotateCcwIcon}
+      hint="When Telar restarts to update, the sessions it stopped pick up where they left off."
+      info="Only a restart to install an update counts; a crash never resumes anything. Each stopped session gets one message saying Telar restarted, marked as automatic. Terminals and runs are not restarted, and a session you stopped or settled is left alone."
+      {...(error ? { error } : {})}
+      {...(restarts ? { onRevert: () => void save({ resumeAfterRestart: false }) } : {})}
+      control={
+        <Switch
+          aria-label="Continue after Telar restarts"
+          checked={restarts}
+          onCheckedChange={(resumeAfterRestart) => void save({ resumeAfterRestart })}
+          disabled={loading}
+        />
+      }
+    />
   );
 }
 
@@ -76,7 +64,7 @@ export function OrganizationSection() {
   return (
     <SettingsGroup title="Organization" scope={hostFromPathname(pathname ?? "/") === LOCAL_HOST_ID ? "mac" : "host"}>
       <SettlingRows />
-      <ContinueRows />
+      <ContinueAfterRestartRow />
       <GroupByProjectRow />
     </SettingsGroup>
   );

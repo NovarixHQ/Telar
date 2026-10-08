@@ -132,11 +132,11 @@ export function SessionCockpit({
           />
         )}
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="@container/conversation flex min-h-0 flex-1 flex-col @3xl/conversation:flex-row-reverse">
+          <div className="flex min-h-0 flex-1 flex-col">
             {!solo && session && (
               <WorkspaceCard
                 key={`${hostId}:${session.id}`} hostId={hostId} session={session} agents={agents} busy={Boolean(active)}
-                backgroundTasks={model.backgroundTasks} panel={panelState} onRunTerminals={revealNewTerminals}
+                backgroundTasks={model.backgroundTasks} panel={panelState} dismissible={panel.open} onRunTerminals={revealNewTerminals}
               />
             )}
             <TranscriptList

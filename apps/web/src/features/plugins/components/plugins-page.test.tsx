@@ -93,18 +93,22 @@ test("choosing a row shows that plugin's page beside the list", async () => {
   const { host, done } = await mount();
   expect(visible(host.querySelector('[data-detail-for="latex"]'))).toBe(true);
   await act(async () => (host.querySelector('[data-master-item="hello"]') as HTMLElement).click());
-  expect(visible(host.querySelector('[data-detail-for="hello"] [data-detail-header] [aria-label="Hello enabled on this computer"]'))).toBe(true);
+  expect(visible(host.querySelector('[data-detail-for="hello"] [data-detail-header]'))).toBe(true);
   expect(visible(host.querySelector('[data-detail-for="latex"]'))).toBe(false);
   expect(visible(host.querySelector('[aria-label="LaTeX enabled on this computer"]'))).toBe(true);
   expect(host.querySelector('[data-detail-for="hello"]')!.textContent).toContain("Nothing to configure");
   done();
 });
 
-test("the switch sends the same Mac patch from the list and from the page header", async () => {
+test("each plugin has one switch, on its list row, and toggling it writes the Mac patch", async () => {
   const { host, done } = await mount();
-  await act(async () => (host.querySelector('[aria-label="LaTeX enabled on this computer"]') as HTMLElement).click());
+  const switches = host.querySelectorAll('[aria-label="LaTeX enabled on this computer"]');
+  expect(switches).toHaveLength(1);
+  expect(switches[0]!.closest("[data-detail-header]")).toBeNull();
+  await act(async () => (switches[0] as HTMLElement).click());
   await flush();
-  await act(async () => (host.querySelector('[data-detail-header] [aria-label="LaTeX enabled on this computer"]') as HTMLElement).click());
+  expect(switches[0]!.getAttribute("aria-checked")).toBe("true");
+  await act(async () => (switches[0] as HTMLElement).click());
   await flush();
   expect(patches).toEqual([{ latex: { enabled: true } }, { latex: { enabled: false } }]);
   done();

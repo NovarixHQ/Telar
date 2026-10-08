@@ -17,13 +17,15 @@ import {
   WorkingIndicator,
   workedForLabel,
   withoutOpeningNotification,
+  AgentMarkdown,
   AgentMessageBubble,
   ConversationMessage,
+  MessageActions,
 } from "@/features/transcript";
 import type { PanelTab } from "@/features/panel";
 import { cn } from "@/ui/utils";
 import { ApprovalCard } from "../../components/approval-card";
-import { Message, MessageContent, MessageMenu, MessageResponse } from "@/ui/message";
+import { Message, MessageContent, MessageMenu } from "@/ui/message";
 import { CodeSurface } from "@/ui/code-surface";
 import { describeTurnState, wakeUpLabel } from "../model";
 
@@ -256,7 +258,7 @@ function SessionTurnBody({
               ))}
             </>
           )}
-          {!streamedAnswer && turn.resultText && <MessageResponse>{turn.resultText}</MessageResponse>}
+          {!streamedAnswer && turn.resultText && <AgentMarkdown text={turn.resultText} onOpenFile={onOpenFile} />}
           {turn.failure && (
             <TurnFailureRow
               failure={turn.failure}
@@ -325,9 +327,12 @@ function TurnOpening({
     <>
       {turn.kind !== "import" && turn.origin !== "provider" && turn.origin !== "session" && turn.origin !== "restart" && (
         // `markdown={false}`: the typed draft is not Markdown, so "Copy as Markdown" would mislabel it.
-        <div className="mb-6">
+        <div className="mb-1">
           <MessageMenu text={turn.prompt} markdown={false} {...(onInsert ? { onQuote: onInsert } : {})}>
-            <ConversationMessage text={turn.prompt} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
+            <div className="group/message">
+              <ConversationMessage text={turn.prompt} {...(turn.attachments ? { attachments: turn.attachments } : {})} {...(onOpenTab ? { onOpenTab } : {})} />
+              <MessageActions text={turn.prompt} at={turn.acceptedAt} align="end" />
+            </div>
           </MessageMenu>
         </div>
       )}

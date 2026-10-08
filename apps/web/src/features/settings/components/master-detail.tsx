@@ -180,11 +180,6 @@ function DetailHeader({ item }: { item: MasterDetailItem }) {
         </div>
         {(item.unavailable ?? item.description) && <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{item.unavailable ?? item.description}</p>}
       </div>
-      {item.control && (
-        <span inert={item.unavailable ? true : undefined} className={cn("flex shrink-0 items-center", item.unavailable && "opacity-50")}>
-          {item.control}
-        </span>
-      )}
     </div>
   );
 }

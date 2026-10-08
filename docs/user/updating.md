@@ -6,10 +6,7 @@ The Telar desktop app updates itself. The agent CLIs it drives (Claude Code, Cod
 
 Telar checks for a new build at launch and every six hours after that. When it finds one, it downloads it in the background and tells you it's ready. The update control at the bottom of the rail changes to install and restart, and Settings → General → About says the same.
 
-Nothing installs until you choose to. You can install in one of two ways:
-
-- **Install and restart** now. Telar asks first and tells you what the restart will interrupt: sessions that are working, and terminals whose commands will be ended.
-- **Install on quit** (Settings → General → About). A downloaded update installs the next time you quit Telar.
+Nothing installs until you choose **Install and restart**, not even when you quit. Telar asks first and tells you what the restart will interrupt: sessions that are working, and terminals whose commands will be ended.
 
 To check by hand, use the update control in the rail, Settings → General → About, or Check for Updates… in the command palette.
 

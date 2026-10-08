@@ -22,7 +22,6 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
           ...(body.model === undefined ? {} : { model: body.model as ModelSelection | null }),
           ...(body.settledOverride === undefined ? {} : { settledOverride: body.settledOverride as "settled" | "active" | null }),
           ...(body.snoozedUntil === undefined ? {} : { snoozedUntil: body.snoozedUntil as number | null }),
-          ...(body.resumeAfterRateLimit === undefined ? {} : { resumeAfterRateLimit: body.resumeAfterRateLimit as boolean | null }),
         });
         if (body.settledOverride !== "settled") return ok({ session: updated });
         // An explicit settle ends what the session left running, and says what it ended.

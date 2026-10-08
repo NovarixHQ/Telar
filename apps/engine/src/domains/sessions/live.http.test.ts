@@ -54,7 +54,6 @@ function loadedStore(count: number): EngineStore {
       model: { instanceId: "claude", model: "claude-opus-5[1m]", effort: "high" },
       runtimeMode: "full-access",
       detached: true,
-      resumeAfterRateLimit: true,
       ...(index % 3 === 0 ? { settledOverride: "settled" as const } : {}),
       ...(index % 5 === 0 ? { snoozedUntil: 1_700_000_900_000 } : {}),
     });
@@ -77,12 +76,12 @@ test("the live list answers rows, not whole sessions — every key a rail draws 
    * each was being serialized for 267 rows several times a second. The full
    * record still carries them, which is what `?full=1` serves.
    */
-  for (const key of ["environmentId", "providerInstanceId", "runtimeMode", "interactionMode", "detached", "resumeCursor", "resumeAfterRateLimit", "unsettledAssignments", "agentMessagesBlocked", "agentMessagesBlockedAt", "paused", "origin"]) {
+  for (const key of ["environmentId", "providerInstanceId", "runtimeMode", "interactionMode", "detached", "resumeCursor", "unsettledAssignments", "agentMessagesBlocked", "agentMessagesBlockedAt", "paused", "origin"]) {
     expect(row).not.toHaveProperty(key);
   }
-  // The four this fixture can actually set are on the full record, so the
+  // The three this fixture can actually set are on the full record, so the
   // absences above are the projection's doing and not the fixture's.
-  for (const key of ["environmentId", "providerInstanceId", "runtimeMode", "detached", "resumeAfterRateLimit"]) {
+  for (const key of ["environmentId", "providerInstanceId", "runtimeMode", "detached"]) {
     expect(full).toHaveProperty(key);
   }
   // The commit a checkout was cut from is a review surface's question, asked

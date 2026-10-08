@@ -29,19 +29,19 @@ test("ToggleRow passes `info` through to Row's ⓘ", () => {
   expect(html).toContain('data-info="The fact nobody could infer."');
 });
 
-test("panes that share one scope say it once, in the nav", () => {
+test("only panes kept somewhere other than this computer name their scope in the header", () => {
   expect(Object.fromEntries(SECTIONS.map((section) => [section.id, section.scope]))).toEqual({
     general: undefined,
     appearance: "browser",
     keybindings: "browser",
-    providers: "mac",
+    providers: undefined,
     integrations: undefined,
-    plugins: "mac",
+    plugins: undefined,
     projects: "project",
-    notifications: "mac",
-    "source-control": "mac",
-    storage: "mac",
-    connections: "mac",
+    notifications: undefined,
+    "source-control": undefined,
+    storage: undefined,
+    connections: undefined,
   });
 });
 

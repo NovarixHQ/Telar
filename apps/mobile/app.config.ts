@@ -24,7 +24,16 @@ const config: ExpoConfig = {
       UIDesignRequiresCompatibility: false,
     },
   },
-  plugins: [["expo-build-properties", { ios: { deploymentTarget: "18.0" } }]],
+  plugins: [
+    ["expo-build-properties", { ios: { deploymentTarget: "18.0" } }],
+    [
+      "expo-audio",
+      {
+        microphonePermission: "Telar sends what you say to the transcription service your computer is set up with, so it can be typed into the message box.",
+        recordAudioAndroid: false,
+      },
+    ],
+  ],
 };
 
 export default config;

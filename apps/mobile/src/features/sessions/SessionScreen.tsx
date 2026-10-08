@@ -41,7 +41,7 @@ export function SessionScreen() {
         ))}
         {feed.failed ? <Text style={[styles.tool, styles.failed]}>{feed.failed}</Text> : null}
       </ScrollView>
-      <FloatingComposer host={host} hostId={params.hostId} sessionId={params.sessionId} head={feed.head} working={working} mentions={railRows} {...(params.draft ? { initialDraft: params.draft } : {})} onHeight={setFooter} />
+      <FloatingComposer host={host} hostId={params.hostId} sessionId={params.sessionId} head={feed.head} working={working} mentions={railRows} {...(params.draft ? { initialDraft: params.draft } : {})} onHeight={setFooter} onSent={() => scroll.current?.scrollToEnd()} />
     </KeyboardAvoidingView>
   );
 }

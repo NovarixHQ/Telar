@@ -6,12 +6,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HostConnection } from "../../platform/connection";
 import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { SessionMenus, setAccessMode } from "../providers";
-import { feedOf, sendMessage } from "../transcript";
+import { feedOf, newRunId, sendMessage } from "../transcript";
 import { answerRequest, openRequests, RequestCards, stopSession } from "../turns";
 import { Scrim } from "./chrome";
 import { completionsFor, type Completion, type MentionTarget } from "./completions";
 import { Composer } from "./Composer";
 import { readDraft, writeDraft } from "./drafts";
+import { SendFailedCard } from "./SendFailedCard";
 import { composerSlot } from "./slot";
 import { Theme } from "../../ui";
 import { detectTrigger, openingCommands, replaceTrigger } from "./trigger";
@@ -26,6 +27,7 @@ type Props = {
   mentions: readonly MentionTarget[];
   initialDraft?: string;
   onHeight: (height: number) => void;
+  onSent?: () => void;
 };
 
 const NO_SKILLS = { skills: [], commands: [] };
@@ -41,12 +43,13 @@ function useKeyboardShown(): boolean {
 }
 
 /** The footer that floats over the transcript: open requests, then the composer, over a bar-material scrim. */
-export function FloatingComposer({ host, hostId, sessionId, head, working, mentions, initialDraft, onHeight }: Props) {
+export function FloatingComposer({ host, hostId, sessionId, head, working, mentions, initialDraft, onHeight, onSent }: Props) {
   const [draft, setDraftState] = useState(() => initialDraft ?? readDraft(Settings, hostId, sessionId));
   const [caret, setCaret] = useState(draft.length);
   const [sending, setSending] = useState(false);
   const [deciding, setDeciding] = useState<string>();
   const [problem, setProblem] = useState<string>();
+  const [unsent, setUnsent] = useState<{ text: string; runId: string; error: string }>();
   const [height, setHeight] = useState(0);
   const insets = useSafeAreaInsets();
   const keyboard = useKeyboardShown();
@@ -83,12 +86,24 @@ export function FloatingComposer({ host, hostId, sessionId, head, working, menti
       return false;
     }
   };
+  const deliver = async (text: string, runId: string) => {
+    if (!host) return;
+    setSending(true);
+    try {
+      await sendMessage(host, sessionId, text, runId);
+      setUnsent(undefined);
+      await feedOf(host, sessionId)?.refresh();
+    } catch (error) {
+      setUnsent({ text, runId, error: error instanceof Error ? error.message : String(error) });
+    }
+    setSending(false);
+  };
   const send = async (typed: string = draft) => {
     const text = typed.trim();
     if (!host || !text) return;
-    setSending(true);
-    if (await act(() => sendMessage(host, sessionId, text))) setDraft("");
-    setSending(false);
+    setDraft("");
+    onSent?.();
+    await deliver(text, unsent?.text === text ? unsent.runId : newRunId());
   };
   const stop = async () => {
     if (!host) return;
@@ -122,11 +137,12 @@ export function FloatingComposer({ host, hostId, sessionId, head, working, menti
   const shownProblem = problem ?? dictation.problem;
   return (
     <View
-      style={[styles.footer, { marginTop: -height, paddingBottom: keyboard ? 8 : Math.max(8, insets.bottom) }]}
+      style={[styles.footer, { marginTop: -height, paddingBottom: (keyboard ? 0 : insets.bottom) + 8 }]}
       onLayout={({ nativeEvent }) => (setHeight(nativeEvent.layout.height), onHeight(nativeEvent.layout.height))}
     >
       <Scrim />
       <RequestCards cards={openRequests(head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
+      {unsent ? <SendFailedCard error={unsent.error} onRetry={() => void deliver(unsent.text, unsent.runId)} onDiscard={() => setUnsent(undefined)} /> : null}
       {shownProblem ? <Text style={styles.problem} numberOfLines={2}>{shownProblem}</Text> : null}
       <Composer
         draft={draft}

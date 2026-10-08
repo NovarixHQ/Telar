@@ -947,7 +947,7 @@ html:not(.dark)[data-telar-shell][data-translucent] {
    12% IS THE FLOOR AND IT IS ONE NUMBER, in one declaration, so a re-tune
    cannot leave the tints disagreeing. It replaces 10% of an unknown with 12% of
    the live token against the live --card, which means both schemes and every
-   Look are already covered — there is nothing scheme-specific to state and so
+   appearance are already covered — there is nothing scheme-specific to state and so
    nothing to keep in sync.
 
    THE INK IS UNTOUCHED. `text-success` on an added line keeps the colour its
@@ -993,7 +993,7 @@ html:not(.dark)[data-telar-shell][data-translucent] {
    bearing rather than lazy. Pierre's stylesheet sets `color-scheme: light dark`
    on its own :host, so `light-dark()` inside it follows the SYSTEM scheme —
    while this app's scheme is the `.dark` class on <html>. A user on a light OS
-   running a dark Look would get the viewer's light arm over a dark card. Two
+   running a dark appearance would get the viewer's light arm over a dark card. Two
    independent fixes, deliberately both: `color-scheme` is set on the host from
    out here (an outer-tree rule on the host outranks the shadow tree's own
    :host), and every value this block supplies is a token that ALREADY carries
@@ -1126,7 +1126,7 @@ html:not(.dark)[data-telar-shell][data-translucent] {
 
 /* ─── A SCENE AND THE DESKTOP, TOGETHER ─────────────────────────────────────
 
-   THE BUG THIS FIXES: a Look that carried a backdrop silently cancelled the
+   THE BUG THIS FIXES: an appearance that carried a backdrop silently cancelled the
    translucent window. Two rules above paint an OPAQUE canvas colour — the root
    (to stop body's background propagating under the scene) and the scene div
    itself (so a gradient with transparent stops has something to sit on). In a

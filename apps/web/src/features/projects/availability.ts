@@ -9,7 +9,7 @@ const AWAY: Record<Away, { label: string; title: string; reason: (name: string) 
   unmounted: {
     label: "Drive away",
     title: "The drive is not connected",
-    reason: (name) => `The drive holding ${name} is not connected. Plug it back in; its conversations and settings are all still here.`,
+    reason: (name) => `The drive holding ${name} is not connected. Plug it back in; its sessions and settings are all still here.`,
   },
   missing: {
     label: "Folder gone",

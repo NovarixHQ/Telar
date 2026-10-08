@@ -140,10 +140,13 @@ describe("directoryKey", () => {
     });
     // ^Enter too: a browser tab may not be on a Mac.
     expect(directoryKey(at(), { key: "Enter", ctrl: true })).toEqual({ type: "submit", path: `${HOME}/code` });
-    expect(directoryKey(at({ field: "~/code/tel" }), { key: "Enter", meta: true })).toEqual({
-      type: "submit",
-      path: `${HOME}/code`,
-    });
+  });
+
+  test("⌘Enter takes a typed path exactly, expanded, and nothing when it is not absolute", () => {
+    expect(directoryKey(at({ field: "~/code/tel" }), { key: "Enter", meta: true })).toEqual({ type: "submit", path: `${HOME}/code/tel` });
+    expect(directoryKey(at({ field: "/tmp/x/" }), { key: "Enter", meta: true })).toEqual({ type: "submit", path: "/tmp/x" });
+    expect(directoryKey(at({ field: "code/tel" }), { key: "Enter", meta: true })).toEqual({ type: "none" });
+    expect(directoryKey(at({ field: "~/x", home: "", path: "" }), { key: "Enter", meta: true })).toEqual({ type: "none" });
   });
 
   test("⌘. toggles dotfolders, and a bare . does not", () => {

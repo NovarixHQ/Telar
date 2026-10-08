@@ -309,20 +309,10 @@ test("configuring a login reports what it stopped inheriting, and can be told to
   });
 });
 
-/** A minimal but REAL published look — the client parses what it reads, so a
- *  hand-waved blob would come back as `null` and prove nothing. Only the
- *  members the parser treats as load-bearing are spelt out; the rest of a Look
- *  falls back on its own, which is itself part of the contract.
- *
- *  A VERSION 2 LOOK, because this test asserts a ROUND TRIP. The parser
- *  migrates a version 1 look into a composition on the way through (#471), so a
- *  v1 fixture here would come back legitimately different from what went in and
- *  the equality would be measuring the migration rather than the mailbox. That
- *  migration has its own tests, over both the theme pair and every old backdrop
- *  kind — packages/engine-client/test/appearance.test.ts. */
-function publishedLook(label: string): PublishedAppearance {
+/** A minimal but real published appearance: the client parses what it reads, so a hand-waved blob would come back as `null`. */
+function publishedAppearance(fontSize: number): PublishedAppearance {
   return {
-    version: 2,
+    version: 3,
     updatedAtHint: 1,
     scheme: "dark",
     translucent: false,
@@ -335,43 +325,36 @@ function publishedLook(label: string): PublishedAppearance {
       },
       fontStacks: { sans: '"Geist", sans-serif', mono: '"Geist Mono", monospace' },
     },
-    look: {
-      version: 2,
-      id: "published",
-      label,
-      composition: {
-        light: { base: DEFAULT_BASE_LIGHT, layers: [], overrides: {} },
-        dark: { base: DEFAULT_BASE_DARK, layers: [], overrides: {} },
-      },
-      images: {},
-      accent: "sea",
-      fontSans: "geist",
-      fontMono: "geist",
-      fontSansCustom: "",
-      fontMonoCustom: "",
-      fontSize: 17,
-      fontMonoSize: 13,
-      translucencyLevel: 50,
-      depth: "soft",
+    composition: {
+      light: { base: DEFAULT_BASE_LIGHT, layers: [], overrides: {} },
+      dark: { base: DEFAULT_BASE_DARK, layers: [], overrides: {} },
     },
+    images: {},
+    accent: "sea",
+    fontSans: "geist",
+    fontMono: "geist",
+    fontSansCustom: "",
+    fontMonoCustom: "",
+    fontSize,
+    fontMonoSize: 13,
+    translucencyLevel: 50,
+    depth: "soft",
   };
 }
 
-test("the appearance mailbox round-trips a published look, caches it, and answers the right refusals", async () => {
-  // The cockpit's look lives in a browser's localStorage; this route is the
-  // only way a paired phone can learn it. The daemon deliberately understands
-  // nothing about the payload — see EngineStore.setAppearance — while the
-  // CLIENT parses it, because the blob crossed a trust boundary to get here.
+test("the host's appearance round-trips, caches by ETag, and answers the right refusals", async () => {
+  // The daemon understands nothing about the payload; the client parses it,
+  // because the blob crossed a trust boundary to get here.
   const daemon = await startEngine({ models: stubModels, engineRoot: root() });
   daemons.push(daemon);
   const client = new EngineClient(daemon.discovery);
   const url = `http://127.0.0.1:${daemon.discovery.port}/v2/appearance`;
   const auth = { authorization: `Bearer ${daemon.discovery.token}` };
 
-  // Nothing published: no look, and no timestamp to revalidate against.
+  // Nothing published: no appearance, and no timestamp to revalidate against.
   await expect(client.appearance()).resolves.toEqual({ appearance: null, updatedAt: null });
 
-  const blob = publishedLook("Sea at night");
+  const blob = publishedAppearance(17);
   const written = await client.setAppearance(blob);
   expect(written.ok).toBe(true);
   expect(written.updatedAt).toBeGreaterThan(0);
@@ -380,7 +363,7 @@ test("the appearance mailbox round-trips a published look, caches it, and answer
   expect(read.appearance).toEqual(blob);
   expect(read.updatedAt).toBe(written.updatedAt);
 
-  // THE ETAG AND ITS 304. A published look carries its layer images, so a
+  // THE ETAG AND ITS 304. The appearance carries its layer images, so a
   // client that polls this must be able to ask "still the same?" without
   // paying for the answer twice.
   const first = await fetch(url, { headers: auth });
@@ -392,20 +375,19 @@ test("the appearance mailbox round-trips a published look, caches it, and answer
   expect(revalidated.headers.get("etag")).toBe(etag);
   expect(await revalidated.text()).toBe("");
   // A tag from before somebody else republished is NOT a match.
-  const republished = await client.setAppearance(publishedLook("Sea at noon"));
+  const republished = await client.setAppearance(publishedAppearance(15));
   expect(republished.etag).not.toBe(etag);
   expect((await fetch(url, { headers: { ...auth, "if-none-match": etag! } })).status).toBe(200);
 
-  // A look several megabytes wide, which the old 64 KB cap forbade, lands: the
-  // wallpaper IS part of the look now. (The refusal above it has its own test —
+  // An appearance several megabytes wide lands. (The refusal above it has its own test —
   // see below for why it cannot share a connection with anything.)
-  const heavy = publishedLook("With a wallpaper");
+  const heavy = publishedAppearance(16);
   // The pixels live in `images`, shared by both states, and each state's stack
   // names the layer that paints them — one picture, not two megabytes twice.
-  heavy.look.images = { wallpaper: `data:image/webp;base64,${"A".repeat(2 * 1024 * 1024)}` };
+  heavy.images = { wallpaper: `data:image/webp;base64,${"A".repeat(2 * 1024 * 1024)}` };
   const wallpaper = { type: "image", id: "wallpaper", x: 50, y: 50, scale: 100, opacity: 100, tiled: false } as const;
-  heavy.look.composition.light.layers = [{ ...wallpaper }];
-  heavy.look.composition.dark.layers = [{ ...wallpaper }];
+  heavy.composition.light.layers = [{ ...wallpaper }];
+  heavy.composition.dark.layers = [{ ...wallpaper }];
   await expect(client.setAppearance(heavy)).resolves.toMatchObject({ ok: true });
 
   // 405, NOT 404: the path exists, the verb does not — and `Allow` says which.
@@ -413,7 +395,7 @@ test("the appearance mailbox round-trips a published look, caches it, and answer
   expect(wrongVerb.status).toBe(405);
   expect(wrongVerb.headers.get("allow")).toBe("GET, PUT, DELETE");
 
-  // DELETE withdraws the look, and is idempotent — "nothing is published" is
+  // DELETE withdraws the appearance, and is idempotent — "nothing is published" is
   // the state the caller asked for whether or not anything was.
   await expect(client.clearAppearance()).resolves.toEqual({ ok: true });
   await expect(client.appearance()).resolves.toEqual({ appearance: null, updatedAt: null });
@@ -422,7 +404,7 @@ test("the appearance mailbox round-trips a published look, caches it, and answer
   // A blob the shared parser cannot read comes back as `null` rather than as
   // garbage — but its timestamp still says somebody published something, which
   // is what lets a reader tell "nobody has" from "I cannot read theirs".
-  daemon.store.appearance.set({ version: 2, look: { id: "x" } });
+  daemon.store.appearance.set({ version: 3, composition: "x" });
   const unreadable = await client.appearance();
   expect(unreadable.appearance).toBeNull();
   expect(unreadable.updatedAt).toBeGreaterThan(0);
@@ -478,47 +460,6 @@ test("a structured completion validates its request before spending a harness", 
     client.completeStructured({ prompt: "hello", schema: [] as unknown as Record<string, unknown> }),
   ).rejects.toMatchObject({ status: 400 });
   await expect(client.completeStructured({ prompt: "hello", schema, model: "  " })).rejects.toMatchObject({ status: 400 });
-});
-
-test("the appearance home is served, written and refuses what is not an image", async () => {
-  const daemon = await startEngine({ models: stubModels, engineRoot: root() });
-  daemons.push(daemon);
-  const base = `http://127.0.0.1:${daemon.discovery.port}/v2/appearance/home`;
-  const auth = { authorization: `Bearer ${daemon.discovery.token}` };
-  const json = { ...auth, "content-type": "application/json" };
-
-  // An untouched home is empty rather than an error.
-  const empty = await (await fetch(base, { headers: auth })).json();
-  expect(empty).toEqual({ settings: null, themes: [], looks: [], images: [], skipped: [] });
-
-  await fetch(`${base}/themes/dusk`, { method: "PUT", headers: json, body: JSON.stringify({ label: "Dusk", light: {}, dark: {} }) });
-  await fetch(`${base}/settings`, { method: "PUT", headers: json, body: JSON.stringify({ accent: "sea" }) });
-  const filled = (await (await fetch(base, { headers: auth })).json()) as { themes: { id: string }[]; settings: unknown };
-  expect(filled.themes.map((theme) => theme.id)).toEqual(["dusk"]);
-  expect(filled.settings).toEqual({ accent: "sea" });
-
-  // A PNG round-trips under its content hash and comes back immutable.
-  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 9, 9, 9]);
-  const stored = (await (await fetch(`${base}/images`, { method: "POST", headers: auth, body: png })).json()) as { name: string };
-  expect(stored.name.endsWith(".png")).toBe(true);
-  const served = await fetch(`${base}/images/${stored.name}`, { headers: auth });
-  expect(served.headers.get("content-type")).toBe("image/png");
-  expect(served.headers.get("cache-control")).toContain("immutable");
-  expect(Buffer.from(await served.arrayBuffer())).toEqual(png);
-
-  // A shell script named like a picture is refused where the bytes are read.
-  const refused = await fetch(`${base}/images`, { method: "POST", headers: auth, body: Buffer.from("#!/bin/sh\n") });
-  expect(refused.status).toBe(400);
-
-  // A traversal cannot reach out of images/.
-  expect((await fetch(`${base}/images/${encodeURIComponent("../settings.json")}`, { headers: auth })).status).toBe(404);
-
-  // Deleting is idempotent, and the verb set is stated rather than 404'd.
-  expect((await fetch(`${base}/themes/dusk`, { method: "DELETE", headers: auth })).status).toBe(200);
-  expect((await fetch(`${base}/themes/dusk`, { method: "DELETE", headers: auth })).status).toBe(200);
-  const wrongVerb = await fetch(base, { method: "POST", headers: json, body: "{}" });
-  expect(wrongVerb.status).toBe(405);
-  expect(wrongVerb.headers.get("allow")).toBe("GET");
 });
 
 test("DELETE on a project unregisters it, and refuses while a turn is in flight", async () => {
@@ -641,30 +582,6 @@ test("POST /v2/projects/clone clones and registers in one request, with git stub
     status: 400,
   });
   expect(clones().length).toBe(before);
-});
-
-test("the gitignore write has a DELETE that undoes it, and takes back only its own block", async () => {
-  // Adding a project ignores Telar's files WITHOUT asking now — the switch in
-  // the old Register dialog became a default — so the toast's Undo needs a
-  // route, and that route must not reach a rule somebody wrote themselves.
-  const daemon = await startEngine({ models: stubModels, engineRoot: root() });
-  daemons.push(daemon);
-  const client = new EngineClient(daemon.discovery);
-  const checkout = root();
-  fs.writeFileSync(path.join(checkout, ".gitignore"), "node_modules/\n");
-  const { project } = await client.registerProject({ name: "Ignorable", root: checkout });
-
-  const { gitignore: added } = await client.projectGitignore(project.id);
-  expect(added.added.length).toBeGreaterThan(0);
-  expect(fs.readFileSync(path.join(checkout, ".gitignore"), "utf8")).toContain(".telar/");
-
-  const { gitignore: removed } = await client.undoProjectGitignore(project.id);
-  expect(removed.removed).toEqual(added.added);
-  // Byte-identical to what was found: the write and its undo cancel exactly.
-  expect(fs.readFileSync(path.join(checkout, ".gitignore"), "utf8")).toBe("node_modules/\n");
-  // Twice is a success with nothing to do, not a failure — the toast can arrive
-  // after somebody has already edited the file by hand.
-  expect((await client.undoProjectGitignore(project.id)).gitignore.removed).toEqual([]);
 });
 
 test("close clears every interval the engine started", async () => {

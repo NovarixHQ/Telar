@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
+import { randomUuid } from "@/platform/random-uuid";
 
 type PairState = { phase: "idle" } | { phase: "pairing" } | { phase: "paired" } | { phase: "failed"; message: string };
 
@@ -21,6 +22,21 @@ export function codeFromInput(raw: string): string {
     if (fromFragment) return fromFragment.trim();
   }
   return trimmed;
+}
+
+const CLIENT_ID_KEY = "telar.pairing.clientId";
+
+/** Lets the engine recognise this browser when it pairs again, so the old entry is replaced. */
+function browserClientId(): string | undefined {
+  try {
+    const known = window.localStorage.getItem(CLIENT_ID_KEY);
+    if (known) return known;
+    const minted = randomUuid();
+    window.localStorage.setItem(CLIENT_ID_KEY, minted);
+    return minted;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Eight digits look like a code the moment they are typed; the field shows
@@ -56,12 +72,8 @@ export function PairClient() {
       const response = await fetch("/api/pair", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        /* NO deviceName. This used to send the literal "Browser", and a
-           declared name beats everything the server can work out — so every
-           browser row said "Browser" while the cockpit knew perfectly well
-           it was Safari on an iPhone. A page cannot introduce itself better
-           than the request already does; let the server name it. */
-        body: JSON.stringify({ token }),
+        // No deviceName: the server names a browser better from its request.
+        body: JSON.stringify({ token, clientId: browserClientId() }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;

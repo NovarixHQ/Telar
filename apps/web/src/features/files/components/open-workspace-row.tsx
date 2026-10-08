@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
 import { workspaceOpenBlocker, workspaceOpener, type WorkspaceOpenersAnswer } from "../workspace-open";
 import {
   preferredOpenerSnapshot,
@@ -16,11 +16,11 @@ import {
 } from "../workspace-opener-preference";
 import { useCommandHandlers, KeyHint } from "@/features/commands";
 import { OpenerIcon } from "./opener-icon";
-import { Button } from "@/ui/button";
-import { ButtonGroup, ButtonGroupSeparator } from "@/ui/button-group";
+import { ActionRow, SplitRow, SplitRowChevron, SplitRowMain } from "@/ui/action-row";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 
-export function OpenWorkspaceButton({
+/** The Workspace card's Open row: one press opens in the remembered app, the chevron lists the rest. */
+export function OpenWorkspaceRow({
   path,
   hostId,
   hostLabel,
@@ -103,33 +103,26 @@ export function OpenWorkspaceButton({
       {blocker ? (
         <PopoverTrigger
           render={
-            <Button type="button" variant="outline" size="icon-sm" aria-label="Open workspace" title={blocker}>
+            <ActionRow aria-label="Open workspace" title={blocker}>
               <ExternalLinkIcon />
-            </Button>
+              <span className="min-w-0 flex-1 truncate text-muted-foreground">Open</span>
+            </ActionRow>
           }
         />
       ) : (
-        <ButtonGroup>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
+        <SplitRow
+          menu={<PopoverTrigger render={<SplitRowChevron aria-label="Choose an app to open this folder with" />} />}
+        >
+          <SplitRowMain
             onClick={primary ? () => act(primary) : () => setOpen(true)}
             title={primary ? `${primaryLabel} — ${path}` : "Open this session's folder"}
             aria-label={primary ? primaryLabel : "Open this session's folder"}
           >
             <OpenerIcon icon={primary?.icon} iconDataUrl={primary?.iconDataUrl} />
-            <span>Open</span>
-          </Button>
-          <ButtonGroupSeparator />
-          <PopoverTrigger
-            render={
-              <Button type="button" variant="outline" size="icon-sm" aria-label="Choose an app to open this folder with">
-                <ChevronDownIcon />
-              </Button>
-            }
-          />
-        </ButtonGroup>
+            <span className="min-w-0 flex-1 truncate">{primaryLabel}</span>
+            {primary?.kind === "reveal" && canReveal && <KeyHint command="reveal-in-finder" />}
+          </SplitRowMain>
+        </SplitRow>
       )}
       <PopoverContent align="end" side="bottom" sideOffset={6} className="max-h-[min(24rem,70vh)] w-72 flex-col gap-0 overflow-y-auto rounded-xl p-1">
         {blocker ? (

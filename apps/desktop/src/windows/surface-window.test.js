@@ -134,7 +134,7 @@ describe("it looks like a Telar window", () => {
   const supported = process.platform === "darwin";
   afterEach(() => fs.rmSync(path.join(userData, "ui-prefs.json"), { force: true }));
 
-  test("it wears the Look's backdrop and translucency, exactly as the cockpit does", () => {
+  test("it wears the appearance's backdrop and translucency, exactly as the cockpit does", () => {
     for (const prefs of [{ translucent: true, frost: "blur" }, { translucent: false, frost: "blur" }]) {
       fs.writeFileSync(path.join(userData, "ui-prefs.json"), JSON.stringify(prefs));
       electron.nativeTheme.shouldUseDarkColors = true;

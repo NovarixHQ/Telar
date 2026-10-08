@@ -21,20 +21,20 @@ async function openFilter() {
 }
 
 describe("the rail's header is one row", () => {
-  test("search, then Add project and New conversation — no Reveal in Finder, no All-projects row", async () => {
+  test("search, then Add project and New session — no Reveal in Finder, no All-projects row", async () => {
     stubRail(() => ({ body: { projects: [project("p1", "One")], sessions: [liveRow("a")] } }));
     const host = await mountRail();
     expect(byLabel("Search sessions", host)).not.toBeNull();
     expect(byLabel("Add project", host)).not.toBeNull();
-    expect(byLabel("New conversation", host)).not.toBeNull();
+    expect(byLabel("New session", host)).not.toBeNull();
     expect(byLabel("Reveal in Finder", host)).toBeNull();
     expect(host.textContent).not.toContain("All projects");
   });
 
-  test("with one project, New conversation opens that project's canvas", async () => {
+  test("with one project, New session opens that project's canvas", async () => {
     stubRail(() => ({ body: { projects: [project("p1", "One")], sessions: [liveRow("a")] } }));
     const host = await mountRail();
-    await click(byLabel("New conversation", host)!);
+    await click(byLabel("New session", host)!);
     expect(pushes).toEqual([canvasHref("p1")]);
   });
 
@@ -46,12 +46,12 @@ describe("the rail's header is one row", () => {
       [{ id: "mini", name: "Mini" }],
     );
     const host = await mountRail();
-    await click(byLabel("New conversation", host)!);
+    await click(byLabel("New session", host)!);
     expect(pushes).toEqual([canvasHref("p9", "mini")]);
   });
 });
 
-describe("the projects New conversation can target", () => {
+describe("the projects New session can target", () => {
   test("this Mac's projects come first, then each paired Mac's, carrying their host", () => {
     const local = [{ id: "p1", environmentId: "local" as const, name: "One", root: "/tmp/p1", createdAt: 1, updatedAt: 1 }];
     const remote = [{ id: "p9", name: "Far", hostId: "mini", hostName: "Mini" }];
@@ -75,10 +75,10 @@ describe("the command palette", () => {
     await flush();
   };
 
-  test("with two projects, New conversation asks which one rather than guessing", async () => {
+  test("with two projects, New session asks which one rather than guessing", async () => {
     stubRail(() => ({ body: two }));
     const host = await mountRail();
-    await click(byLabel("New conversation", host)!);
+    await click(byLabel("New session", host)!);
     await flush(() => Boolean(dialog()));
     expect(pushes).toEqual([]);
     expect(dialog()!.textContent).toContain("One");

@@ -137,19 +137,5 @@ export function projectRoutes(store: EngineStore, plugins: ProjectPlugins): Rout
       auth: "engine",
       handle: async ({ body, params }) => ok({ project: await store.remounts.relocate(params[0]!, stringValue(body.root, "project root")) }),
     },
-    {
-      method: "POST",
-      path: /^\/v2\/projects\/([^/]+)\/gitignore$/,
-      auth: "engine",
-      body: "raw",
-      handle: ({ params }) => ok({ gitignore: store.sessionGit.gitignore(params[0]!) }),
-    },
-    {
-      method: "DELETE",
-      path: /^\/v2\/projects\/([^/]+)\/gitignore$/,
-      auth: "engine",
-      body: "raw",
-      handle: ({ params }) => ok({ gitignore: store.sessionGit.undoGitignore(params[0]!) }),
-    },
   ];
 }

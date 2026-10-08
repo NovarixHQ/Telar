@@ -22,9 +22,9 @@ export function InterfaceSpecimen() {
 }
 
 const DIFF: { sign: " " | "-" | "+"; n: number; text: string }[] = [
-  { sign: " ", n: 1, text: "export function lookThemeId(look: Look) {" },
-  { sign: "-", n: 2, text: "  return `look-${look.id}`; // 0O 1lI" },
-  { sign: "+", n: 2, text: "  return `look-${look.id.trim()}`;" },
+  { sign: " ", n: 1, text: "export function themeId(theme: Theme) {" },
+  { sign: "-", n: 2, text: "  return `theme-${theme.id}`; // 0O 1lI" },
+  { sign: "+", n: 2, text: "  return `theme-${theme.id.trim()}`;" },
   { sign: " ", n: 3, text: "}" },
 ];
 
@@ -32,7 +32,7 @@ export function CodeSpecimen() {
   return (
     <div className="overflow-hidden rounded-md border border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-xs">
-        <code className="text-muted-foreground">lib/looks.ts</code>
+        <code className="text-muted-foreground">lib/theme.ts</code>
         <span className="ml-auto font-mono text-2xs tabular-nums">
           <span className="text-destructive">−1</span> <span className="text-success">+1</span>
         </span>

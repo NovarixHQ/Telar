@@ -102,7 +102,7 @@ export function ProjectGroupMenu({
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <MessageSquarePlusIcon />
-            New conversation
+            New session
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="w-52">
             {at.map((place) => (
@@ -116,7 +116,7 @@ export function ProjectGroupMenu({
       ) : (
         <ContextMenuItem onClick={() => onNewConversation(primary)}>
           <MessageSquarePlusIcon />
-          New conversation here
+          New session here
         </ContextMenuItem>
       )}
 
@@ -181,8 +181,8 @@ export function NewConversationButton({
   return at.length > 1 ? (
     <DropdownMenu onOpenChange={setPickingHost}>
       <DropdownMenuTrigger
-        aria-label={`New conversation in ${group.name}`}
-        title={`New conversation in ${group.name} — asks which computer`}
+        aria-label={`New session in ${group.name}`}
+        title={`New session in ${group.name} — asks which computer`}
         className={cn(
           "flex size-6 shrink-0 items-center justify-center rounded text-sidebar-foreground/45 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 group-hover/project:opacity-100",
           pickingHost && "opacity-100",
@@ -192,7 +192,7 @@ export function NewConversationButton({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-52">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>New conversation on</DropdownMenuLabel>
+          <DropdownMenuLabel>New session on</DropdownMenuLabel>
           {at.map((place) => (
             <DropdownMenuItem key={`${place.hostId ?? "local"}:${place.projectId}`} onClick={() => onNewConversation(place)}>
               <MonitorIcon />
@@ -206,8 +206,8 @@ export function NewConversationButton({
     <Link
       href={canvasHref(primary.projectId, primary.hostId)}
       onClick={onNavigate}
-      aria-label={`New conversation in ${group.name}`}
-      title={`New conversation in ${group.name}`}
+      aria-label={`New session in ${group.name}`}
+      title={`New session in ${group.name}`}
       className="flex size-6 shrink-0 items-center justify-center rounded text-sidebar-foreground/45 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:opacity-100 group-hover/project:opacity-100"
     >
       <MessageSquarePlusIcon className="size-3.5" />

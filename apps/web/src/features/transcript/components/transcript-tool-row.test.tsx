@@ -79,7 +79,8 @@ describe("a file row whose path has not arrived", () => {
   });
 
   test("once done, is the past-tense verb — and never the placeholder", () => {
-    expect(text(edit("src/a.ts", "completed"))).toContain("Edited file src/a.ts");
+    expect(text(edit("src/a.ts", "completed"))).toContain("Edited file a.ts");
+    expect(render(edit("src/a.ts", "completed"))).toContain('title="src/a.ts"');
     const html = text(edit(UNKNOWN_PATH, "completed"));
     expect(html).toContain("Edited file");
     expect(html).not.toContain(UNKNOWN_PATH);
@@ -120,5 +121,70 @@ describe("a file-change row whose patch was cut short (#694)", () => {
 
   test("an ordinary patch says nothing, so the badge is a claim", () => {
     expect(text(wrote({ unifiedDiff: "diff --git a/src/big.ts b/src/big.ts\n--- a/src/big.ts" }))).not.toContain("patch cut short");
+  });
+});
+
+describe("a tool row in human words", () => {
+  const tool = (name: string, input: unknown, over: Partial<JournalItem> = {}): JournalItem => ({
+    ...base,
+    id: "item_h",
+    status: "completed",
+    completedAt: 2,
+    title: name,
+    detail: name.startsWith("mcp__")
+      ? { type: "mcp_tool_call", call: { name, server: name.split("__")[1]!, input } }
+      : { type: "dynamic_tool_call", call: { name, input } },
+    ...over,
+  });
+
+  test("a command is the verb and its first line", () => {
+    const run: JournalItem = { ...base, id: "c", status: "completed", completedAt: 2, title: "bun test", detail: { type: "command_execution", command: { command: "bun test\necho done" } } };
+    const html = text(run);
+    expect(html).toContain("Ran command bun test");
+    expect(html).not.toContain("echo done");
+  });
+
+  test("a read names its file as a chip", () => {
+    const read: JournalItem = { ...base, id: "r", status: "completed", completedAt: 2, title: "/repo/src/looks.ts", detail: { type: "file_read", read: { path: "/repo/src/looks.ts" } } };
+    expect(text(read)).toBe("Read file looks.ts");
+    expect(render(read)).toContain('title="/repo/src/looks.ts"');
+  });
+
+  test("an edit from a provider that only names the tool is still an edit of its file", () => {
+    expect(text(tool("edit", { filePath: "src/a.ts" }))).toBe("Edited file a.ts");
+  });
+
+  test("a search says what it looked for", () => {
+    expect(text(tool("Grep", { pattern: "toolWords", path: "src" }))).toBe("Searched toolWords");
+    expect(text(tool("Glob", { pattern: "**/*.tsx" }))).toBe("Searched **/*.tsx");
+    expect(text(tool("Grep", { pattern: "x" }, { status: "inProgress" }))).toContain("Searching · x");
+  });
+
+  test("a fetch and a web search say so", () => {
+    expect(text(tool("WebFetch", { url: "https://bun.sh/docs" }))).toBe("Fetched https://bun.sh/docs");
+    expect(text(tool("WebSearch", { query: "bun test" }))).toBe("Searched web bun test");
+  });
+
+  test("loading tools lists them without their server prefix", () => {
+    const html = text(tool("ToolSearch", { query: "select:mcp__telar__sessions_read,mcp__telar__sessions_send" }));
+    expect(html).toBe("Loaded tools sessions_read, sessions_send");
+  });
+
+  test("Telar's own tools read as what they did", () => {
+    expect(text(tool("mcp__telar__display_preview", { html: "<!doctype html><p>hi</p>" }))).toBe("Previewed a page");
+    expect(text(tool("mcp__telar__display_inline", { html: "<p>x</p>", title: "Chart" }))).toBe("Showed a page Chart");
+    expect(text(tool("mcp__telar__terminal_run", { command: "bun run dev", terminalId: "t1" }))).toBe("Ran in terminal bun run dev");
+    expect(text(tool("mcp__telar__sessions_handoff", { sessionId: "s" }))).toBe("Sessions handoff");
+  });
+
+  test("a browser call names the host it went to", () => {
+    const go: JournalItem = { ...base, id: "b", status: "completed", completedAt: 2, title: "browser_navigate", detail: { type: "browser_action", call: { name: "mcp__telar-browser__browser_navigate", server: "telar-browser", input: { url: "https://example.com/a" } }, url: "https://example.com/a" } };
+    expect(text(go)).toBe("Browsed example.com");
+  });
+
+  test("an unknown server's tool is named in words, never by its qualified name", () => {
+    const html = text(tool("mcp__linear__create_issue", { title: "Fix rows" }));
+    expect(html).toBe("Linear · Create issue Fix rows");
+    expect(html).not.toContain("mcp__");
   });
 });

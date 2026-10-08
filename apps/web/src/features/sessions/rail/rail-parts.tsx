@@ -96,10 +96,10 @@ export function SessionShelf({
 }) {
   if (count === 0) return null;
   return (
-    <SidebarGroup className="pt-0">
+    <SidebarGroup className={cn("pt-0", open && "max-h-[45%] min-h-0 shrink-0")}>
       <BandRule label={label} count={count} open={open} onToggle={onToggle} />
       {open && (
-        <SidebarGroupContent className="space-y-0.5">
+        <SidebarGroupContent className="min-h-0 space-y-0.5 overflow-y-auto" role="group" aria-label={label}>
           {(limit === undefined ? rows : rows.slice(0, limit)).map((session) => (
             <SessionRow
               key={sessionKey(session)}

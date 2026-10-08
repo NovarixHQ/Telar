@@ -29,7 +29,8 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
   ] },
   { id: "appearance", groups: [
-    { "title":"Looks", rows: [
+    { rows: [
+      {"title":"Colour scheme","hint":"Which state the app wears, and the one Background edits.","keywords":["light","dark","system","theme","mode"]},
     ] },
     { "title":"Background", rows: [
       {"title":"Base","hint":"The app colour. It decides the hue and how colourful the surfaces are; the lightness that keeps text readable is kept underneath.","keywords":["colour","color","theme","palette","hue","tint","background","canvas"]},
@@ -40,7 +41,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Depth","hint":"How far raised surfaces — cards, the composer, menus — sit off the page.","keywords":["shadow","elevation","flat","soft","deep","raised"],"icon":LayersIcon},
     ] },
     { "title":"Window", rows: [
-      {"title":"Colour scheme","hint":"Which state this window wears — and the one the composer above edits.","keywords":["light","dark","system","theme","mode"]},
       {"title":"Translucency","hint":"Rebuilds the window.","keywords":["glass","blur","clear","frost","vibrancy","transparent"]},
       {"title":"Layers through canvas and rail","keywords":["show-through","show through","opacity","wallpaper","backdrop","layers"]},
       {"title":"Chat width","hint":"How wide the conversation and the composer can grow.","keywords":["wide","full","comfortable","column","measure","transcript"]},

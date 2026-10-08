@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EngineStore } from "../../state";
+import { existingDirectory } from "./registry";
 import { engineRootFromEnv } from "../../platform/fs/engine-root";
 import { useTempStores } from "../../../test/temp-store";
 
@@ -41,4 +42,20 @@ test("a project whose folder a security tool denies refuses new work, saying why
   expect(await store.projectProbes.probe(project)).toBe("denied");
   expect(store.projectRegistry.list()[0]!.availability).toBe("denied");
   expect(() => store.projectRegistry.assertAvailable("project_one")).toThrow(/security tool is denying access to the folder for One/);
+});
+
+test("a folder that holds home, or is the disk's root, is refused unless it is the project's own repository", () => {
+  const above = fs.realpathSync.native(root());
+  const home = path.join(above, "me");
+  const repo = path.join(home, "code", "repo");
+  fs.mkdirSync(repo, { recursive: true });
+
+  expect(existingDirectory(repo, home)).toBe(repo);
+  expect(() => existingDirectory(home, home)).toThrow(/far more than one project/);
+  expect(() => existingDirectory(`${home}/`, home)).toThrow(/far more than one project/);
+  expect(() => existingDirectory("/", home)).toThrow(/far more than one project/);
+  expect(() => existingDirectory(above, home)).toThrow(/holds your home folder/);
+  fs.mkdirSync(path.join(above, ".git"));
+  expect(existingDirectory(above, home)).toBe(above);
+  expect(fs.readdirSync(home)).toEqual(["code"]);
 });

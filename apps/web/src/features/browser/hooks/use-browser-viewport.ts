@@ -4,7 +4,7 @@ import type { DesktopBrowserBridge } from "../types";
 import { stageOf, type ViewportMode } from "../viewport";
 
 // Read computed: `--radius-xl` is a calc() the browser hands back unresolved, the
-// element's own corner is already px under the current Look.
+// element's own corner is already px under the current appearance.
 function hostRadius(host: HTMLElement): number {
   const radius = Number.parseFloat(window.getComputedStyle(host).borderBottomLeftRadius);
   return Number.isFinite(radius) ? Math.max(0, Math.round(radius)) : 0;

@@ -48,7 +48,7 @@ export function ComposerStashMenu({
           {agents.length > 0 && (
             <div className="px-2 pt-1 pb-1 text-3xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               {/* NAMED IN WORDS. "Drafted for you" rather than a coloured dot:
-                  the band's meaning must survive a screen reader and a Look
+                  the band's meaning must survive a screen reader and an appearance
                   that flattens the tint. */}
               Drafted for you
             </div>

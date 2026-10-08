@@ -115,10 +115,12 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
         if (outcome !== true) return { status: 401, body: { error: { code: "cockpit_unauthorized", reason: outcome, message: REFUSAL[outcome] } } };
         const platform: DevicePlatform | undefined = body.platform === "ios" || body.platform === "browser" ? body.platform : undefined;
         const identity = identityOf(body.identity);
+        const clientId = text(body.clientId, 128);
         const deviceToken = mintDeviceToken();
         const device = store.addDevice(text(body.name) ?? "Unnamed device", deviceToken, {
           ...(platform ? { platform } : {}),
           ...(identity ? { identity } : {}),
+          ...(clientId ? { clientId } : {}),
         });
         return ok({ deviceToken, deviceId: device.id, deviceName: device.name });
       },

@@ -6,16 +6,13 @@ import { ACCENT_COLOURS, LIGHT_PRIMARY_FOREGROUND } from "../accent-colours";
 import { useAppearance } from "../appearance";
 import { useComposition } from "../composition";
 import { createEngineApi } from "@/platform/engine";
-import { isHostWindow } from "@/platform/desktop/host-window";
 import { fontFaceCss } from "../font-faces";
-import { captureLook } from "../looks";
+import { currentShared, fingerprint, markShared, useShareState, writeAppliedStamp } from "../shared-appearance";
 import { readTheme, useTheme } from "./theme-provider";
 
 const api = createEngineApi();
 
 const PUBLISH_DEBOUNCE_MS = 2_000;
-
-let published: string | undefined;
 
 const SANS_TAIL = "ui-sans-serif, system-ui, sans-serif";
 const MONO_TAIL = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -67,10 +64,14 @@ export function AppearancePublisher(): null {
   const { appearance } = useAppearance();
   const { composition, images } = useComposition();
   const { theme } = useTheme();
+  const share = useShareState();
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isHostWindow()) return;
+    if (typeof window === "undefined" || !share.synced) return;
+    const shared = currentShared();
+    const scheme = readTheme();
+    const print = fingerprint(shared, scheme);
+    if (print === share.shared) return;
 
     const accent = ACCENT_COLOURS[appearance.accent];
     const resolved: PublishedResolved = {
@@ -85,31 +86,27 @@ export function AppearancePublisher(): null {
       },
     };
     const payload: PublishedAppearance = {
-      version: 2,
+      ...shared,
+      version: 3,
       updatedAtHint: Date.now(),
-      scheme: readTheme(),
+      scheme,
       translucent: appearance.translucent,
       frost: appearance.frost,
       resolved,
-      look: { ...captureLook("Published look"), id: "published" },
     };
-
-    const { updatedAtHint: _hint, ...content } = payload;
-    const fingerprint = JSON.stringify(content);
-    if (fingerprint === published) return;
 
     const timer = setTimeout(() => {
       void fontFaceCss([resolved.fontStacks.sans, resolved.fontStacks.mono])
         .catch(() => "")
         .then((fontFaces) => api.setAppearance(fontFaces ? { ...payload, resolved: { ...resolved, fontFaces } } : payload))
-        .then(() => {
-          published = fingerprint;
+        .then((written) => {
+          writeAppliedStamp(written.updatedAt);
+          markShared({ shared: print });
         })
-        .catch(() => {
-        });
+        .catch(() => {});
     }, PUBLISH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [appearance, composition, images, theme]);
+  }, [appearance, composition, images, theme, share]);
 
   return null;
 }

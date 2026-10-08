@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { CheckIcon, GaugeIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
 import { choiceOf, effortLabel, type ModelChoice, windowSuffix, useModelCatalogue } from "@/features/providers";
-import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+import { Popover, PopoverContent } from "@/ui/popover";
 import { Badge } from "@/ui/badge";
 import { cn } from "@/ui/utils";
 import { modelOptionSections, reasoningPillLabel, selectionOf, type ModelOptionRow } from "../model-options";
-import { ControlTrigger, MenuHeading } from "./control-primitives";
+import { MenuHeading, PillTrigger } from "./control-primitives";
 
 const ROWS = "[data-option-row]:not([disabled])";
 
@@ -81,18 +81,14 @@ export function ReasoningControl({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <ControlTrigger
-            open={open}
-            icon={<GaugeIcon className="size-3.5" />}
-            label={label}
-            {...(isDefault && defaultEffort ? { title: "The model's default. Pick a level to change it." } : {})}
-            fold="md"
-            {...(detail ? { detail } : {})}
-            ariaLabel={`Reasoning effort: ${spoken}${suffix ? `, ${suffix} context` : ""}`}
-          />
-        }
+      <PillTrigger
+        tip={isDefault && defaultEffort ? "Reasoning effort. The model's default; pick a level to change it." : "Reasoning effort"}
+        open={open}
+        icon={<GaugeIcon className="size-3.5" />}
+        label={label}
+        fold="md"
+        {...(detail ? { detail } : {})}
+        ariaLabel={`Reasoning effort: ${spoken}${suffix ? `, ${suffix} context` : ""}`}
       />
       <PopoverContent align="start" side="top" sideOffset={8} className="max-h-[min(30rem,70vh)] w-72 gap-0 overflow-y-auto rounded-xl p-1">
         <div ref={list} role="group" aria-label="Model options" onKeyDown={onKeyDown}>

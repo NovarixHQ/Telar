@@ -59,28 +59,19 @@ struct HTTPEngineAPI: Sendable {
     let baseURL: URL
 
     let deviceToken: String?
-    let session: URLSession
+    let transport: HTTPTransport
 
     let failover: (@Sendable (URL) async -> URL?)?
     let onUnauthorized: (@Sendable () async -> Void)?
 
-    init(baseURL: URL, deviceToken: String? = nil, session: URLSession? = nil,
+    init(baseURL: URL, deviceToken: String? = nil, transport: HTTPTransport = HTTPTransport(),
          onUnauthorized: (@Sendable () async -> Void)? = nil,
          failover: (@Sendable (URL) async -> URL?)? = nil) {
         self.baseURL = baseURL
         self.deviceToken = deviceToken
+        self.transport = transport
         self.onUnauthorized = onUnauthorized
         self.failover = failover
-        if let session {
-            self.session = session
-        } else {
-            let config = URLSessionConfiguration.default
-
-            config.timeoutIntervalForRequest = 30
-
-            config.waitsForConnectivity = false
-            self.session = URLSession(configuration: config)
-        }
     }
 
     func escape(_ id: String) -> String {
@@ -128,18 +119,20 @@ struct HTTPEngineAPI: Sendable {
     }
 
     func exchange(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        let session = transport.session
         do {
             return try await session.data(for: request)
         } catch {
-            guard HostAddresses.isTransportFailure(error), let failover,
-                  let moved = await failover(baseURL),
+            guard HostAddresses.isTransportFailure(error) else { throw EngineAPIError.transport(error) }
+            let fresh = transport.renew(replacing: session)
+            guard let failover, let moved = await failover(baseURL),
                   ["GET", "HEAD"].contains(request.httpMethod ?? "GET"),
                   let url = request.url, let rebased = HostAddresses.rebase(url, from: baseURL, to: moved)
             else { throw EngineAPIError.transport(error) }
             var retry = request
             retry.url = rebased
             do {
-                return try await session.data(for: retry)
+                return try await fresh.data(for: retry)
             } catch {
                 throw EngineAPIError.transport(error)
             }

@@ -23,11 +23,29 @@ import Observation
 
     func api(for id: HostID) -> HTTPEngineAPI? {
         guard let url = book.host(id)?.baseURL else { return nil }
-        return HTTPEngineAPI(baseURL: url, deviceToken: token(for: id), onUnauthorized: { [weak self] in
+        return HTTPEngineAPI(baseURL: url, deviceToken: token(for: id), transport: transport(for: id), onUnauthorized: { [weak self] in
             await self?.clearRevokedToken(id)
         }) { [weak self] failed in
             await self?.failover(id, from: failed)
         }
+    }
+
+    @ObservationIgnored private var transports: [HostID: HTTPTransport] = [:]
+
+    private func transport(for id: HostID) -> HTTPTransport {
+        if let existing = transports[id] { return existing }
+        let made = HTTPTransport()
+        transports[id] = made
+        return made
+    }
+
+    func renewConnections() {
+        for transport in transports.values { transport.renew() }
+    }
+
+    func reconnect(_ id: HostID) async {
+        transports[id]?.renew()
+        if let host = book.host(id) { _ = await reprobe(id, order: host.addresses) }
     }
 
     func clearRevokedToken(_ id: HostID) {
@@ -126,7 +144,11 @@ import Observation
         }
         MobileDrafts.shared.remove(host: id)
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("telar.draft.\(id).") { defaults.removeObject(forKey: key) }
-        Task { await MobileNotifications.shared.removeHost(id, api: pushAPI) }
+        Task {
+            await MobileNotifications.shared.removeHost(id, api: pushAPI)
+            pushAPI?.transport.invalidate()
+        }
+        transports[id] = nil
         book.remove(id)
         persist()
     }

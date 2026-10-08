@@ -60,7 +60,8 @@ struct RootView: View {
                             SessionView(api: api, sessionId: ref.sessionId, hostId: ref.hostId,
                                         hostName: settings.host(ref.hostId)?.name,
                                         cockpitBaseURL: settings.host(ref.hostId)?.baseURL, cache: settings.snapshotCache(for: ref.hostId),
-                                        onRead: { answer in inbox.applyRead(ref, answer: answer) })
+                                        onRead: { answer in inbox.applyRead(ref, answer: answer) },
+                                        reconnect: { await settings.reconnect(ref.hostId) })
                                 .id("\(settings.apiFingerprint(ref.hostId)):\(ref.sessionId)")
                                 .environment(\.columnVisibility, $columnVisibility)
                         } else {
@@ -113,6 +114,7 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                settings.renewConnections()
                 inbox.start()
                 MobileNotifications.shared.startCard(inbox.onCards, projectName: inbox.projectName)
                 Task { await MobileNotifications.shared.syncRegistrations() }

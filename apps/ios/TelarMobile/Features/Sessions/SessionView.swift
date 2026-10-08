@@ -43,12 +43,14 @@ struct SessionView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let onRead: ((Session) -> Void)?
+    private let reconnect: (() async -> Void)?
 
     init(
         api: any EngineAPI, sessionId: EngineID, hostId: HostID? = nil,
         hostName: String? = nil,
         cockpitBaseURL: URL? = nil, cache: HostSnapshotCache? = nil,
-        onRead: ((Session) -> Void)? = nil
+        onRead: ((Session) -> Void)? = nil,
+        reconnect: (() async -> Void)? = nil
     ) {
         self.api = api
         self.sessionId = sessionId
@@ -56,6 +58,7 @@ struct SessionView: View {
         self.hostName = hostName
         self.cockpitBaseURL = cockpitBaseURL
         self.onRead = onRead
+        self.reconnect = reconnect
         if let hostId { _draft = State(initialValue: UserDefaults.standard.string(forKey: "telar.draft.\(hostId).\(sessionId)") ?? "") }
 
         _store = State(initialValue: SessionStore(api: api, sessionId: sessionId, hostId: hostId, cache: cache, heads: cache == nil ? nil : .shared))
@@ -453,9 +456,18 @@ struct SessionView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "wifi.exclamationmark").font(.system(Theme.caption))
 
-                        Text(store.sync.recordedAt.map { "Showing what was recorded at \(recordedAtLabel($0)) — reconnecting…" } ?? message)
+                        Text(store.sync.recordedAt.map { "Showing what was recorded at \(recordedAtLabel($0)) — \(message)" } ?? message)
                             .font(.system(Theme.footnote)).lineLimit(2)
                         Spacer(minLength: 0)
+                        Button("Retry") {
+                            Task {
+                                await reconnect?()
+                                await store.sync.refresh()
+                            }
+                        }
+                        .font(.system(Theme.footnote, weight: .medium))
+                        .foregroundStyle(Theme.text)
+                        .buttonStyle(.plain)
                     }
                     .foregroundStyle(Theme.statusAmber)
                 }

@@ -250,12 +250,11 @@ export async function readClaudeSupportedCommands(
 export function parseSupportedCommands(payload: unknown): ProviderSkill[] {
   if (!Array.isArray(payload)) return [];
   return payload.flatMap((entry) => {
-    const row = entry as { name?: unknown; description?: unknown; argumentHint?: unknown };
+    const row = entry as { name?: unknown; description?: unknown };
     const name = typeof row.name === "string" ? row.name.replace(/^\//, "").trim() : "";
     if (!name) return [];
-    const hint = typeof row.argumentHint === "string" ? row.argumentHint.trim() : "";
     const description = typeof row.description === "string" ? row.description.trim() : "";
-    return [{ name, description: hint && description ? `${description} ${hint}` : description || hint, source: "provider" as const }];
+    return [{ name, description, source: "provider" as const }];
   });
 }
 

@@ -356,9 +356,16 @@ export function rankSkills(skills: readonly ProviderSkill[], query: string, limi
 
 export const PROVIDER_COMMAND_GROUP = "Provider commands";
 
-/** Picking one inserts `/name`, which the harness parses when the message arrives. */
+const TELAR_COMMAND_NAMES = new Set(
+  [
+    ...availableCommands({ busy: true, fresh: true, pickers: { model: true, effort: true, access: true }, canResume: true, orchestrate: true }),
+    ...availableCommands({ busy: false, fresh: false, driver: "claude" }),
+  ].map((command) => command.label.slice(1)),
+);
+
+/** Picking one inserts `/name`, which the harness parses when the message arrives. Telar's own names are never repeated. */
 export function providerCommandCompletions(commands: readonly ProviderSkill[]): Completion[] {
-  return commands.map((command) => ({
+  return commands.filter((command) => !TELAR_COMMAND_NAMES.has(command.name)).map((command) => ({
     id: `provider:${command.name}`,
     label: `/${command.name}`,
     detail: detailFor(command),

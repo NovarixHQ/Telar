@@ -171,12 +171,14 @@ describe("the pieces that parse a file", () => {
       parseSupportedCommands([
         { name: "/compact", description: "Squeeze the context.", argumentHint: "" },
         { name: "model", description: "Choose a model", argumentHint: "<name>" },
+        { name: "effort", description: "", argumentHint: "[low|medium|high]" },
         { name: "", description: "nameless" },
         "not a row",
       ]),
     ).toEqual([
       { name: "compact", description: "Squeeze the context.", source: "provider" },
-      { name: "model", description: "Choose a model <name>", source: "provider" },
+      { name: "model", description: "Choose a model", source: "provider" },
+      { name: "effort", description: "", source: "provider" },
     ]);
     expect(parseSupportedCommands(undefined)).toEqual([]);
   });

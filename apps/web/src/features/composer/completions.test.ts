@@ -310,6 +310,19 @@ describe("the provider's own slash commands", () => {
     expect(rankCommands(rows, "clean")[0]?.label).toBe("/commit-commands:clean_gone");
     expect(rankCommands(rows, "qqqq")).toEqual([]);
   });
+
+  test("one Telar already offers is not listed twice: `/eff` shows only Telar's effort row", () => {
+    const own = availableCommands({ busy: false, fresh: false, pickers: { effort: true } });
+    const provider = providerCommandCompletions([
+      { name: "effort", description: "Set the effort level.", source: "provider" },
+      { name: "model", description: "Choose a model.", source: "provider" },
+      { name: "compact", description: "Squeeze the context.", source: "provider" },
+      ...COMMANDS,
+    ]);
+    const rows = [...rankCommands(own, "eff"), ...rankCommands(provider, "eff")];
+    expect(rows.map((row) => [row.label, row.action.type])).toEqual([["/effort", "picker"]]);
+    expect(provider.map((row) => row.label)).toEqual(["/ship", "/commit-commands:clean_gone"]);
+  });
 });
 
 describe("sessions the at-sign menu offers", () => {

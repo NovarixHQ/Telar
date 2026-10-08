@@ -266,7 +266,7 @@ describe("the diff surface around its rows", () => {
     const { host, opened } = await surface({ kind: "branch" });
     for (const at of ["a.ts", "b.ts"]) {
       await rightClick(host.querySelector(`[data-diff-path="${at}"] button`)!);
-      expect(labels()).toEqual(["Open in Editor", "Copy path", "Expand patch"]);
+      expect(labels()).toEqual(["Open in Editor", "Copy path", "Collapse patch"]);
       await choose("Open in Editor");
     }
     expect(opened).toEqual(["a.ts", "b.ts"]);

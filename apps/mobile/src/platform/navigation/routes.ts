@@ -6,5 +6,6 @@ export type RootStack = {
   Sessions: { hostId: string; hostName?: string };
   Diff: { hostId: string; sessionId: string };
   Settings: undefined;
+  Usage: { hostId?: string } | undefined;
   Session: { hostId: string; sessionId: Session["id"]; title?: string; draft?: string };
 };

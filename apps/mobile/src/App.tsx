@@ -6,6 +6,7 @@ import { DiffScreen } from "./features/git";
 import { hosts, HostsScreen, PairScreen } from "./features/hosts";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
 import { SettingsScreen } from "./features/settings";
+import { UsageScreen } from "./features/usage";
 import type { RootStack } from "./platform/navigation/routes";
 import { navigationTheme } from "./platform/navigation/theme";
 
@@ -42,6 +43,9 @@ export function App() {
         <Stack.Screen name="Diff" component={DiffScreen} options={{ title: "Diff", headerLargeTitle: false }} />
         <Stack.Screen name="Settings" options={{ presentation: "modal", headerShown: false }}>
           {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} onAddComputer={() => navigation.navigate("Pair")} />}
+        </Stack.Screen>
+        <Stack.Screen name="Usage" options={{ presentation: "modal", headerShown: false }}>
+          {({ navigation, route }) => <UsageScreen {...(route.params?.hostId ? { hostId: route.params.hostId } : {})} onDone={() => navigation.goBack()} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>

@@ -94,7 +94,8 @@ describe("the Workspace card", () => {
     const agents = section(host, "Agents")!;
     expect(agents.textContent).toContain("1 running");
     expect(agents.textContent).toContain("Settings mockup");
-    expect(agents.textContent).toContain("T3 research");
+    expect(agents.textContent).toContain("Finished agents (1)");
+    expect(agents.textContent).not.toContain("T3 research");
   });
 
   test("a checkout with no repository and no builders shows only the workspace", async () => {
@@ -108,6 +109,27 @@ describe("the Workspace card", () => {
     const { host, props } = await mount();
     await act(async () => button(section(host, "Version control")!, "Changes")!.click());
     expect(props.onOpenChanges).toHaveBeenCalledTimes(1);
+  });
+
+  test("lists running sub-agents beside running builders and folds every finished agent into one row", async () => {
+    const { host } = await mount({
+      agents: [agent, { ...agent, sessionId: "session_ok", state: "done", title: "Reply OK" }],
+      subagents: [
+        { id: "task_1", title: "Summarise README", state: "failed" },
+        { id: "task_2", title: "List files", state: "working" },
+      ],
+      driver: "claude",
+    });
+    const agents = section(host, "Agents")!;
+    expect(agents.textContent).toBe("Agents2 runningSettings mockupRunningList filesRunningFinished agents (2)");
+    await act(async () => button(agents, "Finished agents (2)")!.click());
+    expect(agents.textContent).toContain("Reply OKDone");
+    expect(agents.textContent).toContain("Summarise READMEFailed");
+  });
+
+  test("with nothing running, Agents is only the folded row", async () => {
+    const { host } = await mount({ agents: [{ ...agent, state: "done" }], subagents: [{ id: "task_1", title: "List files", state: "done" }] });
+    expect(section(host, "Agents")!.textContent).toBe("AgentsFinished agents (2)");
   });
 
   test("an agent's row opens that agent's session", async () => {

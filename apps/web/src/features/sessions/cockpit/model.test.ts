@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { JournalItem } from "@telar/client/journal";
 import { cutAroundStandingRows, segmentActivity, transcriptTasks, turnActivity } from "@/features/transcript";
 import { emptyPanelTabs, type PanelTab } from "@/features/panel";
-import { cockpitPlugins, describeTurnState, markerRowOf, pinToggleOverride, showSimulatorTab, transcriptRows } from "./model";
+import { cardSubagents, cockpitPlugins, describeTurnState, markerRowOf, pinToggleOverride, showSimulatorTab, transcriptRows } from "./model";
 import { SessionTurn } from "./components/session-turn";
 
 const rendered = { runId: "run_1", sessionId: "session_1", status: "completed", startedAt: 1, completedAt: 2, streamedText: "", openedBy: 0 } as const;
@@ -446,4 +446,18 @@ test("docking a simulator opens the panel on a Simulator tab with that simulator
   const again = showSimulatorTab({ ...docked, open: false }, "C3D4");
   expect(again.open).toBe(true);
   expect(again.tabs).toEqual([{ id: docked.activeTab!, kind: "simulator", params: { open: "A1B2,C3D4", active: "C3D4" } }]);
+});
+
+describe("the sub-agents the Workspace card lists", () => {
+  const task = (id: string, state: string, kind = "agent") => ({ id, kind, state, title: id, items: [] }) as never;
+  const turn = (runId: string, tasks: unknown[]) => ({ runId, tasks }) as never;
+
+  test("every one still out, then the latest fan-out's settled ones, never a background shell", () => {
+    const listed = cardSubagents([
+      turn("r1", [task("old_live", "running"), task("old_done", "completed")]),
+      turn("r2", [task("new_done", "completed"), task("new_failed", "failed"), task("shell", "running", "background")]),
+      turn("r3", []),
+    ]);
+    expect(listed.map((agent) => `${agent.id}:${agent.state}`)).toEqual(["old_live:working", "new_done:done", "new_failed:failed"]);
+  });
 });

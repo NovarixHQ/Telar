@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { ConversationFollowHandle } from "@/ui/conversation";
@@ -13,7 +13,7 @@ import { floatKey, useSimulatorFloat } from "@/features/simulators";
 import { normaliseContextNoticePercent } from "@/features/composer/context-notice";
 import { hostFromPathname } from "@/platform/engine/host-client";
 import { canvasHref } from "../../session-list";
-import { pinToggleOverride, showSimulatorTab } from "../model";
+import { cardSubagents, pinToggleOverride, showSimulatorTab } from "../model";
 import { useCockpitCommands } from "../hooks/use-cockpit-commands";
 import { useCockpitPanel } from "../hooks/use-cockpit-panel";
 import { useCockpitProject } from "../hooks/use-cockpit-project";
@@ -93,6 +93,7 @@ export function SessionCockpit({
   const { active } = model;
   const agents = useSessionChildren(hostId, sessionId, childrenGrowth(model.transcript));
   const builders = useBuildersBanner(hostId, agents);
+  const subagents = useMemo(() => cardSubagents(model.transcript), [model.transcript]);
   const settling = useSettling(hostId, sessionId, sync);
   const actions = useSessionActions(sessionId, sync);
   const submit = useSubmit({
@@ -140,7 +141,7 @@ export function SessionCockpit({
           <div className="flex min-h-0 flex-1 flex-col md:flex-row">
             {!solo && session && (
               <WorkspaceCard
-                key={`${hostId}:${session.id}`} hostId={hostId} session={session} agents={agents} busy={Boolean(active)}
+                key={`${hostId}:${session.id}`} hostId={hostId} session={session} agents={agents} subagents={subagents} busy={Boolean(active)}
                 backgroundTasks={model.backgroundTasks} panel={panelState} dismissible={panel.open} onRunTerminals={revealNewTerminals}
               />
             )}

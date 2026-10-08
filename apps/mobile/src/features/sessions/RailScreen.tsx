@@ -175,7 +175,7 @@ export function RailScreen() {
           )}
         </List>
       </Host>
-      <BottomBar onSettings={() => navigation.navigate("Settings")} onUsage={() => navigation.navigate("Usage")} />
+      <BottomBar onSettings={() => navigation.navigate("Settings")} onUsage={() => navigation.navigate("Usage", rail.filter ? { hostId: rail.filter } : undefined)} />
     </View>
   );
 }

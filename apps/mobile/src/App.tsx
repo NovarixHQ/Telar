@@ -41,7 +41,7 @@ export function App() {
         <Stack.Screen name="Session" component={SessionScreen} options={({ route }) => ({ title: route.params.title ?? "Session", headerLargeTitle: false, headerTransparent: true, headerShadowVisible: false, headerBackButtonDisplayMode: "minimal" })} />
         <Stack.Screen name="Panel" component={PanelScreen} options={{ title: "Panel", headerShown: false }} />
         <Stack.Screen name="Settings" options={{ presentation: "modal", headerShown: false }}>
-          {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} />}
+          {({ navigation }) => <SettingsScreen onDone={() => navigation.goBack()} onUsage={() => navigation.navigate("Usage")} />}
         </Stack.Screen>
         <Stack.Screen name="Usage" options={{ presentation: "modal", headerShown: false }}>
           {({ navigation, route }) => <UsageScreen {...(route.params?.hostId ? { hostId: route.params.hostId } : {})} onDone={() => navigation.goBack()} />}

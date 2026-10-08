@@ -6,7 +6,6 @@ import { ok, type Route } from "../../platform/http/route";
 
 const HOST_ID = /^host_[0-9a-f-]{36}$/;
 
-/** This Mac's id, minted once and kept beside the pairing state so it survives restarts and updates. */
 export function readHostId(dir: string): string {
   const file = path.join(dir, "host-id");
   try {

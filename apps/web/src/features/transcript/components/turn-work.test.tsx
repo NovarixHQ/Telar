@@ -94,6 +94,9 @@ describe("a finished turn's work", () => {
 
     act(() => root!.render(<TurnWork items={[ran("a", "bun test"), spawn(1), spawn(2)]} tasks={[agent(1, "Twelve files."), agent(2, "A local engine.")]} label="Worked for 1m 14s" />));
     expect(host.textContent).not.toContain("subagents");
+    act(() => host.querySelector("button")!.click());
+    expect(host.textContent).toContain("2 subagents");
+    expect(host.textContent).toContain("2 done");
   });
 
   test("draws nothing when the turn did no work", () => {

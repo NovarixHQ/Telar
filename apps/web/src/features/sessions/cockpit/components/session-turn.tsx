@@ -2,11 +2,13 @@
 
 import { Fragment, memo, useEffect, useRef, useState } from "react";
 import { ChevronRightIcon, Minimize2Icon, ShieldCheckIcon } from "lucide-react";
-import type { EngineRequest, RequestDecision } from "@telar/engine-client";
+import type { EngineRequest, RequestDecision, SessionChild } from "@telar/engine-client";
 import { isActiveTurn, isCompacting, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@telar/client/journal";
 import {
+  AgentRows,
   LiveActivity,
   Marker,
+  routineNotification,
   NotificationRow,
   sessionWakeLabel,
   splitAtMessageBoundaries,
@@ -83,6 +85,7 @@ type SessionTurnProps = {
   peerTitle?: string;
   /** An open request on this turn, including the question the composer is asking. */
   awaiting?: boolean;
+  builders?: readonly SessionChild[];
 };
 
 // Presence of a gesture changes the render; identity does not (the cockpit passes inline arrows).
@@ -92,6 +95,7 @@ const TURN_GESTURES = ["onOpenTab", "onInsert", "onOpenFile", "onOpenFileInNewTa
 // `prompt` is not compared; the engine writes it once and the runId key pins the turn.
 function sameTurnRender(prev: SessionTurnProps, next: SessionTurnProps): boolean {
   if (prev.live !== next.live || prev.sending !== next.sending || prev.peerTitle !== next.peerTitle || prev.awaiting !== next.awaiting) return false;
+  if (!sameEach(prev.builders ?? [], next.builders ?? [], (a, b) => a.sessionId === b.sessionId && a.state === b.state && a.summary === b.summary && a.title === b.title)) return false;
   for (const gesture of TURN_GESTURES) if (Boolean(prev[gesture]) !== Boolean(next[gesture])) return false;
   if (!sameEach(prev.requests, next.requests, (a, b) => a.id === b.id && a.state === b.state && a.decision === b.decision)) return false;
   // Only the wake-up row reads the roster, and only on a turn that names the task that woke it.
@@ -181,6 +185,7 @@ function SessionTurnBody({
   roster = [],
   peerTitle,
   awaiting = false,
+  builders = [],
 }: SessionTurnProps) {
   const doing = turnActivity(turn);
   const rowGestures = {
@@ -193,11 +198,12 @@ function SessionTurnBody({
   const earlier = responses.slice(0, -1);
   // Only the last response's final assistant message is the answer to the turn.
   const lastProse = answering.items.map((item) => item.detail.type).lastIndexOf("assistant_message");
-  const activity = lastProse === -1 ? answering.items : answering.items.slice(0, lastProse);
-  const closing = lastProse === -1 ? [] : answering.items.slice(lastProse);
-  const streamedAnswer = closing.some((item) => itemText(item));
+  const answer = lastProse === -1 ? undefined : answering.items[lastProse];
+  const activity = answering.items.filter((item) => item !== answer);
+  const streamedAnswer = Boolean(answer && itemText(answer));
   const answerLane =
     live ||
+    builders.length > 0 ||
     requests.length > 0 ||
     answering.items.length > 0 ||
     Boolean(turn.resultText) ||
@@ -210,6 +216,7 @@ function SessionTurnBody({
     turn.state === "failed";
 
   if (turn.kind === "compact") return <CompactTurn turn={turn} rowGestures={rowGestures} />;
+  const opening = foldsOpening(turn) && !live && answerLane ? <NotificationRow detail={turn.notification!} {...(turn.sender ? { message: turn.prompt } : {})} {...(peerTitle ? { title: peerTitle } : {})} /> : undefined;
   const boundary = (item: JournalItem) => (
     <div className={cn("mx-auto w-full min-w-0 max-w-(--chat-content-max-width)", item.detail.type === "user_message" && !item.detail.sender && !item.detail.wakeReason && "my-6")}>
       <TranscriptItem item={item} tasks={turn.tasks} {...rowGestures} {...(onOpenTab ? { onOpenTab } : {})} />
@@ -218,7 +225,7 @@ function SessionTurnBody({
 
   return (
     <div className="flex flex-col gap-2">
-      <TurnOpening turn={turn} roster={roster} {...rowGestures} {...(onOpenTab ? { onOpenTab } : {})} {...(peerTitle ? { peerTitle } : {})} />
+      {!opening && <TurnOpening turn={turn} roster={roster} {...rowGestures} {...(onOpenTab ? { onOpenTab } : {})} {...(peerTitle ? { peerTitle } : {})} />}
 
       {earlier.map((response) => (
         <Fragment key={response.boundary?.id ?? "opening"}>
@@ -251,11 +258,11 @@ function SessionTurnBody({
                 tasks={turn.tasks}
                 label={workedForLabel(turn.startedAt, turn.endedAt)}
                 {...(turn.usage ? { detail: `${(turn.usage.tokens.input + turn.usage.tokens.output).toLocaleString()} tokens` } : {})}
+                {...(opening ? { lead: opening } : {})}
+                {...(builders.length ? { trail: <AgentRows agents={builders} /> } : {})}
                 {...rowGestures}
               />
-              {closing.map((item) => (
-                <TranscriptItem key={item.id} item={item} tasks={turn.tasks} {...rowGestures} />
-              ))}
+              {answer && <TranscriptItem item={answer} tasks={turn.tasks} {...rowGestures} />}
             </>
           )}
           {!streamedAnswer && turn.resultText && <AgentMarkdown text={turn.resultText} onOpenFile={onOpenFile} />}
@@ -353,6 +360,10 @@ function TurnOpening({
       )}
     </>
   );
+}
+
+function foldsOpening(turn: JournalTurn): boolean {
+  return Boolean(turn.notification) && (turn.origin === "provider" || turn.origin === "session") && routineNotification(turn.notification!);
 }
 
 // Lets the browser skip rendering an off-screen settled turn, at the height it last rendered.

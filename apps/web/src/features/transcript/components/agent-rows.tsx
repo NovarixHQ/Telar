@@ -114,10 +114,13 @@ export function SessionAgentRow({ agent }: { agent: AgentRowData }) {
 
 function groupStatus(agents: readonly AgentView[]): string {
   const count = (test: (agent: AgentView) => boolean) => agents.filter(test).length;
-  const working = count(agentPending);
-  const failed = count((agent) => agent.state === "failed");
-  const parts = [working && `${working} working`, failed && `${failed} failed`].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "✓ completed";
+  const parts = [
+    [count(agentPending), "working"],
+    [count((agent) => agent.state === "done"), "done"],
+    [count((agent) => agent.state === "failed"), "failed"],
+    [count((agent) => agent.state === "stopped"), "stopped"],
+  ] as const;
+  return parts.flatMap(([n, word]) => (n ? [`${n} ${word}`] : [])).join(" · ");
 }
 
 export function AgentCard({ agents, children }: { agents: readonly AgentView[]; children: ReactNode }) {

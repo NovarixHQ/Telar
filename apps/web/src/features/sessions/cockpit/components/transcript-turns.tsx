@@ -4,18 +4,16 @@ import { Fragment, useState, type ReactNode } from "react";
 import { ChevronRightIcon } from "lucide-react";
 import type { SessionChild } from "@telar/engine-client";
 import type { JournalTurn } from "@telar/client/journal";
-import { AgentRows, bareNotificationTurn, foldsIntoAgentRow, groupNotificationTurns, ROW, sessionsCreated, SessionLookup, type SessionFacts } from "@/features/transcript";
+import { AgentRows, bareNotificationTurn, foldsIntoAgentRow, groupNotificationTurns, ROW, routineNotification, sessionsCreated, SessionLookup, type SessionFacts } from "@/features/transcript";
 import { cn } from "@/ui/utils";
 import { sessionHref } from "../../session-list";
 import { childPending } from "../hooks/use-session-children";
 import type { SessionDirectory } from "../hooks/use-session-directory";
 
-export type TurnView = { peerTitle?: string };
+export type TurnView = { peerTitle?: string; builders?: readonly SessionChild[] };
 
 function quiet(turn: JournalTurn): boolean {
-  const detail = turn.notification;
-  if (!detail || !bareNotificationTurn(turn) || turn.state !== "completed") return false;
-  return ![detail, ...(detail.entries ?? [])].some((each) => each.kind === "request" || each.wakeKind === "request_opened" || each.intent === "blocker" || each.intent === "task" || each.wakeKind === "turn_failed");
+  return Boolean(turn.notification) && bareNotificationTurn(turn) && turn.state === "completed" && routineNotification(turn.notification!);
 }
 
 function ArrivalStrip({ titles, children }: { titles: string[]; children: ReactNode }) {
@@ -82,10 +80,12 @@ export function TranscriptTurns({ turns, activeRunId, renderTurn, directory, age
   };
   const row = (turn: JournalTurn) => {
     const peerTitle = titleOf(turn);
-    const tasked = anchored.get(turn.runId);
+    const anchoredHere = anchored.get(turn.runId);
+    const settled = anchoredHere && turn.runId !== activeRunId && !anchoredHere.some(childPending) ? anchoredHere : undefined;
+    const tasked = settled ? undefined : anchoredHere;
     return (
       <Fragment key={turn.runId}>
-        {renderTurn(turn, peerTitle ? { peerTitle } : {})}
+        {renderTurn(turn, { ...(peerTitle ? { peerTitle } : {}), ...(settled ? { builders: settled } : {}) })}
         {tasked && (
           <div className="mx-auto w-full max-w-(--chat-content-max-width)">
             <AgentRows agents={tasked} />

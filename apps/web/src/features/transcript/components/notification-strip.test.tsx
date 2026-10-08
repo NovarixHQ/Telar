@@ -146,11 +146,21 @@ describe("a notification turn's vertical rhythm", () => {
     expect(html.match(/data-role="assistant"/g)).toHaveLength(1);
   });
 
-  test("and the lane comes back the moment there is anything to put in it", () => {
-    expect(render(wakeTurn("run_1", { resultText: "Noted." })).match(/data-role="assistant"/g)).toHaveLength(2);
+  test("while the turn runs the arrival keeps its own row above the lane", () => {
     expect(render(wakeTurn("run_1"), true).match(/data-role="assistant"/g)).toHaveLength(2);
-    expect(render(wakeTurn("run_1", { state: "failed", failure: "the provider hung up" })).match(/data-role="assistant"/g)).toHaveLength(2);
-    expect(render(wakeTurn("run_1", { usage: { tokens: { input: 10, output: 2 } } as JournalTurn["usage"] })).match(/data-role="assistant"/g)).toHaveLength(2);
+  });
+
+  test("once a settled turn says anything, the arrival folds into its work", () => {
+    for (const settled of [
+      wakeTurn("run_1", { resultText: "Noted." }),
+      wakeTurn("run_1", { state: "failed", failure: "the provider hung up" }),
+      wakeTurn("run_1", { usage: { tokens: { input: 10, output: 2 } } as JournalTurn["usage"] }),
+    ]) {
+      const html = render(settled);
+      expect(html.match(/data-role="assistant"/g)).toHaveLength(1);
+      expect(html).not.toContain('aria-label="Notification"');
+      expect(html).toContain("Worked");
+    }
   });
 
   test("the row wears the STEP LANE's class, so neither can gain padding alone", () => {

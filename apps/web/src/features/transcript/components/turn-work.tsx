@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { type JournalItem, type JournalTask } from "@telar/client/journal";
 import { cutAroundStandingRows, failedCount, renderable } from "../model";
@@ -30,12 +30,14 @@ export function TurnWork({
   tasks,
   label,
   detail,
+  lead,
+  trail,
   ...gestures
-}: { items: readonly JournalItem[]; tasks: JournalTask[]; label: string; detail?: string } & RowGestures) {
+}: { items: readonly JournalItem[]; tasks: JournalTask[]; label: string; detail?: string; lead?: ReactNode; trail?: ReactNode } & RowGestures) {
   const [open, setOpen] = useState(false);
   const rows = useMemo(() => renderable([...items], tasks), [items, tasks]);
   const agentLive = useAgentLive(tasks);
-  if (rows.length === 0) return null;
+  if (rows.length === 0 && !lead && !trail) return null;
   const standing = cutAroundStandingRows(rows, agentLive).flatMap((cut) => (cut.kind === "run" ? [] : [cut]));
   const failures = failedCount(rows, tasks);
   const Chevron = open ? ChevronDownIcon : ChevronRightIcon;
@@ -53,7 +55,11 @@ export function TurnWork({
         <Chevron className="size-3.5 shrink-0" />
       </button>
       {open ? (
-        <TranscriptRows rows={rows} tasks={tasks} {...gestures} />
+        <>
+          {lead}
+          <TranscriptRows rows={rows} tasks={tasks} {...gestures} />
+          {trail}
+        </>
       ) : (
         standing.map((cut) =>
           cut.kind === "agents" ? (

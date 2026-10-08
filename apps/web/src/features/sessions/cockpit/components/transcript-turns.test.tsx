@@ -77,7 +77,7 @@ const withAgents = (turns: JournalTurn[], agents: SessionChild[]) =>
       directory={new Map()}
       agents={agents}
       projectId="proj"
-      renderTurn={(each) => <p>{`turn:${each.runId}`}</p>}
+      renderTurn={(each, view) => <p>{`turn:${each.runId}`}{view.builders?.map((one) => ` folded:${one.title ?? one.sessionId}`)}</p>}
     />,
   );
 
@@ -92,7 +92,7 @@ describe("children under the turn that tasked them", () => {
 
   test("a waiting child says so, an ended one gives its summary", () => {
     expect(visibleText(withAgents([dispatch], [child("s_a", { state: "waiting" })]))).toContain("Waiting on you");
-    expect(visibleText(withAgents([dispatch], [child("s_a", { state: "done", summary: "Merged it", endedAt: 2_000 })]))).toContain("Merged it");
+    expect(visibleText(withAgents([dispatch], [child("s_a", { title: "Merge", state: "done", summary: "Merged it", endedAt: 2_000 })]))).toContain("folded:Merge");
   });
 
   test("several from one turn are one row that counts them, closed until opened", () => {
@@ -102,11 +102,10 @@ describe("children under the turn that tasked them", () => {
     expect(visibleText(html)).not.toContain("Three");
   });
 
-  test("once every one has ended the group starts closed", () => {
-    const html = withAgents([dispatch], [child("s_a", { title: "One", state: "done" }), child("s_b", { title: "Two", state: "failed" })]);
-    expect(visibleText(html)).toContain("2 subagents");
-    expect(visibleText(html)).toContain("1 failed");
-    expect(visibleText(html)).not.toContain("One");
+  test("once every one has ended they fold into the turn that tasked them", () => {
+    const text = visibleText(withAgents([dispatch], [child("s_a", { title: "One", state: "done" }), child("s_b", { title: "Two", state: "failed" })]));
+    expect(text).toContain("turn:run_dispatch folded:One folded:Two");
+    expect(text).not.toContain("subagents");
   });
 
   test("a child whose turn is not loaded shows under the newest turn while it is out, and not once it has ended", () => {
@@ -138,7 +137,7 @@ describe("a builder's ending", () => {
         directory={new Map()}
         agents={agents}
         projectId="proj"
-        renderTurn={(each) => <SessionTurn turn={each} requests={[]} sending={false} live={false} onDecide={() => {}} />}
+        renderTurn={(each, view) => <SessionTurn turn={each} requests={[]} sending={false} live={false} onDecide={() => {}} {...(view.builders ? { builders: view.builders } : {})} />}
       />,
     );
 
@@ -159,12 +158,13 @@ describe("a builder's ending", () => {
     expect(visibleText(html)).toContain("1 failed");
   });
 
-  test("a builder already drawn under the turn that tasked it is not drawn again by its ending", () => {
+  test("an ended builder sits in its turn's work, and its ending draws no row of its own", () => {
     const html = renderEnding(
       [dispatch, ending("run_end", [{ sessionId: "s_a", state: "done", title: "Reply OK", why: "OK" }])],
       [child("s_a", { title: "Reply OK", state: "done", summary: "OK", endedAt: 24_000 })],
     );
-    expect(html.match(/data-agent-state="done"/g)).toHaveLength(1);
+    expect(html).not.toContain("data-agent-state");
+    expect(visibleText(html)).toContain("Worked");
   });
 });
 
@@ -177,8 +177,9 @@ describe("two sub-agents and a builder from one turn", () => {
     status: "completed",
     completedAt: 3,
     title: "sessions_create",
-    detail: { type: "mcp_tool_call", call: { name: "mcp__telar__sessions_create", input: { title: "Reply OK" }, output: JSON.stringify({ link: "/projects/proj/sessions/s_ok" }) } },
+    detail: { type: "mcp_tool_call", call: { name: "mcp__telar__sessions_create", input: { title: "Reply OK" }, output: { content: [{ type: "text", text: JSON.stringify({ id: "s_ok", title: "Reply OK", link: "/projects/proj/sessions/s_ok?host=h1", note: "Your task is queued." }) }] } } },
   };
+  const said = (runId: string, text: string): JournalItem => ({ ...at, runId, id: `answer_${runId}`, status: "completed", completedAt: 9, streamedText: text, detail: { type: "assistant_message", text } as never });
   const agentTask = (n: number, state: "running" | "completed") => ({ id: `task_${n}`, sessionId: HOST, runId: "run_dispatch", kind: "agent" as const, state, title: n === 1 ? "List files" : "Summarise README", startedAt: 1, updatedAt: 2, ...(state === "completed" ? { completedAt: 5 } : {}), items: [] });
   const fanOut = (state: "running" | "completed") =>
     turn({ runId: "run_dispatch", prompt: "Fan out", startedAt: 1, endedAt: 9, items: [spawn(1), spawn(2), create], tasks: [agentTask(1, state), agentTask(2, state)] });
@@ -190,7 +191,7 @@ describe("two sub-agents and a builder from one turn", () => {
         directory={new Map()}
         agents={agents}
         projectId="proj"
-        renderTurn={(each) => <SessionTurn turn={each} requests={[]} sending={false} live={false} onDecide={() => {}} />}
+        renderTurn={(each, view) => <SessionTurn turn={each} requests={[]} sending={false} live={false} onDecide={() => {}} {...(view.builders ? { builders: view.builders } : {})} />}
       />,
     );
 
@@ -207,5 +208,29 @@ describe("two sub-agents and a builder from one turn", () => {
     expect(text).not.toContain("sent a result");
     expect(text).not.toContain("subagents");
     expect(text).toContain("Worked for");
+  });
+
+  test("a settled turn shows only its work fold and its answer", () => {
+    const settled = { ...fanOut("completed"), items: [spawn(1), spawn(2), create, said("run_dispatch", "All three are back.")] };
+    const text = visibleText(draw([settled], [builder("done")]));
+    expect(text).toContain("Worked for");
+    expect(text).toContain("All three are back.");
+    for (const leftover of ["subagents", "Reply OK", "Started builder", "List files"]) expect(text).not.toContain(leftover);
+  });
+
+  test("a builder drawn under its turn stays out while it works and folds in once it has ended", () => {
+    const blind = { ...create, detail: { type: "mcp_tool_call" as const, call: { name: "mcp__telar__sessions_create", input: { title: "Reply OK" } } } };
+    const dispatched = (state: "running" | "completed") => ({ ...fanOut(state), items: [spawn(1), spawn(2), blind] });
+    expect(visibleText(draw([dispatched("running")], [builder("working")]))).toContain("Reply OK");
+    expect(visibleText(draw([dispatched("completed")], [builder("done")]))).not.toContain("Reply OK");
+  });
+
+  test("the result that wakes the orchestrator sits inside that turn's work, not above it", () => {
+    const woken = arrival("run_result", "s_stranger", "result", "Done.");
+    const answered = { ...woken, startedAt: 30, endedAt: 40, items: [...woken.items, said("run_result", "Merging it now.")] };
+    const text = visibleText(draw([answered], []));
+    expect(text).toContain("Merging it now.");
+    expect(text).toContain("Worked for");
+    expect(text).not.toContain("sent a result");
   });
 });

@@ -17,6 +17,7 @@ export {
   cutAroundStandingRows,
   taskLiveness,
   groupNotificationTurns,
+  routineNotification,
   segmentActivity,
   splitAtMessageBoundaries,
   transcriptTasks,

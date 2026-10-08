@@ -202,7 +202,7 @@ export function WorkspaceCard({ hostId, session, agents, busy, backgroundTasks, 
   const github = useGitHubReady(open && publishable, session.projectId);
   const api = createEngineApi(hostFetcher(hostId));
   return (
-    <div ref={frame} className={cn("app-no-drag absolute top-3 right-3 z-20 max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl [&>*]:max-w-full", !open && "hidden")}>
+    <div ref={frame} className={cn("app-no-drag order-first mx-3 mt-3 max-h-[45%] shrink-0 overflow-y-auto rounded-2xl md:order-last md:mr-3 md:ml-0 md:max-h-[calc(100%-1.5rem)] md:self-start [&>*]:max-w-full max-md:[&>*]:w-full", !open && "hidden")}>
       <WorkspaceCardView
         path={path}
         worktree={session.workspace.mode === "worktree"}

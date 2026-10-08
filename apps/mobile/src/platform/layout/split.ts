@@ -4,11 +4,6 @@ type Action = { type: string; source?: string; payload?: object };
 
 export const SIDEBAR_WIDTH = 300;
 
-/** UIKit's horizontal size class from the window width: iPads below a half split and iPhones short of a Max in landscape are compact. */
-export function isRegularWidth(width: number, pad: boolean): boolean {
-  return width >= (pad ? 640 : 880);
-}
-
 /** Choosing a selection route from the sidebar replaces the detail column instead of stacking on it, as a split view's selection does. */
 export function selectionBase<S extends Stack>(state: S, action: Action, selection: readonly string[]): S {
   const root = state.routes[0];

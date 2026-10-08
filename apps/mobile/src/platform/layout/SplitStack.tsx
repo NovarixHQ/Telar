@@ -21,7 +21,8 @@ import { useState, type ReactNode } from "react";
 import { Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Theme, type SymbolName } from "../../ui";
-import { isRegularWidth, selectionBase, SIDEBAR_WIDTH, splitColumns } from "./split";
+import { isRegularWidth } from "./size-class";
+import { selectionBase, SIDEBAR_WIDTH, splitColumns } from "./split";
 import { SplitColumnContext, type SplitColumn } from "./split-column";
 
 type State = StackNavigationState<ParamListBase>;

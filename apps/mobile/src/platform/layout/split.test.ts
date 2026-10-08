@@ -1,23 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { isRegularWidth, selectionBase, splitColumns } from "./split";
+import { selectionBase, splitColumns } from "./split";
 
 const rail = { key: "rail-1", name: "Rail" };
 const session = { key: "session-1", name: "Session" };
 const panel = { key: "panel-1", name: "Panel" };
-
-describe("isRegularWidth", () => {
-  test("an iPad full screen is regular in both orientations, a third of one is compact", () => {
-    expect(isRegularWidth(1032, true)).toBe(true);
-    expect(isRegularWidth(1376, true)).toBe(true);
-    expect(isRegularWidth(375, true)).toBe(false);
-  });
-
-  test("an iPhone is compact except a Plus or Max in landscape", () => {
-    expect(isRegularWidth(402, false)).toBe(false);
-    expect(isRegularWidth(874, false)).toBe(false);
-    expect(isRegularWidth(956, false)).toBe(true);
-  });
-});
 
 describe("selectionBase", () => {
   const open = { routes: [rail, session, panel], index: 2 };

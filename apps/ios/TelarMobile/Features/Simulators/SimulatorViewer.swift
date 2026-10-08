@@ -7,9 +7,11 @@ struct SimulatorViewer: View {
     @Environment(\.scenePhase) private var scenePhase
 
     private let embedded: Bool
+    private let onSelect: ((String) -> Void)?
 
-    init(api: any SimulatorsAPI, simulators: [SimulatorSummary], selectedId: String? = nil, embedded: Bool = false) {
+    init(api: any SimulatorsAPI, simulators: [SimulatorSummary], selectedId: String? = nil, embedded: Bool = false, onSelect: ((String) -> Void)? = nil) {
         self.embedded = embedded
+        self.onSelect = onSelect
         _model = State(initialValue: SimulatorViewerModel(api: api, simulators: simulators, selectedId: selectedId))
     }
 
@@ -33,6 +35,9 @@ struct SimulatorViewer: View {
         .onDisappear { model.stop() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.start() } else { model.stop() }
+        }
+        .onChange(of: model.selectedId) { _, id in
+            if let id { onSelect?(id) }
         }
         .onChange(of: model.closed) { _, closed in
             if closed { dismiss() }

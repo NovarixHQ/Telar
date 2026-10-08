@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef } from "react";
 import { announcePromptShelfChanged } from "@/features/prompts";
 import { browserPanelTab, panelTabForPath, revealPanelTab, setPanelTabParams, type latestBrowserState } from "@/features/panel";
-import { agentSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped } from "@/features/simulators";
+import { sessionSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped } from "@/features/simulators";
 import { isOpenTerminal, revealTerminal, startedCommand, syncRunTabs, type RunView } from "@/features/terminal";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import { showSimulatorTab } from "../model";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 import type { useSessionSync } from "./use-session-sync";
 
-/** What the panel does when the journal says the agent opened a page, a display, a simulator, a terminal or a prompt draft. */
+/** What the panel does when the journal says the agent opened a page, a display, a terminal or a prompt draft, or anyone opened a simulator in this session. */
 export function useJournalReactions({ sync: { events }, browser, enabledPlugins, panel: { revealSurface, mayReveal, updatePanel } }: {
   sync: ReturnType<typeof useSessionSync>;
   browser: ReturnType<typeof latestBrowserState>;
@@ -40,7 +40,7 @@ export function useJournalReactions({ sync: { events }, browser, enabledPlugins,
     const display = fresh.filter((event) => event.type === "display.opened").at(-1);
     if (display?.type === "display.opened") revealSurface(panelTabForPath(display.path, enabledPlugins));
     if (fresh.some((event) => event.type === "prompt.drafted")) announcePromptShelfChanged();
-    for (const change of agentSimulatorChanges(events, mountedAt.current, seenEvents.current)) {
+    for (const change of sessionSimulatorChanges(events, mountedAt.current, seenEvents.current)) {
       updatePanel((current) => {
         if ("shown" in change) return showSimulatorTab(current, change.shown, mayReveal());
         return current.tabs

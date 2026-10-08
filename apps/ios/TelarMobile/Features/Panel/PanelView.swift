@@ -12,7 +12,7 @@ struct PanelView: View {
     let sessionId: EngineID
     let hostId: HostID?
     var simulators: [SimulatorSummary] = []
-    var agentSimulatorId: String?
+    var simulatorIds: [String] = []
     var hostName: String?
 
     let active: Bool
@@ -82,7 +82,7 @@ struct PanelView: View {
 
         case .simulator:
             if let simulatorsAPI = api as? any SimulatorsAPI {
-                SimulatorSurface(api: simulatorsAPI, running: simulators, preferred: agentSimulatorId)
+                SimulatorSurface(api: simulatorsAPI, running: simulators, sessionId: sessionId, owned: simulatorIds)
             } else {
                 unavailable
             }

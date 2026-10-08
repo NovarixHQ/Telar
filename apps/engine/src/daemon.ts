@@ -22,7 +22,7 @@ import { createRemoteStore, remoteDirFor, remoteRoutes } from "./domains/remote"
 import { schedulesRoutes } from "./domains/schedules";
 import { sessionAttachmentRoutes, sessionLifecycleRoutes, sessionReadRoutes, sessionsRoutes, sessionsSocketDoor, syncTelarSkill, type OpenStream } from "./domains/sessions";
 import { settingsRoutes } from "./domains/settings";
-import { Simulators, simulatorsRoutes, type SimulatorsDeps } from "./domains/simulators";
+import { simulatorSessionRoutes, Simulators, simulatorsRoutes, type SimulatorsDeps } from "./domains/simulators";
 import { createStorageMeter, reportBootHousekeeping, storageRoutes, sweepCheckoutsAfterBoot, type CheckoutSizesOptions } from "./domains/storage";
 import { createRunMount, runRoutes } from "./domains/terminal";
 import { sessionTurnRoutes, turnRoutes, workerRoutes } from "./domains/turns";
@@ -245,6 +245,7 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...sessionGitHubRoutes(store),
     ...sessionProviderRoutes(store, options.providerSkills),
     ...browserSessionRoutes(store),
+    ...simulatorSessionRoutes(store, simulators),
     ...pluginSessionRoutes((id) => plugins.host.ready(id)),
     ...runRoutes(store, runMount, openStreams),
     ...sessionAttachmentRoutes(store),

@@ -20,7 +20,7 @@ export function withSimulatorDropped(params: Params | undefined, id: string): Re
 
 type SimulatorEvent = { id: number; at: number; type: string; simulator?: SimulatorSummary; simulatorId?: string };
 
-export function agentSimulatorChanges(events: readonly SimulatorEvent[], since: number, seen: Set<number>): Array<{ shown: string } | { dropped: string }> {
+export function sessionSimulatorChanges(events: readonly SimulatorEvent[], since: number, seen: Set<number>): Array<{ shown: string } | { dropped: string }> {
   const changes: Array<{ shown: string } | { dropped: string }> = [];
   for (const event of events) {
     if (event.at < since || seen.has(event.id)) continue;

@@ -50,8 +50,17 @@ export function SimulatorSurface({ hostId, sessionId, visible, params, onParams,
     if (onParams) onParams(next);
     else setLocal(next);
   };
-  const show = (id: string) => remember(open.includes(id) ? open : [...open, id], id);
-  const close = (id: string) => remember(open.filter((entry) => entry !== id), active === id ? LIST : active);
+  const claim = (id: string, shown: boolean) => {
+    if (sessionId) void api.showSessionSimulator(sessionId, id, shown).catch(() => undefined);
+  };
+  const show = (id: string) => {
+    remember(open.includes(id) ? open : [...open, id], id);
+    claim(id, true);
+  };
+  const close = (id: string) => {
+    remember(open.filter((entry) => entry !== id), active === id ? LIST : active);
+    claim(id, false);
+  };
   const simulators = state?.simulators ?? [];
   const named = (id: string) => simulators.find((simulator) => simulator.id === id);
   const current = active === LIST ? undefined : named(active);
@@ -77,6 +86,7 @@ export function SimulatorSurface({ hostId, sessionId, visible, params, onParams,
       await api.shutdownSimulator(simulator.id);
       await refresh();
       if (open.includes(simulator.id)) close(simulator.id);
+      else claim(simulator.id, false);
     });
 
   return (

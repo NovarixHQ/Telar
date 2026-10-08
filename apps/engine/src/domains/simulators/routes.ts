@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { MAX_SIMULATOR_INPUT_EVENTS, SimulatorAction, SimulatorInput } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
-import { ok, type Route } from "../../platform/http/route";
+import { ok, sessionRoute, type Route } from "../../platform/http/route";
+import type { EngineStore } from "../../state";
 import { hubProxyRoute } from "./proxy";
 import type { Simulators } from "./service";
 
@@ -51,5 +52,27 @@ export function simulatorsRoutes(simulators: Simulators, fetchImpl?: typeof fetc
       },
     },
     hubProxyRoute(() => simulators.origin(), fetchImpl),
+  ];
+}
+
+export function simulatorSessionRoutes(store: EngineStore, simulators: Simulators): Route[] {
+  return [
+    {
+      method: "POST",
+      path: sessionRoute("/simulators/([^/]+)"),
+      auth: "engine",
+      async handle({ params: [sessionId, encoded], body }) {
+        if (typeof body.shown !== "boolean") throw new HttpError(400, "invalid_request", "shown must be true or false");
+        store.records.require(sessionId!);
+        const simulatorId = decodeURIComponent(encoded!);
+        if (!body.shown) {
+          store.kernel.appendEvent(sessionId!, { type: "simulator.closed", simulatorId });
+          return ok({});
+        }
+        const simulator = await simulators.summary(simulatorId);
+        store.kernel.appendEvent(sessionId!, { type: "simulator.opened", simulator });
+        return ok({ simulator });
+      },
+    },
   ];
 }

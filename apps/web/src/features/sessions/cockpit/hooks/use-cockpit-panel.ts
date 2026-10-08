@@ -32,6 +32,7 @@ import {
   type PanelTabState,
 } from "@/features/panel";
 import { useBrowserPageTabs } from "./use-browser-page-tabs";
+import { createSimulatorsApi, releaseSimulatorTab, SIMULATOR_SURFACE } from "@/features/simulators";
 import { closeTerminalTab, createRunApi, splitLegacyTerminalParams } from "@/features/terminal";
 
 /** Rail (16rem) + conversation floor (24rem) + panel floor (20rem), rounded up. */
@@ -94,6 +95,7 @@ function closeTab(panel: Strip, id: string, { hostId, sessionId, updatePanel }: 
     });
     return;
   }
+  if (sessionId && closing?.kind === SIMULATOR_SURFACE) releaseSimulatorTab(createSimulatorsApi(hostId), sessionId, closing.params);
   const pageId = closing ? browserTabId(closing.kind) : undefined;
   const bridge = desktopBrowserBridge();
   if (bridge && sessionId && pageId !== undefined) void closeNativePage(bridge, sessionId, pageId);

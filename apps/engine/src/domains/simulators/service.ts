@@ -153,6 +153,10 @@ export class Simulators {
     return this.deps.enabled() ? this.hub.origin() : undefined;
   }
 
+  async summary(id: string): Promise<SimulatorSummary> {
+    return summary(await this.find(id));
+  }
+
   async detail(id: string): Promise<SimulatorDetail> {
     this.requireReady();
     return readDetail(this.actionDeps, await this.find(id), this.now());

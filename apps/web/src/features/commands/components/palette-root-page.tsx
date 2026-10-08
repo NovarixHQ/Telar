@@ -5,8 +5,9 @@ import { ProjectAvatar, PaletteRow as Row, targetPlace } from "@/features/projec
 import type { SidebarSession } from "@/features/sessions";
 import type { ListNav } from "@/ui/hooks/use-list-nav";
 import { DialogDescription, DialogTitle } from "@/ui/dialog";
+import { fmtAgo } from "@/ui/format";
 import { KeyHint } from "./key-hint";
-import type { PaletteRow as PaletteRowModel, PaletteSection } from "../palette-model";
+import { sessionBranch, type PaletteRow as PaletteRowModel, type PaletteSection } from "../palette-model";
 import { commandIcon, iconByName } from "../command-icons";
 
 type RootRow = PaletteRowModel<SidebarSession>;
@@ -50,12 +51,25 @@ function RootResult({ row, id, on, onPick, onHover }: { row: RootRow; id: string
       />
     );
   }
+  if (row.kind === "setting") {
+    const Glyph = row.entry.icon;
+    return (
+      <Row
+        {...shared}
+        glyph={Glyph ? <Glyph className="size-4 text-muted-foreground" /> : glyphOf(iconByName("settings"))}
+        title={row.entry.title}
+        hint={[row.entry.pageLabel, row.entry.group].filter((part) => part && part !== row.entry.title).join(" › ")}
+      />
+    );
+  }
+  const branch = sessionBranch(row.session);
   return (
     <Row
       {...shared}
       glyph={<SessionGlyph className="size-4 text-muted-foreground" />}
       title={row.session.title}
-      hint={[row.session.projectName, row.session.hostName].filter(Boolean).join(" · ")}
+      hint={[row.session.projectName, branch && `#${branch}`, row.session.hostName].filter(Boolean).join(" · ")}
+      trailing={<span className="shrink-0 text-2xs text-muted-foreground tabular-nums">{fmtAgo(row.session.updatedAt)}</span>}
     />
   );
 }
@@ -81,7 +95,7 @@ export function PaletteRootPage({
     <div className="contents" onKeyDown={nav.onKeyDown}>
       <DialogTitle className="sr-only">Command palette</DialogTitle>
       <DialogDescription className="sr-only">
-        Search this app&apos;s commands, its projects, and the conversations you were last in.
+        Search this app&apos;s commands, settings, projects, and the conversations you were last in.
       </DialogDescription>
 
       <div className="flex items-center gap-2 border-b px-3 py-2.5">
@@ -90,8 +104,8 @@ export function PaletteRootPage({
           autoFocus
           value={query}
           onChange={(event) => onQuery(event.target.value)}
-          placeholder="Search commands, projects and conversations"
-          aria-label="Search commands, projects and conversations"
+          placeholder="Search commands, settings, projects and conversations"
+          aria-label="Search commands, settings, projects and conversations"
           role="combobox"
           aria-expanded={count > 0}
           aria-controls="command-palette-results"
@@ -100,7 +114,7 @@ export function PaletteRootPage({
         />
       </div>
 
-      <div id="command-palette-results" role="listbox" aria-label="Commands, projects and conversations" className="max-h-80 overflow-y-auto p-1.5">
+      <div id="command-palette-results" role="listbox" aria-label="Commands, settings, projects and conversations" className="max-h-80 overflow-y-auto p-1.5">
         {count === 0 && <p className="px-2 py-6 text-center text-xs text-muted-foreground">Nothing matches that.</p>}
         {sections.map((section, sectionAt) => (
           <div key={section.id} role="group" aria-label={section.title}>

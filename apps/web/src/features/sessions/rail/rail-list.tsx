@@ -74,7 +74,7 @@ export function RailSessionList(props: ListProps & { canStart: boolean; onAddPro
         <ContextMenuContent className="w-56">
           <ContextMenuItem disabled={!canStart} onClick={() => startSession()}>
             <MessageSquarePlusIcon />
-            New conversation
+            New session
           </ContextMenuItem>
           <ContextMenuItem onClick={onAddProject}>
             <FolderPlusIcon />

@@ -74,7 +74,7 @@ describe("a group that spans two Macs", () => {
     expect(html.match(/>Telar</g)?.length).toBe(1);
   });
 
-  test("its New conversation control asks which Mac instead of linking to one", () => {
+  test("its New session control asks which Mac instead of linking to one", () => {
     // The wrong-host mistake in one line: a `+` that quietly opened
     // `/projects/project_here/sessions/new` would start work on a machine the
     // reader never chose.

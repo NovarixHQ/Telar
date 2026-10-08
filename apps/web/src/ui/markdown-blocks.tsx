@@ -18,14 +18,18 @@ function codeText(children: unknown): string {
   return "";
 }
 
+export function InlineCode({ className, ...props }: ComponentProps<"code">) {
+  return <code className={cn("rounded border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-sm", className)} data-streamdown="inline-code" {...props} />;
+}
+
 export function MarkdownCode({ node, className, children, ...props }: ComponentProps<"code"> & ExtraProps) {
   const isIncomplete = useIsCodeFenceIncomplete();
   const [wrapped, setWrapped] = useState(false);
   if (!("data-block" in props)) {
     return (
-      <code className={cn("rounded bg-muted px-1.5 py-0.5 font-mono text-sm", className)} data-streamdown="inline-code" {...props}>
+      <InlineCode className={className} {...props}>
         {children}
-      </code>
+      </InlineCode>
     );
   }
   const meta = typeof node?.properties?.metastring === "string" ? node.properties.metastring : "";

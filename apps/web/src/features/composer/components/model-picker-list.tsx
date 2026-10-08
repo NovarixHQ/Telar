@@ -120,6 +120,7 @@ export function ModelPickerList({
             selected={from === driver && family.id === picker.selectedFamily?.id}
             starred={picker.favorites.has(family.id)}
             readOnly={readOnly}
+            showDriver={!browsing}
             onSelect={() => picker.pickFamily(family, from)}
             onStar={() => picker.starFamily(from, family.id)}
           />

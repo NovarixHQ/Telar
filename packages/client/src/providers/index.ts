@@ -16,7 +16,7 @@ export {
   windowSuffix,
 } from "./model-families";
 export { keepStarredVisible, orderByFavorite, readFavorites } from "./model-favorites";
-export { defaultModelId, splitGenerations } from "./model-generations";
+export { defaultModelId, newestFirst, splitGenerations } from "./model-generations";
 export {
   choiceNamesAnything,
   choiceOf,

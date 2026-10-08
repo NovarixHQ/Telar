@@ -7,7 +7,7 @@
  */
 import { describe, expect, test } from "bun:test";
 import type { ProviderModel } from "@telar/engine-client";
-import { defaultModelId, modelVersion, splitGenerations } from "./model-generations";
+import { defaultModelId, modelVersion, newestFirst, splitGenerations } from "./model-generations";
 
 const model = (id: string, extra: Partial<ProviderModel> = {}): ProviderModel => ({
   id,
@@ -166,5 +166,22 @@ describe("effortLabel", () => {
     expect(effortLabel("ultra")).toBe("Ultra");
     expect(effortLabel("xhigh")).toBe("Extra high");
     expect(effortLabel(undefined)).toBe("Auto");
+  });
+});
+
+describe("newestFirst", () => {
+  test("sorts versions inside a line and keeps the lines where they first appear", () => {
+    const ids = ["claude-sonnet-5", "claude-opus-5", "claude-sonnet-5-5", "claude-haiku-4-5", "claude-opus-5-5"];
+    expect(newestFirst(ids.map((id) => model(id))).map((row) => row.id)).toEqual([
+      "claude-sonnet-5-5",
+      "claude-sonnet-5",
+      "claude-opus-5-5",
+      "claude-opus-5",
+      "claude-haiku-4-5",
+    ]);
+  });
+
+  test("models with no version keep their place", () => {
+    expect(newestFirst([model("auto"), model("gpt-5.5"), model("gpt-6")]).map((row) => row.id)).toEqual(["auto", "gpt-6", "gpt-5.5"]);
   });
 });

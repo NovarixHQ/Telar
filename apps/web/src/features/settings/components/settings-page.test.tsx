@@ -37,6 +37,24 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
+test("the URL's section is drawn as a skeleton until it arrives, never as a blank pane", async () => {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  let skeleton = false;
+  const watch = new MutationObserver(() => (skeleton ||= host.querySelector('[aria-label="Loading settings"]') !== null));
+  watch.observe(host, { childList: true, subtree: true });
+  const root = createRoot(host);
+  await act(async () => root.render(<SettingsPage />));
+  expect(host.querySelector("[aria-current='page']")?.textContent).toBe("Providers");
+  for (let i = 0; i < 500 && !host.textContent?.includes("Home hub"); i++) {
+    await act(async () => await Promise.resolve());
+  }
+  watch.disconnect();
+  expect(skeleton).toBe(true);
+  expect(host.querySelector('[aria-label="Loading settings"]')).toBeNull();
+  act(() => root.unmount());
+});
+
 test("Providers keeps usage hubs in their own section after the logins, outside the list", async () => {
   const host = document.createElement("div");
   document.body.appendChild(host);

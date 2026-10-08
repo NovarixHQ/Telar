@@ -26,6 +26,8 @@ import { SETTINGS_SEARCH_INDEX } from "@/features/settings";
 import { TELAR_DARK, TELAR_LIGHT } from "@telar/engine-client";
 import { STATE_INK, TINT_FLOOR, tintCost } from "../tint-separation";
 import { readTheme } from "./theme-provider";
+import { BUILT_IN_LOOKS } from "../built-in-looks";
+import { writeLooks } from "../looks";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -171,6 +173,17 @@ describe("the Looks gallery reads as a table", () => {
     // A scroll box inside a scrolling pane is the thing the table replaced.
     expect(looksGroup()?.querySelector(".overflow-y-auto")).toBeNull();
     expect([...(looksGroup()?.querySelectorAll("*") ?? [])].some((node) => /(^|\s)max-h-/.test(node.className ?? ""))).toBe(false);
+  });
+
+  test("once saved looks make it long, it scrolls inside its group", async () => {
+    await act(async () => {
+      writeLooks(BUILT_IN_LOOKS.slice(0, 5).map((look, index) => ({ ...look, id: `saved-${index}`, label: `Saved ${index}` })));
+    });
+    expect(looksGroup()?.querySelector('[role="region"][aria-label="Looks"]')).not.toBeNull();
+    expect(looksGroup()?.querySelectorAll("tbody tr") ?? []).toHaveLength(15);
+    await act(async () => {
+      writeLooks([]);
+    });
   });
 
   test("it is one table with a row per look, headed by what the columns are", () => {

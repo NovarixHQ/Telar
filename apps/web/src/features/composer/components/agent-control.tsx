@@ -3,13 +3,14 @@
 import { effortLabel, ProviderIcon, driverLabel } from "@/features/providers";
 import { Popover, PopoverContent } from "@/ui/popover";
 import { useModelPicker, type ModelPickerProps } from "../hooks/use-model-picker";
-import { PillTrigger } from "./control-primitives";
+import { PillTrigger, useSummon } from "./control-primitives";
 import { ModelPickerList, ModelPickerRail } from "./model-picker-list";
 
 /** The model pill. A model change, or a switch to another provider's model, applies from the next turn. */
-export function AgentControl(props: ModelPickerProps) {
+export function AgentControl({ summon, ...props }: ModelPickerProps & { summon?: number | undefined }) {
   const { driver, choice, onChange, onDriverChange, onSwitchProvider } = props;
   const picker = useModelPicker(props);
+  useSummon(summon, () => picker.setOpen(true));
   const { open, label, models, catalogue, defaultEffort } = picker;
   const readOnly = !onChange;
   const effort = choice.effort ?? defaultEffort;

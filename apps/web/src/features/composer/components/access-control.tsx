@@ -5,10 +5,11 @@ import { ShieldCheckIcon } from "lucide-react";
 import type { RuntimeMode } from "@telar/engine-client";
 import { Popover, PopoverContent } from "@/ui/popover";
 import { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "@/features/providers";
-import { ChoiceRow, MenuHeading, PillTrigger } from "./control-primitives";
+import { ChoiceRow, MenuHeading, PillTrigger, useSummon } from "./control-primitives";
 
-export function AccessControl({ runtimeMode, onRuntimeMode }: { runtimeMode: RuntimeMode; onRuntimeMode: (mode: RuntimeMode) => void }) {
+export function AccessControl({ runtimeMode, onRuntimeMode, summon }: { runtimeMode: RuntimeMode; onRuntimeMode: (mode: RuntimeMode) => void; summon?: number | undefined }) {
   const [open, setOpen] = useState(false);
+  useSummon(summon, () => setOpen(true));
   const mode = RUNTIME_MODE_LABELS[runtimeMode];
   // "Auto" would read the same as the reasoning pill's Auto beside it.
   const label = runtimeMode === "auto" ? "Access" : mode;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
-import type { ProviderDriverKind, ProviderSkills, RuntimeMode } from "@telar/engine-client";
+import type { ProviderDriverKind, ProviderSkills } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import {
   availableCommands,
@@ -24,11 +24,11 @@ const api = createEngineApi();
 type CommandState = {
   busy: boolean;
   fresh: boolean;
-  runtimeMode: RuntimeMode | undefined;
+  pickers: { model: boolean; access: boolean };
   envMode: "local" | "worktree" | undefined;
   compacting: boolean | undefined;
   canResume: boolean;
-  choices: { models: { id: string; label: string }[]; efforts: string[] };
+  efforts: string[];
 };
 
 /** Read once on the first sigil, never on mount: listing is a git call, skills may spawn the harness. */
@@ -90,7 +90,7 @@ export function useComposerCompletions({
   const listSkills = sessionId ? () => api.sessionSkills(sessionId) : projectId ? () => api.projectSkills(projectId, menuDriver) : undefined;
   const skills = useLazyRead<ProviderSkills>(trigger?.kind === "skill" || trigger?.kind === "command", checkout, listSkills, { skills: [], commands: [] });
 
-  const { busy, fresh, runtimeMode, envMode, compacting, canResume, choices } = commands;
+  const { busy, fresh, pickers: { model: modelPicker, access: accessPicker }, envMode, compacting, canResume, efforts } = commands;
   const completions = useMemo<Completion[]>(() => {
     if (!trigger || dismissed) return [];
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
@@ -102,17 +102,16 @@ export function useComposerCompletions({
     const own = availableCommands({
       busy,
       fresh,
-      ...(runtimeMode ? { runtimeMode } : {}),
+      pickers: { model: modelPicker, access: accessPicker },
       ...(menuDriver ? { driver: menuDriver } : {}),
       ...(compacting ? { compacting } : {}),
       ...(envMode ? { envMode } : {}),
-      models: choices.models,
-      efforts: choices.efforts,
+      efforts,
       canResume,
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
     return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, skills.value, busy, fresh, runtimeMode, menuDriver, compacting, envMode, choices, canResume]);
+  }, [trigger, dismissed, paths.value, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, accessPicker, menuDriver, compacting, envMode, efforts, canResume]);
 
   // A list still fetching stays open and says so; `/` always has this box's own verbs to show.
   const loading = (trigger?.kind === "path" && paths.reading) || (trigger?.kind === "skill" && skills.reading);

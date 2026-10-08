@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { act } from "react";
 import { buttonLabelled, click, flush, installTestDom, mount, stubFetch } from "@/test/dom";
 import { useAppearance } from "../appearance";
@@ -8,9 +8,10 @@ installTestDom();
 
 // Delays of a second or more wait here until `runDebounced`; zero-delay timers stay real so `flush` works.
 const pending = new Map<number, () => void>();
-const [realSetTimeout, realClearTimeout] = [globalThis.setTimeout, globalThis.clearTimeout];
 let nextId = 1_000_000;
-beforeAll(() => {
+
+function fakeLongTimers(): () => void {
+  const [realSetTimeout, realClearTimeout] = [globalThis.setTimeout, globalThis.clearTimeout];
   globalThis.setTimeout = ((fn: () => void, ms?: number) => {
     if (!ms || ms < 1000) return realSetTimeout(fn, ms);
     pending.set(++nextId, fn);
@@ -19,11 +20,12 @@ beforeAll(() => {
   globalThis.clearTimeout = ((id: number) => {
     if (!pending.delete(id)) realClearTimeout(id);
   }) as typeof clearTimeout;
-});
-afterAll(() => {
-  globalThis.setTimeout = realSetTimeout;
-  globalThis.clearTimeout = realClearTimeout;
-});
+  return () => {
+    globalThis.setTimeout = realSetTimeout;
+    globalThis.clearTimeout = realClearTimeout;
+    pending.clear();
+  };
+}
 
 async function runDebounced() {
   const due = [...pending.values()];
@@ -51,29 +53,34 @@ const hostAppearance = {
 const stored = () => JSON.parse(window.localStorage.getItem("telar-appearance") ?? "{}") as Record<string, unknown>;
 
 test("a window wears the host's appearance, never overwrites it with its own defaults, and shares what it changes", async () => {
-  window.localStorage.setItem("telar-looks", "[]");
-  const calls = stubFetch({
-    "GET /api/appearance": () => ({ appearance: hostAppearance, updatedAt: 7 }),
-    "PUT /api/appearance": () => ({ ok: true, updatedAt: 8, etag: '"a8"' }),
-  });
-  const { host } = await mount(
-    <AppearanceProvider>
-      <AccentButton />
-    </AppearanceProvider>,
-  );
-  await flush(() => stored().accent === "sea");
+  const restoreTimers = fakeLongTimers();
+  try {
+    window.localStorage.setItem("telar-looks", "[]");
+    const calls = stubFetch({
+      "GET /api/appearance": () => ({ appearance: hostAppearance, updatedAt: 7 }),
+      "PUT /api/appearance": () => ({ ok: true, updatedAt: 8, etag: '"a8"' }),
+    });
+    const { host } = await mount(
+      <AppearanceProvider>
+        <AccentButton />
+      </AppearanceProvider>,
+    );
+    await flush(() => stored().accent === "sea");
 
-  expect(stored()).toMatchObject({ accent: "sea", fontSize: 15 });
-  expect(window.localStorage.getItem("telar-theme")).toBe("light");
-  expect(JSON.parse(window.localStorage.getItem("telar-composition") ?? "{}").light.base).toBe("#c88337");
-  expect(window.localStorage.getItem("telar-looks")).toBeNull();
+    expect(stored()).toMatchObject({ accent: "sea", fontSize: 15 });
+    expect(window.localStorage.getItem("telar-theme")).toBe("light");
+    expect(JSON.parse(window.localStorage.getItem("telar-composition") ?? "{}").light.base).toBe("#c88337");
+    expect(window.localStorage.getItem("telar-looks")).toBeNull();
 
-  await runDebounced();
-  expect(calls.filter((call) => call.route === "PUT /api/appearance")).toEqual([]);
+    await runDebounced();
+    expect(calls.filter((call) => call.route === "PUT /api/appearance")).toEqual([]);
 
-  await click(buttonLabelled("Rose", host));
-  await runDebounced();
-  const puts = calls.filter((call) => call.route === "PUT /api/appearance");
-  expect(puts).toHaveLength(1);
-  expect(puts[0]!.body).toMatchObject({ version: 3, accent: "rose", fontSize: 15, scheme: "light", composition: { light: { base: "#c88337" } } });
+    await click(buttonLabelled("Rose", host));
+    await runDebounced();
+    const puts = calls.filter((call) => call.route === "PUT /api/appearance");
+    expect(puts).toHaveLength(1);
+    expect(puts[0]!.body).toMatchObject({ version: 3, accent: "rose", fontSize: 15, scheme: "light", composition: { light: { base: "#c88337" } } });
+  } finally {
+    restoreTimers();
+  }
 });

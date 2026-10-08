@@ -10,6 +10,7 @@ import { hostFetcher } from "@/platform/engine/host-client";
 import { sessionHref } from "../../session-list";
 import { handOffCanvas } from "../canvas-handoff";
 import { createFromCanvas } from "../create-from-canvas";
+import type { PendingTurn } from "../pending-turn";
 import { applyCreationChoices, uploadAndSubmit } from "../start-session";
 import type { useCockpitPanel } from "./use-cockpit-panel";
 import type { useComposerDraft } from "./use-composer-draft";
@@ -33,6 +34,7 @@ type Args = {
   actions: ReturnType<typeof useSessionActions>;
   follow: RefObject<ConversationFollowHandle | null>;
   setCreatedSessionId: (id: string) => void;
+  setPending: (pending: PendingTurn | undefined) => void;
 };
 
 /** Sending the composer's message, which on a fresh canvas first creates the session; and adopting a Claude Code conversation. */
@@ -92,10 +94,13 @@ export function useSubmit(args: Args) {
           return;
         }
         const title = seedSessionTitle(text, splitImages(files).images.map((file) => file.name));
+        const shown = { runId, prompt: text, acceptedAt: Date.now() };
+        args.setPending(shown);
         const { session: created } = await createFromCanvas(api, { projectId, hostId, title, driver: draft.driver, envMode: draft.envMode, base: draft.base });
         target = created.id;
         const patched = await applyCreationChoices(api, created, draft);
         if (patched) setSession(patched);
+        args.setPending({ ...shown, sessionId: target });
         landOn(target, projectId);
         if (!patched) setSession(created);
       }
@@ -104,6 +109,7 @@ export function useSubmit(args: Args) {
       if (sessionId) await sync.hydrate();
       setError(undefined);
     } catch (cause) {
+      args.setPending(undefined);
       composer.setDraft(text);
       composer.setDraftRunId(runId);
       composer.setAttachments(files);

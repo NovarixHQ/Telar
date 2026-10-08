@@ -1,7 +1,8 @@
-export type PatchRow =
-  | { kind: "hunk"; text: string }
-  | { kind: "add" | "del" | "ctx"; text: string; old?: number; new?: number }
-  | { kind: "note"; text: string };
+import { wordChanges, type Span } from "./word-diff";
+
+type CodeRow = { kind: "add" | "del" | "ctx"; text: string; old?: number; new?: number; changed?: Span[] };
+
+export type PatchRow = { kind: "hunk"; text: string } | CodeRow | { kind: "note"; text: string };
 
 const HUNK = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/;
 
@@ -32,5 +33,41 @@ export function parsePatch(patch: string): PatchRow[] {
       inHunk = false;
     }
   }
+  markWordChanges(rows);
   return rows;
+}
+
+// Pairs each run of removed lines with the added run right after it, line by line, as git's word diff does.
+function markWordChanges(rows: PatchRow[]) {
+  let index = 0;
+  while (index < rows.length) {
+    if (rows[index]!.kind !== "del") {
+      index++;
+      continue;
+    }
+    const removedStart = index;
+    while (index < rows.length && rows[index]!.kind === "del") index++;
+    const addedStart = index;
+    while (index < rows.length && rows[index]!.kind === "add") index++;
+    const pairs = Math.min(addedStart - removedStart, index - addedStart);
+    for (let offset = 0; offset < pairs; offset++) {
+      const before = rows[removedStart + offset] as CodeRow;
+      const after = rows[addedStart + offset] as CodeRow;
+      const spans = wordChanges(before.text, after.text);
+      if (!spans) continue;
+      before.changed = spans.old;
+      after.changed = spans.new;
+    }
+  }
+}
+
+/** The old and new sides of the rows, so each can be highlighted as whole code. */
+export function patchSides(rows: PatchRow[]): { old: string[]; new: string[] } {
+  const old: string[] = [];
+  const next: string[] = [];
+  for (const row of rows) {
+    if (row.kind === "del" || row.kind === "ctx") old.push(row.text);
+    if (row.kind === "add" || row.kind === "ctx") next.push(row.text);
+  }
+  return { old, new: next };
 }

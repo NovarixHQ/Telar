@@ -1,8 +1,8 @@
 "use client";
 
 import { SettingsGroup } from "@/features/settings";
-import { BrowserLoginsRows } from "./browser-logins-section";
-import { BrowserProfilesRows, SitePermissionsRows } from "./browser-profiles-section";
+import { PasswordManagerToggles } from "./browser-logins-section";
+import { BrowserProfilesRows } from "./browser-profiles-section";
 import { LinksRow } from "./links-row";
 
 export function BrowserGroup() {
@@ -10,8 +10,7 @@ export function BrowserGroup() {
     <SettingsGroup title="Browser" scope="mac">
       <LinksRow />
       <BrowserProfilesRows />
-      <BrowserLoginsRows />
-      <SitePermissionsRows />
+      <PasswordManagerToggles />
     </SettingsGroup>
   );
 }

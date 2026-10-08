@@ -117,6 +117,19 @@ describe("per-project browser profiles", () => {
     expect(() => manager.setScopeProfile("s", "bp_00000000000000ff")).toThrow(/No browser profile/);
   });
 
+  test("clearing a profile's data wipes that profile's session and no other", async () => {
+    const cleared = [];
+    const { manager } = makeHarness();
+    manager.sessionFor = (partition) => ({
+      clearStorageData: async () => cleared.push(["storage", partition]),
+      clearCache: async () => cleared.push(["cache", partition]),
+    });
+    const work = manager.profiles.create({ label: "Work" });
+    await manager.clearProfileData(work.id);
+    expect(cleared).toEqual([["storage", work.partition], ["cache", work.partition]]);
+    await expect(manager.clearProfileData("bp_missing")).rejects.toThrow();
+  });
+
   describe("deleteProfile — what used the profile moves to the default", () => {
     test("sessions and projects assigned to it point at the default, its tabs sleep there, and no profile appears in its place", async () => {
       const { manager } = makeHarness();

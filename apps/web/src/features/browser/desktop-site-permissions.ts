@@ -4,8 +4,6 @@ export type SitePermissionKind = (typeof PERMISSION_KINDS)[number];
 type SitePermissionDecision = "allow" | "block";
 
 export type SitePermissionRecord = { kind: SitePermissionKind; decision: SitePermissionDecision; at: number };
-type SitePermissionOrigin = { origin: string; kinds: SitePermissionRecord[] };
-export type SitePermissionProfile = { partition: string; profileId: string | null; label: string; origins: SitePermissionOrigin[] };
 
 export type PermissionPromptSource = { id: string; name: string; kind: "screen" | "window"; thumbnail: string | null };
 
@@ -27,21 +25,9 @@ export type SitePermissionsBridge = {
   onPermissionDenied?(listener: (denial: PermissionDenial) => void): () => void;
   answerPermission?(input: { requestId: string; decision: "allow" | "once" | "block"; sourceId?: string }): Promise<{ answered: boolean }>;
   permissionPrompts?(scopeKey?: string): Promise<{ prompts: PermissionPrompt[] }>;
-  sitePermissions?(input: { scopeKey?: string; origin?: string }): Promise<
-    | { partition: string; origin: string; kinds: SitePermissionRecord[] }
-    | { partition: string; origins: SitePermissionOrigin[] }
-    | { kinds: SitePermissionKind[]; profiles: SitePermissionProfile[] }
-  >;
-  forgetSitePermission?(input: { partition?: string; scopeKey?: string; origin: string; kind?: SitePermissionKind }): Promise<{
-    kinds: SitePermissionKind[];
-    profiles: SitePermissionProfile[];
-  }>;
+  sitePermissions?(input: { scopeKey: string; origin: string }): Promise<{ partition: string; origin: string; kinds: SitePermissionRecord[] }>;
+  forgetSitePermission?(input: { scopeKey: string; origin: string; kind?: SitePermissionKind }): Promise<{ partition: string; origin: string; kinds: SitePermissionRecord[] }>;
 };
-
-export function desktopSitePermissions(): SitePermissionsBridge | undefined {
-  if (typeof window === "undefined") return undefined;
-  return (window as unknown as { telarDesktop?: { browser?: SitePermissionsBridge } }).telarDesktop?.browser;
-}
 
 const PERMISSION_KIND_WORDS: Record<SitePermissionKind, string> = {
   camera: "camera",

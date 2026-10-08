@@ -98,7 +98,7 @@ export async function readSitePermissionsFor(bridge: DesktopBrowserBridge, scope
   if (!bridge.sitePermissions || !origin) return [];
   try {
     const answer = await bridge.sitePermissions({ scopeKey, origin });
-    return answer && "kinds" in answer && Array.isArray(answer.kinds) ? (answer.kinds as SitePermissionRecord[]) : [];
+    return Array.isArray(answer?.kinds) ? answer.kinds : [];
   } catch {
     return [];
   }

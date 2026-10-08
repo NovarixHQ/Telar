@@ -162,7 +162,7 @@ describe("the remembered answers", () => {
     expect(reread.list(PARTITION)).toHaveLength(1);
 
     fs.writeFileSync(path.join(dir, FILE_NAME), "{not json");
-    expect(new SitePermissionStore(dir).all()).toEqual([]);
+    expect(new SitePermissionStore(dir).list(PARTITION)).toEqual([]);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -179,7 +179,7 @@ describe("the remembered answers", () => {
     expect(keeper.list(PARTITION).map((entry) => entry.origin)).toEqual(["https://maps.example"]);
     expect(keeper.forget(PARTITION, SITE)).toBe(false);
     expect(keeper.forget(PARTITION, "https://maps.example", "geolocation")).toBe(true);
-    expect(keeper.all()).toEqual([]);
+    expect(keeper.list(PARTITION)).toEqual([]);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -196,16 +196,6 @@ describe("the remembered answers", () => {
     keeper.remember(PARTITION, SITE, "notifications", "allow");
     expect(keeper.get(PARTITION, SITE, "notifications")).toBe("allow");
     expect(keeper.file).toBeNull();
-  });
-
-  test("Settings reads every decision this install holds, grouped by jar", () => {
-    const keeper = store(null);
-    keeper.remember(PARTITION, SITE, "camera", "allow");
-    keeper.remember(OTHER, "https://maps.example", "geolocation", "block");
-    expect(keeper.all()).toEqual([
-      { partition: PARTITION, origins: [{ origin: SITE, kinds: [{ kind: "camera", decision: "allow", at: 1_000 }] }] },
-      { partition: OTHER, origins: [{ origin: "https://maps.example", kinds: [{ kind: "geolocation", decision: "block", at: 1_000 }] }] },
-    ].sort((a, b) => a.partition.localeCompare(b.partition)));
   });
 });
 

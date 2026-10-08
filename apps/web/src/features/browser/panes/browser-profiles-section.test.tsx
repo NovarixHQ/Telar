@@ -83,7 +83,7 @@ async function mount() {
     host,
     /** The row a profile's name is written on. */
     row: (label: string) =>
-      [...host.querySelectorAll("span")].find((span) => span.textContent === label)?.closest("div.flex.flex-wrap") as HTMLElement,
+      [...host.querySelectorAll("span")].find((span) => span.textContent === label)?.closest("li") as HTMLElement,
     unmount: () => {
       act(() => root.unmount());
       host.remove();

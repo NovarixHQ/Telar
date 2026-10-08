@@ -2,23 +2,6 @@ import { HttpError } from "../../platform/http/http";
 import { stringValue } from "../../platform/http/params";
 import { ok, sessionRoute, type Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
-import { createLoginGrantStore } from "./login-grants";
-
-/** Read and revoke only: a login grant is created solely from an approval card. */
-export function browserRoutes(root: string): Route[] {
-  return [
-    { method: "GET", path: "/v2/browser/logins", auth: "engine", handle: () => ok({ logins: createLoginGrantStore(root).list() }) },
-    {
-      method: "DELETE",
-      path: /^\/v2\/browser\/logins\/(.*)$/,
-      auth: "engine",
-      handle({ params }) {
-        if (!createLoginGrantStore(root).revoke(params[0]!)) throw new HttpError(404, "not_found", "no such remembered login");
-        return ok({ ok: true });
-      },
-    },
-  ];
-}
 
 /** One session's shared browser: its state, a person opening a page, and the shell reporting whose hands are on it. */
 export function browserSessionRoutes(store: EngineStore): Route[] {

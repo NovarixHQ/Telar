@@ -5,16 +5,17 @@ import { createJournalProjector, hostPassiveArrivals, isActiveTurn, isCompacting
 import { questionFields } from "@/features/composer";
 import { actionableRequests } from "../failed-turn-recovery";
 import { stillWorking } from "../background-presence";
+import { withPendingTurn, type PendingTurn } from "../pending-turn";
 import type { useSessionSync } from "./use-session-sync";
 
 /** The folded transcript and what the cockpit reads off it: the live turn and open requests. */
-export function useTranscriptModel(sessionId: string | undefined, sync: ReturnType<typeof useSessionSync>) {
+export function useTranscriptModel(sessionId: string | undefined, sync: ReturnType<typeof useSessionSync>, pending?: PendingTurn) {
   const { turns, items, events, tasks, requests } = sync;
   const [projectTranscript] = useState(createJournalProjector);
   // A peer's passive report is drawn inside the turn it arrived during.
   const transcript = useMemo(
-    () => (sessionId ? hostPassiveArrivals(projectTranscript(turns, items, events, tasks)) : []),
-    [sessionId, turns, items, events, tasks, projectTranscript],
+    () => withPendingTurn(sessionId ? hostPassiveArrivals(projectTranscript(turns, items, events, tasks)) : [], pending),
+    [sessionId, turns, items, events, tasks, projectTranscript, pending],
   );
   const roster = useMemo(() => taskRoster(tasks, transcript.flatMap((turn) => turn.tasks)), [tasks, transcript]);
   const active =

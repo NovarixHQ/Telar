@@ -1,6 +1,6 @@
 const { logText, pushCapped, renderSnapshot } = require("./render");
 const { CAPTURE_TIMEOUT_MESSAGE, CAPTURE_TIMEOUT_MS, CURSOR_CLICK_LEAD_MS, CURSOR_MOVE_MS, okText, withTimeout } = require("./shared");
-const { PAGE_AT_POINT, PAGE_COPY, PAGE_FOCUSED_EDITABLE, PAGE_PASTE, capCopied, keyChord, pageLabel, pointText } = require("./page-input");
+const { PAGE_AT_POINT, PAGE_COPY, PAGE_FOCUSED_EDITABLE, PAGE_PASTE, capCopied, editChord, keyChord, pageLabel, pointText } = require("./page-input");
 const { isProtectedUrl } = require("./protected-urls");
 
 module.exports = {
@@ -322,12 +322,19 @@ module.exports = {
   async press(tab, args, action) {
     const key = String(args.key || "");
     if (!key) throw new Error("A key is required.");
-    const { keyCode, modifiers } = keyChord(key);
+    const chord = keyChord(key);
+    const edit = editChord(chord);
+    const debug = edit ? await this.ensureDebugger(tab) : undefined;
     if (action) this.checkpoint(action);
 
     this.stampAgentInput(tab, 1);
-    tab.view.webContents.sendInputEvent({ type: "keyDown", keyCode, modifiers });
-    tab.view.webContents.sendInputEvent({ type: "keyUp", keyCode, modifiers });
+    if (debug) {
+      await debug.sendCommand("Input.dispatchKeyEvent", { type: "rawKeyDown", ...edit });
+      await debug.sendCommand("Input.dispatchKeyEvent", { type: "keyUp", ...edit, commands: [] });
+    } else {
+      tab.view.webContents.sendInputEvent({ type: "keyDown", ...chord });
+      tab.view.webContents.sendInputEvent({ type: "keyUp", ...chord });
+    }
     return okText(`Pressed ${key}.`);
   },
 

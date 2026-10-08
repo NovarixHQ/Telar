@@ -142,11 +142,10 @@ async function main() {
     const appended = await untilHit(manager, tab, "document.getElementById('notes').value", "hello world");
     assert(appended === "hello world", `typing again cleared the field: ${JSON.stringify(appended)}`);
 
-    await ok("browser_press_key", { key: "Meta+A" });
+    await ok("browser_press_key", { key: "ControlOrMeta+A" });
     const keys = await evaluate(manager, tab, "__hits.keys");
     const chord = keys.find((k) => k.key.toLowerCase() === "a");
-    assert(chord && chord.meta && !chord.ctrl && !chord.alt, `Meta+A reached the page as ${JSON.stringify(keys)}`);
-    await evaluate(manager, tab, "document.getElementById('notes').select()");
+    assert(chord && chord.meta !== chord.ctrl && !chord.alt, `ControlOrMeta+A reached the page as ${JSON.stringify(keys)}`);
     await ok("browser_type", { text: "x" });
     const replaced = await untilHit(manager, tab, "document.getElementById('notes').value", "x");
     assert(replaced === "x", `typing over a selection gave ${JSON.stringify(replaced)}`);

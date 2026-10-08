@@ -5,7 +5,7 @@ import type { DeviceRole } from "@telar/engine-client";
 import type { Presence } from "./presence";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
-export const EXEMPT_PATHS = new Set(["/api/ping", "/api/pair"]);
+export const EXEMPT_PATHS = new Set(["/api/ping", "/api/pair", "/api/identity"]);
 const OBSERVER_METHODS = new Set(["GET", "HEAD"]);
 
 export type Credentials = { authorization?: string | null; deviceCookie?: string | null; hostHeader?: string | null };

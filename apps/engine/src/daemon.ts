@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
 import http from "node:http";
 import os from "node:os";
+import pkg from "../package.json" with { type: "json" };
 import path from "node:path";
-import { ENGINE_PROTOCOL_VERSION, ProviderDriverKind, type ComputerUseGrant, type EngineDiscovery, type EngineHealth, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
+import { ENGINE_PROTOCOL_VERSION, ProviderDriverKind, type ComputerUseGrant, type EngineDiscovery, type EngineHealth, type EngineIdentity, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
 import { BUNDLED_SKILLS, mcpOAuthRoutes } from "./domains/agent-tools";
 import { appearanceRoutes } from "./domains/appearance";
 import { browserRoutes, browserSessionRoutes } from "./domains/browser";
@@ -11,7 +12,7 @@ import { dictationRoutes } from "./domains/dictation";
 import { filesRoutes, sessionFilesRoutes } from "./domains/files";
 import { sessionGitRoutes } from "./domains/git";
 import { githubRoutes, sessionGitHubRoutes, type GhRunner } from "./domains/github";
-import { createHostsStore, hostsRoutes } from "./domains/hosts";
+import { createHostsStore, hostsRoutes, identityRoutes, readHostId } from "./domains/hosts";
 import { createEnginePlugins, externalPluginsDir, PluginInputError, pluginRoutes, pluginScopedRoutes, pluginSessionRoutes } from "./domains/plugins";
 import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
@@ -200,16 +201,18 @@ type RouteContext = {
   runMount: ReturnType<typeof createRunMount>;
   workers: ReturnType<typeof createWorkerRegistry>;
   health: () => EngineHealth;
+  identity: EngineIdentity;
 };
 
 function engineRoutes(ctx: RouteContext): Route[] {
-  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health } = ctx;
+  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, identity } = ctx;
   return [
     sessionsDoor.route,
     { method: "GET", path: "/v2/health", auth: "engine", handle: () => ({ status: 200, body: health() }) },
     ...filesRoutes(),
     ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket)),
     ...hostsRoutes(hostsStore),
+    ...identityRoutes(identity),
     ...mcpOAuthRoutes(store, now),
     ...aboutRoutes(root),
     ...push.routes,
@@ -332,7 +335,8 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const authorize = (auth: Route["auth"], request: http.IncomingMessage): void => {
     if (!bearerIsValid(request.headers.authorization, secrets[auth]())) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
   };
-  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health });
+  const identity: EngineIdentity = { hostId: readHostId(remoteDir), ...(hostname ? { name: hostname } : {}), appVersion: pkg.version };
+  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, identity });
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run }));
 
   try {

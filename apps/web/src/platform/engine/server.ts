@@ -151,11 +151,11 @@ type EngineAnswer = { status: number; body: unknown; headers: Headers };
 type FetchInit = { body?: string; headers?: Record<string, string>; signal?: AbortSignal };
 
 async function engineFetch(method: string, pathname: string, init: FetchInit = {}): Promise<Response> {
-  const { discovery } = await engineClient();
-  const headers = new Headers({ authorization: `Bearer ${discovery.token}`, ...init.headers });
+  const { url, headers: auth } = (await engineClient()).locate(pathname);
+  const headers = new Headers({ ...auth, ...init.headers });
   if (init.body !== undefined) headers.set("content-type", "application/json");
   try {
-    return await fetch(`http://${discovery.host}:${discovery.port}${pathname}`, {
+    return await fetch(url, {
       method,
       headers,
       ...(init.body === undefined ? {} : { body: init.body }),
@@ -218,14 +218,14 @@ export function engineProxy(request: Request): Promise<Response> {
 
 /** Streams `request` to the engine and its answer back unbuffered, for answers that may be a live stream. */
 export async function enginePipe(request: Request, pathname: string): Promise<Response> {
-  const { discovery } = await engineClient();
+  const { url, headers: auth } = (await engineClient()).locate(pathname);
   const headers = new Headers(request.headers);
   for (const name of ["cookie", "host", "connection", "content-length"]) headers.delete(name);
-  headers.set("authorization", `Bearer ${discovery.token}`);
+  headers.set("authorization", auth.authorization!);
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
   let answer: Response;
   try {
-    answer = await fetch(`http://${discovery.host}:${discovery.port}${pathname}`, {
+    answer = await fetch(url, {
       method: request.method,
       headers,
       ...(hasBody ? { body: request.body, duplex: "half" } : {}),

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { GET as identityGet } from "@/app/api/identity/route";
 import { GET as pingGet } from "@/app/api/ping/route";
 import { POST as pairPost } from "@/app/api/pair/route";
 import { GET as remoteGet, PATCH as remotePatch } from "@/app/api/remote/route";
@@ -9,7 +10,7 @@ import { POST as pairingMint } from "@/app/api/remote/pairing/route";
 import { DELETE as deviceDelete, PATCH as devicePatch } from "@/app/api/remote/devices/[deviceId]/route";
 import { DELETE as devicesDeleteOthers } from "@/app/api/remote/devices/route";
 import { HOST_HEADER } from "./host-token";
-import { dialableAddresses, isTailnetIpv4, listEndpoints } from "./endpoints";
+import { advertisedAddresses, dialableAddresses, isTailnetIpv4, listEndpoints } from "./endpoints";
 import { machineName } from "./observe";
 import { decideAccess, readRemote } from "./testing";
 import { startEngine, type EngineDaemon } from "../../../../../engine/src/daemon";
@@ -74,6 +75,15 @@ describe("pairing routes", () => {
     expect(body.ok).toBe(true);
     expect(body.proto).toBe(1);
     expect(typeof body.appVersion).toBe("string");
+  });
+
+  test("identity answers strangers with this Mac's lasting id and its addresses", async () => {
+    await freshHome();
+    expect(decideAccess({ ...readRemote(), requireAuth: true }, { pathname: "/api/identity", method: "GET" }, undefined)).toEqual({ allow: true });
+    const body = (await (await identityGet()).json()) as { hostId: string; appVersion: string; addresses: string[] };
+    expect(body.hostId).toMatch(/^host_/);
+    expect(body.addresses).toEqual(advertisedAddresses());
+    expect(body.addresses.some((url) => url.includes("127.0.0.1"))).toBe(false);
   });
 
   test("mint → exchange yields a device token and a lax http cookie", async () => {
@@ -355,6 +365,14 @@ describe("endpoint enumeration", () => {
       "http://192.168.1.20:3000",
       "http://100.110.136.102:3000",
       "https://mac.tail.ts.net",
+    ]);
+  });
+
+  test("advertised addresses put the tailnet before the local network", () => {
+    expect(advertisedAddresses(3000, nics, { TELAR_TAILSCALE_URL: "https://mac.tail.ts.net" })).toEqual([
+      "http://100.110.136.102:3000",
+      "https://mac.tail.ts.net",
+      "http://192.168.1.20:3000",
     ]);
   });
 

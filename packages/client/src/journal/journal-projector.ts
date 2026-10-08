@@ -1,5 +1,5 @@
 import type { EngineEvent, Item, Task, Turn } from "@telar/engine-client";
-import { inStartOrder, projectJournal, type JournalTurn } from "@/platform/engine/journal";
+import { inStartOrder, projectJournal, type JournalTurn } from "./journal";
 
 /**
  * `projectJournal` folded per run and cached against the identity of that run's slice, so a streamed

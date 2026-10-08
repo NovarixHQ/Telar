@@ -1,5 +1,5 @@
 import { displayToolName, isTelarMcpServer, parseToolName } from "@telar/engine-client";
-import type { JournalItem } from "@/platform/engine";
+import type { JournalItem } from "@telar/client/journal";
 import { toolInputSummary } from "./tool-input-summary";
 
 export type ToolKind = "command" | "read" | "edit" | "search" | "web" | "browser" | "page" | "terminal" | "tools" | "other";

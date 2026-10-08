@@ -1,6 +1,6 @@
 import type { SetStateAction } from "react";
 import type { EngineEvent, EngineRequest, Item, Session, SnapshotPage, Task, Turn } from "@telar/engine-client";
-import { mergeRows } from "@/platform/engine";
+import { mergeRows } from "@telar/client/journal";
 
 export type SessionData = {
   session?: Session;

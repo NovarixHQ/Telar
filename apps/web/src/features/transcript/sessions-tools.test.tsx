@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { JournalItem } from "@/platform/engine";
+import type { JournalItem } from "@telar/client/journal";
 import { TranscriptItem } from "./components/transcript-item";
 import { TranscriptSession } from "./components/message-attachments";
 import { tallyParts } from "./model";

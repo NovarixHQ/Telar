@@ -4,7 +4,7 @@ import { useContext, useState } from "react";
 import {
 ChevronRightIcon
 } from "lucide-react";
-import { type JournalTurn } from "@/platform/engine";
+import { type JournalTurn } from "@telar/client/journal";
 import { ROW } from "./transcript-fold";
 import { cn } from "@/ui/utils";
 import { builderEndings } from "../builder-endings";

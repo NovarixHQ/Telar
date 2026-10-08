@@ -1,5 +1,5 @@
 import { displayToolName } from "@telar/engine-client";
-import type { JournalItem } from "@/platform/engine";
+import type { JournalItem } from "@telar/client/journal";
 
 type Wording = { running: string; done: string; many: (count: number) => string };
 

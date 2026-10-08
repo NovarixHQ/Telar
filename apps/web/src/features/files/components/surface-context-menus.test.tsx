@@ -4,7 +4,7 @@ import { UNKNOWN_PATH, type GitFileChange, type SessionDiff } from "@telar/engin
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
 import { fileReference, REFERENCE_MIME } from "@/features/composer/drag-reference";
 import type { NotebookCell, NotebookRead } from "@/features/plugins/data-science/ds";
-import type { JournalItem, JournalTask } from "@/platform/engine";
+import type { JournalItem, JournalTask } from "@telar/client/journal";
 import type { DiffTab } from "@/features/git/diff-scope";
 import { messagePlainText, quoteForComposer } from "@/ui/message";
 import { NotebookSurface } from "@/features/plugins/data-science/notebook-surface";

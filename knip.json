@@ -56,6 +56,11 @@
         "debug"
       ]
     },
+    "packages/client": {
+      "project": [
+        "src/**/*.ts"
+      ]
+    },
     "packages/engine-client": {
       "project": [
         "src/**/*.ts",

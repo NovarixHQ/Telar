@@ -2,7 +2,7 @@
 
 import { useContext, useMemo, useState } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
-import { type JournalItem, type JournalTask } from "@/platform/engine";
+import { type JournalItem, type JournalTask } from "@telar/client/journal";
 import { cn } from "@/ui/utils";
 import { cutAroundStandingRows, failedCount, renderable } from "../model";
 import { foldHarnessRows } from "../harness-paths";

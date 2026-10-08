@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { act } from "react";
-import type { JournalItem, JournalTask } from "@/platform/engine";
+import type { JournalItem, JournalTask } from "@telar/client/journal";
 import { installTestDom, mount } from "@/test/dom";
 import { TranscriptItem } from "./transcript-item";
 

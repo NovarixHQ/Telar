@@ -25,7 +25,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { NotificationDetail } from "@telar/engine-client";
 import { SessionTurn } from "@/features/sessions/cockpit";
 import { withoutOpeningNotification } from "./model";
-import type { JournalItem, JournalTurn } from "@/platform/engine";
+import type { JournalItem, JournalTurn } from "@telar/client/journal";
 
 const WORKER = "session_worker123456";
 

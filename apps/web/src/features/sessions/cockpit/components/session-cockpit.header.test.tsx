@@ -21,7 +21,7 @@ mock.module("next/navigation", () => ({
 
 const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearConnections } = await import("@/platform/engine");
+const { clearConnections } = await import("@telar/client/journal");
 
 const STARTED = 1_700_000_000_000;
 

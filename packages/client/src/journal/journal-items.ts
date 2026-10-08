@@ -1,5 +1,5 @@
 import { displayToolName, type Item, type TurnState } from "@telar/engine-client";
-import type { JournalItem, JournalTurn } from "@/platform/engine/journal";
+import type { JournalItem, JournalTurn } from "./journal";
 
 export function isActiveTurn(state: TurnState): boolean {
   return state === "queued" || state === "claimed" || state === "running";

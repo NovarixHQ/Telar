@@ -7,7 +7,7 @@ import { ExecutionStore } from "./execution-store";
 import { turnUsage } from "../../../test/store-internals";
 
 // The cockpit's fold, loaded by a computed path so the engine typecheck stays out of the web app.
-const WEB_JOURNAL = "../../../../web/src/platform/engine/journal";
+const WEB_JOURNAL = "../../../../../packages/client/src/journal/journal";
 const { projectJournal } = (await import(WEB_JOURNAL)) as {
   projectJournal: (turns: unknown[], items: unknown[], events: unknown[]) => Array<{ usage?: UsageSnapshot }>;
 };

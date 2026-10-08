@@ -11,7 +11,7 @@ Loader2Icon,
 HourglassIcon,
 Minimize2Icon
 } from "lucide-react";
-import { itemLabel, itemText, type JournalItem, type JournalTurn } from "@/platform/engine";
+import { itemLabel, itemText, type JournalItem, type JournalTurn } from "@telar/client/journal";
 import { fmtTokens } from "@/ui/format";
 import { attachmentUrl } from "@/features/plugins";
 import { MessageMenu, MessageResponse, messagePlainText } from "@/ui/message";

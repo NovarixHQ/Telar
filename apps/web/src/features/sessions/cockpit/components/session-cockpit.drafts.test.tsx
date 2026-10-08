@@ -24,7 +24,7 @@ installNavigation();
 
 const { SessionCockpit } = await import("./session-cockpit");
 const { SidebarProvider } = await import("@/ui/sidebar");
-const { clearConnections } = await import("@/platform/engine");
+const { clearConnections } = await import("@telar/client/journal");
 const { readDraft, writeDraft } = await import("@/features/composer");
 const { runCommand } = await import("@/features/commands");
 

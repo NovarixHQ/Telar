@@ -23,7 +23,7 @@ export function PanelScreen() {
   }, [panel, params.tab]);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: state.active ? TAB_INFO[state.active].label : "Panel", headerShadowVisible: false, headerStyle: { backgroundColor: canvas } });
+    navigation.setOptions({ title: state.active ? TAB_INFO[state.active].label : "Panel", headerShadowVisible: false, headerBackButtonDisplayMode: "minimal", headerStyle: { backgroundColor: canvas } });
   }, [navigation, state.active, canvas]);
 
   return host ? <PanelView host={host} sessionId={params.sessionId} panel={panel} state={state} /> : null;

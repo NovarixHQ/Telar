@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -154,7 +154,9 @@ const pointerDown = (target: Element) => act(() => void target.dispatchEvent(new
 const cardOpen = () => workspaceToggle().getAttribute("aria-pressed") === "true";
 
 describe("the Workspace card beside a wide chat, and as a popover", () => {
-  stubBoxSize(1400, 900);
+  stubBoxSize(1500, 900);
+  beforeAll(() => document.documentElement.style.setProperty("--chat-content-max-width", "800px"));
+  afterAll(() => document.documentElement.style.removeProperty("--chat-content-max-width"));
 
   test("docked, it sits outside the transcript and stays open through Esc and clicks on the conversation", async () => {
     await show("session_header_3");

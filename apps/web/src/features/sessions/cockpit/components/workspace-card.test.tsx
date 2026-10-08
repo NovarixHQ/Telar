@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { RunView, SessionChild, SessionDiff } from "@telar/engine-client";
 import { WorkspaceCardFrame, WorkspaceCardView, type WorkspaceCardViewProps } from "./workspace-card";
-import { cardPlacement, DOCK_MIN_WIDTH, setCardPlacement, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
+import { cardPlacement, DOCK_GUTTER, setCardPlacement, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -204,9 +204,12 @@ describe("how the Workspace card opens", () => {
     expect(shown(host)).toBe(false);
   });
 
-  test("an open panel makes it a popover at any width; otherwise only a narrow chat does", () => {
-    expect(cardPlacement(DOCK_MIN_WIDTH + 400, true)).toBe("popover");
-    expect(cardPlacement(DOCK_MIN_WIDTH + 400, false)).toBe("docked");
-    expect(cardPlacement(DOCK_MIN_WIDTH - 1, false)).toBe("popover");
+  test("it docks only when the margin beside the chat lane fits it, and never with the panel open", () => {
+    const lane = 800;
+    const fits = lane + 2 * DOCK_GUTTER;
+    expect(cardPlacement(fits, lane, false)).toBe("docked");
+    expect(cardPlacement(fits, lane, true)).toBe("popover");
+    expect(cardPlacement(fits - 2, lane, false)).toBe("popover");
+    expect(cardPlacement(3000, 3000, false)).toBe("popover");
   });
 });

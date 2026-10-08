@@ -4,6 +4,7 @@ struct PanelTabStrip: View {
     let tabs: [PanelTab]
     let active: PanelTab?
     let openable: [PanelTab]
+    let label: (PanelTab) -> String
     let select: (PanelTab) -> Void
     let close: (PanelTab) -> Void
     let open: (PanelTab) -> Void
@@ -33,7 +34,7 @@ struct PanelTabStrip: View {
     private var chooser: some View {
         Menu {
             ForEach(openable) { tab in
-                Button(tab.label, systemImage: tab.icon) { open(tab) }
+                Button(label(tab), systemImage: tab.icon) { open(tab) }
             }
         } label: {
             Image(systemName: "plus")
@@ -41,6 +42,10 @@ struct PanelTabStrip: View {
                 .scaledGlyphBox(32, glyph: 13, weight: .semibold)
         }
         .accessibilityLabel("Open a surface")
+    }
+
+    private static func short(_ text: String) -> String {
+        text.count > 22 ? text.prefix(21) + "…" : text
     }
 
     private func pill(_ tab: PanelTab, labeled: Bool) -> some View {
@@ -51,7 +56,7 @@ struct PanelTabStrip: View {
                     Image(systemName: tab.icon)
                         .font(.system(Theme.footnote, weight: selected ? .semibold : .medium))
                     if labeled {
-                        Text(tab.label)
+                        Text(Self.short(label(tab)))
                             .font(.system(Theme.footnote, weight: selected ? .semibold : .medium))
                             .lineLimit(1)
                     }
@@ -63,7 +68,7 @@ struct PanelTabStrip: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(tab.label) tab")
+            .accessibilityLabel("\(label(tab)) tab")
             .accessibilityAddTraits(selected ? .isSelected : [])
             if selected {
                 Button { close(tab) } label: {
@@ -76,7 +81,7 @@ struct PanelTabStrip: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.trailing, 4)
-                .accessibilityLabel("Close \(tab.label)")
+                .accessibilityLabel("Close \(label(tab))")
             }
         }
         .foregroundStyle(selected ? Theme.text : Theme.textMuted)
@@ -91,7 +96,7 @@ struct PanelTabStrip: View {
             }
         }
         .contextMenu {
-            Button("Close \(tab.label)", systemImage: "xmark") { close(tab) }
+            Button("Close \(label(tab))", systemImage: "xmark") { close(tab) }
         }
     }
 }

@@ -14,6 +14,8 @@ struct SessionView: View {
     @State private var panel: PanelModel
     @State private var simulatorWatch = SimulatorWatch()
     @State private var agents = AgentsWatch()
+    @State private var terminalWatch = TerminalWatch()
+    @State private var browserWatch = BrowserWatch()
 
     @State private var inspectorShown = false
     @State private var pushShown = false
@@ -177,7 +179,8 @@ struct SessionView: View {
 
     private func panelView(_ presentation: PanelPresentation, canFillWindow: Bool) -> PanelView {
         PanelView(api: api, panelAPI: panelAPI, sessionId: sessionId, hostId: hostId,
-                  simulators: simulatorWatch.running, simulatorIds: store.sync.simulatorIds, hostName: hostName, active: turnActive,
+                  simulators: simulatorWatch.running, simulatorIds: store.sync.simulatorIds, hostName: hostName,
+                  terminals: terminalWatch.terminals ?? [], browser: browserWatch, active: turnActive,
                   diffRevision: PatchModel.revision(store.sync.turns), panel: panel,
                   presentation: presentation, canFillWindow: canFillWindow, onClose: { panel.close() })
     }
@@ -235,6 +238,8 @@ struct SessionView: View {
             .onChange(of: store.sync.simulatorIds) { old, new in
                 if let latest = new.last, latest != old.last, !old.contains(latest) || new.count >= old.count { panel.open(.simulator) }
             }
+            .panelFeeds(api: api, sessionId: sessionId, panel: panel, terminals: terminalWatch, browser: browserWatch,
+                        browserRevision: store.sync.browserRevision)
     }
 
     private var presence: some View {

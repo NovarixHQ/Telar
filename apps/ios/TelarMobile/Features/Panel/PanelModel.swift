@@ -15,7 +15,17 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
     static let data = PanelTab(rawValue: "data")
     static let latex = PanelTab(rawValue: "latex")
 
-    static let core: [PanelTab] = [.diff, .editor, .agents, .simulator]
+    static let terminal = PanelTab(rawValue: "terminal")
+    static let browser = PanelTab(rawValue: "browser")
+
+    static let core: [PanelTab] = [.diff, .editor, .agents, .simulator, .terminal, .browser]
+
+    static func terminal(_ id: String) -> PanelTab { PanelTab(rawValue: "terminal:\(id)") }
+    static func page(_ id: String) -> PanelTab { PanelTab(rawValue: "page:\(id)") }
+
+    var terminalId: String? { rawValue.hasPrefix("terminal:") ? String(rawValue.dropFirst(9)) : nil }
+    var pageId: String? { rawValue.hasPrefix("page:") ? String(rawValue.dropFirst(5)) : nil }
+    var isLive: Bool { terminalId != nil || pageId != nil }
 
     var label: String {
         switch self {
@@ -23,7 +33,10 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
         case .editor: "Files"
         case .agents: "Session"
         case .simulator: "Simulator"
-        default: PluginUI.surface(for: self)?.label ?? rawValue
+        case .terminal: "Terminal"
+        case .browser: "Browser"
+        default:
+            if terminalId != nil { "Terminal" } else if pageId != nil { "Page" } else { PluginUI.surface(for: self)?.label ?? rawValue }
         }
     }
 
@@ -33,7 +46,10 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
         case .editor: "folder"
         case .agents: "info.circle"
         case .simulator: "iphone"
-        default: PluginUI.surface(for: self)?.icon ?? "puzzlepiece"
+        case .terminal: "terminal"
+        case .browser: "globe"
+        default:
+            if terminalId != nil { "terminal" } else if pageId != nil { "globe" } else { PluginUI.surface(for: self)?.icon ?? "puzzlepiece" }
         }
     }
 
@@ -43,6 +59,8 @@ struct PanelTab: RawRepresentable, Codable, Hashable, Identifiable, Sendable {
         case .editor: "The checkout, file by file"
         case .agents: "What this session runs on, and who works with it"
         case .simulator: "This computer's simulators, live and controllable"
+        case .terminal: "Run a command on the computer and watch it"
+        case .browser: "The pages this session's browser has open"
         default: PluginUI.surface(for: self)?.blurb ?? ""
         }
     }
@@ -139,6 +157,10 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
 
     private(set) var pendingReference: String?
 
+    private(set) var liveTitles: [PanelTab: String] = [:]
+    @ObservationIgnored private var touchedAt = Date()
+    static let quietAfterTouch: TimeInterval = 10
+
     let hostId: HostID?
     let sessionId: EngineID
     private let defaults: UserDefaults
@@ -170,13 +192,32 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
         PanelTab.core + PluginUI.surfaces(enabled: enabledPlugins).map(\.tab)
     }
 
-    var openable: [PanelTab] { offered.filter { !tabs.contains($0) } }
+    var openable: [PanelTab] {
+        let hidden = liveTitles.keys.filter { !tabs.contains($0) }.sorted { label($0) < label($1) }
+        return offered.filter { !tabs.contains($0) } + hidden
+    }
+
+    func label(_ tab: PanelTab) -> String { liveTitles[tab] ?? tab.label }
+
+    func reconcile(_ live: [(tab: PanelTab, title: String)], kind: (PanelTab) -> Bool) {
+        let known = Set(liveTitles.keys.filter(kind))
+        let wanted = Set(live.map(\.tab))
+        for tab in known where !wanted.contains(tab) { liveTitles[tab] = nil }
+        for entry in live where liveTitles[entry.tab] != entry.title { liveTitles[entry.tab] = entry.title }
+        for tab in tabs where kind(tab) && !wanted.contains(tab) { removeTab(tab) }
+        let arrived = live.map(\.tab).filter { !known.contains($0) && !tabs.contains($0) }
+        tabs.append(contentsOf: arrived)
+        if let newest = arrived.last, active == nil || Date().timeIntervalSince(touchedAt) >= Self.quietAfterTouch {
+            active = newest
+        }
+        persist()
+    }
 
     func setPlugins(_ enabled: Set<PluginID>) {
         enabledPlugins = enabled
         pluginsRead = true
 
-        for tab in tabs where !offered.contains(tab) { removeTab(tab) }
+        for tab in tabs where !offered.contains(tab) && !tab.isLive { removeTab(tab) }
 
         for index in editor.files.indices {
             editor.files[index].view = panelView(for: editor.files[index].path, enabled: enabledPlugins)
@@ -188,6 +229,7 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
         if let tab {
             if !tabs.contains(tab) { tabs.append(tab) }
             if active != tab { active = tab }
+            touchedAt = Date()
         }
         if !isOpen { isOpen = true }
         generation += 1
@@ -212,12 +254,14 @@ func panelView(for path: String, enabled: Set<PluginID>) -> FileView {
     func toggle() { isOpen ? close() : open() }
 
     func select(_ tab: PanelTab) {
+        touchedAt = Date()
         guard active != tab, tabs.contains(tab) else { return }
         active = tab
         persist()
     }
 
     func closeTab(_ tab: PanelTab) {
+        touchedAt = Date()
         removeTab(tab)
         persist()
     }

@@ -10,6 +10,7 @@ import { hosts, useHosts } from "../hosts";
 import { feedOf, sendMessage, transcriptRows, useFeed, type TranscriptRow } from "../transcript";
 import { answerRequest, openRequests, RequestCards, stopSession } from "../turns";
 import { useRail } from "./use-rail";
+import { ReadingColumn } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
 
 function Row({ row }: { row: TranscriptRow }) {
@@ -88,23 +89,28 @@ export function SessionScreen() {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior="padding" keyboardVerticalOffset={100}>
       <ScrollView ref={scroll} contentContainerStyle={styles.content} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })}>
-        {!feed.head && !feed.failed ? <ActivityIndicator style={styles.loading} /> : null}
-        {rows.map((row) => (
-          <Row key={row.key} row={row} />
-        ))}
-        {feed.failed ? <Text style={[styles.tool, styles.failed]}>{feed.failed}</Text> : null}
+        <ReadingColumn style={styles.rows}>
+          {!feed.head && !feed.failed ? <ActivityIndicator style={styles.loading} /> : null}
+          {rows.map((row) => (
+            <Row key={row.key} row={row} />
+          ))}
+          {feed.failed ? <Text style={[styles.tool, styles.failed]}>{feed.failed}</Text> : null}
+        </ReadingColumn>
       </ScrollView>
-      <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
-      {problem || dictation.problem ? <Text style={[styles.problem, styles.failed]}>{problem ?? dictation.problem}</Text> : null}
-      {host && feed.head ? <SessionControls host={host} session={feed.head.session} onChanged={(work) => void act(() => work)} /> : null}
-      <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} mentions={mentions} {...(dictationAvailable ? { dictation } : {})} />
+      <ReadingColumn>
+        <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
+        {problem || dictation.problem ? <Text style={[styles.problem, styles.failed]}>{problem ?? dictation.problem}</Text> : null}
+        {host && feed.head ? <SessionControls host={host} session={feed.head.session} onChanged={(work) => void act(() => work)} /> : null}
+        <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} mentions={mentions} {...(dictationAvailable ? { dictation } : {})} />
+      </ReadingColumn>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#F2F2F7" },
-  content: { padding: 16, gap: 10 },
+  content: { padding: 16 },
+  rows: { gap: 10 },
   loading: { marginTop: 40 },
   bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, overflow: "hidden", fontSize: 16 },
   prompt: { alignSelf: "flex-end", maxWidth: "85%", backgroundColor: "#0A84FF", color: "white" },

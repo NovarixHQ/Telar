@@ -174,7 +174,7 @@ describe("the call sites #401 lists", () => {
     expect(caps(host)).toEqual(["⌘", "⌥", "1"]);
   });
 
-  test("the Open menu's reveal row, which is the row ⌘O acts on", async () => {
+  test("with no preferred app, the Open button wears ⌘O and the menu's reveal row ⌥⌘O", async () => {
     const bridge = {
       openers: async () => ({ openers: [] }),
       open: async () => ({ ok: true }),
@@ -186,8 +186,9 @@ describe("the call sites #401 lists", () => {
       const host = await mount(<OpenWorkspaceRow path="/work/telar" />);
       await act(async () => (host.querySelector('[aria-label="Choose an app to open this folder with"]') as HTMLElement).click());
       await hold(true);
-      const reveal = [...document.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Reveal in Finder"));
-      expect(caps(reveal as HTMLElement)).toEqual(["⌘", "O"]);
+      const [main, row] = [...document.querySelectorAll("button")].filter((button) => button.textContent?.startsWith("Reveal in Finder"));
+      expect(caps(main as HTMLElement)).toEqual(["⌘", "O"]);
+      expect(caps(row as HTMLElement)).toEqual(["⌘", "⌥", "O"]);
     } finally {
       delete (window as { telarDesktop?: unknown }).telarDesktop;
     }

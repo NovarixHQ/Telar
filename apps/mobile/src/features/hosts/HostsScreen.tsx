@@ -18,7 +18,7 @@ export function HostsScreen() {
             systemImage="desktopcomputer"
             description="Pair this phone with Telar on your computer to follow and steer its sessions."
           />
-          <Button label="Pair a computer" modifiers={[buttonStyle("glassProminent"), controlSize("large")]} />
+          <Button label="Pair a computer" onPress={() => navigation.navigate("Pair")} modifiers={[buttonStyle("glassProminent"), controlSize("large")]} />
         </VStack>
       </Host>
     );

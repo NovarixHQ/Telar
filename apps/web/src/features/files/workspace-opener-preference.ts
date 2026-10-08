@@ -20,7 +20,6 @@ export type WorkspaceOpenerEntry = {
   path?: string;
   preferred?: boolean;
   separatorBefore?: boolean;
-  shortcut?: string;
 };
 
 const KEY_PREFIX = "telar:workspace-opener:v1";
@@ -73,7 +72,6 @@ export function serverPreferredOpenerSnapshot(): string | undefined {
 export function workspaceOpenerEntries(input: {
   openers: readonly OpenerLike[];
   preferred?: string | undefined;
-  shortcut?: string | undefined;
   revealIconDataUrl?: string | undefined;
 }): WorkspaceOpenerEntry[] {
   const apps: WorkspaceOpenerEntry[] = input.openers.map((opener) => ({
@@ -104,7 +102,6 @@ export function workspaceOpenerEntries(input: {
   return ordered.map((entry, index) => ({
     ...entry,
     ...(entry === chosen ? { preferred: true } : {}),
-    ...(entry === chosen && input.shortcut ? { shortcut: input.shortcut } : {}),
     ...(index > 0 && ((index === 1 && Boolean(chosen)) || groupOf(entry) !== groupOf(ordered[index - 1]!)) ? { separatorBefore: true } : {}),
   }));
 }

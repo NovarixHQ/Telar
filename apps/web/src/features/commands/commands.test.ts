@@ -32,6 +32,7 @@ const EXPECTED_IDS: CommandId[] = [
   "send",
   "stop-turn",
   "toggle-dictation",
+  "open-in-app",
   "reveal-in-finder",
   "toggle-workspace",
   "pin-session",
@@ -116,10 +117,9 @@ describe("the registry is the one source of truth", () => {
     expect(keymapConflicts(defaultKeymap())).toEqual({});
   });
 
-  test("⌘O reveals the session's folder, and it reaches the File menu", () => {
-    const reveal = COMMANDS.find((command) => command.id === "reveal-in-finder");
-    expect(reveal).toMatchObject({ label: "Reveal in Finder", defaultChord: "CommandOrControl+O", menu: "file" });
-    expect(defaultKeymap()["reveal-in-finder"]).toBe("CommandOrControl+O");
+  test("⌘O opens the workspace in the preferred app, ⌥⌘O reveals it, and both reach the File menu", () => {
+    expect(COMMANDS.find((command) => command.id === "open-in-app")).toMatchObject({ defaultChord: "CommandOrControl+O", menu: "file" });
+    expect(COMMANDS.find((command) => command.id === "reveal-in-finder")).toMatchObject({ label: "Reveal in Finder", defaultChord: "CommandOrControl+Alt+O", menu: "file" });
   });
 
   test("⌘P pins the conversation you are reading, and says what unpinning is called", () => {

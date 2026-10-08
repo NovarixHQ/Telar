@@ -19,7 +19,7 @@ providers (claude, codex, opencode) are child processes of the worker
 
 ### Mac notification sounds
 
-NotificationCenter on macOS 26 finds a Developer ID app's custom banner sound only in `~/Library/Sounds`: copies in `Contents/Resources` or an app group container play the default alert. Desktop main copies its `telar-*.caf` files there at startup under the names the banner uses. It caches each name's lookup until it restarts, so a name that once missed keeps playing the default, and a cached file that is deleted plays nothing.
+NotificationCenter on macOS 26 finds a Developer ID app's custom banner sound only in `~/Library/Sounds`: copies in `Contents/Resources` or an app group container play the default alert. Desktop main copies Felt's `telar-felt-*.caf` files there at startup under the names the banner uses. It caches each name's lookup until it restarts, so a name that once missed keeps playing the default, and a cached file that is deleted plays nothing.
 
 ## Domains
 

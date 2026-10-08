@@ -246,3 +246,39 @@ test("a typed path that is not absolute leaves Add off rather than adding the fo
   expect(buttonLabelled("Add⌘↵", host)?.hasAttribute("disabled")).toBe(true);
   expect(submitted).toEqual([]);
 });
+
+const rows = (host: Element) => [...host.querySelectorAll('[role="option"]')].map((row) => row.textContent);
+
+test("typing after the folder narrows its listing, and Enter opens the highlighted match", async () => {
+  const { list, calls } = lister((input) =>
+    listing(input.path ?? "/Users/me/code", {
+      dirs: [
+        { name: "alpha", path: "/Users/me/code/alpha", git: true, hidden: false },
+        { name: "Apex", path: "/Users/me/code/Apex", git: false, hidden: false },
+        { name: "beta", path: "/Users/me/code/beta", git: false, hidden: false },
+      ],
+    }),
+  );
+  const host = await mountBrowser({ list });
+  expect(rows(host)).toEqual(["alpha", "Apex", "beta"]);
+
+  await type(host, "~/code/ap");
+  expect(rows(host)).toEqual(["Apex"]);
+  await type(host, "~/code/zz");
+  expect(rows(host)).toEqual([]);
+  expect(host.textContent).toContain("No folder here starts with that.");
+  await type(host, "~/code/a");
+  await key(field(host), { key: "ArrowDown" });
+  await key(field(host), { key: "Enter" });
+  await flush(() => calls.length === 2);
+  expect(calls.at(-1)).toEqual({ path: "/Users/me/code/Apex" });
+});
+
+test("⌘A and the other editing shortcuts are left to the field", async () => {
+  const host = await mountBrowser({ list: lister().list });
+  for (const letter of ["a", "c", "x", "v", "z"]) {
+    const event = new KeyboardEvent("keydown", { key: letter, metaKey: true, bubbles: true, cancelable: true });
+    await act(async () => void field(host).dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(false);
+  }
+});

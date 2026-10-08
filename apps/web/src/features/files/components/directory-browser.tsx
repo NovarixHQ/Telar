@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ArrowLeftIcon, CornerDownLeftIcon, EyeIcon, EyeOffIcon, FolderIcon, GitBranchIcon, Loader2Icon } from "lucide-react";
 import type { DirectoryEntry, DirectoryListing } from "@telar/engine-client";
-import { clampIndex, directoryKey, expandTilde, foldHome, submitPath, type DirectoryBrowserState } from "../directory-keys";
+import { clampIndex, directoryKey, expandTilde, foldHome, submitPath, visibleEntries, type DirectoryBrowserState } from "../directory-keys";
 import { createEngineApi } from "@/platform/engine";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { hasNativeFolderPicker } from "@/platform/desktop/choose-directory";
@@ -41,7 +41,10 @@ export function DirectoryBrowser({
   const { listing, field, hidden, error, loading, open, showHidden } = browse;
   const rows = useRef<HTMLDivElement>(null);
 
-  const entries = useMemo(() => listing?.dirs ?? [], [listing]);
+  const entries = useMemo(
+    () => (listing ? visibleEntries(listing.dirs, { field, path: listing.path, home: listing.home }) : []),
+    [listing, field],
+  );
   const at = clampIndex(browse.index, entries.length);
   const unlisted = unlistedPath(browse.unlisted, listing?.home);
 
@@ -111,7 +114,7 @@ export function DirectoryBrowser({
         )}
         {!loading && entries.length === 0 && !error && (
           <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-            {hidden ? "Nothing but files in here." : "No folders in here — ⌘. shows dotfolders."}
+            {listing?.dirs.length ? "No folder here starts with that." : hidden ? "Nothing but files in here." : "No folders in here — ⌘. shows dotfolders."}
           </p>
         )}
         {entries.map((entry, row) => (

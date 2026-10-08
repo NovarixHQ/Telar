@@ -76,16 +76,23 @@ function commonPrefix(names: readonly string[]): string {
   return prefix;
 }
 
+export function typedName({ field, path, home }: { field: string; path: string; home: string }): string | undefined {
+  const cut = field.lastIndexOf(SEP);
+  if (cut === -1 || !path) return undefined;
+  return expandTilde(field.slice(0, cut + 1), home) === trimEnd(path) ? field.slice(cut + 1) : undefined;
+}
+
+export function visibleEntries<T extends { name: string }>(entries: readonly T[], at: { field: string; path: string; home: string }): readonly T[] {
+  const seed = typedName(at)?.toLocaleLowerCase();
+  return seed ? entries.filter((entry) => entry.name.toLocaleLowerCase().startsWith(seed)) : entries;
+}
+
 /** Completes only against the listing on screen; a unique match descends. */
 export function completion(state: DirectoryBrowserState): string | undefined {
-  const cut = state.field.lastIndexOf(SEP);
-  if (cut === -1) return undefined;
-  const directory = state.field.slice(0, cut + 1);
-  const seed = state.field.slice(cut + 1);
+  const seed = typedName(state);
   if (!seed) return undefined;
-  if (expandTilde(directory, state.home) !== trimEnd(state.path)) return undefined;
-  const lower = seed.toLocaleLowerCase();
-  const matches = state.entries.filter((entry) => entry.name.toLocaleLowerCase().startsWith(lower));
+  const directory = state.field.slice(0, state.field.lastIndexOf(SEP) + 1);
+  const matches = visibleEntries(state.entries, state);
   if (matches.length === 0) return undefined;
   if (matches.length === 1) return `${directory}${matches[0]!.name}${SEP}`;
   const shared = commonPrefix(matches.map((entry) => entry.name));
@@ -115,8 +122,9 @@ export function directoryKey(state: DirectoryBrowserState, key: DirectoryKey): D
   }
 
   if (key.key === "Enter") {
-    if (edited(state)) return { type: "open", path: expandTilde(state.field, state.home) };
     const row = state.entries[clampIndex(state.index, state.entries.length)];
+    if (row && typedName(state)) return { type: "open", path: row.path };
+    if (edited(state)) return { type: "open", path: expandTilde(state.field, state.home) };
     return row ? { type: "open", path: row.path } : { type: "none" };
   }
 

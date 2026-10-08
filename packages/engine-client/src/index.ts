@@ -9,6 +9,7 @@ export * from "./git/schema";
 export * from "./github/query";
 export * from "./github/schema";
 export * from "./hosts/schema";
+export { normalizeBaseUrl, parsePairingUrl } from "./hosts/pairing";
 export * from "./icons";
 export * from "./plugins/schema";
 export * from "./plugins/toolchains";

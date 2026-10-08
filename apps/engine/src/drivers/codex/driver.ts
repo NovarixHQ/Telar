@@ -1,6 +1,7 @@
 import type { TurnObservation } from "@telar/engine-client";
 import { requireCwd, type DriverResult, type DriverRun, type TurnDriver } from "../contract";
-import { CodexAppServer, resolveCodexBinary } from "./app-server";
+import { CodexAppServer, CodexRpcError, resolveCodexBinary } from "./app-server";
+import { inlineCarriedContext } from "../carried-context";
 import { record, str } from "./items";
 import { answerCodexRequests } from "./requests";
 import { pumpCodexSteers } from "./steer";
@@ -95,7 +96,7 @@ async function runCodexTurn(options: CodexDriverOptions, run: DriverRun): Promis
     }
 
     if (run.compact) await client.request("thread/compact/start", { threadId: turn.threadId });
-    else await startTurn(client, run, turn, emit, { cwd, model, threadConfig, effort: run.effort ?? options.effort, serviceTier: options.serviceTier });
+    else await startTurn(client, await injectCarriedContext(client, turn.threadId, run), turn, emit, { cwd, model, threadConfig, effort: run.effort ?? options.effort, serviceTier: options.serviceTier });
 
     for (;;) {
       const { value: notification, done } = await client.notifications.next();
@@ -115,6 +116,22 @@ async function runCodexTurn(options: CodexDriverOptions, run: DriverRun): Promis
   } finally {
     signal.removeEventListener("abort", abort);
     client.kill();
+  }
+}
+
+const METHOD_NOT_FOUND = -32601;
+
+async function injectCarriedContext(client: CodexAppServer, threadId: string, run: DriverRun): Promise<DriverRun> {
+  if (!run.carriedContext) return run;
+  try {
+    await client.request("thread/inject_items", {
+      threadId,
+      items: [{ type: "message", role: "user", content: [{ type: "input_text", text: run.carriedContext }] }],
+    });
+    return run;
+  } catch (error) {
+    if (!(error instanceof CodexRpcError && error.code === METHOD_NOT_FOUND)) throw error;
+    return { ...run, prompt: inlineCarriedContext(run.carriedContext, run.prompt) };
   }
 }
 

@@ -13,7 +13,7 @@ export function TerminalPane(props: {
   onTerminalId: (id: string) => void;
   /** What the shell called itself through OSC 0/2. */
   onTitle: (title: string) => void;
-  /** The shell the strip shows: only this one fits and takes the keyboard. */
+  /** Fits and takes the keyboard; an inactive pane stays mounted, hidden. */
   active: boolean;
   /** The panel is on screen; a closing panel stays mounted at zero width. */
   visible: boolean;

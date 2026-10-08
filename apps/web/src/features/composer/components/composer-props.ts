@@ -65,4 +65,5 @@ export type ComposerProps = {
   resumeAfterRateLimitDefault?: boolean;
   /** Takes the whole next choice. Absent makes every picker read-only. */
   onModelChange?: (next: ModelChoice) => void;
+  onSwitchProvider?: (driver: ProviderDriverKind, next: ModelChoice) => void;
 };

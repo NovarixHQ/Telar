@@ -11,7 +11,7 @@ export const CLAUDE_CAPABILITIES: DriverCapabilities = {
   liveSteering: true,
   compaction: "native",
   backgroundTaskStop: true,
-  contextInjection: "native",
+  contextInjection: "inline",
   fork: true,
   usageLimits: true,
 };
@@ -29,7 +29,7 @@ export const OPENCODE_CAPABILITIES: DriverCapabilities = {
   liveSteering: false,
   compaction: "none",
   backgroundTaskStop: false,
-  contextInjection: "native",
+  contextInjection: "inline",
   fork: false,
   usageLimits: false,
 };

@@ -24,6 +24,7 @@ Use these words. When you name things in code, use them too.
 - **agent tools**: the MCP tools Telar gives agents (`sessions_*`, `notes_*`, `prompt_*`, `display_*`, `terminal_*`, browser tools). They are assembled once by `telarWall`.
 - **request**: a permission prompt parked for a person (the permission gate).
 - **steering**: a message sent into a turn that is already running.
+- **Switch provider**: moving a session to another provider mid-conversation; the new provider gets the turns it has not seen as context.
 - **settled**: a session shelved out of the active rail. **Snoozed**: shelved until a time.
 - **peer / builder**: a session another session created to do work. **Orchestrator**: the session that tasks builders.
 - **plugin**: an optional feature a project enables, such as Data Science or LaTeX, or an external plugin under `<TELAR_HOME>/plugins`.

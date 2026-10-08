@@ -32,7 +32,7 @@ import {
   type PanelTabParams,
   type PanelTabState,
 } from "@/features/panel";
-import { closeTerminalTab, createRunApi, foldTerminalParams } from "@/features/terminal";
+import { closeTerminalTab, createRunApi, splitLegacyTerminalParams } from "@/features/terminal";
 
 /** Rail (16rem) + conversation floor (24rem) + panel floor (20rem), rounded up. */
 const NARROW_WINDOW = 1280;
@@ -42,12 +42,29 @@ type Strip = PanelTabState<PanelTab>;
 function restorePanel(panelKey: string): { panel: Strip; editors: Record<string, EditorState> } {
   const restored = readPanelTabs<PanelTab>(panelKey, isRestorablePanelTab);
   const browsers = desktopBrowserBridge() ? collapsePanelTabs(restored, (tab) => browserTabId(tab) !== undefined, LIVE_BROWSER_TAB) : restored;
-  const panel = collapsePanelTabs(browsers, (tab) => tab === "terminal", "terminal", foldTerminalParams);
+  const panel = splitTerminalTabs(browsers);
   const editors: Record<string, EditorState> = { editor: readEditor(panelKey) };
   for (const entry of panel.tabs) {
     if (entry.kind === "editor" && !(entry.id in editors)) editors[entry.id] = readEditor(editorInstanceKey(panelKey, entry.id));
   }
   return { panel, editors };
+}
+
+/** A Terminal tab saved with a strip of shells becomes one tab per shell. Delete after 2027-01-31. */
+function splitTerminalTabs(state: Strip): Strip {
+  if (!state.tabs.some((tab) => tab.kind === "terminal" && "shells" in tab.params)) return state;
+  let next: Strip = { ...state, tabs: [] };
+  for (const tab of state.tabs) {
+    if (tab.kind !== "terminal") {
+      next = { ...next, tabs: [...next.tabs, tab] };
+      continue;
+    }
+    splitLegacyTerminalParams(tab.params).forEach((params, index) => {
+      const id = index === 0 ? tab.id : nextPanelTabId({ ...next, tabs: [...next.tabs, ...state.tabs] }, "terminal");
+      next = { ...next, tabs: [...next.tabs, { id, kind: "terminal", params }] };
+    });
+  }
+  return next;
 }
 
 function editorTargetId(state: Strip) {

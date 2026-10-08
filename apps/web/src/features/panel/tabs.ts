@@ -110,19 +110,15 @@ export function movePanelTab<Kind extends string>(state: PanelTabState<Kind>, id
   return { ...state, tabs: [...rest.slice(0, to), moved, ...rest.slice(to)] };
 }
 
-/**
- * Collapse every tab of a kind into ONE at the first one's position, for layouts saved before that kind grew an inner
- * strip. `fold` merges their params so no running shell is orphaned. Idempotent by identity: it runs on every restore.
- */
+/** Collapse every tab of a kind into ONE at the first one's position. Idempotent by identity: it runs on every restore. */
 export function collapsePanelTabs<Kind extends string>(
   state: PanelTabState<Kind>,
   isCollapsed: (kind: Kind) => boolean,
   single: Kind,
-  fold: (each: readonly PanelTabParams[]) => PanelTabParams = () => ({}),
 ): PanelTabState<Kind> {
   const folded = state.tabs.filter((tab) => isCollapsed(tab.kind));
   if (folded.length === 0) return state;
-  const collapsed: PanelTabInstance<Kind> = { id: single, kind: single, params: fold(folded.map((tab) => tab.params)) };
+  const collapsed: PanelTabInstance<Kind> = { id: single, kind: single, params: {} };
   const tabs: PanelTabInstance<Kind>[] = [];
   for (const tab of state.tabs) {
     if (!isCollapsed(tab.kind)) tabs.push(tab);

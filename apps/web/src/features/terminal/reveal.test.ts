@@ -1,24 +1,17 @@
-/**
- * A TERMINAL THAT OPENS PUTS ITSELF IN THE PANEL — the item, never the panel.
- *
- * Every assertion here is one half of the owner's rule: the Terminal tab and
- * the terminal's chip EXIST, whatever the panel is doing, and nothing the
- * person chose — the active tab, the active chip, whether the panel shows —
- * moves because an agent or a Run press opened something.
- */
 import { describe, expect, test } from "bun:test";
 import type { RunView } from "./run/types";
 import type { PanelTabInstance, PanelTabState } from "@/features/panel";
-import { freshTerminals, openTerminal, revealTerminal, TERMINAL_PANEL_KIND } from "./reveal";
-import { addShell, emptyWorkspace, readWorkspace, runShells, shellForRun, workspaceParams } from "./workspace";
+import { openTerminal, revealTerminal, syncRunTabs } from "./reveal";
+import { readTerminalTab, terminalTabParams } from "./tab";
 
 const view = (over: Partial<RunView> = {}): RunView => ({
   terminalId: "term_1",
-  runId: "term_1",
+  runId: "run_1",
   projectId: "project_1",
   sessionId: "session_1",
   origin: "agent",
   title: "vite",
+  configId: "cfg_web",
   configName: "vite",
   command: "bun run dev",
   worktreePath: "/fixtures/telar",
@@ -32,114 +25,82 @@ const view = (over: Partial<RunView> = {}): RunView => ({
 });
 
 const diff: PanelTabInstance<string> = { id: "diff", kind: "diff", params: {} };
-const terminalTab = (state: PanelTabState<string>) => state.tabs.find((tab) => tab.kind === TERMINAL_PANEL_KIND);
-const workspaceOf = (state: PanelTabState<string>) => readWorkspace(terminalTab(state)?.params ?? {});
+const shellTab: PanelTabInstance<string> = { id: "terminal", kind: "terminal", params: terminalTabParams({ terminalId: "pty_1", title: "zsh" }) };
+const tabOf = (state: PanelTabState<string>, id: string) => readTerminalTab(state.tabs.find((tab) => tab.id === id)?.params ?? {});
 
 describe("revealTerminal", () => {
-  test("an agent's terminal_open adds the Terminal tab without changing the active tab", () => {
-    const state: PanelTabState<string> = { tabs: [diff], activeTab: "diff", open: true };
-    const next = revealTerminal(state, view(), TERMINAL_PANEL_KIND);
-    expect(next.tabs.map((tab) => tab.id)).toEqual(["diff", "terminal"]);
-    expect(next.activeTab).toBe("diff");
-    expect(next.open).toBe(true);
-  });
-
-  test("a new agent or run terminal adds the tab and moves neither the active tab nor `open`, in all four panel states", () => {
+  test("a run gets its own tab, unselected, in every panel state", () => {
     const cases: PanelTabState<string>[] = [
-      { tabs: [diff], activeTab: "diff", open: false }, // hidden, on another tab
-      { tabs: [diff], activeTab: "diff", open: true }, // showing another tab
-      { tabs: [], open: true }, // showing the empty chooser
-      { tabs: [], open: false }, // hidden and empty
+      { tabs: [diff], activeTab: "diff", open: false },
+      { tabs: [diff], activeTab: "diff", open: true },
+      { tabs: [], open: true },
+      { tabs: [], open: false },
     ];
-    for (const origin of ["agent", "run"] as const) {
-      for (const state of cases) {
-        const next = revealTerminal(state, view({ origin, configId: origin === "run" ? "cfg_web" : undefined }), TERMINAL_PANEL_KIND);
-        expect(next.tabs.map((tab) => tab.id)).toEqual([...state.tabs.map((tab) => tab.id), "terminal"]);
-        expect(next.activeTab).toBe(state.activeTab);
-        expect(next.open).toBe(state.open);
-        // The chip exists in the tab's own workspace even though no surface is
-        // mounted to have put it there.
-        expect(shellForRun(workspaceOf(next), "term_1")?.terminalId).toBe("term_1");
-      }
+    for (const state of cases) {
+      const next = revealTerminal(state, view(), "terminal");
+      expect(next.tabs.map((tab) => tab.id)).toEqual([...state.tabs.map((tab) => tab.id), "terminal"]);
+      expect(next.activeTab).toBe(state.activeTab);
+      expect(next.open).toBe(state.open);
+      expect(tabOf(next, "terminal")).toEqual({ terminalId: "term_1", title: "vite", run: { runId: "run_1", configId: "cfg_web" } });
     }
   });
 
-  test("the chip joins an existing strip without becoming the active chip", () => {
-    const shells = addShell(addShell(emptyWorkspace()));
-    const state: PanelTabState<string> = {
-      tabs: [diff, { id: "terminal", kind: "terminal", params: workspaceParams(shells) }],
-      activeTab: "terminal",
-      open: true,
-    };
-    const next = revealTerminal(state, view({ origin: "run", configId: "cfg_web", title: "web dev" }), TERMINAL_PANEL_KIND);
-    const workspace = workspaceOf(next);
-    expect(workspace.shells.map((shell) => shell.id)).toEqual(["shell", "shell#2", "run"]);
-    expect(workspace.active).toBe("shell#2");
-    expect(runShells(workspace)[0]?.run).toEqual({ runId: "term_1", configId: "cfg_web" });
-    // One Terminal tab, not a second one per terminal.
-    expect(next.tabs.map((tab) => tab.id)).toEqual(["diff", "terminal"]);
+  test("a run that already has a tab leaves the state as it was", () => {
+    const once = revealTerminal({ tabs: [diff], activeTab: "diff", open: false }, view(), "terminal");
+    expect(revealTerminal(once, view({ title: "renamed" }), "terminal")).toBe(once);
+  });
+
+  test("two runs get two tabs", () => {
+    const once = revealTerminal({ tabs: [], open: false }, view(), "terminal");
+    const twice = revealTerminal(once, view({ terminalId: "term_2", runId: "run_2", title: "vite #2" }), "terminal");
+    expect(twice.tabs.map((tab) => tab.id)).toEqual(["terminal", "terminal#2"]);
+    expect(tabOf(twice, "terminal#2").run?.runId).toBe("run_2");
+  });
+
+  test("a shell tab is not mistaken for the run's", () => {
+    const next = revealTerminal({ tabs: [shellTab], activeTab: "terminal", open: true }, view(), "terminal");
+    expect(next.tabs.map((tab) => tab.id)).toEqual(["terminal", "terminal#2"]);
     expect(next.activeTab).toBe("terminal");
-  });
-
-  test("a strip with no chip at all takes the new one as its active chip — the tab stays unselected", () => {
-    const next = revealTerminal({ tabs: [diff], activeTab: "diff", open: false }, view(), TERMINAL_PANEL_KIND);
-    expect(workspaceOf(next).active).toBe("run");
-    expect(next.activeTab).toBe("diff");
-  });
-
-  test("a terminal already in the strip is the same state, so nothing is rewritten", () => {
-    const once = revealTerminal({ tabs: [diff], activeTab: "diff", open: false }, view(), TERMINAL_PANEL_KIND);
-    expect(revealTerminal(once, view(), TERMINAL_PANEL_KIND)).toBe(once);
-  });
-
-  test("a second terminal gets its own chip in the same tab", () => {
-    const once = revealTerminal({ tabs: [], open: false }, view(), TERMINAL_PANEL_KIND);
-    const twice = revealTerminal(once, view({ terminalId: "term_2", runId: "term_2", title: "vite #2", startedAt: 300 }), TERMINAL_PANEL_KIND);
-    expect(workspaceOf(twice).shells.map((shell) => shell.title)).toEqual(["vite", "vite #2"]);
-    expect(workspaceOf(twice).active).toBe("run");
-    expect(twice.tabs.length).toBe(1);
   });
 });
 
-describe("freshTerminals", () => {
-  const mountedAt = 150;
+describe("syncRunTabs", () => {
+  const withRun = (run = view()) => revealTerminal({ tabs: [diff, shellTab], activeTab: "diff", open: true }, run, "terminal");
 
-  test("terminals from before the mount are not news, so a reload does not re-add a closed tab", () => {
-    // The feed's first act is reading /run/status, which lists everything the
-    // session already had. The person closed the Terminal tab before reloading.
-    const closed: PanelTabState<string> = { tabs: [diff], activeTab: "diff", open: true };
-    const replayed = [view({ terminalId: "old", runId: "old", startedAt: 100 })];
-    const fresh = freshTerminals(replayed, mountedAt, new Set());
-    expect(fresh).toEqual([]);
-    expect(fresh.reduce((state, run) => revealTerminal(state, run, TERMINAL_PANEL_KIND), closed)).toBe(closed);
+  test("a run's tab follows the feed's title and terminal", () => {
+    const next = syncRunTabs(withRun(), [view({ title: "web", terminalId: "term_9" })], "terminal");
+    expect(tabOf(next, "terminal#2")).toEqual({ terminalId: "term_9", title: "web", run: { runId: "run_1", configId: "cfg_web" } });
   });
 
-  test("one opened after the mount counts once, and its later frames do not bring back a closed chip", () => {
-    const opened = view({ startedAt: 200 });
-    expect(freshTerminals([opened], mountedAt, new Set()).map((run) => run.terminalId)).toEqual(["term_1"]);
-    // The frame that reports the person closing it arrives after it was seen.
-    expect(freshTerminals([{ ...opened, status: "closed", closedBy: "person" }], mountedAt, new Set(["term_1"]))).toEqual([]);
+  test("a run that ended loses its tab", () => {
+    const next = syncRunTabs(withRun(), [view({ status: "closed", closedBy: "person" })], "terminal");
+    expect(next.tabs.map((tab) => tab.id)).toEqual(["diff", "terminal"]);
   });
 
-  test("only open terminals count, oldest first", () => {
-    const answer = [
-      view({ terminalId: "b", runId: "b", startedAt: 300 }),
-      view({ terminalId: "gone", runId: "gone", startedAt: 250, status: "closed", closedBy: "person" }),
-      view({ terminalId: "a", runId: "a", startedAt: 200, status: "ready" }),
-    ];
-    expect(freshTerminals(answer, mountedAt, new Set()).map((run) => run.terminalId)).toEqual(["a", "b"]);
+  test("a run the engine no longer lists is closed only on the first read", () => {
+    const state = withRun();
+    expect(syncRunTabs(state, [], "terminal")).toBe(state);
+    expect(syncRunTabs(state, [], "terminal", { dropMissing: true }).tabs.map((tab) => tab.id)).toEqual(["diff", "terminal"]);
+  });
+
+  test("shell tabs are left alone, even with dropMissing", () => {
+    const state: PanelTabState<string> = { tabs: [diff, shellTab], activeTab: "terminal", open: true };
+    expect(syncRunTabs(state, [], "terminal", { dropMissing: true })).toBe(state);
+  });
+
+  test("a feed that changes nothing returns the same state", () => {
+    const state = withRun();
+    expect(syncRunTabs(state, [view()], "terminal")).toBe(state);
   });
 });
 
 describe("openTerminal", () => {
-  test("a row in the Workspace card opens the panel on that terminal", () => {
+  test("a row in the Workspace card selects that run's tab and opens the panel", () => {
     const state: PanelTabState<string> = { tabs: [diff], activeTab: "diff", open: false };
-    const other = revealTerminal(state, view({ terminalId: "a", runId: "a" }), TERMINAL_PANEL_KIND);
-    const next = openTerminal(other, view({ terminalId: "b", runId: "b" }), TERMINAL_PANEL_KIND);
+    const other = revealTerminal(state, view({ terminalId: "a", runId: "a" }), "terminal");
+    const next = openTerminal(other, view({ terminalId: "b", runId: "b" }), "terminal");
     expect(next.open).toBe(true);
-    expect(next.activeTab).toBe(terminalTab(next)?.id);
-    const workspace = workspaceOf(next);
-    expect(workspace.active).toBe(shellForRun(workspace, "b")?.id);
-    expect(runShells(workspace)).toHaveLength(2);
+    expect(tabOf(next, next.activeTab!).run?.runId).toBe("b");
+    expect(openTerminal(next, view({ terminalId: "a", runId: "a" }), "terminal").tabs).toHaveLength(3);
   });
 });

@@ -58,7 +58,7 @@ const ISSUE_PREFIX = "issue:";
 const PULL_PREFIX = "pull:";
 const FILE_TAB_PREFIXES = [FILE_PREFIX, NOTEBOOK_PREFIX, TABLE_PREFIX, PDF_PREFIX] as const;
 
-const MULTI_INSTANCE: ReadonlySet<string> = new Set<string>(["editor", "diff"]);
+const MULTI_INSTANCE: ReadonlySet<string> = new Set<string>(["editor", "diff", "terminal"]);
 
 const LIVE_BROWSER_PAGE_ID = "__integrated__";
 /** The desktop shell's one Browser tab: the native view draws its own per-page strip. */
@@ -233,14 +233,22 @@ function livePageSuffix(live?: readonly LivePage[]): string | undefined {
   }
 }
 
-/** The suffix appears only while a sibling of the same kind is open (`duplicate`). */
+/** `terminal#3` is the third; the first instance's id is its bare kind. Shells have nothing else to tell them apart. */
+function instanceOrdinal(id: string): string {
+  const match = /#(\d+)$/.exec(id);
+  return match ? match[1] : "1";
+}
+
+/** A `title` param names the tab outright; otherwise a suffix appears only while a sibling of the same kind is open. */
 export function describePanelTabInstance(
   tab: PanelTabItem,
   options: { browser?: BrowserState; live?: readonly LivePage[]; duplicate?: boolean} = {},
 ): TabDescription {
-  const described = describePanelTab(tab.kind, options.browser, options.live);
-  if (!options.duplicate) return described;
-  const suffix = panelTabSuffix(tab.params) ?? (tab.kind === LIVE_BROWSER_TAB ? livePageSuffix(options.live) : undefined);
+  const base = describePanelTab(tab.kind, options.browser, options.live);
+  const title = tab.params.title;
+  const described = title ? { ...base, label: title, blurb: title } : base;
+  if (!options.duplicate || title) return described;
+  const suffix = panelTabSuffix(tab.params) ?? (tab.kind === LIVE_BROWSER_TAB ? livePageSuffix(options.live) : undefined) ?? (tab.kind === "terminal" ? instanceOrdinal(tab.id) : undefined);
   if (!suffix) return described;
   return { ...described, label: `${described.label} · ${suffix}`, blurb: `${described.blurb} — ${suffix}` };
 }

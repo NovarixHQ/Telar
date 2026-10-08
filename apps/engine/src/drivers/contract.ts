@@ -63,6 +63,7 @@ export type DriverRun = {
   telarSocketLease?: { url: string; token: string; generation: string };
   transcript?(options?: { turns?: number }): Promise<Item[]>;
   providerSessionId?: string;
+  carriedContext?: string;
   tasks?: TaskSeed[];
   session?: DriverSessionHooks;
   onObservations(observations: TurnObservation[]): Promise<void>;

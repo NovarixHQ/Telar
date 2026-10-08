@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Artifact } from "../agent-tools/schema";
-import { Id, ProviderRefs, RateLimitType, Timestamp, TurnAttachment } from "./common";
+import { Id, ProviderDriverKind, ProviderInstanceId, ProviderRefs, RateLimitType, Timestamp, TurnAttachment } from "./common";
 import { NotificationDetail, WakeReason } from "./entities";
 
 export const ToolItemType = z.enum([
@@ -38,6 +38,7 @@ export const ItemType = z.enum([
   /** The provider compacted its own context mid-turn. Worth a visible row: it
    *  explains why the agent appears to forget something. */
   "context_compaction",
+  "provider_switch",
   "error",
   "unknown",
 ]);
@@ -206,6 +207,12 @@ export const ItemDetail = z.discriminatedUnion("type", [
      *  the row's whole story: what it reclaimed. */
     preTokens: z.number().int().nonnegative().optional(),
     postTokens: z.number().int().nonnegative().optional(),
+  }),
+  z.object({
+    type: z.literal("provider_switch"),
+    from: z.object({ driver: ProviderDriverKind, instanceId: ProviderInstanceId, model: z.string().optional() }),
+    to: z.object({ driver: ProviderDriverKind, instanceId: ProviderInstanceId, model: z.string().optional() }),
+    carriedTurns: z.number().int().nonnegative(),
   }),
   z.object({ type: z.literal("provider_wait"), wait: ProviderWaitDetail }),
   z.object({ type: z.literal("conversation_import"), import: ConversationImportDetail }),

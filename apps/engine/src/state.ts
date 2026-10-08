@@ -606,6 +606,7 @@ export class EngineStore {
   private createClaims(): TurnClaims {
     return new TurnClaims(this.kernel, {
       records: this.records,
+      items: this.sessionItems,
       tasks: this.sessionTasks,
       requests: this.sessionRequests,
       mailbox: this.mailbox,

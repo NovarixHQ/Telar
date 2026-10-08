@@ -223,7 +223,11 @@ export const Session = z.object({
   snoozedAt: Timestamp.optional(),
   wokeAt: Timestamp.optional(),
 
+  resumeCursors: z.record(ProviderInstanceId, z.string().min(1)).optional(),
+  /** Remove 2026-12-01: `resumeCursors[providerInstanceId]`, kept for iOS builds that still read it. */
   resumeCursor: z.string().min(1).optional(),
+  providerSeen: z.record(ProviderInstanceId, z.number().int().nonnegative()).optional(),
+  switchedFrom: z.object({ driver: ProviderDriverKind, instanceId: ProviderInstanceId, model: z.string().optional() }).optional(),
 
   resumeAfterRateLimit: z.boolean().optional(),
 
@@ -251,6 +255,9 @@ export const LiveSessionRow = Session.omit({
   interactionMode: true,
   detached: true,
   resumeCursor: true,
+  resumeCursors: true,
+  providerSeen: true,
+  switchedFrom: true,
   resumeAfterRateLimit: true,
   agentMessagesBlocked: true,
   agentMessagesBlockedAt: true,
@@ -450,10 +457,10 @@ export const Turn = z.object({
   /** For an `origin: "session"` turn: what happened, and where. */
   wakeReason: WakeReason.optional(),
   attachments: z.array(TurnAttachment).optional(),
-  /** Model actually used, which may differ from the session default if the
-   *  turn overrode it or the provider rerouted. The instance is always the
-   *  session's — see `TurnModelSelection`. */
+  /** Model actually used; differs from the session's if the turn overrode it or the provider rerouted. */
   model: ModelSelection.optional(),
+  providerInstanceId: ProviderInstanceId.optional(),
+  carried: z.object({ from: z.number().int().nonnegative(), through: z.number().int().nonnegative() }).optional(),
   interactionMode: InteractionMode.optional(),
 
   acceptedAt: Timestamp,

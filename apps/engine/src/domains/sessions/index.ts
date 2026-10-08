@@ -1,5 +1,5 @@
 export { parseSession, sessionDir, sessionMetadataFile, storedSession, workspaceRootOf } from "./metadata";
-export { latestProviderSessionId, SessionRecords } from "./records";
+export { currentResumeCursor, latestProviderSessionId, ownTurns, SessionRecords, setResumeCursor } from "./records";
 export { OpenPrefixes, SessionItems } from "./items";
 export { SessionRequests } from "./requests";
 export { SessionTasks } from "./tasks";

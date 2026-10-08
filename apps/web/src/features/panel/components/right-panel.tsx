@@ -151,6 +151,7 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
         params={tab.params}
         {...(onTabParams ? { onParams: onTabParams } : {})}
         onCloseSelf={onCloseSelf}
+        {...(props.onOpenNewTab ? { onOpenNew: () => props.onOpenNewTab!("terminal") } : {})}
         visible={props.visible}
       />
     );

@@ -48,10 +48,18 @@ export class SessionRecords {
       .sort(newestFirst);
   }
 
+  history(sessionId: string): readonly Turn[] {
+    return this.deps.scanQueue(sessionId).turns;
+  }
+
+  save(session: Session): void {
+    this.write(session);
+  }
+
   touch(sessionId: string, at: number, resumeCursor?: string): void {
     const session = this.get(sessionId);
     session.updatedAt = at;
-    if (resumeCursor !== undefined) session.resumeCursor = resumeCursor;
+    if (resumeCursor !== undefined) setResumeCursor(session, resumeCursor);
     this.write(session);
   }
 
@@ -78,10 +86,11 @@ export class SessionRecords {
 
   /** Prefer metadata, but let a durable turn heal an interrupted metadata write. */
   resumeCursorFor(session: Session): string | undefined {
-    if (session.resumeCursor) return session.resumeCursor;
-    const recovered = latestProviderSessionId(this.deps.scanQueue(session.id).turns);
+    const current = currentResumeCursor(session);
+    if (current) return current;
+    const recovered = latestProviderSessionId(ownTurns(session, this.deps.scanQueue(session.id).turns));
     if (!recovered) return undefined;
-    session.resumeCursor = recovered;
+    setResumeCursor(session, recovered);
     session.updatedAt = this.kernel.now();
     this.write(session);
     return recovered;
@@ -108,6 +117,20 @@ export class SessionRecords {
   private write(session: Session): void {
     this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, session.id), storedSession(session));
   }
+}
+
+export function currentResumeCursor(session: Session): string | undefined {
+  return session.resumeCursors ? session.resumeCursors[session.providerInstanceId] : session.resumeCursor;
+}
+
+/** Before any switch every turn is the current instance's; after one, only the turns it stamped are. */
+export function ownTurns(session: Session, turns: readonly Turn[]): Turn[] {
+  return session.resumeCursors ? turns.filter((turn) => turn.providerInstanceId === session.providerInstanceId) : [...turns];
+}
+
+export function setResumeCursor(session: Session, cursor: string): void {
+  if (session.resumeCursors) session.resumeCursors[session.providerInstanceId] = cursor;
+  session.resumeCursor = cursor;
 }
 
 /** Ended with an answer: the turns a read receipt may name. */

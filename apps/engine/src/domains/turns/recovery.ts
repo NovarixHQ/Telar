@@ -2,7 +2,10 @@ import fs from "node:fs";
 import { type Session, type SessionDefaults, type Turn } from "@telar/engine-client";
 import { assertId, type Kernel } from "../../platform/kernel";
 import {
+  currentResumeCursor,
   latestProviderSessionId,
+  ownTurns,
+  setResumeCursor,
   sessionMetadataFile,
   storedSession,
   type SessionItems,
@@ -174,10 +177,10 @@ export class TurnRecovery {
     const recoveryEvents: Array<{ type: "turn.stopped"; runId: string }> = [];
     const requeued: string[] = [];
     const at = this.kernel.now();
-    const recoveredProviderSessionId = latestProviderSessionId(history);
+    const recoveredProviderSessionId = latestProviderSessionId(ownTurns(session, history));
     let metadataChanged = false;
-    if (!session.resumeCursor && recoveredProviderSessionId) {
-      session.resumeCursor = recoveredProviderSessionId;
+    if (!currentResumeCursor(session) && recoveredProviderSessionId) {
+      setResumeCursor(session, recoveredProviderSessionId);
       session.updatedAt = at;
       metadataChanged = true;
     }

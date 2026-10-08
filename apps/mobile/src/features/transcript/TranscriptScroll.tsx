@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type 
 import type { JournalTurn } from "@telar/client/journal";
 import { FOLLOWING, scrolled, shouldFollow, showsJump, type Follow } from "./follow";
 import { Transcript } from "./Transcript";
+import { ReadingColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { Symbol, TextSize } from "./native";
 
@@ -70,8 +71,10 @@ export function TranscriptScroll({ turns, loading, older, pin, bottomInset = 0, 
           </Pressable>
         ) : null}
         {loading ? <ActivityIndicator style={styles.loading} /> : null}
-        <Transcript turns={turns} />
-        {children}
+        <ReadingColumn style={styles.lane}>
+          <Transcript turns={turns} />
+          {children}
+        </ReadingColumn>
       </ScrollView>
       {jump ? (
         <Pressable onPress={() => pinToTail(true)} style={[styles.jump, { bottom: 12 + bottomInset }]} accessibilityRole="button" accessibilityLabel="Scroll to the newest message">
@@ -85,7 +88,8 @@ export function TranscriptScroll({ turns, loading, older, pin, bottomInset = 0, 
 const styles = StyleSheet.create({
   frame: { flex: 1 },
   scroll: { flex: 1 },
-  content: { gap: 16, paddingHorizontal: 12, paddingVertical: 12 },
+  content: { gap: 16, paddingVertical: 12 },
+  lane: { gap: 16, paddingHorizontal: 12 },
   loading: { marginTop: 40 },
   older: { alignSelf: "center", height: 32, paddingHorizontal: 14, justifyContent: "center", borderRadius: 16, borderWidth: 1, borderColor: Theme.border, backgroundColor: Theme.subtle },
   olderLabel: { fontSize: TextSize.footnote, fontWeight: "500", color: Theme.textMuted },

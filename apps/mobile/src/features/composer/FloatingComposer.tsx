@@ -14,6 +14,7 @@ import { Composer } from "./Composer";
 import { readDraft, writeDraft } from "./drafts";
 import { SendFailedCard } from "./SendFailedCard";
 import { composerSlot } from "./slot";
+import { ReadingColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { detectTrigger, openingCommands, replaceTrigger } from "./trigger";
 import { useSessionSkills } from "./use-skills";
@@ -145,29 +146,32 @@ export function FloatingComposer({ host, hostId, sessionId, head, working, menti
       onLayout={({ nativeEvent }) => (setHeight(nativeEvent.layout.height), onHeight(nativeEvent.layout.height))}
     >
       <Scrim />
-      {notices}
-      <RequestCards cards={openRequests(head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
-      {unsent ? <SendFailedCard error={unsent.error} onRetry={() => void deliver(unsent.text, unsent.runId)} onDiscard={() => setUnsent(undefined)} /> : null}
-      {shownProblem ? <Text style={styles.problem} numberOfLines={2}>{shownProblem}</Text> : null}
-      <Composer
-        draft={draft}
-        onDraft={setDraftState}
-        onCaret={setCaret}
-        resetKey={cleared}
-        placeholder="Ask the agent, or run a command…"
-        slot={slot}
-        onSlot={() => void (slot.kind === "stop" ? stop() : send())}
-        controls={host && session ? <SessionMenus host={host} session={session} onChanged={(work) => void act(() => work)} /> : undefined}
-        onCommands={() => setDraft(openingCommands(draft))}
-        {...(working && slot.kind !== "stop" ? { onStop: () => void stop() } : {})}
-        {...(dictationAvailable ? { dictation } : {})}
-        {...(trigger ? { suggestions: { rows, loading: skills.loading && trigger.kind !== "mention", onPick: pick } } : {})}
-      />
+      <ReadingColumn margins={16} style={styles.lane}>
+        {notices}
+        <RequestCards cards={openRequests(head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
+        {unsent ? <SendFailedCard error={unsent.error} onRetry={() => void deliver(unsent.text, unsent.runId)} onDiscard={() => setUnsent(undefined)} /> : null}
+        {shownProblem ? <Text style={styles.problem} numberOfLines={2}>{shownProblem}</Text> : null}
+        <Composer
+          draft={draft}
+          onDraft={setDraftState}
+          onCaret={setCaret}
+          resetKey={cleared}
+          placeholder="Ask the agent, or run a command…"
+          slot={slot}
+          onSlot={() => void (slot.kind === "stop" ? stop() : send())}
+          controls={host && session ? <SessionMenus host={host} session={session} onChanged={(work) => void act(() => work)} /> : undefined}
+          onCommands={() => setDraft(openingCommands(draft))}
+          {...(working && slot.kind !== "stop" ? { onStop: () => void stop() } : {})}
+          {...(dictationAvailable ? { dictation } : {})}
+          {...(trigger ? { suggestions: { rows, loading: skills.loading && trigger.kind !== "mention", onPick: pick } } : {})}
+        />
+      </ReadingColumn>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  footer: { paddingHorizontal: 16, paddingTop: 8, gap: 8 },
+  footer: { paddingTop: 8 },
+  lane: { gap: 8 },
   problem: { paddingHorizontal: 14, fontSize: 13, color: Theme.red },
 });

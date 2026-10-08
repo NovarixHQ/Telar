@@ -6,7 +6,7 @@ struct TextFileView: View {
     let hostId: HostID?
     let path: String
     let active: Bool
-    let editable: Bool
+    let prose: Bool
 
     var root: String?
     let onSaveState: (FilesSurface.SaveState?) -> Void
@@ -16,15 +16,16 @@ struct TextFileView: View {
     @State private var text = ""
     @State private var baseline: String?
     @State private var refusal: WorkspaceWriteRefusal?
+    @State private var saveFailure: String?
     @State private var dirty = false
+    @State private var saving = false
+    @State private var editing = false
     @State private var saveTask: Task<Void, Never>?
     @AppStorage("telar.editor.wrap") private var wrap = false
 
-    @State private var highlighted: [AttributedString]?
-
-    @State private var viewport: CGSize = .zero
-
-    @State private var sideways: CGFloat = 0
+    @State private var colours: CodeColours?
+    @State private var findRequest = 0
+    @State private var sideways = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.panel) private var panel
     @FocusState private var focused: Bool
@@ -32,18 +33,24 @@ struct TextFileView: View {
     private var draftKey: String { "telar.fileDraft.\(hostId?.uuidString ?? "local").\(sessionId).\(path)" }
     private struct Draft: Codable { var text: String; var baseline: String }
 
+    private var canEdit: Bool { file.map { !$0.binary && !$0.truncated } ?? false }
+
     var body: some View {
         VStack(spacing: 0) {
-            FileAddressRow(path: path, detail: file.map { humanBytes($0.bytes) })
+            FileAddressRow(path: path, detail: file.map { humanBytes($0.bytes) }, trailing: prose || file?.binary != false ? nil : AnyView(codeTools))
                 .contextMenu { addressMenu }
-            if let refusal { refusalBanner(refusal) }
+            if let refusal {
+                problemBanner(refusalCopy(refusal), reread: refusal == .conflict)
+            } else if let saveFailure {
+                problemBanner(saveFailure, reread: false)
+            }
             if let file {
                 if file.binary {
                     ContentUnavailableView("Binary file", systemImage: "doc.zipper", description: Text("\(humanBytes(file.bytes)) of bytes rather than text, so nothing was sent to read."))
-                } else if editable {
+                } else if prose {
                     editor
                 } else {
-                    codeView(file)
+                    code(file)
                 }
             } else if let error {
                 ContentUnavailableView("Could not read this file", systemImage: "xmark.circle", description: Text(error))
@@ -55,69 +62,49 @@ struct TextFileView: View {
         .onDisappear { flush() }
     }
 
-    private func codeView(_ file: WorkspaceFile) -> some View {
-        let lines = file.text.split(separator: "\n", omittingEmptySubsequences: false)
-        let gutter = CGFloat(String(lines.count).count) * 7 + 12
-        let content = CodeLayout.contentWidth(
-            columns: CodeLayout.widestLineColumns(file.text),
-            advance: CodeLayout.advance(ofSize: 12)
-        ) + gutter + 8
-        return ScrollView(wrap ? [.vertical] : [.vertical, .horizontal]) {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                    HStack(alignment: .top, spacing: 0) {
-                        Text("\(index + 1)")
-                            .font(.system(Theme.caption, design: .monospaced))
-                            .foregroundStyle(Theme.textMuted)
-                            .frame(width: gutter, alignment: .trailing)
-                            .padding(.trailing, 8)
-
-                            .frame(maxHeight: .infinity, alignment: .top)
-                            .background(Theme.codeBackground)
-                            .offset(x: wrap ? 0 : sideways)
-                            .zIndex(1)
-
-                        if let coloured = highlighted?[safe: index] {
-                            Text(coloured)
-                                .font(.system(Theme.footnote, design: .monospaced))
-                                .lineLimit(wrap ? nil : 1)
-                                .textSelection(.enabled)
-                        } else {
-                            Text(String(line))
-                                .font(.system(Theme.footnote, design: .monospaced))
-                                .foregroundStyle(Theme.text)
-                                .lineLimit(wrap ? nil : 1)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    .frame(minHeight: 18)
-
-                    .fixedSize(horizontal: !wrap, vertical: false)
-                }
-                if file.truncated {
-                    Text("Truncated: the first \(humanBytes(file.text.utf8.count)) of \(humanBytes(file.bytes)).")
-                        .font(.system(Theme.caption))
-                        .foregroundStyle(Theme.statusAmber)
-                        .padding(.top, 8)
+    private var codeTools: some View {
+        HStack(spacing: 14) {
+            if dirty {
+                Text("Unsaved").foregroundStyle(Theme.statusAmber)
+            }
+            Button { findRequest += 1 } label: {
+                Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
+            }
+            .accessibilityLabel("Find in file")
+            if canEdit {
+                if editing {
+                    Button("Save") { Task { await save() } }
+                        .foregroundStyle(dirty && !saving ? Theme.accent : Theme.textMuted)
+                        .disabled(!dirty || saving)
+                        .keyboardShortcut("s", modifiers: .command)
+                } else {
+                    Button("Edit") { editing = true }
+                        .foregroundStyle(Theme.text)
                 }
             }
-            .padding(10)
-
-            .frame(minWidth: wrap ? viewport.width : max(content, viewport.width),
-                   minHeight: viewport.height, alignment: .topLeading)
         }
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewport = $0 }
-        .onScrollGeometryChange(for: CGFloat.self) { max(0, $0.contentOffset.x) } action: { _, offset in
-            sideways = offset
-        }
+        .font(.system(Theme.caption, weight: .medium))
+        .buttonStyle(.plain)
+    }
 
-        .interactivePopDisabled(!wrap && sideways > 0)
-        .background(Theme.codeBackground)
-        .task(id: "\(path):\(file.sha256):\(scheme == .dark)") {
-            highlighted = await CodeHighlighter.shared.highlightedLines(
-                file.text, language: CodeLanguage.named(path), dark: scheme == .dark
+    private func code(_ file: WorkspaceFile) -> some View {
+        VStack(spacing: 0) {
+            if file.truncated {
+                Text("Truncated: the first \(humanBytes(file.text.utf8.count)) of \(humanBytes(file.bytes)), so it can't be edited here.")
+                    .font(.system(Theme.caption))
+                    .foregroundStyle(Theme.statusAmber)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+            }
+            CodeTextView(
+                text: text, colours: colours, editable: editing && canEdit, wrap: wrap, findRequest: findRequest,
+                onEdit: edited, onSideways: { sideways = $0 }
             )
         }
+        .interactivePopDisabled(!wrap && sideways)
+        .background(Theme.codeBackground)
+        .task(id: "\(text.hashValue):\(scheme == .dark)") { await colour() }
     }
 
     private var editor: some View {
@@ -155,12 +142,12 @@ struct TextFileView: View {
         }
     }
 
-    private func refusalBanner(_ refusal: WorkspaceWriteRefusal) -> some View {
+    private func problemBanner(_ message: String, reread: Bool) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle").font(.system(Theme.caption)).foregroundStyle(Theme.statusRed)
-            Text(refusalCopy(refusal)).font(.system(Theme.footnote)).foregroundStyle(Theme.statusRed)
+            Text(message).font(.system(Theme.footnote)).foregroundStyle(Theme.statusRed)
             Spacer(minLength: 0)
-            if refusal == .conflict {
+            if reread {
                 Button("Re-read from disk") { Task { await read(discardingDraft: true) } }
                     .font(.system(Theme.footnote, weight: .medium))
                     .buttonStyle(.plain)
@@ -181,6 +168,17 @@ struct TextFileView: View {
         }
     }
 
+    private func colour() async {
+        let source = text, dark = scheme == .dark
+        if colours != nil {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+        }
+        let highlighted = await CodeHighlighter.shared.highlight(source, language: CodeLanguage.named(path), dark: dark)
+        guard !Task.isCancelled else { return }
+        colours = CodeColours(highlighted, text: source)
+    }
+
     private func read(discardingDraft: Bool = false) async {
         do {
             let fresh = try await api.sessionFile(sessionId, path: path)
@@ -192,6 +190,7 @@ struct TextFileView: View {
                 baseline = fresh.sha256
                 dirty = false
                 refusal = nil
+                saveFailure = nil
                 onSaveState(nil)
             } else if let data = UserDefaults.standard.data(forKey: draftKey), let draft = try? JSONDecoder().decode(Draft.self, from: data) {
                 if draft.text == fresh.text {
@@ -202,6 +201,8 @@ struct TextFileView: View {
                     text = draft.text
                     baseline = draft.baseline
                     dirty = true
+                    editing = true
+                    if !prose { onSaveState(.unsaved) }
                 }
             } else if !dirty {
                 text = fresh.text
@@ -210,6 +211,19 @@ struct TextFileView: View {
         } catch {
             self.error = describe(error)
         }
+    }
+
+    private func edited(_ next: String) {
+        guard let file else { return }
+        text = next
+        dirty = next != file.text
+        if dirty {
+            stash(next)
+        } else {
+            UserDefaults.standard.removeObject(forKey: draftKey)
+            baseline = file.sha256
+        }
+        onSaveState(dirty ? .unsaved : nil)
     }
 
     private func stash(_ next: String) {
@@ -230,7 +244,7 @@ struct TextFileView: View {
     }
 
     private func flush() {
-        guard dirty, saveTask != nil else { return }
+        guard prose, dirty, saveTask != nil else { return }
         saveTask?.cancel()
         let api = self.api, sessionId = self.sessionId, path = self.path, text = self.text, baseline = self.baseline
         Task.detached {
@@ -240,29 +254,32 @@ struct TextFileView: View {
     }
 
     private func save() async {
-        guard let baseline, dirty else { return }
+        guard let baseline, dirty, !saving else { return }
         let written = text
+        saving = true
+        defer { saving = false }
+        onSaveState(.saving)
         do {
             switch try await api.writeSessionFile(sessionId, path: path, text: written, expectedSha256: baseline) {
             case .written(let fresh):
-
                 self.baseline = fresh.sha256
                 file = fresh
                 refusal = nil
+                saveFailure = nil
                 if text == written {
                     dirty = false
                     UserDefaults.standard.removeObject(forKey: draftKey)
                     onSaveState(nil)
                 } else {
                     stash(text)
-                    scheduleSave()
+                    if prose { scheduleSave() } else { onSaveState(.unsaved) }
                 }
             case .refused(let why, _):
                 refusal = why
                 onSaveState(.problem)
             }
         } catch {
-            self.error = describe(error)
+            saveFailure = describe(error)
             onSaveState(.problem)
         }
     }

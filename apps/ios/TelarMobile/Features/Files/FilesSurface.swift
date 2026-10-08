@@ -18,7 +18,7 @@ struct FilesSurface: View {
     @State private var width: CGFloat = 0
     @ScaledMetric(relativeTo: .caption2) private var chevronColumn: CGFloat = 10
 
-    enum SaveState { case saving, problem }
+    enum SaveState { case unsaved, saving, problem }
 
     private var sideBySide: Bool { width >= 560 }
 
@@ -68,7 +68,7 @@ struct FilesSurface: View {
                                 .foregroundStyle(isActive ? Theme.text : Theme.textMuted)
                                 .lineLimit(1)
                             if let state = saving[file.path] {
-                                Circle().fill(state == .saving ? Theme.accent : Theme.statusRed).frame(width: 6, height: 6)
+                                Circle().fill(saveColour(state)).frame(width: 6, height: 6)
                             } else {
                                 Button {
                                     panel.closeFile(file.path)
@@ -304,6 +304,14 @@ struct FilesSurface: View {
         }
         if let diff = try? await (api as? any EngineAPI)?.sessionDiff(sessionId) {
             statuses = Dictionary(uniqueKeysWithValues: diff.files.map { ($0.path, $0.status) })
+        }
+    }
+
+    private func saveColour(_ state: SaveState) -> Color {
+        switch state {
+        case .unsaved: Theme.statusAmber
+        case .saving: Theme.accent
+        case .problem: Theme.statusRed
         }
     }
 

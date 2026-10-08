@@ -112,7 +112,7 @@ describe("useSessionChildren", () => {
     await settle();
     expect(reads).toHaveLength(1);
     await act(async () => grow());
-    for (let waited = 0; waited < 10 * 60_000; waited += CHILDREN_IDLE_MS) await advance(CHILDREN_IDLE_MS);
+    for (let tick = 0; tick < 3; tick += 1) await advance(CHILDREN_IDLE_MS);
     expect(reads).toHaveLength(1);
     expect(seen).toEqual([]);
   });

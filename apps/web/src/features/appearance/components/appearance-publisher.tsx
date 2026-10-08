@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import type { AppFont, PublishedAppearance, PublishedResolved } from "@telar/engine-client";
 import { ACCENT_COLOURS, LIGHT_PRIMARY_FOREGROUND } from "../accent-colours";
 import { useAppearance } from "../appearance";
-import { useComposition } from "../composition";
 import { createEngineApi } from "@/platform/engine";
 import { fontFaceCss } from "../font-faces";
 import { currentShared, fingerprint, markShared, useShareState, writeAppliedStamp } from "../shared-appearance";
@@ -62,7 +61,6 @@ function stack(choice: string, typed: string, fallbacks: string): string {
 
 export function AppearancePublisher(): null {
   const { appearance } = useAppearance();
-  const { composition, images } = useComposition();
   const { theme } = useTheme();
   const share = useShareState();
 
@@ -101,12 +99,12 @@ export function AppearancePublisher(): null {
         .then((fontFaces) => api.setAppearance(fontFaces ? { ...payload, resolved: { ...resolved, fontFaces } } : payload))
         .then((written) => {
           writeAppliedStamp(written.updatedAt);
-          markShared({ shared: print });
+          markShared(print);
         })
         .catch(() => {});
     }, PUBLISH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [appearance, composition, images, theme, share]);
+  }, [appearance, theme, share]);
 
   return null;
 }

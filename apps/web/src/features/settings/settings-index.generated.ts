@@ -29,16 +29,18 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   ] },
   { id: "appearance", groups: [
     { "title":"Theme", rows: [
-      {"title":"Colour scheme","hint":"Which state the app wears, and the one the rows below edit.","keywords":["light","dark","system","theme","mode"]},
-      {"title":"Base","hint":"The app colour. It decides the hue and how colourful the surfaces are; the lightness that keeps text readable is kept underneath.","keywords":["colour","color","theme","palette","hue","tint","background","canvas"]},
-      {"title":"Match the other state","keywords":["light","dark","copy","sync","both"]},
-      {"title":"Accent","hint":"The one hue that means a person acted — buttons, links, the caret.","keywords":["colour","color","highlight","primary","hue"]},
-      {"title":"Depth","hint":"How far raised surfaces — cards, the composer, menus — sit off the page.","keywords":["shadow","elevation","flat","soft","deep","raised"]},
+      {"title":"Colour scheme","hint":"Light, dark, or whatever the system uses.","keywords":["light","dark","system","theme","mode"]},
+      {"title":"Accent","hint":"The colour of buttons, links and the caret.","keywords":["colour","color","highlight","primary","hue"]},
+      {"title":"Depth","hint":"How far cards, the composer and menus lift off the page.","keywords":["shadow","elevation","flat","soft","deep","raised"]},
+    ] },
+    { "title":"Typography", rows: [
+      {"title":"Interface font","hint":"Everything outside code blocks and the terminal.","keywords":["font","typeface","text size","sans"]},
+      {"title":"Code font","hint":"Code blocks, diffs, file previews and the terminal.","keywords":["font","monospace","mono","code","terminal","diff"]},
     ] },
     { "title":"Window", rows: [
-      {"title":"Translucency","hint":"Rebuilds the window.","keywords":["glass","blur","clear","frost","vibrancy","transparent"]},
-      {"title":"Layers through canvas and rail","keywords":["show-through","show through","opacity","wallpaper","backdrop","layers"]},
-      {"title":"Chat width","hint":"How wide the transcript and the composer can grow.","keywords":["wide","full","comfortable","column","measure","transcript"]},
+      {"title":"Chat width","hint":"How wide the conversation and the composer can grow.","keywords":["wide","full","comfortable","column","measure","transcript"]},
+      {"title":"Translucency","hint":"Lets the desktop show through the window, which rebuilds it.","keywords":["glass","blur","clear","frost","vibrancy","transparent"]},
+      {"title":"See-through","hint":"How much of the desktop shows behind the canvas and the rail.","keywords":["show-through","show through","opacity","see-through","glass"]},
     ] },
   ] },
   { id: "keybindings", groups: [

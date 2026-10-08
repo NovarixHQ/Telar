@@ -15,8 +15,3 @@ export const ACCENT_COLOURS: Record<Accent, { light: string; dark: { primary: st
   plum: { light: "oklch(0.488 0.16 325)", dark: { primary: "oklch(0.68 0.15 325)", primaryForeground: "oklch(0.17 0.04 325)" } },
   violet: { light: "oklch(0.488 0.17 293)", dark: { primary: "oklch(0.68 0.16 293)", primaryForeground: "oklch(0.17 0.04 293)" } },
 };
-
-export function accentPrimary(accent: Accent, mode: "light" | "dark"): string {
-  const colours = ACCENT_COLOURS[accent];
-  return mode === "dark" ? colours.dark.primary : colours.light;
-}

@@ -785,53 +785,6 @@ code, pre, kbd, samp {
    backdrop-blur header washes go fully transparent — their blur is what
    keeps them legible, and a 65%-opaque bar over a see-through canvas would
    read as a solid stripe. */
-/* THE SAME WASH NOW SERVES TWO SCENES. `data-backdrop` (features/appearance/backdrop.ts) puts
-   a gradient or an image under the app in ANY window — no shell required,
-   there is really something behind the page — so every see-through rule gates
-   on either attribute. `:is()` keeps the specificity at the higher of the two
-   (0,2,0), which still outranks the theme stylesheet's `html:root`.
-
-   ─── THE CONTRACT, IN ONE LINE ──────────────────────────────────────────────
-
-   THE WASH THINS GROUNDS. IT NEVER RETINTS A MARK.
-
-   A GROUND is a structural canvas layer — body, the rail, the pane behind a
-   panel, a room's `h-dvh` sheet. Those are what the scene is meant to show
-   through, and they are the ONLY things these rules touch. Everything else —
-   cards, popovers, chips, hover fills, inline code, the selected row — keeps
-   the value its theme gave it, at FULL ALPHA.
-
-   Two bugs are why that line is now a rule rather than a habit.
-
-   1. THE WASH USED TO REPLACE TOKENS IT DID NOT OWN. --muted, --accent and
-      --sidebar-accent were re-synthesised here from --background and
-      --foreground at ratios reproducing TELAR's deltas (light 3-6% toward ink,
-      dark 14-19%). Those numbers are a property of one palette. A theme whose
-      hover is a deliberate colour — the whole point of a custom theme — had it
-      silently discarded the moment a backdrop came on: turn on a wallpaper and
-      your theme partly stopped being your theme.
-
-   2. ALPHA ON A TOKEN MULTIPLIES, IT DOES NOT REPLACE. Tailwind compiles
-      `bg-muted/25` to `color-mix(in oklab, var(--muted) 25%, transparent)`, so
-      a token already sitting at 72% alpha lands the element at 18% — and
-      `bg-muted/25` is exactly what the quiet section headers and the
-      workspace strip use for their fills. Under a backdrop they dissolved.
-      This is NOT fixable at the call sites: the SAME class string renders on a
-      page with no backdrop at all, where the token is opaque and /25 means
-      what it says. One class, two states, one value — so the value is the
-      thing that has to stop moving.
-
-   WHAT THE MARKS LOSE, and why that is the right trade: a hover fill no longer
-   frosts, so a selected sidebar row over a wallpaper is an opaque step rather
-   than a translucent one. That is what a selection should look like — it lifts
-   OUT of the glass. What it gains is that every `/NN` in the app keeps meaning
-   what it says, in every scene, under every theme.
-
-   THE ONE SURVIVOR IS --sidebar, because the rail IS a ground. It is mixed
-   from the live `--sidebar` — the theme's own rail colour, whatever it is —
-   through the `--sidebar-wash` indirection the @theme block explains, rather
-   than re-derived from --background. Ratios are unchanged, so Telar's default
-   look is pixel-identical; Ember's rail now frosts ember instead of grey. */
 /* ─── THE TWO HALVES DO NOT SPEND THE SLIDER THE SAME WAY (#399, #434) ──────
 
    `--translucency` is what the person asked for. `--wash-transparency` is what
@@ -864,24 +817,13 @@ code, pre, kbd, samp {
    one place. `.dark` is the class the theme provider toggles on <html>
    (features/appearance), which is the same element both attributes are written
    on, so `:not(.dark)` is the light half of exactly this scene. */
-html:not(.dark):is([data-telar-shell][data-translucent], [data-backdrop]) {
-  --wash-transparency: min(calc(var(--translucency, 45%) * 1.4), 85%);
-}
-:is([data-telar-shell][data-translucent], [data-backdrop]) body {
+[data-telar-shell][data-translucent] body {
   background-color: color-mix(in oklab, var(--background) calc(100% - var(--wash-transparency, var(--translucency, 45%))), transparent);
 }
-:is([data-telar-shell][data-translucent], [data-backdrop]) {
+[data-telar-shell][data-translucent] {
   --sidebar-wash: color-mix(in oklab, var(--sidebar) calc(90% - var(--wash-transparency, var(--translucency, 45%))), transparent);
 }
-/* THE OPT-IN IS A CLASS, NOT A CLASS NAME. This used to also match
-   `.bg-background\/65` and `.bg-background\/80` — the utilities the two
-   blurred headers happened to wear — which made "is this a ground?" a question
-   about the string a component typed. Three chips and a button in
-   components/composer.tsx wear `bg-background/80` because they want an 80%
-   fill, and under a backdrop they lost it entirely. `app-ground` is the only
-   door now, and the grounds that were relying on the class-name coincidence
-   carry it explicitly. */
-:is([data-telar-shell][data-translucent], [data-backdrop]) .app-ground {
+[data-telar-shell][data-translucent] .app-ground {
   background-color: transparent;
 }
 
@@ -917,6 +859,7 @@ html:not(.dark):is([data-telar-shell][data-translucent], [data-backdrop]) {
    NOT --sidebar-accent-foreground: that one sits on an opaque hover or active
    fill, which the wash never thins, so it is not part of this problem. */
 html:not(.dark)[data-telar-shell][data-translucent] {
+  --wash-transparency: min(calc(var(--translucency, 45%) * 1.4), 85%);
   --muted-foreground-wash: color-mix(in oklab, var(--foreground) 30%, var(--muted-foreground));
   --sidebar-foreground-wash: color-mix(in oklab, var(--foreground) 30%, var(--sidebar-foreground));
 }
@@ -1050,138 +993,12 @@ html:not(.dark)[data-telar-shell][data-translucent] {
   color-scheme: dark;
 }
 
-/* ─── THE BACKDROP LAYER (features/appearance/backdrop.ts) ──────────────────────────────────
-
-   One fixed div, first child of body, painted entirely from variables the
-   init script and applyBackdrop write on <html>. Inset is negative so a
-   layer's soft edges bleed off-screen instead of vignetting.
-
-   EACH COLOUR STATE HAS ITS OWN FOUR LISTS, AND THIS IS WHERE THEY ARE CHOSEN
-   BETWEEN (#471). Light and dark are two states of one composition with
-   genuinely separate layer stacks, so entry n of one can be an image where the
-   other's is a gradient — and `background-size/position/repeat` take one comma
-   entry per image, so one shared list cannot serve both. The init script writes
-   both states' variables and makes no decision; the `.dark` rule below is the
-   decision. That is what makes first paint correct with no flash, and what
-   keeps it correct when the OS flips scheme under a window set to `system`
-   with no script running at all.
-
-   THE `-dark` VARIABLES FALL BACK TO THE `-light` ONES so a composition whose
-   dark state is untouched paints its light stack rather than nothing — the
-   same courtesy --backdrop-dark has always done for the image list. */
-#app-backdrop {
-  display: none;
-}
-/**
- * THE ONE DECLARATION THAT PUTS THE WASH ON THE RIGHT SIDE OF THE SCENE.
- *
- * Nothing set a background on <html>, so CSS did what it does for an HTML
- * document whose root has none: it PROPAGATED body's background to the canvas.
- * A propagated background is painted before the root's own stacking context —
- * strictly below a `z-index: -1` descendant. So the order was
- *
- *     [body's washed background]  →  #app-backdrop (the scene)  →  the app
- *
- * and the wash sat UNDERNEATH the wallpaper it was supposed to be tinting. The
- * translucency slider moved a layer nobody could see: grounds went transparent
- * straight onto a full-strength photo, with only --backdrop-dim between the
- * image and the text on top of it.
- *
- * Giving the root a background of its own stops the propagation, and body's
- * background becomes an ordinary in-flow block background — painted in step 3
- * of the root stacking context, AFTER the negative-z-index scene in step 2:
- *
- *     html's canvas  →  #app-backdrop (the scene)  →  body's wash  →  the app
- *
- * SCOPED TO [data-backdrop] BECAUSE VIBRANCY NEEDS THE OPPOSITE. In the
- * desktop shell's translucent mode with no scene, propagation is exactly what
- * makes the window canvas alpha and lets the desktop through; an opaque root
- * there would kill it. With a scene present there is nothing to lose — the
- * backdrop div is already an opaque `background-color: var(--background)`
- * across the whole viewport, so the desktop was covered either way.
- */
-[data-backdrop] {
-  background-color: var(--background);
-}
-[data-backdrop] #app-backdrop {
-  display: block;
-  position: fixed;
-  inset: -32px;
-  z-index: -1;
-  pointer-events: none;
-  background-color: var(--background);
-  /* `none` is the honest fallback: the variables are written inline on <html>
-     by features/appearance/backdrop.ts, and until they are, there is no scene. */
-  background-image: var(--backdrop-light, none);
-  background-size: var(--backdrop-size-light, cover);
-  background-position: var(--backdrop-position-light, center);
-  background-repeat: var(--backdrop-repeat-light, no-repeat);
-}
-.dark[data-backdrop] #app-backdrop {
-  background-image: var(--backdrop-dark, var(--backdrop-light));
-  background-size: var(--backdrop-size-dark, var(--backdrop-size-light, cover));
-  background-position: var(--backdrop-position-dark, var(--backdrop-position-light, center));
-  background-repeat: var(--backdrop-repeat-dark, var(--backdrop-repeat-light, no-repeat));
-}
-
-/* ─── A SCENE AND THE DESKTOP, TOGETHER ─────────────────────────────────────
-
-   THE BUG THIS FIXES: an appearance that carried a backdrop silently cancelled the
-   translucent window. Two rules above paint an OPAQUE canvas colour — the root
-   (to stop body's background propagating under the scene) and the scene div
-   itself (so a gradient with transparent stops has something to sit on). In a
-   plain window both are free: there is nothing behind the page to lose. Under
-   macOS vibrancy there is, and two opaque layers covered every pixel of it. So
-   "turn on translucency" did nothing at all for any look with a wallpaper —
-   which is most looks worth having, including five of the six starters.
-
-   THE SCENE BECOMES THE GLASS. Under vibrancy the backdrop layer stops
-   painting a canvas and takes the show-through slider as its own alpha, so the
-   stack finally reads the way the pane describes it:
-
-       desktop  →  the scene, thinned  →  body's wash  →  the app
-
-   One slider, one meaning: how much of what is behind the window comes
-   through. At 0% the scene is a wallpaper and the desktop is hidden, exactly
-   as before; at 50% the desktop arrives through a half-strength gradient,
-   which is the thing the feature was always for.
-
-   `background-image` ON THE ROOT WITH NOTHING IN IT is not a trick for its own
-   sake: propagation is specified to happen only when the root has BOTH a
-   transparent background-color and `background-image: none`, so a gradient of
-   two transparents is the one way to decline the propagation without painting
-   over the desktop we are trying to reveal. */
-[data-telar-shell][data-translucent][data-backdrop] {
-  background-color: transparent;
-  background-image: linear-gradient(transparent, transparent);
-}
-[data-telar-shell][data-translucent][data-backdrop] #app-backdrop {
-  background-color: transparent;
-  opacity: calc(100% - var(--translucency, 45%));
-}
-
-/* THE HIGHLIGHT TOKENS USED TO FROST HERE — --muted, --accent and
-   --sidebar-accent, re-synthesised from --background/--foreground at Telar's
-   own deltas and dropped to 72% alpha. Both halves of that were wrong, and the
-   contract above says why at length: the re-synthesis threw away a custom
-   theme's hover colour, and the alpha multiplied against every `bg-muted/25`
-   in the app until those elements dissolved.
-
-   The rule is gone rather than rewritten. There is no version of it that
-   frosts a bare `bg-accent` without also thinning a `bg-accent/60`, because
-   Tailwind gives both exactly one lever — the token's value — and the same
-   class string also has to render on a page with no scene behind it.
-
-   The user's chat bubble below is the shape a mark-level frost has to take if
-   one is ever wanted again: a rule on the ELEMENT, which can set an alpha
-   without moving a token every other call site reads. */
-
 /* The user's chat bubble is a solid `bg-secondary` chip (components/ui/
    message.tsx) — near-white in light mode, and against a see-through canvas it
    reads as a headlight. Frosted instead: most of the token's colour, a little
    of the desktop, and its own blur so the text stays readable over whatever
    is behind the window. */
-:is([data-telar-shell][data-translucent], [data-backdrop]) [data-role="user"] > .bg-secondary {
+[data-telar-shell][data-translucent] [data-role="user"] > .bg-secondary {
   background-color: color-mix(in oklab, var(--secondary) 72%, transparent);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);

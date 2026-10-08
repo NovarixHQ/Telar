@@ -2,13 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import {
-  DEFAULT_BASE_DARK,
-  DEFAULT_BASE_LIGHT,
-  EngineClient,
-  EngineClientError,
-  type PublishedAppearance,
-} from "@telar/engine-client";
+import { EngineClient, EngineClientError, type PublishedAppearance } from "@telar/engine-client";
 import { connectEngine } from "@telar/engine-client/node";
 import { startEngine, type EngineDaemon } from "./daemon";
 import { stubModels } from "../test/stub-models";
@@ -325,11 +319,6 @@ function publishedAppearance(fontSize: number): PublishedAppearance {
       },
       fontStacks: { sans: '"Geist", sans-serif', mono: '"Geist Mono", monospace' },
     },
-    composition: {
-      light: { base: DEFAULT_BASE_LIGHT, layers: [], overrides: {} },
-      dark: { base: DEFAULT_BASE_DARK, layers: [], overrides: {} },
-    },
-    images: {},
     accent: "sea",
     fontSans: "geist",
     fontMono: "geist",
@@ -363,9 +352,6 @@ test("the host's appearance round-trips, caches by ETag, and answers the right r
   expect(read.appearance).toEqual(blob);
   expect(read.updatedAt).toBe(written.updatedAt);
 
-  // THE ETAG AND ITS 304. The appearance carries its layer images, so a
-  // client that polls this must be able to ask "still the same?" without
-  // paying for the answer twice.
   const first = await fetch(url, { headers: auth });
   const etag = first.headers.get("etag");
   expect(etag).toBe(written.etag);
@@ -378,17 +364,6 @@ test("the host's appearance round-trips, caches by ETag, and answers the right r
   const republished = await client.setAppearance(publishedAppearance(15));
   expect(republished.etag).not.toBe(etag);
   expect((await fetch(url, { headers: { ...auth, "if-none-match": etag! } })).status).toBe(200);
-
-  // An appearance several megabytes wide lands. (The refusal above it has its own test —
-  // see below for why it cannot share a connection with anything.)
-  const heavy = publishedAppearance(16);
-  // The pixels live in `images`, shared by both states, and each state's stack
-  // names the layer that paints them — one picture, not two megabytes twice.
-  heavy.images = { wallpaper: `data:image/webp;base64,${"A".repeat(2 * 1024 * 1024)}` };
-  const wallpaper = { type: "image", id: "wallpaper", x: 50, y: 50, scale: 100, opacity: 100, tiled: false } as const;
-  heavy.composition.light.layers = [{ ...wallpaper }];
-  heavy.composition.dark.layers = [{ ...wallpaper }];
-  await expect(client.setAppearance(heavy)).resolves.toMatchObject({ ok: true });
 
   // 405, NOT 404: the path exists, the verb does not — and `Allow` says which.
   const wrongVerb = await fetch(url, { method: "POST", headers: { ...auth, "content-type": "application/json" }, body: "{}" });
@@ -404,7 +379,7 @@ test("the host's appearance round-trips, caches by ETag, and answers the right r
   // A blob the shared parser cannot read comes back as `null` rather than as
   // garbage — but its timestamp still says somebody published something, which
   // is what lets a reader tell "nobody has" from "I cannot read theirs".
-  daemon.store.appearance.set({ version: 3, composition: "x" });
+  daemon.store.appearance.set({ version: 2 });
   const unreadable = await client.appearance();
   expect(unreadable.appearance).toBeNull();
   expect(unreadable.updatedAt).toBeGreaterThan(0);

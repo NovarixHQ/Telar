@@ -89,7 +89,7 @@ function depth(scheme: PreviewAppearance, ink: string, canvas: string): Record<s
 }
 
 export function previewTheme(scheme: PreviewAppearance, published: PublishedAppearance | null | undefined): ArtifactTheme {
-  const surfaces: Record<string, string> = { ...(scheme === "dark" ? TELAR_DARK : TELAR_LIGHT), ...published?.composition[scheme].overrides };
+  const surfaces = scheme === "dark" ? TELAR_DARK : TELAR_LIGHT;
   const accent = published?.resolved?.accent[scheme];
   const tokens: Record<string, string> = {
     ...GLOBALS_CSS_TOKENS[scheme],

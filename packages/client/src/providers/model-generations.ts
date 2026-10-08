@@ -9,6 +9,22 @@ export function modelVersion(id: string): number | undefined {
   return Number.isFinite(minor) ? major + minor / 100 : major;
 }
 
+const lineOf = (id: string) => id.replace(/\d+(?:[.-]\d+)*/, "#");
+
+/** Each line (Opus, Sonnet…) stays where it first appears; within one, the newest version leads. */
+export function newestFirst<T extends { id: string }>(models: readonly T[]): T[] {
+  const lines = new Map<string, T[]>();
+  for (const model of models) {
+    const line = lineOf(model.id);
+    const members = lines.get(line);
+    if (members) members.push(model);
+    else lines.set(line, [model]);
+  }
+  return [...lines.values()].flatMap((members) =>
+    members.toSorted((a, b) => (modelVersion(b.id) ?? 0) - (modelVersion(a.id) ?? 0)),
+  );
+}
+
 export type ModelGenerations<T> = {
   current: T[];
   legacy: T[];

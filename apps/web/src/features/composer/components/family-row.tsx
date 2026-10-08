@@ -6,13 +6,14 @@ import { connectionLabel, routeOf, routedModelLabel, driverLabel, ModelRowIcon }
 import { type ModelFamily } from "@telar/client/providers";
 import { cn } from "@/ui/utils";
 
-/** One model family: its name, then the harness and connection serving it, since one model can be reached through several. */
+/** One model family: its name, then the harness and connection serving it wherever the rail doesn't already say so. */
 export function FamilyRow({
   family,
   driver,
   selected,
   starred,
   readOnly,
+  showDriver,
   onSelect,
   onStar,
 }: {
@@ -21,12 +22,13 @@ export function FamilyRow({
   selected: boolean;
   starred: boolean;
   readOnly: boolean;
+  showDriver: boolean;
   onSelect: () => void;
   onStar: () => void;
 }) {
   const route = routeOf(family.id);
   const label = route ? routedModelLabel(route.model) : family.label;
-  const origin = route ? `${driverLabel(driver)} · ${connectionLabel(route.connection)}` : driverLabel(driver);
+  const origin = [showDriver && driverLabel(driver), route && connectionLabel(route.connection)].filter(Boolean).join(" · ");
   return (
     <div className="group/model flex items-center gap-0.5">
       <button
@@ -43,10 +45,12 @@ export function FamilyRow({
       >
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate leading-tight">{label}</span>
-          <span className="flex min-w-0 items-center gap-1 text-3xs leading-tight text-muted-foreground">
-            <ModelRowIcon driver={driver} modelId={family.id} size={11} className="shrink-0" />
-            <span className="truncate">{origin}</span>
-          </span>
+          {origin && (
+            <span className="flex min-w-0 items-center gap-1 text-3xs leading-tight text-muted-foreground">
+              <ModelRowIcon driver={driver} modelId={family.id} size={11} className="shrink-0" />
+              <span className="truncate">{origin}</span>
+            </span>
+          )}
         </span>
         {family.badge === "new" && <span className="shrink-0 rounded-sm border px-1 text-3xs text-muted-foreground">New</span>}
         {family.isDefault && <span className="shrink-0 text-3xs text-muted-foreground">Default</span>}

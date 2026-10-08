@@ -247,16 +247,23 @@ describe("the Claude list files what the manifest says", () => {
 });
 
 describe("the row says who serves the model", () => {
-  test("a second line carries the harness and the connection, under the name", async () => {
+  test("a second line carries the connection, under the name", async () => {
     await open();
     // Two rows share "GPT-5.6 Luna" and are told apart by the line beneath it,
     // which is the whole reason that line exists.
-    expect(rowText().sort()).toEqual(["GPT-5.6 Luna | OpenCode · OpenAI", "GPT-5.6 Luna | OpenCode · OpenCode Go"]);
+    expect(rowText().sort()).toEqual(["GPT-5.6 Luna | OpenAI", "GPT-5.6 Luna | OpenCode Go"]);
   });
 
-  test("an unrouted model names its harness alone, with no dangling separator", async () => {
+  test("a provider's own tab leaves its name to the rail", async () => {
     await open({ driver: "claude" });
-    expect(rowText()).toEqual(["Opus 5 | Claude", "Haiku 4.5 | Claude"]);
+    expect(rowText()).toEqual(["Opus 5", "Haiku 4.5"]);
+  });
+
+  test("a search across providers names the harness on every row", async () => {
+    await open({ driver: "claude" });
+    await type("5");
+    expect(rowText()).toContain("Opus 5 | Claude");
+    expect(rowText()).toContain("GPT-5.6 Luna | OpenCode · OpenAI");
   });
 
   test("the mark rides on the second line rather than in a gutter of its own", async () => {
@@ -265,6 +272,18 @@ describe("the row says who serves the model", () => {
     expect(second?.querySelector("svg")).not.toBeNull();
     // ...and the first line is text only, so the name has the full width.
     expect(rows()[0]?.querySelectorAll(":scope > span:first-child > span")[0]?.querySelector("svg")).toBeNull();
+  });
+});
+
+describe("a line lists its newest version first", () => {
+  test("Sonnet 5.5 leads Sonnet 5 whatever order the provider reports", async () => {
+    CATALOGUES.claude = [model("claude-sonnet-5", "Sonnet 5"), model("claude-opus-5", "Opus 5"), model("claude-sonnet-5-5", "Sonnet 5.5")];
+    try {
+      await open({ driver: "claude" });
+      expect(rowText()).toEqual(["Sonnet 5.5", "Sonnet 5", "Opus 5"]);
+    } finally {
+      CATALOGUES.claude = CLAUDE_BASE;
+    }
   });
 });
 
@@ -398,7 +417,7 @@ describe("Switch provider, from a running session's picker", () => {
     await open({ onDriverChange: undefined, onSwitchProvider: (driver, next) => void switched.push([driver, next]) });
     await press(document.body.querySelector<HTMLButtonElement>('button[aria-label="Codex"]')!);
     expect(switched).toEqual([]);
-    expect(rowText()).toEqual(["GPT-6 Astra | Codex"]);
+    expect(rowText()).toEqual(["GPT-6 Astra"]);
     await press(rows()[0]!);
     expect(switched).toEqual([["codex", { model: "gpt-6-astra" }]]);
   });

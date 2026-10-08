@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ProviderDriverKind } from "@telar/engine-client";
 import { importLocalFavorites, patchModelOverlay, useModelCatalogues, useModelOverlays, connectionLabel, familySearchText, routeOf, routedModelLabel } from "@/features/providers";
-import { modelLabel, type ModelChoice, keepStarredVisible, orderByFavorite, splitGenerations, familyFavorites, groupFamilies, pickInFamily, toggleFamilyFavorite, visibleModels, type ModelFamily } from "@telar/client/providers";
+import { modelLabel, type ModelChoice, keepStarredVisible, orderByFavorite, splitGenerations, familyFavorites, groupFamilies, newestFirst, pickInFamily, toggleFamilyFavorite, visibleModels, type ModelFamily } from "@telar/client/providers";
 import { PROVIDERS, searchScope, selectionOf, withModel } from "../model-options";
 
 /** One provider's models, or the starred ones across providers. */
@@ -69,7 +69,7 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
   };
 
   // The listing hides curated-away rows but keeps the running one; the selection above reads the full catalogue.
-  const listedOf = (option: ProviderDriverKind) => groupFamilies(visibleModels(catalogues.get(option)?.models ?? [], choice.model));
+  const listedOf = (option: ProviderDriverKind) => newestFirst(groupFamilies(visibleModels(catalogues.get(option)?.models ?? [], choice.model)));
   const { current, legacy } = keepStarredVisible(splitGenerations(listedOf(driver)), favorites);
   const matches = (family: ModelFamily) => familySearchText(family).includes(query.trim().toLowerCase());
   const scope = other ? [other] : searchScope(driver, crossProvider);

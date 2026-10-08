@@ -23,10 +23,8 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
     { "title":"About", rows: [
       {"title":"Version","keywords":["about","this build"]},
-      {"title":"Engine","keywords":["daemon","offline","health"]},
       {"title":"Update status","keywords":["upgrade","download","version","updates"]},
       {"title":"Channel","keywords":["beta","nightly","stable","release","updates"]},
-      {"title":"Install on quit","keywords":["restart","automatic","updates"]},
     ] },
     { "title":"Experimental", rows: [
     ] },

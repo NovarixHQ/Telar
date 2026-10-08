@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, SmartphoneIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { CopyCommand } from "@/ui/copy-command";
 import { cn } from "@/ui/utils";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row } from "@/features/settings";
 import { QrCodeView } from "./qr-code";
 import { PairSimulatorsButton } from "./pair-simulators-button";
 import type { MintedPairing, RemoteStatus } from "../api";
@@ -97,7 +97,7 @@ function MintedCode({ minted, endpoints, endpointUrl, onSelectEndpoint }: { mint
         {endpoints.length > 1 && (
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-muted-foreground">
-              Reach this machine via — each browser pairs per address, so the tailnet IP and a ts.net name are different origins.
+              Reach this machine via — each browser pairs per address, so two addresses for one Mac pair separately.
             </span>
             {endpoints.map((endpoint) => (
               <EndpointRow key={endpoint.url} endpoint={endpoint} selected={endpoint.url === selectedUrl} onSelect={() => onSelectEndpoint(endpoint.url)} />
@@ -119,7 +119,7 @@ function MintedCode({ minted, endpoints, endpointUrl, onSelectEndpoint }: { mint
   );
 }
 
-export function RemotePairGroup({
+export function PairDeviceRow({
   minted,
   endpoints,
   busy,
@@ -133,28 +133,23 @@ export function RemotePairGroup({
   onMint: () => void;
 } & EndpointChoice) {
   const expired = useExpired(minted);
+  const showing = minted !== null && !expired;
   return (
-    <SettingsGroup
-      title="Pair a device"
-      description="One code, one device."
-      action={
+    <Row
+      label="Pair a device"
+      icon={SmartphoneIcon}
+      hint={expired ? "That code expired. Show a new one." : "One code, one device. Shown once and never stored."}
+      info="A code lives five minutes, and is destroyed after five wrong tries."
+      control={
         <div className="flex flex-wrap items-center justify-end gap-2">
           <PairSimulatorsButton />
           <Button variant="outline" size="sm" disabled={busy} onClick={onMint}>
-            {minted && !expired ? "New code" : "Show pairing code"}
+            {showing ? "New code" : "Show code"}
           </Button>
         </div>
       }
     >
-      {minted && !expired ? (
-        <MintedCode minted={minted} endpoints={endpoints} endpointUrl={endpointUrl} onSelectEndpoint={onSelectEndpoint} />
-      ) : (
-        <Row
-          label="Pairing code"
-          hint={expired ? "Expired — mint a new one." : "Shown once and never stored. Five minutes, or five wrong tries."}
-          control={null}
-        />
-      )}
-    </SettingsGroup>
+      {showing && <MintedCode minted={minted} endpoints={endpoints} endpointUrl={endpointUrl} onSelectEndpoint={onSelectEndpoint} />}
+    </Row>
   );
 }

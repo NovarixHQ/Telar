@@ -15,8 +15,10 @@ function rows(devices: RemoteDevice[]): string[] {
       onRevoke={() => undefined}
     />,
   );
-  const body = html.split("<tbody>")[1]!.split("</tbody>")[0]!;
-  return body.split("</tr>").filter(Boolean).map((row) => row.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+  return html
+    .split('id="settings-device-')
+    .slice(1)
+    .map((row) => row.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 }
 
 test("a connected device says so, and a quiet one shows when it was last seen", () => {
@@ -31,4 +33,19 @@ test("a connected device says so, and a quiet one shows when it was last seen", 
   expect(laptop).not.toContain("Connected");
   expect(fresh).toContain("paired 2h ago");
   expect(fresh).not.toContain("Connected");
+});
+
+test("each device is a settings row, not a table", () => {
+  const html = renderToStaticMarkup(
+    <RemoteDevicesGroup
+      status={{ requireAuth: true, exposure: "local-only", tailscaleServe: false, devices: [{ id: "dev_1", name: "Phone", createdAt: 1, role: "full" }], endpoints: [] }}
+      busy={false}
+      onRename={() => undefined}
+      onRole={() => undefined}
+      onRevoke={() => undefined}
+    />,
+  );
+  expect(html).not.toContain("<table");
+  expect(html).toContain('id="settings-device-dev_1"');
+  expect(html).toContain('aria-label="Revoke Phone"');
 });

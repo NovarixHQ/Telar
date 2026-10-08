@@ -268,19 +268,14 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
         ],
       },
       {
-        title: "Pair a device",
-        rows: [
-          {
-            title: "Pairing code",
-            hint: "One code, one device. Codes are shown once and never stored.",
-            keywords: ["qr", "link", "token"],
-            icon: SmartphoneIcon,
-          },
-        ],
-      },
-      {
         title: "Devices that reach this Mac",
         rows: [
+          {
+            title: "Pair a device",
+            hint: "One code, one device. Codes are shown once and never stored.",
+            keywords: ["qr", "link", "token", "pairing code", "phone", "ipad"],
+            icon: SmartphoneIcon,
+          },
           {
             title: "Revoke all other devices",
             hint: "Keeps this one. The lost-phone button.",
@@ -308,19 +303,12 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
     icon: BellIcon,
     groups: [
       {
-        title: "Push notifications",
+        title: "Alerts",
         rows: [
-          {
-            navigateOnly: true,
-            title: "Push notifications",
-            hint: "Whether this computer's alerts reach your phone.",
-            keywords: ["notifications", "apns", "alerts", "push", "relay", "phone", "not working", "test notification"],
-            icon: BellIcon,
-          },
           {
             title: "Notify on",
             hint: "Which device each alert goes to.",
-            keywords: ["duplicate", "twice", "desktop notifications", "banner", "iphone", "mac", "idle", "away"],
+            keywords: ["duplicate", "twice", "desktop notifications", "banner", "iphone", "mac", "idle", "away", "push"],
             icon: BellIcon,
           },
           {
@@ -328,6 +316,18 @@ export const PROJECT_PAGES: SettingsPageSpec[] = [
             hint: "The sound this computer's alerts play.",
             keywords: ["sound", "chime", "audio", "mute", "silent", "hilo", "armonico", "felt"],
             icon: Volume2Icon,
+          },
+        ],
+      },
+      {
+        title: "Phones",
+        rows: [
+          {
+            navigateOnly: true,
+            title: "Phones",
+            hint: "Whether this computer's alerts reach your phone, and why not.",
+            keywords: ["notifications", "apns", "alerts", "push", "relay", "phone", "not working", "test notification", "paused", "registered"],
+            icon: SmartphoneIcon,
           },
         ],
       },

@@ -6,7 +6,7 @@ import { Row, SettingsGroup, ToggleRow } from "@/features/settings";
 import { useRemoteStatus } from "../hooks/use-remote-status";
 import { RemoteDevicesGroup, RevokeOthersRow } from "./remote-devices-group";
 import { RemoteEnvironmentRows } from "./remote-environment-group";
-import { RemotePairGroup } from "./remote-pair-group";
+import { PairDeviceRow } from "./remote-pair-group";
 
 export function RemoteSection() {
   const remote = useRemoteStatus();
@@ -28,11 +28,11 @@ export function RemoteSection() {
           label="Require pairing"
           icon={SmartphoneIcon}
           hint={
-            error ??
-            (status.requireAuth
+            status.requireAuth
               ? "Unpaired devices are refused. The app running the server is always in."
-              : "Anything that can reach this address has full control. The tailnet ACL is the only boundary.")
+              : "Anything that can reach this address has full control; only your network stands in the way."
           }
+          {...(error ? { error } : {})}
           checked={status.requireAuth}
           onCheckedChange={(next) => void remote.toggle(next)}
         />
@@ -46,30 +46,27 @@ export function RemoteSection() {
         )}
       </SettingsGroup>
 
-      {status.requireAuth && (
-        <RemotePairGroup
-          minted={remote.minted}
-          endpoints={status.endpoints}
-          busy={remote.busy}
-          onMint={() => void remote.mint()}
-          endpointUrl={endpointUrl}
-          onSelectEndpoint={setEndpointUrl}
-        />
-      )}
-
       <RemoteDevicesGroup
         status={status}
         busy={remote.busy}
         onRename={(id, name) => void remote.patchDevice(id, { name })}
         onRole={(id, role) => void remote.patchDevice(id, { role })}
         onRevoke={(id) => void remote.revoke(id)}
-      />
-
-      {status.devices.length > 1 && status.callerDeviceId && (
-        <SettingsGroup title="Danger">
+      >
+        {status.requireAuth && (
+          <PairDeviceRow
+            minted={remote.minted}
+            endpoints={status.endpoints}
+            busy={remote.busy}
+            onMint={() => void remote.mint()}
+            endpointUrl={endpointUrl}
+            onSelectEndpoint={setEndpointUrl}
+          />
+        )}
+        {status.devices.length > 1 && status.callerDeviceId && (
           <RevokeOthersRow count={status.devices.length - 1} onConfirm={() => void remote.revokeOthers()} />
-        </SettingsGroup>
-      )}
+        )}
+      </RemoteDevicesGroup>
     </>
   );
 }

@@ -62,7 +62,7 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export function useModelCatalogueGeneration(): number {
+function useModelCatalogueGeneration(): number {
   return useSyncExternalStore(
     subscribe,
     () => generation,

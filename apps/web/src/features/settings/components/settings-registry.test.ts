@@ -39,7 +39,7 @@ test("every indexed row is declared on the pane that actually renders it", () =>
     "Browser profiles": "integrations",
     "Add a server": "integrations",
     "Add a computer": "connections",
-    "Rename branches to match": "source-control",
+    "Name branches": "general",
     "Terminals settled sessions may keep open": "storage",
     "Notify on": "notifications",
     "Continue after Telar restarts": "general",

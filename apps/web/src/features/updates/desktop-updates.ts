@@ -22,7 +22,7 @@ export type UpdatePrefsInfo = UpdatePrefs & {
 };
 
 export type UpdatesBridge = {
-  check: () => Promise<{ status: string } | undefined>;
+  check: () => Promise<UpdateStatus | null | undefined>;
   install: () => Promise<{ status: string } | undefined | void>;
   onStatus: (listener: (status: UpdateStatus) => void) => () => void;
   status?: () => Promise<UpdateStatus | null | undefined>;
@@ -241,7 +241,8 @@ export function useDesktopUpdate({ restartTimeoutMs = RESTART_TIMEOUT_MS }: { re
     void bridge
       .check()
       .then((result) => {
-        if (result?.status === "unsupported") setStatus({ status: "unsupported" });
+        if (!result || result.status === "checking") return;
+        setStatus((current) => (current.status === "checking" || result.status === "unsupported" ? result : current));
       })
       .catch((error: unknown) => {
         setFailure(`Update check failed: ${say(error)}`);

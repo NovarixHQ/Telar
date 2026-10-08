@@ -47,7 +47,7 @@ describe("a tab's close button", () => {
     const [state, setState] = useState<PanelTabState<string>>({ tabs: [...TABS], activeTab: "diff", open: true });
     return (
       <SidebarProvider storageKey="tab-strip-test">
-        <RightPanel sessionId="s1" projectId="p1" tabs={state.tabs as PanelTabItem[]} {...(state.activeTab ? { tab: state.activeTab } : {})} open onTabChange={(id) => setState((current) => ({ ...current, activeTab: id }))} onOpenTab={() => {}} onCloseTab={(id) => setState((current) => closePanelTab(current, id))} onClose={() => {}} />
+        <RightPanel sessionId="s1" projectId="p1" tabs={state.tabs as PanelTabItem[]} {...(state.activeTab ? { tab: state.activeTab } : {})} open onTabChange={(id) => setState((current) => ({ ...current, activeTab: id }))} onOpenTab={() => {}} onCloseTab={(id) => setState((current) => closePanelTab(current, id))} />
       </SidebarProvider>
     );
   }

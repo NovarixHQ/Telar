@@ -31,7 +31,6 @@ export {
 export {
   generateSessionTitle,
   maybeRetitleSession,
-  maybeRetitleWithContext,
   textGenDisabledByEnv,
   type RetitleStore,
 } from "./textgen";

@@ -163,9 +163,6 @@ export const Session = z.object({
   projectId: Id.optional(),
   environmentId: EnvironmentId,
   title: z.string(),
-  /** Present while the title is the engine's own: `first` from the opening message, `second` once retitled with
-   *  more context. Any other title change clears it, so absent means a person or a creator chose the title. */
-  autoTitle: z.enum(["first", "second"]).optional(),
   state: SessionState,
   /** Provenance, never a link — see `SessionOrigin`. Absent is "human". */
   origin: SessionOrigin.optional(),

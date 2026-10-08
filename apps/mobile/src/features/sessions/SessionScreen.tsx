@@ -4,6 +4,7 @@ import type { RequestDecision } from "@telar/engine-client";
 import { isActiveTurn } from "@telar/client/journal";
 import { ActivityIndicator, KeyboardAvoidingView, ScrollView, Settings, StyleSheet, Text, type ScrollViewInstance } from "react-native";
 import { Composer } from "../composer";
+import { SessionControls } from "../providers";
 import { hosts, useHosts } from "../hosts";
 import { feedOf, sendMessage, transcriptRows, useFeed, type TranscriptRow } from "../transcript";
 import { answerRequest, openRequests, RequestCards, stopSession } from "../turns";
@@ -88,6 +89,7 @@ export function SessionScreen() {
       </ScrollView>
       <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision) => void decide(id, decision)} />
       {problem ? <Text style={[styles.problem, styles.failed]}>{problem}</Text> : null}
+      {host && feed.head ? <SessionControls host={host} session={feed.head.session} onChanged={(work) => void act(() => work)} /> : null}
       <Composer draft={draft} onDraft={setDraft} busy={sending} working={working} onSend={() => void send()} onStop={() => void stop()} />
     </KeyboardAvoidingView>
   );

@@ -1,13 +1,20 @@
 import { NavigationContainer, type LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
+import { Linking, Settings } from "react-native";
 import { HostsScreen, PairScreen } from "./features/hosts";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
 import type { RootStack } from "./platform/navigation/routes";
 
 const Stack = createNativeStackNavigator<RootStack>();
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair" } } };
+// `-telarOpenURL <telar://…>` at launch opens that link without iOS's confirmation, which a simulator cannot tap.
+async function initialUrl(): Promise<string | null | undefined> {
+  const url: unknown = Settings.get("telarOpenURL");
+  return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
+}
+
+const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { screens: { Pair: "pair" } }, getInitialURL: initialUrl };
 
 export function App() {
   return (

@@ -20,7 +20,8 @@ export function PairScreen() {
     setPairing(false);
     if (!outcome.ok) return setProblem(outcome.message);
     await rememberHost(outcome.host);
-    navigation.goBack();
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate("Hosts");
   };
 
   const opened = useRef(false);

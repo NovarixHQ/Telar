@@ -7,6 +7,7 @@ import { ArtifactCard } from "@/features/agent-tools";
 import { isToolItem, itemLabel, itemText, type JournalItem, type JournalTask } from "@/platform/engine";
 import { MessageMenu, MessageResponse } from "@/ui/message";
 import { AgentMarkdown } from "./agent-markdown";
+import { MessageActions } from "./message-actions";
 import { type OpenTab } from "./conversation-message";
 import { RowGestures, ToolRow } from "./tool-row";
 import { ProviderSwitchRow } from "./provider-switch-row";
@@ -58,9 +59,12 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
     const text = itemText(item);
     if (running(item)) return <MessageResponse streaming>{text}</MessageResponse>;
     return (
-      <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
-        <AgentMarkdown text={text} onOpenFile={onOpenFile} />
-      </MessageMenu>
+      <div className="group/message">
+        <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
+          <AgentMarkdown text={text} onOpenFile={onOpenFile} />
+        </MessageMenu>
+        <MessageActions text={text} at={item.completedAt ?? item.startedAt} />
+      </div>
     );
   }
   // Forward compatibility: an unrecognised row is still a row. A silently

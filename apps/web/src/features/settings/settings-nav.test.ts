@@ -4,7 +4,7 @@ import { resolveSection } from "./use-section-from-url";
 
 const route = (raw: string | null) => resolveSection(raw, SECTION_IDS);
 
-test("the nav is eleven panes, in order", () => {
+test("the nav is ten panes, in order", () => {
   expect(SECTIONS.map(({ id }) => id)).toEqual([
     "general",
     "appearance",
@@ -13,7 +13,6 @@ test("the nav is eleven panes, in order", () => {
     "integrations",
     "plugins",
     "projects",
-    "notifications",
     "source-control",
     "storage",
     "connections",
@@ -26,7 +25,7 @@ test("every current pane id routes to itself", () => {
 
 
 test("plugins share one destination, and removed panes are not routed", () => {
-  for (const gone of ["latex", "data-science", "schedules", "store", "remote", "tools", "about", "updates", "dictation"]) {
+  for (const gone of ["notifications", "latex", "data-science", "schedules", "store", "remote", "tools", "about", "updates", "dictation"]) {
     expect(SECTION_IDS).not.toContain(gone);
     expect(route(gone)).toBeNull();
   }

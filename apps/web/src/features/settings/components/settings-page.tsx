@@ -28,7 +28,7 @@ const ProjectsPage = dynamic(() => import("@/features/projects/components/projec
 const ComputerUseRow = dynamic(() => import("@/features/providers/components/permissions-section").then((mod) => mod.ComputerUseRow));
 const ProvidersSection = dynamic(() => import("@/features/providers/components/providers-section").then((mod) => mod.ProvidersSection), { loading: SectionSkeleton });
 const RemoteSection = dynamic(() => import("@/features/remote/components/remote-section").then((mod) => mod.RemoteSection), { loading: SectionSkeleton });
-const PushNotificationsGroup = dynamic(() => import("@/features/push").then((mod) => mod.PushNotificationsGroup), { loading: SectionSkeleton });
+const DesktopNotificationsGroup = dynamic(() => import("@/features/push").then((mod) => mod.DesktopNotificationsGroup), { loading: SectionSkeleton });
 const SourceControlPage = dynamic(() => import("@/features/github/components/source-control-page").then((mod) => mod.SourceControlPage), { loading: SectionSkeleton });
 const ComputerRows = dynamic(() => import("@/features/hosts/components/other-hosts").then((mod) => mod.ComputerRows), { loading: SectionSkeleton });
 const TextGenSection = dynamic(() => import("@/features/providers/components/textgen-section").then((mod) => mod.TextGenSection), { loading: SectionSkeleton });
@@ -87,6 +87,7 @@ export function SettingsPage() {
           </WorkspaceSection>
           <RailSection />
           <TextGenSection />
+          <DesktopNotificationsGroup />
           <AboutSection {...(about ? { appVersion: about.appVersion } : {})}>
             <ExperimentalRows />
           </AboutSection>
@@ -123,8 +124,6 @@ export function SettingsPage() {
       {active === "plugins" && <PluginsPage />}
 
       {active === "projects" && <ProjectsPage />}
-
-      {active === "notifications" && <PushNotificationsGroup />}
 
       {active === "source-control" && <SourceControlPage />}
 

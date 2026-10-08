@@ -1,4 +1,4 @@
-import { BellIcon, BlocksIcon, FolderKanbanIcon, GitPullRequestIcon, HardDriveIcon, KeyboardIcon, PaletteIcon, PlugIcon, PlugZapIcon, SlidersHorizontalIcon, SmartphoneIcon } from "lucide-react";
+import { BlocksIcon, FolderKanbanIcon, GitPullRequestIcon, HardDriveIcon, KeyboardIcon, PaletteIcon, PlugIcon, PlugZapIcon, SlidersHorizontalIcon, SmartphoneIcon } from "lucide-react";
 import type { SettingsSection } from "./components/settings-shell";
 
 export const SECTIONS: SettingsSection[] = [
@@ -31,7 +31,6 @@ export const SECTIONS: SettingsSection[] = [
     scope: "project",
     keywords: ["host", "paired", "remote", "other mac", "machine", "computer", "scope", "pick", "select", "all projects", "registry"],
   },
-  { id: "notifications", label: "Notifications", icon: BellIcon },
   { id: "source-control", label: "Source control", icon: GitPullRequestIcon },
   { id: "storage", label: "Storage", icon: HardDriveIcon },
   { id: "connections", label: "Connections", icon: SmartphoneIcon },

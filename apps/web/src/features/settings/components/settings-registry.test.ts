@@ -41,10 +41,9 @@ test("every indexed row is declared on the pane that actually renders it", () =>
     "Add a computer": "connections",
     "Name branches": "general",
     "Terminals settled sessions may keep open": "general",
-    "Notify on": "notifications",
+    "Desktop notifications": "general",
     "Continue after Telar restarts": "general",
     "Settle quiet sessions": "general",
-    Phones: "notifications",
     Providers: "providers",
   };
   for (const [title, pageId] of Object.entries(paneOf)) {

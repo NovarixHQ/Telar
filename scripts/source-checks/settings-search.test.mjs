@@ -5,7 +5,7 @@ const pages = collectSettingsPages();
 const group = (page, title) => pages.find((entry) => entry.id === page)?.groups.find((entry) => entry.title === title);
 
 test("a row is indexed on the pane and under the group that render it", () => {
-  expect(group("notifications", "Alerts")?.rows.map((row) => row.title)).toContain("Notify on");
+  expect(group("general", "Notifications")?.rows.map((row) => row.title)).toEqual(["Desktop notifications"]);
   expect(group("general", "Rail")?.rows.map((row) => row.title)).toContain("Terminals settled sessions may keep open");
 });
 

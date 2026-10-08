@@ -85,7 +85,6 @@ extension HTTPEngineAPI: TerminalAPI {
         request.timeoutInterval = 60
         request.setValue("text/event-stream", forHTTPHeaderField: "accept")
         let session = transport.streamSession()
-        let onUnauthorized = self.onUnauthorized
         let (log, host, target) = (ConnectionLog.shared, transport.hostKey, ConnectionLog.describe(request.url))
         return AsyncThrowingStream { continuation in
             let task = Task {
@@ -98,9 +97,7 @@ extension HTTPEngineAPI: TerminalAPI {
                     guard (200..<300).contains(status) else {
                         var body = Data()
                         for try await byte in bytes.prefix(4096) { body.append(byte) }
-                        let error = EngineAPIError.failure(body, status: status)
-                        if error.isUnauthorized { await onUnauthorized?() }
-                        throw error
+                        throw EngineAPIError.failure(body, status: status)
                     }
                     for try await line in bytes.lines where line.hasPrefix("data:") {
                         let payload = Data(line.dropFirst(5).drop { $0 == " " }.utf8)

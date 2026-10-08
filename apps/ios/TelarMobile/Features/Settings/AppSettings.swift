@@ -23,9 +23,7 @@ import Observation
 
     func api(for id: HostID) -> HTTPEngineAPI? {
         guard let url = book.host(id)?.baseURL else { return nil }
-        return HTTPEngineAPI(baseURL: url, deviceToken: token(for: id), transport: transport(for: id), onUnauthorized: { [weak self] in
-            await self?.clearRevokedToken(id)
-        }) { [weak self] failed in
+        return HTTPEngineAPI(baseURL: url, deviceToken: token(for: id), transport: transport(for: id)) { [weak self] failed in
             await self?.failover(id, from: failed)
         }
     }
@@ -39,18 +37,8 @@ import Observation
         return made
     }
 
-    func renewConnections() {
-        for transport in transports.values { transport.renew() }
-    }
-
     func reconnect(_ id: HostID) async {
-        transports[id]?.renew()
         if let host = book.host(id) { _ = await reprobe(id, order: host.probeOrder) }
-    }
-
-    func clearRevokedToken(_ id: HostID) {
-        guard token(for: id) != nil else { return }
-        setToken(nil, for: id)
     }
 
     @ObservationIgnored var probe: @Sendable (URL) async -> Bool = { await HTTPEngineAPI.probe($0) }

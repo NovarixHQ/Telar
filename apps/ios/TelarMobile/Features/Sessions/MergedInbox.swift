@@ -200,6 +200,10 @@ func createdNewestFirst(_ a: HostedSession, _ b: HostedSession) -> Bool {
         for store in stores.values { store.stop() }
     }
 
+    func refresh(_ hostId: HostID) async {
+        await stores[hostId]?.refresh()
+    }
+
     func refresh() async {
         await withTaskGroup(of: Void.self) { group in
             for store in stores.values {

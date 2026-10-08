@@ -17,6 +17,17 @@ struct PushReadiness: Equatable {
 
     var isEmpty: Bool { notSending.isEmpty && unreachable.isEmpty }
 
+    mutating func record(_ id: HostID, configured: Bool?) {
+        notSending.remove(id)
+        unreachable.remove(id)
+        if configured == nil { unreachable.insert(id) } else if configured == false { notSending.insert(id) }
+    }
+
+    mutating func forget(except paired: Set<HostID>) {
+        notSending.formIntersection(paired)
+        unreachable.formIntersection(paired)
+    }
+
     func statusLine(enabled: Bool, allowed: Bool) -> String {
         if !notSending.isEmpty {
             return deviceUnsupported

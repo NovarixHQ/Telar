@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SessionView: View {
-    @State private var store: SessionStore
+    private let store: SessionStore
     @State private var draft = ""
     @State private var height: CGFloat = 0
     @State private var footerHeight: CGFloat = 0
@@ -50,7 +50,7 @@ struct SessionView: View {
     init(
         api: any EngineAPI, sessionId: EngineID, hostId: HostID? = nil,
         hostName: String? = nil,
-        cockpitBaseURL: URL? = nil, cache: HostSnapshotCache? = nil,
+        cockpitBaseURL: URL? = nil, store: SessionStore,
         onRead: ((Session) -> Void)? = nil,
         reconnect: (() async -> Void)? = nil
     ) {
@@ -63,7 +63,7 @@ struct SessionView: View {
         self.reconnect = reconnect
         if let hostId { _draft = State(initialValue: UserDefaults.standard.string(forKey: "telar.draft.\(hostId).\(sessionId)") ?? "") }
 
-        _store = State(initialValue: SessionStore(api: api, sessionId: sessionId, hostId: hostId, cache: cache, heads: cache == nil ? nil : .shared))
+        self.store = store
         _panel = State(initialValue: PanelModel(hostId: hostId, sessionId: sessionId))
     }
 
@@ -292,9 +292,6 @@ struct SessionView: View {
 
     private var polling: some View {
         stack
-            .task(id: scenePhase == .active) {
-                if scenePhase == .active { await store.sync.follow() }
-            }
             .task {
                 if receipt == nil {
                     let api = self.api

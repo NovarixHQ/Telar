@@ -10,6 +10,8 @@ const row = (sessionId: string, over: Partial<RailRow> = {}): RailRow => ({
   title: sessionId,
   driver: "claude",
   activity: "idle",
+  archived: false,
+  busy: false,
   pinned: false,
   unread: false,
   status: { kind: "idle", label: "1h ago" },

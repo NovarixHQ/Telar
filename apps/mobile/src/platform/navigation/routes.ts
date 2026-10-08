@@ -5,6 +5,7 @@ export type RootStack = {
   Settings: undefined;
   Unavailable: { title: string; systemImage: "chart.bar" | "folder.badge.plus" | "square.and.pencil" };
   Pair: { link?: string } | undefined;
+  Snooze: { hostId: string; sessionId: Session["id"] };
   Diff: { hostId: string; sessionId: string };
   Session: { hostId: string; sessionId: Session["id"]; title?: string; draft?: string };
 };

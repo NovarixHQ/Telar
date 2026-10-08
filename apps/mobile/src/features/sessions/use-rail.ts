@@ -1,4 +1,5 @@
-import { useMemo, useSyncExternalStore } from "react";
+import type { LiveSessionsAnswer } from "@telar/engine-client";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { hosts, useHosts } from "../hosts";
 import { inboxStore } from "./inboxes";
 import { flatRail, hostFailures, railSections, type HostFailure, type RailRow, type RailSections } from "./rail";
@@ -20,6 +21,8 @@ export type MergedRail = {
   stale: ReadonlySet<string>;
   loaded: boolean;
   hasProjects: boolean;
+  /** Settled sessions the computers hold back from the live list until the shelf is opened. */
+  heldBack: number;
 };
 
 /** Every paired computer's sessions as one rail, optionally kept to one computer. */
@@ -53,6 +56,27 @@ export function useMergedRail(chosen: string | undefined): MergedRail {
       stale: new Set(failures.filter((failure) => failure.stale).map((failure) => failure.hostId)),
       loaded: inScope.some(({ hostId }) => byHost.get(hostId)?.answer !== undefined),
       hasProjects: inScope.some(({ hostId }) => (byHost.get(hostId)?.answer?.projects.length ?? 0) > 0),
+      heldBack: inScope.reduce((total, { hostId }) => total + (byHost.get(hostId)?.answer?.settledCount ?? 0), 0),
     };
   }, [snapshots, hostRows, chosen]);
+}
+
+/** Every settled row in scope, read with `all=1` each time the shelf opens. */
+export function useSettledShelf(open: boolean, rail: MergedRail): RailRow[] | undefined {
+  const [answers, setAnswers] = useState<{ hostId: string; answer: LiveSessionsAnswer }[]>();
+  const scope = rail.computers.filter((computer) => rail.filter === undefined || computer.hostId === rail.filter).map((computer) => computer.hostId).join(",");
+  useEffect(() => {
+    if (!open) return setAnswers(undefined);
+    let current = true;
+    const read = scope.split(",").filter(Boolean).map(async (hostId) => {
+      const host = hosts.get(hostId);
+      const answer = host ? await host.call(true, () => host.client.liveSessions({ all: true })).catch(() => undefined) : undefined;
+      return answer ? [{ hostId, answer }] : [];
+    });
+    void Promise.all(read).then((found) => current && setAnswers(found.flat()));
+    return () => {
+      current = false;
+    };
+  }, [open, scope, rail.sections.settled.length]);
+  return useMemo(() => (answers ? railSections(answers, Date.now()).settled : undefined), [answers]);
 }

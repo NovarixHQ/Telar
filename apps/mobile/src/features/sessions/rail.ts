@@ -31,7 +31,12 @@ export type RailRow = {
   projectIconEmoji?: string;
   driver: string;
   branch?: string;
+  path?: string;
   activity: SessionActivity;
+  archived: boolean;
+  busy: boolean;
+  shelf?: "snoozed" | "settled";
+  snoozedUntil?: number;
   pinned: boolean;
   unread: boolean;
   status: RailStatus;
@@ -115,7 +120,11 @@ export function railSections(inboxes: readonly HostInbox[], now: number, filter?
         ...(project?.iconEmoji ? { projectIconEmoji: project.iconEmoji } : {}),
         driver: row.driver,
         ...(row.workspace.mode === "worktree" ? { branch: row.workspace.branch } : {}),
+        ...("path" in row.workspace ? { path: row.workspace.path } : {}),
         activity: row.activity ?? "idle",
+        archived: row.state === "archived",
+        busy,
+        ...(row.snoozedUntil !== undefined ? { snoozedUntil: row.snoozedUntil } : {}),
         pinned: row.settledOverride === "active",
         unread: !busy && hasUnreadResult(session),
         status: statusOf(row, now),
@@ -125,8 +134,8 @@ export function railSections(inboxes: readonly HostInbox[], now: number, filter?
         updatedAt: row.updatedAt,
         lastActivity: lastActivityOf(row),
       };
-      if (isSnoozed(session, activity, options)) sections.snoozed.push(entry);
-      else if (isShelved(session, activity, options)) sections.settled.push(entry);
+      if (isSnoozed(session, activity, options)) sections.snoozed.push({ ...entry, shelf: "snoozed" });
+      else if (isShelved(session, activity, options)) sections.settled.push({ ...entry, shelf: "settled" });
       else sections.active.push(entry);
     }
   }

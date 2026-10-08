@@ -1,4 +1,4 @@
-import { Button, ContentUnavailableView, HStack, Host, Label, List, Section, Spacer } from "@expo/ui/swift-ui";
+import { Button, ContentUnavailableView, HStack, Host, Label, List, Section, Spacer, Text } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   background,
@@ -26,6 +26,8 @@ import { inboxFor } from "./inboxes";
 import { nestRail, type NestedRow } from "./nesting";
 import { searchRail, type RailRow } from "./rail";
 import { RailRowView } from "./RailRows";
+import { RowActions } from "./RowActions";
+import { Shelves } from "./Shelves";
 import { useMergedRail, type MergedRail } from "./use-rail";
 
 type Navigation = NativeStackNavigationProp<RootStack, "Rail">;
@@ -128,6 +130,7 @@ export function RailScreen() {
   useEffect(() => {
     expandedParents = expanded;
   }, [expanded]);
+  const [actionError, setActionError] = useState<string>();
   const rail = useMergedRail(chosen);
   useToolbar(navigation, rail, rail.filter, setFilter, setQuery);
 
@@ -136,19 +139,21 @@ export function RailScreen() {
   const hostName = (hostId: string) => rail.computers.find((computer) => computer.hostId === hostId)?.name;
   const markFor = (row: RailRow) => (rail.computers.length > 1 ? (hostName(row.hostId) ?? "Computer") : undefined);
   const open = (row: RailRow) => navigation.navigate("Session", { hostId: row.hostId, sessionId: row.sessionId, title: row.title });
-  const draw = (row: RailRow, slim = false) => <RailRowView key={row.key} row={row} host={markFor(row)} slim={slim} stale={rail.stale.has(row.hostId)} onOpen={() => open(row)} />;
   const toggle = (key: string) => setExpanded((current) => (current.has(key) ? new Set([...current].filter((entry) => entry !== key)) : new Set([...current, key])));
-  const drawNested = ({ row, family, nested }: NestedRow) => (
-    <RailRowView
-      key={row.key}
-      row={row}
-      host={markFor(row)}
-      nested={nested}
-      stale={rail.stale.has(row.hostId)}
-      {...(family ? { family: { family, open: expanded.has(family.key), onToggle: () => toggle(family.key) } } : {})}
-      onOpen={() => open(row)}
-    />
+  const draw = ({ row, family, nested }: NestedRow, slim = false) => (
+    <RowActions key={row.key} row={row} onSnooze={(target) => navigation.navigate("Snooze", { hostId: target.hostId, sessionId: target.sessionId })} onError={setActionError}>
+      <RailRowView
+        row={row}
+        host={markFor(row)}
+        slim={slim}
+        nested={nested}
+        stale={rail.stale.has(row.hostId)}
+        {...(family ? { family: { family, open: expanded.has(family.key), onToggle: () => toggle(family.key) } } : {})}
+        onOpen={() => open(row)}
+      />
+    </RowActions>
   );
+  const drawSlim = (row: RailRow) => draw({ row, nested: false }, true);
   const nestedRail = nestRail(rail, expanded);
   const found = query.trim() ? searchRail([...rail.sections.active, ...rail.sections.snoozed, ...rail.sections.settled], query, hostName) : undefined;
   const refreshAll = async () => {
@@ -160,16 +165,18 @@ export function RailScreen() {
       <Host style={{ flex: 1 }}>
         <List modifiers={[listStyle("insetGrouped"), listSectionSpacing(12), scrollContentBackground("hidden"), background(Theme.sheet), refreshable(refreshAll)]}>
           <FailureBanners rail={rail} />
+          {actionError ? <Text modifiers={[font({ textStyle: "caption" }), foregroundStyle(Theme.red)]}>{actionError}</Text> : null}
           {found ? (
             found.length > 0 ? (
-              found.map((row) => draw(row, true))
+              found.map(drawSlim)
             ) : (
               <ContentUnavailableView title="No sessions found" systemImage="text.bubble" description="Try another title or project." />
             )
           ) : (
             <>
-              {nestedRail.pinned.length > 0 ? <Section>{nestedRail.pinned.map(drawNested)}</Section> : null}
-              {nestedRail.rows.length > 0 ? <Section>{nestedRail.rows.map(drawNested)}</Section> : null}
+              {nestedRail.pinned.length > 0 ? <Section>{nestedRail.pinned.map((item) => draw(item))}</Section> : null}
+              {nestedRail.rows.length > 0 ? <Section>{nestedRail.rows.map((item) => draw(item))}</Section> : null}
+              <Shelves rail={rail} draw={drawSlim} />
               <EmptyState rail={rail} />
             </>
           )}

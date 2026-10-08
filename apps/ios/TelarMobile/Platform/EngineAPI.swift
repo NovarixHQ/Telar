@@ -1,6 +1,6 @@
 import Foundation
 
-typealias EngineAPI = HostsAPI & SessionsAPI & TurnsAPI & DictationAPI & ProjectsAPI & ProvidersAPI & GitAPI & UsageAPI & RemoteAPI
+typealias EngineAPI = HostsAPI & SessionsAPI & TurnsAPI & DictationAPI & ProjectsAPI & ProvidersAPI & GitAPI & TerminalAPI & UsageAPI & RemoteAPI
 
 typealias PanelAPI = ProjectListAPI & FilesAPI & PluginsAPI
 

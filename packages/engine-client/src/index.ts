@@ -32,7 +32,7 @@ export * from "./worktrees/schema";
 export { diffBaseQuery, filePatchQuery, parseDiffBaseQuery, parseFilePatchQuery, type DiffBaseOption, type FilePatchOptions } from "./git/diff-query";
 export { mountRootsFor, volumeSupportOn, type VolumeSupport } from "./mounts";
 export type { RunTargetInput } from "./terminal/client";
-export { EngineClient, type FetchLike } from "./platform/client";
+export { EngineClient, type EngineEndpoint, type FetchLike } from "./platform/client";
 export { domainMethods, type EngineDomainMethods } from "./platform/domains";
 export { EngineClientError, sanitizeTransportCause } from "./platform/errors";
 export type { Conditional, EngineTransport } from "./platform/transport";

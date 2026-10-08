@@ -14,6 +14,8 @@ struct PanelView: View {
     var simulators: [SimulatorSummary] = []
     var simulatorIds: [String] = []
     var hostName: String?
+    var terminals: [EngineTerminal] = []
+    var browser: BrowserWatch?
 
     let active: Bool
     var diffRevision = 0
@@ -23,6 +25,10 @@ struct PanelView: View {
     var canFillWindow = false
     let onClose: () -> Void
 
+    @State private var launching: PanelTab?
+    @State private var entry = ""
+    @State private var failure: String?
+
     var body: some View {
         VStack(spacing: 0) {
             strip
@@ -31,8 +37,52 @@ struct PanelView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(presentation == .column ? Theme.sheet : Theme.canvas)
-        .navigationTitle(panel.active?.label ?? "Panel")
+        .navigationTitle(panel.active.map(panel.label) ?? "Panel")
         .environment(\.panel, panel)
+        .alert(launching == .browser ? "Open a page" : "Run a command", isPresented: Binding(get: { launching != nil }, set: { if !$0 { launching = nil } })) {
+            TextField(launching == .browser ? "Address" : "Command", text: $entry)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            Button(launching == .browser ? "Open" : "Run") { launch(launching, entry) }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Couldn't open it", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
+            Button("OK") {}
+        } message: { Text(failure ?? "") }
+    }
+
+    private func choose(_ tab: PanelTab) {
+        switch tab {
+        case .terminal:
+            entry = ""
+            launching = .terminal
+        case .browser:
+            if let page = browser?.pages.first(where: \.active) ?? browser?.pages.first {
+                panel.open(.page(page.id))
+            } else {
+                entry = ""
+                launching = .browser
+            }
+        default:
+            panel.open(tab)
+        }
+    }
+
+    private func launch(_ kind: PanelTab?, _ text: String) {
+        let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !typed.isEmpty else { return }
+        Task {
+            do {
+                if kind == .browser, let browser, let browserAPI = api as? any BrowserAPI {
+                    if let page = try await browser.open(typed, api: browserAPI, sessionId: sessionId) { panel.open(.page(page.id)) }
+                } else if let terminalAPI = api as? any TerminalAPI {
+                    let terminal = try await terminalAPI.openTerminal(sessionId, command: typed)
+                    panel.open(.terminal(terminal.terminalId))
+                }
+            } catch {
+                failure = describe(error)
+            }
+        }
     }
 
     static func showsClose(_ presentation: PanelPresentation, canFillWindow: Bool) -> Bool {
@@ -42,8 +92,8 @@ struct PanelView: View {
     private var strip: some View {
         HStack(spacing: 4) {
             PanelTabStrip(
-                tabs: panel.tabs, active: panel.active, openable: panel.openable,
-                select: { panel.select($0) }, close: { panel.closeTab($0) }, open: { panel.open($0) }
+                tabs: panel.tabs, active: panel.active, openable: panel.openable, label: panel.label,
+                select: { panel.select($0) }, close: { panel.closeTab($0) }, open: choose
             )
             Spacer(minLength: 0)
 
@@ -77,7 +127,7 @@ struct PanelView: View {
     @ViewBuilder private var surface: some View {
         switch panel.active {
         case nil:
-            PanelEmptyState(offered: panel.offered) { panel.open($0) }
+            PanelEmptyState(offered: panel.offered, open: choose)
         case .diff:
             DiffView(api: api, sessionId: sessionId, active: active, revision: diffRevision)
 
@@ -96,6 +146,20 @@ struct PanelView: View {
                 unavailable
             }
 
+        case let tab? where tab.terminalId != nil:
+            if let terminalAPI = api as? any TerminalAPI, let id = tab.terminalId {
+                TerminalSurface(api: terminalAPI, sessionId: sessionId, terminalId: id, terminal: terminals.first { $0.terminalId == id })
+                    .id(id)
+            } else {
+                unavailable
+            }
+        case let tab? where tab.pageId != nil:
+            if let browserAPI = api as? any BrowserAPI, let browser, let id = tab.pageId {
+                BrowserPageSurface(api: browserAPI, sessionId: sessionId, pageId: id, watch: browser)
+                    .id(id)
+            } else {
+                unavailable
+            }
         case let tab?:
             if let panelAPI {
                 PluginSurfaceView(tab: tab, api: panelAPI, sessionId: sessionId, hostId: hostId, active: active, panel: panel)

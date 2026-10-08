@@ -32,6 +32,8 @@ enum SyncConnectionState: Equatable {
 
     private(set) var simulatorIds: [String] = []
 
+    private(set) var browserRevision = 0
+
     struct DisplayOpen: Equatable, Identifiable {
         var id: Int
         var at: Timestamp
@@ -181,6 +183,7 @@ enum SyncConnectionState: Equatable {
             events = hydrated.events
             cursor = hydrated.cursor
             simulatorIds = sessionSimulators(simulatorIds, after: hydrated.events)
+            noteBrowser(hydrated.events)
             refold()
             connection = .live
             recordedAt = nil
@@ -231,6 +234,7 @@ enum SyncConnectionState: Equatable {
         }
         if !tail.events.isEmpty || tail.snapshot != nil {
             simulatorIds = sessionSimulators(simulatorIds, after: tail.events)
+            noteBrowser(tail.events)
             events = appendJournalEvents(events, tail.events)
             if let reflected = tail.snapshot?.cursor { events.removeAll { $0.id <= reflected } }
             refold()
@@ -256,6 +260,10 @@ enum SyncConnectionState: Equatable {
         } catch {
             fail(error)
         }
+    }
+
+    private func noteBrowser(_ events: [EngineEvent]) {
+        if events.contains(where: { $0.type == "browser.state.changed" }) { browserRevision += 1 }
     }
 
     private func fail(_ error: Error) {

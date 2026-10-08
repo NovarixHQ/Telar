@@ -42,7 +42,7 @@ test("a link that is not a pairing link, and a Mac that is away, explain themsel
   expect(await pair(LINK, PHONE, fetch)).toMatchObject({ ok: false, message: expect.stringContaining("Couldn't reach") });
 });
 
-test("the device introduces itself by its own name and as an iPhone or an iPad", async () => {
+test("the device introduces itself by its own name, as an iPhone or an iPad, and by this install's id", async () => {
   const network = fakeNetwork({ [MAC]: (path) => (path === "/api/identity" ? identityOf(HOST) : paired()) });
   const bodies: unknown[] = [];
   const fetch = ((input: RequestInfo | URL, init: RequestInit = {}) => {
@@ -50,9 +50,9 @@ test("the device introduces itself by its own name and as an iPhone or an iPad",
     return network.fetch(input, init);
   }) as typeof globalThis.fetch;
   await pair(LINK, PHONE, fetch);
-  await pair(LINK, { name: "Studio iPad", tablet: true }, fetch);
+  await pair(LINK, { name: "Studio iPad", tablet: true, clientId: "9F1C2E4A-7B3D-4C5E-8F6A-0B1C2D3E4F5A" }, fetch);
   expect(bodies).toEqual([
     { token: "48129037", platform: "ios", kind: "phone", machine: "iPhone", os: "iOS", deviceName: "Telar iPhone" },
-    { token: "48129037", platform: "ios", kind: "tablet", machine: "iPad", os: "iPadOS", deviceName: "Studio iPad" },
+    { token: "48129037", platform: "ios", kind: "tablet", machine: "iPad", os: "iPadOS", deviceName: "Studio iPad", clientId: "9F1C2E4A-7B3D-4C5E-8F6A-0B1C2D3E4F5A" },
   ]);
 });

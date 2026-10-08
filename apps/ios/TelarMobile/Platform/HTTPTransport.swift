@@ -4,8 +4,10 @@ final class HTTPTransport: @unchecked Sendable {
     private let lock = NSLock()
     private let configuration: URLSessionConfiguration
     private var current: URLSession
+    let hostKey: String
 
-    init(configuration: URLSessionConfiguration = HTTPTransport.engineConfiguration) {
+    init(hostKey: String = "other", configuration: URLSessionConfiguration = HTTPTransport.engineConfiguration) {
+        self.hostKey = hostKey
         self.configuration = configuration
         current = URLSession(configuration: configuration)
     }
@@ -27,6 +29,7 @@ final class HTTPTransport: @unchecked Sendable {
             guard stale == nil || stale === current else { return current }
             current.finishTasksAndInvalidate()
             current = URLSession(configuration: configuration)
+            ConnectionLog.shared.note(hostKey, "session renewed")
             return current
         }
     }

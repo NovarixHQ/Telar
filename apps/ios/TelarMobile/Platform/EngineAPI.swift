@@ -121,10 +121,10 @@ struct HTTPEngineAPI: Sendable {
     func exchange(_ request: URLRequest) async throws -> (Data, URLResponse) {
         let session = transport.session
         do {
-            return try await session.data(for: request)
+            return try await load(session, request)
         } catch let error as URLError where error.code == .cancelled && !Task.isCancelled && session !== transport.session {
             do {
-                return try await transport.session.data(for: request)
+                return try await load(transport.session, request)
             } catch {
                 throw EngineAPIError.transport(error)
             }
@@ -138,10 +138,23 @@ struct HTTPEngineAPI: Sendable {
             var retry = request
             retry.url = rebased
             do {
-                return try await fresh.data(for: retry)
+                return try await load(fresh, retry)
             } catch {
                 throw EngineAPIError.transport(error)
             }
+        }
+    }
+
+    private func load(_ session: URLSession, _ request: URLRequest) async throws -> (Data, URLResponse) {
+        let started = ContinuousClock.now
+        do {
+            let answer = try await session.data(for: request)
+            let status = (answer.1 as? HTTPURLResponse)?.statusCode ?? 0
+            ConnectionLog.shared.request(transport.hostKey, request, outcome: .success(status), since: started)
+            return answer
+        } catch {
+            ConnectionLog.shared.request(transport.hostKey, request, outcome: .failure(error), since: started)
+            throw error
         }
     }
 

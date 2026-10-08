@@ -86,12 +86,15 @@ extension HTTPEngineAPI: TerminalAPI {
         request.setValue("text/event-stream", forHTTPHeaderField: "accept")
         let session = transport.streamSession()
         let onUnauthorized = self.onUnauthorized
+        let (log, host, target) = (ConnectionLog.shared, transport.hostKey, ConnectionLog.describe(request.url))
         return AsyncThrowingStream { continuation in
             let task = Task {
                 defer { session.invalidateAndCancel() }
                 do {
                     let (bytes, response) = try await session.bytes(for: request)
                     let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    log.note(host, "stream open \(target) \(status)")
+                    defer { log.note(host, "stream closed \(target)") }
                     guard (200..<300).contains(status) else {
                         var body = Data()
                         for try await byte in bytes.prefix(4096) { body.append(byte) }
@@ -105,6 +108,7 @@ extension HTTPEngineAPI: TerminalAPI {
                     }
                     continuation.finish()
                 } catch {
+                    log.note(host, "stream failed \(target) \(ConnectionLog.describe(.failure(error)))")
                     continuation.finish(throwing: error)
                 }
             }

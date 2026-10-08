@@ -61,6 +61,15 @@ struct SettingsView: View {
 
             SettingsGroup(label: "About") {
                 CardValueRow(icon: "info.circle", title: "Version", value: version)
+                CardDivider()
+                ShareLink(item: ConnectionLogExport(names: settings.connectionLogNames), preview: SharePreview("Connection log")) {
+                    CardRow(icon: "waveform.path.ecg", title: "Export connection log", subtitle: "The last 500 requests to each computer") {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(Theme.footnote, weight: .medium))
+                            .foregroundStyle(Theme.chevron)
+                    }
+                }
+                .buttonStyle(.plain)
             }
         }
         .navigationDestination(item: $pushTarget) { target in

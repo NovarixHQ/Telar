@@ -1,7 +1,7 @@
 import { NavigationContainer, type LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { Button, Linking, Settings, useColorScheme } from "react-native";
+import { Linking, Settings, useColorScheme } from "react-native";
 import { DiffScreen } from "./features/git";
 import { hosts, HostsScreen, PairScreen } from "./features/hosts";
 import { SessionScreen, SessionsScreen } from "./features/sessions";
@@ -27,17 +27,7 @@ export function App() {
         <Stack.Screen name="Hosts" component={HostsScreen} options={{ title: "Telar" }} />
         <Stack.Screen name="Pair" component={PairScreen} options={{ title: "Pair a computer", presentation: "formSheet", headerLargeTitle: false, sheetAllowedDetents: [0.6, 1] }} />
         <Stack.Screen name="Sessions" component={SessionsScreen} options={({ route }) => ({ title: route.params.hostName ?? hosts.get(route.params.hostId)?.name ?? "Sessions" })} />
-        <Stack.Screen
-          name="Session"
-          component={SessionScreen}
-          options={({ route, navigation }) => ({
-            title: route.params.title ?? "",
-            headerLargeTitle: false,
-            headerRight: () => (
-              <Button title="Diff" onPress={() => navigation.navigate("Diff", { hostId: route.params.hostId, sessionId: route.params.sessionId })} />
-            ),
-          })}
-        />
+        <Stack.Screen name="Session" component={SessionScreen} options={({ route }) => ({ title: route.params.title ?? "Session", headerLargeTitle: false })} />
         <Stack.Screen name="Diff" component={DiffScreen} options={{ title: "Diff", headerLargeTitle: false }} />
       </Stack.Navigator>
     </NavigationContainer>

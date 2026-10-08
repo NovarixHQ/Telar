@@ -58,3 +58,11 @@ export function dialableAddresses(
 ): string[] {
   return listEndpoints(port, nics, env).filter((endpoint) => endpoint.qrSafe).map((endpoint) => endpoint.url);
 }
+
+export function advertisedAddresses(port: number = cockpitPort(), nics?: NicMap, env?: { TELAR_TAILSCALE_URL?: string }): string[] {
+  const rank: Record<CockpitEndpoint["kind"], number> = { tailnet: 0, magicdns: 1, lan: 2, loopback: 3 };
+  return listEndpoints(port, nics, env)
+    .filter((endpoint) => endpoint.qrSafe)
+    .sort((left, right) => rank[left.kind] - rank[right.kind])
+    .map((endpoint) => endpoint.url);
+}

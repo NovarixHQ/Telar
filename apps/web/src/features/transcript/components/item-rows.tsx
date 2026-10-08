@@ -14,7 +14,7 @@ Minimize2Icon
 import { itemLabel, itemText, type JournalItem, type JournalTurn } from "@/platform/engine";
 import { fmtTokens } from "@/ui/format";
 import { attachmentUrl } from "@/features/plugins";
-import { MessageMenu } from "@/ui/message";
+import { MessageMenu, MessageResponse, messagePlainText } from "@/ui/message";
 import { Shimmer } from "@/ui/shimmer";
 import { ROW } from "./transcript-fold";
 import { AgentMessageBubble, ConversationMessage, type OpenTab } from "./conversation-message";
@@ -23,7 +23,9 @@ import { cn } from "@/ui/utils";
 import { notificationLabel, reasoningPaints, reasoningTokens, running } from "../model";
 import { RowGestures } from "./tool-row";
 
-/** Extended thinking. Italic, hairline-indented, quiet — never a card. */
+const THOUGHT = "text-xs leading-relaxed italic text-muted-foreground";
+
+/** Extended thinking, as Markdown. Italic, hairline-indented, quiet — never a card. */
 export function ReasoningRow({ item }: { item: JournalItem }) {
   const [open, setOpen] = useState(false);
   const text = itemText(item);
@@ -42,10 +44,9 @@ export function ReasoningRow({ item }: { item: JournalItem }) {
           </Shimmer>
         </div>
         {text.trim() && (
-          <p className="ml-5 border-l border-border/70 pl-3 text-xs leading-relaxed whitespace-pre-wrap italic">
-            {text}
-            <span className="ml-0.5 inline-block h-3 w-[2px] translate-y-0.5 animate-pulse bg-muted-foreground/70 align-middle" />
-          </p>
+          <div className="ml-5 border-l border-border/70 pl-3">
+            <MessageResponse streaming className={THOUGHT}>{text}</MessageResponse>
+          </div>
         )}
       </div>
     );
@@ -69,13 +70,13 @@ export function ReasoningRow({ item }: { item: JournalItem }) {
         <span aria-hidden className="shrink-0">
           ✻
         </span>
-        <span className="min-w-0 flex-1 truncate italic">{text.trim().split("\n", 1)[0]}</span>
+        <span className="min-w-0 flex-1 truncate italic">{messagePlainText(text).split("\n", 1)[0]}</span>
         <ChevronRightIcon className={cn("size-3 shrink-0 transition-transform", open && "rotate-90")} />
       </button>
       {open && (
-        <p className="mx-1.5 mb-1.5 rounded-md bg-muted/30 p-2 text-2xs whitespace-pre-wrap italic text-muted-foreground">
-          {text}
-        </p>
+        <div className="mx-1.5 mb-1.5 rounded-md bg-muted/30 p-2">
+          <MessageResponse className={THOUGHT}>{text}</MessageResponse>
+        </div>
       )}
     </div>
   );

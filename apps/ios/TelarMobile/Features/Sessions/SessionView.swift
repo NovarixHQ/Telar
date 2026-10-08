@@ -203,6 +203,7 @@ struct SessionView: View {
                         }
                 }
             }
+            .keepsTasksAliveOnReentry()
             .onChange(of: panel.isFullScreen) {
                 raisePanel(panel.isOpen)
                 syncSidebar(open: panel.isOpen)
@@ -554,5 +555,11 @@ struct SessionView: View {
                 }
             )
         }
+    }
+}
+
+private extension View {
+    func keepsTasksAliveOnReentry() -> some View {
+        inspector(isPresented: .constant(false)) { EmptyView() }
     }
 }

@@ -34,7 +34,7 @@ function fakeTransfer() {
 async function dragRow(drag?: React.ComponentProps<typeof SessionRow>["drag"]) {
   await mount(
     <SidebarProvider>
-      <SessionRow session={session} active={false} showProject={false} variant="slim" band="active" renderedAt={0} onRowChanged={() => {}} {...(drag ? { drag } : {})} />
+      <SessionRow session={session} active={false} showProject={false} band="active" renderedAt={0} onRowChanged={() => {}} {...(drag ? { drag } : {})} />
     </SidebarProvider>,
   );
   const handle = document.querySelector('[draggable="true"]')!;

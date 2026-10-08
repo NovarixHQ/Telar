@@ -26,7 +26,18 @@ export function sanitizeTitle(raw: unknown): string | undefined {
   if (typeof raw !== "string") return undefined;
   const line = raw.split("\n")[0]!.replace(/\s+/g, " ").trim().replace(/^["'`]+|["'`.]+$/g, "").trim();
   if (!line) return undefined;
-  return line.slice(0, 80);
+  return sentenceCase(line.slice(0, 80));
+}
+
+const MINOR_WORDS = new Set(["a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "via", "vs", "with"]);
+const CAPITALIZED = /^[A-Z][a-z]+(?:-[A-Z][a-z]+)*[,:]?$/;
+
+function sentenceCase(title: string): string {
+  const [first, ...rest] = title.split(" ");
+  const capitalized = rest.filter((word) => CAPITALIZED.test(word)).length;
+  const prose = rest.some((word) => /^[a-z]+[,:]?$/.test(word) && !MINOR_WORDS.has(word.replace(/[,:]$/, "")));
+  if (capitalized < 2 || prose) return title;
+  return [first, ...rest.map((word) => (CAPITALIZED.test(word) ? word.toLowerCase() : word))].join(" ");
 }
 
 export function titleIsSeed(title: string, firstMessage: string): boolean {

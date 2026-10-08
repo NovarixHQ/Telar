@@ -9,7 +9,7 @@ import { Popover, PopoverContent } from "@/ui/popover";
 import { Badge } from "@/ui/badge";
 import { cn } from "@/ui/utils";
 import { modelOptionSections, reasoningPillLabel, selectionOf, type ModelOptionRow } from "../model-options";
-import { MenuHeading, PillTrigger } from "./control-primitives";
+import { MenuHeading, PillTrigger, useSummon } from "./control-primitives";
 
 const ROWS = "[data-option-row]:not([disabled])";
 
@@ -20,6 +20,7 @@ export function ReasoningControl({
   instanceId,
   onChange,
   ultrathink,
+  summon,
 }: {
   driver: ProviderDriverKind;
   choice: ModelChoice;
@@ -27,8 +28,10 @@ export function ReasoningControl({
   onChange?: (next: ModelChoice) => void;
   /** The draft's keyword; absent where there is no message, and then Ultrathink is not offered. */
   ultrathink?: { active: boolean; toggle: () => void };
+  summon?: number | undefined;
 }) {
   const [open, setOpen] = useState(false);
+  useSummon(summon, () => setOpen(true));
   const list = useRef<HTMLDivElement>(null);
   const catalogue = useModelCatalogue(driver, instanceId);
   const models = catalogue?.models ?? [];

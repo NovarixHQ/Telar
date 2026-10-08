@@ -30,7 +30,7 @@ export function moveCandidates(session: SidebarSession, rows: readonly SidebarSe
     return false;
   };
   const parent = parentKeyOf(session);
-  const open = rows.filter((row) => row.hostId === session.hostId && !row.archived && !row.draft && sessionKey(row) !== self && sessionKey(row) !== parent && !under(row));
+  const open = rows.filter((row) => row.hostId === session.hostId && !row.archived && sessionKey(row) !== self && sessionKey(row) !== parent && !under(row));
   return [...open.filter((row) => row.projectId === session.projectId), ...open.filter((row) => row.projectId !== session.projectId)];
 }
 

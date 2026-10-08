@@ -41,6 +41,25 @@ describe("sanitizeTitle", () => {
     expect(sanitizeTitle("  Fix   the\tlogin  flow.  ")).toBe("Fix the login flow");
   });
 
+  test("turns a Title Cased answer into sentence case", () => {
+    expect(sanitizeTitle("Fix Rail Row Layout")).toBe("Fix rail row layout");
+    expect(sanitizeTitle("Add Dark Mode to the Settings Page")).toBe("Add dark mode to the settings page");
+    expect(sanitizeTitle("Fix Sign-In Flow on iOS")).toBe("Fix sign-in flow on iOS");
+  });
+
+  test("keeps acronyms, identifiers and paths while sentence casing", () => {
+    expect(sanitizeTitle("Fix CI Failures in PR Review API")).toBe("Fix CI failures in PR review API");
+    expect(sanitizeTitle("Debug useEffect Loop in README.md Example")).toBe("Debug useEffect loop in README.md example");
+    expect(sanitizeTitle("Move GitHub Checks to apps/web/src Folder")).toBe("Move GitHub checks to apps/web/src folder");
+    expect(sanitizeTitle("Bump Node20 Runtime Version")).toBe("Bump Node20 runtime version");
+  });
+
+  test("leaves a title that is already sentence case alone", () => {
+    expect(sanitizeTitle("Fix login for Safari users")).toBe("Fix login for Safari users");
+    expect(sanitizeTitle("Investigate Telar Engine crash")).toBe("Investigate Telar Engine crash");
+    expect(sanitizeTitle("Fix Login")).toBe("Fix Login");
+  });
+
   test("bounds a title the model refused to keep short", () => {
     expect(sanitizeTitle("x".repeat(300))!.length).toBe(80);
   });
@@ -408,15 +427,15 @@ describe("regenerateSessionTitle", () => {
       calls.prompts.push(prompt);
       if (overrides.titleAfter !== undefined) title = overrides.titleAfter;
       if (overrides.failure !== undefined) return Promise.reject(new TextGenFailure(overrides.failure));
-      return Promise.resolve("answer" in overrides ? overrides.answer : { title: "Rail Settle Flicker" });
+      return Promise.resolve("answer" in overrides ? overrides.answer : { title: "Rail settle flicker" });
     };
     return { calls, run: () => regenerateSessionTitle(store, "session_one", run as never) };
   }
 
   test("replaces even a title the person wrote, from the conversation, with the policy's model and effort", async () => {
     const { calls, run } = harness();
-    expect(await run()).toEqual({ title: "Rail Settle Flicker", changed: true });
-    expect(calls.updates).toEqual([{ title: "Rail Settle Flicker" }]);
+    expect(await run()).toEqual({ title: "Rail settle flicker", changed: true });
+    expect(calls.updates).toEqual([{ title: "Rail settle flicker" }]);
     expect(calls.renamed).toEqual(["session_one"]);
     expect(calls.inputs[0]).toMatchObject({ driver: "claude", model: "haiku", effort: "medium" });
     const prompt = calls.prompts[0]!;

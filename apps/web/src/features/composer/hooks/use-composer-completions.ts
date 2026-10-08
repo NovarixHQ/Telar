@@ -13,6 +13,7 @@ import {
   rankSessions,
   rankSkills,
   type Completion,
+  type ComposerPicker,
   type PathEntry,
   type SessionCandidate,
 } from "../completions";
@@ -22,18 +23,18 @@ import type { ComposerEditorHandle } from "../components/composer-editor";
 const api = createEngineApi();
 
 const PATHS_FAILED: Completion = { id: "paths:failed", label: "Files", detail: "Could not read the files here.", glyph: "directory", action: { type: "insert", text: "" }, disabled: true };
+const PATHS_READING: Completion = { id: "paths:reading", label: "Reading files…", detail: "", glyph: "directory", action: { type: "insert", text: "" }, disabled: true };
 
 type CommandState = {
   busy: boolean;
   fresh: boolean;
-  pickers: { model: boolean; access: boolean };
+  pickers: Record<ComposerPicker, boolean>;
   envMode: "local" | "worktree" | undefined;
   compacting: boolean | undefined;
   canResume: boolean;
-  efforts: string[];
 };
 
-/** Read on the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again once `retry` changes. */
+/** Read on focus or the first sigil, never on mount: listing is a git call, skills may spawn the harness. A failure is read again once `retry` changes. */
 function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<T>) | undefined, fallback: T, retry?: unknown) {
   // Keyed by checkout so one session's answer never serves another.
   const [cache, setCache] = useState<{ checkout: string; value: T; failed?: { retry: unknown } }>();
@@ -78,44 +79,45 @@ export function useComposerCompletions({
   // Escape hides the list without clearing the trigger; the next edit re-arms it.
   const [dismissed, setDismissed] = useState(false);
   const checkout = sessionId ?? (projectId ? `project:${projectId}` : "none");
+  const [primed, setPrimed] = useState<string>();
+  const wantPaths = trigger?.kind === "path" || primed === checkout;
 
   const listPaths = sessionId || projectId
     ? async () => buildPathIndex((sessionId ? await api.sessionFiles(sessionId) : await api.projectFiles(projectId!)).listing.files)
     : async () => [] as PathEntry[];
-  const paths = useLazyRead(trigger?.kind === "path", checkout, listPaths, [] as PathEntry[], trigger?.query);
+  const paths = useLazyRead(wantPaths, checkout, listPaths, [] as PathEntry[], trigger?.query);
   // This engine's sessions only: a reference to another host's session would not resolve here.
   const listSessions = async (): Promise<SessionCandidate[]> => {
     const live = await api.liveSessions();
     const names = new Map(live.projects.map((project) => [project.id, project.name]));
     return live.sessions.map(({ id, title, projectId, updatedAt }) => ({ id, title, projectId, updatedAt, projectName: projectId ? names.get(projectId) : undefined }));
   };
-  const sessions = useLazyRead(trigger?.kind === "path", checkout, listSessions, [] as SessionCandidate[]);
+  const sessions = useLazyRead(wantPaths, checkout, listSessions, [] as SessionCandidate[]);
   const listSkills = sessionId ? () => api.sessionSkills(sessionId) : projectId ? () => api.projectSkills(projectId, menuDriver) : undefined;
   const skills = useLazyRead<ProviderSkills>(trigger?.kind === "skill" || trigger?.kind === "command", checkout, listSkills, { skills: [], commands: [] });
 
-  const { busy, fresh, pickers: { model: modelPicker, access: accessPicker }, envMode, compacting, canResume, efforts } = commands;
+  const { busy, fresh, pickers: { model: modelPicker, effort: effortPicker, access: accessPicker }, envMode, compacting, canResume } = commands;
   const completions = useMemo<Completion[]>(() => {
     if (!trigger || dismissed) return [];
     if (trigger.kind === "skill") return rankSkills(skills.value?.skills ?? [], trigger.query);
     if (trigger.kind === "path") {
       const sessionRows = rankSessions(sessions.value ?? [], trigger.query, { sessionId, projectId });
-      const files = paths.failed ? [PATHS_FAILED] : rankPaths(paths.value ?? [], trigger.query, 12);
+      const files = paths.failed ? [PATHS_FAILED] : paths.value ? rankPaths(paths.value, trigger.query, 12) : [PATHS_READING];
       return [...files, ...sessionRows];
     }
     // Two ranked lists, not one: a plugin command must not outscore `/stop`.
     const own = availableCommands({
       busy,
       fresh,
-      pickers: { model: modelPicker, access: accessPicker },
+      pickers: { model: modelPicker, effort: effortPicker, access: accessPicker },
       ...(menuDriver ? { driver: menuDriver } : {}),
       ...(compacting ? { compacting } : {}),
       ...(envMode ? { envMode } : {}),
-      efforts,
       canResume,
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
     return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, paths.failed, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, accessPicker, menuDriver, compacting, envMode, efforts, canResume]);
+  }, [trigger, dismissed, paths.value, paths.failed, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, effortPicker, accessPicker, menuDriver, compacting, envMode, canResume]);
 
   // `@` always opens, so an empty or unreadable listing says so instead of looking like a dead key.
   const loading = (trigger?.kind === "path" && (paths.reading || sessions.reading)) || (trigger?.kind === "skill" && skills.reading);
@@ -149,7 +151,9 @@ export function useComposerCompletions({
   const heading = () =>
     trigger?.kind === "skill" ? "Skills" : trigger?.kind === "command" ? "Commands" : "Files and folders";
 
-  return { trigger, completions, open, loading, active, setActive, setDismissed, retrigger, edited, take, heading };
+  const prime = () => setPrimed(checkout);
+
+  return { trigger, completions, open, loading, active, setActive, setDismissed, retrigger, edited, take, heading, prime };
 }
 
 export type ComposerCompletions = ReturnType<typeof useComposerCompletions>;

@@ -63,9 +63,6 @@ function PreparationStatus({ preparation }: { preparation: NonNullable<SidebarSe
 export function RowStatus({ session, band, renderedAt }: { session: SidebarSession; band: SessionBand; renderedAt: number }) {
   if (isAway(session.projectAvailability)) return <DriveStatus session={session} away={session.projectAvailability} />;
   if (session.preparation) return <PreparationStatus preparation={session.preparation} />;
-  if (session.draft) {
-    return <span className={`shrink-0 text-2xs tabular-nums text-sidebar-foreground/45 ${yieldOnHover}`}>Draft · {fmtAgo(session.updatedAt, renderedAt)}</span>;
-  }
   if (band === "snoozed" && session.snoozedUntil !== undefined) {
     return (
       <span className={`inline-flex shrink-0 items-center gap-1 text-2xs tabular-nums text-sidebar-foreground/45 ${yieldOnHover}`}>

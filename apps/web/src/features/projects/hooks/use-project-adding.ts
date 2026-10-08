@@ -21,23 +21,17 @@ export function useProjectAdding({
   const [busy, setBusy] = useState(false);
   const api = useMemo(() => createEngineApi(hostFetcher(hostId)), [hostId]);
 
-  const settle = async (project: { id: string; name: string }) => {
+  const settle = (project: { id: string; name: string }) => {
     announceProjectsChanged();
-    let ignored = true;
-    try {
-      await api.projectGitignore(project.id);
-    } catch {
-      ignored = false;
-    }
     onClose();
-    onRegistered({ projectId: project.id, name: project.name, ignored, hostId });
+    onRegistered({ projectId: project.id, name: project.name, hostId });
   };
 
   const register = async (send: () => Promise<{ project: { id: string; name: string } }>) => {
     setNotice(undefined);
     setBusy(true);
     try {
-      await settle((await send()).project);
+      settle((await send()).project);
     } catch (cause) {
       setNotice(cause instanceof EngineApiError ? cause.message : String(cause));
     } finally {

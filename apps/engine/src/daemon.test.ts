@@ -643,30 +643,6 @@ test("POST /v2/projects/clone clones and registers in one request, with git stub
   expect(clones().length).toBe(before);
 });
 
-test("the gitignore write has a DELETE that undoes it, and takes back only its own block", async () => {
-  // Adding a project ignores Telar's files WITHOUT asking now — the switch in
-  // the old Register dialog became a default — so the toast's Undo needs a
-  // route, and that route must not reach a rule somebody wrote themselves.
-  const daemon = await startEngine({ models: stubModels, engineRoot: root() });
-  daemons.push(daemon);
-  const client = new EngineClient(daemon.discovery);
-  const checkout = root();
-  fs.writeFileSync(path.join(checkout, ".gitignore"), "node_modules/\n");
-  const { project } = await client.registerProject({ name: "Ignorable", root: checkout });
-
-  const { gitignore: added } = await client.projectGitignore(project.id);
-  expect(added.added.length).toBeGreaterThan(0);
-  expect(fs.readFileSync(path.join(checkout, ".gitignore"), "utf8")).toContain(".telar/");
-
-  const { gitignore: removed } = await client.undoProjectGitignore(project.id);
-  expect(removed.removed).toEqual(added.added);
-  // Byte-identical to what was found: the write and its undo cancel exactly.
-  expect(fs.readFileSync(path.join(checkout, ".gitignore"), "utf8")).toBe("node_modules/\n");
-  // Twice is a success with nothing to do, not a failure — the toast can arrive
-  // after somebody has already edited the file by hand.
-  expect((await client.undoProjectGitignore(project.id)).gitignore.removed).toEqual([]);
-});
-
 test("close clears every interval the engine started", async () => {
   const realSetInterval = globalThis.setInterval;
   const realClearInterval = globalThis.clearInterval;

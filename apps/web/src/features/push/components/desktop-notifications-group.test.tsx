@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { flush, installTestDom, mount, press } from "@/test/dom";
+import { click, flush, installTestDom, mount } from "@/test/dom";
 import { DesktopNotificationsGroup } from "./desktop-notifications-group";
 
 installTestDom();
@@ -15,8 +15,13 @@ test("in the desktop app the switch shows the shell's choice and turning it off 
   const set: boolean[] = [];
   desktop.telarDesktop = { notifications: { get: async () => ({ enabled: true }), set: async (enabled: boolean) => (set.push(enabled), { enabled }) } };
   const { host } = await mount(<DesktopNotificationsGroup />);
-  await flush(() => toggle(host)?.getAttribute("aria-checked") === "true" && !toggle(host)?.hasAttribute("disabled"));
-  await press(toggle(host)!);
+  const ready = () => {
+    const node = toggle(host);
+    return node?.getAttribute("aria-checked") === "true" && !node.hasAttribute("data-disabled") && node.getAttribute("aria-disabled") !== "true";
+  };
+  await flush(ready);
+  expect(ready()).toBe(true);
+  await click(toggle(host) ?? undefined);
   await flush(() => set.length > 0);
   expect(set).toEqual([false]);
   expect(toggle(host)?.getAttribute("aria-checked")).toBe("false");

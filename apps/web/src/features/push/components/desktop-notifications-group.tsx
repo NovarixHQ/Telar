@@ -21,9 +21,11 @@ export function DesktopNotificationsGroup() {
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    const found = desktopNotifications() ?? null;
-    const task = window.setTimeout(() => setBridge(found), 0);
-    void found?.get().then(({ enabled }) => setEnabled(enabled), () => setEnabled(true));
+    const task = window.setTimeout(() => {
+      const found = desktopNotifications() ?? null;
+      setBridge(found);
+      void found?.get().then(({ enabled }) => setEnabled(enabled), () => setEnabled(true));
+    }, 0);
     return () => window.clearTimeout(task);
   }, []);
 

@@ -19,9 +19,18 @@ function withBridge(bridge: DesktopBrowserBridge | undefined) {
   (window as unknown as { telarDesktop?: { browser?: DesktopBrowserBridge } }).telarDesktop = bridge ? { browser: bridge } : undefined;
 }
 
-function nativeBrowser(pages: [string, boolean][]): DesktopBrowserBridge {
+function nativeBrowser(pages: [string, boolean][], actions: Record<string, unknown>[] = []): DesktopBrowserBridge {
+  const state = (scopeKey: string) => ({ scopeKey, tabs: pages.map(([id, active], index) => ({ id, index, active })) });
   return {
-    getState: async (scopeKey: string) => ({ scopeKey, tabs: pages.map(([id, active], index) => ({ id, index, active })) }),
+    getState: async (scopeKey: string) => state(scopeKey),
+    action: async (scopeKey: string, action: Record<string, unknown>) => {
+      actions.push(action);
+      if (action.action === "new") {
+        for (const page of pages) page[1] = false;
+        pages.push([`n${pages.length + 1}`, true]);
+      }
+      return state(scopeKey);
+    },
   } as unknown as DesktopBrowserBridge;
 }
 
@@ -79,11 +88,15 @@ describe("the one Browser entry", () => {
     view.unmount();
   });
 
-  test("in the desktop app it shows the native browser's active page, not the journal's", async () => {
-    const view = await probe({ bridge: nativeBrowser([["n1", false], ["n2", true], ["n3", false]]), events: [pageEvent(["a"])] });
+  test("in the desktop app with a browser running it opens a new page as a new tab", async () => {
+    const actions: Record<string, unknown>[] = [];
+    const view = await probe({ bridge: nativeBrowser([["n1", false], ["n2", true]], actions), events: [pageEvent(["a"])] });
     await view.result().openBrowser();
-    expect(view.shown).toEqual(["browser:n2"]);
+    expect(actions).toEqual([{ action: "new" }]);
+    expect(view.shown).toEqual(["browser:n3"]);
     expect(view.starts).toEqual([]);
+    await view.result().openBrowser();
+    expect(view.shown).toEqual(["browser:n3", "browser:n4"]);
     view.unmount();
   });
 

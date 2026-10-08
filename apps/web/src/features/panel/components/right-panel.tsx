@@ -228,6 +228,11 @@ export function RightPanel(props: RightPanelProps) {
   const activeTab = useMemo(() => tabs.find((entry) => entry.id === tab), [tabs, tab]);
   const [lightbox, setLightbox] = useState<string>();
   const keptTerminals = useKeptTerminals(tabs, activeTab);
+  const showingPage = activeTab !== undefined && model.browserTabId(activeTab.kind) !== undefined;
+  useEffect(() => {
+    if (showingPage || !sessionId) return;
+    void desktopBrowserBridge()?.setVisible(sessionId, false).catch(() => undefined);
+  }, [showingPage, sessionId]);
   const launcher = model.launcherRows(tabs, {
     enabledPlugins,
     pluginPanels,

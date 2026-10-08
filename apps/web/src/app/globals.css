@@ -1472,7 +1472,7 @@ pre span[style*="--sdm-c"] {
    the column on the non-scrolling frame keeps it fixed whatever the body
    does; the button is absolutely positioned into that column. */
 .telar-markdown [data-streamdown="code-block"] {
-  padding-right: 2rem;
+  padding-right: 3.5rem;
 }
 /* The actions row keeps its sticky position (a long block's copy stays in
    reach) but sheds the pull-up that assumed the 32px header. The button
@@ -1492,6 +1492,7 @@ pre span[style*="--sdm-c"] {
 }
 .telar-markdown [data-streamdown="code-block-actions"] {
   margin: 0;
+  gap: 0;
   border: 0;
   background: color-mix(in oklch, var(--muted) 60%, transparent);
   padding: 0.125rem;

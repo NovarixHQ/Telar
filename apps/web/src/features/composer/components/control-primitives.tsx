@@ -27,14 +27,17 @@ type ControlTriggerProps = ComponentPropsWithoutRef<"button"> & {
   label: string;
   /** The composer width below which only the icon shows. */
   fold?: keyof typeof FOLD;
+  /** Shown outside the composer, whose row already spells it out in the next pill. */
+  detail?: string;
   ariaLabel: string;
 };
 
 export const ControlTrigger = forwardRef<HTMLButtonElement, ControlTriggerProps>(
-  ({ open, icon, label, fold, ariaLabel, className, ...props }, ref) => (
+  ({ open, icon, label, fold, detail, ariaLabel, className, ...props }, ref) => (
     <button {...props} ref={ref} type="button" className={cn(controlClass(open, props.disabled), fold && "shrink-0", className)} aria-label={ariaLabel}>
       <span className="flex shrink-0 [&_svg]:size-3.5">{icon}</span>
       <span className={cn("min-w-0 max-w-48 truncate text-foreground", fold && FOLD[fold])}>{label}</span>
+      {detail ? <span className="max-w-24 truncate before:mr-1.5 before:text-muted-foreground/40 before:content-['·'] @min-[0px]/composer:hidden">{detail}</span> : null}
       <ChevronDownIcon className="size-3 shrink-0 opacity-60" />
     </button>
   ),

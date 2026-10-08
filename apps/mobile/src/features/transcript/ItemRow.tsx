@@ -1,36 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { itemLabel, itemText, type JournalItem } from "@telar/client/journal";
+import { itemText, type JournalItem } from "@telar/client/journal";
+import { ArtifactCard } from "./Artifact";
 import { providerSwitchLabel } from "./layout";
 import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./notices";
 import { Markdown } from "./Markdown";
 import { advanceReveal, REVEAL_FRAME_MS, revealed, revealText, stepReveal, type Reveal } from "./reveal";
 import { Radius, Theme, type SymbolName } from "../../ui";
-import { MONO, PulseDot, Symbol, TextSize } from "./native";
-
-const TOOL_ICON: Partial<Record<JournalItem["detail"]["type"], SymbolName>> = {
-  command_execution: "terminal",
-  file_change: "pencil.line",
-  file_read: "doc.text",
-  web_search: "magnifyingglass",
-  browser_action: "globe",
-  task: "person.2",
-  unknown: "questionmark.diamond",
-};
-
-function ToolChip({ icon, label, status }: { icon: SymbolName; label: string; status?: JournalItem["status"] }) {
-  return (
-    <View style={styles.chip}>
-      <View style={styles.glyph}>
-        <Symbol name={icon} size={TextSize.footnote} weight="medium" color={Theme.textMuted} />
-      </View>
-      <Text style={styles.chipLabel} numberOfLines={1} ellipsizeMode="middle">{label}</Text>
-      {status === "inProgress" ? <PulseDot /> : null}
-      {status === "failed" ? <Symbol name="xmark" size={TextSize.caption} weight="semibold" color={Theme.red} /> : null}
-      {status === "declined" ? <Symbol name="hand.raised" size={TextSize.caption} color={Theme.amber} /> : null}
-    </View>
-  );
-}
+import { MONO, Symbol, TextSize } from "./native";
+import { TaskItemRow, ToolChip, ToolRow } from "./ToolRows";
 
 export function NestedDetail({ children }: { children: ReactNode }) {
   return (
@@ -116,8 +94,12 @@ export function ItemRow({ item }: { item: JournalItem }) {
       return <NoticeRow notice={detail.wakeReason ? wakeNotice(detail.wakeReason, undefined, detail.notice, itemText(item)) : agentNotice(undefined, detail.notice, itemText(item))} />;
     case "notification":
       return <NoticeRow notice={notificationNotice(detail.notification)} />;
+    case "artifact":
+      return <ArtifactCard artifact={detail.artifact} />;
+    case "task":
+      return <TaskItemRow item={item} />;
     default:
-      return <ToolChip icon={TOOL_ICON[detail.type] ?? "wrench.and.screwdriver"} label={itemLabel(item)} status={item.status} />;
+      return <ToolRow item={item} />;
   }
 }
 
@@ -176,7 +158,7 @@ export function NoticeRow({ notice }: { notice: Notice }) {
       </Pressable>
       {open && notice.body ? (
         <NestedDetail>
-          <Text selectable style={styles.meta}>{notice.body}</Text>
+          {notice.icon === "arrow.left.arrow.right" ? <Markdown text={notice.body} /> : <Text selectable style={styles.meta}>{notice.body}</Text>}
         </NestedDetail>
       ) : null}
     </View>
@@ -185,9 +167,6 @@ export function NoticeRow({ notice }: { notice: Notice }) {
 
 const styles = StyleSheet.create({
   stack: { gap: 6 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },
-  glyph: { width: 24, height: 24, alignItems: "center", justifyContent: "center", opacity: 0.7 },
-  chipLabel: { flexShrink: 1, fontFamily: MONO, fontSize: TextSize.caption, color: Theme.textMuted },
   nested: { flexDirection: "row", gap: 12, paddingTop: 2 },
   nestedRule: { width: 1, marginLeft: 12, backgroundColor: Theme.border },
   nestedBody: { flex: 1, gap: 5 },

@@ -10,7 +10,7 @@ type Opener = { kind: "bubble"; text: string; attachments: number } | { kind: "n
 
 export type Ending = { kind: "working"; label: "Working" | "Queued" | "Compacting context" } | { kind: "failed"; text: string } | { kind: "stopped" };
 
-export type TurnLayout = { runId: string; opener?: Opener; body: Activity[]; ending?: Ending };
+export type TurnLayout = { runId: string; opener?: Opener; body: Activity[]; orphans: JournalTask[]; ending?: Ending };
 
 
 const DRIVER: Record<string, string> = { claude: "Claude", codex: "Codex", opencode: "OpenCode", telar: "Telar" };
@@ -64,13 +64,21 @@ function tally(items: readonly JournalItem[]): string {
   return [...counts].map(([label, count]) => (count > 1 ? `${label} ×${count}` : label)).join(" · ");
 }
 
+const backgroundTask = (item: JournalItem, tasks: readonly JournalTask[]) => item.detail.type === "task" && tasks.find((task) => task.id === (item.detail as { taskId: string }).taskId)?.kind === "background";
+
+// Sub-agents no step of the turn spawned still get a row at its end, as in the Swift transcript.
+function orphanTasks(turn: JournalTurn): JournalTask[] {
+  const spawned = new Set(turn.items.flatMap((item) => (item.detail.type === "task" ? [item.detail.taskId] : [])));
+  return turn.tasks.filter((task) => task.kind !== "background" && !spawned.has(task.id));
+}
+
 const fold = (items: JournalItem[], live: boolean, tasks: readonly JournalTask[]): Fold => ({
   kind: "fold", id: items[0]!.id, items, live, failed: items.some((item) => failed(item, tasks)), tally: tally(items),
 });
 
 // A live sub-agent and an artifact stand on their own; everything else between them folds.
 function group(items: readonly JournalItem[], tasks: readonly JournalTask[], live: boolean): Activity[] {
-  const rows = items.filter((item) => item.detail.type !== "reasoning" || itemText(item).trim());
+  const rows = items.filter((item) => (item.detail.type !== "reasoning" || itemText(item).trim()) && !backgroundTask(item, tasks));
   const cuts: (JournalItem | JournalItem[])[] = [];
   for (const item of rows) {
     if (liveTask(item, tasks) || item.detail.type === "artifact") cuts.push(item);
@@ -93,9 +101,9 @@ function segments(items: readonly JournalItem[], tasks: readonly JournalTask[], 
 
 function compactTurn(turn: JournalTurn): TurnLayout {
   const compactions = turn.items.filter((item) => item.detail.type === "context_compaction");
-  if (compactions.length) return { runId: turn.runId, body: compactions.map((item) => ({ kind: "item", item })) };
+  if (compactions.length) return { runId: turn.runId, body: compactions.map((item) => ({ kind: "item", item })), orphans: [] };
   const text = isActiveTurn(turn.state) ? "Compacting context…" : turn.state === "failed" ? "Compaction failed" : "Context compaction requested";
-  return { runId: turn.runId, opener: { kind: "compact", text }, body: [] };
+  return { runId: turn.runId, opener: { kind: "compact", text }, body: [], orphans: [] };
 }
 
 function opener(turn: JournalTurn): Opener {
@@ -160,5 +168,5 @@ export function turnLayout(turn: JournalTurn): TurnLayout {
     body.push(...answering.items.slice(cut).map((item) => ({ kind: "item" as const, item })));
   }
   const end = ending(turn);
-  return { runId: turn.runId, opener: opener(turn), body, ...(end ? { ending: end } : {}) };
+  return { runId: turn.runId, opener: opener(turn), body, orphans: orphanTasks(turn), ...(end ? { ending: end } : {}) };
 }

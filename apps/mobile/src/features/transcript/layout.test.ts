@@ -64,3 +64,9 @@ test("bare notification turns stack together, and a turn that answered starts a 
   );
   expect(groupTurns(turns).map((group) => group.map((one) => one.runId))).toEqual([["a", "b"], ["c"]]);
 });
+
+test("a sub-agent no step spawned gets its own row, and background work stays out of the transcript", () => {
+  const task = (id: string, kind: string) => ({ id, sessionId: "s1", runId: "run_1", kind, state: "completed", startedAt: 1, updatedAt: 1 });
+  const [only] = projectJournal([{ ...turn, state: "completed" }], [said("end", "Done.")], [], [task("agent", "agent"), task("bg", "background")] as never);
+  expect(turnLayout(only!).orphans.map((one) => one.id)).toEqual(["agent"]);
+});

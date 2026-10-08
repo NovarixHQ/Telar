@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type ScrollViewInstance } from "react-native";
 import type { JournalTurn } from "@telar/client/journal";
 import { FOLLOWING, scrolled, shouldFollow, showsJump, type Follow } from "./follow";
+import { SourceContext, type TranscriptSource } from "./source";
 import { Transcript } from "./Transcript";
 import { ReadingColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
@@ -13,6 +14,8 @@ type Props = {
   older?: { loading: boolean; load: () => void } | undefined;
   /** Bumped when the phone sends, so the transcript jumps back to the tail. */
   pin: number;
+  /** Where artifacts read their content. */
+  source?: TranscriptSource | undefined;
   /** Height of whatever floats over the transcript's bottom edge (the composer). */
   bottomInset?: number;
   children?: ReactNode;
@@ -24,7 +27,7 @@ const TAIL_GAP = 28;
 const metricsOf = ({ contentOffset, layoutMeasurement, contentSize }: NativeScrollEvent) => ({ offset: contentOffset.y, viewport: layoutMeasurement.height, content: contentSize.height });
 
 /** The transcript follows its tail until the reader scrolls up; a jump button brings it back. */
-export function TranscriptScroll({ turns, loading, older, pin, bottomInset = 0, children }: Props) {
+export function TranscriptScroll({ turns, loading, older, pin, source, bottomInset = 0, children }: Props) {
   const scroll = useRef<ScrollViewInstance>(null);
   const follow = useRef<Follow>(FOLLOWING);
   const dragging = useRef(false);
@@ -72,7 +75,9 @@ export function TranscriptScroll({ turns, loading, older, pin, bottomInset = 0, 
         ) : null}
         {loading ? <ActivityIndicator style={styles.loading} /> : null}
         <ReadingColumn style={styles.lane}>
-          <Transcript turns={turns} />
+          <SourceContext.Provider value={source}>
+            <Transcript turns={turns} />
+          </SourceContext.Provider>
           {children}
         </ReadingColumn>
       </ScrollView>

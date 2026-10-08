@@ -61,6 +61,7 @@ export function SessionScreen() {
         loading={!feed.head && !feed.failed}
         pin={pin}
         bottomInset={footer}
+        source={host ? { host, sessionId: params.sessionId } : undefined}
         older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
       />
       <FloatingComposer

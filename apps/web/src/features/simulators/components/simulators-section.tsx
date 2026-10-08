@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_SIMULATOR_SETTINGS, type SimulatorSettings } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
-import { Row, Segmented, SettingsGroup, useRestoreDefaults } from "@/features/settings";
+import { Row, Segmented, useRestoreDefaults } from "@/features/settings";
 
 const api = createEngineApi();
 
@@ -20,7 +20,7 @@ function whoOf(settings: SimulatorSettings): Who {
   return settings.agentAccess ? "agents" : "you";
 }
 
-export function SimulatorsSection() {
+export function SimulatorsRow() {
   const [settings, setSettings] = useState<SimulatorSettings>(DEFAULT_SIMULATOR_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -47,28 +47,26 @@ export function SimulatorsSection() {
   useRestoreDefaults(() => save(fallback));
 
   return (
-    <SettingsGroup title="Simulators">
-      <Row
-        keywords={["simulator", "emulator", "iphone", "ios", "android", "device", "xcode", "agent", "agent-device", "tap", "automation"]}
-        label="Simulators"
-        hint="Who may list, start and use the simulators on this Mac."
-        info="Turning them on downloads a helper the first time and runs it on this Mac only; letting agents in also downloads the command they tap and type with. Turning them off stops the helper, and simulators that are running keep running."
-        {...(error ? { error } : {})}
-        {...(who === fallback ? {} : { onRevert: () => void save(fallback) })}
-        control={
-          <div inert={loading ? true : undefined}>
-            <Segmented<Who>
-              value={who}
-              onChange={(next) => void save(next)}
-              options={[
-                { value: "off", label: "Off" },
-                { value: "you", label: "You" },
-                { value: "agents", label: "You and agents" },
-              ]}
-            />
-          </div>
-        }
-      />
-    </SettingsGroup>
+    <Row
+      keywords={["simulator", "emulator", "iphone", "ios", "android", "device", "xcode", "agent", "agent-device", "tap", "automation"]}
+      label="Simulators"
+      hint="Who may list, start and use the simulators on this Mac."
+      info="Turning them on downloads a helper the first time and runs it on this Mac only; letting agents in also downloads the command they tap and type with. Turning them off stops the helper, and simulators that are running keep running."
+      {...(error ? { error } : {})}
+      {...(who === fallback ? {} : { onRevert: () => void save(fallback) })}
+      control={
+        <div inert={loading ? true : undefined}>
+          <Segmented<Who>
+            value={who}
+            onChange={(next) => void save(next)}
+            options={[
+              { value: "off", label: "Off" },
+              { value: "you", label: "You" },
+              { value: "agents", label: "You and agents" },
+            ]}
+          />
+        </div>
+      }
+    />
   );
 }

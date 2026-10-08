@@ -6,7 +6,7 @@ import type { RememberedLogin } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
-import { Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
+import { Row, ToggleRow, useRestoreDefaults } from "@/features/settings";
 import { desktopBrowserBridge } from "../desktop-browser-bridge";
 
 const api = createEngineApi();
@@ -81,7 +81,7 @@ function describeLastUsed(grant: RememberedLogin, now = Date.now()): string {
   return `used ${days} days ago`;
 }
 
-export function BrowserLoginsSection() {
+export function BrowserLoginsRows() {
   const [logins, setLogins] = useState<RememberedLogin[]>();
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState<string>();
@@ -113,43 +113,47 @@ export function BrowserLoginsSection() {
   };
 
   return (
-    <SettingsGroup
-      keywords={["1password", "password", "credential", "autofill", "revoke", "vault", "integrations"]}
-      title="Remembered logins"
-      scope="mac"
-      description="Logins you allowed agents to fill without asking again — 1Password still asks to unlock."
-    >
+    <>
       <PasswordManagerToggles />
-      {error && <p className="text-xs text-destructive">{error}</p>}
-      {logins === undefined && !error && <Spinner className="size-4" />}
-      {logins?.length === 0 && (
+      {logins?.length === 0 ? (
         <Row label="No remembered logins" hint="Telar asks before every fill; the approval card offers to remember one." />
-      )}
-      <div className="flex flex-col gap-2">
-        {(logins ?? []).map((grant) => (
-          <div key={grant.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
-            <KeyRoundIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <p className="truncate text-sm font-medium">{grant.itemTitle}</p>
-              <p className="truncate font-mono text-3xs text-muted-foreground">{grant.origin}</p>
-              <p className="text-xs text-muted-foreground">
-                {grant.profileLabel ?? grant.profileId} · {describeGrantFields(grant.fields)}
-                {grant.vault && <> · {grant.vault}</>} · {describeLastUsed(grant)}
-              </p>
+      ) : (
+        <Row
+          keywords={["1password", "password", "credential", "autofill", "revoke", "vault", "integrations"]}
+          label="Remembered logins"
+          hint="Logins you allowed agents to fill without asking again."
+          {...(logins === undefined && !error ? { status: <Spinner className="size-4" /> } : {})}
+          {...(error ? { error } : {})}
+        >
+          {logins && logins.length > 0 && (
+            <div className="mt-2 flex flex-col gap-2">
+              {logins.map((grant) => (
+                <div key={grant.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  <KeyRoundIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <p className="truncate text-sm font-medium">{grant.itemTitle}</p>
+                    <p className="truncate font-mono text-3xs text-muted-foreground">{grant.origin}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {grant.profileLabel ?? grant.profileId} · {describeGrantFields(grant.fields)}
+                      {grant.vault && <> · {grant.vault}</>} · {describeLastUsed(grant)}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy === grant.id}
+                    title="Stop filling this login without asking. Nothing in your password manager changes; agents ask again next time."
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => void revoke(grant.id)}
+                  >
+                    Revoke
+                  </Button>
+                </div>
+              ))}
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy === grant.id}
-              title="Stop filling this login without asking. Nothing in 1Password changes; agents ask again next time."
-              className="text-destructive hover:text-destructive"
-              onClick={() => void revoke(grant.id)}
-            >
-              Revoke
-            </Button>
-          </div>
-        ))}
-      </div>
-    </SettingsGroup>
+          )}
+        </Row>
+      )}
+    </>
   );
 }

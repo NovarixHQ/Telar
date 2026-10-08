@@ -7,7 +7,7 @@ import { IdentityIcon, identityColorVar, telarIconGlyph, NO_ICON_GLYPH } from "@
 import { DesktopBrowserSurface } from "../components/desktop-browser-surface";
 import { type DesktopBrowserBridge, type DesktopBrowserPanelState } from "../types";
 import { ProfileColorPicker, ProfileIconPicker } from "./browser-profile-marks";
-import { BrowserProfilesSection } from "./browser-profiles-section";
+import { BrowserProfilesRows } from "./browser-profiles-section";
 
 installTestDom();
 
@@ -152,7 +152,7 @@ describe("the settings row", () => {
         },
       },
     };
-    const { host } = await mount(<BrowserProfilesSection />);
+    const { host } = await mount(<BrowserProfilesRows />);
     await flush(() => Boolean(host.querySelector('[aria-label="Icon for Work"]')));
     return { host, updates };
   }

@@ -11,7 +11,7 @@ import { plural } from "@/ui/format";
 import { Spinner } from "@/ui/spinner";
 import { cn } from "@/ui/utils";
 import { JobLog, type JobHandle } from "./job-log";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row } from "@/features/settings";
 
 const api = createEngineApi();
 
@@ -31,8 +31,7 @@ const COMMAND_HINT: Record<DataScienceInstallCommand, string> = {
 type InstallLog = { title: string; ok: boolean; lines: string[]; error?: string };
 
 function Fields({ dense, children }: { dense?: boolean; children: ReactNode }) {
-  if (dense) return <div className="divide-y divide-border/60 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">{children}</div>;
-  return <SettingsGroup title="Environment">{children}</SettingsGroup>;
+  return <div className={cn("divide-y divide-border/60", dense ? "[&>*:first-child]:pt-0 [&>*:last-child]:pb-0" : "[&>*:first-child]:pt-0")}>{children}</div>;
 }
 
 export function PackagesPanel({

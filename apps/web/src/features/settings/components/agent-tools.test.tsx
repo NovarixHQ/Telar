@@ -4,11 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ComputerUseStatus } from "@telar/engine-client";
 import { buttonLabelled as button, click, flush, mount, press, stubFetch, installTestDom, type Route } from "@/test/dom";
 import { typeInto } from "@/test/type-into";
-import { BrowserLoginsSection } from "@/features/browser/panes/browser-logins-section";
-import { McpSection } from "@/features/agent-tools/components/mcp-section";
-import { OrientationSection } from "@/features/agent-tools/components/orientation-section";
-import { ComputerUseProviders, computerUseHint, computerUseState, PermissionsSection } from "@/features/providers/components/permissions-section";
+import { BrowserLoginsRows } from "@/features/browser/panes/browser-logins-section";
+import { McpServerRows } from "@/features/agent-tools/components/mcp-section";
+import { OrientationRow } from "@/features/agent-tools/components/orientation-section";
+import { ComputerUseProviders, ComputerUseRow, computerUseHint, computerUseState } from "@/features/providers/components/permissions-section";
 import { grantFollowUp, GRANT_POLL_MS, GRANT_WAIT_MS } from "@/features/providers/hooks/use-computer-use";
+import { SettingsGroup } from "./settings-shell";
 
 installTestDom();
 
@@ -21,7 +22,7 @@ const called = (route: string) => calls.filter((call) => call.route === route);
 
 async function mountPermissions(status: () => ComputerUseStatus, routes: Record<string, Route> = {}) {
   stubEngine({ "GET /api/computer-use": () => ({ computerUse: status() }), ...routes });
-  const { host } = await mount(<PermissionsSection />);
+  const { host } = await mount(<ComputerUseRow />);
   await flush(() => called("GET /api/computer-use").length > 0 && !host.querySelector('[data-slot="spinner"]'));
   return host;
 }
@@ -109,7 +110,7 @@ describe("computer use", () => {
   });
 
   test("a failed probe renders Unknown with a Retry, never a spinner", async () => {
-    expect(renderToStaticMarkup(<PermissionsSection />)).not.toContain("Not granted");
+    expect(renderToStaticMarkup(<ComputerUseRow />)).not.toContain("Not granted");
     let answers = false;
     const host = await mountPermissions(() => {
       if (!answers) throw new Error("down");
@@ -164,15 +165,15 @@ describe("MCP servers", () => {
 
   test("the empty list is one row, not a row and a pill", async () => {
     stubEngine(empty);
-    const { host } = await mount(<McpSection />);
+    const { host } = await mount(<McpServerRows />);
     await flush(() => Boolean(host.textContent?.includes("No servers configured")));
     expect(host.textContent).toContain("No servers configured");
     expect(host.textContent).not.toContain("None");
   });
 
-  test("Add opens the form from the list's header, Cancel closes it, and a saved server closes it too", async () => {
+  test("Add opens the form inline under its row, Cancel closes it, and a saved server closes it too", async () => {
     stubEngine({ ...empty, "PUT /api/mcp-servers": (body) => ({ mcpServer: body }) });
-    const { host } = await mount(<McpSection />);
+    const { host } = await mount(<McpServerRows />);
     await flush(() => Boolean(button("Add")));
     expect(host.textContent).not.toContain("Add a server");
 
@@ -191,11 +192,28 @@ describe("MCP servers", () => {
     ]);
     expect(host.textContent).not.toContain("Add a server");
   });
+
+  test("a project's list folds the machine-wide servers it inherits in as a quiet list, with the sign-in outcome inline", async () => {
+    window.history.replaceState(null, "", "/settings?section=projects&mcpConnected=linear");
+    const machineWide = { id: "github", label: "Code host", enabled: true, spec: { transport: "http", url: "https://example.com/mcp" } };
+    stubEngine({
+      "GET /api/projects/p1/mcp-servers": () => ({ mcpServers: [], effective: [machineWide] }),
+      "GET /api/mcp/oauth": () => ({ statuses: [] }),
+    });
+    const { host } = await mount(
+      <SettingsGroup title="Agent tools">
+        <McpServerRows scope={{ projectId: "p1", projectName: "Telar" }} />
+      </SettingsGroup>,
+    );
+    await flush(() => Boolean(host.textContent?.includes("Also in play here")) && Boolean(host.textContent?.includes("Signed in to linear")));
+    expect(host.querySelectorAll("section")).toHaveLength(1);
+    expect(host.querySelector('[id$="also-in-play-here"]')?.textContent).toContain("Code host");
+  });
 });
 
 test("remembered logins' empty state is a row that says Telar asks before every fill", async () => {
   stubEngine({ "GET /api/browser-logins": () => ({ logins: [] }) });
-  const { host } = await mount(<BrowserLoginsSection />);
+  const { host } = await mount(<BrowserLoginsRows />);
   await flush(() => Boolean(host.textContent?.includes("No remembered logins")));
   expect(host.querySelector('[id$="no-remembered-logins"]')?.textContent).toContain("Telar asks before every fill");
 });
@@ -211,7 +229,7 @@ describe("Telar orientation", () => {
       },
       "PATCH /api/orientation": (patch) => ({ orientation: { ...orientation, ...(patch as object) }, text: ENGINE_TEXT }),
     });
-    const { host } = await mount(<OrientationSection />);
+    const { host } = await mount(<OrientationRow />);
     await flush(() => called("GET /api/orientation").length > 0);
     await flush();
     return host;

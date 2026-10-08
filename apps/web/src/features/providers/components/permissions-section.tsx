@@ -9,7 +9,7 @@ import { DRIVERS } from "../provider-instances";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Spinner } from "@/ui/spinner";
-import { Row, SettingsGroup } from "@/features/settings";
+import { Row } from "@/features/settings";
 
 // The bundled computer-use helper is cua-driver (trycua/cua, MIT).
 
@@ -82,7 +82,7 @@ export function ComputerUseProviders() {
   );
 }
 
-export function PermissionsSection() {
+export function ComputerUseRow() {
   const { status, checking, granting, error, check, grant, reveal, remove } = useComputerUse();
   const [confirmingRemove, setConfirmingRemove] = useState(false);
 
@@ -91,70 +91,68 @@ export function PermissionsSection() {
   const hint = computerUseHint(state, { bundled });
 
   return (
-    <SettingsGroup>
-      <Row
-        keywords={["cua", "driver", "automation", "engine", "access", "permission", "privacy", "accessibility", "screen recording", "grant"]}
-        label="Computer use"
-        info={bundled ? `${GATE_INFO} ${FINDER_INFO} ${REMOVE_INFO}` : GATE_INFO}
-        {...(hint ? { hint } : {})}
-        {...(error ?? status?.message ? { error: error ?? status?.message } : {})}
-        control={
-          <div className="flex items-center gap-2">
-            {state === "checking" ? (
-              <Spinner className="size-4" />
-            ) : (
-              <Badge variant={BADGE[state].variant}>{BADGE[state].label}</Badge>
-            )}
-            {state === "unknown" && (
-              <Button size="sm" variant="outline" onClick={() => void check()}>
-                Retry
-              </Button>
-            )}
-            {state === "not-granted" && (
-              <Button size="sm" variant="outline" disabled={checking || granting} onClick={() => void grant()}>
-                {granting && <Spinner className="size-3" />}
-                Grant access
-              </Button>
-            )}
-            {bundled && state === "not-granted" && (
-              <Button size="sm" variant="ghost" onClick={() => void reveal()}>
-                Show in Finder
-              </Button>
-            )}
-            {status?.installed && (
-              <Button size="sm" variant="outline" disabled={checking} onClick={() => void check()}>
-                Test access
-              </Button>
-            )}
-            {bundled &&
-              state !== "checking" &&
-              (confirmingRemove ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={checking}
-                    onClick={() => {
-                      setConfirmingRemove(false);
-                      void remove();
-                    }}
-                  >
-                    Confirm remove
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setConfirmingRemove(false)}>
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button size="sm" variant="outline" disabled={checking} onClick={() => setConfirmingRemove(true)}>
-                  Remove permissions
+    <Row
+      keywords={["cua", "driver", "automation", "engine", "access", "permission", "privacy", "accessibility", "screen recording", "grant"]}
+      label="Computer use"
+      info={bundled ? `${GATE_INFO} ${FINDER_INFO} ${REMOVE_INFO}` : GATE_INFO}
+      {...(hint ? { hint } : {})}
+      {...(error ?? status?.message ? { error: error ?? status?.message } : {})}
+      control={
+        <div className="flex items-center gap-2">
+          {state === "checking" ? (
+            <Spinner className="size-4" />
+          ) : (
+            <Badge variant={BADGE[state].variant}>{BADGE[state].label}</Badge>
+          )}
+          {state === "unknown" && (
+            <Button size="sm" variant="outline" onClick={() => void check()}>
+              Retry
+            </Button>
+          )}
+          {state === "not-granted" && (
+            <Button size="sm" variant="outline" disabled={checking || granting} onClick={() => void grant()}>
+              {granting && <Spinner className="size-3" />}
+              Grant access
+            </Button>
+          )}
+          {bundled && state === "not-granted" && (
+            <Button size="sm" variant="ghost" onClick={() => void reveal()}>
+              Show in Finder
+            </Button>
+          )}
+          {status?.installed && (
+            <Button size="sm" variant="outline" disabled={checking} onClick={() => void check()}>
+              Test access
+            </Button>
+          )}
+          {bundled &&
+            state !== "checking" &&
+            (confirmingRemove ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={checking}
+                  onClick={() => {
+                    setConfirmingRemove(false);
+                    void remove();
+                  }}
+                >
+                  Confirm remove
                 </Button>
-              ))}
-          </div>
-        }
-      >
-        <ComputerUseProviders />
-      </Row>
-    </SettingsGroup>
+                <Button size="sm" variant="ghost" onClick={() => setConfirmingRemove(false)}>
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" variant="outline" disabled={checking} onClick={() => setConfirmingRemove(true)}>
+                Remove permissions
+              </Button>
+            ))}
+        </div>
+      }
+    >
+      <ComputerUseProviders />
+    </Row>
   );
 }

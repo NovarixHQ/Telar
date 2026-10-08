@@ -24,7 +24,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { BrowserProfile } from "../desktop-browser-profiles";
-import { BrowserProfilesSection } from "./browser-profiles-section";
+import { BrowserProfilesRows } from "./browser-profiles-section";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -72,7 +72,7 @@ async function mount() {
   document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(<BrowserProfilesSection />);
+    root.render(<BrowserProfilesRows />);
     await settle();
   });
   // The first read is a timeout inside an effect; its answer lands a turn later.

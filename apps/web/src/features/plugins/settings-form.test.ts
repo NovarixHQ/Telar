@@ -81,7 +81,7 @@ test("generated rows are searchable, anchored where the pane draws them", () => 
   // the same title the anchor is derived from.
   expect(projectPluginSections([status("hello")])[0]!.label).toBe(generatedGroupTitle(status("hello"), "project"));
   expect(entries[0]!.id).toBe(settingsRowId({ page: "projects", group: "Hello", label: "Shout" }));
-  expect(entries.at(-1)!.id).toBe(settingsRowId({ page: "plugins", group: "Hello defaults", label: "Greeting" }));
+  expect(entries.at(-1)!.id).toBe(settingsRowId({ page: "plugins", group: "Plugin defaults", label: "Greeting" }));
   // Found by the plugin's name too, not only the field's.
   expect(entries[0]!.folded.hint).toContain("hello");
 });

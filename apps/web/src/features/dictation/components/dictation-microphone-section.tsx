@@ -4,20 +4,16 @@ import { hearing } from "../level";
 import { microphoneOptions, microphoneStatus } from "../devices";
 import { useAudioInputs, useMicrophoneTest, useMicrophoneUnavailable } from "../hooks/use-microphone";
 import { Button } from "@/ui/button";
-import { Dropdown, Row, SettingsGroup } from "@/features/settings";
+import { Dropdown, Row } from "@/features/settings";
 import { cn } from "@/ui/utils";
 
-export function DictationMicrophoneSection() {
+export function DictationMicrophoneRows() {
   const unavailable = useMicrophoneUnavailable();
   const { inputs, choice, choose, withheld } = useAudioInputs();
   const { level, metering, startMeter, stopMeter, meterError, demo, transcript, toggleDemo } = useMicrophoneTest();
 
   if (unavailable) {
-    return (
-      <SettingsGroup title="Microphone" scope="browser">
-        <Row label="Not available here" hint={unavailable} />
-      </SettingsGroup>
-    );
+    return <Row label="Not available here" hint={unavailable} />;
   }
 
   const gone = microphoneStatus(choice, inputs);
@@ -25,7 +21,7 @@ export function DictationMicrophoneSection() {
   const reading = metering || listening;
 
   return (
-    <SettingsGroup title="Microphone" scope="browser">
+    <>
       <Row
         keywords={["input", "device", "which microphone", "choose microphone", "headset", "airpods", "usb", "interface", "built-in", "default input", "wrong microphone"]}
         label="Input"
@@ -91,7 +87,7 @@ export function DictationMicrophoneSection() {
           </p>
         )}
       </Row>
-    </SettingsGroup>
+    </>
   );
 }
 

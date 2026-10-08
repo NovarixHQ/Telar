@@ -127,57 +127,46 @@ export function DataScienceSection({ project, onChange }: { project: Project; on
   };
 
   return (
-    <>
-      <SettingsGroup
-        title="Data science"
-        description="Notebooks and ds_* tools for this project."
-        action={
-          <Button variant="outline" size="sm" onClick={askAgentToSetUp}>
-            <FlaskConicalIcon className="size-3" /> Ask agent to set up
-          </Button>
+    <SettingsGroup
+      title="Data science"
+      action={
+        <Button variant="outline" size="sm" onClick={askAgentToSetUp}>
+          <FlaskConicalIcon className="size-3" /> Ask agent to set up
+        </Button>
+      }
+    >
+      <Row
+        keywords={["python", "jupyter", "notebook", "kernel", "enable", "plugin"]}
+        label="Data science for this project"
+        hint={enabled ? (current ? "Sessions get notebook and ds_* tools." : "On, but no environment is selected yet. Set one up below or ask the agent.") : current ? "Off. The chosen environment is kept." : "Off. You can turn it on before the environment exists."}
+        {...(error ? { error } : {})}
+        control={
+          <Switch
+            checked={enabled}
+            disabled={saving}
+            onCheckedChange={(next: boolean) => void save(dataScienceToggle(project, next))}
+            aria-label="Enable data science for this project"
+          />
         }
-      >
-        <Row
-          keywords={["python", "jupyter", "notebook", "kernel", "enable", "plugin"]}
-          label="Data science for this project"
-          hint={enabled ? (current ? "Sessions get notebook and ds_* tools." : "On, but no environment is selected yet. Set one up below or ask the agent.") : current ? "Off. The chosen environment is kept." : "Off. You can turn it on before the environment exists."}
-          {...(error ? { error } : {})}
-          control={
-            <Switch
-              checked={enabled}
-              disabled={saving}
-              onCheckedChange={(next: boolean) => void save(dataScienceToggle(project, next))}
-              aria-label="Enable data science for this project"
-            />
-          }
-        />
-      </SettingsGroup>
+      />
 
-      <SettingsGroup
-        title="Python tools"
-        description="What environments are made with."
-        action={
-          <Button variant="ghost" size="sm" disabled={loading} onClick={() => void refresh()}>
-            <RefreshCwIcon className={cn("size-3", loading && "animate-spin")} /> Detect again
-          </Button>
-        }
-      >
-        <ToolchainRows toolchain={toolchain} loading={loading && !data} onJob={runJob} />
-      </SettingsGroup>
+      <ToolchainRows toolchain={toolchain} loading={loading} probed={Boolean(data)} onRefresh={() => void refresh()} onJob={runJob} />
 
       {job && (
-        <JobLog
-          className="mb-7"
-          handle={job}
-          onDone={(finished) => { job.then?.(finished); void refresh(); }}
-          onDismiss={() => setJob(undefined)}
-        />
+        <div className="py-3">
+          <JobLog
+            handle={job}
+            onDone={(finished) => { job.then?.(finished); void refresh(); }}
+            onDismiss={() => setJob(undefined)}
+          />
+        </div>
       )}
 
-      <SettingsGroup
-        title="Environments"
-        description="Where the kernel runs and what it can import."
-        action={
+      <Row
+        keywords={["venv", "kernel", "interpreter"]}
+        label="Environments"
+        hint="Where the kernel runs and what it can import."
+        control={
           <span className="flex items-center gap-1.5">
             <Button variant={adding === "existing" ? "secondary" : "outline"} size="sm" onClick={() => setAdding(adding === "existing" ? undefined : "existing")}>
               <SearchIcon className="size-3" /> Add existing
@@ -187,41 +176,44 @@ export function DataScienceSection({ project, onChange }: { project: Project; on
             </Button>
           </span>
         }
-      >
-        <EnvironmentAdder
-          adding={adding}
-          projectId={project.id}
-          toolchain={toolchain}
-          environments={data?.environments}
-          onStarted={(handle) => {
-            setAdding(undefined);
-            runJob(handle, (finished) => {
-              if (finished.status !== "ok" || !finished.result) return;
-              const made = finished.result as { path: string; root: string; manager: DataScienceEnvironment["manager"]; source: Source };
-              void save(toConfig(made, made.source));
-            });
-          }}
-          onUse={(probe) => void save(toConfig({ path: probe.relativePath ?? probe.path, root: probe.root, manager: probe.manager ?? "system" }, "chosen"))}
-          onCancel={() => setAdding(undefined)}
-        />
-
-        <EnvironmentList
-          data={data}
-          loading={loading}
-          current={current}
-          saving={saving}
-          onUse={(env) => void save(toConfig({ path: env.path, root: env.location === "project" ? relativeRoot(env) : env.root, manager: env.manager }, env.manager === "telar" ? "telar" : "detected"))}
-        />
-      </SettingsGroup>
+      />
+      <EnvironmentAdder
+        adding={adding}
+        projectId={project.id}
+        toolchain={toolchain}
+        environments={data?.environments}
+        onStarted={(handle) => {
+          setAdding(undefined);
+          runJob(handle, (finished) => {
+            if (finished.status !== "ok" || !finished.result) return;
+            const made = finished.result as { path: string; root: string; manager: DataScienceEnvironment["manager"]; source: Source };
+            void save(toConfig(made, made.source));
+          });
+        }}
+        onUse={(probe) => void save(toConfig({ path: probe.relativePath ?? probe.path, root: probe.root, manager: probe.manager ?? "system" }, "chosen"))}
+        onCancel={() => setAdding(undefined)}
+      />
+      <EnvironmentList
+        data={data}
+        loading={loading}
+        current={current}
+        saving={saving}
+        onUse={(env) => void save(toConfig({ path: env.path, root: env.location === "project" ? relativeRoot(env) : env.root, manager: env.manager }, env.manager === "telar" ? "telar" : "detected"))}
+      />
 
       {currentEnv && (
-        <SettingsGroup title="Python packages" description={`What is installed in ${currentEnv.name} — installing here writes to that environment.`}>
-          <div className="py-3">
-            <PackagesPanel scope={{ projectId: project.id }} requirements={data?.requirements ?? []} />
-          </div>
-        </SettingsGroup>
+        <Row
+          keywords={["pip", "package", "installed"]}
+          label="Python packages"
+          hint={`What is installed in ${currentEnv.name}; installing here writes to that environment.`}
+        />
       )}
-    </>
+      {currentEnv && (
+        <div className="py-3">
+          <PackagesPanel scope={{ projectId: project.id }} requirements={data?.requirements ?? []} />
+        </div>
+      )}
+    </SettingsGroup>
   );
 }
 
@@ -325,7 +317,19 @@ function relativeRoot(env: DataScienceEnvironment): string {
   return env.path.endsWith(suffix) ? env.path.slice(0, env.path.length - suffix.length) || "." : env.root;
 }
 
-function ToolchainRows({ toolchain, loading, onJob }: { toolchain?: DataScienceToolchain; loading: boolean; onJob: (handle: JobHandle) => void }) {
+function ToolchainRows({
+  toolchain,
+  loading,
+  probed,
+  onRefresh,
+  onJob,
+}: {
+  toolchain?: DataScienceToolchain;
+  loading: boolean;
+  probed: boolean;
+  onRefresh: () => void;
+  onJob: (handle: JobHandle) => void;
+}) {
   const [starting, setStarting] = useState<string>();
   const [error, setError] = useState<string>();
   const [pick, setPick] = useState<string>();
@@ -343,13 +347,34 @@ function ToolchainRows({ toolchain, loading, onJob }: { toolchain?: DataScienceT
     }
   };
 
-  if (loading || !toolchain) return <Row label="Detecting" control={<Spinner className="size-3" />} />;
+  const heading = (
+    <Row
+      keywords={["uv", "conda", "toolchain", "detect"]}
+      label="Python tools"
+      hint="What environments are made with."
+      control={
+        <Button variant="ghost" size="sm" disabled={loading} onClick={onRefresh}>
+          <RefreshCwIcon className={cn("size-3", loading && "animate-spin")} /> Detect again
+        </Button>
+      }
+    />
+  );
+
+  if ((loading && !probed) || !toolchain) {
+    return (
+      <>
+        {heading}
+        <Row label="Detecting" control={<Spinner className="size-3" />} />
+      </>
+    );
+  }
 
   const installed = toolchain.pythons.filter((p) => p.installed);
   const downloadable = toolchain.pythons.filter((p) => !p.installed);
 
   return (
     <>
+      {heading}
       <Row
         keywords={["python", "install", "package manager"]}
         label="uv"

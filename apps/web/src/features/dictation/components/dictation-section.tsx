@@ -8,8 +8,8 @@ import { Button } from "@/ui/button";
 import { plural } from "@/ui/format";
 import { Input } from "@/ui/input";
 import { Textarea } from "@/ui/textarea";
-import { DictationMicrophoneSection } from "./dictation-microphone-section";
-import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
+import { DictationMicrophoneRows } from "./dictation-microphone-section";
+import { Dropdown, Row, useRestoreDefaults } from "@/features/settings";
 
 const PROVIDERS: { id: DictationProviderId; label: string }[] = [
   { id: "off", label: "Off" },
@@ -20,7 +20,7 @@ const PROVIDER_INFO: Partial<Record<DictationProviderId, string>> = {
   deepgram: "Audio goes from the device straight to the service; it does not pass through this computer.",
 };
 
-export function DictationSection() {
+export function DictationRows() {
   const { provider, configured, language, languages, vocabulary, keyterms, loading, save, error } = useDictationSettings();
   const [key, setKey] = useState("");
   const [keySaved, setKeySaved] = useState(false);
@@ -43,106 +43,104 @@ export function DictationSection() {
 
   return (
     <>
-      <SettingsGroup title="Dictation" scope="mac">
-        <Row
-          keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "provider", "off", "disable", "turn off", "turn on", "enable", "deepgram"]}
-          label="Provider"
-          {...(PROVIDER_INFO[provider] ? { info: PROVIDER_INFO[provider] } : {})}
-          {...(PROVIDERS.some(({ id }) => id === provider) ? {} : { hint: "Not a provider this build can drive. Update Telar, or pick another." })}
-          {...(error ? { error } : {})}
-          control={
-            <Dropdown<DictationProviderId>
-              value={provider}
-              onChange={(next) => void save({ provider: next })}
-              options={PROVIDERS.map(({ id, label }) => ({ value: id, label }))}
-              className="w-36"
-              label="Dictation provider"
-              disabled={loading}
-            />
-          }
-        />
-        {provider === "deepgram" && (
-          <>
-            <Row
-              keywords={["spanish", "english", "automatic", "multilingual", "locale"]}
-              label="Language"
-              {...(language === DICTATION_AUTOMATIC ? {} : { info: "Only this language is transcribed. More accurate within it, wrong for anything else." })}
-              control={
-                <Dropdown<string>
-                  value={language}
-                  onChange={(next) => void save({ language: next })}
-                  options={languages.map(({ code, label }) => ({ value: code, label }))}
-                  className="w-64"
-                  label="Dictation language"
-                  disabled={loading || languages.length === 0}
-                />
-              }
-            />
-            <Row
-              keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "deepgram", "key", "api key", "credential"]}
-              label="Service key"
-              {...(configured ? { status: "set" } : {})}
-              info="The key stays on this computer. Browsers and phones get a five-minute token instead."
-              control={
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="password"
-                    className="h-8 w-56 font-mono text-xs"
-                    aria-label="Service key"
-                    placeholder={configured ? "A key is saved" : "Paste the service's API key"}
-                    value={key}
-                    disabled={loading}
-                    onChange={(event) => {
-                      setKeySaved(false);
-                      setKey(event.target.value);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && key.trim()) void saveKey(key);
-                    }}
-                  />
-                  {configured && !key.trim() ? (
-                    <Button variant="ghost" size="sm" disabled={loading} onClick={() => void saveKey("")}>
-                      Remove
-                    </Button>
-                  ) : (
-                    <Button size="sm" disabled={loading || !key.trim()} onClick={() => void saveKey(key)}>
-                      Save
-                    </Button>
-                  )}
-                </div>
-              }
-            >
-              {keySaved && <p className="mt-2 text-xs text-muted-foreground">Saved.</p>}
-            </Row>
-            <Row
-              keywords={["dictation", "vocabulary", "glossary", "keyterm", "keyterms", "terms", "custom words", "jargon", "names", "spelling", "accuracy", "wrong word"]}
-              label="Vocabulary"
-              info="Projects, branches and open sessions are sent automatically. This is for the names only you know."
-              control={
-                <Textarea
-                  className="h-28 w-64 font-mono text-xs"
-                  aria-label="Dictation vocabulary"
-                  placeholder={"One word per line"}
-                  value={terms ?? vocabulary.join("\n")}
+      <Row
+        keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "provider", "off", "disable", "turn off", "turn on", "enable", "deepgram"]}
+        label="Provider"
+        {...(PROVIDER_INFO[provider] ? { info: PROVIDER_INFO[provider] } : {})}
+        {...(PROVIDERS.some(({ id }) => id === provider) ? {} : { hint: "Not a provider this build can drive. Update Telar, or pick another." })}
+        {...(error ? { error } : {})}
+        control={
+          <Dropdown<DictationProviderId>
+            value={provider}
+            onChange={(next) => void save({ provider: next })}
+            options={PROVIDERS.map(({ id, label }) => ({ value: id, label }))}
+            className="w-36"
+            label="Dictation provider"
+            disabled={loading}
+          />
+        }
+      />
+      {provider === "deepgram" && (
+        <>
+          <Row
+            keywords={["spanish", "english", "automatic", "multilingual", "locale"]}
+            label="Language"
+            {...(language === DICTATION_AUTOMATIC ? {} : { info: "Only this language is transcribed. More accurate within it, wrong for anything else." })}
+            control={
+              <Dropdown<string>
+                value={language}
+                onChange={(next) => void save({ language: next })}
+                options={languages.map(({ code, label }) => ({ value: code, label }))}
+                className="w-64"
+                label="Dictation language"
+                disabled={loading || languages.length === 0}
+              />
+            }
+          />
+          <Row
+            keywords={["dictation", "dictate", "microphone", "mic", "voice", "speech", "transcribe", "transcription", "deepgram", "key", "api key", "credential"]}
+            label="Service key"
+            {...(configured ? { status: "set" } : {})}
+            info="The key stays on this computer. Browsers and phones get a five-minute token instead."
+            control={
+              <div className="flex items-center gap-2">
+                <Input
+                  type="password"
+                  className="h-8 w-56 font-mono text-xs"
+                  aria-label="Service key"
+                  placeholder={configured ? "A key is saved" : "Paste the service's API key"}
+                  value={key}
                   disabled={loading}
-                  onChange={(event) => setTerms(event.target.value)}
-                  onBlur={() => void saveTerms()}
+                  onChange={(event) => {
+                    setKeySaved(false);
+                    setKey(event.target.value);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && key.trim()) void saveKey(key);
+                  }}
                 />
-              }
-            >
-              {keyterms && keyterms.sent < keyterms.built && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {`The service took ${keyterms.sent} of the ${plural(keyterms.built, "word")} Telar sent it last time. `}
-                  {keyterms.reason === "refused"
-                    ? "Over budget: branch names go first, then projects, then old sessions. This box is never cut."
-                    : "Telar sent the number it can prove is safe; the next press tries the full list again."}
-                </p>
-              )}
-            </Row>
-          </>
-        )}
-      </SettingsGroup>
-      {provider === "deepgram" && <DictationMicrophoneSection />}
+                {configured && !key.trim() ? (
+                  <Button variant="ghost" size="sm" disabled={loading} onClick={() => void saveKey("")}>
+                    Remove
+                  </Button>
+                ) : (
+                  <Button size="sm" disabled={loading || !key.trim()} onClick={() => void saveKey(key)}>
+                    Save
+                  </Button>
+                )}
+              </div>
+            }
+          >
+            {keySaved && <p className="mt-2 text-xs text-muted-foreground">Saved.</p>}
+          </Row>
+          <Row
+            keywords={["dictation", "vocabulary", "glossary", "keyterm", "keyterms", "terms", "custom words", "jargon", "names", "spelling", "accuracy", "wrong word"]}
+            label="Vocabulary"
+            info="Projects, branches and open sessions are sent automatically. This is for the names only you know."
+            control={
+              <Textarea
+                className="h-28 w-64 font-mono text-xs"
+                aria-label="Dictation vocabulary"
+                placeholder={"One word per line"}
+                value={terms ?? vocabulary.join("\n")}
+                disabled={loading}
+                onChange={(event) => setTerms(event.target.value)}
+                onBlur={() => void saveTerms()}
+              />
+            }
+          >
+            {keyterms && keyterms.sent < keyterms.built && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {`The service took ${keyterms.sent} of the ${plural(keyterms.built, "word")} Telar sent it last time. `}
+                {keyterms.reason === "refused"
+                  ? "Over budget: branch names go first, then projects, then old sessions. This box is never cut."
+                  : "Telar sent the number it can prove is safe; the next press tries the full list again."}
+              </p>
+            )}
+          </Row>
+        </>
+      )}
+      {provider === "deepgram" && <DictationMicrophoneRows />}
     </>
   );
 }

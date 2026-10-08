@@ -9,7 +9,7 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Switch } from "@/ui/switch";
-import { Row, Segmented, SettingsGroup, SettingsList } from "@/features/settings";
+import { Row, Segmented, SettingsList } from "@/features/settings";
 import { HEALTH_DOT, signInAction, signInSummary, statusFor } from "../mcp-oauth";
 
 const api = createEngineApi();
@@ -206,52 +206,51 @@ function AddServerForm({ scope, onAdded, onClose }: { scope: McpScope; onAdded: 
   };
 
   return (
-    <SettingsGroup
-      title="Add a server"
-      description={
-        scope
-          ? `Offered to every session on ${scope.projectName}, and to no other project. An id that matches a machine-wide server replaces it here.`
-          : "Offered to every session on every project, unless a project defines one with the same id."
-      }
-    >
-      <div className="flex flex-col gap-3 py-3">
-        <Segmented<Transport>
-          value={transport}
-          onChange={setTransport}
-          options={TRANSPORTS.map((option) => ({ value: option.id, label: <span title={option.hint}>{option.label}</span> }))}
-        />
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Input
-            value={id}
-            onChange={(event) => setId(event.target.value)}
-            placeholder="linear"
-            aria-label="Server id"
-            className="font-mono text-sm"
-          />
-          <Input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Linear (optional label)" aria-label="Server label" />
-        </div>
+    <div role="group" aria-label="Add a server" className="flex flex-col gap-3 py-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">Add a server</p>
+        <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+          {scope
+            ? `Offered to every session on ${scope.projectName}, and to no other project; an id that matches a machine-wide server replaces it here.`
+            : "Offered to every session on every project, unless a project defines one with the same id."}
+        </p>
+      </div>
+      <Segmented<Transport>
+        value={transport}
+        onChange={setTransport}
+        options={TRANSPORTS.map((option) => ({ value: option.id, label: <span title={option.hint}>{option.label}</span> }))}
+      />
+      <div className="grid gap-2 sm:grid-cols-2">
         <Input
-          value={target}
-          onChange={(event) => setTarget(event.target.value)}
-          placeholder={transport === "stdio" ? "node ./my-mcp-server.js" : "https://mcp.example.com/sse"}
-          aria-label={transport === "stdio" ? "Command" : "URL"}
+          value={id}
+          onChange={(event) => setId(event.target.value)}
+          placeholder="linear"
+          aria-label="Server id"
           className="font-mono text-sm"
         />
-        <p className="text-2xs leading-snug text-muted-foreground">
-          The id becomes the server&rsquo;s name to the provider, so its tools arrive as <code className="font-mono">mcp__{id.trim() || "id"}__*</code>.
-          Letters, numbers, dashes and underscores. Cannot be changed later.
-        </p>
-        {error && <p className="text-2xs text-destructive">{error}</p>}
-        <div className="flex items-center gap-2">
-          <Button type="button" size="sm" disabled={busy || !id.trim() || !target.trim()} onClick={() => void save()}>
-            Add server
-          </Button>
-          <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onClose}>
-            Cancel
-          </Button>
-        </div>
+        <Input value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Linear (optional label)" aria-label="Server label" />
       </div>
-    </SettingsGroup>
+      <Input
+        value={target}
+        onChange={(event) => setTarget(event.target.value)}
+        placeholder={transport === "stdio" ? "node ./my-mcp-server.js" : "https://mcp.example.com/sse"}
+        aria-label={transport === "stdio" ? "Command" : "URL"}
+        className="font-mono text-sm"
+      />
+      <p className="text-2xs leading-snug text-muted-foreground">
+        The id becomes the server&rsquo;s name to the provider, so its tools arrive as <code className="font-mono">mcp__{id.trim() || "id"}__*</code>.
+        Letters, numbers, dashes and underscores. Cannot be changed later.
+      </p>
+      {error && <p className="text-2xs text-destructive">{error}</p>}
+      <div className="flex items-center gap-2">
+        <Button type="button" size="sm" disabled={busy || !id.trim() || !target.trim()} onClick={() => void save()}>
+          Add server
+        </Button>
+        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onClose}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -275,7 +274,7 @@ function useOAuthOutcome() {
   return outcome;
 }
 
-export function McpSection({ scope }: { scope?: McpScope } = {}) {
+export function McpServerRows({ scope }: { scope?: McpScope } = {}) {
   const [servers, setServers] = useState<McpServer[]>();
   const [inherited, setInherited] = useState<McpServer[]>([]);
   const [statuses, setStatuses] = useState<McpOAuthStatus[]>([]);
@@ -340,74 +339,65 @@ export function McpSection({ scope }: { scope?: McpScope } = {}) {
   return (
     <>
       {outcome && (
-        <SettingsGroup title="Sign-in">
-          <Row
-            label={outcome.error ? "That sign-in did not finish" : `Signed in to ${outcome.connected}`}
-            hint={outcome.error ?? "Sessions on this scope now reach it as you."}
-            control={<Badge variant={outcome.error ? "outline" : "secondary"}>{outcome.error ? "Failed" : "Connected"}</Badge>}
-          />
-        </SettingsGroup>
+        <Row
+          label={outcome.error ? "That sign-in did not finish" : `Signed in to ${outcome.connected}`}
+          hint={outcome.error ?? "Sessions on this scope now reach it as you."}
+          control={<Badge variant={outcome.error ? "outline" : "secondary"}>{outcome.error ? "Failed" : "Connected"}</Badge>}
+        />
       )}
-
-      <SettingsGroup
-        title={scope ? `${scope.projectName}'s servers` : "Machine-wide servers"}
-        description={
-          scope
-            ? "Tool servers only this project's sessions see."
-            : "Tool servers every project sees."
-        }
+      <Row
+        keywords={["mcp", "server", "servers", "tools", "machine-wide", "stdio", "http", "sse", "sign in", "oauth"]}
+        label="Tool servers"
+        hint={scope ? "Only this project's sessions see these." : "Every project sees these."}
         {...(adding
           ? {}
           : {
-              action: (
+              control: (
                 <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
                   <PlusIcon className="size-3.5" />
                   Add
                 </Button>
               ),
             })}
-      >
-        {unreachable ? (
-          <Row label="The engine did not answer" hint="Start it with the launcher, using the same TELAR_HOME." control={<Badge variant="outline">Offline</Badge>} />
-        ) : servers === undefined ? (
-          <Row label="Loading" control={<Badge variant="outline">…</Badge>} />
-        ) : servers.length === 0 ? (
-          <Row label="No servers configured" hint="Telar's own tools are always available and not listed here." />
-        ) : (
-          <SettingsList label="Servers">
-            {servers.map((server) => (
-              <ServerRow
-                key={server.id}
-                server={server}
-                scope={scope}
-                {...(statusFor(statuses, server) ? { status: statusFor(statuses, server)! } : {})}
-                awaiting={awaiting === server.id}
-                onAwait={setAwaiting}
-                onChange={() => {
-                  void load();
-                  void loadStatuses();
-                }}
-              />
-            ))}
-          </SettingsList>
-        )}
-      </SettingsGroup>
-
+      />
       {adding && <AddServerForm scope={scope} onAdded={() => void load()} onClose={() => setAdding(false)} />}
-
-      {scope && inherited.length > 0 && (
-        <SettingsGroup title="Also in play here" description="Machine-wide servers this project has not replaced.">
-          {inherited.map((server) => (
-            <Row
+      {unreachable ? (
+        <Row label="The engine did not answer" hint="Start it with the launcher, using the same TELAR_HOME." control={<Badge variant="outline">Offline</Badge>} />
+      ) : servers === undefined ? (
+        <Row label="Loading" control={<Badge variant="outline">…</Badge>} />
+      ) : servers.length === 0 ? (
+        <Row label="No servers configured" hint="Telar's own tools are always available and not listed here." />
+      ) : (
+        <SettingsList label="Servers">
+          {servers.map((server) => (
+            <ServerRow
               key={server.id}
-              label={server.label}
-              hint={describe(server.spec)}
-              control={<Badge variant={server.enabled ? "secondary" : "outline"}>{server.enabled ? "Machine-wide" : "Off"}</Badge>}
+              server={server}
+              scope={scope}
+              {...(statusFor(statuses, server) ? { status: statusFor(statuses, server)! } : {})}
+              awaiting={awaiting === server.id}
+              onAwait={setAwaiting}
+              onChange={() => {
+                void load();
+                void loadStatuses();
+              }}
             />
           ))}
-        </SettingsGroup>
+        </SettingsList>
       )}
-
+      {scope && inherited.length > 0 && (
+        <Row label="Also in play here" hint="Machine-wide servers this project has not replaced.">
+          <ul className="mt-2 flex flex-col gap-1">
+            {inherited.map((server) => (
+              <li key={server.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="truncate">{server.label}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-3xs text-muted-foreground/70">{describe(server.spec)}</span>
+                <Badge variant={server.enabled ? "secondary" : "outline"}>{server.enabled ? "Machine-wide" : "Off"}</Badge>
+              </li>
+            ))}
+          </ul>
+        </Row>
+      )}
     </>
   );
 }

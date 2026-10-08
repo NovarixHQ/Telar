@@ -102,6 +102,7 @@ export function describeValue(value: unknown): string | undefined {
 }
 
 export function generatedGroupTitle(status: PluginStatus, scope: "project" | "machine"): string {
+  if (scope === "machine") return "Plugin defaults";
   const section = status.meta.settings.find((entry) => entry.scope === scope);
   return section?.label ?? status.meta.name;
 }

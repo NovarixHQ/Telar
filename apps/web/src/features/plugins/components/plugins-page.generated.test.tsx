@@ -4,10 +4,10 @@
  * `bundled-machine-schemas.json` is exactly what the engine sends for LaTeX
  * and Data Science — an engine test fails if it drifts. Against it:
  *
- *   LaTeX          its distribution block, then a generated "Compiling" group
- *                  (Default engine, Install missing packages automatically)
- *   Data Science   a generated "Data science defaults" group (Default Python)
- *                  with its packages block inside it
+ *   LaTeX          one "Plugin defaults" group: the generated rows (Default
+ *                  engine, Install missing packages automatically), then its
+ *                  distribution rows
+ *   Data Science   the same group: Default Python, then its packages row
  *   a write        the generated row writes the whole blob, keeping the rest
  */
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
@@ -92,17 +92,18 @@ async function mount() {
   return { host, done: () => act(() => root.unmount()) };
 }
 
-test("the bespoke blocks sit beside the generated groups, in the order they always had", async () => {
+test("each plugin's defaults are one group: the generated rows, then its bespoke rows", async () => {
   const { host, done } = await mount();
-  const text = host.textContent ?? "";
-  // LaTeX: the distribution block, then its generated compile defaults.
-  expect(text.indexOf("TeX distribution")).toBeLessThan(text.indexOf("Compiling"));
-  expect(text).toContain("Default engine");
+  const latex = host.querySelector('[data-detail-for="latex"]')!;
+  expect(latex.querySelectorAll("section")).toHaveLength(1);
+  const text = latex.textContent ?? "";
+  expect(text).toContain("Plugin defaults");
   expect(text).toContain("XeLaTeX");
-  expect(text).toContain("Install missing packages automatically");
-  // Data science: one group, the generated path field and the packages block.
-  expect(text).toContain("Data science defaults");
-  expect(text.indexOf("Default Python")).toBeLessThan(text.indexOf("Default packages"));
+  expect(text.indexOf("Default engine")).toBeLessThan(text.indexOf("Install missing packages automatically"));
+  expect(text.indexOf("Install missing packages automatically")).toBeLessThan(text.indexOf("TeX distribution"));
+  const science = host.querySelector('[data-detail-for="data-science"]')!;
+  expect(science.querySelectorAll("section")).toHaveLength(1);
+  expect(science.textContent!.indexOf("Default Python")).toBeLessThan(science.textContent!.indexOf("Default packages"));
   expect((host.querySelector('[aria-label="Default Python"]') as HTMLInputElement).value).toBe("/usr/bin/python3");
   done();
 });

@@ -134,59 +134,56 @@ export function LatexSection({ project, onChange }: { project: Project; onChange
   };
 
   return (
-    <>
-      <SettingsGroup
-        title="LaTeX"
-        description="Compile tools for this project."
-        action={
-          <Button variant="outline" size="sm" onClick={askAgentToSetUp}>
-            <DownloadIcon className="size-3" /> Ask agent to set up
-          </Button>
+    <SettingsGroup
+      title="LaTeX"
+      action={
+        <Button variant="outline" size="sm" onClick={askAgentToSetUp}>
+          <DownloadIcon className="size-3" /> Ask agent to set up
+        </Button>
+      }
+    >
+      <Row
+        keywords={["latex", "tex", "enable", "plugin"]}
+        label="LaTeX for this project"
+        hint={enabled ? "Sessions get the latex_* tools and the LaTeX panel tab." : "Off. You can enable first, then choose or install a toolchain below."}
+        {...(error ? { error } : {})}
+        control={<Switch checked={enabled} disabled={saving} onCheckedChange={(next: boolean) => void save(latexToggle(project, next))} aria-label="Enable LaTeX for this project" />}
+      />
+      <Row
+        keywords={["main file", "main.tex", "document", "entry"]}
+        label="Default document"
+        hint={data?.mainCandidates.length ? "Used only when you press Compile without choosing a file. Agents can still compile any report by path." : "No .tex with \\documentclass found in the top folders — type a path, or ask the agent to inspect deeper."}
+        control={
+          data && data.mainCandidates.length > 0 ? (
+            <MainFileSelect
+              {...(config?.mainFile ? { value: config.mainFile } : {})}
+              candidates={data.mainCandidates}
+              onPick={(next) => void save({ enabled, ...(config?.toolchain ? { toolchain: config.toolchain } : {}), ...(next ? { mainFile: next } : {}) })}
+            />
+          ) : (
+            <MainFileInput
+              value={config?.mainFile ?? ""}
+              disabled={saving}
+              onSave={(next) => void save({ enabled, ...(config?.toolchain ? { toolchain: config.toolchain } : {}), ...(next ? { mainFile: next } : {}) })}
+            />
+          )
         }
-      >
+      />
+      {config?.toolchain?.kind === "texlive" && (
         <Row
-          keywords={["latex", "tex", "enable", "plugin"]}
-          label="LaTeX for this project"
-          hint={enabled ? "Sessions get the latex_* tools and the LaTeX panel tab." : "Off. You can enable first, then choose or install a toolchain below."}
-          {...(error ? { error } : {})}
-          control={<Switch checked={enabled} disabled={saving} onCheckedChange={(next: boolean) => void save(latexToggle(project, next))} aria-label="Enable LaTeX for this project" />}
-        />
-        <Row
-          keywords={["main file", "main.tex", "document", "entry"]}
-          label="Default document"
-          hint={data?.mainCandidates.length ? "Used only when you press Compile without choosing a file. Agents can still compile any report by path." : "No .tex with \\documentclass found in the top folders — type a path, or ask the agent to inspect deeper."}
+          label="Engine"
+          hint="What latexmk drives. pdflatex unless the document needs system fonts (xelatex, lualatex)."
           control={
-            data && data.mainCandidates.length > 0 ? (
-              <MainFileSelect
-                {...(config?.mainFile ? { value: config.mainFile } : {})}
-                candidates={data.mainCandidates}
-                onPick={(next) => void save({ enabled, ...(config?.toolchain ? { toolchain: config.toolchain } : {}), ...(next ? { mainFile: next } : {}) })}
-              />
-            ) : (
-              <MainFileInput
-                value={config?.mainFile ?? ""}
-                disabled={saving}
-                onSave={(next) => void save({ enabled, ...(config?.toolchain ? { toolchain: config.toolchain } : {}), ...(next ? { mainFile: next } : {}) })}
-              />
-            )
+            <EngineSelect
+              {...(config.toolchain.engine ? { value: config.toolchain.engine } : {})}
+              machine={machine}
+              onPick={(engine) => void save({ ...config, toolchain: { kind: config.toolchain!.kind, ...(config.toolchain!.path ? { path: config.toolchain!.path } : {}), ...(engine ? { engine } : {}) } })}
+            />
           }
         />
-        {config?.toolchain?.kind === "texlive" && (
-          <Row
-            label="Engine"
-            hint="What latexmk drives. pdflatex unless the document needs system fonts (xelatex, lualatex)."
-            control={
-              <EngineSelect
-                {...(config.toolchain.engine ? { value: config.toolchain.engine } : {})}
-                machine={machine}
-                onPick={(engine) => void save({ ...config, toolchain: { kind: config.toolchain!.kind, ...(config.toolchain!.path ? { path: config.toolchain!.path } : {}), ...(engine ? { engine } : {}) } })}
-              />
-            }
-          />
-        )}
-      </SettingsGroup>
+      )}
 
-      <DistributionsGroup
+      <DistributionRows
         data={data}
         loading={loading}
         machine={machine}
@@ -198,16 +195,20 @@ export function LatexSection({ project, onChange }: { project: Project; onChange
         onBootstrap={(what) => void bootstrap(what)}
       />
 
-      {job && <JobLog className="mb-7" handle={job} io={LATEX_IO} onDone={() => void refresh()} onDismiss={() => setJob(undefined)} />}
+      {job && (
+        <div className="py-3">
+          <JobLog handle={job} io={LATEX_IO} onDone={() => void refresh()} onDismiss={() => setJob(undefined)} />
+        </div>
+      )}
 
       {enabled && config?.toolchain && (
-        <TexPackagesGroup projectId={project.id} toolchain={config.toolchain} data={data} onJob={setJob} />
+        <TexPackagesRows projectId={project.id} toolchain={config.toolchain} data={data} onJob={setJob} />
       )}
-    </>
+    </SettingsGroup>
   );
 }
 
-function TexPackagesGroup({
+function TexPackagesRows({
   projectId,
   toolchain,
   data,
@@ -220,16 +221,18 @@ function TexPackagesGroup({
 }) {
   const currentTexlive = data?.toolchain.texlive.find((dist) => dist.binDir === toolchain.path);
   return (
-    <SettingsGroup
-      title="TeX packages"
-      description={toolchain.kind === "tectonic" ? "Tectonic fetches packages automatically the first time a document uses them." : `What tlmgr manages in ${currentTexlive ? FLAVOUR_LABEL[currentTexlive.flavour] : "the configured TeX Live"}.`}
-    >
+    <>
+      <Row
+        keywords={["tlmgr", "package", "install"]}
+        label="TeX packages"
+        hint={toolchain.kind === "tectonic" ? "Tectonic fetches packages automatically the first time a document uses them." : `What tlmgr manages in ${currentTexlive ? FLAVOUR_LABEL[currentTexlive.flavour] : "the configured TeX Live"}.`}
+      />
       {toolchain.kind === "texlive" && <TexPackagesPanel projectId={projectId} onJob={onJob} />}
-    </SettingsGroup>
+    </>
   );
 }
 
-function DistributionsGroup({
+function DistributionRows({
   data,
   loading,
   machine,
@@ -254,15 +257,17 @@ function DistributionsGroup({
   const tectonic = data?.toolchain.tectonic;
   const texlive = data?.toolchain.texlive ?? [];
   return (
-    <SettingsGroup
-      title="Distributions"
-      description="What compiles this project."
-      action={
-        <Button variant="ghost" size="sm" disabled={loading} onClick={onRefresh}>
-          <RefreshCwIcon className={cn("size-3", loading && "animate-spin")} /> Detect again
-        </Button>
-      }
-    >
+    <>
+      <Row
+        keywords={["tex live", "toolchain", "detect"]}
+        label="Distributions"
+        hint="What compiles this project."
+        control={
+          <Button variant="ghost" size="sm" disabled={loading} onClick={onRefresh}>
+            <RefreshCwIcon className={cn("size-3", loading && "animate-spin")} /> Detect again
+          </Button>
+        }
+      />
       <div className="flex flex-col gap-2 py-3">
         {!data && loading && <span className="flex items-center gap-2 text-xs text-muted-foreground"><Spinner className="size-3" /> Probing TeX programs…</span>}
         {data && (
@@ -305,7 +310,7 @@ function DistributionsGroup({
           />
         )}
       </div>
-    </SettingsGroup>
+    </>
   );
 }
 

@@ -31,7 +31,7 @@ describe("search lands on it", () => {
     // scroll to nothing.
     for (const query of ["dictation", "dictate", "voice"]) {
       expect(first(query)?.pageId).toBe("integrations");
-      expect(["Dictation", "Provider"]).toContain(first(query)?.title ?? "");
+      expect(["Voice", "Provider"]).toContain(first(query)?.title ?? "");
     }
   });
 
@@ -61,7 +61,7 @@ describe("search lands on it", () => {
   test("nothing in the index still points at General for dictation", () => {
     // The group moved panes; an entry left behind would navigate somebody to a
     // pane the rows are no longer on.
-    const strays = SETTINGS_SEARCH_INDEX.entries.filter((entry) => entry.group === "Dictation" && entry.pageId !== "integrations");
+    const strays = SETTINGS_SEARCH_INDEX.entries.filter((entry) => entry.group === "Voice" && entry.pageId !== "integrations");
     expect(strays).toEqual([]);
   });
 });
@@ -93,12 +93,12 @@ describe("what the pane shows before anybody has chosen", () => {
     dictation: Record<string, unknown>,
   ): Promise<{ host: HTMLElement; settled: (until: () => boolean) => Promise<void>; unmount: () => Promise<void> }> {
     globalThis.fetch = (async () => Response.json({ dictation })) as unknown as typeof fetch;
-    const { DictationSection } = await import("./dictation-section");
+    const { DictationRows } = await import("./dictation-section");
     const host = document.createElement("div");
     document.body.appendChild(host);
     const root = createRoot(host);
     await act(async () => {
-      root.render(<DictationSection />);
+      root.render(<DictationRows />);
     });
     // A SECOND `act`, NOT A LONGER FIRST ONE. The hook defers its load a tick
     // (setting state from an effect body is the cascade this app's lint
@@ -341,7 +341,6 @@ describe("what the pane shows before anybody has chosen", () => {
     const { host, settled, unmount } = await pane(configured);
     await settled(() => host.textContent?.includes("Live transcript") === true);
 
-    expect(host.textContent).toContain("Microphone");
     expect(host.querySelector('[aria-label="Dictation microphone"]')).not.toBeNull();
     // THE METER IS ITS OWN ROW because "is it hearing me" has to be answerable
     // without a key and without a provider — the entire diagnostic value.

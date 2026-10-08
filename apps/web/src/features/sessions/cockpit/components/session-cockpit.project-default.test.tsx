@@ -124,6 +124,20 @@ describe("a new conversation's composer", () => {
     expect(pill(/^Reasoning effort: /)?.getAttribute("aria-label")).toContain("Auto");
   });
 
+  test("without a project default, starts from this Mac's default model", async () => {
+    wire(undefined, { sessionDefaults: { defaultModel: { instanceId: "claude", model: "claude-opus-5", effort: "medium" } } });
+    await openCanvas();
+    expect(pill(/^Model: /)?.getAttribute("aria-label")).toContain("Opus");
+    expect(pill(/^Reasoning effort: /)?.getAttribute("aria-label")).toContain("Medium");
+  });
+
+  test("the project's default model wins over this Mac's", async () => {
+    wire({ instanceId: "claude", model: "claude-opus-5" }, { sessionDefaults: { defaultModel: { instanceId: "claude", effort: "high" } } });
+    await openCanvas();
+    expect(pill(/^Model: /)?.getAttribute("aria-label")).toContain("Opus");
+    expect(pill(/^Reasoning effort: /)?.getAttribute("aria-label")).not.toContain("High");
+  });
+
   test("starts in the project's own workspace before this Mac's", async () => {
     // The trigger names the checkout for a shared one, and the base ref for a worktree.
     const lands = () => document.querySelector('[aria-label="Where this lands"]')?.textContent;

@@ -2,6 +2,8 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
 import type { JournalTurn } from "@telar/client/journal";
 import { ItemRow, NestedDetail, NoticeLine, NoticeRow, UserBubble } from "./ItemRow";
+import { ArtifactVersions } from "./source";
+import { TaskRow, TurnTasks } from "./ToolRows";
 import { groupTurns, turnLayout, type Activity, type Ending, type Fold } from "./layout";
 import { Theme } from "../../ui";
 import { PulseDot, Symbol, TextSize } from "./native";
@@ -100,28 +102,46 @@ const TurnView = memo(function TurnView({ turn }: { turn: JournalTurn }) {
   const layout = useMemo(() => turnLayout(turn), [turn]);
   const { opener } = layout;
   return (
-    <View style={styles.turn}>
-      {opener?.kind === "bubble" ? <UserBubble text={opener.text} attachments={opener.attachments} /> : null}
-      {opener?.kind === "notice" ? <NoticeRow notice={opener.notice} /> : null}
-      {opener?.kind === "compact" ? <NoticeLine icon="arrow.down.right.and.arrow.up.left" text={opener.text} /> : null}
-      {layout.body.map((activity) => (
-        <ActivityRow key={activity.kind === "fold" ? `fold/${activity.id}` : activity.item.id} activity={activity} />
-      ))}
-      {layout.ending ? <EndingRow ending={layout.ending} /> : null}
-    </View>
+    <TurnTasks.Provider value={turn.tasks}>
+      <View style={styles.turn}>
+        {opener?.kind === "bubble" ? <UserBubble text={opener.text} attachments={opener.attachments} /> : null}
+        {opener?.kind === "notice" ? <NoticeRow notice={opener.notice} /> : null}
+        {opener?.kind === "compact" ? <NoticeLine icon="arrow.down.right.and.arrow.up.left" text={opener.text} /> : null}
+        {layout.body.map((activity) => (
+          <ActivityRow key={activity.kind === "fold" ? `fold/${activity.id}` : activity.item.id} activity={activity} />
+        ))}
+        {layout.orphans.map((task) => <TaskRow key={task.id} task={task} />)}
+        {layout.ending ? <EndingRow ending={layout.ending} /> : null}
+      </View>
+    </TurnTasks.Provider>
   );
 });
 
+function latestVersions(turns: readonly JournalTurn[]): Map<string, number> {
+  const latest = new Map<string, number>();
+  for (const turn of turns) {
+    for (const item of [...turn.items, ...turn.tasks.flatMap((task) => task.items)]) {
+      if (item.detail.type === "artifact") latest.set(item.detail.artifact.id, Math.max(latest.get(item.detail.artifact.id) ?? 0, item.detail.artifact.version));
+    }
+  }
+  return latest;
+}
+
 /** One view per turn group, as direct children of the scroll view so prepended pages keep the reader's place. */
 export function Transcript({ turns }: { turns: readonly JournalTurn[] }) {
-  return groupTurns(turns).map((group) =>
-    group.length === 1 ? (
-      <TurnView key={group[0]!.runId} turn={group[0]!} />
-    ) : (
-      <View key={group[0]!.runId} style={styles.group}>
-        {group.map((turn) => <TurnView key={turn.runId} turn={turn} />)}
-      </View>
-    ),
+  const versions = useMemo(() => latestVersions(turns), [turns]);
+  return (
+    <ArtifactVersions.Provider value={versions}>
+      {groupTurns(turns).map((group) =>
+        group.length === 1 ? (
+          <TurnView key={group[0]!.runId} turn={group[0]!} />
+        ) : (
+          <View key={group[0]!.runId} style={styles.group}>
+            {group.map((turn) => <TurnView key={turn.runId} turn={turn} />)}
+          </View>
+        ),
+      )}
+    </ArtifactVersions.Provider>
   );
 }
 

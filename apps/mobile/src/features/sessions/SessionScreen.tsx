@@ -95,6 +95,7 @@ export function SessionScreen() {
         turns={feed.turns}
         loading={!feed.head && !feed.failed}
         pin={pin}
+        source={host ? { host, sessionId: params.sessionId } : undefined}
         older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
       />
       <View style={styles.footer}>

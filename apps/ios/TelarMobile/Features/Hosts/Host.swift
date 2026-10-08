@@ -193,7 +193,7 @@ enum HostAddresses {
     static func failoverOrder(_ host: Host, failed: String) -> [String] {
         let dead = HostBook.normalize(failed)
         let others = host.addresses.filter { HostBook.normalize($0) != dead }
-        return others.count == host.addresses.count ? others : others + [failed]
+        return others.count == host.addresses.count ? others : [failed] + others
     }
 
     static func isTransportFailure(_ error: Error) -> Bool {

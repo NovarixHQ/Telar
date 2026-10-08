@@ -7,7 +7,7 @@ export function atomicWrite(file: string, value: unknown, mode = 0o600): void {
 }
 
 // A unique temp file per write: two writers sharing `<file>.tmp` would interleave and publish a mix of both.
-export function atomicWriteText(file: string, text: string | Uint8Array, mode = 0o600): void {
+function atomicWriteText(file: string, text: string, mode = 0o600): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`;
   try {

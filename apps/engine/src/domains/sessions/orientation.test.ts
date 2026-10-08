@@ -109,7 +109,7 @@ test("the preamble names every word that was being read wrong", () => {
    * own history, acts confidently on the wrong thing. A word dropped from the
    * paragraph is a word nobody is told about.
    */
-  for (const word of ["Telar", "browser", "telar-browser", "session", "panel", "rail", "Looks", "surface"]) {
+  for (const word of ["Telar", "browser", "telar-browser", "session", "panel", "rail", "surface"]) {
     expect(TELAR_ORIENTATION).toContain(word);
   }
   // …and "Warp" is NOT one of them any more (#877). Pinned as an absence so a

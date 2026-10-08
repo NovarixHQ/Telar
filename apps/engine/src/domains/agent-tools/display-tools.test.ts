@@ -66,7 +66,7 @@ describe("the display toolkit", () => {
     }
   });
 
-  test("display_inline and display_preview tell the agent every Look variable an artifact can use", () => {
+  test("display_inline and display_preview tell the agent every appearance variable an artifact can use", () => {
     const { named } = build();
     for (const tool of ["display_inline", "display_preview"]) {
       const content = (named(tool).shape.content as { description?: string }).description ?? "";

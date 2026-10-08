@@ -21,14 +21,14 @@ const OPEN = `Show the human a file from this checkout in the panel, rendered (m
 
 const INLINE = `Draw a visual artifact into your reply: html, svg, mermaid or markdown (a chart is html or svg). Use it when a chart, table, diagram, image collage, or mockup would say more than prose; honour a preference for md or html files. Html has no network: inline every script and style. Check it with display_preview first. Same id revises.`;
 
-const PREVIEW = `Check before display_inline: renders html, svg or mermaid offscreen in the Look and returns a screenshot, the content height, console errors with stacks, failed loads and unreadable local images. Use contentHeight as display_inline's height, fix console errors, then publish. If it says the desktop app is needed or timed out, publish anyway, once.`;
+const PREVIEW = `Check before display_inline: renders html, svg or mermaid offscreen, themed, and returns a screenshot, the content height, console errors with stacks, failed loads and unreadable local images. Use contentHeight as display_inline's height, fix console errors, then publish. If it says the desktop app is needed or timed out, publish anyway, once.`;
 
 const THEME_GUIDE = [
-  "The source. Give this or path. Html and svg get the person's Look as CSS variables on :root, in hex with alpha kept, following Look changes live.",
-  "Never redeclare them or guess fallbacks: a :root rule of yours replaces the Look.",
+  "The source. Give this or path. Html and svg get the person's appearance as CSS variables on :root, in hex with alpha kept, following its changes live.",
+  "Never redeclare them or guess fallbacks: a :root rule of yours replaces the appearance.",
   "Html has no network. Local images written as absolute file paths (src=\"/abs/shot.png\", CSS url(/abs/bg.webp), or a JS string) are inlined automatically.",
   "The scheme is explicit: data-scheme=\"dark\" or \"light\" on <html>, and color-scheme and --scheme on :root. Read it there, never from a colour's luminance; dark styles key off [data-scheme=dark].",
-  "--background (the canvas behind the frame; transparent on a see-through Look), --foreground, --muted, --muted-foreground,",
+  "--background (the canvas behind the frame; transparent on a see-through appearance), --foreground, --muted, --muted-foreground,",
   "--card, --card-foreground, --popover, --popover-foreground (raised surfaces), --border, --input (field borders and dark field fills), --ring (focus),",
   "--primary, --primary-foreground (solid buttons), --secondary, --secondary-foreground, --accent, --accent-foreground (hover surface), --overlay (modal scrim),",
   "--sidebar, --sidebar-foreground, --sidebar-primary, --sidebar-accent, --sidebar-accent-foreground, --sidebar-border, --sidebar-ring (the session list),",
@@ -36,7 +36,7 @@ const THEME_GUIDE = [
   "--chart-1, --chart-2, --chart-3, --chart-4, --chart-5, --chart-6 (categorical series, legible on --background and --card), --code-background, --code-foreground, --code-comment,",
   "--code-keyword, --code-string, --code-number, --code-function, --shadow-1, --shadow-2, --shadow-3 (box-shadow elevation), --radius, --font-sans, --font-mono.",
   "To mock a cockpit component, translate its classes onto these: bg-input/30 is color-mix(in srgb, var(--input) 30%, transparent), shadow-2 is var(--shadow-2), dark: is [data-scheme=dark].",
-  "Never paint an opaque page background: html shows --background, the reply's own canvas. The base stylesheet sets html background, colour and font from these, body margin to 0, and hides the scrollbar. Mermaid takes the Look by itself.",
+  "Never paint an opaque page background: html shows --background, the reply's own canvas. The base stylesheet sets html background, colour and font from these, body margin to 0, and hides the scrollbar. Mermaid takes the appearance by itself.",
   "The page sits borderless on the reply's canvas, as wide as the reply column (about 730px, wider if the reader widens chat, about 360px on phones), with no frame or header around it: it is part of your reply.",
   "Use a fluid width with no outer card, border, banner title or horizontal padding on the outermost element. Give charts fixed pixel heights.",
   "Let content set the page's height: no 100vh or height:100% on html or body.",
@@ -124,7 +124,7 @@ export function displayTools(tool: ToolFactory, capability: DisplayCapability): 
         content: z.string().optional().describe(THEME_GUIDE),
         path: z.string().optional().describe("A file holding the source: relative to the checkout, or absolute in it or in /tmp. Never copy files into the project to show them."),
         width: z.number().int().min(PREVIEW_WIDTH.min).max(PREVIEW_WIDTH.max).optional().describe(`CSS pixels; default ${PREVIEW_WIDTH.initial}, the conversation's width.`),
-        appearance: PreviewAppearance.optional().describe("Default: the scheme the person's Look is in."),
+        appearance: PreviewAppearance.optional().describe("Default: the scheme the person's appearance is in."),
       },
       async (args) => {
         const kind = PreviewKind.safeParse(args.kind);
@@ -202,7 +202,7 @@ export function createDisplayCapability(input: {
   report(observation: DisplayObservation): Promise<void>;
   upload(file: { name: string; mediaType: string; data: Uint8Array }): Promise<{ id: string }>;
   renderer?: PreviewRenderer;
-  look?: () => Promise<PublishedAppearance | null>;
+  appearance?: () => Promise<PublishedAppearance | null>;
   previewTimeoutMs?: number;
 }): DisplayCapability {
   const { renderer, previewTimeoutMs = PREVIEW_TIMEOUT_MS } = input;
@@ -229,7 +229,7 @@ export function createDisplayCapability(input: {
           async preview({ kind, width, appearance, content, path: target }: PreviewInput) {
             const decoded = new TextDecoder().decode(await sourceBytes(input.cwd, { content, path: target }));
             const { html: source, missing: missingImages } = kind === "mermaid" ? { html: decoded, missing: [] } : await inlineLocalImages(decoded);
-            const published = await input.look?.().catch(() => null);
+            const published = await input.appearance?.().catch(() => null);
             const scheme = appearance ?? (published?.scheme === "dark" ? "dark" : "light");
             const html = previewDocument(kind, source, previewTheme(scheme, published));
             const rendering = await withinTimeout(renderer.render({ html, width, appearance: scheme, timeoutMs: Math.max(1, previewTimeoutMs - 2_000) }), previewTimeoutMs);

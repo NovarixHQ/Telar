@@ -101,7 +101,7 @@ describe("the registry is the one source of truth", () => {
 
   test("⌘K names the palette it opens, and keeps the id anybody's override is stored under", () => {
     expect(COMMANDS.find((command) => command.id === "search-sessions")).toMatchObject({
-      label: "Command Palette",
+      label: "Command palette",
       defaultChord: "CommandOrControl+K",
     });
   });
@@ -123,9 +123,9 @@ describe("the registry is the one source of truth", () => {
   test("⌘P pins the conversation you are reading, and says what unpinning is called", () => {
     const pin = COMMANDS.find((command) => command.id === "pin-session");
     expect(pin).toMatchObject({
-      label: "Pin Conversation",
-      altLabel: "Unpin Conversation",
-      group: "Conversation",
+      label: "Pin session",
+      altLabel: "Unpin session",
+      group: "Session",
       defaultChord: "CommandOrControl+P",
       menu: "file",
     });
@@ -135,7 +135,7 @@ describe("the registry is the one source of truth", () => {
 
   test("⌘D dictates, and it is a command rather than a menu row", () => {
     const dictate = COMMANDS.find((command) => command.id === "toggle-dictation");
-    expect(dictate).toMatchObject({ label: "Dictate", group: "Conversation", icon: "mic", defaultChord: "CommandOrControl+D" });
+    expect(dictate).toMatchObject({ label: "Dictate", group: "Session", icon: "mic", defaultChord: "CommandOrControl+D" });
     expect(dictate?.menu).toBeUndefined();
     expect(defaultKeymap()["toggle-dictation"]).toBe("CommandOrControl+D");
     expect(keymapConflicts(defaultKeymap())["toggle-dictation"]).toBeUndefined();

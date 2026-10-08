@@ -481,7 +481,7 @@ describe("a browser popped out into its own window", () => {
     expect(already.actions.at(-1)).toEqual({ action: "float", on: false });
   });
 
-  test("the Float Browser on Top command toggles it, from the panel or the window", async () => {
+  test("the Float browser on top command toggles it, from the panel or the window", async () => {
     const { actions } = await mount(panelState());
     await act(async () => {
       runCommand("float-browser");

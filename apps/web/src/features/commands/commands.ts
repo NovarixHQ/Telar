@@ -58,7 +58,7 @@ export type CommandId =
   | "open-plugins"
   | "check-for-updates";
 
-export type CommandGroup = "Conversation" | "Rail" | "Panel" | "Application";
+export type CommandGroup = "Session" | "Rail" | "Panel" | "Application";
 
 export type Command = Omit<RawCommand, "id" | "group"> & { id: CommandId; group: CommandGroup };
 
@@ -66,7 +66,7 @@ export const COMMANDS = RAW_COMMANDS as Command[];
 
 export type Keymap = Record<CommandId, string>;
 
-export const COMMAND_GROUPS: readonly CommandGroup[] = ["Conversation", "Rail", "Panel", "Application"];
+export const COMMAND_GROUPS: readonly CommandGroup[] = ["Session", "Rail", "Panel", "Application"];
 
 export function defaultKeymap(): Keymap {
   return rawDefaultKeymap() as Keymap;

@@ -8,7 +8,7 @@ Telar checks for a new build at launch and every six hours after that. When it f
 
 Nothing installs until you choose **Install and restart**, not even when you quit. Telar asks first and tells you what the restart will interrupt: sessions that are working, and terminals whose commands will be ended.
 
-To check by hand, use the update control in the rail, Settings → General → About, or Check for Updates… in the command palette.
+To check by hand, use the update control in the rail, Settings → General → About, or Check for updates… in the command palette.
 
 ## Sessions across a restart
 

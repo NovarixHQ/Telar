@@ -17,8 +17,8 @@ import {
   type NativeStackNavigatorProps,
   type NativeStackTypeBag,
 } from "@react-navigation/native-stack";
-import { useRef, useState, type ReactNode } from "react";
-import { Animated, Easing, Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { LayoutAnimation, Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Theme, type SymbolName } from "../../ui";
 import { isRegularWidth } from "./size-class";
@@ -74,11 +74,10 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   });
   const { width } = useWindowDimensions();
   const [hidden, setHidden] = useState(false);
-  const shown = useRef(new Animated.Value(1)).current;
   const setSidebarHidden = (next: boolean) => {
     if (next === hidden) return;
+    LayoutAnimation.configureNext(LayoutAnimation.create(280, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
     setHidden(next);
-    Animated.timing(shown, { toValue: next ? 0 : 1, duration: 280, easing: Easing.inOut(Easing.ease), useNativeDriver: false }).start();
   };
   const stack = (slice: State, shown: Descriptors) => <NativeStackView state={slice} navigation={navigation} descriptors={shown} describe={describe} />;
 
@@ -98,11 +97,11 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   return render(
     <SplitColumnContext.Provider value={column}>
       <View style={styles.row}>
-        <Animated.View style={[styles.clip, { width: shown.interpolate({ inputRange: [0, 1], outputRange: [0, SIDEBAR_WIDTH] }) }]}>
-          <Animated.View style={[styles.sidebar, { transform: [{ translateX: shown.interpolate({ inputRange: [0, 1], outputRange: [-SIDEBAR_WIDTH, 0] }) }] }]}>
+        <View style={[styles.clip, { width: hidden ? 0 : SIDEBAR_WIDTH }]}>
+          <View style={styles.sidebar}>
             <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
-          </Animated.View>
-        </Animated.View>
+          </View>
+        </View>
         <View style={styles.detail}>{detail ? stack(detail, toggled) : <SafeAreaProvider>{placeholder}</SafeAreaProvider>}</View>
       </View>
     </SplitColumnContext.Provider>,
@@ -118,6 +117,6 @@ export function createSplitStackNavigator<const ParamList extends ParamListBase>
 const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: "row" },
   clip: { overflow: "hidden" },
-  sidebar: { width: SIDEBAR_WIDTH, flex: 1 },
+  sidebar: { position: "absolute", top: 0, bottom: 0, right: 0, width: SIDEBAR_WIDTH },
   detail: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
 });

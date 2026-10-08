@@ -18,9 +18,11 @@ export function selectionBase<S extends Stack>(state: S, action: Action, selecti
   return { ...state, routes: [root], index: 0 };
 }
 
-/** The stack cut into what the sidebar shows (its root) and what the detail column shows (everything above it). */
-export function splitColumns<S extends Stack>(state: S): { sidebar: S; detail: S | undefined } {
-  const [root, ...rest] = state.routes;
-  const sidebar = { ...state, routes: root ? [root] : [], index: 0 };
-  return { sidebar, detail: rest.length ? { ...state, routes: rest, index: Math.max(0, state.index - 1) } : undefined };
+/** The stack cut into the sidebar (its root plus sheets opened over it) and the detail column (the first pushed screen up).
+ *  A sheet stays in the stack that presented it, so it covers the window instead of becoming the detail column's root. */
+export function splitColumns<S extends Stack>(state: S, isSheet: (route: S["routes"][number]) => boolean): { sidebar: S; detail: S | undefined } {
+  const pushed = state.routes.findIndex((route, index) => index > 0 && !isSheet(route));
+  const cut = pushed === -1 ? state.routes.length : pushed;
+  const sidebar = { ...state, routes: state.routes.slice(0, cut), index: Math.min(state.index, cut - 1) };
+  return { sidebar, detail: pushed === -1 ? undefined : { ...state, routes: state.routes.slice(cut), index: Math.max(0, state.index - cut) } };
 }

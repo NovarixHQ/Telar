@@ -19,6 +19,7 @@ import {
 } from "@react-navigation/native-stack";
 import { useState, type ReactNode } from "react";
 import { Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Theme, type SymbolName } from "../../ui";
 import { isRegularWidth, selectionBase, SIDEBAR_WIDTH, splitColumns } from "./split";
 import { SplitColumnContext, type SplitColumn } from "./split-column";
@@ -33,6 +34,8 @@ type Props = NativeStackNavigatorProps & {
   placeholder: ReactNode;
 };
 type Side = "unstable_headerLeftItems" | "unstable_headerRightItems";
+
+const SHEETS = new Set<NativeStackNavigationOptions["presentation"]>(["modal", "transparentModal", "containedModal", "containedTransparentModal", "fullScreenModal", "formSheet", "pageSheet"]);
 
 function SplitRouter({ selection, ...options }: SplitOptions): ReturnType<typeof StackRouter> {
   const router = StackRouter(options);
@@ -73,7 +76,7 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   const stack = (slice: State, shown: Descriptors) => <NativeStackView state={slice} navigation={navigation} descriptors={shown} describe={describe} />;
 
   if (!isRegularWidth(width, Platform.OS === "ios" && Platform.isPad) || state.routes[0]?.name !== initialRouteName) return render(stack(state, descriptors));
-  const { sidebar, detail } = splitColumns(state);
+  const { sidebar, detail } = splitColumns(state, (route) => SHEETS.has(descriptors[route.key]?.options.presentation ?? "card"));
   const chosen = detail?.routes[0];
   const column: SplitColumn = {
     sidebar: false,
@@ -87,12 +90,10 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   return render(
     <SplitColumnContext.Provider value={column}>
       <View style={styles.row}>
-        {hidden ? null : (
-          <View style={styles.sidebar}>
-            <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
-          </View>
-        )}
-        <View style={styles.detail}>{detail ? stack(detail, toggled) : placeholder}</View>
+        <View style={hidden ? styles.hidden : styles.sidebar}>
+          <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
+        </View>
+        <View style={styles.detail}>{detail ? stack(detail, toggled) : <SafeAreaProvider>{placeholder}</SafeAreaProvider>}</View>
       </View>
     </SplitColumnContext.Provider>,
   );
@@ -107,5 +108,6 @@ export function createSplitStackNavigator<const ParamList extends ParamListBase>
 const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: "row" },
   sidebar: { width: SIDEBAR_WIDTH },
+  hidden: { width: 0, overflow: "hidden" },
   detail: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
 });

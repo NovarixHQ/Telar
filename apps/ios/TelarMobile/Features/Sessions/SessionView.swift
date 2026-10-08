@@ -203,8 +203,7 @@ struct SessionView: View {
                         }
                 }
             }
-            // Removing this inert presenter makes a re-entered iPhone session cancel its tasks at birth (no stream, no dictation).
-            .inspector(isPresented: .constant(false)) { EmptyView() }
+            .keepsTasksAliveOnReentry()
             .onChange(of: panel.isFullScreen) {
                 raisePanel(panel.isOpen)
                 syncSidebar(open: panel.isOpen)
@@ -556,5 +555,11 @@ struct SessionView: View {
                 }
             )
         }
+    }
+}
+
+private extension View {
+    func keepsTasksAliveOnReentry() -> some View {
+        inspector(isPresented: .constant(false)) { EmptyView() }
     }
 }

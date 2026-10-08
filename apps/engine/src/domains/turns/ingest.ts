@@ -90,8 +90,7 @@ export class TurnIngest {
     }
     if (projection.itemsTouched.size > 0) this.deps.items.write(sessionId, projection.items, projection.itemsTouched);
     // Most batches carry no task at all — a rewrite per batch would be a file
-    // write per streamed provider message for nothing. Same rule for the
-    // queue: only a `provider.session` observation ever mutates the turn.
+    // write per streamed provider message for nothing. Same rule for the queue.
     if (projection.tasksTouched) this.deps.tasks.write(sessionId, projection.tasks);
     if (projection.turnTouched) this.deps.writeQueue(sessionId, queue);
     return { accepted: parsed.data.length };
@@ -108,6 +107,9 @@ export class TurnIngest {
     const items = projection.items;
     if (observation.kind === "usage") {
       this.kernel.appendEvent(sessionId, { type: "usage.updated", usage: observation.usage }, turn.runId);
+      // A snapshot replays no events below its cursor, so a turn that ends stopped or failed keeps its figures only here.
+      turn.usage = observation.usage;
+      projection.turnTouched = true;
       return;
     }
     if (observation.kind === "runtime.warning") {

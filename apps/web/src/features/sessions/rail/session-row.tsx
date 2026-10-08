@@ -18,7 +18,7 @@ import { sessionReference, startReferenceDrag } from "@/features/composer";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { useRowWarmth } from "./use-row-warmth";
 import { RowMarks, RowStatus } from "./session-row-marks";
-import { CardBody, RowLink, SlimBody } from "./session-row-body";
+import { RowBody, RowLink } from "./session-row-body";
 import { RowActions } from "./session-row-actions";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -187,7 +187,6 @@ export function SessionRow({
   session,
   active,
   showProject,
-  variant = "card",
   band = "active",
   searchable = false,
   searchSelected = false,
@@ -201,7 +200,6 @@ export function SessionRow({
   active: boolean;
   showProject: boolean;
   jumpSlot?: RailJumpSlot;
-  variant?: "card" | "slim";
   band?: SessionBand;
   searchable?: boolean;
   searchSelected?: boolean;
@@ -246,12 +244,6 @@ export function SessionRow({
   const trailingSlot = jumpSlot ? <KeyHintOverlay command={`jump-${jumpSlot}`}>{statusSlot}</KeyHintOverlay> : statusSlot;
   const heldTerminals = unsettles && !session.archived ? (session.terminals ?? 0) : 0;
   const marks = <RowMarks session={session} band={band} renderedAt={renderedAt} heldTerminals={heldTerminals} open={active} />;
-  const rowBody =
-    variant === "card" ? (
-      <CardBody session={session} showProject={showProject} marks={marks} trailing={trailingSlot} reserve={disclosure !== undefined} />
-    ) : (
-      <SlimBody session={session} recedes={band === "settled" || band === "snoozed"} marks={marks} trailing={trailingSlot} />
-    );
 
   const menuProps: SessionRowMenuProps = {
     session,
@@ -284,13 +276,12 @@ export function SessionRow({
         searchable={searchable}
         searchSelected={searchSelected}
         active={active}
-        slim={variant !== "card"}
         plain={isMobile || !hasFigures(session)}
         details={<SessionDetails session={session} renderedAt={renderedAt} />}
         anchor={rowRef}
         onRename={() => setRenaming(true)}
       >
-        {rowBody}
+        <RowBody session={session} showProject={showProject} marks={marks} trailing={trailingSlot} reserve={disclosure !== undefined} />
       </RowLink>
       {disclosure}
       {!searchable && (
@@ -301,8 +292,7 @@ export function SessionRow({
           renderedAt={renderedAt}
           onRowChanged={onRowChanged}
           band={band}
-          slim={variant !== "card"}
-          unsettles={unsettles}
+            unsettles={unsettles}
           heldTerminals={heldTerminals}
           mutate={mutate}
           unsettle={unsettle}

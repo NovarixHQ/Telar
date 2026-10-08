@@ -144,7 +144,7 @@ describe("the call sites #401 lists", () => {
     const session = { id: "session_1", title: "Exoplanets", projectId: "p1", activity: "idle", createdAt: 1, updatedAt: 1 } as SidebarSession;
     return mount(
       <SidebarProvider>
-        <SessionRow session={session} active={false} showProject={false} variant="card" jumpSlot={1} renderedAt={1} onRowChanged={() => {}} />
+        <SessionRow session={session} active={false} showProject={false} jumpSlot={1} renderedAt={1} onRowChanged={() => {}} />
       </SidebarProvider>,
     );
   }

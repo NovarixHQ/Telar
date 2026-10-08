@@ -53,7 +53,7 @@ const liveRow = (over: Record<string, unknown> = {}) =>
 
 const row = (
   over: Record<string, unknown> = {},
-  { variant = "card", band }: { variant?: "card" | "slim"; band?: "snoozed" } = {},
+  { band }: { band?: "snoozed" | "settled" } = {},
 ) =>
   renderToStaticMarkup(
     <SidebarProvider>
@@ -61,7 +61,6 @@ const row = (
         session={toSidebarSession(liveRow(over), "exoplanets")}
         active={false}
         showProject={false}
-        variant={variant}
         {...(band ? { band } : {})}
         renderedAt={NOW}
         onRowChanged={() => {}}
@@ -79,8 +78,8 @@ describe("a woken conversation is drawn as woken", () => {
     expect(html).toContain("Woke 30m ago");
   });
 
-  test("and the slim row draws it too — a settled row that woke still woke", () => {
-    const html = row({ snoozedUntil: NOW - 30 * MINUTE, snoozedAt: NOW - 3 * 60 * MINUTE, wokeAt: NOW - 30 * MINUTE }, { variant: "slim" });
+  test("a settled row that woke still draws it", () => {
+    const html = row({ snoozedUntil: NOW - 30 * MINUTE, snoozedAt: NOW - 3 * 60 * MINUTE, wokeAt: NOW - 30 * MINUTE }, { band: "settled" });
     expect(html).toContain('aria-label="Woke up"');
   });
 

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { HostMarksShown } from "@/features/hosts";
 import { installTestDom } from "@/test/dom";
 import type { SidebarSession } from "../session-list";
-import { CardBody, SlimBody } from "./session-row-body";
+import { RowBody } from "./session-row-body";
 
 installTestDom();
 
@@ -14,7 +14,7 @@ const session = (over: Partial<SidebarSession> = {}): SidebarSession =>
 function card(row: SidebarSession, shown: boolean, trailing: ReactNode = <span>2m</span>): HTMLElement {
   const html = renderToStaticMarkup(
     <HostMarksShown value={shown}>
-      <CardBody session={row} showProject marks={null} trailing={trailing} />
+      <RowBody session={row} showProject marks={null} trailing={trailing} />
     </HostMarksShown>,
   );
   const host = document.createElement("div");
@@ -25,7 +25,7 @@ function card(row: SidebarSession, shown: boolean, trailing: ReactNode = <span>2
 const firstLine = (host: HTMLElement) => host.firstElementChild!.firstElementChild!;
 const mark = (host: HTMLElement) => host.querySelector<HTMLElement>('[role="img"][aria-label^="On "]');
 
-describe("the host mark on a rail card", () => {
+describe("the host mark on a rail row", () => {
   test("is absent when only one host is connected", () => {
     expect(mark(card(session({ hostId: "host_mini", hostName: "mini" }), false))).toBeNull();
     expect(card(session({ hostId: "host_mini", hostName: "mini" }), false).textContent).not.toContain("mini");
@@ -39,7 +39,7 @@ describe("the host mark on a rail card", () => {
     expect(host.textContent).not.toContain("mini.lan");
   });
 
-  test("marks this computer's sessions too, so every card has one", () => {
+  test("marks this computer's sessions too, so every row has one", () => {
     expect(mark(card(session(), true))!.getAttribute("aria-label")).toBe("On this computer");
   });
 
@@ -55,17 +55,17 @@ describe("the host mark on a rail card", () => {
     expect(colour("host_mini")).toBe(colour("host_mini"));
     expect(colour("host_mini")).not.toBe(colour("host_studio"));
   });
+});
 
-  test("slim rows carry it first as well", () => {
-    const html = renderToStaticMarkup(
-      <HostMarksShown value>
-        <span>
-          <SlimBody session={session({ hostId: "host_mini", hostName: "mini" })} recedes={false} marks={null} trailing={null} />
-        </span>
-      </HostMarksShown>,
-    );
-    const host = document.createElement("div");
-    host.innerHTML = html;
-    expect(host.firstElementChild!.firstElementChild!.getAttribute("aria-label")).toBe("On mini");
+describe("a rail row", () => {
+  test("names the branch beneath the title, so look-alike sessions differ", () => {
+    const host = card(session({ worktreeBranch: "telar/smoke-two" }), false);
+    expect(host.textContent).toContain("Exoplanets");
+    expect(host.textContent).toContain("telar/smoke-two");
+  });
+
+  test("names the project when it is not already shown above", () => {
+    const html = renderToStaticMarkup(<RowBody session={session()} showProject={false} marks={null} trailing={null} />);
+    expect(html).toContain("exoplanets");
   });
 });

@@ -17,11 +17,12 @@ import {
   shapes,
   truncationMode,
 } from "@expo/ui/swift-ui/modifiers";
+import { DynamicColorIOS } from "react-native";
+import { useSplitColumn } from "../../platform/layout";
 import { faded, HostMark, Icon, ProjectAvatar, ProviderIcon, SteppedPulseDot, Theme, Type } from "../../ui";
 import { useProjectIcon } from "../projects";
 import type { RailFamily } from "./nesting";
 import type { RailRow, RailStatus } from "./rail";
-import { useRailLayout } from "./rail-layout";
 
 function StatusSlot({ status }: { status: RailStatus }) {
   switch (status.kind) {
@@ -137,13 +138,18 @@ function FamilyToggle({ family, open, onToggle }: { family: RailFamily; open: bo
 
 const accentColor = { amber: Theme.amber, accent: Theme.accent };
 
+// The fill UIKit gives sidebar rows in a split view, measured from the Swift app.
+const SIDEBAR_ROW = DynamicColorIOS({ light: "#E7E7E7", dark: "#1F1F1F" });
+
+const isRow = (selected: object | undefined, row: RailRow) =>
+  !!selected && "hostId" in selected && "sessionId" in selected && selected.hostId === row.hostId && selected.sessionId === row.sessionId;
+
 /** A tappable rail row with the disclosure chevron; a card row also wears the 2pt activity bar at its leading edge. */
 export function RailRowView({ row, host, slim, nested, stale, family, onOpen }: RowProps & { slim?: boolean; nested?: boolean; stale: boolean; family?: { family: RailFamily; open: boolean; onToggle: () => void }; onOpen: () => void }) {
   const disclosure = family ? <FamilyToggle {...family} /> : null;
   const body = slim || nested ? <SlimBody row={row} host={host} /> : <CardBody row={row} host={host} disclosure={disclosure} />;
-  const { sidebar, rowFill, selected } = useRailLayout();
-  const chosen = selected?.hostId === row.hostId && selected.sessionId === row.sessionId;
-  const fill = sidebar ? (chosen ? Theme.accent : rowFill) : undefined;
+  const { sidebar, selected } = useSplitColumn();
+  const fill = sidebar ? (isRow(selected, row) ? Theme.accent : SIDEBAR_ROW) : undefined;
   return (
     <HStack spacing={11} modifiers={[contentShape(shapes.rectangle()), onTapGesture(onOpen), accessibilityAddTraits(["isButton"]), ...(fill ? [listRowBackground(fill)] : [])]}>
         <Overlay alignment="leading" modifiers={[opacity(stale ? 0.6 : 1), padding({ leading: nested ? 12 : 0 })]}>

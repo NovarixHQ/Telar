@@ -119,18 +119,28 @@ export function ItemRow({ item }: { item: JournalItem }) {
   }
 }
 
+/** Hugs its longest wrapped line, as SwiftUI does, instead of keeping the width it wrapped at. */
 export function UserBubble({ text, attachments = 0 }: { text: string; attachments?: number }) {
   const blank = !text.trim();
+  const [hug, setHug] = useState<number>();
   return (
     <View style={styles.bubbleRow}>
-      <View style={styles.bubble}>
+      <View style={[styles.bubble, hug !== undefined && { width: hug + 24 }]}>
         {blank && attachments ? (
           <View style={styles.imageLabel}>
             <Symbol name="photo" size={TextSize.body} color={Theme.textMuted} />
             <Text style={[styles.bubbleText, styles.muted]}>Image</Text>
           </View>
         ) : (
-          <Text selectable style={styles.bubbleText}>{text}</Text>
+          <Text
+            selectable
+            style={styles.bubbleText}
+            onTextLayout={({ nativeEvent }) => {
+              if (hug === undefined && nativeEvent.lines.length > 1) setHug(Math.ceil(Math.max(...nativeEvent.lines.map((line) => line.width))));
+            }}
+          >
+            {text}
+          </Text>
         )}
       </View>
     </View>
@@ -163,7 +173,7 @@ const styles = StyleSheet.create({
   red: { color: Theme.red },
   muted: { color: Theme.textMuted },
   planStep: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  bubbleRow: { flexDirection: "row", justifyContent: "flex-end", paddingLeft: 24 },
+  bubbleRow: { flexDirection: "row", justifyContent: "flex-end", paddingLeft: 32 },
   bubble: { padding: 12, borderRadius: Theme.radiusBubble, backgroundColor: Theme.messageSurface, flexShrink: 1 },
   bubbleText: { fontSize: TextSize.body, lineHeight: TextSize.body * 1.2 + 4, color: Theme.text },
   imageLabel: { flexDirection: "row", alignItems: "center", gap: 6 },

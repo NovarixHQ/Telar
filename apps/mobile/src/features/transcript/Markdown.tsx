@@ -113,7 +113,7 @@ function List({ token, muted }: { token: Tokens.List; muted: boolean }) {
             {item.task ? (
               <Symbol name={item.checked ? "checkmark.square.fill" : "square"} size={SIZE} color={item.checked ? Theme.accent : Theme.textMuted} />
             ) : (
-              <Text style={[styles.paragraph, muted && styles.muted]}>{token.ordered ? `${start + index}.` : "•"}</Text>
+              token.ordered ? <Text style={[styles.paragraph, muted && styles.muted]}>{`${start + index}.`}</Text> : <View style={[styles.bullet, muted && styles.bulletMuted]} />
             )}
           </View>
           <View style={styles.itemBody}>
@@ -183,7 +183,8 @@ export const Markdown = memo(function Markdown({ text }: { text: string }) {
 });
 
 const styles = StyleSheet.create({
-  paragraph: { fontSize: SIZE, lineHeight: SIZE * 1.5, color: Theme.text },
+  // MarkdownUI adds 0.3em between lines only; the negative margin takes it off a lone line.
+  paragraph: { fontSize: SIZE, lineHeight: SIZE * 1.5, marginVertical: -SIZE * 0.15, color: Theme.text },
   muted: { color: Theme.textMuted },
   strong: { fontWeight: "600" },
   em: { fontStyle: "italic" },
@@ -198,8 +199,10 @@ const styles = StyleSheet.create({
   quoteBar: { width: 3, borderRadius: 2, backgroundColor: Theme.border },
   quoteBody: { flex: 1, paddingLeft: 12 },
   list: { gap: SIZE * 0.2 },
-  listItem: { flexDirection: "row", gap: 6 },
-  marker: { minWidth: 14, alignItems: "flex-end" },
+  listItem: { flexDirection: "row", paddingLeft: 8 },
+  marker: { width: 24, alignItems: "center" },
+  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 6, backgroundColor: Theme.text },
+  bulletMuted: { backgroundColor: Theme.textMuted },
   itemBody: { flex: 1 },
   tableScroll: { flexGrow: 0 },
   table: { flexDirection: "row", borderWidth: 1, borderColor: Theme.border },

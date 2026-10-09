@@ -26,7 +26,7 @@ function createPlacement({ screen, window: current, ticker = everyFrame }) {
     const next = layout({ area: place.area, anchor: place.anchor, ...metrics });
     const same = applied && ["x", "y", "width", "height"].every((key) => applied.bounds[key] === next.bounds[key]);
     if (!same) win.setBounds(next.bounds, false);
-    if (!same || applied.room.above !== next.room.above || applied.room.below !== next.room.below) win.webContents.send("telar:quick-composer:room", next.room);
+    if (!same || applied.room.above !== next.room.above) win.webContents.send("telar:quick-composer:room", next.room);
     applied = next;
   };
 
@@ -35,7 +35,7 @@ function createPlacement({ screen, window: current, ticker = everyFrame }) {
     if (!place || !win) return;
     const bounds = win.getBounds();
     const display = screen.getDisplayMatching(bounds);
-    place = { display: display.id, area: display.workArea, anchor: { x: bounds.x, y: bounds.y + metrics.composerTop } };
+    place = { display: display.id, area: display.workArea, anchor: { x: bounds.x, bottom: bounds.y + bounds.height } };
     applied = null;
     apply();
   };
@@ -73,7 +73,7 @@ function createPlacement({ screen, window: current, ticker = everyFrame }) {
       });
     },
     endDrag,
-    held: () => (place ? { display: place.display, offset: { x: place.anchor.x - place.area.x, y: place.anchor.y - place.area.y } } : null),
+    held: () => (place ? { display: place.display, offset: { x: place.anchor.x - place.area.x, bottom: place.anchor.bottom - place.area.y } } : null),
   };
 }
 

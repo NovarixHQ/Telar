@@ -26,12 +26,11 @@ function rowKey(row: DestinationRow) {
 export const placeOf = (where: { projectName?: string; hostName?: string; name?: string }, manyHosts: boolean) =>
   [where.projectName ?? where.name, manyHosts ? (where.hostName ?? "This Mac") : undefined].filter(Boolean).join(" · ");
 
-export function DestinationPicker({ rows, index, onPick, below, maxHeight, manyHosts }: {
+export function DestinationPicker({ rows, index, onPick, maxHeight, manyHosts }: {
   manyHosts: boolean;
   rows: readonly DestinationRow[];
   index: number;
   onPick: (row: DestinationRow, worktree: boolean) => void;
-  below: boolean;
   maxHeight: number;
 }) {
   const [now] = useState(Date.now);
@@ -40,14 +39,14 @@ export function DestinationPicker({ rows, index, onPick, below, maxHeight, manyH
     list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" });
   }, [index, rows]);
   return (
-    <div className={cn("mx-6 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2", below ? "mt-1.5" : "mb-1.5")}>
+    <div className="mx-6 mb-1.5 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2">
       <div className="flex justify-between px-2 pt-1 pb-1.5 text-2xs text-muted-foreground">
         <span>Where does it go?</span>
         <span>↑↓ choose · ↵ attach</span>
       </div>
       <div ref={list} role="listbox" aria-label="Destination" className="overflow-y-auto" style={{ maxHeight }}>
         {rows.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">Nothing matches</p>}
-        {(below ? rows.map((row, at) => ({ row, at })) : rows.map((row, at) => ({ row, at })).reverse()).map(({ row, at }) => (
+        {rows.map((row, at) => ({ row, at })).reverse().map(({ row, at }) => (
           <div
             key={rowKey(row)}
             role="option"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { EngineRequest } from "@telar/engine-client";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
 import { SessionTurn } from "../cockpit/components/session-turn";
@@ -23,24 +23,8 @@ export function useLiveSession(hostId: string, sessionId: string, nudge: number)
   return { sync, model, follow };
 }
 
-function useContentHeight(maxHeight: number) {
-  const content = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(0);
-  useEffect(() => {
-    const node = content.current;
-    if (!node) return;
-    const measure = () => setHeight(node.scrollHeight);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-  return { content, height: Math.min(Math.max(height, 40), maxHeight) };
-}
-
-export function LiveTranscript({ hostId, sessionId, live, maxHeight }: { hostId: string; sessionId: string; live: ReturnType<typeof useLiveSession>; maxHeight: number }) {
+export function LiveTranscript({ hostId, sessionId, live, height }: { hostId: string; sessionId: string; live: ReturnType<typeof useLiveSession>; height: number }) {
   const { sync, model } = live;
-  const { content, height } = useContentHeight(maxHeight);
   const { shown, hostOf } = transcriptRows(model.transcript);
   const hostRun = (request: EngineRequest) => hostOf.get(request.runId) ?? request.runId;
   const decide = (requestId: string, decision: Parameters<ReturnType<typeof hostApi>["resolveRequest"]>[2]["decision"], extra?: { answers?: Record<string, unknown> }) =>
@@ -56,7 +40,7 @@ export function LiveTranscript({ hostId, sessionId, live, maxHeight }: { hostId:
       followRef={live.follow}
     >
       <ConversationContent className="gap-0 px-0 py-1 [&_.telar-markdown]:text-xs">
-        <div ref={content} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           <ConversationTopEdge more={Boolean(sync.page?.more)} loading={sync.loadingOlder} onReach={sync.loadOlder}>
             <p className="text-center text-2xs text-muted-foreground">{sync.loadingOlder ? "Loading earlier turns…" : "Scroll up for earlier turns"}</p>
           </ConversationTopEdge>

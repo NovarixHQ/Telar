@@ -92,10 +92,10 @@ describe("the window", () => {
     expect(panel().options).toMatchObject({ type: "panel", transparent: true, hasShadow: false, resizable: false, width: WIDTH });
     expect(panel().onTop).toBe("pop-up-menu");
     expect(panel().ignoresMouse).toBeUndefined();
-    expect(panel().bounds).toMatchObject({ x: Math.round((1440 - WIDTH) / 2), width: WIDTH });
+    expect(panel().bounds).toMatchObject({ x: Math.round((1440 - WIDTH) / 2), width: WIDTH, y: Math.round(900 - 875 * 0.22 + 24) - 260 });
   });
 
-  test("sizes itself to what the page reports, the composer staying put, and only when it changed", async () => {
+  test("sizes itself to what the page reports, the composer's bottom staying put, and only when it changed", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
     let sets = 0;
@@ -106,28 +106,28 @@ describe("the window", () => {
       setBounds(bounds);
     };
     report(200, 24);
-    const composerAt = panel().bounds.y + 24;
+    const bottom = panel().bounds.y + panel().bounds.height;
     report(520, 344);
     expect(panel().bounds.height).toBe(520);
-    expect(panel().bounds.y + 344).toBe(composerAt);
+    expect(panel().bounds.y + panel().bounds.height).toBe(bottom);
     report(521, 345);
     expect(sets).toBe(2);
-    expect(panel().webContents.sent.at(-1)).toMatchObject({ channel: "telar:quick-composer:room", payload: { above: expect.any(Number), below: expect.any(Number) } });
+    expect(panel().webContents.sent.at(-1)).toMatchObject({ channel: "telar:quick-composer:room", payload: { above: expect.any(Number) } });
   });
 
   test("follows the page down as well as up, and a reopen restores the spot but never the old height", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
     report(200, 24);
-    const composerAt = panel().bounds.y + 24;
+    const bottom = panel().bounds.y + panel().bounds.height;
     report(560, 344);
     report(200, 24);
-    expect(panel().bounds).toMatchObject({ height: 200, y: composerAt - 24 });
+    expect(panel().bounds).toMatchObject({ height: 200, y: bottom - 200 });
     report(560, 344);
     await press("Alt+Space");
     await press("Alt+Space");
     expect(panel().bounds.height).toBe(260);
-    expect(panel().bounds.y + 24).toBe(composerAt);
+    expect(panel().bounds.y + 260).toBe(bottom);
   });
 
   test("keeps its window clear when the appearance retints every window", async () => {
@@ -173,7 +173,7 @@ describe("the window", () => {
       electron.screen.cursor = { x: 10, y: 10 };
       jest.advanceTimersByTime(59_000);
       await press("Alt+Space");
-      expect(panel().bounds).toMatchObject({ x: 1600, y: 300 });
+      expect(panel().bounds).toMatchObject({ x: 1600, y: 500 - 260 });
       expect(lastOpen()).toMatchObject({ fresh: false });
       await press("Alt+Space");
       electron.screen.displays = [electron.screen.displays[0]];

@@ -1,7 +1,7 @@
 export type Permission = "accessibility";
 export type Permissions = Record<Permission, boolean>;
 
-export type Room = { above: number; below: number };
+export type Room = { above: number };
 
 export type FrontContext = {
   app: string;

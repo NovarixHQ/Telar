@@ -8,9 +8,9 @@ import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { placeOf, sessionStatus, statusDot } from "./destination-picker";
 import { LiveTranscript, useLiveSession } from "./live-transcript";
 
-type CardProps = { nudge: number; maxHeight: number; manyHosts: boolean; onClear: () => void };
+type CardProps = { nudge: number; height: number; manyHosts: boolean; onClear: () => void };
 
-function SessionCard({ destination, nudge, maxHeight, manyHosts, onClear }: CardProps & { destination: Extract<Destination, { kind: "session" }> }) {
+function SessionCard({ destination, nudge, height, manyHosts, onClear }: CardProps & { destination: Extract<Destination, { kind: "session" }> }) {
   const hostId = destination.session.hostId ?? LOCAL_HOST_ID;
   const live = useLiveSession(hostId, destination.session.id, nudge);
   const session = { ...destination.session, ...(live.sync.session ? { activity: live.sync.session.activity, activityDetail: live.sync.session.activityDetail, activityAt: live.sync.session.activityAt, updatedAt: live.sync.session.updatedAt, title: live.sync.session.title } : {}) };
@@ -25,7 +25,7 @@ function SessionCard({ destination, nudge, maxHeight, manyHosts, onClear }: Card
           <XIcon className="size-3.5" />
         </button>
       </div>
-      <LiveTranscript hostId={hostId} sessionId={session.id} live={live} maxHeight={maxHeight} />
+      <LiveTranscript hostId={hostId} sessionId={session.id} live={live} height={height} />
     </div>
   );
 }

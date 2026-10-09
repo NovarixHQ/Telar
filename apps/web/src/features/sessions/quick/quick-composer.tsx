@@ -1,52 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { CheckIcon, FolderIcon, ShieldAlertIcon } from "lucide-react";
+import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { FolderIcon, PlusIcon } from "lucide-react";
 import { Composer } from "@/features/composer";
-import { Button } from "@/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
-import { missingPermissions, quickComposerBridge, type FrontContext, type Permission, type QuickComposerBridge } from "./front-context";
+import { AttachedDestination } from "./attached-destination";
+import { DestinationPicker } from "./destination-picker";
+import { missingPermissions, quickComposerBridge, type QuickComposerBridge } from "./front-context";
+import { PermissionNotice } from "./permission-notice";
 import { useQuickComposer } from "./use-quick-composer";
+import { useWindowDrag } from "./use-window-drag";
 
-const SKIPPED_KEY = "telar.quick-composer.permissions-skipped";
-
-const PERMISSIONS: readonly { key: Permission; label: string; use: string; info?: string }[] = [
-  { key: "screen", label: "Screen Recording", use: "attaches the window in front", info: "macOS may apply it only after a restart." },
-  { key: "accessibility", label: "Accessibility", use: "attaches your selected text" },
-];
-
-function PermissionNotice({ bridge, context }: { bridge: QuickComposerBridge; context: FrontContext }) {
-  const [skipped, setSkipped] = useState(() => window.localStorage.getItem(SKIPPED_KEY) === "1");
-  if (skipped) return null;
-  const skip = () => {
-    window.localStorage.setItem(SKIPPED_KEY, "1");
-    setSkipped(true);
-  };
-  return (
-    <div role="note" className="mx-4 flex flex-col gap-1 rounded-xl border border-border/80 bg-popover p-2 pl-3 text-xs text-popover-foreground shadow-2">
-      <div className="flex items-center gap-2">
-        <ShieldAlertIcon className="size-4 shrink-0 text-muted-foreground" />
-        <p className="min-w-0 flex-1 truncate">Allow “{context.grantee}” to attach what you’re looking at. The composer works without it.</p>
-        <Button size="xs" variant="ghost" onClick={skip}>Skip</Button>
-      </div>
-      <ul className="flex flex-col">
-        {PERMISSIONS.map(({ key, label, use, info }) => (
-          <li key={key} data-permission={key} className="flex h-7 items-center gap-2 pl-6">
-            <span className="font-medium" {...(info ? { title: info } : {})}>{label}</span>
-            <span className="min-w-0 flex-1 truncate text-muted-foreground">{use}</span>
-            {context.permissions[key] ? (
-              <span className="flex items-center gap-1 pr-2 text-muted-foreground">
-                Granted <CheckIcon className="size-3.5" />
-              </span>
-            ) : (
-              <Button size="xs" variant="outline" onClick={() => void bridge.openSettings(key)}>Open Settings</Button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
+type Quick = ReturnType<typeof useQuickComposer>;
 
 function holdForFilePicker(event: { target: EventTarget }, bridge: QuickComposerBridge | undefined) {
   if (event.target instanceof HTMLInputElement && event.target.type === "file") bridge?.hold();
@@ -64,9 +29,14 @@ function useReportHeight(bridge: QuickComposerBridge | undefined) {
   return root;
 }
 
-function ProjectChip({ quick }: { quick: ReturnType<typeof useQuickComposer> }) {
+function ProjectChip({ quick }: { quick: Quick }) {
+  const choose = (next: string | null) => {
+    if (!next) return;
+    quick.destination.clear();
+    quick.setProjectId(next);
+  };
   return (
-    <Select value={quick.projectId ?? null} onValueChange={(next) => next && quick.setProjectId(next)}>
+    <Select value={quick.projectId ?? null} onValueChange={choose}>
       <SelectTrigger size="sm" className="h-7 min-w-0 max-w-40 gap-1 rounded-full border-border/60 px-2.5 text-xs" aria-label="Project">
         <FolderIcon className="size-3.5 text-muted-foreground" />
         <SelectValue placeholder="Choose a project">{quick.project?.name ?? quick.projectId}</SelectValue>
@@ -80,11 +50,45 @@ function ProjectChip({ quick }: { quick: ReturnType<typeof useQuickComposer> }) 
   );
 }
 
+function ContextOffers({ quick }: { quick: Quick }) {
+  const offers = quick.offers.filter((offer) => !quick.files.includes(offer.file));
+  if (offers.length === 0) return null;
+  return (
+    <div className="mx-6 flex flex-wrap gap-1.5">
+      {offers.map((offer) => (
+        <button
+          key={offer.id}
+          type="button"
+          onClick={() => quick.toggleOffer(offer)}
+          className="flex h-6 max-w-72 items-center gap-1 rounded-full border border-dashed border-border bg-popover px-2.5 text-2xs text-muted-foreground shadow-1 hover:text-foreground"
+        >
+          <PlusIcon className="size-3 shrink-0" />
+          <span className="truncate">{offer.label}</span>
+          {offer.id === "window" && <kbd className="font-mono opacity-70">⌘⇧A</kbd>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function onComposerKey(quick: Quick, event: ReactKeyboardEvent) {
+  const windowOffer = quick.offers.find((offer) => offer.id === "window");
+  const shortcut = event.metaKey && event.shiftKey && event.key.toLowerCase() === "a";
+  if ((shortcut && windowOffer) || quick.destination.onKey(event)) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (shortcut && windowOffer) quick.toggleOffer(windowOffer);
+    return;
+  }
+  quick.noteKey(event);
+}
+
 /** A new session's composer floating over any app: Enter starts it, ⌘Enter starts it and opens Telar, Esc hides. */
 export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: QuickComposerBridge }) {
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
   const root = useReportHeight(bridge);
+  const startDrag = useWindowDrag(bridge);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -95,9 +99,13 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
   }, [bridge]);
 
   return (
-    <div ref={root} data-surface="quick" className="flex flex-col gap-1 pt-2 pb-3">
+    <div ref={root} data-surface="quick" onPointerDown={startDrag} className="flex flex-col gap-1 pt-2 pb-3">
       {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
-      <div onKeyDownCapture={quick.noteKey} onPointerDownCapture={quick.forgetKey} onClickCapture={(event) => holdForFilePicker(event, bridge)}>
+      <ContextOffers quick={quick} />
+      <div onKeyDownCapture={(event) => onComposerKey(quick, event)} onPointerDownCapture={quick.forgetKey} onClickCapture={(event) => holdForFilePicker(event, bridge)}>
+        <div className="-mb-2 pt-1">
+          <AttachedDestination destination={quick.destination.destination} onClear={quick.destination.clear} />
+        </div>
         <Composer
           draft={quick.text}
           ready={projectId !== undefined}
@@ -127,9 +135,10 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
           onModelChange={draft.chooseModel}
         />
       </div>
+      {quick.destination.picking && <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} />}
       {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-popover px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
       <footer data-slot="quick-hint" className="mx-auto w-fit rounded-full bg-popover px-2.5 py-0.5 text-2xs text-muted-foreground shadow-1">
-        ↵ send · ⌘↵ send &amp; open · esc close
+        ↵ send · ⌘↵ send &amp; open · # destination · esc close
       </footer>
     </div>
   );

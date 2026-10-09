@@ -62,13 +62,13 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   let suspended = false;
   let latest = null;
   let holding = false;
+  let dragFrom = null;
 
   const panel = () => {
     if (win && !win.isDestroyed()) return win;
     win = new BrowserWindow(panelOptions());
     win.setAlwaysOnTop(true, "floating");
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
-    win.on("moved", () => remember(win));
     win.on("focus", () => {
       holding = false;
       win.webContents.send("telar:quick-composer:permissions", permissions());
@@ -117,6 +117,18 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     win.setContentSize(WIDTH, Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height))));
   });
   ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
+  ipcMain.on("telar:quick-composer:drag", (event, { phase, dx, dy } = {}) => {
+    if (!fromPanel(event)) return;
+    if (phase === "start") {
+      const [x, y] = win.getPosition();
+      dragFrom = { x, y };
+    } else if (phase === "move" && dragFrom && Number.isFinite(dx) && Number.isFinite(dy)) {
+      win.setPosition(Math.round(dragFrom.x + dx), Math.round(dragFrom.y + dy));
+    } else if (phase === "end" && dragFrom) {
+      dragFrom = null;
+      remember(win);
+    }
+  });
   ipcMain.on("telar:quick-composer:hold", (event) => {
     if (fromPanel(event)) holding = true;
   });

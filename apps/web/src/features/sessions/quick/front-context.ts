@@ -17,6 +17,7 @@ export type QuickComposerBridge = {
   resize: (height: number) => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
   hold: () => void;
+  drag: (input: { phase: "start" | "move" | "end"; dx?: number; dy?: number }) => void;
   onPermissions: (listener: (permissions: Permissions) => void) => () => void;
   openSettings: (permission: Permission) => Promise<unknown>;
 };
@@ -36,12 +37,14 @@ function pngFrom(dataUrl: string, name: string): File {
   return new File([bytes], name, { type: "image/png" });
 }
 
-export function contextFiles(context: FrontContext | null): File[] {
+export type ContextOffer = { id: "window" | "selection"; label: string; file: File };
+
+export function contextOffers(context: FrontContext | null): ContextOffer[] {
   if (!context) return [];
-  const files: File[] = [];
-  if (context.screenshot?.startsWith("data:image/png;base64,")) files.push(pngFrom(context.screenshot, fileName(context)));
-  if (context.selection.trim()) files.push(new File([context.selection], "Selected text.txt", { type: "text/plain" }));
-  return files;
+  const offers: ContextOffer[] = [];
+  if (context.screenshot?.startsWith("data:image/png;base64,")) offers.push({ id: "window", label: `Attach ${context.title || context.app || "window"}`, file: pngFrom(context.screenshot, fileName(context)) });
+  if (context.selection.trim()) offers.push({ id: "selection", label: "Attach selected text", file: new File([context.selection], "Selected text.txt", { type: "text/plain" }) });
+  return offers;
 }
 
 export function missingPermissions(context: FrontContext | null): boolean {

@@ -17,6 +17,12 @@ beforeEach(() => {
 });
 
 const panel = () => FakeBrowserWindow.all[0];
+const drag = (win, dx, dy) => {
+  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "start" });
+  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "move", dx: dx / 2, dy: dy / 2 });
+  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "move", dx, dy });
+  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "end" });
+};
 const press = async (chord) => {
   electron.globalShortcut.press(chord);
   await new Promise((resolve) => setImmediate(resolve));
@@ -85,19 +91,28 @@ describe("the window", () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
     expect(panel().getPosition()).toEqual([380, 200]);
-    panel().setPosition(120, 600);
-    panel().emit("moved");
+    drag(panel(), -260, 400);
     await press("Alt+Space");
     await press("Alt+Space");
     expect(panel().getPosition()).toEqual([120, 600]);
+  });
+
+  test("dragging moves it by the pointer's travel from where the drag began", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "start" });
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "move", dx: 10, dy: 5 });
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "move", dx: 30, dy: -20 });
+    expect(panel().getPosition()).toEqual([410, 180]);
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(new FakeBrowserWindow()), { phase: "move", dx: 500, dy: 500 });
+    expect(panel().getPosition()).toEqual([410, 180]);
   });
 
   test("a spot on another display does not move it there", async () => {
     electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    panel().setPosition(2000, 300);
-    panel().emit("moved");
+    drag(panel(), 1620, 100);
     await press("Alt+Space");
     await press("Alt+Space");
     expect(panel().getPosition()).toEqual([380, 200]);

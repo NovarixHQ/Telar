@@ -30,16 +30,30 @@ let calls: Call[] = [];
 
 const session = (id: string, title: string) => ({ id, title, projectId: "project_1", providerInstanceId: "claude", driver: "claude", runtimeMode: "auto" }) as unknown as Session;
 
+const PROJECTS = [
+  { id: "project_1", name: "Telar", root: "/tmp", createdAt: 2 },
+  { id: "project_2", name: "exoplanets", root: "/tmp/exo", createdAt: 1 },
+];
+const live = (id: string, title: string, projectId: string, activity: string, updatedAt: number) => ({ id, title, projectId, activity, updatedAt, state: "active", createdAt: 1 });
+const LIVE = [
+  live("s_transit", "Transit light-curve analysis", "project_2", "idle", 300),
+  live("s_sales", "Sales dashboard and checkout", "project_2", "blocked", 100),
+  live("s_readme", "Expand scratch README", "project_1", "working", 50),
+];
+
 function wire() {
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
     calls.push({ method, url, body });
-    if (method === "POST" && url.endsWith("/api/projects/project_1/sessions")) return Response.json({ session: session(body.id, body.title) });
+    const create = /\/api\/projects\/(project_\d)\/sessions$/.exec(url);
+    if (method === "POST" && create) return Response.json({ session: { ...session(body.id, body.title), projectId: create[1] } });
+    if (url.includes("/api/sessions/live")) return Response.json({ sessions: LIVE, projects: PROJECTS });
+    if (url.includes("/answer")) return Response.json({ runId: "run_9", sequence: 3, text: "Need to run the build first.\n\n**Shall I run it?**", from: 0, totalChars: 46, more: false });
     if (url.includes("/attachments")) return Response.json({ attachment: { id: `att_${calls.length}` } });
     if (url.includes("/turns")) return Response.json({ runId: "run_1", state: "queued" });
-    if (url.includes("/api/projects")) return Response.json({ projects: [{ id: "project_1", name: "Telar", root: "/tmp", createdAt: 1 }] });
+    if (url.includes("/api/projects")) return Response.json({ projects: PROJECTS });
     if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
     if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
@@ -54,6 +68,7 @@ function fakeBridge(context: FrontContext | null) {
   const settings: Permission[] = [];
   let closed = 0;
   let held = 0;
+  const drags: unknown[] = [];
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
@@ -67,8 +82,9 @@ function fakeBridge(context: FrontContext | null) {
     },
     openSettings: async (permission) => void settings.push(permission),
     hold: () => void (held += 1),
+    drag: (input) => void drags.push(input),
   };
-  return { bridge, sent, settings, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, drags, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
 const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", screenshot: null, permissions, grantee: "Telar Dev", ...extra });
@@ -93,13 +109,25 @@ async function open(context: FrontContext | null) {
 
 const editor = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="composer-editor"]')!;
 
-async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEventInit = {}) {
+async function type(host: HTMLElement, text: string) {
   const box = editor(host);
   act(() => {
     box.textContent = text;
     box.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await flush();
+}
+
+async function press(host: HTMLElement, key: string, keys: KeyboardEventInit = {}) {
+  await act(async () => void editor(host).dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...keys })));
+  await flush();
+}
+
+const options = (host: HTMLElement) => [...host.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
+
+async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEventInit = {}) {
+  await type(host, text);
+  const box = editor(host);
   await act(async () => void box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, ...keys })));
   await flush(() => calls.some((call) => call.url.includes("/turns")));
   await flush();
@@ -122,16 +150,24 @@ describe("the quick composer", () => {
     expect(sent[0]?.open).toBe(true);
   });
 
-  test("attaches the front window and the selection, each removable", async () => {
+  test("offers the front window and the selection without attaching them", async () => {
     const { host } = await open(front(GRANTED, { app: "Safari", title: "pull/1439", selection: "two\nlines", screenshot: "data:image/png;base64,iVBORw0KGgo=" }));
-    const removeShot = host.querySelector('[aria-label="Remove Safari · pull-1439.png"]');
-    expect(removeShot).not.toBeNull();
-    expect(host.querySelector('[aria-label="Remove Selected text.txt"]')).not.toBeNull();
-    await act(async () => (removeShot as HTMLElement).click());
+    expect(host.querySelector('[aria-label^="Remove "]')).toBeNull();
+    const offer = [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Attach pull/1439"))!;
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Attach selected text")).toBe(true);
+    await act(async () => offer.click());
     await flush();
-    expect(host.querySelector('[aria-label="Remove Safari · pull-1439.png"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Remove Safari · pull-1439.png"]')).not.toBeNull();
     await typeAndPress(host, "Explain");
     expect(calls.filter((call) => call.url.includes("/attachments"))).toHaveLength(1);
+  });
+
+  test("⌘⇧A attaches the front window, and again takes it off", async () => {
+    const { host } = await open(front(GRANTED, { app: "Safari", title: "pull/1439", screenshot: "data:image/png;base64,iVBORw0KGgo=" }));
+    await press(host, "A", { metaKey: true, shiftKey: true });
+    expect(host.querySelector('[aria-label="Remove Safari · pull-1439.png"]')).not.toBeNull();
+    await press(host, "A", { metaKey: true, shiftKey: true });
+    expect(host.querySelector('[aria-label="Remove Safari · pull-1439.png"]')).toBeNull();
   });
 
   test("without the permissions it explains them, attaches nothing, and still sends", async () => {
@@ -183,7 +219,7 @@ describe("the quick composer", () => {
     const controls = host.querySelector('[data-slot="composer-controls"]')!;
     expect(controls.querySelector('[aria-label="Project"]')?.textContent).toContain("Telar");
     const hint = host.querySelector('[data-slot="quick-hint"]')!;
-    expect(hint.textContent).toBe("↵ send · ⌘↵ send & open · esc close");
+    expect(hint.textContent).toBe("↵ send · ⌘↵ send & open · # destination · esc close");
     expect(editor(host).compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -200,9 +236,110 @@ describe("the quick composer", () => {
     expect(held()).toBe(1);
   });
 
+  test("dragging the hint moves the window by the pointer's travel", async () => {
+    const { host, drags } = await open(front(GRANTED));
+    const hint = host.querySelector<HTMLElement>('[data-slot="quick-hint"]')!;
+    act(() => {
+      hint.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, screenX: 100, screenY: 50 }));
+      hint.closest('[data-surface="quick"]')!.dispatchEvent(new PointerEvent("pointermove", { screenX: 130, screenY: 40 }));
+      hint.closest('[data-surface="quick"]')!.dispatchEvent(new PointerEvent("pointerup", {}));
+    });
+    expect(drags).toEqual([{ phase: "start" }, { phase: "move", dx: 30, dy: -10 }, { phase: "end" }]);
+  });
+
+  test("pressing a button in the control row does not drag", async () => {
+    const { host, drags } = await open(front(GRANTED));
+    const send = host.querySelector('[data-slot="composer-controls"] button')!;
+    act(() => void send.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 })));
+    expect(drags).toEqual([]);
+  });
+
   test("Esc hides it", async () => {
     const { closed } = await open(null);
     await act(async () => void window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(closed()).toBe(1);
+  });
+});
+
+describe("the # destination picker", () => {
+  test("lists a new session in the current project, then sessions running or waiting before the most recent", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#");
+    await flush(() => options(host).length > 1);
+    expect(options(host).map((row) => row.split(/(?=Telar|exoplanets)/)[0])).toEqual([
+      "New session in ",
+      "Sales dashboard and checkout",
+      "Expand scratch README",
+      "Transit light-curve analysis",
+    ]);
+  });
+
+  test("filters projects and sessions together", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#exo");
+    await flush(() => options(host).length > 1);
+    expect(options(host)[0]).toContain("New session in exoplanets");
+    expect(options(host).slice(1).map((row) => row.slice(0, 12))).toEqual(["Sales dashbo", "Transit ligh"]);
+  });
+
+  test("↓ and ↵ attach a session; sending replies to it instead of starting one", async () => {
+    const { host, sent } = await open(front(GRANTED));
+    await type(host, "#exo");
+    await flush(() => options(host).length > 1);
+    await press(host, "ArrowDown");
+    expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("Sales dashboard");
+    await press(host, "Enter");
+    await flush(() => Boolean(host.querySelector('[data-slot="quick-reply"] p')));
+    const card = host.querySelector('[data-slot="quick-destination"]')!;
+    expect(card.textContent).toContain("Sales dashboard and checkout");
+    expect(card.textContent).toContain("exoplanets · Waiting on you");
+    const reply = card.querySelector('[data-slot="quick-reply"]')!;
+    expect(reply.querySelectorAll("p")).toHaveLength(2);
+    expect(reply.textContent).toContain("Shall I run it?");
+    expect(reply.textContent).not.toContain("**");
+    const more = [...card.querySelectorAll("button")].find((button) => button.textContent === "Show full reply")!;
+    await act(async () => more.click());
+    expect(more.textContent).toBe("Collapse");
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    await typeAndPress(host, "Yes, go ahead", { metaKey: true });
+    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/sessions/s_sales/turns"))?.body).toMatchObject({ input: "Yes, go ahead" });
+    expect(calls.some((call) => call.method === "POST" && /\/api\/projects\/.*\/sessions$/.test(call.url))).toBe(false);
+    expect(sent).toEqual([{ route: "/projects/project_2/sessions/s_sales", title: "Sales dashboard and checkout", detail: "exoplanets", open: true }]);
+  });
+
+  test("⌫ in an empty composer detaches the session, and so does its ✕", async () => {
+    const { host } = await open(front(GRANTED));
+    const attach = async () => {
+      await type(host, "#readme");
+      await flush(() => options(host).length > 0);
+      await press(host, "Enter");
+    };
+    await attach();
+    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    await type(host, "");
+    await press(host, "Backspace");
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    await attach();
+    await act(async () => host.querySelector<HTMLElement>('[aria-label="Detach session"]')!.click());
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+  });
+
+  test("⌥↵ on a project starts the session there in a new worktree", async () => {
+    const { host, sent } = await open(front(GRANTED));
+    await type(host, "#exo");
+    await flush(() => options(host).length > 1);
+    await press(host, "Enter", { altKey: true });
+    expect(host.querySelector('[data-slot="quick-destination"]')?.textContent).toContain("exoplanets· new worktree");
+    await typeAndPress(host, "Fix the CI build");
+    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/projects/project_2/sessions"))?.body).toMatchObject({ envMode: "worktree" });
+    expect(sent[0]?.detail).toBe("exoplanets");
+  });
+
+  test("Esc closes the picker without hiding the window", async () => {
+    const { host, closed } = await open(front(GRANTED));
+    await type(host, "#");
+    await press(host, "Escape");
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(closed()).toBe(0);
   });
 });

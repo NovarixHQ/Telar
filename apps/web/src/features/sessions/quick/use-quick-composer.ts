@@ -2,16 +2,23 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Project } from "@telar/engine-client";
-import { asEngineError, createEngineApi } from "@/platform/engine";
+import { asEngineError, createEngineApi, newRunId } from "@/platform/engine";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { composerProject, MAX_ATTACHMENTS, readFrontDoorNote } from "@/features/composer";
 import { projectDraftModel } from "@telar/client/providers";
 import { useDraftConfig } from "../cockpit/hooks/use-draft-config";
 import { startSession } from "../cockpit/start-session";
 import { sessionHref } from "../session-list";
-import { contextFiles, type FrontContext, type QuickComposerBridge } from "./front-context";
+import { contextOffers, type ContextOffer, type FrontContext, type QuickComposerBridge } from "./front-context";
+import { useDestination } from "./use-destination";
 
 const api = createEngineApi();
+
+async function reply(sessionId: string, text: string, files: readonly File[]) {
+  const attachments: string[] = [];
+  for (const file of files) attachments.push((await api.uploadAttachment(sessionId, file)).attachment.id);
+  await api.submitTurn(sessionId, { runId: newRunId(), input: text, ...(attachments.length > 0 ? { attachments } : {}) });
+}
 
 function useProjects() {
   const [projects, setProjects] = useState<readonly Project[]>([]);
@@ -36,18 +43,21 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [context, setContext] = useState<FrontContext | null>(null);
+  const [offers, setOffers] = useState<readonly ContextOffer[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string>();
-  const fromContext = useRef<readonly File[]>([]);
   const openAfter = useRef(false);
+  const offered = useRef<readonly ContextOffer[]>([]);
+  const destination = useDestination({ text, setText, projects, projectId, onProject: setProjectId });
 
   useEffect(() => {
     if (!bridge) return;
     const adopt = (next: FrontContext | null) => {
       setContext(next);
-      const previous = fromContext.current;
-      fromContext.current = contextFiles(next);
-      setFiles((current) => [...current.filter((file) => !previous.includes(file)), ...fromContext.current].slice(0, MAX_ATTACHMENTS));
+      const previous = offered.current;
+      offered.current = contextOffers(next);
+      setOffers(offered.current);
+      setFiles((current) => current.filter((file) => !previous.some((offer) => offer.file === file)));
       document.getElementById("turn-prompt")?.focus();
     };
     void bridge.context().then(adopt, () => undefined);
@@ -59,8 +69,12 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
     };
   }, [bridge]);
 
+  const toggleOffer = (offer: ContextOffer) =>
+    setFiles((current) => (current.includes(offer.file) ? current.filter((file) => file !== offer.file) : [...current, offer.file].slice(0, MAX_ATTACHMENTS)));
+
   const submit = async () => {
-    if (!projectId) return;
+    const target = destination.destination;
+    if (!projectId && target?.kind !== "session") return;
     const open = openAfter.current;
     openAfter.current = false;
     const sent = { text: text.trim(), files };
@@ -68,7 +82,18 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
     setText("");
     setFiles([]);
     try {
-      const session = await startSession(api, { projectId, text: sent.text, files: sent.files, choices: draft });
+      if (target?.kind === "session") {
+        await reply(target.session.id, sent.text, sent.files);
+        destination.clear();
+        setError(undefined);
+        const route = sessionHref({ id: target.session.id, projectId: target.session.projectId ?? "", hostId: LOCAL_HOST_ID });
+        await bridge?.sent({ route, title: target.session.title, detail: target.projectName, open });
+        return;
+      }
+      if (!projectId) return;
+      const envMode = target?.kind === "project" ? target.envMode : draft.envMode;
+      const session = await startSession(api, { projectId, text: sent.text, files: sent.files, choices: { ...draft, envMode } });
+      destination.clear();
       setError(undefined);
       await bridge?.sent({ route: sessionHref({ id: session.id, projectId, hostId: LOCAL_HOST_ID }), title: session.title, detail: project?.name ?? "", open });
     } catch (cause) {
@@ -87,5 +112,5 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
     openAfter.current = false;
   };
 
-  return { projects, projectId, setProjectId, project, draft, text, setText, files, setFiles, context, sending, error, submit, noteKey, forgetKey };
+  return { projects, projectId, setProjectId, project, draft, text, setText, files, setFiles, context, offers, toggleOffer, destination, sending, error, submit, noteKey, forgetKey };
 }

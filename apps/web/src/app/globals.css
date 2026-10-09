@@ -1494,9 +1494,3 @@ html:has([data-surface="quick"]) body {
   background-color: var(--popover);
   backdrop-filter: none;
 }
-[data-telar-shell] [data-surface="quick"] :is([data-slot="input-group-addon"][data-align="block-end"], [data-slot="quick-hint"]) {
-  -webkit-app-region: drag;
-}
-[data-telar-shell] [data-surface="quick"] [data-slot="input-group-addon"] :is(button, a, input, [role="button"], [role="combobox"]) {
-  -webkit-app-region: no-drag;
-}

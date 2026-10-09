@@ -31,6 +31,9 @@ class FakeWebContents extends Emitter {
   setWindowOpenHandler(handler) {
     this.windowOpenHandler = handler;
   }
+  reload() {
+    this.reloads = (this.reloads ?? 0) + 1;
+  }
   send(channel, payload) {
     this.sent.push({ channel, payload });
   }

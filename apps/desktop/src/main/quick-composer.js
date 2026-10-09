@@ -69,6 +69,15 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   let holding = false;
   let stopFollowing = null;
   let cardTop = null;
+  let lastBounds = null;
+  let reloaded = false;
+
+  const recover = (reason) => {
+    log(`quick composer page failed: ${reason}`);
+    if (reloaded || !win || win.isDestroyed()) return;
+    reloaded = true;
+    win.webContents.reload();
+  };
 
   const panel = () => {
     if (win && !win.isDestroyed()) return win;
@@ -80,6 +89,12 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
       win.webContents.send("telar:quick-composer:permissions", permissions());
     });
     win.on("blur", () => holding || hide());
+    win.webContents.on("render-process-gone", (_event, details) => recover(`renderer gone (${details?.reason})`));
+    win.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => isMainFrame && recover(`load failed ${code} ${description}`));
+    win.webContents.on("did-finish-load", () => {
+      cardTop = null;
+      lastBounds = null;
+    });
     win.loadURL(new URL("/surface/quick", appUrl).href);
     return win;
   };
@@ -88,7 +103,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     if (!stopFollowing) return;
     stopFollowing();
     stopFollowing = null;
-    remember(win);
+    if (!win.isDestroyed()) remember(win);
   };
 
   const hide = () => {
@@ -128,10 +143,15 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   ipcMain.handle("telar:quick-composer:close", (event) => fromPanel(event) && hide());
   ipcMain.on("telar:quick-composer:resize", (event, { height, anchor } = {}) => {
     if (!fromPanel(event) || !Number.isFinite(height)) return;
-    const [x, y] = win.getPosition();
+    const size = Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height)));
     const shift = Number.isFinite(anchor) && cardTop !== null ? Math.round(anchor - cardTop) : 0;
     if (Number.isFinite(anchor)) cardTop = anchor;
-    win.setBounds({ x, y: y - shift, width: WIDTH, height: Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height))) });
+    if (shift === 0 && lastBounds?.height === size) return;
+    const [x, y] = win.getPosition();
+    const { workArea } = screen.getDisplayMatching({ x, y, width: WIDTH, height: size });
+    const top = Math.max(workArea.y, Math.min(y - shift, workArea.y + workArea.height - size));
+    lastBounds = { x, y: top, width: WIDTH, height: size };
+    win.setBounds(lastBounds);
   });
   ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
   ipcMain.on("telar:quick-composer:drag", (event, { phase, offsetX, offsetY } = {}) => {
@@ -140,10 +160,12 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     if (phase !== "start" || !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) return;
     stopFollowing?.();
     stopFollowing = ticker(() => {
+      if (win.isDestroyed()) return endDrag();
       const { x, y } = screen.getCursorScreenPoint();
       win.setPosition(Math.round(x - offsetX), Math.round(y - offsetY));
     });
   });
+  ipcMain.on("telar:quick-composer:failed", (event, message) => fromPanel(event) && recover(`page error ${String(message).slice(0, 2000)}`));
   ipcMain.on("telar:quick-composer:hold", (event) => {
     if (fromPanel(event)) holding = true;
   });

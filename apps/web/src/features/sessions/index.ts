@@ -5,3 +5,4 @@ export { canvasHref, deriveSessionList, sessionHref, sessionKey, type SidebarSes
 export { forgetHostHeads } from "./session-heads";
 export { appendToDraft } from "./cockpit/model";
 export { QuickComposer } from "./quick/quick-composer";
+export { quickComposerBridge } from "./quick/front-context";

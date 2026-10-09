@@ -82,6 +82,7 @@ function fakeBridge(context: FrontContext | null) {
     },
     openSettings: async (permission) => void settings.push(permission),
     hold: () => void (held += 1),
+    failed: () => {},
     drag: (input) => void drags.push(input),
   };
   return { bridge, sent, settings, drags, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };

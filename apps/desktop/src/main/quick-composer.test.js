@@ -134,11 +134,46 @@ describe("the window", () => {
     await press("Alt+Space");
     electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 200, anchor: 40 });
     const [, top] = panel().getPosition();
-    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 520, anchor: 360 });
-    expect(panel().getPosition()[1]).toBe(top - 320);
-    expect(panel().getContentSize()[1]).toBe(520);
+    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 300, anchor: 140 });
+    expect(panel().getPosition()[1]).toBe(top - 100);
+    expect(panel().getContentSize()[1]).toBe(300);
     electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 240, anchor: 40 });
     expect(panel().getPosition()[1]).toBe(top);
+  });
+
+  test("repeated identical reports never set the bounds again, so a resize cannot feed itself", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    let sets = 0;
+    const setBounds = panel().setBounds.bind(panel());
+    panel().setBounds = (bounds) => {
+      sets += 1;
+      setBounds(bounds);
+    };
+    for (let i = 0; i < 50; i += 1) electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 210, anchor: 40 });
+    expect(sets).toBe(1);
+  });
+
+  test("growing upward stops at the top of the work area", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 200, anchor: 0 });
+    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 600, anchor: 5000 });
+    expect(panel().getPosition()[1]).toBe(25);
+  });
+
+  test("a lost or failed page is logged and reloaded once, not forever", () => {
+    const lines = [];
+    resetElectron();
+    quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: () => {}, readContext: async () => CONTEXT, ticker, log: (line) => lines.push(line) });
+    const contents = panel().webContents;
+    contents.emit("render-process-gone", {}, { reason: "oom" });
+    contents.emit("did-fail-load", {}, -6, "ERR_FILE_NOT_FOUND", "http://127.0.0.1:4000/surface/quick", true);
+    expect(contents.reloads).toBe(1);
+    expect(lines).toEqual(["quick composer page failed: renderer gone (oom)", "quick composer page failed: load failed -6 ERR_FILE_NOT_FOUND"]);
+    electron.ipcMain.send("telar:quick-composer:failed", eventFrom(panel()), "TypeError: boom");
+    expect(lines.at(-1)).toBe("quick composer page failed: page error TypeError: boom");
+    expect(contents.reloads).toBe(1);
   });
 
   test("a spot on another display does not move it there", async () => {

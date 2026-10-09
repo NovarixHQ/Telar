@@ -134,3 +134,39 @@ describe("the strip follows the tab in front", () => {
     }
   });
 });
+
+describe("the strip's scroll buttons", () => {
+  async function stripSized(content: number, box: number) {
+    const { host } = await mount(
+      <SidebarProvider storageKey="tab-strip-test">
+        <RightPanel sessionId="s1" projectId="p1" tabs={TABS} tab="diff" open onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} />
+      </SidebarProvider>,
+    );
+    const viewport = host.querySelector<HTMLElement>('[role="tablist"]')!;
+    const size = { scrollWidth: content, clientWidth: box, scrollHeight: 28, clientHeight: 28 };
+    for (const [key, value] of Object.entries(size)) Object.defineProperty(viewport, key, { configurable: true, value });
+    await act(async () => void viewport.dispatchEvent(new Event("scroll")));
+    const button = (label: string) => host.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
+    return { viewport, button };
+  }
+
+  test("a strip that fits shows none", async () => {
+    const { button } = await stripSized(300, 300);
+    expect(button("Scroll tabs left")).toBeNull();
+    expect(button("Scroll tabs right")).toBeNull();
+  });
+
+  test("an overflowing strip scrolls one tab per press, and each button stops at its end", async () => {
+    const { viewport, button } = await stripSized(300, 150);
+    expect(button("Scroll tabs left")!.disabled).toBe(true);
+    expect(button("Scroll tabs right")!.disabled).toBe(false);
+    await click(button("Scroll tabs right")!);
+    expect(viewport.scrollLeft).toBe(100);
+    expect(button("Scroll tabs left")!.disabled).toBe(false);
+    await click(button("Scroll tabs right")!);
+    expect(viewport.scrollLeft).toBe(150);
+    expect(button("Scroll tabs right")!.disabled).toBe(true);
+    await click(button("Scroll tabs left")!);
+    expect(viewport.scrollLeft).toBe(50);
+  });
+});

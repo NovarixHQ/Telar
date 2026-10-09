@@ -12,10 +12,7 @@ type ScrollAreaProps = Omit<ScrollAreaPrimitive.Root.Props, "className"> & {
   viewportProps?: Omit<React.ComponentProps<"div">, "className" | "ref">;
 };
 
-/**
- * A scroller whose scrollbar never takes layout space, whatever the system scroll-bar setting.
- * Vertical shows an overlay thumb while scrolling or hovered; horizontal hides it and fades the overflowing edge.
- */
+/** A scroller whose scrollbar never takes layout space; a horizontal one hides it and fades the overflowing edge. */
 export function ScrollArea({ className, orientation = "vertical", viewportClassName, viewportRef, viewportProps, children, ...props }: ScrollAreaProps) {
   const horizontal = orientation === "horizontal";
   return (
@@ -51,7 +48,6 @@ export function ScrollArea({ className, orientation = "vertical", viewportClassN
   );
 }
 
-/** A mouse wheel only scrolls vertically; on a sideways strip it should move the strip. Trackpads already send deltaX. */
 function wheelSideways(event: React.WheelEvent<HTMLDivElement>, onWheel: React.WheelEventHandler<HTMLDivElement> | undefined) {
   onWheel?.(event);
   const strip = event.currentTarget;

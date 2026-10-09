@@ -241,6 +241,7 @@ describe("how the Workspace card opens", () => {
     await act(async () => anchor.click());
     const menu = () => document.querySelector<HTMLElement>('[role="menu"]');
     menu()!.getAnimations = fading;
+    const anchored = menu()!.parentElement!.style.transform;
     const positions: string[] = [];
     const record = () => {
       const transform = menu()?.parentElement?.style.transform;
@@ -260,7 +261,7 @@ describe("how the Workspace card opens", () => {
     expect(menu()).toBeNull();
     expect(host.querySelector("[data-placement]")!.className.split(" ")).toContain("hidden");
     expect(positions.length).toBeGreaterThan(0);
-    expect(positions.filter((position) => !position.startsWith("translate(600px"))).toEqual([]);
+    expect(positions.filter((position) => position !== anchored)).toEqual([]);
   });
 
   test("it docks only when the margin beside the chat lane fits it, and never with the panel open", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { BotIcon, ChevronDownIcon, CopyIcon, FolderGitIcon, GitBranchIcon, GitCompareIcon, MessageSquarePlusIcon } from "lucide-react";
 import { type ProviderDriverKind, type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
@@ -214,13 +214,37 @@ function useDismiss(active: boolean, close: () => void) {
   return frame;
 }
 
-export function WorkspaceCardFrame({ open, placement, onClose, children }: { open: boolean; placement: CardPlacement; onClose: () => void; children: ReactNode }) {
-  const frame = useDismiss(open && placement === "popover", onClose);
+function useExit(open: boolean, placement: CardPlacement, frame: RefObject<HTMLDivElement | null>) {
+  const [exited, setExited] = useState(!open);
+  const [frozen, setFrozen] = useState(placement);
+  if (open && exited) setExited(false);
+  if (open && frozen !== placement) setFrozen(placement);
+  useEffect(() => {
+    if (open) return;
+    let live = true;
+    const animations = frame.current?.getAnimations?.() ?? [];
+    void Promise.allSettled(animations.map((animation) => animation.finished)).then(() => live && setExited(true));
+    return () => {
+      live = false;
+    };
+  }, [open, frame]);
+  return { hidden: !open && exited, placement: open ? placement : frozen };
+}
+
+export function WorkspaceCardFrame({ open, placement: current, onClose, children }: { open: boolean; placement: CardPlacement; onClose: () => void; children: ReactNode }) {
+  const frame = useDismiss(open && current === "popover", onClose);
+  const { hidden, placement } = useExit(open, current, frame);
   return (
     <div
       ref={frame}
       data-placement={placement}
-      className={cn("app-no-drag absolute right-3 max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl [&>*]:max-w-full", placement === "docked" ? "top-3 z-20" : "top-1 z-30 shadow-3", !open && "hidden")}
+      data-closed={open ? undefined : ""}
+      className={cn(
+        "app-no-drag absolute right-3 max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)] overflow-y-auto rounded-2xl [&>*]:max-w-full",
+        placement === "docked" ? "top-3 z-20" : "top-1 z-30 shadow-3",
+        !open && "pointer-events-none animate-out duration-150 fade-out-0",
+        hidden && "hidden",
+      )}
     >
       {children}
     </div>

@@ -3,6 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { RunView, SessionChild, SessionDiff } from "@telar/engine-client";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { WorkspaceCardFrame, WorkspaceCardView, type WorkspaceCardViewProps } from "./workspace-card";
 import { cardPlacement, DOCK_GUTTER, setCardPlacement, useWorkspaceCardOpen } from "../hooks/use-workspace-card";
 
@@ -202,6 +203,64 @@ describe("how the Workspace card opens", () => {
     expect(shown(host)).toBe(true);
     await escape();
     expect(shown(host)).toBe(false);
+  });
+
+  test("closing on an outside click keeps an open menu at its anchor until both have faded", async () => {
+    let finish = () => {};
+    const exit = new Promise<void>((resolve) => (finish = resolve));
+    const fading = () => [{ finished: exit } as unknown as Animation];
+    function WithMenu() {
+      const { open, placement, toggle, close } = useWorkspaceCardOpen();
+      return (
+        <>
+          <button type="button" aria-label="Workspace" onClick={toggle}>toggle</button>
+          <p data-testid="outside">chat</p>
+          <WorkspaceCardFrame open={open} placement={placement} onClose={close}>
+            <DropdownMenu>
+              <DropdownMenuTrigger aria-label="Branch actions">menu</DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem>Copy branch name</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </WorkspaceCardFrame>
+        </>
+      );
+    }
+    window.localStorage.setItem("telar:workspace-card", "closed");
+    setCardPlacement("docked");
+    setCardPlacement("popover");
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    roots.push(root);
+    await act(async () => root.render(<WithMenu />));
+    await toggle(host);
+    const anchor = host.querySelector<HTMLElement>('[aria-label="Branch actions"]')!;
+    anchor.getBoundingClientRect = () => (anchor.closest(".hidden") ? new DOMRect(0, 0, 0, 0) : new DOMRect(600, 40, 24, 24));
+    host.querySelector<HTMLElement>("[data-placement]")!.getAnimations = fading;
+    await act(async () => anchor.click());
+    const menu = () => document.querySelector<HTMLElement>('[role="menu"]');
+    menu()!.getAnimations = fading;
+    const positions: string[] = [];
+    const record = () => {
+      const transform = menu()?.parentElement?.style.transform;
+      if (transform) positions.push(transform);
+    };
+    const observer = new MutationObserver(record);
+    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["style"] });
+    const outside = host.querySelector("[data-testid=outside]")!;
+    await act(async () => {
+      for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click"]) outside.dispatchEvent(new MouseEvent(type, { bubbles: true }));
+    });
+    await act(async () => window.dispatchEvent(new Event("resize")));
+    await act(async () => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+    expect(host.querySelector("[data-placement]")!.className.split(" ")).not.toContain("hidden");
+    await act(async () => finish());
+    observer.disconnect();
+    expect(menu()).toBeNull();
+    expect(host.querySelector("[data-placement]")!.className.split(" ")).toContain("hidden");
+    expect(positions.length).toBeGreaterThan(0);
+    expect(positions.filter((position) => !position.startsWith("translate(600px"))).toEqual([]);
   });
 
   test("it docks only when the margin beside the chat lane fits it, and never with the panel open", () => {

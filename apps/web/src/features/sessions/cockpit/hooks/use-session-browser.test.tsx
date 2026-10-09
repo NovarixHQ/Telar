@@ -37,7 +37,7 @@ function nativeBrowser(pages: [string, boolean][], actions: Record<string, unkno
 const pageEvent = (ids: string[]) =>
   ({ id: 1, at: 1, sessionId: "session_1", type: "browser.state.changed", provider: "integrated", tabs: ids.map((id) => ({ id, title: id, url: `https://${id}.test/` })) }) as unknown as EngineEvent;
 
-async function probe({ sessionId = "session_1", bridge, events = [], canStart = true, flat = true }: { sessionId?: string; bridge?: DesktopBrowserBridge; events?: EngineEvent[]; canStart?: boolean; flat?: boolean }) {
+async function probe({ sessionId = "session_1", bridge, events = [], canStart = true }: { sessionId?: string; bridge?: DesktopBrowserBridge; events?: EngineEvent[]; canStart?: boolean }) {
   withBridge(bridge);
   const starts: string[] = [];
   let started = () => {};
@@ -49,7 +49,7 @@ async function probe({ sessionId = "session_1", bridge, events = [], canStart = 
     },
   });
   const shown: string[] = [];
-  const panel = { flat, showPanelTab: (tab: string) => shown.push(tab), pageTab: (id: string) => (flat ? `browser:${id}` : "browser:__integrated__") };
+  const panel = { showPanelTab: (tab: string) => shown.push(tab) };
   let result: ReturnType<typeof useSessionBrowser> | undefined;
   function Probe() {
     result = useSessionBrowser({
@@ -135,29 +135,5 @@ describe("the one Browser entry", () => {
     const unable = await probe({ bridge: {} as DesktopBrowserBridge, canStart: false });
     expect(unable.result().browserUnavailable).toBe("This session can't start a browser");
     unable.unmount();
-  });
-
-  test("outside the flat-tabs trial, a running browser gets a new page in its one Browser tab", async () => {
-    const pages: [string, boolean][] = [["n1", true]];
-    const actions: Record<string, unknown>[] = [];
-    const view = await probe({ bridge: nativeBrowser(pages, actions), flat: false });
-    await view.result().openBrowser();
-    expect(actions).toEqual([{ action: "new" }]);
-    expect(pages).toEqual([["n1", false], ["n2", true]]);
-    expect(view.shown).toEqual(["browser:__integrated__"]);
-    expect(view.starts).toEqual([]);
-    view.unmount();
-  });
-
-  test("outside the flat-tabs trial, with no browser running it starts one and shows the Browser tab", async () => {
-    const pages: [string, boolean][] = [];
-    const view = await probe({ bridge: nativeBrowser(pages), flat: false });
-    view.onStart(() => pages.push(["n1", true]));
-    window.history.replaceState(null, "", sessionHref({ id: "session_1", projectId: "project_1", hostId: "local" }));
-    await view.result().openBrowser();
-    expect(view.shown).toEqual(["browser:__integrated__"]);
-    expect(pages).toEqual([["n1", true]]);
-    window.history.replaceState(null, "", "/");
-    view.unmount();
   });
 });

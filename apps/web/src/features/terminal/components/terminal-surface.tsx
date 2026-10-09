@@ -7,12 +7,18 @@ import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { cn } from "@/ui/utils";
 import { TERMINAL_CHORD_CLAIMS } from "../keys";
 import { createRunApi } from "../run/api";
-import { isOpenTerminal, statusDetail, statusLabel, statusTone } from "../run/presentation";
+import { isOpenTerminal, statusDetail, statusLabel, statusTone, type RunTone } from "../run/presentation";
 import { useRunStatusFeed } from "../run/status-stream";
 import { readTerminalTab, terminalTabParams, withTerminalId, withTitle, type TerminalTab } from "../tab";
 import { RunPane } from "./run-pane";
 import { TerminalPane } from "./terminal-pane";
-import { TONE_DOT } from "./terminal-strip";
+
+const TONE_DOT: Record<RunTone, string> = {
+  idle: "bg-muted-foreground/40",
+  working: "bg-warning",
+  good: "bg-success",
+  bad: "bg-destructive",
+};
 
 // macOS matches ⌘T against the app menu first, so it needs a claim, and only while focus is inside.
 const FOCUSED_CHORD_CLAIMS: readonly string[] = ["CommandOrControl+T"];

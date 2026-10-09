@@ -1,5 +1,4 @@
 import { nextPanelTabId, type PanelTabInstance, type PanelTabState } from "@/features/panel";
-import { emptyWorkspace, isWorkspaceParams, nextShellId, readWorkspace, workspaceParams } from "./workspace";
 
 /** One Terminal panel tab: a person's shell, or a run the engine owns. Persisted flat in the tab's params. */
 export type TerminalTab = {
@@ -46,44 +45,40 @@ export function withTerminalId(tab: TerminalTab, terminalId: string): TerminalTa
   return { ...tab, terminalId };
 }
 
-function shellsOf(params: Params): { shells: TerminalTab[]; active: number } {
-  if (!isWorkspaceParams(params)) return { shells: [readTerminalTab(params)], active: 0 };
-  const workspace = readWorkspace(params);
-  return { shells: workspace.shells, active: workspace.shells.findIndex((shell) => shell.id === workspace.active) };
-}
+const GROUPED_PARAM = "shells";
 
-/** Every Terminal tab into one at the first one's place, keeping each shell and run, their order and the active one. */
-export function foldTerminalTabs<Kind extends string>(state: PanelTabState<Kind>, kind: Kind): PanelTabState<Kind> {
-  const held = state.tabs.filter((tab) => tab.kind === kind);
-  const first = held[0];
-  if (!first || (held.length === 1 && (isWorkspaceParams(first.params) || Object.keys(first.params).length === 0))) return state;
-  let workspace = emptyWorkspace();
-  let active: string | undefined;
-  for (const tab of held) {
-    const each = shellsOf(tab.params);
-    each.shells.forEach((shell, index) => {
-      const id = nextShellId(workspace);
-      workspace = { shells: [...workspace.shells, { ...terminalShell(shell), id }] };
-      if (tab.id === state.activeTab && index === each.active) active = id;
+/** A grouped tab's saved strip, read leniently: localStorage has held it across upgrades. */
+function groupedShells(raw: string): { shells: TerminalTab[]; active: number } {
+  try {
+    const parsed = JSON.parse(raw) as { shells?: unknown; active?: unknown };
+    const entries = Array.isArray(parsed?.shells) ? (parsed.shells as Record<string, unknown>[]) : [];
+    const valid = entries.filter((entry) => entry && typeof entry === "object" && typeof entry.id === "string");
+    const shells = valid.map((entry) => {
+      const run = entry.run as { runId?: unknown; configId?: unknown } | undefined;
+      return readTerminalTab({
+        ...(typeof entry.terminalId === "string" ? { [TERMINAL_ID_PARAM]: entry.terminalId } : {}),
+        ...(typeof entry.title === "string" ? { [TITLE_PARAM]: entry.title } : {}),
+        ...(typeof run?.runId === "string" ? { [RUN_PARAM]: run.runId, [CONFIG_PARAM]: typeof run.configId === "string" ? run.configId : "" } : {}),
+      });
     });
+    return { shells, active: Math.max(valid.findIndex((entry) => entry.id === parsed.active), 0) };
+  } catch {
+    return { shells: [], active: 0 };
   }
-  const folded = { id: first.id, kind, params: workspaceParams({ ...workspace, active: active ?? workspace.shells[0]?.id }) };
-  const tabs = state.tabs.flatMap((tab) => (tab === first ? [folded] : tab.kind === kind ? [] : [tab]));
-  const activeTab = held.some((tab) => tab.id === state.activeTab) ? first.id : state.activeTab;
-  return { ...state, tabs, ...(activeTab ? { activeTab } : {}) };
 }
 
-/** Every shell and run of a grouped Terminal tab into its own tab, in strip order; the active shell's tab is active. */
+/** Splits a Terminal tab saved by the grouped panel (removed 2026-10) into one tab per shell. Delete after 2027-01-09. */
 export function unfoldTerminalTabs<Kind extends string>(state: PanelTabState<Kind>, kind: Kind): PanelTabState<Kind> {
-  if (!state.tabs.some((tab) => tab.kind === kind && isWorkspaceParams(tab.params))) return state;
+  if (!state.tabs.some((tab) => tab.kind === kind && GROUPED_PARAM in tab.params)) return state;
   const tabs: PanelTabInstance<Kind>[] = [];
   let activeTab = state.activeTab;
   for (const tab of state.tabs) {
-    if (tab.kind !== kind || !isWorkspaceParams(tab.params)) {
+    const raw = tab.kind === kind ? tab.params[GROUPED_PARAM] : undefined;
+    if (raw === undefined) {
       tabs.push(tab);
       continue;
     }
-    const { shells, active } = shellsOf(tab.params);
+    const { shells, active } = groupedShells(raw);
     if (shells.length === 0) tabs.push({ ...tab, params: {} });
     shells.forEach((shell, index) => {
       const id = index === 0 ? tab.id : nextPanelTabId({ tabs: [...tabs, ...state.tabs], open: false }, kind);
@@ -92,13 +87,4 @@ export function unfoldTerminalTabs<Kind extends string>(state: PanelTabState<Kin
     });
   }
   return { ...state, tabs, ...(activeTab ? { activeTab } : {}) };
-}
-
-/** The Terminal tabs as the chosen model draws them: one per shell (`flat`), or one holding a strip. */
-export function arrangeTerminalTabs<Kind extends string>(state: PanelTabState<Kind>, kind: Kind, flat: boolean): PanelTabState<Kind> {
-  return flat ? unfoldTerminalTabs(state, kind) : foldTerminalTabs(state, kind);
-}
-
-function terminalShell(tab: TerminalTab): TerminalTab {
-  return readTerminalTab(terminalTabParams(tab));
 }

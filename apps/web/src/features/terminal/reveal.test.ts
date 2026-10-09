@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { RunView } from "./run/types";
 import type { PanelTabInstance, PanelTabState } from "@/features/panel";
-import { openTerminal, revealGroupedTerminal, revealTerminal, syncGroupedRuns, syncRunTabs } from "./reveal";
-import { addShell, emptyWorkspace, readWorkspace, setShellTerminal, workspaceParams } from "./workspace";
+import { revealTerminal, syncRunTabs } from "./reveal";
 import { readTerminalTab, terminalTabParams } from "./tab";
 
 const view = (over: Partial<RunView> = {}): RunView => ({
@@ -95,69 +94,13 @@ describe("syncRunTabs", () => {
   });
 });
 
-describe("openTerminal", () => {
+describe("revealTerminal, shown", () => {
   test("a row in the Workspace card selects that run's tab and opens the panel", () => {
     const state: PanelTabState<string> = { tabs: [diff], activeTab: "diff", open: false };
     const other = revealTerminal(state, view({ terminalId: "a", runId: "a" }), "terminal");
-    const next = openTerminal(other, view({ terminalId: "b", runId: "b" }), "terminal");
+    const next = revealTerminal(other, view({ terminalId: "b", runId: "b" }), "terminal", true);
     expect(next.open).toBe(true);
     expect(tabOf(next, next.activeTab!).run?.runId).toBe("b");
-    expect(openTerminal(next, view({ terminalId: "a", runId: "a" }), "terminal").tabs).toHaveLength(3);
-  });
-});
-
-describe("grouped: revealGroupedTerminal", () => {
-  const strip: PanelTabInstance<string> = { id: "terminal", kind: "terminal", params: workspaceParams(setShellTerminal(addShell(emptyWorkspace()), "shell", "pty_1")) };
-  const chips = (state: PanelTabState<string>) => readWorkspace(state.tabs.find((tab) => tab.kind === "terminal")!.params);
-
-  test("a run joins the one Terminal tab as a chip, neither selected, the panel untouched", () => {
-    const state: PanelTabState<string> = { tabs: [diff, strip], activeTab: "diff", open: false };
-    const next = revealGroupedTerminal(state, view(), "terminal");
-    expect(next.tabs.map((tab) => tab.id)).toEqual(["diff", "terminal"]);
-    expect(chips(next).shells.map((shell) => shell.run?.runId ?? shell.terminalId)).toEqual(["pty_1", "run_1"]);
-    expect(chips(next).active).toBe("shell");
-    expect(next.activeTab).toBe("diff");
-    expect(next.open).toBe(false);
-    expect(revealGroupedTerminal(next, view(), "terminal")).toBe(next);
-  });
-
-  test("with no Terminal tab, one is added holding only the run", () => {
-    const next = revealGroupedTerminal({ tabs: [diff], activeTab: "diff", open: true }, view(), "terminal");
-    expect(next.tabs.map((tab) => tab.id)).toEqual(["diff", "terminal"]);
-    expect(chips(next).shells.map((shell) => shell.title)).toEqual(["vite"]);
-  });
-
-  test("show selects the run's chip and opens the panel on the Terminal tab", () => {
-    const once = revealGroupedTerminal({ tabs: [diff, strip], activeTab: "diff", open: false }, view(), "terminal");
-    const shown = revealGroupedTerminal(once, view({ activity: "busy" }), "terminal", true);
-    expect(shown.activeTab).toBe("terminal");
-    expect(shown.open).toBe(true);
-    const workspace = chips(shown);
-    expect(workspace.shells.find((shell) => shell.id === workspace.active)?.run?.runId).toBe("run_1");
-    expect(openTerminal(once, view(), "terminal", false)).toEqual(shown);
-  });
-});
-
-describe("grouped: syncGroupedRuns", () => {
-  const withRun = () => revealGroupedTerminal({ tabs: [diff], activeTab: "diff", open: true }, view(), "terminal");
-  const chips = (state: PanelTabState<string>) => readWorkspace(state.tabs.find((tab) => tab.kind === "terminal")?.params ?? {}).shells;
-
-  test("a chip follows the feed, and a feed that changes nothing returns the same state", () => {
-    const state = withRun();
-    expect(syncGroupedRuns(state, [view()], "terminal")).toBe(state);
-    expect(chips(syncGroupedRuns(state, [view({ title: "web" })], "terminal"))[0]?.title).toBe("web");
-  });
-
-  test("an ended run loses its chip, and a strip left empty closes its tab", () => {
-    const shell = addShell(emptyWorkspace());
-    const mixed = revealGroupedTerminal({ tabs: [{ id: "terminal", kind: "terminal", params: workspaceParams(shell) }], open: true }, view(), "terminal");
-    expect(chips(syncGroupedRuns(mixed, [view({ status: "closed" })], "terminal")).map((chip) => chip.id)).toEqual(["shell"]);
-    expect(syncGroupedRuns(withRun(), [view({ status: "closed" })], "terminal").tabs.map((tab) => tab.id)).toEqual(["diff"]);
-  });
-
-  test("a run the engine no longer lists goes only on the first read", () => {
-    const state = withRun();
-    expect(syncGroupedRuns(state, [], "terminal")).toBe(state);
-    expect(syncGroupedRuns(state, [], "terminal", { dropMissing: true }).tabs.map((tab) => tab.id)).toEqual(["diff"]);
+    expect(revealTerminal(next, view({ terminalId: "a", runId: "a" }), "terminal", true).tabs).toHaveLength(3);
   });
 });

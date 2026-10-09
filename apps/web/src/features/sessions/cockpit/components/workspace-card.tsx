@@ -7,7 +7,7 @@ import { type ProviderDriverKind, type Session, type SessionChild, type SessionD
 import { OpenWorkspaceRow } from "@/features/files";
 import { ProviderIcon } from "@/features/providers";
 import { PublishRows, useGitHubReady } from "@/features/git";
-import { isOpenTerminal, openTerminal, RunRow, statusLabel, type RunView } from "@/features/terminal";
+import { isOpenTerminal, revealTerminal, RunRow, statusLabel, type RunView } from "@/features/terminal";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { ActionRow, RowMeta, SplitRow, SplitRowChevron } from "@/ui/action-row";
@@ -259,7 +259,7 @@ export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgr
   subagents: readonly CardSubagent[];
   busy: boolean;
   backgroundTasks: number;
-  panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab" | "flat">;
+  panel: Pick<ReturnType<typeof useCockpitPanel>, "updatePanel" | "showPanelTab">;
   onRunTerminals: (terminals: readonly RunView[]) => void;
 }) {
   const router = useRouter();
@@ -316,7 +316,7 @@ export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgr
             }
           : {})}
         {...(session.projectId ? { onNewSession: () => router.push(canvasHref(session.projectId!, hostId, diff?.branch ? { baseRef: diff.branch } : undefined)) } : {})}
-        onOpenTerminal={(run) => panel.updatePanel((current) => openTerminal(current, run, "terminal", panel.flat))}
+        onOpenTerminal={(run) => panel.updatePanel((current) => revealTerminal(current, run, "terminal", true))}
         onOpenChanges={() => panel.showPanelTab("diff")}
         onOpenAgent={(agent) => router.push(sessionHref({ id: agent.sessionId, projectId: session.projectId, hostId }))}
       />

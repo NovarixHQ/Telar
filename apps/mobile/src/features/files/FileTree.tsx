@@ -18,6 +18,7 @@ import {
 import type { GitChangeStatus, WorkspaceListing } from "@telar/engine-client";
 import { memo, useCallback, useMemo } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TurboModuleRegistry, View, type TurboModule } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { faded, Icon, Theme } from "../../ui";
 import { buildFileTree, directoryPaths, fileGlyph, flattenTree, matchFiles, MAX_SEARCH_MATCHES, statusMark, type FileRow } from "./tree";
 
@@ -108,6 +109,7 @@ export function FileTree({ listing, error, statuses, query, expanded, activePath
     return dirs;
   }, [statuses]);
 
+  const { bottom } = useSafeAreaInsets();
   const press = useCallback((row: FileRow) => (row.node.children ? onToggle(row.node.path) : onOpen(row.node.path)), [onToggle, onOpen]);
   const render = useCallback(
     ({ item }: { item: FileRow }) => (
@@ -148,7 +150,7 @@ export function FileTree({ listing, error, statuses, query, expanded, activePath
         <>
           <FlatList style={styles.fill} contentContainerStyle={styles.list} data={rows} keyExtractor={(row) => row.node.path} renderItem={render} initialNumToRender={30} windowSize={7} keyboardDismissMode="on-drag" />
           <View style={styles.rule} />
-          <Text style={styles.foot}>{foot(listing, dropped)}</Text>
+          <Text style={[styles.foot, { paddingBottom: 5 + bottom }]}>{foot(listing, dropped)}</Text>
         </>
       ) : error ? (
         <Host style={styles.fill}>

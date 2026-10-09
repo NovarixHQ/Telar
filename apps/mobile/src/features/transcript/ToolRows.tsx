@@ -1,3 +1,4 @@
+import { fileReference } from "@telar/client/composer";
 import { createContext, useContext, useState, type ComponentType } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { itemLabel, type JournalItem, type JournalTask } from "@telar/client/journal";
@@ -5,7 +6,8 @@ import { faded, Theme, type SymbolName } from "../../ui";
 import { CodeBlockView, copyAction, LongPressMenu, PageSheet } from "./chrome";
 import { Markdown } from "./Markdown";
 import { MONO, PulseDot, Symbol, TextSize } from "./native";
-import { detailParts, rowCopies, type DetailPart } from "./tool-detail";
+import { SourceContext } from "./source";
+import { detailParts, openablePath, rowCopies, rowPath, type DetailPart } from "./tool-detail";
 
 /** The sub-agents of the turn being drawn, so a `task` row can find its own. */
 export const TurnTasks = createContext<readonly JournalTask[]>([]);
@@ -54,13 +56,20 @@ function Part({ part }: { part: DetailPart }) {
   }
 }
 
-/** A tool call: tap for its detail sheet, long-press to copy its command, output or path. */
+/** A tool call: tap for its detail sheet; long-press to copy its command, output or path, open the file in the editor or insert it into the composer. */
 export function ToolRow({ item }: { item: JournalItem }) {
   const [open, setOpen] = useState(false);
+  const source = useContext(SourceContext);
   const label = itemLabel(item);
+  const path = rowPath(item);
+  const openable = openablePath(item);
+  const actions = rowCopies(item).map((copy) => copyAction(copy.label, copy.text));
+  const { onOpenFile, onReference } = source ?? {};
+  if (openable && onOpenFile) actions.splice(path ? actions.length - 1 : actions.length, 0, { label: "Open file in the Editor", icon: "sidebar.trailing", onPress: () => onOpenFile(openable) });
+  if (path && onReference) actions.push({ label: "Insert as reference", icon: "text.badge.plus", onPress: () => onReference(fileReference(path).text) });
   return (
     <>
-      <LongPressMenu actions={rowCopies(item).map((copy) => copyAction(copy.label, copy.text))}>
+      <LongPressMenu actions={actions}>
         <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={label}>
           <ToolChip icon={TOOL_ICON[item.detail.type] ?? "wrench.and.screwdriver"} label={label} status={item.status} />
         </Pressable>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { hostVisible, subscribeHostVisibility } from "@/platform/desktop/host-visibility";
-import { newestResultTurn, ReadReceiptCourier, type ReceiptAnswer, type ReceiptIdentity } from "../session-read-receipt";
+import { newestResultTurn, ReadReceiptCourier, type ReceiptAnswer, type ReceiptIdentity } from "@telar/client/read-receipt";
 import type { useSessionSync } from "../hooks/use-session-sync";
 
 function useForeground(): boolean {

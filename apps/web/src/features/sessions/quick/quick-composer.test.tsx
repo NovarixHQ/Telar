@@ -83,6 +83,8 @@ function fakeBridge(context: FrontContext | null) {
   let closed = 0;
   let held = 0;
   const moves: unknown[] = [];
+  const crossings: unknown[] = [];
+  let place: Parameters<QuickComposerBridge["onPlace"]>[0] = () => {};
   const interactive: boolean[] = [];
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
@@ -91,6 +93,11 @@ function fakeBridge(context: FrontContext | null) {
     close: async () => void (closed += 1),
     interactive: (on) => void interactive.push(on),
     moved: (spot) => void moves.push(spot),
+    cross: (grab) => void crossings.push(grab),
+    onPlace: (listener) => {
+      place = listener;
+      return () => {};
+    },
     sent: async (input) => void sent.push(input),
     onPermissions: (listener) => {
       pushPermissions = listener;
@@ -100,7 +107,7 @@ function fakeBridge(context: FrontContext | null) {
     hold: () => void (held += 1),
     failed: () => {},
   };
-  return { bridge, sent, settings, moves, interactive, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, moves, crossings, place: (placed: Parameters<typeof place>[0]) => act(() => place(placed)), interactive, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
 const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", permissions, grantee: "Telar Dev", ...extra });
@@ -487,6 +494,70 @@ describe("an attached conversation", () => {
     await flush();
     expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
     expect(editor(host).textContent).toBe("");
+  });
+});
+
+describe("the attached conversation's transcript", () => {
+  test("shows every loaded turn through the newest one", async () => {
+    journal.s_transit = [
+      turn("s_transit", 1, "add Jul = 310 to the signups chart", "completed", "Added July."),
+      turn("s_transit", 2, "Hello", "completed", "Hi. The four artifacts are published."),
+    ];
+    const { host } = await open(front(GRANTED));
+    await type(host, "#transit");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("The four artifacts") ?? false);
+    const text = host.querySelector('[data-slot="quick-transcript"]')!.textContent!;
+    expect(text.indexOf("add Jul = 310")).toBeLessThan(text.indexOf("Hello"));
+    expect(text.indexOf("Hello")).toBeLessThan(text.indexOf("The four artifacts"));
+  });
+
+  test("typing # closes the attached conversation and opens the picker in its place", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#sales");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    await type(host, "#");
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    expect(host.querySelector('[role="listbox"]')).not.toBeNull();
+    await press(host, "Escape");
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    expect(editor(host).textContent).toBe("");
+  });
+
+  test("near the top of the screen the picker opens below the card, its best row nearest the card", async () => {
+    const { host } = await open(front(GRANTED, { spot: { x: 100, y: 40 } }));
+    await type(host, "#");
+    await flush(() => options(host).length > 1);
+    const list = host.querySelector('[role="listbox"]')!;
+    expect(editor(host).compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(options(host)[0]).toContain("New session in Telar");
+    await press(host, "ArrowDown");
+    expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("Sales dashboard");
+  });
+});
+
+describe("dragging across the screen", () => {
+  test("stops at every edge of the display's work area", async () => {
+    const { host } = await open(front(GRANTED, { area: { width: 1200, height: 800 } }));
+    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: 5000, y: 5000 }]);
+    expect(spotOf(host)).toEqual({ x: 1200 - 680, y: 800 - 120 });
+    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: -9000, y: -9000 }]);
+    expect(spotOf(host)).toEqual({ x: 0, y: 0 });
+  });
+
+  test("leaving the display asks main to follow, and the card lands where main puts it", async () => {
+    const { host, crossings, place } = await open(front(GRANTED, { area: { width: 1200, height: 800 } }));
+    const card = cardOf(host);
+    act(() => void host.querySelector('[data-slot="input-group"]')!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 300, clientY: 400 })));
+    act(() => void card.dispatchEvent(new PointerEvent("pointermove", { clientX: 1300, clientY: 400 })));
+    expect(crossings).toHaveLength(1);
+    place({ spot: { x: 50, y: 60 }, area: { width: 1920, height: 1080 } });
+    expect(spotOf(host)).toEqual({ x: 50, y: 60 });
+    act(() => void card.dispatchEvent(new PointerEvent("pointerup", {})));
   });
 });
 

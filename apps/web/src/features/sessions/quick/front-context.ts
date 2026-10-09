@@ -10,6 +10,7 @@ export type FrontContext = {
   permissions: Permissions;
   grantee: string;
   spot?: CardSpot | null;
+  area?: { width: number; height: number };
   fresh?: boolean;
 };
 
@@ -19,6 +20,8 @@ export type QuickComposerBridge = {
   close: () => Promise<unknown>;
   interactive: (on: boolean) => void;
   moved: (spot: CardSpot) => void;
+  cross: (grab: { grabX: number; grabY: number }) => void;
+  onPlace: (listener: (placed: { spot: CardSpot; area: { width: number; height: number } }) => void) => () => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
   hold: () => void;
   failed: (message: string) => void;

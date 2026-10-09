@@ -131,7 +131,11 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
   };
 
   const attachedId = destination.destination?.kind === "session" ? destination.destination.session.id : undefined;
+  const edit = (next: string) => {
+    if (attachedId && destinationQuery(next) !== null && destinationQuery(text) === null) clear();
+    setText(next);
+  };
   const needs = useMemo(() => needsYou(sessions, projects, attachedId), [sessions, projects, attachedId]);
 
-  return { projects, projectId, setProjectId, project, draft, text, setText, files, setFiles, context, offers, toggleOffer, destination, needs, nudge, sending, error, submit, noteKey, forgetKey };
+  return { projects, projectId, setProjectId, project, draft, text, setText, edit, files, setFiles, context, offers, toggleOffer, destination, needs, nudge, sending, error, submit, noteKey, forgetKey };
 }

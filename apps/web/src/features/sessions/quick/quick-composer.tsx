@@ -76,11 +76,21 @@ function caretAtStart(editor: Element): boolean {
   return before.toString() === "";
 }
 
-function onComposerKey(quick: Quick, strip: RefObject<HTMLDivElement | null>, event: ReactKeyboardEvent) {
+const FLIPPED: Record<string, string> = { ArrowUp: "ArrowDown", ArrowDown: "ArrowUp" };
+const PICKER_ROOM_PX = 200;
+
+function pickerPlacement(spotY: number, areaHeight: number) {
+  const below = spotY < PICKER_ROOM_PX;
+  const room = below ? areaHeight - spotY - 220 : spotY - 60;
+  return { below, maxHeight: Math.max(120, Math.min(320, room)) };
+}
+
+function onComposerKey(quick: Quick, strip: RefObject<HTMLDivElement | null>, below: boolean, event: ReactKeyboardEvent) {
   const editor = (event.target as Element).closest(EDITOR);
   if (!editor) return;
   const toStrip = event.key === "ArrowUp" && !quick.destination.picking && quick.needs.length > 0 && (quick.text === "" || caretAtStart(editor));
-  if (toStrip || quick.destination.onKey(event)) {
+  const key = below && quick.destination.picking ? (FLIPPED[event.key] ?? event.key) : event.key;
+  if (toStrip || quick.destination.onKey({ key, altKey: event.altKey })) {
     event.preventDefault();
     event.stopPropagation();
     if (toStrip) strip.current?.querySelector("button")?.focus();
@@ -97,6 +107,10 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const root = useRef<HTMLDivElement>(null);
   const strip = useRef<HTMLDivElement>(null);
   const card = useCardDrag(bridge, context, quick.text === "");
+  const placement = pickerPlacement(card.spot.y, card.area.height);
+  const picker = quick.destination.picking && (
+    <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} below={placement.below} maxHeight={placement.maxHeight} />
+  );
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
   useClickThrough(bridge, root, context);
 
@@ -113,7 +127,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
       <div
         data-slot="quick-card"
         onPointerDown={card.onPointerDown}
-        onKeyDownCapture={(event) => onComposerKey(quick, strip, event)}
+        onKeyDownCapture={(event) => onComposerKey(quick, strip, placement.below, event)}
         onPointerDownCapture={quick.forgetKey}
         onClickCapture={(event) => holdForFilePicker(event, bridge)}
         className="absolute flex flex-col gap-1"
@@ -131,7 +145,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             }}
             onLeave={toComposer}
           />
-          {quick.destination.picking && <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} />}
+          {!placement.below && picker}
           <div className="-mb-3">
             <AttachedDestination destination={quick.destination.destination} nudge={quick.nudge} onClear={quick.destination.clear} />
           </div>
@@ -159,7 +173,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             {...(projectId ? { projectId } : {})}
             {...(quick.project?.name ? { projectName: quick.project.name } : {})}
             backgroundTasks={0}
-            onDraftChange={quick.setText}
+            onDraftChange={quick.edit}
             onSubmit={() => void quick.submit()}
             onStop={() => undefined}
             onStopBackground={() => undefined}
@@ -167,6 +181,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             onModelChange={draft.chooseModel}
           />
         </div>
+        {placement.below && picker}
         {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-popover px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
       </div>
     </div>

@@ -5,10 +5,12 @@ import { XIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import type { Destination } from "./destination";
 import { sessionStatus, statusDot } from "./destination-picker";
-import { LiveTranscript } from "./live-transcript";
+import { LiveTranscript, useLiveSession } from "./live-transcript";
 
 function SessionCard({ destination, nudge, onClear }: { destination: Extract<Destination, { kind: "session" }>; nudge: number; onClear: () => void }) {
-  const { session, projectName } = destination;
+  const { projectName } = destination;
+  const live = useLiveSession(destination.session.id, nudge);
+  const session = live.sync.session ?? destination.session;
   const [now] = useState(Date.now);
   return (
     <div data-slot="quick-destination" className="mx-7 rounded-t-xl border border-b-0 border-border bg-popover px-3 pt-2 pb-2.5 text-popover-foreground shadow-1">
@@ -20,7 +22,7 @@ function SessionCard({ destination, nudge, onClear }: { destination: Extract<Des
           <XIcon className="size-3.5" />
         </button>
       </div>
-      <LiveTranscript sessionId={session.id} nudge={nudge} />
+      <LiveTranscript sessionId={session.id} live={live} />
     </div>
   );
 }

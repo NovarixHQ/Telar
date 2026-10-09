@@ -1,11 +1,11 @@
-const { beforeEach, describe, expect, test } = require("bun:test");
+const { beforeEach, describe, expect, jest, test } = require("bun:test");
 const fs = require("node:fs");
 const path = require("node:path");
 const { electron, eventFrom, FakeBrowserWindow, FakeNotification, resetElectron, userData } = require("../../test/fake-electron");
 const { createQuickComposer } = require("./quick-composer");
 const { registerPrefsIpc } = require("./ipc-prefs");
 
-const CONTEXT = { app: "Notes", title: "Plan", selection: "two lines", screenshot: null, permissions: { accessibility: true, screen: false } };
+const CONTEXT = { app: "Notes", title: "Plan", selection: "two lines", permissions: { accessibility: true } };
 
 let opened;
 let quick;
@@ -17,6 +17,7 @@ beforeEach(() => {
 });
 
 const panel = () => FakeBrowserWindow.all[0];
+const lastOpen = () => panel().webContents.sent.filter((message) => message.channel === "telar:quick-composer:open").at(-1)?.payload;
 const press = async (chord) => {
   electron.globalShortcut.press(chord);
   await new Promise((resolve) => setImmediate(resolve));
@@ -30,8 +31,8 @@ describe("the shortcut", () => {
     expect(win.options).toMatchObject({ type: "panel", frame: false, alwaysOnTop: true, skipTaskbar: true });
     expect(win.loaded).toEqual(["http://127.0.0.1:4000/surface/quick"]);
     expect(win.isVisible()).toBe(true);
-    expect(win.webContents.sent[0]).toEqual({ channel: "telar:quick-composer:open", payload: { ...CONTEXT, spot: null } });
-    expect(await electron.ipcMain.invoke("telar:quick-composer:context", eventFrom(win))).toEqual({ ...CONTEXT, spot: null });
+    expect(win.webContents.sent[0]).toEqual({ channel: "telar:quick-composer:open", payload: { ...CONTEXT, spot: null, fresh: false } });
+    expect(await electron.ipcMain.invoke("telar:quick-composer:context", eventFrom(win))).toEqual({ ...CONTEXT, spot: null, fresh: false });
   });
 
   test("pressing it again hides the panel", async () => {
@@ -92,6 +93,28 @@ describe("the window", () => {
   test("has no resize or drag channel: the page never sizes or moves the window", () => {
     expect(electron.ipcMain.listeners.has("telar:quick-composer:resize")).toBe(false);
     expect(electron.ipcMain.listeners.has("telar:quick-composer:drag")).toBe(false);
+  });
+
+  test("remembers the card's spot and asks for no reset when reopened within a minute, then forgets both", async () => {
+    jest.useFakeTimers();
+    try {
+      quick.bind("Alt+Space");
+      await press("Alt+Space");
+      electron.ipcMain.send("telar:quick-composer:moved", eventFrom(panel()), { x: 120, y: 300 });
+      await press("Alt+Space");
+      jest.advanceTimersByTime(59_000);
+      await press("Alt+Space");
+      expect(lastOpen()).toMatchObject({ spot: { x: 120, y: 300 }, fresh: false });
+      await press("Alt+Space");
+      jest.advanceTimersByTime(60_000);
+      await press("Alt+Space");
+      expect(lastOpen()).toMatchObject({ spot: null, fresh: true });
+      await press("Alt+Space");
+      await press("Alt+Space");
+      expect(lastOpen()).toMatchObject({ spot: null, fresh: false });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test("hands the page the card's spot saved for that display", async () => {
@@ -158,31 +181,15 @@ describe("the permissions", () => {
     await press("Alt+Space");
     Object.assign(electron.systemPreferences, { trusted: true, screen: "granted" });
     panel().focus();
-    expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:permissions", payload: { accessibility: true, screen: true } });
+    expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:permissions", payload: { accessibility: true } });
   });
 
-  test("Screen Recording asks to capture first, so the app is listed in the pane it opens", async () => {
+  test("the button opens the Accessibility pane, and only from the panel", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    const asked = [];
-    const { getSources } = electron.desktopCapturer;
-    electron.desktopCapturer.getSources = async () => (asked.push([...electron.shell.opened]), []);
-    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(panel()), "screen");
-    electron.desktopCapturer.getSources = getSources;
-    expect(asked).toEqual([[]]);
-    expect(electron.shell.opened).toEqual(["x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"]);
-  });
-
-  test("each button opens its own pane, and only from the panel", async () => {
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
-    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(panel()), "screen");
     await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(panel()), "accessibility");
-    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(new FakeBrowserWindow()), "screen");
-    expect(electron.shell.opened).toEqual([
-      "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
-      "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-    ]);
+    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(new FakeBrowserWindow()), "accessibility");
+    expect(electron.shell.opened).toEqual(["x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"]);
   });
 });
 

@@ -49,7 +49,7 @@ export {
 } from "@telar/engine-client";
 
 const CUSTOM_SANS_FALLBACK = "ui-sans-serif, system-ui, sans-serif";
-const CUSTOM_MONO_FALLBACK = "ui-monospace, SFMono-Regular, Menlo, monospace";
+const CUSTOM_MONO_FALLBACK = "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace";
 
 function quoteFontFamilyName(name: string): string {
   const bare = name.trim();

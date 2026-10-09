@@ -7,6 +7,7 @@ import { EngineApiError } from "@/platform/engine";
 import type { RunApi } from "../run/api";
 import { gridMeasurer, ptyByteWriter, terminalKeyHandler } from "../session";
 import { cssColorReader, cssVariableReader, loadTerminalFonts, terminalFont, terminalTheme } from "../theme";
+import { loadUnicodeWidths } from "../widths";
 
 const SCROLLBACK = 3000;
 
@@ -38,6 +39,7 @@ export function useRunEmulator(target: RunTarget) {
     writeRef.current = ptyByteWriter(term);
     const fit = new FitAddon();
     term.loadAddon(fit);
+    loadUnicodeWidths(term);
     fitRef.current = fit;
     term.open(element);
 

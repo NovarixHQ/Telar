@@ -1,7 +1,7 @@
 import { Host } from "@expo/ui/swift-ui";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon, Theme, type SymbolName } from "../../ui";
-import { attachmentSymbol } from "./intake";
+import { attachmentSymbol } from "@telar/client/journal";
 import type { TurnAttachment } from "@telar/engine-client";
 
 type Row = { attachment: Pick<TurnAttachment, "id" | "name" | "mediaType">; preview?: string };

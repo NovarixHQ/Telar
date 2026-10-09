@@ -1,7 +1,7 @@
 
 export const REFERENCE_MIME = "application/x-telar-reference+json";
 
-export type ReferenceKind = "issue" | "pull" | "file" | "page" | "task" | "check" | "skill" | "session";
+export type ReferenceKind = "issue" | "pull" | "file" | "page" | "task" | "check" | "skill" | "session" | "quote";
 
 /** The two slots of a drag payload these functions use; a DOM `DataTransfer` is one. */
 export type ReferenceSlots = { setData(type: string, data: string): void; getData(type: string): string; effectAllowed?: string };
@@ -133,6 +133,27 @@ export function sessionReference(session: { id: string; title: string }): TelarR
 export function taskReference(task: { id: string; title?: string; state: string }): TelarReference {
   const name = task.title?.trim() || task.id;
   return { kind: "task", label: name, text: `the "${name}" sub-agent (${task.state})` };
+}
+
+/** A Markdown blockquote whose last line links to the transcript item it came from. */
+export function quoteReference(markdown: string, itemId: string): TelarReference {
+  const lines = markdown.trim().split("\n");
+  return {
+    kind: "quote",
+    label: quoteLabel(markdown),
+    text: `${lines.map((line) => (line ? `> ${line}` : ">")).join("\n")}\n> — [source](telar:item/${itemId})`,
+  };
+}
+
+/** The first words of a quote, with its Markdown markers peeled. */
+export function quoteLabel(text: string): string {
+  const first = text.split("\n").map((line) => line.replace(/^[>#\-*\s]+/, "").replace(/[*_`]/g, "")).find(Boolean) ?? "";
+  return first.length > 40 ? `${first.slice(0, 40)}…` : first || "quote";
+}
+
+/** The item a quote's text links back to. */
+export function quoteSource(text: string): string | undefined {
+  return /\(telar:item\/([^)\s]+)\)$/.exec(text)?.[1];
 }
 
 export function startReferenceDrag(transfer: ReferenceSlots, reference: TelarReference): void {

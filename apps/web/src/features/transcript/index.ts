@@ -9,6 +9,7 @@ export { sessionsCreated } from "./sessions-tools";
 export { TASK_AGENT_STATE } from "./components/task-agent-row";
 export { NotificationRow } from "./components/notification-row";
 export { SessionLookup, type SessionFacts } from "./components/session-lookup";
+export { SelectionQuote } from "./components/selection-quote";
 export { SessionSkeleton } from "./components/session-skeleton";
 export { TranscriptWorkspace } from "./components/tool-row";
 export { ROW } from "./components/transcript-fold";

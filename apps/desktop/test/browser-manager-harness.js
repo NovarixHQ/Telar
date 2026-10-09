@@ -341,6 +341,8 @@ function makeHarness(options = {}) {
   const movedListeners = [];
   const moveWindow = () => { for (const listener of movedListeners) listener(); };
   const window = {
+    focused: 0,
+    focus() { this.focused += 1; },
     isDestroyed: () => false,
     getBounds: () => ({ x: 0, y: 0, width: 1280, height: 800 }),
     on: (event, listener) => {

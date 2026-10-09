@@ -17,16 +17,21 @@ jobs:
   testflight:
     if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: macos-latest
-    # 45 covered archive → export → upload. The external-group step then waits
-    # up to 30 minutes for App Store Connect to process the build before it
-    # can be added and submitted, so the ceiling is the old one plus that wait.
-    timeout-minutes: 80
+    # Prebuild, pods and React Native from source, then up to 30 minutes waiting on App Store Connect processing.
+    timeout-minutes: 100
     env:
       # Named rather than inherited: it must be a release Xcode (App Store
       # Connect refuses a beta's uploads), never the Command Line Tools.
       DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: bun install --frozen-lockfile
 
       # Same rule, same enforcement as nightly-desktop.yml: a nightly installs
       # itself on real phones, so it builds from main and nothing else.
@@ -110,7 +115,7 @@ jobs:
           TELAR_ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           TELAR_ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
           TELAR_ASC_KEY_PATH: ${{ runner.temp }}/apple_api_key.p8
-        run: apps/ios/nightly.sh
+        run: apps/mobile/scripts/nightly.sh
 
       - name: Clean up the API key and keychain
         if: always()

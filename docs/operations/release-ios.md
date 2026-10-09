@@ -6,14 +6,13 @@ The iOS app ships only through TestFlight. A maintainer cuts a nightly by pushin
 
 | Bundle id | What uses it |
 | --- | --- |
-| `io.github.novarix.telar` | The TestFlight app ("Telar" on the home screen). It is the project default for `TELAR_APP_BUNDLE_ID`, so every Release archive and every App Store Connect call uses it. |
-| `io.github.novarix.telar.activity` | The `TelarActivity` widget extension, which draws the Live Activity. It is always `$(TELAR_APP_BUNDLE_ID).activity`. |
-| `io.github.novarix.telar.dev` | "Telar Dev": a Debug build with the amber icon, installed by cable through `apps/ios/phone.sh`. iOS treats it as a separate app from the TestFlight build, and each keeps its own pairing. |
-| `io.github.novarix.telar.dev.activity` | The extension inside "Telar Dev". |
+| `io.github.novarix.telar` | The TestFlight app ("Telar" on the home screen): the Expo app in `apps/mobile` with `APP_VARIANT` unset. |
+| `io.github.novarix.telar.activity` | The `TelarActivity` widget extension that draws the Live Activity (`apps/mobile/targets/activity`). The export signs it with its own profile. |
+| `io.github.novarix.telar.dev` | "Telar Dev": `APP_VARIANT=dev`, installed by cable through `apps/mobile/scripts/phone.sh`. iOS treats it as a separate app from the TestFlight build, and each keeps its own pairing. |
 
 The push relay (`workers/push-relay/v2.mjs`) and the engine's push topics (`apps/engine/src/domains/push/push.ts`) accept the app and `.dev` ids.
 
-To change the id, override `TELAR_APP_BUNDLE_ID`. Never override `PRODUCT_BUNDLE_IDENTIFIER`, because the app and the extension would then share one id. The only entitlement is `aps-environment`: `development` in Debug and `production` in Release (`Config/TelarMobile.entitlements`). There are no app groups. The team is `MM74W7WGAM`.
+Bundle ids, entitlements and the build number come from `apps/mobile/app.config.ts`; the nightly never edits the generated `ios/` project. The team is `MM74W7WGAM`.
 
 ## Cutting a nightly
 
@@ -36,17 +35,18 @@ gh workflow run nightly-ios.yml --ref main
 
 ## What `nightly-ios.yml` does
 
-The workflow runs on `macos-latest` with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`, and has a timeout of 80 minutes. It runs one build at a time.
+The workflow runs on `macos-latest` with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`, and has a timeout of 100 minutes. It runs one build at a time.
 
 1. It refuses a tag that is not an ancestor of `origin/main`.
 2. It refuses a beta Xcode, because App Store Connect rejects uploads built with one.
 3. It decodes the App Store Connect API key into `$RUNNER_TEMP`.
 4. It imports the Apple Distribution `.p12` into a temporary keychain.
-5. It runs `apps/ios/nightly.sh`, which does the following:
-   - archives the Release build unsigned, then ad hoc signs the app with its entitlements. The export only keeps entitlements the archive already has.
-   - fails unless the archived app has `aps-environment=production`.
+5. It runs `bun install` and `apps/mobile/scripts/nightly.sh`, which does the following:
+   - runs `expo prebuild --clean` for the release variant with the minute-stamp as `TELAR_BUILD_NUMBER`, then `pod install`.
+   - archives the generated workspace's Release build unsigned, then ad hoc signs the app with the entitlements prebuild generated. The export only keeps entitlements the archive already has.
+   - fails unless the app and the `TelarActivity` widget carry the minute-stamp as `CFBundleVersion`, and, when the prebuild declares push, the archived app carries `aps-environment=production`.
    - exports with `ExportOptions.plist` (`app-store-connect`, `destination: export`, `signingCertificate: Apple Distribution`), which re-signs the app for distribution. The export runs with `/usr/bin` first on `PATH`.
-   - fails unless the exported IPA still has `aps-environment=production`.
+   - when the app declares push, fails unless the exported IPA has `aps-environment=production`.
    - runs `testflight-app.sh`, which makes sure the App Store Connect app record is ready (see below).
    - uploads with `xcrun altool`. It judges the result from the output (`UPLOAD SUCCEEDED`, no `ERROR`), because altool can exit 0 after a rejection.
    - runs `testflight-external.sh <build-number>` to offer the build to the external group.
@@ -68,7 +68,7 @@ How a build reaches testers:
 - **Internal**: automatic once Apple finishes processing, usually minutes after the upload. There is no review. Builds expire after 90 days, and testers update through the TestFlight app.
 - **External (`Nightly`)**: `testflight-external.sh` handles this. It polls until the build is `VALID` (up to 30 minutes), sets the en-US "What to Test" text, adds the build to the external group, and submits it for Beta App Review. The first build of a new marketing version can wait in review for hours. Later builds of the same version clear in minutes.
 
-The marketing version is `MARKETING_VERSION` in `apps/ios/TelarMobile.xcodeproj/project.pbxproj`. It is set separately on the app, the extension and the unit-test targets, so bump them together.
+The marketing version is `version` in `apps/mobile/app.config.ts`.
 
 ## Signing and secrets
 
@@ -109,7 +109,7 @@ gh secret set IOS_DIST_CERT_PASSWORD
 `ios-export-probe.yml` runs the production `nightly.sh --export-only` with the same secrets. It archives and exports, then asserts that the IPA is signed `Apple Distribution` and stops. It never uploads, so it is safe to run at any time.
 
 - **By hand**: Actions → "iOS export probe" → Run workflow, on any ref.
-- **By push**: push to a branch named `telar/*-probe-*` that touches `ios-export-probe.yml`, `apps/ios/nightly.sh` or `apps/ios/ExportOptions.plist`.
+- **By push**: push to a branch named `telar/*-probe-*` that touches `ios-export-probe.yml`, `apps/mobile/scripts/nightly.sh` or `apps/mobile/scripts/ExportOptions.plist`.
 
 ```sh
 gh workflow run ios-export-probe.yml --ref <branch>
@@ -122,20 +122,20 @@ If the export fails, the probe prints the filtered error lines from the export's
 `nightly.sh` accepts three modes and rejects anything else:
 
 ```sh
-apps/ios/nightly.sh --no-upload     # archive only; needs no credentials
-apps/ios/nightly.sh --export-only   # archive and export; needs TELAR_ASC_*
-apps/ios/nightly.sh                 # archive, export, upload, offer to Nightly
+apps/mobile/scripts/nightly.sh --no-upload     # archive only; needs no credentials
+apps/mobile/scripts/nightly.sh --export-only   # archive and export; needs TELAR_ASC_*
+apps/mobile/scripts/nightly.sh                 # archive, export, upload, offer to Nightly
 ```
 
-The credential variables are `TELAR_ASC_KEY_ID`, `TELAR_ASC_ISSUER_ID` and `TELAR_ASC_KEY_PATH` (the path to the `.p8`). `TELAR_BUNDLE_ID` overrides the target app. Output goes to `apps/ios/DerivedData-nightly/`.
+The credential variables are `TELAR_ASC_KEY_ID`, `TELAR_ASC_ISSUER_ID` and `TELAR_ASC_KEY_PATH` (the path to the `.p8`). `TELAR_BUNDLE_ID` overrides the App Store Connect app the TestFlight scripts talk to, and `TELAR_DERIVED_DATA` the build folder. Archives and exports go to `apps/mobile/DerivedData-nightly/`.
 
 To offer an existing upload to the external group again, for example after the processing wait timed out, pass the build number the log printed as `uploaded build N`:
 
 ```sh
-apps/ios/testflight-external.sh 202609270517
+apps/mobile/scripts/testflight-external.sh 202609270517
 ```
 
-`testflight-external.sh` accepts these optional overrides: `TELAR_ASC_APP_ID`, `TELAR_TESTFLIGHT_EXTERNAL_GROUP`, `TELAR_ASC_POLL_SECONDS`, `TELAR_ASC_POLL_TIMEOUT_SECONDS` and `TELAR_TESTFLIGHT_WHATS_NEW`. Both TestFlight scripts share `apps/ios/asc.sh`, which mints a fresh ES256 JWT for each call and never prints it. Their tests are in `apps/desktop/scripts/testflight-external.test.js`, with `curl` stubbed:
+`testflight-external.sh` accepts these optional overrides: `TELAR_ASC_APP_ID`, `TELAR_TESTFLIGHT_EXTERNAL_GROUP`, `TELAR_ASC_POLL_SECONDS`, `TELAR_ASC_POLL_TIMEOUT_SECONDS` and `TELAR_TESTFLIGHT_WHATS_NEW`. Both TestFlight scripts share `apps/mobile/scripts/asc.sh`, which mints a fresh ES256 JWT for each call and never prints it. Their tests are in `apps/desktop/scripts/testflight-external.test.js`, with `curl` stubbed:
 
 ```sh
 cd apps/desktop && bun test testflight-external.test.js
@@ -143,10 +143,7 @@ cd apps/desktop && bun test testflight-external.test.js
 
 ## Pull request gate
 
-`verify.yml`'s `ios` job runs on a Mac only when `ios-paths.sh` matches a changed path: `apps/ios/**` or `ios-paths.sh`. Changes to `verify.yml`, `nightly-ios.yml` and `ios-export-probe.yml` do not trigger it; to prove an edit to the job itself, touch a file under `apps/ios`. The job:
-
-1. Archives Release unsigned and asserts that both the app and the extension are Mach-O binaries.
-2. Reports the Swift expressions over the 500 ms type-check floor. This step never fails on slow expressions.
+`verify.yml`'s `ios` job runs on a Mac only when `ios-paths.sh` matches a changed path: `apps/mobile/**`, the `engine-client` and `client` packages it imports, `bun.lock` or `ios-paths.sh`. Changes to `verify.yml`, `nightly-ios.yml` and `ios-export-probe.yml` do not trigger it; to prove an edit to the job itself, touch a file under `apps/mobile`. The job runs `expo prebuild`, builds Release unsigned, and asserts that the app is a Mach-O binary carrying its JS bundle.
 
 A green pull request does not prove that signing or export works. Only the probe or a nightly does.
 
@@ -157,8 +154,8 @@ A green pull request does not prove that signing or export works. Only the probe
 | `... is not an ancestor of origin/main` | The tag was cut from a branch. Delete it and tag a commit on `origin/main`. |
 | Job skipped on dispatch | It was dispatched on a ref other than `main`. |
 | `is a beta Xcode` | The runner image's default Xcode is a beta. Wait for the image to update, or pin `DEVELOPER_DIR` to a release Xcode. |
-| Archive fails with "unable to type-check this expression in reasonable time" | Hosted runners are slower than a desktop Mac. Split the expression. Raising the solver limits does not help. |
-| `archived app has aps-environment='<missing>'` | The ad hoc signing step or the entitlements file broke. Check `Config/TelarMobile.entitlements` and `APS_ENVIRONMENT`. |
+| `archived app has aps-environment=...`, `the prebuild declared ...` | The ad hoc signing step broke, or the generated entitlements file changed shape. Check `CODE_SIGN_ENTITLEMENTS` in the prebuilt project. |
+| `archived app's CFBundleVersion is not ...` | The build number no longer reaches `ios.buildNumber` in `app.config.ts`. |
 | `exported IPA has aps-environment=...` | The distribution profile does not grant Push Notifications. Enable the capability on the `io.github.novarix.telar` App ID and re-run; the profile regenerates. |
 | `exportArchive Copy failed`, exit 70 | A non-system `rsync` answered the export's staging copy. `nightly.sh` pins `/usr/bin` first on `PATH`, so check that the pin is still in place and run the probe. |
 | 90035 at upload, or the probe says the IPA is not Apple Distribution signed | The certificate secret is missing, expired or not a distribution certificate. Rotate it (see above). |

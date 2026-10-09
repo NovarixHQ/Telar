@@ -17,14 +17,14 @@ There is no `on: paths` filter. A workflow skipped that way never reports, and a
 | `Test engine 1/3`, `2/3`, `3/3` | `bun scripts/engine-shard.mjs <shard> 3` |
 | `Test desktop (macOS)` | `bun run test:desktop` with a JUnit report; fails if the macOS-only blocks were skipped or made no assertions |
 | `Test Electron` | each `test:desktop:<name>` Electron test in `apps/desktop`, each required to exit 0 and print its success marker |
-| `Build iOS` | when the change touches iOS, on macOS: an unsigned Debug build (≤3 min; Release is only built by the nightly) and a type-check budget report. Otherwise a no-op on Linux |
+| `Build iOS` | when the change touches iOS, on macOS: `expo prebuild` and an unsigned Release build of the Expo app, with its JS bundle. Otherwise a no-op on Linux |
 | `knip` | `bun run knip`: fails on any unused file, export, dependency or config hint |
 | `oxlint` | `bun run lint:ox`: fails on any finding in engine, desktop and engine-client |
 | `Verify passed` | the aggregate: fails unless every job above reports `success` |
 
 Notes for operating it:
 
-- The iOS path filter counts `apps/ios/**` and `.github/workflows/ios-paths.sh` as iOS changes; editing `verify.yml` alone does not archive. If the diff can't be computed, the job assumes iOS changed and archives. The iOS job always runs, so it always reports `success` or `failure`, never `skipped`.
+- The iOS path filter counts `apps/mobile/**`, `packages/engine-client/**`, `packages/client/**`, `bun.lock` and `.github/workflows/ios-paths.sh` as iOS changes; editing `verify.yml` alone does not archive. If the diff can't be computed, the job assumes iOS changed and archives. The iOS job always runs, so it always reports `success` or `failure`, never `skipped`.
 - `Verify passed` runs with `always()` and treats `skipped` or `cancelled` as failure. Add every new job to its `needs` list. A job left out can fail without turning the gate red.
 - Three Electron tests are not run in CI because they need the 1Password extension package: `extension`, `extension-boot` and `webauthn`. Run them locally with `bun run --cwd apps/desktop test:desktop:<name>`.
 - Concurrency: a pull request's runs share its ref, and a new push cancels the older run. On `main`, each commit gets its own group and is never cancelled.
@@ -102,5 +102,5 @@ gh run rerun <run-id> --job <job-id>       # rerun one job
 - `deploy-push-relay.yml`: tests and deploys the push relay Worker. See [workers.md](workers.md).
 - `nightly-desktop.yml`, `release-desktop.yml`, `publish-handoff.yml`: desktop builds and the bundle-id hand-off. See [release-desktop.md](release-desktop.md).
 - `bump-computer-use-helper.yml`: runs Mondays at 06:17 UTC, or on dispatch. It runs `bun scripts/bump-computer-use-helper.mjs`, and if `trycua/cua` has a newer stable `cua-driver-rs-vX.Y.Z`, it rewrites `apps/desktop/src/main/computer-use-helper.json` and opens a PR from `chore/bump-cua-driver-<version>`. A PR opened with `GITHUB_TOKEN` doesn't trigger `verify.yml`. Push a commit to the branch, or close and reopen the PR, before merging. To check without changing anything, run `bun scripts/bump-computer-use-helper.mjs --check`.
-- `ios-export-probe.yml`: runs `apps/ios/nightly.sh --export-only`, which archives and exports the iOS app with real signing and uploads nothing. Dispatch it by hand, or push to a `telar/*-probe-*` branch that touches the workflow, `apps/ios/nightly.sh` or `apps/ios/ExportOptions.plist`. Use it when the nightly's export step breaks.
+- `ios-export-probe.yml`: runs `apps/mobile/scripts/nightly.sh --export-only`, which archives and exports the iOS app with real signing and uploads nothing. Dispatch it by hand, or push to a `telar/*-probe-*` branch that touches the workflow, `nightly.sh` or `ExportOptions.plist` under `apps/mobile/scripts`. Use it when the nightly's export step breaks.
 - `nightly-ios.yml`: the TestFlight nightly, triggered by an `ios-nightly-*` tag or a dispatch. See [release-ios.md](release-ios.md).

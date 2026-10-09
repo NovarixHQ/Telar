@@ -131,34 +131,27 @@ jobs:
             fi
           }
 
-          check 'apps/ios/TelarMobile/Features/Sessions/SessionView.swift'   yes
-          check 'apps/ios/TelarMobile.xcodeproj/project.pbxproj' yes
-          check 'apps/ios/nightly.sh'                            yes
-          check 'apps/ios/Config/ActivityInfo.plist'             yes
+          check 'apps/mobile/src/features/sessions/SessionScreen.tsx'  yes
+          check 'apps/mobile/app.config.ts'                      yes
+          check 'apps/mobile/scripts/nightly.sh'                 yes
+          check 'packages/engine-client/src/sessions/index.ts'   yes
+          check 'packages/client/src/journal/index.ts'           yes
+          check 'bun.lock'                                       yes
           check '.github/workflows/verify.yml'                   no
           check '.github/workflows/ios-paths.sh'                 yes
-          # The nightly's workflow does not change what compiles; it changes
-          # what publishes. nightly.sh above does, and is in.
+          # The nightly's workflow changes what publishes, not what compiles.
           check '.github/workflows/nightly-ios.yml'              no
+          check 'apps/ios/TelarMobile/Features/Sessions/SessionView.swift' no
           check 'apps/web/src/App.tsx'                           no
           check 'docs/operations/dispatch-board.md'              no
-          # THE THREE CASES THAT PIN THE PATTERN, and each fails under exactly
-          # one mutation of it — checked by running the table against those
-          # mutations rather than by reading the regex:
-          #   drop `^`                → the first matches
-          #   drop the trailing `/`   → the second matches
-          #   drop `$`                → the third matches
-          # An earlier draft used `apps/iosextra/…` for the first of these and
-          # it proved nothing: that path fails on the `/` whether or not `^` is
-          # there, so the anchor it was named for was untested.
-          check 'vendor/apps/ios/Thing.swift'                    no
-          check 'apps/iosextra/Thing.swift'                      no
+          # Each fails under exactly one mutation of the pattern: drop `^`, the trailing `/`, or `$`.
+          check 'vendor/apps/mobile/Thing.ts'                    no
+          check 'apps/mobileextra/Thing.ts'                      no
           check '.github/workflows/ios-paths.sh.bak'             no
-          # A .swift outside apps/ios is not in the Xcode project.
-          check 'packages/whatever/Helper.swift'                 no
+          check 'bun.lockb'                                      no
 
           [ "$failed" -eq 0 ] || exit 1
-          echo "the iOS path filter answered all 13 known cases correctly"
+          echo "the iOS path filter answered all 17 known cases correctly"
 
       - name: Diff this change against its base
         id: detect
@@ -611,70 +604,52 @@ jobs:
           [ "$failed" -eq 0 ] || exit 1
           echo "every Electron test ran to its end and passed"
 
-  # THE ARCHIVE THAT WAS MISSING — an iOS build break, caught on the pull
-  # request that causes it rather than on the night it takes TestFlight dark.
-  # #767, and #758 is the class of thing it is for: a Swift type-check
-  # regression is CUMULATIVE, so no single PR looks like the cause and a
-  # per-PR signal is worth more here than it would be in most places.
-  #
-  # THIS JOB ALWAYS RUNS, AND `runs-on` IS WHAT MAKES THAT AFFORDABLE. When
-  # nothing iOS changed it takes a free Linux runner and compiles nothing, in
-  # about ten seconds; when something did, it takes a Mac and archives. The
-  # alternative — skipping the job outright — would have meant teaching
-  # `verify-passed` below to accept `skipped` for one named job, which is the
-  # one rule in this file it cannot afford to relax. A job that always reports
-  # `success` leaves that rule untouched, and the cost of the difference is a
-  # Linux runner boot on the ~95% of pull requests that touch no iOS file.
-  #
-  # NO SECRETS, and the archive is what makes that possible: signing lives in
-  # the EXPORT (nightly.sh re-signs to Apple Distribution on the way to an
-  # IPA), so `CODE_SIGNING_ALLOWED=NO` archives with no certificate, no
-  # profile and no App Store Connect key. Probe run 35490217749 established
-  # this. It also means a red here is a COMPILE failure and never an expired
-  # certificate, which is the difference between a gate people read and a gate
-  # people learn to re-run.
-  #
-  # WHY NOT `nightly.sh --no-upload`, which would archive the same app: that
-  # script is the PUBLISHING path — unique build numbers, export options,
-  # altool — and coupling the pull-request gate to it means a change to how
-  # Telar publishes can redden every iOS pull request. What is copied from it
-  # is the set of settings that decide what COMPILES, listed below; if those
-  # drift apart this gate stops guarding the nightly, which is the one way
-  # this can rot.
-  #
+  # An iOS build break, caught on the pull request that causes it rather than on the night it takes TestFlight dark.
+  # Always runs so `verify-passed` never sees a skip: a free Linux runner that compiles nothing when no iOS path changed.
+  # Unsigned and without secrets: signing lives in the nightly's export, so a red here is a compile failure.
   ios:
     name: Build iOS
     needs: [source]
     runs-on: ${{ needs.source.outputs.ios == 'true' && 'macos-latest' || 'ubuntu-latest' }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         if: needs.source.outputs.ios == 'true'
+
+      - uses: oven-sh/setup-bun@v2
+        if: needs.source.outputs.ios == 'true'
+
+      - name: Install dependencies
+        if: needs.source.outputs.ios == 'true'
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: bun install --frozen-lockfile
 
       - name: Confirm the Xcode
         if: needs.source.outputs.ios == 'true'
         run: xcodebuild -version
 
-      # Debug, not the nightly's Release archive, to stay under 3 minutes; Release-only
-      # breakage surfaces in the nightly. The log goes to a file without `-quiet`
-      # so the type-check step below can see the swiftc flags.
-      - name: Build TelarMobile, unsigned
+      # The nightly's prebuild, then a Release build rather than an archive; Release bundles the JS too.
+      - name: Prebuild and build the release app, unsigned
         if: needs.source.outputs.ios == 'true'
         env:
           DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+          CI: "1"
+        working-directory: apps/mobile
         run: |
           set -euo pipefail
+          unset APP_VARIANT
+          bunx expo prebuild --clean --platform ios --no-install
+          (cd ios && pod install)
           xcodebuild \
-            -project apps/ios/TelarMobile.xcodeproj -scheme TelarMobile \
-            -configuration Debug \
+            -workspace ios/Telar.xcworkspace -scheme Telar \
+            -configuration Release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            DEVELOPMENT_TEAM=MM74W7WGAM \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            OTHER_SWIFT_FLAGS='$(inherited) -Xfrontend -warn-long-expression-type-checking=500 -Xfrontend -warn-long-function-bodies=500' \
             build > "$RUNNER_TEMP/build.log" 2>&1 || {
               status=$?
               echo "::group::the build log, last 300 lines"
@@ -685,91 +660,32 @@ jobs:
             }
           echo "xcodebuild exited 0; $(wc -l < "$RUNNER_TEMP/build.log") lines of log"
 
-      # Exit 0 is not proof of a build: require both Mach-O products, app and extension.
-      - name: Assert the build holds the app and its extension
+      # Exit 0 is not proof of a build: require the app, its widget extension and the bundled JS.
+      - name: Assert the build holds the app and its bundle
         if: needs.source.outputs.ios == 'true'
         run: |
           set -euo pipefail
-          APP="$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphoneos/TelarMobile.app"
-          found=0
-          report=""
-          for binary in "$APP/TelarMobile" "$(find "$APP" -maxdepth 2 -name '*.appex' -print -quit 2>/dev/null)/TelarActivity"; do
-            name=$(basename "$binary")
-            if [ ! -f "$binary" ] || ! /usr/bin/file -b "$binary" | /usr/bin/grep -q 'Mach-O'; then
-              echo "::error::$name is missing from the build or is not a Mach-O executable"
-              continue
-            fi
-            found=$((found + 1))
-            report="$report $name=$(/usr/bin/stat -f%z "$binary")B/$(/usr/bin/lipo -archs "$binary")"
-          done
-          if [ "$found" -ne 2 ]; then
-            echo "::error::the build carries $found of the 2 expected Mach-O products"
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/Telar.app"
+          if [ ! -f "$APP/Telar" ] || ! /usr/bin/file -b "$APP/Telar" | /usr/bin/grep -q 'Mach-O'; then
+            echo "::error::Telar is missing from the build or is not a Mach-O executable"
             exit 1
           fi
-          echo "IOS_BUILD_OK 2/2$report"
-
-      # A NUMBER, NOT A VERDICT — this step does not fail on a slow expression.
-      # Whether a 900 ms view should stop a pull request is a policy nobody has
-      # chosen yet (#764 tracks the views nearest the bar); reporting it is
-      # what #767 asked for. The BUILD above is the thing that fails.
-      #
-      # WHAT IT DOES FAIL ON is its own wiring. If no swiftc command line
-      # carries the floor, every number below is an absence of evidence rather
-      # than evidence of absence, and "no warnings" would read as good news
-      # from an instrument that was never switched on.
-      #
-      # TWO TRAPS FROM #768, BOTH REPRODUCED THERE AND BOTH AVOIDED HERE: this
-      # runs with errexit explicitly OFF, because `grep` exiting 1 on no match
-      # is the SUCCESS case and killed that probe on the run where the fix
-      # worked; and nothing here filters by an unanchored filename, which
-      # silently credited `SessionView.swift` with `NewSessionView.swift`'s
-      # 171 ms.
-      - name: How much type-checker budget is left?
-        if: needs.source.outputs.ios == 'true'
-        run: |
-          # `+e` rather than a missing `-e`: GitHub hands this block to
-          # `bash -e`, so errexit is on unless something turns it off. Every
-          # `|| true` below would still be needed without this, and this would
-          # still be needed with them — belt and braces, on the step whose
-          # whole job is to report a zero as a zero.
-          set +e
-          set -uo pipefail
-          LOG="$RUNNER_TEMP/build.log"
-          FLOOR=500
-
-          carriers=$(/usr/bin/grep -ac -- "-warn-long-expression-type-checking=$FLOOR" "$LOG" || true)
-          if [ "${carriers:-0}" -eq 0 ]; then
-            echo "::error::no swiftc command line in the build log carries -warn-long-expression-type-checking=$FLOOR. The measurement is not wired up, so it has nothing to report — this is not a clean bill of health."
+          if [ ! -s "$APP/main.jsbundle" ]; then
+            echo "::error::the build carries no main.jsbundle"
             exit 1
           fi
-
-          over=$(/usr/bin/grep -aE 'took [0-9]+ms to type-check' "$LOG" | sed 's|^.*/||' | sort -u || true)
-          count=$(printf '%s\n' "$over" | /usr/bin/grep -c . || true)
-
-          echo "TYPE_CHECK_FLOOR ${FLOOR}ms carriers=$carriers over=$count"
-          {
-            echo "### iOS type-check budget"
-            echo
-            echo "\`$carriers\` swiftc invocation(s) carried the ${FLOOR}ms floor; **$count** expression(s) or function body(ies) exceeded it."
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "${count:-0}" -gt 0 ]; then
-            # Worst first; a declaration can be reported more than once, and the worst figure matters.
-            echo "::warning::$count expression(s) or function body(ies) are over the ${FLOOR}ms floor"
-            printf '%s\n' "$over" \
-              | sed -E 's/.*took ([0-9]+)ms.*/\1 &/' | sort -rn | cut -d' ' -f2- | head -20 \
-              | tee -a "$GITHUB_STEP_SUMMARY"
+          WIDGET="$APP/PlugIns/TelarActivity.appex/TelarActivity"
+          if [ ! -f "$WIDGET" ] || ! /usr/bin/file -b "$WIDGET" | /usr/bin/grep -q 'Mach-O'; then
+            echo "::error::the TelarActivity extension is missing from the build or is not a Mach-O executable"
+            exit 1
           fi
+          echo "IOS_BUILD_OK Telar=$(/usr/bin/stat -f%z "$APP/Telar")B/$(/usr/bin/lipo -archs "$APP/Telar") TelarActivity=$(/usr/bin/stat -f%z "$WIDGET")B main.jsbundle=$(/usr/bin/stat -f%z "$APP/main.jsbundle")B"
 
-      # THE OTHER BRANCH, and it must not be able to print what the branch
-      # above prints. `IOS_BUILD_NOT_NEEDED` and `IOS_BUILD_OK 2/2 …` are
-      # different strings on purpose: a reader who greps the log for either one
-      # learns which of the two things happened, and neither can be mistaken
-      # for the other.
+      # Prints a different string from the branch above, so a log grep tells which one ran.
       - name: Nothing here reaches the iOS build
         if: needs.source.outputs.ios != 'true'
         run: |
-          echo "IOS_BUILD_NOT_NEEDED — no path under apps/ios/ and no change to the gate itself"
+          echo "IOS_BUILD_NOT_NEEDED — no path the Expo app builds from changed, and no change to the gate itself"
           echo "This job took a ${RUNNER_OS} runner and compiled nothing."
 
   # THE SINGLE CHECK, so the set above can change without renaming a required

@@ -1,4 +1,4 @@
-import { cockpitSessionHref, type AgentModelChoice, type EngineEvent, type EngineRequest, type EnvMode, type LiveSessionRow, type NotificationDetail, type ProviderDriverKind, type Session, type SessionCapabilities, type SessionDiff, type SessionSettleEnded, type Subscription, type Turn, type WaitingOn, type WakeKind } from "@telar/engine-client";
+import { cockpitSessionHref, type AgentModelChoice, type EngineEvent, type EngineRequest, type EnvMode, type LiveSessionRow, type NotificationDetail, type ProviderDriverKind, type Session, type SessionCapabilities, type SessionDiff, type SessionChild, type SessionSettleEnded, type Subscription, type Turn, type WaitingOn, type WakeKind } from "@telar/engine-client";
 import type { SessionsQueryCapability } from "./query";
 
 export type SessionsCapability = {
@@ -25,6 +25,8 @@ export type SessionsCapability = {
   handOff(sessionId: string, to?: string): Promise<Session>;
   putSchedule?(input: { sessionId: string; prompt: string; rule: unknown; zone: string }): Promise<{ id: string; nextRunAt: number; zone: string }>;
   diff(sessionId: string): Promise<SessionDiff>;
+  builders(sessionId: string): Promise<SessionChild[]>;
+  acknowledge(sessionId: string, runId: string): Promise<void>;
   self?: { sessionId: string };
   subscribe(
     subscriberSessionId: string,
@@ -66,7 +68,7 @@ export const SUBSCRIBE = `Be woken once when a session you did not task ends its
 
 export const REQUESTS = `A session's open requests, meant for a human. With requestId and decision, answer one for the user, recorded as answered by a session: only what you know; secret picks are refused. ${NOT_A_BYPASS}`;
 
-export const READ = `What a session has done. Prefer the cheap views: status (working, waiting or idle), outline, answer, steps then step, grep. events is the long raw journal; diff is what it changed. Read-only, never an acceptance. Never poll it to wait: subscribe and end your turn.`;
+export const READ = `What a session has done. Prefer the cheap views: status (working, waiting or idle), builders (the sessions it tasked), outline, answer, steps then step, grep. events is the long raw journal; diff is what it changed. Read-only, never an acceptance. Read your builders before you report their status.`;
 
 export const RETIRED_TOOLS: Readonly<Record<string, string>> = {
   sessions_status: 'sessions_read with view: "status"',

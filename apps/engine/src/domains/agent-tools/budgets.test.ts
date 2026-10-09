@@ -149,6 +149,8 @@ const TURNS_FIXTURE = Array.from({ length: TURNS }, (_, index) => turn(index));
 function capabilities(): { sessions: SessionsCapability } {
   const sessions: SessionsCapability = {
     self: { sessionId: SESSION_ID },
+    builders: async () => [],
+    acknowledge: async () => {},
     capabilities: async () => ({ defaults: { envMode: "local" }, providers: [] }),
     /**
      * THE FIXTURE IGNORES `settled`, ON PURPOSE. A capability that honoured it

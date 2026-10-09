@@ -65,6 +65,7 @@ export type WorkerClient = Pick<
   | "subscriptions"
   | "resolveRequest"
   | "acknowledgeRead"
+  | "children"
   | "findSessions"
   | "sessionOutline"
   | "runItems"

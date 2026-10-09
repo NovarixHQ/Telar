@@ -123,6 +123,8 @@ test("the sessions toolkit registers under the SAME one server, and only when th
       throw new Error("this test does not send");
     },
     read: async () => [],
+    builders: async () => [],
+    acknowledge: async () => {},
     capabilities: async () => ({ defaults: { envMode: "local" }, providers: [] }),
     status: async () => {
       throw new Error("this test does not read status");
@@ -379,7 +381,7 @@ test("the worker cannot archive, delete or accept anything — the client it hol
     // member that writes for one to be misfiled as.
     // The verb that addressed the built-in Agent came and went with it (#784, #908).
     expect(surface).toEqual([
-      "capabilities", "create", "cursor", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscriptions", "turn", "unsubscribe",
+      "acknowledge", "builders", "capabilities", "create", "cursor", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscriptions", "turn", "unsubscribe",
     ]);
     expect(Object.keys(sessions.query).sort()).toEqual(["answer", "find", "grep", "outline", "step", "steps"]);
     for (const forbidden of ["archive", "delete", "accept", "merge", "commit"]) {

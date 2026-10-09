@@ -109,6 +109,9 @@ name the exact next call.
 - \`sessions_read\` \`view: "status"\` is the cheap "is it finished yet": an
   activity, a turn count, and the last few turns. Never poll it to wait for a
   peer; subscribe and end your turn instead.
+- \`sessions_read\` \`view: "builders"\` on yourself lists the sessions you tasked:
+  each one's state, its last line and where to read it. Read it before you tell
+  anyone what a builder is doing; it also spends the ending notices it covers.
 - \`sessions_read\` FOLDS by default: recent turns, a line each — what it was
   asked, what it did, how it answered — which is what "what has it been doing"
   means, and a fifth of the size of the journal it stands in for.

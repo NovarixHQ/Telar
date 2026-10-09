@@ -25,13 +25,15 @@ export const SessionChild = z.object({
   state: SessionChildState,
   /** What a working child is doing now, one line. */
   progress: z.string().max(120).optional(),
+  blocked: z.boolean().optional(),
   summary: z.string().max(200).optional(),
   /** Where its result, or the run that ended it, is read. */
   fetch: z.object({ sessionId: Id, runId: Id }).optional(),
   startedAt: Timestamp,
   endedAt: Timestamp.optional(),
+  updatedAt: Timestamp.optional(),
 });
-export type SessionChild = z.infer<typeof SessionChild>;
+export type SessionChild =z.infer<typeof SessionChild>;
 
 export type SessionChildren = { children: SessionChild[] };
 

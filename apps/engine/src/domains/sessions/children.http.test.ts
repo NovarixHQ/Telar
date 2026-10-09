@@ -49,6 +49,7 @@ test("a parent's children come back with their state and, while working, what th
       state: "working",
       progress: "Edit settings.html · 1 tool",
       startedAt: expect.any(Number),
+      updatedAt: expect.any(Number),
     },
   ]);
   await expect(client.children("session_missing")).rejects.toThrow();

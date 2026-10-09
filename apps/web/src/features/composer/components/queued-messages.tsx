@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ArrowDownIcon, ArrowUpIcon, Clock3Icon, CornerUpRightIcon, PencilIcon, XIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 
-export type QueuedMessage = { runId: string; text: string };
+type QueuedMessage = { runId: string; text: string };
 
 export type QueuedMessagesProps = {
   messages: readonly QueuedMessage[];

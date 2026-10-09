@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
 import { ConnectScreen } from "./features/hosts";
 import { PanelScreen } from "./features/panel";
-import { startLiveActivityCard } from "./features/push";
+import { launchLink, onNotificationLink, startLiveActivityCard, startPush } from "./features/push";
 import { RailScreen, SessionScreen } from "./features/sessions";
 import { SettingsScreen } from "./features/settings";
 import { UsageScreen } from "./features/usage";
@@ -18,10 +18,26 @@ const Stack = createSplitStackNavigator<RootStack>();
 // `-telarOpenURL <telar://…>` at launch opens that link without iOS's confirmation, which a simulator cannot tap.
 async function initialUrl(): Promise<string | null | undefined> {
   const url: unknown = Settings.get("telarOpenURL");
-  return typeof url === "string" && url.startsWith("telar://") ? url : Linking.getInitialURL();
+  return typeof url === "string" && url.startsWith("telar://") ? url : (launchLink() ?? Linking.getInitialURL());
 }
 
-const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { initialRouteName: "Rail", screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } }, getInitialURL: initialUrl };
+function subscribe(listener: (url: string) => void): () => void {
+  const opened = Linking.addEventListener("url", ({ url }) => listener(url));
+  const tapped = onNotificationLink(listener);
+  return () => {
+    opened.remove();
+    tapped();
+  };
+}
+
+const linking: LinkingOptions<RootStack> = {
+  prefixes: ["telar://"],
+  config: { initialRouteName: "Rail", screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } },
+  getInitialURL: initialUrl,
+  subscribe,
+};
+
+startPush();
 
 export function App() {
   const navigation = useNavigationContainerRef<RootStack>();

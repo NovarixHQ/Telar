@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, StyleSheet } from "react-native";
 import { FloatingComposer } from "../composer";
 import { hosts, useHosts } from "../hosts";
 import { PanelColumn, PanelView, usePanelColumn } from "../panel";
+import { setVisibleSession } from "../push";
 import { feedOf, TranscriptScroll, useFeed } from "../transcript";
 import { present } from "../../platform/connection";
 import { useSplitColumn } from "../../platform/layout";
@@ -65,6 +66,10 @@ export function SessionScreen() {
     });
   }, [host, params.sessionId, column.shown, column.state, column.width]);
   useEffect(() => () => split.setAside(undefined), []);
+  useEffect(() => {
+    setVisibleSession({ hostId: params.hostId, sessionId: params.sessionId });
+    return () => setVisibleSession(undefined);
+  }, [params.hostId, params.sessionId]);
   return (
     <KeyboardAvoidingView style={styles.screen} behavior="padding">
       <TranscriptScroll

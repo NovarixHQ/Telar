@@ -43,7 +43,7 @@ describe("Fork from here", () => {
     const errors: unknown[] = [];
     const { host } = await mount(
       <Forkable errors={errors}>
-        <TranscriptItem item={reply} />
+        <TranscriptItem item={reply} meta />
       </Forkable>,
     );
 
@@ -56,7 +56,7 @@ describe("Fork from here", () => {
   });
 
   test("outside a session that can fork, a reply offers only Copy", async () => {
-    const { host } = await mount(<TranscriptItem item={reply} />);
+    const { host } = await mount(<TranscriptItem item={reply} meta />);
     expect(host.querySelector('button[aria-label="Copy"]')).not.toBeNull();
     expect(host.querySelector('button[aria-label="Fork from here"]')).toBeNull();
   });

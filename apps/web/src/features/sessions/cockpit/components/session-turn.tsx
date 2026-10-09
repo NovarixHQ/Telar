@@ -273,7 +273,7 @@ function SessionTurnBody({
                 {...(builders.length ? { trail: <AgentRows agents={builders} /> } : {})}
                 {...rowGestures}
               />
-              {answer && <TranscriptItem item={answer} tasks={turn.tasks} {...rowGestures} />}
+              {answer && <TranscriptItem item={answer} tasks={turn.tasks} meta {...rowGestures} />}
             </>
           )}
           {!streamedAnswer && turn.resultText && <AgentMarkdown text={turn.resultText} onOpenFile={onOpenFile} />}

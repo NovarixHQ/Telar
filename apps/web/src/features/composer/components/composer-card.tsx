@@ -7,6 +7,7 @@ import type { ComposerCompletions } from "../hooks/use-composer-completions";
 import type { ComposerStash } from "../hooks/use-composer-stash";
 import type { useDropTarget } from "../hooks/use-drop-target";
 import type { Completion } from "../completions";
+import { pastedTextFile } from "../editor-keys";
 import type { ComposerKind } from "../registry";
 import { AddContextMenu, AttachmentChip, ComposerChromeMenu } from "./composer-chrome";
 import { ComposerEditor, type ComposerEditorHandle } from "./composer-editor";
@@ -122,6 +123,7 @@ export function ComposerCard({
               onSelectionChange={onSelectionChange}
               onKeyDown={onKeyDown}
               onPasteFiles={addFiles}
+              onPasteLargeText={(pasted) => addFiles([pastedTextFile(pasted, attachments.map((file) => file.name))])}
               onFocus={onFocus}
             />
           </div>

@@ -215,6 +215,30 @@ describe("an attachment thumbnail", () => {
   });
 });
 
+describe("a large paste", () => {
+  function paste(editor: HTMLElement, text: string) {
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", { value: { files: [], getData: () => text } });
+    act(() => {
+      editor.dispatchEvent(event);
+    });
+  }
+
+  test("becomes a removable text-file chip with its size, and leaves the box alone", async () => {
+    const { host, editor, draft } = await composer();
+    paste(editor, "x".repeat(40 * 1024));
+    paste(editor, "y".repeat(40 * 1024));
+    await flush();
+    expect(draft()).toBe("");
+    const chip = host.querySelector('[aria-label="Remove pasted-text.txt"]')!.parentElement!;
+    expect(chip.textContent).toContain("40");
+    expect(host.querySelector('[aria-label="Remove pasted-text-2.txt"]')).not.toBeNull();
+    await click(host.querySelector('[aria-label="Remove pasted-text.txt"]')!);
+    expect(host.querySelector('[aria-label="Remove pasted-text.txt"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Remove pasted-text-2.txt"]')).not.toBeNull();
+  });
+});
+
 describe("prompt recall", () => {
   const sentPrompts = ["first", "second"];
 

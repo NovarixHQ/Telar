@@ -18,6 +18,7 @@ function setup(overrides: Partial<PushSyncDeps> = {}) {
     simulator: false,
     hosts: () => paired,
     prefs: () => prefs,
+    muted: () => [],
     allowed: async () => true,
     card: () => card,
     credential: async (hostId, tokens): Promise<RelayCredential> => (credentials.push(tokens), { url: "https://relay", handle: "h", keyId: `key-${hostId}`, sendKey: tokens.token }),
@@ -138,4 +139,11 @@ test("Live Activities register as off when the setting or the system turns them 
   setPrefs({ notifications: true, completions: true, previews: false, sound: "felt", liveActivity: false });
   await sync.sync();
   expect(sent.slice(-2).every((body) => body.liveActivities === false)).toBe(true);
+});
+
+test("each computer hears only its own muted sessions", async () => {
+  const { sync, sent } = setup({ muted: (hostId) => (hostId === A ? ["session_quiet"] : []) });
+  await sync.setToken("ab".repeat(32));
+  expect(sent.find((body) => body.hostId === A)?.mutedSessions).toEqual(["session_quiet"]);
+  expect(sent.find((body) => body.hostId === B)?.mutedSessions).toEqual([]);
 });

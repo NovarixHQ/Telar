@@ -18,3 +18,7 @@ export const scrolled = (follow: Follow, metrics: ScrollMetrics, byReader: boole
 export const shouldFollow = (follow: Follow) => !follow.taken || follow.atBottom;
 
 export const showsJump = (follow: Follow) => !follow.atBottom;
+
+/** A content offset is on screen between the viewport's top and whatever covers its bottom edge. */
+export const markerOnScreen = (y: number, { offset, viewport }: Omit<ScrollMetrics, "content">, bottomInset: number) =>
+  y >= offset && y <= offset + viewport - bottomInset;

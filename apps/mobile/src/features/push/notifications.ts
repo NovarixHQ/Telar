@@ -9,7 +9,8 @@ import { liveActivity } from "../../../modules/live-activity";
 import type { HostConnection } from "../../platform/connection";
 import { hosts } from "../hosts";
 import { appSettings } from "../settings";
-import { alertsToRemove, approvalOf, pairedHostOf, pushHostId, readsOf, reconcileQueries, sessionLink, sessionOfUrl, type DeliveredAlert, type SessionRef } from "./payload";
+import { alertsToRemove, appLink, approvalOf, pairedHostOf, pushHostId, readsOf, reconcileQueries, sessionOfUrl, type DeliveredAlert, type SessionRef } from "./payload";
+import { isMutedIn, MUTED_KEY, mutedList, mutedSessionsOf, toggledMute } from "./mute";
 import { PushRelay, RELAY_URL, type RelayState } from "./relay";
 import { PushSync } from "./registration";
 
@@ -47,6 +48,7 @@ const registry = new PushSync({
   simulator: !isDevice,
   hosts: () => hosts.list().map((host) => ({ hostId: pushHostId(host.hostId), name: host.name, register: (body) => host.request("PUT", "/v2/mobile/push", body) })),
   prefs: () => appSettings.current,
+  muted: (hostId) => mutedSessionsOf(mutedList(Settings.get(MUTED_KEY)), hostId),
   allowed,
   card: () => {
     const token = liveActivity?.card()?.token;
@@ -133,9 +135,11 @@ async function approve(hostId: string, sessionId: string, requestId: string): Pr
 /** The session route a tap on a notification asks for, or undefined for actions that stay in the background. */
 function linkOf(response: Notifications.NotificationResponse | null | undefined): string | undefined {
   if (!response || (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER && response.actionIdentifier !== OPEN)) return undefined;
-  const ref = sessionOfUrl(payloadOf(response.notification.request).url);
-  return ref ? sessionLink({ ...ref, hostId: pairedHost(ref.hostId)?.hostId ?? ref.hostId }) : undefined;
+  const url = payloadOf(response.notification.request).url;
+  return sessionOfUrl(url) ? routeLink(url as string) : undefined;
 }
+
+export const routeLink = (url: string): string => appLink(url, hosts.list().map((host) => host.hostId));
 
 export const launchLink = (): string | undefined => linkOf(Notifications.getLastNotificationResponse());
 
@@ -147,6 +151,14 @@ export function onNotificationLink(listener: (url: string) => void): () => void 
     if (approval) void approve(approval.hostId, approval.sessionId, approval.requestId);
   });
   return () => subscription.remove();
+}
+
+export const isMuted = (ref: SessionRef) => isMutedIn(mutedList(Settings.get(MUTED_KEY)), ref);
+
+/** Mutes or unmutes one session's alerts, then tells its computer. */
+export function toggleMute(ref: SessionRef): Promise<void> {
+  Settings.set({ [MUTED_KEY]: toggledMute(mutedList(Settings.get(MUTED_KEY)), ref) });
+  return registry.sync();
 }
 
 /** The session on screen: its alerts are cleared and new ones for it stay quiet. */

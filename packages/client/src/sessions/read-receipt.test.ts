@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { ReceiptAnswer, ReceiptIdentity, ResultTurn } from "./session-read-receipt";
+import type { ReceiptAnswer, ReceiptIdentity, ResultTurn } from "./read-receipt";
 import {
   isResultTurn,
   newestResultTurn,
@@ -7,7 +7,7 @@ import {
   receiptRetryDelayMs,
   receiptToSend,
   RECEIPT_MAX_ATTEMPTS,
-} from "./session-read-receipt";
+} from "./read-receipt";
 
 const turn = (sequence: number, state: ResultTurn["state"] = "completed"): ResultTurn => ({
   runId: `run-${sequence}`,

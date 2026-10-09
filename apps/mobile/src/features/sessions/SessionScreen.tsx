@@ -12,6 +12,7 @@ import { Theme } from "../../ui";
 import { useSessionHeader } from "./session-header";
 import { StatusNotice } from "./StatusNotice";
 import { useRail } from "./use-rail";
+import { useReadReceipt } from "./use-read-receipt";
 import type { RootStack } from "../../platform/navigation/routes";
 
 export function SessionScreen() {
@@ -27,6 +28,7 @@ export function SessionScreen() {
   const [pin, setPin] = useState(0);
   const [problem, setProblem] = useState<string>();
   const { rows: railRows } = useRail(params.hostId);
+  const receipt = useReadReceipt(host, params.sessionId, feed.head);
 
   const act = async (work: () => Promise<unknown>) => {
     setProblem(undefined);
@@ -78,6 +80,7 @@ export function SessionScreen() {
         loading={!feed.head && !feed.failed}
         pin={pin}
         bottomInset={footer + keyboard}
+        receipt={receipt}
         source={host ? { host, sessionId: params.sessionId } : undefined}
         older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
       />

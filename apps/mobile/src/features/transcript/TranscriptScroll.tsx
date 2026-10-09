@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type ScrollViewInstance } from "react-native";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type HostInstance, type NativeScrollEvent, type ScrollViewInstance } from "react-native";
 import type { JournalTurn } from "@telar/client/journal";
-import { FOLLOWING, scrolled, shouldFollow, showsJump, type Follow } from "./follow";
+import { ReceiptMarkerContext, type ReceiptMarkerSlot } from "./receipt-marker";
+import { FOLLOWING, markerOnScreen, scrolled, shouldFollow, showsJump, type Follow } from "./follow";
 import { SourceContext, type TranscriptSource } from "./source";
 import { Transcript } from "./Transcript";
 import { ReadingColumn } from "../../platform/layout";
@@ -18,6 +19,8 @@ type Props = {
   source?: TranscriptSource | undefined;
   /** Height of whatever covers the transcript's bottom edge: the composer plus the keyboard under it. */
   bottomInset?: number;
+  /** The newest answer, told whenever its end comes on or goes off screen. */
+  receipt?: { runId: string; onVisible(visible: boolean): void } | undefined;
   children?: ReactNode;
 };
 
@@ -27,7 +30,7 @@ const TAIL_GAP = 28;
 const metricsOf = ({ contentOffset, layoutMeasurement, contentSize }: NativeScrollEvent) => ({ offset: contentOffset.y, viewport: layoutMeasurement.height, content: contentSize.height });
 
 /** The transcript follows its tail until the reader scrolls up; a jump button brings it back. */
-export function TranscriptScroll({ turns, loading, older, pin, source, bottomInset = 0, children }: Props) {
+export function TranscriptScroll({ turns, loading, older, pin, source, bottomInset = 0, receipt, children }: Props) {
   const scroll = useRef<ScrollViewInstance>(null);
   const follow = useRef<Follow>(FOLLOWING);
   const dragging = useRef(false);
@@ -35,6 +38,10 @@ export function TranscriptScroll({ turns, loading, older, pin, source, bottomIns
   const content = useRef(0);
   const inset = useRef(bottomInset);
   const [jump, setJump] = useState(false);
+  const offset = useRef(0);
+  const covered = useRef(bottomInset);
+  covered.current = bottomInset;
+  const marker = useMarker(scroll, () => ({ offset: offset.current, viewport: viewport.current }), covered, receipt);
 
   const update = (next: Follow) => {
     follow.current = next;
@@ -48,6 +55,7 @@ export function TranscriptScroll({ turns, loading, older, pin, source, bottomIns
   useEffect(() => {
     if (pin) pinToTail();
   }, [pin]);
+  useEffect(() => marker.check(), [bottomInset]);
 
   return (
     <View style={styles.frame}>
@@ -62,13 +70,21 @@ export function TranscriptScroll({ turns, loading, older, pin, source, bottomIns
         scrollEventThrottle={32}
         onScrollBeginDrag={() => (dragging.current = true)}
         onScrollEndDrag={() => (dragging.current = false)}
-        onScroll={({ nativeEvent }) => update(scrolled(follow.current, metricsOf(nativeEvent), dragging.current))}
-        onLayout={({ nativeEvent }) => (viewport.current = nativeEvent.layout.height)}
+        onScroll={({ nativeEvent }) => {
+          offset.current = nativeEvent.contentOffset.y;
+          update(scrolled(follow.current, metricsOf(nativeEvent), dragging.current));
+          marker.check();
+        }}
+        onLayout={({ nativeEvent }) => {
+          viewport.current = nativeEvent.layout.height;
+          marker.check();
+        }}
         onContentSizeChange={(_, height) => {
           content.current = height;
           const lifted = inset.current !== bottomInset;
           inset.current = bottomInset;
           if (shouldFollow(follow.current)) pinToTail(lifted);
+          marker.measure();
         }}
       >
         {older ? (
@@ -79,7 +95,9 @@ export function TranscriptScroll({ turns, loading, older, pin, source, bottomIns
         {loading ? <ActivityIndicator style={styles.loading} /> : null}
         <ReadingColumn style={styles.lane}>
           <SourceContext.Provider value={source}>
-            <Transcript turns={turns} />
+            <ReceiptMarkerContext.Provider value={marker.slot}>
+              <Transcript turns={turns} />
+            </ReceiptMarkerContext.Provider>
           </SourceContext.Provider>
           {children}
         </ReadingColumn>
@@ -91,6 +109,41 @@ export function TranscriptScroll({ turns, loading, older, pin, source, bottomIns
       ) : null}
     </View>
   );
+}
+
+type Viewport = { offset: number; viewport: number };
+
+/** Measures the newest answer's marker against the content and reports when it crosses the visible band. */
+function useMarker(scroll: RefObject<ScrollViewInstance | null>, view: () => Viewport, covered: RefObject<number>, receipt: Props["receipt"]) {
+  const node = useRef<HostInstance | null>(null);
+  const y = useRef<number | undefined>(undefined);
+  const seen = useRef<boolean | undefined>(undefined);
+  const latest = useRef(receipt);
+  latest.current = receipt;
+  const check = () => {
+    const next = y.current !== undefined && markerOnScreen(y.current, view(), covered.current);
+    if (next === seen.current) return;
+    seen.current = next;
+    latest.current?.onVisible(next);
+  };
+  const measure = () => {
+    const inner = scroll.current?.getInnerViewRef();
+    if (!node.current || !inner) {
+      y.current = undefined;
+      return check();
+    }
+    node.current.measureLayout(inner, (_x, top) => {
+      y.current = top;
+      check();
+    });
+  };
+  const runId = receipt?.runId;
+  const slot = useMemo<ReceiptMarkerSlot | undefined>(() => {
+    y.current = undefined;
+    seen.current = undefined;
+    return runId ? { runId, mount: (next) => void (node.current = next), moved: measure } : undefined;
+  }, [runId]);
+  return { slot, check, measure };
 }
 
 const styles = StyleSheet.create({

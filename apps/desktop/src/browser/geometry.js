@@ -60,22 +60,22 @@ module.exports = {
     return this.viewportModeOf(tab) === "fit" && this.isTabVisible(tab);
   },
 
-  stageZoom(scopeKey) {
-    const factor = this.stageWindow(scopeKey)?.webContents?.getZoomFactor?.();
+  stageZoom(tab) {
+    const factor = this.windowOfTab(tab)?.webContents?.getZoomFactor?.();
     return Number.isFinite(factor) && factor > 0 ? factor : 1;
   },
 
-  deviceScaleFactor(scopeKey) {
+  deviceScaleFactor(tab) {
     try {
-      const factor = this.displayScaleFactor(this.stageWindow(scopeKey));
+      const factor = this.displayScaleFactor(this.windowOfTab(tab));
       return Number.isFinite(factor) && factor > 0 ? factor : 1;
     } catch {
       return 1;
     }
   },
 
-  windowRect(rect, scopeKey) {
-    const zoom = this.stageZoom(scopeKey);
+  windowRect(rect, tab) {
+    const zoom = this.stageZoom(tab);
     return {
       x: Math.round(rect.x * zoom),
       y: Math.round(rect.y * zoom),
@@ -85,7 +85,7 @@ module.exports = {
   },
 
   stageBounds(tab) {
-    return this.windowRect(this.stageBoundsOf(tab.scopeKey), tab.scopeKey);
+    return this.windowRect(this.boundsOfTab(tab), tab);
   },
 
   effectiveViewport(tab) {
@@ -95,7 +95,7 @@ module.exports = {
   },
 
   nativeRect(tab) {
-    const bounds = this.stageBoundsOf(tab.scopeKey);
+    const bounds = this.boundsOfTab(tab);
     if (this.isNativeFit(tab)) return { ...bounds };
     return fitViewport(this.viewportOf(tab), bounds, this.zoomOf(tab)).rect;
   },
@@ -188,14 +188,14 @@ module.exports = {
       const shown = this.isTabShown(tab) && !this.isBlank(tab);
       view.setVisible(shown);
 
-      if (shown) view.setBounds(this.windowRect(this.nativeRect(tab), tab.scopeKey));
+      if (shown) view.setBounds(this.windowRect(this.nativeRect(tab), tab));
     };
 
     const target = this.viewportTarget(tab);
     const scaleFirst = Boolean(target.view) && tab.debuggerReady && !this.isBlank(tab) && !this.emulationSettled(tab);
     if (!scaleFirst) place();
     const placed = tab.lastPlaced;
-    const bounds = this.stageBoundsOf(tab.scopeKey);
+    const bounds = this.boundsOfTab(tab);
     tab.lastPlaced = { width: bounds.width, height: bounds.height };
     if (
       placed &&
@@ -230,7 +230,7 @@ module.exports = {
   },
 
   applyBorderRadius(tab, view) {
-    const stage = this.poppedStages.get(tab.scopeKey);
+    const stage = tab.stage;
     const radius = stage ? stage.radius : this.radiusByScope.get(tab.scopeKey) || 0;
     if (tab.borderRadius === radius) return;
     tab.borderRadius = radius;
@@ -272,7 +272,7 @@ module.exports = {
     this.boundsByScope.set(scope, next);
     this.radiusByScope.set(scope, radius);
 
-    if (this.isPopped(scope) || (this.visibleScopeKey && this.visibleScopeKey !== scope)) return;
+    if (this.visibleScopeKey && this.visibleScopeKey !== scope) return;
     const same = next.x === this.bounds.x && next.y === this.bounds.y && next.width === this.bounds.width && next.height === this.bounds.height;
     this.bounds = next;
 
@@ -283,7 +283,6 @@ module.exports = {
   async setVisible(scopeKey, visible, sender) {
     const scope = this.requireScope(scopeKey);
     const stage = this.stageOfSender(scope, sender);
-    if (!stage && this.isPopped(scope)) return;
     if (visible) {
       if (stage) stage.visible = true;
       else {
@@ -294,7 +293,7 @@ module.exports = {
       for (const tab of this.scopeTabs(scope)) {
         if (!tab.destroyWhenIdle) this.cancelDeferredHibernate(tab);
       }
-      const active = this.scopeTabs(scope).length ? this.activeTab(scope) : null;
+      const active = this.placeTabs(scope, stage).find((tab) => tab.id === this.activeIdIn(scope, stage));
       if (active) {
         try {
           await this.wakeTab(active);
@@ -316,14 +315,15 @@ module.exports = {
   },
 
   async captureFrozenFrame(scope, sender) {
-    if (!this.stageOfSender(scope, sender) && (this.isPopped(scope) || this.visibleScopeKey !== scope)) return null;
-    const tab = this.scopeTabs(scope).length ? this.activeTab(scope) : null;
+    const stage = this.stageOfSender(scope, sender);
+    if (!stage && this.visibleScopeKey !== scope) return null;
+    const tab = this.placeTabs(scope, stage).find((candidate) => candidate.id === this.activeIdIn(scope, stage));
     if (!tab?.view || tab.view.webContents.isDestroyed?.()) return null;
 
     if (!this.isTabVisible(tab) || this.isBlank(tab)) return null;
     const rect = this.nativeRect(tab);
 
-    const { width, height } = this.windowRect(rect, scope);
+    const { width, height } = this.windowRect(rect, tab);
     try {
       const image = await withTimeout(tab.view.webContents.capturePage({ x: 0, y: 0, width, height }), FREEZE_TIMEOUT_MS, FREEZE_TIMEOUT_MESSAGE);
       if (!image || image.isEmpty()) return null;
@@ -415,11 +415,11 @@ module.exports = {
     const viewport = this.viewportOf(tab);
 
     if (!this.isTabVisible(tab)) return { emulate: true, width: viewport.width, height: viewport.height, scale: 1 };
-    const scale = fitViewport(viewport, this.stageBoundsOf(tab.scopeKey), this.zoomOf(tab)).scale * this.stageZoom(tab.scopeKey);
+    const scale = fitViewport(viewport, this.boundsOfTab(tab), this.zoomOf(tab)).scale * this.stageZoom(tab);
 
-    const native = this.windowRect(this.nativeRect(tab), tab.scopeKey);
+    const native = this.windowRect(this.nativeRect(tab), tab);
 
-    const deviceScaleFactor = this.deviceScaleFactor(tab.scopeKey);
+    const deviceScaleFactor = this.deviceScaleFactor(tab);
     return { emulate: true, width: viewport.width, height: viewport.height, scale, deviceScaleFactor, view: { width: native.width, height: native.height } };
   },
 

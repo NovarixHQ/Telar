@@ -46,10 +46,11 @@ module.exports = {
     const scope = opener.scopeKey;
 
     const tab = this.newTabRecord(scope, { partition: opener.partition, id: opener.profileId }, openedBy);
-    const wasEmpty = this.scopeTabs(scope).length === 0;
+    tab.stage = opener.stage || null;
+    const wasEmpty = this.placeTabs(scope, tab.stage).length === 0;
     this.tabs.push(tab);
 
-    if (openedBy === "human" || wasEmpty) this.activeTabIds.set(scope, tab.id);
+    if (openedBy === "human" || wasEmpty) this.setActiveIn(scope, tab.stage, tab.id);
     if (openedBy === "agent") {
       this.agentTabIds.set(scope, tab.id);
       this.agentTabClosed.delete(scope);
@@ -66,16 +67,16 @@ module.exports = {
 
   async finishPopupTab(tab, view) {
     const scope = tab.scopeKey;
-    const humanTabBefore = this.activeTabIds.get(scope);
+    const humanTabBefore = this.activeIdIn(scope, tab.stage);
     await this.readyHostForTab(tab, view);
 
     if (
       tab.openedBy === "agent" &&
-      humanTabBefore !== undefined &&
-      this.activeTabIds.get(scope) !== humanTabBefore &&
+      humanTabBefore !== null &&
+      this.activeIdIn(scope, tab.stage) !== humanTabBefore &&
       this.tabs.some((candidate) => candidate.id === humanTabBefore)
     ) {
-      this.activeTabIds.set(scope, humanTabBefore);
+      this.setActiveIn(scope, tab.stage, humanTabBefore);
     }
     this.enforceLiveViewBudget(tab);
     this.applyVisibility();
@@ -87,6 +88,7 @@ module.exports = {
     return {
       id: this.createId(),
       scopeKey: scope,
+      stage: null,
 
       partition: profile.partition,
       profileId: profile.id,
@@ -228,16 +230,14 @@ module.exports = {
     });
     wc.on("destroyed", () => {
       if (tab.hibernating || tab.view !== view) return;
+      this.settleActiveAfter(tab, tab.stage);
       this.tabs = this.tabs.filter((candidate) => candidate !== tab);
 
       tab.view = null;
       { const host = this.hostOfTab(tab); if (host) { try { host.removeTab(wc); } catch {  } } }
       this.unmountView(tab, view);
       this.noteAgentTabClosed(tab);
-      const scoped = this.scopeTabs(tab.scopeKey);
-      if (this.activeTabIds.get(tab.scopeKey) === tab.id) {
-        this.activeTabIds.set(tab.scopeKey, scoped.at(-1)?.id ?? null);
-      }
+      this.dropEmptyStage(tab.scopeKey);
       this.applyVisibility();
       this.emitState(tab.scopeKey);
     });
@@ -275,9 +275,9 @@ module.exports = {
     }
   },
 
-  async toggleDevTools(scopeKey) {
+  async toggleDevTools(scopeKey, stage = null) {
     const scope = this.requireScope(scopeKey);
-    const activeId = this.activeTabIds.get(scope);
+    const activeId = this.activeIdIn(scope, stage);
     const tab = this.scopeTabs(scope).find((candidate) => candidate.id === activeId);
     if (!tab) return this.state(scope);
     await this.wakeTab(tab);
@@ -320,7 +320,7 @@ module.exports = {
     );
     try {
       const { Menu } = this.electron();
-      Menu.buildFromTemplate(items).popup({ window: this.stageWindow(tab.scopeKey) });
+      Menu.buildFromTemplate(items).popup({ window: this.windowOfTab(tab) });
     } catch {
     }
   },

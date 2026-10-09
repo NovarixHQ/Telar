@@ -56,6 +56,7 @@ function serializeInventory({ tabs, profiles, projects, overrides, active }) {
       ...(tab.profileId ? { profileId: tab.profileId } : {}),
       ...(tab.viewport === undefined ? {} : { viewport: tab.viewport }),
       ...(tab.viewportMode === "fit" || tab.viewportMode === "fixed" ? { viewportMode: tab.viewportMode } : {}),
+      ...(tab.inWindow ? { inWindow: true } : {}),
     });
   }
   for (const [scopeKey, scope] of Object.entries(scopes)) {
@@ -107,6 +108,7 @@ function parseInventory(document, registry) {
         ...(viewport === undefined ? {} : { viewport }),
 
         ...(tab.viewportMode === "fit" || tab.viewportMode === "fixed" ? { viewportMode: tab.viewportMode } : {}),
+        ...(tab.inWindow === true ? { inWindow: true } : {}),
       });
       if (tabs.length >= MAX_TABS_PER_SCOPE) break;
     }

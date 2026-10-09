@@ -134,6 +134,7 @@ class DesktopBrowserManager {
         tab.url = remembered.url;
         tab.title = remembered.title;
         if (remembered.viewport) tab.viewport = remembered.viewport;
+        if (remembered.inWindow) tab.restoredInWindow = true;
 
         if (remembered.viewportMode === "fixed") tab.viewportMode = "fixed";
         else if (remembered.viewportMode === "fit") tab.viewportMode = "fit";
@@ -157,6 +158,7 @@ class DesktopBrowserManager {
         profileId: tab.profileId,
         ...(tab.viewport ? { viewport: tab.viewport } : {}),
         viewportMode: this.viewportModeOf(tab),
+        inWindow: Boolean(tab.stage || tab.restoredInWindow),
       })),
       profiles: this.scopeProfiles,
       projects: this.scopeProjects,
@@ -200,10 +202,12 @@ class DesktopBrowserManager {
     return this.tabs.filter((tab) => tab.scopeKey === scope);
   }
 
-  state(scopeKey) {
+  state(scopeKey, viewer = null) {
     const scope = this.requireScope(scopeKey);
-    const tabs = this.scopeTabs(scope);
-    const activeTabId = this.activeTabIds.get(scope) ?? null;
+    const stage = this.stageOfSender(scope, viewer);
+    const all = this.scopeTabs(scope);
+    const tabs = this.placeTabs(scope, stage);
+    const activeTabId = this.activeIdIn(scope, stage);
     const agentTabId = this.peekTarget(scope, {})?.id ?? null;
     return {
       scopeKey: scope,
@@ -219,10 +223,10 @@ class DesktopBrowserManager {
       provider: "desktop",
 
       controller: (() => { const tab = tabs.find((entry) => entry.id === activeTabId); return tab ? this.tabActivity(tab) : "idle"; })(),
-      tabs: tabs.map((tab, index) => ({
-        index,
+      tabs: tabs.map((tab) => ({
+        index: all.indexOf(tab),
         id: tab.id,
-        title: tab.title || `Tab ${index + 1}`,
+        title: tab.title || `Tab ${all.indexOf(tab) + 1}`,
         url: tab.url || "about:blank",
         active: tab.id === activeTabId,
 
@@ -251,7 +255,7 @@ class DesktopBrowserManager {
         const tab = tabs.find((entry) => entry.id === activeTabId);
         if (!tab) return null;
         const viewport = this.effectiveViewport(tab);
-        const bounds = this.stageBoundsOf(scope);
+        const bounds = this.boundsOfTab(tab);
         const fit = this.isNativeFit(tab) ? { scale: 1, rect: { ...bounds } } : fitViewport(viewport, bounds, this.zoomOf(tab));
         return { ...viewport, mode: this.viewportModeOf(tab), scale: fit.scale, zoom: this.zoomOf(tab), rect: fit.rect, bounds, presets: VIEWPORT_PRESETS };
       })(),
@@ -273,60 +277,60 @@ class DesktopBrowserManager {
     if (this.boundsEmit?.scope === scope) this.cancelBoundsEmit();
     this.version += 1;
     if (this.window.isDestroyed()) return;
-    this.sendToScope(scope, "telar:browser:state", extra ? { ...this.state(scope), ...extra } : this.state(scope));
+    this.sendState(scope, extra);
   }
 
-  async action(scopeKey, action) {
+  async action(scopeKey, action, sender = null) {
     const scope = this.requireScope(scopeKey);
     const kind = action?.action;
+    const stage = this.stageOfSender(scope, sender);
+    const here = () => this.placeTabs(scope, stage).find((tab) => tab.id === this.activeIdIn(scope, stage));
+    const chosen = () => (action.index === undefined ? this.activeTab(scope, stage) : this.tabAt(scope, action.index));
+    const viewed = (work) => work.then(() => this.state(scope, sender));
 
-    if (kind === "navigate" || kind === "back" || kind === "forward" || kind === "reload") {
-      this.noteHumanInput(scope, { force: true });
+    if (kind === "navigate" || kind === "back" || kind === "forward" || kind === "reload" || kind === "intent") {
+      this.noteHumanInput(scope, { force: true, ...(here() ? { tab: here() } : {}) });
     }
 
-    if (kind === "intent") {
-      this.noteHumanInput(scope, { force: true });
-      return this.state(scope);
-    }
+    if (kind === "intent") return this.state(scope, sender);
 
-    if (kind === "toggle-devtools") return this.toggleDevTools(scope);
+    if (kind === "toggle-devtools") return viewed(this.toggleDevTools(scope, stage));
 
     if (kind === "hard-reload") {
-      const tab = await this.wakeTab(action.index === undefined ? this.activeTab(scope) : this.tabAt(scope, action.index));
+      const tab = await this.wakeTab(chosen());
       this.noteHumanInput(scope, { force: true });
       await this.beforeNavigation(tab);
 
       tab.view.webContents.reloadIgnoringCache();
-      return this.state(scope);
+      return this.state(scope, sender);
     }
     if (kind === "zoom") {
-      const tab = await this.wakeTab(action.index === undefined ? this.activeTab(scope) : this.tabAt(scope, action.index));
+      const tab = await this.wakeTab(chosen());
       tab.zoom = zoomStep(tab.zoom, action.direction);
       this.applyZoom(tab);
       this.emitState(scope);
-      return this.state(scope);
+      return this.state(scope, sender);
     }
     if (kind === "appearance") {
-      const tab = await this.wakeTab(action.index === undefined ? this.activeTab(scope) : this.tabAt(scope, action.index));
+      const tab = await this.wakeTab(chosen());
       tab.colorScheme = resolveColorScheme(action.scheme);
       await this.applyGeometry(tab);
       this.emitState(scope);
-      return this.state(scope);
+      return this.state(scope, sender);
     }
-    if (kind === "pop-out") return this.popOut(scope);
+    if (kind === "pop-out") return (this.popOut(scope, { index: action.index }), this.state(scope, sender));
     if (kind === "show-window") return this.showStage(scope);
-    if (kind === "bring-back") return this.bringBack(scope);
-    if (kind === "float") return this.floatStage(scope, typeof action.on === "boolean" ? action.on : undefined);
-    if (kind === "new") return (await this.createTab(scope, action.url || "about:blank", "human"), this.state(scope));
-    if (kind === "close") return (this.closeTab(scope, action.index), this.state(scope));
+    if (kind === "bring-back") return (this.bringBack(scope), this.state(scope, sender));
+    if (kind === "float") return (this.floatStage(scope, typeof action.on === "boolean" ? action.on : undefined, { index: action.index, fromWindow: Boolean(stage) }), this.state(scope, sender));
+    if (kind === "new") return viewed(this.createTab(scope, action.url || "about:blank", "human", stage));
+    if (kind === "close") return (this.closeTab(scope, action.index, stage), this.state(scope, sender));
 
     if (kind === "resize") {
-      const tab = action.index === undefined ? this.activeTab(scope) : this.tabAt(scope, action.index);
-      await this.resizeTab(tab, action);
+      await this.resizeTab(chosen(), action);
 
-      return action.live === true ? null : this.state(scope);
+      return action.live === true ? null : this.state(scope, sender);
     }
-    return this.performAction(scope, action, "human");
+    return viewed(this.performAction(scope, action, "human", stage));
   }
 
   persistSync() {
@@ -334,35 +338,35 @@ class DesktopBrowserManager {
     this.tabStore.flushSync(this.inventory());
   }
 
-  async performAction(scopeKey, action, opener = "agent") {
+  async performAction(scopeKey, action, opener = "agent", stage = null) {
     const scope = this.requireScope(scopeKey);
     switch (action?.action) {
       case "new":
-        await this.createTab(scope, action.url || "about:blank", opener);
+        await this.createTab(scope, action.url || "about:blank", opener, stage);
         break;
       case "select":
         await this.selectTab(scope, action.index);
         break;
       case "close":
-        this.closeTab(scope, action.index);
+        this.closeTab(scope, action.index, stage);
         break;
 
       case "duplicate": {
-        const source = action.index === undefined ? this.activeTab(scope) : this.tabAt(scope, action.index);
+        const source = action.index === undefined ? this.activeTab(scope, stage) : this.tabAt(scope, action.index);
         const live = source.view && !source.view.webContents.isDestroyed() ? source.view.webContents.getURL() : "";
-        await this.createTab(scope, live || source.url || "about:blank", opener);
+        await this.createTab(scope, live || source.url || "about:blank", opener, source.stage);
         break;
       }
       case "navigate": {
-        const tab = this.scopeTabs(scope).length ? this.activeTab(scope) : await this.createTab(scope, "about:blank", opener);
+        const tab = this.placeTabs(scope, stage).length ? this.activeTab(scope, stage) : await this.createTab(scope, "about:blank", opener, stage);
         await this.navigateTab(tab, action.url);
         break;
       }
       case "back":
-        await this.goBack(await this.wakeTab(this.activeTab(scope)));
+        await this.goBack(await this.wakeTab(this.activeTab(scope, stage)));
         break;
       case "forward": {
-        const tab = await this.wakeTab(this.activeTab(scope));
+        const tab = await this.wakeTab(this.activeTab(scope, stage));
         const wc = tab.view.webContents;
         if (navigationFlag(wc, "canGoForward")) {
           await this.beforeNavigation(tab);
@@ -372,7 +376,7 @@ class DesktopBrowserManager {
       }
 
       case "reload": {
-        const tab = await this.wakeTab(action.index === undefined ? this.activeTab(scope) : this.tabAt(scope, action.index));
+        const tab = await this.wakeTab(action.index === undefined ? this.activeTab(scope, stage) : this.tabAt(scope, action.index));
         await this.beforeNavigation(tab);
         tab.view.webContents.reload();
         break;
@@ -578,11 +582,8 @@ class DesktopBrowserManager {
 
   releaseScope(scopeKey, destroy = false, { closedByPerson = false } = {}) {
     const scope = this.requireScope(scopeKey);
-    const scoped = this.scopeTabs(scope);
-    if (this.isPopped(scope)) {
-      if (!destroy) return;
-      this.bringBack(scope);
-    }
+    if (destroy && this.isPopped(scope)) this.bringBack(scope);
+    const scoped = this.placeTabs(scope, null);
 
     if (destroy && closedByPerson && scoped.length) {
       this.scopesClosedByPerson.add(scope);

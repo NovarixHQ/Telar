@@ -19,7 +19,6 @@ module.exports = {
     return { path: file, url: shot.url };
   },
 
-  // Only files this manager saved can be read back, so a renderer cannot use it to read arbitrary paths.
   copyScreenshot(file) {
     const resolved = path.resolve(String(file || ""));
     if (path.dirname(resolved) !== path.resolve(this.screenshotsPath())) throw new Error("That file is not a browser screenshot.");

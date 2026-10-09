@@ -8,7 +8,6 @@ import { cn } from "@/ui/utils";
 export type ToastAction = { id: string; label: string; onClick: () => void; disabled?: boolean };
 export type ToastData = { actions?: readonly ToastAction[] };
 
-/** Add, update or close a toast from anywhere: `toastManager.add({ title, type: "success", data: { actions } })`. */
 export const toastManager = Toast.createToastManager();
 
 const ACTION = "rounded-md border border-border px-2 py-0.5 text-2xs font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-60";
@@ -48,7 +47,6 @@ function ToastList() {
   ));
 }
 
-/** Mounted once at the root; renders whatever `toastManager` holds. */
 export function Toaster() {
   return (
     <Toast.Provider toastManager={toastManager}>

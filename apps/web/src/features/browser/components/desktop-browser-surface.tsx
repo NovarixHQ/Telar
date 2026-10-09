@@ -33,7 +33,6 @@ const SIZE_FIELD = "h-6 w-14 rounded-md border border-border bg-background px-1.
 /** Opens `key` or closes whichever menu is open, for a Popover's `onOpenChange`. */
 const toggle = (b: BrowserUi, key: BrowserOverlay) => (open: boolean) => (open ? b.setOpenOverlay(key) : b.closeOverlay());
 
-// No trigger of its own: a question opens it under the address, and the ⋯ menu's row reopens a waved-away one.
 function SitePermissions({ b, openOverlay, anchor }: { b: BrowserUi; openOverlay: BrowserOverlay; anchor: React.RefObject<HTMLInputElement | null> }) {
   const { activeOrigin, activePrompt, sitePermissions, permissionBusy } = b;
   if (!(activeOrigin || activePrompt) || !b.bridge.sitePermissions) return null;

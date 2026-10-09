@@ -5,7 +5,6 @@ const COPIED_MS = 2_000;
 
 const failure = (error: unknown) => (error instanceof Error ? error.message : "An error occurred.");
 
-/** Announces a saved screenshot with T3's three actions; a copy says "Copied!" for two seconds. */
 export function showScreenshotToast(bridge: DesktopBrowserBridge, path: string) {
   const copied = { path: false, image: false };
   let id = "";

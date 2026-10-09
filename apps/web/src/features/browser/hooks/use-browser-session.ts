@@ -5,6 +5,7 @@ import { captionFor } from "../annotation";
 import { describePermissionDenial, type PermissionAnswer } from "../components/permission-prompt";
 import { addressValue, fileFromCapture, originOfUrl, readSitePermissionsFor, StaleScopeError, TAB_SELECT_CHORDS } from "../model";
 import type { ScopeGuard } from "../scope-guard";
+import { showScreenshotFailure, showScreenshotToast } from "../screenshot-toast";
 import type { DesktopBrowserBridge, DesktopBrowserCapture } from "../types";
 import { keepRatio, ratioOf, sizeFromFields, stepField, type ViewportMode } from "../viewport";
 import type { BrowserStore } from "./use-browser-store";
@@ -308,7 +309,7 @@ export function useBrowserPermissions({ bridge, scopeKey }: BrowserProps, s: Bro
 
 type Act = (action: Record<string, unknown>) => Promise<void>;
 
-/** The camera and the pen; each capture is dropped if the scope changed while it ran. */
+/** The camera and the pen; an attach or annotate capture is dropped if the scope changed while it ran. */
 export function useBrowserCapture({ bridge, scopeKey, onAttach }: BrowserProps, s: BrowserStore, { activeTab }: BrowserView) {
   const { scope, capturing, setCapturing, setActionError, setAnnotating } = s;
   const shoot = async (options: { fullPage?: boolean; elements?: boolean }, failed: string, apply: (shot: DesktopBrowserCapture) => void) => {
@@ -341,8 +342,22 @@ export function useBrowserCapture({ bridge, scopeKey, onAttach }: BrowserProps, 
         elements: shot.elements ?? [],
       }),
     );
-  const canCapture = Boolean(bridge.capture && onAttach && activeTab && addressValue(activeTab.url) !== "" && !activeTab.sleeping);
-  return { captureInto, startAnnotate, canCapture };
+  const saveShot = async (options: { fullPage?: boolean }) => {
+    if (!bridge.saveScreenshot || capturing) return;
+    setCapturing(true);
+    try {
+      const saved = await bridge.saveScreenshot(scopeKey, options);
+      showScreenshotToast(bridge, saved.path);
+    } catch (error) {
+      showScreenshotFailure(error);
+    } finally {
+      setCapturing(false);
+    }
+  };
+  const pageShown = Boolean(activeTab && addressValue(activeTab.url) !== "" && !activeTab.sleeping);
+  const canCapture = Boolean(bridge.capture && onAttach && pageShown);
+  const canSave = Boolean(bridge.saveScreenshot && pageShown);
+  return { captureInto, startAnnotate, saveShot, canCapture, canSave };
 }
 
 /** The device toolbar's size fields and rail drags. */

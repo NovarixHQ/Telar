@@ -55,38 +55,50 @@ describe("per-project browser profiles", () => {
 
     expect(hostsByPartition.get(pa).added[0]).not.toBe(hostsByPartition.get(pb).added[0]);
   });
-  test("switching a session's profile leaves its open tabs in the identity they were signed into", async () => {
+  test("switching a session's profile moves its open tabs into it and reloads the live ones at the same address", async () => {
     const { manager } = makeHarness();
     manager.declareProfile("s", "project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     await manager.createTab("s", "https://one.example");
-    const before = manager.scopeTabs("s")[0];
-    const beforePartition = before.partition;
-    const view = before.view;
+    await manager.createTab("s", "https://two.example");
+    const [first, second] = manager.scopeTabs("s");
+    const views = [first.view, second.view];
 
     const other = manager.profiles.create({ label: "Other" });
-    const binding = manager.setScopeProfile("s", other.id);
+    const binding = await manager.setScopeProfile("s", other.id);
     expect(binding.profileId).toBe(other.id);
 
-    expect(before.view).toBe(view);
-    expect(before.partition).toBe(beforePartition);
-    expect(before.profileId).not.toBe(other.id);
-
-    await manager.createTab("s", "https://two.example");
-    const [old, fresh] = manager.scopeTabs("s");
-    expect(old.partition).toBe(beforePartition);
-    expect(fresh.partition).toBe(other.partition);
-
-    const state = manager.state("s");
-    expect(state.profile.id).toBe(other.id);
-    expect(state.tabs.map((tab) => tab.profileId)).toEqual([old.profileId, other.id]);
+    expect(manager.scopeTabs("s").map((tab) => [tab.profileId, tab.partition, tab.url])).toEqual([
+      [other.id, other.partition, "https://one.example/"],
+      [other.id, other.partition, "https://two.example/"],
+    ]);
+    expect(first.view).not.toBe(views[0]);
+    expect(second.view).not.toBe(views[1]);
+    expect(views.every((view) => view.webContents.isDestroyed())).toBe(true);
+    expect(manager.state("s").profile.id).toBe(other.id);
   });
 
-  test("a session's own profile choice survives the engine re-declaring the same project every turn", () => {
+  test("a tab already in the chosen profile is left alone, and a sleeping tab moves without waking", async () => {
+    const { manager } = makeHarness();
+    manager.declareProfile("s", "project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    await manager.createTab("s", "https://one.example");
+    const tab = manager.scopeTabs("s")[0];
+    const original = manager.profiles.get(tab.profileId);
+    const view = tab.view;
+    await manager.setScopeProfile("s", original.id);
+    expect(tab.view).toBe(view);
+
+    manager.hibernateTab(tab);
+    const other = manager.profiles.create({ label: "Other" });
+    await manager.setScopeProfile("s", other.id);
+    expect([tab.view, tab.partition]).toEqual([null, other.partition]);
+  });
+
+  test("a session's own profile choice survives the engine re-declaring the same project every turn", async () => {
     const { manager } = makeHarness();
     const project = "project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     manager.declareProfile("s", project);
     const chosen = manager.profiles.create({ label: "Chosen" });
-    manager.setScopeProfile("s", chosen.id);
+    await manager.setScopeProfile("s", chosen.id);
     expect(manager.declareProfile("s", project).profileId).toBe(chosen.id);
     expect(manager.partitionOf("s")).toBe(chosen.partition);
   });
@@ -114,7 +126,7 @@ describe("per-project browser profiles", () => {
     manager.declareProfile("s", "project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     await manager.createTab("s", "https://one.example");
     expect(() => manager.declareProfile("s", "none")).toThrow(/already has tabs in profile/);
-    expect(() => manager.setScopeProfile("s", "bp_00000000000000ff")).toThrow(/No browser profile/);
+    await expect(manager.setScopeProfile("s", "bp_00000000000000ff")).rejects.toThrow(/No browser profile/);
   });
 
   test("clearing a profile's data wipes that profile's session and no other", async () => {
@@ -138,7 +150,7 @@ describe("per-project browser profiles", () => {
       manager.profiles.assign("project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", work.id);
       manager.declareProfile("a", "project_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
       manager.declareProfile("s", "project_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-      manager.setScopeProfile("s", work.id);
+      await manager.setScopeProfile("s", work.id);
       await manager.createTab("s", "https://one.example");
       await manager.createTab("s", "https://two.example");
       expect(manager.listProfiles().find((profile) => profile.id === work.id)).toMatchObject({ sessions: 2 });
@@ -411,9 +423,9 @@ describe("a project's profile reaches all of its sessions", () => {
     await manager.createTab("sub", "https://school.example/");
     const school = manager.profiles.create({ label: "School" });
     const work = manager.profiles.create({ label: "Work" });
-    manager.setScopeProfile("picked", work.id);
+    await manager.setScopeProfile("picked", work.id);
 
-    manager.setScopeProfile("parent", school.id);
+    await manager.setScopeProfile("parent", school.id);
     manager.assignProjectProfile(P, school.id);
     expect(manager.activeProfile("sub").label).toBe("School");
     expect(manager.scopeTabs("sub").map((tab) => tab.partition)).toEqual([school.partition]);

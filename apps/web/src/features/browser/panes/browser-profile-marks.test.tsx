@@ -91,7 +91,7 @@ describe("a mark, drawn", () => {
   });
 });
 
-describe("the browser panel's profile chip", () => {
+describe("the browser panel's profile marks", () => {
   const work = { id: "bp_1", label: "Work", partition: "persist:a", icon: "briefcase", color: "amber", account: "me@work.example" };
   const home = { id: "bp_2", label: "Home", partition: "persist:b", icon: "rocket" };
   const state = {
@@ -115,23 +115,22 @@ describe("the browser panel's profile chip", () => {
     setScopeProfile: async () => ({ profileId: "bp_1", partition: "persist:a" }),
   };
 
-  async function mountPanel() {
+  async function profileRow() {
     const { host } = await mount(<DesktopBrowserSurface bridge={bridge} scopeKey="session_a" projectId="project_a" />);
-    await flush(() => Boolean(host.querySelector('[aria-label^="Browser profile:"]')));
-    return host.querySelector('[aria-label^="Browser profile:"]') as HTMLElement;
+    await flush(() => Boolean(host.querySelector('[aria-label="Browser options"]')));
+    await press(host.querySelector('[aria-label="Browser options"]')!);
+    return [...document.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Profile:")) as HTMLElement;
   }
 
-  test("shows the profile's icon in its colour, and says the name only as its label and tooltip", async () => {
-    const chip = await mountPanel();
-    expect(chip.getAttribute("aria-label")).toBe("Browser profile: Work (me@work.example)");
-    expect(chip.getAttribute("title")).toContain("Browser profile Work");
-    expect(chip.textContent).toBe("");
-    expect(chip.innerHTML).toContain("lucide-briefcase");
-    expect(chip.innerHTML).toContain("var(--subject-amber)");
+  test("the ⋯ menu's profile row shows the profile's icon in its colour beside its name", async () => {
+    const row = await profileRow();
+    expect(row.textContent).toBe("Profile: Work");
+    expect(row.innerHTML).toContain("lucide-briefcase");
+    expect(row.innerHTML).toContain("var(--subject-amber)");
   });
 
-  test("the popover lists every profile by name, with its glyph beside it", async () => {
-    await press(await mountPanel());
+  test("its pane lists every profile by name, with its glyph beside it", async () => {
+    await press(await profileRow());
     const rows = [...document.querySelectorAll("button[aria-pressed]")];
     expect(rows.map((row) => row.textContent)).toEqual(["Work", "Home"]);
     expect(rows[1]!.innerHTML).toContain("lucide-rocket");

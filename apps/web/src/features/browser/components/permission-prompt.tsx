@@ -31,7 +31,7 @@ function PermissionKindIcon({ kind, className }: { kind: SitePermissionKind; cla
   return <Icon aria-hidden className={cn("size-3.5", className)} />;
 }
 
-export function SiteSecurityIcon({ origin, className }: { origin: string | undefined; className?: string }) {
+function SiteSecurityIcon({ origin, className }: { origin: string | undefined; className?: string }) {
   const secure = Boolean(origin && origin.startsWith("https://"));
   const Icon = secure ? LockIcon : GlobeIcon;
   return <Icon aria-hidden className={cn("size-3.5", className)} />;

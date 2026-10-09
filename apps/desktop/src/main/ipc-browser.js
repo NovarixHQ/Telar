@@ -65,11 +65,11 @@ function registerProfileIpc({ requireLoginOffer }) {
     };
   });
 
-  ipcMain.handle("telar:browser:create-profile", (event, input) => {
+  ipcMain.handle("telar:browser:create-profile", async (event, input) => {
     const manager = requireBrowserManager(event);
     const profile = manager.profiles.create({ label: input?.label, account: input?.account, icon: input?.icon, color: input?.color });
 
-    if (input?.scopeKey) manager.setScopeProfile(input.scopeKey, profile.id);
+    if (input?.scopeKey) await manager.setScopeProfile(input.scopeKey, profile.id);
     if (input?.scopeKey && input?.assignProject) {
       const projectKey = manager.profileOf(input.scopeKey);
       if (projectKey) manager.assignProjectProfile(projectKey, profile.id);
@@ -205,6 +205,14 @@ function registerTabIpc({ requireLoginOffer }) {
       elements: Boolean(input?.elements),
     });
   });
+
+  ipcMain.handle("telar:browser:save-screenshot", (event, input) =>
+    requireCockpitSender(event, "save a screenshot of this browser").saveScreenshot(input?.scopeKey, { fullPage: Boolean(input?.fullPage) }),
+  );
+
+  ipcMain.handle("telar:browser:copy-screenshot", (event, input) =>
+    requireCockpitSender(event, "copy a browser screenshot").copyScreenshot(input?.path),
+  );
 
   ipcMain.handle("telar:browser:tool", (event, input) =>
     requireBrowserManager(event).callTool(input?.scopeKey, input?.name, input?.args || {}),

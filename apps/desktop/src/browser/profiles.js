@@ -20,12 +20,18 @@ module.exports = {
     return this.describeProfileBinding(scope, profile, key);
   },
 
-  setScopeProfile(scopeKey, profileId) {
+  async setScopeProfile(scopeKey, profileId) {
     const scope = this.requireScope(scopeKey);
     const profile = this.profiles.require(profileId);
     this.scopeProfileOverrides.set(scope, profile.id);
     this.scopeProfiles.set(scope, profile.id);
+    const moved = this.scopeTabs(scope).filter((tab) => tab.profileId !== profile.id);
+    const active = this.activeTabIds.get(scope);
+    const liveActiveLast = moved.filter((tab) => tab.view).sort((a, b) => Number(a.id === active) - Number(b.id === active));
+    this.rehomeTabs(moved, profile);
     this.persist();
+    for (const tab of liveActiveLast) await this.wakeTab(tab).catch(() => {});
+    if (liveActiveLast.length) this.applyVisibility();
     this.emitState(scope);
     return this.describeProfileBinding(scope, profile, this.scopeProjects.get(scope) ?? null);
   },

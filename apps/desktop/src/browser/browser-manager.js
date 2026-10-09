@@ -1,4 +1,5 @@
 const { randomUUID } = require("node:crypto");
+const path = require("node:path");
 const { isProtectedUrl } = require("./protected-urls");
 const { ProfileRegistry } = require("./browser-profiles");
 const { serializeInventory, parseInventory } = require("./browser-tab-store");
@@ -99,6 +100,7 @@ class DesktopBrowserManager {
     this.preparedPartitions = new Set();
 
     this.downloadsPath = dependencies.downloadsPath || (() => this.electron().app.getPath("downloads"));
+    this.screenshotsPath = dependencies.screenshotsPath || (() => path.join(this.electron().app.getPath("userData"), "browser-screenshots"));
     this.installDownloads = dependencies.installDownloads || installDownloadHandler;
 
     this.askedDownloads = new Set();
@@ -729,7 +731,7 @@ class DesktopBrowserManager {
   }
 }
 
-mixin(DesktopBrowserManager.prototype, require("./profiles"), require("./interaction"), require("./geometry"), require("./tabs"), require("./tab-wiring"), require("./tools"), require("./focus-guard"), require("./stage"));
+mixin(DesktopBrowserManager.prototype, require("./profiles"), require("./interaction"), require("./geometry"), require("./tabs"), require("./tab-wiring"), require("./tools"), require("./focus-guard"), require("./stage"), require("./screenshots"));
 
 function managerForScope(managers, scopeKey, fallback = null) {
   let best = fallback;

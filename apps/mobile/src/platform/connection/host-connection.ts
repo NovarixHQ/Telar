@@ -22,6 +22,9 @@ const IDEMPOTENT = new Set(["GET", "HEAD"]);
 
 const isAbort = (error: unknown): boolean => (error as { name?: unknown } | null)?.name === "AbortError";
 
+/** The phone reaches the engine through the cockpit, which serves each `/v2/` route under `/api/`. */
+export const viaCockpit = (url: string) => url.replace(/^(https?:\/\/[^/]+)\/v2\//, "$1/api/");
+
 /** The one owner of a host's link: it picks the address, retries with backoff, and is the only thing that aborts its own requests. */
 export class HostConnection {
   readonly client: EngineClient;
@@ -42,10 +45,9 @@ export class HostConnection {
     this.fetch = deps.fetch ?? globalThis.fetch;
     this.clock = deps.clock ?? systemClock;
     this.random = deps.random ?? Math.random;
-    // The phone reaches the engine through the cockpit, which serves each `/v2/` route under `/api/`.
-    const viaCockpit: FetchLike = (input, init) => this.fetch(String(input).replace(/^(https?:\/\/[^/]+)\/v2\//, "$1/api/"), init);
+    const cockpitFetch: FetchLike = (input, init) => this.fetch(viaCockpit(String(input)), init);
     const endpoint = Object.defineProperty({ baseUrl: () => this.address() }, "token", { get: () => this.record.token, enumerable: true }) as { baseUrl: () => string; token: string };
-    this.client = new EngineClient(endpoint, viaCockpit);
+    this.client = new EngineClient(endpoint, cockpitFetch);
   }
 
   get hostId(): string {

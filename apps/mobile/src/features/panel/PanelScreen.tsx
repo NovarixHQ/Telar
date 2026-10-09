@@ -1,6 +1,6 @@
 import { StackActions, useNavigation, useRoute, type NavigationProp, type RouteProp } from "@react-navigation/native";
 import { useEffect } from "react";
-import { Platform, useWindowDimensions, View } from "react-native";
+import { KeyboardAvoidingView, Platform, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { isRegularWidth } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
@@ -31,8 +31,8 @@ export function PanelScreen() {
   }, [panel, params.tab, column]);
 
   return host && !column ? (
-    <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: Theme.canvas }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, paddingTop: insets.top, backgroundColor: Theme.canvas }}>
       <PanelView host={host} sessionId={params.sessionId} panel={panel} state={state} onClose={() => navigation.goBack()} />
-    </View>
+    </KeyboardAvoidingView>
   ) : null;
 }

@@ -19,8 +19,13 @@ test("a settled turn folds every step before its last words into one tally", () 
   const layout = layoutOf("completed", [ran("a"), said("mid", "Looking."), ran("b"), edited("c"), said("end", "Done.")]);
   expect(shape(layout.body)).toEqual(["fold(a,mid,b,c)", "end"]);
   expect(layout.body[0]).toMatchObject({ tally: "Ran command ×2 · Narrated · Edited file", failed: false });
-  expect(layout.opener).toEqual({ kind: "bubble", text: "Please help", attachments: 0 });
+  expect(layout.opener).toEqual({ kind: "bubble", text: "Please help", attachments: [] });
   expect(layout.ending).toBeUndefined();
+});
+
+test("the opening bubble carries the files sent with the prompt", () => {
+  const sent = { id: "att_1", name: "plot.png", mediaType: "image/png", bytes: 2048, path: "/engine/att_1" };
+  expect(layoutOf("completed", [], { attachments: [sent] }).opener).toEqual({ kind: "bubble", text: "Please help", attachments: [sent] });
 });
 
 test("a running turn keeps its words between live runs, and only the newest run is live", () => {

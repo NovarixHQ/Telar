@@ -4,6 +4,7 @@ import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { faded, Icon, Theme, type SymbolName } from "../../ui";
+import { BrowserSurface } from "../browser";
 import { FilesSurface } from "../files";
 import { DiffSurface } from "../git";
 import { TerminalSurface } from "../terminal";
@@ -21,6 +22,7 @@ function Surface({ host, sessionId, active, panel }: { host: HostConnection; ses
   if (active === "diff") return <DiffSurface host={host} sessionId={sessionId} />;
   if (active === "terminal") return <TerminalSurface host={host} sessionId={sessionId} />;
   if (active === "editor") return <FilesSurface key={sessionId} host={host} sessionId={sessionId} />;
+  if (active === "browser") return <BrowserSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "agents") return <SessionSurface key={sessionId} host={host} sessionId={sessionId} />;
   return (
     <Host style={styles.fill}>

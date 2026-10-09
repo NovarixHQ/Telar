@@ -183,9 +183,13 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     context: () => ipcRenderer.invoke("telar:quick-composer:context"),
     onOpen: (listener) => on("telar:quick-composer:open", listener),
     close: () => ipcRenderer.invoke("telar:quick-composer:close"),
-    resize: (height) => ipcRenderer.send("telar:quick-composer:resize", { height }),
+    interactive: (on) => ipcRenderer.send("telar:quick-composer:interactive", on),
+    moved: (spot) => ipcRenderer.send("telar:quick-composer:moved", spot),
     sent: (input) => ipcRenderer.invoke("telar:quick-composer:sent", input),
-    openSettings: () => ipcRenderer.invoke("telar:quick-composer:open-settings"),
+    hold: () => ipcRenderer.send("telar:quick-composer:hold"),
+    failed: (message) => ipcRenderer.send("telar:quick-composer:failed", message),
+    onPermissions: (listener) => on("telar:quick-composer:permissions", listener),
+    openSettings: (permission) => ipcRenderer.invoke("telar:quick-composer:open-settings", permission),
   },
 
   notifications: {

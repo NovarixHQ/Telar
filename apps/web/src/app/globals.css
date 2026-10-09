@@ -1485,3 +1485,15 @@ pre span[style*="--sdm-c"] {
 [data-telar-shell] .app-no-drag {
   -webkit-app-region: no-drag;
 }
+
+html:has([data-surface="quick"]),
+html:has([data-surface="quick"]) body {
+  background: transparent !important;
+}
+[data-surface="quick"] [data-slot="composer-editor"] {
+  min-height: 0;
+}
+[data-surface="quick"] [data-slot="input-group"] {
+  background-color: var(--popover);
+  backdrop-filter: none;
+}

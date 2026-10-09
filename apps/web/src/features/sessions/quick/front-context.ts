@@ -1,18 +1,29 @@
+export type Permission = "accessibility" | "screen";
+export type Permissions = Record<Permission, boolean>;
+
+export type CardSpot = { x: number; y: number };
+
 export type FrontContext = {
   app: string;
   title: string;
   selection: string;
   screenshot: string | null;
-  permissions: { accessibility: boolean; screen: boolean };
+  permissions: Permissions;
+  grantee: string;
+  spot?: CardSpot | null;
 };
 
 export type QuickComposerBridge = {
   context: () => Promise<FrontContext | null>;
   onOpen: (listener: (context: FrontContext) => void) => () => void;
   close: () => Promise<unknown>;
-  resize: (height: number) => void;
+  interactive: (on: boolean) => void;
+  moved: (spot: CardSpot) => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
-  openSettings: () => Promise<unknown>;
+  hold: () => void;
+  failed: (message: string) => void;
+  onPermissions: (listener: (permissions: Permissions) => void) => () => void;
+  openSettings: (permission: Permission) => Promise<unknown>;
 };
 
 export function quickComposerBridge(): QuickComposerBridge | undefined {
@@ -30,12 +41,14 @@ function pngFrom(dataUrl: string, name: string): File {
   return new File([bytes], name, { type: "image/png" });
 }
 
-export function contextFiles(context: FrontContext | null): File[] {
+export type ContextOffer = { id: "window" | "selection"; label: string; file: File };
+
+export function contextOffers(context: FrontContext | null): ContextOffer[] {
   if (!context) return [];
-  const files: File[] = [];
-  if (context.screenshot?.startsWith("data:image/png;base64,")) files.push(pngFrom(context.screenshot, fileName(context)));
-  if (context.selection.trim()) files.push(new File([context.selection], "Selected text.txt", { type: "text/plain" }));
-  return files;
+  const offers: ContextOffer[] = [];
+  if (context.screenshot?.startsWith("data:image/png;base64,")) offers.push({ id: "window", label: `Attach ${context.title || context.app || "window"}`, file: pngFrom(context.screenshot, fileName(context)) });
+  if (context.selection.trim()) offers.push({ id: "selection", label: "Attach selected text", file: new File([context.selection], "Selected text.txt", { type: "text/plain" }) });
+  return offers;
 }
 
 export function missingPermissions(context: FrontContext | null): boolean {

@@ -1,7 +1,7 @@
 "use strict";
 
 const { execFile } = require("node:child_process");
-const { desktopCapturer, systemPreferences } = require("electron");
+const { app: electronApp, desktopCapturer, systemPreferences } = require("electron");
 
 const FRONT_APP_SCRIPT = `
 ObjC.import("AppKit");
@@ -26,8 +26,10 @@ function run() {
   return JSON.stringify(out);
 }`;
 
-const SCREEN_SETTINGS = "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
-const ACCESSIBILITY_SETTINGS = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
+const SETTINGS = {
+  accessibility: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+  screen: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+};
 
 function permissions() {
   return {
@@ -36,13 +38,26 @@ function permissions() {
   };
 }
 
+const requestScreen = () => desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 1, height: 1 } }).catch(() => []);
+
 async function requestPermissions() {
   systemPreferences.isTrustedAccessibilityClient(true);
-  if (systemPreferences.getMediaAccessStatus("screen") === "not-determined") await desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 1, height: 1 } }).catch(() => []);
+  if (systemPreferences.getMediaAccessStatus("screen") === "not-determined") await requestScreen();
 }
 
-function settingsFor(missing) {
-  return missing.accessibility ? ACCESSIBILITY_SETTINGS : SCREEN_SETTINGS;
+async function openSettings(permission, open) {
+  const url = settingsFor(permission);
+  if (!url) return;
+  if (permission === "screen" && !permissions().screen) await requestScreen();
+  return open(url);
+}
+
+function settingsFor(permission) {
+  return SETTINGS[permission] ?? null;
+}
+
+function grantee(execPath = process.execPath) {
+  return /([^/]+)\.app\/Contents\/MacOS\//.exec(execPath)?.[1] ?? electronApp.getName();
 }
 
 function frontApp(run = execFile) {
@@ -74,7 +89,8 @@ async function readFrontContext({ ownSourceIds = [], granted = permissions(), ru
     selection: granted.accessibility ? (app?.selection ?? "") : "",
     screenshot,
     permissions: granted,
+    grantee: grantee(),
   };
 }
 
-module.exports = { permissions, readFrontContext, requestPermissions, settingsFor };
+module.exports = { grantee, openSettings, permissions, readFrontContext, requestPermissions, settingsFor };

@@ -31,6 +31,9 @@ class FakeWebContents extends Emitter {
   setWindowOpenHandler(handler) {
     this.windowOpenHandler = handler;
   }
+  reload() {
+    this.reloads = (this.reloads ?? 0) + 1;
+  }
   send(channel, payload) {
     this.sent.push({ channel, payload });
   }
@@ -113,6 +116,12 @@ class FakeBrowserWindow extends Emitter {
   }
   setPosition(x, y) {
     this.bounds = { ...this.bounds, x, y };
+  }
+  getPosition() {
+    return [this.bounds.x, this.bounds.y];
+  }
+  setIgnoreMouseEvents(ignore, options) {
+    this.ignoresMouse = ignore ? options ?? {} : false;
   }
   setContentSize(width, height) {
     this.bounds = { ...this.bounds, width, height };

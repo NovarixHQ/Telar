@@ -58,7 +58,7 @@ export function ComposerFoot({
       inert={hidden}
       className={cn("relative z-0 transition-[translate,opacity] duration-300 ease-out motion-reduce:transition-none", hidden && "-translate-y-full opacity-0")}
     >
-      {projectId && (
+      {projectId && !props.compact && (
         <WorkspaceEnvironment
           projectId={projectId}
           onAvailability={onAvailability}

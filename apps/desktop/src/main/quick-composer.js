@@ -1,39 +1,43 @@
 "use strict";
 
-const { app, BrowserWindow, globalShortcut, ipcMain, nativeTheme, Notification, screen, shell } = require("electron");
+const { app, BrowserWindow, globalShortcut, ipcMain, Notification, screen, shell } = require("electron");
 const { cockpitWindowOptions } = require("./cockpit-window");
 const { jsonPrefs } = require("./prefs");
-const { windowBackgroundColor } = require("./window-material");
-const { permissions, readFrontContext, requestPermissions, settingsFor } = require("./front-context");
+const { openSettings, permissions, readFrontContext, requestPermissions } = require("./front-context");
 
-const WIDTH = 620;
-const MAX_HEIGHT = 640;
-
-const asked = jsonPrefs("quick-composer.json", { asked: false }, (raw) => ({ asked: raw?.asked === true }), "quick composer");
+const isSpot = (spot) => Number.isFinite(spot?.x) && Number.isFinite(spot?.y);
+const prefs = jsonPrefs(
+  "quick-composer.json",
+  { asked: false, positions: {} },
+  (raw) => ({ asked: raw?.asked === true, positions: Object.fromEntries(Object.entries(raw?.positions ?? {}).filter(([, spot]) => isSpot(spot))) }),
+  "quick composer",
+);
 
 function panelOptions() {
   const { webPreferences } = cockpitWindowOptions("Quick Composer");
   return {
     type: "panel",
     title: "Quick Composer",
-    width: WIDTH,
-    height: 200,
     show: false,
     frame: false,
     resizable: false,
+    movable: false,
+    transparent: true,
+    hasShadow: false,
+    backgroundColor: "#00000000",
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
-    backgroundColor: windowBackgroundColor({ dark: nativeTheme.shouldUseDarkColors }),
     webPreferences,
   };
 }
 
-function placeNearCursor(win) {
-  const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  win.setPosition(Math.round(workArea.x + (workArea.width - WIDTH) / 2), Math.round(workArea.y + workArea.height * 0.2));
+function coverCursorDisplay(win) {
+  const { id, workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  win.setBounds(workArea);
+  return { id, spot: prefs.read().positions[id] ?? null };
 }
 
 /** The global shortcut and the panel it opens over any app; `openRoute` brings a cockpit window to a path. */
@@ -42,12 +46,29 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   let chord = "";
   let suspended = false;
   let latest = null;
+  let holding = false;
+  let display = null;
+  let reloaded = false;
+
+  const recover = (reason) => {
+    log(`quick composer page failed: ${reason}`);
+    if (reloaded || !win || win.isDestroyed()) return;
+    reloaded = true;
+    win.webContents.reload();
+  };
 
   const panel = () => {
     if (win && !win.isDestroyed()) return win;
     win = new BrowserWindow(panelOptions());
     win.setAlwaysOnTop(true, "floating");
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+    win.on("focus", () => {
+      holding = false;
+      win.webContents.send("telar:quick-composer:permissions", permissions());
+    });
+    win.on("blur", () => holding || hide());
+    win.webContents.on("render-process-gone", (_event, details) => recover(`renderer gone (${details?.reason})`));
+    win.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => isMainFrame && recover(`load failed ${code} ${description}`));
     win.loadURL(new URL("/surface/quick", appUrl).href);
     return win;
   };
@@ -59,13 +80,15 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   const show = async () => {
     const target = panel();
     const ownSourceIds = BrowserWindow.getAllWindows().map((other) => other.getMediaSourceId?.()).filter(Boolean);
-    if (!asked.read().asked) {
-      asked.write({ asked: true });
+    if (!prefs.read().asked) {
+      prefs.write({ ...prefs.read(), asked: true });
       await requestPermissions();
     }
-    latest = await readContext({ ownSourceIds });
-    placeNearCursor(target);
+    const covered = coverCursorDisplay(target);
+    display = covered.id;
+    latest = { ...(await readContext({ ownSourceIds })), spot: covered.spot };
     target.webContents.send("telar:quick-composer:open", latest);
+    target.setIgnoreMouseEvents(true, { forward: true });
     target.show();
     target.focus();
   };
@@ -86,11 +109,17 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   ipcMain.handle("telar:quick-composer:toggle", () => toggle());
   ipcMain.handle("telar:quick-composer:context", (event) => (fromPanel(event) ? latest : null));
   ipcMain.handle("telar:quick-composer:close", (event) => fromPanel(event) && hide());
-  ipcMain.on("telar:quick-composer:resize", (event, { height } = {}) => {
-    if (!fromPanel(event) || !Number.isFinite(height)) return;
-    win.setContentSize(WIDTH, Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height))));
+  ipcMain.on("telar:quick-composer:interactive", (event, on) => fromPanel(event) && win.setIgnoreMouseEvents(on !== true, { forward: true }));
+  ipcMain.on("telar:quick-composer:moved", (event, spot) => {
+    if (!fromPanel(event) || display === null || !isSpot(spot)) return;
+    const saved = prefs.read();
+    prefs.write({ ...saved, positions: { ...saved.positions, [display]: { x: Math.round(spot.x), y: Math.round(spot.y) } } });
   });
-  ipcMain.handle("telar:quick-composer:open-settings", () => shell.openExternal(settingsFor(permissions())));
+  ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
+  ipcMain.on("telar:quick-composer:failed", (event, message) => fromPanel(event) && recover(`page error ${String(message).slice(0, 2000)}`));
+  ipcMain.on("telar:quick-composer:hold", (event) => {
+    if (fromPanel(event)) holding = true;
+  });
   ipcMain.handle("telar:quick-composer:sent", (event, { route, title, detail, open } = {}) => {
     if (!fromPanel(event) || typeof route !== "string" || !route.startsWith("/")) return;
     hide();

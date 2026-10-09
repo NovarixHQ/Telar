@@ -129,15 +129,14 @@ export function Composer(props: ComposerProps) {
   const drop = useDropTarget(editor, addFiles);
   const shape = [attachments.length > 0, question.active, Boolean(driveAway)].join();
   const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
-  const pills = pillsShown && (
-    <ComposerPills
-      {...props}
-      summon={summon}
-      driver={activeDriver}
-      choice={choice}
-      instanceId={session?.providerInstanceId}
-      ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }}
-    />
+  const pills = (
+    <>
+      {props.leading}
+      {pillsShown && (
+        <ComposerPills {...props} summon={summon} driver={activeDriver} choice={choice} instanceId={session?.providerInstanceId}
+          ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }} />
+      )}
+    </>
   );
   const send = (
     <SendButton
@@ -196,7 +195,7 @@ export function Composer(props: ComposerProps) {
                 editorId={EDITOR_ID}
                 kind={kind}
                 text={question.boxText}
-                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(busy, props.whileWorking)}
+                placeholder={question.active ? "Type your own answer, or leave blank…" : (props.placeholder ?? placeholderFor(busy, props.whileWorking))}
                 ready={ready}
                 draft={draft}
                 attachments={attachments}

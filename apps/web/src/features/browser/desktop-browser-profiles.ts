@@ -29,6 +29,7 @@ export type BrowserProfilesBridge = {
   setDefaultProfile: (profileId: string) => Promise<{ profiles: BrowserProfile[] }>;
   deleteProfile?: (profileId: string) => Promise<{ profiles: BrowserProfile[] }>;
   clearProfileData?: (profileId: string) => Promise<{ profiles: BrowserProfile[] }>;
+  forgetProfileLogins?: (profileId: string) => Promise<{ profiles: BrowserProfile[] }>;
 };
 
 export function desktopBrowserProfiles(): BrowserProfilesBridge | undefined {
@@ -65,6 +66,10 @@ export function confirmProfileDeletion(profile: BrowserProfile, profiles: Browse
 
 export function confirmProfileClear(profile: BrowserProfile): string {
   return `Clear cookies and cache for "${profile.label}"? Every site in it signs you out.`;
+}
+
+export function confirmForgetLogins(profile: BrowserProfile): string {
+  return `Forget the logins agents may fill in "${profile.label}"? The next fill on each site asks again.`;
 }
 
 export function profileNameProblem(label: string, existing: BrowserProfile[], ignoreId?: string): string | undefined {

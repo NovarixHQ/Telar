@@ -51,7 +51,7 @@ function registerViewIpc({ requireBrowserSuggestions }) {
 
 }
 
-function registerProfileIpc() {
+function registerProfileIpc({ requireLoginOffer }) {
   ipcMain.handle("telar:browser:bind-profile", (event, input) =>
     requireBrowserManager(event).declareProfile(input?.scopeKey, input?.profileKey),
   );
@@ -103,6 +103,13 @@ function registerProfileIpc() {
   ipcMain.handle("telar:browser:clear-profile-data", async (event, input) => {
     const manager = requireCockpitSender(event, "clear a browser profile's data");
     await manager.clearProfileData(input?.profileId);
+    return { profiles: manager.listProfiles() };
+  });
+
+  ipcMain.handle("telar:browser:forget-profile-logins", async (event, input) => {
+    const manager = requireCockpitSender(event, "forget a browser profile's logins");
+    manager.profiles.require(input?.profileId);
+    await requireLoginOffer().forgetProfile(input.profileId);
     return { profiles: manager.listProfiles() };
   });
 
@@ -253,7 +260,7 @@ function registerTabIpc({ requireLoginOffer }) {
 
 function registerBrowserIpc(deps) {
   registerViewIpc(deps);
-  registerProfileIpc();
+  registerProfileIpc(deps);
   registerTabIpc(deps);
 }
 

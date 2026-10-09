@@ -85,12 +85,7 @@ function parse(raw) {
   return grants;
 }
 
-async function rememberLoginGrant(stateRoot, input, { now = Date.now, mintId = () => `lg_${crypto.randomBytes(8).toString("hex")}` } = {}) {
-  const origin = exactOrigin(input && input.origin);
-  if (!origin) throw new Error("A remembered login needs an exact http(s) origin.");
-  if (!input.profileId) throw new Error("A remembered login needs the browser profile it applies to.");
-  if (!input.itemId) throw new Error("A remembered login needs the 1Password item the human picked.");
-  if (!Array.isArray(input.fields) || !input.fields.length) throw new Error("A remembered login needs the fields the human approved.");
+function mutateGrants(stateRoot, change) {
   const file = path.join(stateRoot, LOGIN_GRANTS_FILE);
   fs.mkdirSync(stateRoot, { recursive: true });
   return withFileLock(`${file}.lock`, () => {
@@ -100,16 +95,36 @@ async function rememberLoginGrant(stateRoot, input, { now = Date.now, mintId = (
     } catch (error) {
       if (error.code !== "ENOENT") console.error(`[telar-desktop] ignoring an unreadable browser login grant file: ${error.message}`);
     }
+    const { grants, result } = change(existing);
+    const temporary = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify({ version: LOGIN_GRANTS_VERSION, grants }, null, 2), { mode: 0o600 });
+    fs.renameSync(temporary, file);
+    try { fs.chmodSync(file, 0o600); } catch {  }
+    return result;
+  });
+}
+
+async function rememberLoginGrant(stateRoot, input, { now = Date.now, mintId = () => `lg_${crypto.randomBytes(8).toString("hex")}` } = {}) {
+  const origin = exactOrigin(input && input.origin);
+  if (!origin) throw new Error("A remembered login needs an exact http(s) origin.");
+  if (!input.profileId) throw new Error("A remembered login needs the browser profile it applies to.");
+  if (!input.itemId) throw new Error("A remembered login needs the 1Password item the human picked.");
+  if (!Array.isArray(input.fields) || !input.fields.length) throw new Error("A remembered login needs the fields the human approved.");
+  return mutateGrants(stateRoot, (existing) => {
     const grant = { ...input, origin, id: mintId(), createdAt: now() };
     const kept = existing.filter(
       (candidate) => !(candidate.profileId === grant.profileId && candidate.origin === grant.origin && candidate.itemId === grant.itemId),
     );
-    const temporary = `${file}.${process.pid}.tmp`;
-    fs.writeFileSync(temporary, JSON.stringify({ version: LOGIN_GRANTS_VERSION, grants: [...kept, grant] }, null, 2), { mode: 0o600 });
-    fs.renameSync(temporary, file);
-    try { fs.chmodSync(file, 0o600); } catch {  }
-    return grant;
+    return { grants: [...kept, grant], result: grant };
   });
 }
 
-module.exports = { rememberLoginGrant, exactOrigin, LOGIN_GRANTS_FILE, LOGIN_GRANTS_VERSION };
+async function forgetLoginGrants(stateRoot, profileId) {
+  if (!profileId) throw new Error("Forgetting logins needs the browser profile they belong to.");
+  return mutateGrants(stateRoot, (existing) => {
+    const kept = existing.filter((grant) => grant.profileId !== profileId);
+    return { grants: kept, result: existing.length - kept.length };
+  });
+}
+
+module.exports = { rememberLoginGrant, forgetLoginGrants, exactOrigin, LOGIN_GRANTS_FILE, LOGIN_GRANTS_VERSION };

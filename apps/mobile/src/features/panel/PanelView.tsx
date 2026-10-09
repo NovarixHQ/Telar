@@ -1,4 +1,4 @@
-import { Button, ContentUnavailableView, Divider, HStack, Host, Spacer, VStack } from "@expo/ui/swift-ui";
+import { Button, Divider, HStack, Host, Spacer, VStack } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, foregroundStyle, frame, padding, shapes } from "@expo/ui/swift-ui/modifiers";
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
@@ -7,12 +7,13 @@ import { faded, Icon, Theme, type SymbolName } from "../../ui";
 import { BrowserSurface } from "../browser";
 import { FilesSurface } from "../files";
 import { DiffSurface } from "../git";
+import { SimulatorSurface } from "../simulators";
 import { TerminalSurface } from "../terminal";
 import type { PanelModel, PanelState } from "./model";
 import { PanelEmptyState } from "./PanelEmptyState";
 import { PanelTabStrip } from "./PanelTabStrip";
 import { SessionSurface } from "./session/SessionSurface";
-import { CORE_TABS, TAB_INFO, type PanelTab } from "./tabs";
+import { CORE_TABS, type PanelTab } from "./tabs";
 
 type PanelPresentation = "page" | "column";
 
@@ -20,13 +21,14 @@ type Props = { host: HostConnection; sessionId: string; panel: PanelModel; state
 
 function Surface({ host, sessionId, active, panel }: { host: HostConnection; sessionId: string; active: PanelTab | undefined; panel: PanelModel }) {
   if (active === "diff") return <DiffSurface host={host} sessionId={sessionId} />;
+  if (active === "simulator") return <SimulatorSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "terminal") return <TerminalSurface host={host} sessionId={sessionId} />;
   if (active === "editor") return <FilesSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "browser") return <BrowserSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "agents") return <SessionSurface key={sessionId} host={host} sessionId={sessionId} />;
   return (
     <Host style={styles.fill}>
-      {active ? <ContentUnavailableView title="Not available here" systemImage={TAB_INFO[active].icon} description="This surface isn't in the iPhone app yet." /> : <PanelEmptyState offered={CORE_TABS} onOpen={(tab) => panel.open(tab)} />}
+      <PanelEmptyState offered={CORE_TABS} onOpen={(tab) => panel.open(tab)} />
     </Host>
   );
 }

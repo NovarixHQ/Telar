@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
-import { pollDelay, simulatorBanner, simulatorIcon, simulatorSubtitle } from "./simulators";
+import { pollDelay, simulatorBanner, simulatorSubtitle } from "./simulators";
 
 const simulator = (extra: Partial<SimulatorSummary> = {}): SimulatorSummary => ({ id: "s", platform: "ios", name: "iPhone 17", version: "iOS 26.0", booted: false, physical: false, ...extra });
 const hub = (extra: Partial<SimulatorsState>): SimulatorsState =>
@@ -24,9 +24,8 @@ describe("Simulators", () => {
     expect(pollDelay(hub({}))).toBe(15000);
   });
 
-  test("rows say what runs and mark watches", () => {
+  test("rows say what runs", () => {
     expect(simulatorSubtitle(simulator({ booted: true }))).toBe("iOS 26.0 · Running");
     expect(simulatorSubtitle(simulator())).toBe("iOS 26.0");
-    expect(simulatorIcon(simulator({ pairedWith: "phone" }))).toBe("applewatch");
   });
 });

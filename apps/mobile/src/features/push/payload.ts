@@ -17,6 +17,12 @@ export function sessionOfUrl(url: unknown): SessionRef | undefined {
 /** The app's own route for a session, which navigation's linking config resolves. */
 export const sessionLink = ({ hostId, sessionId }: SessionRef) => `telar://session/${encodeURIComponent(hostId)}/${encodeURIComponent(sessionId)}`;
 
+/** A Live Activity's or an alert's `telar://session?host=&id=` as the app's route, naming the paired host it means; other links pass through. */
+export function appLink(url: string, paired: string[]): string {
+  const ref = sessionOfUrl(url);
+  return ref ? sessionLink({ ...ref, hostId: pairedHostOf(ref.hostId, paired) ?? ref.hostId }) : url;
+}
+
 /** Alerts are threaded as `<hostId>:<sessionId>`; older ones only carry the url. */
 export function sessionOfAlert(alert: DeliveredAlert): SessionRef | undefined {
   const thread = alert.threadIdentifier ?? "";

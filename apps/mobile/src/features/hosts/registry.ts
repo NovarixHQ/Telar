@@ -37,7 +37,8 @@ export async function forgetHost(hostId: string): Promise<void> {
   await saveHosts([...paired.values()]);
 }
 
-void loadHosts().then((stored) => {
+/** Settles once the stored hosts are in the registry, so a launch link can name one. */
+export const hostsLoaded: Promise<void> = loadHosts().then((stored) => {
   for (const host of stored) {
     if (paired.has(host.hostId)) continue;
     paired.set(host.hostId, host);

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { alertsToRemove, approvalOf, pairedHostOf, pushHostId, readsOf, reconcileQueries, sessionLink, sessionOfAlert, sessionOfUrl } from "./payload";
+import { alertsToRemove, appLink, approvalOf, pairedHostOf, pushHostId, readsOf, reconcileQueries, sessionLink, sessionOfAlert, sessionOfUrl } from "./payload";
 
 const HOST = "3F2A1B4C-0D5E-4F60-8A9B-1C2D3E4F5A6B";
 
@@ -59,4 +59,16 @@ test("a push names the host by the bare UUID it was registered with, which maps 
   expect(pairedHostOf(HOST, paired)).toBe(paired[0]);
   expect(pairedHostOf("99999999-0000-4000-8000-000000000000", paired)).toBeUndefined();
   expect(alertsToRemove([{ identifier: "1", threadIdentifier: `${HOST}:s1` }], [{ hostId: paired[0]!, sessionId: "s1" }])).toEqual(["1"]);
+});
+
+test("a Live Activity row opens the session on the paired host it names, in either id form", () => {
+  const paired = ["host_3f2a1b4c-0d5e-4f60-8a9b-1c2d3e4f5a6b"];
+  expect(appLink(`telar://session?host=${HOST}&id=session_abc`, paired)).toBe("telar://session/host_3f2a1b4c-0d5e-4f60-8a9b-1c2d3e4f5a6b/session_abc");
+  expect(appLink("telar://session?host=host_3f2a1b4c-0d5e-4f60-8a9b-1c2d3e4f5a6b&id=s", paired)).toBe("telar://session/host_3f2a1b4c-0d5e-4f60-8a9b-1c2d3e4f5a6b/s");
+});
+
+test("other links, and a session on a computer this phone doesn't know, pass through as they are", () => {
+  expect(appLink("telar://inbox", [])).toBe("telar://inbox");
+  expect(appLink("telar://new?hostId=h", [])).toBe("telar://new?hostId=h");
+  expect(appLink(`telar://session?host=${HOST}&id=s`, [])).toBe(`telar://session/${HOST}/s`);
 });

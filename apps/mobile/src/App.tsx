@@ -2,10 +2,10 @@ import { NavigationContainer, useNavigationContainerRef, type LinkingOptions } f
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
-import { ConnectScreen } from "./features/hosts";
+import { ConnectScreen, hostsLoaded } from "./features/hosts";
 import { AddProjectScreen } from "./features/projects";
 import { PanelScreen } from "./features/panel";
-import { launchLink, onNotificationLink, startLiveActivityCard, startPush } from "./features/push";
+import { launchLink, onNotificationLink, routeLink, startLiveActivityCard, startPush } from "./features/push";
 import { BranchPickerScreen, NewSessionScreen, ProjectPickerScreen, RailScreen, refreshInbox, SessionScreen } from "./features/sessions";
 import { SettingsScreen } from "./features/settings";
 import { UsageScreen } from "./features/usage";
@@ -17,12 +17,14 @@ const Stack = createSplitStackNavigator<RootStack>();
 
 // `-telarOpenURL <telar://…>` at launch opens that link without iOS's confirmation, which a simulator cannot tap.
 async function initialUrl(): Promise<string | null | undefined> {
+  await hostsLoaded;
   const url: unknown = Settings.get("telarOpenURL");
-  return typeof url === "string" && url.startsWith("telar://") ? url : (launchLink() ?? Linking.getInitialURL());
+  const link = typeof url === "string" && url.startsWith("telar://") ? url : (launchLink() ?? (await Linking.getInitialURL()));
+  return link ? routeLink(link) : link;
 }
 
 function subscribe(listener: (url: string) => void): () => void {
-  const opened = Linking.addEventListener("url", ({ url }) => listener(url));
+  const opened = Linking.addEventListener("url", ({ url }) => listener(routeLink(url)));
   const tapped = onNotificationLink(listener);
   return () => {
     opened.remove();
@@ -32,7 +34,7 @@ function subscribe(listener: (url: string) => void): () => void {
 
 const linking: LinkingOptions<RootStack> = {
   prefixes: ["telar://"],
-  config: { initialRouteName: "Rail", screens: { Pair: "pair", NewSession: "new", BranchPicker: "branches/:hostId/:projectId", AddProject: "add-project/:hostId", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } },
+  config: { initialRouteName: "Rail", screens: { Rail: "inbox", Pair: "pair", NewSession: "new", BranchPicker: "branches/:hostId/:projectId", AddProject: "add-project/:hostId", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } },
   getInitialURL: initialUrl,
   subscribe,
 };

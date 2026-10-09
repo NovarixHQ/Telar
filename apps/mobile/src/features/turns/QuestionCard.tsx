@@ -52,9 +52,14 @@ export function QuestionCard({ draft: initial, busy, onSubmit }: Props) {
   const field = useRef<TextFieldRef>(null);
   const page = currentPage(draft);
   const done = answers(draft);
-  useEffect(() => void field.current?.setText(customText(draft)), [draft.index]);
+  const shownIndex = useRef(draft.index);
+  useEffect(() => {
+    if (shownIndex.current === draft.index) return;
+    shownIndex.current = draft.index;
+    field.current?.setText(customText(draft)).catch(() => {});
+  }, [draft.index]);
   const pick = (choice: string) => {
-    if (customText(draft)) void field.current?.clear();
+    if (customText(draft)) field.current?.clear().catch(() => {});
     setDraft(toggle(draft, choice));
   };
   return (

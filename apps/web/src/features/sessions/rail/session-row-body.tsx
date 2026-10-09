@@ -59,6 +59,20 @@ export function RowBody({
   );
 }
 
+export function MiniBody({ session, marks, trailing }: { session: SidebarSession; marks: ReactNode; trailing: ReactNode }) {
+  return (
+    <>
+      <HostMark hostId={session.hostId} hostName={session.hostName} size={14} />
+      {marks}
+      <span className="shrink-0 opacity-60">
+        <ProviderIcon provider={session.driver} size={12} />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-left text-xs-plus text-sidebar-foreground">{session.title || "Untitled session"}</span>
+      {trailing}
+    </>
+  );
+}
+
 export function RowLink({
   id,
   href,
@@ -66,6 +80,7 @@ export function RowLink({
   searchable,
   searchSelected,
   active,
+  compact,
   plain,
   details,
   anchor,
@@ -78,6 +93,7 @@ export function RowLink({
   searchable: boolean;
   searchSelected: boolean;
   active: boolean;
+  compact: boolean;
   plain: boolean;
   details: ReactNode;
   anchor: RefObject<HTMLDivElement | null>;
@@ -95,7 +111,7 @@ export function RowLink({
       event.preventDefault();
       onRename();
     },
-    className: "flex min-w-0 flex-1 items-center gap-2 px-2 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    className: `flex min-w-0 flex-1 items-center gap-2 px-2 ${compact ? "py-1.5" : "py-2.5"} text-left outline-none focus-visible:ring-2 focus-visible:ring-ring`,
   };
   if (plain) {
     return (

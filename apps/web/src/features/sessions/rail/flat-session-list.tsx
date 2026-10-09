@@ -39,10 +39,12 @@ function FlatRow({
   session,
   context,
   disclosure,
+  compact = false,
 }: {
   session: SidebarSession;
   context: RowContext;
   disclosure?: React.ReactNode;
+  compact?: boolean;
 }) {
   const key = sessionKey(session);
   const slot = context.jumpSlot(key);
@@ -51,6 +53,7 @@ function FlatRow({
       session={session}
       active={key === context.activeSessionId}
       showProject
+      compact={compact}
       band={context.bandFor(session)}
       renderedAt={context.renderedAt}
       onRowChanged={context.onRowChanged}
@@ -70,7 +73,7 @@ function FlatEntryItem({ entry, open, onToggle, context }: { entry: FlatEntry; o
       {shown.length > 0 && (
         <div className="ml-3" role="group" aria-label={`Started from ${entry.session.title || "this session"}`}>
           {shown.map((child) => (
-            <FlatRow key={sessionKey(child)} session={child} context={context} />
+            <FlatRow key={sessionKey(child)} session={child} context={context} compact />
           ))}
         </div>
       )}

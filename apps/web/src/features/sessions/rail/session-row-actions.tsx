@@ -50,6 +50,7 @@ export function RowActions({
   renderedAt,
   onRowChanged,
   band,
+  compact,
   unsettles,
   heldTerminals,
   mutate,
@@ -61,6 +62,7 @@ export function RowActions({
   renderedAt: number;
   onRowChanged: SessionRowChanged;
   band: SessionBand;
+  compact: boolean;
   unsettles: boolean;
   heldTerminals: number;
   mutate: Mutate;
@@ -70,7 +72,9 @@ export function RowActions({
   const closeLabel = heldTerminals === 1 ? "Close its terminal" : `Close its ${heldTerminals} terminals`;
   return (
     <span
-      className="absolute top-1.5 right-1 z-10 flex items-center gap-0.5 rounded-md bg-sidebar-accent opacity-0 shadow-1 transition-opacity group-hover/session:opacity-100 group-focus-within/session:opacity-100 has-data-popup-open:opacity-100"
+      className={`absolute right-1 z-10 flex items-center gap-0.5 rounded-md bg-sidebar-accent opacity-0 shadow-1 transition-opacity group-hover/session:opacity-100 group-focus-within/session:opacity-100 has-data-popup-open:opacity-100 ${
+        compact ? "top-1/2 -translate-y-1/2" : "top-1.5"
+      }`}
     >
       {!session.archived && (
         <Button

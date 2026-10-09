@@ -18,7 +18,7 @@ import { sessionReference, startReferenceDrag } from "@telar/client/composer";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { useRowWarmth } from "./use-row-warmth";
 import { RowMarks, RowStatus } from "./session-row-marks";
-import { RowBody, RowLink } from "./session-row-body";
+import { MiniBody, RowBody, RowLink } from "./session-row-body";
 import { RowActions } from "./session-row-actions";
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -195,10 +195,12 @@ export function SessionRow({
   drag,
   jumpSlot,
   disclosure,
+  compact = false,
 }: {
   session: SidebarSession;
   active: boolean;
   showProject: boolean;
+  compact?: boolean;
   jumpSlot?: RailJumpSlot;
   band?: SessionBand;
   searchable?: boolean;
@@ -276,12 +278,17 @@ export function SessionRow({
         searchable={searchable}
         searchSelected={searchSelected}
         active={active}
+        compact={compact}
         plain={isMobile || !hasFigures(session)}
         details={<SessionDetails session={session} renderedAt={renderedAt} />}
         anchor={rowRef}
         onRename={() => setRenaming(true)}
       >
-        <RowBody session={session} showProject={showProject} marks={marks} trailing={trailingSlot} reserve={disclosure !== undefined} />
+        {compact ? (
+          <MiniBody session={session} marks={marks} trailing={trailingSlot} />
+        ) : (
+          <RowBody session={session} showProject={showProject} marks={marks} trailing={trailingSlot} reserve={disclosure !== undefined} />
+        )}
       </RowLink>
       {disclosure}
       {!searchable && (
@@ -292,7 +299,8 @@ export function SessionRow({
           renderedAt={renderedAt}
           onRowChanged={onRowChanged}
           band={band}
-            unsettles={unsettles}
+          compact={compact}
+          unsettles={unsettles}
           heldTerminals={heldTerminals}
           mutate={mutate}
           unsettle={unsettle}

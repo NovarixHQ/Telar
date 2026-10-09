@@ -4,6 +4,9 @@
  */
 import { expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { installTestDom } from "@/test/dom";
+
+installTestDom();
 
 mock.module("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {}, back: () => {}, forward: () => {}, prefetch: () => {} }),
@@ -58,4 +61,35 @@ test("expanded: every child under the parent", () => {
   expect(html).toContain('aria-expanded="true"');
   expect(html).toContain("title-busy");
   expect(html).toContain("title-stuck");
+});
+
+test("nested sessions are compact rows: their title alone, without the project or branch lines", () => {
+  const entries = flattenSessions({
+    pinned: [],
+    sessions: [
+      session("parent", { worktreeBranch: "telar/parent-branch" }),
+      session("child", { startedFrom: { sessionId: "parent" }, projectName: "Orbit", worktreeBranch: "telar/child-branch" }),
+    ],
+  });
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    <SidebarProvider>
+      <FlatSessionList
+        entries={entries}
+        expanded={new Set(["parent"])}
+        onToggle={() => {}}
+        renderedAt={0}
+        bandFor={() => "active"}
+        onRowChanged={() => {}}
+        jumpSlot={() => undefined}
+      />
+    </SidebarProvider>,
+  );
+  const nested = host.querySelector('[role="group"][aria-label="Started from title-parent"]')!;
+  const parent = host.querySelector("#sidebar-session-parent")!;
+  expect(parent.textContent).toContain("Telar");
+  expect(parent.textContent).toContain("telar/parent-branch");
+  expect(nested.textContent).toContain("title-child");
+  expect(nested.textContent).not.toContain("Orbit");
+  expect(nested.textContent).not.toContain("telar/child-branch");
 });

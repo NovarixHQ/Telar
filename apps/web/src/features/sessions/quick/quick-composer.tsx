@@ -13,6 +13,10 @@ import { useWindowDrag } from "./use-window-drag";
 
 type Quick = ReturnType<typeof useQuickComposer>;
 
+function placeholderFor(destination: Quick["destination"]["destination"]) {
+  return destination?.kind === "session" ? `Reply to ${destination.session.title}` : "Ask anything · # to reply to a session or pick a project · / commands";
+}
+
 function holdForFilePicker(event: { target: EventTarget }, bridge: QuickComposerBridge | undefined) {
   if (event.target instanceof HTMLInputElement && event.target.type === "file") bridge?.hold();
 }
@@ -114,6 +118,7 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
           fresh
           compact
           leading={<ProjectChip quick={quick} />}
+          placeholder={placeholderFor(quick.destination.destination)}
           driver={draft.driver}
           onDriverChange={draft.chooseDriver}
           pendingModel={draft.model}

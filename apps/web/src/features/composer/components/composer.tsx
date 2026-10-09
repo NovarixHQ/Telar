@@ -195,7 +195,7 @@ export function Composer(props: ComposerProps) {
                 editorId={EDITOR_ID}
                 kind={kind}
                 text={question.boxText}
-                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(busy, props.whileWorking)}
+                placeholder={question.active ? "Type your own answer, or leave blank…" : (props.placeholder ?? placeholderFor(busy, props.whileWorking))}
                 ready={ready}
                 draft={draft}
                 attachments={attachments}

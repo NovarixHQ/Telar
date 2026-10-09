@@ -17,6 +17,7 @@ export type ComposerProps = {
   fresh?: boolean;
   compact?: boolean;
   leading?: ReactNode;
+  placeholder?: string;
   driver?: ProviderDriverKind;
   onDriverChange?: (driver: ProviderDriverKind) => void;
   envMode?: "local" | "worktree";

@@ -10,7 +10,7 @@ import { FontPicker } from "./font-picker";
 import { DepthControl } from "./depth-control";
 import { BackgroundControl } from "./background-control";
 import { AppearanceWindowGroup } from "./appearance-window-group";
-import { CodeSpecimen, InterfaceSpecimen, TerminalSpecimen } from "./studio/type-specimen";
+import { CodePreviews, InterfacePreview } from "./type-previews";
 
 const ACCENT_LABEL: Record<Accent, string> = {
   indigo: "Indigo",
@@ -103,7 +103,7 @@ export function AppearanceSection() {
             }
           />
           <div className="mt-2.5">
-            <InterfaceSpecimen />
+            <InterfacePreview />
           </div>
         </Row>
         <Row
@@ -126,9 +126,8 @@ export function AppearanceSection() {
               })
             }
           />
-          <div className="mt-2.5 flex min-w-0 flex-col gap-2">
-            <CodeSpecimen />
-            <TerminalSpecimen />
+          <div className="mt-2.5 min-w-0">
+            <CodePreviews />
           </div>
         </Row>
       </SettingsGroup>

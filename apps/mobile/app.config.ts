@@ -32,6 +32,8 @@ const config: ExpoConfig = {
     bundleIdentifier: variant.bundleId,
     appleTeamId: "MM74W7WGAM",
     supportsTablet: true,
+    // Live Activity push tokens need it; distribution signing switches it to production.
+    entitlements: { "aps-environment": "development" },
     infoPlist: {
       CFBundleDisplayName: variant.name,
       ITSAppUsesNonExemptEncryption: false,

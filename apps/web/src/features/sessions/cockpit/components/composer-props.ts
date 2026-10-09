@@ -47,6 +47,10 @@ export function composerProps({ fresh, solo, session, projectId, projectName, co
         }
       : {}),
     busy: Boolean(model.active),
+    whileWorking: draft.sessionDefaults.whileWorking ?? "steer",
+    ...(model.queued.length > 0
+      ? { queued: { messages: model.queued, ...actions.queue } }
+      : {}),
     sending: actions.sending,
     ...(runtimeMode ? { runtimeMode: session?.runtimeMode ?? draft.runtimeMode } : {}),
     projectId: session?.projectId ?? projectId,

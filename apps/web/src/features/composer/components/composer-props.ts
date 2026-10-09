@@ -1,6 +1,7 @@
-import type { ClaudeConversation, EngineRequest, ProviderDriverKind, RuntimeMode, Session, SessionChildState, UsageSnapshot } from "@telar/engine-client";
+import type { ClaudeConversation, EngineRequest, ProviderDriverKind, RuntimeMode, Session, SessionChildState, UsageSnapshot, WhileWorking } from "@telar/engine-client";
 import type { ModelChoice } from "@telar/client/providers";
 import type { ComposerKind } from "../registry";
+import type { QueuedMessagesProps } from "./queued-messages";
 
 export type ComposerProps = {
   draft: string;
@@ -23,8 +24,10 @@ export type ComposerProps = {
   onAdopt?: (conversation: ClaudeConversation) => Promise<void>;
   /** What the first message will create the session with, while fresh. */
   pendingModel?: ModelChoice;
-  /** A turn is running or claimed. Not a reason to disable anything: Enter steers it. */
+  /** A turn is running or claimed. Not a reason to disable anything: Enter steers it or queues behind it. */
   busy: boolean;
+  whileWorking?: WhileWorking;
+  queued?: QueuedMessagesProps;
   sending: boolean;
   runtimeMode?: RuntimeMode;
   session?: Session;

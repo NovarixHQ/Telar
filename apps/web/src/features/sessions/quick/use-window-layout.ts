@@ -5,46 +5,18 @@ import type { QuickComposerBridge, Room } from "./front-context";
 
 const FIELD = '[data-slot="composer-editor"]';
 const SLOP = 3;
-const MENU_ROOM_PX = 320;
-const OPEN_MENU = "[data-side][data-open]";
-const FIRST_ROOM: Room = { above: 400, below: 300 };
+const FIRST_ROOM: Room = { above: 400 };
 
-function useOpenMenu(root: RefObject<HTMLElement | null>) {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const check = () => setOpen([...document.querySelectorAll(OPEN_MENU)].some((node) => !root.current?.contains(node)));
-    const observer = new MutationObserver(check);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-open", "data-closed"] });
-    return () => observer.disconnect();
-  }, [root]);
-  return open;
-}
-
-export function useWindowLayout(bridge: QuickComposerBridge | undefined, root: RefObject<HTMLElement | null>, composer: RefObject<HTMLElement | null>, opened: unknown) {
+export function useWindowLayout(bridge: QuickComposerBridge | undefined, root: RefObject<HTMLElement | null>, composer: RefObject<HTMLElement | null>, structure: string) {
   const [room, setRoom] = useState<Room>(FIRST_ROOM);
-  const menuOpen = useOpenMenu(root);
-  const reserve = menuOpen ? MENU_ROOM_PX : 0;
-
   useEffect(() => bridge?.onRoom(setRoom), [bridge]);
-
   useEffect(() => {
     const node = root.current;
     if (!bridge || !node) return;
-    let frame = 0;
-    const report = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => bridge.layout({ height: node.scrollHeight, composerTop: composer.current?.offsetTop ?? 0 }));
-    };
-    report();
-    const observer = new ResizeObserver(report);
-    observer.observe(node);
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-    };
-  }, [bridge, root, composer, reserve, opened]);
-
-  return { room, reserve };
+    const frame = requestAnimationFrame(() => bridge.layout({ height: node.scrollHeight, composerTop: composer.current?.offsetTop ?? 0 }));
+    return () => cancelAnimationFrame(frame);
+  }, [bridge, root, composer, structure]);
+  return room;
 }
 
 export function useFieldDrag(bridge: QuickComposerBridge | undefined, fieldEmpty: boolean) {

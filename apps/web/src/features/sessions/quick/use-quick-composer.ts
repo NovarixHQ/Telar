@@ -37,6 +37,33 @@ function useProjects(projects: readonly QuickProject[]) {
   return { project, setProject: setChosen, defaults };
 }
 
+type Draft = { text: string; files: File[] };
+
+function useDrafts(key: string, current: Draft, setText: (text: string) => void, setFiles: (files: File[]) => void) {
+  const store = useRef(new Map<string, Draft>());
+  const shown = useRef(key);
+  const latest = useRef(current);
+  useEffect(() => {
+    latest.current = current;
+  });
+  useEffect(() => {
+    if (shown.current === key) return;
+    const carried = shown.current === "none" ? latest.current : { text: "", files: [] };
+    shown.current = key;
+    if (destinationQuery(latest.current.text) !== null) return;
+    const saved = store.current.get(key) ?? carried;
+    setText(saved.text);
+    setFiles(saved.files);
+  }, [key, setText, setFiles]);
+  return useMemo(
+    () => ({
+      keep: (draft: Draft) => void store.current.set(shown.current, draft),
+      forget: () => store.current.clear(),
+    }),
+    [],
+  );
+}
+
 function useBandFor(rail: ReturnType<typeof useRailData>) {
   const { policy } = useInboxPolicy();
   return (session: SidebarSession) => bandOf(session, { now: rail.renderedAt, autoSettleAfterHours: windowFor(session, policy.autoSettleAfterHours, rail.hostWindows) });
@@ -58,14 +85,20 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
   const openAfter = useRef(false);
   const offered = useRef<readonly ContextOffer[]>([]);
   const [nudge, setNudge] = useState(0);
+  const [opened, setOpened] = useState(0);
   const destination = useDestination({ text, setText, sessions: rail.sessions, projects, project, onProject: setProject });
   const { clear } = destination;
+  const target = destination.destination;
+  const draftKey = target?.kind === "session" ? `session:${sessionKey(target.session)}` : project ? `project:${projectKey(project)}` : "none";
+  const drafts = useDrafts(draftKey, { text, files }, setText, setFiles);
 
   useEffect(() => {
     if (!bridge) return;
     const adopt = (next: FrontContext | null) => {
       setContext(next);
+      setOpened((count) => count + 1);
       if (next?.fresh) {
+        drafts.forget();
         setText("");
         setFiles([]);
         clear();
@@ -83,18 +116,21 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
       stopOpen();
       stopPermissions();
     };
-  }, [bridge, clear]);
+  }, [bridge, clear, drafts]);
 
-  const toggleOffer = (offer: ContextOffer) =>
-    setFiles((current) => (current.includes(offer.file) ? current.filter((file) => file !== offer.file) : [...current, offer.file].slice(0, MAX_ATTACHMENTS)));
+  const attach = (next: File[]) => {
+    setFiles(next);
+    drafts.keep({ text, files: next });
+  };
+  const toggleOffer = (offer: ContextOffer) => attach(files.includes(offer.file) ? files.filter((file) => file !== offer.file) : [...files, offer.file].slice(0, MAX_ATTACHMENTS));
 
   const submit = async () => {
-    const target = destination.destination;
     if (!project && target?.kind !== "session") return;
     const open = openAfter.current;
     openAfter.current = false;
     const sent = { text: text.trim(), files };
     setSending(true);
+    drafts.keep({ text: "", files: [] });
     setText("");
     setFiles([]);
     try {
@@ -114,6 +150,7 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
       setError(undefined);
       await bridge?.sent({ route: sessionHref({ id: session.id, projectId: project.id, hostId: project.hostId }), title: session.title, detail: project.name ?? "", open });
     } catch (cause) {
+      drafts.keep({ text: sent.text, files: sent.files });
       setText(sent.text);
       setFiles(sent.files);
       setError(asEngineError(cause, "Could not start the session.").message);
@@ -129,13 +166,15 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
     openAfter.current = false;
   };
 
-  const attachedKey = destination.destination?.kind === "session" ? sessionKey(destination.destination.session) : undefined;
+  const attachedKey = target?.kind === "session" ? sessionKey(target.session) : undefined;
   const edit = (next: string) => {
-    if (attachedKey && destinationQuery(next) !== null && destinationQuery(text) === null) clear();
+    const picking = destinationQuery(next) !== null;
+    if (attachedKey && picking && destinationQuery(text) === null) clear();
+    if (!picking) drafts.keep({ text: next, files });
     setText(next);
   };
   const needs = needsYou(rail.sessions, bandFor, attachedKey);
   const manyHosts = rail.hosts.length > 0;
 
-  return { projects, projectId, setProject, project, manyHosts, draft, text, setText, edit, files, setFiles, context, offers, toggleOffer, destination, needs, nudge, sending, error, submit, noteKey, forgetKey };
+  return { projects, projectId, setProject, project, manyHosts, draft, text, setText, edit, files, attach, opened, context, offers, toggleOffer, destination, needs, nudge, sending, error, submit, noteKey, forgetKey };
 }

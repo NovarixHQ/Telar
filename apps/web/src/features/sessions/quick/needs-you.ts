@@ -1,3 +1,4 @@
+import { parentKeyOf } from "../rail/flat-rail";
 import { showsUnreadMark } from "../rail/unread";
 import { sessionKey, type SessionBand, type SidebarSession } from "../session-list";
 
@@ -14,7 +15,7 @@ function kindOf(session: SidebarSession): NeedsYou["kind"] | null {
 export function needsYou(sessions: readonly SidebarSession[], bandFor: (session: SidebarSession) => SessionBand, attachedKey?: string): NeedsYou[] {
   const found: NeedsYou[] = [];
   for (const session of sessions) {
-    if (session.archived || sessionKey(session) === attachedKey) continue;
+    if (session.archived || parentKeyOf(session) !== undefined || sessionKey(session) === attachedKey) continue;
     const band = bandFor(session);
     if (band !== "active" && band !== "pinned") continue;
     const kind = kindOf(session);

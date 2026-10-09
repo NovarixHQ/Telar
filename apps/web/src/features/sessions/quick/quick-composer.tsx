@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from "react";
 import { FolderIcon, PlusIcon } from "lucide-react";
+import { useSurfaceCommandKeys, type CommandId } from "@/features/commands";
 import { Composer } from "@/features/composer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { AttachedDestination } from "./attached-destination";
 import { DestinationPicker, placeOf } from "./destination-picker";
+import { sessionKey } from "../session-list";
 import { projectKey } from "./hosts";
-import { missingPermissions, quickComposerBridge, type QuickComposerBridge, type Room } from "./front-context";
+import { missingPermissions, quickComposerBridge, type QuickComposerBridge } from "./front-context";
 import { NeedsYouStrip } from "./needs-you-strip";
 import { PermissionNotice } from "./permission-notice";
 import { useQuickComposer } from "./use-quick-composer";
@@ -77,21 +79,14 @@ function caretAtStart(editor: Element): boolean {
   return before.toString() === "";
 }
 
-const FLIPPED: Record<string, string> = { ArrowUp: "ArrowDown", ArrowDown: "ArrowUp" };
-const PICKER_ROOM_PX = 200;
+const SURFACE_COMMANDS: readonly CommandId[] = ["toggle-dictation"];
 const clampTo = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
 
-function pickerPlacement(room: Room) {
-  const below = room.above < PICKER_ROOM_PX && room.below > room.above;
-  return { below, maxHeight: clampTo((below ? room.below : room.above) - 60, 120, 320) };
-}
-
-function onComposerKey(quick: Quick, strip: RefObject<HTMLDivElement | null>, below: boolean, event: ReactKeyboardEvent) {
+function onComposerKey(quick: Quick, strip: RefObject<HTMLDivElement | null>, event: ReactKeyboardEvent) {
   const editor = (event.target as Element).closest(EDITOR);
   if (!editor) return;
   const toStrip = event.key === "ArrowUp" && !quick.destination.picking && quick.needs.length > 0 && (quick.text === "" || caretAtStart(editor));
-  const key = below && quick.destination.picking ? (FLIPPED[event.key] ?? event.key) : event.key;
-  if (toStrip || quick.destination.onKey({ key, altKey: event.altKey })) {
+  if (toStrip || quick.destination.onKey(event)) {
     event.preventDefault();
     event.stopPropagation();
     if (toStrip) strip.current?.querySelector("button")?.focus();
@@ -108,12 +103,11 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const root = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLDivElement>(null);
   const strip = useRef<HTMLDivElement>(null);
-  const { room, reserve } = useWindowLayout(bridge, root, composer, context);
+  const target = quick.destination.destination;
+  const structure = [quick.opened, target?.kind === "session" ? sessionKey(target.session) : target ? projectKey(target.project) : "", quick.destination.picking, quick.needs.length > 0, quick.offers.length, quick.files.length, quick.error ?? "", context ? missingPermissions(context) : ""].join("|");
+  const room = useWindowLayout(bridge, root, composer, structure);
   const fieldDrag = useFieldDrag(bridge, quick.text === "");
-  const placement = pickerPlacement(room);
-  const picker = quick.destination.picking && (
-    <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} below={placement.below} maxHeight={placement.maxHeight} manyHosts={quick.manyHosts} />
-  );
+  useSurfaceCommandKeys(SURFACE_COMMANDS);
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
 
   useEffect(() => {
@@ -125,11 +119,11 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   }, [bridge]);
 
   return (
-    <div ref={root} data-surface="quick" className="flex flex-col p-6" style={{ paddingTop: 24 + reserve }}>
+    <div ref={root} data-surface="quick" className="flex flex-col p-6">
       <div
         data-slot="quick-card"
         onPointerDown={fieldDrag}
-        onKeyDownCapture={(event) => onComposerKey(quick, strip, placement.below, event)}
+        onKeyDownCapture={(event) => onComposerKey(quick, strip, event)}
         onPointerDownCapture={quick.forgetKey}
         onClickCapture={(event) => holdForFilePicker(event, bridge)}
         className="flex flex-col gap-1"
@@ -147,9 +141,11 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             }}
             onLeave={toComposer}
           />
-          {!placement.below && picker}
+          {quick.destination.picking && (
+            <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} maxHeight={clampTo(room.above - 80, 96, 320)} manyHosts={quick.manyHosts} />
+          )}
           <div className="-mb-3">
-            <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} maxHeight={clampTo(room.above - 120, 96, 420)} onClear={quick.destination.clear} />
+            <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} height={clampTo(room.above - 120, 96, 320)} onClear={quick.destination.clear} />
           </div>
         </div>
         <div ref={composer}>
@@ -157,7 +153,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             draft={quick.text}
             ready={projectId !== undefined}
             attachments={quick.files}
-            onAttach={quick.setFiles}
+            onAttach={quick.attach}
             fresh
             compact
             leading={<ProjectChip quick={quick} />}
@@ -183,7 +179,6 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             onModelChange={draft.chooseModel}
           />
         </div>
-        {placement.below && picker}
         {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-popover px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
       </div>
     </div>

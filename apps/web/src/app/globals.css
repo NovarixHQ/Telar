@@ -1494,7 +1494,19 @@ html:has([data-surface="quick"]) #app-backdrop {
   display: none;
 }
 [data-surface="quick"] [data-slot="composer-editor"] {
+  height: 4.5rem;
   min-height: 0;
+  max-height: none;
+}
+html:has([data-surface="quick"]),
+html:has([data-surface="quick"]) body {
+  overflow: hidden;
+}
+html:has([data-surface="quick"]) * {
+  scrollbar-width: none;
+}
+html:has([data-surface="quick"]) *::-webkit-scrollbar {
+  display: none;
 }
 [data-telar-shell] [data-surface="quick"] {
   -webkit-app-region: drag;

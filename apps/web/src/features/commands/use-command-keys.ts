@@ -147,3 +147,27 @@ export function useCommandKeys(
 
   return run;
 }
+
+export function useSurfaceCommandKeys(ids: readonly CommandId[]) {
+  const keymap = useKeymap();
+  const latest = useRef({ keymap, ids });
+  useEffect(() => {
+    latest.current = { keymap, ids };
+  });
+  useEffect(() => {
+    const allowed = (id: string | null | undefined): id is CommandId => Boolean(id) && latest.current.ids.includes(id as CommandId);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isCapturingChord()) return;
+      const id = resolveWebCommandKeyAction(latest.current.keymap, event);
+      if (!allowed(id) || claimedCommandIds(latest.current.keymap).includes(id)) return;
+      event.preventDefault();
+      runCommand(id);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    const offInvoke = desktop()?.commandKeys?.onInvoke?.((id) => allowed(id) && runCommand(id));
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      offInvoke?.();
+    };
+  }, []);
+}

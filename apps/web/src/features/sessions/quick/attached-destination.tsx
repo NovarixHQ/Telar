@@ -7,7 +7,7 @@ import type { Destination } from "./destination";
 import { sessionStatus, statusDot } from "./destination-picker";
 import { LiveTranscript, useLiveSession } from "./live-transcript";
 
-function SessionCard({ destination, nudge, onClear }: { destination: Extract<Destination, { kind: "session" }>; nudge: number; onClear: () => void }) {
+function SessionCard({ destination, nudge, maxHeight, onClear }: { destination: Extract<Destination, { kind: "session" }>; nudge: number; maxHeight: number; onClear: () => void }) {
   const { projectName } = destination;
   const live = useLiveSession(destination.session.id, nudge);
   const session = live.sync.session ?? destination.session;
@@ -22,14 +22,14 @@ function SessionCard({ destination, nudge, onClear }: { destination: Extract<Des
           <XIcon className="size-3.5" />
         </button>
       </div>
-      <LiveTranscript sessionId={session.id} live={live} />
+      <LiveTranscript sessionId={session.id} live={live} maxHeight={maxHeight} />
     </div>
   );
 }
 
-export function AttachedDestination({ destination, nudge, onClear }: { destination: Destination | null; nudge: number; onClear: () => void }) {
+export function AttachedDestination({ destination, nudge, maxHeight, onClear }: { destination: Destination | null; nudge: number; maxHeight: number; onClear: () => void }) {
   if (!destination) return null;
-  if (destination.kind === "session") return <SessionCard destination={destination} nudge={nudge} onClear={onClear} />;
+  if (destination.kind === "session") return <SessionCard destination={destination} nudge={nudge} maxHeight={maxHeight} onClear={onClear} />;
   return (
     <div data-slot="quick-destination" className="mx-7 flex items-center gap-1.5 rounded-t-xl border border-b-0 border-dashed border-border bg-popover px-3 py-1.5 text-xs text-muted-foreground">
       <span>＋ New session in</span>

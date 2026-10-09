@@ -82,22 +82,20 @@ function fakeBridge(context: FrontContext | null) {
   const settings: Permission[] = [];
   let closed = 0;
   let held = 0;
-  const moves: unknown[] = [];
-  const crossings: unknown[] = [];
-  let place: Parameters<QuickComposerBridge["onPlace"]>[0] = () => {};
-  const interactive: boolean[] = [];
+  const layouts: { height: number; composerTop: number }[] = [];
+  const drags: unknown[] = [];
+  let room: Parameters<QuickComposerBridge["onRoom"]>[0] = () => {};
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
     onOpen: () => () => {},
     close: async () => void (closed += 1),
-    interactive: (on) => void interactive.push(on),
-    moved: (spot) => void moves.push(spot),
-    cross: (grab) => void crossings.push(grab),
-    onPlace: (listener) => {
-      place = listener;
+    layout: (metrics) => void layouts.push(metrics),
+    onRoom: (listener) => {
+      room = listener;
       return () => {};
     },
+    drag: (input) => void drags.push(input),
     sent: async (input) => void sent.push(input),
     onPermissions: (listener) => {
       pushPermissions = listener;
@@ -107,7 +105,7 @@ function fakeBridge(context: FrontContext | null) {
     hold: () => void (held += 1),
     failed: () => {},
   };
-  return { bridge, sent, settings, moves, crossings, place: (placed: Parameters<typeof place>[0]) => act(() => place(placed)), interactive, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, layouts, drags, room: (next: Parameters<typeof room>[0]) => act(() => room(next)), closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
 const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", permissions, grantee: "Telar Dev", ...extra });
@@ -131,19 +129,13 @@ async function open(context: FrontContext | null) {
   return { host, ...fake };
 }
 
-const cardOf = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="quick-card"]')!;
-const spotOf = (host: HTMLElement) => ({ x: Number.parseFloat(cardOf(host).style.left), y: Number.parseFloat(cardOf(host).style.top) });
-
-function gesture(target: Element, path: { x: number; y: number }[], heldFor = 0) {
+function gesture(target: Element, moveTo: number) {
   const card = target.closest('[data-slot="quick-card"]')!;
-  const at = (type: string, x: number, y: number, timeStamp: number) => {
-    const event = new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 500 + x, clientY: 300 + y });
-    Object.defineProperty(event, "timeStamp", { value: timeStamp });
-    act(() => void (type === "pointerdown" ? target : card).dispatchEvent(event));
-  };
-  at("pointerdown", 0, 0, 1000);
-  for (const point of path) at("pointermove", point.x, point.y, 1000 + heldFor);
-  at("pointerup", path.at(-1)?.x ?? 0, path.at(-1)?.y ?? 0, 1000 + heldFor);
+  act(() => {
+    target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 40, clientY: 30, screenX: 0, screenY: 0 }));
+    card.dispatchEvent(new PointerEvent("pointermove", { screenX: moveTo, screenY: 0 }));
+    card.dispatchEvent(new PointerEvent("pointerup", {}));
+  });
 }
 
 const editor = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="composer-editor"]')!;
@@ -254,66 +246,34 @@ describe("the quick composer", () => {
     expect(held()).toBe(1);
   });
 
-  test("dragging the card's padding moves it inside the overlay and saves where it lands", async () => {
-    const { host, moves } = await open(front(GRANTED));
-    const card = cardOf(host);
-    const before = spotOf(host);
-    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: 30, y: -20 }, { x: 60, y: -40 }]);
-    expect(spotOf(host)).toEqual({ x: before.x + 60, y: before.y - 40 });
-    expect(moves).toEqual([{ x: before.x + 60, y: before.y - 40 }]);
-    expect(card.isConnected).toBe(true);
-  });
-
-  test("the empty field drags once the press moves, a click there does not, and a field with text never does", async () => {
-    const { host, moves } = await open(front(GRANTED));
-    gesture(editor(host), [{ x: 1, y: 0 }]);
-    expect(moves).toEqual([]);
-    gesture(editor(host), [{ x: 20, y: 0 }]);
-    expect(moves).toHaveLength(1);
+  test("the empty field drags the window through main once a press moves; a click, or a field with text, does not", async () => {
+    const { host, drags } = await open(front(GRANTED));
+    gesture(editor(host), 1);
+    expect(drags).toEqual([]);
+    gesture(editor(host), 20);
+    expect(drags).toEqual([{ phase: "start", offsetX: 40, offsetY: 30 }, { phase: "end" }]);
     await type(host, "half a thought");
-    gesture(editor(host), [{ x: 20, y: 0 }]);
-    expect(moves).toHaveLength(1);
+    gesture(editor(host), 20);
+    expect(drags).toHaveLength(2);
   });
 
-  test("the card's padding drags, but buttons and chips never do", async () => {
-    const { host, moves } = await open(front(GRANTED));
-    gesture(host.querySelector('[aria-label="Project"]')!, [{ x: 40, y: 0 }]);
-    gesture(host.querySelector('[data-slot="composer-controls"] button')!, [{ x: 40, y: 0 }]);
-    expect(moves).toEqual([]);
-    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: 40, y: 0 }]);
-    expect(moves).toHaveLength(1);
+  test("reports its height and where the composer starts, so main can size the window around it", async () => {
+    const { layouts } = await open(front(GRANTED));
+    await flush(() => layouts.length > 0);
+    expect(layouts.at(-1)).toEqual({ height: expect.any(Number), composerTop: expect.any(Number) });
   });
 
-  test("on text, only a press held for a moment drags; a quick sweep is left to select", async () => {
-    const { host, moves } = await open(front(DENIED));
-    const text = host.querySelector('[role="note"] p')!;
-    gesture(text, [{ x: 20, y: 0 }], 50);
-    expect(moves).toEqual([]);
-    gesture(text, [{ x: 1, y: 0 }], 200);
-    expect(moves).toHaveLength(1);
-  });
-
-  test("takes clicks only while the pointer is over something drawn, and a click on the bare overlay hides it", async () => {
-    const { host, interactive, closed } = await open(front(GRANTED));
-    const overlay = host.querySelector('[data-surface="quick"]')!;
-    const hover = (target: Element) => act(() => void target.dispatchEvent(new MouseEvent("mousemove", { bubbles: true })));
-    hover(editor(host));
-    hover(host.querySelector('[data-slot="input-group"]')!);
-    hover(overlay);
-    expect(interactive).toEqual([true, false]);
-    await act(async () => void overlay.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
-    expect(closed()).toBe(1);
-  });
-
-  test("an open menu draws outside the card without the page ever sizing the window", async () => {
-    const { host, bridge } = await open(front(GRANTED));
-    expect("resize" in bridge).toBe(false);
+  test("an open menu is drawn in the page, and the window makes room above for it", async () => {
+    const { host } = await open(front(GRANTED));
+    const root = host.querySelector<HTMLElement>('[data-surface="quick"]')!;
+    const before = Number.parseFloat(root.style.paddingTop);
     const access = host.querySelector<HTMLElement>('[aria-label^="Access:"]')!;
     await act(async () => access.click());
     await flush(() => document.body.textContent?.includes("Auto-accept edits") ?? false);
     const menu = [...document.querySelectorAll("[role='dialog'], [data-side]")].find((node) => node.textContent?.includes("Auto-accept edits"));
     expect(menu).toBeTruthy();
-    expect(cardOf(host).contains(menu!)).toBe(false);
+    await flush(() => Number.parseFloat(root.style.paddingTop) > before);
+    expect(Number.parseFloat(root.style.paddingTop)).toBe(before + 320);
   });
 
   test("the empty composer says # picks where the message goes", async () => {
@@ -528,8 +488,9 @@ describe("the attached conversation's transcript", () => {
     expect(editor(host).textContent).toBe("");
   });
 
-  test("near the top of the screen the picker opens below the card, its best row nearest the card", async () => {
-    const { host } = await open(front(GRANTED, { spot: { x: 100, y: 40 } }));
+  test("with little room above, the picker opens below the card, its best row nearest the card", async () => {
+    const { host, room } = await open(front(GRANTED));
+    room({ above: 80, below: 600 });
     await type(host, "#");
     await flush(() => options(host).length > 1);
     const list = host.querySelector('[role="listbox"]')!;
@@ -537,27 +498,6 @@ describe("the attached conversation's transcript", () => {
     expect(options(host)[0]).toContain("New session in Telar");
     await press(host, "ArrowDown");
     expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("Sales dashboard");
-  });
-});
-
-describe("dragging across the screen", () => {
-  test("stops at every edge of the display's work area", async () => {
-    const { host } = await open(front(GRANTED, { area: { width: 1200, height: 800 } }));
-    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: 5000, y: 5000 }]);
-    expect(spotOf(host)).toEqual({ x: 1200 - 680, y: 800 - 120 });
-    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: -9000, y: -9000 }]);
-    expect(spotOf(host)).toEqual({ x: 0, y: 0 });
-  });
-
-  test("leaving the display asks main to follow, and the card lands where main puts it", async () => {
-    const { host, crossings, place } = await open(front(GRANTED, { area: { width: 1200, height: 800 } }));
-    const card = cardOf(host);
-    act(() => void host.querySelector('[data-slot="input-group"]')!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 300, clientY: 400 })));
-    act(() => void card.dispatchEvent(new PointerEvent("pointermove", { clientX: 1300, clientY: 400 })));
-    expect(crossings).toHaveLength(1);
-    place({ spot: { x: 50, y: 60 }, area: { width: 1920, height: 1080 } });
-    expect(spotOf(host)).toEqual({ x: 50, y: 60 });
-    act(() => void card.dispatchEvent(new PointerEvent("pointerup", {})));
   });
 });
 

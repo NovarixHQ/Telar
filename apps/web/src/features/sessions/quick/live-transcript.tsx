@@ -11,7 +11,6 @@ import { useTranscriptModel } from "../cockpit/hooks/use-transcript-model";
 import { transcriptRows } from "../cockpit/model";
 
 const api = createEngineApi();
-const MAX_HEIGHT_PX = 288;
 
 export function useLiveSession(sessionId: string, nudge: number) {
   const sync = useSessionSync({ hostId: LOCAL_HOST_ID, sessionId, initiallyLoading: true });
@@ -23,7 +22,7 @@ export function useLiveSession(sessionId: string, nudge: number) {
   return { sync, model };
 }
 
-function useContentHeight() {
+function useContentHeight(maxHeight: number) {
   const content = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   useEffect(() => {
@@ -35,12 +34,12 @@ function useContentHeight() {
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  return { content, height: Math.min(Math.max(height, 40), MAX_HEIGHT_PX) };
+  return { content, height: Math.min(Math.max(height, 40), maxHeight) };
 }
 
-export function LiveTranscript({ sessionId, live }: { sessionId: string; live: ReturnType<typeof useLiveSession> }) {
+export function LiveTranscript({ sessionId, live, maxHeight }: { sessionId: string; live: ReturnType<typeof useLiveSession>; maxHeight: number }) {
   const { sync, model } = live;
-  const { content, height } = useContentHeight();
+  const { content, height } = useContentHeight(maxHeight);
   const { shown, hostOf } = transcriptRows(model.transcript);
   const hostRun = (request: EngineRequest) => hostOf.get(request.runId) ?? request.runId;
   const decide = (requestId: string, decision: Parameters<typeof api.resolveRequest>[2]["decision"], extra?: { answers?: Record<string, unknown> }) =>

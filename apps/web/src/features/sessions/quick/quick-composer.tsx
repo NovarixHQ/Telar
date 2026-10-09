@@ -6,11 +6,11 @@ import { Composer } from "@/features/composer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { AttachedDestination } from "./attached-destination";
 import { DestinationPicker } from "./destination-picker";
-import { missingPermissions, quickComposerBridge, type QuickComposerBridge } from "./front-context";
+import { missingPermissions, quickComposerBridge, type QuickComposerBridge, type Room } from "./front-context";
 import { NeedsYouStrip } from "./needs-you-strip";
 import { PermissionNotice } from "./permission-notice";
 import { useQuickComposer } from "./use-quick-composer";
-import { CARD_WIDTH, useCardDrag, useClickThrough } from "./use-card-drag";
+import { useFieldDrag, useWindowLayout } from "./use-window-layout";
 
 type Quick = ReturnType<typeof useQuickComposer>;
 
@@ -34,7 +34,7 @@ function ProjectChip({ quick }: { quick: Quick }) {
         <FolderIcon className="size-3.5 text-muted-foreground" />
         <SelectValue placeholder="Choose a project">{quick.project?.name ?? quick.projectId}</SelectValue>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent side="top" alignItemWithTrigger={false}>
         {quick.projects.map((project) => (
           <SelectItem key={project.id} value={project.id}>{project.name ?? project.id}</SelectItem>
         ))}
@@ -78,11 +78,11 @@ function caretAtStart(editor: Element): boolean {
 
 const FLIPPED: Record<string, string> = { ArrowUp: "ArrowDown", ArrowDown: "ArrowUp" };
 const PICKER_ROOM_PX = 200;
+const clampTo = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
 
-function pickerPlacement(spotY: number, areaHeight: number) {
-  const below = spotY < PICKER_ROOM_PX;
-  const room = below ? areaHeight - spotY - 220 : spotY - 60;
-  return { below, maxHeight: Math.max(120, Math.min(320, room)) };
+function pickerPlacement(room: Room) {
+  const below = room.above < PICKER_ROOM_PX && room.below > room.above;
+  return { below, maxHeight: clampTo((below ? room.below : room.above) - 60, 120, 320) };
 }
 
 function onComposerKey(quick: Quick, strip: RefObject<HTMLDivElement | null>, below: boolean, event: ReactKeyboardEvent) {
@@ -105,14 +105,15 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
   const root = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLDivElement>(null);
   const strip = useRef<HTMLDivElement>(null);
-  const card = useCardDrag(bridge, context, quick.text === "");
-  const placement = pickerPlacement(card.spot.y, card.area.height);
+  const { room, reserve } = useWindowLayout(bridge, root, composer);
+  const fieldDrag = useFieldDrag(bridge, quick.text === "");
+  const placement = pickerPlacement(room);
   const picker = quick.destination.picking && (
     <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} below={placement.below} maxHeight={placement.maxHeight} />
   );
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
-  useClickThrough(bridge, root, context);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -123,17 +124,16 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   }, [bridge]);
 
   return (
-    <div ref={root} data-surface="quick" className="fixed inset-0" onMouseDown={(event) => event.target === event.currentTarget && void bridge?.close()}>
+    <div ref={root} data-surface="quick" className="flex flex-col p-6" style={{ paddingTop: 24 + reserve }}>
       <div
         data-slot="quick-card"
-        onPointerDown={card.onPointerDown}
+        onPointerDown={fieldDrag}
         onKeyDownCapture={(event) => onComposerKey(quick, strip, placement.below, event)}
         onPointerDownCapture={quick.forgetKey}
         onClickCapture={(event) => holdForFilePicker(event, bridge)}
-        className="absolute flex flex-col gap-1"
-        style={{ left: card.spot.x, top: card.spot.y, width: CARD_WIDTH }}
+        className="flex flex-col gap-1"
       >
-        <div className="absolute inset-x-0 bottom-full flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
           <ContextOffers quick={quick} />
           <NeedsYouStrip
@@ -147,10 +147,10 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
           />
           {!placement.below && picker}
           <div className="-mb-3">
-            <AttachedDestination destination={quick.destination.destination} nudge={quick.nudge} onClear={quick.destination.clear} />
+            <AttachedDestination destination={quick.destination.destination} nudge={quick.nudge} maxHeight={clampTo(room.above - 120, 96, 420)} onClear={quick.destination.clear} />
           </div>
         </div>
-        <div>
+        <div ref={composer}>
           <Composer
             draft={quick.text}
             ready={projectId !== undefined}

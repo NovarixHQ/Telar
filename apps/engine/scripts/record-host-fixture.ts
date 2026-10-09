@@ -1,4 +1,3 @@
-/** Records what this checkout's engine serves to the phone, for packages/engine-client/test/fixtures/hosts. Copy it onto an old tag and run `bun scripts/record-host-fixture.ts <out.json>`. */
 import fs from "node:fs";
 import { EngineClient } from "@telar/engine-client";
 import { startEngine } from "../src/daemon";

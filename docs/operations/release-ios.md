@@ -7,6 +7,7 @@ The iOS app ships only through TestFlight. A maintainer cuts a nightly by pushin
 | Bundle id | What uses it |
 | --- | --- |
 | `io.github.novarix.telar` | The TestFlight app ("Telar" on the home screen): the Expo app in `apps/mobile` with `APP_VARIANT` unset. |
+| `io.github.novarix.telar.activity` | The `TelarActivity` widget extension that draws the Live Activity (`apps/mobile/targets/activity`). The export signs it with its own profile. |
 | `io.github.novarix.telar.dev` | "Telar Dev": `APP_VARIANT=dev`, installed by cable through `apps/mobile/scripts/phone.sh`. iOS treats it as a separate app from the TestFlight build, and each keeps its own pairing. |
 
 The push relay (`workers/push-relay/v2.mjs`) and the engine's push topics (`apps/engine/src/domains/push/push.ts`) accept the app and `.dev` ids.
@@ -43,7 +44,7 @@ The workflow runs on `macos-latest` with `DEVELOPER_DIR=/Applications/Xcode.app/
 5. It runs `bun install` and `apps/mobile/scripts/nightly.sh`, which does the following:
    - runs `expo prebuild --clean` for the release variant with the minute-stamp as `TELAR_BUILD_NUMBER`, then `pod install`.
    - archives the generated workspace's Release build unsigned, then ad hoc signs the app with the entitlements prebuild generated. The export only keeps entitlements the archive already has.
-   - fails unless the archived app carries the `aps-environment` the prebuild declared.
+   - fails unless the app and the `TelarActivity` widget carry the minute-stamp as `CFBundleVersion`, and, when the prebuild declares push, the archived app carries `aps-environment=production`.
    - exports with `ExportOptions.plist` (`app-store-connect`, `destination: export`, `signingCertificate: Apple Distribution`), which re-signs the app for distribution. The export runs with `/usr/bin` first on `PATH`.
    - when the app declares push, fails unless the exported IPA has `aps-environment=production`.
    - runs `testflight-app.sh`, which makes sure the App Store Connect app record is ready (see below).

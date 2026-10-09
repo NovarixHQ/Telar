@@ -2,6 +2,7 @@ import { NavigationContainer, useNavigationContainerRef, type LinkingOptions } f
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
+import { useKeyCommand } from "./features/commands";
 import { ConnectScreen, hostsLoaded } from "./features/hosts";
 import { AddProjectScreen } from "./features/projects";
 import { PanelScreen } from "./features/panel";
@@ -45,6 +46,8 @@ export function App() {
   const navigation = useNavigationContainerRef<RootStack>();
   const scheme = useColorScheme() === "dark" ? "dark" : "light";
   useEffect(() => startLiveActivityCard(), []);
+  useKeyCommand("newSession", () => navigation.isReady() && navigation.navigate("NewSession"));
+  useKeyCommand("settings", () => navigation.isReady() && navigation.navigate("Settings"));
   return (
     <NavigationContainer ref={navigation} linking={linking} theme={navigationTheme(scheme)}>
       <StatusBar style="auto" />

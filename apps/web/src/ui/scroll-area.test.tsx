@@ -44,6 +44,34 @@ describe("a horizontal strip's edge fade", () => {
   });
 });
 
+describe("a vertical scroller's scrollbar", () => {
+  async function overflowingList(hideScrollbar?: boolean) {
+    const { host } = await mount(
+      <ScrollArea hideScrollbar={hideScrollbar}>
+        <span>row</span>
+      </ScrollArea>,
+    );
+    const viewport = host.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')!;
+    for (const [key, value] of Object.entries({ scrollHeight: 500, clientHeight: 100, scrollWidth: 100, clientWidth: 100 })) {
+      Object.defineProperty(viewport, key, { configurable: true, value });
+    }
+    await act(async () => void viewport.dispatchEvent(new Event("scroll")));
+    await flush();
+    return { host, viewport };
+  }
+
+  test("is drawn by default when the content overflows", async () => {
+    const { host } = await overflowingList();
+    expect(host.querySelector('[data-slot="scroll-area-scrollbar"]')).not.toBeNull();
+  });
+
+  test("is not drawn when hidden, and the content stays reachable", async () => {
+    const { host, viewport } = await overflowingList(true);
+    expect(host.querySelector('[data-slot="scroll-area-scrollbar"]')).toBeNull();
+    expect(viewport.textContent).toBe("row");
+  });
+});
+
 describe("a mouse wheel on a horizontal strip", () => {
   test("moves the strip sideways when it overflows", async () => {
     const { viewport } = await strip(500, 200);

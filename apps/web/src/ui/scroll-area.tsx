@@ -7,13 +7,14 @@ import { cn } from "./utils";
 type ScrollAreaProps = Omit<ScrollAreaPrimitive.Root.Props, "className"> & {
   className?: string;
   orientation?: "vertical" | "horizontal";
+  hideScrollbar?: boolean;
   viewportClassName?: string;
   viewportRef?: React.Ref<HTMLDivElement>;
   viewportProps?: Omit<React.ComponentProps<"div">, "className" | "ref">;
 };
 
 /** A scroller whose scrollbar never takes layout space; a horizontal one hides it and fades the overflowing edge. */
-export function ScrollArea({ className, orientation = "vertical", viewportClassName, viewportRef, viewportProps, children, ...props }: ScrollAreaProps) {
+export function ScrollArea({ className, orientation = "vertical", hideScrollbar, viewportClassName, viewportRef, viewportProps, children, ...props }: ScrollAreaProps) {
   const horizontal = orientation === "horizontal";
   return (
     <ScrollAreaPrimitive.Root
@@ -35,7 +36,7 @@ export function ScrollArea({ className, orientation = "vertical", viewportClassN
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      {!horizontal && (
+      {!horizontal && !hideScrollbar && (
         <ScrollAreaPrimitive.Scrollbar
           orientation="vertical"
           data-slot="scroll-area-scrollbar"

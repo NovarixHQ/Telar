@@ -117,7 +117,7 @@ export function SessionShelf({
     <SidebarGroup className={cn("pt-0", open && "max-h-[45%] min-h-0 shrink-0")}>
       <BandRule label={label} count={count} open={open} onToggle={onToggle} />
       {open && (
-        <ScrollArea viewportClassName="space-y-0.5 text-sm" viewportProps={{ role: "group", "aria-label": label }}>
+        <ScrollArea hideScrollbar viewportClassName="space-y-0.5 text-sm" viewportProps={{ role: "group", "aria-label": label }}>
           {(limit === undefined ? rows : rows.slice(0, limit)).map((session) => (
             <SessionRow
               key={sessionKey(session)}

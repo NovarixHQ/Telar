@@ -14,7 +14,6 @@ const api = createEngineApi();
 const SHOWN_TURNS = 2;
 const COMPACT = { "--chat-content-max-width": "100%" } as CSSProperties;
 
-/** The newest turns of a session, live, at the size of a card; `nudge` re-reads it at once, as after a reply. */
 export function LiveTranscript({ sessionId, nudge }: { sessionId: string; nudge: number }) {
   const sync = useSessionSync({ hostId: LOCAL_HOST_ID, sessionId, initiallyLoading: true });
   const model = useTranscriptModel(sessionId, sync);

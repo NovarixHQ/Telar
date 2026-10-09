@@ -63,7 +63,7 @@ export function RailSessionList(props: ListProps & { canStart: boolean; onAddPro
     <SidebarGroup className="min-h-0 flex-1">
       <ContextMenu>
         <ContextMenuTrigger render={<div className="flex min-h-0 flex-1 flex-col" />}>
-          <ScrollArea viewportClassName="space-y-0.5 text-sm" viewportProps={{ id: "sidebar-session-results", role: props.query ? "listbox" : undefined }}>
+          <ScrollArea hideScrollbar viewportClassName="space-y-0.5 text-sm" viewportProps={{ id: "sidebar-session-results", role: props.query ? "listbox" : undefined }}>
             <RailRows {...props} />
           </ScrollArea>
         </ContextMenuTrigger>

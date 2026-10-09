@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { EngineRequest } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
-import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport } from "@/ui/conversation";
+import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
 import { SessionTurn } from "../cockpit/components/session-turn";
 import { useSessionSync } from "../cockpit/hooks/use-session-sync";
 import { useTranscriptModel } from "../cockpit/hooks/use-transcript-model";
@@ -15,11 +15,14 @@ const api = createEngineApi();
 export function useLiveSession(sessionId: string, nudge: number) {
   const sync = useSessionSync({ hostId: LOCAL_HOST_ID, sessionId, initiallyLoading: true });
   const model = useTranscriptModel(sessionId, sync);
+  const follow = useRef<ConversationFollowHandle>(null);
   const { hydrate } = sync;
   useEffect(() => {
-    if (nudge > 0) hydrate();
+    if (nudge === 0) return;
+    follow.current?.toBottom();
+    hydrate();
   }, [nudge, hydrate]);
-  return { sync, model };
+  return { sync, model, follow };
 }
 
 function useContentHeight(maxHeight: number) {
@@ -52,6 +55,7 @@ export function LiveTranscript({ sessionId, live, maxHeight }: { sessionId: stri
       style={{ height, "--chat-content-max-width": "100%" } as CSSProperties}
       conversation={sync.syncKey}
       landed={sync.transcriptLanded}
+      followRef={live.follow}
     >
       <ConversationContent className="gap-0 px-0 py-1 [&_.telar-markdown]:text-xs">
         <div ref={content} className="flex flex-col gap-3">

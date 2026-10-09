@@ -13,28 +13,53 @@ export type ConversationFollowHandle = {
 };
 
 const READER_GESTURES = ["wheel", "touchmove", "mousedown"] as const;
+const READER_KEYS = new Set(["ArrowUp", "PageUp", "Home"]);
+
+function releasesHold(event: Event, scroller: HTMLElement): boolean {
+  if (event instanceof WheelEvent) return event.deltaY < 0;
+  if (event instanceof KeyboardEvent) return READER_KEYS.has(event.key);
+  if (event.type === "mousedown") return event.target === scroller;
+  return event.type === "touchmove";
+}
 
 const ConversationFollow = ({ handle }: { handle?: Ref<ConversationFollowHandle> }) => {
-  const { escapedFromLock, scrollToBottom, scrollRef, state } = useStickToBottomContext();
+  const { escapedFromLock, scrollToBottom, scrollRef, contentRef, state } = useStickToBottomContext();
   const gestureAt = useRef(Number.NEGATIVE_INFINITY);
+  const held = useRef(false);
 
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
-    const mark = () => {
+    const mark = (event: Event) => {
       gestureAt.current = performance.now();
+      if (releasesHold(event, element)) held.current = false;
     };
-    for (const kind of READER_GESTURES) element.addEventListener(kind, mark, { passive: true });
+    let frame = 0;
+    const keep = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (held.current && !state.animation && state.scrollDifference > 1) void scrollToBottom({ animation: "instant" });
+      });
+    };
+    for (const kind of [...READER_GESTURES, "keydown"]) element.addEventListener(kind, mark, { passive: true });
+    element.addEventListener("scroll", keep, { passive: true });
+    const observer = new ResizeObserver(keep);
+    observer.observe(element);
+    if (contentRef.current) observer.observe(contentRef.current);
     return () => {
-      for (const kind of READER_GESTURES) element.removeEventListener(kind, mark);
+      for (const kind of [...READER_GESTURES, "keydown"]) element.removeEventListener(kind, mark);
+      element.removeEventListener("scroll", keep);
+      observer.disconnect();
+      cancelAnimationFrame(frame);
     };
-  }, [scrollRef]);
+  }, [scrollRef, contentRef, scrollToBottom, state]);
 
   useImperativeHandle(
     handle,
     () => ({
       toBottom: () => {
         gestureAt.current = Number.NEGATIVE_INFINITY;
+        held.current = true;
         void scrollToBottom({ animation: "instant" });
       },
     }),

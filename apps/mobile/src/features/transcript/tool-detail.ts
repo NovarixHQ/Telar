@@ -60,7 +60,17 @@ export function rowCopies(item: JournalItem): { label: string; text: string }[] 
     const output = outputOf(item);
     if (output) copies.push({ label: "Copy output", text: output });
   }
-  const path = detail.type === "file_change" ? detail.change.path : detail.type === "file_read" ? detail.read.path : undefined;
+  const path = rowPath(item);
   if (path) copies.push({ label: "Copy path", text: path });
   return copies;
+}
+
+/** The file a tool row touched, for Copy path and Insert as reference. */
+export function rowPath({ detail }: JournalItem): string | undefined {
+  return detail.type === "file_change" ? detail.change.path : detail.type === "file_read" ? detail.read.path : undefined;
+}
+
+/** The file the editor can open from a row: anything read or changed, except a deleted file. */
+export function openablePath(item: JournalItem): string | undefined {
+  return item.detail.type === "file_change" && item.detail.change.kind === "delete" ? undefined : rowPath(item);
 }

@@ -1,3 +1,4 @@
+export { attachmentSymbol, humanBytes } from "./attachments";
 export { isActiveTurn, isCompacting, isToolItem, itemLabel, itemText, toolOutput } from "./journal-items";
 export { hostPassiveArrivals } from "./journal-arrivals";
 export { createJournalProjector } from "./journal-projector";

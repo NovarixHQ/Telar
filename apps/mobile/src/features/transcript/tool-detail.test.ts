@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { projectJournal } from "@telar/client/journal";
 import { item, turn } from "@telar/client/journal/fixtures";
-import { detailParts, rowCopies } from "./tool-detail";
+import { detailParts, openablePath, rowCopies, rowPath } from "./tool-detail";
 
 const one = (row: Parameters<typeof item>[0]) => projectJournal([{ ...turn, state: "completed" }], [item(row)], [])[0]!.items[0]!;
 
@@ -23,4 +23,17 @@ test("an edit offers its patch and path, and a tool call its pretty input", () =
   expect(rowCopies(edit)).toEqual([{ label: "Copy patch", text: "@@ -1 +1 @@" }, { label: "Copy path", text: "a.ts" }]);
   const call = one({ id: "t", status: "completed", detail: { type: "mcp_tool_call", call: { name: "x", input: { a: 1 } } } as never });
   expect(detailParts(call)).toEqual([{ kind: "label", text: "Input" }, { kind: "code", text: '{\n  "a": 1\n}' }]);
+});
+
+test("only rows that touched a file offer its path", () => {
+  const read = one({ id: "r", status: "completed", detail: { type: "file_read", read: { path: "src/a.ts" } } as never });
+  const edit = one({ id: "e", status: "completed", detail: { type: "file_change", change: { path: "b.ts", kind: "add" } } as never });
+  const ran = one({ id: "c", status: "completed", detail: { type: "command_execution", command: { command: "ls" } } as never });
+  expect([rowPath(read), rowPath(edit), rowPath(ran)]).toEqual(["src/a.ts", "b.ts", undefined]);
+});
+
+test("the editor opens what a row read or changed, but not a file it deleted", () => {
+  const read = one({ id: "r", status: "completed", detail: { type: "file_read", read: { path: "src/a.ts" } } as never });
+  const gone = one({ id: "d", status: "completed", detail: { type: "file_change", change: { path: "old.ts", kind: "delete" } } as never });
+  expect([openablePath(read), openablePath(gone), rowPath(gone)]).toEqual(["src/a.ts", undefined, "old.ts"]);
 });

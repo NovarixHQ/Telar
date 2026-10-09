@@ -1,3 +1,5 @@
+import { humanBytes } from "@telar/client/journal";
+
 const BYTE_CAP = 20 * 1024 * 1024;
 export const PREVIEW_CAP = 8 * 1024 * 1024;
 export const TURN_CAP = 16;
@@ -7,13 +9,6 @@ export type Picked = { uri: string; name?: string | null; mimeType?: string | nu
 export type Intake = { file: { uri: string; name: string; mediaType: string } } | { refused: string };
 
 const EXTENSION: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/heic": "heic", "image/gif": "gif", "image/webp": "webp", "application/pdf": "pdf", "text/plain": "txt" };
-
-export function humanBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
-}
 
 /** A picked file's name, with an extension from its type when it has none. */
 function fileName(suggested: string | null | undefined, mediaType: string, fallback: string): string {
@@ -36,13 +31,4 @@ export function intake(picked: Picked, fallback: string): Intake {
 export function takeFiles(picked: Picked[], fallback: string): { files: { uri: string; name: string; mediaType: string }[]; refusals: string[] } {
   const taken = picked.map((item) => intake(item, fallback));
   return { files: taken.flatMap((item) => ("file" in item ? [item.file] : [])), refusals: taken.flatMap((item) => ("refused" in item ? [item.refused] : [])) };
-}
-
-export function attachmentSymbol(mediaType: string): string {
-  if (mediaType.startsWith("image/")) return "photo";
-  if (mediaType.startsWith("video/")) return "film";
-  if (mediaType.startsWith("audio/")) return "waveform";
-  if (mediaType === "application/pdf") return "doc.richtext";
-  if (mediaType.startsWith("text/")) return "doc.text";
-  return "doc";
 }

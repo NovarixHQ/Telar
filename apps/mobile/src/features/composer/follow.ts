@@ -4,9 +4,11 @@ function atEnd({ offset, height, content }: FieldScroll, slack: number): boolean
   return offset + height >= content - slack;
 }
 
-/** Where to put the caret when dictated words land: at the end, unless the person scrolled away or rewrote the text. */
-export function followCaret(previous: string, next: string, following: boolean): number | undefined {
-  return following && next.length > previous.length && next.startsWith(previous) ? next.length : undefined;
+/** Whether to move the field's caret to where dictated words landed: not when the person rewrote the text, or scrolled away from the end the words went to. */
+export function followCaret(previous: string, next: string, caret: number, following: boolean): number | undefined {
+  const at = caret - (next.length - previous.length);
+  const inserted = at >= 0 && at < caret && next.slice(0, at) === previous.slice(0, at) && next.slice(caret) === previous.slice(at);
+  return inserted && (following || caret < next.length) ? caret : undefined;
 }
 
 type Following = { offset: number; following: boolean };

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { attachmentSymbol, humanBytes, intake } from "./intake";
+import { intake } from "./intake";
 
 test("a picked file keeps its name, or gets one from its type", () => {
   expect(intake({ uri: "file:///a", name: "report.pdf", mimeType: "application/pdf", size: 10 }, "file")).toEqual({ file: { uri: "file:///a", name: "report.pdf", mediaType: "application/pdf" } });
@@ -11,9 +11,4 @@ test("a picked file keeps its name, or gets one from its type", () => {
 test("empty and oversized files are refused with the reason", () => {
   expect(intake({ uri: "file:///e", name: "e.txt", mimeType: "text/plain", size: 0 }, "file")).toEqual({ refused: "e.txt came through empty." });
   expect(intake({ uri: "file:///f", name: "big.mov", mimeType: "video/quicktime", size: 30 * 1024 * 1024 }, "file")).toEqual({ refused: "big.mov is 30.0 MB — attachments stop at 20.0 MB." });
-});
-
-test("sizes and glyphs read as the Swift app's", () => {
-  expect([humanBytes(500), humanBytes(2048), humanBytes(5 * 1024 ** 3)]).toEqual(["500 B", "2.0 KB", "5.00 GB"]);
-  expect(["image/png", "application/pdf", "text/markdown", "application/zip"].map(attachmentSymbol)).toEqual(["photo", "doc.richtext", "doc.text", "doc"]);
 });

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { itemText, type JournalItem } from "@telar/client/journal";
+import type { TurnAttachment } from "@telar/engine-client";
 import { ArtifactCard } from "./Artifact";
 import { providerSwitchLabel } from "./layout";
 import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./notices";
 import { Markdown } from "./Markdown";
 import { isPlainProse } from "./markdown-blocks";
+import { bubbleShows } from "./sent";
+import { SentAttachments } from "./SentAttachments";
 import { advanceReveal, REVEAL_FRAME_MS, revealed, revealText, stepReveal, type Reveal } from "./reveal";
 import { Radius, Theme, type SymbolName } from "../../ui";
 import { MONO, Symbol, TextSize } from "./native";
@@ -91,7 +94,7 @@ export function ItemRow({ item }: { item: JournalItem }) {
     case "context_compaction":
       return <Divider label={detail.preTokens !== undefined && detail.postTokens !== undefined ? `Context compacted ${Math.floor(detail.preTokens / 1000)}k → ${Math.floor(detail.postTokens / 1000)}k` : "Context compacted"} />;
     case "user_message":
-      if (!detail.wakeReason && !detail.sender) return <UserBubble text={itemText(item)} attachments={detail.attachments?.length ?? 0} />;
+      if (!detail.wakeReason && !detail.sender) return <UserBubble text={itemText(item)} attachments={detail.attachments ?? []} />;
       return <NoticeRow notice={detail.wakeReason ? wakeNotice(detail.wakeReason, undefined, detail.notice, itemText(item)) : agentNotice(undefined, detail.notice, itemText(item))} />;
     case "notification":
       return <NoticeRow notice={notificationNotice(detail.notification)} />;
@@ -104,15 +107,24 @@ export function ItemRow({ item }: { item: JournalItem }) {
   }
 }
 
-/** Hugs its longest wrapped line, as SwiftUI does, instead of keeping the width it wrapped at. */
-export function UserBubble({ text, attachments = 0 }: { text: string; attachments?: number }) {
-  const blank = !text.trim();
+/** The files sent with the message, then the text; the bubble hugs its longest wrapped line, as SwiftUI does. */
+export function UserBubble({ text, attachments }: { text: string; attachments: readonly TurnAttachment[] }) {
+  const shows = bubbleShows(text, attachments.length);
+  return (
+    <View style={styles.stack}>
+      {attachments.length ? <SentAttachments attachments={attachments} /> : null}
+      {shows === "none" ? null : <BubbleText text={text} image={shows === "image"} />}
+    </View>
+  );
+}
+
+function BubbleText({ text, image }: { text: string; image: boolean }) {
   const plain = useMemo(() => isPlainProse(text), [text]);
   const [hug, setHug] = useState<number>();
   return (
     <View style={styles.bubbleRow}>
       <View style={[styles.bubble, hug !== undefined && { width: hug + 24 }, !plain && styles.richBubble]}>
-        {blank && attachments ? (
+        {image ? (
           <View style={styles.imageLabel}>
             <Symbol name="photo" size={TextSize.body} color={Theme.textMuted} />
             <Text style={[styles.bubbleText, styles.muted]}>Image</Text>

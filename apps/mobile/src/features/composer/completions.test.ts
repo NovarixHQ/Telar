@@ -53,3 +53,19 @@ test("mentions skip this session, rank its project first and insert the referenc
   expect(rows[1]!.action.kind === "insert" && rows[1]!.action.text.startsWith('the "Pricing study" session (s_other)')).toBe(true);
   expect(list("@")).toHaveLength(3);
 });
+
+test("a session not made yet can also pick its agent and workspace, marking the current ones", () => {
+  const rows = list("/", { fresh: { driver: "codex", envMode: "worktree" }, current: { projectId: "p1" } });
+  expect(rows.filter((row) => row.group === "Commands").map((row) => row.label)).toEqual([
+    "/supervised", "/auto-edits", "/auto", "/full-access", "/claude", "/codex", "/local", "/worktree", "/orchestrate",
+  ]);
+  expect(rows.find((row) => row.label === "/codex")).toMatchObject({ detail: "Start this session on this agent. (current)", action: { kind: "driver", driver: "codex" } });
+  expect(rows.find((row) => row.label === "/local")).toMatchObject({ detail: "Work directly in the project folder.", action: { kind: "envMode", mode: "local" } });
+  expect(list("/work", { fresh: { driver: "claude", envMode: "local" } })[0]!.label).toBe("/worktree");
+  expect(list("/").some((row) => row.label === "/claude")).toBe(false);
+});
+
+test("mentions from a session not made yet offer every session, its project first", () => {
+  expect(list("@pricing", { current: { projectId: "p1" } }).map((row) => row.id)).toEqual(["session:s_same", "session:s_other"]);
+  expect(list("@", { current: {} })).toHaveLength(4);
+});

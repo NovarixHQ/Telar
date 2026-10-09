@@ -1,4 +1,4 @@
-import { displayToolName } from "@telar/engine-client";
+import { displayToolName, type TurnAttachment } from "@telar/engine-client";
 import { isActiveTurn, isCompacting, itemLabel, itemText, type JournalItem, type JournalTask, type JournalTurn } from "@telar/client/journal";
 import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./notices";
 
@@ -6,7 +6,7 @@ import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./noti
 export type Fold = { kind: "fold"; id: string; items: JournalItem[]; live: boolean; failed: boolean; tally: string };
 export type Activity = { kind: "item"; item: JournalItem } | Fold;
 
-type Opener = { kind: "bubble"; text: string; attachments: number } | { kind: "notice"; notice: Notice } | { kind: "compact"; text: string };
+type Opener = { kind: "bubble"; text: string; attachments: readonly TurnAttachment[] } | { kind: "notice"; notice: Notice } | { kind: "compact"; text: string };
 
 export type Ending = { kind: "working"; label: "Working" | "Queued" | "Compacting context" } | { kind: "failed"; text: string } | { kind: "stopped" };
 
@@ -110,7 +110,7 @@ function opener(turn: JournalTurn): Opener {
   if (turn.notification) return { kind: "notice", notice: notificationNotice(turn.notification, turn.sender ? turn.prompt : undefined) };
   if (turn.wakeReason || turn.origin === "provider") return { kind: "notice", notice: wakeNotice(turn.wakeReason, turn.origin === "provider" ? { task: Boolean(turn.wokenBy) } : undefined, turn.agentNotice, turn.prompt) };
   if (turn.sender) return { kind: "notice", notice: agentNotice(turn.agentIntent, turn.agentNotice, turn.prompt) };
-  return { kind: "bubble", text: turn.prompt, attachments: turn.attachments?.length ?? 0 };
+  return { kind: "bubble", text: turn.prompt, attachments: turn.attachments ?? [] };
 }
 
 function ending(turn: JournalTurn): Ending | undefined {

@@ -5,13 +5,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HostConnection } from "../../platform/connection";
 import { ReadingColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
-import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
+import { appendSpoken, insertSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { SessionMenus, setAccessMode } from "../providers";
 import { feedOf, newRunId, sendMessage, useFeed } from "../transcript";
 import { answerRequest, openRequests, promoteTurn, RequestCards, stopSession, withdrawTurn } from "../turns";
 import { AttachmentStrip } from "./AttachmentStrip";
 import { Scrim } from "./chrome";
-import { completionsFor, type Completion, type MentionTarget } from "./completions";
+import type { MentionTarget } from "./completions";
 import { Composer } from "./Composer";
 import { readDraft, writeDraft } from "./drafts";
 import { hasRunningTurn, queuedTurns } from "./queue";
@@ -19,9 +19,9 @@ import { QueueLine } from "./QueueLine";
 import { SendFailedCard } from "./SendFailedCard";
 import { composerSlot } from "./slot";
 import { StashSheet } from "./StashSheet";
-import { detectTrigger, openingCommands, replaceTrigger } from "./trigger";
+import { openingCommands } from "./trigger";
 import { useAttachments } from "./use-attachments";
-import { useSessionSkills } from "./use-skills";
+import { useCompletions } from "./use-completions";
 import { useStash } from "./use-stash";
 
 type Props = {
@@ -41,7 +41,6 @@ type Props = {
   onReference?: () => void;
 };
 
-const NO_SKILLS = { skills: [], commands: [] };
 const PROMOTES = new Set(["claude", "codex"]);
 
 /** The footer that floats over the transcript: notices, open requests, then the composer, over a bar-material scrim. */
@@ -63,17 +62,20 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   const attachments = useAttachments(host, hostId, sessionId);
   const stash = useStash(draft, setDraft, attachments);
   const dictationAvailable = useDictationAvailable(host);
-  const latest = useRef(draft);
-  latest.current = draft;
+  const latest = useRef({ draft, caret });
+  latest.current = { draft, caret };
   const dictation = useDictation(host, (words) => {
-    latest.current = appendSpoken(latest.current, words);
-    setDraftState(latest.current);
+    const next = insertSpoken(latest.current.draft, latest.current.caret, words);
+    latest.current = { draft: next.text, caret: next.caret };
+    setDraftState(next.text);
+    setCaret(next.caret);
   });
   useEffect(() => writeDraft(Settings, hostId, sessionId, draft), [draft, hostId, sessionId]);
   const [focus, setFocus] = useState(0);
   useEffect(() => {
     if (!reference) return;
-    const next = insertReference(latest.current, reference, caret);
+    const next = insertReference(latest.current.draft, reference, latest.current.caret);
+    latest.current = { draft: next.draft, caret: next.caret };
     setDraftState(next.draft);
     setCaret(next.caret);
     setFocus((count) => count + 1);
@@ -83,17 +85,24 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   const session = feed.head?.session;
   const running = hasRunningTurn(feed.turns);
   const queued = queuedTurns(feed.turns);
-  const trigger = dictation.phase === "listening" ? undefined : detectTrigger(draft, caret);
-  const skills = useSessionSkills(host, sessionId, trigger !== undefined && trigger.kind !== "mention");
-  const rows = trigger
-    ? completionsFor(trigger, {
-        busy: running,
-        ...(session ? { runtimeMode: session.runtimeMode } : {}),
-        skills: skills.skills ?? NO_SKILLS,
-        targets: mentions,
-        current: { sessionId, ...(session?.projectId ? { projectId: session.projectId } : {}) },
-      })
-    : [];
+  const suggestions = useCompletions({
+    host,
+    draft,
+    caret,
+    listening: dictation.phase === "listening",
+    source: { sessionId, ...(session ? { driver: session.driver } : {}) },
+    context: {
+      busy: running,
+      ...(session ? { runtimeMode: session.runtimeMode } : {}),
+      targets: mentions,
+      current: { sessionId, ...(session?.projectId ? { projectId: session.projectId } : {}) },
+    },
+    setDraft,
+    onAction: (action) => {
+      if (action.kind === "stop") void stop();
+      if (action.kind === "runtimeMode" && host) void act(() => setAccessMode(host, sessionId, action.mode));
+    },
+  });
   const slot = composerSlot({ draft: appendSpoken(draft, dictation.heard), running, busy: sending, hasImage: attachments.hasImage, queued: queued.length });
 
   const act = async (work: () => Promise<unknown>) => {
@@ -122,7 +131,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   };
   const send = async (typed?: string) => {
     if (typed === undefined && dictation.phase === "listening") await dictation.finish();
-    const text = (typed ?? latest.current).trim();
+    const text = (typed ?? latest.current.draft).trim();
     const ids = attachments.pending.map((row) => row.attachment.id);
     if (!host || (!text && !attachments.hasImage)) return;
     setDraft("");
@@ -140,13 +149,6 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
     setDeciding(requestId);
     await act(() => answerRequest(host, sessionId, requestId, decision, extra));
     setDeciding(undefined);
-  };
-  const pick = (row: Completion) => {
-    if (!trigger) return;
-    const { action } = row;
-    setDraft(replaceTrigger(draft, trigger, action.kind === "insert" ? `${action.text} ` : ""));
-    if (action.kind === "stop") void stop();
-    if (action.kind === "runtimeMode" && host) void act(() => setAccessMode(host, sessionId, action.mode));
   };
 
   // `-telarSendOnOpen <text>` at launch sends it once the session has loaded, so a simulator can test sending without a tap.
@@ -214,7 +216,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
             ) : null
           }
           {...(dictationAvailable ? { dictation } : {})}
-          {...(trigger ? { suggestions: { rows, loading: skills.loading && trigger.kind !== "mention", onPick: pick } } : {})}
+          {...(suggestions ? { suggestions } : {})}
         />
       </ReadingColumn>
       <StashSheet open={stash.open} entries={stash.entries} onClose={stash.close} onPick={stash.restore} onDrop={stash.drop} />

@@ -1,7 +1,8 @@
 import { File } from "expo-file-system";
 import { useState } from "react";
 import { takeFiles, TURN_CAP, type Picked } from "./intake";
-import { pickFiles, type PickerKind } from "./use-attachments";
+import type { StashedImage } from "./stash";
+import { fromBase64, pickFiles, type PickerKind } from "./use-attachments";
 
 /** A file picked for a session that does not exist yet: read and uploaded once the session is made. */
 export type DraftFile = { id: string; name: string; mediaType: string; uri: string; read: () => Promise<Uint8Array> };
@@ -21,10 +22,15 @@ export function useDraftAttachments() {
   return {
     files,
     note,
+    setNote,
     rows: files.map((file) => ({ attachment: { id: file.id, name: file.name, mediaType: file.mediaType }, ...(file.mediaType.startsWith("image/") ? { preview: file.uri } : {}) })),
     hasImage: files.some((file) => file.mediaType.startsWith("image/")),
     remove: (id: string) => setFiles((rows) => rows.filter((row) => row.id !== id)),
     clear: () => setFiles([]),
+    restoreImages: async (images: StashedImage[]) => {
+      const taken = images.map((image) => ({ id: `draft_${(minted += 1)}`, name: image.name, mediaType: image.type, uri: image.dataUrl, read: async () => fromBase64(image.dataUrl.slice(image.dataUrl.indexOf(",") + 1)) }));
+      setFiles((rows) => [...rows, ...taken]);
+    },
     pick: async (kind: PickerKind) => {
       try {
         add(await pickFiles(kind));

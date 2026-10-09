@@ -64,6 +64,10 @@ export function SessionScreen() {
     </>
   );
 
+  const openFile = (path: string) => {
+    column.panel.openFile(path);
+    column.toggle("editor");
+  };
   const panel = host ? <PanelView host={host} sessionId={params.sessionId} panel={column.panel} state={column.state} presentation="column" onClose={column.panel.close} /> : null;
   useLayoutEffect(() => {
     split.setAside({
@@ -84,7 +88,7 @@ export function SessionScreen() {
         pin={pin}
         bottomInset={footer + keyboard}
         receipt={receipt}
-        source={host ? { host, sessionId: params.sessionId } : undefined}
+        source={host ? { host, sessionId: params.sessionId, onOpenFile: openFile, onReference: column.panel.insertReference } : undefined}
         older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
       />
       <FloatingComposer

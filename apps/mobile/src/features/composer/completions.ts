@@ -1,8 +1,13 @@
-import type { ProviderSkill, ProviderSkills, RuntimeMode } from "@telar/engine-client";
+import type { EnvMode, ProviderDriverKind, ProviderSkill, ProviderSkills, RuntimeMode } from "@telar/engine-client";
 import { sessionReference, skillReference } from "@telar/client/composer";
 import type { Trigger } from "./trigger";
 
-type CompletionAction = { kind: "insert"; text: string } | { kind: "runtimeMode"; mode: RuntimeMode } | { kind: "stop" };
+export type CompletionAction =
+  | { kind: "insert"; text: string }
+  | { kind: "runtimeMode"; mode: RuntimeMode }
+  | { kind: "driver"; driver: ProviderDriverKind }
+  | { kind: "envMode"; mode: EnvMode }
+  | { kind: "stop" };
 
 export type Completion = { id: string; label: string; detail: string; symbol: string; group: string; action: CompletionAction };
 
@@ -11,9 +16,11 @@ export type MentionTarget = { sessionId: string; title: string; projectId?: stri
 export type CompletionContext = {
   busy: boolean;
   runtimeMode?: RuntimeMode;
+  /** A session not made yet: it can still pick its agent and workspace. */
+  fresh?: { driver: ProviderDriverKind; envMode: EnvMode };
   skills: ProviderSkills;
   targets: readonly MentionTarget[];
-  current: { sessionId: string; projectId?: string };
+  current: { sessionId?: string; projectId?: string };
 };
 
 const ORCHESTRATE = "orchestrate";
@@ -134,9 +141,14 @@ function rankSessions(context: CompletionContext, query: string, limit = 4): Com
 
 function ownCommands(context: CompletionContext): Completion[] {
   const command = (id: string, label: string, detail: string, symbol: string, action: CompletionAction): Completion => ({ id, label, detail, symbol, group: "Commands", action });
-  const rows = ACCESS.map((entry) =>
-    command(`access:${entry.mode}`, `/${entry.slug}`, context.runtimeMode === entry.mode ? `${entry.detail} (current)` : entry.detail, "slider.horizontal.3", { kind: "runtimeMode", mode: entry.mode }),
-  );
+  const current = (detail: string, on: boolean) => (on ? `${detail} (current)` : detail);
+  const rows = ACCESS.map((entry) => command(`access:${entry.mode}`, `/${entry.slug}`, current(entry.detail, context.runtimeMode === entry.mode), "slider.horizontal.3", { kind: "runtimeMode", mode: entry.mode }));
+  const { fresh } = context;
+  if (fresh) {
+    for (const driver of ["claude", "codex"]) rows.push(command(`driver:${driver}`, `/${driver}`, current("Start this session on this agent.", fresh.driver === driver), "cpu", { kind: "driver", driver }));
+    rows.push(command("env:local", "/local", current("Work directly in the project folder.", fresh.envMode === "local"), "folder", { kind: "envMode", mode: "local" }));
+    rows.push(command("env:worktree", "/worktree", current("Work in a cut-off checkout of its own.", fresh.envMode === "worktree"), "arrow.triangle.branch", { kind: "envMode", mode: "worktree" }));
+  }
   if (context.skills.skills.some((skill) => skill.name === ORCHESTRATE)) {
     const prompt = `Use ${skillReference({ name: ORCHESTRATE }).text} to coordinate this list:`;
     rows.push(command("orchestrate", "/orchestrate", "Split a list of tasks across worker sessions and coordinate them.", "sparkles", { kind: "insert", text: prompt }));

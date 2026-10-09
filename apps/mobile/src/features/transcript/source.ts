@@ -1,8 +1,8 @@
 import { createContext } from "react";
 import type { HostConnection } from "../../platform/connection";
 
-/** Where the transcript's attachments come from: artifacts read their bytes through it. */
-export type TranscriptSource = { host: HostConnection; sessionId: string };
+/** Where the transcript's attachments come from, and where a file picked from it goes: the editor, or the composer as a reference. */
+export type TranscriptSource = { host: HostConnection; sessionId: string; onOpenFile?: (path: string) => void; onReference?: (text: string) => void };
 
 export const SourceContext = createContext<TranscriptSource | undefined>(undefined);
 

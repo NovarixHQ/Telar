@@ -24,7 +24,7 @@ function restore(hostId: string, sessionId: string): PendingAttachment[] {
   }
 }
 
-function fromBase64(base64: string): Uint8Array {
+export function fromBase64(base64: string): Uint8Array {
   const binary = atob(base64);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }

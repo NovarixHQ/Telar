@@ -15,7 +15,7 @@ type Props = {
   older?: { loading: boolean; load: () => void } | undefined;
   /** Bumped when the phone sends, so the transcript jumps back to the tail. */
   pin: number;
-  /** Where artifacts read their content. */
+  /** Where artifacts and sent files read their content. */
   source?: TranscriptSource | undefined;
   /** Height of whatever covers the transcript's bottom edge: the composer plus the keyboard under it. */
   bottomInset?: number;

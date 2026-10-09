@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { appendSpoken, EMPTY_STRIP, flush, hear, type Strip, type Words } from "./strip";
+import { appendSpoken, EMPTY_STRIP, insertSpoken, flush, hear, type Strip, type Words } from "./strip";
 
 const play = (results: Words[], from: Strip = EMPTY_STRIP) => {
   let strip = from;
@@ -52,4 +52,14 @@ test("spoken words join the draft with one space", () => {
   expect(appendSpoken("say", "hello")).toBe("say hello");
   expect(appendSpoken("say ", "hello")).toBe("say hello");
   expect(appendSpoken("say", "")).toBe("say");
+});
+
+test("spoken words land at the caret, spaced from the words on either side", () => {
+  expect(insertSpoken("open diff", 5, "the")).toEqual({ text: "open the diff", caret: 9 });
+  expect(insertSpoken("opendiff", 4, "the")).toEqual({ text: "open the diff", caret: 9 });
+  expect(insertSpoken("open", 4, "the diff")).toEqual({ text: "open the diff", caret: 13 });
+  expect(insertSpoken("diff", 0, "open the")).toEqual({ text: "open the diff", caret: 9 });
+  expect(insertSpoken("", 0, "hello")).toEqual({ text: "hello", caret: 5 });
+  expect(insertSpoken("open", 99, "it")).toEqual({ text: "open it", caret: 7 });
+  expect(insertSpoken("open", 2, "")).toEqual({ text: "open", caret: 2 });
 });

@@ -1,7 +1,12 @@
+import { Settings } from "react-native";
+import { swiftPairings } from "../../../modules/swift-pairings";
 import { HostRegistry } from "../../platform/connection";
 import { wakeOnForeground } from "../../platform/connection/app-wakeups";
 import { supersededBy, type PairedHost } from "./pairing";
 import { loadHosts, saveHosts } from "./storage";
+import { adoptSwiftPairings } from "./swift-pairings";
+
+const ADOPTED_KEY = "telar.swiftPairingsAdopted";
 
 export const hosts = new HostRegistry();
 
@@ -38,7 +43,9 @@ export async function forgetHost(hostId: string): Promise<void> {
 }
 
 /** Settles once the stored hosts are in the registry, so a launch link can name one. */
-export const hostsLoaded: Promise<void> = loadHosts().then((stored) => {
+export const hostsLoaded: Promise<void> = loadHosts().then((stored) =>
+  adoptSwiftPairings(stored, { store: swiftPairings, done: () => Boolean(Settings.get(ADOPTED_KEY)), markDone: () => Settings.set({ [ADOPTED_KEY]: true }), save: saveHosts }).catch(() => stored),
+).then((stored) => {
   for (const host of stored) {
     if (paired.has(host.hostId)) continue;
     paired.set(host.hostId, host);

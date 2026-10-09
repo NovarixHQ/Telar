@@ -162,7 +162,7 @@ function tidy(markdown: string): string {
     .trim();
 }
 
-export function fragmentMarkdown(fragment: Node): string {
+function fragmentMarkdown(fragment: Node): string {
   return tidy(children(fragment));
 }
 

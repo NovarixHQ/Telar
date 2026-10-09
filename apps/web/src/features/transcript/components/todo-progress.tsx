@@ -5,16 +5,15 @@ import { ListTodoIcon } from "lucide-react";
 import type { JournalItem } from "@telar/client/journal";
 
 function usePlanRowVisible(itemId: string | undefined): boolean {
-  const [visible, setVisible] = useState(false);
+  const [visibleId, setVisibleId] = useState<string>();
   useEffect(() => {
-    setVisible(false);
     const row = itemId ? document.querySelector(`[data-plan-row="${CSS.escape(itemId)}"]`) : null;
     if (!row) return;
-    const observer = new IntersectionObserver(([entry]) => setVisible(Boolean(entry?.isIntersecting)));
+    const observer = new IntersectionObserver(([entry]) => setVisibleId(entry?.isIntersecting ? itemId : undefined));
     observer.observe(row);
     return () => observer.disconnect();
   }, [itemId]);
-  return visible;
+  return itemId !== undefined && visibleId === itemId;
 }
 
 export function TodoProgress({ items }: { items: readonly JournalItem[] | undefined }) {

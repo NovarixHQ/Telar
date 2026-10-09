@@ -45,7 +45,7 @@ export function ProjectPickerScreen() {
   const lastUsed = newSessionMemory.target();
   const sections = pickerSections(targets, activity, lastUsed, query);
   const current = params?.hostId && params.projectId ? targetKey(params.hostId, params.projectId) : undefined;
-  const pick = (target: Target) => navigation.popTo("NewSession", { hostId: target.hostId, projectId: target.project.id }, { merge: true });
+  const pick = (target: Target) => navigation.popTo("NewSession", { hostId: target.hostId, projectId: target.project.id, baseRef: undefined }, { merge: true });
   const detail = (target: Target, recent: boolean) => [recent && computers > 1 ? target.hostName : undefined, showsPath(target, targets) ? target.project.root : undefined].filter(Boolean).join(" · ") || undefined;
   const add = (hostId: string) => navigation.navigate("AddProject", { hostId, pick: true });
 

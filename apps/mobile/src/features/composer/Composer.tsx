@@ -21,6 +21,7 @@ type Props = {
   onSlot: () => void;
   menu: PlusMenuProps;
   above?: ReactNode;
+  autoFocus?: boolean;
   below?: ReactNode;
   dictation?: { phase: DictationPhase; language: string | undefined; heard: string; toggle: () => void };
   suggestions?: { rows: Completion[]; loading: boolean; onPick: (row: Completion) => void };
@@ -32,7 +33,7 @@ const LINE = 21;
 const MAX_LINES = 6;
 
 /** The row the Swift app draws: plus menu, the glass field with its mic, and the send or stop circle. */
-export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, below, dictation, suggestions }: Props) {
+export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, autoFocus = false, below, dictation, suggestions }: Props) {
   const field = useRef<TextInputInstance>(null);
   const [caretAt, setCaretAt] = useState({ x: 0, y: 0 });
   const listening = dictation?.phase === "listening";
@@ -59,6 +60,7 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
             <TextInput
               ref={field}
               key={resetKey}
+              autoFocus={autoFocus}
               style={[styles.input, !dictation && styles.inputAlone]}
               accessibilityLabel={placeholder}
               value={draft}

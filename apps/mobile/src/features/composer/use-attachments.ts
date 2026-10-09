@@ -8,7 +8,7 @@ import type { HostConnection } from "../../platform/connection";
 import { intake, PREVIEW_CAP, TURN_CAP, type Picked } from "./intake";
 import type { StashedImage } from "./stash";
 
-export type PendingAttachment = { attachment: TurnAttachment; preview?: string };
+type PendingAttachment = { attachment: TurnAttachment; preview?: string };
 
 export type PickerKind = "photos" | "camera" | "files";
 
@@ -29,7 +29,7 @@ function fromBase64(base64: string): Uint8Array {
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
-async function pick(kind: PickerKind): Promise<{ picked: Picked[]; fallback: string }> {
+async function launchPicker(kind: PickerKind): Promise<{ picked: Picked[]; fallback: string }> {
   if (kind === "files") {
     const result = await getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
     return { picked: result.canceled ? [] : result.assets.map((asset) => ({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? null, size: asset.size ?? null })), fallback: "file" };
@@ -37,6 +37,13 @@ async function pick(kind: PickerKind): Promise<{ picked: Picked[]; fallback: str
   if (kind === "camera" && !(await requestCameraPermissionsAsync()).granted) throw new Error("Telar can't use the camera. Allow it in Settings › Telar.");
   const result = kind === "camera" ? await launchCameraAsync({ mediaTypes: ["images"], quality: 0.85 }) : await launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: 8, quality: 1 });
   return { picked: result.canceled ? [] : result.assets.map((asset) => ({ uri: asset.uri, name: asset.fileName ?? null, mimeType: asset.mimeType ?? "image/jpeg", size: asset.fileSize ?? null })), fallback: "photo" };
+}
+
+/** Opens the photo library, the camera or Files; what comes back is cleared for attaching or refused with a reason. */
+export async function pickFiles(kind: PickerKind): Promise<{ files: { uri: string; name: string; mediaType: string }[]; refusals: string[] }> {
+  const { picked, fallback } = await launchPicker(kind);
+  const taken = picked.map((item) => intake(item, fallback));
+  return { files: taken.flatMap((item) => ("file" in item ? [item.file] : [])), refusals: taken.flatMap((item) => ("refused" in item ? [item.refused] : [])) };
 }
 
 /** The files waiting to go with the next message: picked, uploaded to the session, and kept across launches. */
@@ -80,12 +87,8 @@ export function useAttachments(host: HostConnection | undefined, hostId: string,
     clear: () => setPending([]),
     pick: async (kind: PickerKind) => {
       try {
-        const { picked, fallback } = await pick(kind);
-        const taken = picked.map((item) => intake(item, fallback));
-        await attach(
-          taken.flatMap((item) => ("file" in item ? [{ ...item.file, read: () => new File(item.file.uri).bytes(), preview: item.file.uri }] : [])),
-          taken.flatMap((item) => ("refused" in item ? [item.refused] : [])),
-        );
+        const { files, refusals } = await pickFiles(kind);
+        await attach(files.map((file) => ({ ...file, read: () => new File(file.uri).bytes(), preview: file.uri })), refusals);
       } catch (error) {
         setNote(error instanceof Error ? error.message : String(error));
       }

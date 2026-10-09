@@ -1,18 +1,19 @@
 import { Alert, Button, Host, HStack, Label, Menu, ProgressView, ScrollView, Section, Text, TextField, useNativeState, VStack } from "@expo/ui/swift-ui";
-import { background, buttonStyle, clipShape, disabled, font, foregroundStyle, frame, lineLimit, padding, scrollDismissesKeyboard, strokeBorder, type ModifierConfig } from "@expo/ui/swift-ui/modifiers";
+import { background, buttonStyle, clipShape, disabled, font, foregroundStyle, frame, lineLimit, padding, strokeBorder, type ModifierConfig } from "@expo/ui/swift-ui/modifiers";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { EnvMode } from "@telar/engine-client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Settings, StyleSheet } from "react-native";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Settings, StyleSheet, useColorScheme, View } from "react-native";
+import { useKeyboardOverlap } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
-import { Icon, ProjectAvatar, Theme, type SymbolName } from "../../ui";
-import { DraftComposer } from "../composer";
+import { Icon, palette, ProjectAvatar, Theme, type SymbolName } from "../../ui";
+import { DraftComposer, type DraftFile } from "../composer";
 import { hosts } from "../hosts";
 import { useProjectIcon } from "../projects";
 import { DraftMenus, type DraftPicks } from "../providers";
 import { newRunId } from "../transcript";
-import { createdRoute, preferredTarget, startSession, targetKey, workspaceLabel, type Target, type Workspace } from "./new-session";
+import { createdRoute, preferredTarget, shortRef, startSession, targetKey, workspaceLabel, type Target, type Workspace } from "./new-session";
 import { StatusNotice } from "./StatusNotice";
 import { newSessionMemory, useTargets } from "./use-targets";
 
@@ -48,7 +49,7 @@ function ProjectChip({ target, loading, showHost, onPress }: { target: Target | 
 
 const row = (label: string, selected: boolean, onPress: () => void) => <Button label={label} onPress={onPress} {...(selected ? { systemImage: "checkmark" as SymbolName } : {})} />;
 
-function WorkspaceChip({ workspace, onMode, onName }: { workspace: Workspace; onMode: (mode: EnvMode) => void; onName: () => void }) {
+function WorkspaceChip({ workspace, onMode, onStart, onName }: { workspace: Workspace; onMode: (mode: EnvMode) => void; onStart: () => void; onName: () => void }) {
   const label = (
     <HStack spacing={8} modifiers={[...chip, frame({ maxWidth: 220 })]}>
       <Icon name="point.topleft.down.curvedto.point.bottomright.up" textStyle="subheadline" color={Theme.text} />
@@ -62,7 +63,12 @@ function WorkspaceChip({ workspace, onMode, onName }: { workspace: Workspace; on
         {row("New worktree", workspace.envMode === "worktree", () => onMode("worktree"))}
         {row("Current checkout", workspace.envMode === "local", () => onMode("local"))}
       </Section>
-      {workspace.envMode === "worktree" ? <Button label={workspace.branchName ? `Branch: ${workspace.branchName}` : "Name the branch…"} systemImage="signature" onPress={onName} /> : null}
+      {workspace.envMode === "worktree" ? (
+        <>
+          <Button label={workspace.baseRef ? `Start from: ${shortRef(workspace.baseRef)}` : "Start from…"} systemImage="arrow.triangle.branch" onPress={onStart} />
+          <Button label={workspace.branchName ? `Branch: ${workspace.branchName}` : "Name the branch…"} systemImage="signature" onPress={onName} />
+        </>
+      ) : null}
     </Menu>
   );
 }
@@ -92,7 +98,7 @@ export function NewSessionScreen() {
   const navigation = useNavigation<Navigation>();
   const { params } = useRoute<RouteProp<RootStack, "NewSession">>();
   const { targets, activity, loading, unreachable, computers } = useTargets();
-  const [workspace, setWorkspace] = useState<Workspace>(() => ({ envMode: newSessionMemory.envMode(), branchName: "" }));
+  const [mode, setMode] = useState(() => ({ envMode: newSessionMemory.envMode(), branchName: "" }));
   const [picks, setPicks] = useState<DraftPicks>({ driver: "claude" });
   const [naming, setNaming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -100,14 +106,22 @@ export function NewSessionScreen() {
   const [created, setCreated] = useState<{ key: string; sessionId: string }>();
   const [runId] = useState(() => newRunId());
 
+  const keyboard = useKeyboardOverlap();
+  const canvas = palette.canvas[useColorScheme() === "dark" ? "dark" : "light"];
+  useLayoutEffect(() => navigation.setOptions({ headerStyle: { backgroundColor: canvas } }), [navigation, canvas]);
+
   const chosen = params?.hostId && params.projectId ? targetKey(params.hostId, params.projectId) : undefined;
   const target = targets.find((entry) => targetKey(entry.hostId, entry.project.id) === chosen) ?? (chosen ? undefined : preferredTarget(targets, activity, newSessionMemory.target()));
   const key = target && targetKey(target.hostId, target.project.id);
   const host = target && hosts.get(target.hostId);
   const locked = busy || created !== undefined;
+  const workspace: Workspace = { ...mode, ...(mode.envMode === "worktree" && params?.baseRef ? { baseRef: params.baseRef } : {}) };
 
-  const pick = (next: Partial<Workspace>) => setWorkspace((current) => ({ ...current, ...next, ...(next.envMode === "local" ? { branchName: "" } : {}) }));
-  const send = async (text: string): Promise<boolean> => {
+  const pick = (next: Partial<typeof mode>) => {
+    setMode((current) => ({ ...current, ...next, ...(next.envMode === "local" ? { branchName: "" } : {}) }));
+    if (next.envMode === "local") navigation.setParams({ baseRef: undefined });
+  };
+  const send = async (text: string, files: readonly DraftFile[] = []): Promise<boolean> => {
     if (!target || !host || !key) {
       setError(loading ? "Projects are still loading." : "Choose a project first.");
       return false;
@@ -115,7 +129,7 @@ export function NewSessionScreen() {
     setBusy(true);
     setError(undefined);
     try {
-      const draft = { projectId: target.project.id, workspace, ...picks, prompt: text, runId };
+      const draft = { projectId: target.project.id, workspace, ...picks, prompt: text, files, runId };
       const sessionId = await startSession(hosts, target.hostId, draft, created?.key === key ? created.sessionId : undefined, (id) => {
         setCreated({ key, sessionId: id });
         newSessionMemory.remember(key, workspace.envMode);
@@ -142,14 +156,19 @@ export function NewSessionScreen() {
 
   const notices = error ? <StatusNotice tint="red" text={error} actions={[{ label: "Dismiss", onPress: () => setError(undefined) }]} /> : null;
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior="padding">
+    <View style={styles.screen}>
       <Host style={styles.screen}>
-        <ScrollView modifiers={[scrollDismissesKeyboard("interactively")]}>
+        <ScrollView>
           <BranchAlert shown={naming} onShown={setNaming} current={workspace.branchName} onUse={(branchName) => (pick({ branchName }), setNaming(false))}>
             <VStack spacing={14} modifiers={[padding({ horizontal: 16, top: 48 }), frame({ maxWidth: Infinity }), disabled(locked)]}>
               <HStack spacing={8}>
                 <ProjectChip target={target} loading={loading} showHost={computers > 1} onPress={() => navigation.navigate("ProjectPicker", target ? { hostId: target.hostId, projectId: target.project.id } : undefined)} />
-                <WorkspaceChip workspace={workspace} onMode={(envMode) => pick({ envMode })} onName={() => setNaming(true)} />
+                <WorkspaceChip
+                  workspace={workspace}
+                  onMode={(envMode) => pick({ envMode })}
+                  onStart={() => target && navigation.navigate("BranchPicker", { hostId: target.hostId, projectId: target.project.id, ...(workspace.baseRef ? { baseRef: workspace.baseRef } : {}) })}
+                  onName={() => setNaming(true)}
+                />
               </HStack>
               {unreachable.length ? <Label title={`${unreachable.join(", ")} didn't answer.`} systemImage="wifi.slash" modifiers={[font({ textStyle: "caption" }), foregroundStyle(Theme.amber)]} /> : null}
               {busy ? (
@@ -162,6 +181,8 @@ export function NewSessionScreen() {
         </ScrollView>
       </Host>
       <DraftComposer
+        keyboard={keyboard}
+        host={host}
         draftKey={target ? { hostId: target.hostId, id: `new.${target.project.id}` } : undefined}
         placeholder={target ? `Describe a coding task in ${target.project.name}` : "Describe a coding task"}
         controls={host ? <DraftMenus host={host} picks={picks} onPicks={setPicks} /> : undefined}
@@ -169,7 +190,7 @@ export function NewSessionScreen() {
         busy={busy}
         onSend={send}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

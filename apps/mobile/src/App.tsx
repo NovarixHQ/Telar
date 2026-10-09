@@ -6,7 +6,7 @@ import { ConnectScreen } from "./features/hosts";
 import { AddProjectScreen } from "./features/projects";
 import { PanelScreen } from "./features/panel";
 import { launchLink, onNotificationLink, startLiveActivityCard, startPush } from "./features/push";
-import { NewSessionScreen, ProjectPickerScreen, RailScreen, refreshInbox, SessionScreen } from "./features/sessions";
+import { BranchPickerScreen, NewSessionScreen, ProjectPickerScreen, RailScreen, refreshInbox, SessionScreen } from "./features/sessions";
 import { SettingsScreen } from "./features/settings";
 import { UsageScreen } from "./features/usage";
 import { createSplitStackNavigator, DetailPlaceholder } from "./platform/layout";
@@ -32,7 +32,7 @@ function subscribe(listener: (url: string) => void): () => void {
 
 const linking: LinkingOptions<RootStack> = {
   prefixes: ["telar://"],
-  config: { initialRouteName: "Rail", screens: { Pair: "pair", NewSession: "new", AddProject: "add-project/:hostId", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } },
+  config: { initialRouteName: "Rail", screens: { Pair: "pair", NewSession: "new", BranchPicker: "branches/:hostId/:projectId", AddProject: "add-project/:hostId", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } },
   getInitialURL: initialUrl,
   subscribe,
 };
@@ -54,7 +54,12 @@ export function App() {
       >
         <Stack.Screen name="Rail" component={RailScreen} options={{ title: "Telar" }} />
         <Stack.Screen name="Pair" component={ConnectScreen} options={{ title: "Connect to Telar", headerLargeTitle: false, headerBackButtonDisplayMode: "minimal" }} />
-        <Stack.Screen name="NewSession" component={NewSessionScreen} options={{ title: "New session", headerLargeTitle: false, headerBackButtonDisplayMode: "minimal" }} />
+        <Stack.Screen name="NewSession" component={NewSessionScreen} options={{ title: "New conversation", headerLargeTitle: false, headerShadowVisible: false, headerBackButtonDisplayMode: "minimal" }} />
+        <Stack.Screen
+          name="BranchPicker"
+          component={BranchPickerScreen}
+          options={({ navigation }) => ({ title: "Start from", presentation: "formSheet", sheetAllowedDetents: [0.5, 1], headerLargeTitle: false, headerLeft: () => <Button title="Cancel" onPress={() => navigation.goBack()} /> })}
+        />
         <Stack.Screen
           name="ProjectPicker"
           component={ProjectPickerScreen}

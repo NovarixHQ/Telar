@@ -2,11 +2,13 @@ import { Host } from "@expo/ui/swift-ui";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Icon, Theme, type SymbolName } from "../../ui";
 import { attachmentSymbol } from "./intake";
-import type { PendingAttachment } from "./use-attachments";
+import type { TurnAttachment } from "@telar/engine-client";
+
+type Row = { attachment: Pick<TurnAttachment, "id" | "name" | "mediaType">; preview?: string };
 
 const TILE = 72;
 
-function Tile({ row, onRemove }: { row: PendingAttachment; onRemove: () => void }) {
+function Tile({ row, onRemove }: { row: Row; onRemove: () => void }) {
   const { name, mediaType } = row.attachment;
   return (
     <View style={styles.tile} accessibilityLabel={name}>
@@ -30,7 +32,7 @@ function Tile({ row, onRemove }: { row: PendingAttachment; onRemove: () => void 
 }
 
 /** The files going with the next message, as the Swift app's 72pt tiles. */
-export function AttachmentStrip({ rows, uploading, onRemove }: { rows: PendingAttachment[]; uploading: boolean; onRemove: (id: string) => void }) {
+export function AttachmentStrip({ rows, uploading, onRemove }: { rows: Row[]; uploading: boolean; onRemove: (id: string) => void }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip} keyboardShouldPersistTaps="always">
       {rows.map((row) => (

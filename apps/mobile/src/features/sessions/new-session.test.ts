@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { LiveSessionsAnswer } from "@telar/engine-client";
 import { HostConnection, HostRegistry } from "../../platform/connection";
 import { fakeClock, fakeNetwork, identityOf, until } from "../../platform/connection/testing";
-import { createdRoute, pickerSections, targetState, preferredTarget, projectActivity, projectTargets, sessionTitle, startSession, workspaceLabel, type NewSession } from "./new-session";
+import { branchRows, createdRoute, pickerSections, targetState, workspaceLabel as label, preferredTarget, projectActivity, projectTargets, sessionTitle, startSession, workspaceLabel, type NewSession } from "./new-session";
 
 const MAC = "http://192.168.1.20:3000";
 const HOST = "host_00000000-0000-0000-0000-000000000001";
@@ -16,7 +16,8 @@ function online(routes: Record<string, () => Response>) {
     [MAC]: (path, init) => {
       if (path === "/api/identity") return identityOf(HOST);
       const method = init.method ?? "GET";
-      calls.push({ method, path, ...(init.body ? { body: JSON.parse(String(init.body)) } : {}) });
+      const json = (init.headers as Record<string, string> | undefined)?.["content-type"]?.includes("json");
+      calls.push({ method, path, ...(init.body ? { body: json ? JSON.parse(String(init.body)) : "bytes" } : {}) });
       return routes[`${method} ${path}`]?.() ?? Response.json({ error: { code: "not_found", message: "nope" } }, { status: 404 });
     },
   });
@@ -129,4 +130,63 @@ test("the session is created on the computer that owns the chosen project", asyn
   await until(registry.add({ hostId: "host_studio", name: "Studio", token: "b", paired: [STUDIO] }), "online");
   await startSession(registry, "host_studio", draft, undefined, () => {});
   expect(seen).toEqual([`POST ${STUDIO}/api/projects/p1/sessions`, `POST ${STUDIO}/api/sessions/s1/turns`]);
+});
+
+test("a worktree starts from the chosen ref, and a checkout never sends one", async () => {
+  const { host, calls } = online({ "POST /api/projects/p1/sessions": created, "POST /api/sessions/s1/turns": accepted });
+  await until(host, "online");
+  await startSession({ get: () => host }, HOST, { ...draft, workspace: { envMode: "worktree", branchName: "", baseRef: "origin/main" } }, undefined, () => {});
+  await startSession({ get: () => host }, HOST, { ...draft, workspace: { envMode: "local", branchName: "", baseRef: "origin/main" } }, undefined, () => {});
+  const bodies = calls.filter((call) => call.path.endsWith("/sessions")).map((call) => call.body);
+  expect(bodies).toEqual([
+    { title: "Fix the login bug", driver: "claude", envMode: "worktree", baseRef: "origin/main" },
+    { title: "Fix the login bug", driver: "claude", envMode: "local" },
+  ]);
+  expect(label({ envMode: "worktree", branchName: "", baseRef: "origin/main" })).toBe("New worktree · main");
+});
+
+test("attached files are uploaded to the new session and sent with the first message", async () => {
+  let uploaded = 0;
+  const { host, calls } = online({
+    "POST /api/projects/p1/sessions": created,
+    "POST /api/sessions/s1/attachments": () => Response.json({ attachment: { id: `att_${(uploaded += 1)}` } }, { status: 201 }),
+    "POST /api/sessions/s1/turns": accepted,
+  });
+  await until(host, "online");
+  const file = (name: string) => ({ name, mediaType: "image/png", read: async () => new Uint8Array([1, 2, 3]) });
+  await startSession({ get: () => host }, HOST, { ...draft, prompt: "", files: [file("a.png"), file("b.png")] }, undefined, () => {});
+  expect(calls.map((call) => [call.method, call.path, call.body])).toEqual([
+    ["POST", "/api/projects/p1/sessions", { title: "2 images", driver: "claude", envMode: "worktree" }],
+    ["POST", "/api/sessions/s1/attachments", "bytes"],
+    ["POST", "/api/sessions/s1/attachments", "bytes"],
+    ["POST", "/api/sessions/s1/turns", { runId: "run_1", input: "", attachments: ["att_1", "att_2"] }],
+  ]);
+});
+
+test("a file that fails to upload sends nothing", async () => {
+  const { host, calls } = online({ "POST /api/projects/p1/sessions": created, "POST /api/sessions/s1/attachments": () => Response.json({ error: { code: "too_large", message: "no" } }, { status: 413 }) });
+  await until(host, "online");
+  const file = { name: "big.pdf", mediaType: "application/pdf", read: async () => new Uint8Array([1]) };
+  await expect(startSession({ get: () => host }, HOST, { ...draft, files: [file] }, undefined, () => {})).rejects.toThrow("Couldn't upload big.pdf — nothing was sent. Try again.");
+  expect(calls.some((call) => call.path.endsWith("/turns"))).toBe(false);
+});
+
+test("Start from offers HEAD, the default and current branches, then local and origin refs not already listed", () => {
+  const git = {
+    branch: "feature",
+    defaultBase: "main",
+    refs: [
+      { name: "main", kind: "local" as const },
+      { name: "feature", kind: "local" as const, head: true },
+      { name: "spike", kind: "local" as const },
+      { name: "origin/spike", kind: "remote" as const },
+      { name: "origin/release", kind: "remote" as const },
+    ],
+  };
+  const rows = branchRows(git, "");
+  expect(rows.pinned.map((row) => [row.label, row.badge])).toEqual([["Current HEAD", undefined], ["main", "default"], ["feature", "current"]]);
+  expect(rows.local.map((row) => row.value)).toEqual(["spike"]);
+  expect(rows.origin.map((row) => [row.value, row.badge])).toEqual([["origin/release", "remote"]]);
+  const found = branchRows(git, "SPI");
+  expect([found.pinned, found.local.map((row) => row.value), found.origin.map((row) => row.value)]).toEqual([[], ["spike"], ["origin/spike"]]);
 });

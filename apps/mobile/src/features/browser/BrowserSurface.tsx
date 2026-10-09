@@ -1,10 +1,10 @@
 import { Button, Divider, HStack, Host, ScrollView, Spacer, Text, VStack } from "@expo/ui/swift-ui";
-import { accessibilityLabel, background, buttonStyle, contentShape, font, foregroundStyle, frame, lineLimit, multilineTextAlignment, padding, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, background, buttonStyle, contentShape, font, foregroundStyle, frame, lineLimit, padding, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
 import type { BrowserTab } from "@telar/engine-client";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Image, ScrollView as Scroller, StyleSheet, TextInput, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
-import { faded, Icon, Radius, Theme, Type } from "../../ui";
+import { EmptyState, faded, Icon, Radius, Theme } from "../../ui";
 import { useBrowser } from "./use-browser";
 import { pageLabel, pageNotice, pickPage, type BrowserView } from "./watch";
 
@@ -52,19 +52,6 @@ function AddressBar({ page, onOpen }: { page: BrowserTab | undefined; onOpen: (t
   );
 }
 
-function Notice({ title, detail, failed, action }: { title: string; detail: string; failed: boolean; action?: () => void }) {
-  return (
-    <Host style={styles.fill}>
-      <VStack spacing={6} modifiers={[frame({ maxWidth: 300 }), padding({ all: 24 })]}>
-        <Icon name="globe" size={15} weight="medium" color={Theme.textMuted} modifiers={[frame({ width: 36, height: 36 }), background(Theme.fill, shapes.circle())]} />
-        <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), foregroundStyle(Theme.text), lineLimit(2)]}>{title}</Text>
-        <Text modifiers={[Type.slim, foregroundStyle(failed ? Theme.red : Theme.textMuted), multilineTextAlignment("center")]}>{detail}</Text>
-        {action ? <Button label="Open a page" systemImage="plus" onPress={action} modifiers={[padding({ top: 6 })]} /> : null}
-      </VStack>
-    </Host>
-  );
-}
-
 function Screenshot({ uri, label }: { uri: string; label: string }) {
   const [ratio, setRatio] = useState<number>();
   return (
@@ -82,9 +69,9 @@ function Screenshot({ uri, label }: { uri: string; label: string }) {
 
 function Content({ view, page, onLaunch }: { view: BrowserView; page: BrowserTab | undefined; onLaunch: () => void }) {
   const pages = view.snapshot?.tabs ?? [];
-  if (pages.length === 0) return <Notice title="No pages open" detail={view.failure ?? "Open an address to watch it here."} failed={!!view.failure} action={onLaunch} />;
+  if (pages.length === 0) return <EmptyState icon="globe" title="No pages open" detail={view.failure ?? "Open an address to watch it here."} failed={!!view.failure} action={{ label: "Open a page", icon: "plus", onPress: onLaunch }} />;
   if (page?.active && view.image?.pageId === page.id) return <Screenshot uri={view.image.uri} label={pageLabel(page)} />;
-  return <Notice title={page ? pageLabel(page) : "This page is no longer open"} detail={pageNotice(view, page)} failed={!!view.failure} />;
+  return <EmptyState icon="globe" title={page ? pageLabel(page) : "This page is no longer open"} detail={pageNotice(view, page)} failed={!!view.failure} />;
 }
 
 /** The pages this session's browser has open on the computer, the focused one photographed live. */
@@ -117,7 +104,7 @@ export function BrowserSurface({ host, sessionId }: { host: HostConnection; sess
       "url",
     );
 
-  if (!view.snapshot) return view.failure ? <Notice title="Browser" detail={view.failure} failed /> : <ActivityIndicator style={styles.fill} color={Theme.textMuted} />;
+  if (!view.snapshot) return view.failure ? <EmptyState icon="globe" title="Browser" detail={view.failure} failed /> : <ActivityIndicator style={styles.fill} color={Theme.textMuted} />;
   return (
     <View style={styles.fill}>
       <Host matchContents={{ vertical: true }}>

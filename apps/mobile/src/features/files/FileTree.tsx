@@ -1,4 +1,4 @@
-import { Button, Circle, ContentUnavailableView, ContextMenu, HStack, Host, Spacer, Text as SwiftText, TextField } from "@expo/ui/swift-ui";
+import { Button, Circle, ContextMenu, HStack, Host, Spacer, Text as SwiftText, TextField } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   autocorrectionDisabled,
@@ -19,7 +19,7 @@ import type { GitChangeStatus, WorkspaceListing } from "@telar/engine-client";
 import { memo, useCallback, useMemo } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TurboModuleRegistry, View, type TurboModule } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { faded, Icon, Theme } from "../../ui";
+import { EmptyState, faded, Icon, Theme } from "../../ui";
 import { buildFileTree, directoryPaths, fileGlyph, flattenTree, matchFiles, MAX_SEARCH_MATCHES, statusMark, type FileRow } from "./tree";
 
 const clipboard = TurboModuleRegistry.get<TurboModule & { setString(text: string): void }>("Clipboard");
@@ -139,13 +139,7 @@ export function FileTree({ listing, error, statuses, query, expanded, activePath
       </Host>
       <View style={styles.rule} />
       {listing && rows.length === 0 ? (
-        <Host style={styles.fill}>
-          <ContentUnavailableView
-            title={query ? "Nothing matches" : "This checkout is empty"}
-            systemImage="folder"
-            description={query ? `No path in this checkout contains "${query}".` : "git lists no files here."}
-          />
-        </Host>
+        <EmptyState icon="folder" title={query ? "Nothing matches" : "This checkout is empty"} detail={query ? `No path in this checkout contains "${query}".` : "git lists no files here."} />
       ) : listing ? (
         <>
           <FlatList style={styles.fill} contentContainerStyle={styles.list} data={rows} keyExtractor={(row) => row.node.path} renderItem={render} initialNumToRender={30} windowSize={7} keyboardDismissMode="on-drag" />
@@ -153,9 +147,7 @@ export function FileTree({ listing, error, statuses, query, expanded, activePath
           <Text style={[styles.foot, { paddingBottom: 5 + bottom }]}>{foot(listing, dropped)}</Text>
         </>
       ) : error ? (
-        <Host style={styles.fill}>
-          <ContentUnavailableView title="Could not read the checkout" systemImage="xmark.circle" description={error} />
-        </Host>
+        <EmptyState icon="xmark.circle" title="Could not read the checkout" detail={error} />
       ) : (
         <ActivityIndicator style={styles.fill} />
       )}

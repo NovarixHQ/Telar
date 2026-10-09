@@ -1,10 +1,10 @@
 import { Button, Divider, HStack, Host, ScrollView, Spacer, Text, VStack } from "@expo/ui/swift-ui";
-import { accessibilityLabel, background, buttonStyle, contentShape, disabled, font, foregroundStyle, frame, lineLimit, multilineTextAlignment, opacity, padding, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
+import { accessibilityLabel, background, buttonStyle, contentShape, disabled, font, foregroundStyle, frame, lineLimit, opacity, padding, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
 import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
-import { faded, Icon, Radius, Theme, Type } from "../../ui";
+import { EmptyState, faded, Icon, Radius, Theme } from "../../ui";
 import { useFeed } from "../transcript";
 import { isViewable, listSimulators, sessionSimulators, simulatorIcon } from "./model";
 import { SimulatorView } from "./SimulatorView";
@@ -34,18 +34,6 @@ function noneDetail(state: SimulatorsState): { title: string; detail: string } {
   return { title: "No simulator is running", detail: "When an agent boots one on the computer, it appears here." };
 }
 
-function NoneRunning({ title = "No simulator is running", detail }: { title?: string; detail: string }) {
-  return (
-    <Host style={styles.fill}>
-      <VStack spacing={8} modifiers={[frame({ maxWidth: 300 }), padding({ all: 24 })]}>
-        <Icon name="iphone" size={15} weight="medium" color={Theme.textMuted} modifiers={[frame({ width: 36, height: 36 }), background(Theme.fill, shapes.circle())]} />
-        <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), foregroundStyle(Theme.text)]}>{title}</Text>
-        <Text modifiers={[Type.slim, foregroundStyle(Theme.textMuted), multilineTextAlignment("center")]}>{detail}</Text>
-      </VStack>
-    </Host>
-  );
-}
-
 /** The computer's simulators beside the session: running ones first, this session's marked, the chosen one live. */
 export function SimulatorSurface({ host, sessionId }: { host: HostConnection; sessionId: string }) {
   const active = useActive();
@@ -62,7 +50,7 @@ export function SimulatorSurface({ host, sessionId }: { host: HostConnection; se
     if (!owned.includes(simulator.id)) void host.call(false, () => host.client.showSessionSimulator(sessionId, simulator.id, true)).catch(() => undefined);
   };
 
-  if (!state) return failure ? <NoneRunning detail={failure} /> : <ActivityIndicator style={styles.fill} color={Theme.textMuted} />;
+  if (!state) return failure ? <EmptyState icon="iphone" title="No simulator is running" detail={failure} failed /> : <ActivityIndicator style={styles.fill} color={Theme.textMuted} />;
   return (
     <View style={styles.fill}>
       {simulators.length > 0 ? (
@@ -85,7 +73,7 @@ export function SimulatorSurface({ host, sessionId }: { host: HostConnection; se
       {shown ? (
         <SimulatorView key={shown.id} host={host} simulator={shown} canDrive={canDrive} active={active} onGone={() => void read()} />
       ) : (
-        <NoneRunning {...noneDetail(state)} />
+        <EmptyState icon="iphone" {...noneDetail(state)} />
       )}
     </View>
   );

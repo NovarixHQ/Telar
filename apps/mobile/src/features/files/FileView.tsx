@@ -1,10 +1,10 @@
-import { ContentUnavailableView, HStack, Host, Spacer, Text as SwiftText } from "@expo/ui/swift-ui";
+import { HStack, Host, Spacer, Text as SwiftText } from "@expo/ui/swift-ui";
 import { background, font, foregroundStyle, frame, lineLimit, padding, truncationMode } from "@expo/ui/swift-ui/modifiers";
 import type { WorkspaceFile } from "@telar/engine-client";
 import { memo, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, DynamicColorIOS, PixelRatio, ScrollView, StyleSheet, Text, View, type ColorValue } from "react-native";
 import type { HostConnection } from "../../platform/connection";
-import { faded, Icon, Theme } from "../../ui";
+import { EmptyState, faded, Icon, Theme } from "../../ui";
 import { atomOne, type Piece, type Tone } from "../git";
 import { codeChunks, fileLines } from "./code";
 import { fileGlyph, humanBytes, isProse } from "./tree";
@@ -71,14 +71,6 @@ function Code({ path, text }: { path: string; text: string }) {
   );
 }
 
-function Unavailable({ title, systemImage, description }: { title: string; systemImage: "doc.zipper" | "xmark.circle"; description: string }) {
-  return (
-    <Host style={styles.fill}>
-      <ContentUnavailableView title={title} systemImage={systemImage} description={description} />
-    </Host>
-  );
-}
-
 /** One checkout file, read-only: code with line numbers and syntax colours, prose as wrapped text. */
 export function FileView({ host, sessionId, path }: { host: HostConnection; sessionId: string; path: string }) {
   const [file, setFile] = useState<WorkspaceFile>();
@@ -100,7 +92,7 @@ export function FileView({ host, sessionId, path }: { host: HostConnection; sess
     <View style={styles.fill}>
       <AddressRow path={path} detail={file ? humanBytes(file.bytes) : undefined} />
       {file?.binary ? (
-        <Unavailable title="Binary file" systemImage="doc.zipper" description={`${humanBytes(file.bytes)} of bytes rather than text, so nothing was sent to read.`} />
+        <EmptyState icon="doc.zipper" title="Binary file" detail={`${humanBytes(file.bytes)} of bytes rather than text, so nothing was sent to read.`} />
       ) : file && prose ? (
         <ScrollView style={styles.proseScroll}>
           <Text selectable style={[styles.prose, path.toLowerCase().endsWith(".md") ? null : styles.proseMono]}>
@@ -113,7 +105,7 @@ export function FileView({ host, sessionId, path }: { host: HostConnection; sess
           <Code path={path} text={file.text} />
         </View>
       ) : error ? (
-        <Unavailable title="Could not read this file" systemImage="xmark.circle" description={error} />
+        <EmptyState icon="xmark.circle" title="Could not read this file" detail={error} />
       ) : (
         <ActivityIndicator style={styles.fill} />
       )}

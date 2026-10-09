@@ -9,7 +9,6 @@ import {
   frame,
   lineLimit,
   monospacedDigit,
-  multilineTextAlignment,
   padding,
   shapes,
   strokeBorder,
@@ -19,7 +18,7 @@ import {
 import type { SessionActivity } from "@telar/engine-client";
 import type { ReactNode } from "react";
 import type { ColorValue } from "react-native";
-import { ActivityBadge, bandCaption, faded, Icon, Radius, rowButton, Theme } from "../../../ui";
+import { ActivityBadge, bandCaption, EmptyState, faded, Icon, Radius, rowButton, Theme } from "../../../ui";
 import type { State, Tone } from "./agents";
 
 const TONE: Record<Tone, ColorValue> = { live: Theme.sky, attention: Theme.amber, done: Theme.emerald, danger: Theme.red, quiet: Theme.textMuted };
@@ -111,11 +110,5 @@ export function FactValue({ text, mono = false }: { text: string; mono?: boolean
 }
 
 export function AgentsEmpty({ failed }: { failed: boolean }) {
-  return (
-    <VStack spacing={8} modifiers={[multilineTextAlignment("center"), frame({ maxWidth: 300 }), frame({ maxWidth: Infinity }), padding({ top: 16 })]}>
-      <Icon name="person.2" size={15} weight="medium" color={Theme.textMuted} modifiers={[frame({ width: 36, height: 36 }), background(Theme.fill, shapes.circle())]} />
-      <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), foregroundStyle(Theme.text)]}>No other conversation is involved</Text>
-      <Text modifiers={[font({ textStyle: "footnote" }), foregroundStyle(Theme.textMuted)]}>{failed ? "The computer did not answer — retrying." : "Conversations this one hands work to appear here."}</Text>
-    </VStack>
-  );
+  return <EmptyState inline icon="person.2" title="No other conversation is involved" detail={failed ? "The computer did not answer — retrying." : "Conversations this one hands work to appear here."} />;
 }

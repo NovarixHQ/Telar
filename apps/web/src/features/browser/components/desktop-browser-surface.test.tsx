@@ -542,23 +542,20 @@ describe("a browser popped out into its own window", () => {
     expect(actions.at(-1)).toEqual({ action: "float" });
   });
 
-  test("floating on top, the window is the page with a slim pill: back, reload, bring back, turn off on top, close", async () => {
-    const { actions, host } = await mount(panelState({ popped: true, compact: true, tabs: [tab({ canGoBack: true })] }), {}, undefined, { inWindow: true });
+  test("floating on top, the window is the page under the picture-in-picture strip", async () => {
+    const { host } = await mount(panelState({ popped: true, compact: true, tabs: [tab()] }), {}, undefined, { inWindow: true });
     expect(host.querySelector('[role="tab"]')).toBeNull();
     expect(host.querySelector('[aria-label="Address"]')).toBeNull();
     expect(host.querySelector('[aria-label="Live browser viewport"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="Floating browser controls"]')?.textContent).toContain("example.com");
+    expect(host.querySelector('[aria-label="Picture in picture controls"]')?.textContent).toContain("example.com");
+  });
 
-    const pill = (label: string) => host.querySelector(`[aria-label="Floating browser controls"] [aria-label="${label}"]`)!;
-    await mouseClick(pill("Go back"));
-    expect(actions.at(-1)).toEqual({ action: "back" });
-    await mouseClick(pill("Reload"));
-    expect(actions.at(-1)).toEqual({ action: "reload" });
-    await mouseClick(pill("Bring back to the panel"));
+  test("while the page floats, the panel's picture-in-picture button turns it off", async () => {
+    const { actions, host } = await mount(panelState({ popped: true, compact: true }));
+    const pip = host.querySelector('[aria-label="Picture in picture"]')!;
+    expect(pip.getAttribute("aria-pressed")).toBe("true");
+    await mouseClick(pip);
     expect(actions.at(-1)).toEqual({ action: "bring-back" });
-    await mouseClick(pill("Turn off on top"));
-    expect(actions.at(-1)).toEqual({ action: "float", on: false });
-    expect(pill("Close picture in picture")).not.toBeNull();
   });
 
   test("a browser that ends while popped closes the panel's tab", async () => {

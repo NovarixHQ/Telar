@@ -62,6 +62,7 @@ type AddressRowProps = { b: BrowserUi; openOverlay: BrowserOverlay; addressRowRe
 function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowProps) {
   const { activeTab, state, act, annotating } = b;
   const addressRef = useRef<HTMLInputElement>(null);
+  const pipOpen = !b.inWindow && Boolean(state?.compact);
   return (
     <form
       ref={addressRowRef}
@@ -118,9 +119,10 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
         <button
           type="button"
           aria-label="Picture in picture"
-          title="Picture in picture: this page in a small window above other apps"
-          className={cn("shrink-0", GLYPH)}
-          onClick={() => void act(b.inWindow ? { action: "float", on: true } : { action: "float", on: true, index: activeTab.index })}
+          aria-pressed={pipOpen}
+          title={pipOpen ? "Close picture in picture" : "Picture in picture: this page in a small window above other apps"}
+          className={cn("shrink-0", GLYPH, pipOpen && "bg-muted text-foreground")}
+          onClick={() => void act(pipOpen ? { action: "bring-back" } : b.inWindow ? { action: "float", on: true } : { action: "float", on: true, index: activeTab.index })}
         >
           <PictureInPicture2Icon className="size-3.5" />
         </button>

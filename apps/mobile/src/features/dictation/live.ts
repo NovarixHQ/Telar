@@ -3,6 +3,7 @@ import type { Words } from "./strip";
 
 const LISTEN_URL = "wss://api.deepgram.com/v1/listen";
 const CLOSE_STREAM = JSON.stringify({ type: "CloseStream" });
+const KEEP_ALIVE = JSON.stringify({ type: "KeepAlive" });
 const DRAIN_MS = 2_000;
 
 /** The same live query the Swift app opens: interim results on, raw 16-bit mono PCM. */
@@ -47,7 +48,7 @@ type Socket = {
   close(): void;
 };
 
-export type Live = { send(chunk: ArrayBuffer): void; finish(): Promise<void>; cancel(): void };
+export type Live = { send(chunk: ArrayBuffer): void; keepAlive(): void; finish(): Promise<void>; cancel(): void };
 
 const OPEN = 1;
 
@@ -87,6 +88,10 @@ export function openLive(
       if (closing) return;
       if (socket.readyState === OPEN) socket.send(chunk);
       else held.push(chunk);
+    },
+    // The service drops a socket after ~10 s without audio; this holds it through a call or a route switch.
+    keepAlive() {
+      if (!closing && socket.readyState === OPEN) socket.send(KEEP_ALIVE);
     },
     async finish() {
       if (closing) return;

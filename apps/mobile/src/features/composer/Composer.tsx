@@ -4,6 +4,7 @@ import { CaretPill, type DictationPhase } from "../dictation";
 import { MicButton, ROW, SlotButton } from "./buttons";
 import { Glass } from "./chrome";
 import type { Completion } from "./completions";
+import { followCaret, scrolled } from "./follow";
 import { PlusMenu, type PlusMenuProps } from "./PlusMenu";
 import type { Slot } from "./slot";
 import { SuggestionList } from "./SuggestionList";
@@ -45,6 +46,21 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
   const [caretAt, setCaretAt] = useState({ x: 0, y: 0 });
   const listening = dictation?.phase === "listening";
   const heard = dictation?.heard ?? "";
+  const scroll = useRef({ offset: 0, following: true });
+  const shown = useRef(draft);
+  useEffect(() => {
+    if (listening) scroll.current = { ...scroll.current, following: true };
+  }, [listening]);
+  useEffect(() => {
+    const previous = shown.current;
+    shown.current = draft;
+    const end = listening ? followCaret(previous, draft, scroll.current.following) : undefined;
+    if (end === undefined) return;
+    onCaret(end);
+    // The command lands after the new text is mounted; moving the caret is what scrolls a multiline field.
+    const frame = requestAnimationFrame(() => field.current?.setSelection(end, end));
+    return () => cancelAnimationFrame(frame);
+  }, [draft]);
   return (
     <View>
       {suggestions && (suggestions.rows.length > 0 || suggestions.loading) ? <SuggestionList {...suggestions} /> : null}
@@ -73,6 +89,9 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
               value={draft}
               onChangeText={onDraft}
               onSelectionChange={(event) => onCaret(event.nativeEvent.selection.end)}
+              onScroll={({ nativeEvent: { contentOffset, layoutMeasurement, contentSize } }) => {
+                scroll.current = scrolled(scroll.current, { offset: contentOffset.y, height: layoutMeasurement.height, content: contentSize.height }, LINE);
+              }}
               autoFocus={FOCUS_ON_OPEN}
               multiline
             />

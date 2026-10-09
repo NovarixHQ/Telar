@@ -4,6 +4,7 @@ import "@xterm/xterm/css/xterm.css";
 import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { cssColorReader, cssVariableReader, loadTerminalFonts, terminalFont, terminalTheme } from "../theme";
+import { loadUnicodeWidths } from "../widths";
 
 const SAMPLE = [
   "\x1b[32m→\x1b[0m Local: \x1b[36mhttp://127.0.0.1:3100/\x1b[0m",
@@ -22,7 +23,8 @@ export function TerminalPreview() {
     if (!element) return;
     const canvas = document.createElement("canvas");
     const look = () => ({ theme: terminalTheme(cssColorReader(element, canvas)), ...terminalFont(cssVariableReader(element)) });
-    const term = new Terminal({ ...look(), cols: COLS, rows: SAMPLE.length, disableStdin: true, cursorBlink: false, cursorInactiveStyle: "block", scrollback: 0 });
+    const term = new Terminal({ ...look(), allowProposedApi: true, cols: COLS, rows: SAMPLE.length, disableStdin: true, cursorBlink: false, cursorInactiveStyle: "block", scrollback: 0 });
+    loadUnicodeWidths(term);
     term.open(element);
     term.write(SAMPLE.join("\r\n"));
     const apply = () => Object.assign(term.options, look());

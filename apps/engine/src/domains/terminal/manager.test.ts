@@ -139,6 +139,23 @@ test("a terminal does not inherit the engine's store, host token or desktop cont
   expect(seen?.GREETING).toBe("hello");
 });
 
+test("a terminal opens as a truecolor xterm, and a run configuration's own COLORTERM still wins", async () => {
+  const seen: NodeJS.ProcessEnv[] = [];
+  const launcher: RunLauncher = {
+    kind: "pty",
+    launch: async (request) => {
+      seen.push(request.env);
+      throw new Error("captured");
+    },
+  };
+  const manager = runManager({ launcher });
+  await manager.start(input(worktree(), config("true"))).catch(() => undefined);
+  await manager.start(input(worktree(), config("true", { name: "dim", env: [{ key: "COLORTERM", value: "256color" }] }))).catch(() => undefined);
+  expect(seen[0]).toMatchObject({ TERM: "xterm-256color" });
+  expect(seen[0]?.COLORTERM).toBeTruthy();
+  expect(seen[1]?.COLORTERM).toBe("256color");
+});
+
 test("a non-zero exit is a failure, with the code kept", async () => {
   const manager = runManager();
   const run = await manager.start(input(worktree(), config("echo nope >&2; exit 3")));

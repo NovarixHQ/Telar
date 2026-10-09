@@ -52,6 +52,7 @@ const config: ExpoConfig = {
   plugins: [
     "@bacons/apple-targets",
     ["expo-build-properties", { ios: { deploymentTarget: "18.0" } }],
+    ["expo-font", { fonts: ["./assets/fonts/SymbolsNerdFontMono-Regular.ttf"] }],
     ["expo-camera", { cameraPermission: "Telar scans the pairing code shown in the cockpit's Connections settings.", microphonePermission: MICROPHONE, recordAudioAndroid: false }],
     ["expo-audio", { microphonePermission: MICROPHONE, recordAudioAndroid: false }],
     ["expo-notifications", { enableBackgroundRemoteNotifications: true, sounds: SOUNDS }],

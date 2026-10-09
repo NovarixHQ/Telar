@@ -47,6 +47,10 @@ const TERM = "xterm-256color";
 
 const COLORTERM = "truecolor";
 
+const UTF8_LOCALE = "en_US.UTF-8";
+
+const isSet = (value) => typeof value === "string" && value.trim() !== "";
+
 const TERM_PROGRAM = "Telar";
 
 const CLOSE_GRACE_MS = 1_000;
@@ -149,7 +153,8 @@ function terminalEnv(baseEnv, version) {
   }
   delete env.ELECTRON_RUN_AS_NODE;
   env.TERM = TERM;
-  if (typeof env.COLORTERM !== "string" || env.COLORTERM.trim() === "") env.COLORTERM = COLORTERM;
+  if (!isSet(env.COLORTERM)) env.COLORTERM = COLORTERM;
+  if (!isSet(env.LC_ALL) && !isSet(env.LC_CTYPE) && !isSet(env.LANG)) env.LANG = UTF8_LOCALE;
   env.TERM_PROGRAM = TERM_PROGRAM;
   if (version) env.TERM_PROGRAM_VERSION = String(version);
   return env;

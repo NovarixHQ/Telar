@@ -7,6 +7,7 @@ import type { TerminalBridge } from "./bridge";
 import { domImageBackend, KittyGraphicsAddon } from "./kitty/addon";
 import { terminalKeyHandler } from "./session";
 import { terminalTheme, type CssVarReader } from "./theme";
+import { loadUnicodeWidths } from "./widths";
 
 const api = createEngineApi();
 
@@ -39,6 +40,7 @@ export function createEmulator(
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
+  loadUnicodeWidths(term);
   const images = new ImageAddon(TERMINAL_IMAGE_OPTIONS);
   term.loadAddon(images);
   // After the image addon: kitty images draw through its store. `readFile` exists only on the local host.

@@ -81,21 +81,9 @@ describe("terminalTheme", () => {
 });
 
 describe("terminalFont", () => {
-  test("the size is the cockpit's; the face is a chain with the person's Nerd Fonts ahead of the cockpit's mono", () => {
-    // `appearance.ts:111` already documents `fontMonoSize` as covering "the
-    // terminal", so the SIZE reads that token. The FACE does not: a terminal is
-    // the person's, so an installed Nerd Font (which is what draws a prompt's and
-    // `eza --icons`'s glyphs) comes before whatever Appearance chose for the
-    // cockpit, and the platform monospace closes the chain. The assertion is on
-    // ORDER, not equality: equality with the app font is the old behaviour.
-    const font = terminalFont(reader({ "--app-font-mono": '"Fira Code", monospace', "--app-font-mono-size": "13px" }));
-    const at = (needle: string) => font.fontFamily.indexOf(needle);
-    // The bundled symbols face leads: it carries no text glyphs, so it draws
-    // the prompt's icons and hands every letter to whatever follows.
-    expect(at('"Symbols Nerd Font Mono"')).toBe(0);
-    expect(at('"JetBrainsMono Nerd Font"')).toBeGreaterThan(at('"Symbols Nerd Font Mono"'));
-    expect(at('"Fira Code"')).toBeGreaterThan(at('"MesloLGS NF"'));
-    expect(at("ui-monospace")).toBeGreaterThan(at('"Fira Code"'));
+  test("Appearance's code stack draws the text and the bundled symbols face only what it lacks", () => {
+    const font = terminalFont(reader({ "--app-font-mono": '"Fira Code", "Geist Mono", ui-monospace, monospace', "--app-font-mono-size": "13px" }));
+    expect(font.fontFamily).toBe('"Fira Code", "Geist Mono", ui-monospace, monospace, "Symbols Nerd Font Mono"');
     expect(font.fontSize).toBe(13);
   });
 
@@ -107,17 +95,12 @@ describe("terminalFont", () => {
     }
   });
 
-  test("no tokens at all still yields a monospace family", () => {
-    expect(terminalFont(reader({})).fontFamily).toContain("monospace");
+  test("no tokens at all still yields the platform monospace, then the symbols face", () => {
+    expect(terminalFont(reader({})).fontFamily).toBe('ui-monospace, SFMono-Regular, Menlo, monospace, "Symbols Nerd Font Mono"');
   });
 });
 
 describe("the bundled symbols face", () => {
-  /**
-   * ONE REGISTRATION PER PAGE, and the module remembers with a module-level
-   * promise — so this whole describe gets exactly one chance to observe the
-   * first call. Both assertions live in one test for that reason.
-   */
   test("registers once for the whole page, and a failure is silent", async () => {
     forgetTerminalSymbolsFont();
     const loaded: string[] = [];
@@ -144,7 +127,7 @@ describe("the bundled symbols face", () => {
     Object.defineProperty(document, "fonts", { value: fonts, configurable: true });
     try {
       // The face is asked for by URL, not by name — nothing has to be installed.
-      await loadTerminalFonts('"Symbols Nerd Font Mono", monospace', 13);
+      await loadTerminalFonts('monospace, "Symbols Nerd Font Mono"', 13);
       // Second terminal on the same page: the same download, not another.
       await ensureTerminalSymbolsFont();
       expect(loaded).toEqual(["url(/fonts/SymbolsNerdFontMono-Regular.woff2)"]);

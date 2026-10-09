@@ -40,7 +40,7 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
       {suggestions && (suggestions.rows.length > 0 || suggestions.loading) ? <SuggestionList {...suggestions} /> : null}
       {above}
       <View style={styles.row}>
-        <PlusMenu {...menu} onCommands={() => (menu.onCommands(), field.current?.focus())} />
+        <PlusMenu {...menu} {...(menu.onCommands ? { onCommands: () => (menu.onCommands?.(), field.current?.focus()) } : {})} />
         <View style={styles.pill}>
           <Glass radius={Radius.composer} lifted />
           {listening ? (

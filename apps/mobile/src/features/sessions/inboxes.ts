@@ -35,6 +35,10 @@ export function inboxFor(hostId: string): Inbox | undefined {
   return inboxes.get(hostId);
 }
 
+export async function refreshInbox(hostId: string): Promise<void> {
+  await inboxes.get(hostId)?.refresh();
+}
+
 export const inboxStore = {
   read: (): HostSnapshot[] => snapshot,
   subscribe(listener: () => void): () => void {

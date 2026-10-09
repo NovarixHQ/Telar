@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { LiveSessionRow, LiveSessionsAnswer } from "@telar/engine-client";
-import { flatRail, hostFailures, railSections, relativeTime, searchRail } from "./rail";
+import { flatRail, hostFailures, railSections, relativeTime, searchRail, withShelf } from "./rail";
 
 const NOW = Date.UTC(2026, 9, 8, 12);
 const MINUTE = 60_000;
@@ -128,4 +128,16 @@ test("search matches title, project or computer, ignoring case and accents", () 
   expect(found("TELAR")).toEqual(["b"]);
   expect(found("studio")).toEqual(["c"]);
   expect(found("nothing")).toEqual([]);
+});
+
+test("withShelf adds the shelf's sessions the list does not hold, keeping the list's own rows", () => {
+  const list = answer([row("a", { title: "fresh" })], { assignments: { a: [] } });
+  const shelf = answer([row("a", { title: "stale" }), row("b")], { assignments: { a: [{ coordinatorSessionId: "x" }] as never, b: [] } });
+  const merged = withShelf(list, shelf)!;
+  expect(merged.sessions.map((session) => [session.id, session.title])).toEqual([
+    ["a", "fresh"],
+    ["b", "Session b"],
+  ]);
+  expect(merged.assignments).toEqual({ a: [], b: [] });
+  expect(withShelf(list, undefined)).toBe(list);
 });

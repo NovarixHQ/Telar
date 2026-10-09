@@ -63,7 +63,7 @@ function StatusSlot({ status, ink }: { status: RailStatus; ink: Ink }) {
   }
 }
 
-function RowAvatar({ row, size }: { row: RailRow; size: number }) {
+export function RowAvatar({ row, size }: { row: RailRow; size: number }) {
   const image = useProjectIcon(row.hostId, row.projectId, row.projectIcon);
   return <ProjectAvatar name={row.projectName} iconName={row.projectIconName} iconEmoji={row.projectIconEmoji} image={image} size={size} />;
 }

@@ -1,4 +1,4 @@
-import { Button, ContentUnavailableView, HStack, Host, Label, List, Section, Spacer } from "@expo/ui/swift-ui";
+import { Button, ContentUnavailableView, HStack, Host, Label, List, Section, Spacer, Text } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   background,
@@ -16,17 +16,21 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useEffect, useLayoutEffect, useState } from "react";
-import { View } from "react-native";
+import { useEffect, useLayoutEffect, useState, type ReactElement } from "react";
+import { Settings, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSplitColumn } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
 import { hosts, WelcomeScreen } from "../hosts";
 import { Icon, Theme, type SymbolName } from "../../ui";
+import { byWakeTime, groupRail, movedProjectOrders } from "./grouping";
 import { inboxFor } from "./inboxes";
 import { nestRail, type NestedRow } from "./nesting";
 import { searchRail, type RailRow } from "./rail";
+import { GroupedBands, ShelfSection } from "./RailBands";
+import { ActionRow, SnoozeSheet, type Shelf } from "./RailRowActions";
 import { RailRowView } from "./RailRows";
+import { useRailActions } from "./use-rail-actions";
 import { useMergedRail, type MergedRail } from "./use-rail";
 
 type Navigation = NativeStackNavigationProp<RootStack, "Rail">;
@@ -129,17 +133,33 @@ function EmptyState({ rail }: { rail: MergedRail }) {
   );
 }
 
+const COLLAPSED_KEY = "telar.sidebar.collapsed";
+
+function useCollapsedBands() {
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set(String(Settings.get(COLLAPSED_KEY) ?? "").split("\n").filter(Boolean)));
+  const save = (next: ReadonlySet<string>) => {
+    setCollapsed(next);
+    Settings.set({ [COLLAPSED_KEY]: [...next].sort().join("\n") });
+  };
+  return { collapsed, save };
+}
+
 /** Home: one list of every paired computer's sessions, titled Telar. */
 export function RailScreen() {
   const navigation = useNavigation<Navigation>();
   const [chosen, setFilter] = useState<string>();
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(expandedParents);
+  const [snoozedOpen, setSnoozedOpen] = useState(false);
+  const [settledOpen, setSettledOpen] = useState(false);
+  const [limit, setLimit] = useState(25);
+  const bands = useCollapsedBands();
   useEffect(() => {
     expandedParents = expanded;
   }, [expanded]);
   const rail = useMergedRail(chosen);
   const { sidebar } = useSplitColumn();
+  const actions = useRailActions((target) => navigation.navigate("NewSession", target));
   useToolbar(navigation, rail, rail.filter, setFilter, setQuery);
 
   if (rail.computers.length === 0) return <WelcomeScreen />;
@@ -147,23 +167,42 @@ export function RailScreen() {
   const hostName = (hostId: string) => rail.computers.find((computer) => computer.hostId === hostId)?.name;
   const markFor = (row: RailRow) => (rail.computers.length > 1 ? (hostName(row.hostId) ?? "Computer") : undefined);
   const open = (row: RailRow) => navigation.navigate("Session", { hostId: row.hostId, sessionId: row.sessionId, title: row.title });
-  const draw = (row: RailRow, slim = false) => <RailRowView key={row.key} row={row} host={markFor(row)} slim={slim} stale={rail.stale.has(row.hostId)} onOpen={() => open(row)} />;
+  const snoozed = new Set(rail.sections.snoozed.map((row) => row.key));
+  const settled = new Set(rail.sections.settled.map((row) => row.key));
+  const shelfOf = (row: RailRow): Shelf | undefined => (snoozed.has(row.key) ? "snoozed" : settled.has(row.key) ? "settled" : undefined);
+  const withActions = (row: RailRow, drawn: ReactElement) => {
+    const link = actions.linkFor(row);
+    const shelf = shelfOf(row);
+    return (
+      <ActionRow key={row.key} row={row} {...(shelf ? { shelf } : {})} {...(link ? { link } : {})} onAction={(action) => actions.perform(row, action)} onSnooze={() => actions.snooze(row)}>
+        {drawn}
+      </ActionRow>
+    );
+  };
+  const draw = (row: RailRow, slim = false) => withActions(row, <RailRowView row={row} host={markFor(row)} slim={slim} stale={rail.stale.has(row.hostId)} onOpen={() => open(row)} />);
   const toggle = (key: string) => setExpanded((current) => (current.has(key) ? new Set([...current].filter((entry) => entry !== key)) : new Set([...current, key])));
-  const drawNested = ({ row, family, nested }: NestedRow) => (
-    <RailRowView
-      key={row.key}
-      row={row}
-      host={markFor(row)}
-      nested={nested}
-      stale={rail.stale.has(row.hostId)}
-      {...(family ? { family: { family, open: expanded.has(family.key), onToggle: () => toggle(family.key) } } : {})}
-      onOpen={() => open(row)}
-    />
-  );
-  const nestedRail = nestRail(rail, expanded);
+  const drawNested = ({ row, family, nested }: NestedRow) =>
+    withActions(
+      row,
+      <RailRowView
+        row={row}
+        host={markFor(row)}
+        nested={nested}
+        stale={rail.stale.has(row.hostId)}
+        {...(family ? { family: { family, open: expanded.has(family.key), onToggle: () => toggle(family.key) } } : {})}
+        onOpen={() => open(row)}
+      />,
+    );
   const found = query.trim() ? searchRail([...rail.sections.active, ...rail.sections.snoozed, ...rail.sections.settled], query, hostName) : undefined;
   const refreshAll = async () => {
     await Promise.all(rail.computers.map((computer) => inboxFor(computer.hostId)?.refresh()));
+  };
+  const grouped = rail.mode === "grouped" ? groupRail(rail.sections.active, rail.layouts, hostName) : undefined;
+  const nestedRail = nestRail(rail, expanded);
+  const flipBand = (id: string) => bands.save(bands.collapsed.has(id) ? new Set([...bands.collapsed].filter((entry) => entry !== id)) : new Set([...bands.collapsed, id]));
+  const openSettled = () => {
+    setSettledOpen(!settledOpen);
+    if (!settledOpen) for (const computer of rail.computers) void inboxFor(computer.hostId)?.showSettled();
   };
 
   return (
@@ -171,6 +210,7 @@ export function RailScreen() {
       <Host style={{ flex: 1 }}>
         <List modifiers={[listStyle(sidebar ? "sidebar" : "insetGrouped"), listSectionSpacing(12), scrollContentBackground("hidden"), background(Theme.sheet), refreshable(refreshAll)]}>
           <FailureBanners rail={rail} />
+          {actions.error ? <Text modifiers={[font({ textStyle: "caption" }), foregroundStyle(Theme.red)]}>{actions.error}</Text> : null}
           {found ? (
             found.length > 0 ? (
               found.map((row) => draw(row, true))
@@ -179,13 +219,32 @@ export function RailScreen() {
             )
           ) : (
             <>
-              {nestedRail.pinned.length > 0 ? <Section>{nestedRail.pinned.map(drawNested)}</Section> : null}
-              {nestedRail.rows.length > 0 ? <Section>{nestedRail.rows.map(drawNested)}</Section> : null}
+              {grouped ? (
+                <GroupedBands
+                  grouped={grouped}
+                  collapsed={bands.collapsed}
+                  draw={draw}
+                  showHosts={rail.computers.length > 1}
+                  hostName={(hostId) => hostName(hostId) ?? "Computer"}
+                  onToggle={flipBand}
+                  onCollapseOthers={(id) => bands.save(new Set(grouped.projects.map((project) => project.id).filter((other) => other !== id)))}
+                  onMove={(id, offset) => void actions.saveProjectOrders(movedProjectOrders(grouped.projects, id, offset, rail.layouts))}
+                  onNewSession={(place) => navigation.navigate("NewSession", { hostId: place.hostId, projectId: place.projectId })}
+                />
+              ) : (
+                <>
+                  {nestedRail.pinned.length > 0 ? <Section>{nestedRail.pinned.map(drawNested)}</Section> : null}
+                  {nestedRail.rows.length > 0 ? <Section>{nestedRail.rows.map(drawNested)}</Section> : null}
+                </>
+              )}
+              <ShelfSection name="Snoozed" rows={byWakeTime(rail.sections.snoozed)} open={snoozedOpen} limit={limit} draw={draw} onToggle={() => setSnoozedOpen(!snoozedOpen)} onMore={() => setLimit(limit + 25)} />
+              <ShelfSection name="Settled" rows={rail.sections.settled} open={settledOpen} heldBack={rail.heldBack} limit={limit} draw={draw} onToggle={openSettled} onMore={() => setLimit(limit + 25)} />
               <EmptyState rail={rail} />
             </>
           )}
         </List>
       </Host>
+      <SnoozeSheet row={actions.snoozing} onClose={() => actions.snooze(undefined)} onPick={(until) => actions.snoozing && actions.perform(actions.snoozing, { kind: "snooze", until })} />
       <BottomBar onSettings={() => navigation.navigate("Settings")} onUsage={() => navigation.navigate("Usage", rail.filter ? { hostId: rail.filter } : undefined)} />
     </View>
   );

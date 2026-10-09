@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { TurnAttachment } from "@telar/engine-client";
 import { Settings } from "react-native";
 import type { HostConnection } from "../../platform/connection";
-import { intake, PREVIEW_CAP, TURN_CAP, type Picked } from "./intake";
+import { PREVIEW_CAP, takeFiles, TURN_CAP, type Picked } from "./intake";
 import type { StashedImage } from "./stash";
 
 type PendingAttachment = { attachment: TurnAttachment; preview?: string };
@@ -42,8 +42,7 @@ async function launchPicker(kind: PickerKind): Promise<{ picked: Picked[]; fallb
 /** Opens the photo library, the camera or Files; what comes back is cleared for attaching or refused with a reason. */
 export async function pickFiles(kind: PickerKind): Promise<{ files: { uri: string; name: string; mediaType: string }[]; refusals: string[] }> {
   const { picked, fallback } = await launchPicker(kind);
-  const taken = picked.map((item) => intake(item, fallback));
-  return { files: taken.flatMap((item) => ("file" in item ? [item.file] : [])), refusals: taken.flatMap((item) => ("refused" in item ? [item.refused] : [])) };
+  return takeFiles(picked, fallback);
 }
 
 /** The files waiting to go with the next message: picked, uploaded to the session, and kept across launches. */
@@ -77,6 +76,9 @@ export function useAttachments(host: HostConnection | undefined, hostId: string,
     setNote(problems.length ? problems.join(" ") : undefined);
   };
 
+  const attachFiles = ({ files, refusals }: ReturnType<typeof takeFiles>) =>
+    attach(files.map((file) => ({ ...file, read: () => new File(file.uri).bytes(), preview: file.uri })), refusals);
+
   return {
     pending,
     uploading: uploading > 0,
@@ -87,12 +89,12 @@ export function useAttachments(host: HostConnection | undefined, hostId: string,
     clear: () => setPending([]),
     pick: async (kind: PickerKind) => {
       try {
-        const { files, refusals } = await pickFiles(kind);
-        await attach(files.map((file) => ({ ...file, read: () => new File(file.uri).bytes(), preview: file.uri })), refusals);
+        await attachFiles(await pickFiles(kind));
       } catch (error) {
         setNote(error instanceof Error ? error.message : String(error));
       }
     },
+    paste: (picked: Picked[]) => void attachFiles(takeFiles(picked, "image")),
     restoreImages: (images: StashedImage[]) =>
       attach(images.map((image) => ({ name: image.name, mediaType: image.type, read: async () => fromBase64(image.dataUrl.slice(image.dataUrl.indexOf(",") + 1)), preview: image.dataUrl }))),
   };

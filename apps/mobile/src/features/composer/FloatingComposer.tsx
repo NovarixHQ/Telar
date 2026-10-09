@@ -180,6 +180,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
           placeholder="Ask the agent, or run a command…"
           slot={slot}
           onSlot={() => void (slot.kind === "stop" ? stop() : send())}
+          onPasteFiles={attachments.paste}
           menu={{
             controls,
             onCommands: () => setDraft(openingCommands(draft)),

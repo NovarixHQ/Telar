@@ -28,12 +28,12 @@ const config: ExpoConfig = {
   icon: variant.icon,
   userInterfaceStyle: "automatic",
   platforms: ["ios"],
+  extra: { apsEnvironment: variant.apsEnvironment },
   ios: {
     bundleIdentifier: variant.bundleId,
     appleTeamId: "MM74W7WGAM",
     supportsTablet: true,
-    // Live Activity push tokens need it; distribution signing switches it to production.
-    entitlements: { "aps-environment": "development" },
+    entitlements: { "aps-environment": variant.apsEnvironment },
     infoPlist: {
       CFBundleDisplayName: variant.name,
       ITSAppUsesNonExemptEncryption: false,
@@ -51,6 +51,7 @@ const config: ExpoConfig = {
     ["expo-build-properties", { ios: { deploymentTarget: "18.0" } }],
     ["expo-camera", { cameraPermission: "Telar scans the pairing code shown in the cockpit's Connections settings.", microphonePermission: MICROPHONE, recordAudioAndroid: false }],
     ["expo-audio", { microphonePermission: MICROPHONE, recordAudioAndroid: false }],
+    ["expo-notifications", { enableBackgroundRemoteNotifications: true, sounds: readdirSync("./assets/sounds").map((file) => `./assets/sounds/${file}`) }],
     ["expo-image-picker", { photosPermission: false, microphonePermission: MICROPHONE, cameraPermission: "Telar takes the photos you attach to a message." }],
   ],
 };

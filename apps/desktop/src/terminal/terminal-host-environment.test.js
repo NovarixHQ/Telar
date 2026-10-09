@@ -41,6 +41,13 @@ describe("the environment a Telar terminal starts in", () => {
     expect(terminalEnv({ COLORTERM: "   " }, "1.0.0").COLORTERM).toBe("truecolor");
   });
 
+  test("a missing locale becomes UTF-8, and one the person set is kept", async () => {
+    expect(terminalEnv({}, "1.0.0").LANG).toBe("en_US.UTF-8");
+    expect(terminalEnv({ LANG: "es_AR.UTF-8" }, "1.0.0").LANG).toBe("es_AR.UTF-8");
+    expect("LANG" in terminalEnv({ LC_CTYPE: "UTF-8" }, "1.0.0")).toBe(false);
+    expect("LANG" in terminalEnv({ LC_ALL: "C" }, "1.0.0")).toBe(false);
+  });
+
   test("omits TERM_PROGRAM_VERSION rather than claiming a fake one", async () => {
     expect("TERM_PROGRAM_VERSION" in terminalEnv({}, undefined)).toBe(false);
   });

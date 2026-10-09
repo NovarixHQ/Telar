@@ -13,6 +13,7 @@ import { isTerminal, type RunConfiguration, RunError, type RunProbe, redactText,
 import { CLOSE_SETTLE_MS, compile, defaultProbe, KEEP_FINISHED, type LiveRun, MAX_BYTE_CHARS, MAX_BYTE_CHUNKS, MAX_LINE_CHARS, MAX_LINES, portOf, PROMPT_WAIT_MS, READY_POLL_MS, type RunManagerOptions, type StartRunInput, WAIT_TICK_MS } from "./live-run";
 import { recordOf, splitTitle, titleOf, viewOf } from "./views";
 import { agentEnv } from "../../platform/process/agent-env";
+import { terminalEnv } from "./env";
 import { AGENT_SHELL_CAP, AGENT_SHELL_IDLE_MS, evictionFor, expiredAgentShells, idleAgentShell } from "./agent-shells";
 import { resolveRunCwd } from "./run-cwd";
 
@@ -364,8 +365,9 @@ export class RunManager {
     }
     if (this.shuttingDown) throw new RunError("conflict", "Telar is shutting down, so it did not open this terminal");
 
-    const env = agentEnv();
-    for (const entry of run.config.env ?? []) env[entry.key] = entry.value;
+    const configured = agentEnv();
+    for (const entry of run.config.env ?? []) configured[entry.key] = entry.value;
+    const env = terminalEnv(configured);
     let handle: RunHandle;
     try {
       const shell = interactiveShell({ program: run.config.shell?.program, pty: this.pty, platform: this.platform, env: this.env, integrationDir: this.shellDir });

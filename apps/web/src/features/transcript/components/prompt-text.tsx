@@ -4,7 +4,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import type { FileReference } from "@telar/engine-client";
 import { CHIP_CLASS, CHIP_ICON_CLASS, CHIP_LABEL_CLASS, chipIsDirectory, chipPath, chipTitle, segmentDraft } from "@/features/composer";
 import { chipGlyphFor } from "@/features/composer";
-import { type TelarReference } from "@telar/client/composer";
+import { quoteSource, type TelarReference } from "@telar/client/composer";
 import { FileKindIcon, revealLine } from "@/features/files";
 import { cn } from "@/ui/utils";
 import { filePanelTab, issuePanelTab, pullPanelTab, type PanelTab } from "@/features/panel";
@@ -59,11 +59,17 @@ function Chip({ title, onClick, children }: { title: string; onClick?: (() => vo
   );
 }
 
+function revealQuoteSource(itemId: string) {
+  document.querySelector(`[data-quote-source="${CSS.escape(itemId)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+
 function ReferenceChip({ reference, onOpen }: { reference: TelarReference; onOpen?: (tab: PanelTab) => void }) {
   const { markup, tint } = chipGlyphFor(reference);
   const tab = onOpen ? panelTabFor(reference) : undefined;
+  const source = reference.kind === "quote" ? quoteSource(reference.text) : undefined;
+  const open = tab ? () => onOpen?.(tab) : source ? () => revealQuoteSource(source) : undefined;
   return (
-    <Chip title={chipTitle(reference)} onClick={tab ? () => onOpen?.(tab) : undefined}>
+    <Chip title={chipTitle(reference)} onClick={open}>
       <ChipGlyph markup={markup} className={cn(CHIP_ICON_CLASS, tint)} />
       <span className={CHIP_LABEL_CLASS}>{reference.label}</span>
     </Chip>

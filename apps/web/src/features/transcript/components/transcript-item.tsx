@@ -68,7 +68,7 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
     if (running(item)) return <MessageResponse streaming>{text}</MessageResponse>;
     return (
       <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
-        <div className="group/message">
+        <div className="group/message" data-quote-source={item.id}>
           <AgentMarkdown text={text} onOpenFile={onOpenFile} />
           <MessageActions text={text} at={item.completedAt ?? item.startedAt} forkRunId={item.runId} />
         </div>

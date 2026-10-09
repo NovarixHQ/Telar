@@ -16,6 +16,12 @@ function supportsTranslucency() {
   return process.platform === "darwin";
 }
 
+const clear = new WeakSet();
+
+function keepClear(win) {
+  clear.add(win);
+}
+
 function applyTranslucency(on, frost) {
   const dark = nativeTheme.shouldUseDarkColors;
 
@@ -23,7 +29,7 @@ function applyTranslucency(on, frost) {
 
   const backgroundColor = windowBackgroundColor({ translucent: on, dark });
   for (const win of BrowserWindow.getAllWindows()) {
-    if (win.isDestroyed()) continue;
+    if (win.isDestroyed() || clear.has(win)) continue;
     try {
       win.setVibrancy(material);
       win.setBackgroundColor(backgroundColor);
@@ -48,4 +54,4 @@ function keepOccludedWindowsPainting() {
   if (supportsTranslucency()) app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 }
 
-module.exports = { applyTranslucency, keepOccludedWindowsPainting, readUiPrefs, supportsTranslucency, watchSchemeForVibrancy, writeUiPrefs };
+module.exports = { applyTranslucency, keepClear, keepOccludedWindowsPainting, readUiPrefs, supportsTranslucency, watchSchemeForVibrancy, writeUiPrefs };

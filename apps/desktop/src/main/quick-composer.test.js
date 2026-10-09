@@ -5,6 +5,7 @@ const { electron, eventFrom, FakeBrowserWindow, FakeNotification, resetElectron,
 const { createQuickComposer } = require("./quick-composer");
 const { WIDTH } = require("./quick-composer-layout");
 const { registerPrefsIpc } = require("./ipc-prefs");
+const { applyTranslucency } = require("./appearance");
 
 const CONTEXT = { app: "Notes", title: "Plan", selection: "two lines", permissions: { accessibility: true } };
 
@@ -112,6 +113,29 @@ describe("the window", () => {
     report(521, 345);
     expect(sets).toBe(2);
     expect(panel().webContents.sent.at(-1)).toMatchObject({ channel: "telar:quick-composer:room", payload: { above: expect.any(Number), below: expect.any(Number) } });
+  });
+
+  test("follows the page down as well as up, and a reopen restores the spot but never the old height", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    report(200, 24);
+    const composerAt = panel().bounds.y + 24;
+    report(560, 344);
+    report(200, 24);
+    expect(panel().bounds).toMatchObject({ height: 200, y: composerAt - 24 });
+    report(560, 344);
+    await press("Alt+Space");
+    await press("Alt+Space");
+    expect(panel().bounds.height).toBe(260);
+    expect(panel().bounds.y + 24).toBe(composerAt);
+  });
+
+  test("keeps its window clear when the appearance retints every window", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    applyTranslucency(true, "blur");
+    expect(panel().vibrancy).toBeUndefined();
+    expect(panel().backgroundColor).toBeUndefined();
   });
 
   test("a native move re-anchors it on the display it landed on", async () => {

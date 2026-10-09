@@ -5,7 +5,8 @@ import { FolderIcon, PlusIcon } from "lucide-react";
 import { Composer } from "@/features/composer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { AttachedDestination } from "./attached-destination";
-import { DestinationPicker } from "./destination-picker";
+import { DestinationPicker, placeOf } from "./destination-picker";
+import { projectKey } from "./hosts";
 import { missingPermissions, quickComposerBridge, type QuickComposerBridge, type Room } from "./front-context";
 import { NeedsYouStrip } from "./needs-you-strip";
 import { PermissionNotice } from "./permission-notice";
@@ -26,17 +27,17 @@ function ProjectChip({ quick }: { quick: Quick }) {
   const choose = (next: string | null) => {
     if (!next) return;
     quick.destination.clear();
-    quick.setProjectId(next);
+    quick.setProject(next);
   };
   return (
-    <Select value={quick.projectId ?? null} onValueChange={choose}>
+    <Select value={quick.project ? projectKey(quick.project) : null} onValueChange={choose}>
       <SelectTrigger size="sm" className="h-7 min-w-0 max-w-40 gap-1 rounded-full border-border/60 px-2.5 text-xs" aria-label="Project">
         <FolderIcon className="size-3.5 text-muted-foreground" />
-        <SelectValue placeholder="Choose a project">{quick.project?.name ?? quick.projectId}</SelectValue>
+        <SelectValue placeholder="Choose a project">{quick.project ? placeOf(quick.project, quick.manyHosts) : undefined}</SelectValue>
       </SelectTrigger>
       <SelectContent side="top" alignItemWithTrigger={false}>
         {quick.projects.map((project) => (
-          <SelectItem key={project.id} value={project.id}>{project.name ?? project.id}</SelectItem>
+          <SelectItem key={projectKey(project)} value={projectKey(project)}>{placeOf(project, quick.manyHosts)}</SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -107,11 +108,11 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const root = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLDivElement>(null);
   const strip = useRef<HTMLDivElement>(null);
-  const { room, reserve } = useWindowLayout(bridge, root, composer);
+  const { room, reserve } = useWindowLayout(bridge, root, composer, context);
   const fieldDrag = useFieldDrag(bridge, quick.text === "");
   const placement = pickerPlacement(room);
   const picker = quick.destination.picking && (
-    <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} below={placement.below} maxHeight={placement.maxHeight} />
+    <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} below={placement.below} maxHeight={placement.maxHeight} manyHosts={quick.manyHosts} />
   );
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
 
@@ -139,15 +140,16 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
           <NeedsYouStrip
             items={quick.needs}
             strip={strip}
-            onPick={({ session, projectName }) => {
-              quick.destination.pick({ kind: "session", session, projectName }, false);
+            manyHosts={quick.manyHosts}
+            onPick={({ session }) => {
+              quick.destination.pick({ kind: "session", session }, false);
               toComposer();
             }}
             onLeave={toComposer}
           />
           {!placement.below && picker}
           <div className="-mb-3">
-            <AttachedDestination destination={quick.destination.destination} nudge={quick.nudge} maxHeight={clampTo(room.above - 120, 96, 420)} onClear={quick.destination.clear} />
+            <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} maxHeight={clampTo(room.above - 120, 96, 420)} onClear={quick.destination.clear} />
           </div>
         </div>
         <div ref={composer}>

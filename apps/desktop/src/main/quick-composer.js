@@ -1,6 +1,7 @@
 "use strict";
 
 const { app, BrowserWindow, globalShortcut, ipcMain, Notification, screen, shell } = require("electron");
+const { keepClear } = require("./appearance");
 const { cockpitWindowOptions } = require("./cockpit-window");
 const { jsonPrefs } = require("./prefs");
 const { openSettings, permissions, readFrontContext, requestPermissions } = require("./front-context");
@@ -55,6 +56,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   const panel = () => {
     if (win && !win.isDestroyed()) return win;
     win = new BrowserWindow(panelOptions());
+    keepClear(win);
     win.setAlwaysOnTop(true, "pop-up-menu");
     win.on("moved", () => placement.settle());
     win.on("focus", () => {

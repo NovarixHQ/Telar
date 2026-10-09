@@ -51,6 +51,7 @@ function createPlacement({ screen, window: current, ticker = everyFrame }) {
     open(held) {
       const display = displayFor(screen, held);
       place = { display: display.id, area: display.workArea, anchor: anchorOn(display, held?.display === display.id ? held.offset : null) };
+      metrics = FIRST_METRICS;
       applied = null;
       apply();
     },

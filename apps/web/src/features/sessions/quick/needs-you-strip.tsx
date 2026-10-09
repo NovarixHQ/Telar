@@ -2,12 +2,14 @@
 
 import type { KeyboardEvent, RefObject } from "react";
 import { cn } from "@/ui/utils";
-import { statusDot } from "./destination-picker";
+import { sessionKey } from "../session-list";
+import { placeOf, statusDot } from "./destination-picker";
 import type { NeedsYou } from "./needs-you";
 
-const LABEL: Record<NeedsYou["kind"], string> = { waiting: "Waiting on you", unread: "Unread", running: "Working" };
+const LABEL: Record<NeedsYou["kind"], string> = { waiting: "Waiting on you", unread: "Unread" };
 
-export function NeedsYouStrip({ items, strip, onPick, onLeave }: {
+export function NeedsYouStrip({ items, strip, manyHosts, onPick, onLeave }: {
+  manyHosts: boolean;
   items: readonly NeedsYou[];
   strip: RefObject<HTMLDivElement | null>;
   onPick: (item: NeedsYou) => void;
@@ -28,11 +30,11 @@ export function NeedsYouStrip({ items, strip, onPick, onLeave }: {
     <div ref={strip} role="toolbar" aria-label="Conversations that need you" className="mx-6 flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
       {items.map((item) => (
         <button
-          key={item.session.id}
+          key={sessionKey(item.session)}
           type="button"
           onClick={() => onPick(item)}
           onKeyDown={onKeyDown}
-          title={`${item.session.title} · ${item.projectName}`}
+          title={`${item.session.title} · ${placeOf(item.session, manyHosts)}`}
           className="flex h-7 max-w-56 shrink-0 items-center gap-1.5 rounded-full border border-border bg-popover px-2.5 text-xs text-popover-foreground shadow-1 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className={cn("size-2 shrink-0 rounded-full", item.kind === "unread" ? "bg-primary" : statusDot(item.session))} />

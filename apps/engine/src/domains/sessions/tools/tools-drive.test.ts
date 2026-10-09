@@ -97,10 +97,10 @@ describe("driving a session", () => {
     expect(missing.isError).toBe(true);
   });
 
-  test("settle says what it ended: the session's terminals, closed as Telar (#883)", async () => {
+  test("settle says what it ended: the session's idle terminals, closed as Telar", async () => {
     const { store, projectId } = engine();
     const closed: string[] = [];
-    store.sessionTerminals.attach({ openCount: () => 0, openSessions: () => [], closeSession: async (sessionId) => (closed.push(sessionId), 2) });
+    store.sessionTerminals.attach({ openCount: () => 0, openSessions: () => [], closeSession: async () => 0, closeIdle: async (sessionId) => (closed.push(sessionId), 2) });
     const tools = wall(store);
     const id = (await call(tools, "sessions_create", { projectId, envMode: "local" })).json!.id as string;
 

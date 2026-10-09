@@ -7,14 +7,11 @@ export type AttachedTerminals = {
   openSessions(): string[];
   /** `by` is "person" only when the person asked; Telar otherwise. */
   closeSession(sessionId: string, by?: "telar" | "person"): Promise<number>;
+  /** Closes the session's terminals idle at a prompt: no process running in them and no input still unechoed. */
+  closeIdle(sessionId: string): Promise<number>;
   /** The host's count per session, the person's shells included. Absent means this engine's own terminals are all there are. */
   sessionCounts?(): Promise<Record<string, number>>;
 };
-
-/** How long a clock-settled session keeps its terminals, so a conversation that merely aged out keeps its dev server a while. */
-export const SETTLED_TERMINAL_GRACE_MS = 30 * 60_000;
-
-const SETTLED_TERMINAL_LIMIT = 5;
 
 export type SessionTerminalsHost = {
   now(): number;
@@ -32,7 +29,6 @@ export class SessionTerminals {
   private census = new Map<string, number>();
   private censusTask?: Promise<void>;
   private censusAgain = false;
-  private limitTask?: Promise<string[]>;
 
   constructor(
     private readonly records: SessionRecords,
@@ -137,8 +133,20 @@ export class SessionTerminals {
     return closed;
   }
 
-  /** An explicit settle's close. The settled limit is not checked: this settle only lowered the total it sums. */
+  /** A settle's close: idle shells go, a terminal still running something stays for the person. */
   async closeForSettle(sessionId: string): Promise<number> {
+    let closed = 0;
+    try {
+      closed = (await this.terminals?.closeIdle(sessionId)) ?? 0;
+    } catch {
+      // The desktop's terminal host is out of reach. Quitting Telar closes every terminal it holds.
+    }
+    await this.refresh();
+    return closed;
+  }
+
+  /** Archiving ends the session, so every terminal it holds goes. */
+  async closeForArchive(sessionId: string): Promise<number> {
     let closed = 0;
     try {
       closed = (await this.terminals?.closeSession(sessionId)) ?? 0;
@@ -149,96 +157,24 @@ export class SessionTerminals {
     return closed;
   }
 
-  private recordClosed(sessionId: string, terminals: number, reason: "grace" | "limit"): void {
-    if (terminals <= 0) return;
-    try {
-      this.host.recordSession({ ...this.records.get(sessionId), terminalsClosed: { at: this.host.now(), terminals, reason } });
-    } catch {
-      // The terminals are closed either way; a record that could not be kept costs the explanation, not the close.
-    }
-  }
-
-  /**
-   * Closes the terminals of sessions settled for longer than the grace, including sessions whose only terminal
-   * is a shell the person opened, then checks the settled limit. Answers the sessions the grace closed.
-   */
+  /** Closes the idle terminals of every shelved session, the clock's settles included. Answers the sessions it closed any in. */
   async sweepSettled(): Promise<string[]> {
     if (!this.terminals) return [];
     await this.refresh();
-    const now = this.host.now();
-    const window = this.host.inboxPolicy().autoSettleAfterHours;
-    const due: string[] = [];
+    const at = { now: this.host.now(), autoSettleAfterHours: this.host.inboxPolicy().autoSettleAfterHours };
+    const swept: string[] = [];
     for (const sessionId of this.sessions()) {
       try {
-        const row = indexRow(this.records.get(sessionId));
-        if (!rowIsShelved(row, { now, autoSettleAfterHours: window })) continue;
-        const since = now - SETTLED_TERMINAL_GRACE_MS;
-        const longEnough = row.settledOverride === "settled"
-          ? (row.settledAt ?? 0) <= since
-          // Shelved by the clock: it was already shelved a grace ago.
-          : rowIsShelved(row, { now: since, autoSettleAfterHours: window });
-        if (longEnough) due.push(sessionId);
+        if (!rowIsShelved(indexRow(this.records.get(sessionId)), at)) continue;
+        const closed = await this.terminals.closeIdle(sessionId);
+        if (closed <= 0) continue;
+        this.host.recordSession({ ...this.records.get(sessionId), terminalsClosed: { at: this.host.now(), terminals: closed } });
+        swept.push(sessionId);
       } catch {
-        // A session that cannot be read is not closed on a guess.
+        // A session that cannot be read, or a host out of reach, is left for the next tick.
       }
     }
-    for (const sessionId of due) {
-      try {
-        const closed = await this.terminals.closeSession(sessionId);
-        this.recordClosed(sessionId, closed, "grace");
-      } catch {
-        // The next tick tries again.
-      }
-    }
-    if (due.length > 0) await this.refresh();
-    await this.enforceLimit();
-    return due;
-  }
-
-  /**
-   * No more than `SETTLED_TERMINAL_LIMIT` terminals across settled sessions: past it, the session settled longest ago
-   * (`settledAt`, or last activity plus the window for the clock) is closed first. Answers the sessions it closed.
-   */
-  enforceLimit(): Promise<string[]> {
-    // One check at a time: two overlapping would both close the same oldest session.
-    this.limitTask ??= this.checkLimit().finally(() => {
-      this.limitTask = undefined;
-    });
-    return this.limitTask;
-  }
-
-  private async checkLimit(): Promise<string[]> {
-    if (!this.terminals) return [];
-    const at = this.index.settlingClock();
-    const windowMs = (at.autoSettleAfterHours ?? 0) * 60 * 60_000;
-    const settled: Array<{ sessionId: string; count: number; since: number }> = [];
-    for (const sessionId of this.sessions()) {
-      const count = this.count(sessionId);
-      if (count === 0) continue;
-      try {
-        const row = indexRow(this.records.get(sessionId));
-        if (row.state === "active" && !rowIsShelved(row, at)) continue;
-        const since = row.settledOverride === "settled" ? (row.settledAt ?? row.updatedAt) : row.updatedAt + windowMs;
-        settled.push({ sessionId, count, since });
-      } catch {
-        // A session that cannot be read is not closed on a guess.
-      }
-    }
-    let total = settled.reduce((sum, entry) => sum + entry.count, 0);
-    const closed: string[] = [];
-    for (const entry of settled.sort((a, b) => a.since - b.since)) {
-      if (total <= SETTLED_TERMINAL_LIMIT) break;
-      try {
-        const ended = await this.terminals.closeSession(entry.sessionId);
-        this.recordClosed(entry.sessionId, Math.max(ended, entry.count), "limit");
-        total -= entry.count;
-        closed.push(entry.sessionId);
-      } catch {
-        // The host is out of reach; the next check tries again.
-        break;
-      }
-    }
-    if (closed.length > 0) await this.refresh();
-    return closed;
+    if (swept.length > 0) await this.refresh();
+    return swept;
   }
 }

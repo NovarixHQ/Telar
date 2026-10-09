@@ -48,6 +48,10 @@ function fakeHost() {
       this.sessionsClosed.push(sessionId);
       return 2;
     },
+    async closeIdleBySession(sessionId) {
+      this.sessionsClosed.push(sessionId);
+      return ["term_2"];
+    },
     async activeProcesses(options) {
       this.asked.push(options);
       return [{ id: "term_1", sessionId: "s_1", origin: "run", active: true, processes: 1, command: "bun run dev" }];
@@ -115,6 +119,7 @@ test("every route needs the token, and a wrong one is refused before anything ru
     ["POST", "/kill"],
     ["POST", "/close"],
     ["POST", "/close-session"],
+    ["POST", "/close-idle-session"],
     ["POST", "/active"],
     ["POST", "/write"],
     ["POST", "/resize"],
@@ -256,6 +261,13 @@ test("close-session closes a whole session and answers how many", async () => {
 
   await (await fetch(`${url}/close-session`, { method: "POST", headers: auth, body: "{}" })).json();
   expect(host.sessionsClosed).toEqual(["s_1", undefined]);
+});
+
+test("close-idle-session answers the terminals it closed", async () => {
+  const { host, url } = await serve();
+  const response = await fetch(`${url}/close-idle-session`, { method: "POST", headers: auth, body: JSON.stringify({ sessionId: "s_1" }) });
+  expect(await response.json()).toEqual({ closed: ["term_2"] });
+  expect(host.sessionsClosed).toEqual(["s_1"]);
 });
 
 test("sessions answers each session's terminal count, whoever opened them (#883)", async () => {

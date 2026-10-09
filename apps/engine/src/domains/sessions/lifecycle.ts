@@ -57,7 +57,7 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
       auth: "engine",
       async handle({ params: [sessionId] }) {
         const session = store.lifecycle.archiveSession(sessionId!);
-        await store.settler.endLeftovers(sessionId!);
+        await store.settler.endLeftovers(sessionId!, "archive");
         return ok({ session });
       },
     },

@@ -263,7 +263,7 @@ test("paused or ambient background tasks are not live work: the sweep and the re
 test("an open terminal: the sweep skips the session's checkout, and the reaper counts it live (#883)", async () => {
   const { store, checkout, branch, advance } = await setup();
   git(checkout, "push", "-q", "origin", branch);
-  store.sessionTerminals.attach({ openCount: (sessionId) => (sessionId === "session_one" ? 1 : 0), openSessions: () => ["session_one"], closeSession: async () => 1 });
+  store.sessionTerminals.attach({ openCount: (sessionId) => (sessionId === "session_one" ? 1 : 0), openSessions: () => ["session_one"], closeIdle: async () => 0, closeSession: async () => 1 });
   store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
   advance(10 * DAY);
   await store.worktrees.runCleanup();

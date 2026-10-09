@@ -343,6 +343,9 @@ class TerminalHost {
 
       closeReason: null,
       onLeaderExit: null,
+      inputs: 0,
+      echoed: 0,
+      outputs: 0,
     };
     this.terminals.set(id, record);
 
@@ -351,7 +354,10 @@ class TerminalHost {
       pty.on("error", () => {});
     }
     pty.onData((data) => {
-      if (this.terminals.get(id) === record) this.onData(id, data);
+      if (this.terminals.get(id) !== record) return;
+      record.outputs += 1;
+      record.echoed = record.inputs;
+      this.onData(id, data);
     });
     pty.onExit((ending) => {
       this._settle(record, {
@@ -369,6 +375,7 @@ class TerminalHost {
   write(id, data, owner) {
     const record = this._owned(id, owner);
     if (!record || typeof data !== "string") return false;
+    record.inputs += 1;
     record.pty.write(data);
     return true;
   }
@@ -431,6 +438,25 @@ class TerminalHost {
     );
     await this._close(records, { ...options, reason: CloseReason.SESSION });
     return records.length;
+  }
+
+  async closeIdleBySession(sessionId) {
+    const wanted = shortText(sessionId, 200);
+    if (!wanted) return [];
+    const records = [...this.terminals.values()].filter((record) => record.sessionId === wanted && !record.closing);
+    if (records.length === 0) return [];
+    const marks = new Map(records.map((record) => [record, record.inputs + record.outputs]));
+    const rows = await this._snapshot();
+    if (!rows) return [];
+    const idle = records.filter(
+      (record) =>
+        this.terminals.get(record.id) === record &&
+        record.inputs === record.echoed &&
+        record.inputs + record.outputs === marks.get(record) &&
+        !terminalActivity(record, rows).active,
+    );
+    await this._close(idle, { reason: CloseReason.SESSION });
+    return idle.map((record) => record.id);
   }
 
   async closeAll(options = {}) {

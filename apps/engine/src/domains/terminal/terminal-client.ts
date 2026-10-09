@@ -151,6 +151,11 @@ export class RunTerminalClient {
     return typeof answer?.closed === "number" ? answer.closed : 0;
   }
 
+  async closeIdleSession(sessionId: string): Promise<string[]> {
+    const answer = (await this.post("/close-idle-session", { sessionId })) as { closed?: unknown };
+    return Array.isArray(answer?.closed) ? answer.closed.filter((id): id is string => typeof id === "string") : [];
+  }
+
   async active(ids?: string[]): Promise<TerminalActivity[]> {
     const answer = (await this.post("/active", ids ? { ids } : {})) as { terminals?: unknown };
     return Array.isArray(answer?.terminals) ? (answer.terminals as TerminalActivity[]) : [];

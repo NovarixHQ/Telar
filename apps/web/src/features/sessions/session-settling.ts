@@ -84,21 +84,19 @@ export function wakeLabel(snoozedUntil: number, now: number): string {
 const terminalsWord = (count: number) => `${count} terminal${count === 1 ? "" : "s"}`;
 
 export function settleClosesText(terminals: number | undefined): string | undefined {
-  return terminals && terminals > 0 ? `closes ${terminalsWord(terminals)}` : undefined;
+  return terminals && terminals > 0 ? "closes idle terminals" : undefined;
 }
 
 export function settledTerminalsHint(terminals: number): string {
-  return `${terminalsWord(terminals)} still open in this settled session, shells you opened included`;
+  return `${terminalsWord(terminals)} still running in this settled session, shells you opened included`;
 }
 
 export function terminalsClosedHint(
-  session: { updatedAt: number; terminalsClosed?: { at: number; terminals: number; reason: "grace" | "limit" } },
+  session: { updatedAt: number; terminalsClosed?: { at: number; terminals: number } },
 ): string | undefined {
   const closed = session.terminalsClosed;
   if (!closed || closed.at < session.updatedAt) return undefined;
-  return closed.reason === "limit"
-    ? `Telar closed its ${terminalsWord(closed.terminals)}: settled sessions had more open than the limit in Settings, and this one was settled longest ago`
-    : `Telar closed its ${terminalsWord(closed.terminals)} 30 minutes after it settled on its own`;
+  return `Telar closed ${closed.terminals} idle terminal${closed.terminals === 1 ? "" : "s"} after it settled`;
 }
 
 export function settleEndedText(ended: { terminals: number; backgroundTasks: number } | undefined): string | undefined {

@@ -121,7 +121,7 @@ test("an open terminal in the session refuses the release and says how many (#88
   const { store, checkout, branch } = await worktreeSession();
   git(checkout, "push", "-q", "origin", branch);
   let open = 2;
-  store.sessionTerminals.attach({ openCount: (sessionId) => (sessionId === "session_one" ? open : 0), openSessions: () => ["session_one"], closeSession: async () => 0 });
+  store.sessionTerminals.attach({ openCount: (sessionId) => (sessionId === "session_one" ? open : 0), openSessions: () => ["session_one"], closeIdle: async () => 0, closeSession: async () => 0 });
   expect(await store.worktrees.release("session_one", "manual")).toEqual({ ok: false, refusal: "process", detail: "2 terminals are open in this session" });
   expect(fs.existsSync(checkout)).toBe(true);
   // Closed — by the person, or by settling — and the same press goes through.

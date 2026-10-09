@@ -18,20 +18,16 @@ import {
 } from "./session-settling";
 
 describe("what settling closes, said before and after (#883)", () => {
-  test("settleClosesText counts terminals, and is nothing at zero", () => {
-    expect(settleClosesText(2)).toBe("closes 2 terminals");
-    expect(settleClosesText(1)).toBe("closes 1 terminal");
+  test("settleClosesText names the idle terminals, and is nothing at zero", () => {
+    expect(settleClosesText(2)).toBe("closes idle terminals");
     expect(settleClosesText(0)).toBeUndefined();
     expect(settleClosesText(undefined)).toBeUndefined();
   });
 
   test("terminalsClosedHint speaks only for the current stay on the shelf", () => {
-    const limit = { at: 2_000, terminals: 2, reason: "limit" as const };
-    expect(terminalsClosedHint({ updatedAt: 1_000, terminalsClosed: limit })).toContain("Telar closed its 2 terminals");
-    expect(terminalsClosedHint({ updatedAt: 1_000, terminalsClosed: limit })).toContain("limit in Settings");
-    expect(terminalsClosedHint({ updatedAt: 1_000, terminalsClosed: { ...limit, terminals: 1, reason: "grace" } })).toBe(
-      "Telar closed its 1 terminal 30 minutes after it settled on its own",
-    );
+    const limit = { at: 2_000, terminals: 2 };
+    expect(terminalsClosedHint({ updatedAt: 1_000, terminalsClosed: limit })).toBe("Telar closed 2 idle terminals after it settled");
+    expect(terminalsClosedHint({ updatedAt: 1_000, terminalsClosed: { ...limit, terminals: 1 } })).toBe("Telar closed 1 idle terminal after it settled");
     // Worked on since: history, and not said.
     expect(terminalsClosedHint({ updatedAt: 3_000, terminalsClosed: limit })).toBeUndefined();
     expect(terminalsClosedHint({ updatedAt: 1_000 })).toBeUndefined();

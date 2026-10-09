@@ -337,10 +337,9 @@ export class EngineStore {
       assignedTurns: (id) => this.sessionQueues.assigned(id),
       autoSettleAfterHours: () => this.settings.inbox().autoSettleAfterHours,
       settled: () => this.children.review(),
-      onShelfGrew: () => this.enforceTerminalLimitSoon(),
       stopBackgroundTasks: (id, reason) => this.worker.stopBackgroundTasks(id, reason),
       releaseBrowser: (id, reason) => this.browser.release(id, reason),
-      closeTerminals: (id) => this.sessionTerminals.closeForSettle(id),
+      closeTerminals: (id, scope) => (scope === "archive" ? this.sessionTerminals.closeForArchive(id) : this.sessionTerminals.closeForSettle(id)),
     });
     const wakes = new TurnWakes(this.kernel, {
       records: this.records,
@@ -465,11 +464,6 @@ export class EngineStore {
     } catch {
       // A session deleted in the meantime has nothing to set up.
     }
-  }
-
-  // A shelf that grew or a lower limit keeps its terminals (#883): enforced after the command, never inside it.
-  private enforceTerminalLimitSoon(): void {
-    if (this.sessionTerminals.attached) void Promise.resolve().then(() => this.sessionTerminals.enforceLimit()).catch(() => undefined);
   }
 
   private createLifecycle(): SessionLifecycle {

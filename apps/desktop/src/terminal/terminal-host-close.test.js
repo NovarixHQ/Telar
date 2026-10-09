@@ -229,3 +229,67 @@ describe("closing a real process group that ignores SIGTERM", () => {
     await host.closeAll();
   });
 });
+
+describe("settling closes only the terminals idle at a prompt", () => {
+  const table = [
+    { pid: 500, ppid: 1, pgid: 500, tpgid: 500, tty: "ttys005", command: "-zsh" },
+    { pid: 600, ppid: 1, pgid: 600, tpgid: 610, tty: "ttys006", command: "-zsh" },
+    { pid: 610, ppid: 600, pgid: 610, tpgid: 610, tty: "ttys006", command: "bun run dev" },
+  ];
+
+  async function twoShells() {
+    const killed = [];
+    const ptys = [fakePty(500, "/dev/ttys005"), fakePty(600, "/dev/ttys006")];
+    let next = 0;
+    const made = hostWith(ptys[0], {
+      listProcesses: async () => table,
+      killTree: (pid, signal) => killed.push([pid, signal]),
+      host: { spawnPty: () => ptys[next++] },
+    });
+    const idle = await made.host.open({ shell: "/bin/zsh", env: {}, sessionId: "s_1" });
+    const busy = await made.host.open({ shell: "/bin/zsh", env: {}, sessionId: "s_1" });
+    return { ...made, ptys, idle: idle.id, busy: busy.id, killed };
+  }
+
+  test("an idle shell closes and one running a process stays", async () => {
+    const { host, idle, busy, killed, clock } = await twoShells();
+    const closing = host.closeIdleBySession("s_1");
+    for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+    clock.advance(CLOSE_GRACE_MS);
+    expect(await closing).toEqual([idle]);
+    expect(killed.some(([pid]) => pid === 500)).toBe(true);
+    expect(killed.some(([pid]) => pid === 600 || pid === 610)).toBe(false);
+    expect(host.terminals.has(busy)).toBe(true);
+  });
+
+  test("a shell with input it has not echoed yet stays open", async () => {
+    const { host, idle, ptys, killed, clock } = await twoShells();
+    expect(host.write(idle, "make\r", host.ownerOf(idle))).toBe(true);
+    expect(await host.closeIdleBySession("s_1")).toEqual([]);
+    expect(killed).toEqual([]);
+    ptys[0].emitData("make\r\n");
+    const closing = host.closeIdleBySession("s_1");
+    for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+    clock.advance(CLOSE_GRACE_MS);
+    expect(await closing).toEqual([idle]);
+  });
+
+  test("a shell that types or prints while the process table is read stays open", async () => {
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const pty = fakePty(500, "/dev/ttys005");
+    const { host } = hostWith(pty, { listProcesses: () => gate.then(() => table.slice(0, 1)) });
+    await host.open({ shell: "/bin/zsh", env: {}, sessionId: "s_1" });
+    const closing = host.closeIdleBySession("s_1");
+    pty.emitData("% ");
+    release();
+    expect(await closing).toEqual([]);
+  });
+
+  test("an unreadable process table closes nothing", async () => {
+    const pty = fakePty(500, "/dev/ttys005");
+    const { host } = hostWith(pty, { listProcesses: async () => { throw new Error("ps failed"); } });
+    await host.open({ shell: "/bin/zsh", env: {}, sessionId: "s_1" });
+    expect(await host.closeIdleBySession("s_1")).toEqual([]);
+  });
+});

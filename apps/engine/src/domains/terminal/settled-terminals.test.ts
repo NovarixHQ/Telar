@@ -8,7 +8,6 @@ import { RunManager } from "./manager";
 import { type StartRunInput } from "./live-run";
 import { RunTerminalClient } from "./terminal-client";
 import { EngineStore } from "../../state";
-import { SETTLED_TERMINAL_GRACE_MS } from "./session-terminals";
 import { desktopTerminalServer } from "../../../test/desktop-terminal";
 
 type StartServer = (options: {
@@ -20,7 +19,7 @@ const { startRunTerminalServer } = (await import(desktopTerminalServer)) as { st
 
 const HOUR = 60 * 60 * 1000;
 
-type FakeTerminal = { id: string; pid: number; sessionId?: string; owner: "engine" | "renderer" };
+type FakeTerminal = { id: string; pid: number; sessionId?: string; owner: "engine" | "renderer"; busy?: boolean };
 
 class FakeHost {
   readonly terminals = new Map<string, FakeTerminal>();
@@ -56,6 +55,15 @@ class FakeHost {
     return records.length;
   }
 
+  async closeIdleBySession(sessionId: string): Promise<string[]> {
+    const idle = [...this.terminals.values()].filter((terminal) => terminal.sessionId === sessionId && !terminal.busy);
+    for (const record of idle) {
+      this.terminals.delete(record.id);
+      if (record.owner === "engine") this.onExit(record.id, { id: record.id, pid: record.pid, fate: "exited", exitCode: 0, signal: "1", at: Date.now(), closed: "session" });
+    }
+    return idle.map((record) => record.id);
+  }
+
   held(sessionId: string): number {
     return [...this.terminals.values()].filter((terminal) => terminal.sessionId === sessionId).length;
   }
@@ -81,7 +89,7 @@ async function scene() {
   const manager = new RunManager({ launcher: terminalLauncher(client), closeSettleMs: 150, personClosed: (run) => closedByPerson.push(run) });
   cleanups.push(() => manager.shutdown());
 
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-settled-limit-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-settled-terminals-"));
   cleanups.push(() => fs.rmSync(home, { recursive: true, force: true }));
   fs.writeFileSync(path.join(home, "claude-default-model.json"), JSON.stringify({ model: "claude-opus-5[1m]", at: 1 }));
   let now = 1_000 * HOUR;
@@ -108,68 +116,19 @@ async function scene() {
   return { host, manager, store, closedByPerson, open, advance, settle };
 }
 
-test("past the limit, the session settled longest ago closes first, as Telar, and says so", async () => {
-  const { host, manager, store, closedByPerson, open, settle } = await scene();
-  const run = await open("session_one");
-  host.personShell("session_two");
-  host.personShell("session_two");
-  for (let index = 0; index < 3; index += 1) host.personShell("session_three");
-  for (let index = 0; index < 4; index += 1) host.personShell("session_four");
-  settle("session_one");
-  settle("session_two");
-  settle("session_three");
-
-  await store.sessionTerminals.refresh();
-  expect(await store.sessionTerminals.enforceLimit()).toEqual(["session_one"]);
-  expect(host.sessionCloses).toEqual(["session_one"]);
-  expect(manager.run(run.terminalId)).toMatchObject({ status: "closed", closedBy: "telar" });
-  expect(closedByPerson).toEqual([]);
-  expect(host.held("session_two")).toBe(2);
-  expect(host.held("session_four")).toBe(4);
-
-  const one = store.records.get("session_one");
-  expect(one.terminalsClosed).toMatchObject({ terminals: 1, reason: "limit" });
-  expect(one.terminalsClosed!.at).toBeGreaterThanOrEqual(one.updatedAt);
-  expect(one.settledOverride).toBe("settled");
-  expect(store.records.get("session_two").terminalsClosed).toBeUndefined();
-
-  expect(await store.sessionTerminals.enforceLimit()).toEqual([]);
-});
-
-test("five terminals across settled sessions is the limit", async () => {
-  const { host, store, settle } = await scene();
-  host.personShell("session_one");
-  host.personShell("session_two");
-  host.personShell("session_two");
-  host.personShell("session_three");
-  host.personShell("session_three");
-  settle("session_one");
-  settle("session_two");
-  settle("session_three");
-  await store.sessionTerminals.refresh();
-  expect(await store.sessionTerminals.enforceLimit()).toEqual([]);
-  expect(host.sessionCloses).toEqual([]);
-
-  host.personShell("session_three");
-  await store.sessionTerminals.refresh();
-  expect(await store.sessionTerminals.enforceLimit()).toEqual(["session_one"]);
-  expect(host.held("session_three")).toBe(3);
-});
-
 test("the automatic settle's sweep closes a shell the person opened, which only the host can see", async () => {
   const { host, manager, store, advance } = await scene();
   const shell = host.personShell("session_one");
   expect(manager.openSessions()).toEqual([]);
   const window = store.settings.inbox().autoSettleAfterHours!;
 
-  advance(window * HOUR + 60_000);
   expect(await store.sessionTerminals.sweepSettled()).toEqual([]);
   expect(host.terminals.has(shell)).toBe(true);
 
-  advance(SETTLED_TERMINAL_GRACE_MS);
+  advance(window * HOUR + 60_000);
   expect(await store.sessionTerminals.sweepSettled()).toEqual(["session_one"]);
   expect(host.terminals.has(shell)).toBe(false);
-  expect(store.records.get("session_one").terminalsClosed).toMatchObject({ terminals: 1, reason: "grace" });
+  expect(store.records.get("session_one").terminalsClosed).toMatchObject({ terminals: 1 });
   expect(store.live.rows({ all: true }).terminals).toEqual({});
 });
 
@@ -188,6 +147,25 @@ test("the counts include the person's shells: what Settle would close, and what 
   store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
   expect(await store.settler.endLeftovers("session_one")).toEqual({ terminals: 2, backgroundTasks: 0 });
   expect(store.live.rows({ all: true }).terminals).toEqual({ session_three: 1 });
+});
+
+test("a settled session keeps a terminal still running something, and the sweep closes it once it is idle", async () => {
+  const { host, manager, store, open, settle } = await scene();
+  const run = await open("session_one");
+  host.terminals.get(run.terminalId)!.busy = true;
+  const shell = host.personShell("session_one");
+  settle("session_one");
+
+  expect(await store.settler.endLeftovers("session_one")).toEqual({ terminals: 1, backgroundTasks: 0 });
+  expect(host.terminals.has(shell)).toBe(false);
+  expect(manager.run(run.terminalId).status).toBe("running");
+  expect(store.live.rows({ all: true }).terminals).toEqual({ session_one: 1 });
+
+  expect(await store.sessionTerminals.sweepSettled()).toEqual([]);
+  host.terminals.get(run.terminalId)!.busy = false;
+  expect(await store.sessionTerminals.sweepSettled()).toEqual(["session_one"]);
+  expect(manager.run(run.terminalId)).toMatchObject({ status: "closed", closedBy: "telar" });
+  expect(store.records.get("session_one").terminalsClosed).toMatchObject({ terminals: 1 });
 });
 
 test("the person closing a settled session's terminals is recorded as the person's", async () => {

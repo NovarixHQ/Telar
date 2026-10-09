@@ -58,32 +58,31 @@ const settled = { settledOverride: "settled", settledAt: NOW - 10 * MINUTE };
 describe("a settled row still running something", () => {
   test("wears the count, explains it on hover, and offers to close them", () => {
     const html = row(settled, { session_1: 2 }, { band: "settled" });
-    expect(html).toContain('title="2 terminals still open in this settled session, shells you opened included"');
+    expect(html).toContain('title="2 terminals still running in this settled session, shells you opened included"');
     expect(html).toContain('aria-label="Close its 2 terminals"');
   });
 
   test("with none, it wears nothing and offers nothing", () => {
     const html = row(settled, {}, { band: "settled" });
-    expect(html).not.toContain("still open in this settled session");
+    expect(html).not.toContain("still running in this settled session");
     expect(html).not.toContain("Close its");
   });
 
   test("an active row's terminals are its work: no count on it", () => {
     const html = row({}, { session_1: 2 });
-    expect(html).not.toContain("still open in this settled session");
+    expect(html).not.toContain("still running in this settled session");
     expect(html).not.toContain("Close its");
   });
 
   test("when Telar closed them, the row's hover says why", () => {
-    const html = row({ ...settled, terminalsClosed: { at: NOW - MINUTE, terminals: 3, reason: "limit" } }, {}, { band: "settled" });
-    expect(html).toContain("Telar closed its 3 terminals");
+    const html = row({ ...settled, terminalsClosed: { at: NOW - MINUTE, terminals: 3 } }, {}, { band: "settled" });
+    expect(html).toContain("Telar closed 3 idle terminals");
   });
 });
 
 describe("Settle says what it will close before the press", () => {
-  test("closes N terminals", () => {
-    expect(row({}, { session_1: 2 })).toContain('title="Settle — closes 2 terminals"');
-    expect(row({}, { session_1: 1 })).toContain('title="Settle — closes 1 terminal"');
+  test("closes idle terminals", () => {
+    expect(row({}, { session_1: 2 })).toContain('title="Settle — closes idle terminals"');
   });
 
   test("and nothing extra at zero", () => {

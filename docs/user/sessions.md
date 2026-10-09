@@ -21,7 +21,7 @@ A project that isn't a git repository always uses its checkout. Set the default 
 
 ## Settling and snoozing
 
-Settling moves a session off your list without deleting anything. Settled sessions sit under Settled at the bottom of the rail. A new message brings a session back, and so does Un-settle. Settling closes the session's terminals, including shells you opened. You can't settle a session while it's working or waiting on you.
+Settling moves a session off your list without deleting anything. Settled sessions sit under Settled at the bottom of the rail. A new message brings a session back, and so does Un-settle. Settling closes the session's terminals that sit idle at a prompt, including shells you opened; a terminal still running a command stays open. You can't settle a session while it's working or waiting on you.
 
 Telar also settles quiet sessions on its own, and delegated sessions once their result is delivered, after one wait. Pinned sessions and sessions with an open question stay. Change or turn off that wait in Settings → General → Rail → Settle sessions.
 

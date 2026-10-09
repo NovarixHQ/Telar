@@ -40,7 +40,6 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
-/** A viewport with hand-set geometry; `scrollToBottom` behaves as the library's instant scroll does. */
 function mount(start: { scrollTop: number; scrollHeight: number; clientHeight: number }) {
   const box = { ...start };
   const scrollRef = createRef<HTMLDivElement>();
@@ -90,7 +89,6 @@ function mount(start: { scrollTop: number; scrollHeight: number; clientHeight: n
     state,
     follow,
     atBottom: () => box.scrollHeight - box.clientHeight - box.scrollTop <= 1,
-    // What the library does on a scroll it reads as the reader's: it lets go of the bottom.
     layoutScroll: (scrollTop: number) => {
       box.scrollTop = scrollTop;
       state.isAtBottom = false;

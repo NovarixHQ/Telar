@@ -5,9 +5,9 @@ import { SquareArrowOutUpRightIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import type { DesktopBrowserBridge, DesktopBrowserPanelState } from "../types";
 
-export function usePoppedScope(bridge: DesktopBrowserBridge, scopeKey: string, onEnded?: () => void): { popped: boolean; compact: boolean } {
-  const [shown, setShown] = useState({ popped: false, compact: false });
-  const poppedRef = useRef(false);
+export function usePoppedScope(bridge: DesktopBrowserBridge, scopeKey: string, onEnded?: () => void): { popped: boolean; compact: boolean; empty: boolean } {
+  const [shown, setShown] = useState({ popped: false, compact: false, empty: false });
+  const placeholderRef = useRef(false);
   const endedRef = useRef(onEnded);
   useEffect(() => {
     endedRef.current = onEnded;
@@ -15,13 +15,13 @@ export function usePoppedScope(bridge: DesktopBrowserBridge, scopeKey: string, o
   useEffect(() => {
     let cancelled = false;
     const apply = (state: DesktopBrowserPanelState) => {
-      poppedRef.current = Boolean(state.popped);
-      setShown({ popped: Boolean(state.popped), compact: Boolean(state.compact) });
+      placeholderRef.current = Boolean(state.popped) && state.tabs.length === 0;
+      setShown({ popped: Boolean(state.popped), compact: Boolean(state.compact), empty: state.tabs.length === 0 });
     };
     void bridge.getState(scopeKey).then((state) => { if (!cancelled) apply(state); }, () => undefined);
     const unsubscribe = bridge.onState((state) => {
       if (state.scopeKey !== scopeKey) return;
-      if (state.ended && poppedRef.current) endedRef.current?.();
+      if (state.ended && placeholderRef.current) endedRef.current?.();
       apply(state);
     });
     return () => {

@@ -223,6 +223,7 @@ export const Session = z.object({
   resumeCursor: z.string().min(1).optional(),
   providerSeen: z.record(ProviderInstanceId, z.number().int().nonnegative()).optional(),
   switchedFrom: z.object({ driver: ProviderDriverKind, instanceId: ProviderInstanceId, model: z.string().optional() }).optional(),
+  forkedFrom: z.object({ sessionId: Id, runId: Id, sequence: z.number().int().positive() }).optional(),
 
   /** A human Stop rejects new agent messages/wakes until a new human message.
    * It never holds or replays an old backlog. */
@@ -251,6 +252,7 @@ export const LiveSessionRow = Session.omit({
   resumeCursors: true,
   providerSeen: true,
   switchedFrom: true,
+  forkedFrom: true,
   agentMessagesBlocked: true,
   agentMessagesBlockedAt: true,
   paused: true,

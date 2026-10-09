@@ -1,5 +1,5 @@
 import type { Item, Session, Turn } from "@telar/engine-client";
-import { buildSwitchContext, unseenTurns } from "../providers/switch-context";
+import { buildSwitchContext, FORK_LEAD, forkedTurns, unseenTurns } from "../providers/switch-context";
 
 type SwitchRow = Extract<Item["detail"], { type: "provider_switch" }>;
 
@@ -22,9 +22,14 @@ export function stampClaimProvider(session: Session, history: () => readonly Tur
   };
 }
 
-export function carriedContext(sessionId: string, history: () => readonly Turn[], turn: Turn): string | undefined {
-  if (!turn.carried || !turn.providerInstanceId) return undefined;
-  return buildSwitchContext(unseenTurns(history(), turn.carried, turn.providerInstanceId), { sessionId });
+export function carriedContext(session: Session, history: (sessionId: string) => readonly Turn[], turn: Turn, resumed: boolean): string | undefined {
+  const fork = session.forkedFrom && !resumed
+    ? buildSwitchContext(forkedTurns(history(session.forkedFrom.sessionId), session.forkedFrom.sequence), { sessionId: session.forkedFrom.sessionId, lead: FORK_LEAD })
+    : undefined;
+  const switched = turn.carried && turn.providerInstanceId
+    ? buildSwitchContext(unseenTurns(history(session.id), turn.carried, turn.providerInstanceId), { sessionId: session.id })
+    : undefined;
+  return [fork, switched].filter(Boolean).join("\n\n") || undefined;
 }
 
 export function switchItem(sessionId: string, turn: Turn, detail: SwitchRow, at: number): Item {

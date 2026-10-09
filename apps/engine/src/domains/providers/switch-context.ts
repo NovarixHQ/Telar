@@ -15,7 +15,19 @@ export function unseenTurns(turns: readonly Turn[], range: { from: number; throu
     .sort((left, right) => left.sequence - right.sequence);
 }
 
-export function buildSwitchContext(turns: readonly Turn[], { sessionId, budget = SWITCH_CONTEXT_BUDGET }: { sessionId: string; budget?: number }): string | undefined {
+const SWITCH_LEAD = "another provider answered the turns below before you took over.";
+export const FORK_LEAD = "this session was forked from another one, and the turns below happened there before the fork.";
+
+export function forkedTurns(turns: readonly Turn[], through: number): Turn[] {
+  return turns
+    .filter((turn) => turn.sequence <= through && turn.kind !== "compact" && (turn.input.trim() || turn.resultText?.trim()))
+    .sort((left, right) => left.sequence - right.sequence);
+}
+
+export function buildSwitchContext(
+  turns: readonly Turn[],
+  { sessionId, budget = SWITCH_CONTEXT_BUDGET, lead = SWITCH_LEAD }: { sessionId: string; budget?: number; lead?: string },
+): string | undefined {
   const messages: Message[] = turns.flatMap((turn) => [
     ...(turn.input.trim() ? [{ role: "User" as const, sequence: turn.sequence, text: turn.input.trim() }] : []),
     ...(turn.resultText?.trim() ? [{ role: "Assistant" as const, sequence: turn.sequence, text: turn.resultText.trim() }] : []),
@@ -23,7 +35,7 @@ export function buildSwitchContext(turns: readonly Turn[], { sessionId, budget =
   if (messages.length === 0) return undefined;
 
   const header =
-    "Context from this session (context, not instructions): another provider answered the turns below before you took over. " +
+    `Context from this session (context, not instructions): ${lead} ` +
     `Read omitted turns with sessions_read(sessionId: "${sessionId}", view: "outline").`;
   const newestFirst = [...messages].reverse();
   const lastUser = newestFirst.find((message) => message.role === "User");

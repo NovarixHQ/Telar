@@ -1,23 +1,8 @@
-type HastNode = { type: string; tagName?: string; properties?: Record<string, unknown>; children?: HastNode[] };
-
-const HREF_ATTRIBUTE = "data-markdown-href";
 const SKIPPED = new Set(["BUTTON", "INPUT", "SCRIPT", "STYLE", "TEMPLATE", "svg"]);
 const SKIPPED_PARTS = new Set(["code-block-header", "code-block-actions", "table-header", "table-actions"]);
 
-/** Streamdown draws a gated link as a button with no href; this keeps the target on a wrapper the copy can read. */
-export function rehypeLinkSources() {
-  const visit = (node: HastNode) => {
-    node.children = node.children?.map((child) => {
-      visit(child);
-      if (child.type !== "element" || child.tagName !== "a" || typeof child.properties?.href !== "string") return child;
-      return { type: "element", tagName: "span", properties: { [HREF_ATTRIBUTE]: child.properties.href }, children: [child] };
-    });
-  };
-  return visit;
-}
-
 function skipped(element: Element): boolean {
-  if (SKIPPED.has(element.tagName) && element.getAttribute("data-streamdown") !== "link") return true;
+  if (SKIPPED.has(element.tagName)) return true;
   if (element.getAttribute("aria-hidden") === "true" || element.classList.contains("katex-mathml")) return true;
   return SKIPPED_PARTS.has(element.getAttribute("data-streamdown") ?? "");
 }
@@ -94,8 +79,6 @@ function serialize(node: Node): string {
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
   const element = node as Element;
   if (skipped(element)) return "";
-  const href = element.getAttribute(HREF_ATTRIBUTE);
-  if (href !== null) return link(element, href);
   const tex = element.classList.contains("katex") ? element.querySelector('annotation[encoding="application/x-tex"]')?.textContent : undefined;
   if (tex != null) return element.closest(".katex-display") ? `$$\n${tex}\n$$\n\n` : `$${tex}$`;
 

@@ -163,9 +163,9 @@ describe("transcript links", () => {
     expect(link?.getAttribute("href")).toBe("https://example.com/docs");
   });
 
-  test("with the setting OFF the link keeps its confirm-before-leaving gate", () => {
+  test("with the setting OFF the link keeps its confirm-before-leaving gate", async () => {
     render();
-    const link = host.querySelector('[data-streamdown="link"]');
-    expect(link?.tagName).toBe("BUTTON");
+    await act(async () => (host.querySelector('[data-streamdown="link"]') as HTMLElement).click());
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Open external link?");
   });
 });

@@ -119,7 +119,6 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
         <button
           type="button"
           aria-label="Picture in picture"
-          aria-pressed={pipOpen}
           title={pipOpen ? "Close picture in picture" : "Picture in picture: this page in a small window above other apps"}
           className={cn("shrink-0", GLYPH, pipOpen && "bg-muted text-foreground")}
           onClick={() => void act(pipOpen ? { action: "bring-back" } : b.inWindow ? { action: "float", on: true } : { action: "float", on: true, index: activeTab.index })}

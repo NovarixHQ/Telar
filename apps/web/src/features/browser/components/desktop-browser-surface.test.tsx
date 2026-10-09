@@ -552,9 +552,7 @@ describe("a browser popped out into its own window", () => {
 
   test("while the page floats, the panel's picture-in-picture button turns it off", async () => {
     const { actions, host } = await mount(panelState({ popped: true, compact: true }));
-    const pip = host.querySelector('[aria-label="Picture in picture"]')!;
-    expect(pip.getAttribute("aria-pressed")).toBe("true");
-    await mouseClick(pip);
+    await mouseClick(host.querySelector('[aria-label="Picture in picture"]')!);
     expect(actions.at(-1)).toEqual({ action: "bring-back" });
   });
 

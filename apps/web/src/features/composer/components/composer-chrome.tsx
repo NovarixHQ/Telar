@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EraserIcon, ImageIcon, LayersIcon, MonitorIcon, PaperclipIcon, PlusIcon, TriangleAlertIcon, XIcon } from "lucide-react";
+import { Button } from "@/ui/button";
+import { cn } from "@/ui/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { ImageLightbox } from "@/ui/image-lightbox";
@@ -164,21 +166,16 @@ export function ComposerBanner({
 }) {
   return (
     <div className="mx-3 -mb-1">
-      <div className="flex items-center gap-2.5 rounded-t-xl border border-b-0 border-border/60 bg-muted/40 px-3 pb-3.5 pt-2 backdrop-blur-sm">
+      <div className={cn("flex items-center gap-2 rounded-t-xl border border-b-0 border-border/60 bg-muted/40 px-2.5 backdrop-blur-sm", detail ? "pb-3.5 pt-2" : "pb-2.5 pt-1.5")}>
         {icon}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium">{title}</p>
+          <p className={cn("truncate font-medium", detail ? "text-xs" : "text-2xs text-muted-foreground")}>{title}</p>
           {detail && <p className="truncate text-2xs text-muted-foreground">{detail}</p>}
         </div>
         {action && actionLabel && (
-          <button
-            type="button"
-            onClick={action}
-            disabled={actionDisabled}
-            className="shrink-0 rounded-md border border-border bg-background/80 px-2.5 py-1 text-2xs font-medium transition-colors hover:bg-accent disabled:opacity-60"
-          >
+          <Button type="button" size="xs" variant="outline" onClick={action} disabled={actionDisabled}>
             {actionLabel}
-          </button>
+          </Button>
         )}
         {onDismiss && (
           <button type="button" aria-label="Dismiss" onClick={onDismiss} className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground">

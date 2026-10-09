@@ -17,7 +17,7 @@
 # version bump reaches external testers late and the next one is fast again.
 #
 # Usage: testflight-external.sh <build-number>
-#   (the CURRENT_PROJECT_VERSION nightly.sh minted — the minute-stamp)
+#   (the minute-stamp nightly.sh minted)
 #
 # Reads the same credentials as nightly.sh — TELAR_ASC_KEY_ID,
 # TELAR_ASC_ISSUER_ID, TELAR_ASC_KEY_PATH (the .p8; Admin role) — and talks to

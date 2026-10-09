@@ -5,8 +5,8 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const SCRIPT = path.join(__dirname, "..", "..", "ios", "testflight-external.sh");
-const APP_SCRIPT = path.join(__dirname, "..", "..", "ios", "testflight-app.sh");
+const SCRIPT = path.join(__dirname, "..", "..", "mobile", "scripts", "testflight-external.sh");
+const APP_SCRIPT = path.join(__dirname, "..", "..", "mobile", "scripts", "testflight-app.sh");
 const API = "https://api.appstoreconnect.apple.com";
 const APP_ID = "6807300090";
 const BUILD_NUMBER = "202609230300";

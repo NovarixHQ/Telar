@@ -26,7 +26,7 @@ name: iOS export probe
 #   By hand:    the Actions tab → "iOS export probe" → Run workflow, on any
 #               ref. That is `workflow_dispatch` below.
 #   By push:    push to a branch named `telar/*-probe-*` touching this file,
-#               apps/ios/nightly.sh, or apps/ios/ExportOptions.plist.
+#               apps/mobile/scripts/nightly.sh or its ExportOptions.plist.
 #
 # DORMANT BY DESIGN. No schedule, no altool, no TestFlight, no tag — it cannot
 # publish anything, so it is safe to run as often as the answer is wanted, and
@@ -42,8 +42,8 @@ on:
     branches: ['telar/*-probe-*']
     paths:
       - '.github/workflows/ios-export-probe.yml'
-      - 'apps/ios/nightly.sh'
-      - 'apps/ios/ExportOptions.plist'
+      - 'apps/mobile/scripts/nightly.sh'
+      - 'apps/mobile/scripts/ExportOptions.plist'
 
 permissions:
   contents: read
@@ -58,6 +58,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: bun install --frozen-lockfile
 
       - name: Xcode
         run: xcodebuild -version
@@ -138,7 +145,7 @@ jobs:
           TELAR_ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           TELAR_ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
           TELAR_ASC_KEY_PATH: ${{ runner.temp }}/apple_api_key.p8
-        run: apps/ios/nightly.sh --export-only
+        run: apps/mobile/scripts/nightly.sh --export-only
 
       # AN IPA EXISTING IS NOT AN IPA SIGNED RIGHT, and this repository has
       # already paid for that distinction once: on 2026-09-01 the export
@@ -152,7 +159,7 @@ jobs:
       - name: Assert the exported IPA is signed for distribution
         run: |
           set -euo pipefail
-          IPA=$(ls apps/ios/DerivedData-nightly/export-*/TelarMobile.ipa)
+          IPA=$(ls apps/mobile/DerivedData-nightly/export-*/*.ipa)
           WORK=$(mktemp -d)
           unzip -q "$IPA" -d "$WORK"
           APP=$(ls -d "$WORK"/Payload/*.app)
@@ -172,7 +179,7 @@ jobs:
         if: failure()
         run: |
           set -uo pipefail
-          for B in "${TMPDIR:-/tmp}"/TelarMobile_*.xcdistributionlogs; do
+          for B in "${TMPDIR:-/tmp}"/*.xcdistributionlogs; do
             [ -d "$B" ] || continue
             echo "=== $(basename "$B")"
             /usr/bin/grep -a -h -i -E "error|fail|unknown option|unrecognized|rsync" \

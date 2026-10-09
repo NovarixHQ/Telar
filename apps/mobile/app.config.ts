@@ -31,6 +31,8 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: variant.bundleId,
     appleTeamId: "MM74W7WGAM",
+    // The nightly mints a minute-stamp here; TestFlight refuses a build number it has seen.
+    buildNumber: process.env.TELAR_BUILD_NUMBER ?? "1",
     supportsTablet: true,
     // Live Activity push tokens need it; distribution signing switches it to production.
     entitlements: { "aps-environment": "development" },

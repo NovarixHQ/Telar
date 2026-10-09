@@ -47,10 +47,7 @@ export async function onCompactBoundary(ctx: LoopCtx, item: SdkFrame): Promise<"
 // ── compaction, announced then bounded ────────────────────────
 export async function onStatusFrame(ctx: LoopCtx, item: SdkFrame): Promise<"continue" | undefined> {
   if (item.type === "system" && item.subtype === "status") {
-      if (str(item.status) === "requesting") ctx.armProviderSilence();
       if (str(item.status) === "compacting" && !ctx.turn.compactionItemId) {
-        // The silence watch belongs to a request; a compaction is not one.
-        ctx.disarmProviderSilence();
         ctx.turn.compactionItemId = itemId();
         ctx.turn.compactionSucceeded = false;
         ctx.turn.compactionMeasured = false;

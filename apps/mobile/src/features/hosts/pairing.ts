@@ -1,5 +1,6 @@
 import { HostIdentity, parsePairingUrl } from "@telar/engine-client";
 import type { HostRecord } from "../../platform/connection";
+import { newClientId } from "./client-id";
 
 export type PairedHost = HostRecord & { deviceId: string };
 
@@ -10,7 +11,7 @@ export type PairingOutcome = { ok: true; host: PairedHost } | { ok: false; messa
 const NOT_A_LINK = "That doesn't look like a Telar pairing link.";
 const unreachable = (baseUrl: string) =>
   `Couldn't reach ${new URL(baseUrl).hostname}. If that's a local address, check this phone is on the same wifi and Telar may use the local network; if it's a 100.x address, check Tailscale is connected on this phone.`;
-const TOO_OLD = "Telar on that computer is too old to pair with this app. Update it and try again.";
+const NOT_TELAR = "That address answered, but not as Telar. Check the link and try again.";
 
 async function json(response: Response): Promise<unknown> {
   return response.json().catch(() => null);
@@ -20,11 +21,11 @@ async function json(response: Response): Promise<unknown> {
 export async function pair(link: string, device: ThisDevice, fetch: typeof globalThis.fetch = globalThis.fetch): Promise<PairingOutcome> {
   const parsed = parsePairingUrl(link);
   if (!parsed) return { ok: false, message: NOT_A_LINK };
-  let identity: HostIdentity;
+  let identity: HostIdentity | undefined;
   try {
     const answer = HostIdentity.safeParse(await json(await fetch(`${parsed.baseUrl}/api/identity`)));
-    if (!answer.success) return { ok: false, message: TOO_OLD };
-    identity = answer.data;
+    identity = answer.success ? answer.data : undefined;
+    if (!identity && (await json(await fetch(`${parsed.baseUrl}/api/ping`)) as { ok?: unknown } | null)?.ok !== true) return { ok: false, message: NOT_TELAR };
   } catch {
     return { ok: false, message: unreachable(parsed.baseUrl) };
   }
@@ -51,14 +52,15 @@ export async function pair(link: string, device: ThisDevice, fetch: typeof globa
     const reason = body?.error?.message;
     return { ok: false, message: typeof reason === "string" ? reason : `That computer refused the pairing (status ${response.status}).` };
   }
-  return {
-    ok: true,
-    host: {
-      hostId: identity.hostId,
-      name: identity.name ?? new URL(parsed.baseUrl).hostname,
-      token: body.deviceToken,
-      deviceId: body.deviceId,
-      paired: [parsed.baseUrl],
-    },
-  };
+  const host = { token: body.deviceToken, deviceId: body.deviceId, paired: [parsed.baseUrl] };
+  if (identity) return { ok: true, host: { ...host, hostId: identity.hostId, name: identity.name ?? new URL(parsed.baseUrl).hostname } };
+  const health = (await fetch(`${parsed.baseUrl}/api/health`, { headers: { authorization: `Bearer ${body.deviceToken}` } }).then(json, () => null)) as { hostname?: unknown } | null;
+  const name = typeof health?.hostname === "string" ? health.hostname.replace(/\.(local|lan)$/, "") : new URL(parsed.baseUrl).hostname;
+  return { ok: true, host: { ...host, hostId: `host_${newClientId().toLowerCase()}`, name, legacy: true } };
+}
+
+/** A host paired before it could name itself gets a new id each pairing, so a newer pairing on one of its addresses replaces it. */
+export function supersededBy(host: HostRecord, known: readonly HostRecord[]): HostRecord[] {
+  const addresses = new Set(host.paired);
+  return known.filter((other) => other.legacy && other.hostId !== host.hostId && other.paired.some((address) => addresses.has(address)));
 }

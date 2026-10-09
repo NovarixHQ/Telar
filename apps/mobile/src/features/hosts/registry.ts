@@ -1,6 +1,6 @@
 import { HostRegistry } from "../../platform/connection";
 import { wakeOnForeground } from "../../platform/connection/app-wakeups";
-import type { PairedHost } from "./pairing";
+import { supersededBy, type PairedHost } from "./pairing";
 import { loadHosts, saveHosts } from "./storage";
 
 export const hosts = new HostRegistry();
@@ -10,6 +10,10 @@ const paired = new Map<string, PairedHost>();
 export const pairedHost = (hostId: string): PairedHost | undefined => paired.get(hostId);
 
 export async function rememberHost(host: PairedHost): Promise<void> {
+  for (const other of supersededBy(host, [...paired.values()])) {
+    paired.delete(other.hostId);
+    hosts.remove(other.hostId);
+  }
   paired.set(host.hostId, host);
   hosts.add(host);
   await saveHosts([...paired.values()]);

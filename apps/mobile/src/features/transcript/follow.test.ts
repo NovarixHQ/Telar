@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { FOLLOWING, scrolled, shouldFollow, showsJump } from "./follow";
+import { FOLLOWING, markerOnScreen, scrolled, shouldFollow, showsJump } from "./follow";
 
 const at = (offset: number) => ({ offset, viewport: 600, content: 2000 });
 
@@ -24,4 +24,16 @@ test("scrolling back to within 40pt of the bottom resumes the follow", () => {
 test("content growing under an untouched view does not count as the reader taking it", () => {
   const grown = scrolled(FOLLOWING, at(0), false);
   expect(shouldFollow(grown)).toBe(true);
+});
+
+test("the newest answer counts as seen on open when it fits above the composer, with no scroll", () => {
+  const atRest = { offset: -100, viewport: 800 };
+  expect(markerOnScreen(420, atRest, 120)).toBe(true);
+  expect(markerOnScreen(620, atRest, 120)).toBe(false);
+});
+
+test("an answer above the viewport or below its covered edge is not seen until scrolled to", () => {
+  expect(markerOnScreen(100, { offset: 400, viewport: 800 }, 0)).toBe(false);
+  expect(markerOnScreen(1500, { offset: 400, viewport: 800 }, 0)).toBe(false);
+  expect(markerOnScreen(1100, { offset: 400, viewport: 800 }, 0)).toBe(true);
 });

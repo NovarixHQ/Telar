@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
 import type { JournalTurn } from "@telar/client/journal";
 import { ItemRow, NestedDetail, NoticeLine, NoticeRow, UserBubble } from "./ItemRow";
+import { ReceiptMarker } from "./receipt-marker";
 import { ArtifactVersions } from "./source";
 import { StepRow, TaskRow, TurnTasks } from "./ToolRows";
 import { groupTurns, turnLayout, type Activity, type Ending, type Fold } from "./layout";
@@ -112,6 +113,7 @@ const TurnView = memo(function TurnView({ turn }: { turn: JournalTurn }) {
         ))}
         {layout.orphans.map((task) => <TaskRow key={task.id} task={task} />)}
         {layout.ending ? <EndingRow ending={layout.ending} /> : null}
+        <ReceiptMarker runId={turn.runId} />
       </View>
     </TurnTasks.Provider>
   );

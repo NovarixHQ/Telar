@@ -103,14 +103,13 @@ async function main() {
 
     const openTab = manager.activeTab("b");
     const openContents = openTab.view.webContents;
-    manager.setScopeProfile("b", personal.id);
-    assert(openTab.view.webContents === openContents, "switching profiles rebuilt a live tab");
-    assert(openTab.partition !== manager.partitionOf("b"), "the open tab followed the session into the new profile");
-    await openTab.view.webContents.reload();
+    await manager.setScopeProfile("b", personal.id);
+    assert(openTab.view.webContents !== openContents, "switching profiles kept the old page alive");
+    assert(openTab.partition === manager.partitionOf("b"), "the open tab stayed behind in the old profile");
     await settle(openTab);
-    const stillWork = await openTab.view.webContents.executeJavaScript("document.getElementById('who').textContent");
-    note(`the tab open before the switch still reports: ${stillWork}`);
-    assert(stillWork === "work-account", `an open tab lost its identity on a profile switch: ${stillWork}`);
+    const moved = await openTab.view.webContents.executeJavaScript("document.getElementById('who').textContent");
+    note(`the tab open before the switch now reports: ${moved}`);
+    assert(moved === "nobody", `an open tab kept the old identity after a profile switch: ${moved}`);
 
     await manager.action("b", { action: "new", url: `${base}/` });
     const fresh = await seenCookie(manager, "b");

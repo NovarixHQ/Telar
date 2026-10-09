@@ -107,14 +107,13 @@ describe("DesktopBrowserManager", () => {
     ]);
   });
 
-  test("a popup keeps the OPENER's profile, not whichever one the session switched to", async () => {
+  test("a popup keeps the OPENER's profile, not the scope's", async () => {
     const { manager, views } = makeHarness();
     manager.declareProfile("session-a", `project_${"a".repeat(32)}`);
     await manager.createTab("session-a", "https://one.example/", "human");
     const opener = manager.scopeTabs("session-a")[0];
 
-    const other = manager.profiles.create({ label: "Personal" });
-    manager.setScopeProfile("session-a", other.id);
+    manager.scopeProfiles.set("session-a", manager.profiles.create({ label: "Personal" }).id);
 
     views[0].webContents.openWindow("https://popup.example/oauth");
     await manager.settlePopupTabs();

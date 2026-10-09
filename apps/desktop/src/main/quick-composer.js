@@ -30,10 +30,14 @@ function panelOptions() {
   };
 }
 
-function coverCursorDisplay(win) {
-  const { id, workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  win.setBounds(workArea);
-  return id;
+function cover(win, display) {
+  win.setBounds(display.workArea);
+  return { width: display.workArea.width, height: display.workArea.height };
+}
+
+function displayFor(held) {
+  if (!held) return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  return screen.getAllDisplays().find((each) => each.id === held.display) ?? screen.getPrimaryDisplay();
 }
 
 /** The global shortcut and the panel it opens over any app; `openRoute` brings a cockpit window to a path. */
@@ -89,8 +93,10 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
       await requestPermissions();
     }
     clearTimeout(forget);
-    display = coverCursorDisplay(target);
-    latest = { ...(await readContext()), spot: held?.display === display ? held.spot : null, fresh };
+    const next = displayFor(held);
+    display = next.id;
+    const area = cover(target, next);
+    latest = { ...(await readContext()), spot: held?.display === display ? held.spot : null, area, fresh };
     fresh = false;
     target.webContents.send("telar:quick-composer:open", latest);
     target.setIgnoreMouseEvents(true, { forward: true });
@@ -115,6 +121,15 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   ipcMain.handle("telar:quick-composer:context", (event) => (fromPanel(event) ? latest : null));
   ipcMain.handle("telar:quick-composer:close", (event) => fromPanel(event) && hide());
   ipcMain.on("telar:quick-composer:interactive", (event, on) => fromPanel(event) && win.setIgnoreMouseEvents(on !== true, { forward: true }));
+  ipcMain.on("telar:quick-composer:cross", (event, { grabX, grabY } = {}) => {
+    if (!fromPanel(event) || !Number.isFinite(grabX) || !Number.isFinite(grabY)) return;
+    const cursor = screen.getCursorScreenPoint();
+    const next = screen.getDisplayNearestPoint(cursor);
+    if (next.id === display) return;
+    display = next.id;
+    const area = cover(win, next);
+    win.webContents.send("telar:quick-composer:place", { spot: { x: cursor.x - next.workArea.x - grabX, y: cursor.y - next.workArea.y - grabY }, area });
+  });
   ipcMain.on("telar:quick-composer:moved", (event, spot) => {
     if (fromPanel(event) && display !== null && isSpot(spot)) held = { display, spot: { x: Math.round(spot.x), y: Math.round(spot.y) } };
   });

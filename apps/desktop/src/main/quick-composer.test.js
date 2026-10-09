@@ -31,8 +31,8 @@ describe("the shortcut", () => {
     expect(win.options).toMatchObject({ type: "panel", frame: false, alwaysOnTop: true, skipTaskbar: true });
     expect(win.loaded).toEqual(["http://127.0.0.1:4000/surface/quick"]);
     expect(win.isVisible()).toBe(true);
-    expect(win.webContents.sent[0]).toEqual({ channel: "telar:quick-composer:open", payload: { ...CONTEXT, spot: null, fresh: false } });
-    expect(await electron.ipcMain.invoke("telar:quick-composer:context", eventFrom(win))).toEqual({ ...CONTEXT, spot: null, fresh: false });
+    expect(win.webContents.sent[0]).toEqual({ channel: "telar:quick-composer:open", payload: { ...CONTEXT, spot: null, area: { width: 1440, height: 875 }, fresh: false } });
+    expect(await electron.ipcMain.invoke("telar:quick-composer:context", eventFrom(win))).toEqual({ ...CONTEXT, spot: null, area: { width: 1440, height: 875 }, fresh: false });
   });
 
   test("pressing it again hides the panel", async () => {
@@ -142,7 +142,17 @@ describe("the window", () => {
     expect(contents.reloads).toBe(1);
   });
 
-  test("a spot saved on another display is not used on this one", async () => {
+  test("a drag that crosses onto another display moves the overlay there and keeps the card under the cursor", async () => {
+    electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    electron.screen.cursor = { x: 2000, y: 500 };
+    electron.ipcMain.send("telar:quick-composer:cross", eventFrom(panel()), { grabX: 40, grabY: 30 });
+    expect(panel().bounds).toEqual({ x: 1440, y: 0, width: 1920, height: 1080 });
+    expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:place", payload: { spot: { x: 520, y: 470 }, area: { width: 1920, height: 1080 } } });
+  });
+
+  test("within the minute it reopens on the remembered display, and on the primary one if that display is gone", async () => {
     electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
     electron.screen.cursor = { x: 2000, y: 500 };
     quick.bind("Alt+Space");
@@ -151,9 +161,13 @@ describe("the window", () => {
     await press("Alt+Space");
     electron.screen.cursor = { x: 10, y: 10 };
     await press("Alt+Space");
-    const opens = panel().webContents.sent.filter((message) => message.channel === "telar:quick-composer:open");
-    expect(opens.at(-1).payload.spot).toBeNull();
+    expect(panel().bounds).toEqual({ x: 1440, y: 0, width: 1920, height: 1080 });
+    expect(lastOpen()).toMatchObject({ spot: { x: 800, y: 200 }, area: { width: 1920, height: 1080 } });
+    await press("Alt+Space");
+    electron.screen.displays = [electron.screen.displays[0]];
+    await press("Alt+Space");
     expect(panel().bounds).toEqual({ x: 0, y: 25, width: 1440, height: 875 });
+    expect(lastOpen().spot).toBeNull();
   });
 
   test("clicking anywhere else hides it", async () => {

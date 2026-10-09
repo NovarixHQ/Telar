@@ -660,7 +660,7 @@ jobs:
             }
           echo "xcodebuild exited 0; $(wc -l < "$RUNNER_TEMP/build.log") lines of log"
 
-      # Exit 0 is not proof of a build: require the Mach-O and the bundled JS.
+      # Exit 0 is not proof of a build: require the app, its widget extension and the bundled JS.
       - name: Assert the build holds the app and its bundle
         if: needs.source.outputs.ios == 'true'
         run: |
@@ -674,7 +674,12 @@ jobs:
             echo "::error::the build carries no main.jsbundle"
             exit 1
           fi
-          echo "IOS_BUILD_OK Telar=$(/usr/bin/stat -f%z "$APP/Telar")B/$(/usr/bin/lipo -archs "$APP/Telar") main.jsbundle=$(/usr/bin/stat -f%z "$APP/main.jsbundle")B"
+          WIDGET="$APP/PlugIns/TelarActivity.appex/TelarActivity"
+          if [ ! -f "$WIDGET" ] || ! /usr/bin/file -b "$WIDGET" | /usr/bin/grep -q 'Mach-O'; then
+            echo "::error::the TelarActivity extension is missing from the build or is not a Mach-O executable"
+            exit 1
+          fi
+          echo "IOS_BUILD_OK Telar=$(/usr/bin/stat -f%z "$APP/Telar")B/$(/usr/bin/lipo -archs "$APP/Telar") TelarActivity=$(/usr/bin/stat -f%z "$WIDGET")B main.jsbundle=$(/usr/bin/stat -f%z "$APP/main.jsbundle")B"
 
       # Prints a different string from the branch above, so a log grep tells which one ran.
       - name: Nothing here reaches the iOS build

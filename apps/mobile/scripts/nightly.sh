@@ -50,10 +50,14 @@ xcodebuild \
 
 APP="$(ls -d "$ARCHIVE"/Products/Applications/*.app | head -1)"
 APP_NAME="$(basename "$APP")"
-if [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")" != "$BUILD_NUMBER" ]]; then
-  echo "archived app's CFBundleVersion is not $BUILD_NUMBER — the build number did not reach the prebuild" >&2
-  exit 1
-fi
+# App Store Connect refuses an extension whose CFBundleVersion differs from its app's.
+for bundle in "$APP" "$APP"/PlugIns/*.appex; do
+  [[ -e "$bundle" ]] || continue
+  if [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$bundle/Info.plist")" != "$BUILD_NUMBER" ]]; then
+    echo "$(basename "$bundle")'s CFBundleVersion is not $BUILD_NUMBER — the build number did not reach the prebuild" >&2
+    exit 1
+  fi
+done
 
 # Prints the entitlement names (never values) to stderr and aps-environment's value to stdout.
 aps_environment_of() {
@@ -71,7 +75,8 @@ aps_environment_of() {
 }
 
 # Entitlements live in the code signature and the export keeps only what the archive carries,
-# so the unsigned app is signed ad hoc with the entitlements prebuild generated.
+# so the unsigned app is signed ad hoc with the entitlements prebuild generated, push set to production.
+# Extensions are signed without entitlements; the widget declares none.
 ENTITLEMENTS_SETTING="$(xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -showBuildSettings 2>/dev/null | awk -F' = ' '/^ *CODE_SIGN_ENTITLEMENTS = /{print $2; exit}')"
 ENTITLEMENTS="$(mktemp)"
 if [[ -n "$ENTITLEMENTS_SETTING" ]]; then
@@ -84,6 +89,10 @@ else
   /usr/bin/plutil -create xml1 "$ENTITLEMENTS"
 fi
 DECLARED_APS="$(/usr/libexec/PlistBuddy -c "Print :aps-environment" "$ENTITLEMENTS" 2>/dev/null)" || DECLARED_APS=""
+if [[ -n "$DECLARED_APS" ]]; then
+  DECLARED_APS=production
+  /usr/bin/plutil -replace aps-environment -string production "$ENTITLEMENTS"
+fi
 for nested in "$APP"/PlugIns/*.appex "$APP"/Frameworks/*; do
   if [[ -e "$nested" ]]; then codesign --force --sign - --timestamp=none "$nested"; fi
 done

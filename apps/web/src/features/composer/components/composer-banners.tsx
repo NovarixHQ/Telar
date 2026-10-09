@@ -55,7 +55,7 @@ export function ComposerBanners({ fresh, session, settled, settledEnded, onUnset
       )}
       {builders && (
         <ComposerBanner
-          icon={<BotIcon className="size-4 shrink-0 text-muted-foreground" />}
+          icon={<BotIcon className="size-3 shrink-0 text-muted-foreground" />}
           title={buildersLine(builders.counts)}
           action={builders.onStopAll}
           actionLabel={builders.stopping ? "Stopping…" : "Stop all"}

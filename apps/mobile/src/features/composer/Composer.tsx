@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PlatformColor, Settings, StyleSheet, Text, TextInput, View, type TextInputInstance } from "react-native";
 import { CaretPill, type DictationPhase } from "../dictation";
 import { MicButton, ROW, SlotButton } from "./buttons";
@@ -35,6 +35,13 @@ const MAX_LINES = 6;
 /** The row the Swift app draws: plus menu, the glass field with its mic, and the send or stop circle. */
 export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, autoFocus = false, below, dictation, suggestions }: Props) {
   const field = useRef<TextInputInstance>(null);
+  // Swift waits out the push before raising the keyboard; focusing before the field is on screen is dropped.
+  const focusTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(focusTimer.current), []);
+  const focusOnce = () => {
+    if (!autoFocus || focusTimer.current) return;
+    focusTimer.current = setTimeout(() => field.current?.focus(), 400);
+  };
   const [caretAt, setCaretAt] = useState({ x: 0, y: 0 });
   const listening = dictation?.phase === "listening";
   const heard = dictation?.heard ?? "";
@@ -60,7 +67,7 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
             <TextInput
               ref={field}
               key={resetKey}
-              autoFocus={autoFocus}
+              onLayout={focusOnce}
               style={[styles.input, !dictation && styles.inputAlone]}
               accessibilityLabel={placeholder}
               value={draft}

@@ -1,12 +1,12 @@
 import { Alert, Button, Host, HStack, Label, Menu, ProgressView, ScrollView, Section, Text, TextField, useNativeState, VStack } from "@expo/ui/swift-ui";
-import { background, buttonStyle, clipShape, disabled, font, foregroundStyle, frame, lineLimit, padding, scrollDismissesKeyboard, strokeBorder, type ModifierConfig } from "@expo/ui/swift-ui/modifiers";
+import { background, buttonStyle, clipShape, disabled, font, foregroundStyle, frame, lineLimit, padding, strokeBorder, type ModifierConfig } from "@expo/ui/swift-ui/modifiers";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { EnvMode } from "@telar/engine-client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Settings, StyleSheet } from "react-native";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { KeyboardAvoidingView, Settings, StyleSheet, useColorScheme } from "react-native";
 import type { RootStack } from "../../platform/navigation/routes";
-import { Icon, ProjectAvatar, Theme, type SymbolName } from "../../ui";
+import { Icon, palette, ProjectAvatar, Theme, type SymbolName } from "../../ui";
 import { DraftComposer, type DraftFile } from "../composer";
 import { hosts } from "../hosts";
 import { useProjectIcon } from "../projects";
@@ -105,6 +105,9 @@ export function NewSessionScreen() {
   const [created, setCreated] = useState<{ key: string; sessionId: string }>();
   const [runId] = useState(() => newRunId());
 
+  const canvas = palette.canvas[useColorScheme() === "dark" ? "dark" : "light"];
+  useLayoutEffect(() => navigation.setOptions({ headerStyle: { backgroundColor: canvas } }), [navigation, canvas]);
+
   const chosen = params?.hostId && params.projectId ? targetKey(params.hostId, params.projectId) : undefined;
   const target = targets.find((entry) => targetKey(entry.hostId, entry.project.id) === chosen) ?? (chosen ? undefined : preferredTarget(targets, activity, newSessionMemory.target()));
   const key = target && targetKey(target.hostId, target.project.id);
@@ -153,7 +156,7 @@ export function NewSessionScreen() {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior="padding">
       <Host style={styles.screen}>
-        <ScrollView modifiers={[scrollDismissesKeyboard("interactively")]}>
+        <ScrollView>
           <BranchAlert shown={naming} onShown={setNaming} current={workspace.branchName} onUse={(branchName) => (pick({ branchName }), setNaming(false))}>
             <VStack spacing={14} modifiers={[padding({ horizontal: 16, top: 48 }), frame({ maxWidth: Infinity }), disabled(locked)]}>
               <HStack spacing={8}>

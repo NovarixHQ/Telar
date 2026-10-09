@@ -2,18 +2,16 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { EngineRequest } from "@telar/engine-client";
-import { createEngineApi } from "@/platform/engine";
-import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
 import { SessionTurn } from "../cockpit/components/session-turn";
 import { useSessionSync } from "../cockpit/hooks/use-session-sync";
 import { useTranscriptModel } from "../cockpit/hooks/use-transcript-model";
 import { transcriptRows } from "../cockpit/model";
+import { hostApi } from "./hosts";
 
-const api = createEngineApi();
 
-export function useLiveSession(sessionId: string, nudge: number) {
-  const sync = useSessionSync({ hostId: LOCAL_HOST_ID, sessionId, initiallyLoading: true });
+export function useLiveSession(hostId: string, sessionId: string, nudge: number) {
+  const sync = useSessionSync({ hostId, sessionId, initiallyLoading: true });
   const model = useTranscriptModel(sessionId, sync);
   const follow = useRef<ConversationFollowHandle>(null);
   const { hydrate } = sync;
@@ -40,13 +38,13 @@ function useContentHeight(maxHeight: number) {
   return { content, height: Math.min(Math.max(height, 40), maxHeight) };
 }
 
-export function LiveTranscript({ sessionId, live, maxHeight }: { sessionId: string; live: ReturnType<typeof useLiveSession>; maxHeight: number }) {
+export function LiveTranscript({ hostId, sessionId, live, maxHeight }: { hostId: string; sessionId: string; live: ReturnType<typeof useLiveSession>; maxHeight: number }) {
   const { sync, model } = live;
   const { content, height } = useContentHeight(maxHeight);
   const { shown, hostOf } = transcriptRows(model.transcript);
   const hostRun = (request: EngineRequest) => hostOf.get(request.runId) ?? request.runId;
-  const decide = (requestId: string, decision: Parameters<typeof api.resolveRequest>[2]["decision"], extra?: { answers?: Record<string, unknown> }) =>
-    void api.resolveRequest(sessionId, requestId, { decision, ...(extra?.answers ? { answers: extra.answers } : {}) }).then(sync.hydrate, () => undefined);
+  const decide = (requestId: string, decision: Parameters<ReturnType<typeof hostApi>["resolveRequest"]>[2]["decision"], extra?: { answers?: Record<string, unknown> }) =>
+    void hostApi(hostId).resolveRequest(sessionId, requestId, { decision, ...(extra?.answers ? { answers: extra.answers } : {}) }).then(sync.hydrate, () => undefined);
 
   return (
     <ConversationViewport

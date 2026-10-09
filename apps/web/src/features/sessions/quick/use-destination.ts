@@ -1,34 +1,36 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import type { LiveSessionRow, Project } from "@telar/engine-client";
+import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
+import type { SidebarSession } from "../session-list";
 import { destinationQuery, destinationRows, type Destination, type DestinationRow } from "./destination";
+import { projectKey, type QuickProject } from "./hosts";
 
 type Key = { key: string; altKey: boolean };
 
-export function useDestination({ text, setText, sessions, projects, projectId, onProject }: {
+export function useDestination({ text, setText, sessions, projects, project, onProject }: {
   text: string;
   setText: (text: string) => void;
-  sessions: readonly LiveSessionRow[];
-  projects: readonly Project[];
-  projectId: string | undefined;
-  onProject: (projectId: string) => void;
+  sessions: readonly SidebarSession[];
+  projects: readonly QuickProject[];
+  project: QuickProject | undefined;
+  onProject: (key: string) => void;
 }) {
   const [destination, setDestination] = useState<Destination | null>(null);
   const [selection, setSelection] = useState({ query: "", index: 0 });
   const query = destinationQuery(text);
   const picking = query !== null;
 
-  const rows = useMemo(() => (query === null ? [] : destinationRows(query, projects, sessions, projectId)), [query, projects, sessions, projectId]);
+  const rows = useMemo(() => (query === null ? [] : destinationRows(query, projects, sessions, project)), [query, projects, sessions, project]);
   const index = selection.query === query ? Math.min(selection.index, Math.max(rows.length - 1, 0)) : 0;
 
   const pick = (row: DestinationRow, worktree: boolean) => {
     setText("");
     if (row.kind === "session") {
       setDestination(row);
-      if (row.session.projectId) onProject(row.session.projectId);
+      if (row.session.projectId) onProject(projectKey({ id: row.session.projectId, hostId: row.session.hostId ?? LOCAL_HOST_ID }));
     } else {
-      onProject(row.project.id);
+      onProject(projectKey(row.project));
       setDestination({ kind: "project", project: row.project, envMode: worktree ? "worktree" : "local" });
     }
   };

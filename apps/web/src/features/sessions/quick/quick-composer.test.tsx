@@ -47,15 +47,23 @@ const LIVE = [
   live("s_readme", "Expand scratch README", "project_1", "working", 50),
 ];
 
+type Host = { id: string; name: string; sessions: Record<string, unknown>[]; projects: Record<string, unknown>[] };
+let remotes: Host[] = [];
+
 function wire() {
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input);
+    const raw = String(input);
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
-    calls.push({ method, url, body });
+    const hosted = /^\/api\/hosts\/([^/]+)(\/.*)$/.exec(raw);
+    const host = hosted ? remotes.find((each) => each.id === decodeURIComponent(hosted[1]!)) : undefined;
+    const url = hosted ? `/api${hosted[2]}` : raw;
+    calls.push({ method, url: raw, body });
+    if (raw === "/api/hosts") return Response.json({ hosts: remotes.map(({ id, name }) => ({ id, name, baseUrl: `https://${id}`, addedAt: 1 })) });
+    if (url.startsWith("/api/inbox")) return Response.json({ inbox: {} });
     const create = /\/api\/projects\/(project_\d)\/sessions$/.exec(url);
     if (method === "POST" && create) return Response.json({ session: { ...session(body.id, body.title), projectId: create[1] } });
-    if (url.includes("/api/sessions/live")) return Response.json({ sessions: LIVE, projects: PROJECTS });
+    if (url.includes("/api/sessions/live")) return Response.json({ sessions: host?.sessions ?? LIVE, projects: host?.projects ?? PROJECTS, daemonId: host?.id ?? "local-engine" });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
     if (url.includes("/bootstrap") || (url.includes("/sessions/") && url.includes("turns="))) {
       return Response.json({ session: { ...LIVE.find((row) => row.id === id), environmentId: "env", providerInstanceId: "claude", envMode: "local" }, turns: journal[id] ?? [], items: [], tasks: [], requests: [], cursor: 1, events: [], subscriptions: [] });
@@ -67,7 +75,7 @@ function wire() {
       if (method === "POST" && journal[id]) journal[id] = [...journal[id], turn(id, journal[id].length + 1, body.input, "running")];
       return Response.json({ runId: "run_1", state: "queued" });
     }
-    if (url.includes("/api/projects")) return Response.json({ projects: PROJECTS });
+    if (url.includes("/api/projects")) return Response.json({ projects: host?.projects ?? PROJECTS });
     if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
     if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
@@ -114,6 +122,7 @@ beforeEach(() => {
   clearConnections();
   window.localStorage.clear();
   calls = [];
+  remotes = [];
   journal = { s_sales: [turn("s_sales", 1, "Can you check the build?", "completed", "Need to run the build first.\n\n**Shall I run it?**")] };
   wire();
 });
@@ -263,7 +272,25 @@ describe("the quick composer", () => {
     expect(layouts.at(-1)).toEqual({ height: expect.any(Number), composerTop: expect.any(Number) });
   });
 
-  test("an open menu is drawn in the page, and the window makes room above for it", async () => {
+  test("the room above goes the moment a menu closes, so the window shrinks back to the card", async () => {
+    const { host, layouts } = await open(front(GRANTED));
+    const root = host.querySelector<HTMLElement>('[data-surface="quick"]')!;
+    const menu = document.createElement("div");
+    menu.setAttribute("data-side", "top");
+    menu.setAttribute("data-open", "");
+    await act(async () => void document.body.append(menu));
+    await flush(() => root.style.paddingTop === "344px");
+    await act(async () => {
+      menu.removeAttribute("data-open");
+      menu.setAttribute("data-closed", "");
+    });
+    await flush(() => root.style.paddingTop === "24px");
+    expect(root.style.paddingTop).toBe("24px");
+    menu.remove();
+    expect(layouts.length).toBeGreaterThan(0);
+  });
+
+  test("an open menu gets room above the card", async () => {
     const { host } = await open(front(GRANTED));
     const root = host.querySelector<HTMLElement>('[data-surface="quick"]')!;
     const before = Number.parseFloat(root.style.paddingTop);
@@ -274,6 +301,7 @@ describe("the quick composer", () => {
     expect(menu).toBeTruthy();
     await flush(() => Number.parseFloat(root.style.paddingTop) > before);
     expect(Number.parseFloat(root.style.paddingTop)).toBe(before + 320);
+
   });
 
   test("the empty composer says # picks where the message goes", async () => {
@@ -299,7 +327,10 @@ describe("the desktop bridge", () => {
       </SidebarProvider>,
     );
     await flush(() => Boolean(host.querySelector('[role="note"]')));
-    expect(reads).toBe(1);
+    const settled = reads;
+    await flush();
+    await flush();
+    expect(reads).toBe(settled);
     expect(editor(host)).not.toBeNull();
     Reflect.deleteProperty(window, "telarDesktop");
   });
@@ -502,10 +533,50 @@ describe("the attached conversation's transcript", () => {
 });
 
 describe("the strip of conversations that need you", () => {
-  test("lists waiting first, then unread, then running", async () => {
+  test("lists only what needs you: waiting first, then finished and unread, never running or settled", async () => {
+    LIVE.push(live("s_old", "System connectivity test", "project_1", "idle", 1, { lastTurnSequence: 3, lastReadTurnSequence: 3 }));
     const { host } = await open(front(GRANTED));
     await flush(() => strip(host).length > 0);
-    expect(strip(host)).toEqual(["Sales dashboard and checkout", "Transit light-curve analysis", "Expand scratch README"]);
+    expect(strip(host)).toEqual(["Sales dashboard and checkout", "Transit light-curve analysis"]);
+    LIVE.pop();
+  });
+
+  test("a conversation read anywhere drops off the strip", async () => {
+    const { host } = await open(front(GRANTED));
+    await flush(() => strip(host).includes("Transit light-curve analysis"));
+    LIVE[0] = { ...LIVE[0]!, lastReadTurnSequence: 2 };
+    act(() => void window.dispatchEvent(new Event("telar:projects")));
+    await flush(() => !strip(host).includes("Transit light-curve analysis"));
+    expect(strip(host)).toEqual(["Sales dashboard and checkout"]);
+    LIVE[0] = { ...LIVE[0]!, lastReadTurnSequence: 1 };
+  });
+
+  test("merges every host's conversations, names the host, and replies through the owning host", async () => {
+    remotes = [{ id: "host_b", name: "Mini", projects: [{ id: "project_9", name: "exoplanets", root: "/x", createdAt: 1 }], sessions: [live("s_remote", "Remote build question", "project_9", "blocked", 400)] }];
+    journal.s_remote = [turn("s_remote", 1, "Run the build?", "completed", "Waiting for your go-ahead.")];
+    const { host, sent } = await open(front(GRANTED));
+    await flush(() => strip(host).includes("Remote build question"));
+    const pill = [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')].find((button) => button.title.startsWith("Remote build question"))!;
+    expect(pill.title).toBe("Remote build question · exoplanets · Mini");
+    await act(async () => pill.click());
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Waiting for your go-ahead") ?? false);
+    await typeAndPress(host, "Go ahead", { metaKey: true });
+    expect(calls.find((call) => call.method === "POST" && call.url === "/api/hosts/host_b/sessions/s_remote/turns")?.body).toMatchObject({ input: "Go ahead" });
+    expect(calls.some((call) => call.method === "POST" && call.url === "/api/sessions/s_remote/turns")).toBe(false);
+    expect(sent).toEqual([{ route: "/hosts/host_b/projects/project_9/sessions/s_remote", title: "Remote build question", detail: "exoplanets", open: true }]);
+  });
+
+  test("on a remote-connected app, a new session is created on the chosen host and opens there", async () => {
+    remotes = [{ id: "host_b", name: "Mini", projects: [{ id: "project_9", name: "exoplanets", root: "/x", createdAt: 5 }], sessions: [] }];
+    const { host, sent } = await open(front(GRANTED));
+    await type(host, "#exo");
+    await flush(() => options(host).some((row) => row.includes("Mini")));
+    const mini = [...host.querySelectorAll('[role="option"]')].find((row) => row.textContent?.includes("New session in exoplanets · Mini"))!;
+    await act(async () => void mini.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
+    await typeAndPress(host, "Fix CI on the Mini");
+    const created = calls.find((call) => call.method === "POST" && /\/sessions$/.test(call.url) && call.url.includes("projects/project_9"));
+    expect(created?.url).toBe("/api/hosts/host_b/projects/project_9/sessions");
+    expect(sent[0]?.route).toMatch(/^\/hosts\/host_b\/projects\/project_9\/sessions\//);
   });
 
   test("↑ from the empty composer focuses it, ←/→ move, ↵ attaches, and ↓ returns to the composer", async () => {

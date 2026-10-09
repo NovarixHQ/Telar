@@ -1,26 +1,24 @@
-import type { LiveSessionRow, Project } from "@telar/engine-client";
 import { showsUnreadMark } from "../rail/unread";
-import { toSidebarSession } from "../session-list";
+import { sessionKey, type SessionBand, type SidebarSession } from "../session-list";
 
-export type NeedsYou = { kind: "waiting" | "unread" | "running"; session: LiveSessionRow; projectName: string };
+export type NeedsYou = { kind: "waiting" | "unread"; session: SidebarSession };
 
-const RANK = { waiting: 0, unread: 1, running: 2 } as const;
-const MAX_PILLS = 6;
+const RANK = { waiting: 0, unread: 1 } as const;
+const MAX_PILLS = 4;
 
-function kindOf(session: LiveSessionRow, projectName: string): NeedsYou["kind"] | null {
+function kindOf(session: SidebarSession): NeedsYou["kind"] | null {
   if (session.activity === "blocked") return "waiting";
-  if (showsUnreadMark(toSidebarSession(session, projectName), false)) return "unread";
-  return session.activity === "working" ? "running" : null;
+  return showsUnreadMark(session, false) ? "unread" : null;
 }
 
-export function needsYou(sessions: readonly LiveSessionRow[], projects: readonly Project[], attachedId?: string): NeedsYou[] {
-  const name = (projectId?: string) => projects.find((project) => project.id === projectId)?.name ?? projectId ?? "";
+export function needsYou(sessions: readonly SidebarSession[], bandFor: (session: SidebarSession) => SessionBand, attachedKey?: string): NeedsYou[] {
   const found: NeedsYou[] = [];
   for (const session of sessions) {
-    if (session.id === attachedId || session.state !== "active") continue;
-    const projectName = name(session.projectId);
-    const kind = kindOf(session, projectName);
-    if (kind) found.push({ kind, session, projectName });
+    if (session.archived || sessionKey(session) === attachedKey) continue;
+    const band = bandFor(session);
+    if (band !== "active" && band !== "pinned") continue;
+    const kind = kindOf(session);
+    if (kind) found.push({ kind, session });
   }
   return found.sort((a, b) => RANK[a.kind] - RANK[b.kind] || b.session.updatedAt - a.session.updatedAt).slice(0, MAX_PILLS);
 }

@@ -368,6 +368,24 @@ describe("the # destination picker", () => {
     expect(host.querySelector('[aria-selected="true"]')).toBe(list.lastElementChild);
   });
 
+  test("moving the selection survives a scrollIntoView that returns a promise, as Chromium's does", async () => {
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = (() => Promise.resolve()) as unknown as typeof original;
+    try {
+      const { host } = await open(front(GRANTED));
+      await type(host, "#");
+      await flush(() => options(host).length > 2);
+      await press(host, "ArrowUp");
+      await press(host, "ArrowUp");
+      await press(host, "ArrowDown");
+      expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("Sales dashboard");
+      await type(host, "");
+      expect(host.querySelector('[role="listbox"]')).toBeNull();
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
   test("filters projects and sessions together", async () => {
     const { host } = await open(front(GRANTED));
     await type(host, "#exo");

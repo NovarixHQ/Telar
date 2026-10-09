@@ -7,7 +7,9 @@ import { applyAppearance, useAppearance } from "../appearance";
 
 export function AppearanceProvider({ children }: { children: React.ReactNode }) {
   const { appearance } = useAppearance();
-  useEffect(() => applyAppearance(appearance), [appearance]);
+  useEffect(() => {
+    applyAppearance(appearance);
+  }, [appearance]);
   return (
     <>
       <AppearancePublisher />

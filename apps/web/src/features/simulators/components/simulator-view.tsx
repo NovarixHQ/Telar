@@ -249,7 +249,9 @@ export function SimulatorView({ simulator, api, hostId, visible, docked, floatin
   const device = uprightDevice(chrome, screen, simulator);
   const { turnedBy, scale, shown, media, aspect } = deviceLayout(device, screen, { width: box.width - 2 * padding, height: box.height - 2 * padding });
   const onAspect = floating?.onAspect;
-  useEffect(() => onAspect?.(aspect), [onAspect, aspect]);
+  useEffect(() => {
+    onAspect?.(aspect);
+  }, [onAspect, aspect]);
 
   const powerOff = async () => {
     setPowering(true);

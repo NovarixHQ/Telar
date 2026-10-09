@@ -26,7 +26,9 @@ function rowKey(row: DestinationRow) {
 export function DestinationPicker({ rows, index, onPick }: { rows: readonly DestinationRow[]; index: number; onPick: (row: DestinationRow, worktree: boolean) => void }) {
   const [now] = useState(Date.now);
   const list = useRef<HTMLDivElement>(null);
-  useEffect(() => list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" }), [index, rows]);
+  useEffect(() => {
+    list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" });
+  }, [index, rows]);
   return (
     <div className="mx-6 mb-1.5 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2">
       <div className="flex justify-between px-2 pt-1 pb-1.5 text-2xs text-muted-foreground">

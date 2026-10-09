@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { act, Fragment, useState } from "react";
+import { act, Fragment, useEffect, useState } from "react";
 import type { Session } from "@telar/engine-client";
 import { installTestDom, mount } from "@/test/dom";
 import { ReadReceiptMarker, useReadReceipt } from "./read-receipt";
@@ -72,8 +72,10 @@ function Harness({ hostId, initial }: { hostId: string; initial: Turn[] }) {
   const [turns, set] = useState(initial);
   const [current, setSession] = useState<Session | undefined>(session(initial.length > 1 ? 1 : 0));
   const [wrap, rewrap] = useState(0);
-  setTurns = set;
-  setWrap = rewrap;
+  useEffect(() => {
+    setTurns = set;
+    setWrap = rewrap;
+  }, []);
   const sync = { session: current, turns, loading: false, setSession } as unknown as ReturnType<typeof useSessionSync>;
   const receipt = useReadReceipt(hostId, "session_a", sync);
   return (

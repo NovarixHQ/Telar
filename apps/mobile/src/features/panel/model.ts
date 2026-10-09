@@ -1,6 +1,7 @@
 import { CORE_TABS, isPanelTab, type PanelTab } from "./tabs";
 
-export type PanelState = { isOpen: boolean; fullScreen: boolean; tabs: PanelTab[]; active: PanelTab | undefined };
+/** `reference` waits for the composer and `opening` for Files; neither is saved. */
+export type PanelState = { isOpen: boolean; fullScreen: boolean; tabs: PanelTab[]; active: PanelTab | undefined; reference?: string; opening?: string };
 
 /** Where a panel's state is kept between launches: UserDefaults in the app, a map in tests. */
 export type PanelStorage = { get(key: string): unknown; set(key: string, value: string): void };
@@ -14,6 +15,10 @@ export type PanelModel = {
   select(tab: PanelTab): void;
   closeTab(tab: PanelTab): void;
   openable(): PanelTab[];
+  insertReference(text: string): void;
+  clearReference(): void;
+  openFile(path: string): void;
+  clearOpening(): void;
 };
 
 export const panelKey = (hostId: string, sessionId: string) => `telar.panel.${hostId}.${sessionId}`;
@@ -35,7 +40,7 @@ export function createPanelModel(key: string, storage: PanelStorage): PanelModel
   const listeners = new Set<() => void>();
   const commit = (next: PanelState) => {
     state = next;
-    storage.set(key, JSON.stringify(state));
+    storage.set(key, JSON.stringify({ ...state, reference: undefined, opening: undefined }));
     listeners.forEach((listener) => listener());
   };
   return {
@@ -64,5 +69,16 @@ export function createPanelModel(key: string, storage: PanelStorage): PanelModel
       commit({ ...state, tabs, active: state.active === tab ? (tabs[index] ?? tabs.at(-1)) : state.active });
     },
     openable: () => CORE_TABS.filter((tab) => !state.tabs.includes(tab)),
+    insertReference: (text) => commit({ ...state, reference: text }),
+    clearReference() {
+      if (state.reference !== undefined) commit({ ...state, reference: undefined });
+    },
+    openFile(path) {
+      const tabs = state.tabs.includes("editor") ? state.tabs : [...state.tabs, "editor" as const];
+      commit({ ...state, isOpen: true, tabs, active: "editor", opening: path });
+    },
+    clearOpening() {
+      if (state.opening !== undefined) commit({ ...state, opening: undefined });
+    },
   };
 }

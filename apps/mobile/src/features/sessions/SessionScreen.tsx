@@ -91,6 +91,11 @@ export function SessionScreen() {
         keyboard={keyboard}
         onHeight={setFooter}
         onSent={() => setPin((value) => value + 1)}
+        reference={column.state.reference}
+        onReference={() => {
+          column.panel.clearReference();
+          if (column.state.fullScreen) column.panel.close();
+        }}
       />
     </View>
   );

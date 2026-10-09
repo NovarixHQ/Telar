@@ -30,6 +30,10 @@ export function PanelScreen() {
     else navigation.dispatch(StackActions.replace("Session", { hostId: params.hostId, sessionId: params.sessionId }));
   }, [panel, params.tab, column]);
 
+  useEffect(() => {
+    if (state.reference && !column) navigation.goBack();
+  }, [state.reference, column]);
+
   return host && !column ? (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, paddingTop: insets.top, backgroundColor: Theme.sheet }}>
       <PanelView host={host} sessionId={params.sessionId} panel={panel} state={state} onClose={() => navigation.goBack()} />

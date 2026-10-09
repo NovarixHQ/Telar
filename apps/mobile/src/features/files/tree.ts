@@ -84,8 +84,15 @@ export function fileGlyph(path: string): SymbolName {
   return GLYPHS.find(([, extensions]) => extensions.includes(ext))?.[0] ?? "doc";
 }
 
-/** Prose is read as wrapped text; everything else as code. */
-export const isProse = (path: string) => ["md", "markdown", "txt", "rst", "text"].includes(extension(path));
+export type FileKind = "prose" | "code" | "image" | "pdf";
+
+/** The viewer a file opens in: prose is edited as wrapped text, pictures and PDFs are drawn from their bytes, the rest is code. */
+export function fileKind(path: string): FileKind {
+  const ext = extension(path);
+  if (["md", "markdown", "txt", "rst", "text"].includes(ext)) return "prose";
+  if (["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff"].includes(ext)) return "image";
+  return ext === "pdf" ? "pdf" : "code";
+}
 
 export function statusMark(status: GitFileChange["status"]): { letter: string; tone: ThemeColor } {
   switch (status) {

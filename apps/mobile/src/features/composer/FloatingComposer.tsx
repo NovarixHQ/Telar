@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { insertReference } from "@telar/client/composer";
 import { Settings, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HostConnection } from "../../platform/connection";
@@ -35,13 +36,16 @@ type Props = {
   keyboard: number;
   onHeight: (height: number) => void;
   onSent?: () => void;
+  /** Text a panel asked to add at the caret; `onReference` takes it once it is in. */
+  reference?: string | undefined;
+  onReference?: () => void;
 };
 
 const NO_SKILLS = { skills: [], commands: [] };
 const PROMOTES = new Set(["claude", "codex"]);
 
 /** The footer that floats over the transcript: notices, open requests, then the composer, over a bar-material scrim. */
-export function FloatingComposer({ host, hostId, sessionId, mentions, notices, initialDraft, keyboard, onHeight, onSent }: Props) {
+export function FloatingComposer({ host, hostId, sessionId, mentions, notices, initialDraft, keyboard, onHeight, onSent, reference, onReference }: Props) {
   const feed = useFeed(host, sessionId);
   const [draft, setDraftState] = useState(() => initialDraft ?? readDraft(Settings, hostId, sessionId));
   const [caret, setCaret] = useState(draft.length);
@@ -66,6 +70,15 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
     setDraftState(latest.current);
   });
   useEffect(() => writeDraft(Settings, hostId, sessionId, draft), [draft, hostId, sessionId]);
+  const [focus, setFocus] = useState(0);
+  useEffect(() => {
+    if (!reference) return;
+    const next = insertReference(latest.current, reference, caret);
+    setDraftState(next.draft);
+    setCaret(next.caret);
+    setFocus((count) => count + 1);
+    onReference?.();
+  }, [reference]);
 
   const session = feed.head?.session;
   const running = hasRunningTurn(feed.turns);
@@ -176,6 +189,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
           onDraft={setDraftState}
           onCaret={setCaret}
           resetKey={cleared}
+          focus={focus}
           placeholder="Ask the agent, or run a command…"
           slot={slot}
           onSlot={() => void (slot.kind === "stop" ? stop() : send())}

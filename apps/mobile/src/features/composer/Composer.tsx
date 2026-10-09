@@ -26,6 +26,8 @@ type Props = {
   menu: PlusMenuProps;
   above?: ReactNode;
   autoFocus?: boolean;
+  /** Each new value raises the keyboard, once a pushed page has gone. */
+  focus?: number;
   below?: ReactNode;
   dictation?: { phase: DictationPhase; language: string | undefined; heard: string; toggle: () => void };
   suggestions?: { rows: Completion[]; loading: boolean; onPick: (row: Completion) => void };
@@ -39,7 +41,7 @@ const LINE = 21;
 const MAX_LINES = 6;
 
 /** The row the Swift app draws: plus menu, the glass field with its mic, and the send or stop circle. */
-export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, autoFocus = false, below, dictation, suggestions, onPasteFiles }: Props) {
+export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, autoFocus = false, focus = 0, below, dictation, suggestions, onPasteFiles }: Props) {
   const field = useRef<TextInputInstance>(null);
   const pasted = useRef(onPasteFiles);
   pasted.current = onPasteFiles;
@@ -52,6 +54,11 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
     if (!autoFocus || focusTimer.current) return;
     focusTimer.current = setTimeout(() => field.current?.focus(), 400);
   };
+  useEffect(() => {
+    if (!focus) return;
+    const timer = setTimeout(() => field.current?.focus(), 400);
+    return () => clearTimeout(timer);
+  }, [focus]);
   const [caretAt, setCaretAt] = useState({ x: 0, y: 0 });
   const listening = dictation?.phase === "listening";
   const heard = dictation?.heard ?? "";

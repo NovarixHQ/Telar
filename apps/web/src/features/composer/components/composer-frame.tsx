@@ -23,10 +23,10 @@ export function ComposerHead({
   note: string | undefined;
   onDismissNote: () => void;
 }) {
-  const { fresh, projectId, projectName, onAdopt, session } = props;
+  const { fresh, compact, projectId, projectName, onAdopt, session } = props;
   return (
     <>
-      {fresh && projectId && <FreshGreeting projectId={projectId} {...(projectName ? { projectName } : {})} />}
+      {fresh && !compact && projectId && <FreshGreeting projectId={projectId} {...(projectName ? { projectName } : {})} />}
       {fresh && onAdopt && (
         <ResumePicker
           open={resuming}

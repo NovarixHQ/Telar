@@ -68,7 +68,6 @@ export function useCardDrag(bridge: QuickComposerBridge | undefined, saved: Card
   return { spot, onPointerDown };
 }
 
-/** Lets clicks through the transparent overlay, and takes them while the pointer is over anything drawn. */
 export function useClickThrough(bridge: QuickComposerBridge | undefined, root: RefObject<HTMLElement | null>, openedWith: unknown) {
   const over = useRef(false);
   useEffect(() => {

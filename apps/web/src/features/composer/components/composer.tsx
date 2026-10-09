@@ -2,14 +2,14 @@
 
 // Enter always sends; mid-turn it steers the running turn. Send becomes Stop only while the box is empty.
 
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { turnHasContent, type ProjectAvailability } from "@telar/engine-client";
 import { choiceOf } from "@telar/client/providers";
 import { useCommandHandlers } from "@/features/commands";
 import { DictationButton, DictationGlow, useComposerDictation } from "@/features/dictation";
 import { cn } from "@/ui/utils";
 import { compactBlockedReason, isResumeDraft, type Completion, type ComposerPicker } from "../completions";
-import { markComposerActive, type ComposerSubmit } from "../registry";
+import { markComposerActive, takeComposerFocus, type ComposerSubmit } from "../registry";
 import { hasUltrathink, toggleUltrathink } from "../model-options";
 import { useHasEfforts } from "../hooks/use-composer-efforts";
 import { useComposerCompletions } from "../hooks/use-composer-completions";
@@ -120,6 +120,9 @@ export function Composer(props: ComposerProps) {
   const recall = usePromptRecall(props.sentPrompts, session?.id ?? `fresh:${projectId}`, draft, onDraftChange);
   const onKeyDown = composerKeyHandler({ draft, attachments, busy, questionActive: question.active, stash, menu, pick, submit: () => void trySubmit(), recall, esc });
   useCommandHandlers({ "focus-composer": () => editor.current?.focus(), send: () => void trySubmit(), "stop-turn": () => busy && onStop() });
+  useEffect(() => {
+    if (takeComposerFocus(session?.id)) editor.current?.focus();
+  }, [session?.id]);
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
   const drop = useDropTarget(editor, addFiles);

@@ -13,6 +13,7 @@ export {
 export {
   activeComposer,
   activeComposerToken,
+  focusComposerFor,
   markComposerActive,
   registerComposer,
   type ComposerEntry,

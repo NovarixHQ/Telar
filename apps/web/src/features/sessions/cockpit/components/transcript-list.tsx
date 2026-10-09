@@ -7,7 +7,7 @@ import type { JournalTurn } from "@telar/client/journal";
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { Button } from "@/ui/button";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
-import { TranscriptSession, TranscriptWorkspace } from "@/features/transcript";
+import { ForkReply, TranscriptSession, TranscriptWorkspace } from "@/features/transcript";
 import { ArtifactShelf } from "@/features/agent-tools";
 import type { useSessionSync } from "../hooks/use-session-sync";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
@@ -16,6 +16,7 @@ import { SessionProblem } from "./masthead";
 import { ReadReceiptMarker, type useReadReceipt } from "./read-receipt";
 import { EmptyTranscript, SessionTurn, TurnFrame } from "./session-turn";
 import { useSessionDirectory } from "../hooks/use-session-directory";
+import { useForkReply } from "../hooks/use-fork-reply";
 import { mentionedSessions, TranscriptTurns, type TurnView } from "./transcript-turns";
 
 type TurnProps = ComponentProps<typeof SessionTurn>;
@@ -44,6 +45,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const items = useMemo(() => shown.flatMap((turn) => turn.items), [shown]);
   const sessionId = session?.id;
   const driver = session?.driver;
+  const fork = useForkReply(sessionId, props.hostId, sync.setError);
   const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId, ...(driver ? { driver } : {}) } : undefined), [sessionId, props.hostId, driver]);
   const turnRow = (turn: JournalTurn, { peerTitle, builders }: TurnView) => (
     <Fragment key={turn.runId}>
@@ -92,6 +94,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
             </div>
           </ConversationTopEdge>
           <TranscriptSession.Provider value={transcriptSource}>
+          <ForkReply.Provider value={fork}>
           <TranscriptWorkspace path={session ? workspacePath(session.workspace) : undefined}>
             <ArtifactShelf items={items} hostId={props.hostId}>
             <TranscriptTurns
@@ -105,6 +108,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
             />
             </ArtifactShelf>
           </TranscriptWorkspace>
+          </ForkReply.Provider>
           </TranscriptSession.Provider>
         </ConversationContent>
         <ConversationScrollButton />

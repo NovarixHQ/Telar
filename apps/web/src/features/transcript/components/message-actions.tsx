@@ -4,8 +4,9 @@ import { CopyButton } from "@/ui/code-surface";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/ui/utils";
 import { rowTime } from "../row-time";
+import { ForkReplyButton } from "./fork-reply";
 
-export function MessageActions({ text, at, align = "start" }: { text: string; at?: number | undefined; align?: "start" | "end" }) {
+export function MessageActions({ text, at, align = "start", forkRunId }: { text: string; at?: number | undefined; align?: "start" | "end"; forkRunId?: string }) {
   const time = at === undefined ? undefined : { ...rowTime(at), iso: new Date(at).toISOString() };
   return (
     <div
@@ -22,6 +23,7 @@ export function MessageActions({ text, at, align = "start" }: { text: string; at
         </Tooltip>
       )}
       {text.trim() && <CopyButton text={text} className="size-5" />}
+      {forkRunId && <ForkReplyButton runId={forkRunId} />}
     </div>
   );
 }

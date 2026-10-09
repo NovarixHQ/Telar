@@ -35,6 +35,17 @@ export type ComposerEntry = {
  *  sharing an id can never unregister each other. */
 const mounted = new Map<string, ComposerEntry>();
 let active: string | undefined;
+let focusFor: string | undefined;
+
+export function focusComposerFor(sessionId: string): void {
+  focusFor = sessionId;
+}
+
+export function takeComposerFocus(sessionId: string | undefined): boolean {
+  if (sessionId === undefined || sessionId !== focusFor) return false;
+  focusFor = undefined;
+  return true;
+}
 
 /** Register on mount; the returned function is the unmount. */
 export function registerComposer(token: string, entry: ComposerEntry): () => void {

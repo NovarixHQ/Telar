@@ -39,11 +39,6 @@ const cloneSidebarLayout = (layout: SidebarLayout): SidebarLayout => ({
   mode: layout.mode,
 });
 
-function withLegacyDelegatedWindow(quiet: number | null, delegated: unknown): number | null {
-  if (quiet === null || typeof delegated !== "number" || !Number.isInteger(delegated) || delegated < MIN_AUTO_SETTLE_HOURS) return quiet;
-  return Math.min(quiet, delegated);
-}
-
 function boolean(value: unknown, message: string): boolean {
   if (typeof value !== "boolean") throw new EngineStateError("invalid_request", message);
   return value;
@@ -55,9 +50,9 @@ export class SettingsStore {
 
   inbox(): InboxPolicy {
     try {
-      const stored = this.kernel.readDocument(this.kernel.paths.inbox) as { autoSettleAfterDays?: unknown; settleDelegatedAfterHours?: unknown } | undefined;
+      const stored = this.kernel.readDocument(this.kernel.paths.inbox) as { autoSettleAfterDays?: unknown } | undefined;
       const parsed = InboxPolicySchema.safeParse(stored);
-      if (parsed.success) return { autoSettleAfterHours: withLegacyDelegatedWindow(parsed.data.autoSettleAfterHours, stored?.settleDelegatedAfterHours) };
+      if (parsed.success) return parsed.data;
       const days = stored?.autoSettleAfterDays;
       if (days === null) return { autoSettleAfterHours: null };
       if (typeof days === "number" && Number.isInteger(days) && days >= 1 && days <= 90) return { autoSettleAfterHours: days * 24 };

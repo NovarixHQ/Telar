@@ -40,22 +40,20 @@ test("a days-shaped inbox document from before the hours move still means what i
   expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: null, ...grace });
 });
 
-test("a policy from before the settle windows merged keeps the shorter window while both were on", () => {
+test("a policy from before the settle windows merged keeps the quiet window and drops the delegated one", () => {
   const { store, root: stateRoot } = readyStore();
   const inbox = path.join(stateRoot, "inbox.json");
-  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":6}');
-  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 6 });
   fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":72,"settleDelegatedAfterHours":1,"settledTerminalLimit":5}');
-  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 1 });
-  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":4,"settleDelegatedAfterHours":24}');
-  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 4 });
-  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":48,"settleDelegatedAfterHours":null}');
-  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 48 });
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 72 });
+  fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":6,"settleDelegatedAfterHours":1}');
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 6 });
   fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":null,"settleDelegatedAfterHours":1}');
   expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: null });
   fs.writeFileSync(inbox, '{"version":2,"autoSettleAfterHours":72,"settleDelegatedAfterHours":1}');
   store.settings.setInbox({});
-  expect(JSON.parse(fs.readFileSync(inbox, "utf8"))).toEqual({ version: expect.any(Number), autoSettleAfterHours: 1 });
+  expect(JSON.parse(fs.readFileSync(inbox, "utf8"))).toEqual({ version: expect.any(Number), autoSettleAfterHours: 72 });
+  fs.rmSync(inbox);
+  expect(store.settings.inbox()).toEqual({ autoSettleAfterHours: 72 });
 });
 
 test("the standing session defaults round-trip, and refuse a mode that is not one", () => {

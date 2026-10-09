@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { hostVisible, subscribeHostVisibility } from "@/platform/desktop/host-visibility";
@@ -62,26 +62,17 @@ export function useReadReceipt(hostId: string, sessionId: string | undefined, { 
     };
   }, []);
 
-  const observers = useRef(new Map<string, (node: HTMLElement | null) => void>());
-  const markerRefFor = useCallback((runId: string) => {
-    const existing = observers.current.get(runId);
-    if (existing) return existing;
-    const ref = (node: HTMLElement | null) => {
-      if (!node || typeof IntersectionObserver === "undefined") return;
-      const observer = new IntersectionObserver((entries) => {
-        const entry = entries[entries.length - 1];
-        setVisibleRunId((current) => (entry?.isIntersecting ? runId : current === runId ? undefined : current));
-      });
-      observer.observe(node);
-      return () => {
-        observer.disconnect();
-        observers.current.delete(runId);
-        setVisibleRunId((current) => (current === runId ? undefined : current));
-      };
-    };
-    observers.current.set(runId, ref);
-    return ref;
-  }, []);
+  const [marker, markerRef] = useState<HTMLElement | null>(null);
+  const runId = candidate?.runId;
+  useEffect(() => {
+    if (!marker || !runId || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      setVisibleRunId((current) => (entry?.isIntersecting ? runId : current === runId ? undefined : current));
+    });
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [marker, runId]);
 
   useEffect(() => {
     courier.current?.update({
@@ -91,13 +82,13 @@ export function useReadReceipt(hostId: string, sessionId: string | undefined, { 
       gate: {
         foreground,
         // The candidate's own marker, never a previous answer's.
-        atLatestResult: candidate !== undefined && visibleRunId === candidate.runId,
+        atLatestResult: marker !== null && candidate !== undefined && visibleRunId === candidate.runId,
         loading,
       },
     });
-  }, [sessionId, hostId, candidate, readSequence, foreground, visibleRunId, loading]);
+  }, [sessionId, hostId, candidate, readSequence, foreground, marker, visibleRunId, loading]);
 
-  return { newestResult: candidate, markerRefFor };
+  return { newestResult: candidate, markerRef };
 }
 
 export function ReadReceiptMarker({ markerRef }: { markerRef: (node: HTMLElement | null) => void }) {

@@ -94,3 +94,15 @@ test("a socket that drops while listening is reported once; a cancelled one is n
   expect(cancelled.ended()).toBe(0);
   expect(cancelled.socket.closed).toBe(true);
 });
+
+test("a keep-alive goes out only on an open socket that is still listening", () => {
+  const { live, socket } = start();
+  live.keepAlive();
+  expect(socket.sent).toEqual([]);
+  socket.open();
+  live.keepAlive();
+  expect(socket.sent).toEqual([JSON.stringify({ type: "KeepAlive" })]);
+  live.cancel();
+  live.keepAlive();
+  expect(socket.sent.filter((sent) => sent === JSON.stringify({ type: "KeepAlive" }))).toHaveLength(1);
+});

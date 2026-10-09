@@ -56,7 +56,7 @@ New conversation in…, Add project, Appearance, Project settings, Usage, Plugin
 
 ## Changing a shortcut
 
-Settings → Keybindings. Click a shortcut and press the new one. Backspace clears it, Escape leaves it as it was, and Restore defaults puts them all back.
+Settings → Keybindings. Click a shortcut and press the new one. Escape or Backspace clears it, clicking away leaves it as it was, and Restore defaults puts them all back.
 
 - The nine jumps change together: press any digit with the modifiers you want, and each slot gets its own digit.
 - Two commands can share a key while you're in the middle of a swap. Telar flags the clash, and the command listed first wins until you fix it.

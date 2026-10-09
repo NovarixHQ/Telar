@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/ui/scroll-area";
 import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { EngineEvent, Item, Turn, TurnState } from "@telar/engine-client";
@@ -294,7 +295,7 @@ export function RightPanel(props: RightPanelProps) {
     >
       {!fullscreen && <RightPanelResizeHandle panelRef={panelRef} />}
       <TabStrip {...props} browser={browser} launcher={launcher} actions={actions} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} />
-      <div {...(tab ? { id: `right-panel-${tab}`, role: "tabpanel" } : {})} className="min-h-0 flex-1 overflow-y-auto md:rounded-b-xl">
+      <ScrollArea className="flex-1 md:rounded-b-xl" viewportProps={tab ? { id: `right-panel-${tab}`, role: "tabpanel" } : {}}>
         {/* A Terminal once shown stays mounted and hidden: remounting rebuilds every emulator and replays its bytes. */}
         {keptTerminals.map((id) => {
           const entry = tabs.find((candidate) => candidate.id === id);
@@ -325,7 +326,7 @@ export function RightPanel(props: RightPanelProps) {
             </Suspense>
           </SurfaceBoundary>
         )}
-      </div>
+      </ScrollArea>
     </aside>
   );
 }

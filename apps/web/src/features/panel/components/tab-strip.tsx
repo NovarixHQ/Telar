@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeftIcon, ChevronRightIcon, Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { KeyHint } from "@/features/commands";
 import { HeaderToggleGroup } from "@/ui/header-toggle";
+import { ScrollArea } from "@/ui/scroll-area";
 import { cn } from "@/ui/utils";
 import { useLivePages } from "../hooks/use-live-pages";
+import { useStripScroll } from "../hooks/use-strip-scroll";
 import { useTabDrag } from "../hooks/use-tab-drag";
 import { describePanelTabInstance, filePanelTabPath, type BrowserState, type LauncherRow, type LivePage, type PanelTabItem } from "../model";
 import type { RightPanelProps } from "./right-panel";
@@ -23,10 +25,7 @@ type StripProps = Pick<RightPanelProps, "tabs" | "tab" | "sessionId" | "onTabCha
 
 const CONTROL = "flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground";
 
-/**
- * One tab. The chip is the drag handle; its context menu's trigger is a child row so a grab and a right-press never
- * land on one node. The insert mark is an inset shadow so drag-over never widens the tab.
- */
+/** The chip is the drag handle and its menu's trigger a child row, so a grab and a right-press never share a node. */
 function TabChip({
   entry,
   strip,
@@ -49,8 +48,13 @@ function TabChip({
   const insert = drag.insert?.id === id ? drag.insert.side : undefined;
   const right = tabs.slice(tabs.findIndex((other) => other.id === id) + 1);
   const path = entry.params.path ?? filePanelTabPath(entry.kind);
+  const chip = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (on) chip.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [on]);
   return (
     <span
+      ref={chip}
       {...drag.handlers(id)}
       className={cn(
         "group/tab relative flex h-7 min-w-0 max-w-44 shrink-0 cursor-grab rounded-md text-xs transition-colors active:cursor-grabbing",
@@ -122,6 +126,7 @@ export function TabStrip(strip: StripProps) {
   const menu = useState<string>();
   const drag = useTabDrag(tabs, strip.onMoveTab);
   const livePages = useLivePages(sessionId);
+  const scroll = useStripScroll(tabs.length);
   const duplicated = useMemo(() => {
     const counted = new Map<string, number>();
     for (const entry of tabs) counted.set(entry.kind, (counted.get(entry.kind) ?? 0) + 1);
@@ -135,7 +140,7 @@ export function TabStrip(strip: StripProps) {
         fullscreen && "pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))]",
       )}
     >
-      <div role="tablist" aria-label="Right panel tabs" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+      <ScrollArea orientation="horizontal" className="flex-1" viewportRef={scroll.viewport} viewportClassName="flex gap-1" viewportProps={{ role: "tablist", "aria-label": "Right panel tabs" }}>
         {tabs.map((entry) => (
           <TabChip
             key={entry.id}
@@ -147,8 +152,18 @@ export function TabStrip(strip: StripProps) {
             menu={menu}
           />
         ))}
-        {launcher.length > 0 && <SurfaceChooser rows={launcher} actions={strip.actions} browserStart={browserStart} />}
-      </div>
+      </ScrollArea>
+      {scroll.overflow && (
+        <div role="group" aria-label="Scroll panel tabs" className="flex shrink-0 items-center">
+          <button type="button" aria-label="Scroll tabs left" title="Scroll tabs left" disabled={!scroll.back} onClick={() => scroll.step(-1)} className={cn(CONTROL, "size-6 disabled:pointer-events-none disabled:opacity-40")}>
+            <ChevronLeftIcon className="size-3.5" />
+          </button>
+          <button type="button" aria-label="Scroll tabs right" title="Scroll tabs right" disabled={!scroll.forward} onClick={() => scroll.step(1)} className={cn(CONTROL, "size-6 disabled:pointer-events-none disabled:opacity-40")}>
+            <ChevronRightIcon className="size-3.5" />
+          </button>
+        </div>
+      )}
+      {launcher.length > 0 && <SurfaceChooser rows={launcher} actions={strip.actions} browserStart={browserStart} />}
       <div className="flex shrink-0 items-center gap-0.5">
         {tabs.length > 1 && (
           <span className="mr-1 hidden items-center gap-0.5 @2xl/strip:flex">

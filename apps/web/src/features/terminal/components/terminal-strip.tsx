@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/ui/scroll-area";
 import { BrushCleaningIcon, PlusIcon, RotateCwIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import { RunGlyph } from "../run/icons";
@@ -85,7 +86,7 @@ function ShellChip({ strip, shell, sessionId }: { strip: ShellStrip; shell: Term
 
 export function TerminalStrip({ strip, sessionId }: { strip: ShellStrip; sessionId: string | undefined }) {
   return (
-    <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 py-1" role="tablist" aria-label="Terminal tabs">
+    <ScrollArea orientation="horizontal" className="shrink-0 border-b border-border" viewportClassName="flex items-center gap-1 px-2 py-1" viewportProps={{ role: "tablist", "aria-label": "Terminal tabs" }}>
       {strip.workspace.shells.map((shell) => (
         <ShellChip key={shell.id} strip={strip} shell={shell} sessionId={sessionId} />
       ))}
@@ -107,6 +108,6 @@ export function TerminalStrip({ strip, sessionId }: { strip: ShellStrip; session
       >
         <BrushCleaningIcon className="size-3.5" />
       </button>
-    </div>
+    </ScrollArea>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/ui/scroll-area";
 import { useCallback, useState } from "react";
 import { FileIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 import type { TurnState } from "@telar/engine-client";
@@ -176,7 +177,7 @@ export function EditorSurface({
           >
             {state.explorerOpen ? <PanelLeftCloseIcon className="size-3.5" /> : <PanelLeftOpenIcon className="size-3.5" />}
           </button>
-          <div role="tablist" aria-label="Open files" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+          <ScrollArea orientation="horizontal" className="flex-1" viewportClassName="flex gap-1" viewportProps={{ role: "tablist", "aria-label": "Open files" }}>
             {state.files.map((entry) => (
               <EditorTab
                 key={entry.path}
@@ -193,7 +194,7 @@ export function EditorSurface({
                 onRevealInTree={revealInTree}
               />
             ))}
-          </div>
+          </ScrollArea>
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden">

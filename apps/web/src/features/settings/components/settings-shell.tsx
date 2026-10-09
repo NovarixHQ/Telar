@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/ui/scroll-area";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, CircleAlertIcon, InfoIcon, Undo2Icon } from "lucide-react";
@@ -237,7 +238,7 @@ export function SettingsShell({
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border">
         <SettingsPaneHeader title={title} section={activeSection} headerActions={headerActions} restorers={restorers} />
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <ScrollArea className="flex-1">
           <div className="mx-auto w-full max-w-4xl px-5 py-5">
             <SettingsPaneContext.Provider value={activeSection.id}>
               <SettingsRestoreContext.Provider value={restoreRegistry}>
@@ -245,7 +246,7 @@ export function SettingsShell({
               </SettingsRestoreContext.Provider>
             </SettingsPaneContext.Provider>
           </div>
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );

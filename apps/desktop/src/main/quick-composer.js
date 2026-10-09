@@ -63,6 +63,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   let latest = null;
   let holding = false;
   let dragFrom = null;
+  let cardTop = null;
 
   const panel = () => {
     if (win && !win.isDestroyed()) return win;
@@ -112,9 +113,12 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   ipcMain.handle("telar:quick-composer:toggle", () => toggle());
   ipcMain.handle("telar:quick-composer:context", (event) => (fromPanel(event) ? latest : null));
   ipcMain.handle("telar:quick-composer:close", (event) => fromPanel(event) && hide());
-  ipcMain.on("telar:quick-composer:resize", (event, { height } = {}) => {
+  ipcMain.on("telar:quick-composer:resize", (event, { height, anchor } = {}) => {
     if (!fromPanel(event) || !Number.isFinite(height)) return;
-    win.setContentSize(WIDTH, Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height))));
+    const [x, y] = win.getPosition();
+    const shift = Number.isFinite(anchor) && cardTop !== null ? Math.round(anchor - cardTop) : 0;
+    if (Number.isFinite(anchor)) cardTop = anchor;
+    win.setBounds({ x, y: y - shift, width: WIDTH, height: Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height))) });
   });
   ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
   ipcMain.on("telar:quick-composer:drag", (event, { phase, dx, dy } = {}) => {

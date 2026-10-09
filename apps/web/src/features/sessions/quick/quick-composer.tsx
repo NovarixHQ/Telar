@@ -26,7 +26,11 @@ function useReportHeight(bridge: QuickComposerBridge | undefined) {
   useEffect(() => {
     const node = root.current;
     if (!bridge || !node) return;
-    const observer = new ResizeObserver(() => bridge.resize(node.offsetHeight));
+    const report = () => {
+      const card = node.querySelector('[data-slot="quick-card"]');
+      bridge.resize(node.offsetHeight, card ? card.getBoundingClientRect().top - node.getBoundingClientRect().top : 0);
+    };
+    const observer = new ResizeObserver(report);
     observer.observe(node);
     return () => observer.disconnect();
   }, [bridge]);
@@ -107,40 +111,42 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
       {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
       <ContextOffers quick={quick} />
       <div onKeyDownCapture={(event) => onComposerKey(quick, event)} onPointerDownCapture={quick.forgetKey} onClickCapture={(event) => holdForFilePicker(event, bridge)}>
+        {quick.destination.picking && <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} />}
         <div className="-mb-2 pt-1">
           <AttachedDestination destination={quick.destination.destination} onClear={quick.destination.clear} />
         </div>
-        <Composer
-          draft={quick.text}
-          ready={projectId !== undefined}
-          attachments={quick.files}
-          onAttach={quick.setFiles}
-          fresh
-          compact
-          leading={<ProjectChip quick={quick} />}
-          placeholder={placeholderFor(quick.destination.destination)}
-          driver={draft.driver}
-          onDriverChange={draft.chooseDriver}
-          pendingModel={draft.model}
-          envMode={draft.envMode}
-          onEnvMode={draft.chooseEnvMode}
-          pendingBase={draft.base}
-          onBase={draft.chooseBase}
-          busy={false}
-          sending={quick.sending}
-          runtimeMode={draft.runtimeMode}
-          {...(projectId ? { projectId } : {})}
-          {...(quick.project?.name ? { projectName: quick.project.name } : {})}
-          backgroundTasks={0}
-          onDraftChange={quick.setText}
-          onSubmit={() => void quick.submit()}
-          onStop={() => undefined}
-          onStopBackground={() => undefined}
-          onRuntimeMode={draft.chooseRuntimeMode}
-          onModelChange={draft.chooseModel}
-        />
+        <div data-slot="quick-card">
+          <Composer
+            draft={quick.text}
+            ready={projectId !== undefined}
+            attachments={quick.files}
+            onAttach={quick.setFiles}
+            fresh
+            compact
+            leading={<ProjectChip quick={quick} />}
+            placeholder={placeholderFor(quick.destination.destination)}
+            driver={draft.driver}
+            onDriverChange={draft.chooseDriver}
+            pendingModel={draft.model}
+            envMode={draft.envMode}
+            onEnvMode={draft.chooseEnvMode}
+            pendingBase={draft.base}
+            onBase={draft.chooseBase}
+            busy={false}
+            sending={quick.sending}
+            runtimeMode={draft.runtimeMode}
+            {...(projectId ? { projectId } : {})}
+            {...(quick.project?.name ? { projectName: quick.project.name } : {})}
+            backgroundTasks={0}
+            onDraftChange={quick.setText}
+            onSubmit={() => void quick.submit()}
+            onStop={() => undefined}
+            onStopBackground={() => undefined}
+            onRuntimeMode={draft.chooseRuntimeMode}
+            onModelChange={draft.chooseModel}
+          />
+        </div>
       </div>
-      {quick.destination.picking && <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} />}
       {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-popover px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
       <footer data-slot="quick-hint" className="mx-auto w-fit rounded-full bg-popover px-2.5 py-0.5 text-2xs text-muted-foreground shadow-1">
         ↵ send · ⌘↵ send &amp; open · # destination · esc close

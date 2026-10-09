@@ -49,8 +49,8 @@ export function useDestination({ text, setText, projects, projectId, onProject }
       setDestination(null);
       return true;
     }
-    if (key === "ArrowDown") move(1);
-    else if (key === "ArrowUp") move(-1);
+    if (key === "ArrowUp") move(1);
+    else if (key === "ArrowDown") move(-1);
     else if (key === "Enter") {
       const row = rows[index];
       if (row) pick(row, altKey);

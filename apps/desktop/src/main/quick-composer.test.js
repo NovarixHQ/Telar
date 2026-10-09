@@ -108,6 +108,18 @@ describe("the window", () => {
     expect(panel().getPosition()).toEqual([410, 180]);
   });
 
+  test("grows upward when something opens above the card, so the card stays put on screen", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 200, anchor: 40 });
+    const [, top] = panel().getPosition();
+    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 520, anchor: 360 });
+    expect(panel().getPosition()[1]).toBe(top - 320);
+    expect(panel().getContentSize()[1]).toBe(520);
+    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 240, anchor: 40 });
+    expect(panel().getPosition()[1]).toBe(top);
+  });
+
   test("a spot on another display does not move it there", async () => {
     electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
     quick.bind("Alt+Space");

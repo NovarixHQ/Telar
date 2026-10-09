@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LiveSessionRow } from "@telar/engine-client";
 import { PlusIcon } from "lucide-react";
 import { fmtAgo } from "@/ui/format";
@@ -25,15 +25,17 @@ function rowKey(row: DestinationRow) {
 
 export function DestinationPicker({ rows, index, onPick }: { rows: readonly DestinationRow[]; index: number; onPick: (row: DestinationRow, worktree: boolean) => void }) {
   const [now] = useState(Date.now);
+  const list = useRef<HTMLDivElement>(null);
+  useEffect(() => list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" }), [index, rows]);
   return (
-    <div className="mx-6 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2">
+    <div className="mx-6 mb-1.5 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2">
       <div className="flex justify-between px-2 pt-1 pb-1.5 text-2xs text-muted-foreground">
         <span>Where does it go?</span>
         <span>↑↓ choose · ↵ attach</span>
       </div>
-      <div role="listbox" aria-label="Destination">
+      <div ref={list} role="listbox" aria-label="Destination" className="max-h-80 overflow-y-auto">
         {rows.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">Nothing matches</p>}
-        {rows.map((row, at) => (
+        {rows.map((row, at) => ({ row, at })).reverse().map(({ row, at }) => (
           <div
             key={rowKey(row)}
             role="option"

@@ -305,7 +305,7 @@ describe("the # destination picker", () => {
     const { host } = await open(front(GRANTED));
     await type(host, "#");
     await flush(() => options(host).length > 1);
-    expect(options(host).map((row) => row.split(/(?=Telar|exoplanets)/)[0])).toEqual([
+    expect(options(host).map((row) => row.split(/(?=Telar|exoplanets)/)[0]).reverse()).toEqual([
       "New session in ",
       "Sales dashboard and checkout",
       "Expand scratch README",
@@ -313,20 +313,33 @@ describe("the # destination picker", () => {
     ]);
   });
 
+  test("opens above the composer, its best row nearest the card", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#");
+    const list = host.querySelector('[role="listbox"]')!;
+    expect(list.compareDocumentPosition(editor(host)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await flush(() => options(host).length > 1);
+    expect(options(host).at(-1)).toContain("New session in Telar");
+    expect(host.querySelector('[aria-selected="true"]')).toBe(list.lastElementChild);
+  });
+
   test("filters projects and sessions together", async () => {
     const { host } = await open(front(GRANTED));
     await type(host, "#exo");
     await flush(() => options(host).length > 1);
-    expect(options(host)[0]).toContain("New session in exoplanets");
-    expect(options(host).slice(1).map((row) => row.slice(0, 12))).toEqual(["Sales dashbo", "Transit ligh"]);
+    expect(options(host).at(-1)).toContain("New session in exoplanets");
+    expect(options(host).slice(0, -1).map((row) => row.slice(0, 12))).toEqual(["Transit ligh", "Sales dashbo"]);
   });
 
   test("↓ and ↵ attach a session; sending replies to it instead of starting one", async () => {
     const { host, sent } = await open(front(GRANTED));
     await type(host, "#exo");
     await flush(() => options(host).length > 1);
-    await press(host, "ArrowDown");
+    await press(host, "ArrowUp");
     expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("Sales dashboard");
+    await press(host, "ArrowDown");
+    expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("New session in exoplanets");
+    await press(host, "ArrowUp");
     await press(host, "Enter");
     await flush(() => Boolean(host.querySelector('[data-slot="quick-reply"] p')));
     const card = host.querySelector('[data-slot="quick-destination"]')!;

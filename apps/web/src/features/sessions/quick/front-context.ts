@@ -14,7 +14,7 @@ export type QuickComposerBridge = {
   context: () => Promise<FrontContext | null>;
   onOpen: (listener: (context: FrontContext) => void) => () => void;
   close: () => Promise<unknown>;
-  resize: (height: number) => void;
+  resize: (height: number, anchor: number) => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
   hold: () => void;
   drag: (input: { phase: "start" | "move" | "end"; dx?: number; dy?: number }) => void;

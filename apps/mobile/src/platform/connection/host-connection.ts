@@ -3,7 +3,8 @@ import { probe, rankAddresses } from "./addresses";
 import { backoffDelay, RESET_AFTER_ONLINE_MS } from "./backoff";
 import { anyOf, systemClock, type Clock } from "./clock";
 
-export type HostRecord = { hostId: string; name: string; token: string; paired: string[] };
+/** `legacy`: paired with a host too old to name itself, so its id is this phone's own and any answer on a paired address is it. */
+export type HostRecord = { hostId: string; name: string; token: string; paired: string[]; legacy?: true };
 
 export type BlockReason = "unauthorized" | "misdirected";
 
@@ -124,10 +125,10 @@ export class HostConnection {
     if (wasOnline && this.clock.now() - wasOnline.since >= RESET_AFTER_ONLINE_MS) this.attempt = 0;
     const { signal } = this.renew();
     this.set({ kind: "connecting" });
-    const found = await probe(this.addresses(), this.record.hostId, this.fetch, this.clock, signal);
+    const found = await probe(this.addresses(), this.record, this.fetch, this.clock, signal);
     if (signal.aborted) return;
     if (found) {
-      this.advertised = found.identity.addresses;
+      this.advertised = found.identity?.addresses ?? [];
       this.set({ kind: "online", address: found.address.replace(/\/+$/, ""), since: this.clock.now() });
       return;
     }

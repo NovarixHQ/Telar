@@ -1,0 +1,348 @@
+{
+ "/v2/ping": {
+  "status": 200,
+  "body": {
+   "ok": true,
+   "proto": 1,
+   "appVersion": "0.1.0"
+  }
+ },
+ "/v2/health": {
+  "status": 200,
+  "body": {
+   "version": 2,
+   "daemonId": "97b22bf9-76df-4db1-b911-575e9bc3d9c2",
+   "hostname": "compat.lan",
+   "startedAt": 1791572977549,
+   "worker": {
+    "registered": false,
+    "activeWorkers": 0
+   }
+  }
+ },
+ "/v2/identity": {
+  "status": 404,
+  "body": {
+   "error": {
+    "code": "not_found",
+    "message": "engine endpoint does not exist"
+   }
+  }
+ },
+ "/v2/remote": {
+  "status": 200,
+  "body": {
+   "requireAuth": true,
+   "exposure": "local-only",
+   "tailscaleServe": false,
+   "devices": []
+  }
+ },
+ "/v2/sessions/live": {
+  "status": 200,
+  "body": {
+   "sessions": [
+    {
+     "id": "session_compat",
+     "projectId": "project_compat",
+     "title": "New session",
+     "state": "active",
+     "createdAt": 1791572977771,
+     "updatedAt": 1791572977771,
+     "driver": "claude",
+     "envMode": "local",
+     "workspace": {
+      "mode": "local",
+      "path": "/tmp/compat"
+     },
+     "activity": "idle"
+    }
+   ],
+   "projects": [
+    {
+     "id": "project_compat",
+     "environmentId": "local",
+     "name": "Compat",
+     "root": "/tmp/compat",
+     "createdAt": 1791572977707,
+     "updatedAt": 1791572977707,
+     "availability": "available"
+    }
+   ],
+   "assignments": {},
+   "layout": {
+    "projectOrder": [],
+    "sessionOrder": {},
+    "pinnedOrder": [],
+    "mode": "flat"
+   },
+   "inbox": {
+    "autoSettleAfterHours": 72,
+    "settleDelegatedAfterHours": 1,
+    "settledTerminalLimit": 5
+   },
+   "revision": 1791572977544,
+   "settledCount": 0,
+   "terminals": {},
+   "daemonId": "97b22bf9-76df-4db1-b911-575e9bc3d9c2"
+  }
+ },
+ "/v2/sessions/live?all=1": {
+  "status": 200,
+  "body": {
+   "sessions": [
+    {
+     "id": "session_compat",
+     "projectId": "project_compat",
+     "title": "New session",
+     "state": "active",
+     "createdAt": 1791572977771,
+     "updatedAt": 1791572977771,
+     "driver": "claude",
+     "envMode": "local",
+     "workspace": {
+      "mode": "local",
+      "path": "/tmp/compat"
+     },
+     "activity": "idle"
+    }
+   ],
+   "projects": [
+    {
+     "id": "project_compat",
+     "environmentId": "local",
+     "name": "Compat",
+     "root": "/tmp/compat",
+     "createdAt": 1791572977707,
+     "updatedAt": 1791572977707,
+     "availability": "available"
+    }
+   ],
+   "assignments": {},
+   "layout": {
+    "projectOrder": [],
+    "sessionOrder": {},
+    "pinnedOrder": [],
+    "mode": "flat"
+   },
+   "inbox": {
+    "autoSettleAfterHours": 72,
+    "settleDelegatedAfterHours": 1,
+    "settledTerminalLimit": 5
+   },
+   "revision": 1791572977544,
+   "settledCount": 0,
+   "terminals": {},
+   "daemonId": "97b22bf9-76df-4db1-b911-575e9bc3d9c2"
+  }
+ },
+ "/v2/sidebar-layout": {
+  "status": 200,
+  "body": {
+   "layout": {
+    "projectOrder": [],
+    "sessionOrder": {},
+    "pinnedOrder": [],
+    "mode": "flat"
+   }
+  }
+ },
+ "/v2/push/read-state?ids=session_compat": {
+  "status": 200,
+  "body": {
+   "cleared": [
+    "session_compat"
+   ]
+  }
+ },
+ "/v2/projects/project_compat/git": {
+  "status": 200,
+  "body": {
+   "git": {
+    "repository": true,
+    "branch": "main",
+    "dirtyFiles": 0,
+    "worktrees": [
+     {
+      "path": "/tmp/compat",
+      "basename": "telar-wt-repo-lHX4GK",
+      "branch": "main",
+      "isMainCheckout": true
+     }
+    ],
+    "refs": [
+     {
+      "name": "main",
+      "kind": "local",
+      "head": true
+     }
+    ],
+    "availability": "available"
+   }
+  }
+ },
+ "/v2/simulators": {
+  "status": 200,
+  "body": {
+   "simulators": {
+    "status": "disabled",
+    "hub": {
+     "requiredVersion": "0.12.0",
+     "installedVersions": [],
+     "runningVersion": null
+    },
+    "platforms": [],
+    "simulators": [],
+    "errors": []
+   }
+  }
+ },
+ "/v2/sessions/session_compat": {
+  "status": 200,
+  "body": {
+   "cursor": 1,
+   "session": {
+    "id": "session_compat",
+    "projectId": "project_compat",
+    "environmentId": "local",
+    "title": "New session",
+    "state": "active",
+    "createdAt": 1791572977771,
+    "updatedAt": 1791572977771,
+    "providerInstanceId": "claude",
+    "driver": "claude",
+    "workspace": {
+     "mode": "local",
+     "path": "/tmp/compat",
+     "baseRef": "ea745de6e6cc6436f62f0e3fb42ba97bc1b887c0"
+    },
+    "envMode": "local",
+    "runtimeMode": "auto",
+    "interactionMode": "default",
+    "detached": true,
+    "activity": "idle"
+   },
+   "turns": [],
+   "items": [],
+   "tasks": [],
+   "requests": [],
+   "assignments": []
+  }
+ },
+ "/v2/sessions/session_compat/bootstrap": {
+  "status": 200,
+  "body": {
+   "cursor": 1,
+   "session": {
+    "id": "session_compat",
+    "projectId": "project_compat",
+    "environmentId": "local",
+    "title": "New session",
+    "state": "active",
+    "createdAt": 1791572977771,
+    "updatedAt": 1791572977771,
+    "providerInstanceId": "claude",
+    "driver": "claude",
+    "workspace": {
+     "mode": "local",
+     "path": "/tmp/compat",
+     "baseRef": "ea745de6e6cc6436f62f0e3fb42ba97bc1b887c0"
+    },
+    "envMode": "local",
+    "runtimeMode": "auto",
+    "interactionMode": "default",
+    "detached": true,
+    "activity": "idle"
+   },
+   "turns": [],
+   "items": [],
+   "tasks": [],
+   "requests": [],
+   "assignments": [],
+   "events": [],
+   "subscriptions": []
+  }
+ },
+ "/v2/sessions/session_compat/children": {
+  "status": 404,
+  "body": {
+   "error": {
+    "code": "not_found",
+    "message": "engine endpoint does not exist"
+   }
+  }
+ },
+ "/v2/sessions/session_compat/subscriptions": {
+  "status": 200,
+  "body": {
+   "subscriptions": []
+  }
+ },
+ "/v2/sessions/session_compat/diff": {
+  "status": 200,
+  "body": {
+   "diff": {
+    "repository": true,
+    "workspacePath": "/tmp/compat",
+    "branch": "main",
+    "base": "ea745de6e6cc6436f62f0e3fb42ba97bc1b887c0",
+    "files": [],
+    "commits": [],
+    "linesAdded": 0,
+    "linesRemoved": 0,
+    "truncated": false,
+    "availability": "available",
+    "shared": true
+   }
+  }
+ },
+ "/v2/sessions/session_compat/run/configs": {
+  "status": 200,
+  "body": {
+   "configurations": []
+  }
+ },
+ "/v2/sessions/session_compat/run/status": {
+  "status": 200,
+  "body": {
+   "terminals": [],
+   "sessionWorktreePath": "/tmp/compat"
+  }
+ },
+ "/v2/sessions/session_compat/events?after=0": {
+  "status": 200,
+  "body": {
+   "events": [
+    {
+     "id": 1,
+     "at": 1791572977774,
+     "sessionId": "session_compat",
+     "type": "session.created",
+     "session": {
+      "id": "session_compat",
+      "projectId": "project_compat",
+      "environmentId": "local",
+      "title": "New session",
+      "state": "active",
+      "createdAt": 1791572977771,
+      "updatedAt": 1791572977771,
+      "providerInstanceId": "claude",
+      "driver": "claude",
+      "workspace": {
+       "mode": "local",
+       "path": "/tmp/compat",
+       "baseRef": "ea745de6e6cc6436f62f0e3fb42ba97bc1b887c0"
+      },
+      "envMode": "local",
+      "runtimeMode": "auto",
+      "interactionMode": "default",
+      "detached": true,
+      "activity": "idle"
+     }
+    }
+   ],
+   "cursor": 1,
+   "more": false
+  }
+ }
+}

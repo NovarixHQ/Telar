@@ -8,7 +8,7 @@ import { AppState, Settings } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { hosts } from "../hosts";
 import { appSettings } from "../settings";
-import { alertsToRemove, approvalOf, readsOf, reconcileQueries, sessionLink, sessionOfUrl, type DeliveredAlert, type SessionRef } from "./payload";
+import { alertsToRemove, approvalOf, pairedHostOf, pushHostId, readsOf, reconcileQueries, sessionLink, sessionOfUrl, type DeliveredAlert, type SessionRef } from "./payload";
 import { PushRelay, RELAY_URL, type RelayState } from "./relay";
 import { PushSync } from "./registration";
 
@@ -44,7 +44,7 @@ const registry = new PushSync({
   topic,
   sandbox,
   simulator: !isDevice,
-  hosts: () => hosts.list().map((host) => ({ hostId: host.hostId, name: host.name, register: (body) => host.request("PUT", "/v2/mobile/push", body) })),
+  hosts: () => hosts.list().map((host) => ({ hostId: pushHostId(host.hostId), name: host.name, register: (body) => host.request("PUT", "/v2/mobile/push", body) })),
   prefs: () => appSettings.current,
   allowed,
   credential: (hostId, token) => relay.credential(hostId, token),
@@ -52,6 +52,8 @@ const registry = new PushSync({
 });
 
 let visible: SessionRef | undefined;
+
+const pairedHost = (pushId: string): HostConnection | undefined => hosts.get(pairedHostOf(pushId, hosts.list().map((host) => host.hostId)) ?? pushId);
 
 const delivered = async (): Promise<DeliveredAlert[]> =>
   (await Notifications.getPresentedNotificationsAsync()).map(({ request }) => ({
@@ -77,7 +79,7 @@ async function clearDelivered(sessions: SessionRef[]): Promise<boolean> {
 async function reconcile(): Promise<void> {
   const cleared: SessionRef[] = [];
   for (const [hostId, ids] of reconcileQueries(await delivered())) {
-    const host = hosts.get(hostId);
+    const host = pairedHost(hostId);
     if (!host) continue;
     const answer = await host.request<{ cleared: string[] }>("GET", `/v2/mobile/read-state?ids=${encodeURIComponent(ids.join(","))}`).catch(() => undefined);
     for (const sessionId of answer?.cleared ?? []) if (ids.includes(sessionId)) cleared.push({ hostId, sessionId });
@@ -112,7 +114,7 @@ async function promptAfterPairing(): Promise<void> {
 }
 
 async function approve(hostId: string, sessionId: string, requestId: string): Promise<void> {
-  const host: HostConnection | undefined = hosts.get(hostId);
+  const host = pairedHost(hostId);
   const done = host ? await host.call(false, () => host.client.resolveRequest(sessionId, requestId, { decision: "accept" })).then(() => true, () => false) : false;
   if (done) return;
   const sound = appSettings.current.sound;
@@ -127,7 +129,7 @@ async function approve(hostId: string, sessionId: string, requestId: string): Pr
 export function linkOf(response: Notifications.NotificationResponse | null | undefined): string | undefined {
   if (!response || (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER && response.actionIdentifier !== OPEN)) return undefined;
   const ref = sessionOfUrl(payloadOf(response.notification.request).url);
-  return ref ? sessionLink(ref) : undefined;
+  return ref ? sessionLink({ ...ref, hostId: pairedHost(ref.hostId)?.hostId ?? ref.hostId }) : undefined;
 }
 
 export const launchLink = (): string | undefined => linkOf(Notifications.getLastNotificationResponse());
@@ -156,7 +158,7 @@ export function startPush(): void {
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const ref = sessionOfUrl(payloadOf(notification.request).url);
-      const quiet = ref !== undefined && visible !== undefined && ref.hostId.toUpperCase() === visible.hostId.toUpperCase() && ref.sessionId === visible.sessionId;
+      const quiet = ref !== undefined && visible !== undefined && pushHostId(ref.hostId) === pushHostId(visible.hostId) && ref.sessionId === visible.sessionId;
       return { shouldShowBanner: !quiet, shouldShowList: !quiet, shouldPlaySound: !quiet, shouldSetBadge: false };
     },
   });

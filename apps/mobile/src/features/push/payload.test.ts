@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { alertsToRemove, approvalOf, readsOf, reconcileQueries, sessionLink, sessionOfAlert, sessionOfUrl } from "./payload";
+import { alertsToRemove, approvalOf, pairedHostOf, pushHostId, readsOf, reconcileQueries, sessionLink, sessionOfAlert, sessionOfUrl } from "./payload";
 
 const HOST = "3F2A1B4C-0D5E-4F60-8A9B-1C2D3E4F5A6B";
 
@@ -51,4 +51,12 @@ test("an approve action needs both the session and the request", () => {
   expect(approvalOf({ url, request: "req_1" })).toEqual({ hostId: HOST, sessionId: "s1", requestId: "req_1" });
   expect(approvalOf({ url })).toBeUndefined();
   expect(approvalOf({ url, request: "" })).toBeUndefined();
+});
+
+test("a push names the host by the bare UUID it was registered with, which maps back to the paired host", () => {
+  const paired = [`host_${HOST.toLowerCase()}`, "host_00000000-0000-4000-8000-000000000000"];
+  expect(pushHostId(paired[0]!)).toBe(HOST);
+  expect(pairedHostOf(HOST, paired)).toBe(paired[0]);
+  expect(pairedHostOf("99999999-0000-4000-8000-000000000000", paired)).toBeUndefined();
+  expect(alertsToRemove([{ identifier: "1", threadIdentifier: `${HOST}:s1` }], [{ hostId: paired[0]!, sessionId: "s1" }])).toEqual(["1"]);
 });

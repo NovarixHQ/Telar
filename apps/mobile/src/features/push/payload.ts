@@ -33,7 +33,12 @@ export function readsOf(payload: unknown): SessionRef[] {
   return read.sessions.filter((id): id is string => typeof id === "string" && id !== "").map((sessionId) => ({ hostId, sessionId }));
 }
 
-const key = (ref: SessionRef) => `${ref.hostId.toUpperCase()}:${ref.sessionId}`;
+/** The engine names itself `host_<uuid>` but takes only the bare UUID in a push registration, and echoes that back. */
+export const pushHostId = (hostId: string) => hostId.replace(/^host_/, "").toUpperCase();
+
+export const pairedHostOf = (pushId: string, paired: string[]) => paired.find((hostId) => pushHostId(hostId) === pushHostId(pushId));
+
+const key = (ref: SessionRef) => `${pushHostId(ref.hostId)}:${ref.sessionId}`;
 
 export function alertsToRemove(delivered: DeliveredAlert[], clearing: SessionRef[]): string[] {
   const keys = new Set(clearing.map(key));

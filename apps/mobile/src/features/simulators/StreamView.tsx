@@ -1,4 +1,4 @@
-import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet } from "react-native";
 import WebView from "react-native-webview";
 
 export type StreamEvent = { type: "frame"; width: number; height: number } | { type: "error" };
@@ -6,8 +6,10 @@ export type StreamEvent = { type: "frame"; width: number; height: number } | { t
 const quote = (text: string) => JSON.stringify(text).replace(/</g, "\\u003c");
 
 // WebKit decodes multipart JPEG natively in an <img>, so frames never cross the JS bridge; only size changes do.
-const page = (url: string) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}img{display:block;width:100%;height:100%;-webkit-user-select:none;-webkit-touch-callout:none}</style></head>
+const page = (url: string, rotation: number) => `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}
+img{position:absolute;left:50%;top:50%;width:100vw;height:100vh;object-fit:contain;transform:translate(-50%,-50%) rotate(${rotation}deg);-webkit-user-select:none;-webkit-touch-callout:none}
+${Math.abs(rotation) === 90 ? "img{width:100vh;height:100vw}" : ""}</style></head>
 <body><img id="s" alt=""><script>
 const img=document.getElementById("s");let w=0,h=0;
 const post=(m)=>window.ReactNativeWebView.postMessage(JSON.stringify(m));
@@ -24,12 +26,12 @@ function parseStreamEvent(data: string): StreamEvent | undefined {
   return undefined;
 }
 
-/** One simulator's live MJPEG stream, drawn to fill its box. */
-export function StreamView({ url, style, onEvent }: { url: string; style: StyleProp<ViewStyle>; onEvent: (event: StreamEvent) => void }) {
+/** One simulator's live MJPEG stream, aspect-fitted into the whole of its parent and turned by `rotation` degrees; a new rotation reloads it. */
+export function StreamView({ url, rotation, onEvent }: { url: string; rotation: number; onEvent: (event: StreamEvent) => void }) {
   return (
     <WebView
       originWhitelist={["*"]}
-      source={{ html: page(url) }}
+      source={{ html: page(url, rotation) }}
       onMessage={({ nativeEvent }) => {
         const event = parseStreamEvent(nativeEvent.data);
         if (event) onEvent(event);
@@ -39,8 +41,8 @@ export function StreamView({ url, style, onEvent }: { url: string; style: StyleP
       pointerEvents="none"
       scrollEnabled={false}
       bounces={false}
-      style={[styles.web, style]}
-      containerStyle={style}
+      style={styles.web}
+      containerStyle={StyleSheet.absoluteFill}
       contentInsetAdjustmentBehavior="never"
       dataDetectorTypes="none"
       allowsLinkPreview={false}
@@ -49,4 +51,4 @@ export function StreamView({ url, style, onEvent }: { url: string; style: StyleP
   );
 }
 
-const styles = StyleSheet.create({ web: { backgroundColor: "#000" } });
+const styles = StyleSheet.create({ web: { flex: 1, backgroundColor: "transparent" } });

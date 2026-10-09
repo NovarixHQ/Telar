@@ -34,10 +34,10 @@ function Controls({ simulator, canDrive, shuttingDown, onHome, onRotate, onAppSw
   const watch = Boolean(simulator.pairedWith);
   return (
     <Host matchContents={{ vertical: true }}>
-      <HStack spacing={4} modifiers={[foregroundStyle("#F5F5F5"), padding({ all: 4 }), background({ type: "material", material: "ultraThin" }, shapes.capsule()), padding({ horizontal: 12 }), padding({ top: 4 })]}>
+      <HStack spacing={4} modifiers={[foregroundStyle(Theme.text), padding({ all: 4 }), background({ type: "material", material: "ultraThin" }, shapes.capsule()), padding({ horizontal: 12 }), padding({ top: 4 })]}>
         <VStack spacing={0} modifiers={[frame({ maxWidth: Infinity })]}>
           <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), lineLimit(1)]}>{simulator.name}</Text>
-          {canDrive ? null : <Text modifiers={[Type.metaSmall, foregroundStyle("#A1A1A1")]}>View only</Text>}
+          {canDrive ? null : <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>View only</Text>}
         </VStack>
         {canDrive && !watch ? (
           <>
@@ -81,7 +81,6 @@ export function SimulatorView({ host, simulator, canDrive, active, onGone }: Pro
       .finally(() => setShuttingDown(false));
   };
 
-  const drawn = mapping && rect && rect.width > 0 ? { width: mapping.sideways ? rect.height : rect.width, height: mapping.sideways ? rect.width : rect.height } : undefined;
   return (
     <View style={styles.fill}>
       <Controls
@@ -95,17 +94,10 @@ export function SimulatorView({ host, simulator, canDrive, active, onGone }: Pro
         onShutDown={shutDown}
       />
       <View style={styles.screen} onLayout={({ nativeEvent }) => setBox({ width: nativeEvent.layout.width, height: nativeEvent.layout.height })}>
-        {viewer.url && drawn && rect ? (
-          <StreamView
-            key={viewer.url}
-            url={viewer.url}
-            onEvent={viewer.onStream}
-            style={[styles.stream, { width: drawn.width, height: drawn.height, left: rect.x + (rect.width - drawn.width) / 2, top: rect.y + (rect.height - drawn.height) / 2, transform: [{ rotate: `${mapping?.rotation ?? 0}deg` }] }]}
-          />
-        ) : null}
+        {viewer.url ? <StreamView key={`${viewer.url}#${mapping?.rotation ?? 0}`} url={viewer.url} rotation={mapping?.rotation ?? 0} onEvent={viewer.onStream} /> : null}
         {viewer.frame ? null : (
           <View style={styles.status} pointerEvents="none">
-            {viewer.failed ? <NativeText style={styles.failed}>{viewer.failed}</NativeText> : <ActivityIndicator color="#FFFFFF" />}
+            {viewer.failed ? <NativeText style={styles.failed}>{viewer.failed}</NativeText> : <ActivityIndicator color={Theme.textMuted} />}
           </View>
         )}
         <View
@@ -133,9 +125,8 @@ export function SimulatorView({ host, simulator, canDrive, active, onGone }: Pro
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: "#000000", paddingBottom: 8, gap: 8 },
+  fill: { flex: 1, paddingBottom: 8, gap: 8 },
   screen: { flex: 1 },
-  stream: { position: "absolute" },
   status: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, alignItems: "center", justifyContent: "center", padding: 24 },
-  failed: { color: "#A1A1A1", fontSize: 13, textAlign: "center" },
+  failed: { color: Theme.textMuted, fontSize: 13, textAlign: "center" },
 });

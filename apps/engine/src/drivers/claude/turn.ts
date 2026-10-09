@@ -27,7 +27,6 @@ export type TurnState = {
   lastLimitWarning: LimitWarningSeen | undefined;
   endTurnSeenAt: number | undefined;
   ownResultRead: boolean;
-  silenceTimer: ReturnType<typeof setTimeout> | undefined;
   standingLimit: { resumeAt: number; limitType?: ProviderWaitDetail["limitType"] } | undefined;
   compactionItemId: string | undefined;
   compactionSucceeded: boolean;

@@ -17,8 +17,6 @@ export type LoopCtx = {
   signal: AbortSignal;
   consumeSteerCut: ReturnType<typeof bindSteering>["consumeSteerCut"];
   closeCutTools: ReturnType<typeof bindSteering>["closeCutTools"];
-  armProviderSilence: ReturnType<typeof bindProviderWait>["armProviderSilence"];
-  disarmProviderSilence: ReturnType<typeof bindProviderWait>["disarmProviderSilence"];
   closeProviderWait: ReturnType<typeof bindProviderWait>["closeProviderWait"];
   endTurnGraceMs: number;
 };

@@ -243,139 +243,33 @@ describe("a provider wait is a row, not silence", () => {
   });
 });
 
-describe("a provider wait is a row, not silence", () => {
-  describe("a request that stalls before its headers is a row, not a quiet turn", () => {
-    test("silence past the threshold opens a row, and the reply closes it", async () => {
-      const driver = createClaudeDriver(
-        async () => ({
-          async *query() {
-            yield { type: "system", subtype: "status", status: "requesting" };
-            // The stall: the pump is parked on a frame that is not coming.
-            await new Promise((resolve) => setTimeout(resolve, 80));
-            yield { type: "stream_event", event: { type: "message_start" } };
-            yield { type: "assistant", message: { content: [{ type: "text", text: "late" }] } };
-            yield { type: "result", subtype: "success" };
-          },
-        }),
-        { providerSilenceMs: 20 },
-      );
-      const { sink, result } = run(driver);
-      await expect(result).resolves.toMatchObject({ text: "late" });
-      const started = sink.observations.find((o) => o.kind === "item.started" && o.item.detail.type === "provider_wait");
-      expect(started?.kind === "item.started" && started.item.detail.type === "provider_wait" && started.item.detail.wait.kind).toBe("no_response");
-      // The elapsed time is the row's whole content — it is all anyone knows.
-      const waitedMs =
-        started?.kind === "item.started" && started.item.detail.type === "provider_wait" ? started.item.detail.wait.waitedMs : undefined;
-      expect(waitedMs).toBeGreaterThanOrEqual(20);
-      expect(started?.kind === "item.started" && started.item.title).toMatch(/^The model has not answered after /);
-      // Bounded: the response beginning closes it, so the stall has an end.
-      const waitId = started?.kind === "item.started" ? started.item.id : "";
-      expect(sink.observations.some((o) => o.kind === "item.completed" && o.itemId === waitId && o.status === "completed")).toBeTrue();
-    });
+describe("a slow first token is not a provider wait", () => {
+  test("a request that answers late opens no row", async () => {
+    const driver = createClaudeDriver(async () => ({
+      async *query() {
+        yield { type: "system", subtype: "status", status: "requesting" };
+        yield { type: "stream_event", event: { type: "message_start" } };
+        yield { type: "assistant", message: { content: [{ type: "text", text: "late" }] } };
+        yield { type: "result", subtype: "success" };
+      },
+    }));
+    const { sink, result } = run(driver);
+    await expect(result).resolves.toMatchObject({ text: "late" });
+    expect(sink.observations.some((o) => o.kind === "item.started" && o.item.detail.type === "provider_wait")).toBeFalse();
+  });
 
-    test("the wait it reports is never shorter than the threshold that opened it", async () => {
-      // CI read 19 against a 20 ms threshold: the timer keeps its own clock and
-      // `Date.now()` truncates. Frozen here, the wall clock says no time passed.
-      const driver = createClaudeDriver(
-        async () => ({
-          async *query() {
-            yield { type: "system", subtype: "status", status: "requesting" };
-            await new Promise((resolve) => setTimeout(resolve, 60));
-            yield { type: "stream_event", event: { type: "message_start" } };
-            yield { type: "result", subtype: "success" };
-          },
-        }),
-        { providerSilenceMs: 20 },
-      );
-      const realNow = Date.now;
-      const frozen = realNow();
-      Date.now = () => frozen;
-      try {
-        const { sink, result } = run(driver);
-        await result;
-        const started = sink.observations.find((o) => o.kind === "item.started" && o.item.detail.type === "provider_wait");
-        const waitedMs =
-          started?.kind === "item.started" && started.item.detail.type === "provider_wait" ? started.item.detail.wait.waitedMs : undefined;
-        expect(waitedMs).toBe(20);
-      } finally {
-        Date.now = realNow;
-      }
-    });
-
-    test("a compaction's silence is not a stall: no row, however long it runs", async () => {
-      // The provider announced it, so the quiet is the work. Measured: "The
-      // model has not answered after 30s" stacked under "Compacting context…"
-      // on every long compaction. The request that follows re-arms the watch.
-      const driver = createClaudeDriver(
-        async () => ({
-          async *query() {
-            yield { type: "system", subtype: "status", status: "requesting" };
-            yield { type: "system", subtype: "status", status: "compacting" };
-            await new Promise((resolve) => setTimeout(resolve, 80));
-            yield { type: "system", subtype: "status", status: null, compact_result: "success" };
-            yield { type: "system", subtype: "compact_boundary", compact_metadata: { trigger: "auto", pre_tokens: 900_000, post_tokens: 40_000 } };
-            yield { type: "stream_event", event: { type: "message_start" } };
-            yield { type: "assistant", message: { content: [{ type: "text", text: "after" }] } };
-            yield { type: "result", subtype: "success" };
-          },
-        }),
-        { providerSilenceMs: 20 },
-      );
-      const { sink, result } = run(driver);
-      await expect(result).resolves.toMatchObject({ text: "after" });
-      expect(sink.observations.some((o) => o.kind === "item.started" && o.item.detail.type === "provider_wait")).toBeFalse();
-      expect(sink.observations.some((o) => o.kind === "item.started" && o.item.detail.type === "context_compaction")).toBeTrue();
-    });
-
-    test("a request that answers under the threshold produces no row at all", async () => {
-      const driver = createClaudeDriver(
-        async () => ({
-          async *query() {
-            yield { type: "system", subtype: "status", status: "requesting" };
-            yield { type: "stream_event", event: { type: "message_start" } };
-            yield { type: "assistant", message: { content: [{ type: "text", text: "prompt" }] } };
-            yield { type: "result", subtype: "success" };
-          },
-        }),
-        { providerSilenceMs: 40 },
-      );
-      const { sink, result } = run(driver);
-      await result;
-      expect(sink.observations.some((o) => o.kind === "item.started" && o.item.detail.type === "provider_wait")).toBeFalse();
-      // AND THE WATCH IS DISARMED, not merely beaten: a timer left standing
-      // would open a row about a silence that ended long before it fired.
-      await new Promise((resolve) => setTimeout(resolve, 80));
-      expect(sink.observations.some((o) => o.kind === "item.started" && o.item.detail.type === "provider_wait")).toBeFalse();
-    });
-
-    test("a retry's own account of the silence wins — the engine does not argue with the SDK", async () => {
-      // `api_retry` carries the provider's measured `waited_ms`. Two rows for
-      // one wait would be the engine second-guessing a better witness.
-      const driver = createClaudeDriver(
-        async () => ({
-          async *query() {
-            yield { type: "system", subtype: "status", status: "requesting" };
-            yield {
-              type: "system",
-              subtype: "api_retry",
-              attempt: 1,
-              max_retries: 3,
-              retry_delay_ms: 1_000,
-              error_status: null,
-              no_response: { waited_ms: 120_000 },
-            };
-            await new Promise((resolve) => setTimeout(resolve, 80));
-            yield { type: "result", subtype: "success" };
-          },
-        }),
-        { providerSilenceMs: 20 },
-      );
-      const { sink, result } = run(driver);
-      await result;
-      const waits = sink.observations.flatMap((o) => (o.kind === "item.started" && o.item.detail.type === "provider_wait" ? [o.item.detail.wait] : []));
-      expect(waits).toHaveLength(1);
-      expect(waits[0]?.kind).toBe("api_retry");
-    });
+  test("a retry after no response is still one retry row", async () => {
+    const driver = createClaudeDriver(async () => ({
+      async *query() {
+        yield { type: "system", subtype: "status", status: "requesting" };
+        yield { type: "system", subtype: "api_retry", attempt: 1, max_retries: 3, retry_delay_ms: 1_000, error_status: null, no_response: { waited_ms: 120_000 } };
+        yield { type: "result", subtype: "success" };
+      },
+    }));
+    const { sink, result } = run(driver);
+    await result;
+    const waits = sink.observations.flatMap((o) => (o.kind === "item.started" && o.item.detail.type === "provider_wait" ? [o.item.detail.wait] : []));
+    expect(waits.map((wait) => wait.kind)).toEqual(["api_retry"]);
   });
 });
 

@@ -75,10 +75,6 @@ export function takeProviderWait(
 
 /** The collapsed label, derived once by the engine like every other row's. */
 export function titleForProviderWait(detail: ProviderWaitDetail): string {
-  if (detail.kind === "no_response") {
-    const waited = detail.waitedMs === undefined ? "" : ` after ${durationText(detail.waitedMs)}`;
-    return `The model has not answered${waited}`;
-  }
   if (detail.kind === "rate_limit") {
     // `other` names nothing a person can act on, so it earns no parenthetical.
     const limit = detail.limitType && detail.limitType !== "other" ? ` (${detail.limitType.replaceAll("_", " ")})` : "";
@@ -113,7 +109,5 @@ export class RateLimitedError extends Error {
     if (limitType !== undefined) this.limitType = limitType;
   }
 }
-
-export const PROVIDER_SILENCE_MS = 30_000;
 
 export const END_TURN_GRACE_MS = 2_000;

@@ -307,8 +307,7 @@ describe("the session runtime", () => {
   test("background work nobody has watched for the ceiling is stopped, and the process that held it ends", async () => {
     const ended: string[] = [];
     const stopped: string[] = [];
-    // 30 ms stands in for thirty minutes: the ceiling is injected for exactly
-    // the reason `providerSilenceMs` is — so a test never sleeps for a real one.
+    // 30 ms stands in for thirty minutes, so a test never sleeps for a real one.
     const driver = backgroundWorkDriver(ended, stopped, 30);
     await run(driver, { sessionId: "session_unattended" }).result;
 

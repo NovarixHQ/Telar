@@ -8,7 +8,7 @@ import { ProviderUnavailableError, requireCwd, type DriverResult, type DriverRun
 import { claudeInitialContent, claudeNotificationOrigin, claudeNotificationContent, claudeStreamingInputEnabled, claudeComputerUse, claudeContextEnvForModel, claudeToolSearchEnv, SESSION_STATE_ENV, claudeWindowOf, selectedContextMaxFromModel, claudeEffort, type ClaudeTurnBindings, type ClaudeSdk } from "./sdk";
 import { str } from "./mapping";
 import { isTerminalTaskState } from "./tasks";
-import { providerWaitFrom, RateLimitedError, PROVIDER_SILENCE_MS, END_TURN_GRACE_MS } from "./limits";
+import { providerWaitFrom, RateLimitedError, END_TURN_GRACE_MS } from "./limits";
 import { bindBlocks, type OpenBlock, type StreamingInput } from "./observations";
 import { gateFor } from "./permission-gate";
 import type { SdkFrame } from "./frames";
@@ -50,7 +50,6 @@ export function createClaudeDriver(
   loadSdk: () => Promise<ClaudeSdk> = () => import("@anthropic-ai/claude-agent-sdk") as Promise<ClaudeSdk>,
   options: {
     resolveExecutable?: (binaryPath?: string) => string | undefined;
-    providerSilenceMs?: number;
     /** How long to wait for a `result` after `end_turn` — see
      *  `END_TURN_GRACE_MS`. Injected so a test does not sleep for the real one. */
     endTurnGraceMs?: number;
@@ -62,7 +61,6 @@ export function createClaudeDriver(
   } = {},
 ): TurnDriver {
   const resolveExecutable = options.resolveExecutable ?? defaultClaudeExecutable;
-  const providerSilenceMs = options.providerSilenceMs ?? PROVIDER_SILENCE_MS;
   const endTurnGraceMs = options.endTurnGraceMs ?? END_TURN_GRACE_MS;
   const backgroundClaimLingerMs = options.backgroundClaimLingerMs ?? BACKGROUND_CLAIM_LINGER_MS;
   /** sessionId → live query. Owned per driver instance so every test gets
@@ -85,14 +83,13 @@ export function createClaudeDriver(
     capabilities: CLAUDE_CAPABILITIES,
     dispose: () => runtimes.destroyAll(),
     stopTask: (sessionId, providerTaskId) => runtimes.stopTask(sessionId, providerTaskId),
-    run: (input) => runClaudeTurn({ loadSdk, resolveExecutable, providerSilenceMs, endTurnGraceMs, backgroundClaimLingerMs, runtimes }, input),
+    run: (input) => runClaudeTurn({ loadSdk, resolveExecutable, endTurnGraceMs, backgroundClaimLingerMs, runtimes }, input),
   };
 }
 
 type DriverDeps = {
   loadSdk: () => Promise<ClaudeSdk>;
   resolveExecutable: (binaryPath?: string) => string | undefined;
-  providerSilenceMs: number;
   endTurnGraceMs: number;
   backgroundClaimLingerMs: number;
   runtimes: ClaudeRuntimeStore<ClaudeTurnBindings, TaskSeed>;
@@ -102,7 +99,7 @@ type TurnScope = Awaited<ReturnType<typeof openTurn>>;
 
 async function openTurn(deps: DriverDeps, input: DriverRun) {
   const { prompt, notification, sessionId, cwd: claimedCwd, model, effort, fastMode, ultracode, attachments, computerUse, autoCompact, onObservations, onRequest, providerSessionId, browserSocket, tasks: seededTasks, session: sessionHooks } = input;
-  const { loadSdk, providerSilenceMs, backgroundClaimLingerMs, runtimes } = deps;
+  const { loadSdk, backgroundClaimLingerMs, runtimes } = deps;
   const turn = {} as TurnState;
   const { flush, flushSoon, emit } = createEmitter(turn);
   
@@ -132,7 +129,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
   turn.completed = false;
   
   turn.contextMax = selectedContextMaxFromModel(model);
-  const { decorateUsage, closeProviderWait, disarmProviderSilence, armProviderSilence } = bindProviderWait({ turn, emit, flush, providerSilenceMs });
+  const { decorateUsage, closeProviderWait } = bindProviderWait({ turn, emit });
   
   /** Our main loop's successful `result` has been read — on a process that
    *  reports session state, that is when an `idle` can be ours. */
@@ -190,7 +187,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
   const { onSteered, consumeSteerCut, closeCutTools } = bindSteering({ turn, emit });
   identifyTurn(deps, input, turn);
   const { buildRuntime } = bindRuntime({ turn, attachments, browserSocket, fastMode, model, notification, prompt, providerSessionId, seededTasks, sessionId, ultracode });
-  return { turn, emit, flush, flushSoon, decorateUsage, closeProviderWait, disarmProviderSilence, armProviderSilence, closeBlock, liveBackgroundTasks, reportLostBackgroundWork, noteTaskOutput, handleTaskFrame, backgroundGate, startIdlePump, onSteered, consumeSteerCut, closeCutTools, buildRuntime };
+  return { turn, emit, flush, flushSoon, decorateUsage, closeProviderWait, closeBlock, liveBackgroundTasks, reportLostBackgroundWork, noteTaskOutput, handleTaskFrame, backgroundGate, startIdlePump, onSteered, consumeSteerCut, closeCutTools, buildRuntime };
 }
 
 // The query options and the reuse fingerprint are computed together so they cannot disagree.
@@ -425,7 +422,7 @@ async function raceEndTurnGrace<S>(turn: TurnState, endTurnGraceMs: number, read
 }
 
 async function readTurn(loopCtx: LoopCtx, scope: TurnScope): Promise<void> {
-  const { turn, emit, flush, closeProviderWait, disarmProviderSilence, reportLostBackgroundWork, handleTaskFrame } = scope;
+  const { turn, emit, flush, closeProviderWait, reportLostBackgroundWork, handleTaskFrame } = scope;
   for (;;) {
     const step = turn.runtime.parked.length > 0
       ? { done: false as const, value: turn.runtime.parked.shift()! }
@@ -467,7 +464,6 @@ async function readTurn(loopCtx: LoopCtx, scope: TurnScope): Promise<void> {
     }
     const ourLoopSpoke =
       ours && (item.type === "stream_event" || item.type === "assistant" || item.type === "user" || item.type === "result");
-    if (ourLoopSpoke) disarmProviderSilence();
     if (
       ourLoopSpoke &&
       (item.type === "user" || item.type === "result" || (item.type === "stream_event" && item.event?.type === "message_start"))
@@ -522,7 +518,7 @@ async function readTurn(loopCtx: LoopCtx, scope: TurnScope): Promise<void> {
 
 async function finishTurn(input: DriverRun, scope: TurnScope): Promise<DriverResult> {
   const { signal } = input;
-  const { turn, emit, flush, closeProviderWait, disarmProviderSilence, closeBlock } = scope;
+  const { turn, emit, flush, closeProviderWait, closeBlock } = scope;
   if (signal.aborted) throw signal.reason ?? new Error("driver cancelled");
   if (!turn.completed && turn.standingLimit) throw new RateLimitedError(turn.standingLimit.resumeAt, turn.standingLimit.limitType);
   if (!turn.completed) throw new Error("Claude ended without a successful result");
@@ -538,7 +534,6 @@ async function finishTurn(input: DriverRun, scope: TurnScope): Promise<DriverRes
   // The plan is turn-scoped and has no tool_result to close it.
   if (turn.planItemId) emit({ kind: "item.completed", itemId: turn.planItemId, status: "completed" });
   closeProviderWait();
-  disarmProviderSilence();
   // A compaction the stream ended inside is over: finished if the CLI
   // said so and only the boundary never came, failed otherwise.
   if (turn.compactionItemId) emit({ kind: "item.completed", itemId: turn.compactionItemId, status: turn.compactionSucceeded ? "completed" : "failed" });
@@ -564,7 +559,7 @@ async function runClaudeTurn(deps: DriverDeps, input: DriverRun): Promise<Driver
   pumpSteering(input, scope);
   turn.streamEnded = false;
   const onAbort = armAbort(deps, input, turn);
-  const loopCtx: LoopCtx = { turn, noteTaskOutput: scope.noteTaskOutput, emit: scope.emit, flush: scope.flush, decorateUsage: scope.decorateUsage, flushSoon: scope.flushSoon, closeBlock: scope.closeBlock, sessionId, signal, consumeSteerCut: scope.consumeSteerCut, closeCutTools: scope.closeCutTools, armProviderSilence: scope.armProviderSilence, disarmProviderSilence: scope.disarmProviderSilence, closeProviderWait: scope.closeProviderWait, endTurnGraceMs: deps.endTurnGraceMs };
+  const loopCtx: LoopCtx = { turn, noteTaskOutput: scope.noteTaskOutput, emit: scope.emit, flush: scope.flush, decorateUsage: scope.decorateUsage, flushSoon: scope.flushSoon, closeBlock: scope.closeBlock, sessionId, signal, consumeSteerCut: scope.consumeSteerCut, closeCutTools: scope.closeCutTools, closeProviderWait: scope.closeProviderWait, endTurnGraceMs: deps.endTurnGraceMs };
   const { runtimes } = deps;
   try {
     await readTurn(loopCtx, scope);

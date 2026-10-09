@@ -146,6 +146,16 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
     void send(text);
   });
 
+  // `-telarDictateOnOpen <seconds>` listens for that long once the session has loaded, for the same reason.
+  const dictatedOnOpen = useRef(false);
+  useEffect(() => {
+    const seconds = Number(Settings.get("telarDictateOnOpen"));
+    if (dictatedOnOpen.current || !feed.head || !dictationAvailable || !(seconds > 0)) return;
+    dictatedOnOpen.current = true;
+    dictation.toggle();
+    setTimeout(() => void dictation.finish(), seconds * 1000);
+  });
+
   const controls = useMemo(() => (host && session ? <SessionMenus host={host} session={session} onChanged={(work) => void act(() => work)} /> : undefined), [host, session]);
 
   const shownProblem = problem ?? dictation.problem;

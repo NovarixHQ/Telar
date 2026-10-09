@@ -23,11 +23,19 @@ test("each open request gets the Swift app's symbol, title and preview, and only
   expect(cards[0]!.preview!.maxHeight).toBe(80);
 });
 
-test("questions and logins are shown but answered on the computer for now", () => {
+test("a question with choices or free text is answered on the phone, one page per field", () => {
+  const [card] = openRequests([
+    request("q", { kind: "user_input", prompt: "Pick", fields: [{ key: "branch", label: "Which branch?", kind: "choice", choices: ["main", "dev"] }, { key: "why", label: "Why?", kind: "text" }] }),
+  ]);
+  expect(card!.question?.pages.map((page) => page.key)).toEqual(["branch", "why"]);
+});
+
+test("other questions and logins are shown but answered on the computer for now", () => {
   const [question, login] = openRequests([
-    request("q", { kind: "user_input", prompt: "Which branch?", fields: [] }),
+    request("q", { kind: "user_input", prompt: "Proceed?", fields: [{ key: "ok", label: "Proceed?", kind: "boolean" }] }),
     request("s", { kind: "secret_access", secret: { origin: "https://example.com", candidates: [] } } as unknown as EngineRequest["detail"]),
   ]);
-  expect(question).toMatchObject({ symbol: "questionmark.bubble", title: "Question", note: "Which branch?", decidable: false });
+  expect(question).toMatchObject({ symbol: "questionmark.bubble", title: "Question", note: "Proceed?", decidable: false });
+  expect(question!.question).toBeUndefined();
   expect(login).toMatchObject({ symbol: "key.fill", title: "Fill a login", cwd: "https://example.com", decidable: false });
 });

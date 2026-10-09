@@ -27,13 +27,15 @@ test("Stop ends the live turn and what was queued behind it", async () => {
   expect(posted).toEqual([{ path: "/api/sessions/s1/stop", body: { scope: "session", by: "user" } }]);
 });
 
-test("an answer carries the person's decision, and a decline its reason", async () => {
+test("an answer carries the person's decision, a decline its reason and a question its answers by field", async () => {
   const { host, posted } = await online();
   await answerRequest(host, "s1", "req_1", "acceptForSession");
-  await answerRequest(host, "s1", "req_2", "decline", "Use the staging folder");
+  await answerRequest(host, "s1", "req_2", "decline", { reason: "Use the staging folder" });
+  await answerRequest(host, "s1", "req_3", "accept", { answers: { branch: "main", checks: ["lint", "test"] } });
   expect(posted).toEqual([
     { path: "/api/sessions/s1/requests/req_1", body: { decision: "acceptForSession" } },
     { path: "/api/sessions/s1/requests/req_2", body: { decision: "decline", reason: "Use the staging folder" } },
+    { path: "/api/sessions/s1/requests/req_3", body: { decision: "accept", answers: { branch: "main", checks: ["lint", "test"] } } },
   ]);
 });
 

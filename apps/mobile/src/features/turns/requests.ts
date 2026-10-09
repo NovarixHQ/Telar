@@ -1,4 +1,5 @@
 import type { EngineRequest, FileChangeKind } from "@telar/engine-client";
+import { questionDraft, type QuestionDraft } from "./question";
 
 export type RequestCard = {
   id: string;
@@ -8,6 +9,8 @@ export type RequestCard = {
   preview?: { text: string; maxHeight: number };
   note?: string;
   decidable: boolean;
+  /** A question the phone can answer: choices and free text, one page per field. */
+  question?: QuestionDraft;
 };
 
 const KIND_VERB: Record<FileChangeKind, string> = { create: "Create", edit: "Edit", delete: "Delete", rename: "Rename" };
@@ -41,8 +44,10 @@ function requestCard(request: EngineRequest): RequestCard {
       const input = pretty(detail.call.input);
       return { id, symbol: "wrench.and.screwdriver", title: toolName(detail.call.name), ...(input ? { preview: { text: input, maxHeight: 160 } } : {}), decidable: true };
     }
-    case "user_input":
-      return { id, symbol: "questionmark.bubble", title: "Question", note: detail.prompt, decidable: false };
+    case "user_input": {
+      const question = questionDraft(detail.fields);
+      return { id, symbol: "questionmark.bubble", title: "Question", note: detail.prompt, decidable: false, ...(question ? { question } : {}) };
+    }
     case "secret_access":
       return { id, symbol: "key.fill", title: "Fill a login", cwd: detail.secret.origin, decidable: false };
   }

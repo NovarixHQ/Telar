@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PlatformColor, Settings, StyleSheet, Text, TextInput, View, type TextInputInstance } from "react-native";
+import { composerPaste } from "../../../modules/composer-paste";
 import { CaretPill, type DictationPhase } from "../dictation";
 import { MicButton, ROW, SlotButton } from "./buttons";
 import { Glass } from "./chrome";
 import type { Completion } from "./completions";
 import { followCaret, scrolled } from "./follow";
+import type { Picked } from "./intake";
+import { listenForPaste } from "./paste";
 import { PlusMenu, type PlusMenuProps } from "./PlusMenu";
 import type { Slot } from "./slot";
 import { SuggestionList } from "./SuggestionList";
@@ -26,6 +29,8 @@ type Props = {
   below?: ReactNode;
   dictation?: { phase: DictationPhase; language: string | undefined; heard: string; toggle: () => void };
   suggestions?: { rows: Completion[]; loading: boolean; onPick: (row: Completion) => void };
+  /** Images pasted into the field, by the Paste menu or ⌘V. */
+  onPasteFiles: (files: Picked[]) => void;
 };
 
 // `-telarFocusOnOpen YES` at launch raises the keyboard on the field, so a simulator can show it without a tap.
@@ -34,8 +39,12 @@ const LINE = 21;
 const MAX_LINES = 6;
 
 /** The row the Swift app draws: plus menu, the glass field with its mic, and the send or stop circle. */
-export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, autoFocus = false, below, dictation, suggestions }: Props) {
+export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, autoFocus = false, below, dictation, suggestions, onPasteFiles }: Props) {
   const field = useRef<TextInputInstance>(null);
+  const pasted = useRef(onPasteFiles);
+  pasted.current = onPasteFiles;
+  const [focused, setFocused] = useState(false);
+  useEffect(() => (focused ? listenForPaste(composerPaste, (files) => pasted.current(files)) : undefined), [focused]);
   // Swift waits out the push before raising the keyboard; focusing before the field is on screen is dropped.
   const focusTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(focusTimer.current), []);
@@ -88,6 +97,8 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
               accessibilityLabel={placeholder}
               value={draft}
               onChangeText={onDraft}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               onSelectionChange={(event) => onCaret(event.nativeEvent.selection.end)}
               onScroll={({ nativeEvent: { contentOffset, layoutMeasurement, contentSize } }) => {
                 scroll.current = scrolled(scroll.current, { offset: contentOffset.y, height: layoutMeasurement.height, content: contentSize.height }, LINE);

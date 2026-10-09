@@ -83,6 +83,7 @@ export function DraftComposer({ keyboard, host, draftKey, placeholder, controls,
           placeholder={placeholder}
           slot={slot}
           onSlot={() => void send()}
+          onPasteFiles={attachments.paste}
           menu={{ controls, onAttach: (kind) => void attachments.pick(kind) }}
           autoFocus
           above={attachments.files.length ? <AttachmentStrip rows={attachments.rows} uploading={false} onRemove={attachments.remove} /> : null}

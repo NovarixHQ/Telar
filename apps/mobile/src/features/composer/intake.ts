@@ -32,6 +32,12 @@ export function intake(picked: Picked, fallback: string): Intake {
   return { file: { uri: picked.uri, name, mediaType } };
 }
 
+/** Picked or pasted files split into those cleared for attaching and the reasons the rest were refused. */
+export function takeFiles(picked: Picked[], fallback: string): { files: { uri: string; name: string; mediaType: string }[]; refusals: string[] } {
+  const taken = picked.map((item) => intake(item, fallback));
+  return { files: taken.flatMap((item) => ("file" in item ? [item.file] : [])), refusals: taken.flatMap((item) => ("refused" in item ? [item.refused] : [])) };
+}
+
 export function attachmentSymbol(mediaType: string): string {
   if (mediaType.startsWith("image/")) return "photo";
   if (mediaType.startsWith("video/")) return "film";

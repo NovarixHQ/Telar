@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { HostConnection } from "../../platform/connection";
+import { HostConnection, HostRegistry } from "../../platform/connection";
 import { fakeClock, fakeNetwork, identityOf, until } from "../../platform/connection/testing";
 import { listDirectories, otherRoots, parseFolderPath, registerProject } from "./directories";
 
@@ -46,10 +46,28 @@ test("adding a project posts its name and root, falling back to the folder's nam
   const project = { id: "p1", name: "app", root: "/Users/me/app" };
   const { host, calls } = online(() => Response.json({ project }, { status: 201 }));
   await until(host, "online");
-  expect(await registerProject(host, "/Users/me/app", "  ", "app")).toEqual(project as never);
-  await registerProject(host, "/Users/me/app", " Telar ", "app");
+  expect(await registerProject({ get: () => host }, HOST, "/Users/me/app", "  ", "app")).toEqual(project as never);
+  await registerProject({ get: () => host }, HOST, "/Users/me/app", " Telar ", "app");
   expect(calls).toEqual([
     { path: "/api/projects", method: "POST", body: { name: "app", root: "/Users/me/app" } },
     { path: "/api/projects", method: "POST", body: { name: "Telar", root: "/Users/me/app" } },
   ]);
+});
+
+test("with two computers paired, a project is added on the one chosen and the other hears nothing", async () => {
+  const STUDIO = "http://192.168.1.30:3000";
+  const posted: string[] = [];
+  const mac = (hostId: string, origin: string) => (path: string) => {
+    if (path === "/api/identity") return identityOf(hostId);
+    posted.push(`${origin}${path}`);
+    return Response.json({ project: { id: "p9", name: "app", root: "/code/app" } }, { status: 201 });
+  };
+  const network = fakeNetwork({ [MAC]: mac(HOST, MAC), [STUDIO]: mac("host_studio", STUDIO) });
+  const registry = new HostRegistry({ fetch: network.fetch, clock: fakeClock(), random: () => 0 });
+  registry.add({ hostId: HOST, name: "Mini", token: "a", paired: [MAC] });
+  const studio = registry.add({ hostId: "host_studio", name: "Studio", token: "b", paired: [STUDIO] });
+  await until(studio, "online");
+  await registerProject(registry, "host_studio", "/code/app", "", "app");
+  expect(posted).toEqual([`${STUDIO}/api/projects`]);
+  await expect(registerProject(registry, "host_gone", "/code/app", "", "app")).rejects.toThrow("no longer paired");
 });

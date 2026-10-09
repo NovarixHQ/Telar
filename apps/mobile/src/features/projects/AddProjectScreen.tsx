@@ -28,7 +28,7 @@ import { hosts } from "../hosts";
 import { listDirectories, otherRoots, parseFolderPath, registerProject } from "./directories";
 
 type Entry = { name: string; path: string; git?: boolean };
-type PageProps = { host: HostConnection; path?: string; onOpen: (path: string) => void; onAdded: (project: Project) => void };
+type PageProps = { host: HostConnection; hostId: string; path?: string; onOpen: (path: string) => void; onAdded: (project: Project) => void };
 
 const failure = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -101,7 +101,7 @@ function PathField({ host, onOpen }: { host: HostConnection; onOpen: (path: stri
 }
 
 /** One folder on the host: use it as the project, or open one inside it. */
-function FolderPage({ host, path, onOpen, onAdded }: PageProps) {
+function FolderPage({ host, hostId, path, onOpen, onAdded }: PageProps) {
   const [listing, setListing] = useState<DirectoryListing>();
   const [error, setError] = useState<string>();
   const [naming, setNaming] = useState(false);
@@ -117,7 +117,7 @@ function FolderPage({ host, path, onOpen, onAdded }: PageProps) {
     setRegistering(true);
     setProblem(undefined);
     try {
-      onAdded(await registerProject(host, listing.path, name.get(), listing.name));
+      onAdded(await registerProject(hosts, hostId, listing.path, name.get(), listing.name));
     } catch (cause) {
       setProblem(failure(cause));
     }
@@ -174,7 +174,7 @@ export function AddProjectScreen({ hostId, onAdded, onCancel }: { hostId: string
     <Host style={{ flex: 1 }}>
       <NavigationStack path={path} onPathChange={setPath} modifiers={[tint(Theme.accent)]}>
         <Toolbar>
-          <FolderPage host={host} onOpen={open} onAdded={onAdded} />
+          <FolderPage host={host} hostId={hostId} onOpen={open} onAdded={onAdded} />
           <Toolbar.Content>
             <ToolbarItem placement="cancellationAction">
               <Button label="Cancel" onPress={onCancel} />
@@ -183,7 +183,7 @@ export function AddProjectScreen({ hostId, onAdded, onCancel }: { hostId: string
         </Toolbar>
         {path.map((folder) => (
           <NavigationDestination key={folder} value={folder}>
-            <FolderPage host={host} path={folder} onOpen={open} onAdded={onAdded} />
+            <FolderPage host={host} hostId={hostId} path={folder} onOpen={open} onAdded={onAdded} />
           </NavigationDestination>
         ))}
       </NavigationStack>

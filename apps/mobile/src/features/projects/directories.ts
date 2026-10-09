@@ -1,5 +1,7 @@
 import type { DirectoryListing, Project } from "@telar/engine-client";
-import type { HostConnection } from "../../platform/connection";
+import type { HostConnection, HostRegistry } from "../../platform/connection";
+
+type Hosts = Pick<HostRegistry, "get">;
 
 export type FolderPath = { ok: true; path: string } | { ok: false; message: string };
 
@@ -23,7 +25,10 @@ export function listDirectories(host: HostConnection, path?: string): Promise<Di
   return host.request("GET", path ? `/v2/fs?${new URLSearchParams({ path }).toString()}` : "/v2/fs");
 }
 
-export async function registerProject(host: HostConnection, root: string, name: string, fallback: string): Promise<Project> {
+/** Registers `root` on the computer chosen for it; a blank name falls back to the folder's. */
+export async function registerProject(registry: Hosts, hostId: string, root: string, name: string, fallback: string): Promise<Project> {
+  const host = registry.get(hostId);
+  if (!host) throw new Error("That computer is no longer paired.");
   const { project } = await host.call(false, () => host.client.registerProject({ name: name.trim() || fallback, root }));
   return project;
 }

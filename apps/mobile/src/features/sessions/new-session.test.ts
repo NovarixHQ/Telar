@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import type { LiveSessionsAnswer } from "@telar/engine-client";
-import { HostConnection } from "../../platform/connection";
+import { HostConnection, HostRegistry } from "../../platform/connection";
 import { fakeClock, fakeNetwork, identityOf, until } from "../../platform/connection/testing";
-import { createdRoute, pickerSections, preferredTarget, projectActivity, projectTargets, sessionTitle, startSession, workspaceLabel, type NewSession } from "./new-session";
+import { createdRoute, pickerSections, targetState, preferredTarget, projectActivity, projectTargets, sessionTitle, startSession, workspaceLabel, type NewSession } from "./new-session";
 
 const MAC = "http://192.168.1.20:3000";
 const HOST = "host_00000000-0000-0000-0000-000000000001";
@@ -60,7 +60,7 @@ test("starting a session creates it on the project, then sends the first message
   const { host, calls } = online({ "POST /api/projects/p1/sessions": created, "POST /api/sessions/s1/turns": accepted });
   await until(host, "online");
   const seen: string[] = [];
-  expect(await startSession(host, { ...draft, workspace: { envMode: "worktree", branchName: " fix-login " } }, undefined, (id) => seen.push(id))).toBe("s1");
+  expect(await startSession({ get: () => host }, HOST, { ...draft, workspace: { envMode: "worktree", branchName: " fix-login " } }, undefined, (id) => seen.push(id))).toBe("s1");
   expect(seen).toEqual(["s1"]);
   expect(calls).toEqual([
     { method: "POST", path: "/api/projects/p1/sessions", body: { title: "Fix the login bug", driver: "claude", envMode: "worktree", branchName: "fix-login" } },
@@ -71,7 +71,7 @@ test("starting a session creates it on the project, then sends the first message
 test("a chosen model and access are set on the new session before the message goes, and a checkout never names a branch", async () => {
   const { host, calls } = online({ "POST /api/projects/p1/sessions": created, "PATCH /api/sessions/s1": () => Response.json({ session: {} }), "POST /api/sessions/s1/turns": accepted });
   await until(host, "online");
-  await startSession(host, { ...draft, workspace: { envMode: "local", branchName: "kept" }, driver: "codex", choice: { model: "gpt-5", effort: "high" }, runtimeMode: "full-access" }, undefined, () => {});
+  await startSession({ get: () => host }, HOST, { ...draft, workspace: { envMode: "local", branchName: "kept" }, driver: "codex", choice: { model: "gpt-5", effort: "high" }, runtimeMode: "full-access" }, undefined, () => {});
   expect(calls.map((call) => [call.method, call.path, call.body])).toEqual([
     ["POST", "/api/projects/p1/sessions", { title: "Fix the login bug", driver: "codex", envMode: "local" }],
     ["PATCH", "/api/sessions/s1", { model: { instanceId: "claude", model: "gpt-5", effort: "high" }, runtimeMode: "full-access" }],
@@ -82,7 +82,7 @@ test("a chosen model and access are set on the new session before the message go
 test("a retry after a failed send reuses the session already made", async () => {
   const { host, calls } = online({ "POST /api/sessions/s1/turns": accepted });
   await until(host, "online");
-  await startSession(host, draft, "s1", () => {
+  await startSession({ get: () => host }, HOST, draft, "s1", () => {
     throw new Error("not created again");
   });
   expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual(["POST /api/sessions/s1/turns"]);
@@ -90,4 +90,43 @@ test("a retry after a failed send reuses the session already made", async () => 
 
 test("once created, the form gives way to the new session", () => {
   expect(createdRoute(HOST, "s1", "Fix   the\nlogin bug")).toEqual({ name: "Session", params: { hostId: HOST, sessionId: "s1", title: "Fix the login bug" } });
+});
+
+test("two computers' projects merge into one list, and the picker names the computer of a recent one", () => {
+  const state = targetState([
+    { hostId: "a", name: "Mini", answer: answer([project("p1", "api")], [{ projectId: "p1", updatedAt: 3 }]) },
+    { hostId: "b", name: "Studio", answer: answer([project("p1", "api"), project("p2", "web")]) },
+  ]);
+  expect(state.targets.map((target) => `${target.hostName}/${target.project.name}`)).toEqual(["Mini/api", "Studio/api", "Studio/web"]);
+  expect(pickerSections(state.targets, state.activity, undefined).map((section) => [section.title, section.targets.map((target) => target.hostId)])).toEqual([
+    ["Recent", ["a"]],
+    ["Studio", ["b", "b"]],
+  ]);
+  expect(state).toMatchObject({ computers: 2, loading: false, unreachable: [] });
+});
+
+test("a computer that did not answer is named, and the other's projects still show", () => {
+  const state = targetState([
+    { hostId: "a", name: "Mini", failed: "offline" },
+    { hostId: "b", name: "Studio", answer: answer([project("p2", "web")]) },
+  ]);
+  expect(state.targets.map((target) => target.project.id)).toEqual(["p2"]);
+  expect(state).toMatchObject({ loading: false, unreachable: ["Mini"] });
+  expect(targetState([{ hostId: "a", name: "Mini" }]).loading).toBe(true);
+});
+
+test("the session is created on the computer that owns the chosen project", async () => {
+  const STUDIO = "http://192.168.1.30:3000";
+  const seen: string[] = [];
+  const mac = (hostId: string, origin: string) => (path: string, init: RequestInit) => {
+    if (path === "/api/identity") return identityOf(hostId);
+    seen.push(`${init.method} ${origin}${path}`);
+    return path.endsWith("/turns") ? accepted() : created();
+  };
+  const network = fakeNetwork({ [MAC]: mac(HOST, MAC), [STUDIO]: mac("host_studio", STUDIO) });
+  const registry = new HostRegistry({ fetch: network.fetch, clock: fakeClock(), random: () => 0 });
+  await until(registry.add({ hostId: HOST, name: "Mini", token: "a", paired: [MAC] }), "online");
+  await until(registry.add({ hostId: "host_studio", name: "Studio", token: "b", paired: [STUDIO] }), "online");
+  await startSession(registry, "host_studio", draft, undefined, () => {});
+  expect(seen).toEqual([`POST ${STUDIO}/api/projects/p1/sessions`, `POST ${STUDIO}/api/sessions/s1/turns`]);
 });

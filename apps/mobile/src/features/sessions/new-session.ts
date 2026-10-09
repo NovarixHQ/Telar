@@ -1,6 +1,6 @@
 import type { EnvMode, LiveSessionsAnswer, ProviderDriverKind, RuntimeMode } from "@telar/engine-client";
 import { sessionModelSelection, type ModelChoice } from "@telar/client/providers";
-import type { HostConnection } from "../../platform/connection";
+import type { HostRegistry } from "../../platform/connection";
 
 type Project = LiveSessionsAnswer["projects"][number];
 
@@ -17,12 +17,12 @@ const keyOf = (target: Target) => targetKey(target.hostId, target.project.id);
 const byName = (a: Project, b: Project) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
 
 /** Every computer's projects, each computer's sorted by name. */
-export function projectTargets(computers: { hostId: string; name: string; answer: LiveSessionsAnswer | undefined }[]): Target[] {
+export function projectTargets(computers: readonly Computer[]): Target[] {
   return computers.flatMap(({ hostId, name, answer }) => [...(answer?.projects ?? [])].sort(byName).map((project) => ({ hostId, hostName: name, project })));
 }
 
 /** When each project last had a session move. */
-export function projectActivity(computers: { hostId: string; answer: LiveSessionsAnswer | undefined }[]): Map<string, number> {
+export function projectActivity(computers: readonly Computer[]): Map<string, number> {
   const latest = new Map<string, number>();
   for (const { hostId, answer } of computers) {
     for (const session of answer?.sessions ?? []) {
@@ -32,6 +32,19 @@ export function projectActivity(computers: { hostId: string; answer: LiveSession
     }
   }
   return latest;
+}
+
+type Computer = { hostId: string; name: string; answer?: LiveSessionsAnswer | undefined; failed?: string | undefined };
+
+/** Every paired computer's projects at once; one that did not answer is named, and never hides the others. */
+export function targetState(computers: readonly Computer[]) {
+  return {
+    targets: projectTargets(computers),
+    activity: projectActivity(computers),
+    loading: computers.every((computer) => !computer.answer && !computer.failed),
+    unreachable: computers.filter((computer) => !computer.answer && computer.failed).map((computer) => computer.name),
+    computers: computers.length,
+  };
 }
 
 /** The last one used first, then the most recently active, five at most. */
@@ -102,10 +115,12 @@ export type NewSession = {
 };
 
 /**
- * Creates the session, applies the chosen model and access, then sends the first message.
+ * Creates the session on the target's own computer, applies the chosen model and access, then sends the first message.
  * `created` is the session a failed earlier try already made, so a retry never makes a second one.
  */
-export async function startSession(host: HostConnection, draft: NewSession, created: string | undefined, onCreated: (sessionId: string) => void): Promise<string> {
+export async function startSession(registry: Pick<HostRegistry, "get">, hostId: string, draft: NewSession, created: string | undefined, onCreated: (sessionId: string) => void): Promise<string> {
+  const host = registry.get(hostId);
+  if (!host) throw new Error("That computer is no longer paired.");
   let sessionId = created;
   if (!sessionId) {
     const { session } = await host.request<{ session: { id: string; providerInstanceId: string } }>("POST", `/v2/projects/${encodeURIComponent(draft.projectId)}/sessions`, createBody(draft.workspace, draft.driver, draft.prompt));

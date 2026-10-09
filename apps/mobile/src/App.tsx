@@ -32,7 +32,7 @@ function subscribe(listener: (url: string) => void): () => void {
 
 const linking: LinkingOptions<RootStack> = {
   prefixes: ["telar://"],
-  config: { initialRouteName: "Rail", screens: { Pair: "pair", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } },
+  config: { initialRouteName: "Rail", screens: { Pair: "pair", NewSession: "new", AddProject: "add-project/:hostId", Session: "session/:hostId/:sessionId", Panel: "panel/:hostId/:sessionId/:tab?" } },
   getInitialURL: initialUrl,
   subscribe,
 };

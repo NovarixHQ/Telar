@@ -3,8 +3,8 @@ import { background, buttonStyle, clipShape, disabled, font, foregroundStyle, fr
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { EnvMode } from "@telar/engine-client";
-import { useEffect, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, StyleSheet } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { KeyboardAvoidingView, Settings, StyleSheet } from "react-native";
 import type { RootStack } from "../../platform/navigation/routes";
 import { Icon, ProjectAvatar, Theme, type SymbolName } from "../../ui";
 import { DraftComposer } from "../composer";
@@ -92,7 +92,6 @@ export function NewSessionScreen() {
   const navigation = useNavigation<Navigation>();
   const { params } = useRoute<RouteProp<RootStack, "NewSession">>();
   const { targets, activity, loading, unreachable, computers } = useTargets();
-  const [chosen, setChosen] = useState<string>();
   const [workspace, setWorkspace] = useState<Workspace>(() => ({ envMode: newSessionMemory.envMode(), branchName: "" }));
   const [picks, setPicks] = useState<DraftPicks>({ driver: "claude" });
   const [naming, setNaming] = useState(false);
@@ -101,9 +100,7 @@ export function NewSessionScreen() {
   const [created, setCreated] = useState<{ key: string; sessionId: string }>();
   const [runId] = useState(() => newRunId());
 
-  useEffect(() => {
-    if (params?.hostId && params.projectId) setChosen(targetKey(params.hostId, params.projectId));
-  }, [params?.hostId, params?.projectId]);
+  const chosen = params?.hostId && params.projectId ? targetKey(params.hostId, params.projectId) : undefined;
   const target = targets.find((entry) => targetKey(entry.hostId, entry.project.id) === chosen) ?? (chosen ? undefined : preferredTarget(targets, activity, newSessionMemory.target()));
   const key = target && targetKey(target.hostId, target.project.id);
   const host = target && hosts.get(target.hostId);
@@ -119,7 +116,7 @@ export function NewSessionScreen() {
     setError(undefined);
     try {
       const draft = { projectId: target.project.id, workspace, ...picks, prompt: text, runId };
-      const sessionId = await startSession(host, draft, created?.key === key ? created.sessionId : undefined, (id) => {
+      const sessionId = await startSession(hosts, target.hostId, draft, created?.key === key ? created.sessionId : undefined, (id) => {
         setCreated({ key, sessionId: id });
         newSessionMemory.remember(key, workspace.envMode);
       });
@@ -133,6 +130,15 @@ export function NewSessionScreen() {
       setBusy(false);
     }
   };
+
+  // `-telarStartOnOpen <text>` at launch starts a session with it once a project is picked, so a simulator can test it without typing.
+  const startedOnOpen = useRef(false);
+  useEffect(() => {
+    const text: unknown = Settings.get("telarStartOnOpen");
+    if (startedOnOpen.current || !host || !params?.projectId || typeof text !== "string" || !text) return;
+    startedOnOpen.current = true;
+    void send(text);
+  });
 
   const notices = error ? <StatusNotice tint="red" text={error} actions={[{ label: "Dismiss", onPress: () => setError(undefined) }]} /> : null;
   return (
@@ -156,6 +162,7 @@ export function NewSessionScreen() {
         </ScrollView>
       </Host>
       <DraftComposer
+        draftKey={target ? { hostId: target.hostId, id: `new.${target.project.id}` } : undefined}
         placeholder={target ? `Describe a coding task in ${target.project.name}` : "Describe a coding task"}
         controls={host ? <DraftMenus host={host} picks={picks} onPicks={setPicks} /> : undefined}
         notices={notices}

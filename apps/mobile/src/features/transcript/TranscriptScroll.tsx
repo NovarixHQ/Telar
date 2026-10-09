@@ -16,7 +16,7 @@ type Props = {
   pin: number;
   /** Where artifacts read their content. */
   source?: TranscriptSource | undefined;
-  /** Height of whatever floats over the transcript's bottom edge (the composer). */
+  /** Height of whatever covers the transcript's bottom edge: the composer plus the keyboard under it. */
   bottomInset?: number;
   children?: ReactNode;
 };
@@ -33,6 +33,7 @@ export function TranscriptScroll({ turns, loading, older, pin, source, bottomIns
   const dragging = useRef(false);
   const viewport = useRef(0);
   const content = useRef(0);
+  const inset = useRef(bottomInset);
   const [jump, setJump] = useState(false);
 
   const update = (next: Follow) => {
@@ -65,7 +66,9 @@ export function TranscriptScroll({ turns, loading, older, pin, source, bottomIns
         onLayout={({ nativeEvent }) => (viewport.current = nativeEvent.layout.height)}
         onContentSizeChange={(_, height) => {
           content.current = height;
-          if (shouldFollow(follow.current)) pinToTail();
+          const lifted = inset.current !== bottomInset;
+          inset.current = bottomInset;
+          if (shouldFollow(follow.current)) pinToTail(lifted);
         }}
       >
         {older ? (

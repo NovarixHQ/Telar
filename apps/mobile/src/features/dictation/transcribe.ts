@@ -35,6 +35,6 @@ export async function transcribe(
     headers: { authorization: `Bearer ${grant.token}`, "content-type": clip.type || "audio/mp4" },
     body: clip,
   });
-  if (!response.ok) throw new TranscriptionRefused(`The transcription service refused the recording (status ${response.status}).`);
+  if (!response.ok) throw new TranscriptionRefused(`Deepgram refused the recording (status ${response.status}).`);
   return readTranscript(await response.json());
 }

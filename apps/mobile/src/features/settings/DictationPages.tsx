@@ -69,11 +69,15 @@ export function DictationPage({ hostId, onVocabulary }: { hostId: string; onVoca
 
   return (
     <SettingsPage title="Dictation">
-      <SettingsGroup label="Speech to text" footer="Set on this computer; every device that dictates through it uses it." {...(error ? { error } : {})}>
-        <CardRow icon={provider === "off" ? "mic.slash" : "waveform"} title="Service">
-          <Menu label={<MenuLabel text={provider === "deepgram" ? "Cloud service" : "Off"} />} modifiers={[disabled(locked)]}>
+      <SettingsGroup label="Speech to text" footer={
+          provider === "deepgram"
+            ? "Set on this computer; every device that dictates through it uses it. Create a key at console.deepgram.com › API Keys."
+            : "Set on this computer; every device that dictates through it uses it."
+        } {...(error ? { error } : {})}>
+        <CardRow icon={provider === "off" ? "mic.slash" : "waveform"} title="Provider">
+          <Menu label={<MenuLabel text={provider === "deepgram" ? "Deepgram" : "Off"} />} modifiers={[disabled(locked)]}>
             <Button label="Off" onPress={() => void save({ provider: "off" })} />
-            <Button label="Cloud service" onPress={() => void save({ provider: "deepgram" })} />
+            <Button label="Deepgram" onPress={() => void save({ provider: "deepgram" })} />
           </Menu>
         </CardRow>
         {provider === "deepgram" && dictation ? (
@@ -87,7 +91,7 @@ export function DictationPage({ hostId, onVocabulary }: { hostId: string; onVoca
               </Menu>
             </CardRow>
             <CardDivider />
-            <CardRow icon="key" title="Service key">
+            <CardRow icon="key" title="Deepgram API key">
               {dictation.configured ? <Button label="Remove" onPress={() => void save({ apiKey: "" })} modifiers={[font({ textStyle: "callout" }), foregroundStyle(Theme.red), disabled(saving)]} /> : null}
               <SecureField
                 text={key}
@@ -118,7 +122,7 @@ export function VocabularyPage({ hostId }: { hostId: string }) {
   };
   return (
     <SettingsPage title="Vocabulary">
-      <SettingsGroup label="One term per line" footer="Names and jargon the service would not expect. Your projects and branches are already sent.">
+      <SettingsGroup label="One term per line" footer="Names and jargon Deepgram would not expect. Your projects and branches are already sent.">
         <TextField
           text={draft}
           placeholder={"Kubernetes\nZarigüeya"}

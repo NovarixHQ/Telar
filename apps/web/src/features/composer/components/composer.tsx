@@ -165,9 +165,10 @@ export function Composer(props: ComposerProps) {
     <div className="relative z-20 w-full shrink-0 px-4">
       <div
         className={cn(
-          "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-1.5 pt-2 pb-5",
+          "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-1.5 pt-2",
           "transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",
-          fresh && "-translate-y-[calc(45dvh-7.5rem)]",
+          props.compact ? "pb-1" : "pb-5",
+          fresh && !props.compact && "-translate-y-[calc(45dvh-7.5rem)]",
         )}
       >
         <ComposerHead props={props} resuming={resuming} onResuming={setResuming} note={stash.note} onDismissNote={() => stash.setNote(undefined)} />

@@ -12,8 +12,9 @@ export type ComposerProps = {
   attachments: File[];
   /** Takes the whole new list. */
   onAttach: (files: File[]) => void;
-  /** No session yet: the composer fills the screen and the pills choose what the first message creates. */
+  /** No session yet: the pills choose what the first message creates; unless `compact`, a greeting and the card fill the screen. */
   fresh?: boolean;
+  compact?: boolean;
   driver?: ProviderDriverKind;
   onDriverChange?: (driver: ProviderDriverKind) => void;
   envMode?: "local" | "worktree";

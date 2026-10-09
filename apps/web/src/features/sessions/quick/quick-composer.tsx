@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { ShieldAlertIcon } from "lucide-react";
 import { Composer } from "@/features/composer";
 import { Button } from "@/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
@@ -17,13 +18,13 @@ function PermissionNotice({ bridge }: { bridge: QuickComposerBridge }) {
     setSkipped(true);
   };
   return (
-    <div role="note" className="mx-2 rounded-lg border border-border p-3 text-sm">
-      <p className="font-medium">Telar needs two permissions</p>
-      <p className="text-muted-foreground">To attach the window in front and your selected text. You can skip this; the composer still works.</p>
-      <div className="mt-2 flex gap-2">
-        <Button size="sm" onClick={() => void bridge.openSettings()}>Open System Settings</Button>
-        <Button size="sm" variant="ghost" onClick={skip}>Skip</Button>
-      </div>
+    <div role="note" className="mx-4 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 py-1 pr-1 pl-3 text-xs">
+      <ShieldAlertIcon className="size-4 shrink-0 text-muted-foreground" />
+      <p className="min-w-0 flex-1 truncate" title="Allow them to attach the window in front and your selected text. The composer works without them.">
+        Telar needs two permissions to attach the front window and selection.
+      </p>
+      <Button size="xs" variant="outline" onClick={() => void bridge.openSettings()}>Open Settings</Button>
+      <Button size="xs" variant="ghost" onClick={skip}>Skip</Button>
     </div>
   );
 }
@@ -78,6 +79,7 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
           attachments={quick.files}
           onAttach={quick.setFiles}
           fresh
+          compact
           driver={draft.driver}
           onDriverChange={draft.chooseDriver}
           pendingModel={draft.model}

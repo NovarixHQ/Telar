@@ -131,6 +131,24 @@ describe("the quick composer", () => {
     expect(sent).toHaveLength(1);
   });
 
+  test("shows no greeting heading", async () => {
+    const { host } = await open({ app: "Notes", title: "", selection: "", screenshot: null, permissions: GRANTED });
+    expect(host.querySelector("h1")).toBeNull();
+    expect(host.textContent).not.toContain("What's next for");
+  });
+
+  test("the permissions notice sits above the composer, and Skip hides it for good", async () => {
+    const denied = { app: "Notes", title: "", selection: "", screenshot: null, permissions: { accessibility: false, screen: false } };
+    const { host } = await open(denied);
+    const note = host.querySelector('[role="note"]')!;
+    expect(note.compareDocumentPosition(editor(host)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const skip = [...note.querySelectorAll("button")].find((button) => button.textContent === "Skip")!;
+    await act(async () => skip.click());
+    expect(host.querySelector('[role="note"]')).toBeNull();
+    const reopened = await open(denied);
+    expect(reopened.host.querySelector('[role="note"]')).toBeNull();
+  });
+
   test("Esc hides it", async () => {
     const { closed } = await open(null);
     await act(async () => void window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));

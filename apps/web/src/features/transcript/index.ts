@@ -11,6 +11,7 @@ export { NotificationRow } from "./components/notification-row";
 export { SessionLookup, type SessionFacts } from "./components/session-lookup";
 export { SelectionQuote } from "./components/selection-quote";
 export { SessionSkeleton } from "./components/session-skeleton";
+export { TodoProgress } from "./components/todo-progress";
 export { TranscriptWorkspace } from "./components/tool-row";
 export { ROW } from "./components/transcript-fold";
 export { TranscriptItem } from "./components/transcript-item";

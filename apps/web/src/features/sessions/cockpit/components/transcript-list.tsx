@@ -7,7 +7,7 @@ import type { JournalTurn } from "@telar/client/journal";
 import { Alert, AlertDescription, AlertTitle } from "@/ui/alert";
 import { Button } from "@/ui/button";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
-import { ForkReply, SelectionQuote, TranscriptSession, TranscriptWorkspace } from "@/features/transcript";
+import { ForkReply, SelectionQuote, TodoProgress, TranscriptSession, TranscriptWorkspace } from "@/features/transcript";
 import { ArtifactShelf } from "@/features/agent-tools";
 import type { useSessionSync } from "../hooks/use-session-sync";
 import type { useTranscriptModel } from "../hooks/use-transcript-model";
@@ -113,6 +113,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
         </ConversationContent>
         <ConversationScrollButton />
       </ConversationViewport>
+      <TodoProgress items={active?.items} />
       {props.turn.onInsert && <SelectionQuote onInsert={props.turn.onInsert} />}
     </div>
   );

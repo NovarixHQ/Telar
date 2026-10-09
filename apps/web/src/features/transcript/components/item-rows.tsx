@@ -89,7 +89,7 @@ export function PlanRow({ item }: { item: JournalItem }) {
   const done = steps.filter((step) => step.status === "completed").length;
 
   return (
-    <div className="rounded-md px-1.5 py-1">
+    <div className="rounded-md px-1.5 py-1" data-plan-row={item.id}>
       <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <ListTodoIcon className="size-3.5" />
         To-dos
@@ -104,10 +104,6 @@ export function PlanRow({ item }: { item: JournalItem }) {
               {step.status === "completed" ? (
                 <CheckIcon className="size-3 text-primary" />
               ) : step.status === "inProgress" ? (
-                /* NEUTRAL. Work in flight gets a neutral spinner, never a
-                   saturated hue: --warning means "a person has to move" and
-                   --info would swap one saturated colour for another. The
-                   MOTION is the liveness signal. */
                 <Loader2Icon className="size-3 animate-spin text-foreground" />
               ) : (
                 <CircleIcon className="size-3 text-muted-foreground/40" />

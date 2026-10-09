@@ -32,6 +32,7 @@ export function usePanelColumn(hostId: string, sessionId: string, push: (tab?: P
   return {
     panel,
     state,
+    wantsColumn,
     shown: wantsColumn && state.isOpen,
     width,
     setWidth: (next: number) => {

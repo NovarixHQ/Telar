@@ -1,6 +1,7 @@
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from "@react-navigation/native";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { useKeyCommand } from "../commands";
 import { FloatingComposer } from "../composer";
 import { hosts, useHosts } from "../hosts";
 import { PanelColumn, PanelView, usePanelColumn } from "../panel";
@@ -40,6 +41,8 @@ export function SessionScreen() {
     }
   };
   const column = usePanelColumn(params.hostId, params.sessionId, (tab) => navigation.navigate("Panel", { hostId: params.hostId, sessionId: params.sessionId, ...(tab ? { tab } : {}) }));
+  useKeyCommand("togglePanel", () => column.toggle(), { enabled: column.wantsColumn, title: column.state.isOpen ? "Hide panel" : "Show panel" });
+  useKeyCommand("leaveFullScreen", () => column.panel.setFullScreen(false), { enabled: column.shown && column.state.fullScreen });
   useSessionHeader(host, params.sessionId, feed.head?.session, params.title, (work) => void act(work), column.toggle);
 
   const offline = connection && connection.kind !== "online" && connection.kind !== "connecting" ? present(connection, Date.now()).label : undefined;

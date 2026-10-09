@@ -11,6 +11,7 @@ import {
   type Turn,
   type TurnModelSelection,
   type WakeReason,
+  type WhileWorking,
 } from "@telar/engine-client";
 import type { GitRunner } from "../../platform/git/runner";
 import type { DriverCapabilities } from "../../drivers/capabilities";
@@ -91,6 +92,7 @@ type IntakeDeps = {
   planWorktree: typeof prepareSessionWorktree;
   derivedBranchFor: (title: string, sessionId: string) => string | undefined;
   promoteTurn: (sessionId: string, runId: string) => Turn;
+  whileWorking: () => WhileWorking;
   requireSenderClaim: (proof: SenderProof) => { sessionId: string };
   hasLiveTurn: (sessionId: string) => boolean;
   waitingNotificationTurn: (sessionId: string) => string | undefined;
@@ -164,7 +166,9 @@ export class TurnIntake {
         return { turn: structuredClone(turn), replayed: false };
       }
       // A compaction is a gesture on the session, not words for the running model; it always waits its turn.
-      const interrupts = turn.origin !== "session" || turn.agentIntent === "task" || turn.agentIntent === "blocker" || turn.wakeReason?.kind === "request_opened";
+      const interrupts = turn.origin === undefined
+        ? this.deps.whileWorking() === "steer"
+        : turn.origin !== "session" || turn.agentIntent === "task" || turn.agentIntent === "blocker" || turn.wakeReason?.kind === "request_opened";
       if (kind !== "compact" && interrupts && !session.paused && this.deps.capabilities(session.driver).liveSteering) {
         const steered = this.steerIfRunning(sessionId, turn.runId);
         if (steered) return { turn: steered, replayed: false };

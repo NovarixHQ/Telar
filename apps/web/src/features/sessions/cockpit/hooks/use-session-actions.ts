@@ -50,6 +50,12 @@ export function useSessionActions(sessionId: string | undefined, { session, hydr
     decideRequest: (requestId: string, decision: RequestDecision, extra?: { answers?: Record<string, unknown> }) =>
       act((id) => api.resolveRequest(id, requestId, { decision, ...(extra?.answers ? { answers: extra.answers } : {}) }), "Could not answer the approval."),
     resumeNow: (runId: string) => act((id) => api.resumeRateLimitedTurn(id, runId), "Could not resume that turn."),
+    queue: {
+      onEdit: (runId: string, text: string) => void act((id) => api.editQueuedTurn(id, runId, text), "Could not edit that message.", true),
+      onMove: (runId: string, beforeRunId: string | null) => void act((id) => api.moveQueuedTurn(id, runId, beforeRunId), "Could not move that message.", true),
+      onRemove: (runId: string) => void act((id) => api.stopTurn(id, runId), "Could not remove that message.", true),
+      onSendNow: (runId: string) => void act((id) => api.promoteTurn(id, runId), "Could not send that message now.", true),
+    },
     rename: (title: string) => patch({ title }, "Could not rename the session."),
     // `null`, not `undefined`: JSON drops an undefined key, and the engine would keep the old selection.
     setModel: async (next: ModelChoice) => {

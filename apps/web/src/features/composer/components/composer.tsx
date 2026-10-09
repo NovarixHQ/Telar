@@ -1,6 +1,6 @@
 "use client";
 
-// Enter always sends; mid-turn it steers the running turn. Send becomes Stop only while the box is empty.
+// Enter always sends; mid-turn it steers the running turn or queues behind it. Send becomes Stop only while the box is empty.
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { turnHasContent, type ProjectAvailability } from "@telar/engine-client";
@@ -26,13 +26,14 @@ import { ComposerFoot, ComposerHead } from "./composer-frame";
 import type { ComposerProps } from "./composer-props";
 import { ComposerQuestionDrawer } from "./composer-question-drawer";
 import { ContextPill } from "./context-pill";
+import { QueuedMessages } from "./queued-messages";
 import { ComposerPills, SendButton } from "./composer-toolbar";
 
 // External clients already reach for this id.
 const EDITOR_ID = "turn-prompt";
 
-function placeholderFor(busy: boolean): string {
-  if (busy) return "Enter sends into the running turn…";
+function placeholderFor(busy: boolean, whileWorking: ComposerProps["whileWorking"]): string {
+  if (busy) return whileWorking === "queue" ? "Enter queues this for after the running turn…" : "Enter sends into the running turn…";
   return "Ask anything, @ to reference, $ for skills, / for commands";
 }
 
@@ -171,6 +172,7 @@ export function Composer(props: ComposerProps) {
       >
         <ComposerHead props={props} resuming={resuming} onResuming={setResuming} note={stash.note} onDismissNote={() => stash.setNote(undefined)} />
         <div ref={box}>
+          {props.queued && <QueuedMessages {...props.queued} />}
           <ComposerBanners {...props} />
           {question.active && props.question && (
             <ComposerQuestionDrawer
@@ -193,7 +195,7 @@ export function Composer(props: ComposerProps) {
                 editorId={EDITOR_ID}
                 kind={kind}
                 text={question.boxText}
-                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(busy)}
+                placeholder={question.active ? "Type your own answer, or leave blank…" : placeholderFor(busy, props.whileWorking)}
                 ready={ready}
                 draft={draft}
                 attachments={attachments}

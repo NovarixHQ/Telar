@@ -21,7 +21,7 @@ import { DataScienceOps, LatexOps, PluginToolchains } from "./domains/plugins";
 import { UsageLimitSources } from "./domains/usage";
 import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionChildren, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
 import { driverCapabilities } from "./drivers/capabilities";
-import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, RequestPath } from "./domains/turns";
+import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, QueuedTurns, RequestPath } from "./domains/turns";
 import { Dictation } from "./domains/dictation";
 import { type ResolvedComputerUse } from "./domains/computer-use";
 import { WorkspaceFiles } from "./domains/files";
@@ -93,6 +93,7 @@ export class EngineStore {
   readonly requestPath: RequestPath;
   readonly intake: TurnIntake;
   readonly turnLifecycle: TurnLifecycle;
+  readonly queuedTurns: QueuedTurns;
   readonly ingest: TurnIngest;
   readonly claims: TurnClaims;
   readonly recovery: TurnRecovery;
@@ -269,6 +270,11 @@ export class EngineStore {
     });
     this.intake = this.createIntake();
     this.turnLifecycle = this.createTurnLifecycle();
+    this.queuedTurns = new QueuedTurns(this.kernel, {
+      records: this.records,
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
+      writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
+    });
     this.claims = this.createClaims();
     this.sessionGit = new SessionGit(this.kernel, {
       records: this.records,
@@ -634,6 +640,7 @@ export class EngineStore {
       evaluateDelegationSettling: (id) => this.settler.evaluate(id),
       stopBackgroundTasks: (id) => this.worker.stopBackgroundTasks(id),
       announceStoppedClaims: (cancellations) => this.announceStoppedClaims(cancellations),
+      whileWorking: () => this.settings.sessionDefaults().whileWorking ?? "steer",
     });
   }
 
@@ -657,6 +664,7 @@ export class EngineStore {
       planWorktree: prepareSessionWorktree,
       derivedBranchFor,
       promoteTurn: (id, runId) => this.turnLifecycle.promoteTurn(id, runId),
+      whileWorking: () => this.settings.sessionDefaults().whileWorking ?? "steer",
       requireSenderClaim: (proof) => this.worker.requireSenderClaim(proof),
       hasLiveTurn: (id) => this.wakes.hasLiveTurn(id),
       waitingNotificationTurn: (id) => this.wakes.waitingNotificationTurn(id),

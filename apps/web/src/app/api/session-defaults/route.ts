@@ -1,5 +1,5 @@
 import { requestObject, engineClient, engineRoute } from "@/platform/engine/server";
-import type { EnvMode, ModelSelection, RuntimeMode } from "@telar/engine-client";
+import type { EnvMode, ModelSelection, RuntimeMode, WhileWorking } from "@telar/engine-client";
 
 /**
  * What a new session is built with when nobody said — today, the workspace:
@@ -25,6 +25,7 @@ export const PATCH = engineRoute(async (request: Request) => {
     await (await engineClient()).setSessionDefaults({
       ...("envMode" in body ? { envMode: body.envMode as EnvMode } : {}),
       ...("resumeAfterRestart" in body ? { resumeAfterRestart: body.resumeAfterRestart as boolean } : {}),
+      ...("whileWorking" in body ? { whileWorking: body.whileWorking as WhileWorking } : {}),
       ...("runtimeMode" in body ? { runtimeMode: body.runtimeMode as RuntimeMode | null } : {}),
       ...("defaultModel" in body ? { defaultModel: body.defaultModel as ModelSelection | null } : {}),
     }),

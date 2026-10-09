@@ -6,6 +6,7 @@ import {
   type TurnFailureCode,
   type UsageSnapshot,
   type WakeKind,
+  type WhileWorking,
 } from "@telar/engine-client";
 import type { DriverCapabilities } from "../../drivers/capabilities";
 import { assertId, EngineStateError, type Kernel } from "../../platform/kernel";
@@ -32,6 +33,7 @@ type LifecycleDeps = {
   evaluateDelegationSettling: (sessionId: string) => void;
   stopBackgroundTasks: (sessionId: string) => number;
   announceStoppedClaims: (cancellations: StoppedClaim[]) => void;
+  whileWorking: () => WhileWorking;
 };
 
 /** A turn from running to its end: start, complete, fail, stop, steer, release and discard. */
@@ -46,8 +48,10 @@ export class TurnLifecycle {
     const watermark = running.claim?.sequence;
     if (watermark === undefined) return [];
     const promoted: Turn[] = [];
+    const personWaits = this.deps.whileWorking() === "queue";
     for (const turn of queue.turns) {
       if (turn.state !== "queued" || turn.sequence < watermark) continue;
+      if (personWaits && turn.origin === undefined) continue;
       try {
         this.promoteInQueue(sessionId, queue, turn, running, at);
       } catch (error) {

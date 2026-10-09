@@ -49,6 +49,17 @@ export function turnRoutes(store: EngineStore, execution: ExecutionPort): Route[
     },
     {
       method: "POST",
+      path: turnPath("edit|move"),
+      auth: "engine",
+      handle: ({ params: [sessionId, runId, action], body }) =>
+        ok({
+          turn: action === "edit"
+            ? store.queuedTurns.editQueuedTurn(sessionId!, runId!, body.input)
+            : store.queuedTurns.moveQueuedTurn(sessionId!, runId!, body.beforeRunId === null ? null : stringValue(body.beforeRunId, "before run id")!),
+        }),
+    },
+    {
+      method: "POST",
       path: turnPath("running|steer-ack|request|observe|complete|fail"),
       auth: "engine",
       async handle({ params: [sessionId, runId, action], body }) {

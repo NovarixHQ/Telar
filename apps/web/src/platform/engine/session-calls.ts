@@ -214,5 +214,9 @@ export function turnCalls(fetcher: Fetcher) {
     /** SEND NOW: promote a queued message into the running turn. */
     promoteTurn: (sessionId: string, runId: string) =>
       request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/promote`, {}),
+    editQueuedTurn: (sessionId: string, runId: string, input: string) =>
+      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/edit`, { input }),
+    moveQueuedTurn: (sessionId: string, runId: string, beforeRunId: string | null) =>
+      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/move`, { beforeRunId }),
   };
 }

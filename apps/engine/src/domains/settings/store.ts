@@ -106,7 +106,7 @@ export class SettingsStore {
     }
   }
 
-  setSessionDefaults(patch: { envMode?: unknown; resumeAfterRestart?: unknown; runtimeMode?: unknown; defaultModel?: unknown }): SessionDefaults {
+  setSessionDefaults(patch: { envMode?: unknown; resumeAfterRestart?: unknown; whileWorking?: unknown; runtimeMode?: unknown; defaultModel?: unknown }): SessionDefaults {
     const next: SessionDefaults = { ...this.sessionDefaults() };
     if (patch.envMode !== undefined) {
       const parsed = SessionDefaultsSchema.shape.envMode.safeParse(patch.envMode);
@@ -114,6 +114,11 @@ export class SettingsStore {
       next.envMode = parsed.data;
     }
     if (patch.resumeAfterRestart !== undefined) next.resumeAfterRestart = boolean(patch.resumeAfterRestart, "resumeAfterRestart must be true or false");
+    if (patch.whileWorking !== undefined) {
+      const parsed = SessionDefaultsSchema.shape.whileWorking.safeParse(patch.whileWorking);
+      if (!parsed.success || !parsed.data) throw new EngineStateError("invalid_request", "whileWorking must be steer or queue");
+      next.whileWorking = parsed.data;
+    }
     if (patch.runtimeMode !== undefined) {
       if (patch.runtimeMode === null) delete next.runtimeMode;
       else if (RUNTIME_MODES.has(patch.runtimeMode as RuntimeMode)) next.runtimeMode = patch.runtimeMode as RuntimeMode;

@@ -20,7 +20,7 @@ const panel = () => FakeBrowserWindow.all[0];
 const lastOpen = () => panel().webContents.sent.filter((message) => message.channel === "telar:quick-composer:open").at(-1)?.payload;
 const press = async (chord) => {
   electron.globalShortcut.press(chord);
-  await new Promise((resolve) => setImmediate(resolve));
+  for (let tick = 0; tick < 10; tick += 1) await Promise.resolve();
 };
 
 describe("the shortcut", () => {

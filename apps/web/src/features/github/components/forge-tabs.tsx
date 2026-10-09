@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/ui/scroll-area";
 import { XIcon, type LucideIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/ui/context-menu";
 import { activateForge, closeForge, forgeNumbersAfter, otherForgeNumbers, showForgeList, type ForgeOpen } from "../forge-workspace";
@@ -81,10 +82,11 @@ export function ForgeTabs({ kind, icon: Icon, forge, onChange }: { kind: ForgeLi
     onChange(next);
   };
   return (
-    <div
-      role="tablist"
-      aria-label={kind === "issues" ? "Open issues" : "Open pull requests"}
-      className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 py-1"
+    <ScrollArea
+      orientation="horizontal"
+      className="shrink-0 border-b border-border"
+      viewportClassName="flex items-center gap-1 px-2 py-1"
+      viewportProps={{ role: "tablist", "aria-label": kind === "issues" ? "Open issues" : "Open pull requests" }}
     >
       <button
         type="button"
@@ -112,6 +114,6 @@ export function ForgeTabs({ kind, icon: Icon, forge, onChange }: { kind: ForgeLi
           onCloseMany={closeMany}
         />
       ))}
-    </div>
+    </ScrollArea>
   );
 }

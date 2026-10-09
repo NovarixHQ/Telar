@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/ui/scroll-area";
 import { CodeXmlIcon, Loader2Icon, MoonIcon, PlusIcon, UserRoundIcon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { describePermissionKinds } from "../desktop-site-permissions";
@@ -89,13 +90,11 @@ function TabMarks({ tab, b }: { tab: DesktopBrowserTab; b: BrowserUi }) {
 export function TabStrip({ b }: { b: BrowserUi }) {
   const { act, inWindow } = b;
   return (
-    <div
-      className={cn(
-        "flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 py-1",
-        inWindow && "app-drag min-h-[var(--titlebar-height)] pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))] md:h-[var(--titlebar-band-height)] md:min-h-[var(--titlebar-band-height)] md:py-0",
-      )}
-      role="tablist"
-      aria-label="Browser tabs"
+    <ScrollArea
+      orientation="horizontal"
+      className={cn("shrink-0 border-b border-border", inWindow && "app-drag min-h-[var(--titlebar-height)] md:h-[var(--titlebar-band-height)] md:min-h-[var(--titlebar-band-height)]")}
+      viewportClassName={cn("flex items-center gap-1 px-2 py-1", inWindow && "pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))] md:py-0")}
+      viewportProps={{ role: "tablist", "aria-label": "Browser tabs" }}
     >
       {(b.state?.tabs ?? []).map((tab) => (
         <div
@@ -150,6 +149,6 @@ export function TabStrip({ b }: { b: BrowserUi }) {
       <button type="button" aria-label="New tab" className="app-no-drag shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => void act({ action: "new" })}>
         <PlusIcon className="size-3.5" />
       </button>
-    </div>
+    </ScrollArea>
   );
 }

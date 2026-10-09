@@ -1,5 +1,6 @@
 "use client";
 
+import { ScrollArea } from "@/ui/scroll-area";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BracesIcon, ChartLineIcon, PackageIcon, RotateCwIcon, SquareIcon } from "lucide-react";
 import type { EngineEvent, TurnState } from "@telar/engine-client";
@@ -83,7 +84,7 @@ export function DataSurface({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 py-1" role="tablist" aria-label="Data views">
+      <ScrollArea orientation="horizontal" className="shrink-0 border-b border-border" viewportClassName="flex items-center gap-1 px-2 py-1" viewportProps={{ role: "tablist", "aria-label": "Data views" }}>
         {SUB_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -113,7 +114,7 @@ export function DataSurface({
             </button>
           )}
         </span>
-      </div>
+      </ScrollArea>
       <div className="min-h-0 flex-1">
         {sub === "plots" && <PlotsSurface {...(sessionId ? { sessionId } : {})} {...(hostId ? { hostId } : {})} {...(active ? { active } : {})} {...(onOpenImage ? { onOpenImage } : {})} embedded />}
         {sub === "variables" && <VariablesSurface {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} embedded />}

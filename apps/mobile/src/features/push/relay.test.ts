@@ -44,44 +44,44 @@ const fresh = (call: Call): Answer => {
 
 test("a first registration attests the challenge, then mints a send key for the computer", async () => {
   const { relay, calls, saved, signedOver } = setup(fresh);
-  const credential = await relay.credential("HOST-A", "aa".repeat(32));
+  const credential = await relay.credential("HOST-A", { token: "aa".repeat(32) });
   expect(credential).toEqual({ url: "https://relay.test", handle: "handle-1", keyId: "k-1", sendKey: "s-1" });
   expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual(["GET /v2/challenge", "POST /v2/devices", "POST /v2/devices/handle-1/keys"]);
   expect(JSON.parse(calls[1]!.body!)).toEqual({ keyId: "attest-key", attestation: "attested(attest-key,c-1)", challenge: "c-1", bundle: "io.github.novarix.telar", sandbox: false, token: "aa".repeat(32) });
   expect(signedOver).toEqual([`POST /v2/devices/handle-1/keys\n{"pairing":"HOST-A"}`]);
   expect(calls[2]!.assertion).toBe("assertion-1");
-  expect(saved.at(-1)).toMatchObject({ attestKeyId: "attest-key", handle: "handle-1", registered: "aa".repeat(32), keys: { "HOST-A": { keyId: "k-1", sendKey: "s-1" } } });
+  expect(saved.at(-1)).toMatchObject({ attestKeyId: "attest-key", handle: "handle-1", registered: { token: "aa".repeat(32) }, keys: { "HOST-A": { keyId: "k-1", sendKey: "s-1" } } });
 });
 
 test("a known computer reuses its key and a fresh registration is not refreshed", async () => {
-  const stored: RelayState = { attestKeyId: "attest-key", handle: "handle-1", registered: "aa".repeat(32), refreshedAt: 1_000, keys: { "HOST-A": { keyId: "k-1", sendKey: "s-1" } } };
+  const stored: RelayState = { attestKeyId: "attest-key", handle: "handle-1", registered: { token: "aa".repeat(32) }, refreshedAt: 1_000, keys: { "HOST-A": { keyId: "k-1", sendKey: "s-1" } } };
   const { relay, calls } = setup(fresh, { stored, now: () => 2_000 });
-  expect(await relay.credential("HOST-A", "aa".repeat(32))).toEqual({ url: "https://relay.test", handle: "handle-1", keyId: "k-1", sendKey: "s-1" });
+  expect(await relay.credential("HOST-A", { token: "aa".repeat(32) })).toEqual({ url: "https://relay.test", handle: "handle-1", keyId: "k-1", sendKey: "s-1" });
   expect(calls).toEqual([]);
 });
 
 test("a changed token is pushed to the relay, signed", async () => {
-  const stored: RelayState = { attestKeyId: "attest-key", handle: "handle-1", registered: "aa".repeat(32), refreshedAt: 1_000, keys: { "HOST-A": { keyId: "k-1", sendKey: "s-1" } } };
+  const stored: RelayState = { attestKeyId: "attest-key", handle: "handle-1", registered: { token: "aa".repeat(32) }, refreshedAt: 1_000, keys: { "HOST-A": { keyId: "k-1", sendKey: "s-1" } } };
   const { relay, calls, signedOver } = setup((call) => (call.method === "PUT" ? { status: 200, body: {} } : fresh(call)), { stored, now: () => 2_000 });
-  await relay.credential("HOST-A", "bb".repeat(32));
+  await relay.credential("HOST-A", { token: "bb".repeat(32) });
   expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual(["PUT /v2/devices/handle-1"]);
   expect(signedOver).toEqual([`PUT /v2/devices/handle-1\n{"token":"${"bb".repeat(32)}"}`]);
 });
 
 test("a handle the relay forgot registers again from scratch", async () => {
-  const stored: RelayState = { attestKeyId: "old-key", handle: "gone", registered: "aa".repeat(32), refreshedAt: 0, keys: { "HOST-A": { keyId: "old", sendKey: "old" } } };
+  const stored: RelayState = { attestKeyId: "old-key", handle: "gone", registered: { token: "aa".repeat(32) }, refreshedAt: 0, keys: { "HOST-A": { keyId: "old", sendKey: "old" } } };
   const { relay, calls } = setup((call) => (call.path === "/v2/devices/gone" ? { status: 410 } : fresh(call)), { stored, now: () => 86_400_001 });
-  expect(await relay.credential("HOST-A", "aa".repeat(32))).toMatchObject({ handle: "handle-1", keyId: "k-1" });
+  expect(await relay.credential("HOST-A", { token: "aa".repeat(32) })).toMatchObject({ handle: "handle-1", keyId: "k-1" });
   expect(calls.map((call) => call.path)).toEqual(["/v2/devices/gone", "/v2/challenge", "/v2/devices", "/v2/devices/handle-1/keys"]);
 });
 
 test("a refused attestation or an unsupported device stops asking", async () => {
   const refused = setup((call) => (call.path === "/v2/devices" ? { status: 401 } : fresh(call)));
-  expect(await refused.relay.credential("HOST-A", "aa".repeat(32))).toBeUndefined();
+  expect(await refused.relay.credential("HOST-A", { token: "aa".repeat(32) })).toBeUndefined();
   expect(refused.relay.unavailable).toBe(true);
 
   const unsupported = setup(fresh, { attest: { generateKey: () => Promise.reject(Object.assign(new Error("no"), { code: "ERR_APP_INTEGRITY_FEATURE_UNSUPPORTED" })) } });
-  expect(await unsupported.relay.credential("HOST-A", "aa".repeat(32))).toBeUndefined();
+  expect(await unsupported.relay.credential("HOST-A", { token: "aa".repeat(32) })).toBeUndefined();
   expect(unsupported.relay.unavailable).toBe(true);
 
   expect(setup(fresh, { bundle: "com.example.other" }).relay.unavailable).toBe(true);
@@ -91,10 +91,10 @@ test("a refused attestation or an unsupported device stops asking", async () => 
 test("a passing relay failure is retried next time", async () => {
   let down = true;
   const { relay } = setup((call) => (down ? { status: 503 } : fresh(call)));
-  expect(await relay.credential("HOST-A", "aa".repeat(32))).toBeUndefined();
+  expect(await relay.credential("HOST-A", { token: "aa".repeat(32) })).toBeUndefined();
   expect(relay.unavailable).toBe(false);
   down = false;
-  expect(await relay.credential("HOST-A", "aa".repeat(32))).toMatchObject({ keyId: "k-1" });
+  expect(await relay.credential("HOST-A", { token: "aa".repeat(32) })).toMatchObject({ keyId: "k-1" });
 });
 
 test("revoking a computer drops its key here and at the relay", async () => {
@@ -104,4 +104,18 @@ test("revoking a computer drops its key here and at the relay", async () => {
   expect(saved.at(-1)?.keys).toEqual({});
   expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual(["DELETE /v2/devices/handle-1/keys/k-1"]);
   expect(signedOver).toEqual(["DELETE /v2/devices/handle-1/keys/k-1\n"]);
+});
+
+test("a new Live Activity card token is sent with the APNs token, and a card registers from the start", async () => {
+  const stored: RelayState = { attestKeyId: "attest-key", handle: "handle-1", registered: { token: "aa".repeat(32) }, refreshedAt: 1_000, keys: { "HOST-A": { keyId: "k-1", sendKey: "s-1" } } };
+  const changed = setup((call) => (call.method === "PUT" ? { status: 200, body: {} } : fresh(call)), { stored, now: () => 2_000 });
+  await changed.relay.credential("HOST-A", { token: "aa".repeat(32), card: "cc".repeat(32) });
+  expect(changed.signedOver).toEqual([`PUT /v2/devices/handle-1\n{"token":"${"aa".repeat(32)}","card":"${"cc".repeat(32)}"}`]);
+  expect(changed.saved.at(-1)?.registered).toEqual({ token: "aa".repeat(32), card: "cc".repeat(32) });
+  await changed.relay.credential("HOST-A", { token: "aa".repeat(32), card: "cc".repeat(32) });
+  expect(changed.calls).toHaveLength(1);
+
+  const first = setup(fresh);
+  await first.relay.credential("HOST-A", { token: "aa".repeat(32), card: "cc".repeat(32) });
+  expect(JSON.parse(first.calls[1]!.body!).card).toBe("cc".repeat(32));
 });

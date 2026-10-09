@@ -5,6 +5,7 @@ import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import * as TaskManager from "expo-task-manager";
 import { AppState, Settings } from "react-native";
+import { liveActivity } from "../../../modules/live-activity";
 import type { HostConnection } from "../../platform/connection";
 import { hosts } from "../hosts";
 import { appSettings } from "../settings";
@@ -47,7 +48,11 @@ const registry = new PushSync({
   hosts: () => hosts.list().map((host) => ({ hostId: pushHostId(host.hostId), name: host.name, register: (body) => host.request("PUT", "/v2/mobile/push", body) })),
   prefs: () => appSettings.current,
   allowed,
-  credential: (hostId, token) => relay.credential(hostId, token),
+  card: () => {
+    const token = liveActivity?.card()?.token;
+    return { enabled: liveActivity?.enabled() ?? false, ...(token ? { token } : {}) };
+  },
+  credential: (hostId, tokens) => relay.credential(hostId, tokens),
   revoke: (hostId) => relay.revoke(hostId),
 });
 
@@ -175,8 +180,8 @@ export function startPush(): void {
   });
 
   const prefsKey = () => {
-    const { notifications, completions, previews, sound } = appSettings.current;
-    return `${notifications}:${completions}:${previews}:${sound}`;
+    const { notifications, completions, previews, sound, liveActivity: card } = appSettings.current;
+    return `${notifications}:${completions}:${previews}:${sound}:${card}`;
   };
   let notifications = appSettings.current.notifications;
   let prefs = prefsKey();
@@ -191,6 +196,10 @@ export function startPush(): void {
     void promptAfterPairing();
     void registry.sync();
     void reconcile();
+  });
+  liveActivity?.addListener("onPushToken", () => void registry.sync());
+  liveActivity?.addListener("onStateChange", ({ state }) => {
+    if (state === "ended" || state === "dismissed") void registry.sync();
   });
   AppState.addEventListener("change", (state) => {
     if (state !== "active") return;

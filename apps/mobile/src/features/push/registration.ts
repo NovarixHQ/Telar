@@ -1,4 +1,4 @@
-import type { RelayCredential } from "./relay";
+import type { RelayCredential, RelayTokens } from "./relay";
 
 /** The body of `PUT api/mobile/push`, the same one the Swift app sends. */
 export type PushRegistration = {
@@ -14,11 +14,12 @@ export type PushRegistration = {
   liveActivities: boolean;
   hostName: string;
   relay?: RelayCredential;
+  relayCard: true;
   simulator?: true;
 };
 
 export type PushHost = { hostId: string; name: string; register(body: PushRegistration): Promise<{ configured?: boolean }> };
-export type PushPrefs = { notifications: boolean; completions: boolean; previews: boolean; sound: string };
+export type PushPrefs = { notifications: boolean; completions: boolean; previews: boolean; sound: string; liveActivity: boolean };
 
 export type PushSyncDeps = {
   topic: string;
@@ -27,7 +28,9 @@ export type PushSyncDeps = {
   hosts(): PushHost[];
   prefs(): PushPrefs;
   allowed(): Promise<boolean>;
-  credential(hostId: string, token: string): Promise<RelayCredential | undefined>;
+  /** Whether this phone can show a Live Activity, and the running card's push token if there is one. */
+  card(): { enabled: boolean; token?: string };
+  credential(hostId: string, tokens: RelayTokens): Promise<RelayCredential | undefined>;
   revoke(hostId: string): Promise<void>;
   onResult?(hostId: string, configured: boolean | undefined): void;
 };
@@ -72,8 +75,10 @@ export class PushSync {
     if (!token) return;
     const prefs = this.deps.prefs();
     const enabled = prefs.notifications && (await this.deps.allowed());
+    const card = this.deps.card();
+    const tokens: RelayTokens = { token, ...(card.token ? { card: card.token } : {}) };
     await Promise.all(hosts.map(async (host) => {
-      const relay = this.deps.simulator ? undefined : await this.deps.credential(host.hostId, token);
+      const relay = this.deps.simulator ? undefined : await this.deps.credential(host.hostId, tokens);
       const body: PushRegistration = {
         hostId: host.hostId,
         token,
@@ -84,9 +89,10 @@ export class PushSync {
         previews: prefs.previews,
         sounds: prefs.sound,
         mutedSessions: [],
-        liveActivities: false,
+        liveActivities: prefs.liveActivity && card.enabled,
         hostName: host.name,
         ...(relay ? { relay } : {}),
+        relayCard: true,
         ...(this.deps.simulator ? { simulator: true as const } : {}),
       };
       const reply = await host.register(body).catch(() => undefined);

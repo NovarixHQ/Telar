@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { RelayCredential } from "./relay";
+import type { RelayCredential, RelayTokens } from "./relay";
 import { PushSync, type PushHost, type PushPrefs, type PushRegistration, type PushSyncDeps } from "./registration";
 
 const A = "11111111-1111-4111-8111-111111111111";
@@ -8,8 +8,10 @@ const B = "22222222-2222-4222-8222-222222222222";
 function setup(overrides: Partial<PushSyncDeps> = {}) {
   const sent: PushRegistration[] = [];
   const revoked: string[] = [];
+  const credentials: RelayTokens[] = [];
   let paired: PushHost[] = [A, B].map((hostId, i) => ({ hostId, name: `Mac ${i}`, register: async (body) => (sent.push(body), { configured: true }) }));
-  let prefs: PushPrefs = { notifications: true, completions: true, previews: false, sound: "felt" };
+  let prefs: PushPrefs = { notifications: true, completions: true, previews: false, sound: "felt", liveActivity: true };
+  let card: { enabled: boolean; token?: string } = { enabled: true };
   const sync = new PushSync({
     topic: "io.github.novarix.telar",
     sandbox: false,
@@ -17,11 +19,12 @@ function setup(overrides: Partial<PushSyncDeps> = {}) {
     hosts: () => paired,
     prefs: () => prefs,
     allowed: async () => true,
-    credential: async (hostId, token): Promise<RelayCredential> => ({ url: "https://relay", handle: "h", keyId: `key-${hostId}`, sendKey: token }),
+    card: () => card,
+    credential: async (hostId, tokens): Promise<RelayCredential> => (credentials.push(tokens), { url: "https://relay", handle: "h", keyId: `key-${hostId}`, sendKey: tokens.token }),
     revoke: async (hostId) => void revoked.push(hostId),
     ...overrides,
   });
-  return { sync, sent, revoked, setPaired: (next: PushHost[]) => (paired = next), setPrefs: (next: PushPrefs) => (prefs = next) };
+  return { sync, sent, revoked, credentials, setCard: (next: typeof card) => (card = next), setPaired: (next: PushHost[]) => (paired = next), setPrefs: (next: PushPrefs) => (prefs = next) };
 }
 
 test("nothing is sent before APNs hands over a token", async () => {
@@ -44,9 +47,10 @@ test("the token goes to every paired computer with its own relay key", async () 
     previews: false,
     sounds: "felt",
     mutedSessions: [],
-    liveActivities: false,
+    liveActivities: true,
     hostName: "Mac 0",
     relay: { url: "https://relay", handle: "h", keyId: `key-${A}`, sendKey: "ab".repeat(32) },
+    relayCard: true,
   });
 });
 
@@ -93,7 +97,7 @@ test("calls during a sync fold into one more pass that sees the latest settings"
   });
   const first = sync.setToken("aa".repeat(32));
   await inFlight;
-  setPrefs({ notifications: true, completions: true, previews: true, sound: "hilo" });
+  setPrefs({ notifications: true, completions: true, previews: true, sound: "hilo", liveActivity: true });
   void sync.sync();
   void sync.sync();
   release();
@@ -111,4 +115,27 @@ test("one computer that does not answer does not stop the others", async () => {
   });
   await sync.setToken("aa".repeat(32));
   expect(sent).toEqual([B]);
+});
+
+test("a running Live Activity card's token rides along to the relay, and drops when the card ends", async () => {
+  const { sync, credentials, setCard } = setup();
+  await sync.setToken("aa".repeat(32));
+  expect(credentials.at(-1)).toEqual({ token: "aa".repeat(32) });
+  setCard({ enabled: true, token: "cc".repeat(32) });
+  await sync.sync();
+  expect(credentials.slice(-2)).toEqual([{ token: "aa".repeat(32), card: "cc".repeat(32) }, { token: "aa".repeat(32), card: "cc".repeat(32) }]);
+  setCard({ enabled: true });
+  await sync.sync();
+  expect(credentials.at(-1)).toEqual({ token: "aa".repeat(32) });
+});
+
+test("Live Activities register as off when the setting or the system turns them off", async () => {
+  const { sync, sent, setCard, setPrefs } = setup();
+  setCard({ enabled: false });
+  await sync.setToken("aa".repeat(32));
+  expect(sent.every((body) => body.liveActivities === false)).toBe(true);
+  setCard({ enabled: true });
+  setPrefs({ notifications: true, completions: true, previews: false, sound: "felt", liveActivity: false });
+  await sync.sync();
+  expect(sent.slice(-2).every((body) => body.liveActivities === false)).toBe(true);
 });

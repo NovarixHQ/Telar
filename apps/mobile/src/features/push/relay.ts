@@ -1,6 +1,8 @@
 export type RelayCredential = { url: string; handle: string; keyId: string; sendKey: string };
 type Key = { keyId: string; sendKey: string };
-export type RelayState = { attestKeyId?: string; handle?: string; registered?: string; refreshedAt?: number; keys: Record<string, Key> };
+/** The phone's APNs token and, while one runs, the Live Activity card's own push token. */
+export type RelayTokens = { token: string; card?: string };
+export type RelayState = { attestKeyId?: string; handle?: string; registered?: RelayTokens; refreshedAt?: number; keys: Record<string, Key> };
 
 /** App Attest as the native module exposes it: each challenge is hashed with SHA-256 before it is signed. */
 export type Attest = {
@@ -48,10 +50,10 @@ export class PushRelay {
     return this.refused || !this.deps.attest.isSupported || !BUNDLES.has(this.deps.bundle);
   }
 
-  async credential(host: string, token: string): Promise<RelayCredential | undefined> {
+  async credential(host: string, tokens: RelayTokens): Promise<RelayCredential | undefined> {
     if (this.unavailable) return undefined;
     try {
-      await this.synchronize(token);
+      await this.synchronize(tokens);
       return await this.key(host);
     } catch (error) {
       if (error instanceof AttestationRefused || (error as { code?: unknown } | null)?.code === UNSUPPORTED) this.refused = true;
@@ -68,30 +70,31 @@ export class PushRelay {
     if (state.handle) await this.signed("DELETE", `/v2/devices/${state.handle}/keys/${key.keyId}`).catch(() => undefined);
   }
 
-  private async synchronize(token: string): Promise<void> {
+  private async synchronize(tokens: RelayTokens): Promise<void> {
     const state = await this.state;
-    if (!state.handle) return this.register(token);
-    if (state.registered === token && state.refreshedAt !== undefined && this.now() - state.refreshedAt < REFRESH_MS) return;
-    const { status } = await this.signed("PUT", `/v2/devices/${state.handle}`, JSON.stringify({ token }));
-    if (status === 401 || status === 404 || status === 410) return this.register(token);
+    if (!state.handle) return this.register(tokens);
+    const same = state.registered?.token === tokens.token && state.registered.card === tokens.card;
+    if (same && state.refreshedAt !== undefined && this.now() - state.refreshedAt < REFRESH_MS) return;
+    const { status } = await this.signed("PUT", `/v2/devices/${state.handle}`, JSON.stringify(tokens));
+    if (status === 401 || status === 404 || status === 410) return this.register(tokens);
     if (status !== 200) throw new RelayError(status);
-    state.registered = token;
+    state.registered = tokens;
     state.refreshedAt = this.now();
     await this.deps.save(state);
   }
 
-  private async register(token: string): Promise<void> {
+  private async register(tokens: RelayTokens): Promise<void> {
     const asked = await this.request("GET", "/v2/challenge");
     const challenge = asked.status === 200 ? (asked.body as { challenge?: unknown }).challenge : undefined;
     if (typeof challenge !== "string") throw new RelayError(asked.status);
     const keyId = await this.deps.attest.generateKey();
     const attestation = await this.deps.attest.attestKey(keyId, challenge);
-    const body = JSON.stringify({ keyId, attestation, challenge, bundle: this.deps.bundle, sandbox: this.deps.sandbox, token });
+    const body = JSON.stringify({ keyId, attestation, challenge, bundle: this.deps.bundle, sandbox: this.deps.sandbox, ...tokens });
     const created = await this.request("POST", "/v2/devices", body);
     if (created.status === 401) throw new AttestationRefused();
     const handle = created.status === 201 ? (created.body as { handle?: unknown }).handle : undefined;
     if (typeof handle !== "string") throw new RelayError(created.status);
-    const fresh: RelayState = { attestKeyId: keyId, handle, registered: token, refreshedAt: this.now(), keys: {} };
+    const fresh: RelayState = { attestKeyId: keyId, handle, registered: tokens, refreshedAt: this.now(), keys: {} };
     this.state = Promise.resolve(fresh);
     await this.deps.save(fresh);
   }

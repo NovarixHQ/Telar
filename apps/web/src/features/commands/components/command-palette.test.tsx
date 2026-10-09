@@ -215,10 +215,10 @@ test("a settings row is found by name and opens its pane at that row", async () 
 
 test("a settings page is a result that opens the page itself", async () => {
   const log = await openPalette();
-  await typeInto(field(), "notifications");
-  const row = [...document.querySelectorAll('[role="group"][aria-label="Settings"] [role="option"]')].find((node) => node.textContent === "Notifications");
+  await typeInto(field(), "source control");
+  const row = [...document.querySelectorAll('[role="group"][aria-label="Settings"] [role="option"]')].find((node) => node.textContent === "Source control");
   await click(row);
-  expect(log).toEqual(["open:false", "navigate:/settings?section=notifications"]);
+  expect(log).toEqual(["open:false", "navigate:/settings?section=source-control"]);
 });
 
 test("a conversation is found by its branch and shows where it lives", async () => {

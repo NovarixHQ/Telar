@@ -34,9 +34,9 @@ In the app, go to Settings → Notifications & activities and turn on Notificati
 - To mute a single conversation, use its menu.
 - Some alerts let you approve a request right from the notification.
 
-There's nothing to set up on the Mac. The phone registers itself when you turn notifications on. The Mac then sends a test notification, and Settings → Notifications on the Mac shows whether it arrived. If the phone shows as not registered, open Telar on it.
+There's nothing to set up on the Mac. The phone registers itself when you turn notifications on, and the Mac then sends it a test notification. If none arrives, open Telar on the phone so it registers again.
 
-**Notify on** (on the Mac) chooses where alerts go. The default sends them to the Mac while Telar is the window in front and you've used the Mac in the last minute, and to the phone otherwise. You can also choose iPhone only, or Both. Neither device alerts you about a conversation you're looking at.
+Every alert goes to every device: the phone gets each one its own settings ask for, whatever the Mac is doing, and the Mac shows its own banners unless you turn off **Desktop notifications** in Settings → General. Reading the conversation on any device clears the alert on the others.
 
 Notifications need a real iPhone that passes Apple's app check. If the app says notifications can't be set up on this device, everything else still works.
 

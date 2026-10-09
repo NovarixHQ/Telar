@@ -11,6 +11,7 @@ const { publishTailscaleServe, serveEnv, unpublishTailscaleServe } = require("./
 const { windowTargetUrl } = require("./window-target");
 const { createDesktopNotifier } = require("./desktop-notifications");
 const { createChime } = require("./notification-sound");
+const { readNotificationPrefs } = require("./notification-prefs");
 const { watchVolumes } = require("./volume-watch");
 const { awaitStore } = require("../store/store-gate");
 const { createStoreGateWindow } = require("../store/store-gate-window");
@@ -38,7 +39,7 @@ const { passwordManagerEnabled } = require("../login/password-manager-prefs");
 const { adoptLegacyUpdatePrefs } = require("./update-prefs");
 const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require("./browser-hosts");
 const { createCockpitWindow } = require("./cockpit-window");
-const { cockpitFocus, createPresence } = require("./presence");
+const { cockpitFocus } = require("./cockpit-focus");
 const { pinUserData } = require("./user-data");
 const { createTerminalReaders } = require("./terminal-readers");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
@@ -156,7 +157,6 @@ function startServer(port, home) {
       ...serveEnv(),
     },
     onExit: (code, signal) => {
-      presence.stop();
       if (!SMOKE && !app.isQuitting) {
         console.error(`[telar-desktop] server exited (code=${code} signal=${signal})`);
         app.quit();
@@ -164,13 +164,18 @@ function startServer(port, home) {
     },
   });
   engineNotices.start(engineDiscoveryFile(home));
-  presence.watch();
   return child;
 }
 
 const chime = createChime({ packaged: app.isPackaged });
-const desktopNotifier = createDesktopNotifier({ Notification, send: engineNotices.send, context: cockpitFocus, open: openNotificationPath, chime });
-const presence = createPresence({ send: engineNotices.send });
+const desktopNotifier = createDesktopNotifier({
+  Notification,
+  send: engineNotices.send,
+  context: cockpitFocus,
+  open: openNotificationPath,
+  chime,
+  enabled: () => readNotificationPrefs().enabled,
+});
 
 function openNotificationPath(route) {
   const win = [currentHost(), ...browserManagers].map((manager) => manager?.window).find((w) => w && !w.isDestroyed());
@@ -217,7 +222,6 @@ function createWindow(url, { main = false } = {}) {
       });
       return manager;
     },
-    onInPageNavigation: () => presence.report(),
   });
 }
 
@@ -436,7 +440,7 @@ require("./ipc-prefs").registerPrefsIpc({
   onCapture: (capturing) => quickComposer?.suspend(capturing),
 });
 
-require("./ipc-app").registerAppIpc({ createWindow, testNotification: desktopNotifier.test });
+require("./ipc-app").registerAppIpc({ createWindow });
 
 const { configureAutoUpdater } = require("./updates").registerUpdates({
   telarHome,

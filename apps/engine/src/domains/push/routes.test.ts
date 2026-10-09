@@ -41,36 +41,10 @@ describe("paired mobile push registration", () => {
     await call("PUT", "/v2/push/devices/phone", input);
     expect((await call("PUT", "/v2/push/devices/phone", { ...input, simulator: true })).body).toEqual({ configured: false });
     expect(readPushRecords()).toEqual([]);
-    expect((await call("GET", "/v2/push/relay")).body).toMatchObject({ devices: [] });
   });
   test("rejects invalid registrations", async () => {
     const call = setup();
     expect((await call("PUT", "/v2/push/devices/phone", { ...input, topic: "other.app" })).status).toBe(400);
     expect(readPushRecords()).toEqual([]);
-  });
-});
-
-describe("Notify on, persisted beside the phones", () => {
-  test("defaults to This Mac when active, and a valid choice lands in remote/notify-on.json", async () => {
-    const call = setup();
-    expect((await call("GET", "/v2/push/notify-on")).body).toEqual({ notifyOn: "mac" });
-    expect((await call("PUT", "/v2/push/notify-on", { notifyOn: "both" })).status).toBe(200);
-    expect((await call("GET", "/v2/push/notify-on")).body).toEqual({ notifyOn: "both" });
-    expect(JSON.parse(fs.readFileSync(path.join(folder!, "remote", "notify-on.json"), "utf8"))).toEqual({ notifyOn: "both" });
-  });
-  test("anything else is refused and changes nothing", async () => {
-    const call = setup();
-    for (const body of [{ notifyOn: "watch" }, {}]) expect((await call("PUT", "/v2/push/notify-on", body)).status).toBe(400);
-    expect((await call("GET", "/v2/push/notify-on")).body).toEqual({ notifyOn: "mac" });
-  });
-});
-
-describe("Notification sounds, persisted beside the phones", () => {
-  test("defaults to Hilo, keeps a valid choice and refuses anything else", async () => {
-    const call = setup();
-    expect((await call("GET", "/v2/push/sounds")).body).toEqual({ sounds: "hilo" });
-    expect((await call("PUT", "/v2/push/sounds", { sounds: "off" })).status).toBe(200);
-    for (const body of [{ sounds: "kazoo" }, {}]) expect((await call("PUT", "/v2/push/sounds", body)).status).toBe(400);
-    expect((await call("GET", "/v2/push/sounds")).body).toEqual({ sounds: "off" });
   });
 });

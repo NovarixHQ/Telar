@@ -20,6 +20,9 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Name sessions","keywords":["title","rename","automatic"]},
       {"title":"Name branches","hint":"Renames branches the engine cut to match the session. Yours keep their names.","keywords":["git","branch name","title","rename branches"]},
     ] },
+    { "title":"Notifications", rows: [
+      {"title":"Desktop notifications","hint":"A banner when a session finishes, fails, or needs your input or approval.","keywords":["alerts","banner","desktop notifications","notify","sound","finished","failed","approval"]},
+    ] },
     { "title":"About", rows: [
       {"title":"Version","keywords":["about","this build"]},
       {"title":"Update status","keywords":["upgrade","download","version","updates"]},
@@ -133,14 +136,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Engine","hint":"What latexmk drives. pdflatex unless the document needs system fonts (xelatex, lualatex)."},
       {"title":"Distributions","hint":"What compiles this project.","keywords":["tex live","toolchain","detect"]},
       {"title":"TeX packages","keywords":["tlmgr","package","install"]},
-    ] },
-  ] },
-  { id: "notifications", groups: [
-    { "title":"Alerts", rows: [
-      {"title":"Notify on","hint":"Which device each alert goes to.","keywords":["duplicate","twice","desktop notifications","banner","iphone","mac","idle","away","push"]},
-      {"title":"Notification sounds","hint":"The sound this computer's alerts play.","keywords":["sound","chime","audio","mute","silent","hilo","armonico","felt"]},
-    ] },
-    { "title":"Phones","keywords":["notifications","apns","alerts","push","relay","phone","not working","test notification","paused","registered"], rows: [
     ] },
   ] },
   { id: "source-control", groups: [

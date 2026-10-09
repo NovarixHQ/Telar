@@ -1,10 +1,13 @@
 import crypto from "node:crypto";
-import { NOTIFICATION_SOUNDS_VALUES, type ActivityReport, type NotificationSounds, type Turn } from "@telar/engine-client";
+import type { ActivityReport, Turn } from "@telar/engine-client";
 import fs from "node:fs";
 import path from "node:path";
 import http2 from "node:http2";
 import { parseRelayCredential } from "./relay-v2";
 import type { ReadSyncState } from "./read-sync";
+
+type PhoneSounds = "hilo" | "armonico" | "felt" | "off";
+const PHONE_SOUNDS: readonly PhoneSounds[] = ["hilo", "armonico", "felt", "off"];
 
 export interface MobileRegistration {
   hostId: string;
@@ -17,7 +20,7 @@ export interface MobileRegistration {
   enabled: boolean;
   completions: boolean;
   previews: boolean;
-  sounds?: NotificationSounds;
+  sounds?: PhoneSounds;
   mutedSessions: string[];
   card?: HostCard;
   relay?: RelayCredential;
@@ -97,7 +100,7 @@ export function parseRegistration(input: unknown): MobileRegistration {
     || (x.pushToStartToken !== undefined && (typeof x.pushToStartToken !== "string" || !hex.test(x.pushToStartToken)))
     || (x.relayCard !== undefined && typeof x.relayCard !== "boolean")
     || (x.hostName !== undefined && (typeof x.hostName !== "string" || x.hostName.length > 160))) throw new PushInputError("Invalid automatic activity registration");
-  if (x.sounds !== undefined && !NOTIFICATION_SOUNDS_VALUES.includes(x.sounds as NotificationSounds)) throw new PushInputError("Invalid sounds");
+  if (x.sounds !== undefined && !PHONE_SOUNDS.includes(x.sounds as PhoneSounds)) throw new PushInputError("Invalid sounds");
   const activities = (x.activities ?? []) as (HostCard & { sessionId: string })[];
   for (const a of activities) {
     if (!a || typeof a.sessionId !== "string" || !a.sessionId || a.sessionId.length > 256 || typeof a.token !== "string" || !hex.test(a.token)
@@ -110,7 +113,7 @@ export function parseRegistration(input: unknown): MobileRegistration {
     ...(relay !== undefined && x.relayCard === true ? { relayCard: true } : {}),
     ...(x.pushToStartToken === undefined ? {} : { pushToStartToken: x.pushToStartToken as string }),
     ...(x.hostName === undefined ? {} : { hostName: x.hostName as string }),
-    ...(x.sounds === undefined ? {} : { sounds: x.sounds as NotificationSounds }),
+    ...(x.sounds === undefined ? {} : { sounds: x.sounds as PhoneSounds }),
     ...(card === undefined ? {} : { card: { token: card.token, startedAt: card.startedAt } }),
     hostId: x.hostId, token: x.token, topic: x.topic as string, sandbox: x.sandbox as boolean,
     enabled: x.enabled as boolean, completions: x.completions as boolean, previews: x.previews as boolean,
@@ -167,11 +170,6 @@ export const ALERT_BODY: Record<AlertKind, string> = {
   failed: "A session failed. Open Telar to review it.",
   finished: "A session finished. Its result is ready to review.",
 };
-const SOUND_EVENT: Record<AlertKind, string> = { finished: "done", blocked: "needs", failed: "error" };
-
-export function soundFor(sounds: NotificationSounds, kind: AlertKind): string | undefined {
-  return sounds === "off" ? undefined : `telar-${sounds}-${SOUND_EVENT[kind]}`;
-}
 
 const PERSON_ORIGINS = new Set<Turn["origin"]>([undefined, "user", "schedule"]);
 
@@ -189,16 +187,16 @@ export function alertKind(session: SessionSignal, previous: string | undefined, 
 export function alertSound(record: MobileRegistration, kind: AlertKind): string | undefined {
   if (kind !== "blocked") return;
   if (record.sounds === undefined) return "default";
-  const named = soundFor(record.sounds, kind);
-  return named && `${named}.caf`;
+  return record.sounds === "off" ? undefined : `telar-${record.sounds}-needs.caf`;
 }
+export const alertId = (sessionId: string): string => crypto.createHash("sha256").update(sessionId).digest("hex");
 export function notification(record: MobileRegistration, session: SessionSignal, previous: string | undefined): Delivery | undefined {
   if (!record.enabled || record.mutedSessions.includes(session.id)) return;
   const kind = alertKind(session, previous, record.completions);
   if (!kind) return;
   const body = ALERT_BODY[kind];
   const approvable = session.activity === "blocked" ? session.approvable : undefined;
-  const collapseId = crypto.createHash("sha256").update(session.id).digest("hex");
+  const collapseId = alertId(session.id);
   const sound = alertSound(record, kind);
   return { token: record.token, topic: record.topic, sandbox: record.sandbox, kind: "alert", collapseId,
     payload: { aps: { alert: { title: record.previews ? session.title.slice(0, 160) : "Telar", body }, ...(sound ? { sound } : {}),

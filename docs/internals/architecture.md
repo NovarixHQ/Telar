@@ -17,9 +17,13 @@ providers (claude, codex, opencode) are child processes of the worker
 - A turn goes: cockpit → engine `/v2` → queued in the journal → claimed by the worker → driver → provider. The worker streams observations back into the journal, and the cockpit folds them into the transcript.
 - The cockpit's `src/proxy.ts` gates every request, but the engine makes the decision (`decideAccess`). If the engine can't answer, the request is denied.
 
+### Notifications reach every device
+
+No device holds back another's alert. Each copy, the APNs push and the Mac banner, is posted under `alertId(sessionId)`, and a read receipt (`POST /v2/sessions/:id/read`) clears them all: the engine sends its shell a dismiss and its phones a background `read` push. A Mac showing another host's alerts clears them when that host reports the session read.
+
 ### Mac notification sounds
 
-NotificationCenter on macOS 26 finds a Developer ID app's custom banner sound only in `~/Library/Sounds`: copies in `Contents/Resources` or an app group container play the default alert. Desktop main copies its `telar-*.caf` files there at startup under the names the banner uses. It caches each name's lookup until it restarts, so a name that once missed keeps playing the default, and a cached file that is deleted plays nothing.
+NotificationCenter on macOS 26 finds a Developer ID app's custom banner sound only in `~/Library/Sounds`: copies in `Contents/Resources` or an app group container play the default alert. Desktop main copies Felt's `telar-felt-*.caf` files there at startup under the names the banner uses. It caches each name's lookup until it restarts, so a name that once missed keeps playing the default, and a cached file that is deleted plays nothing.
 
 ## Domains
 

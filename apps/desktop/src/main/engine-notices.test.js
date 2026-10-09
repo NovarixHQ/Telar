@@ -64,20 +64,20 @@ test("notices on the engine's stream reach the shell, one per data frame", async
   expect(engine.auth[0]).toBe("Bearer engine-token");
 });
 
-test("presence and approvals are posted to the engine", async () => {
+test("approvals are posted to the engine", async () => {
   const engine = await fakeEngine();
   const notices = connectEngineNotices({ readDiscovery: () => engine.discovery, onMessage: () => {} });
   cleanups.push(() => notices.stop());
   const arrived = engine.postedOne();
-  notices.send({ type: "telar:desktop-presence", active: true, viewingPath: null });
+  notices.send({ type: "telar:desktop-notification:approve", sessionId: "s1", requestId: "r1" });
   await arrived;
-  expect(engine.posted).toEqual([{ type: "telar:desktop-presence", active: true, viewingPath: null }]);
+  expect(engine.posted).toEqual([{ type: "telar:desktop-notification:approve", sessionId: "s1", requestId: "r1" }]);
 });
 
 test("with no engine to reach it keeps trying and sends nothing", () => {
   let reads = 0;
   const notices = connectEngineNotices({ readDiscovery: () => { reads += 1; return null; }, onMessage: () => {}, retryMs: 60_000 });
-  notices.send({ type: "telar:desktop-presence" });
+  notices.send({ type: "telar:desktop-notification:approve" });
   notices.stop();
   expect(reads).toBe(2);
 });

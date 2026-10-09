@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { BellIcon } from "lucide-react";
 import { DEFAULT_CLEANUP_POLICY } from "@telar/engine-client";
-import { PushNotificationsGroup } from "@/features/push";
+import { DesktopNotificationsGroup } from "@/features/push";
 import { CleanupSection } from "@/features/worktrees/components/cleanup-section";
 import { buttonLabelled, click, flush, installTestDom, mount, stubFetch } from "@/test/dom";
 import { ExperimentalRows } from "./experimental-rows";
@@ -9,25 +9,23 @@ import { SettingsShell } from "./settings-shell";
 
 installTestDom();
 
-const SECTION = [{ id: "notifications", label: "Notifications", icon: BellIcon }];
-
-test("Restore defaults puts every row of the Notifications section back", async () => {
-  const calls = stubFetch({
-    "GET /api/mobile/relay": () => ({ configured: true, devices: [] }),
-    "GET /api/mobile/notify": () => ({ notifyOn: "both" }),
-    "PUT /api/mobile/notify": (body) => body,
-    "GET /api/mobile/sounds": () => ({ sounds: "felt" }),
-    "PUT /api/mobile/sounds": (body) => body,
-  });
-  const { host } = await mount(
-    <SettingsShell title="Settings" sections={SECTION} active="notifications" onSelect={() => {}}>
-      <PushNotificationsGroup />
-    </SettingsShell>,
-  );
-  await flush(() => Boolean(host.textContent?.includes("Notification sounds")));
-  await click(buttonLabelled("Restore defaults", host));
-  const writes = calls.filter((call) => call.route.startsWith("PUT")).map((call) => `${call.route} ${JSON.stringify(call.body)}`);
-  expect(writes.sort()).toEqual(['PUT /api/mobile/notify {"notifyOn":"mac"}', 'PUT /api/mobile/sounds {"sounds":"hilo"}']);
+test("Restore defaults turns desktop notifications back on", async () => {
+  const set: boolean[] = [];
+  (window as { telarDesktop?: unknown }).telarDesktop = {
+    notifications: { get: async () => ({ enabled: false }), set: async (enabled: boolean) => (set.push(enabled), { enabled }) },
+  };
+  try {
+    const { host } = await mount(
+      <SettingsShell title="Settings" sections={[{ id: "general", label: "General", icon: BellIcon }]} active="general" onSelect={() => {}}>
+        <DesktopNotificationsGroup />
+      </SettingsShell>,
+    );
+    await flush(() => host.querySelector('[role="switch"][aria-label="Desktop notifications"]')?.getAttribute("aria-checked") === "false");
+    await click(buttonLabelled("Restore defaults", host));
+    expect(set).toEqual([true]);
+  } finally {
+    delete (window as { telarDesktop?: unknown }).telarDesktop;
+  }
 });
 
 test("Restore defaults turns every trial off", async () => {

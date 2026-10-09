@@ -1,40 +1,21 @@
-import { cockpitSessionHref, type NotificationSounds, type NotifyOn } from "@telar/engine-client";
-import { readNotifyOn, readSounds } from "./prefs";
-import { ALERT_BODY, alertKind, signalKey, soundFor, type AlertKind, type SessionSignal } from "./push";
+import { cockpitSessionHref } from "@telar/engine-client";
+import { ALERT_BODY, alertId, alertKind, signalKey, type AlertKind, type SessionSignal } from "./push";
 
 export const DESKTOP_NOTICE = "telar:desktop-notification";
 export const DESKTOP_APPROVE = "telar:desktop-notification:approve";
 export const DESKTOP_APPROVED = "telar:desktop-notification:approved";
-export const DESKTOP_PRESENCE = "telar:desktop-presence";
 export const DESKTOP_DISMISS = "telar:desktop-notification:dismiss";
 
 export type DesktopNotice = {
   type: typeof DESKTOP_NOTICE;
   kind: AlertKind;
+  id: string;
   sessionId: string;
   title: string;
   body: string;
   path: string;
   request?: string;
-  sound?: string;
 };
-
-export type DesktopPrefs = { completions: boolean; previews: boolean };
-const DESKTOP_PREFS: DesktopPrefs = { completions: true, previews: true };
-
-export type Presence = { active: boolean; viewingPath: string | null; at: number };
-export const PRESENCE_STALE_MS = 45_000;
-
-export const presentNow = (presence: Presence | undefined, now: number): presence is Presence =>
-  presence !== undefined && presence.active && now - presence.at >= 0 && now - presence.at <= PRESENCE_STALE_MS;
-
-export function notifyRoute(notifyOn: NotifyOn, presence: Presence | undefined, path: string, now = Date.now()): { desktop: boolean; phone: boolean } {
-  if (notifyOn === "iphone") return { desktop: false, phone: true };
-  const active = presentNow(presence, now);
-  if (active && presence.viewingPath === path) return { desktop: false, phone: false };
-  if (notifyOn === "both") return { desktop: true, phone: true };
-  return { desktop: active, phone: !active };
-}
 
 export type DesktopState = { seen: Record<string, string>; baselined: boolean; offered: Record<string, string> };
 export const emptyDesktopState = (): DesktopState => ({ seen: {}, baselined: false, offered: {} });
@@ -43,21 +24,20 @@ export function desktopNotices(
   state: DesktopState,
   sessions: readonly SessionSignal[],
   changed: ReadonlySet<string> | undefined,
-  prefs: DesktopPrefs = DESKTOP_PREFS,
 ): { notices: DesktopNotice[]; state: DesktopState } {
   const next: DesktopState = { seen: { ...state.seen }, baselined: true, offered: { ...state.offered } };
   const notices: DesktopNotice[] = [];
   for (const session of sessions) {
     if (changed && !changed.has(session.id) && session.id in state.seen) continue;
-    const kind = alertKind(session, state.seen[session.id] ?? (state.baselined ? "new:0:0:false" : undefined), prefs.completions);
+    const kind = alertKind(session, state.seen[session.id] ?? (state.baselined ? "new:0:0:false" : undefined), true);
     next.seen[session.id] = signalKey(session);
     if (state.seen[session.id] !== signalKey(session)) delete next.offered[session.id];
     if (!kind) continue;
     const request = kind === "blocked" ? session.approvable : undefined;
     if (request) next.offered[session.id] = request;
     notices.push({
-      type: DESKTOP_NOTICE, kind, sessionId: session.id,
-      title: prefs.previews ? session.title.slice(0, 160) : "Telar",
+      type: DESKTOP_NOTICE, kind, id: alertId(session.id), sessionId: session.id,
+      title: session.title.slice(0, 160),
       body: ALERT_BODY[kind],
       path: cockpitSessionHref(session),
       ...(request ? { request } : {}),
@@ -92,61 +72,22 @@ type Resolve = (sessionId: string, requestId: string, input: { decision: "accept
 
 const desktopGlobal = globalThis as typeof globalThis & {
   telarDesktopNotify?: DesktopState;
-  telarDesktopPresence?: Presence;
-  telarDesktopTook?: Record<string, string>;
-  telarConnectedMacs?: Record<string, number>;
 };
 
 export function desktopAttached(channel: Channel = desktopStream): boolean {
   return channel.connected;
 }
 
-export const desktopPresence = (): Presence | undefined => desktopGlobal.telarDesktopPresence;
-export const desktopInUse = (now = Date.now()): boolean => presentNow(desktopGlobal.telarDesktopPresence, now);
-
-export function noteConnectedMac(deviceId: string, active: boolean, now = Date.now()): void {
-  const macs = { ...desktopGlobal.telarConnectedMacs };
-  if (active) macs[deviceId] = now;
-  else delete macs[deviceId];
-  desktopGlobal.telarConnectedMacs = macs;
-}
-
-const connectedMacInUse = (now: number) =>
-  Object.values(desktopGlobal.telarConnectedMacs ?? {}).some((at) => presentNow({ active: true, viewingPath: null, at }, now));
-
-export function notifyDesktop(
-  sessions: readonly SessionSignal[],
-  changed: ReadonlySet<string> | undefined,
-  { channel = desktopStream, notifyOn = readNotifyOn(), sounds = readSounds(), now = Date.now() }: { channel?: Channel; notifyOn?: NotifyOn; sounds?: NotificationSounds; now?: number } = {},
-): void {
+export function notifyDesktop(sessions: readonly SessionSignal[], changed: ReadonlySet<string> | undefined, channel: Channel = desktopStream): void {
   const { notices, state } = desktopNotices(desktopGlobal.telarDesktopNotify ?? emptyDesktopState(), sessions, changed);
   desktopGlobal.telarDesktopNotify = state;
-  const took: Record<string, string> = {};
-  for (const [id, key] of Object.entries(desktopGlobal.telarDesktopTook ?? {})) if (id in state.seen) took[id] = key;
-  for (const notice of notices) {
-    const route = notifyRoute(notifyOn, desktopGlobal.telarDesktopPresence, notice.path, now);
-    if (notifyOn === "mac" && connectedMacInUse(now)) route.phone = false;
-    if (route.phone) delete took[notice.sessionId]; else took[notice.sessionId] = state.seen[notice.sessionId];
-    if (!route.desktop) continue;
-    const sound = soundFor(sounds, notice.kind);
-    channel.send(sound ? { ...notice, sound } : notice);
-  }
-  desktopGlobal.telarDesktopTook = took;
-}
-
-export function macTookAlert(session: SessionSignal): boolean {
-  return desktopGlobal.telarDesktopTook?.[session.id] === signalKey(session);
+  for (const notice of notices) channel.send(notice);
 }
 
 const validId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 256;
-export async function handleDesktopMessage(message: unknown, resolve: Resolve, channel: Channel = desktopStream, state = desktopGlobal.telarDesktopNotify, now = Date.now()): Promise<void> {
+export async function handleDesktopMessage(message: unknown, resolve: Resolve, channel: Channel = desktopStream, state = desktopGlobal.telarDesktopNotify): Promise<void> {
   if (!message || typeof message !== "object") return;
-  const { type, sessionId, requestId, active, viewingPath } = message as Record<string, unknown>;
-  if (type === DESKTOP_PRESENCE) {
-    const viewing = viewingPath === null || (typeof viewingPath === "string" && viewingPath.startsWith("/") && viewingPath.length <= 1024) ? viewingPath : undefined;
-    if (typeof active === "boolean" && viewing !== undefined) desktopGlobal.telarDesktopPresence = { active, viewingPath: viewing, at: now };
-    return;
-  }
+  const { type, sessionId, requestId } = message as Record<string, unknown>;
   if (type !== DESKTOP_APPROVE || !validId(sessionId) || !validId(requestId)) return;
   let ok = false;
   if (state && state.offered[sessionId] === requestId) {
@@ -158,5 +99,5 @@ export async function handleDesktopMessage(message: unknown, resolve: Resolve, c
 
 export function dismissDesktop(sessionId: string, channel: Channel = desktopStream): void {
   if (!validId(sessionId) || !desktopAttached(channel)) return;
-  channel.send({ type: DESKTOP_DISMISS, sessionId });
+  channel.send({ type: DESKTOP_DISMISS, sessionId, id: alertId(sessionId) });
 }

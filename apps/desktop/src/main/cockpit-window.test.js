@@ -13,7 +13,6 @@ const supported = process.platform === "darwin";
 
 function open(url = URL_) {
   const made = {};
-  const navigations = [];
   const win = createCockpitWindow(url, {
     createManager: (window, { onChordScope }) => {
       made.manager = {
@@ -28,9 +27,8 @@ function open(url = URL_) {
       };
       return made.manager;
     },
-    onInPageNavigation: () => navigations.push(true),
   });
-  return { win, manager: made.manager, navigations };
+  return { win, manager: made.manager };
 }
 
 function writeUiPrefs(prefs) {
@@ -106,12 +104,6 @@ describe("the window joins the host registry", () => {
     win.emit("page-title-updated", { preventDefault: () => { prevented = true; } });
     expect(prevented).toBe(true);
     expect(win.title).toBe(title);
-  });
-
-  test("an in-page navigation is reported", () => {
-    const { win, navigations } = open();
-    win.webContents.emit("did-navigate-in-page");
-    expect(navigations).toHaveLength(1);
   });
 });
 

@@ -1,1 +1,1 @@
-export { PushNotificationsGroup } from "./components/push-notifications-group";
+export { DesktopNotificationsGroup } from "./components/desktop-notifications-group";

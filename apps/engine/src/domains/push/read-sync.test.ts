@@ -107,16 +107,6 @@ describe("coalescing and the one-a-minute limit", () => {
     expect(await deliverRecord(record([finished("a")], { readSync: state }), [read(finished("a"))], send, 10_000, { readSync: true })).toBeUndefined();
   });
 
-  test("an alert the Mac took is not one the phone holds, so it is never cleared there", async () => {
-    const { sent, send } = recorder();
-    const next = (await deliverRecord(record([working("a")]), [finished("a")], send, 10_000, { readSync: true, macTook: () => true }))!;
-    expect(sent).toEqual([]);
-    expect(next.readSync).toBeUndefined();
-    const later = (await deliverRecord(next, [read(finished("a"))], send, 10_100, { readSync: true, macTook: () => true }))!;
-    expect(background(sent)).toEqual([]);
-    expect(later.readSync).toBeUndefined();
-  });
-
   test("a pass that does not ask for read sync keeps no state for it", async () => {
     const { sent, send } = recorder();
     const next = (await deliverRecord(record([working("a")], { readSync: { alerted: ["a"], pending: ["a"] } }), [finished("a")], send, 10_000, { readSync: false }))!;

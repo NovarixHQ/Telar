@@ -1,12 +1,19 @@
 const { describe, expect, test } = require("bun:test");
 const {
-  DESKTOP_NOTICE, DESKTOP_APPROVE, DESKTOP_APPROVED, DESKTOP_PRESENCE, DESKTOP_DISMISS,
-  ACTIVE_IDLE_SECONDS, PRESENCE_BEAT_MS, presenceMessage, createPresenceReporter,
+  DESKTOP_NOTICE, DESKTOP_APPROVE, DESKTOP_APPROVED, DESKTOP_DISMISS,
   parseNotice, routeOf, shouldNotifyDesktop, createDesktopNotifier,
 } = require("./desktop-notifications");
 
+const crypto = require("node:crypto");
+
+const alertId = (sessionId) => crypto.createHash("sha256").update(sessionId).digest("hex");
+
 class FakeNotification {
   static made = [];
+  static removed = [];
+  static remove(id) {
+    FakeNotification.removed.push(id);
+  }
   constructor(options) {
     this.options = options;
     this.handlers = {};
@@ -27,8 +34,9 @@ class FakeNotification {
   }
 }
 
-function harness(context = {}) {
+function harness(context = {}, enabled = () => true) {
   FakeNotification.made = [];
+  FakeNotification.removed = [];
   const sent = [];
   const opened = [];
   const notifier = createDesktopNotifier({
@@ -37,26 +45,23 @@ function harness(context = {}) {
     context: () => context,
     open: (route) => opened.push(route),
     chime: { options: () => ({ silent: true }), shown() {} },
+    enabled,
   });
   return { notifier, sent, opened };
 }
 
 const notice = (patch = {}) => ({
   type: DESKTOP_NOTICE, kind: "blocked", sessionId: "s1", title: "Fix the build",
-  body: "A session needs your input or approval.", path: "/projects/p1/sessions/s1", ...patch,
+  body: "A session needs your input or approval.", path: "/projects/p1/sessions/s1",
+  id: alertId(patch.sessionId ?? "s1"), ...patch,
 });
 
 describe("the channel's contract", () => {
   test("both halves spell the message types the same", async () => {
     const server = await import("../../../engine/src/domains/push/desktop.ts");
-    for (const [name, value] of Object.entries({ DESKTOP_NOTICE, DESKTOP_APPROVE, DESKTOP_APPROVED, DESKTOP_PRESENCE, DESKTOP_DISMISS })) {
+    for (const [name, value] of Object.entries({ DESKTOP_NOTICE, DESKTOP_APPROVE, DESKTOP_APPROVED, DESKTOP_DISMISS })) {
       expect(server[name]).toBe(value);
     }
-  });
-
-  test("the server's staleness window outlasts the shell's beat", async () => {
-    const { PRESENCE_STALE_MS } = await import("../../../engine/src/domains/push/desktop.ts");
-    expect(PRESENCE_STALE_MS).toBeGreaterThanOrEqual(PRESENCE_BEAT_MS * 3);
   });
 
   test("a notice must be well formed, and its path must stay inside the app", () => {
@@ -64,7 +69,7 @@ describe("the channel's contract", () => {
     for (const bad of [
       null, "notice", { ...notice(), type: "other" }, notice({ kind: "exploded" }), notice({ sessionId: "" }),
       notice({ title: "x".repeat(161) }), notice({ path: "https://evil.example" }), notice({ path: "//evil.example" }),
-      notice({ path: "/\\evil.example" }), notice({ request: 7 }),
+      notice({ path: "/\\evil.example" }), notice({ request: 7 }), notice({ id: "x" }), { ...notice(), id: undefined },
     ]) expect(parseNotice(bad)).toBeNull();
   });
 });
@@ -84,55 +89,26 @@ describe("shouldNotifyDesktop", () => {
   });
 });
 
-describe("presence", () => {
-  test("active is a focused cockpit, recent input and an unlocked screen", () => {
-    const path = "/projects/p1/sessions/s1";
-    expect(presenceMessage({ idleState: "active", locked: false, focused: true, viewingPath: path })).toEqual({ type: DESKTOP_PRESENCE, active: true, viewingPath: path });
-
-    for (const away of [{ focused: false }, { idleState: "idle" }, { idleState: "locked" }, { idleState: "unknown" }, { locked: true }]) {
-      expect(presenceMessage({ idleState: "active", locked: false, focused: true, viewingPath: path, ...away })).toEqual({ type: DESKTOP_PRESENCE, active: false, viewingPath: null });
-    }
-
-    expect(presenceMessage({ idleState: "active", focused: true, viewingPath: "https://evil.example" }).viewingPath).toBeNull();
-    expect(ACTIVE_IDLE_SECONDS).toBe(60);
-  });
-
-  test("the reporter sends at once, on every beat and on demand, and stops cleanly", () => {
-    const sent = [];
-    const timers = [];
-    let sample = { idleState: "active", locked: false, focused: true, viewingPath: null };
-    const reporter = createPresenceReporter({
-      sample: () => sample,
-      send: (message) => sent.push(message),
-      setInterval: (fn, ms) => { const t = { fn, ms, cleared: false }; timers.push(t); return t; },
-      clearInterval: (t) => { t.cleared = true; },
-    });
-    reporter.start();
-    reporter.start();
-    expect(timers).toHaveLength(1);
-    expect(timers[0].ms).toBe(PRESENCE_BEAT_MS);
-    expect(sent).toEqual([{ type: DESKTOP_PRESENCE, active: true, viewingPath: null }]);
-    sample = { ...sample, idleState: "idle" };
-    timers[0].fn();
-    expect(sent.at(-1).active).toBe(false);
-    sample = { ...sample, idleState: "active", locked: true };
-    reporter.report();
-    expect(sent.at(-1).active).toBe(false);
-    reporter.stop();
-    expect(timers[0].cleared).toBe(true);
-  });
-});
-
 describe("the banner and its actions", () => {
   test("a plain notice shows title and body with Open only; a click opens its session", () => {
     const { notifier, opened, sent } = harness();
     notifier.handleServerMessage(notice());
     const [banner] = FakeNotification.made;
     expect(banner.shown).toBe(true);
-    expect(banner.options).toEqual({ title: "Fix the build", body: "A session needs your input or approval.", silent: true, actions: [{ type: "button", text: "Open" }] });
+    expect(banner.options).toEqual({ id: alertId("s1"), title: "Fix the build", body: "A session needs your input or approval.", silent: true, actions: [{ type: "button", text: "Open" }] });
     banner.handlers.click();
     expect(opened).toEqual(["/projects/p1/sessions/s1"]);
     expect(sent).toEqual([]);
+  });
+
+  test("nothing is shown while desktop notifications are off, and the next notice shows once they are on", () => {
+    let on = false;
+    const { notifier } = harness({}, () => on);
+    notifier.handleServerMessage(notice());
+    expect(FakeNotification.made).toHaveLength(0);
+    on = true;
+    notifier.handleServerMessage(notice());
+    expect(FakeNotification.made).toHaveLength(1);
   });
 
   test("nothing is shown for the session already on screen", () => {
@@ -181,6 +157,19 @@ describe("the banner and its actions", () => {
     notifier.handleServerMessage(notice({ kind: "finished", body: "A session finished. Its result is ready to review." }));
     expect(FakeNotification.made[0].closed).toBe(true);
     expect(notifier.liveCount()).toBe(1);
+  });
+
+  test("the banner is posted under the alert id every device shares, and a dismiss removes that id even after the shell forgot it", async () => {
+    const server = await import("../../../engine/src/domains/push/push.ts");
+    expect(server.alertId("s1")).toBe(alertId("s1"));
+    const { notifier } = harness();
+    notifier.handleServerMessage(notice());
+    expect(FakeNotification.made[0].options.id).toBe(alertId("s1"));
+
+    const restarted = harness().notifier;
+    restarted.handleServerMessage({ type: DESKTOP_DISMISS, sessionId: "s1", id: alertId("s1") });
+    restarted.handleServerMessage({ type: DESKTOP_DISMISS, sessionId: "s2", id: "not-an-id" });
+    expect(FakeNotification.removed).toEqual([alertId("s1")]);
   });
 });
 

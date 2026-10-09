@@ -3,14 +3,20 @@ import type { ThemeColor } from "../../ui/theme";
 
 export const isOpen = (run: RunView) => run.status === "running" || run.status === "ready";
 
-/** Replaces the terminal by id and keeps the list newest first. */
+const newestFirst = (a: RunView, b: RunView) => b.startedAt - a.startedAt;
+
+/** The host's live terminals, newest first; the engine also lists ones that already ended. */
+export const liveTerminals = (list: readonly RunView[]): RunView[] => list.filter(isOpen).sort(newestFirst);
+
+/** Applies a status update: an open terminal replaces its old entry, an ended one leaves the list. */
 export function upsertTerminal(list: readonly RunView[], run: RunView): RunView[] {
-  return [...list.filter((other) => other.terminalId !== run.terminalId), run].sort((a, b) => b.startedAt - a.startedAt);
+  const others = list.filter((other) => other.terminalId !== run.terminalId);
+  return isOpen(run) ? [...others, run].sort(newestFirst) : others;
 }
 
-/** The terminal to show: the one asked for while it is listed, else the newest open one, else the newest. */
+/** The terminal to show: the one asked for while it is listed, else the newest. */
 export function pickTerminal(list: readonly RunView[], wanted: string | undefined): RunView | undefined {
-  return list.find((run) => run.terminalId === wanted) ?? list.find(isOpen) ?? list[0];
+  return list.find((run) => run.terminalId === wanted) ?? list[0];
 }
 
 export function statusLabel(run: RunView): string {

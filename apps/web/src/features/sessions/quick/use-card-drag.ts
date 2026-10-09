@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
-import type { CardSpot, QuickComposerBridge } from "./front-context";
+import type { CardSpot, FrontContext, QuickComposerBridge } from "./front-context";
 
 const CONTROL = 'button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [contenteditable="true"]';
 const FIELD = '[data-slot="composer-editor"]';
-const TEXT = '[data-slot="quick-reply"], p';
+const TEXT = '[data-slot="quick-transcript"], p';
 const HOLD_MS = 150;
 const SLOP = 3;
 export const CARD_WIDTH = 680;
@@ -26,9 +26,9 @@ function clamp(spot: CardSpot): CardSpot {
 
 const centred = (): CardSpot => ({ x: Math.round((window.innerWidth - CARD_WIDTH) / 2), y: Math.round(window.innerHeight * 0.2) });
 
-export function useCardDrag(bridge: QuickComposerBridge | undefined, saved: CardSpot | null | undefined, fieldEmpty: boolean) {
-  const [dragged, setDragged] = useState<{ from: CardSpot | null | undefined; spot: CardSpot }>();
-  const spot = clamp(dragged && dragged.from === saved ? dragged.spot : (saved ?? centred()));
+export function useCardDrag(bridge: QuickComposerBridge | undefined, opened: FrontContext | null, fieldEmpty: boolean) {
+  const [dragged, setDragged] = useState<{ from: FrontContext | null; spot: CardSpot }>();
+  const spot = clamp(dragged && dragged.from === opened ? dragged.spot : (opened?.spot ?? centred()));
 
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     const grab = event.button === 0 ? grabOf(event.target as Element, fieldEmpty) : null;
@@ -51,7 +51,7 @@ export function useCardDrag(bridge: QuickComposerBridge | undefined, saved: Card
         card.setPointerCapture?.(event.pointerId);
       }
       last = clamp({ x: spot.x + dx, y: spot.y + dy });
-      setDragged({ from: saved, spot: last });
+      setDragged({ from: opened, spot: last });
     };
     const stop = () => {
       card.removeEventListener("pointermove", move);

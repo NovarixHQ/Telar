@@ -1,31 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { LiveSessionRow, Project } from "@telar/engine-client";
-import { createEngineApi } from "@/platform/engine";
 import { destinationQuery, destinationRows, type Destination, type DestinationRow } from "./destination";
-
-const api = createEngineApi();
 
 type Key = { key: string; altKey: boolean };
 
-export function useDestination({ text, setText, projects, projectId, onProject }: {
+export function useDestination({ text, setText, sessions, projects, projectId, onProject }: {
   text: string;
   setText: (text: string) => void;
+  sessions: readonly LiveSessionRow[];
   projects: readonly Project[];
   projectId: string | undefined;
   onProject: (projectId: string) => void;
 }) {
-  const [sessions, setSessions] = useState<readonly LiveSessionRow[]>([]);
   const [destination, setDestination] = useState<Destination | null>(null);
   const [selection, setSelection] = useState({ query: "", index: 0 });
   const query = destinationQuery(text);
   const picking = query !== null;
-
-  useEffect(() => {
-    if (!picking) return;
-    void api.liveSessions({ all: true }).then((page) => setSessions(page.sessions), () => undefined);
-  }, [picking]);
 
   const rows = useMemo(() => (query === null ? [] : destinationRows(query, projects, sessions, projectId)), [query, projects, sessions, projectId]);
   const index = selection.query === query ? Math.min(selection.index, Math.max(rows.length - 1, 0)) : 0;
@@ -59,5 +51,6 @@ export function useDestination({ text, setText, projects, projectId, onProject }
     return true;
   };
 
-  return { picking, rows, index, pick, onKey, destination, clear: () => setDestination(null) };
+  const clear = useCallback(() => setDestination(null), []);
+  return { picking, rows, index, pick, onKey, destination, clear };
 }

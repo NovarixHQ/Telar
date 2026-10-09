@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Project } from "@telar/engine-client";
+import type { LiveSessionRow, Project } from "@telar/engine-client";
 import { asEngineError, createEngineApi, newRunId } from "@/platform/engine";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { composerProject, MAX_ATTACHMENTS, readFrontDoorNote } from "@/features/composer";
@@ -10,6 +10,8 @@ import { useDraftConfig } from "../cockpit/hooks/use-draft-config";
 import { startSession } from "../cockpit/start-session";
 import { sessionHref } from "../session-list";
 import { contextOffers, type ContextOffer, type FrontContext, type QuickComposerBridge } from "./front-context";
+import { destinationQuery } from "./destination";
+import { needsYou } from "./needs-you";
 import { useDestination } from "./use-destination";
 
 const api = createEngineApi();
@@ -48,12 +50,27 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
   const [error, setError] = useState<string>();
   const openAfter = useRef(false);
   const offered = useRef<readonly ContextOffer[]>([]);
-  const destination = useDestination({ text, setText, projects, projectId, onProject: setProjectId });
+  const [sessions, setSessions] = useState<readonly LiveSessionRow[]>([]);
+  const [opened, setOpened] = useState(0);
+  const [nudge, setNudge] = useState(0);
+  const destination = useDestination({ text, setText, sessions, projects, projectId, onProject: setProjectId });
+  const picking = destinationQuery(text) !== null;
+  const { clear } = destination;
+
+  useEffect(() => {
+    void api.liveSessions({ all: true }).then((page) => setSessions(page.sessions), () => undefined);
+  }, [opened, picking, nudge]);
 
   useEffect(() => {
     if (!bridge) return;
     const adopt = (next: FrontContext | null) => {
       setContext(next);
+      setOpened((count) => count + 1);
+      if (next?.fresh) {
+        setText("");
+        setFiles([]);
+        clear();
+      }
       const previous = offered.current;
       offered.current = contextOffers(next);
       setOffers(offered.current);
@@ -67,7 +84,7 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
       stopOpen();
       stopPermissions();
     };
-  }, [bridge]);
+  }, [bridge, clear]);
 
   const toggleOffer = (offer: ContextOffer) =>
     setFiles((current) => (current.includes(offer.file) ? current.filter((file) => file !== offer.file) : [...current, offer.file].slice(0, MAX_ATTACHMENTS)));
@@ -84,8 +101,9 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
     try {
       if (target?.kind === "session") {
         await reply(target.session.id, sent.text, sent.files);
-        destination.clear();
         setError(undefined);
+        setNudge((count) => count + 1);
+        if (!open) return;
         const route = sessionHref({ id: target.session.id, projectId: target.session.projectId ?? "", hostId: LOCAL_HOST_ID });
         await bridge?.sent({ route, title: target.session.title, detail: target.projectName, open });
         return;
@@ -112,5 +130,12 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
     openAfter.current = false;
   };
 
-  return { projects, projectId, setProjectId, project, draft, text, setText, files, setFiles, context, offers, toggleOffer, destination, sending, error, submit, noteKey, forgetKey };
+  const attachedId = destination.destination?.kind === "session" ? destination.destination.session.id : undefined;
+  const edit = (next: string) => {
+    if (attachedId && destinationQuery(next) !== null && destinationQuery(text) === null) clear();
+    setText(next);
+  };
+  const needs = useMemo(() => needsYou(sessions, projects, attachedId), [sessions, projects, attachedId]);
+
+  return { projects, projectId, setProjectId, project, draft, text, setText, edit, files, setFiles, context, offers, toggleOffer, destination, needs, nudge, sending, error, submit, noteKey, forgetKey };
 }

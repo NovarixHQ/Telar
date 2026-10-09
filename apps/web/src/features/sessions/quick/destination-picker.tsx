@@ -14,7 +14,7 @@ export function statusDot(session: Pick<LiveSessionRow, "activity">) {
   return "bg-success";
 }
 
-export function sessionStatus(session: LiveSessionRow, now: number) {
+export function sessionStatus(session: Pick<LiveSessionRow, "activity" | "activityDetail" | "activityAt" | "updatedAt">, now: number) {
   const { badge, time } = rowStatusText(session, now);
   return badge?.label ?? `Idle · ${time}`;
 }
@@ -23,21 +23,27 @@ function rowKey(row: DestinationRow) {
   return row.kind === "project" ? `project:${row.project.id}` : row.session.id;
 }
 
-export function DestinationPicker({ rows, index, onPick }: { rows: readonly DestinationRow[]; index: number; onPick: (row: DestinationRow, worktree: boolean) => void }) {
+export function DestinationPicker({ rows, index, onPick, below, maxHeight }: {
+  rows: readonly DestinationRow[];
+  index: number;
+  onPick: (row: DestinationRow, worktree: boolean) => void;
+  below: boolean;
+  maxHeight: number;
+}) {
   const [now] = useState(Date.now);
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" });
   }, [index, rows]);
   return (
-    <div className="mx-6 mb-1.5 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2">
+    <div className={cn("mx-6 rounded-xl border border-border bg-popover p-1.5 text-popover-foreground shadow-2", below ? "mt-1.5" : "mb-1.5")}>
       <div className="flex justify-between px-2 pt-1 pb-1.5 text-2xs text-muted-foreground">
         <span>Where does it go?</span>
         <span>↑↓ choose · ↵ attach</span>
       </div>
-      <div ref={list} role="listbox" aria-label="Destination" className="max-h-80 overflow-y-auto">
+      <div ref={list} role="listbox" aria-label="Destination" className="overflow-y-auto" style={{ maxHeight }}>
         {rows.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">Nothing matches</p>}
-        {rows.map((row, at) => ({ row, at })).reverse().map(({ row, at }) => (
+        {(below ? rows.map((row, at) => ({ row, at })) : rows.map((row, at) => ({ row, at })).reverse()).map(({ row, at }) => (
           <div
             key={rowKey(row)}
             role="option"

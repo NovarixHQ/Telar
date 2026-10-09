@@ -34,9 +34,15 @@ const PROJECTS = [
   { id: "project_1", name: "Telar", root: "/tmp", createdAt: 2 },
   { id: "project_2", name: "exoplanets", root: "/tmp/exo", createdAt: 1 },
 ];
-const live = (id: string, title: string, projectId: string, activity: string, updatedAt: number) => ({ id, title, projectId, activity, updatedAt, state: "active", createdAt: 1 });
+const live = (id: string, title: string, projectId: string, activity: string, updatedAt: number, read: Partial<{ lastTurnSequence: number; lastReadTurnSequence: number }> = {}) => ({
+  id, title, projectId, activity, updatedAt, state: "active", createdAt: 1, driver: "claude", workspace: { mode: "none" }, ...read,
+});
+let journal: Record<string, Record<string, unknown>[]> = {};
+const turn = (sessionId: string, sequence: number, input: string, state: string, resultText?: string) => ({
+  runId: `run_${sessionId}_${sequence}`, sessionId, sequence, input, state, acceptedAt: 1, updatedAt: 1, ...(resultText ? { resultText, startedAt: 1, endedAt: 2 } : {}),
+});
 const LIVE = [
-  live("s_transit", "Transit light-curve analysis", "project_2", "idle", 300),
+  live("s_transit", "Transit light-curve analysis", "project_2", "idle", 300, { lastTurnSequence: 2, lastReadTurnSequence: 1 }),
   live("s_sales", "Sales dashboard and checkout", "project_2", "blocked", 100),
   live("s_readme", "Expand scratch README", "project_1", "working", 50),
 ];
@@ -50,9 +56,17 @@ function wire() {
     const create = /\/api\/projects\/(project_\d)\/sessions$/.exec(url);
     if (method === "POST" && create) return Response.json({ session: { ...session(body.id, body.title), projectId: create[1] } });
     if (url.includes("/api/sessions/live")) return Response.json({ sessions: LIVE, projects: PROJECTS });
-    if (url.includes("/answer")) return Response.json({ runId: "run_9", sequence: 3, text: "Need to run the build first.\n\n**Shall I run it?**", from: 0, totalChars: 46, more: false });
+    const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
+    if (url.includes("/bootstrap") || (url.includes("/sessions/") && url.includes("turns="))) {
+      return Response.json({ session: { ...LIVE.find((row) => row.id === id), environmentId: "env", providerInstanceId: "claude", envMode: "local" }, turns: journal[id] ?? [], items: [], tasks: [], requests: [], cursor: 1, events: [], subscriptions: [] });
+    }
+    if (url.includes("/events")) return Response.json({ events: [], cursor: 1, more: false });
+    if (url.includes("/api/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
     if (url.includes("/attachments")) return Response.json({ attachment: { id: `att_${calls.length}` } });
-    if (url.includes("/turns")) return Response.json({ runId: "run_1", state: "queued" });
+    if (url.includes("/turns")) {
+      if (method === "POST" && journal[id]) journal[id] = [...journal[id], turn(id, journal[id].length + 1, body.input, "running")];
+      return Response.json({ runId: "run_1", state: "queued" });
+    }
     if (url.includes("/api/projects")) return Response.json({ projects: PROJECTS });
     if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
     if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
@@ -60,23 +74,28 @@ function wire() {
   }) as typeof fetch;
 }
 
-const GRANTED = { accessibility: true, screen: true };
-const DENIED = { accessibility: false, screen: false };
+const GRANTED = { accessibility: true };
+const DENIED = { accessibility: false };
 
 function fakeBridge(context: FrontContext | null) {
   const sent: Parameters<QuickComposerBridge["sent"]>[0][] = [];
   const settings: Permission[] = [];
   let closed = 0;
   let held = 0;
-  const moves: unknown[] = [];
-  const interactive: boolean[] = [];
+  const layouts: { height: number; composerTop: number }[] = [];
+  const drags: unknown[] = [];
+  let room: Parameters<QuickComposerBridge["onRoom"]>[0] = () => {};
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
     onOpen: () => () => {},
     close: async () => void (closed += 1),
-    interactive: (on) => void interactive.push(on),
-    moved: (spot) => void moves.push(spot),
+    layout: (metrics) => void layouts.push(metrics),
+    onRoom: (listener) => {
+      room = listener;
+      return () => {};
+    },
+    drag: (input) => void drags.push(input),
     sent: async (input) => void sent.push(input),
     onPermissions: (listener) => {
       pushPermissions = listener;
@@ -86,15 +105,16 @@ function fakeBridge(context: FrontContext | null) {
     hold: () => void (held += 1),
     failed: () => {},
   };
-  return { bridge, sent, settings, moves, interactive, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, layouts, drags, room: (next: Parameters<typeof room>[0]) => act(() => room(next)), closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
-const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", screenshot: null, permissions, grantee: "Telar Dev", ...extra });
+const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", permissions, grantee: "Telar Dev", ...extra });
 
 beforeEach(() => {
   clearConnections();
   window.localStorage.clear();
   calls = [];
+  journal = { s_sales: [turn("s_sales", 1, "Can you check the build?", "completed", "Need to run the build first.\n\n**Shall I run it?**")] };
   wire();
 });
 
@@ -109,19 +129,13 @@ async function open(context: FrontContext | null) {
   return { host, ...fake };
 }
 
-const cardOf = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="quick-card"]')!;
-const spotOf = (host: HTMLElement) => ({ x: Number.parseFloat(cardOf(host).style.left), y: Number.parseFloat(cardOf(host).style.top) });
-
-function gesture(target: Element, path: { x: number; y: number }[], heldFor = 0) {
+function gesture(target: Element, moveTo: number) {
   const card = target.closest('[data-slot="quick-card"]')!;
-  const at = (type: string, x: number, y: number, timeStamp: number) => {
-    const event = new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 500 + x, clientY: 300 + y });
-    Object.defineProperty(event, "timeStamp", { value: timeStamp });
-    act(() => void (type === "pointerdown" ? target : card).dispatchEvent(event));
-  };
-  at("pointerdown", 0, 0, 1000);
-  for (const point of path) at("pointermove", point.x, point.y, 1000 + heldFor);
-  at("pointerup", path.at(-1)?.x ?? 0, path.at(-1)?.y ?? 0, 1000 + heldFor);
+  act(() => {
+    target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 40, clientY: 30, screenX: 0, screenY: 0 }));
+    card.dispatchEvent(new PointerEvent("pointermove", { screenX: moveTo, screenY: 0 }));
+    card.dispatchEvent(new PointerEvent("pointerup", {}));
+  });
 }
 
 const editor = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="composer-editor"]')!;
@@ -140,6 +154,7 @@ async function press(host: HTMLElement, key: string, keys: KeyboardEventInit = {
   await flush();
 }
 
+const strip = (host: HTMLElement) => [...host.querySelectorAll('[role="toolbar"] button')].map((pill) => pill.getAttribute("title")?.split(" · ")[0]);
 const options = (host: HTMLElement) => [...host.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
 
 async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEventInit = {}) {
@@ -167,24 +182,14 @@ describe("the quick composer", () => {
     expect(sent[0]?.open).toBe(true);
   });
 
-  test("offers the front window and the selection without attaching them", async () => {
-    const { host } = await open(front(GRANTED, { app: "Safari", title: "pull/1439", selection: "two\nlines", screenshot: "data:image/png;base64,iVBORw0KGgo=" }));
+  test("offers the selection without attaching it, and never offers the window", async () => {
+    const { host } = await open(front(GRANTED, { app: "Safari", title: "pull/1439", selection: "two\nlines" }));
     expect(host.querySelector('[aria-label^="Remove "]')).toBeNull();
-    const offer = [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Attach pull/1439"))!;
-    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Attach selected text")).toBe(true);
-    await act(async () => offer.click());
-    await flush();
-    expect(host.querySelector('[aria-label="Remove Safari · pull-1439.png"]')).not.toBeNull();
-    await typeAndPress(host, "Explain");
-    expect(calls.filter((call) => call.url.includes("/attachments"))).toHaveLength(1);
-  });
-
-  test("⌘⇧A attaches the front window, and again takes it off", async () => {
-    const { host } = await open(front(GRANTED, { app: "Safari", title: "pull/1439", screenshot: "data:image/png;base64,iVBORw0KGgo=" }));
-    await press(host, "A", { metaKey: true, shiftKey: true });
-    expect(host.querySelector('[aria-label="Remove Safari · pull-1439.png"]')).not.toBeNull();
-    await press(host, "A", { metaKey: true, shiftKey: true });
-    expect(host.querySelector('[aria-label="Remove Safari · pull-1439.png"]')).toBeNull();
+    const offers = [...host.querySelectorAll("button")].map((button) => button.textContent);
+    expect(offers).toContain("Attach selected text");
+    expect(offers.some((label) => label?.includes("pull/1439"))).toBe(false);
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Attach selected text")!.click());
+    expect(host.querySelector('[aria-label="Remove Selected text.txt"]')).not.toBeNull();
   });
 
   test("without the permissions it explains them, attaches nothing, and still sends", async () => {
@@ -213,31 +218,19 @@ describe("the quick composer", () => {
     expect(reopened.host.querySelector('[role="note"]')).toBeNull();
   });
 
-  test("each missing permission gets its own button, and a granted one says so", async () => {
-    const { host, settings } = await open(front({ accessibility: true, screen: false }));
-    const row = (key: Permission) => host.querySelector<HTMLElement>(`[data-permission="${key}"]`)!;
-    expect(row("accessibility").textContent).toContain("Granted");
-    expect(row("accessibility").querySelector("button")).toBeNull();
-    await act(async () => row("screen").querySelector("button")!.click());
-    expect(settings).toEqual(["screen"]);
-  });
-
-  test("a grant made in System Settings updates the rows, and the notice goes once both are in", async () => {
-    const { host, recheck } = await open(front(DENIED));
-    recheck({ accessibility: true, screen: false });
-    expect(host.querySelector('[data-permission="accessibility"]')?.textContent).toContain("Granted");
-    expect(host.querySelector('[data-permission="screen"] button')).not.toBeNull();
+  test("the missing permission has a button for its pane, and the notice goes once it is granted", async () => {
+    const { host, settings, recheck } = await open(front(DENIED));
+    await act(async () => host.querySelector<HTMLElement>('[data-permission="accessibility"] button')!.click());
+    expect(settings).toEqual(["accessibility"]);
     recheck(GRANTED);
     expect(host.querySelector('[role="note"]')).toBeNull();
   });
 
-  test("the project picker sits in the card's control row, with the send hint under the card", async () => {
+  test("the project picker sits in the card's control row, with nothing under the card", async () => {
     const { host } = await open(front(GRANTED));
     const controls = host.querySelector('[data-slot="composer-controls"]')!;
     expect(controls.querySelector('[aria-label="Project"]')?.textContent).toContain("Telar");
-    const hint = host.querySelector('[data-slot="quick-hint"]')!;
-    expect(hint.textContent).toBe("↵ send · ⌘↵ send & open · # destination · esc close");
-    expect(editor(host).compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(host.querySelector('[data-slot="quick-hint"]')).toBeNull();
   });
 
   test("names its destination once, in the chip, with no strip under the card", async () => {
@@ -253,72 +246,39 @@ describe("the quick composer", () => {
     expect(held()).toBe(1);
   });
 
-  test("dragging the hint moves the card inside the overlay and saves where it lands", async () => {
-    const { host, moves } = await open(front(GRANTED));
-    const card = cardOf(host);
-    const before = spotOf(host);
-    gesture(host.querySelector('[data-slot="quick-hint"]')!, [{ x: 30, y: -20 }, { x: 60, y: -40 }]);
-    expect(spotOf(host)).toEqual({ x: before.x + 60, y: before.y - 40 });
-    expect(moves).toEqual([{ x: before.x + 60, y: before.y - 40 }]);
-    expect(card.isConnected).toBe(true);
-  });
-
-  test("the empty field drags once the press moves, a click there does not, and a field with text never does", async () => {
-    const { host, moves } = await open(front(GRANTED));
-    gesture(editor(host), [{ x: 1, y: 0 }]);
-    expect(moves).toEqual([]);
-    gesture(editor(host), [{ x: 20, y: 0 }]);
-    expect(moves).toHaveLength(1);
+  test("the empty field drags the window through main once a press moves; a click, or a field with text, does not", async () => {
+    const { host, drags } = await open(front(GRANTED));
+    gesture(editor(host), 1);
+    expect(drags).toEqual([]);
+    gesture(editor(host), 20);
+    expect(drags).toEqual([{ phase: "start", offsetX: 40, offsetY: 30 }, { phase: "end" }]);
     await type(host, "half a thought");
-    gesture(editor(host), [{ x: 20, y: 0 }]);
-    expect(moves).toHaveLength(1);
+    gesture(editor(host), 20);
+    expect(drags).toHaveLength(2);
   });
 
-  test("the card's padding drags, but buttons and chips never do", async () => {
-    const { host, moves } = await open(front(GRANTED));
-    gesture(host.querySelector('[aria-label="Project"]')!, [{ x: 40, y: 0 }]);
-    gesture(host.querySelector('[data-slot="composer-controls"] button')!, [{ x: 40, y: 0 }]);
-    expect(moves).toEqual([]);
-    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: 40, y: 0 }]);
-    expect(moves).toHaveLength(1);
+  test("reports its height and where the composer starts, so main can size the window around it", async () => {
+    const { layouts } = await open(front(GRANTED));
+    await flush(() => layouts.length > 0);
+    expect(layouts.at(-1)).toEqual({ height: expect.any(Number), composerTop: expect.any(Number) });
   });
 
-  test("on text, only a press held for a moment drags; a quick sweep is left to select", async () => {
-    const { host, moves } = await open(front(DENIED));
-    const text = host.querySelector('[role="note"] p')!;
-    gesture(text, [{ x: 20, y: 0 }], 50);
-    expect(moves).toEqual([]);
-    gesture(text, [{ x: 1, y: 0 }], 200);
-    expect(moves).toHaveLength(1);
-  });
-
-  test("takes clicks only while the pointer is over something drawn, and a click on the bare overlay hides it", async () => {
-    const { host, interactive, closed } = await open(front(GRANTED));
-    const overlay = host.querySelector('[data-surface="quick"]')!;
-    const hover = (target: Element) => act(() => void target.dispatchEvent(new MouseEvent("mousemove", { bubbles: true })));
-    hover(editor(host));
-    hover(host.querySelector('[data-slot="quick-hint"]')!);
-    hover(overlay);
-    expect(interactive).toEqual([true, false]);
-    await act(async () => void overlay.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
-    expect(closed()).toBe(1);
-  });
-
-  test("an open menu draws outside the card without the page ever sizing the window", async () => {
-    const { host, bridge } = await open(front(GRANTED));
-    expect("resize" in bridge).toBe(false);
+  test("an open menu is drawn in the page, and the window makes room above for it", async () => {
+    const { host } = await open(front(GRANTED));
+    const root = host.querySelector<HTMLElement>('[data-surface="quick"]')!;
+    const before = Number.parseFloat(root.style.paddingTop);
     const access = host.querySelector<HTMLElement>('[aria-label^="Access:"]')!;
     await act(async () => access.click());
     await flush(() => document.body.textContent?.includes("Auto-accept edits") ?? false);
     const menu = [...document.querySelectorAll("[role='dialog'], [data-side]")].find((node) => node.textContent?.includes("Auto-accept edits"));
     expect(menu).toBeTruthy();
-    expect(cardOf(host).contains(menu!)).toBe(false);
+    await flush(() => Number.parseFloat(root.style.paddingTop) > before);
+    expect(Number.parseFloat(root.style.paddingTop)).toBe(before + 320);
   });
 
-  test("the empty composer says # picks where the message goes, and so does the hint", async () => {
+  test("the empty composer says # picks where the message goes", async () => {
     const { host } = await open(front(GRANTED));
     expect(host.querySelector('[data-slot="input-group"]')?.textContent).toContain("Ask anything · # to reply to a session or pick a project · / commands");
-    expect(host.querySelector('[data-slot="quick-hint"]')?.textContent).toContain("# destination");
   });
 
   test("Esc hides it", async () => {
@@ -394,7 +354,7 @@ describe("the # destination picker", () => {
     expect(options(host).slice(0, -1).map((row) => row.slice(0, 12))).toEqual(["Transit ligh", "Sales dashbo"]);
   });
 
-  test("↓ and ↵ attach a session; sending replies to it instead of starting one", async () => {
+  test("↑ and ↵ attach a session with its live transcript; ⌘↵ replies to it and opens it", async () => {
     const { host, sent } = await open(front(GRANTED));
     await type(host, "#exo");
     await flush(() => options(host).length > 1);
@@ -404,17 +364,13 @@ describe("the # destination picker", () => {
     expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("New session in exoplanets");
     await press(host, "ArrowUp");
     await press(host, "Enter");
-    await flush(() => Boolean(host.querySelector('[data-slot="quick-reply"] p')));
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Shall I run it?") ?? false);
     const card = host.querySelector('[data-slot="quick-destination"]')!;
     expect(card.textContent).toContain("Sales dashboard and checkout");
     expect(card.textContent).toContain("exoplanets · Waiting on you");
-    const reply = card.querySelector('[data-slot="quick-reply"]')!;
-    expect(reply.querySelectorAll("p")).toHaveLength(2);
-    expect(reply.textContent).toContain("Shall I run it?");
-    expect(reply.textContent).not.toContain("**");
-    const more = [...card.querySelectorAll("button")].find((button) => button.textContent === "Show full reply")!;
-    await act(async () => more.click());
-    expect(more.textContent).toBe("Collapse");
+    const transcript = card.querySelector('[data-slot="quick-transcript"]')!;
+    expect(transcript.textContent).toContain("Can you check the build?");
+    expect(transcript.textContent).not.toContain("**");
     expect(host.querySelector('[role="listbox"]')).toBeNull();
     await typeAndPress(host, "Yes, go ahead", { metaKey: true });
     expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/sessions/s_sales/turns"))?.body).toMatchObject({ input: "Yes, go ahead" });
@@ -456,5 +412,115 @@ describe("the # destination picker", () => {
     await press(host, "Escape");
     expect(host.querySelector('[role="listbox"]')).toBeNull();
     expect(closed()).toBe(0);
+  });
+});
+
+describe("an attached conversation", () => {
+  test("replying keeps the window open: the card stays and the reply joins its transcript", async () => {
+    const { host, sent, closed } = await open(front(GRANTED));
+    await type(host, "#sales");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Can you check the build?") ?? false);
+    await typeAndPress(host, "Yes, go ahead");
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Yes, go ahead") ?? false);
+    expect(sent).toEqual([]);
+    expect(closed()).toBe(0);
+    expect(host.querySelector('[data-slot="quick-destination"]')?.textContent).toContain("Sales dashboard and checkout");
+  });
+
+  test("a fresh open forgets the draft and the attachment; a quick reopen keeps them", async () => {
+    const fake = fakeBridge(front(GRANTED));
+    let reopen: (context: FrontContext) => void = () => {};
+    fake.bridge.onOpen = (listener) => {
+      reopen = listener;
+      return () => {};
+    };
+    const { host } = await mount(
+      <SidebarProvider>
+        <QuickComposer bridge={fake.bridge} />
+      </SidebarProvider>,
+    );
+    await flush();
+    await type(host, "#sales");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    await type(host, "half a reply");
+    act(() => reopen(front(GRANTED, { fresh: false })));
+    await flush();
+    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    expect(editor(host).textContent).toBe("half a reply");
+    act(() => reopen(front(GRANTED, { fresh: true })));
+    await flush();
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    expect(editor(host).textContent).toBe("");
+  });
+});
+
+describe("the attached conversation's transcript", () => {
+  test("shows every loaded turn through the newest one", async () => {
+    journal.s_transit = [
+      turn("s_transit", 1, "add Jul = 310 to the signups chart", "completed", "Added July."),
+      turn("s_transit", 2, "Hello", "completed", "Hi. The four artifacts are published."),
+    ];
+    const { host } = await open(front(GRANTED));
+    await type(host, "#transit");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("The four artifacts") ?? false);
+    const text = host.querySelector('[data-slot="quick-transcript"]')!.textContent!;
+    expect(text.indexOf("add Jul = 310")).toBeLessThan(text.indexOf("Hello"));
+    expect(text.indexOf("Hello")).toBeLessThan(text.indexOf("The four artifacts"));
+  });
+
+  test("typing # closes the attached conversation and opens the picker in its place", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#sales");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    await type(host, "#");
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    expect(host.querySelector('[role="listbox"]')).not.toBeNull();
+    await press(host, "Escape");
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    expect(editor(host).textContent).toBe("");
+  });
+
+  test("with little room above, the picker opens below the card, its best row nearest the card", async () => {
+    const { host, room } = await open(front(GRANTED));
+    room({ above: 80, below: 600 });
+    await type(host, "#");
+    await flush(() => options(host).length > 1);
+    const list = host.querySelector('[role="listbox"]')!;
+    expect(editor(host).compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(options(host)[0]).toContain("New session in Telar");
+    await press(host, "ArrowDown");
+    expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("Sales dashboard");
+  });
+});
+
+describe("the strip of conversations that need you", () => {
+  test("lists waiting first, then unread, then running", async () => {
+    const { host } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 0);
+    expect(strip(host)).toEqual(["Sales dashboard and checkout", "Transit light-curve analysis", "Expand scratch README"]);
+  });
+
+  test("↑ from the empty composer focuses it, ←/→ move, ↵ attaches, and ↓ returns to the composer", async () => {
+    const { host } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 0);
+    await press(host, "ArrowUp");
+    const pills = [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')];
+    expect(document.activeElement).toBe(pills[0]);
+    await act(async () => void pills[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })));
+    expect(document.activeElement).toBe(pills[1]);
+    await act(async () => void pills[1]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })));
+    expect(document.activeElement).toBe(editor(host));
+    await act(async () => pills[1]!.click());
+    await flush();
+    expect(host.querySelector('[data-slot="quick-destination"]')?.textContent).toContain("Transit light-curve analysis");
+    expect(strip(host)).not.toContain("Transit light-curve analysis");
   });
 });

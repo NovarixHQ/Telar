@@ -1,7 +1,7 @@
 "use strict";
 
 const { execFile } = require("node:child_process");
-const { app: electronApp, desktopCapturer, systemPreferences } = require("electron");
+const { app: electronApp, systemPreferences } = require("electron");
 
 const FRONT_APP_SCRIPT = `
 ObjC.import("AppKit");
@@ -26,34 +26,18 @@ function run() {
   return JSON.stringify(out);
 }`;
 
-const SETTINGS = {
-  accessibility: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-  screen: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
-};
+const ACCESSIBILITY_SETTINGS = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
 
 function permissions() {
-  return {
-    accessibility: systemPreferences.isTrustedAccessibilityClient(false),
-    screen: systemPreferences.getMediaAccessStatus("screen") === "granted",
-  };
+  return { accessibility: systemPreferences.isTrustedAccessibilityClient(false) };
 }
 
-const requestScreen = () => desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 1, height: 1 } }).catch(() => []);
-
-async function requestPermissions() {
+function requestPermissions() {
   systemPreferences.isTrustedAccessibilityClient(true);
-  if (systemPreferences.getMediaAccessStatus("screen") === "not-determined") await requestScreen();
 }
 
-async function openSettings(permission, open) {
-  const url = settingsFor(permission);
-  if (!url) return;
-  if (permission === "screen" && !permissions().screen) await requestScreen();
-  return open(url);
-}
-
-function settingsFor(permission) {
-  return SETTINGS[permission] ?? null;
+function openSettings(permission, open) {
+  return permission === "accessibility" ? open(ACCESSIBILITY_SETTINGS) : undefined;
 }
 
 function grantee(execPath = process.execPath) {
@@ -72,25 +56,16 @@ function frontApp(run = execFile) {
   });
 }
 
-async function frontWindowShot(title, ownSourceIds) {
-  const sources = await desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 1600, height: 1000 } }).catch(() => []);
-  const others = sources.filter((source) => !ownSourceIds.includes(source.id) && !source.thumbnail.isEmpty());
-  const source = others.find((candidate) => title && candidate.name === title) ?? others[0];
-  return source ? source.thumbnail.toDataURL() : null;
-}
-
-/** The front app, its window and its selection, each empty without its grant; macOS counts osascript as Telar. */
-async function readFrontContext({ ownSourceIds = [], granted = permissions(), runScript } = {}) {
+/** The front app, its window title and its selection, empty without the grant; macOS counts osascript as Telar. */
+async function readFrontContext({ granted = permissions(), runScript } = {}) {
   const app = await frontApp(runScript);
-  const screenshot = granted.screen ? await frontWindowShot(app?.title, ownSourceIds) : null;
   return {
     app: app?.app ?? "",
     title: app?.title ?? "",
     selection: granted.accessibility ? (app?.selection ?? "") : "",
-    screenshot,
     permissions: granted,
     grantee: grantee(),
   };
 }
 
-module.exports = { grantee, openSettings, permissions, readFrontContext, requestPermissions, settingsFor };
+module.exports = { grantee, openSettings, permissions, readFrontContext, requestPermissions };

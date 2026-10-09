@@ -4,7 +4,8 @@ import { systemClock, type Clock, type HostConnection } from "../../platform/con
 export const BUSY_POLL_MS = 3_000;
 export const IDLE_POLL_MS = 10_000;
 
-export type InboxSnapshot = { answer?: LiveSessionsAnswer; failed?: string };
+/** `shelf` holds the settled sessions the lean list leaves out, read only once the Settled shelf has been opened. */
+export type InboxSnapshot = { answer?: LiveSessionsAnswer; shelf?: LiveSessionsAnswer; failed?: string };
 
 const isAbort = (error: unknown): boolean => (error as { name?: unknown } | null)?.name === "AbortError";
 
@@ -15,6 +16,8 @@ const busy = (answer: LiveSessionsAnswer | undefined): boolean =>
 export class Inbox {
   private current: InboxSnapshot = {};
   private etag: string | undefined;
+  private shelfEtag: string | undefined;
+  private wantsShelf = false;
   private foreground = true;
   private cancelNext: () => void = () => {};
   private inFlight: AbortController | undefined;
@@ -55,6 +58,12 @@ export class Inbox {
     return this.poll();
   }
 
+  showSettled(): Promise<void> {
+    if (this.wantsShelf) return Promise.resolve();
+    this.wantsShelf = true;
+    return this.poll();
+  }
+
   private reschedule(): void {
     if (this.connection.state.kind === "online" && this.foreground) {
       if (!this.inFlight) void this.poll();
@@ -80,9 +89,12 @@ export class Inbox {
         (signal) => this.connection.client.liveSessionsMatching({ ...(this.etag ? { etag: this.etag } : {}), signal }),
         controller.signal,
       );
-      if (!read.notModified) {
-        this.etag = read.etag;
-        this.set({ answer: read });
+      const shelf = this.wantsShelf ? await this.readShelf(controller.signal) : undefined;
+      if (!read.notModified || shelf) {
+        if (!read.notModified) this.etag = read.etag;
+        const answer = read.notModified ? this.current.answer : read;
+        const kept = shelf ?? this.current.shelf;
+        this.set({ ...(answer ? { answer } : {}), ...(kept ? { shelf: kept } : {}) });
       } else if (this.current.failed) {
         this.set({ ...this.current, failed: undefined });
       }
@@ -94,6 +106,13 @@ export class Inbox {
     }
     if (controller.signal.aborted || this.connection.state.kind !== "online" || !this.foreground) return;
     this.cancelNext = this.clock.after(busy(this.current.answer) ? BUSY_POLL_MS : IDLE_POLL_MS, () => void this.poll());
+  }
+
+  private async readShelf(signal: AbortSignal): Promise<LiveSessionsAnswer | undefined> {
+    const read = await this.connection.call(true, (linked) => this.connection.client.liveSessionsMatching({ shelf: true, ...(this.shelfEtag ? { etag: this.shelfEtag } : {}), signal: linked }), signal);
+    if (read.notModified) return undefined;
+    this.shelfEtag = read.etag;
+    return read;
   }
 
   private set(next: InboxSnapshot): void {

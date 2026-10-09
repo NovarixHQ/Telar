@@ -60,9 +60,10 @@ export class EngineClient implements EngineTransport {
   }
 
   async liveSessionsMatching(
-    options: { etag?: string; all?: boolean; signal?: AbortSignal } = {},
+    options: { etag?: string; all?: boolean; shelf?: boolean; signal?: AbortSignal } = {},
   ): Promise<{ notModified: true; etag: string } | (LiveSessionsAnswer & { notModified?: false; etag?: string })> {
-    const read = await this.requestIfChanged<LiveSessionsAnswer>(options.all ? "/v2/sessions/live?all=1" : "/v2/sessions/live", options.etag, "liveSessionsMatching", options.signal);
+    const path = options.shelf ? "/v2/sessions/live?all=1&shelf=1" : options.all ? "/v2/sessions/live?all=1" : "/v2/sessions/live";
+    const read = await this.requestIfChanged<LiveSessionsAnswer>(path, options.etag, "liveSessionsMatching", options.signal);
     if (read.unchanged) return { notModified: true, etag: read.etag ?? options.etag ?? "" };
     return { ...read.payload, ...(read.etag === undefined ? {} : { etag: read.etag }) };
   }

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { HostConnection } from "../../platform/connection";
-import { fakeClock, fakeNetwork, identityOf } from "../../platform/connection/testing";
+import { fakeClock, fakeNetwork, identityOf, until } from "../../platform/connection/testing";
 import { BUSY_POLL_MS, IDLE_POLL_MS, Inbox } from "./inbox";
 
 const MAC = "http://100.70.1.2:3000";
@@ -72,4 +72,29 @@ test("a failed read is reported and the last list is kept", async () => {
   await next();
   expect(inbox.snapshot.failed).toBe("boom");
   expect(inbox.snapshot.answer?.sessions).toHaveLength(1);
+});
+
+test("once the Settled shelf is opened, each read also fetches the shelf with its own ETag", async () => {
+  const network = fakeNetwork({
+    [MAC]: (path) => {
+      if (path === "/api/identity") return identityOf(HOST);
+      const url = network.seen.at(-1)!.url;
+      if (!url.includes("shelf=1")) return list("idle");
+      return network.seen.filter((call) => call.url.includes("shelf=1")).length > 1
+        ? new Response(null, { status: 304, headers: { etag: '"s1"' } })
+        : Response.json({ sessions: [{ id: "old", title: "Old", activity: "idle" }], projects: [] }, { headers: { etag: '"s1"' } });
+    },
+  });
+  const clock = fakeClock();
+  const connection = new HostConnection({ hostId: HOST, name: "Mini", token: "tlr_phone", paired: [MAC] }, { fetch: network.fetch, clock, random: () => 0 });
+  const inbox = new Inbox(connection, clock);
+  connection.start();
+  await until(connection, "online");
+  await inbox.refresh();
+  expect(network.seen.some((call) => call.url.includes("shelf=1"))).toBe(false);
+  await inbox.showSettled();
+  expect(inbox.snapshot.shelf?.sessions.map((session) => session.id)).toEqual(["old"]);
+  await inbox.refresh();
+  expect(network.seen.filter((call) => call.url.includes("all=1&shelf=1"))).toHaveLength(2);
+  expect(inbox.snapshot.shelf?.sessions.map((session) => session.id)).toEqual(["old"]);
 });

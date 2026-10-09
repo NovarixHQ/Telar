@@ -211,9 +211,7 @@ export const Session = z.object({
   settledOverride: z.enum(["settled", "active"]).optional(),
   settledAt: Timestamp.optional(),
   settledBy: SessionSettledBy.optional(),
-  terminalsClosed: z
-    .object({ at: Timestamp, terminals: z.number().int().positive(), reason: z.enum(["grace", "limit"]) })
-    .optional(),
+  terminalsClosed: z.object({ at: Timestamp, terminals: z.number().int().positive() }).optional(),
   unsettledAssignments: z.array(Id).max(64).optional(),
   /** Hidden from the list until this passes. */
   snoozedUntil: Timestamp.optional(),

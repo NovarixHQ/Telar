@@ -14,17 +14,18 @@ import { sessionMetadataFile, storedSession } from "./metadata";
 import type { SessionQueue } from "./queue";
 import type { SessionRecords } from "./records";
 
+type LeftoverScope = "settle" | "archive";
+
 type SettlerDeps = {
   records: SessionRecords;
   scanQueue: (sessionId: string) => SessionQueue;
   delegatesOf: (coordinatorSessionId: string) => string[];
   assignedTurns: (sessionId: string) => Turn[];
-  settleDelegatedAfterHours: () => number | null;
+  autoSettleAfterHours: () => number | null;
   settled: (sessionId: string) => void;
-  onShelfGrew: () => void;
   stopBackgroundTasks: (sessionId: string, reason: string) => number;
   releaseBrowser: (sessionId: string, reason: string) => Promise<unknown> | undefined;
-  closeTerminals: (sessionId: string) => Promise<number>;
+  closeTerminals: (sessionId: string, scope: LeftoverScope) => Promise<number>;
 };
 
 /**
@@ -55,7 +56,7 @@ export class SessionSettler {
 
   /** The slow half: a grace that came due while nothing happened. Returns the sessions it settled. */
   sweepDelegated(): string[] {
-    if (this.deps.settleDelegatedAfterHours() === null) return [];
+    if (this.deps.autoSettleAfterHours() === null) return [];
     const settled: string[] = [];
     for (const sessionId of this.kernel.executionStore.unsettledSessionIds()) {
       try {
@@ -113,7 +114,7 @@ export class SessionSettler {
     );
     const outcome = delegationSettle({
       now: this.kernel.now(),
-      graceHours: this.deps.settleDelegatedAfterHours(),
+      graceHours: this.deps.autoSettleAfterHours(),
       delegateSessionId: sessionId,
       assignments,
       // A coordinator that no longer exists reads as an empty queue: "no delivery", not a settle on an absence.
@@ -136,14 +137,13 @@ export class SessionSettler {
     this.kernel.appendEvent(sessionId, { type: "session.settled", settledBy });
     this.kernel.appendEvent(sessionId, { type: "session.updated", session: next });
     this.deps.settled(sessionId);
-    this.deps.onShelfGrew();
   }
 
   /**
    * An explicit settle (the person's, or `sessions_settle`) ends what the session left running: its terminals, its
    * background tasks and its browser pages. Never the clock's settle. Best-effort, and un-settling restores none of it.
    */
-  async endLeftovers(sessionId: string): Promise<SessionSettleEnded> {
+  async endLeftovers(sessionId: string, scope: LeftoverScope = "settle"): Promise<SessionSettleEnded> {
     let backgroundTasks = 0;
     try {
       backgroundTasks = this.deps.stopBackgroundTasks(sessionId, "stopped when the session was settled");
@@ -151,7 +151,7 @@ export class SessionSettler {
       // A session that cannot be read has no tasks this can stop.
     }
     void this.deps.releaseBrowser(sessionId, "The session was settled.")?.catch(() => undefined);
-    const terminals = await this.deps.closeTerminals(sessionId);
+    const terminals = await this.deps.closeTerminals(sessionId, scope);
     return { terminals, backgroundTasks };
   }
 }

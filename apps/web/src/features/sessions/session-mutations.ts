@@ -40,7 +40,7 @@ export function applyRowChange(rows: readonly SidebarSession[], change: SessionR
 
 export function withSettling(row: SidebarSession, override: "settled" | "active" | null, at: number = Date.now()): SidebarSession {
   return {
-    ...without(row, ["settledOverride", "settledAt", "settledBy", "settledForTitle", ...(override === "settled" ? (["terminals"] as const) : [])]),
+    ...without(row, ["settledOverride", "settledAt", "settledBy", "settledForTitle"]),
     updatedAt: at,
     ...(override === null ? {} : { settledOverride: override }),
     ...(override === "settled" ? { settledAt: at } : {}),

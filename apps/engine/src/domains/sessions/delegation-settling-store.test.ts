@@ -37,6 +37,7 @@ function scene() {
   store.projectRegistry.register({ id: "project_one", name: "One", root: "/tmp" });
   store.lifecycle.createSession({ id: "session_coord", projectId: "project_one", title: "The coordinator" });
   store.lifecycle.createSession({ id: "session_worker", projectId: "project_one", title: "The delegate" });
+  store.settings.setInbox({ autoSettleAfterHours: 1 });
   return {
     store,
     /** Move the store's clock. The grace is the whole point of this feature. */
@@ -331,7 +332,7 @@ test("A CONSUMED WAKE IS DELIVERY, and a wake that also re-tasked is not", () =>
 
 test("GRACE null → OFF. Nothing settles by itself, however long it has been", () => {
   const fixture = scene();
-  fixture.store.settings.setInbox({ settleDelegatedAfterHours: null });
+  fixture.store.settings.setInbox({ autoSettleAfterHours: null });
   handOver(fixture, "run_task");
   deliver(fixture, "run_task");
 
@@ -340,7 +341,7 @@ test("GRACE null → OFF. Nothing settles by itself, however long it has been", 
   expect(worker(fixture).settledOverride).toBeUndefined();
 
   // …and turning it back on settles the row that was waiting all along.
-  fixture.store.settings.setInbox({ settleDelegatedAfterHours: 1 });
+  fixture.store.settings.setInbox({ autoSettleAfterHours: 1 });
   expect(fixture.store.settler.sweepDelegated()).toEqual(["session_worker"]);
 });
 
@@ -364,13 +365,13 @@ test("A SESSION NOBODY DELEGATED TO IS NEVER TOUCHED", () => {
   expect(worker(fixture).settledOverride).toBeUndefined();
 });
 
-test("the delegation grace is its own setting, and survives a reload beside the quiet window", () => {
+test("a delegate settles on the same window as a quiet session", () => {
   const fixture = scene();
-  expect(fixture.store.settings.inbox()).toEqual({ autoSettleAfterHours: 72, settleDelegatedAfterHours: 1, settledTerminalLimit: 5 });
-  fixture.store.settings.setInbox({ settleDelegatedAfterHours: 6 });
-  expect(fixture.store.settings.inbox()).toEqual({ autoSettleAfterHours: 72, settleDelegatedAfterHours: 6, settledTerminalLimit: 5 });
-  // Changing one leaves the other exactly where it was.
-  fixture.store.settings.setInbox({ autoSettleAfterHours: null });
-  expect(fixture.store.settings.inbox()).toEqual({ autoSettleAfterHours: null, settleDelegatedAfterHours: 6, settledTerminalLimit: 5 });
-  expect(() => fixture.store.settings.setInbox({ settleDelegatedAfterHours: 0 })).toThrow();
+  fixture.store.settings.setInbox({ autoSettleAfterHours: 6 });
+  handOver(fixture, "run_task");
+  deliver(fixture, "run_task");
+  fixture.advance(HOUR + 1);
+  expect(fixture.store.settler.sweepDelegated()).toEqual([]);
+  fixture.advance(5 * HOUR);
+  expect(fixture.store.settler.sweepDelegated()).toEqual(["session_worker"]);
 });

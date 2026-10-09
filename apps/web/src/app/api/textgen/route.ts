@@ -22,7 +22,6 @@ export const PATCH = engineRoute(async (request: Request) => {
   return Response.json(
     await (await engineClient()).setTextGenPolicy({
       ...("titles" in body ? { titles: body.titles as boolean } : {}),
-      ...("renameBranches" in body ? { renameBranches: body.renameBranches as boolean } : {}),
       ...("driver" in body ? { driver: body.driver as "claude" | "codex" } : {}),
       // `null` IS "back to the driver's default" and `undefined` is "leave
       // it alone" — presence, not truthiness.

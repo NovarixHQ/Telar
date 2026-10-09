@@ -154,10 +154,6 @@ export function sessionRowGaps(store: ExecutionStore): { missing: string[]; orph
   };
 }
 
-export function allSessionRows(store: ExecutionStore): SessionIndexRow[] {
-  return store.statement("SELECT * FROM sessions").all().map(rowFromColumns);
-}
-
 /** Unordered on purpose: the index cannot serve the caller's order, so an ORDER BY here only adds a sort. */
 export function liveSessionRows(store: ExecutionStore): SessionIndexRow[] {
   return store.statement("SELECT * FROM sessions WHERE archived = 0").all().map(rowFromColumns);
@@ -268,12 +264,6 @@ export function deleteSchedule(store: ExecutionStore, id: string): boolean {
   const before = store.statement("SELECT id FROM schedules WHERE id = ?").all(id).length;
   store.statement("DELETE FROM schedules WHERE id = ?").run(id);
   return before > 0;
-}
-
-export function turnSummaryStates(store: ExecutionStore, sessionId: string): Array<{ runId: string; state: string }> {
-  return store.statement("SELECT run_id, state FROM turn_summaries WHERE session_id=?")
-    .all(sessionId)
-    .map((row) => ({ runId: String(row.run_id), state: String(row.state) }));
 }
 
 export function turnSummaryStatesFor(store: ExecutionStore, sessionId: string, runIds: readonly string[]): Array<{ runId: string; state: string }> {

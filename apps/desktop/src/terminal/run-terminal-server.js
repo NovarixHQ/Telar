@@ -12,6 +12,7 @@ const ROUTES = new Set([
   "POST /kill",
   "POST /close",
   "POST /close-session",
+  "POST /close-idle-session",
   "POST /active",
   "POST /write",
   "POST /resize",
@@ -133,6 +134,7 @@ async function runHostRoute(route, request, host) {
   if (route === "POST /kill") return { signalled: host.kill(String(input.id ?? ""), input.signal || "SIGTERM", ENGINE) };
   if (route === "POST /close") return { closed: await host.close(String(input.id ?? ""), ENGINE) };
   if (route === "POST /close-session") return { closed: await host.killBySession(input.sessionId) };
+  if (route === "POST /close-idle-session") return { closed: await host.closeIdleBySession(input.sessionId) };
   if (route === "POST /active") {
     return { terminals: await host.activeProcesses({ owner: ENGINE, ids: Array.isArray(input.ids) ? input.ids : undefined }) };
   }

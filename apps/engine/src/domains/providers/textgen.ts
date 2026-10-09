@@ -10,7 +10,7 @@ export function textGenDisabledByEnv(): boolean {
 }
 
 function effectiveTextGenPolicy(policy: TextGenPolicy): TextGenPolicy {
-  return textGenDisabledByEnv() ? { ...policy, titles: false, renameBranches: false } : policy;
+  return textGenDisabledByEnv() ? { ...policy, titles: false } : policy;
 }
 
 function oneStringSchema(key: string): object {
@@ -141,7 +141,7 @@ export async function maybeRetitleSession(
   } catch {
     return;
   }
-  if (policy.renameBranches) await Promise.resolve().then(() => store.lifecycle.refreshWorktreeBranchFromTitle(sessionId)).catch(() => undefined);
+  await Promise.resolve().then(() => store.lifecycle.refreshWorktreeBranchFromTitle(sessionId)).catch(() => undefined);
 }
 
 export type RegenerateStore = RetitleStore & { queries: { items(sessionId: string): Item[] } };
@@ -166,6 +166,6 @@ export async function regenerateSessionTitle(
   if (title === previous) return { title, changed: false };
   if (store.records.get(sessionId).title !== previous) throw new EngineStateError("conflict", "the session was renamed while its title was regenerated");
   store.lifecycle.updateSession(sessionId, { title });
-  if (policy.renameBranches) await Promise.resolve(store.lifecycle.refreshWorktreeBranchFromTitle(sessionId)).catch(() => undefined);
+  await Promise.resolve(store.lifecycle.refreshWorktreeBranchFromTitle(sessionId)).catch(() => undefined);
   return { title, changed: true };
 }

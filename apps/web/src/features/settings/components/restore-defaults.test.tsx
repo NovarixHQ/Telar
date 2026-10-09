@@ -40,7 +40,7 @@ test("Restore defaults turns every trial off", async () => {
 });
 
 test("Restore defaults writes the cleanup rules back in one write", async () => {
-  const policy = { settledDays: null, logsDays: 30 };
+  const policy = { settledDays: null };
   const calls = stubFetch({
     "GET /api/cleanup": () => ({ cleanup: { policy, running: false } }),
     "PUT /api/cleanup": (body) => ({ cleanup: { policy: body, running: false } }),

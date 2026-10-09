@@ -230,7 +230,6 @@ export class EngineStore {
     // path (#646). `onExecutionHousekeeping` is the daemon's line.
     const executionStore = new ExecutionStore(root, {
       onJournalCompacted: (swept) => options.onExecutionHousekeeping?.({ journal: swept }),
-      onRetentionSweep: () => { this.settings.sweepRetention(); },
     });
     this.kernel = new Kernel({ paths: this.paths, now, executionStore, notifier: options.notifier });
     ({
@@ -336,12 +335,11 @@ export class EngineStore {
       scanQueue: (id) => this.sessionQueues.scan(id),
       delegatesOf: (id) => this.kernel.executionStore.delegatesOf(id),
       assignedTurns: (id) => this.sessionQueues.assigned(id),
-      settleDelegatedAfterHours: () => this.settings.inbox().settleDelegatedAfterHours,
+      autoSettleAfterHours: () => this.settings.inbox().autoSettleAfterHours,
       settled: () => this.children.review(),
-      onShelfGrew: () => this.enforceTerminalLimitSoon(),
       stopBackgroundTasks: (id, reason) => this.worker.stopBackgroundTasks(id, reason),
       releaseBrowser: (id, reason) => this.browser.release(id, reason),
-      closeTerminals: (id) => this.sessionTerminals.closeForSettle(id),
+      closeTerminals: (id, scope) => (scope === "archive" ? this.sessionTerminals.closeForArchive(id) : this.sessionTerminals.closeForSettle(id)),
     });
     const wakes = new TurnWakes(this.kernel, {
       records: this.records,
@@ -468,11 +466,6 @@ export class EngineStore {
     }
   }
 
-  // A shelf that grew or a lower limit keeps its terminals (#883): enforced after the command, never inside it.
-  private enforceTerminalLimitSoon(): void {
-    if (this.sessionTerminals.attached) void Promise.resolve().then(() => this.sessionTerminals.enforceLimit()).catch(() => undefined);
-  }
-
   private createLifecycle(): SessionLifecycle {
     return new SessionLifecycle(this.kernel, this.records, this.subscriptions, {
       assignedTurns: (sessionId) => this.sessionQueues.assigned(sessionId),
@@ -530,7 +523,7 @@ export class EngineStore {
 
   /** The per-document stores that sit beside the sessions modules, built on the kernel. */
   private leafStores(options: { models?: typeof readModelCatalogue; cliVersion?: (driver: ProviderDriverKind) => Promise<InstalledCli>; manifest?: ModelManifest }) {
-    const settings = new SettingsStore(this.kernel, () => this.enforceTerminalLimitSoon());
+    const settings = new SettingsStore(this.kernel);
     const appearance = new AppearanceStore(this.kernel);
     const usageSources = new UsageLimitSources(this.kernel);
     const projectProbes = new ProjectProbes(this.kernel, {

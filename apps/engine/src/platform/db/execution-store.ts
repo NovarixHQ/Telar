@@ -10,7 +10,6 @@ import {
   startSweepWalk, sweep, TERMINAL_HIGH_PREFIX, TERMINAL_TURN_TYPES, USAGE_WATERMARK_PREFIX, vacuumInto, type SweepStep, type SweepTotals,
 } from "./journal-maintenance";
 import { exportLegacy, fenceLegacy, importLegacy, sweepLegacyBackup } from "./legacy";
-import { exportSession, JOURNAL_FLOOR_PREFIX, retentionPreview, retireJournal, retireSession } from "./retention";
 import { openDatabase, type Database, type Statement } from "./schema";
 import * as tables from "./tables";
 import { delegatesOf, deleteTurnRows, migrateQueueToRows, queueNextSequence, writeTurnRows, type TurnRow } from "./turn-rows";
@@ -45,12 +44,13 @@ export type ExecutionStoreOptions = {
   onJournalCompacted?: (swept: { deltas: number; starts: number; sessions: number }) => void;
   /** Called once per device barrier actually issued. */
   onDurabilityBarrier?: (at: { sessionId: string; eventId: number }) => void;
-  onRetentionSweep?: () => void;
   compactAfterOpenMs?: number;
   /** How the background sweep yields between chunks; an unref'd macrotask by default. */
   sweepYield?: (next: () => void) => void;
 };
 
+
+const JOURNAL_FLOOR_PREFIX = "journal-floor/";
 /** The one execution database. Maintenance, retention, tables and legacy import are free functions over it. */
 export class ExecutionStore {
   readonly db: Database;
@@ -63,7 +63,6 @@ export class ExecutionStore {
   readonly sweepYield: (next: () => void) => void;
   readonly onJournalCompacted?: (swept: { deltas: number; starts: number; sessions: number }) => void;
   readonly onDurabilityBarrier?: (at: { sessionId: string; eventId: number }) => void;
-  readonly onRetentionSweep?: () => void;
   depth = 0;
   closed = false;
   /** The sweep in flight; `close()` cancels it through this handle. */
@@ -91,7 +90,6 @@ export class ExecutionStore {
     this.receiptRetentionMs = Math.max(0, options.receiptRetentionMs ?? RECEIPT_RETENTION_MS);
     if (options.onJournalCompacted) this.onJournalCompacted = options.onJournalCompacted;
     if (options.onDurabilityBarrier) this.onDurabilityBarrier = options.onDurabilityBarrier;
-    if (options.onRetentionSweep) this.onRetentionSweep = options.onRetentionSweep;
     this.sweepYield = options.sweepYield ?? ((next) => { setImmediate(next).unref?.(); });
     ({ db: this.db, searchIndex: this.searchIndex } = openDatabase(root));
     try {
@@ -132,10 +130,6 @@ export class ExecutionStore {
   pruneReceipts(): number { return pruneReceipts(this); }
   reclaim() { return reclaim(this); }
   vacuumInto(file: string): void { vacuumInto(this, file); }
-  retentionPreview(window: { idleBefore: number; now: number }, options?: { bytes?: boolean }) { return retentionPreview(this, window, options); }
-  exportSession(sessionId: string, destination: string) { return exportSession(this, sessionId, destination); }
-  retireSession(sessionId: string, options: { exportTo: string }) { return retireSession(this, sessionId, options); }
-  retireJournal(window: { idleBefore: number; now: number }, options: { exportTo: string }) { return retireJournal(this, window, options); }
   exportLegacy(destination: string): void { exportLegacy(this, destination); }
 
   owns(file: string): boolean {

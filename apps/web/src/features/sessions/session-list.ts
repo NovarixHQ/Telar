@@ -50,7 +50,7 @@ export type SidebarSession = {
   settledBy?: SessionSettledBy;
   settledForTitle?: string;
   terminals?: number;
-  terminalsClosed?: { at: number; terminals: number; reason: "grace" | "limit" };
+  terminalsClosed?: { at: number; terminals: number };
   snoozedUntil?: number;
   snoozedAt?: number;
   wokeAt?: number;

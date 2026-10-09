@@ -11,7 +11,7 @@ export function TextGenSection() {
   const { policy, loading, error, save } = useTextGenPolicy();
 
   useRestoreDefaults(async () => {
-    await save({ driver: DEFAULT_TEXT_GEN_POLICY.driver, titles: DEFAULT_TEXT_GEN_POLICY.titles, renameBranches: DEFAULT_TEXT_GEN_POLICY.renameBranches });
+    await save({ driver: DEFAULT_TEXT_GEN_POLICY.driver, titles: DEFAULT_TEXT_GEN_POLICY.titles });
     await save({ model: DEFAULT_WRITER.model, effort: null });
   });
 
@@ -38,24 +38,14 @@ export function TextGenSection() {
         }
       />
       <ToggleRow
-        keywords={["title", "rename", "automatic"]}
+        keywords={["title", "rename", "automatic", "git", "branch name", "rename branches"]}
         label="Name sessions"
+        hint="Titles each session from its first message and renames the branch Telar cut for it to match."
         checked={policy.titles}
         onCheckedChange={(next) => void save({ titles: next })}
         {...(policy.titles === DEFAULT_TEXT_GEN_POLICY.titles
           ? {}
           : { onRevert: () => void save({ titles: DEFAULT_TEXT_GEN_POLICY.titles }) })}
-      />
-      <ToggleRow
-        keywords={["git", "branch name", "title", "rename branches"]}
-        label="Name branches"
-        hint="Renames branches the engine cut to match the session. Yours keep their names."
-        checked={policy.renameBranches}
-        onCheckedChange={(next) => void save({ renameBranches: next })}
-        {...(policy.titles ? {} : { unavailable: { reason: "Needs Name sessions." } })}
-        {...(policy.renameBranches === DEFAULT_TEXT_GEN_POLICY.renameBranches
-          ? {}
-          : { onRevert: () => void save({ renameBranches: DEFAULT_TEXT_GEN_POLICY.renameBranches }) })}
       />
     </SettingsGroup>
   );

@@ -662,6 +662,22 @@ export class RunManager {
     return Math.max(closed, open.length);
   }
 
+  async closeIdle(sessionId: string): Promise<number> {
+    if (!this.launcher.closeIdleSession) return 0;
+    const open = [...this.runs.values()].filter((run) => run.sessionId === sessionId && !isTerminal(run.status) && !run.closeTask && !run.closing);
+    for (const run of open) run.closing = "telar";
+    let closed = new Set<string>();
+    try {
+      closed = new Set(await this.launcher.closeIdleSession(sessionId));
+    } finally {
+      for (const run of open) if (!closed.has(run.terminalId) && !isTerminal(run.status)) run.closing = undefined;
+    }
+    const ending = open.filter((run) => closed.has(run.terminalId));
+    await Promise.all(ending.map((run) => this.ended(run, this.closeSettleMs)));
+    for (const run of ending) if (!isTerminal(run.status)) this.finish(run, "closed", { closedBy: "telar" });
+    return closed.size;
+  }
+
   async closeIdleAgentShells(): Promise<number> {
     const expired = expiredAgentShells(this.runs.values(), this.now(), this.agentShellIdleMs);
     await Promise.allSettled(expired.map((run) => this.close(run.terminalId, "telar")));

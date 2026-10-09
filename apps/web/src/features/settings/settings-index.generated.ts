@@ -11,14 +11,11 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
     { "title":"Rail", rows: [
       {"title":"Group sessions by project","hint":"Off, the rail is one list, newest first, with spawned sessions under the one that started them.","keywords":["group by","flat","none","list","sidebar","order","newest"]},
-      {"title":"Settle quiet sessions","hint":"Pinned sessions and open questions stay put.","keywords":["inbox","archive","auto","shelf","settled","unsettle","restore","hidden","put away","quiet","hours","days","window"]},
-      {"title":"Settle delegated sessions","hint":"Once their result is delivered. A failed errand, a pinned row and an open question all stay put.","keywords":["delegated","errand","coordinator","handoff","result","settle","hours","days","window"]},
-      {"title":"Terminals settled sessions may keep open","keywords":["terminal","process","dev server","shell","limit","cap","running","settled"]},
+      {"title":"Settle sessions","hint":"A quiet session, or a delegated one whose result was delivered, leaves the rail after this long unless it is pinned or waiting on you.","keywords":["inbox","archive","auto","shelf","settled","unsettle","restore","hidden","put away","quiet","delegated","errand","result","hours","days","window"]},
     ] },
     { "title":"Naming", rows: [
       {"title":"Written by","hint":"The provider, model and effort that name sessions and branches.","keywords":["claude","codex","opencode","driver","title model","textgen","reasoning","thinking","effort"]},
-      {"title":"Name sessions","keywords":["title","rename","automatic"]},
-      {"title":"Name branches","hint":"Renames branches the engine cut to match the session. Yours keep their names.","keywords":["git","branch name","title","rename branches"]},
+      {"title":"Name sessions","hint":"Titles each session from its first message and renames the branch Telar cut for it to match.","keywords":["title","rename","automatic","git","branch name","rename branches"]},
     ] },
     { "title":"Notifications", rows: [
       {"title":"Desktop notifications","hint":"A banner when a session finishes, fails, or needs your input or approval.","keywords":["alerts","banner","desktop notifications","notify","sound","finished","failed","approval"]},
@@ -115,7 +112,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Setup","hint":"Runs in the background in each new worktree, with the variables and ports below.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Environment","hint":"Exported to the setup command.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Ports","hint":"One stable port per name, exported under that name.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
-      {"title":"Artifacts","hint":"Output a worktree can regenerate. Telar never runs the command.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Dependencies","hint":"How a new worktree gets node_modules and .venv: install them with the setup command, share the checkout's, or neither.","keywords":["node_modules","venv","install","share","symlink","disk"]},
     ] },
     { "title":"Data science", rows: [
@@ -146,14 +142,10 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "storage", groups: [
     { "title":"Worktrees", rows: [
       {"title":"Remove worktrees","hint":"Removes a settled or archived session's worktree after this many days; it comes back when you reopen the session.","keywords":["cleanup","clean up","disk","space","free","full","reclaim","checkout","idle","inactive","settled","archived","old","days"]},
-      {"title":"Clean up","keywords":["clean up now","cleanup","sweep","free space","disk","run"]},
+      {"title":"Clean up","keywords":["clean up now","cleanup","sweep","free space","disk","run","logs"]},
       {"title":"Worktree folder","keywords":["worktree","checkout","external","drive","move","space","disk","relocate","worktree folder","how many","size"]},
       {"title":"Where worktrees live","keywords":["disk","size","drive","volume","location","file watchers","move"]},
       {"title":"By state","keywords":["release","idle","archived","orphaned","reclaim"]},
-    ] },
-    { "title":"Logs", rows: [
-      {"title":"Delete old logs","hint":"Rotated logs only.","keywords":["cleanup","clean up","disk","space","logs","rotate","days"]},
-      {"title":"Turn journal retention","keywords":["retention","journal","export","retire","idle"]},
     ] },
     { "title":"Data folder", rows: [
       {"title":"Location","keywords":["external","volume","drive","where","path","ssd"]},

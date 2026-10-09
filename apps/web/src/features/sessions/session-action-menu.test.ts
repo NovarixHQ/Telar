@@ -476,9 +476,8 @@ describe("purity", () => {
 });
 
 describe("what Settle closes, and a settled session's terminals (#883)", () => {
-  test("Settle says how many terminals it will close, and nothing at zero", () => {
-    expect(byId(build({ session: target({ terminals: 2 }) }), "settle")).toMatchObject({ label: "Settle", detail: "closes 2 terminals" });
-    expect(byId(build({ session: target({ terminals: 1 }) }), "settle").detail).toBe("closes 1 terminal");
+  test("Settle says it closes idle terminals, and nothing at zero", () => {
+    expect(byId(build({ session: target({ terminals: 2 }) }), "settle")).toMatchObject({ label: "Settle", detail: "closes idle terminals" });
     expect(byId(build({ session: target({ terminals: 0 }) }), "settle").detail).toBeUndefined();
     expect(byId(build(), "settle").detail).toBeUndefined();
     // Un-settling closes nothing, so it says nothing.

@@ -7,8 +7,7 @@ import { hostFromPathname } from "@/platform/engine/host-client";
 import { Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
 import { useSidebarLayout } from "../rail/sidebar-layout";
 import { useSessionDefaults } from "../session-defaults";
-import { SettlingRows } from "./settling-rows";
-import { SettledTerminalsRow } from "./settled-terminals-row";
+import { SettlingRow } from "./settling-row";
 
 function GroupByProjectRow() {
   const layout = useSidebarLayout();
@@ -63,8 +62,7 @@ export function RailSection() {
   return (
     <SettingsGroup title="Rail" scope={hostFromPathname(pathname ?? "/") === LOCAL_HOST_ID ? "mac" : "host"}>
       <GroupByProjectRow />
-      <SettlingRows />
-      <SettledTerminalsRow />
+      <SettlingRow />
     </SettingsGroup>
   );
 }

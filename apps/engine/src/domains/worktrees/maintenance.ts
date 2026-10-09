@@ -28,6 +28,8 @@ import { checkoutsWithProcesses, reattachSessionWorktreeAsync, releaseRefusal, t
 import { removeSessionWorktreeAsync, type WorktreeQueue } from "./session-worktree";
 import { countedRows, stateOf, summarizeWorktrees, type SessionFacts } from "./summary";
 
+const ROTATED_LOG_DAYS = 30;
+
 const SUMMARY_TTL_MS = 60_000;
 const DEFAULT_IDLE_DAYS = 7;
 
@@ -137,14 +139,14 @@ export class WorktreeMaintenance {
       let { freedBytes } = swept;
       const { released, skipped } = swept;
       let logs = 0;
-      if (policy.logsDays !== null) {
+      {
         const gone = new Set(
           sessions.filter((session) => session.workspace.mode === "worktree" && session.workspace.released).map((session) => session.id),
         );
         const swept = await sweepLogs({
           logDirectories: [this.kernel.paths.diagnostics],
           setupLogs: [...gone].map((sessionId) => path.join(sessionDir(this.kernel.paths, sessionId), "setup.log")),
-          days: policy.logsDays,
+          days: ROTATED_LOG_DAYS,
           now,
         });
         logs = swept.count;

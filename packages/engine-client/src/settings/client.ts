@@ -12,7 +12,7 @@ export const settingsClient = {
   /** `null` turns a window off. */
   setInboxPolicy(
     this: EngineTransport,
-    patch: { autoSettleAfterHours?: number | null; settleDelegatedAfterHours?: number | null; settledTerminalLimit?: number },
+    patch: { autoSettleAfterHours?: number | null },
   ): Promise<{ inbox: InboxPolicy }> {
     return this.request("PATCH", "/v2/inbox", patch);
   },
@@ -61,7 +61,7 @@ export const settingsClient = {
   /** `model: null` returns to the driver's default; an absent field is left alone. */
   setTextGenPolicy(
     this: EngineTransport,
-    patch: { titles?: boolean; renameBranches?: boolean; driver?: ProviderDriverKind; model?: string | null; effort?: TextGenEffort | null },
+    patch: { titles?: boolean; driver?: ProviderDriverKind; model?: string | null; effort?: TextGenEffort | null },
   ): Promise<{ textGen: TextGenPolicy }> {
     return this.request("PATCH", "/v2/textgen", patch);
   },

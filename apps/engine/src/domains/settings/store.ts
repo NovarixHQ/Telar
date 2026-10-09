@@ -1,24 +1,17 @@
-import path from "node:path";
 import {
   isBuiltInDriver,
   AgentOrientation as AgentOrientationSchema,
   DEFAULT_AGENT_ORIENTATION,
   DEFAULT_INBOX_POLICY,
-  DEFAULT_RETENTION_POLICY,
   DEFAULT_SESSION_DEFAULTS,
   DEFAULT_SIDEBAR_LAYOUT,
   DEFAULT_SIMULATOR_SETTINGS,
   DEFAULT_TEXT_GEN_POLICY,
   InboxPolicy as InboxPolicySchema,
   MAX_AUTO_SETTLE_HOURS,
-  MAX_RETENTION_DAYS,
-  MAX_SETTLED_TERMINAL_LIMIT,
   MAX_SIDEBAR_PROJECT_ORDER,
   MAX_SIDEBAR_SESSION_ORDER,
   MIN_AUTO_SETTLE_HOURS,
-  MIN_RETENTION_DAYS,
-  RETENTION_BUCKET_DAYS,
-  RetentionPolicy as RetentionPolicySchema,
   SessionDefaults as SessionDefaultsSchema,
   SidebarLayout as SidebarLayoutSchema,
   SidebarMode,
@@ -26,9 +19,6 @@ import {
   TextGenPolicy as TextGenPolicySchema,
   type AgentOrientation,
   type InboxPolicy,
-  type JournalRetirement,
-  type RetentionBucket,
-  type RetentionPolicy,
   type RuntimeMode,
   type SessionDefaults,
   type SidebarLayout,
@@ -36,8 +26,6 @@ import {
   type TextGenPolicy,
 } from "@telar/engine-client";
 import { EngineStateError, STATE_VERSION, type Kernel } from "../../platform/kernel";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const RUNTIME_MODES = new Set<RuntimeMode>(["approval-required", "auto-accept-edits", "auto", "full-access"]);
 
@@ -58,109 +46,36 @@ function boolean(value: unknown, message: string): boolean {
 
 /** A broken file costs only its preference: getters fall back to the shipped default, setters patch only the keys present. */
 export class SettingsStore {
-  constructor(
-    private readonly kernel: Kernel,
-    private readonly onTerminalLimitChanged: () => void = () => {},
-  ) {}
+  constructor(private readonly kernel: Kernel) {}
 
   inbox(): InboxPolicy {
     try {
-      const stored = this.kernel.readDocument(this.kernel.paths.inbox);
+      const stored = this.kernel.readDocument(this.kernel.paths.inbox) as { autoSettleAfterDays?: unknown } | undefined;
       const parsed = InboxPolicySchema.safeParse(stored);
       if (parsed.success) return parsed.data;
-      // A document from before the hours move still means what it said.
-      const days = (stored as { autoSettleAfterDays?: unknown } | undefined)?.autoSettleAfterDays;
-      if (days === null) return { ...DEFAULT_INBOX_POLICY, autoSettleAfterHours: null };
-      if (typeof days === "number" && Number.isInteger(days) && days >= 1 && days <= 90) {
-        return { ...DEFAULT_INBOX_POLICY, autoSettleAfterHours: days * 24 };
-      }
+      const days = stored?.autoSettleAfterDays;
+      if (days === null) return { autoSettleAfterHours: null };
+      if (typeof days === "number" && Number.isInteger(days) && days >= 1 && days <= 90) return { autoSettleAfterHours: days * 24 };
       return { ...DEFAULT_INBOX_POLICY };
     } catch {
       return { ...DEFAULT_INBOX_POLICY };
     }
   }
 
-  setInbox(patch: { autoSettleAfterHours?: unknown; settleDelegatedAfterHours?: unknown; settledTerminalLimit?: unknown }): InboxPolicy {
+  setInbox(patch: { autoSettleAfterHours?: unknown }): InboxPolicy {
     const next: InboxPolicy = { ...this.inbox() };
-    const window = (value: unknown, what: string): number | null => {
-      if (value === null) return null;
-      const parsed = InboxPolicySchema.shape.autoSettleAfterHours.safeParse(value);
+    if (patch.autoSettleAfterHours !== undefined) {
+      const parsed = InboxPolicySchema.shape.autoSettleAfterHours.safeParse(patch.autoSettleAfterHours);
       if (!parsed.success) {
         throw new EngineStateError(
           "invalid_request",
-          `${what} must be a whole number of hours between ${MIN_AUTO_SETTLE_HOURS} and ${MAX_AUTO_SETTLE_HOURS}, or null`,
+          `auto-settle window must be a whole number of hours between ${MIN_AUTO_SETTLE_HOURS} and ${MAX_AUTO_SETTLE_HOURS}, or null`,
         );
       }
-      return parsed.data;
-    };
-    if (patch.autoSettleAfterHours !== undefined) next.autoSettleAfterHours = window(patch.autoSettleAfterHours, "auto-settle window");
-    if (patch.settleDelegatedAfterHours !== undefined) next.settleDelegatedAfterHours = window(patch.settleDelegatedAfterHours, "delegation grace");
-    if (patch.settledTerminalLimit !== undefined) {
-      const parsed = InboxPolicySchema.shape.settledTerminalLimit.safeParse(patch.settledTerminalLimit);
-      if (!parsed.success) {
-        throw new EngineStateError("invalid_request", `settled terminal limit must be a whole number between 0 and ${MAX_SETTLED_TERMINAL_LIMIT}`);
-      }
-      next.settledTerminalLimit = parsed.data;
+      next.autoSettleAfterHours = parsed.data;
     }
     this.kernel.writeDocument(this.kernel.paths.inbox, { version: STATE_VERSION, ...next });
-    if (patch.settledTerminalLimit !== undefined) this.onTerminalLimitChanged();
     return { ...next };
-  }
-
-  /** The shipped default is `never`: no reading of a broken file starts removing history. */
-  retention(): RetentionPolicy {
-    try {
-      const parsed = RetentionPolicySchema.safeParse(this.kernel.readDocument(this.kernel.paths.retention));
-      return parsed.success ? parsed.data : { ...DEFAULT_RETENTION_POLICY };
-    } catch {
-      return { ...DEFAULT_RETENTION_POLICY };
-    }
-  }
-
-  /** A window without an export destination is refused rather than silently never swept. */
-  setRetention(patch: { idleAfterDays?: unknown; exportTo?: unknown }): RetentionPolicy {
-    const next: RetentionPolicy = { ...this.retention() };
-    if (patch.idleAfterDays !== undefined) {
-      if (patch.idleAfterDays === null) next.idleAfterDays = null;
-      else {
-        const parsed = RetentionPolicySchema.shape.idleAfterDays.safeParse(patch.idleAfterDays);
-        if (!parsed.success)
-          throw new EngineStateError(
-            "invalid_request",
-            `a retention window must be a whole number of days between ${MIN_RETENTION_DAYS} and ${MAX_RETENTION_DAYS}, or null`,
-          );
-        next.idleAfterDays = parsed.data;
-      }
-    }
-    if (patch.exportTo !== undefined) {
-      if (patch.exportTo === null) next.exportTo = null;
-      else {
-        if (typeof patch.exportTo !== "string" || !patch.exportTo.trim() || !path.isAbsolute(patch.exportTo.trim()))
-          throw new EngineStateError("invalid_request", "an export destination must be an absolute path");
-        next.exportTo = patch.exportTo.trim();
-      }
-    }
-    if (next.idleAfterDays !== null && !next.exportTo)
-      throw new EngineStateError("invalid_request", "choose where the journal is exported before setting a retention window");
-    this.kernel.writeDocument(this.kernel.paths.retention, { version: STATE_VERSION, ...next });
-    return { ...next };
-  }
-
-  /** What each window would take on this store; `bytes` reads rows, so it's opt-in. */
-  retentionPreview(options: { bytes?: boolean } = {}): RetentionBucket[] {
-    const now = this.kernel.now();
-    return RETENTION_BUCKET_DAYS.map((days) => ({
-      days,
-      ...this.kernel.executionStore.retentionPreview({ idleBefore: now - days * DAY_MS, now }, options),
-    }));
-  }
-
-  /** Runs only when the policy has both a window and a destination. */
-  sweepRetention(): JournalRetirement {
-    const policy = this.retention();
-    if (policy.idleAfterDays === null || !policy.exportTo) return { retired: 0, skipped: 0, events: 0 };
-    const now = this.kernel.now();
-    return this.kernel.executionStore.retireJournal({ idleBefore: now - policy.idleAfterDays * DAY_MS, now }, { exportTo: policy.exportTo });
   }
 
   orientation(): AgentOrientation {
@@ -300,10 +215,9 @@ export class SettingsStore {
   }
 
   /** A driver change drops the model: model ids mean nothing across harnesses. */
-  setTextGen(patch: { titles?: unknown; renameBranches?: unknown; driver?: unknown; model?: unknown; effort?: unknown }): TextGenPolicy {
+  setTextGen(patch: { titles?: unknown; driver?: unknown; model?: unknown; effort?: unknown }): TextGenPolicy {
     const next: TextGenPolicy = { ...this.textGen() };
     if (patch.titles !== undefined) next.titles = boolean(patch.titles, "titles must be a boolean");
-    if (patch.renameBranches !== undefined) next.renameBranches = boolean(patch.renameBranches, "renameBranches must be a boolean");
     if (patch.driver !== undefined) {
       if (!isBuiltInDriver(patch.driver)) {
         throw new EngineStateError("invalid_request", "text generation driver must be claude, codex or opencode");

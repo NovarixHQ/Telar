@@ -14,7 +14,6 @@ export type EngineStatePaths = {
   modelOverlays: string;
   modelCatalogues: string;
   inbox: string;
-  retention: string;
   orientation: string;
   usageLimitSources: string;
   usageLimitSecrets: string;
@@ -63,7 +62,6 @@ export function statePaths(root: string): EngineStatePaths {
     modelOverlays: path.join(resolved, "model-overlays.json"),
     modelCatalogues: path.join(resolved, "model-catalogues.json"),
     inbox: path.join(resolved, "inbox.json"),
-    retention: path.join(resolved, "retention.json"),
     orientation: path.join(resolved, "orientation.json"),
     usageLimitSources: path.join(resolved, "usage-limit-sources.json"),
     usageLimitSecrets: path.join(resolved, "usage-limit-secrets.json"),

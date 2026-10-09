@@ -21,8 +21,7 @@ export function settingsRoutes(
       method: "PATCH",
       path: "/v2/inbox",
       auth: "engine",
-      handle: ({ body }) =>
-        ok({ inbox: store.settings.setInbox(present(body, ["autoSettleAfterHours", "settleDelegatedAfterHours", "settledTerminalLimit"])) }),
+      handle: ({ body }) => ok({ inbox: store.settings.setInbox(present(body, ["autoSettleAfterHours"])) }),
     },
     { method: "GET", path: "/v2/orientation", auth: "engine", handle: () => ok({ orientation: store.settings.orientation(), text: TELAR_ORIENTATION }) },
     {

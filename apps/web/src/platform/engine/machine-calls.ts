@@ -24,8 +24,8 @@ ManagedTectonic,
 InboxPolicy,EnvMode,
 DictationAnswer,
 DictationProviderId,SidebarLayout,
-SidebarMode,RetentionBucket,
-RetentionPolicy,TextGenEffort,TextGenPolicy,UsageReport,
+SidebarMode,
+TextGenEffort,TextGenPolicy,UsageReport,
 UsageResolution,UsageLimitSource,
 ModelCatalogue,
 ModelOverlay,
@@ -150,7 +150,7 @@ export function settingsCalls(fetcher: Fetcher) {
     /** How this machine's inbox bands — the auto-settle window, or `null` for
      *  no clock at all. One answer for every client of this engine. */
     inbox: () => request<{ inbox: InboxPolicy }>(fetcher, "GET", "/api/inbox"),
-    setInbox: (patch: { autoSettleAfterHours?: number | null; settleDelegatedAfterHours?: number | null; settledTerminalLimit?: number }) =>
+    setInbox: (patch: { autoSettleAfterHours?: number | null }) =>
       request<{ inbox: InboxPolicy }>(fetcher, "PATCH", "/api/inbox", patch),
     /** How worktrees are prepared — `protocol/workspace.ts`. Both writes are
      *  whole-layer PUTs: the body IS the new layer, not a patch onto it. */
@@ -184,19 +184,6 @@ export function settingsCalls(fetcher: Fetcher) {
       const { id, ...patch } = input;
       return request<{ source: UsageLimitSource }>(fetcher, "PUT", `/api/usage/sources/${encodeURIComponent(id)}`, patch);
     },
-    /** The retention window in force, and what each candidate window would take
-     *  on THIS store — see `RetentionBucket`. Read-only: nothing is deleted to
-     *  answer it. `bytes` costs a scan of every qualifying row's text where the
-     *  counts beside it are index ranges, so ask only when a person is looking
-     *  at the figure, and never on a timer (#629). */
-    retention: (options: { bytes?: boolean; signal?: AbortSignal } = {}) =>
-      request<{ retention: RetentionPolicy; buckets: RetentionBucket[] }>(
-        fetcher,
-        "GET",
-        `/api/storage/retention${options.bytes ? "?bytes=1" : ""}`,
-        undefined,
-        options.signal,
-      ),
     /** Create a row, or replace one by `id`. `nextRunAt` is the ENGINE's to
      *  compute: a caller that could name it could aim a row at the past, where
      *  the grace rule would skip it for ever. */
@@ -204,7 +191,7 @@ export function settingsCalls(fetcher: Fetcher) {
       request<{ schedule: Schedule }>(fetcher, "POST", "/api/schedules", input),
     /** Who writes generated titles and branch names — see `TextGenPolicy`. */
     textGen: () => request<{ textGen: TextGenPolicy }>(fetcher, "GET", "/api/textgen"),
-    setTextGen: (patch: { titles?: boolean; renameBranches?: boolean; driver?: ProviderDriverKind; model?: string | null; effort?: TextGenEffort | null }) =>
+    setTextGen: (patch: { titles?: boolean; driver?: ProviderDriverKind; model?: string | null; effort?: TextGenEffort | null }) =>
       request<{ textGen: TextGenPolicy }>(fetcher, "PATCH", "/api/textgen", patch),
     /** One structured completion from the policy's harness. SLOW (a cold CLI
      *  start plus a completion) and fallible — a harness that does not answer

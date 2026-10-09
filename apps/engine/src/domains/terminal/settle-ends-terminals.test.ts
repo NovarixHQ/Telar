@@ -9,7 +9,6 @@ import { type StartRunInput } from "./live-run";
 import { RunTerminalClient } from "./terminal-client";
 import { EngineStore } from "../../state";
 import { sessionLifecycleRoutes } from "../sessions";
-import { SETTLED_TERMINAL_GRACE_MS } from "./session-terminals";
 import { desktopTerminalServer } from "../../../test/desktop-terminal";
 
 type StartServer = (options: {
@@ -21,11 +20,12 @@ const { startRunTerminalServer } = (await import(desktopTerminalServer)) as { st
 
 const HOUR = 60 * 60 * 1000;
 
-type FakeTerminal = { id: string; pid: number; sessionId?: string; origin: string; owner: "engine" | "renderer" };
+type FakeTerminal = { id: string; pid: number; sessionId?: string; origin: string; owner: "engine" | "renderer"; busy?: boolean };
 
 class FakeHost {
   readonly terminals = new Map<string, FakeTerminal>();
   readonly sessionCloses: string[] = [];
+  readonly idleCloses: string[] = [];
   onExit: (id: string, ending: unknown) => void = () => {};
   private sequence = 0;
 
@@ -50,6 +50,13 @@ class FakeHost {
     const records = [...this.terminals.values()].filter((terminal) => terminal.sessionId === sessionId);
     for (const record of records) this.end(record.id, "session");
     return records.length;
+  }
+
+  async closeIdleBySession(sessionId: string): Promise<string[]> {
+    this.idleCloses.push(sessionId);
+    const idle = [...this.terminals.values()].filter((terminal) => terminal.sessionId === sessionId && !terminal.busy);
+    for (const record of idle) this.end(record.id, "session");
+    return idle.map((record) => record.id);
   }
 
   async closeAll(): Promise<number> {
@@ -114,7 +121,7 @@ async function scene() {
   return { host, manager, store, closedByPerson, open, advance: (ms: number) => (now += ms) };
 }
 
-test("an explicit settle closes every terminal of the session through /close-session, as Telar, with no note to the agent", async () => {
+test("an explicit settle closes the session's idle terminals, as Telar, with no note to the agent", async () => {
   const { host, manager, store, closedByPerson, open } = await scene();
   const agents = [await open("session_one"), await open("session_one", { origin: "run", openedBy: "person" })];
   const shell = host.personShell("session_one");
@@ -123,7 +130,8 @@ test("an explicit settle closes every terminal of the session through /close-ses
   store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
   const ended = await store.settler.endLeftovers("session_one");
 
-  expect(host.sessionCloses).toEqual(["session_one"]);
+  expect(host.idleCloses).toEqual(["session_one"]);
+  expect(host.sessionCloses).toEqual([]);
   expect(ended).toEqual({ terminals: 3, backgroundTasks: 0 });
   expect(host.terminals.has(shell)).toBe(false);
   for (const run of agents) expect(manager.run(run.terminalId)).toMatchObject({ status: "closed", closedBy: "telar" });
@@ -152,21 +160,21 @@ test("settling a session with nothing open closes nothing and still answers", as
   const { host, store } = await scene();
   store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
   expect(await store.settler.endLeftovers("session_one")).toEqual({ terminals: 0, backgroundTasks: 0 });
-  expect(host.sessionCloses).toEqual(["session_one"]);
+  expect(host.idleCloses).toEqual(["session_one"]);
 });
 
-test("the clock's settle keeps the terminals for the grace, then closes them as Telar", async () => {
+test("the clock's settle closes the idle terminals on the next sweep, as Telar", async () => {
   const { host, manager, store, closedByPerson, open, advance } = await scene();
   const run = await open("session_one");
   const window = store.settings.inbox().autoSettleAfterHours!;
 
-  advance(window * HOUR + 60_000);
+  advance(window * HOUR - 60_000);
   expect(await store.sessionTerminals.sweepSettled()).toEqual([]);
   expect(manager.run(run.terminalId).status).toBe("running");
 
-  advance(SETTLED_TERMINAL_GRACE_MS);
+  advance(2 * 60_000);
   expect(await store.sessionTerminals.sweepSettled()).toEqual(["session_one"]);
-  expect(host.sessionCloses).toEqual(["session_one"]);
+  expect(host.idleCloses).toEqual(["session_one"]);
   expect(manager.run(run.terminalId)).toMatchObject({ status: "closed", closedBy: "telar" });
   expect(closedByPerson).toEqual([]);
 });
@@ -177,7 +185,7 @@ test("a session the clock has not settled keeps its terminals, however long they
   store.lifecycle.updateSession("session_one", { settledOverride: "active" });
   advance(30 * 24 * HOUR);
   expect(await store.sessionTerminals.sweepSettled()).toEqual([]);
-  expect(host.sessionCloses).toEqual([]);
+  expect(host.idleCloses).toEqual([]);
   expect(manager.run(run.terminalId).status).toBe("running");
 });
 
@@ -224,6 +232,9 @@ test("a host out of reach does not fail the settle, and leaves the records as th
     openCount: (sessionId) => manager.openCount(sessionId),
     openSessions: () => manager.openSessions(),
     closeSession: async () => {
+      throw new Error("connect ECONNREFUSED");
+    },
+    closeIdle: async () => {
       throw new Error("connect ECONNREFUSED");
     },
   });

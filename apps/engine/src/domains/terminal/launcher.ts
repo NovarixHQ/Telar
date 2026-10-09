@@ -43,6 +43,7 @@ export type RunLauncher = {
   held?(): Promise<TerminalFacts[]>;
   adopt?(facts: TerminalFacts, events: RunLaunchEvents): Promise<RunHandle>;
   closeSession?(sessionId: string): Promise<number>;
+  closeIdleSession?(sessionId: string): Promise<string[]>;
   sessionCounts?(): Promise<Record<string, number>>;
   detach?(): void;
 };
@@ -188,6 +189,7 @@ export function terminalLauncher(client: RunTerminalClient, defaults: { cols?: n
       return handleFor(facts.id, facts.pid);
     },
     closeSession: (sessionId) => client.closeSession(sessionId),
+    closeIdleSession: (sessionId) => client.closeIdleSession(sessionId),
     sessionCounts: () => client.sessionCounts(),
     detach: () => client.detach(),
   };

@@ -251,9 +251,9 @@ describe("a settled row's terminals (#883)", () => {
     expect(said).toEqual(["the terminal host is not answering"]);
   });
 
-  test("settling drops the count, since the settle closes them; other changes keep it", () => {
+  test("settling keeps the count, since a terminal still running something stays open", () => {
     const before = row({ terminals: 2 });
-    expect(withSettling(before, "settled", 5_000).terminals).toBeUndefined();
+    expect(withSettling(before, "settled", 5_000).terminals).toBe(2);
     expect(withSettling(before, "active", 5_000).terminals).toBe(2);
     expect(patchedRow(before, record()).terminals).toBe(2);
   });

@@ -5,7 +5,6 @@ import {
   resolveWorkspace,
   type ProjectWorkspaceOverrides,
   type ProjectWorkspaceView,
-  type WorkspaceArtifact,
   type WorkspaceDependencies,
   type WorkspacePorts,
   type WorkspaceSetup,
@@ -13,7 +12,6 @@ import {
 } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { Badge } from "@/ui/badge";
-import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Switch } from "@/ui/switch";
 import { Textarea } from "@/ui/textarea";
@@ -22,14 +20,13 @@ import { Dropdown, Row, SettingsGroup } from "@/features/settings";
 
 const api = createEngineApi();
 
-export type WorkspaceRowField = "setup" | "env" | "ports" | "dependencies" | "artifacts";
+export type WorkspaceRowField = "setup" | "env" | "ports" | "dependencies";
 type ModeField = Exclude<WorkspaceRowField, "dependencies">;
 type TextField = Exclude<ModeField, "setup">;
 type Values = {
   setup: WorkspaceSetup;
   env: Record<string, string>;
   ports: WorkspacePorts;
-  artifacts: WorkspaceArtifact[];
 };
 type Parsed<T> = { ok: true; value: T } | { ok: false; message: string };
 
@@ -66,26 +63,6 @@ export function parsePorts(text: string, previous?: WorkspacePorts): Parsed<Work
   return { ok: true, value: { names, ...(previous?.base !== undefined ? { base: previous.base } : {}) } };
 }
 
-const ARTIFACT_SEPARATOR = "=>";
-
-export function formatArtifacts(artifacts: WorkspaceArtifact[] | undefined): string {
-  return (artifacts ?? [])
-    .map((entry) => (entry.regen ? `${entry.path} ${ARTIFACT_SEPARATOR} ${entry.regen}` : entry.path))
-    .join("\n");
-}
-
-export function parseArtifacts(text: string): Parsed<WorkspaceArtifact[] | undefined> {
-  const artifacts: WorkspaceArtifact[] = [];
-  for (const { line, at } of numberedLines(text)) {
-    const split = line.indexOf(ARTIFACT_SEPARATOR);
-    const path = (split < 0 ? line : line.slice(0, split)).trim();
-    const regen = split < 0 ? "" : line.slice(split + ARTIFACT_SEPARATOR.length).trim();
-    if (!path) return { ok: false, message: `Line ${at}: a path comes before ${ARTIFACT_SEPARATOR}.` };
-    artifacts.push(regen ? { path, regen } : { path });
-  }
-  return { ok: true, value: artifacts.length > 0 ? artifacts : undefined };
-}
-
 function formatSetup(setup: WorkspaceSetup | undefined): string {
   if (!setup) return "";
   return [
@@ -115,13 +92,6 @@ const TEXT: { [F in TextField]: TextSpec<F> } = {
     placeholder: "PORT, WEB_PORT",
     multiline: false,
   },
-  artifacts: {
-    format: formatArtifacts,
-    parse: parseArtifacts,
-    empty: [],
-    placeholder: `path ${ARTIFACT_SEPARATOR} regen command`,
-    multiline: true,
-  },
 };
 
 const ROWS: { field: ModeField; label: string; hint: string; info?: string }[] = [
@@ -133,15 +103,7 @@ const ROWS: { field: ModeField; label: string; hint: string; info?: string }[] =
     info: "Merges by key: this computer < the repo's .telar/workspace.json < this project.",
   },
   { field: "ports", label: "Ports", hint: "One stable port per name, exported under that name." },
-  {
-    field: "artifacts",
-    label: "Artifacts",
-    hint: "Output a worktree can regenerate. Telar never runs the command.",
-    info: `One per line: a path, optionally followed by ${ARTIFACT_SEPARATOR} and the command that rebuilds it. * matches within one path segment.`,
-  },
 ];
-
-const SUGGESTED_ARTIFACT = "node_modules";
 
 const REPO_FILE = "the repo's .telar/workspace.json";
 
@@ -283,11 +245,6 @@ function TextEditor<F extends TextField>({
           reject(spec.required ?? "This needs an entry.");
         }}
       />
-      {field === "artifacts" && !text && (
-        <Button size="xs" variant="outline" onClick={() => commit([{ path: SUGGESTED_ARTIFACT }] as Values[F])}>
-          Add {SUGGESTED_ARTIFACT}
-        </Button>
-      )}
     </div>
   );
 }

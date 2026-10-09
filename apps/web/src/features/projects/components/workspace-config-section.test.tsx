@@ -3,8 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { resolveWorkspace, type ProjectWorkspaceOverrides, type ProjectWorkspaceView, type WorkspaceConfig } from "@telar/engine-client";
 import { SETTINGS_SEARCH_INDEX, searchSettings } from "@/features/settings";
 import {
-  formatArtifacts,
-  parseArtifacts,
   parseEnv,
   parsePorts,
   ProjectWorkspaceRows,
@@ -43,8 +41,6 @@ test("Inherit shows the inherited value and where it comes from", () => {
   expect(html).toContain("PORT");
   expect(html).toContain("From this computer and the repo&#x27;s .telar/workspace.json");
   expect(html).toContain("A=1\nB=2");
-  // Nothing anywhere for the rest.
-  expect(html).toContain("Nothing to inherit.");
   // Read-only: no editor while inheriting.
   expect(html).not.toContain('aria-label="Setup command"');
   // Reserved fields are never drawn.
@@ -66,7 +62,6 @@ test("Custom opens the editor on the project's own value", () => {
       view={view({
         setup: { command: "own command", timeoutMs: 90_000 },
         env: { KEY: "value" },
-        artifacts: [{ path: "out", regen: "build command" }],
       })}
     />,
   );
@@ -74,7 +69,6 @@ test("Custom opens the editor on the project's own value", () => {
   expect(html).toContain('value="own command"');
   expect(html).toContain('value="90"');
   expect(html).toContain("KEY=value");
-  expect(html).toContain("out =&gt; build command");
   // The merge rule is behind the ⓘ, not in the hint.
   expect(html).toContain("Merges by key: this computer &lt; the repo&#x27;s .telar/workspace.json &lt; this project.");
 });
@@ -114,9 +108,6 @@ test("the text forms parse what they format", () => {
     value: { names: ["PORT", "WEB_PORT", "API_PORT"], base: 4000 },
   });
   expect(parsePorts("  ")).toEqual({ ok: true, value: undefined });
-  const artifacts = [{ path: "out\\win" }, { path: "gen/*", regen: "regen command" }];
-  expect(parseArtifacts(formatArtifacts(artifacts))).toEqual({ ok: true, value: artifacts });
-  expect(parseArtifacts("=> x").ok).toBe(false);
 });
 
 test("search finds the rows on Projects, their one pane", () => {

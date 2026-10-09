@@ -22,18 +22,9 @@ export const GET = engineRoute(async () => {
 
 export const PATCH = engineRoute(async (request: Request) => {
   const body = await requestObject(request);
+  // `null` IS THE OFF SWITCH and `undefined` is "leave it alone", so the
+  // key's presence is the question — not its truthiness.
   return Response.json(
-    await (await engineClient()).setInboxPolicy({
-      // `null` IS THE OFF SWITCH and `undefined` is "leave it alone", so the
-      // key's presence is the question — not its truthiness.
-      ...("autoSettleAfterHours" in body ? { autoSettleAfterHours: body.autoSettleAfterHours as number | null } : {}),
-      // The delegation grace (#378), forwarded by the same rule and for the
-      // same reason: the bound lives beside the schema that states it.
-      ...("settleDelegatedAfterHours" in body
-        ? { settleDelegatedAfterHours: body.settleDelegatedAfterHours as number | null }
-        : {}),
-      // What settled sessions may keep open (#883), by the same rule.
-      ...("settledTerminalLimit" in body ? { settledTerminalLimit: body.settledTerminalLimit as number } : {}),
-    }),
+    await (await engineClient()).setInboxPolicy("autoSettleAfterHours" in body ? { autoSettleAfterHours: body.autoSettleAfterHours as number | null } : {}),
   );
 });

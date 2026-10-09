@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:tes
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import type { CleanupState, RetentionPolicy } from "@telar/engine-client";
+import type { CleanupState } from "@telar/engine-client";
 import { press } from "@/test/dom";
 import { CleanupSection, FIXED_RULES, lastCleanupLabel, runLabel } from "./cleanup-section";
 
@@ -14,11 +14,10 @@ afterAll(async () => {
 });
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
-const OFF: CleanupState = { policy: { settledDays: null, logsDays: null }, running: false };
+const OFF: CleanupState = { policy: { settledDays: null }, running: false };
 const ROOT = "/store/worktrees";
 
 let state: CleanupState = OFF;
-let retention: RetentionPolicy = { idleAfterDays: null, exportTo: null };
 let calls: { url: string; method: string; body?: unknown }[] = [];
 /** What the engine answers a PUT with — its own state, which may differ from the patch. */
 let putAnswer: ((patch: Partial<CleanupState["policy"]>) => CleanupState) | undefined;
@@ -26,7 +25,6 @@ const realFetch = globalThis.fetch;
 
 beforeEach(() => {
   state = OFF;
-  retention = { idleAfterDays: null, exportTo: null };
   calls = [];
   putAnswer = undefined;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -41,10 +39,6 @@ beforeEach(() => {
     if (url.startsWith("/api/cleanup")) {
       if (method === "PUT") state = putAnswer ? putAnswer(body) : { ...state, policy: { ...state.policy, ...body } };
       return Response.json({ cleanup: state });
-    }
-    if (url.startsWith("/api/storage/retention")) {
-      if (method === "PUT") retention = { ...retention, ...body };
-      return Response.json({ retention, buckets: [] });
     }
     if (url.startsWith("/api/worktrees-root")) return Response.json({ worktreesRoot: { kind: "default", root: ROOT, default: ROOT } });
     return Response.json({});
@@ -93,10 +87,10 @@ async function mount() {
 }
 
 describe("Settings ▸ Storage ▸ automatic cleanup", () => {
-  test("one worktree removal row and the log row render, both off", async () => {
+  test("one worktree removal row renders, off", async () => {
     const view = await mount();
-    const triggers = [...view.host.querySelectorAll('[aria-label="Remove worktrees"], [aria-label="Delete old logs"]')];
-    expect(triggers.map((trigger) => trigger.textContent?.replace("▼", "").trim())).toEqual(["Off", "Off"]);
+    const triggers = [...view.host.querySelectorAll('[aria-label="Remove worktrees"]')];
+    expect(triggers.map((trigger) => trigger.textContent?.replace("▼", "").trim())).toEqual(["Off"]);
     expect(view.switches()).toHaveLength(0);
     for (const gone of ["Delete inactive worktrees", "Release settled worktrees", "Delete unchanged worktrees", "Delete worktrees of archived sessions"]) {
       expect(view.text()).not.toContain(gone);
@@ -120,12 +114,11 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
 
   test("a change PUTs only its patch and shows the engine's answer", async () => {
     // The engine answers with more than was asked for; the page shows the answer.
-    putAnswer = (patch) => ({ ...state, policy: { ...state.policy, ...patch, logsDays: 30 } });
+    putAnswer = (patch) => ({ ...state, policy: { ...state.policy, ...patch } });
     const view = await mount();
     await view.choose("Remove worktrees", "7 days");
     expect(calls.find((call) => call.method === "PUT")).toEqual({ url: "/api/cleanup", method: "PUT", body: { settledDays: 7 } });
     expect(view.host.querySelector('[aria-label="Remove worktrees"]')?.textContent).toContain("7 days");
-    expect(view.host.querySelector('[aria-label="Delete old logs"]')?.textContent).toContain("30 days");
     view.unmount();
   });
 
@@ -165,21 +158,6 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
     expect(calls.some((call) => call.url === "/api/worktrees/summary")).toBe(true);
     expect(calls.some((call) => call.url.startsWith("/api/worktrees?") || call.url === "/api/worktrees")).toBe(false);
     expect(view.button("Show worktrees")).toBeUndefined();
-    view.unmount();
-  });
-
-  test("a journal retention window already set stays visible, with a way to turn it off", async () => {
-    const off = await mount();
-    expect(off.text()).not.toContain("Turn journal retention");
-    off.unmount();
-
-    retention = { idleAfterDays: 30, exportTo: "/exports" };
-    const view = await mount();
-    expect(view.text()).toContain("Turn journal retention");
-    expect(view.text()).toContain("/exports");
-    await view.click(view.button("Turn off")!);
-    expect(calls.at(-1)).toEqual({ url: "/api/storage/retention", method: "PUT", body: { idleAfterDays: null } });
-    expect(view.text()).not.toContain("Turn journal retention");
     view.unmount();
   });
 });

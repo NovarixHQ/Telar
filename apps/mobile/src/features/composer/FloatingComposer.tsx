@@ -3,7 +3,7 @@ import type { RequestDecision } from "@telar/engine-client";
 import { Settings, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HostConnection } from "../../platform/connection";
-import { ReadingColumn, useKeyboardShown } from "../../platform/layout";
+import { ReadingColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { SessionMenus, setAccessMode } from "../providers";
@@ -32,6 +32,8 @@ type Props = {
   /** Session notices drawn above the request cards, such as a lost connection. */
   notices?: ReactNode;
   initialDraft?: string;
+  /** Points the keyboard covers at the bottom; the footer sits on top of it. */
+  keyboard: number;
   onHeight: (height: number) => void;
   onSent?: () => void;
 };
@@ -40,7 +42,7 @@ const NO_SKILLS = { skills: [], commands: [] };
 const PROMOTES = new Set(["claude", "codex"]);
 
 /** The footer that floats over the transcript: notices, open requests, then the composer, over a bar-material scrim. */
-export function FloatingComposer({ host, hostId, sessionId, mentions, notices, initialDraft, onHeight, onSent }: Props) {
+export function FloatingComposer({ host, hostId, sessionId, mentions, notices, initialDraft, keyboard, onHeight, onSent }: Props) {
   const feed = useFeed(host, sessionId);
   const [draft, setDraftState] = useState(() => initialDraft ?? readDraft(Settings, hostId, sessionId));
   const [caret, setCaret] = useState(draft.length);
@@ -49,9 +51,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   const [problem, setProblem] = useState<string>();
   const [unsent, setUnsent] = useState<{ text: string; ids: string[]; runId: string; error: string }>();
   const [cleared, setCleared] = useState(0);
-  const [height, setHeight] = useState(0);
   const insets = useSafeAreaInsets();
-  const keyboard = useKeyboardShown();
   const setDraft = (text: string) => {
     setDraftState(text);
     setCaret(text.length);
@@ -161,8 +161,8 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   const shownProblem = problem ?? dictation.problem;
   return (
     <View
-      style={[styles.footer, { marginTop: -height, paddingBottom: (keyboard ? 0 : insets.bottom) + 8 }]}
-      onLayout={({ nativeEvent }) => (setHeight(nativeEvent.layout.height), onHeight(nativeEvent.layout.height))}
+      style={[styles.footer, { bottom: keyboard, paddingBottom: Math.max(insets.bottom - keyboard, 0) + 8 }]}
+      onLayout={({ nativeEvent }) => onHeight(nativeEvent.layout.height)}
     >
       <Scrim />
       <ReadingColumn margins={16} style={styles.lane}>
@@ -209,7 +209,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
 }
 
 const styles = StyleSheet.create({
-  footer: { paddingTop: 8 },
+  footer: { position: "absolute", left: 0, right: 0, paddingTop: 8 },
   lane: { gap: 8 },
   note: { paddingHorizontal: 14, fontSize: 13, color: Theme.textMuted },
   problem: { color: Theme.red },

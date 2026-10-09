@@ -1,13 +1,13 @@
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from "@react-navigation/native";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { KeyboardAvoidingView, StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { FloatingComposer } from "../composer";
 import { hosts, useHosts } from "../hosts";
 import { PanelColumn, PanelView, usePanelColumn } from "../panel";
 import { setVisibleSession } from "../push";
 import { feedOf, TranscriptScroll, useFeed } from "../transcript";
 import { present } from "../../platform/connection";
-import { useSplitColumn } from "../../platform/layout";
+import { useKeyboardOverlap, useSplitColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { useSessionHeader } from "./session-header";
 import { StatusNotice } from "./StatusNotice";
@@ -23,6 +23,7 @@ export function SessionScreen() {
   const connection = rows.find((row) => row.connection === host)?.state;
   const feed = useFeed(host, params.sessionId);
   const [footer, setFooter] = useState(0);
+  const keyboard = useKeyboardOverlap();
   const [pin, setPin] = useState(0);
   const [problem, setProblem] = useState<string>();
   const { rows: railRows } = useRail(params.hostId);
@@ -71,12 +72,12 @@ export function SessionScreen() {
     return () => setVisibleSession(undefined);
   }, [params.hostId, params.sessionId]);
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior="padding">
+    <View style={styles.screen}>
       <TranscriptScroll
         turns={feed.turns}
         loading={!feed.head && !feed.failed}
         pin={pin}
-        bottomInset={footer}
+        bottomInset={footer + keyboard}
         source={host ? { host, sessionId: params.sessionId } : undefined}
         older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
       />
@@ -87,10 +88,11 @@ export function SessionScreen() {
         mentions={railRows}
         notices={notices}
         {...(params.draft ? { initialDraft: params.draft } : {})}
+        keyboard={keyboard}
         onHeight={setFooter}
         onSent={() => setPin((value) => value + 1)}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { PlatformColor, StyleSheet, Text, TextInput, View, type TextInputInstance } from "react-native";
+import { PlatformColor, Settings, StyleSheet, Text, TextInput, View, type TextInputInstance } from "react-native";
 import { CaretPill, type DictationPhase } from "../dictation";
 import { MicButton, ROW, SlotButton } from "./buttons";
 import { Glass } from "./chrome";
@@ -26,6 +26,8 @@ type Props = {
   suggestions?: { rows: Completion[]; loading: boolean; onPick: (row: Completion) => void };
 };
 
+// `-telarFocusOnOpen YES` at launch raises the keyboard on the field, so a simulator can show it without a tap.
+const FOCUS_ON_OPEN = Boolean(Settings.get("telarFocusOnOpen"));
 const LINE = 21;
 const MAX_LINES = 6;
 
@@ -62,6 +64,7 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
               value={draft}
               onChangeText={onDraft}
               onSelectionChange={(event) => onCaret(event.nativeEvent.selection.end)}
+              autoFocus={FOCUS_ON_OPEN}
               multiline
             />
             {listening ? (

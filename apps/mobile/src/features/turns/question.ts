@@ -39,7 +39,7 @@ export function setCustom(draft: QuestionDraft, text: string): QuestionDraft {
   return { ...draft, custom: { ...draft.custom, [key]: text }, selected: text.trim() ? { ...draft.selected, [key]: [] } : draft.selected };
 }
 
-export function answerFor(draft: QuestionDraft, page: QuestionPage): Answer | undefined {
+function answerFor(draft: QuestionDraft, page: QuestionPage): Answer | undefined {
   const typed = (draft.custom[page.key] ?? "").trim();
   if (typed) return page.multiple ? [typed] : typed;
   const chosen = draft.selected[page.key] ?? [];

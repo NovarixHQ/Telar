@@ -8,7 +8,6 @@ import { sessionDir } from "./metadata";
 
 const MAX_NEXT_TURN_NOTES = 5;
 
-/** An fyi asks nothing of its reader, so it waits for the next turn rather than starting one. */
 export const isQuietMail = (detail: NotificationDetail): boolean => detail.kind === "peer_message" && (detail.intent === undefined || detail.intent === "fyi");
 
 function notificationsFile(paths: EngineStatePaths, sessionId: string): string {

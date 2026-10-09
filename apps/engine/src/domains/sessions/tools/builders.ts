@@ -26,7 +26,6 @@ function row(child: SessionChild) {
   };
 }
 
-/** The sessions this one tasked: every one still out and the latest that ended. Reading your own spends their ending notices. */
 export async function buildersView(capability: SessionsCapability, sessionId: string) {
   let children: SessionChild[];
   try {

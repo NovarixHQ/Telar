@@ -15,7 +15,7 @@ const check=()=>{if(img.naturalWidth&&(img.naturalWidth!==w||img.naturalHeight!=
 img.onload=check;img.onerror=()=>post({type:"error"});setInterval(check,500);img.src=${quote(url)};
 </script></body></html>`;
 
-export function parseStreamEvent(data: string): StreamEvent | undefined {
+function parseStreamEvent(data: string): StreamEvent | undefined {
   try {
     const value = JSON.parse(data) as Partial<{ type: string; width: number; height: number }>;
     if (value.type === "error") return { type: "error" };

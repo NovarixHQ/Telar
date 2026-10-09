@@ -1,4 +1,4 @@
-import { Button, ContentUnavailableView, Divider, HStack, Host, Spacer, VStack } from "@expo/ui/swift-ui";
+import { Button, Divider, HStack, Host, Spacer, VStack } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, foregroundStyle, frame, padding, shapes } from "@expo/ui/swift-ui/modifiers";
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
@@ -13,7 +13,7 @@ import type { PanelModel, PanelState } from "./model";
 import { PanelEmptyState } from "./PanelEmptyState";
 import { PanelTabStrip } from "./PanelTabStrip";
 import { SessionSurface } from "./session/SessionSurface";
-import { CORE_TABS, TAB_INFO, type PanelTab } from "./tabs";
+import { CORE_TABS, type PanelTab } from "./tabs";
 
 type PanelPresentation = "page" | "column";
 
@@ -28,7 +28,7 @@ function Surface({ host, sessionId, active, panel }: { host: HostConnection; ses
   if (active === "agents") return <SessionSurface key={sessionId} host={host} sessionId={sessionId} />;
   return (
     <Host style={styles.fill}>
-      {active ? <ContentUnavailableView title="Not available here" systemImage={TAB_INFO[active].icon} description="This surface isn't in the iPhone app yet." /> : <PanelEmptyState offered={CORE_TABS} onOpen={(tab) => panel.open(tab)} />}
+      <PanelEmptyState offered={CORE_TABS} onOpen={(tab) => panel.open(tab)} />
     </Host>
   );
 }

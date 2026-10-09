@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  confirmForgetLogins,
   confirmProfileClear,
   confirmProfileDeletion,
   desktopBrowserProfiles,
@@ -123,6 +124,19 @@ function ProfileItem({
             Clear cookies and cache
           </Button>
         )}
+        {bridge.forgetProfileLogins && (
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm(confirmForgetLogins(profile))) return;
+              act(() => bridge.forgetProfileLogins!(profile.id));
+            }}
+          >
+            Forget logins
+          </Button>
+        )}
         {bridge.deleteProfile && (
           <Button
             size="xs"
@@ -184,7 +198,7 @@ export function BrowserProfilesRows() {
 
   return (
     <Row
-      keywords={["cookies", "cache", "clear", "account", "sign in", "chrome", "profile", "default", "browser", "integrations"]}
+      keywords={["cookies", "cache", "clear", "logins", "forget", "account", "sign in", "chrome", "profile", "default", "browser", "integrations"]}
       label="Browser profiles"
       hint="Each one is a separate set of cookies and logins for Telar's own browser."
       {...(bridge && profiles === undefined && !error ? { status: <Spinner className="size-4" /> } : {})}

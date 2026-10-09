@@ -186,3 +186,32 @@ describe("browser profiles — deleting one", () => {
     view.unmount();
   });
 });
+
+describe("browser profiles — forgetting logins", () => {
+  test("asks first, then forgets only that profile's logins", async () => {
+    const forgotten: string[] = [];
+    stubBridge({
+      forgetProfileLogins: async (profileId: string) => {
+        forgotten.push(profileId);
+        return { profiles: PROFILES };
+      },
+    });
+    const view = await mount();
+    const asked: string[] = [];
+    const forget = (label: string) =>
+      [...view.row(label).querySelectorAll("button")].find((button) => button.textContent?.trim() === "Forget logins") as HTMLButtonElement;
+
+    window.confirm = (message?: string) => {
+      asked.push(String(message));
+      return false;
+    };
+    await press(forget("Work"));
+    expect(asked).toEqual(['Forget the logins agents may fill in "Work"? The next fill on each site asks again.']);
+    expect(forgotten).toEqual([]);
+
+    window.confirm = () => true;
+    await press(forget("Work"));
+    expect(forgotten).toEqual(["bp_work"]);
+    view.unmount();
+  });
+});

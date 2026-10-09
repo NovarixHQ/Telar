@@ -3,7 +3,7 @@ const { BrowserWindow, ipcMain } = require("electron");
 const path = require("node:path");
 const { createLoginOfferFlow, isTrustedOfferSender } = require("./login-offer-flow");
 const { listLoginCandidates } = require("./vault-metadata");
-const { rememberLoginGrant } = require("./login-grant-writer");
+const { forgetLoginGrants, rememberLoginGrant } = require("./login-grant-writer");
 const { autoOfferEnabled } = require("./login-offer-prefs");
 
 function wireLoginOffer({
@@ -78,6 +78,8 @@ function wireLoginOffer({
     entryFinished: (capture) => flow.entryFinished(capture),
 
     explicitOffer: (capture) => flow.explicitOffer(capture),
+
+    forgetProfile: (profileId) => forgetLoginGrants(stateRoot, profileId),
   };
 }
 

@@ -59,7 +59,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   { id: "integrations", groups: [
     { "title":"Browser", rows: [
       {"title":"Open in the session's browser","keywords":["external","system browser","tabs","links"]},
-      {"title":"Browser profiles","hint":"Each one is a separate set of cookies and logins for Telar's own browser.","keywords":["cookies","cache","clear","account","sign in","chrome","profile","default","browser","integrations"]},
+      {"title":"Browser profiles","hint":"Each one is a separate set of cookies and logins for Telar's own browser.","keywords":["cookies","cache","clear","logins","forget","account","sign in","chrome","profile","default","browser","integrations"]},
       {"title":"Offer to remember after you sign in","hint":"After you type a login in Telar's browser, ask whether agents may reuse it.","keywords":["1password","save login","remember","offer","prompt","password"]},
       {"title":"Use a password manager in the browser","hint":"Lets Telar's browser and agents fill logins from your password manager.","keywords":["1password","extension","autofill","disable","off","credential","integrations"]},
     ] },

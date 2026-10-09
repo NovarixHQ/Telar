@@ -9,7 +9,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { setTimeout: delay } = require("node:timers/promises");
-const { rememberLoginGrant, exactOrigin, LOGIN_GRANTS_FILE, LOGIN_GRANTS_VERSION } = require("./login-grant-writer");
+const { rememberLoginGrant, forgetLoginGrants, exactOrigin, LOGIN_GRANTS_FILE, LOGIN_GRANTS_VERSION } = require("./login-grant-writer");
 const engine = require("../../../engine/src/domains/browser/login-grants.ts");
 
 const tempRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), "telar-login-grants-"));
@@ -159,6 +159,26 @@ describe("the shared lock, against the engine's protocol", () => {
       [...Array(20).keys()].flatMap((i) => [`engine_${i}`, `shell_${i}`]).sort(),
     );
   }, 20_000);
+});
+
+describe("forgetting a profile's logins", () => {
+  test("the fill finds no grant for that profile and asks again; other profiles keep theirs", async () => {
+    const root = tempRoot();
+    await rememberLoginGrant(root, input());
+    await rememberLoginGrant(root, input({ itemId: "item_b" }));
+    await rememberLoginGrant(root, input({ profileId: "profile_2" }));
+    const wants = [{ kind: "username" }, { kind: "password" }];
+    const fill = (profileId) => engine.createLoginGrantStore(root).findAll({ profileId, origin: "https://accounts.example.com", wants });
+
+    expect(await forgetLoginGrants(root, "profile_1")).toBe(2);
+
+    expect(fill("profile_1")).toEqual([]);
+    expect(fill("profile_2").map((grant) => grant.itemId)).toEqual(["item_a"]);
+  });
+
+  test("a missing profile is refused", () => {
+    expect(forgetLoginGrants(tempRoot(), "")).rejects.toThrow("browser profile");
+  });
 });
 
 describe("what the writer refuses", () => {

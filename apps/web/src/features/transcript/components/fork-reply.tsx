@@ -3,7 +3,6 @@
 import { createContext, useContext, useState } from "react";
 import { GitForkIcon } from "lucide-react";
 
-/** Starts a new session from the conversation through `runId`; absent where forking makes no sense. */
 export const ForkReply = createContext<((runId: string) => Promise<void>) | undefined>(undefined);
 
 export function ForkReplyButton({ runId }: { runId: string }) {

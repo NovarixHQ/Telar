@@ -9,6 +9,7 @@
     "typecheck": "bunx --bun tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@bacons/apple-targets": "5.0.0",
     "@expo/ui": "~58.0.14",
     "@mathjax/mathjax-newcm-font": "^4.1.3",
     "@mathjax/src": "^4.1.3",

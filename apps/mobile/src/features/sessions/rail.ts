@@ -136,6 +136,12 @@ export function railSections(inboxes: readonly HostInbox[], now: number, filter?
   return sections;
 }
 
+/** What the Lock Screen card counts on one computer: its active rows plus shelved sessions that are still busy. */
+export function cardSessions(answer: LiveSessionsAnswer, now: number): LiveSessionRow[] {
+  const shown = new Set(railSections([{ hostId: "", answer }], now).active.map((row) => row.sessionId));
+  return answer.sessions.filter((session) => shown.has(session.id) || (session.activity ?? "idle") !== "idle");
+}
+
 /** The flat rail: pinned rows in each host's saved pin order, then the rest by newest activity. */
 export function flatRail(active: readonly RailRow[], pinnedOrders: ReadonlyMap<string, readonly string[]>): { pinned: RailRow[]; rows: RailRow[] } {
   const ranked: { rank: number; arrived: number; row: RailRow }[] = [];

@@ -1,8 +1,10 @@
 import { NavigationContainer, useNavigationContainerRef, type LinkingOptions } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import { Button, Linking, Settings, useColorScheme } from "react-native";
 import { ConnectScreen } from "./features/hosts";
 import { PanelScreen } from "./features/panel";
+import { startLiveActivityCard } from "./features/push";
 import { RailScreen, SessionScreen } from "./features/sessions";
 import { SettingsScreen } from "./features/settings";
 import { UsageScreen } from "./features/usage";
@@ -24,6 +26,7 @@ const linking: LinkingOptions<RootStack> = { prefixes: ["telar://"], config: { i
 export function App() {
   const navigation = useNavigationContainerRef<RootStack>();
   const scheme = useColorScheme() === "dark" ? "dark" : "light";
+  useEffect(() => startLiveActivityCard(), []);
   return (
     <NavigationContainer ref={navigation} linking={linking} theme={navigationTheme(scheme)}>
       <StatusBar style="auto" />

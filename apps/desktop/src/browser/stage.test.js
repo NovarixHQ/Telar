@@ -334,6 +334,50 @@ describe("picture in picture", () => {
     expect(win.children.size).toBe(0);
   });
 
+  async function floating() {
+    const harness = makeHarness();
+    await harness.manager.createTab("s", "https://one.example/");
+    await harness.manager.createTab("s", "https://two.example/", "human");
+    await harness.manager.action("s", { action: "float", on: true, index: 1 });
+    return { ...harness, win: harness.stageWindows[0], tab: harness.manager.scopeTabs("s")[1] };
+  }
+
+  test("its close control destroys the window and keeps the page open, without taking focus", async () => {
+    const { manager, tab, win, window } = await floating();
+    await manager.action("s", { action: "bring-back" }, win.webContents);
+    expect(win.isDestroyed()).toBe(true);
+    expect(manager.scopeTabs("s")).toContain(tab);
+    expect(tab.view.webContents.isDestroyed()).toBe(false);
+    expect(manager.state("s").popped).toBe(false);
+    expect(window.focused).toBe(0);
+  });
+
+  test("its return control puts the page back in the panel, selected, and focuses the cockpit", async () => {
+    const { children, manager, tab, win, window } = await floating();
+    await manager.action("s", { action: "bring-back", focus: true }, win.webContents);
+    expect(win.isDestroyed()).toBe(true);
+    expect(children.has(tab.view)).toBe(true);
+    expect(manager.activeTab("s")).toBe(tab);
+    expect(manager.state("s").tabs.find((page) => page.active)?.url).toBe("https://two.example/");
+    expect(window.focused).toBe(1);
+  });
+
+  test("Esc in its page closes it and keeps the page", async () => {
+    const { manager, tab, win } = await floating();
+    let prevented = false;
+    tab.view.webContents.emit("before-input-event", { preventDefault: () => { prevented = true; } }, { type: "keyDown", key: "Escape" });
+    expect(prevented).toBe(true);
+    expect(win.isDestroyed()).toBe(true);
+    expect(manager.activeTab("s")).toBe(tab);
+  });
+
+  test("Esc in a full-size window of its own is left to the page", async () => {
+    const { manager, win, windowTab } = await popped();
+    windowTab.view.webContents.emit("before-input-event", { preventDefault() {} }, { type: "keyDown", key: "Escape" });
+    expect(win.isDestroyed()).toBe(false);
+    expect(manager.state("s").popped).toBe(true);
+  });
+
   test("the window's own control makes it compact and says so to the window and the panel", async () => {
     const { manager, messages, win } = await popped();
     await manager.action("s", { action: "float" }, win.webContents);

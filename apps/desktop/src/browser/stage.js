@@ -196,10 +196,15 @@ module.exports = {
     return this.state(scope);
   },
 
-  bringBack(scopeKey) {
+  bringBack(scopeKey, { focus = false } = {}) {
     const scope = this.requireScope(scopeKey);
     const stage = this.poppedStages.get(scope);
     if (stage) this.dropStage(stage);
+    if (focus && !this.window.isDestroyed()) {
+      if (this.window.isMinimized?.()) this.window.restore();
+      this.window.show?.();
+      this.window.focus?.();
+    }
     return this.state(scope);
   },
 

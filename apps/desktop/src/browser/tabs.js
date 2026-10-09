@@ -373,6 +373,11 @@ module.exports = {
   },
 
   handleTabKey(tab, event, input) {
+    if (input?.type === "keyDown" && input.key === "Escape" && tab.stage && this.isCompactStage(tab.scopeKey)) {
+      event.preventDefault();
+      this.bringBack(tab.scopeKey);
+      return;
+    }
     if (!input || input.type !== "keyDown" || input.alt || input.shift) return;
     if (!(input.meta || input.control)) return;
     if (!/^[1-9]$/.test(String(input.key))) return;

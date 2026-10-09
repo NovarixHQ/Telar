@@ -322,7 +322,7 @@ class DesktopBrowserManager {
     }
     if (kind === "pop-out") return (this.popOut(scope, { index: action.index }), this.state(scope, sender));
     if (kind === "show-window") return this.showStage(scope);
-    if (kind === "bring-back") return (this.bringBack(scope), this.state(scope, sender));
+    if (kind === "bring-back") return (this.bringBack(scope, { focus: action.focus === true }), this.state(scope, sender));
     if (kind === "float") return (this.floatStage(scope, typeof action.on === "boolean" ? action.on : undefined, { index: action.index, fromWindow: Boolean(stage) }), this.state(scope, sender));
     if (kind === "new") return viewed(this.createTab(scope, action.url || "about:blank", "human", stage));
     if (kind === "close") return (this.closeTab(scope, action.index, stage), this.state(scope, sender));

@@ -4,7 +4,7 @@ export { OpenPrefixes, SessionItems } from "./items";
 export { SessionRequests } from "./requests";
 export { SessionTasks } from "./tasks";
 export { awaitsRateLimitSweep, SessionQueues, type SessionQueue } from "./queue";
-export { isPeerMail, SessionMailbox } from "./mailbox";
+export { isQuietMail, SessionMailbox } from "./mailbox";
 export { sessionsCapability, windowedReads } from "./capability";
 export { indexRow, rowIsShelved, SessionIndex } from "./session-index";
 export { SessionActivity } from "./activity";

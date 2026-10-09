@@ -172,7 +172,7 @@ test("a completion after a sent result never interrupts, even under completionWa
   expect(recordOf(store, worker.runId)).toBeDefined();
 });
 
-test("a result nobody was awaiting stays held for the next turn — the completion after it is only recorded", () => {
+test("a result nobody was awaiting is held while busy and wakes the session once its turn ends", () => {
   const { store } = setup();
   // Sent while busy and unsubscribed: passive, in the mailbox, never read by a model.
   const host = busy(store);
@@ -182,12 +182,12 @@ test("a result nobody was awaiting stays held for the next turn — the completi
 
   worker.end();
 
-  // Peer mail never opens a turn of its own; it rides the next one.
   expect(recordOf(store, worker.runId)).toBeDefined();
   expect(store.wakes.pendingNotifications("session_host").map((each) => each.kind)).toEqual(["peer_message"]);
   store.turnLifecycle.completeTurn("session_host", host.runId, host.token, { text: "done" });
-  expect(store.queries.turns("session_host").filter((turn) => turn.state === "queued")).toHaveLength(0);
-  expect(store.wakes.pendingNotifications("session_host").map((each) => each.kind)).toEqual(["peer_message"]);
+  const queued = store.queries.turns("session_host").filter((turn) => turn.state === "queued");
+  expect(queued.map((turn) => turn.notification?.runId)).toEqual([worker.sent.runId]);
+  expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
 });
 
 test("the merge spends a delivery; a fresh errand joining the queued turn does not", () => {

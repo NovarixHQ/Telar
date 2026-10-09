@@ -11,7 +11,7 @@ import {
   type WakeReason,
 } from "@telar/engine-client";
 import { EngineStateError, type Kernel } from "../../platform/kernel";
-import { isPeerMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionChildren, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
+import { isQuietMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionChildren, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
 import { quotedExcerpt } from "./agent-notice";
 import { RELAY_RULE } from "./attribution";
 import { FOLDING_INTENTS, type TurnSubmission } from "./intake";
@@ -386,21 +386,20 @@ export class TurnWakes {
     return this.deps.readQueue(sessionId).turns.some((turn) => turn.state === "claimed" || turn.state === "running" || turn.state === "steering");
   }
 
-  /** Delivers everything held as one notification when the session is idle; peer mail alone rides with the next turn. */
-  flushPendingNotifications(sessionId: string): void {
+  /** Delivers the held box as one notification: as the next turn when idle, or into the live turn with `steer`. A queued turn takes it at claim. */
+  flushPendingNotifications(sessionId: string, options: { steer?: boolean } = {}): void {
     const pending = this.deps.mailbox.pending(sessionId);
-    if (pending.length === 0) return;
-    if (this.hasLiveTurn(sessionId)) return;
-    // Peer mail alone is not a reason for a turn: it rides with the next one.
-    if (pending.every(isPeerMail)) return;
+    if (pending.every(isQuietMail)) return;
+    const live = this.hasLiveTurn(sessionId);
+    if (live && !options.steer) return;
     const merged = heldDelivery(mergeNotifications(pending));
-    // A notification turn already queued takes the held mail with it.
-    const waiting = this.waitingNotificationTurn(sessionId);
+    const waiting = live ? undefined : this.waitingNotificationTurn(sessionId);
     if (waiting) {
       this.deps.mailbox.setPending(sessionId, []);
       this.joinWaitingNotification(sessionId, waiting, merged);
       return;
     }
+    if (!live && this.deps.readQueue(sessionId).turns.some((turn) => turn.state === "queued" && !turn.held)) return;
     const delivered: NotificationDetail = { ...merged, deliveries: 1 };
     try {
       this.deps.submitTurn(sessionId, {
@@ -418,6 +417,7 @@ export class TurnWakes {
             }
           : { sender: merged.sessionId ? { sessionId: merged.sessionId } : {} }),
         notification: delivered,
+        ...(options.steer ? { steerNow: true } : {}),
       });
     } catch (error) {
       // The box stays as it is: the next turn to end here or the mailbox sweep tries again.

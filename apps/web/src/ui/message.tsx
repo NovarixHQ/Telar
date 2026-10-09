@@ -6,10 +6,10 @@ import { memo, useMemo } from "react";
 import { Streamdown } from "streamdown";
 import { math } from "@streamdown/math";
 import { cn } from "@/ui/utils";
-import { useLinkPolicy } from "@/platform/link-policy";
+import { MarkdownLink } from "@/ui/markdown-link";
 import { rehypeDisplayStandaloneMath } from "@/ui/markdown-math";
 import { MarkdownCode, MarkdownImage } from "@/ui/markdown-blocks";
-import { copySelectionAsMarkdown, rehypeLinkSources } from "@/ui/markdown-clipboard";
+import { copySelectionAsMarkdown } from "@/ui/markdown-clipboard";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 
 export type MessageRole = "user" | "assistant";
@@ -48,15 +48,13 @@ const STREAMDOWN_LIST_SPACING =
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
 const MATH_PLUGINS = { math } as const;
-const MATH_REHYPE = [rehypeDisplayStandaloneMath, rehypeLinkSources];
+const MATH_REHYPE = [rehypeDisplayStandaloneMath];
 
-const LINKS_UNGATED = { enabled: false } as const;
-const BLOCKS = { code: MarkdownCode, img: MarkdownImage };
+const BLOCKS = { code: MarkdownCode, img: MarkdownImage, a: MarkdownLink };
 
 export const MessageResponse = memo(
   ({ className, streaming, children, rehypePlugins, plugins, components, ...props }: MessageResponseProps & { streaming?: boolean }) => {
     const revealed = useStreamingReveal(typeof children === "string" ? children : "", streaming === true);
-    const { openInSessionBrowser } = useLinkPolicy();
     const blocks = useMemo(() => (components ? { ...BLOCKS, ...components } : BLOCKS), [components]);
     return (
     <div className="contents" onCopy={copySelectionAsMarkdown}>
@@ -68,7 +66,6 @@ export const MessageResponse = memo(
       rehypePlugins={rehypePlugins ? [...MATH_REHYPE, ...rehypePlugins] : MATH_REHYPE}
       controls={{ table: true }}
       components={blocks}
-      {...(openInSessionBrowser ? { linkSafety: LINKS_UNGATED } : {})}
       {...props}
     >
       {typeof children === "string" ? revealed : children}

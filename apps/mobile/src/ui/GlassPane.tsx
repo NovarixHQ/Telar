@@ -1,5 +1,5 @@
 import { Host, RoundedRectangle } from "@expo/ui/swift-ui";
-import { glassEffect } from "@expo/ui/swift-ui/modifiers";
+import { foregroundStyle, glassEffect } from "@expo/ui/swift-ui/modifiers";
 import type { ReactNode } from "react";
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Theme } from "./theme";
@@ -13,8 +13,8 @@ export function GlassPane({ edge, style, children }: { edge: "leading" | "traili
   return (
     <View style={[styles.pane, edge === "leading" ? styles.leading : styles.trailing, !LIQUID && styles.fallback, style]}>
       {LIQUID ? (
-        <Host style={StyleSheet.absoluteFill} pointerEvents="none">
-          <RoundedRectangle cornerRadius={RADIUS} modifiers={[glassEffect({ glass: { variant: "regular" }, shape: "roundedRectangle", cornerRadius: RADIUS })]} />
+        <Host style={StyleSheet.absoluteFill} ignoreSafeArea="all" pointerEvents="none">
+          <RoundedRectangle cornerRadius={RADIUS} modifiers={[foregroundStyle("#00000000"), glassEffect({ glass: { variant: "regular" }, shape: "roundedRectangle", cornerRadius: RADIUS })]} />
         </Host>
       ) : null}
       <View style={styles.content}>{children}</View>

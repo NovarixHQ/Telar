@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import type { HostConnection } from "../../platform/connection";
 import { TerminalFeed } from "./feed";
 import { keepFollowing, readFrames } from "./stream";
-import { upsertTerminal } from "./terminals";
+import { liveTerminals, upsertTerminal } from "./terminals";
 
-/** The session's terminals, newest first: read once, then kept current by the status stream. */
+/** The session's live terminals, newest first: read on every (re)connect, then kept current by the status stream. */
 export function useTerminals(host: HostConnection, sessionId: string): { terminals: RunView[] | undefined; adopt: (run: RunView) => void } {
   const [terminals, setTerminals] = useState<RunView[]>();
   useEffect(() => {
@@ -13,7 +13,7 @@ export function useTerminals(host: HostConnection, sessionId: string): { termina
     void keepFollowing(
       async (heard) => {
         const listed = await host.call(true, () => host.client.runStatus(sessionId), abort.signal);
-        setTerminals(listed.terminals);
+        setTerminals(liveTerminals(listed.terminals));
         heard();
         const stream = host.client.locate(`/v2/sessions/${encodeURIComponent(sessionId)}/run/stream`);
         await readFrames(stream, (frame) => frame.type === "run.status" && setTerminals((list) => upsertTerminal(list ?? [], frame.run)), abort.signal);

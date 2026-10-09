@@ -62,7 +62,7 @@ export function PanelEmptyState({ offered, onOpen }: { offered: readonly PanelTa
       <VStack spacing={6} modifiers={[frame({ maxWidth: 560 }), padding({ all: 16 }), padding({ top: 24 }), frame({ maxWidth: Infinity })]}>
         <Icon name="rectangle.3.group" size={15} weight="medium" color={Theme.textMuted} modifiers={[frame({ width: 36, height: 36 }), background(Theme.fill, shapes.circle())]} />
         <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), foregroundStyle(Theme.text)]}>Open a surface</Text>
-        <Text modifiers={[Type.slim, foregroundStyle(Theme.textMuted), multilineTextAlignment("center")]}>Choose what to keep beside the session.</Text>
+        <Text modifiers={[Type.slim, foregroundStyle(Theme.textMuted), multilineTextAlignment("center")]}>Choose what to keep beside the conversation.</Text>
         <VStack spacing={6} modifiers={[padding({ top: 12 })]}>
           {pairs(offered, columns).map((row) => (
             <HStack key={row.join()} spacing={6}>

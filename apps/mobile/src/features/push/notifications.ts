@@ -131,7 +131,7 @@ async function approve(hostId: string, sessionId: string, requestId: string): Pr
 }
 
 /** The session route a tap on a notification asks for, or undefined for actions that stay in the background. */
-export function linkOf(response: Notifications.NotificationResponse | null | undefined): string | undefined {
+function linkOf(response: Notifications.NotificationResponse | null | undefined): string | undefined {
   if (!response || (response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER && response.actionIdentifier !== OPEN)) return undefined;
   const ref = sessionOfUrl(payloadOf(response.notification.request).url);
   return ref ? sessionLink({ ...ref, hostId: pairedHost(ref.hostId)?.hostId ?? ref.hostId }) : undefined;

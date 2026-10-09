@@ -18,6 +18,7 @@ const withCatalogImages: ConfigPlugin = (config) =>
   ]);
 
 const variant = appVariant(process.env.APP_VARIANT);
+const SOUNDS = ["hilo", "armonico", "felt"].flatMap((sound) => ["done", "needs", "error"].map((kind) => `./assets/sounds/telar-${sound}-${kind}.caf`));
 const MICROPHONE = "Telar sends what you say to the transcription service your computer is set up with, so it can be typed into the message box.";
 
 const config: ExpoConfig = {
@@ -51,7 +52,7 @@ const config: ExpoConfig = {
     ["expo-build-properties", { ios: { deploymentTarget: "18.0" } }],
     ["expo-camera", { cameraPermission: "Telar scans the pairing code shown in the cockpit's Connections settings.", microphonePermission: MICROPHONE, recordAudioAndroid: false }],
     ["expo-audio", { microphonePermission: MICROPHONE, recordAudioAndroid: false }],
-    ["expo-notifications", { enableBackgroundRemoteNotifications: true, sounds: readdirSync("./assets/sounds").map((file) => `./assets/sounds/${file}`) }],
+    ["expo-notifications", { enableBackgroundRemoteNotifications: true, sounds: SOUNDS }],
     ["expo-image-picker", { photosPermission: false, microphonePermission: MICROPHONE, cameraPermission: "Telar takes the photos you attach to a message." }],
   ],
 };

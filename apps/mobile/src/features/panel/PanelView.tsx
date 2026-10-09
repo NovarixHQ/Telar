@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { faded, Icon, Theme, type SymbolName } from "../../ui";
 import { DiffSurface } from "../git";
+import { TerminalSurface } from "../terminal";
 import type { PanelModel, PanelState } from "./model";
 import { PanelEmptyState } from "./PanelEmptyState";
 import { PanelTabStrip } from "./PanelTabStrip";
@@ -16,6 +17,7 @@ type Props = { host: HostConnection; sessionId: string; panel: PanelModel; state
 
 function Surface({ host, sessionId, active, panel }: { host: HostConnection; sessionId: string; active: PanelTab | undefined; panel: PanelModel }) {
   if (active === "diff") return <DiffSurface host={host} sessionId={sessionId} />;
+  if (active === "terminal") return <TerminalSurface host={host} sessionId={sessionId} />;
   return (
     <Host style={styles.fill}>
       {active ? <ContentUnavailableView title="Not available here" systemImage={TAB_INFO[active].icon} description="This surface isn't in the iPhone app yet." /> : <PanelEmptyState offered={CORE_TABS} onOpen={(tab) => panel.open(tab)} />}

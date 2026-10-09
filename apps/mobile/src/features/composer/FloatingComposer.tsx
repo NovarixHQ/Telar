@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { RequestDecision } from "@telar/engine-client";
-import { Keyboard, Settings, StyleSheet, Text, View } from "react-native";
+import { Settings, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HostConnection } from "../../platform/connection";
-import { ReadingColumn } from "../../platform/layout";
+import { ReadingColumn, useKeyboardShown } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { SessionMenus, setAccessMode } from "../providers";
@@ -38,16 +38,6 @@ type Props = {
 
 const NO_SKILLS = { skills: [], commands: [] };
 const PROMOTES = new Set(["claude", "codex"]);
-
-function useKeyboardShown(): boolean {
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener("keyboardWillShow", () => setShown(true));
-    const hide = Keyboard.addListener("keyboardWillHide", () => setShown(false));
-    return () => (show.remove(), hide.remove());
-  }, []);
-  return shown;
-}
 
 /** The footer that floats over the transcript: notices, open requests, then the composer, over a bar-material scrim. */
 export function FloatingComposer({ host, hostId, sessionId, mentions, notices, initialDraft, onHeight, onSent }: Props) {

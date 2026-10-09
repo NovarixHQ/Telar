@@ -5,7 +5,7 @@ export type PanelTab = "diff" | "editor" | "agents" | "simulator" | "terminal" |
 export const CORE_TABS: readonly PanelTab[] = ["diff", "editor", "agents", "simulator", "terminal", "browser"];
 
 /** Surfaces this app can draw so far; the rest are listed but can't be opened. */
-export const DRAWN_TABS: ReadonlySet<PanelTab> = new Set(["diff", "terminal"]);
+export const DRAWN_TABS: ReadonlySet<PanelTab> = new Set(["diff", "editor", "agents", "terminal"]);
 
 export const TAB_INFO: Record<PanelTab, { label: string; icon: SymbolName; blurb: string }> = {
   diff: { label: "Diff", icon: "plus.forwardslash.minus", blurb: "What this session changed" },

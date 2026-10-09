@@ -26,7 +26,7 @@ function registerViewIpc({ requireBrowserSuggestions }) {
     requireBrowserSuggestions().remove(manager.activeProfile(input.scopeKey)?.id, input.url);
   });
 
-  ipcMain.handle("telar:browser:state", (event, scopeKey) => requireBrowserManager(event).state(scopeKey));
+  ipcMain.handle("telar:browser:state", (event, scopeKey) => requireBrowserManager(event).state(scopeKey, event.sender));
 
   ipcMain.handle("telar:browser:extension-status", (event, scopeKey) => {
     const manager = requireBrowserManager(event);
@@ -43,7 +43,7 @@ function registerViewIpc({ requireBrowserSuggestions }) {
     if (!passwordManagerEnabled()) throw new Error(PASSWORD_MANAGER_OFF);
     const host = manager.hostForScope(input?.scopeKey);
     if (!host) throw new Error("Extensions are not enabled, or this session has no project profile yet.");
-    const tab = manager.activeTab(input?.scopeKey);
+    const tab = manager.activeTab(input?.scopeKey, manager.stageOfSender(input?.scopeKey, event.sender));
     await manager.wakeTab(tab);
     const win = BrowserWindow.fromWebContents(event.sender);
     return host.openPopup(win, tab.view.webContents, input?.anchorRect || { x: 0, y: 0, width: 24, height: 24 });
@@ -160,7 +160,7 @@ function registerProfileIpc({ requireLoginOffer }) {
 
 function registerTabIpc({ requireLoginOffer }) {
   ipcMain.handle("telar:browser:action", (event, input) =>
-    requireBrowserManager(event).action(input?.scopeKey, input?.action),
+    requireBrowserManager(event).action(input?.scopeKey, input?.action, event.sender),
   );
 
   ipcMain.handle("telar:browser:open-external", (event, input) => {
@@ -203,7 +203,7 @@ function registerTabIpc({ requireLoginOffer }) {
     return manager.capture(input?.scopeKey, {
       fullPage: Boolean(input?.fullPage),
       elements: Boolean(input?.elements),
-    });
+    }, event.sender);
   });
 
   ipcMain.handle("telar:browser:save-screenshot", (event, input) =>

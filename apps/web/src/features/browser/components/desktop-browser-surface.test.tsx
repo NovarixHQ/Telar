@@ -243,11 +243,11 @@ describe("the options menu", () => {
     expect(menuRows()).not.toContain("Open DevTools");
   });
 
-  test("the panel's row pops the browser out, and the window's own row brings it back", async () => {
-    const { actions, host, unmount } = await mount(panelState());
+  test("the panel's row pops the current tab out, and the window's own row brings its tabs back", async () => {
+    const { actions, host, unmount } = await mount(panelState({ tabs: [tab({ index: 0, active: false }), tab({ index: 1, id: "tab-2" })] }));
     await mouseClick(optionsTrigger(host));
     await mouseClick(menuRow("Open in its own window"));
-    expect(actions.at(-1)).toEqual({ action: "pop-out" });
+    expect(actions.at(-1)).toEqual({ action: "pop-out", index: 1 });
     unmount();
 
     const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
@@ -455,21 +455,24 @@ describe("the frozen frame a menu opens over", () => {
 
 describe("a browser popped out into its own window", () => {
   const button = (host: Element, label: string) => [...host.querySelectorAll("button")].find((candidate) => candidate.textContent?.trim() === label)!;
-  const pushing = () => {
+  const pushing = (initial: DesktopBrowserPanelState) => {
+    let latest = initial;
+    const getState = async () => latest;
     const listeners: ((state: DesktopBrowserPanelState) => void)[] = [];
     const onState = (listener: (state: DesktopBrowserPanelState) => void) => {
       listeners.push(listener);
       return () => void listeners.splice(listeners.indexOf(listener), 1);
     };
     const push = (state: DesktopBrowserPanelState) => act(async () => {
+      latest = state;
       for (const listener of [...listeners]) listener(state);
       await settle();
     });
-    return { onState, push };
+    return { getState, onState, push };
   };
 
-  test("the panel says where it went, and Show and Bring back act on that window", async () => {
-    const { actions, host, visibility } = await mount(panelState({ popped: true }));
+  test("with every tab in the window, the panel says where they went, and Show and Bring back act on that window", async () => {
+    const { actions, host, visibility } = await mount(panelState({ popped: true, tabs: [] }));
     expect(host.textContent).toContain("In its own window");
     expect(host.querySelector('[role="tab"]')).toBeNull();
     expect(visibility.at(-1)).toBe(false);
@@ -487,46 +490,45 @@ describe("a browser popped out into its own window", () => {
     expect(host.textContent).not.toContain("In its own window");
   });
 
+  test("the panel keeps browsing its own tabs while another tab is in the window", async () => {
+    const { host } = await mount(panelState({ popped: true }));
+    expect(host.querySelector('[role="tab"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Address"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("In its own window");
+  });
+
   test("when the window closes the browser comes back into the panel", async () => {
-    const { onState, push } = pushing();
-    const { host } = await mount(panelState({ popped: true }), { onState });
+    const { getState, onState, push } = pushing(panelState({ popped: true, tabs: [] }));
+    const { host } = await mount(panelState({ popped: true, tabs: [] }), { getState, onState });
     await push(panelState({ popped: false }));
     await waitFor(() => Boolean(host.querySelector('[role="tab"]')));
     expect(host.querySelector('[role="tab"]')).not.toBeNull();
     expect(host.textContent).not.toContain("In its own window");
   });
 
-  test("Float on top is in the menu, in the panel and in the window", async () => {
-    const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
-    await mouseClick(optionsTrigger(own.host));
-    await mouseClick(menuRow("Float on top"));
-    expect(own.actions.at(-1)).toEqual({ action: "float", on: true });
-    own.unmount();
+  test("the toolbar's picture-in-picture button floats the panel's current tab, or the window itself", async () => {
+    const panel = await mount(panelState({ tabs: [tab({ index: 0, active: false }), tab({ index: 1, id: "tab-2" })] }));
+    await mouseClick(panel.host.querySelector('[aria-label="Picture in picture"]')!);
+    expect(panel.actions.at(-1)).toEqual({ action: "float", on: true, index: 1 });
+    panel.unmount();
 
-    const panel = await mount(panelState());
-    await mouseClick(optionsTrigger(panel.host));
-    await mouseClick(menuRow("Float on top"));
-    expect(panel.actions.at(-1)).toEqual({ action: "float", on: true });
+    const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
+    await mouseClick(own.host.querySelector('[aria-label="Picture in picture"]')!);
+    expect(own.actions.at(-1)).toEqual({ action: "float", on: true });
   });
 
-  test("the window's toolbar has a button that floats it on top; the panel's does not", async () => {
-    const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
-    const button = own.host.querySelector('[aria-label="Float on top"]')!;
-    await mouseClick(button);
-    expect(own.actions.at(-1)).toEqual({ action: "float", on: true });
-    own.unmount();
-
-    const panel = await mount(panelState());
-    expect(panel.host.querySelector('[aria-label="Float on top"]')).toBeNull();
+  test("with no page open there is no picture-in-picture button", async () => {
+    const { host } = await mount(panelState({ tabs: [] }));
+    expect(host.querySelector('[aria-label="Picture in picture"]')).toBeNull();
   });
 
   test("the panel's placeholder floats it, and turns floating off once it floats", async () => {
-    const floating = await mount(panelState({ popped: true }));
+    const floating = await mount(panelState({ popped: true, tabs: [] }));
     await mouseClick(button(floating.host, "Float on top"));
     expect(floating.actions.at(-1)).toEqual({ action: "float", on: true });
     floating.unmount();
 
-    const already = await mount(panelState({ popped: true, compact: true }));
+    const already = await mount(panelState({ popped: true, compact: true, tabs: [] }));
     await mouseClick(button(already.host, "Turn off on top"));
     expect(already.actions.at(-1)).toEqual({ action: "float", on: false });
   });
@@ -540,7 +542,7 @@ describe("a browser popped out into its own window", () => {
     expect(actions.at(-1)).toEqual({ action: "float" });
   });
 
-  test("floating on top, the window is the page with a slim pill: back, reload, bring back, turn off on top", async () => {
+  test("floating on top, the window is the page with a slim pill: back, reload, bring back, turn off on top, close", async () => {
     const { actions, host } = await mount(panelState({ popped: true, compact: true, tabs: [tab({ canGoBack: true })] }), {}, undefined, { inWindow: true });
     expect(host.querySelector('[role="tab"]')).toBeNull();
     expect(host.querySelector('[aria-label="Address"]')).toBeNull();
@@ -556,12 +558,13 @@ describe("a browser popped out into its own window", () => {
     expect(actions.at(-1)).toEqual({ action: "bring-back" });
     await mouseClick(pill("Turn off on top"));
     expect(actions.at(-1)).toEqual({ action: "float", on: false });
+    expect(pill("Close picture in picture")).not.toBeNull();
   });
 
   test("a browser that ends while popped closes the panel's tab", async () => {
-    const { onState, push } = pushing();
+    const { getState, onState, push } = pushing(panelState({ popped: true, tabs: [] }));
     let ended = 0;
-    await mount(panelState({ popped: true }), { onState }, undefined, { onEnded: () => { ended += 1; } });
+    await mount(panelState({ popped: true, tabs: [] }), { getState, onState }, undefined, { onEnded: () => { ended += 1; } });
     await push(panelState({ tabs: [], popped: false, ended: true }));
     expect(ended).toBe(1);
   });

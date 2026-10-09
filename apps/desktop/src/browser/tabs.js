@@ -73,7 +73,7 @@ module.exports = {
       try { await host.whenReady(); } catch {  }
     }
 
-    if (tab.view === view && !view.webContents.isDestroyed()) host.addTab(view.webContents, this.stageWindow(tab.scopeKey));
+    if (tab.view === view && !view.webContents.isDestroyed()) host.addTab(view.webContents, this.windowOfTab(tab));
   },
 
   beginNavigation(tab) {
@@ -196,13 +196,11 @@ module.exports = {
     const scope = tab.scopeKey;
 
     this.permissionPrompts.cancelWhere((record) => record.tabId === tab.id);
+    this.settleActiveAfter(tab, tab.stage);
     this.tabs = this.tabs.filter((candidate) => candidate !== tab);
     this.noteAgentTabClosed(tab);
-    if (this.activeTabIds.get(scope) === tab.id) {
-      const remaining = this.scopeTabs(scope);
-      this.activeTabIds.set(scope, remaining.at(-1)?.id ?? null);
-    }
     if (!this.scopeTabs(scope).length) this.activeTabIds.delete(scope);
+    this.dropEmptyStage(scope);
     this.applyVisibility();
   },
 
@@ -247,7 +245,7 @@ module.exports = {
         .filter(
           (tab) =>
             tab.scopeKey !== this.visibleScopeKey &&
-            !this.isPopped(tab.scopeKey) &&
+            !tab.stage &&
             (this.activeToolCalls.get(tab.scopeKey) || 0) === 0,
         )
         .sort((a, b) => a.lastUsedAt - b.lastUsedAt)[0];
@@ -258,7 +256,7 @@ module.exports = {
     }
   },
 
-  async createTab(scopeKey, url = "about:blank", openedBy = "agent") {
+  async createTab(scopeKey, url = "about:blank", openedBy = "agent", stage = null) {
     const scope = this.requireScope(scopeKey);
     if (this.scopeTabs(scope).length >= MAX_TABS_PER_SCOPE) {
       throw new Error(`Tab limit reached (${MAX_TABS_PER_SCOPE} per session). Close a tab first.`);
@@ -267,25 +265,26 @@ module.exports = {
     this.partitionOf(scope);
     this.scopesClosedByPerson.delete(scope);
     const tab = this.newTabRecord(scope, this.activeProfile(scope), openedBy);
-    const wasEmpty = this.scopeTabs(scope).length === 0;
+    tab.stage = stage && this.poppedStages.get(scope) === stage ? stage : null;
+    const wasEmpty = this.placeTabs(scope, tab.stage).length === 0;
     this.tabs.push(tab);
 
-    if (openedBy === "human" || wasEmpty) this.activeTabIds.set(scope, tab.id);
+    if (openedBy === "human" || wasEmpty) this.setActiveIn(scope, tab.stage, tab.id);
     if (openedBy === "agent") {
       this.agentTabIds.set(scope, tab.id);
       this.agentTabClosed.delete(scope);
     }
     const view = this.createViewForTab(tab);
-    const humanTabBefore = this.activeTabIds.get(scope);
+    const humanTabBefore = this.activeIdIn(scope, tab.stage);
     await this.readyHostForTab(tab, view);
 
     if (
       openedBy === "agent" &&
-      humanTabBefore !== undefined &&
-      this.activeTabIds.get(scope) !== humanTabBefore &&
+      humanTabBefore !== null &&
+      this.activeIdIn(scope, tab.stage) !== humanTabBefore &&
       this.tabs.some((candidate) => candidate.id === humanTabBefore)
     ) {
-      this.activeTabIds.set(scope, humanTabBefore);
+      this.setActiveIn(scope, tab.stage, humanTabBefore);
     }
     this.applyVisibility();
 
@@ -298,11 +297,10 @@ module.exports = {
     return tab;
   },
 
-  activeTab(scopeKey) {
+  activeTab(scopeKey, stage = null) {
     const scope = this.requireScope(scopeKey);
-    const tab = this.tabs.find((candidate) =>
-      candidate.scopeKey === scope && candidate.id === this.activeTabIds.get(scope),
-    );
+    const wanted = this.activeIdIn(scope, stage) ?? (stage ? null : this.poppedStages.get(scope)?.activeTabId);
+    const tab = this.tabs.find((candidate) => candidate.scopeKey === scope && candidate.id === wanted);
     if (!tab) throw new Error("Open a browser tab before using browser controls.");
     return tab;
   },
@@ -385,41 +383,38 @@ module.exports = {
       return;
     }
 
-    const position = Number(input.key) - 1;
-    if (!scoped[position]) return;
+    const target = scoped.filter((candidate) => candidate.stage === tab.stage)[Number(input.key) - 1];
+    if (!target) return;
     event.preventDefault();
-    this.selectTab(tab.scopeKey, position).catch(() => {});
+    this.selectTab(tab.scopeKey, scoped.indexOf(target)).catch(() => {});
   },
 
   async selectTab(scopeKey, index) {
     const scope = this.requireScope(scopeKey);
     const tab = this.tabAt(scope, index);
     await this.wakeTab(tab);
-    this.activeTabIds.set(scope, tab.id);
+    this.setActiveIn(scope, tab.stage, tab.id);
     { const host = tab.view ? this.hostOfTab(tab) : null; if (host) host.selectTab(tab.view.webContents); }
     this.applyVisibility();
     this.emitState(scope);
   },
 
-  closeTab(scopeKey, index) {
+  closeTab(scopeKey, index, stage = null) {
     const scope = this.requireScope(scopeKey);
-    return this.closeTabRef(index === undefined ? this.activeTab(scope) : this.tabAt(scope, index));
+    return this.closeTabRef(index === undefined ? this.activeTab(scope, stage) : this.tabAt(scope, index));
   },
 
   closeTabRef(tab) {
     const scope = tab.scopeKey;
     const scoped = this.scopeTabs(scope);
     if (!scoped.includes(tab)) throw new Error("That browser tab is already closed.");
-    const position = scoped.indexOf(tab);
+    this.settleActiveAfter(tab, tab.stage, this.placeTabs(scope, tab.stage).indexOf(tab));
     this.tabs = this.tabs.filter((candidate) => candidate !== tab);
     this.noteAgentTabClosed(tab);
     this.hibernateTab(tab);
-    if (this.activeTabIds.get(scope) === tab.id) {
-      const remaining = this.scopeTabs(scope);
-      this.activeTabIds.set(scope, remaining[position]?.id ?? remaining[position - 1]?.id ?? null);
-    }
 
     if (!this.scopeTabs(scope).length) return this.endBrowser(scope);
+    this.dropEmptyStage(scope);
     this.applyVisibility();
     this.emitState(scope);
   },

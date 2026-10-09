@@ -183,7 +183,7 @@ module.exports = {
   attachExtensionHost(host, partition) {
     if (!partition) throw new Error("attachExtensionHost needs the partition the host serves.");
     this.extensionHosts.set(partition, host);
-    for (const tab of this.tabs) if (tab.view && tab.partition === partition) host.addTab(tab.view.webContents, this.stageWindow(tab.scopeKey));
+    for (const tab of this.tabs) if (tab.view && tab.partition === partition) host.addTab(tab.view.webContents, this.windowOfTab(tab));
   },
 
   preparePartition(partition) {

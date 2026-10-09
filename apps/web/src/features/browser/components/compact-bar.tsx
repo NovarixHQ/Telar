@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, PanelRightIcon, PinOffIcon, RotateCwIcon } from "lucide-react";
+import { ArrowLeftIcon, PanelRightIcon, PinOffIcon, RotateCwIcon, XIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import { siteLabel } from "../desktop-site-permissions";
 import type { BrowserUi } from "../hooks/use-browser-session";
@@ -27,6 +27,9 @@ export function CompactBar({ b }: { b: BrowserUi }) {
         </button>
         <button type="button" aria-label="Turn off on top" title="Turn off on top" className={GLYPH} onClick={() => void act({ action: "float", on: false })}>
           <PinOffIcon className="size-3.5" />
+        </button>
+        <button type="button" aria-label="Close picture in picture" title="Close: the page goes back to the panel" className={GLYPH} onClick={() => window.close()}>
+          <XIcon className="size-3.5" />
         </button>
       </div>
     </div>

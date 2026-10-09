@@ -114,8 +114,14 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
           </button>
         </>
       ) : null}
-      {b.inWindow ? (
-        <button type="button" aria-label="Float on top" title="Float on top: a small window above other apps" className={cn("shrink-0", GLYPH)} onClick={() => void act({ action: "float", on: true })}>
+      {activeTab ? (
+        <button
+          type="button"
+          aria-label="Picture in picture"
+          title="Picture in picture: this page in a small window above other apps"
+          className={cn("shrink-0", GLYPH)}
+          onClick={() => void act(b.inWindow ? { action: "float", on: true } : { action: "float", on: true, index: activeTab.index })}
+        >
           <PictureInPicture2Icon className="size-3.5" />
         </button>
       ) : null}
@@ -319,12 +325,12 @@ function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: R
   );
 }
 
-/** The desktop shell's native browser, with its address row and tools, and its own tab strip unless a panel tab names the page. The panel shows a placeholder while it has its own window. */
+/** The desktop shell's native browser, with its address row and tools, and its own tab strip unless a panel tab names the page. The panel shows a placeholder while all its tabs are in their own window. */
 export function DesktopBrowserSurface(props: BrowserProps) {
   const { bridge, scopeKey } = props;
-  const { popped, compact } = usePoppedScope(bridge, scopeKey, props.onEnded);
+  const { popped, compact, empty } = usePoppedScope(bridge, scopeKey, props.onEnded);
   useCommandHandlers({ "float-browser": () => void bridge.action(scopeKey, { action: "float" }).catch(() => undefined) }, [bridge, scopeKey]);
-  if (popped && !props.inWindow) return <PoppedBrowser bridge={bridge} scopeKey={scopeKey} compact={compact} />;
+  if (popped && empty && !props.inWindow) return <PoppedBrowser bridge={bridge} scopeKey={scopeKey} compact={compact} />;
   return <BrowserBody {...props} />;
 }
 

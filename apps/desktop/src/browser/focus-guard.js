@@ -19,7 +19,7 @@ module.exports = {
   returnFocusFrom(tab) {
     const page = tab.view?.webContents;
     if (!page || page.isDestroyed() || !page.isFocused?.()) return;
-    if (this.isPopped(tab.scopeKey) || this.humanActive(tab) || this.window.isDestroyed()) return;
+    if (tab.stage || this.humanActive(tab) || this.window.isDestroyed()) return;
     this.window.webContents.focus();
   },
 };

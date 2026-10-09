@@ -31,17 +31,38 @@ module.exports = {
     return this.poppedStages.has(scopeKey);
   },
 
-  stageWindow(scopeKey) {
-    return this.poppedStages.get(scopeKey)?.window || this.window;
+  windowOfTab(tab) {
+    return tab.stage?.window || this.window;
   },
 
-  stageBoundsOf(scopeKey) {
-    return this.poppedStages.get(scopeKey)?.bounds || this.bounds;
+  boundsOfTab(tab) {
+    return tab.stage?.bounds || this.bounds;
   },
 
-  isScopeShown(scopeKey) {
-    const stage = this.poppedStages.get(scopeKey);
-    return stage ? stage.visible : scopeKey === this.visibleScopeKey;
+  placeTabs(scopeKey, stage) {
+    return this.scopeTabs(scopeKey).filter((tab) => (tab.stage || null) === (stage || null));
+  },
+
+  activeIdIn(scopeKey, stage) {
+    return (stage ? stage.activeTabId : this.activeTabIds.get(scopeKey)) ?? null;
+  },
+
+  setActiveIn(scopeKey, stage, id) {
+    if (stage) stage.activeTabId = id;
+    else this.activeTabIds.set(scopeKey, id);
+  },
+
+  settleActiveAfter(tab, stage, position) {
+    if (this.activeIdIn(tab.scopeKey, stage) !== tab.id) return;
+    const remaining = this.placeTabs(tab.scopeKey, stage).filter((candidate) => candidate !== tab);
+    const next = position === undefined ? remaining.at(-1) : (remaining[position] ?? remaining[position - 1]);
+    this.setActiveIn(tab.scopeKey, stage, next?.id ?? null);
+  },
+
+  isTabShown(tab) {
+    const stage = tab.stage;
+    if (stage) return stage.visible && stage.activeTabId === tab.id;
+    return tab.scopeKey === this.visibleScopeKey && tab.id === this.activeTabIds.get(tab.scopeKey);
   },
 
   stageOfSender(scopeKey, sender) {
@@ -71,8 +92,17 @@ module.exports = {
     }
   },
 
+  sendState(scopeKey, extra) {
+    const stage = this.poppedStages.get(scopeKey);
+    const send = (win, place) => {
+      if (win && !win.isDestroyed()) win.webContents.send("telar:browser:state", extra ? { ...this.state(scopeKey, place), ...extra } : this.state(scopeKey, place));
+    };
+    send(this.window, null);
+    if (stage) send(stage.window, stage.window.webContents);
+  },
+
   mountView(tab, view) {
-    const win = this.stageWindow(tab.scopeKey);
+    const win = this.windowOfTab(tab);
     win.contentView.addChildView(view);
     tab.stageWindow = win;
   },
@@ -93,21 +123,40 @@ module.exports = {
     tab.lastPlaced = undefined;
   },
 
-  popOut(scopeKey) {
-    const scope = this.requireScope(scopeKey);
-    if (this.isPopped(scope)) return this.showStage(scope);
-    if (!this.scopeTabs(scope).length) throw new Error("Open a page before moving the browser into its own window.");
+  moveTab(tab, stage) {
+    const from = tab.stage || null;
+    if (from === (stage || null)) return;
+    this.settleActiveAfter(tab, from);
+    tab.stage = stage || null;
+    this.moveView(tab, this.windowOfTab(tab));
+    if (stage) stage.activeTabId = tab.id;
+  },
+
+  openStage(scope) {
     if (!this.openStageWindow) throw new Error("This build cannot open the browser in a window of its own.");
     const window = this.openStageWindow(scope, { project: this.scopeProjects.get(scope) ?? null });
-    const stage = { window, bounds: { ...UNMEASURED }, radius: 0, visible: false };
+    const stage = { window, bounds: { ...UNMEASURED }, radius: 0, visible: false, activeTabId: null };
     this.poppedStages.set(scope, stage);
-    if (this.visibleScopeKey === scope) this.visibleScopeKey = null;
-    for (const tab of this.scopeTabs(scope)) this.moveView(tab, window);
-
     window.on("close", () => this.dropStage(stage, { closing: true }));
     window.on("closed", () => this.dropStage(stage, { closing: true }));
     window.on("moved", () => { if (!this._disposed) this.applyShownGeometry(); });
     window.webContents?.on?.("zoom-changed", () => { if (!this._disposed) this.applyVisibility(); });
+    return stage;
+  },
+
+  popOut(scopeKey, { index, restore = false } = {}) {
+    const scope = this.requireScope(scopeKey);
+    const restored = restore ? this.placeTabs(scope, null).filter((tab) => tab.restoredInWindow) : [];
+    if (restore) for (const tab of this.scopeTabs(scope)) tab.restoredInWindow = false;
+    const panelActive = this.placeTabs(scope, null).find((tab) => tab.id === this.activeTabIds.get(scope));
+    const chosen = index !== undefined ? [this.tabAt(scope, index)] : restored.length ? restored : panelActive ? [panelActive] : [];
+    if (!chosen.length) {
+      if (this.isPopped(scope)) return this.showStage(scope);
+      throw new Error("Open a page before moving the browser into its own window.");
+    }
+    if (chosen.every((tab) => tab.stage)) return this.showStage(scope);
+    const stage = this.poppedStages.get(scope) || this.openStage(scope);
+    for (const tab of chosen) this.moveTab(tab, stage);
     this.applyVisibility();
     this.emitState(scope);
     return this.state(scope);
@@ -129,10 +178,10 @@ module.exports = {
     return Boolean(win && !win.isDestroyed() && this.stageWindowCompact(win));
   },
 
-  floatStage(scopeKey, on) {
+  floatStage(scopeKey, on, { index, fromWindow = false } = {}) {
     const scope = this.requireScope(scopeKey);
     const wanted = on === undefined ? !this.isCompactStage(scope) : on;
-    if (wanted && !this.isPopped(scope)) this.popOut(scope);
+    if (wanted && !fromWindow) this.popOut(scope, { index });
     if (!this.isPopped(scope)) return this.state(scope);
     return this.setStageCompact(scope, wanted);
   },
@@ -160,13 +209,23 @@ module.exports = {
     const [scope] = entry;
     this.poppedStages.delete(scope);
     if (!this._disposed) this.onStageClosed?.(scope);
-    if (!this._disposed) for (const tab of this.scopeTabs(scope)) this.moveView(tab, this.window);
+    const returning = this.tabs.filter((tab) => tab.stage === stage);
+    for (const tab of returning) {
+      tab.stage = null;
+      if (!this._disposed) this.moveView(tab, this.window);
+    }
+    if (returning.some((tab) => tab.id === stage.activeTabId)) this.activeTabIds.set(scope, stage.activeTabId);
     if (!closing) {
       try { if (!stage.window.isDestroyed()) stage.window.destroy(); } catch {}
     }
     if (this._disposed || quiet) return;
     this.applyVisibility();
     this.emitState(scope);
+  },
+
+  dropEmptyStage(scope) {
+    const stage = this.poppedStages.get(scope);
+    if (stage && !this.placeTabs(scope, stage).length) this.dropStage(stage, { quiet: true });
   },
 
   closeAllStages() {

@@ -53,7 +53,7 @@ function openSurfaceWindow({ appUrl, kind, key, params, store }) {
 function restoreBrowserWindows(manager, store) {
   for (const { key } of store.list("browser")) {
     try {
-      manager.popOut(key);
+      manager.popOut(key, { restore: true });
     } catch {
       store.forget("browser", key);
     }

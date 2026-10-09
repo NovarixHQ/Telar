@@ -1,6 +1,6 @@
 "use client";
 
-import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PencilIcon, PictureInPicture2Icon, PlusIcon, SquareArrowOutUpRightIcon } from "lucide-react";
+import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, MinusIcon, PencilIcon, PlusIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { siteLabel } from "../desktop-site-permissions";
 import { IdentityIcon } from "@/ui/telar-icons";
@@ -237,22 +237,12 @@ function OptionsRows({ b }: { b: BrowserUi }) {
       <button
         type="button"
         disabled={!activeTab}
-        title={b.inWindow ? "Put this browser back in the panel." : "Move this browser into a window of its own. The agent keeps working in it."}
-        onClick={() => run(() => void b.act({ action: b.inWindow ? "bring-back" : "pop-out" }))}
+        title={b.inWindow ? "Put this window's tabs back in the panel." : "Move this tab into a window of its own. The agent keeps working in it."}
+        onClick={() => run(() => void b.act(b.inWindow || !activeTab ? { action: "bring-back" } : { action: "pop-out", index: activeTab.index }))}
         className={row}
       >
         <span className="min-w-0 flex-1">{b.inWindow ? "Bring back to the panel" : "Open in its own window"}</span>
         {!b.inWindow && <SquareArrowOutUpRightIcon aria-hidden className="size-3 shrink-0" />}
-      </button>
-      <button
-        type="button"
-        disabled={!activeTab}
-        title="A small window that stays above other apps. The agent keeps working in it."
-        onClick={() => run(() => void b.act({ action: "float", on: true }))}
-        className={row}
-      >
-        <span className="min-w-0 flex-1">Float on top</span>
-        <PictureInPicture2Icon aria-hidden className="size-3 shrink-0" />
       </button>
       <CheckRow
         on={deviceToolbar}

@@ -437,10 +437,10 @@ module.exports = {
     }
   },
 
-  async capture(scopeKey, options = {}) {
+  async capture(scopeKey, options = {}, sender = null) {
     const scope = this.requireScope(scopeKey);
     if (!this.scopeTabs(scope).length) throw new Error("There is no page here to capture.");
-    const tab = await this.wakeTab(this.activeTab(scope));
+    const tab = await this.wakeTab(this.activeTab(scope, this.stageOfSender(scope, sender)));
 
     if (isProtectedUrl(tab.url)) throw new Error("That tab is showing an extension page. Telar does not capture extension pages.");
     if (this.isBlank(tab)) throw new Error("There is no page loaded in this tab to capture.");
@@ -517,12 +517,8 @@ module.exports = {
     return (!url || url === "about:blank") && !tab.loading && tab.navigationPending === 0;
   },
 
-  isTabShown(tab) {
-    return this.isScopeShown(tab.scopeKey) && tab.id === this.activeTabIds.get(tab.scopeKey);
-  },
-
   isTabVisible(tab) {
-    const bounds = this.stageBoundsOf(tab.scopeKey);
+    const bounds = this.boundsOfTab(tab);
     return this.isTabShown(tab) && bounds.width > 1 && bounds.height > 1;
   },
 

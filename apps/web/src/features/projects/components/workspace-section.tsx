@@ -8,6 +8,7 @@ import {
   defaultInstanceIdForDriver,
   type EnvMode,
   type RuntimeMode,
+  type WhileWorking,
 } from "@telar/engine-client";
 import { useSessionDefaults } from "@/features/sessions";
 import { projectDraftModel, RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES, sessionModelSelection } from "@telar/client/providers";
@@ -16,7 +17,8 @@ import { Dropdown, Row, SettingsGroup, useRestoreDefaults } from "@/features/set
 
 export function WorkspaceSection({ children }: { children?: ReactNode }) {
   const { defaults, loading, save, error } = useSessionDefaults();
-  useRestoreDefaults(() => save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode, runtimeMode: null, defaultModel: null }));
+  useRestoreDefaults(() => save({ envMode: DEFAULT_SESSION_DEFAULTS.envMode, whileWorking: "steer", runtimeMode: null, defaultModel: null }));
+  const whileWorking = defaults.whileWorking ?? "steer";
   const access = defaults.runtimeMode ?? DEFAULT_DETACHED_RUNTIME_MODE;
   const model = projectDraftModel(defaults.defaultModel);
 
@@ -80,6 +82,30 @@ export function WorkspaceSection({ children }: { children?: ReactNode }) {
               options={[
                 { value: "local", label: "Project checkout" },
                 { value: "worktree", label: "Own worktree" },
+              ]}
+            />
+          )
+        }
+      />
+      <Row
+        keywords={["queue", "steer", "follow-up", "busy", "running", "interrupt", "send"]}
+        label="While an agent is working"
+        hint={
+          whileWorking === "queue"
+            ? "A message you send waits above the composer and goes when the turn ends."
+            : "A message you send joins the turn that is running."
+        }
+        info="Waiting messages can be edited, reordered, removed or sent into the running turn at once."
+        {...(whileWorking === "steer" ? {} : { onRevert: () => void save({ whileWorking: "steer" }) })}
+        control={
+          loading ? null : (
+            <Dropdown<WhileWorking>
+              value={whileWorking}
+              label="While an agent is working"
+              onChange={(next) => void save({ whileWorking: next })}
+              options={[
+                { value: "steer", label: "Steer the turn" },
+                { value: "queue", label: "Queue for after" },
               ]}
             />
           )

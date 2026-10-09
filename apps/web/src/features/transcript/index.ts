@@ -1,6 +1,7 @@
 export { LiveActivity } from "./components/activity";
 export { sessionWakeLabel } from "./components/item-rows";
 export { MessageActions } from "./components/message-actions";
+export { ForkReply } from "./components/fork-reply";
 export { TranscriptSession } from "./components/message-attachments";
 export { AgentFinishedRow, AgentRows, BuildersFinishedRow } from "./components/agent-rows";
 export { agentsFinished } from "./builder-endings";

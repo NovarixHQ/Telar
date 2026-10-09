@@ -70,7 +70,7 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
       <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
         <div className="group/message">
           <AgentMarkdown text={text} onOpenFile={onOpenFile} />
-          <MessageActions text={text} at={item.completedAt ?? item.startedAt} />
+          <MessageActions text={text} at={item.completedAt ?? item.startedAt} forkRunId={item.runId} />
         </div>
       </MessageMenu>
     );

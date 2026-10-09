@@ -405,7 +405,7 @@ export class TurnClaims {
       })(),
       ...(resumeCursor ? { resumeCursor } : {}),
       ...(() => {
-        const context = carriedContext(session.id, () => this.deps.records.history(session.id), turn);
+        const context = carriedContext(session, (id) => this.deps.records.history(id), turn, resumeCursor !== undefined);
         return context ? { carriedContext: context } : {};
       })(),
       // The session's LIVE task rows, so a provider process built cold

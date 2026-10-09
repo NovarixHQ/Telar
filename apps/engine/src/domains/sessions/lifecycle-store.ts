@@ -40,6 +40,7 @@ export type CreateSessionInput = {
   projectId?: string;
   /** Who started this session, from the creating turn's verified claim; no permission travels with it. */
   startedFrom?: { sessionId: string; runId?: string };
+  forkedFrom?: Session["forkedFrom"];
   /**
    * A session id whose runtime mode this one may not exceed: an agent's child never has more access than its creator.
    * Read once, stored nowhere, and refused when it names nothing, because ignoring it would give the widest session.
@@ -194,6 +195,7 @@ export class SessionLifecycle {
         ...(input.startedFrom
           ? { startedFrom: { sessionId: input.startedFrom.sessionId, ...(input.startedFrom.runId ? { runId: input.startedFrom.runId } : {}) } }
           : {}),
+        ...(input.forkedFrom ? { forkedFrom: input.forkedFrom } : {}),
         createdAt: at,
         updatedAt: at,
         providerInstanceId: instanceId,

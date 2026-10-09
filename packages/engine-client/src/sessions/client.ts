@@ -100,6 +100,10 @@ export const sessionsClient = {
     return this.request("POST", `${sessionPath(sessionId)}/handoff`, input);
   },
 
+  forkSession(this: EngineTransport, sessionId: string, runId: string): Promise<{ session: Session }> {
+    return this.request("POST", `${sessionPath(sessionId)}/fork`, { runId });
+  },
+
   regenerateSessionTitle(this: EngineTransport, sessionId: string): Promise<{ session: Session; changed: boolean }> {
     return this.request("POST", `${sessionPath(sessionId)}/regenerate-title`, {});
   },

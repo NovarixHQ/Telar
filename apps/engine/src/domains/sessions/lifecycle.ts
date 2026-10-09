@@ -3,6 +3,7 @@ import { HttpError } from "../../platform/http/http";
 import { stringValue } from "../../platform/http/params";
 import { ok, sessionRoute, type Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
+import { forkInput } from "./fork";
 
 const completionWake = (value: unknown): { completionWake?: "always" | "settled_only" } => (value === "always" || value === "settled_only" ? { completionWake: value } : {});
 
@@ -49,6 +50,15 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
         const by = proof?.data ? store.worker.requireSenderClaim(proof.data).sessionId : undefined;
         const to = stringValue(body.to, "target session id", true);
         return ok({ session: store.handoff.handOff(sessionId!, { ...(to ? { to } : {}), ...(by ? { by } : {}) }) });
+      },
+    },
+    {
+      method: "POST",
+      path: sessionRoute("/fork"),
+      auth: "engine",
+      async handle({ params: [sessionId], body }) {
+        const input = forkInput(store.records, sessionId!, stringValue(body.runId, "run id")!);
+        return { status: 201, body: { session: await store.requestPath.createSession(input) } };
       },
     },
     {

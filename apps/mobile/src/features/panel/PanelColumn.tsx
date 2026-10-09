@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LayoutAnimation, PanResponder, StyleSheet, View } from "react-native";
-import { faded, GLASS_INSET, GlassPane, Theme } from "../../ui";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { faded, Theme } from "../../ui";
 import { clampPanelWidth } from "./panel-width";
 
-type Props = { shown: boolean; full: boolean; width: number; onWidth: (width: number) => void; top: number; panel: ReactNode; children: ReactNode };
+type Props = { shown: boolean; full: boolean; width: number; onWidth: (width: number) => void; total: number; panel: ReactNode };
 
 const STEP = 40;
 const SNAPPY = LayoutAnimation.create(300, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity);
@@ -55,9 +56,9 @@ function Handle({ width, total, onDrag, onWidth }: { width: number; total: numbe
   );
 }
 
-/** The panel beside the session at regular width, floating on glass: the chat narrows as the column slides in from the trailing edge. */
-export function PanelColumn({ shown, full, width, onWidth, top, panel, children }: Props) {
-  const [total, setTotal] = useState(0);
+/** The panel beside the session at regular width, on a hairline: the chat narrows as the column slides in from the trailing edge. */
+export function PanelColumn({ shown, full, width, onWidth, total, panel }: Props) {
+  const top = useSafeAreaInsets().top;
   const [drawn, setDrawn] = useState({ shown, full });
   const [mounted, setMounted] = useState(shown);
   const [dragged, setDragged] = useState<number>();
@@ -71,37 +72,25 @@ export function PanelColumn({ shown, full, width, onWidth, top, panel, children 
   }, [shown, full]);
   const column = clampPanelWidth(dragged ?? width, total);
   const covers = drawn.shown && drawn.full;
-  return (
-    <View style={styles.row} onLayout={({ nativeEvent }) => setTotal(nativeEvent.layout.width)}>
-      <View style={[styles.content, covers && styles.hidden]} accessibilityElementsHidden={covers} importantForAccessibility={covers ? "no-hide-descendants" : "auto"}>
-        {children}
+  return (mounted || drawn.shown) ? (
+    <View
+      style={covers ? styles.cover : [styles.clip, { width: drawn.shown ? column : 0 }]}
+      accessibilityElementsHidden={!drawn.shown}
+      importantForAccessibility={drawn.shown ? "auto" : "no-hide-descendants"}
+    >
+      <View style={[styles.column, { width: covers ? total : column }]}>
+        <View style={[styles.column, styles.surface, { paddingTop: top + 4 }]}>{panel}</View>
+        {covers ? null : <Handle width={width} total={total} onDrag={setDragged} onWidth={onWidth} />}
       </View>
-      {(mounted || drawn.shown) && total ? (
-        <View
-          style={covers ? styles.cover : [styles.clip, { width: drawn.shown ? column : 0 }]}
-          accessibilityElementsHidden={!drawn.shown}
-          importantForAccessibility={drawn.shown ? "auto" : "no-hide-descendants"}
-        >
-          <View style={[styles.column, { width: covers ? total : column }]}>
-            <GlassPane edge="trailing" style={covers ? styles.wide : null}>
-              <View style={[styles.column, { paddingTop: Math.max(0, top - GLASS_INSET) }]}>{panel}</View>
-            </GlassPane>
-            {covers ? null : <Handle width={width} total={total} onDrag={setDragged} onWidth={onWidth} />}
-          </View>
-        </View>
-      ) : null}
     </View>
-  );
+  ) : null;
 }
 
 const styles = StyleSheet.create({
-  row: { flex: 1, flexDirection: "row", overflow: "hidden", backgroundColor: Theme.canvas },
-  content: { flex: 1 },
-  hidden: { opacity: 0 },
   clip: { overflow: "hidden" },
   cover: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   column: { flex: 1 },
-  wide: { marginLeft: GLASS_INSET },
-  handle: { position: "absolute", left: 0, top: 0, bottom: 0, width: GLASS_INSET + 8, alignItems: "center", justifyContent: "center" },
+  surface: { backgroundColor: Theme.canvas, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: Theme.border },
+  handle: { position: "absolute", left: 0, top: 0, bottom: 0, width: 16, alignItems: "center", justifyContent: "center" },
   grip: { width: 4, height: 36, borderRadius: 2 },
 });

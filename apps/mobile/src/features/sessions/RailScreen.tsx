@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSplitColumn } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
 import { hosts, WelcomeScreen } from "../hosts";
-import { GLASS_INSET, Icon, Theme, type SymbolName } from "../../ui";
+import { Icon, Theme, type SymbolName } from "../../ui";
 import { inboxFor } from "./inboxes";
 import { nestRail, type NestedRow } from "./nesting";
 import { searchRail, type RailRow } from "./rail";
@@ -91,22 +91,17 @@ function FailureBanners({ rail }: { rail: MergedRail }) {
   ));
 }
 
-/** The rail's fill; none in the iPad sidebar, which floats on glass. */
-const useRailFill = () => (useSplitColumn().sidebar ? [] : [background(Theme.sheet)]);
-
 function BottomBar({ onSettings, onUsage }: { onSettings: () => void; onUsage: () => void }) {
   const insets = useSafeAreaInsets();
-  const { sidebar } = useSplitColumn();
-  const fill = useRailFill();
   const glyph = (name: SymbolName, label: string, onPress: () => void) => (
     <Button modifiers={[buttonStyle("plain"), accessibilityLabel(label)]} onPress={onPress}>
       <Icon name={name} size={17} modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle())]} />
     </Button>
   );
   return (
-    <View style={{ paddingBottom: sidebar ? Math.max(0, insets.bottom - GLASS_INSET) : insets.bottom }}>
+    <View style={{ paddingBottom: insets.bottom }}>
       <Host matchContents={{ vertical: true }}>
-        <HStack spacing={0} modifiers={[foregroundStyle(Theme.textMuted), padding({ horizontal: 8 }), ...fill]}>
+        <HStack spacing={0} modifiers={[foregroundStyle(Theme.textMuted), padding({ horizontal: 8 }), background(Theme.sheet)]}>
           {glyph("gearshape", "Settings", onSettings)}
           {glyph("chart.bar", "Usage", onUsage)}
           <Spacer minLength={0} />
@@ -135,7 +130,7 @@ export function RailScreen() {
     expandedParents = expanded;
   }, [expanded]);
   const rail = useMergedRail(chosen);
-  const fill = useRailFill();
+  const { sidebar } = useSplitColumn();
   useToolbar(navigation, rail, rail.filter, setFilter, setQuery);
 
   if (rail.computers.length === 0) return <WelcomeScreen />;
@@ -165,7 +160,7 @@ export function RailScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Host style={{ flex: 1 }}>
-        <List modifiers={[listStyle("insetGrouped"), listSectionSpacing(12), scrollContentBackground("hidden"), ...fill, refreshable(refreshAll)]}>
+        <List modifiers={[listStyle(sidebar ? "sidebar" : "insetGrouped"), listSectionSpacing(12), scrollContentBackground("hidden"), background(Theme.sheet), refreshable(refreshAll)]}>
           <FailureBanners rail={rail} />
           {found ? (
             found.length > 0 ? (

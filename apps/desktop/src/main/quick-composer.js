@@ -55,14 +55,19 @@ function remember(win) {
   prefs.write({ ...saved, positions: { ...saved.positions, [id]: { x, y } } });
 }
 
+const everyFrame = (tick) => {
+  const timer = setInterval(tick, 8);
+  return () => clearInterval(timer);
+};
+
 /** The global shortcut and the panel it opens over any app; `openRoute` brings a cockpit window to a path. */
-function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, log = () => {} }) {
+function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, log = () => {}, ticker = everyFrame }) {
   let win = null;
   let chord = "";
   let suspended = false;
   let latest = null;
   let holding = false;
-  let dragFrom = null;
+  let stopFollowing = null;
   let cardTop = null;
 
   const panel = () => {
@@ -79,7 +84,15 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     return win;
   };
 
+  const endDrag = () => {
+    if (!stopFollowing) return;
+    stopFollowing();
+    stopFollowing = null;
+    remember(win);
+  };
+
   const hide = () => {
+    endDrag();
     if (win && !win.isDestroyed() && win.isVisible()) win.hide();
   };
 
@@ -121,17 +134,15 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     win.setBounds({ x, y: y - shift, width: WIDTH, height: Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height))) });
   });
   ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
-  ipcMain.on("telar:quick-composer:drag", (event, { phase, dx, dy } = {}) => {
+  ipcMain.on("telar:quick-composer:drag", (event, { phase, offsetX, offsetY } = {}) => {
     if (!fromPanel(event)) return;
-    if (phase === "start") {
-      const [x, y] = win.getPosition();
-      dragFrom = { x, y };
-    } else if (phase === "move" && dragFrom && Number.isFinite(dx) && Number.isFinite(dy)) {
-      win.setPosition(Math.round(dragFrom.x + dx), Math.round(dragFrom.y + dy));
-    } else if (phase === "end" && dragFrom) {
-      dragFrom = null;
-      remember(win);
-    }
+    if (phase === "end") return endDrag();
+    if (phase !== "start" || !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) return;
+    stopFollowing?.();
+    stopFollowing = ticker(() => {
+      const { x, y } = screen.getCursorScreenPoint();
+      win.setPosition(Math.round(x - offsetX), Math.round(y - offsetY));
+    });
   });
   ipcMain.on("telar:quick-composer:hold", (event) => {
     if (fromPanel(event)) holding = true;

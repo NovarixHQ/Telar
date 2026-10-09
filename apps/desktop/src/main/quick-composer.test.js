@@ -9,19 +9,27 @@ const CONTEXT = { app: "Notes", title: "Plan", selection: "two lines", screensho
 
 let opened;
 let quick;
+let tick = null;
+const ticker = (next) => {
+  tick = next;
+  return () => {
+    tick = null;
+  };
+};
 beforeEach(() => {
   resetElectron();
   fs.rmSync(path.join(userData, "quick-composer.json"), { force: true });
   opened = [];
-  quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: (route) => opened.push(route), readContext: async () => CONTEXT });
+  quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: (route) => opened.push(route), readContext: async () => CONTEXT, ticker });
 });
 
 const panel = () => FakeBrowserWindow.all[0];
-const drag = (win, dx, dy) => {
-  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "start" });
-  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "move", dx: dx / 2, dy: dy / 2 });
-  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "move", dx, dy });
+const drag = (win, x, y) => {
+  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "start", offsetX: 20, offsetY: 10 });
+  electron.screen.cursor = { x: x + 20, y: y + 10 };
+  tick();
   electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "end" });
+  electron.screen.cursor = { x: 0, y: 0 };
 };
 const press = async (chord) => {
   electron.globalShortcut.press(chord);
@@ -91,21 +99,34 @@ describe("the window", () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
     expect(panel().getPosition()).toEqual([380, 200]);
-    drag(panel(), -260, 400);
+    drag(panel(), 120, 600);
     await press("Alt+Space");
     await press("Alt+Space");
     expect(panel().getPosition()).toEqual([120, 600]);
   });
 
-  test("dragging moves it by the pointer's travel from where the drag began", async () => {
+  test("while dragging, main keeps the grab point under the cursor until the drag ends", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "start" });
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "move", dx: 10, dy: 5 });
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "move", dx: 30, dy: -20 });
-    expect(panel().getPosition()).toEqual([410, 180]);
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(new FakeBrowserWindow()), { phase: "move", dx: 500, dy: 500 });
-    expect(panel().getPosition()).toEqual([410, 180]);
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "start", offsetX: 30, offsetY: 12 });
+    electron.screen.cursor = { x: 500, y: 300 };
+    tick();
+    expect(panel().getPosition()).toEqual([470, 288]);
+    electron.screen.cursor = { x: 520, y: 310 };
+    tick();
+    expect(panel().getPosition()).toEqual([490, 298]);
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "end" });
+    expect(tick).toBeNull();
+  });
+
+  test("another window cannot drag the panel, and hiding ends a drag", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(new FakeBrowserWindow()), { phase: "start", offsetX: 0, offsetY: 0 });
+    expect(tick).toBeNull();
+    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "start", offsetX: 0, offsetY: 0 });
+    panel().emit("blur");
+    expect(tick).toBeNull();
   });
 
   test("grows upward when something opens above the card, so the card stays put on screen", async () => {
@@ -124,7 +145,7 @@ describe("the window", () => {
     electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    drag(panel(), 1620, 100);
+    drag(panel(), 2000, 300);
     await press("Alt+Space");
     await press("Alt+Space");
     expect(panel().getPosition()).toEqual([380, 200]);

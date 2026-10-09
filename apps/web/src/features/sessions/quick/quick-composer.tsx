@@ -96,7 +96,7 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
   const root = useReportHeight(bridge);
-  const startDrag = useWindowDrag(bridge);
+  const startDrag = useWindowDrag(bridge, quick.text === "");
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

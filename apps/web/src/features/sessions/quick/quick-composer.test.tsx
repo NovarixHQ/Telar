@@ -236,15 +236,34 @@ describe("the quick composer", () => {
     expect(held()).toBe(1);
   });
 
-  test("dragging the hint moves the window by the pointer's travel", async () => {
+  test("dragging the hint hands main the grab point once, and the release once", async () => {
     const { host, drags } = await open(front(GRANTED));
     const hint = host.querySelector<HTMLElement>('[data-slot="quick-hint"]')!;
+    const surface = hint.closest('[data-surface="quick"]')!;
     act(() => {
-      hint.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, screenX: 100, screenY: 50 }));
-      hint.closest('[data-surface="quick"]')!.dispatchEvent(new PointerEvent("pointermove", { screenX: 130, screenY: 40 }));
-      hint.closest('[data-surface="quick"]')!.dispatchEvent(new PointerEvent("pointerup", {}));
+      hint.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 300, clientY: 180, screenX: 100, screenY: 50 }));
+      for (const x of [110, 130, 160]) surface.dispatchEvent(new PointerEvent("pointermove", { screenX: x, screenY: 40 }));
+      surface.dispatchEvent(new PointerEvent("pointerup", {}));
     });
-    expect(drags).toEqual([{ phase: "start" }, { phase: "move", dx: 30, dy: -10 }, { phase: "end" }]);
+    expect(drags).toEqual([{ phase: "start", offsetX: 300, offsetY: 180 }, { phase: "end" }]);
+  });
+
+  test("the empty field drags once the press moves, a click there does not, and a field with text never does", async () => {
+    const { host, drags } = await open(front(GRANTED));
+    const surface = host.querySelector('[data-surface="quick"]')!;
+    const press = (moveTo: number) =>
+      act(() => {
+        editor(host).dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 40, clientY: 30, screenX: 0, screenY: 0 }));
+        surface.dispatchEvent(new PointerEvent("pointermove", { screenX: moveTo, screenY: 0 }));
+        surface.dispatchEvent(new PointerEvent("pointerup", {}));
+      });
+    press(1);
+    expect(drags).toEqual([]);
+    press(20);
+    expect(drags).toEqual([{ phase: "start", offsetX: 40, offsetY: 30 }, { phase: "end" }]);
+    await type(host, "half a thought");
+    press(20);
+    expect(drags).toHaveLength(2);
   });
 
   test("dragging the card's padding moves the window, but the text field and buttons never start a drag", async () => {
@@ -252,14 +271,14 @@ describe("the quick composer", () => {
     const surface = host.querySelector('[data-surface="quick"]')!;
     const down = (target: Element) => act(() => void target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, screenX: 10, screenY: 10 })));
     const up = () => act(() => void surface.dispatchEvent(new PointerEvent("pointerup", {})));
+    await type(host, "draft");
     down(editor(host));
     down(host.querySelector('[aria-label="Project"]')!);
     up();
     expect(drags).toEqual([]);
     down(host.querySelector('[data-slot="input-group"]')!);
-    act(() => void surface.dispatchEvent(new PointerEvent("pointermove", { screenX: 25, screenY: 40 })));
     up();
-    expect(drags).toEqual([{ phase: "start" }, { phase: "move", dx: 15, dy: 30 }, { phase: "end" }]);
+    expect(drags).toEqual([{ phase: "start", offsetX: 0, offsetY: 0 }, { phase: "end" }]);
   });
 
   test("on text, only a press held for a moment drags; a quick sweep is left to select", async () => {
@@ -277,7 +296,7 @@ describe("the quick composer", () => {
     at("pointerdown", { screenX: 0, screenY: 0 }, 2000);
     at("pointermove", { screenX: 1, screenY: 0 }, 2200);
     at("pointerup", {}, 2300);
-    expect(drags).toEqual([{ phase: "start" }, { phase: "move", dx: 1, dy: 0 }, { phase: "end" }]);
+    expect(drags).toEqual([{ phase: "start", offsetX: 0, offsetY: 0 }, { phase: "end" }]);
   });
 
   test("the empty composer says # picks where the message goes, and so does the hint", async () => {

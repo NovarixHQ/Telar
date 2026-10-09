@@ -22,7 +22,7 @@ type Props = {
   menu: PlusMenuProps;
   above?: ReactNode;
   below?: ReactNode;
-  dictation?: { phase: DictationPhase; language: string | undefined; toggle: () => void };
+  dictation?: { phase: DictationPhase; language: string | undefined; heard: string; toggle: () => void };
   suggestions?: { rows: Completion[]; loading: boolean; onPick: (row: Completion) => void };
 };
 
@@ -33,8 +33,8 @@ const MAX_LINES = 6;
 export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder, slot, onSlot, menu, above, below, dictation, suggestions }: Props) {
   const field = useRef<TextInputInstance>(null);
   const [caretAt, setCaretAt] = useState({ x: 0, y: 0 });
-  const listening = dictation?.phase === "recording";
-  const strip = listening ? "Listening…" : dictation?.phase === "transcribing" ? "Transcribing…" : undefined;
+  const listening = dictation?.phase === "listening";
+  const heard = dictation?.heard ?? "";
   return (
     <View>
       {suggestions && (suggestions.rows.length > 0 || suggestions.loading) ? <SuggestionList {...suggestions} /> : null}
@@ -43,7 +43,11 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
         <PlusMenu {...menu} onCommands={() => (menu.onCommands(), field.current?.focus())} />
         <View style={styles.pill}>
           <Glass radius={Radius.composer} lifted />
-          {strip ? <Text style={styles.strip} accessibilityLabel={listening ? "Listening" : strip}>{strip}</Text> : null}
+          {listening ? (
+            <Text style={[styles.strip, heard ? styles.heard : null]} accessibilityLabel={heard ? `Heard: ${heard}` : "Listening"}>
+              {heard || "Listening…"}
+            </Text>
+          ) : null}
           <View style={styles.line}>
             {draft ? null : (
               <Text style={[styles.placeholder, dictation && styles.placeholderBesideMic]} numberOfLines={1} pointerEvents="none" accessible={false}>
@@ -75,7 +79,7 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
                 <CaretPill language={dictation.language} x={16 + Math.max(caretAt.x - 2, 0)} y={12 + Math.max(caretAt.y - 24, 0)} />
               </>
             ) : null}
-            {dictation ? <MicButton listening={listening} busy={dictation.phase === "transcribing"} onPress={dictation.toggle} /> : null}
+            {dictation ? <MicButton listening={listening} busy={dictation.phase === "starting"} onPress={dictation.toggle} /> : null}
           </View>
         </View>
         <SlotButton slot={slot} onPress={onSlot} />
@@ -89,6 +93,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   pill: { flex: 1, minHeight: ROW, borderRadius: Radius.composer },
   strip: { paddingHorizontal: 16, paddingTop: 10, fontSize: 13, color: Theme.textMuted },
+  heard: { color: Theme.accent },
   line: { flexDirection: "row", alignItems: "flex-end" },
   input: { flex: 1, maxHeight: LINE * MAX_LINES + 24, paddingLeft: 16, paddingRight: 0, paddingTop: 12, paddingBottom: 12, fontSize: 16, lineHeight: LINE, color: Theme.text },
   inputAlone: { paddingRight: 16 },

@@ -60,13 +60,18 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   const attachments = useAttachments(host, hostId, sessionId);
   const stash = useStash(draft, setDraft, attachments);
   const dictationAvailable = useDictationAvailable(host);
-  const dictation = useDictation(host, (words) => setDraftState((current) => appendSpoken(current, words)));
+  const latest = useRef(draft);
+  latest.current = draft;
+  const dictation = useDictation(host, (words) => {
+    latest.current = appendSpoken(latest.current, words);
+    setDraftState(latest.current);
+  });
   useEffect(() => writeDraft(Settings, hostId, sessionId, draft), [draft, hostId, sessionId]);
 
   const session = feed.head?.session;
   const running = hasRunningTurn(feed.turns);
   const queued = queuedTurns(feed.turns);
-  const trigger = dictation.phase === "recording" ? undefined : detectTrigger(draft, caret);
+  const trigger = dictation.phase === "listening" ? undefined : detectTrigger(draft, caret);
   const skills = useSessionSkills(host, sessionId, trigger !== undefined && trigger.kind !== "mention");
   const rows = trigger
     ? completionsFor(trigger, {
@@ -77,7 +82,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
         current: { sessionId, ...(session?.projectId ? { projectId: session.projectId } : {}) },
       })
     : [];
-  const slot = composerSlot({ draft, running, busy: sending, hasImage: attachments.hasImage, queued: queued.length });
+  const slot = composerSlot({ draft: appendSpoken(draft, dictation.heard), running, busy: sending, hasImage: attachments.hasImage, queued: queued.length });
 
   const act = async (work: () => Promise<unknown>) => {
     setProblem(undefined);
@@ -103,8 +108,9 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
     }
     setSending(false);
   };
-  const send = async (typed: string = draft) => {
-    const text = typed.trim();
+  const send = async (typed?: string) => {
+    if (typed === undefined && dictation.phase === "listening") await dictation.finish();
+    const text = (typed ?? latest.current).trim();
     const ids = attachments.pending.map((row) => row.attachment.id);
     if (!host || (!text && !attachments.hasImage)) return;
     setDraft("");
@@ -138,6 +144,16 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
     if (sentOnOpen.current || !feed.head || typeof text !== "string" || !text) return;
     sentOnOpen.current = true;
     void send(text);
+  });
+
+  // `-telarDictateOnOpen <seconds>` listens for that long once the session has loaded, for the same reason.
+  const dictatedOnOpen = useRef(false);
+  useEffect(() => {
+    const seconds = Number(Settings.get("telarDictateOnOpen"));
+    if (dictatedOnOpen.current || !feed.head || !dictationAvailable || !(seconds > 0)) return;
+    dictatedOnOpen.current = true;
+    dictation.toggle();
+    setTimeout(() => void dictation.finish(), seconds * 1000);
   });
 
   const controls = useMemo(() => (host && session ? <SessionMenus host={host} session={session} onChanged={(work) => void act(() => work)} /> : undefined), [host, session]);

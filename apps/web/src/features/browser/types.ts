@@ -115,6 +115,8 @@ export type DesktopBrowserBridge = {
   assignProjectProfile?(input: { scopeKey: string; profileId: string | null }): Promise<{ profiles: DesktopBrowserProfile[] }>;
   setScopeProfile?(scopeKey: string, profileId: string): Promise<{ profileId: string; partition: string }>;
   capture?(scopeKey: string, options?: { fullPage?: boolean; elements?: boolean }): Promise<DesktopBrowserCapture>;
+  saveScreenshot?(scopeKey: string, options?: { fullPage?: boolean }): Promise<{ path: string; url: string }>;
+  copyScreenshot?(path: string): Promise<{ ok: boolean }>;
   extensionStatus?(scopeKey: string): Promise<DesktopExtensionStatus>;
   openExtensionPopup?(scopeKey: string, anchorRect: { x: number; y: number; width: number; height: number }): Promise<DesktopExtensionStatus>;
   openExternal?(url: string): Promise<{ ok: boolean; error?: string }>;
@@ -124,6 +126,6 @@ export type DesktopBrowserBridge = {
   clearBrowsingData?(scopeKey: string, kind: "cookies" | "cache"): Promise<{ ok: boolean; kind: string; partition: string; profile?: string | null }>;
   offerLoginMemory?(scopeKey: string): Promise<{ ok: boolean; error?: string }>;
   onDownload?(listener: (download: DesktopBrowserDownload) => void): () => void;
-  revealDownload?(path: string): Promise<{ ok: boolean; error?: string }>;
+  revealFile?(path: string): Promise<{ ok: boolean; error?: string }>;
   onExtension?(listener: (status: DesktopExtensionStatus) => void): () => void;
 } & SitePermissionsBridge;

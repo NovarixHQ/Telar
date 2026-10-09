@@ -24,7 +24,7 @@ export function CheckRow({ on, onClick, children, ...rest }: { on: boolean; onCl
   );
 }
 
-/** A press takes the viewport; the right-click menu offers the full page too. */
+/** A press saves the viewport; the right-click menu offers the full page too. */
 export function CameraButton({ busy, onCapture }: { busy: boolean; onCapture: (fullPage: boolean) => void }) {
   return (
     <ContextMenu>
@@ -32,7 +32,7 @@ export function CameraButton({ busy, onCapture }: { busy: boolean; onCapture: (f
         <button
           type="button"
           aria-label="Screenshot this page"
-          title={"Attach a screenshot of this page to your message.\nRight-click for the full page."}
+          title={"Save a screenshot of this page.\nRight-click for the full page."}
           disabled={busy}
           onClick={() => onCapture(false)}
           className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
@@ -132,8 +132,8 @@ export function Notices({ b }: { b: BrowserUi }) {
         <Strip tone="info" onDismiss={() => b.setDownload(undefined)}>
           <DownloadIcon aria-hidden className="size-3 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate" title={download.path}>{describeDownload(download)}</span>
-          {download.state === "completed" && b.bridge.revealDownload && (
-            <button type="button" onClick={() => void b.bridge.revealDownload?.(download.path)} className="shrink-0 rounded px-1.5 py-0.5 hover:bg-muted">Show in folder</button>
+          {download.state === "completed" && b.bridge.revealFile && (
+            <button type="button" onClick={() => void b.bridge.revealFile?.(download.path)} className="shrink-0 rounded px-1.5 py-0.5 hover:bg-muted">Show in folder</button>
           )}
         </Strip>
       )}

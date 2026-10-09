@@ -27,6 +27,7 @@ import "./globals.css";
 import { ClipboardShim } from "@/platform/desktop/clipboard-shim";
 import { APPEARANCE_INIT_SCRIPT, AppearanceProvider, BACKGROUND_INIT_SCRIPT, ThemeProvider, THEME_INIT_SCRIPT } from "@/features/appearance";
 import { AppShell } from "@/app/app-shell";
+import { Toaster } from "@/ui/toast";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -151,6 +152,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider>
           <AppearanceProvider>
             <AppShell>{children}</AppShell>
+            <Toaster />
           </AppearanceProvider>
         </ThemeProvider>
       </body>

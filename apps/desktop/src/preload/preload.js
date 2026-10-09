@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     clearBrowsingData: (scopeKey, kind) => ipcRenderer.invoke("telar:browser:clear-data", { scopeKey, kind }),
 
     capture: (scopeKey, options) => ipcRenderer.invoke("telar:browser:capture", { scopeKey, ...options }),
+    saveScreenshot: (scopeKey, options) => ipcRenderer.invoke("telar:browser:save-screenshot", { scopeKey, ...options }),
+    copyScreenshot: (path) => ipcRenderer.invoke("telar:browser:copy-screenshot", { path }),
     callTool: (scopeKey, name, args) => ipcRenderer.invoke("telar:browser:tool", { scopeKey, name, args }),
 
     setBounds: (scopeKey, bounds) => {
@@ -79,7 +81,7 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     permissionPrompts: (scopeKey) => ipcRenderer.invoke("telar:browser:permission-prompts", scopeKey),
 
     onDownload: (listener) => on("telar:browser:download", listener),
-    revealDownload: (path) => ipcRenderer.invoke("telar:workspace:open", { path, kind: "file", reveal: true }),
+    revealFile: (path) => ipcRenderer.invoke("telar:workspace:open", { path, kind: "file", reveal: true }),
 
     sitePermissions: (input) => ipcRenderer.invoke("telar:browser:site-permissions", input ?? {}),
     forgetSitePermission: (input) => ipcRenderer.invoke("telar:browser:forget-site-permission", input),

@@ -13,8 +13,6 @@ import {
   isRestorablePanelTab,
   issuePanelNumber,
   issuePanelTab,
-  LIVE_BROWSER_TAB,
-  ownsItsHeight,
   panelTabForPath,
   pdfPanelPath,
   pdfPanelTab,
@@ -194,16 +192,6 @@ describe("a surface's letter", () => {
     expect(rows.find((row) => row.id === "terminal")?.another).toBe(true);
     expect(rows.find((row) => row.id === "diff")?.another).toBe(true);
     expect(rows.some((row) => row.id === "browser")).toBe(false);
-  });
-
-  test("outside the flat-tabs trial the desktop's one Browser tab is called Browser and owns its height", () => {
-    expect(describePanelTab(LIVE_BROWSER_TAB).label).toBe("Browser");
-    expect(ownsItsHeight(LIVE_BROWSER_TAB)).toBe(true);
-  });
-
-  test("outside the flat-tabs trial the open Terminal is a singleton, since it holds every shell", () => {
-    const rows = launcherRows([{ id: "terminal", kind: "terminal", params: {} }], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: true, flat: false });
-    expect(rows.some((row) => row.id === "terminal")).toBe(false);
   });
 
   test("offers no Agents or Processes surface", () => {

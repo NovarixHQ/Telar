@@ -5,7 +5,7 @@ import { ExperimentalRows } from "./experimental-rows";
 
 installTestDom();
 
-const TRIAL: Experiment = { id: "tabs", label: "One tab per page and terminal", hint: "Browser pages and shells as their own panel tabs.", decideBy: "2026-11-15" };
+const TRIAL: Experiment = { id: "compact-rail", label: "Compact rail", hint: "Rail rows take one line each.", decideBy: "2026-11-15" };
 
 test("the trials are folded, and empty says so once opened", async () => {
   const { host } = await mount(<ExperimentalRows experiments={[]} />);
@@ -21,9 +21,9 @@ test("a trial names its decide-by date and is kept on this device only", async (
   await click(buttonLabelled("Show", host));
   expect(host.textContent).toContain("Decide by Nov 15.");
   await press(host.querySelector('[role="switch"]')!);
-  expect(window.localStorage.getItem("telar:experiment:tabs")).toBe("on");
+  expect(window.localStorage.getItem("telar:experiment:compact-rail")).toBe("on");
   await click(host.querySelector('[aria-label="Revert to the default"]')!);
-  expect(window.localStorage.getItem("telar:experiment:tabs")).toBeNull();
+  expect(window.localStorage.getItem("telar:experiment:compact-rail")).toBeNull();
 });
 
 test("no trial outlives its decide-by date", () => {

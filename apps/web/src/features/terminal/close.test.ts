@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { TerminalActivity, TerminalBridge } from "./bridge";
-import { closeTerminalTab, decideClose, endTerminal, idleChips, mayClose } from "./close";
-import type { RunView } from "./run/types";
+import { closeTerminalTab, decideClose, endTerminal, mayClose } from "./close";
 import { terminalTabParams } from "./tab";
-import { addShell, emptyWorkspace, setShellTerminal, upsertRunShell, workspaceParams } from "./workspace";
 
 const idle = (id: string): TerminalActivity => ({ id, active: false, processes: 0 });
 const busy = (id: string, processes: number, command?: string): TerminalActivity => ({
@@ -15,63 +13,45 @@ const busy = (id: string, processes: number, command?: string): TerminalActivity
 
 describe("decideClose", () => {
   test("an idle terminal closes without asking", () => {
-    expect(decideClose([{ id: "t1", label: "Shell 1" }], [idle("t1")])).toEqual({ action: "close" });
+    expect(decideClose({ id: "t1", label: "Shell 1" }, [idle("t1")])).toEqual({ action: "close" });
   });
 
   test("a busy one asks, naming the command and how many processes it ends", () => {
-    const decision = decideClose([{ id: "t1", label: "web dev", command: "bun run dev" }], [busy("t1", 4, "node next dev")]);
+    const decision = decideClose({ id: "t1", label: "web dev" }, [busy("t1", 4, "bun run dev")]);
     expect(decision.action).toBe("confirm");
     if (decision.action !== "confirm") return;
-    // What the person launched, not what it became in the process table.
     expect(decision.message.split("\n")[0]).toBe("End “bun run dev” (4 processes)?");
     expect(decision.message).toContain("web dev");
   });
 
-  test("a shell's command comes from the host, and one process is singular", () => {
-    const decision = decideClose([{ id: "t1", label: "Shell 1" }], [busy("t1", 1, "vim notes.md")]);
+  test("one process is singular", () => {
+    const decision = decideClose({ id: "t1", label: "Shell 1" }, [busy("t1", 1, "vim notes.md")]);
     expect(decision.action === "confirm" && decision.message.split("\n")[0]).toBe("End “vim notes.md” (1 process)?");
   });
 
   test("no count is invented when the host could not count", () => {
-    const decision = decideClose([{ id: "t1", label: "Shell 1" }], [busy("t1", 0)]);
+    const decision = decideClose({ id: "t1", label: "Shell 1" }, [busy("t1", 0)]);
     expect(decision.action === "confirm" && decision.message.split("\n")[0]).toBe("End what is running in Shell 1?");
   });
 
   test("a terminal the host no longer holds has already ended, and is not asked about", () => {
-    expect(decideClose([{ id: "t1", label: "web dev" }], [])).toEqual({ action: "close" });
+    expect(decideClose({ id: "t1", label: "web dev" }, [])).toEqual({ action: "close" });
   });
 
   test("an unanswered question counts as busy — a missing prompt costs somebody's server", () => {
-    const decision = decideClose([{ id: "t1", label: "web dev", command: "bun run dev" }], undefined);
-    expect(decision.action === "confirm" && decision.message.split("\n")[0]).toBe("End “bun run dev”?");
+    const decision = decideClose({ id: "t1", label: "web dev" }, undefined);
+    expect(decision.action === "confirm" && decision.message.split("\n")[0]).toBe("End what is running in web dev?");
   });
 
   test("a long command is clipped to one line", () => {
-    const decision = decideClose([{ id: "t1", label: "x", command: `bun ${"a".repeat(200)}` }], [busy("t1", 2)]);
+    const decision = decideClose({ id: "t1", label: "x" }, [busy("t1", 2, `bun ${"a".repeat(200)}`)]);
     const first = decision.action === "confirm" ? decision.message.split("\n")[0]! : "";
     expect(first.length).toBeLessThan(110);
     expect(first).toContain("…");
   });
 
-  test("several targets ask once, listing only what is busy", () => {
-    const decision = decideClose(
-      [
-        { id: "t1", label: "Shell 1" },
-        { id: "t2", label: "web dev", command: "bun run dev" },
-        { id: "t3", label: "api", command: "bun run api" },
-      ],
-      [idle("t1"), busy("t2", 4), busy("t3", 2)],
-    );
-    expect(decision.action).toBe("confirm");
-    if (decision.action !== "confirm") return;
-    expect(decision.message.split("\n")[0]).toBe("End 2 commands still running?");
-    expect(decision.message).toContain("• “bun run dev” (4 processes)");
-    expect(decision.message).toContain("• “bun run api” (2 processes)");
-    expect(decision.message).not.toContain("Shell 1");
-  });
-
   test("the copy names no product", () => {
-    const decision = decideClose([{ id: "t1", label: "Shell 1" }], [busy("t1", 3, "vim")]);
+    const decision = decideClose({ id: "t1", label: "Shell 1" }, [busy("t1", 3, "vim")]);
     for (const name of ["Electron", "xterm", "node-pty", "Claude"]) {
       expect(decision.action === "confirm" && decision.message).not.toContain(name);
     }
@@ -105,7 +85,7 @@ describe("mayClose", () => {
   test("asks the host about exactly these terminals, and nobody else when idle", async () => {
     const { bridge, asked } = fakeBridge([idle("t1")]);
     let prompted = 0;
-    expect(await mayClose([{ id: "t1", label: "Shell 1" }], { bridge, confirm: () => (prompted += 1) > 0 })).toBe(true);
+    expect(await mayClose({ id: "t1", label: "Shell 1" }, { bridge, confirm: () => (prompted += 1) > 0 })).toBe(true);
     expect(asked).toEqual([["t1"]]);
     expect(prompted).toBe(0);
   });
@@ -113,28 +93,28 @@ describe("mayClose", () => {
   test("a busy terminal closes only if the person says yes", async () => {
     const { bridge } = fakeBridge([busy("t1", 2, "bun run dev")]);
     const said: string[] = [];
-    expect(await mayClose([{ id: "t1", label: "web dev" }], { bridge, confirm: (message) => (said.push(message), false) })).toBe(false);
+    expect(await mayClose({ id: "t1", label: "web dev" }, { bridge, confirm: (message) => (said.push(message), false) })).toBe(false);
     expect(said[0]).toStartWith("End “bun run dev” (2 processes)?");
-    expect(await mayClose([{ id: "t1", label: "web dev" }], { bridge, confirm: () => true })).toBe(true);
+    expect(await mayClose({ id: "t1", label: "web dev" }, { bridge, confirm: () => true })).toBe(true);
   });
 
   test("a host that cannot answer is treated as busy", async () => {
     const { bridge } = fakeBridge([], { active: async () => Promise.reject(new Error("no ps")) });
     let prompted = 0;
-    await mayClose([{ id: "t1", label: "web dev" }], { bridge, confirm: () => ((prompted += 1), true) });
+    await mayClose({ id: "t1", label: "web dev" }, { bridge, confirm: () => ((prompted += 1), true) });
     expect(prompted).toBe(1);
   });
 
   test("a session on another Mac (no bridge) asks, since nothing here can look", async () => {
     let prompted = 0;
-    await mayClose([{ id: "t1", label: "web dev" }], { bridge: undefined, confirm: () => ((prompted += 1), true) });
+    await mayClose({ id: "t1", label: "web dev" }, { bridge: undefined, confirm: () => ((prompted += 1), true) });
     expect(prompted).toBe(1);
   });
 
   test("a desktop build older than the question closes without asking, as it always did", async () => {
     const { bridge } = fakeBridge([], { active: undefined });
     let prompted = 0;
-    expect(await mayClose([{ id: "t1", label: "Shell 1" }], { bridge, confirm: () => ((prompted += 1), false) })).toBe(true);
+    expect(await mayClose({ id: "t1", label: "Shell 1" }, { bridge, confirm: () => ((prompted += 1), false) })).toBe(true);
     expect(prompted).toBe(0);
   });
 });
@@ -212,41 +192,5 @@ describe("closeTerminalTab", () => {
     const { bridge, closed } = fakeBridge([idle("term_old")]);
     await closeTerminalTab({ terminal: "term_old" }, { bridge });
     expect(closed).toEqual(["term_old"]);
-  });
-});
-
-describe("closing a grouped Terminal tab", () => {
-  const grouped = workspaceParams(
-    upsertRunShell(setShellTerminal(addShell(setShellTerminal(addShell(emptyWorkspace()), "shell", "t1")), "shell#2", "t2"), {
-      terminalId: "term_run",
-      title: "web dev",
-      run: { runId: "run_a", configId: "cfg" },
-    }),
-  );
-
-  test("asks once for the whole strip, naming what is busy, and no keeps every terminal running", async () => {
-    const { bridge, closed } = fakeBridge([busy("t1", 2, "bun dev"), idle("t2"), busy("term_run", 1)]);
-    const prompts: string[] = [];
-    expect(await closeTerminalTab(grouped, { bridge, confirm: (message) => (prompts.push(message), false) })).toBe(false);
-    expect(prompts).toHaveLength(1);
-    expect(prompts[0]).toStartWith("End 2 commands still running in this Terminal?");
-    expect(closed).toEqual([]);
-  });
-
-  test("yes ends every shell through the host and every run through the engine", async () => {
-    const { bridge, closed } = fakeBridge([busy("t1", 1, "vim"), idle("t2"), idle("term_run")]);
-    const stopped: string[] = [];
-    expect(await closeTerminalTab(grouped, { bridge, confirm: () => true, stopRun: async (id) => stopped.push(id) })).toBe(true);
-    expect(closed.sort()).toEqual(["t1", "t2"]);
-    expect(stopped).toEqual(["run_a"]);
-  });
-});
-
-describe("idleChips", () => {
-  test("idle shells and idle or ended runs; a busy shell, and anything unread, stays", () => {
-    const strip = upsertRunShell(setShellTerminal(addShell(setShellTerminal(addShell(emptyWorkspace()), "shell", "t1")), "shell#2", "t2"), { run: { runId: "r", configId: "" } });
-    const runs = new Map([["r", { runId: "r", status: "closed" } as RunView]]);
-    expect(idleChips(strip, runs, [busy("t1", 1), idle("t2")])).toEqual(["shell#2", "run"]);
-    expect(idleChips(strip, undefined, undefined)).toEqual([]);
   });
 });

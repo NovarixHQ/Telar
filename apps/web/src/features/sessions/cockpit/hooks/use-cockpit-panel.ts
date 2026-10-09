@@ -10,17 +10,14 @@ import { forgeParams, openForge, readForgeOpen } from "@/features/github";
 import {
   activePanelTab,
   addPanelTab,
-  browserPanelTab,
   browserTabId,
   closePanelTab,
   editorInstanceKey,
   emptyPanelTabs,
   filePanelTabPath,
   findPanelTab,
-  foldBrowserTabs,
   isRestorablePanelTab,
   issuePanelNumber,
-  LIVE_BROWSER_TAB,
   movePanelTab,
   nextPanelTabId,
   openNewPanelTab,
@@ -36,21 +33,15 @@ import {
 } from "@/features/panel";
 import { useBrowserPageTabs } from "./use-browser-page-tabs";
 import { createSimulatorsApi, releaseSimulatorTab, SIMULATOR_SURFACE } from "@/features/simulators";
-import { useExperiment } from "@/features/settings/experiments";
-import { arrangeTerminalTabs, closeTerminalTab, createRunApi } from "@/features/terminal";
+import { closeTerminalTab, createRunApi, unfoldTerminalTabs } from "@/features/terminal";
 
 /** Rail (16rem) + conversation floor (24rem) + panel floor (20rem), rounded up. */
 const NARROW_WINDOW = 1280;
 
 type Strip = PanelTabState<PanelTab>;
 
-function arrangePanel(state: Strip, flat: boolean): Strip {
-  const terminals = arrangeTerminalTabs(state, "terminal", flat);
-  return flat || !desktopBrowserBridge() ? terminals : foldBrowserTabs(terminals);
-}
-
-function restorePanel(panelKey: string, flat: boolean): { panel: Strip; editors: Record<string, EditorState> } {
-  const panel = arrangePanel(readPanelTabs<PanelTab>(panelKey, isRestorablePanelTab), flat);
+function restorePanel(panelKey: string): { panel: Strip; editors: Record<string, EditorState> } {
+  const panel = unfoldTerminalTabs(readPanelTabs<PanelTab>(panelKey, isRestorablePanelTab), "terminal");
   const editors: Record<string, EditorState> = { editor: readEditor(panelKey) };
   for (const entry of panel.tabs) {
     if (entry.kind === "editor" && !(entry.id in editors)) editors[entry.id] = readEditor(editorInstanceKey(panelKey, entry.id));
@@ -90,21 +81,19 @@ function closeTab(panel: Strip, id: string, { hostId, sessionId, updatePanel }: 
   if (sessionId && closing?.kind === SIMULATOR_SURFACE) releaseSimulatorTab(createSimulatorsApi(hostId), sessionId, closing.params);
   const pageId = closing ? browserTabId(closing.kind) : undefined;
   const bridge = desktopBrowserBridge();
-  if (bridge && sessionId && closing?.kind === LIVE_BROWSER_TAB) void bridge.releaseScope?.(sessionId, true, { closedByPerson: true }).catch(() => undefined);
-  else if (bridge && sessionId && pageId !== undefined) void closeNativePage(bridge, sessionId, pageId);
+  if (bridge && sessionId && pageId !== undefined) void closeNativePage(bridge, sessionId, pageId);
   updatePanel((current) => closePanelTab(current, id));
 }
 
-function usePersistedPanel(panelKey: string, flat: boolean) {
+function usePersistedPanel(panelKey: string) {
   const [panel, setPanel] = useState<Strip>(() => emptyPanelTabs<PanelTab>());
   const panelNow = useRef(panel);
   const [editors, setEditors] = useState<Record<string, EditorState>>(() => ({}));
-  const flatNow = useRef(flat);
 
   useEffect(() => {
     // Deferred: a synchronous setState in an effect body is a cascading render.
     const task = window.setTimeout(() => {
-      const restored = restorePanel(panelKey, flatNow.current);
+      const restored = restorePanel(panelKey);
       setEditors(restored.editors);
       panelNow.current = restored.panel;
       setPanel(restored.panel);
@@ -137,11 +126,6 @@ function usePersistedPanel(panelKey: string, flat: boolean) {
   );
 
   useEffect(() => {
-    flatNow.current = flat;
-    updatePanel((current) => arrangePanel(current, flat));
-  }, [flat, updatePanel]);
-
-  useEffect(() => {
     updatePanel((current) => {
       let next = current;
       for (const entry of current.tabs) {
@@ -163,8 +147,7 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
   hostId: string;
   sessionId: string | undefined;
 }) {
-  const [flat] = useExperiment("flat-panel-tabs");
-  const { panel, panelNow, updatePanel, editors, updateEditor } = usePersistedPanel(panelKey, flat);
+  const { panel, panelNow, updatePanel, editors, updateEditor } = usePersistedPanel(panelKey);
 
   const { open: railOpen, setOpen: setRailOpen } = useSidebar();
   const makeRoomForPanel = useCallback(() => {
@@ -179,8 +162,7 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
     touchedAt.current = Date.now();
   };
   const mayReveal = useCallback(() => Date.now() - touchedAt.current >= PERSON_CHOICE_MS, []);
-  useBrowserPageTabs(flat ? sessionId : undefined, updatePanel, mayReveal);
-  const pageTab = useCallback((pageId: string): PanelTab => (flat || !desktopBrowserBridge() ? browserPanelTab(pageId) : LIVE_BROWSER_TAB), [flat]);
+  useBrowserPageTabs(sessionId, updatePanel, mayReveal);
 
   const presentTab = useCallback(
     (tab: PanelTab, intent: OpenIntent = "pin") => {
@@ -271,7 +253,7 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
   };
 
   return {
-    flat, pageTab, panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
+    panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
     openPanel: () => setOpen(true), togglePanel: () => setOpen(!panelNow.current.open), tabHandlers,
   };
 }

@@ -58,9 +58,6 @@ const FILE_TAB_PREFIXES = [FILE_PREFIX, NOTEBOOK_PREFIX, TABLE_PREFIX, PDF_PREFI
 
 const MULTI_INSTANCE: ReadonlySet<string> = new Set<string>(["editor", "diff", "terminal"]);
 
-const LIVE_BROWSER_PAGE_ID = "__integrated__";
-export const LIVE_BROWSER_TAB: PanelTab = `${BROWSER_PREFIX}${LIVE_BROWSER_PAGE_ID}`;
-
 const suffixed = (prefix: string) => (tab: string) => (tab.startsWith(prefix) ? tab.slice(prefix.length) : undefined);
 
 export const notebookPanelPath = suffixed(NOTEBOOK_PREFIX);
@@ -187,7 +184,6 @@ export function describePanelTab(tab: PanelTab, browser?: BrowserState, live?: r
     const surface = ALL_SURFACES.find((entry) => entry.id === tab)!;
     return { label: surface.label, icon: surface.icon, blurb: surface.blurb };
   }
-  if (tab === LIVE_BROWSER_TAB) return { label: "Browser", icon: GlobeIcon, blurb: "Integrated browser" };
   // The native browser's own list wins over the journal's, which lags or never names the native tab.
   const livePage = live?.find((entry) => entry.id === pageId);
   if (livePage) return { label: browserTabLabel(livePage), icon: GlobeIcon, blurb: livePage.url };
@@ -235,14 +231,14 @@ export type LauncherRow = { id: PanelTab | "browser"; label: string; icon: Lucid
 
 /**
  * The launcher, shared by the empty panel and the "+": the Browser first when the cockpit can open one, then the surfaces.
- * A singleton already in the strip drops out; a multi-instance kind stays and opens another. Unless `flat`, the Terminal is a singleton.
+ * A singleton already in the strip drops out; a multi-instance kind stays and opens another.
  */
 export function launcherRows(
   tabs: readonly PanelTabItem[],
-  { enabledPlugins, pluginPanels, canOpenNew, shells, browser, flat = true }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; shells: boolean; browser?: { unavailable?: string }; flat?: boolean },
+  { enabledPlugins, pluginPanels, canOpenNew, shells, browser }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; shells: boolean; browser?: { unavailable?: string } },
 ): LauncherRow[] {
   const holdsKind = (kind: PanelTab) => tabs.some((entry) => entry.kind === kind);
-  const offersAnother = (kind: PanelTab) => MULTI_INSTANCE.has(kind) && canOpenNew && (flat || kind !== "terminal");
+  const offersAnother = (kind: PanelTab) => MULTI_INSTANCE.has(kind) && canOpenNew;
   const browserRow: LauncherRow[] = browser
     ? [{ id: "browser", label: BROWSER_SURFACE.label, icon: BROWSER_SURFACE.icon, key: BROWSER_SURFACE.key, another: false, ...(browser.unavailable ? { unavailable: browser.unavailable } : {}) }]
     : [];

@@ -151,7 +151,7 @@ describe("the toolbar", () => {
     const { host } = await mount(panelState(), { sitePermissions: async () => ({ partition: "persist:telar-profile-bp_1", origin: "https://example.com", kinds: [] }) });
     const row = host.querySelector('[aria-label="Address"]')!.closest("form")!;
     const labels = [...row.querySelectorAll("button")].map((button) => button.getAttribute("aria-label"));
-    expect(labels).toEqual(["Go back", "Go forward", "Reload", "Browser options"]);
+    expect(labels).toEqual(["Go back", "Go forward", "Reload", "Picture in picture", "Browser options"]);
     expect(row.querySelector('[aria-label^="Site permissions"]')).toBeNull();
     expect(row.querySelector('[aria-label^="Browser profile"]')).toBeNull();
   });

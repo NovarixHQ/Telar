@@ -48,6 +48,7 @@ function useToolbar(navigation: Navigation, rail: MergedRail, filter: string | u
     });
   }, [navigation, setQuery]);
   const computers = rail.computers;
+  const addProject = computers.filter((computer) => filter === undefined || computer.hostId === filter);
   useLayoutEffect(() => {
     navigation.setOptions({
       unstable_headerLeftItems: () => [
@@ -65,8 +66,16 @@ function useToolbar(navigation: Navigation, rail: MergedRail, filter: string | u
         },
       ],
       unstable_headerRightItems: () => [
-        { type: "button", label: "Add project", icon: sfSymbol("folder.badge.plus"), tintColor: Theme.accent, onPress: () => navigation.navigate("Unavailable", { title: "Add project", systemImage: "folder.badge.plus" }) },
-        { type: "button", label: "New session", icon: sfSymbol("square.and.pencil"), tintColor: Theme.accent, onPress: () => navigation.navigate("Unavailable", { title: "New session", systemImage: "square.and.pencil" }) },
+        addProject.length === 1
+          ? { type: "button", label: "Add project", icon: sfSymbol("folder.badge.plus"), tintColor: Theme.accent, onPress: () => navigation.navigate("AddProject", { hostId: addProject[0]!.hostId }) }
+          : {
+              type: "menu",
+              label: "Add project",
+              icon: sfSymbol("folder.badge.plus"),
+              tintColor: Theme.accent,
+              menu: { items: addProject.map((computer) => ({ type: "action" as const, label: computer.name, icon: sfSymbol("desktopcomputer"), onPress: () => navigation.navigate("AddProject", { hostId: computer.hostId }) })) },
+            },
+        { type: "button", label: "New session", icon: sfSymbol("square.and.pencil"), tintColor: Theme.accent, onPress: () => navigation.navigate("NewSession") },
       ],
     });
   }, [navigation, computers, filter, setFilter]);

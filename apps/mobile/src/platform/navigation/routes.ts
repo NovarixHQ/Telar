@@ -3,7 +3,10 @@ import type { Session } from "@telar/engine-client";
 export type RootStack = {
   Rail: undefined;
   Settings: undefined;
-  Unavailable: { title: string; systemImage: "folder.badge.plus" | "square.and.pencil" };
+  NewSession: { hostId?: string; projectId?: string } | undefined;
+  ProjectPicker: { hostId?: string; projectId?: string } | undefined;
+  /** `pick` hands the new project back to the new-session form. */
+  AddProject: { hostId: string; pick?: boolean };
   Pair: { link?: string } | undefined;
   Panel: { hostId: string; sessionId: string; tab?: string };
   Usage: { hostId?: string } | undefined;

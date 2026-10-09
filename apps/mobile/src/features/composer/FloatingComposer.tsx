@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { RequestDecision } from "@telar/engine-client";
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { Settings, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HostConnection } from "../../platform/connection";
@@ -123,10 +122,10 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
     await act(() => stopSession(host, sessionId));
     setSending(false);
   };
-  const decide = async (requestId: string, decision: RequestDecision, reason?: string) => {
+  const decide: ComponentProps<typeof RequestCards>["onDecide"] = async (requestId, decision, extra) => {
     if (!host) return;
     setDeciding(requestId);
-    await act(() => answerRequest(host, sessionId, requestId, decision, reason));
+    await act(() => answerRequest(host, sessionId, requestId, decision, extra));
     setDeciding(undefined);
   };
   const pick = (row: Completion) => {
@@ -167,7 +166,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
       <Scrim />
       <ReadingColumn margins={16} style={styles.lane}>
         {notices}
-        <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision, reason) => void decide(id, decision, reason)} />
+        <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision, extra) => void decide(id, decision, extra)} />
         {unsent ? <SendFailedCard error={unsent.error} onRetry={() => void deliver(unsent.text, unsent.ids, unsent.runId)} onDiscard={() => setUnsent(undefined)} /> : null}
         {shownProblem ? <Text style={[styles.note, styles.problem]} numberOfLines={2}>{shownProblem}</Text> : null}
         {attachments.note ? <Text style={styles.note}>{attachments.note}</Text> : null}

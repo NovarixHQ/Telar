@@ -5,9 +5,11 @@ import { useState } from "react";
 import type { ColorValue } from "react-native";
 import { faded, Icon, rowButton, StatusCard, Theme, Type, type SymbolName } from "../../ui";
 import { DeclineSheet } from "./DeclineSheet";
+import { QuestionCard } from "./QuestionCard";
+import type { Answer } from "./question";
 import type { RequestCard } from "./requests";
 
-type Props = { cards: RequestCard[]; deciding?: string; onDecide: (requestId: string, decision: RequestDecision, reason?: string) => void };
+type Props = { cards: RequestCard[]; deciding?: string; onDecide: (requestId: string, decision: RequestDecision, extra?: { reason?: string; answers?: Record<string, Answer> }) => void };
 
 const GHOSTS: { decision: RequestDecision; label: string; tint: ColorValue }[] = [
   { decision: "decline", label: "Decline", tint: Theme.red },
@@ -51,7 +53,7 @@ export function RequestCards({ cards, deciding, onDecide }: Props) {
       open={declining !== undefined}
       onCancel={() => setDeclining(undefined)}
       onDecline={(reason) => {
-        if (declining) onDecide(declining, "decline", reason);
+        if (declining) onDecide(declining, "decline", reason ? { reason } : {});
         setDeclining(undefined);
       }}
     />
@@ -60,19 +62,31 @@ export function RequestCards({ cards, deciding, onDecide }: Props) {
   return [sheet, ...cards.map((card) => (
     <Host key={card.id} matchContents={{ vertical: true }}>
       <StatusCard tint="amber" spacing={8}>
-        <HStack spacing={6}>
-          <Icon name={card.symbol as SymbolName} textStyle="footnote" weight="medium" color={Theme.amber} />
-          <Text modifiers={[Type.slimMedium, foregroundStyle(Theme.text), lineLimit(2)]}>{card.title}</Text>
-        </HStack>
-        {card.cwd ? <Text modifiers={[Type.monoSmall, foregroundStyle(faded("textMuted", 0.7)), lineLimit(1)]}>{card.cwd}</Text> : null}
-        {card.preview ? <Preview {...card.preview} /> : null}
-        {card.note ? <Text modifiers={[Type.slim, foregroundStyle(Theme.text)]}>{card.note}</Text> : null}
-        {card.decidable ? (
-          <Buttons card={card} busy={deciding === card.id} onDecide={onDecide} onDecline={() => setDeclining(card.id)} />
+        {card.question ? (
+          <QuestionCard draft={card.question} busy={deciding === card.id} onSubmit={(answers) => onDecide(card.id, "accept", { answers })} />
         ) : (
-          <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>Answer this one on the computer for now.</Text>
+          <CardBody card={card} busy={deciding === card.id} onDecide={onDecide} onDecline={() => setDeclining(card.id)} />
         )}
       </StatusCard>
     </Host>
   ))];
+}
+
+function CardBody({ card, busy, onDecide, onDecline }: { card: RequestCard; busy: boolean; onDecide: Props["onDecide"]; onDecline: () => void }) {
+  return (
+    <>
+      <HStack spacing={6}>
+        <Icon name={card.symbol as SymbolName} textStyle="footnote" weight="medium" color={Theme.amber} />
+        <Text modifiers={[Type.slimMedium, foregroundStyle(Theme.text), lineLimit(2)]}>{card.title}</Text>
+      </HStack>
+      {card.cwd ? <Text modifiers={[Type.monoSmall, foregroundStyle(faded("textMuted", 0.7)), lineLimit(1)]}>{card.cwd}</Text> : null}
+      {card.preview ? <Preview {...card.preview} /> : null}
+      {card.note ? <Text modifiers={[Type.slim, foregroundStyle(Theme.text)]}>{card.note}</Text> : null}
+      {card.decidable ? (
+        <Buttons card={card} busy={busy} onDecide={onDecide} onDecline={onDecline} />
+      ) : (
+        <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>Answer this one on the computer for now.</Text>
+      )}
+    </>
+  );
 }

@@ -523,6 +523,7 @@ export class EngineStore {
       runItems: (sessionId, runId) => this.sessionItems.peekRun(sessionId, runId),
       hasScheduledWake: (sessionId) => this.schedules.nextWake(sessionId) !== undefined,
       waitsOnSubscription: (sessionId) => this.subscriptions.subscriptionsOf(sessionId).some((each) => each.once === true),
+      hasBackgroundWork: (sessionId) => this.sessionTasks.hasLiveBackground(sessionId),
       announce: (parentId, notification) => this.wakes.announceChildEnding(parentId, notification),
     });
   }

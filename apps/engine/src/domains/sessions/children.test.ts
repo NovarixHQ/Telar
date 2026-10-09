@@ -187,3 +187,43 @@ test("a working child shows what its live turn is doing", () => {
   ]);
   expect(children()[0]!.progress).toBe("bun run check · 2 tools");
 });
+
+function backgroundTask(store: EngineStore, sessionId: string, runId: string, state: "running" | "completed") {
+  const task = { id: "task_ci", sessionId, runId, kind: "background" as const, state, title: "Wait for CI", startedAt: 1, updatedAt: 2 };
+  store.sessionTasks.write(sessionId, new Map([[task.id, task]]));
+}
+
+test("a builder that ends a turn while its background work runs, then sends its result, gives one notice", () => {
+  const { store, run, task, woken, children } = setup();
+  task("session_a");
+  const a = run("session_a");
+  backgroundTask(store, "session_a", a.runId, "running");
+  a.complete("Waiting on CI.");
+  expect(woken()).toHaveLength(0);
+  expect(children()[0]!.state).toBe("working");
+
+  backgroundTask(store, "session_a", a.runId, "completed");
+  const again = run("session_a");
+  again.say(HOST, "result", "CI green; PR #7.");
+  again.complete();
+  expect(woken()).toHaveLength(1);
+  expect(woken()[0]!.notification!.body).toContain("CI green; PR #7.");
+  expect(children()[0]).toMatchObject({ state: "done", summary: "CI green; PR #7." });
+});
+
+test("a builder that ends without a result and nothing pending gives one notice", () => {
+  const { run, task, woken } = setup();
+  task("session_a");
+  run("session_a").complete("Looked around.");
+  expect(woken()).toHaveLength(1);
+  expect(woken()[0]!.notification!.body).toContain("finished without a result: Looked around.");
+});
+
+test("a blocker reaches the parent at once even while background work runs", () => {
+  const { store, run, task, woken } = setup();
+  task("session_a");
+  const a = run("session_a");
+  backgroundTask(store, "session_a", a.runId, "running");
+  a.say(HOST, "blocker", "Which database?");
+  expect(woken().map((turn) => turn.agentIntent)).toEqual(["blocker"]);
+});

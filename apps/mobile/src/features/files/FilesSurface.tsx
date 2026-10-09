@@ -7,7 +7,6 @@ import type { HostConnection } from "../../platform/connection";
 import { EmptyState, faded, Icon, Theme } from "../../ui";
 import { FileTree } from "./FileTree";
 import { FileView } from "./FileView";
-import { buildFileTree, directoryPaths } from "./tree";
 
 const SIDE_BY_SIDE = 560;
 const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
@@ -52,7 +51,7 @@ export function FilesSurface({ host, sessionId }: { host: HostConnection; sessio
   const [error, setError] = useState<string>();
   const [statuses, setStatuses] = useState<ReadonlyMap<string, GitChangeStatus>>(new Map());
   const [query, setQuery] = useState("");
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>();
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const [files, setFiles] = useState<string[]>([]);
   const [active, setActive] = useState<string>();
   const [treeShown, setTreeShown] = useState(true);
@@ -64,7 +63,6 @@ export function FilesSurface({ host, sessionId }: { host: HostConnection; sessio
       const { listing: read } = await host.call(true, () => host.client.sessionFiles(sessionId));
       setListing(read);
       setError(undefined);
-      setExpanded((current) => current ?? new Set(directoryPaths(buildFileTree(read.files))));
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     }
@@ -112,7 +110,7 @@ export function FilesSurface({ host, sessionId }: { host: HostConnection; sessio
       error={error}
       statuses={statuses}
       query={query}
-      expanded={expanded ?? new Set()}
+      expanded={expanded}
       activePath={active}
       onQuery={setQuery}
       onToggle={toggle}

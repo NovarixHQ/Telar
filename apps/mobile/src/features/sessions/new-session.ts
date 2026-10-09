@@ -48,7 +48,7 @@ export function targetState(computers: readonly Computer[]) {
 }
 
 /** The last one used first, then the most recently active, five at most. */
-export function recentTargets(targets: readonly Target[], activity: ReadonlyMap<string, number>, lastUsed: string | undefined): Target[] {
+function recentTargets(targets: readonly Target[], activity: ReadonlyMap<string, number>, lastUsed: string | undefined): Target[] {
   const ranked = targets.filter((target) => activity.has(keyOf(target))).sort((a, b) => activity.get(keyOf(b))! - activity.get(keyOf(a))!);
   const last = targets.find((target) => keyOf(target) === lastUsed);
   return [...(last ? [last] : []), ...ranked.filter((target) => keyOf(target) !== lastUsed)].slice(0, RECENT_LIMIT);
@@ -98,7 +98,7 @@ export function sessionTitle(prompt: string): string {
   return flat.length > TITLE_LIMIT ? `${flat.slice(0, TITLE_LIMIT - 1)}…` : flat;
 }
 
-export function createBody(workspace: Workspace, driver: ProviderDriverKind, prompt: string) {
+function createBody(workspace: Workspace, driver: ProviderDriverKind, prompt: string) {
   const branchName = workspace.envMode === "worktree" ? workspace.branchName.trim() : "";
   return { title: sessionTitle(prompt), driver, envMode: workspace.envMode, ...(branchName ? { branchName } : {}) };
 }

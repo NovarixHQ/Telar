@@ -3,7 +3,6 @@ const UTF8_LOCALE = "en_US.UTF-8";
 
 const isSet = (value: string | undefined) => value !== undefined && value.trim() !== "";
 
-/** TERM always names the emulator; colour and locale only fill a gap. The desktop's pty host applies the same rule. */
 export function terminalEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...base, TERM: TERMINAL_TERM };
   if (!isSet(env.COLORTERM)) env.COLORTERM = "truecolor";

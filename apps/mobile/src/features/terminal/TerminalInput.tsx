@@ -1,18 +1,22 @@
 import { Host } from "@expo/ui/swift-ui";
 import { memo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useKeyboardShown } from "../../platform/layout";
 import { faded, Icon, Radius, Theme } from "../../ui";
 import { SPECIAL_KEYS, typedLine } from "./keys";
 
 /** The keys row and the line being typed; the line lives here so a keystroke never redraws the output. */
 export const TerminalInput = memo(function TerminalInput({ enabled, onWrite }: { enabled: boolean; onWrite: (data: string) => void }) {
   const [line, setLine] = useState("");
+  const keyboard = useKeyboardShown();
+  const { bottom } = useSafeAreaInsets();
   const send = () => {
     onWrite(typedLine(line));
     setLine("");
   };
   return (
-    <View style={[styles.bar, enabled ? null : styles.off]} pointerEvents={enabled ? "auto" : "none"}>
+    <View style={[styles.bar, { paddingBottom: keyboard ? 0 : bottom }, enabled ? null : styles.off]} pointerEvents={enabled ? "auto" : "none"}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={styles.keys}>
         {SPECIAL_KEYS.map((key) => (
           <Pressable key={key.label} onPress={() => onWrite(key.data)} accessibilityRole="button" accessibilityLabel={key.name} style={({ pressed }) => [styles.key, pressed ? styles.pressed : null]}>

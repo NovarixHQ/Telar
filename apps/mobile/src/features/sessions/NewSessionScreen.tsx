@@ -4,7 +4,8 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { EnvMode } from "@telar/engine-client";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Settings, StyleSheet, useColorScheme } from "react-native";
+import { Settings, StyleSheet, useColorScheme, View } from "react-native";
+import { useKeyboardOverlap } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
 import { Icon, palette, ProjectAvatar, Theme, type SymbolName } from "../../ui";
 import { DraftComposer, type DraftFile } from "../composer";
@@ -105,6 +106,7 @@ export function NewSessionScreen() {
   const [created, setCreated] = useState<{ key: string; sessionId: string }>();
   const [runId] = useState(() => newRunId());
 
+  const keyboard = useKeyboardOverlap();
   const canvas = palette.canvas[useColorScheme() === "dark" ? "dark" : "light"];
   useLayoutEffect(() => navigation.setOptions({ headerStyle: { backgroundColor: canvas } }), [navigation, canvas]);
 
@@ -154,7 +156,7 @@ export function NewSessionScreen() {
 
   const notices = error ? <StatusNotice tint="red" text={error} actions={[{ label: "Dismiss", onPress: () => setError(undefined) }]} /> : null;
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior="padding">
+    <View style={styles.screen}>
       <Host style={styles.screen}>
         <ScrollView>
           <BranchAlert shown={naming} onShown={setNaming} current={workspace.branchName} onUse={(branchName) => (pick({ branchName }), setNaming(false))}>
@@ -179,6 +181,7 @@ export function NewSessionScreen() {
         </ScrollView>
       </Host>
       <DraftComposer
+        keyboard={keyboard}
         host={host}
         draftKey={target ? { hostId: target.hostId, id: `new.${target.project.id}` } : undefined}
         placeholder={target ? `Describe a coding task in ${target.project.name}` : "Describe a coding task"}
@@ -187,7 +190,7 @@ export function NewSessionScreen() {
         busy={busy}
         onSend={send}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

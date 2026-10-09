@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Settings, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { HostConnection } from "../../platform/connection";
-import { ReadingColumn, useKeyboardShown } from "../../platform/layout";
+import { ReadingColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { appendSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { AttachmentStrip } from "./AttachmentStrip";
@@ -13,6 +13,8 @@ import { composerSlot } from "./slot";
 import { useDraftAttachments, type DraftFile } from "./use-draft-attachments";
 
 type Props = {
+  /** Points the keyboard covers at the bottom; the composer sits on top of it. */
+  keyboard: number;
   /** The chosen project's computer: dictation listens through it. */
   host: HostConnection | undefined;
   /** Where the unsent text is kept: one draft per computer and project. */
@@ -26,12 +28,11 @@ type Props = {
 };
 
 /** The composer for a session that does not exist yet: the text, the model and access menus, and Send. */
-export function DraftComposer({ host, draftKey, placeholder, controls, notices, busy, onSend }: Props) {
+export function DraftComposer({ keyboard, host, draftKey, placeholder, controls, notices, busy, onSend }: Props) {
   const [draft, setDraft] = useState(() => (draftKey ? readDraft(Settings, draftKey.hostId, draftKey.id) : ""));
   const [caret, setCaret] = useState(draft.length);
   const [cleared, setCleared] = useState(0);
   const insets = useSafeAreaInsets();
-  const keyboard = useKeyboardShown();
   const attachments = useDraftAttachments();
   const dictationAvailable = useDictationAvailable(host);
   const latest = useRef(draft);
@@ -68,7 +69,7 @@ export function DraftComposer({ host, draftKey, placeholder, controls, notices, 
   };
   const note = attachments.note ?? dictation.problem;
   return (
-    <View style={[styles.footer, { paddingBottom: (keyboard ? 0 : insets.bottom) + 8 }]}>
+    <View style={[styles.footer, { marginBottom: keyboard, paddingBottom: Math.max(insets.bottom - keyboard, 0) + 8 }]}>
       <Scrim />
       <ReadingColumn margins={16} style={styles.lane}>
         {notices}

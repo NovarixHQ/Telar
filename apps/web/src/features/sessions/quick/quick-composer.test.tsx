@@ -24,6 +24,7 @@ mock.module("next/navigation", () => ({
 const { QuickComposer } = await import("./quick-composer");
 const { SidebarProvider } = await import("@/ui/sidebar");
 const { clearConnections } = await import("@telar/client/journal");
+const { bindCommands } = await import("@/features/commands/commands");
 
 type Call = { method: string; url: string; body: unknown };
 let calls: Call[] = [];
@@ -272,36 +273,21 @@ describe("the quick composer", () => {
     expect(layouts.at(-1)).toEqual({ height: expect.any(Number), composerTop: expect.any(Number) });
   });
 
-  test("the room above goes the moment a menu closes, so the window shrinks back to the card", async () => {
+  test("typing and an open menu never resize the window; attaching a conversation does", async () => {
     const { host, layouts } = await open(front(GRANTED));
-    const root = host.querySelector<HTMLElement>('[data-surface="quick"]')!;
-    const menu = document.createElement("div");
-    menu.setAttribute("data-side", "top");
-    menu.setAttribute("data-open", "");
-    await act(async () => void document.body.append(menu));
-    await flush(() => root.style.paddingTop === "344px");
-    await act(async () => {
-      menu.removeAttribute("data-open");
-      menu.setAttribute("data-closed", "");
-    });
-    await flush(() => root.style.paddingTop === "24px");
-    expect(root.style.paddingTop).toBe("24px");
-    menu.remove();
-    expect(layouts.length).toBeGreaterThan(0);
-  });
-
-  test("an open menu gets room above the card", async () => {
-    const { host } = await open(front(GRANTED));
-    const root = host.querySelector<HTMLElement>('[data-surface="quick"]')!;
-    const before = Number.parseFloat(root.style.paddingTop);
+    await flush(() => strip(host).length > 0);
+    await flush();
+    const settled = layouts.length;
+    await type(host, "a long thought that keeps going");
     const access = host.querySelector<HTMLElement>('[aria-label^="Access:"]')!;
     await act(async () => access.click());
     await flush(() => document.body.textContent?.includes("Auto-accept edits") ?? false);
-    const menu = [...document.querySelectorAll("[role='dialog'], [data-side]")].find((node) => node.textContent?.includes("Auto-accept edits"));
-    expect(menu).toBeTruthy();
-    await flush(() => Number.parseFloat(root.style.paddingTop) > before);
-    expect(Number.parseFloat(root.style.paddingTop)).toBe(before + 320);
-
+    await flush();
+    expect(layouts.length).toBe(settled);
+    await type(host, "");
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')][0]!.click());
+    await flush(() => layouts.length > settled);
+    expect(layouts.length).toBe(settled + 1);
   });
 
   test("the empty composer says # picks where the message goes", async () => {
@@ -519,26 +505,79 @@ describe("the attached conversation's transcript", () => {
     expect(editor(host).textContent).toBe("");
   });
 
-  test("with little room above, the picker opens below the card, its best row nearest the card", async () => {
+  test("with little room above, the picker caps its height to the room instead of moving the card", async () => {
     const { host, room } = await open(front(GRANTED));
-    room({ above: 80, below: 600 });
+    room({ above: 150 });
     await type(host, "#");
     await flush(() => options(host).length > 1);
-    const list = host.querySelector('[role="listbox"]')!;
-    expect(editor(host).compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(options(host)[0]).toContain("New session in Telar");
-    await press(host, "ArrowDown");
-    expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("Sales dashboard");
+    const list = host.querySelector<HTMLElement>('[role="listbox"]')!;
+    expect(list.compareDocumentPosition(editor(host)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(list.style.maxHeight).toBe("96px");
+  });
+});
+
+describe("drafts", () => {
+  test("each target keeps its own draft: switching saves it, coming back restores it, sending clears only it", async () => {
+    const { host } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 0);
+    await type(host, "new-session idea");
+    const pill = (title: string) => [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')].find((button) => button.title.startsWith(title))!;
+    await act(async () => pill("Sales dashboard").click());
+    await flush();
+    expect(editor(host).textContent).toBe("");
+    await type(host, "yes, run it");
+    await act(async () => pill("Transit light-curve").click());
+    await flush();
+    expect(editor(host).textContent).toBe("");
+    await type(host, "thanks");
+    await act(async () => host.querySelector<HTMLElement>('[aria-label="Detach session"]')!.click());
+    await flush();
+    expect(editor(host).textContent).toBe("new-session idea");
+    await act(async () => pill("Sales dashboard").click());
+    await flush();
+    expect(editor(host).textContent).toBe("yes, run it");
+    await typeAndPress(host, "yes, run it");
+    await act(async () => host.querySelector<HTMLElement>('[aria-label="Detach session"]')!.click());
+    await flush();
+    await act(async () => pill("Sales dashboard").click());
+    await flush();
+    expect(editor(host).textContent).toBe("");
+    await act(async () => host.querySelector<HTMLElement>('[aria-label="Detach session"]')!.click());
+    await flush();
+    await act(async () => pill("Transit light-curve").click());
+    await flush();
+    expect(editor(host).textContent).toBe("thanks");
+  });
+});
+
+describe("dictation", () => {
+  test("its shortcut and the shell's menu command both reach the quick composer's dictation, and nothing else does", async () => {
+    const toggled: string[] = [];
+    const off = bindCommands({ "toggle-dictation": () => toggled.push("toggle") });
+    let invoke: (id: string) => void = () => {};
+    (window as unknown as { telarDesktop: unknown }).telarDesktop = { commandKeys: { onInvoke: (listener: (id: string) => void) => ((invoke = listener), () => {}) } };
+    const { host } = await open(front(GRANTED));
+    for (const modifier of [{ metaKey: true }, { ctrlKey: true }]) {
+      await act(async () => void editor(host).dispatchEvent(new KeyboardEvent("keydown", { key: "d", code: "KeyD", bubbles: true, cancelable: true, ...modifier })));
+    }
+    const byKey = toggled.length;
+    expect(byKey).toBeGreaterThan(0);
+    act(() => invoke("toggle-dictation"));
+    act(() => invoke("go-to-file"));
+    expect(toggled.length).toBe(byKey + 1);
+    off();
+    Reflect.deleteProperty(window, "telarDesktop");
   });
 });
 
 describe("the strip of conversations that need you", () => {
-  test("lists only what needs you: waiting first, then finished and unread, never running or settled", async () => {
+  test("lists only what needs you: waiting first, then finished and unread, never running, settled or a builder's", async () => {
     LIVE.push(live("s_old", "System connectivity test", "project_1", "idle", 1, { lastTurnSequence: 3, lastReadTurnSequence: 3 }));
+    LIVE.push({ ...live("s_child", "Builder: fix the tests", "project_1", "blocked", 500), startedFrom: { sessionId: "s_sales" } } as (typeof LIVE)[number]);
     const { host } = await open(front(GRANTED));
     await flush(() => strip(host).length > 0);
     expect(strip(host)).toEqual(["Sales dashboard and checkout", "Transit light-curve analysis"]);
-    LIVE.pop();
+    LIVE.splice(-2);
   });
 
   test("a conversation read anywhere drops off the strip", async () => {

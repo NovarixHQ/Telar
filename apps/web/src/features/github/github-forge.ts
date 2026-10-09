@@ -1,4 +1,5 @@
 import type {
+  GitHubLineCommentRefusal,
   GitHubCheck,
   GitHubComment,
   GitHubDetailUnavailable,
@@ -406,6 +407,13 @@ export const THREAD_REFUSAL: Record<GitHubThreadRefusal, string> = {
   not_found: "That thread is gone from GitHub. Refresh to see what is there now.",
   invalid_body: "A reply needs something in it, and at most 65,536 characters.",
   failed: "GitHub did not take that.",
+};
+
+export const LINE_COMMENT_REFUSAL: Record<GitHubLineCommentRefusal, string> = {
+  ...THREAD_REFUSAL,
+  not_found: "This branch has no open pull request any more. Refresh to see what is there now.",
+  invalid_body: "A comment needs something in it, and at most 65,536 characters.",
+  stale: "The branch moved after this diff was read. Refresh and select the lines again.",
 };
 
 export async function applyThreadResolve(input: {

@@ -1,10 +1,11 @@
 import { useNavigation, type NavigationProp } from "@react-navigation/native";
 import type { NativeStackHeaderItem, NativeStackHeaderItemButton, NativeStackNavigationOptions } from "@react-navigation/native-stack";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Alert, useColorScheme } from "react-native";
 import type { Session } from "@telar/engine-client";
 import type { HostConnection } from "../../platform/connection";
 import { useSplitColumn } from "../../platform/layout";
+import { isMuted, toggleMute } from "../push";
 import type { RootStack } from "../../platform/navigation/routes";
 import { palette, Theme } from "../../ui";
 
@@ -22,6 +23,10 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
   panel.current = openPanel;
   const { split } = useSplitColumn();
   const canvas = palette.canvas[useColorScheme() === "dark" ? "dark" : "light"];
+  const hostId = host?.hostId;
+  const [muted, setMuted] = useState<{ key: string; muted: boolean }>();
+  const muteKey = `${hostId}/${sessionId}`;
+  const quiet = hostId ? (muted?.key === muteKey ? muted.muted : isMuted({ hostId, sessionId })) : false;
 
   useLayoutEffect(() => {
     const update = (patch: Parameters<HostConnection["client"]["updateSession"]>[1]) => {
@@ -43,7 +48,18 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
           menu: {
             title,
             items: [
-              { type: "submenu", label: "Edit", inline: true, items: [{ type: "action", label: "Rename", icon: symbol("pencil"), onPress: rename }] },
+              {
+                type: "submenu",
+                label: "Edit",
+                inline: true,
+                items: [
+                  { type: "action", label: "Rename", icon: symbol("pencil"), onPress: rename },
+                  ...(hostId && session ? [{ type: "action" as const, label: quiet ? "Unmute notifications" : "Mute notifications", icon: symbol("bell.slash"), onPress: () => {
+                    setMuted({ key: muteKey, muted: !quiet });
+                    void toggleMute({ hostId, sessionId });
+                  } }] : []),
+                ],
+              },
               { type: "submenu", label: "Panel", inline: true, items: [{ type: "action", label: "Diff", icon: symbol("plusminus"), onPress: () => panel.current("diff") }] },
               {
                 type: "submenu",
@@ -57,5 +73,5 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
       ],
     };
     navigation.setOptions(options);
-  }, [navigation, host, sessionId, title, settled, split, canvas]);
+  }, [navigation, host, sessionId, title, settled, split, canvas, quiet, session === undefined]);
 }

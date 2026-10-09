@@ -1,2 +1,2 @@
 export { startLiveActivityCard } from "./live-activity";
-export { launchLink, onNotificationLink, setVisibleSession, startPush } from "./notifications";
+export { isMuted, launchLink, onNotificationLink, setVisibleSession, startPush, toggleMute } from "./notifications";

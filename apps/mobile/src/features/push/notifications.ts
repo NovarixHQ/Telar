@@ -10,6 +10,7 @@ import type { HostConnection } from "../../platform/connection";
 import { hosts } from "../hosts";
 import { appSettings } from "../settings";
 import { alertsToRemove, approvalOf, pairedHostOf, pushHostId, readsOf, reconcileQueries, sessionLink, sessionOfUrl, type DeliveredAlert, type SessionRef } from "./payload";
+import { isMutedIn, MUTED_KEY, mutedList, mutedSessionsOf, toggledMute } from "./mute";
 import { PushRelay, RELAY_URL, type RelayState } from "./relay";
 import { PushSync } from "./registration";
 
@@ -47,6 +48,7 @@ const registry = new PushSync({
   simulator: !isDevice,
   hosts: () => hosts.list().map((host) => ({ hostId: pushHostId(host.hostId), name: host.name, register: (body) => host.request("PUT", "/v2/mobile/push", body) })),
   prefs: () => appSettings.current,
+  muted: (hostId) => mutedSessionsOf(mutedList(Settings.get(MUTED_KEY)), hostId),
   allowed,
   card: () => {
     const token = liveActivity?.card()?.token;
@@ -147,6 +149,14 @@ export function onNotificationLink(listener: (url: string) => void): () => void 
     if (approval) void approve(approval.hostId, approval.sessionId, approval.requestId);
   });
   return () => subscription.remove();
+}
+
+export const isMuted = (ref: SessionRef) => isMutedIn(mutedList(Settings.get(MUTED_KEY)), ref);
+
+/** Mutes or unmutes one session's alerts, then tells its computer. */
+export function toggleMute(ref: SessionRef): Promise<void> {
+  Settings.set({ [MUTED_KEY]: toggledMute(mutedList(Settings.get(MUTED_KEY)), ref) });
+  return registry.sync();
 }
 
 /** The session on screen: its alerts are cleared and new ones for it stay quiet. */

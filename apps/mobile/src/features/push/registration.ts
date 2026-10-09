@@ -27,6 +27,8 @@ export type PushSyncDeps = {
   simulator: boolean;
   hosts(): PushHost[];
   prefs(): PushPrefs;
+  /** The sessions this host must not alert about. */
+  muted(hostId: string): string[];
   allowed(): Promise<boolean>;
   /** Whether this phone can show a Live Activity, and the running card's push token if there is one. */
   card(): { enabled: boolean; token?: string };
@@ -88,7 +90,7 @@ export class PushSync {
         completions: prefs.completions,
         previews: prefs.previews,
         sounds: prefs.sound,
-        mutedSessions: [],
+        mutedSessions: this.deps.muted(host.hostId),
         liveActivities: prefs.liveActivity && card.enabled,
         hostName: host.name,
         ...(relay ? { relay } : {}),

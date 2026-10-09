@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, type ComponentProps, type RefObject } from "react";
+import { useMemo, type ComponentProps, type RefObject } from "react";
 import { ClockIcon, TriangleAlertIcon } from "lucide-react";
 import { workspacePath, type EngineRequest, type SessionChild } from "@telar/engine-client";
 import type { JournalTurn } from "@telar/client/journal";
@@ -14,7 +14,7 @@ import type { useTranscriptModel } from "../hooks/use-transcript-model";
 import { markerRowOf, transcriptRows } from "../model";
 import { SessionProblem } from "./masthead";
 import { ReadReceiptMarker, type useReadReceipt } from "./read-receipt";
-import { EmptyTranscript, SessionTurn, TurnFrame } from "./session-turn";
+import { EmptyTranscript, SessionTurn, TurnRow } from "./session-turn";
 import { useSessionDirectory } from "../hooks/use-session-directory";
 import { useForkReply } from "../hooks/use-fork-reply";
 import { mentionedSessions, TranscriptTurns, type TurnView } from "./transcript-turns";
@@ -48,27 +48,29 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   const fork = useForkReply(sessionId, props.hostId, sync.setError);
   const transcriptSource = useMemo(() => (sessionId ? { sessionId, hostId: props.hostId, ...(driver ? { driver } : {}) } : undefined), [sessionId, props.hostId, driver]);
   const turnRow = (turn: JournalTurn, { peerTitle, builders }: TurnView) => (
-    <Fragment key={turn.runId}>
-      <TurnFrame skippable={turn.runId !== active?.runId}>
-        <SessionTurn
-          turn={turn}
-          live={turn.runId === active?.runId}
-          {...(peerTitle ? { peerTitle } : {})}
-          {...(builders ? { builders } : {})}
-          requests={openRequests.filter((request) => hostRun(request) === turn.runId && request.id !== composerQuestion?.id)}
-          awaiting={openRequests.some((request) => hostRun(request) === turn.runId)}
-          {...props.turn}
-          {...(turn.failureCode === "rate_limited" && turn.state === "failed" ? { onResumeNow: () => props.onResumeNow(turn.runId) } : {})}
-        />
-      </TurnFrame>
-      {newestResultRunId && turn.runId === markerRow && <ReadReceiptMarker markerRef={receipt.markerRef} />}
-    </Fragment>
+    <TurnRow
+      key={turn.runId}
+      turn={turn}
+      skippable={turn.runId !== active?.runId}
+      marker={newestResultRunId && turn.runId === markerRow ? <ReadReceiptMarker markerRef={receipt.markerRef} /> : undefined}
+    >
+      <SessionTurn
+        turn={turn}
+        live={turn.runId === active?.runId}
+        {...(peerTitle ? { peerTitle } : {})}
+        {...(builders ? { builders } : {})}
+        requests={openRequests.filter((request) => hostRun(request) === turn.runId && request.id !== composerQuestion?.id)}
+        awaiting={openRequests.some((request) => hostRun(request) === turn.runId)}
+        {...props.turn}
+        {...(turn.failureCode === "rate_limited" && turn.state === "failed" ? { onResumeNow: () => props.onResumeNow(turn.runId) } : {})}
+      />
+    </TurnRow>
   );
   return (
     // `display: contents`: a click boundary, never a layout box.
     <div className="contents" aria-busy={sync.updating || undefined} onClickCapture={props.onConversationClick}>
       <ConversationViewport className="min-w-0 flex-1" conversation={sync.syncKey} landed={sync.transcriptLanded} followRef={props.follow}>
-        <ConversationContent>
+        <ConversationContent className="gap-3">
           {props.projectId !== session?.projectId && session && (
             <Alert variant="destructive" className="mx-auto max-w-(--chat-content-max-width)">
               <TriangleAlertIcon />

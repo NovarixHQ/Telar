@@ -18,6 +18,7 @@ import {
   splitAtMessageBoundaries,
   TranscriptItem,
   turnActivity,
+  typedOpening,
   TurnFailureRow,
   TurnWork,
   WorkingIndicator,
@@ -343,7 +344,7 @@ function TurnOpening({
   const finished = useAgentsFinished(turn);
   return (
     <>
-      {turn.kind !== "import" && turn.origin !== "provider" && turn.origin !== "session" && turn.origin !== "restart" && (
+      {typedOpening(turn) && (
         // `markdown={false}`: the typed draft is not Markdown, so "Copy as Markdown" would mislabel it.
         <MessageMenu text={turn.prompt} markdown={false} {...(onInsert ? { onQuote: onInsert } : {})}>
           <div className="group/message">
@@ -403,6 +404,15 @@ export function TurnFrame({ skippable, children }: { skippable: boolean; childre
     element.style.setProperty("contain-intrinsic-size", `auto ${measured}px`);
   }, [skippable]);
   return <div ref={frame}>{children}</div>;
+}
+
+export function TurnRow({ turn, skippable, marker, children }: { turn: JournalTurn; skippable: boolean; marker?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className={cn("relative", typedOpening(turn) && "not-first:pt-5")}>
+      <TurnFrame skippable={skippable}>{children}</TurnFrame>
+      {marker}
+    </div>
+  );
 }
 
 export function EmptyTranscript({ loading }: { loading: boolean }) {

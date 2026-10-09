@@ -92,5 +92,5 @@ export function useReadReceipt(hostId: string, sessionId: string | undefined, { 
 }
 
 export function ReadReceiptMarker({ markerRef }: { markerRef: (node: HTMLElement | null) => void }) {
-  return <div ref={markerRef} aria-hidden className="h-px w-full shrink-0" data-read-receipt-marker="" />;
+  return <div ref={markerRef} aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-px" data-read-receipt-marker="" />;
 }

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { buildFileTree, directoryPaths, fileGlyph, flattenTree, matchFiles, MAX_SEARCH_MATCHES } from "./tree";
+import { buildFileTree, directoryPaths, fileGlyph, fileKind, flattenTree, matchFiles, MAX_SEARCH_MATCHES } from "./tree";
 
 const paths = ["README.md", "src/b.ts", "src/a10.ts", "src/a2.ts", "apps/web/src/page.tsx", "apps/web/next.config.js"];
 
@@ -34,4 +34,11 @@ test("a freshly read checkout shows only the root's top level until a folder is 
   const rows = flattenTree(buildFileTree(paths), new Set());
   expect(rows.every((row) => row.depth === 0)).toBe(true);
   expect(rows.map((row) => row.node.name)).toEqual(["apps/web", "src", "README.md"]);
+});
+
+test("a file opens in the viewer its extension calls for", () => {
+  expect(["notes.md", "README.TXT", "docs/guide.rst"].map(fileKind)).toEqual(["prose", "prose", "prose"]);
+  expect(["shot.PNG", "a/photo.jpeg", "clip.gif", "pic.heic"].map(fileKind)).toEqual(["image", "image", "image", "image"]);
+  expect(fileKind("paper/main.pdf")).toBe("pdf");
+  expect(["src/app.ts", "Makefile", "data.csv", "image.svg"].map(fileKind)).toEqual(["code", "code", "code", "code"]);
 });

@@ -77,3 +77,16 @@ test("filling the window opens the panel, survives a relaunch and ends when the 
   panel.open();
   expect(panel.state().fullScreen).toBe(false);
 });
+
+test("a reference and a file to open wait for whoever takes them, and are never saved", () => {
+  const storage = memory();
+  const panel = createPanelModel(KEY, storage);
+  panel.insertReference("`src/app.ts`");
+  panel.openFile("src/app.ts");
+  expect(panel.state()).toMatchObject({ isOpen: true, tabs: ["editor"], active: "editor", reference: "`src/app.ts`", opening: "src/app.ts" });
+  expect(createPanelModel(KEY, storage).state()).toEqual({ isOpen: true, fullScreen: false, tabs: ["editor"], active: "editor" });
+  panel.clearReference();
+  panel.clearOpening();
+  expect(panel.state().reference).toBeUndefined();
+  expect(panel.state().opening).toBeUndefined();
+});

@@ -1,12 +1,14 @@
-import { Button, ContextMenu, HStack, Host, Text as SwiftText } from "@expo/ui/swift-ui";
-import { buttonStyle, disabled, monospacedDigit, padding } from "@expo/ui/swift-ui/modifiers";
+import { Button, ContextMenu, Divider, HStack, Host, Text as SwiftText } from "@expo/ui/swift-ui";
+import { buttonStyle, monospacedDigit, padding } from "@expo/ui/swift-ui/modifiers";
 import type { GitCommitEntry, GitFileChange, SessionDiff } from "@telar/engine-client";
-import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TurboModuleRegistry, View, type TurboModule } from "react-native";
 import type { HostConnection } from "../../platform/connection";
 import { bandCaption, EmptyState, faded } from "../../ui";
+import { useFeed } from "../transcript";
 import { DiffCommitRow, DiffFileRow, DiffSummary } from "./DiffRows";
 import { PatchBody } from "./PatchBody";
+import { diffRevision } from "./revision";
 import { diffNotes, fileLine } from "./summary";
 
 type Item =
@@ -17,6 +19,9 @@ type Item =
   | { key: string; type: "commit"; commit: GitCommitEntry };
 
 const clipboard = TurboModuleRegistry.get<TurboModule & { setString(text: string): void }>("Clipboard");
+const SETTLE_MS = 400;
+
+type FileActions = { onOpenFile?: ((path: string) => void) | undefined; onReference?: ((path: string) => void) | undefined };
 
 /** A SwiftUI row inside the list; the list mounts only the rows near the screen, so only those pay for a host. */
 const SwiftRow = ({ children, separator }: { children: ReactNode; separator?: boolean }) => (
@@ -26,13 +31,19 @@ const SwiftRow = ({ children, separator }: { children: ReactNode; separator?: bo
   </View>
 );
 
-const FileRow = memo(function FileRow({ file, open, onToggle, onOpenFile }: { file: GitFileChange; open: boolean; onToggle: (path: string) => void; onOpenFile?: (path: string) => void }) {
+const FileRow = memo(function FileRow({ file, open, onToggle, onOpenFile, onReference }: { file: GitFileChange; open: boolean; onToggle: (path: string) => void } & FileActions) {
   return (
     <SwiftRow separator>
       <ContextMenu modifiers={[padding({ horizontal: 16 })]}>
         <ContextMenu.Items>
-          {file.status === "deleted" ? null : <Button label="Open in Editor" systemImage="sidebar.trailing" onPress={() => onOpenFile?.(file.path)} modifiers={onOpenFile ? [] : [disabled(true)]} />}
+          {onOpenFile && file.status !== "deleted" ? (
+            <>
+              <Button label="Open in Editor" systemImage="sidebar.trailing" onPress={() => onOpenFile(file.path)} />
+              <Divider />
+            </>
+          ) : null}
           {clipboard ? <Button label="Copy path" systemImage="doc.on.doc" onPress={() => clipboard.setString(file.path)} /> : null}
+          {onReference ? <Button label="Insert as reference" systemImage="text.badge.plus" onPress={() => onReference(file.path)} /> : null}
         </ContextMenu.Items>
         <ContextMenu.Trigger>
           <Button onPress={() => onToggle(file.path)} modifiers={[buttonStyle("plain")]}>
@@ -55,8 +66,8 @@ function items(diff: SessionDiff, collapsed: ReadonlySet<string>): Item[] {
   return list;
 }
 
-/** What a session changed: a summary, each file's patch, and its commits. Pull to read it again. */
-export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnection; sessionId: string; onOpenFile?: (path: string) => void }) {
+/** What a session changed: a summary, each file's patch, and its commits. Read again as the agent's edits and commands finish, or on a pull. */
+export function DiffSurface({ host, sessionId, onOpenFile, onReference }: { host: HostConnection; sessionId: string } & FileActions) {
   const [diff, setDiff] = useState<SessionDiff>();
   const [failed, setFailed] = useState<string>();
   const [generation, setGeneration] = useState(0);
@@ -73,9 +84,17 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
     }
   }, [host, sessionId]);
 
+  const revision = diffRevision(useFeed(host, sessionId).turns);
+  const loaded = useRef(false);
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!loaded.current) {
+      loaded.current = true;
+      void load();
+      return;
+    }
+    const timer = setTimeout(() => void load(), SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [load, revision]);
 
   const toggle = useCallback((path: string) => {
     setCollapsed((current) => {
@@ -97,7 +116,7 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
             </SwiftRow>
           );
         case "file":
-          return <FileRow file={item.file} open={item.open} onToggle={toggle} {...(onOpenFile ? { onOpenFile } : {})} />;
+          return <FileRow file={item.file} open={item.open} onToggle={toggle} onOpenFile={onOpenFile} onReference={onReference} />;
         case "patch":
           return (
             <View style={styles.patch}>
@@ -123,7 +142,7 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
           );
       }
     },
-    [diff, generation, host, sessionId, toggle, onOpenFile],
+    [diff, generation, host, sessionId, toggle, onOpenFile, onReference],
   );
 
   if (failed && !diff) return <EmptyState icon="xmark.circle" title="Could not load changes" detail={failed} />;

@@ -1,4 +1,4 @@
-import { Button, Circle, ContextMenu, HStack, Host, Spacer, Text as SwiftText, TextField } from "@expo/ui/swift-ui";
+import { Button, Circle, ContextMenu, Divider, HStack, Host, Spacer, Text as SwiftText, TextField } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   autocorrectionDisabled,
@@ -17,18 +17,15 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import type { GitChangeStatus, WorkspaceListing } from "@telar/engine-client";
 import { memo, useCallback, useMemo } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TurboModuleRegistry, View, type TurboModule } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState, faded, Icon, Theme } from "../../ui";
+import { CopyPathItems, ReferenceItem } from "./address-row";
 import { buildFileTree, directoryPaths, fileGlyph, flattenTree, matchFiles, MAX_SEARCH_MATCHES, statusMark, type FileRow } from "./tree";
 
-const clipboard = TurboModuleRegistry.get<TurboModule & { setString(text: string): void }>("Clipboard");
+type RowProps = { row: FileRow; open: boolean; active: boolean; status?: GitChangeStatus | undefined; dirty: boolean; root?: string | undefined; onPress: (row: FileRow) => void; onReference?: ((path: string) => void) | undefined };
 
-const absolutePath = (root: string, path: string) => `${root.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
-
-type RowProps = { row: FileRow; open: boolean; active: boolean; status?: GitChangeStatus | undefined; dirty: boolean; root?: string | undefined; onPress: (row: FileRow) => void };
-
-const TreeRow = memo(function TreeRow({ row, open, active, status, dirty, root, onPress }: RowProps) {
+const TreeRow = memo(function TreeRow({ row, open, active, status, dirty, root, onPress, onReference }: RowProps) {
   const { node, depth } = row;
   const mark = status ? statusMark(status) : undefined;
   const label = (
@@ -60,14 +57,15 @@ const TreeRow = memo(function TreeRow({ row, open, active, status, dirty, root, 
   );
   return (
     <Host matchContents={{ vertical: true }}>
-      {node.children || !clipboard ? (
+      {node.children ? (
         label
       ) : (
         <ContextMenu>
           <ContextMenu.Items>
             <Button label="Open" systemImage="doc" onPress={() => onPress(row)} />
-            {root ? <Button label="Copy path" systemImage="doc.on.doc" onPress={() => clipboard.setString(absolutePath(root, node.path))} /> : null}
-            <Button label="Copy relative path" systemImage="doc.on.doc" onPress={() => clipboard.setString(node.path)} />
+            <Divider />
+            <CopyPathItems path={node.path} root={root} />
+            <ReferenceItem path={node.path} onReference={onReference} />
           </ContextMenu.Items>
           <ContextMenu.Trigger>{label}</ContextMenu.Trigger>
         </ContextMenu>
@@ -87,6 +85,7 @@ type Props = {
   onToggle: (path: string) => void;
   onOpen: (path: string) => void;
   onRefresh: () => void;
+  onReference?: ((path: string) => void) | undefined;
 };
 
 function foot(listing: WorkspaceListing, dropped: number): string {
@@ -95,7 +94,7 @@ function foot(listing: WorkspaceListing, dropped: number): string {
 }
 
 /** The checkout as a folding tree with a search field; a search opens every folder it matches in. */
-export function FileTree({ listing, error, statuses, query, expanded, activePath, onQuery, onToggle, onOpen, onRefresh }: Props) {
+export function FileTree({ listing, error, statuses, query, expanded, activePath, onQuery, onToggle, onOpen, onRefresh, onReference }: Props) {
   const tree = useMemo(() => buildFileTree(listing?.files ?? []), [listing]);
   const { rows, open, dropped } = useMemo(() => {
     const { matches, dropped } = matchFiles(listing?.files ?? [], query);
@@ -121,9 +120,10 @@ export function FileTree({ listing, error, statuses, query, expanded, activePath
         dirty={!!item.node.children && dirtyDirs.has(item.node.path)}
         root={listing?.workspacePath}
         onPress={press}
+        onReference={onReference}
       />
     ),
-    [open, activePath, statuses, dirtyDirs, listing, press],
+    [open, activePath, statuses, dirtyDirs, listing, press, onReference],
   );
 
   return (

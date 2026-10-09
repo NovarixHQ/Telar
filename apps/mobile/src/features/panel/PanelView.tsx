@@ -1,5 +1,6 @@
 import { Button, Divider, HStack, Host, Spacer, VStack } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, contentShape, foregroundStyle, frame, padding, shapes } from "@expo/ui/swift-ui/modifiers";
+import { fileReference } from "@telar/client/composer";
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
@@ -13,17 +14,19 @@ import type { PanelModel, PanelState } from "./model";
 import { PanelEmptyState } from "./PanelEmptyState";
 import { PanelTabStrip } from "./PanelTabStrip";
 import { SessionSurface } from "./session/SessionSurface";
-import { CORE_TABS, type PanelTab } from "./tabs";
+import { CORE_TABS } from "./tabs";
 
 type PanelPresentation = "page" | "column";
 
 type Props = { host: HostConnection; sessionId: string; panel: PanelModel; state: PanelState; presentation?: PanelPresentation; onClose: () => void };
 
-function Surface({ host, sessionId, active, panel }: { host: HostConnection; sessionId: string; active: PanelTab | undefined; panel: PanelModel }) {
-  if (active === "diff") return <DiffSurface host={host} sessionId={sessionId} />;
+function Surface({ host, sessionId, state, panel }: { host: HostConnection; sessionId: string; state: PanelState; panel: PanelModel }) {
+  const { active } = state;
+  const reference = (path: string) => panel.insertReference(fileReference(path).text);
+  if (active === "diff") return <DiffSurface host={host} sessionId={sessionId} onOpenFile={panel.openFile} onReference={reference} />;
   if (active === "simulator") return <SimulatorSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "terminal") return <TerminalSurface host={host} sessionId={sessionId} />;
-  if (active === "editor") return <FilesSurface key={sessionId} host={host} sessionId={sessionId} />;
+  if (active === "editor") return <FilesSurface key={sessionId} host={host} sessionId={sessionId} opening={state.opening} onOpened={panel.clearOpening} onReference={reference} />;
   if (active === "browser") return <BrowserSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "agents") return <SessionSurface key={sessionId} host={host} sessionId={sessionId} />;
   return (
@@ -65,7 +68,7 @@ export const PanelView = memo(function PanelView({ host, sessionId, panel, state
           <Divider modifiers={[foregroundStyle(faded("border", 0.6))]} />
         </VStack>
       </Host>
-      <Surface host={host} sessionId={sessionId} active={state.active} panel={panel} />
+      <Surface host={host} sessionId={sessionId} state={state} panel={panel} />
     </View>
   );
 });

@@ -7,6 +7,7 @@ export { turnRoutes, workerRoutes } from "./routes";
 export { sessionTurnRoutes } from "./session-routes";
 export { MAX_TEXT_LENGTH, TurnIntake } from "./intake";
 export { type StoppedClaim, TurnLifecycle } from "./lifecycle";
+export { QueuedTurns } from "./queued";
 export { TurnIngest } from "./ingest";
 export { isLiveTask, TurnClaims } from "./claims";
 export { TurnRecovery } from "./recovery";

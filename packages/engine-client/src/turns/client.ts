@@ -78,6 +78,14 @@ export const turnsClient = {
     return this.request("POST", `${turnPath(sessionId, runId)}/promote`, {});
   },
 
+  editQueuedTurn(this: EngineTransport, sessionId: string, runId: string, input: string): Promise<{ turn: Turn }> {
+    return this.request("POST", `${turnPath(sessionId, runId)}/edit`, { input });
+  },
+
+  moveQueuedTurn(this: EngineTransport, sessionId: string, runId: string, beforeRunId: string | null): Promise<{ turn: Turn }> {
+    return this.request("POST", `${turnPath(sessionId, runId)}/move`, { beforeRunId });
+  },
+
   ackSteer(this: EngineTransport, sessionId: string, steerRunId: string, claimToken: string): Promise<{ turn: Turn }> {
     return this.request("POST", `${turnPath(sessionId, steerRunId)}/steer-ack`, { claimToken });
   },

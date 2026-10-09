@@ -21,9 +21,13 @@ export type AgentOrientation = z.infer<typeof AgentOrientation>;
 
 export const DEFAULT_AGENT_ORIENTATION: AgentOrientation = { preamble: true, skill: true };
 
+export const WhileWorking = z.enum(["steer", "queue"]);
+export type WhileWorking = z.infer<typeof WhileWorking>;
+
 export const SessionDefaults = z.object({
   envMode: EnvMode,
   resumeAfterRestart: z.boolean().optional(),
+  whileWorking: WhileWorking.optional(),
   /** Absent keeps the posture's own default; a creator's ceiling still narrows it. */
   runtimeMode: RuntimeMode.optional(),
   defaultModel: ModelSelection.optional(),
@@ -34,6 +38,7 @@ export type SessionDefaults = z.infer<typeof SessionDefaults>;
 export type SessionDefaultsPatch = {
   envMode?: EnvMode;
   resumeAfterRestart?: boolean;
+  whileWorking?: WhileWorking;
   runtimeMode?: RuntimeMode | null;
   defaultModel?: ModelSelection | null;
 };

@@ -37,6 +37,10 @@ export class SessionTasks {
     this.kernel.writeDocument(tasksFile(this.kernel.paths, sessionId), { version: STATE_VERSION, tasks: [...tasks.values()] });
   }
 
+  hasLiveBackground(sessionId: string): boolean {
+    return [...this.read(sessionId).values()].some((task) => isBackgroundWork(task) && (task.state === "pending" || task.state === "running" || task.state === "waiting"));
+  }
+
   /** A turn that ended takes its sub-agents with it; background work outlives its turn and is left alone. */
   closeOrphaned(sessionId: string, runId: string, at: number, failure: string): void {
     this.closeLive(sessionId, at, failure, { runId, includeBackground: false });

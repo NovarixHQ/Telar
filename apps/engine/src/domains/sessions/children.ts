@@ -29,6 +29,7 @@ type ChildrenHost = {
   runItems(sessionId: string, runId: string): Item[];
   hasScheduledWake(sessionId: string): boolean;
   waitsOnSubscription(sessionId: string): boolean;
+  hasBackgroundWork(sessionId: string): boolean;
   announce(parentSessionId: string, notification: NotificationDetail): void;
 };
 
@@ -186,12 +187,13 @@ export class SessionChildren {
     return latest ? { sessionId, runId: latest.runId } : undefined;
   }
 
-  /** Telar will run this session again: a turn is waiting, a schedule is set, or it waits on sessions of its own. */
+  /** Telar will run this session again: a turn is waiting, a schedule is set, it waits on sessions of its own, or work it started in the background will wake it. */
   private runsAgain(sessionId: string, endedRunId: string, turns: Turn[]): boolean {
     return turns.some((turn) => turn.runId !== endedRunId && turn.agentDelivery !== "passive" && !ENDED_TURN_STATES.has(turn.state))
       || this.host.hasScheduledWake(sessionId)
       || this.storedOf(sessionId).some(pending)
-      || this.host.waitsOnSubscription(sessionId);
+      || this.host.waitsOnSubscription(sessionId)
+      || this.host.hasBackgroundWork(sessionId);
   }
 
   private update(match: (child: StoredChild) => boolean, change: (child: StoredChild) => StoredChild): void {

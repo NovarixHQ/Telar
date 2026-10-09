@@ -5,6 +5,7 @@ export { RunRow } from "./components/run-row";
 export { useCanOpenShells } from "./hooks/use-can-open-shells";
 export { GroupedTerminalSurface } from "./components/grouped-terminal-surface";
 export { TerminalSurface } from "./components/terminal-surface";
+export { TerminalPreview } from "./components/terminal-preview";
 export { openTerminal, revealGroupedTerminal, revealTerminal, startedCommand, syncGroupedRuns, syncRunTabs } from "./reveal";
 export { isOpenTerminal, statusLabel } from "./run/presentation";
 export { createRunApi, type RunApi } from "./run/api";

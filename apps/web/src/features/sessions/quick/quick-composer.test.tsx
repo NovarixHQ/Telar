@@ -53,6 +53,7 @@ function fakeBridge(context: FrontContext | null) {
   const sent: Parameters<QuickComposerBridge["sent"]>[0][] = [];
   const settings: Permission[] = [];
   let closed = 0;
+  let held = 0;
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
@@ -65,8 +66,9 @@ function fakeBridge(context: FrontContext | null) {
       return () => {};
     },
     openSettings: async (permission) => void settings.push(permission),
+    hold: () => void (held += 1),
   };
-  return { bridge, sent, settings, closed: () => closed, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
 const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", screenshot: null, permissions, grantee: "Telar Dev", ...extra });
@@ -183,6 +185,19 @@ describe("the quick composer", () => {
     const hint = host.querySelector('[data-slot="quick-hint"]')!;
     expect(hint.textContent).toBe("↵ send · ⌘↵ send & open · esc close");
     expect(editor(host).compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test("names its destination once, in the chip, with no strip under the card", async () => {
+    const { host } = await open(front(GRANTED));
+    expect(host.querySelectorAll('[aria-label="Project"]')).toHaveLength(1);
+    expect(host.querySelector('[data-slot="composer-foot"]')?.textContent ?? "").not.toContain("Telar");
+  });
+
+  test("opening the file picker keeps it up while the picker has focus", async () => {
+    const { host, held } = await open(front(GRANTED));
+    const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+    await act(async () => input.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+    expect(held()).toBe(1);
   });
 
   test("Esc hides it", async () => {

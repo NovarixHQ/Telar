@@ -13,7 +13,7 @@ export type ComposerProps = {
   attachments: File[];
   /** Takes the whole new list. */
   onAttach: (files: File[]) => void;
-  /** No session yet: the pills choose what the first message creates; unless `compact`, a greeting and the card fill the screen. */
+  /** No session yet: the pills choose what the first message creates; unless `compact`, a greeting, the card and the destination strip fill the screen. */
   fresh?: boolean;
   compact?: boolean;
   leading?: ReactNode;

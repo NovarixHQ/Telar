@@ -1490,6 +1490,10 @@ html:has([data-surface="quick"]),
 html:has([data-surface="quick"]) body {
   background: transparent !important;
 }
+[data-surface="quick"] [data-slot="input-group"] {
+  background-color: var(--popover);
+  backdrop-filter: none;
+}
 [data-telar-shell] [data-surface="quick"] :is([data-slot="input-group-addon"][data-align="block-end"], [data-slot="quick-hint"]) {
   -webkit-app-region: drag;
 }

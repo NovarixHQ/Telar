@@ -23,7 +23,7 @@ function PermissionNotice({ bridge, context }: { bridge: QuickComposerBridge; co
     setSkipped(true);
   };
   return (
-    <div role="note" className="mx-4 flex flex-col gap-1 rounded-xl border border-border/80 bg-card/95 p-2 pl-3 text-xs shadow-2 backdrop-blur-xl">
+    <div role="note" className="mx-4 flex flex-col gap-1 rounded-xl border border-border/80 bg-popover p-2 pl-3 text-xs text-popover-foreground shadow-2">
       <div className="flex items-center gap-2">
         <ShieldAlertIcon className="size-4 shrink-0 text-muted-foreground" />
         <p className="min-w-0 flex-1 truncate">Allow “{context.grantee}” to attach what you’re looking at. The composer works without it.</p>
@@ -48,6 +48,10 @@ function PermissionNotice({ bridge, context }: { bridge: QuickComposerBridge; co
   );
 }
 
+function holdForFilePicker(event: { target: EventTarget }, bridge: QuickComposerBridge | undefined) {
+  if (event.target instanceof HTMLInputElement && event.target.type === "file") bridge?.hold();
+}
+
 function useReportHeight(bridge: QuickComposerBridge | undefined) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -63,7 +67,7 @@ function useReportHeight(bridge: QuickComposerBridge | undefined) {
 function ProjectChip({ quick }: { quick: ReturnType<typeof useQuickComposer> }) {
   return (
     <Select value={quick.projectId ?? null} onValueChange={(next) => next && quick.setProjectId(next)}>
-      <SelectTrigger size="sm" className="h-7 shrink-0 gap-1 rounded-full border-border/60 px-2.5 text-xs" aria-label="Project">
+      <SelectTrigger size="sm" className="h-7 min-w-0 max-w-40 gap-1 rounded-full border-border/60 px-2.5 text-xs" aria-label="Project">
         <FolderIcon className="size-3.5 text-muted-foreground" />
         <SelectValue placeholder="Choose a project">{quick.project?.name ?? quick.projectId}</SelectValue>
       </SelectTrigger>
@@ -93,7 +97,7 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
   return (
     <div ref={root} data-surface="quick" className="flex flex-col gap-1 pt-2 pb-3">
       {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
-      <div onKeyDownCapture={quick.noteKey} onPointerDownCapture={quick.forgetKey}>
+      <div onKeyDownCapture={quick.noteKey} onPointerDownCapture={quick.forgetKey} onClickCapture={(event) => holdForFilePicker(event, bridge)}>
         <Composer
           draft={quick.text}
           ready={projectId !== undefined}
@@ -123,8 +127,8 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
           onModelChange={draft.chooseModel}
         />
       </div>
-      {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-card/95 px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
-      <footer data-slot="quick-hint" className="mx-auto w-fit rounded-full bg-card/80 px-2.5 py-0.5 text-2xs text-muted-foreground shadow-1 backdrop-blur-xl">
+      {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-popover px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
+      <footer data-slot="quick-hint" className="mx-auto w-fit rounded-full bg-popover px-2.5 py-0.5 text-2xs text-muted-foreground shadow-1">
         ↵ send · ⌘↵ send &amp; open · esc close
       </footer>
     </div>

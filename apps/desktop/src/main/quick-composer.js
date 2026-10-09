@@ -3,9 +3,9 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, Notification, screen, shell } = require("electron");
 const { cockpitWindowOptions } = require("./cockpit-window");
 const { jsonPrefs } = require("./prefs");
-const { permissions, readFrontContext, requestPermissions, settingsFor } = require("./front-context");
+const { openSettings, permissions, readFrontContext, requestPermissions } = require("./front-context");
 
-const WIDTH = 620;
+const WIDTH = 680;
 const MAX_HEIGHT = 640;
 
 const isSpot = (spot) => Number.isFinite(spot?.x) && Number.isFinite(spot?.y);
@@ -61,6 +61,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   let chord = "";
   let suspended = false;
   let latest = null;
+  let holding = false;
 
   const panel = () => {
     if (win && !win.isDestroyed()) return win;
@@ -68,7 +69,11 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     win.setAlwaysOnTop(true, "floating");
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
     win.on("moved", () => remember(win));
-    win.on("focus", () => win.webContents.send("telar:quick-composer:permissions", permissions()));
+    win.on("focus", () => {
+      holding = false;
+      win.webContents.send("telar:quick-composer:permissions", permissions());
+    });
+    win.on("blur", () => holding || hide());
     win.loadURL(new URL("/surface/quick", appUrl).href);
     return win;
   };
@@ -111,9 +116,9 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     if (!fromPanel(event) || !Number.isFinite(height)) return;
     win.setContentSize(WIDTH, Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height))));
   });
-  ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => {
-    const url = settingsFor(permission);
-    if (fromPanel(event) && url) return shell.openExternal(url);
+  ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
+  ipcMain.on("telar:quick-composer:hold", (event) => {
+    if (fromPanel(event)) holding = true;
   });
   ipcMain.handle("telar:quick-composer:sent", (event, { route, title, detail, open } = {}) => {
     if (!fromPanel(event) || typeof route !== "string" || !route.startsWith("/")) return;

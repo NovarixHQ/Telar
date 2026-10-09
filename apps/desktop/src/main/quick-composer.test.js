@@ -84,7 +84,7 @@ describe("the window", () => {
   test("opens where it was last dragged on that display", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    expect(panel().getPosition()).toEqual([410, 200]);
+    expect(panel().getPosition()).toEqual([380, 200]);
     panel().setPosition(120, 600);
     panel().emit("moved");
     await press("Alt+Space");
@@ -100,7 +100,25 @@ describe("the window", () => {
     panel().emit("moved");
     await press("Alt+Space");
     await press("Alt+Space");
-    expect(panel().getPosition()).toEqual([410, 200]);
+    expect(panel().getPosition()).toEqual([380, 200]);
+  });
+
+  test("clicking anywhere else hides it", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    panel().emit("blur");
+    expect(panel().isVisible()).toBe(false);
+  });
+
+  test("a file picker it opened does not hide it, and the next blur after it closes does", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    electron.ipcMain.send("telar:quick-composer:hold", eventFrom(panel()));
+    panel().emit("blur");
+    expect(panel().isVisible()).toBe(true);
+    panel().focus();
+    panel().emit("blur");
+    expect(panel().isVisible()).toBe(false);
   });
 });
 
@@ -111,6 +129,18 @@ describe("the permissions", () => {
     Object.assign(electron.systemPreferences, { trusted: true, screen: "granted" });
     panel().focus();
     expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:permissions", payload: { accessibility: true, screen: true } });
+  });
+
+  test("Screen Recording asks to capture first, so the app is listed in the pane it opens", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    const asked = [];
+    const { getSources } = electron.desktopCapturer;
+    electron.desktopCapturer.getSources = async () => (asked.push([...electron.shell.opened]), []);
+    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(panel()), "screen");
+    electron.desktopCapturer.getSources = getSources;
+    expect(asked).toEqual([[]]);
+    expect(electron.shell.opened).toEqual(["x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"]);
   });
 
   test("each button opens its own pane, and only from the panel", async () => {

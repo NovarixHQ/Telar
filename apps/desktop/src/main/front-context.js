@@ -38,9 +38,18 @@ function permissions() {
   };
 }
 
+const requestScreen = () => desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 1, height: 1 } }).catch(() => []);
+
 async function requestPermissions() {
   systemPreferences.isTrustedAccessibilityClient(true);
-  if (systemPreferences.getMediaAccessStatus("screen") === "not-determined") await desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 1, height: 1 } }).catch(() => []);
+  if (systemPreferences.getMediaAccessStatus("screen") === "not-determined") await requestScreen();
+}
+
+async function openSettings(permission, open) {
+  const url = settingsFor(permission);
+  if (!url) return;
+  if (permission === "screen" && !permissions().screen) await requestScreen();
+  return open(url);
 }
 
 function settingsFor(permission) {
@@ -84,4 +93,4 @@ async function readFrontContext({ ownSourceIds = [], granted = permissions(), ru
   };
 }
 
-module.exports = { grantee, permissions, readFrontContext, requestPermissions, settingsFor };
+module.exports = { grantee, openSettings, permissions, readFrontContext, requestPermissions, settingsFor };

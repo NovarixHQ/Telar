@@ -16,6 +16,7 @@ export type QuickComposerBridge = {
   close: () => Promise<unknown>;
   resize: (height: number) => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
+  hold: () => void;
   onPermissions: (listener: (permissions: Permissions) => void) => () => void;
   openSettings: (permission: Permission) => Promise<unknown>;
 };

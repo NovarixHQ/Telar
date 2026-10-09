@@ -6,7 +6,8 @@
     "moduleResolution": "bundler",
     "types": ["bun"],
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "resolveJsonModule": true
   },
   "include": ["src", "test"],
   "exclude": ["node_modules"]

@@ -84,6 +84,7 @@ A feature can have a second entry when the main index would pull too much into e
 3. Engine domains don't call each other's internals. Cross-domain effects go through kernel hooks (`beforeCommit`, `afterCommit`, `onSessionDeleted`), wired in `daemon.ts`.
 4. No file over 800 lines, no function over 150. `check:source` enforces this against the merge base.
 5. Anything that crosses a process boundary is declared in `packages/engine-client`, once. Cockpit features reach the engine only through their `api.ts`.
+6. Any phone build works with any host back to the oldest one in `packages/engine-client/test/fixtures/hosts`, and the reverse. A field a host may not send is optional; an endpoint a host may not serve is feature-detected by its 404 and its feature turns off. Only connecting and listing sessions are never optional. Every host reports `appVersion` 0.1.0, so gate on what the host answers, not its version. To drop an old host, remove its fixture in a PR that declares the break.
 
 ## Headless (where this is going)
 

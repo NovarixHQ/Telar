@@ -22,28 +22,34 @@ public final class ComposerPasteModule: Module {
 
   // Writes each pasted image to a temp file and sends them; text pastes never reach here.
   fileprivate func take() -> Bool {
-    let files = UIPasteboard.general.items.compactMap(Self.write)
-    guard !files.isEmpty else { return false }
-    sendEvent("onPaste", ["files": files])
+    let providers = UIPasteboard.general.itemProviders.compactMap { provider in
+      provider.registeredTypeIdentifiers.lazy.compactMap(UTType.init).first { $0.conforms(to: .image) }.map { (provider, $0) }
+    }
+    guard !providers.isEmpty else { return false }
+    let group = DispatchGroup()
+    var files: [[String: Any]?] = Array(repeating: nil, count: providers.count)
+    for (index, (provider, type)) in providers.enumerated() {
+      group.enter()
+      provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+        let file = data.flatMap { Self.write($0, type) }
+        DispatchQueue.main.async {
+          files[index] = file
+          group.leave()
+        }
+      }
+    }
+    group.notify(queue: .main) { [weak self] in
+      let written = files.compactMap { $0 }
+      if !written.isEmpty { self?.sendEvent("onPaste", ["files": written]) }
+    }
     return true
   }
 
-  private static func write(_ item: [String: Any]) -> [String: Any]? {
-    let images = item.compactMap { key, value in UTType(key).flatMap { $0.conforms(to: .image) ? ($0, value) : nil } }
-    guard let (type, value) = images.first(where: { $0.1 is Data }) ?? images.first else { return nil }
-    let data: Data?
-    var format = type
-    if let raw = value as? Data {
-      data = raw
-    } else {
-      data = (value as? UIImage)?.pngData()
-      format = .png
-    }
-    guard let data else { return nil }
-    let ext = format.preferredFilenameExtension ?? "png"
+  private static func write(_ data: Data, _ type: UTType) -> [String: Any]? {
+    let ext = type.preferredFilenameExtension ?? "png"
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("paste-\(UUID().uuidString).\(ext)")
     guard (try? data.write(to: url)) != nil else { return nil }
-    return ["uri": url.absoluteString, "name": "Pasted image.\(ext)", "mimeType": format.preferredMIMEType ?? "image/png", "size": data.count]
+    return ["uri": url.absoluteString, "name": "Pasted image.\(ext)", "mimeType": type.preferredMIMEType ?? "image/png", "size": data.count]
   }
 
   private typealias CanPerform = @convention(c) (AnyObject, Selector, Selector, Any?) -> Bool

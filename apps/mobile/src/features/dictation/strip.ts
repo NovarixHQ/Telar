@@ -25,6 +25,16 @@ export function appendSpoken(draft: string, words: string): string {
   return draft && !/\s$/.test(draft) ? `${draft} ${words}` : `${draft}${words}`;
 }
 
+/** Writes spoken words at the caret, spaced from the text on either side, and says where the caret lands. */
+export function insertSpoken(draft: string, at: number, words: string): { text: string; caret: number } {
+  const start = Math.min(Math.max(0, at), draft.length);
+  if (!words) return { text: draft, caret: start };
+  const before = start > 0 && !/\s/.test(draft[start - 1]!) ? " " : "";
+  const after = start < draft.length && !/\s/.test(draft[start]!) ? " " : "";
+  const insert = `${before}${words}${after}`;
+  return { text: draft.slice(0, start) + insert + draft.slice(start), caret: start + insert.length };
+}
+
 const wordsIn = (text: string) => text.split(/\s+/).filter(Boolean);
 
 const dropWords = (count: number, text: string) => (count > 0 ? wordsIn(text).slice(count).join(" ") : text.trim());

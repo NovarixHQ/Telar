@@ -8,13 +8,14 @@ import { Settings, StyleSheet, useColorScheme, View } from "react-native";
 import { useKeyboardOverlap } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
 import { Icon, palette, ProjectAvatar, Theme, type SymbolName } from "../../ui";
-import { DraftComposer, type DraftFile } from "../composer";
+import { DraftComposer, type DraftCommands, type DraftFile } from "../composer";
 import { hosts } from "../hosts";
 import { useProjectIcon } from "../projects";
 import { DraftMenus, type DraftPicks } from "../providers";
 import { newRunId } from "../transcript";
 import { createdRoute, preferredTarget, shortRef, startSession, targetKey, workspaceLabel, type Target, type Workspace } from "./new-session";
 import { StatusNotice } from "./StatusNotice";
+import { useRail } from "./use-rail";
 import { newSessionMemory, useTargets } from "./use-targets";
 
 type Navigation = NativeStackNavigationProp<RootStack, "NewSession">;
@@ -115,6 +116,7 @@ export function NewSessionScreen() {
   const key = target && targetKey(target.hostId, target.project.id);
   const host = target && hosts.get(target.hostId);
   const locked = busy || created !== undefined;
+  const { rows: mentions } = useRail(target?.hostId ?? "");
   const workspace: Workspace = { ...mode, ...(mode.envMode === "worktree" && params?.baseRef ? { baseRef: params.baseRef } : {}) };
 
   const pick = (next: Partial<typeof mode>) => {
@@ -154,6 +156,16 @@ export function NewSessionScreen() {
     void send(text);
   });
 
+  const commands: DraftCommands = {
+    source: target ? { projectId: target.project.id, driver: picks.driver } : undefined,
+    context: { fresh: { driver: picks.driver, envMode: workspace.envMode }, ...(picks.runtimeMode ? { runtimeMode: picks.runtimeMode } : {}), targets: mentions, current: target ? { projectId: target.project.id } : {} },
+    onAction: (action) => {
+      if (action.kind === "runtimeMode") setPicks({ ...picks, runtimeMode: action.mode });
+      if (action.kind === "driver" && action.driver !== picks.driver) setPicks({ driver: action.driver, ...(picks.runtimeMode ? { runtimeMode: picks.runtimeMode } : {}) });
+      if (action.kind === "envMode") pick({ envMode: action.mode });
+    },
+  };
+
   const notices = error ? <StatusNotice tint="red" text={error} actions={[{ label: "Dismiss", onPress: () => setError(undefined) }]} /> : null;
   return (
     <View style={styles.screen}>
@@ -189,6 +201,7 @@ export function NewSessionScreen() {
         notices={notices}
         busy={busy}
         onSend={send}
+        commands={commands}
       />
     </View>
   );

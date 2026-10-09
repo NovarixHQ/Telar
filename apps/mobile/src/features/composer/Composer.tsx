@@ -70,9 +70,8 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
   useEffect(() => {
     const previous = shown.current;
     shown.current = draft;
-    const end = listening ? followCaret(previous, draft, scroll.current.following) : undefined;
+    const end = listening ? followCaret(previous, draft, caret, scroll.current.following) : undefined;
     if (end === undefined) return;
-    onCaret(end);
     // The command lands after the new text is mounted; moving the caret is what scrolls a multiline field.
     const frame = requestAnimationFrame(() => field.current?.setSelection(end, end));
     return () => cancelAnimationFrame(frame);

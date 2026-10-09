@@ -3,11 +3,16 @@ import { useState } from "react";
 import { Settings } from "react-native";
 import { TURN_CAP } from "./intake";
 import { appendPrompt, canStash, dropEntry, readStash, stashEntry, takeEntry, type StashedImage, type StashEntry } from "./stash";
-import type { useAttachments } from "./use-attachments";
 
-type Attachments = ReturnType<typeof useAttachments>;
+/** What the stash needs from a composer's files: the session's uploads or a new session's local picks. */
+export type StashFiles = {
+  pending: readonly { attachment: { name: string; mediaType: string }; preview?: string }[];
+  setNote: (note: string | undefined) => void;
+  clear: () => void;
+  restoreImages: (images: StashedImage[]) => Promise<unknown>;
+};
 
-async function imageOf(row: Attachments["pending"][number]): Promise<StashedImage | undefined> {
+async function imageOf(row: StashFiles["pending"][number]): Promise<StashedImage | undefined> {
   const { preview, attachment } = row;
   if (!preview || !attachment.mediaType.startsWith("image/")) return undefined;
   const dataUrl = preview.startsWith("data:") ? preview : `data:${attachment.mediaType};base64,${await new File(preview).base64()}`;
@@ -15,7 +20,7 @@ async function imageOf(row: Attachments["pending"][number]): Promise<StashedImag
 }
 
 /** Stash this prompt and Show stashed prompts: drafts set aside on this phone, with their images when they fit. */
-export function useStash(draft: string, setDraft: (text: string) => void, attachments: Attachments) {
+export function useStash(draft: string, setDraft: (text: string) => void, attachments: StashFiles) {
   const { setNote } = attachments;
   const [entries, setEntries] = useState(() => readStash(Settings));
   const [open, setOpen] = useState(false);

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LayoutAnimation, PanResponder, StyleSheet, View } from "react-native";
-import { faded, Theme } from "../../ui";
+import { faded, GLASS_INSET, GlassPane, Theme } from "../../ui";
 import { clampPanelWidth } from "./panel-width";
 
 type Props = { shown: boolean; full: boolean; width: number; onWidth: (width: number) => void; top: number; panel: ReactNode; children: ReactNode };
@@ -55,7 +55,7 @@ function Handle({ width, total, onDrag, onWidth }: { width: number; total: numbe
   );
 }
 
-/** The panel beside the session at regular width: the chat narrows as the column slides in from the trailing edge. */
+/** The panel beside the session at regular width, floating on glass: the chat narrows as the column slides in from the trailing edge. */
 export function PanelColumn({ shown, full, width, onWidth, top, panel, children }: Props) {
   const [total, setTotal] = useState(0);
   const [drawn, setDrawn] = useState({ shown, full });
@@ -82,9 +82,10 @@ export function PanelColumn({ shown, full, width, onWidth, top, panel, children 
           accessibilityElementsHidden={!drawn.shown}
           importantForAccessibility={drawn.shown ? "auto" : "no-hide-descendants"}
         >
-          <View style={[styles.column, { width: covers ? total : column, paddingTop: top }]}>
-            {panel}
-            <View style={styles.rule} pointerEvents="none" />
+          <View style={[styles.column, { width: covers ? total : column }]}>
+            <GlassPane edge="trailing" style={covers ? styles.wide : null}>
+              <View style={[styles.column, { paddingTop: Math.max(0, top - GLASS_INSET) }]}>{panel}</View>
+            </GlassPane>
             {covers ? null : <Handle width={width} total={total} onDrag={setDragged} onWidth={onWidth} />}
           </View>
         </View>
@@ -94,13 +95,13 @@ export function PanelColumn({ shown, full, width, onWidth, top, panel, children 
 }
 
 const styles = StyleSheet.create({
-  row: { flex: 1, flexDirection: "row", overflow: "hidden" },
+  row: { flex: 1, flexDirection: "row", overflow: "hidden", backgroundColor: Theme.canvas },
   content: { flex: 1 },
   hidden: { opacity: 0 },
   clip: { overflow: "hidden" },
   cover: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
-  column: { flex: 1, backgroundColor: Theme.sheet },
-  rule: { position: "absolute", left: 0, top: 0, bottom: 0, width: StyleSheet.hairlineWidth, backgroundColor: faded("border", 0.6) },
-  handle: { position: "absolute", left: 0, top: 0, bottom: 0, width: 16, alignItems: "center", justifyContent: "center" },
+  column: { flex: 1 },
+  wide: { marginLeft: GLASS_INSET },
+  handle: { position: "absolute", left: 0, top: 0, bottom: 0, width: GLASS_INSET + 8, alignItems: "center", justifyContent: "center" },
   grip: { width: 4, height: 36, borderRadius: 2 },
 });

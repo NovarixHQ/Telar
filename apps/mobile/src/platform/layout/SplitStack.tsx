@@ -18,9 +18,9 @@ import {
   type NativeStackTypeBag,
 } from "@react-navigation/native-stack";
 import { useState, type ReactNode } from "react";
-import { LayoutAnimation, Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
+import { LayoutAnimation, Platform, StyleSheet, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Theme, type SymbolName } from "../../ui";
+import { GlassPane, Theme, type SymbolName } from "../../ui";
 import { isRegularWidth } from "./size-class";
 import { selectionBase, SIDEBAR_WIDTH, splitColumns } from "./split";
 import { SplitColumnContext, type SplitColumn } from "./split-column";
@@ -58,6 +58,16 @@ function withButton(descriptors: Descriptors, key: string | undefined, side: Sid
     return side === "unstable_headerRightItems" ? [...current, ...gap, item] : [item, ...gap, ...current];
   };
   return { ...descriptors, [key]: { ...descriptor, options: { ...descriptor.options, [side]: items } } };
+}
+
+/** The sidebar's screens drawn clear, so the glass behind them shows. */
+function onGlass(descriptors: Descriptors, keys: readonly string[]): Descriptors {
+  const clear = { ...descriptors };
+  for (const key of keys) {
+    const descriptor = descriptors[key];
+    if (descriptor) clear[key] = { ...descriptor, options: { ...descriptor.options, contentStyle: [descriptor.options.contentStyle, styles.clear], headerStyle: { ...descriptor.options.headerStyle, backgroundColor: "transparent" } } };
+  }
+  return clear;
 }
 
 /** A native stack that, at regular width, pins its first route as a 300pt sidebar beside the rest, like a balanced NavigationSplitView. */
@@ -99,7 +109,9 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
       <View style={styles.row}>
         <View style={[styles.clip, { width: hidden ? 0 : SIDEBAR_WIDTH }]}>
           <View style={styles.sidebar}>
-            <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
+            <GlassPane edge="leading">
+              <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, onGlass(toggled, sidebar.routes.slice(0, 1).map((route) => route.key)))}</SplitColumnContext.Provider>
+            </GlassPane>
           </View>
         </View>
         <View style={styles.detail}>{detail ? stack(detail, toggled) : <SafeAreaProvider>{placeholder}</SafeAreaProvider>}</View>
@@ -115,8 +127,9 @@ export function createSplitStackNavigator<const ParamList extends ParamListBase>
 }
 
 const styles = StyleSheet.create({
-  row: { flex: 1, flexDirection: "row" },
+  row: { flex: 1, flexDirection: "row", backgroundColor: Theme.canvas },
   clip: { overflow: "hidden" },
   sidebar: { position: "absolute", top: 0, bottom: 0, right: 0, width: SIDEBAR_WIDTH },
-  detail: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
+  detail: { flex: 1 },
+  clear: { backgroundColor: "transparent" },
 });

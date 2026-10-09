@@ -5,6 +5,7 @@ import { viaCockpit, type HostConnection } from "../../platform/connection";
 import { hubPath, inputQueue, nextOrientation, readScreenConfig, type Orientation, type ScreenConfig, type Size } from "./model";
 
 const LIST_MS = 12_000;
+const SETTLING_MS = 3_000;
 const SCREEN_MS = 3_000;
 const RETRY_MS = 2_000;
 const ROTATE_SETTLE_MS = 600;
@@ -36,12 +37,13 @@ export function useSimulatorList(host: HostConnection, active: boolean) {
   useEffect(() => {
     host.request<{ callerRole?: string }>("GET", "/v2/remote").then((status) => setCanDrive(status.callerRole !== "observer"), () => setCanDrive(true));
   }, [host]);
+  const settling = !state || state.status === "idle" || state.status === "installing" || state.status === "starting";
   useEffect(() => {
     if (!active) return;
     void read();
-    const timer = setInterval(() => void read(), LIST_MS);
+    const timer = setInterval(() => void read(), settling ? SETTLING_MS : LIST_MS);
     return () => clearInterval(timer);
-  }, [read, active]);
+  }, [read, active, settling]);
   return { state, failure, canDrive, read };
 }
 

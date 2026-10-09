@@ -1,6 +1,6 @@
 import { Button, Divider, HStack, Host, ScrollView, Spacer, Text, VStack } from "@expo/ui/swift-ui";
 import { accessibilityLabel, background, buttonStyle, contentShape, disabled, font, foregroundStyle, frame, lineLimit, multilineTextAlignment, opacity, padding, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
-import type { SimulatorSummary } from "@telar/engine-client";
+import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
@@ -27,12 +27,19 @@ function Chip({ simulator, selected, mine, onPress }: { simulator: SimulatorSumm
   );
 }
 
-function NoneRunning({ detail }: { detail: string }) {
+function noneDetail(state: SimulatorsState): { title: string; detail: string } {
+  if (state.status === "disabled") return { title: "Simulators are off on this computer.", detail: "Turn them on in the cockpit's settings on the computer." };
+  if (state.status === "failed") return { title: "Simulators could not start.", detail: state.detail ?? "" };
+  if (state.status !== "ready") return { title: "Getting simulators ready…", detail: state.detail ?? "" };
+  return { title: "No simulator is running", detail: "When an agent boots one on the computer, it appears here." };
+}
+
+function NoneRunning({ title = "No simulator is running", detail }: { title?: string; detail: string }) {
   return (
     <Host style={styles.fill}>
       <VStack spacing={8} modifiers={[frame({ maxWidth: 300 }), padding({ all: 24 })]}>
         <Icon name="iphone" size={15} weight="medium" color={Theme.textMuted} modifiers={[frame({ width: 36, height: 36 }), background(Theme.fill, shapes.circle())]} />
-        <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), foregroundStyle(Theme.text)]}>No simulator is running</Text>
+        <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), foregroundStyle(Theme.text)]}>{title}</Text>
         <Text modifiers={[Type.slim, foregroundStyle(Theme.textMuted), multilineTextAlignment("center")]}>{detail}</Text>
       </VStack>
     </Host>
@@ -78,7 +85,7 @@ export function SimulatorSurface({ host, sessionId }: { host: HostConnection; se
       {shown ? (
         <SimulatorView key={shown.id} host={host} simulator={shown} canDrive={canDrive} active={active} onGone={() => void read()} />
       ) : (
-        <NoneRunning detail={state.status === "disabled" ? "Simulators are off on this computer. Turn them on in the cockpit's settings on the computer." : "When an agent boots one on the computer, it appears here."} />
+        <NoneRunning {...noneDetail(state)} />
       )}
     </View>
   );

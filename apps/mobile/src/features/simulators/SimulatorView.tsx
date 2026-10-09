@@ -34,10 +34,10 @@ function Controls({ simulator, canDrive, shuttingDown, onHome, onRotate, onAppSw
   const watch = Boolean(simulator.pairedWith);
   return (
     <Host matchContents={{ vertical: true }}>
-      <HStack spacing={4} modifiers={[foregroundStyle(Theme.text), padding({ all: 4 }), background({ type: "material", material: "ultraThin" }, shapes.capsule()), padding({ horizontal: 12 }), padding({ top: 4 })]}>
+      <HStack spacing={4} modifiers={[foregroundStyle("#F5F5F5"), padding({ all: 4 }), background({ type: "material", material: "ultraThin" }, shapes.capsule()), padding({ horizontal: 12 }), padding({ top: 4 })]}>
         <VStack spacing={0} modifiers={[frame({ maxWidth: Infinity })]}>
           <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), lineLimit(1)]}>{simulator.name}</Text>
-          {canDrive ? null : <Text modifiers={[Type.metaSmall, foregroundStyle(Theme.textMuted)]}>View only</Text>}
+          {canDrive ? null : <Text modifiers={[Type.metaSmall, foregroundStyle("#A1A1A1")]}>View only</Text>}
         </VStack>
         {canDrive && !watch ? (
           <>

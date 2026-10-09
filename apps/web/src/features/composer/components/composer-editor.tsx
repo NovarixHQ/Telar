@@ -6,6 +6,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ForwardedRef, type RefObject } from "react";
 import { CHIP_CLASS, CHIP_ICON_CLASS, CHIP_LABEL_CLASS, chipTitle } from "../chip";
 import { replaceTextRange, segmentDraft } from "../tokens";
+import { continueLine, indentLine, isLargePaste } from "../editor-keys";
 import { insertReference, type TelarReference } from "@telar/client/composer";
 import { chipGlyphFor, glyphElement } from "../glyph-paths";
 import { cn } from "@/ui/utils";
@@ -499,6 +500,16 @@ function useEditorHandle(
   );
 }
 
+function caretEdit(
+  box: HTMLElement,
+  text: string,
+  edit: (text: string, caret: number) => { text: string; cursor: number } | undefined,
+): { text: string; cursor: number } | undefined {
+  const range = selectionRange(box);
+  if (!range || range.start !== range.end) return undefined;
+  return edit(text, range.start);
+}
+
 function EditorPlaceholder({ text }: { text: string }) {
   return (
     <span aria-hidden className="pointer-events-none absolute top-3 left-3 select-none text-[0.9375rem] leading-6 text-muted-foreground">
@@ -520,6 +531,8 @@ export const ComposerEditor = forwardRef<
     onSelectionChange?: () => void;
     /** Pasted files become attachments, exactly as they did in the textarea. */
     onPasteFiles?: (files: File[]) => void;
+    /** Text over the paste threshold, which the parent attaches as a file instead of inserting. */
+    onPasteLargeText?: (text: string) => void;
     /** The caret entered this box. The composer registry's "most recently
      *  focused" is this event and nothing else — see lib/composer-registry.ts. */
     onFocus?: () => void;
@@ -533,7 +546,7 @@ export const ComposerEditor = forwardRef<
     className?: string;
   }
 >(function ComposerEditor(
-  { value, onChange, onKeyDown, onSelectionChange, onPasteFiles, onFocus, onBlur, placeholder, disabled, id, "data-composer": dataComposer, className },
+  { value, onChange, onKeyDown, onSelectionChange, onPasteFiles, onPasteLargeText, onFocus, onBlur, placeholder, disabled, id, "data-composer": dataComposer, className },
   ref,
 ) {
   const root = useRef<HTMLDivElement>(null);
@@ -616,19 +629,21 @@ export const ComposerEditor = forwardRef<
         onKeyDown={(event) => {
           onKeyDown?.(event);
           if (event.defaultPrevented) return;
+          const box = root.current;
+          if (!box) return;
           if (event.key === "Enter") {
-            /**
-             * Only a SHIFTED Enter reaches here — the parent claims the plain
-             * one to send. `insertLineBreak` rather than a repaint, because a
-             * repaint would empty the browser's undo stack every time somebody
-             * started a new line.
-             */
+            // Only a shifted Enter reaches here. A plain line break uses insertLineBreak, since a repaint would empty the undo stack.
             event.preventDefault();
+            const list = caretEdit(box, painted.current, (text, caret) => continueLine(text, caret));
+            if (list) return rewrite(list.text, list.cursor);
             document.execCommand("insertLineBreak");
-            const box = root.current;
-            if (!box) return;
             commit(serialize(box));
             revealCaret(box);
+          } else if (event.key === "Tab" && !event.altKey && !event.metaKey && !event.ctrlKey) {
+            const indented = caretEdit(box, painted.current, (text, caret) => indentLine(text, caret, event.shiftKey));
+            if (!indented) return;
+            event.preventDefault();
+            rewrite(indented.text, indented.cursor);
           }
         }}
         onFocus={() => onFocus?.()}
@@ -660,6 +675,7 @@ export const ComposerEditor = forwardRef<
           const text = event.clipboardData.getData("text/plain");
           if (!text) return;
           event.preventDefault();
+          if (onPasteLargeText && isLargePaste(text)) return onPasteLargeText(text);
           const box = root.current;
           const range = box ? selectionRange(box) : undefined;
           const start = range?.start ?? painted.current.length;

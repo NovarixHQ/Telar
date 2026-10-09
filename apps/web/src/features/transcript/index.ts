@@ -26,6 +26,7 @@ export {
   splitAtMessageBoundaries,
   transcriptTasks,
   turnActivity,
+  typedOpening,
   withoutOpeningNotification,
 } from "./model";
 export { AgentMarkdown } from "./components/agent-markdown";

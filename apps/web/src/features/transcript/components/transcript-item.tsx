@@ -20,9 +20,10 @@ import { SessionAgentRow } from "./agent-rows";
 import { SessionLookup } from "./session-lookup";
 import { sessionsCreated } from "../sessions-tools";
 
-export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, onOpenFileInNewTab }: {
+export function TranscriptItem({ item, tasks, meta = false, onOpenTab, onInsert, onOpenFile, onOpenFileInNewTab }: {
   item: JournalItem;
   tasks?: readonly JournalTask[];
+  meta?: boolean;
   /** So a message steered into a running turn opens its references exactly
    *  as the same message sent idle does. */
   onOpenTab?: OpenTab;
@@ -70,7 +71,7 @@ export function TranscriptItem({ item, tasks, onOpenTab, onInsert, onOpenFile, o
       <MessageMenu text={text} {...(onInsert ? { onQuote: onInsert } : {})}>
         <div className="group/message" data-quote-source={item.id}>
           <AgentMarkdown text={text} onOpenFile={onOpenFile} />
-          <MessageActions text={text} at={item.completedAt ?? item.startedAt} forkRunId={item.runId} />
+          {meta && <MessageActions text={text} at={item.completedAt ?? item.startedAt} forkRunId={item.runId} />}
         </div>
       </MessageMenu>
     );

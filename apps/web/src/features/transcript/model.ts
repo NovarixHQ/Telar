@@ -184,6 +184,10 @@ export function routineNotification(detail: NonNullable<JournalTurn["notificatio
   return ![detail, ...(detail.entries ?? [])].some((each) => each.kind === "request" || each.wakeKind === "request_opened" || each.intent === "blocker" || each.intent === "task" || each.wakeKind === "turn_failed");
 }
 
+export function typedOpening(turn: JournalTurn): boolean {
+  return turn.kind !== "import" && turn.kind !== "compact" && turn.origin !== "provider" && turn.origin !== "session" && turn.origin !== "restart";
+}
+
 /** A turn that is nothing but an arrival. */
 export function bareNotificationTurn(turn: JournalTurn): boolean {
   if (!turn.notification) return false;

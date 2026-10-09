@@ -105,3 +105,32 @@ describe("the panel tab's menu", () => {
     expect(disabled("Close all")).toBe(false);
   });
 });
+
+describe("the strip follows the tab in front", () => {
+  test("choosing a tab scrolls it into view, and only it", async () => {
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      function Strip() {
+        const [tab, setTab] = useState("diff");
+        return (
+          <SidebarProvider storageKey="tab-strip-test">
+            <RightPanel sessionId="s1" projectId="p1" tabs={TABS} tab={tab} open onTabChange={setTab} onOpenTab={() => {}} onCloseTab={() => {}} />
+          </SidebarProvider>
+        );
+      }
+      const { host } = await mount(<Strip />);
+      const tabNamed = (id: string) => host.querySelector(`[role="tab"][aria-controls="right-panel-${id}"]`)!;
+      expect(scrolled.some((node) => node.contains(tabNamed("diff")))).toBe(true);
+      scrolled.length = 0;
+      await click(tabNamed("file:docs/notes.md"));
+      expect(scrolled.length).toBe(1);
+      expect(scrolled[0]!.contains(tabNamed("file:docs/notes.md"))).toBe(true);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+});

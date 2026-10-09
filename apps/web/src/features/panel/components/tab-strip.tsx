@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { KeyHint } from "@/features/commands";
 import { HeaderToggleGroup } from "@/ui/header-toggle";
+import { ScrollArea } from "@/ui/scroll-area";
 import { cn } from "@/ui/utils";
 import { useLivePages } from "../hooks/use-live-pages";
 import { useTabDrag } from "../hooks/use-tab-drag";
@@ -49,8 +50,13 @@ function TabChip({
   const insert = drag.insert?.id === id ? drag.insert.side : undefined;
   const right = tabs.slice(tabs.findIndex((other) => other.id === id) + 1);
   const path = entry.params.path ?? filePanelTabPath(entry.kind);
+  const chip = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (on) chip.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [on]);
   return (
     <span
+      ref={chip}
       {...drag.handlers(id)}
       className={cn(
         "group/tab relative flex h-7 min-w-0 max-w-44 shrink-0 cursor-grab rounded-md text-xs transition-colors active:cursor-grabbing",
@@ -135,7 +141,7 @@ export function TabStrip(strip: StripProps) {
         fullscreen && "pl-[max(8px,calc(var(--titlebar-inset)+var(--app-island-inset)))]",
       )}
     >
-      <div role="tablist" aria-label="Right panel tabs" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+      <ScrollArea orientation="horizontal" className="flex-1" viewportClassName="flex gap-1" viewportProps={{ role: "tablist", "aria-label": "Right panel tabs" }}>
         {tabs.map((entry) => (
           <TabChip
             key={entry.id}
@@ -148,7 +154,7 @@ export function TabStrip(strip: StripProps) {
           />
         ))}
         {launcher.length > 0 && <SurfaceChooser rows={launcher} actions={strip.actions} browserStart={browserStart} />}
-      </div>
+      </ScrollArea>
       <div className="flex shrink-0 items-center gap-0.5">
         {tabs.length > 1 && (
           <span className="mr-1 hidden items-center gap-0.5 @2xl/strip:flex">

@@ -7,6 +7,7 @@ describe("appVariant", () => {
       name: "Telar Dev",
       bundleId: "io.github.novarix.telar.dev",
       icon: "./assets/icon-dev.png",
+      apsEnvironment: "development",
     });
   });
 
@@ -14,6 +15,7 @@ describe("appVariant", () => {
     for (const value of [undefined, "", "production", "Dev"]) {
       expect(appVariant(value).bundleId).toBe("io.github.novarix.telar");
       expect(appVariant(value).name).toBe("Telar");
+      expect(appVariant(value).apsEnvironment).toBe("production");
     }
   });
 });

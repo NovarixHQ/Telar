@@ -1,6 +1,8 @@
 export type Permission = "accessibility" | "screen";
 export type Permissions = Record<Permission, boolean>;
 
+export type CardSpot = { x: number; y: number };
+
 export type FrontContext = {
   app: string;
   title: string;
@@ -8,17 +10,18 @@ export type FrontContext = {
   screenshot: string | null;
   permissions: Permissions;
   grantee: string;
+  spot?: CardSpot | null;
 };
 
 export type QuickComposerBridge = {
   context: () => Promise<FrontContext | null>;
   onOpen: (listener: (context: FrontContext) => void) => () => void;
   close: () => Promise<unknown>;
-  resize: (height: number, anchor: number) => void;
+  interactive: (on: boolean) => void;
+  moved: (spot: CardSpot) => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
   hold: () => void;
   failed: (message: string) => void;
-  drag: (input: { phase: "start"; offsetX: number; offsetY: number } | { phase: "end" }) => void;
   onPermissions: (listener: (permissions: Permissions) => void) => () => void;
   openSettings: (permission: Permission) => Promise<unknown>;
 };

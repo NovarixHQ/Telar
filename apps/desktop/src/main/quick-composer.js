@@ -5,9 +5,6 @@ const { cockpitWindowOptions } = require("./cockpit-window");
 const { jsonPrefs } = require("./prefs");
 const { openSettings, permissions, readFrontContext, requestPermissions } = require("./front-context");
 
-const WIDTH = 680;
-const MAX_HEIGHT = 640;
-
 const isSpot = (spot) => Number.isFinite(spot?.x) && Number.isFinite(spot?.y);
 const prefs = jsonPrefs(
   "quick-composer.json",
@@ -21,12 +18,10 @@ function panelOptions() {
   return {
     type: "panel",
     title: "Quick Composer",
-    width: WIDTH,
-    height: 200,
     show: false,
     frame: false,
     resizable: false,
-    movable: true,
+    movable: false,
     transparent: true,
     hasShadow: false,
     backgroundColor: "#00000000",
@@ -39,37 +34,20 @@ function panelOptions() {
   };
 }
 
-const fits = ({ x, y, width, height }, spot) => spot.x >= x && spot.x + WIDTH <= x + width && spot.y >= y && spot.y < y + height - 80;
-
-function placeNearCursor(win) {
+function coverCursorDisplay(win) {
   const { id, workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  const spot = prefs.read().positions[id];
-  if (spot && fits(workArea, spot)) return win.setPosition(spot.x, spot.y);
-  win.setPosition(Math.round(workArea.x + (workArea.width - WIDTH) / 2), Math.round(workArea.y + workArea.height * 0.2));
+  win.setBounds(workArea);
+  return { id, spot: prefs.read().positions[id] ?? null };
 }
-
-function remember(win) {
-  const [x, y] = win.getPosition();
-  const { id } = screen.getDisplayMatching({ x, y, width: WIDTH, height: 1 });
-  const saved = prefs.read();
-  prefs.write({ ...saved, positions: { ...saved.positions, [id]: { x, y } } });
-}
-
-const everyFrame = (tick) => {
-  const timer = setInterval(tick, 8);
-  return () => clearInterval(timer);
-};
 
 /** The global shortcut and the panel it opens over any app; `openRoute` brings a cockpit window to a path. */
-function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, log = () => {}, ticker = everyFrame }) {
+function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, log = () => {} }) {
   let win = null;
   let chord = "";
   let suspended = false;
   let latest = null;
   let holding = false;
-  let stopFollowing = null;
-  let cardTop = null;
-  let lastBounds = null;
+  let display = null;
   let reloaded = false;
 
   const recover = (reason) => {
@@ -91,23 +69,11 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     win.on("blur", () => holding || hide());
     win.webContents.on("render-process-gone", (_event, details) => recover(`renderer gone (${details?.reason})`));
     win.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => isMainFrame && recover(`load failed ${code} ${description}`));
-    win.webContents.on("did-finish-load", () => {
-      cardTop = null;
-      lastBounds = null;
-    });
     win.loadURL(new URL("/surface/quick", appUrl).href);
     return win;
   };
 
-  const endDrag = () => {
-    if (!stopFollowing) return;
-    stopFollowing();
-    stopFollowing = null;
-    if (!win.isDestroyed()) remember(win);
-  };
-
   const hide = () => {
-    endDrag();
     if (win && !win.isDestroyed() && win.isVisible()) win.hide();
   };
 
@@ -118,9 +84,11 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
       prefs.write({ ...prefs.read(), asked: true });
       await requestPermissions();
     }
-    latest = await readContext({ ownSourceIds });
-    placeNearCursor(target);
+    const covered = coverCursorDisplay(target);
+    display = covered.id;
+    latest = { ...(await readContext({ ownSourceIds })), spot: covered.spot };
     target.webContents.send("telar:quick-composer:open", latest);
+    target.setIgnoreMouseEvents(true, { forward: true });
     target.show();
     target.focus();
   };
@@ -141,30 +109,13 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   ipcMain.handle("telar:quick-composer:toggle", () => toggle());
   ipcMain.handle("telar:quick-composer:context", (event) => (fromPanel(event) ? latest : null));
   ipcMain.handle("telar:quick-composer:close", (event) => fromPanel(event) && hide());
-  ipcMain.on("telar:quick-composer:resize", (event, { height, anchor } = {}) => {
-    if (!fromPanel(event) || !Number.isFinite(height)) return;
-    const size = Math.min(MAX_HEIGHT, Math.max(120, Math.ceil(height)));
-    const shift = Number.isFinite(anchor) && cardTop !== null ? Math.round(anchor - cardTop) : 0;
-    if (Number.isFinite(anchor)) cardTop = anchor;
-    if (shift === 0 && lastBounds?.height === size) return;
-    const [x, y] = win.getPosition();
-    const { workArea } = screen.getDisplayMatching({ x, y, width: WIDTH, height: size });
-    const top = Math.max(workArea.y, Math.min(y - shift, workArea.y + workArea.height - size));
-    lastBounds = { x, y: top, width: WIDTH, height: size };
-    win.setBounds(lastBounds);
+  ipcMain.on("telar:quick-composer:interactive", (event, on) => fromPanel(event) && win.setIgnoreMouseEvents(on !== true, { forward: true }));
+  ipcMain.on("telar:quick-composer:moved", (event, spot) => {
+    if (!fromPanel(event) || display === null || !isSpot(spot)) return;
+    const saved = prefs.read();
+    prefs.write({ ...saved, positions: { ...saved.positions, [display]: { x: Math.round(spot.x), y: Math.round(spot.y) } } });
   });
   ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
-  ipcMain.on("telar:quick-composer:drag", (event, { phase, offsetX, offsetY } = {}) => {
-    if (!fromPanel(event)) return;
-    if (phase === "end") return endDrag();
-    if (phase !== "start" || !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) return;
-    stopFollowing?.();
-    stopFollowing = ticker(() => {
-      if (win.isDestroyed()) return endDrag();
-      const { x, y } = screen.getCursorScreenPoint();
-      win.setPosition(Math.round(x - offsetX), Math.round(y - offsetY));
-    });
-  });
   ipcMain.on("telar:quick-composer:failed", (event, message) => fromPanel(event) && recover(`page error ${String(message).slice(0, 2000)}`));
   ipcMain.on("telar:quick-composer:hold", (event) => {
     if (fromPanel(event)) holding = true;

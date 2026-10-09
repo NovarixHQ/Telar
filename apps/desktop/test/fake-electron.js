@@ -120,6 +120,9 @@ class FakeBrowserWindow extends Emitter {
   getPosition() {
     return [this.bounds.x, this.bounds.y];
   }
+  setIgnoreMouseEvents(ignore, options) {
+    this.ignoresMouse = ignore ? options ?? {} : false;
+  }
   setContentSize(width, height) {
     this.bounds = { ...this.bounds, width, height };
   }

@@ -9,28 +9,14 @@ const CONTEXT = { app: "Notes", title: "Plan", selection: "two lines", screensho
 
 let opened;
 let quick;
-let tick = null;
-const ticker = (next) => {
-  tick = next;
-  return () => {
-    tick = null;
-  };
-};
 beforeEach(() => {
   resetElectron();
   fs.rmSync(path.join(userData, "quick-composer.json"), { force: true });
   opened = [];
-  quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: (route) => opened.push(route), readContext: async () => CONTEXT, ticker });
+  quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: (route) => opened.push(route), readContext: async () => CONTEXT });
 });
 
 const panel = () => FakeBrowserWindow.all[0];
-const drag = (win, x, y) => {
-  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "start", offsetX: 20, offsetY: 10 });
-  electron.screen.cursor = { x: x + 20, y: y + 10 };
-  tick();
-  electron.ipcMain.send("telar:quick-composer:drag", eventFrom(win), { phase: "end" });
-  electron.screen.cursor = { x: 0, y: 0 };
-};
 const press = async (chord) => {
   electron.globalShortcut.press(chord);
   await new Promise((resolve) => setImmediate(resolve));
@@ -44,8 +30,8 @@ describe("the shortcut", () => {
     expect(win.options).toMatchObject({ type: "panel", frame: false, alwaysOnTop: true, skipTaskbar: true });
     expect(win.loaded).toEqual(["http://127.0.0.1:4000/surface/quick"]);
     expect(win.isVisible()).toBe(true);
-    expect(win.webContents.sent[0]).toEqual({ channel: "telar:quick-composer:open", payload: CONTEXT });
-    expect(await electron.ipcMain.invoke("telar:quick-composer:context", eventFrom(win))).toEqual(CONTEXT);
+    expect(win.webContents.sent[0]).toEqual({ channel: "telar:quick-composer:open", payload: { ...CONTEXT, spot: null } });
+    expect(await electron.ipcMain.invoke("telar:quick-composer:context", eventFrom(win))).toEqual({ ...CONTEXT, spot: null });
   });
 
   test("pressing it again hides the panel", async () => {
@@ -89,83 +75,40 @@ describe("the shortcut", () => {
 });
 
 describe("the window", () => {
-  test("is transparent and movable, so only the composer's own card shows", async () => {
+  test("is a transparent overlay on the cursor's display that lets clicks through until the card asks for them", async () => {
+    electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
+    electron.screen.cursor = { x: 2000, y: 500 };
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    expect(panel().options).toMatchObject({ transparent: true, movable: true, hasShadow: false, backgroundColor: "#00000000" });
+    expect(panel().options).toMatchObject({ transparent: true, hasShadow: false, backgroundColor: "#00000000", resizable: false });
+    expect(panel().bounds).toEqual({ x: 1440, y: 0, width: 1920, height: 1080 });
+    expect(panel().ignoresMouse).toEqual({ forward: true });
+    electron.ipcMain.send("telar:quick-composer:interactive", eventFrom(panel()), true);
+    expect(panel().ignoresMouse).toBe(false);
+    electron.ipcMain.send("telar:quick-composer:interactive", eventFrom(panel()), false);
+    expect(panel().ignoresMouse).toEqual({ forward: true });
   });
 
-  test("opens where it was last dragged on that display", async () => {
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
-    expect(panel().getPosition()).toEqual([380, 200]);
-    drag(panel(), 120, 600);
-    await press("Alt+Space");
-    await press("Alt+Space");
-    expect(panel().getPosition()).toEqual([120, 600]);
+  test("has no resize or drag channel: the page never sizes or moves the window", () => {
+    expect(electron.ipcMain.listeners.has("telar:quick-composer:resize")).toBe(false);
+    expect(electron.ipcMain.listeners.has("telar:quick-composer:drag")).toBe(false);
   });
 
-  test("while dragging, main keeps the grab point under the cursor until the drag ends", async () => {
+  test("hands the page the card's spot saved for that display", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "start", offsetX: 30, offsetY: 12 });
-    electron.screen.cursor = { x: 500, y: 300 };
-    tick();
-    expect(panel().getPosition()).toEqual([470, 288]);
-    electron.screen.cursor = { x: 520, y: 310 };
-    tick();
-    expect(panel().getPosition()).toEqual([490, 298]);
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "end" });
-    expect(tick).toBeNull();
-  });
-
-  test("another window cannot drag the panel, and hiding ends a drag", async () => {
-    quick.bind("Alt+Space");
+    expect(panel().webContents.sent[0].payload.spot).toBeNull();
+    electron.ipcMain.send("telar:quick-composer:moved", eventFrom(panel()), { x: 120.4, y: 300 });
+    electron.ipcMain.send("telar:quick-composer:moved", eventFrom(new FakeBrowserWindow()), { x: 9, y: 9 });
     await press("Alt+Space");
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(new FakeBrowserWindow()), { phase: "start", offsetX: 0, offsetY: 0 });
-    expect(tick).toBeNull();
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "start", offsetX: 0, offsetY: 0 });
-    panel().emit("blur");
-    expect(tick).toBeNull();
-  });
-
-  test("grows upward when something opens above the card, so the card stays put on screen", async () => {
-    quick.bind("Alt+Space");
     await press("Alt+Space");
-    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 200, anchor: 40 });
-    const [, top] = panel().getPosition();
-    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 300, anchor: 140 });
-    expect(panel().getPosition()[1]).toBe(top - 100);
-    expect(panel().getContentSize()[1]).toBe(300);
-    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 240, anchor: 40 });
-    expect(panel().getPosition()[1]).toBe(top);
-  });
-
-  test("repeated identical reports never set the bounds again, so a resize cannot feed itself", async () => {
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
-    let sets = 0;
-    const setBounds = panel().setBounds.bind(panel());
-    panel().setBounds = (bounds) => {
-      sets += 1;
-      setBounds(bounds);
-    };
-    for (let i = 0; i < 50; i += 1) electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 210, anchor: 40 });
-    expect(sets).toBe(1);
-  });
-
-  test("growing upward stops at the top of the work area", async () => {
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
-    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 200, anchor: 0 });
-    electron.ipcMain.send("telar:quick-composer:resize", eventFrom(panel()), { height: 600, anchor: 5000 });
-    expect(panel().getPosition()[1]).toBe(25);
+    expect(panel().webContents.sent.find((message) => message.channel === "telar:quick-composer:open" && message.payload.spot)?.payload.spot).toEqual({ x: 120, y: 300 });
   });
 
   test("a lost or failed page is logged and reloaded once, not forever", () => {
     const lines = [];
     resetElectron();
-    quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: () => {}, readContext: async () => CONTEXT, ticker, log: (line) => lines.push(line) });
+    quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: () => {}, readContext: async () => CONTEXT, log: (line) => lines.push(line) });
     const contents = panel().webContents;
     contents.emit("render-process-gone", {}, { reason: "oom" });
     contents.emit("did-fail-load", {}, -6, "ERR_FILE_NOT_FOUND", "http://127.0.0.1:4000/surface/quick", true);
@@ -176,14 +119,18 @@ describe("the window", () => {
     expect(contents.reloads).toBe(1);
   });
 
-  test("a spot on another display does not move it there", async () => {
+  test("a spot saved on another display is not used on this one", async () => {
     electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
+    electron.screen.cursor = { x: 2000, y: 500 };
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    drag(panel(), 2000, 300);
+    electron.ipcMain.send("telar:quick-composer:moved", eventFrom(panel()), { x: 800, y: 200 });
     await press("Alt+Space");
+    electron.screen.cursor = { x: 10, y: 10 };
     await press("Alt+Space");
-    expect(panel().getPosition()).toEqual([380, 200]);
+    const opens = panel().webContents.sent.filter((message) => message.channel === "telar:quick-composer:open");
+    expect(opens.at(-1).payload.spot).toBeNull();
+    expect(panel().bounds).toEqual({ x: 0, y: 25, width: 1440, height: 875 });
   });
 
   test("clicking anywhere else hides it", async () => {

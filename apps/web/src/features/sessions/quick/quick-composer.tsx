@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { FolderIcon, PlusIcon } from "lucide-react";
 import { Composer } from "@/features/composer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
@@ -9,7 +9,7 @@ import { DestinationPicker } from "./destination-picker";
 import { missingPermissions, quickComposerBridge, type QuickComposerBridge } from "./front-context";
 import { PermissionNotice } from "./permission-notice";
 import { useQuickComposer } from "./use-quick-composer";
-import { useWindowDrag } from "./use-window-drag";
+import { CARD_WIDTH, useCardDrag, useClickThrough } from "./use-card-drag";
 
 type Quick = ReturnType<typeof useQuickComposer>;
 
@@ -19,22 +19,6 @@ function placeholderFor(destination: Quick["destination"]["destination"]) {
 
 function holdForFilePicker(event: { target: EventTarget }, bridge: QuickComposerBridge | undefined) {
   if (event.target instanceof HTMLInputElement && event.target.type === "file") bridge?.hold();
-}
-
-function useReportHeight(bridge: QuickComposerBridge | undefined) {
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const node = root.current;
-    if (!bridge || !node) return;
-    const report = () => {
-      const card = node.querySelector('[data-slot="quick-card"]');
-      bridge.resize(node.offsetHeight, card ? card.getBoundingClientRect().top - node.getBoundingClientRect().top : 0);
-    };
-    const observer = new ResizeObserver(report);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [bridge]);
-  return root;
 }
 
 function ProjectChip({ quick }: { quick: Quick }) {
@@ -92,11 +76,13 @@ function onComposerKey(quick: Quick, event: ReactKeyboardEvent) {
 }
 
 /** A new session's composer floating over any app: Enter starts it, ⌘Enter starts it and opens Telar, Esc hides. */
-export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: QuickComposerBridge }) {
+export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge }) {
+  const [bridge] = useState(() => given ?? quickComposerBridge());
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
-  const root = useReportHeight(bridge);
-  const startDrag = useWindowDrag(bridge, quick.text === "");
+  const root = useRef<HTMLDivElement>(null);
+  const card = useCardDrag(bridge, context?.spot, quick.text === "");
+  useClickThrough(bridge, root, context);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -107,15 +93,25 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
   }, [bridge]);
 
   return (
-    <div ref={root} data-surface="quick" onPointerDown={startDrag} className="flex flex-col gap-1 pt-2 pb-3">
-      {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
-      <ContextOffers quick={quick} />
-      <div onKeyDownCapture={(event) => onComposerKey(quick, event)} onPointerDownCapture={quick.forgetKey} onClickCapture={(event) => holdForFilePicker(event, bridge)}>
-        {quick.destination.picking && <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} />}
-        <div className="-mb-2 pt-1">
-          <AttachedDestination destination={quick.destination.destination} onClear={quick.destination.clear} />
+    <div ref={root} data-surface="quick" className="fixed inset-0" onMouseDown={(event) => event.target === event.currentTarget && void bridge?.close()}>
+      <div
+        data-slot="quick-card"
+        onPointerDown={card.onPointerDown}
+        onKeyDownCapture={(event) => onComposerKey(quick, event)}
+        onPointerDownCapture={quick.forgetKey}
+        onClickCapture={(event) => holdForFilePicker(event, bridge)}
+        className="absolute flex flex-col gap-1"
+        style={{ left: card.spot.x, top: card.spot.y, width: CARD_WIDTH }}
+      >
+        <div className="absolute inset-x-0 bottom-full flex flex-col gap-1">
+          {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
+          <ContextOffers quick={quick} />
+          {quick.destination.picking && <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} />}
+          <div className="-mb-3">
+            <AttachedDestination destination={quick.destination.destination} onClear={quick.destination.clear} />
+          </div>
         </div>
-        <div data-slot="quick-card">
+        <div>
           <Composer
             draft={quick.text}
             ready={projectId !== undefined}
@@ -146,11 +142,11 @@ export function QuickComposer({ bridge = quickComposerBridge() }: { bridge?: Qui
             onModelChange={draft.chooseModel}
           />
         </div>
+        {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-popover px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
+        <footer data-slot="quick-hint" className="mx-auto w-fit rounded-full bg-popover px-2.5 py-0.5 text-2xs text-muted-foreground shadow-1">
+          ↵ send · ⌘↵ send &amp; open · # destination · esc close
+        </footer>
       </div>
-      {quick.error && <p role="alert" className="mx-4 w-fit rounded-md bg-popover px-2 py-0.5 text-xs text-destructive shadow-1">{quick.error}</p>}
-      <footer data-slot="quick-hint" className="mx-auto w-fit rounded-full bg-popover px-2.5 py-0.5 text-2xs text-muted-foreground shadow-1">
-        ↵ send · ⌘↵ send &amp; open · # destination · esc close
-      </footer>
     </div>
   );
 }

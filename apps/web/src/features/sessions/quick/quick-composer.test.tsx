@@ -68,13 +68,15 @@ function fakeBridge(context: FrontContext | null) {
   const settings: Permission[] = [];
   let closed = 0;
   let held = 0;
-  const drags: unknown[] = [];
+  const moves: unknown[] = [];
+  const interactive: boolean[] = [];
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
     onOpen: () => () => {},
     close: async () => void (closed += 1),
-    resize: () => {},
+    interactive: (on) => void interactive.push(on),
+    moved: (spot) => void moves.push(spot),
     sent: async (input) => void sent.push(input),
     onPermissions: (listener) => {
       pushPermissions = listener;
@@ -83,9 +85,8 @@ function fakeBridge(context: FrontContext | null) {
     openSettings: async (permission) => void settings.push(permission),
     hold: () => void (held += 1),
     failed: () => {},
-    drag: (input) => void drags.push(input),
   };
-  return { bridge, sent, settings, drags, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, moves, interactive, closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
 const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", screenshot: null, permissions, grantee: "Telar Dev", ...extra });
@@ -106,6 +107,21 @@ async function open(context: FrontContext | null) {
   );
   await flush();
   return { host, ...fake };
+}
+
+const cardOf = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="quick-card"]')!;
+const spotOf = (host: HTMLElement) => ({ x: Number.parseFloat(cardOf(host).style.left), y: Number.parseFloat(cardOf(host).style.top) });
+
+function gesture(target: Element, path: { x: number; y: number }[], heldFor = 0) {
+  const card = target.closest('[data-slot="quick-card"]')!;
+  const at = (type: string, x: number, y: number, timeStamp: number) => {
+    const event = new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, clientX: 500 + x, clientY: 300 + y });
+    Object.defineProperty(event, "timeStamp", { value: timeStamp });
+    act(() => void (type === "pointerdown" ? target : card).dispatchEvent(event));
+  };
+  at("pointerdown", 0, 0, 1000);
+  for (const point of path) at("pointermove", point.x, point.y, 1000 + heldFor);
+  at("pointerup", path.at(-1)?.x ?? 0, path.at(-1)?.y ?? 0, 1000 + heldFor);
 }
 
 const editor = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="composer-editor"]')!;
@@ -237,67 +253,66 @@ describe("the quick composer", () => {
     expect(held()).toBe(1);
   });
 
-  test("dragging the hint hands main the grab point once, and the release once", async () => {
-    const { host, drags } = await open(front(GRANTED));
-    const hint = host.querySelector<HTMLElement>('[data-slot="quick-hint"]')!;
-    const surface = hint.closest('[data-surface="quick"]')!;
-    act(() => {
-      hint.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 300, clientY: 180, screenX: 100, screenY: 50 }));
-      for (const x of [110, 130, 160]) surface.dispatchEvent(new PointerEvent("pointermove", { screenX: x, screenY: 40 }));
-      surface.dispatchEvent(new PointerEvent("pointerup", {}));
-    });
-    expect(drags).toEqual([{ phase: "start", offsetX: 300, offsetY: 180 }, { phase: "end" }]);
+  test("dragging the hint moves the card inside the overlay and saves where it lands", async () => {
+    const { host, moves } = await open(front(GRANTED));
+    const card = cardOf(host);
+    const before = spotOf(host);
+    gesture(host.querySelector('[data-slot="quick-hint"]')!, [{ x: 30, y: -20 }, { x: 60, y: -40 }]);
+    expect(spotOf(host)).toEqual({ x: before.x + 60, y: before.y - 40 });
+    expect(moves).toEqual([{ x: before.x + 60, y: before.y - 40 }]);
+    expect(card.isConnected).toBe(true);
   });
 
   test("the empty field drags once the press moves, a click there does not, and a field with text never does", async () => {
-    const { host, drags } = await open(front(GRANTED));
-    const surface = host.querySelector('[data-surface="quick"]')!;
-    const press = (moveTo: number) =>
-      act(() => {
-        editor(host).dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 40, clientY: 30, screenX: 0, screenY: 0 }));
-        surface.dispatchEvent(new PointerEvent("pointermove", { screenX: moveTo, screenY: 0 }));
-        surface.dispatchEvent(new PointerEvent("pointerup", {}));
-      });
-    press(1);
-    expect(drags).toEqual([]);
-    press(20);
-    expect(drags).toEqual([{ phase: "start", offsetX: 40, offsetY: 30 }, { phase: "end" }]);
+    const { host, moves } = await open(front(GRANTED));
+    gesture(editor(host), [{ x: 1, y: 0 }]);
+    expect(moves).toEqual([]);
+    gesture(editor(host), [{ x: 20, y: 0 }]);
+    expect(moves).toHaveLength(1);
     await type(host, "half a thought");
-    press(20);
-    expect(drags).toHaveLength(2);
+    gesture(editor(host), [{ x: 20, y: 0 }]);
+    expect(moves).toHaveLength(1);
   });
 
-  test("dragging the card's padding moves the window, but the text field and buttons never start a drag", async () => {
-    const { host, drags } = await open(front(GRANTED));
-    const surface = host.querySelector('[data-surface="quick"]')!;
-    const down = (target: Element) => act(() => void target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, screenX: 10, screenY: 10 })));
-    const up = () => act(() => void surface.dispatchEvent(new PointerEvent("pointerup", {})));
-    await type(host, "draft");
-    down(editor(host));
-    down(host.querySelector('[aria-label="Project"]')!);
-    up();
-    expect(drags).toEqual([]);
-    down(host.querySelector('[data-slot="input-group"]')!);
-    up();
-    expect(drags).toEqual([{ phase: "start", offsetX: 0, offsetY: 0 }, { phase: "end" }]);
+  test("the card's padding drags, but buttons and chips never do", async () => {
+    const { host, moves } = await open(front(GRANTED));
+    gesture(host.querySelector('[aria-label="Project"]')!, [{ x: 40, y: 0 }]);
+    gesture(host.querySelector('[data-slot="composer-controls"] button')!, [{ x: 40, y: 0 }]);
+    expect(moves).toEqual([]);
+    gesture(host.querySelector('[data-slot="input-group"]')!, [{ x: 40, y: 0 }]);
+    expect(moves).toHaveLength(1);
   });
 
   test("on text, only a press held for a moment drags; a quick sweep is left to select", async () => {
-    const { host, drags } = await open(front(DENIED));
+    const { host, moves } = await open(front(DENIED));
     const text = host.querySelector('[role="note"] p')!;
-    const surface = host.querySelector('[data-surface="quick"]')!;
-    const at = (type: string, init: PointerEventInit, timeStamp: number) => {
-      const event = new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, ...init });
-      Object.defineProperty(event, "timeStamp", { value: timeStamp });
-      act(() => void (type === "pointerdown" ? text : surface).dispatchEvent(event));
-    };
-    at("pointerdown", { screenX: 0, screenY: 0 }, 1000);
-    at("pointermove", { screenX: 20, screenY: 0 }, 1050);
-    expect(drags).toEqual([]);
-    at("pointerdown", { screenX: 0, screenY: 0 }, 2000);
-    at("pointermove", { screenX: 1, screenY: 0 }, 2200);
-    at("pointerup", {}, 2300);
-    expect(drags).toEqual([{ phase: "start", offsetX: 0, offsetY: 0 }, { phase: "end" }]);
+    gesture(text, [{ x: 20, y: 0 }], 50);
+    expect(moves).toEqual([]);
+    gesture(text, [{ x: 1, y: 0 }], 200);
+    expect(moves).toHaveLength(1);
+  });
+
+  test("takes clicks only while the pointer is over something drawn, and a click on the bare overlay hides it", async () => {
+    const { host, interactive, closed } = await open(front(GRANTED));
+    const overlay = host.querySelector('[data-surface="quick"]')!;
+    const hover = (target: Element) => act(() => void target.dispatchEvent(new MouseEvent("mousemove", { bubbles: true })));
+    hover(editor(host));
+    hover(host.querySelector('[data-slot="quick-hint"]')!);
+    hover(overlay);
+    expect(interactive).toEqual([true, false]);
+    await act(async () => void overlay.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
+    expect(closed()).toBe(1);
+  });
+
+  test("an open menu draws outside the card without the page ever sizing the window", async () => {
+    const { host, bridge } = await open(front(GRANTED));
+    expect("resize" in bridge).toBe(false);
+    const access = host.querySelector<HTMLElement>('[aria-label^="Access:"]')!;
+    await act(async () => access.click());
+    await flush(() => document.body.textContent?.includes("Auto-accept edits") ?? false);
+    const menu = [...document.querySelectorAll("[role='dialog'], [data-side]")].find((node) => node.textContent?.includes("Auto-accept edits"));
+    expect(menu).toBeTruthy();
+    expect(cardOf(host).contains(menu!)).toBe(false);
   });
 
   test("the empty composer says # picks where the message goes, and so does the hint", async () => {
@@ -306,17 +321,27 @@ describe("the quick composer", () => {
     expect(host.querySelector('[data-slot="quick-hint"]')?.textContent).toContain("# destination");
   });
 
-  test("pressing a button in the control row does not drag", async () => {
-    const { host, drags } = await open(front(GRANTED));
-    const send = host.querySelector('[data-slot="composer-controls"] button')!;
-    act(() => void send.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 })));
-    expect(drags).toEqual([]);
-  });
-
   test("Esc hides it", async () => {
     const { closed } = await open(null);
     await act(async () => void window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(closed()).toBe(1);
+  });
+});
+
+describe("the desktop bridge", () => {
+  test("is read once, so a bridge object that is fresh on every read cannot re-run its effects forever", async () => {
+    const fake = fakeBridge(front(DENIED));
+    let reads = 0;
+    Object.defineProperty(window, "telarDesktop", { configurable: true, get: () => ((reads += 1), { quickComposer: { ...fake.bridge } }) });
+    const { host } = await mount(
+      <SidebarProvider>
+        <QuickComposer />
+      </SidebarProvider>,
+    );
+    await flush(() => Boolean(host.querySelector('[role="note"]')));
+    expect(reads).toBe(1);
+    expect(editor(host)).not.toBeNull();
+    Reflect.deleteProperty(window, "telarDesktop");
   });
 });
 

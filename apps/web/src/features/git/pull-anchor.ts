@@ -1,8 +1,8 @@
-import type { DiffHunkRange, GitHubLineCommentInput, GitHubLineCommentRefusal, GitHubLineCommentResult, GitHubLineSide, GitHubPullAnchor } from "@telar/engine-client";
+import type { DiffHunkRange, GitHubLineCommentInput, GitHubLineCommentResult, GitHubLineSide, GitHubPullAnchor } from "@telar/engine-client";
 
 import type { DiffScopeKind } from "./diff-scope";
 import type { LineSide } from "@telar/client/composer";
-import { THREAD_REFUSAL } from "@/features/github";
+import { LINE_COMMENT_REFUSAL } from "@/features/github";
 
 export type SelectedLines = { start: number; end: number; startSide: LineSide; endSide: LineSide };
 export type PullLineAnchor = Omit<GitHubLineCommentInput, "body">;
@@ -74,13 +74,6 @@ export function anchorPullLines(input: {
   if (startLine === line && startSide === side) return { anchor: base };
   return { anchor: { ...base, startLine, startSide } };
 }
-
-export const LINE_COMMENT_REFUSAL: Record<GitHubLineCommentRefusal, string> = {
-  ...THREAD_REFUSAL,
-  not_found: "This branch has no open pull request any more. Refresh to see what is there now.",
-  invalid_body: "A comment needs something in it, and at most 65,536 characters.",
-  stale: "The branch moved after this diff was read. Refresh and select the lines again.",
-};
 
 export type LineCommentEntry = { body: string; at: number; url?: string };
 

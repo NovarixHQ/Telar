@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { GitHubLineCommentResult, GitHubPullAnchor } from "@telar/engine-client";
 
-import { ANCHOR_REASON, anchorPullLines, applyLineComment, hunkRanges, LINE_COMMENT_REFUSAL, type LineCommentEntry, type SelectedLines } from "./pull-anchor";
+import { ANCHOR_REASON, anchorPullLines, applyLineComment, hunkRanges, type LineCommentEntry, type SelectedLines } from "./pull-anchor";
+import { LINE_COMMENT_REFUSAL } from "@/features/github";
 
 const HEAD = "a".repeat(40);
 const PATCH = "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1,3 +1,4 @@\n one\n-two\n+TWO\n+2b\n three\n@@ -20,2 +21,2 @@ fn\n x\n-y\n+Y\n";

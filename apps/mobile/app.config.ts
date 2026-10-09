@@ -30,18 +30,22 @@ const config: ExpoConfig = {
   platforms: ["ios"],
   ios: {
     bundleIdentifier: variant.bundleId,
+    appleTeamId: "MM74W7WGAM",
     supportsTablet: true,
     infoPlist: {
       CFBundleDisplayName: variant.name,
       ITSAppUsesNonExemptEncryption: false,
       // Hosts are dialed over plain http on tailnet 100.x addresses, which ATS cannot except by domain.
       NSAppTransportSecurity: { NSAllowsArbitraryLoads: true },
+      NSSupportsLiveActivities: true,
+      NSSupportsLiveActivitiesFrequentUpdates: true,
       NSLocalNetworkUsageDescription:
         "Telar talks to the cockpit on your computer over your local network when you pair by its LAN address.",
       UIDesignRequiresCompatibility: false,
     },
   },
   plugins: [
+    "@bacons/apple-targets",
     ["expo-build-properties", { ios: { deploymentTarget: "18.0" } }],
     ["expo-camera", { cameraPermission: "Telar scans the pairing code shown in the cockpit's Connections settings.", microphonePermission: MICROPHONE, recordAudioAndroid: false }],
     ["expo-audio", { microphonePermission: MICROPHONE, recordAudioAndroid: false }],

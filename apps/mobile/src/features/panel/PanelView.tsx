@@ -7,6 +7,7 @@ import { faded, Icon, Theme, type SymbolName } from "../../ui";
 import { BrowserSurface } from "../browser";
 import { FilesSurface } from "../files";
 import { DiffSurface } from "../git";
+import { SimulatorSurface } from "../simulators";
 import { TerminalSurface } from "../terminal";
 import type { PanelModel, PanelState } from "./model";
 import { PanelEmptyState } from "./PanelEmptyState";
@@ -20,6 +21,7 @@ type Props = { host: HostConnection; sessionId: string; panel: PanelModel; state
 
 function Surface({ host, sessionId, active, panel }: { host: HostConnection; sessionId: string; active: PanelTab | undefined; panel: PanelModel }) {
   if (active === "diff") return <DiffSurface host={host} sessionId={sessionId} />;
+  if (active === "simulator") return <SimulatorSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "terminal") return <TerminalSurface host={host} sessionId={sessionId} />;
   if (active === "editor") return <FilesSurface key={sessionId} host={host} sessionId={sessionId} />;
   if (active === "browser") return <BrowserSurface key={sessionId} host={host} sessionId={sessionId} />;

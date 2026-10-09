@@ -7,7 +7,8 @@ import { Theme } from "../../ui";
 import type { RemoteStatus } from "./devices";
 import { failureText, useHostLoad } from "./host-call";
 import { CardDivider, CardRow, Footnote, SectionLabel, SettingsCard, SettingsPage, StatusBanner } from "./kit";
-import { pollDelay, simulatorBanner, simulatorIcon, simulatorSubtitle } from "./simulators";
+import { simulatorIcon } from "../simulators";
+import { pollDelay, simulatorBanner, simulatorSubtitle } from "./simulators";
 
 const loadState = async (host: HostConnection) => (await host.call(true, () => host.client.simulators())).simulators;
 

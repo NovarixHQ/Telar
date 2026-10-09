@@ -28,7 +28,3 @@ export function pollDelay(state: SimulatorsState | undefined): number {
 export function simulatorSubtitle(simulator: SimulatorSummary): string {
   return [simulator.version, simulator.booted ? "Running" : undefined].filter(Boolean).join(" · ");
 }
-
-export function simulatorIcon(simulator: SimulatorSummary): "applewatch" | "iphone" {
-  return simulator.pairedWith ? "applewatch" : "iphone";
-}

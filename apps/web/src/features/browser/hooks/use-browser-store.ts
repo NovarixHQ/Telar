@@ -5,7 +5,7 @@ import { makeScopeGuard } from "../scope-guard";
 import type { DesktopBrowserDownload, DesktopBrowserPanelState, DesktopExtensionStatus } from "../types";
 import { useAddressRowTools } from "./use-browser-viewport";
 
-export type BrowserOverlay = "profile" | "options" | "device" | "zoom" | "site" | null;
+export type BrowserOverlay = "options" | "device" | "zoom" | "site" | null;
 
 /** Every piece of the surface's state. The component instance is reused across scopes, so a scope change resets it. */
 export function useBrowserStore(scopeKey: string, projectId: string | undefined, addressRowRef: RefObject<HTMLFormElement | null>, partitionRef: RefObject<string | undefined>) {
@@ -18,7 +18,7 @@ export function useBrowserStore(scopeKey: string, projectId: string | undefined,
   const [bound, setBound] = useState(false);
   const [openOverlay, setOpenOverlay] = useState<BrowserOverlay>(null);
   const [profilePane, setProfilePane] = useState<"menu" | "rename" | "new">("menu");
-  const [optionsPane, setOptionsPane] = useState<"menu" | "appearance" | "cookies" | "cache">("menu");
+  const [optionsPane, setOptionsPane] = useState<"menu" | "appearance" | "profile" | "cookies" | "cache">("menu");
   const [clearing, setClearing] = useState(false);
   const [annotating, setAnnotating] = useState<AnnotateCapture>();
   const [capturing, setCapturing] = useState(false);

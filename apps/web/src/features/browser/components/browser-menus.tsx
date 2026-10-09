@@ -94,7 +94,7 @@ function NewProfileForm({ b }: { b: BrowserUi }) {
 }
 
 /** Who this scope browses as, every identity to switch to, and what can be done about it. */
-export function ProfileMenu({ b, profile }: { b: BrowserUi; profile: DesktopBrowserProfile }) {
+function ProfileMenu({ b, profile }: { b: BrowserUi; profile: DesktopBrowserProfile }) {
   const { bridge, scopeKey, state } = b;
   if (b.profilePane === "rename") return <RenameForm b={b} profile={profile} />;
   if (b.profilePane === "new") return <NewProfileForm b={b} />;
@@ -170,8 +170,8 @@ export function ProfileMenu({ b, profile }: { b: BrowserUi; profile: DesktopBrow
         </button>
       )}
       <p className="px-2 pt-1.5 pb-1 text-3xs leading-snug text-muted-foreground">
-        Switching changes where the next tab opens. Tabs already open stay signed in as the profile they were opened with — an
-        expected account is what you intend, not a verified login.
+        Switching moves this browser&apos;s tabs into that profile and reloads them. An expected account is what you intend, not a
+        verified login.
       </p>
     </>
   );
@@ -215,11 +215,11 @@ function OptionsRows({ b }: { b: BrowserUi }) {
       {canCapture ? (
         <>
           <button type="button" disabled={capturing} onClick={() => run(() => void b.captureInto({}))} className={row}>
-            <span className="min-w-0 flex-1">Screenshot the viewport</span>
+            <span className="min-w-0 flex-1">Attach a screenshot</span>
             <CameraIcon aria-hidden className="size-3 shrink-0" />
           </button>
           <button type="button" disabled={capturing} onClick={() => run(() => void b.captureInto({ fullPage: true }))} className={row}>
-            Screenshot the full page
+            Attach a full-page screenshot
           </button>
           <button type="button" disabled={capturing} onClick={() => run(() => void b.startAnnotate())} className={row}>
             <span className="min-w-0 flex-1">Annotate this page</span>
@@ -274,11 +274,26 @@ function OptionsRows({ b }: { b: BrowserUi }) {
       {state?.profile && bridge.setScopeProfile ? (
         <>
           <Divider />
-          <button type="button" onClick={() => run(() => b.setOpenOverlay("profile"))} className={row}>
+          <button type="button" onClick={() => b.setOptionsPane("profile")} className={row}>
             <span className="min-w-0 flex-1 truncate">Profile: {state.profile.label}</span>
             <IdentityIcon icon={state.profile.icon} color={state.profile.color} className="size-3.5 shrink-0" />
+            <ChevronRightIcon aria-hidden className="size-3 shrink-0" />
           </button>
         </>
+      ) : null}
+      {b.activeOrigin && bridge.sitePermissions ? (
+        <button
+          type="button"
+          onClick={() =>
+            run(() => {
+              b.setDismissedPrompts([]);
+              b.setOpenOverlay("site");
+            })
+          }
+          className={row}
+        >
+          Site permissions…
+        </button>
       ) : null}
       {bridge.clearBrowsingData && activeTab ? (
         <>
@@ -294,14 +309,22 @@ function OptionsRows({ b }: { b: BrowserUi }) {
   );
 }
 
-function AppearancePane({ b }: { b: BrowserUi }) {
+function BackRow({ b, label }: { b: BrowserUi; label: string }) {
   return (
     <>
       <button type="button" onClick={() => b.setOptionsPane("menu")} className={cn(menuRow, "text-foreground")}>
         <ChevronLeftIcon aria-hidden className="size-3.5 shrink-0" />
-        <span className="min-w-0 flex-1">Appearance</span>
+        <span className="min-w-0 flex-1">{label}</span>
       </button>
       <Divider />
+    </>
+  );
+}
+
+function AppearancePane({ b }: { b: BrowserUi }) {
+  return (
+    <>
+      <BackRow b={b} label="Appearance" />
       {APPEARANCES.map((entry) => (
         <CheckRow
           key={entry.key}
@@ -358,9 +381,19 @@ function ClearConfirm({ b, kind }: { b: BrowserUi; kind: "cookies" | "cache" }) 
   );
 }
 
-/** The ⋯ menu's panes: its rows, the appearance submenu, or a clear confirm. */
+/** The ⋯ menu's panes: its rows, the appearance or profile submenu, or a clear confirm. */
 export function OptionsMenu({ b }: { b: BrowserUi }) {
   if (b.optionsPane === "menu") return <OptionsRows b={b} />;
   if (b.optionsPane === "appearance") return <AppearancePane b={b} />;
+  if (b.optionsPane === "profile") {
+    const profile = b.state?.profile;
+    if (!profile) return <OptionsRows b={b} />;
+    return (
+      <>
+        {b.profilePane === "menu" && <BackRow b={b} label="Profile" />}
+        <ProfileMenu b={b} profile={profile} />
+      </>
+    );
+  }
   return <ClearConfirm b={b} kind={b.optionsPane} />;
 }

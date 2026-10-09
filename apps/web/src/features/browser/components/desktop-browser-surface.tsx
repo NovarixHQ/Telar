@@ -4,10 +4,8 @@ import { Suspense, useRef } from "react";
 import dynamic from "next/dynamic";
 import { ArrowLeftIcon, ArrowRightIcon, ChevronRightIcon, EllipsisIcon, LockIcon, LockOpenIcon, MonitorSmartphoneIcon, MoonIcon, PencilIcon, PictureInPicture2Icon, RotateCwIcon, RotateCwSquareIcon, XIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
-import { siteLabel } from "../desktop-site-permissions";
 import { useCommandHandlers } from "@/features/commands";
 import { useNativeViewOverlay } from "@/platform/desktop/native-view-overlay";
-import { IdentityIcon } from "@/ui/telar-icons";
 import { cn } from "@/ui/utils";
 import { browserView, useBrowserActions, useBrowserCapture, useBrowserKeys, useBrowserPermissions, useBrowserSync, useDeviceSize, useShownPage, type BrowserProps, type BrowserUi } from "../hooks/use-browser-session";
 import { useBrowserStore, type BrowserOverlay } from "../hooks/use-browser-store";
@@ -17,11 +15,11 @@ import { addressValue, presentationZoomLabel } from "../model";
 import type { DesktopBrowserTab } from "../types";
 import { describeViewport, groupedViewportPresets, stageOf, viewportPreset, VIEWPORT_ZOOMS, zoomFits } from "../viewport";
 import { CameraButton, CheckRow, Divider, ExtensionButton, menuRow, Notices } from "./browser-chrome";
-import { OptionsMenu, ProfileMenu } from "./browser-menus";
+import { OptionsMenu } from "./browser-menus";
 import { CompactBar } from "./compact-bar";
 import { DeviceFrame } from "./device-frame";
 import { PoppedBrowser, usePoppedScope } from "./popped-browser";
-import { SitePermissionPrompt, SitePermissionsPopover, SiteSecurityIcon } from "./permission-prompt";
+import { SitePermissionPrompt, SitePermissionsPopover } from "./permission-prompt";
 import { BrowserStartPage } from "./start-page";
 import { TabStrip } from "./tab-strip";
 
@@ -35,40 +33,20 @@ const SIZE_FIELD = "h-6 w-14 rounded-md border border-border bg-background px-1.
 /** Opens `key` or closes whichever menu is open, for a Popover's `onOpenChange`. */
 const toggle = (b: BrowserUi, key: BrowserOverlay) => (open: boolean) => (open ? b.setOpenOverlay(key) : b.closeOverlay());
 
-// Re-opening from the lock brings a waved-away question back; Esc keeps the question and puts the page back.
-function SiteLock({ b, openOverlay }: { b: BrowserUi; openOverlay: BrowserOverlay }) {
-  const { activeOrigin, activePrompt, tabPrompt, sitePermissions, permissionBusy } = b;
+// No trigger of its own: a question opens it under the address, and the ⋯ menu's row reopens a waved-away one.
+function SitePermissions({ b, openOverlay, anchor }: { b: BrowserUi; openOverlay: BrowserOverlay; anchor: React.RefObject<HTMLInputElement | null> }) {
+  const { activeOrigin, activePrompt, sitePermissions, permissionBusy } = b;
   if (!(activeOrigin || activePrompt) || !b.bridge.sitePermissions) return null;
   return (
     <Popover
       open={openOverlay === "site" || Boolean(activePrompt)}
       onOpenChange={(open) => {
-        if (open) {
-          b.setDismissedPrompts([]);
-          b.setOpenOverlay("site");
-          return;
-        }
+        if (open) return;
         if (activePrompt) b.setDismissedPrompts((current) => [...current, activePrompt.requestId]);
         b.closeOverlay();
       }}
     >
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            aria-label={activePrompt ? `${siteLabel(activePrompt.origin)} is asking for permission` : activeOrigin ? `Site permissions for ${siteLabel(activeOrigin)}` : "Site permissions"}
-            title={activePrompt ? "This page is asking for permission" : "What this site is allowed to do"}
-            className={cn(
-              "relative shrink-0 rounded-md p-0.5 hover:bg-muted",
-              tabPrompt ? "text-primary" : sitePermissions.some((record) => record.decision === "allow") ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          />
-        }
-      >
-        <SiteSecurityIcon origin={activeOrigin} />
-        {tabPrompt && !activePrompt ? <span aria-hidden className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-primary" /> : null}
-      </PopoverTrigger>
-      <PopoverContent align="start" side="bottom" sideOffset={6} aria-label={activePrompt ? "Site permission request" : "Site permissions"} className="w-72">
+      <PopoverContent anchor={anchor} align="start" side="bottom" sideOffset={6} aria-label={activePrompt ? "Site permission request" : "Site permissions"} className="w-72">
         {activePrompt ? (
           <SitePermissionPrompt prompt={activePrompt} busy={permissionBusy} onAnswer={(answer) => void b.answerPermission(activePrompt.requestId, answer)} />
         ) : (
@@ -84,7 +62,7 @@ type AddressRowProps = { b: BrowserUi; openOverlay: BrowserOverlay; addressRowRe
 
 function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowProps) {
   const { activeTab, state, act, annotating } = b;
-  const profile = state?.profile;
+  const addressRef = useRef<HTMLInputElement>(null);
   return (
     <form
       ref={addressRowRef}
@@ -106,8 +84,9 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
       <button type="button" aria-label="Reload" className={GLYPH} onClick={() => void act({ action: "reload" })}>
         <RotateCwIcon className={cn("size-3.5", activeTab?.loading && "animate-spin text-primary")} />
       </button>
-      <SiteLock b={b} openOverlay={openOverlay} />
+      <SitePermissions b={b} openOverlay={openOverlay} anchor={addressRef} />
       <input
+        ref={addressRef}
         aria-label="Address"
         placeholder="Type an address"
         spellCheck={false}
@@ -119,29 +98,10 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
         }}
         onBlur={() => b.setDraft(undefined)}
       />
-      {profile && b.bridge.setScopeProfile ? (
-        <Popover open={openOverlay === "profile"} onOpenChange={toggle(b, "profile")}>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                aria-label={`Browser profile: ${profile.label}${profile.account ? ` (${profile.account})` : ""}`}
-                title={`Browser profile ${profile.label}${profile.account ? ` · expected account ${profile.account}` : ""}\nNew tabs open signed in as this profile.`}
-                className={MENU_TRIGGER}
-              >
-                <IdentityIcon icon={profile.icon} color={profile.color} className="size-3.5 shrink-0" />
-              </button>
-            }
-          />
-          <PopoverContent align="end" side="bottom" sideOffset={6} aria-label="Browser profile" className="w-64 gap-0 p-1">
-            <ProfileMenu b={b} profile={profile} />
-          </PopoverContent>
-        </Popover>
-      ) : null}
       <ExtensionButton b={b} keyButtonRef={keyButtonRef} />
+      {b.rowFitsTools && b.canSave ? <CameraButton busy={b.capturing} onCapture={(fullPage) => void b.saveShot(fullPage ? { fullPage: true } : {})} /> : null}
       {b.rowFitsTools && b.canCapture ? (
         <>
-          <CameraButton busy={b.capturing} onCapture={(fullPage) => void b.captureInto(fullPage ? { fullPage: true } : {})} />
           <button
             type="button"
             aria-label="Annotate this page"
@@ -163,8 +123,9 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
       <Popover open={openOverlay === "options"} onOpenChange={toggle(b, "options")}>
         <PopoverTrigger
           render={
-            <button type="button" aria-label="Browser options" title="Browser options" className={MENU_TRIGGER}>
+            <button type="button" aria-label="Browser options" title="Browser options" className={cn("relative", MENU_TRIGGER)}>
               <EllipsisIcon className="size-3.5 shrink-0" />
+              {b.tabPrompt && !b.activePrompt ? <span aria-hidden className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-primary" /> : null}
             </button>
           }
         />

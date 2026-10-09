@@ -146,6 +146,56 @@ const menuRow = (label: string) => {
   return found;
 };
 
+describe("the toolbar", () => {
+  test("is back, forward, reload, the address and a few glyphs: no lock and no profile picker", async () => {
+    const { host } = await mount(panelState(), { sitePermissions: async () => ({ partition: "persist:telar-profile-bp_1", origin: "https://example.com", kinds: [] }) });
+    const row = host.querySelector('[aria-label="Address"]')!.closest("form")!;
+    const labels = [...row.querySelectorAll("button")].map((button) => button.getAttribute("aria-label"));
+    expect(labels).toEqual(["Go back", "Go forward", "Reload", "Browser options"]);
+    expect(row.querySelector('[aria-label^="Site permissions"]')).toBeNull();
+    expect(row.querySelector('[aria-label^="Browser profile"]')).toBeNull();
+  });
+
+  test("site permissions open from the options menu, under the address", async () => {
+    const { host } = await mount(panelState(), { sitePermissions: async () => ({ partition: "persist:telar-profile-bp_1", origin: "https://example.com", kinds: [] }) });
+    await mouseClick(optionsTrigger(host));
+    await mouseClick(menuRow("Site permissions…"));
+    await waitFor(() => Boolean(document.querySelector('[role="dialog"][aria-label="Site permissions"]')));
+    expect(document.querySelector('[role="dialog"][aria-label="Site permissions"]')).not.toBeNull();
+  });
+});
+
+describe("the profile, in the options menu", () => {
+  const two = panelState({
+    profiles: [
+      { id: "bp_1", label: "Work", partition: "persist:telar-profile-bp_1" },
+      { id: "bp_2", label: "Home", partition: "persist:telar-profile-bp_2" },
+    ],
+  });
+
+  test("picking another profile switches this browser to it at once", async () => {
+    const switched: string[] = [];
+    const { host } = await mount(two, {
+      setScopeProfile: async (_scope, profileId) => {
+        switched.push(profileId);
+        return { profileId, partition: `persist:telar-profile-${profileId}` };
+      },
+    });
+    await mouseClick(optionsTrigger(host));
+    await mouseClick(menuRow("Profile: Work"));
+    await mouseClick(menuRow("Home"));
+    expect(switched).toEqual(["bp_2"]);
+  });
+
+  test("the profile pane has a way back to the menu", async () => {
+    const { host } = await mount(two);
+    await mouseClick(optionsTrigger(host));
+    await mouseClick(menuRow("Profile: Work"));
+    await mouseClick(menuRow("Profile"));
+    expect(menuRows()).toContain("Hard reload");
+  });
+});
+
 describe("the options menu", () => {
   test("holds the whole toolbox, in the order the issue asked for", async () => {
     const { host } = await mount(panelState());
@@ -609,7 +659,7 @@ describe("the browser's camera", () => {
     const { host } = await mount(panelState(), { capture: shell.capture }, (files, caption) => landed.push({ files, caption }));
 
     await mouseClick(optionsTrigger(host));
-    await mouseClick(menuRow("Screenshot the viewport"));
+    await mouseClick(menuRow("Attach a screenshot"));
     await waitFor(() => landed.length > 0);
 
     expect(shell.asked.at(-1)).toEqual({});
@@ -627,7 +677,7 @@ describe("the browser's camera", () => {
     const { host } = await mount(panelState(), { capture: shell.capture }, (files, caption) => landed.push({ files, caption }));
 
     await mouseClick(optionsTrigger(host));
-    await mouseClick(menuRow("Screenshot the full page"));
+    await mouseClick(menuRow("Attach a full-page screenshot"));
     await waitFor(() => landed.length > 0);
 
     expect(shell.asked.at(-1)).toEqual({ fullPage: true });
@@ -643,7 +693,7 @@ describe("the browser's camera", () => {
     );
 
     await mouseClick(optionsTrigger(host));
-    await mouseClick(menuRow("Screenshot the viewport"));
+    await mouseClick(menuRow("Attach a screenshot"));
     await waitFor(() => Boolean(host.querySelector('[role="alert"]')));
 
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("no page loaded");
@@ -653,7 +703,7 @@ describe("the browser's camera", () => {
   test("with nowhere for a capture to land, the rows are not offered at all", async () => {
     const { host } = await mount(panelState(), { capture: capturingBridge().capture });
     await mouseClick(optionsTrigger(host));
-    expect(menuRows()).not.toContain("Screenshot the viewport");
+    expect(menuRows()).not.toContain("Attach a screenshot");
     expect(menuRows()).not.toContain("Annotate this page");
     expect(menuRows()).toContain("Hard reload");
   });
@@ -661,7 +711,7 @@ describe("the browser's camera", () => {
   test("an older shell with no capture handler offers nothing rather than a row that throws", async () => {
     const { host } = await mount(panelState(), {}, () => {});
     await mouseClick(optionsTrigger(host));
-    expect(menuRows()).not.toContain("Screenshot the viewport");
+    expect(menuRows()).not.toContain("Attach a screenshot");
     expect(menuRows()).toContain("Hard reload");
   });
 });

@@ -29,9 +29,14 @@ export type RailRow = {
   projectIcon?: string;
   projectIconName?: string;
   projectIconEmoji?: string;
+  projectRemote?: string;
+  projectAway?: "Drive away" | "Folder gone";
   driver: string;
   branch?: string;
+  path?: string;
   activity: SessionActivity;
+  archived: boolean;
+  snoozedUntil?: number;
   pinned: boolean;
   unread: boolean;
   status: RailStatus;
@@ -82,6 +87,8 @@ function statusOf(session: LiveSessionRow, now: number): RailStatus {
   }
 }
 
+const awayOf = (availability: string | undefined): RailRow["projectAway"] => (availability === "unmounted" ? "Drive away" : availability === "missing" ? "Folder gone" : undefined);
+
 function accentOf(activity: LiveSessionRow["activity"]): RailRow["accent"] {
   if (activity === "blocked") return "amber";
   return activity === "working" || activity === "queued" || activity === "monitoring" ? "accent" : undefined;
@@ -113,9 +120,14 @@ export function railSections(inboxes: readonly HostInbox[], now: number, filter?
         ...(project?.icon ? { projectIcon: project.icon } : {}),
         ...(project?.iconName ? { projectIconName: project.iconName } : {}),
         ...(project?.iconEmoji ? { projectIconEmoji: project.iconEmoji } : {}),
+        ...(project?.remoteUrl ? { projectRemote: project.remoteUrl } : {}),
+        ...(awayOf(project?.availability) ? { projectAway: awayOf(project?.availability)! } : {}),
         driver: row.driver,
         ...(row.workspace.mode === "worktree" ? { branch: row.workspace.branch } : {}),
+        ...(row.workspace.mode !== "none" ? { path: row.workspace.path } : {}),
         activity: row.activity ?? "idle",
+        archived: row.state === "archived",
+        ...(row.snoozedUntil !== undefined ? { snoozedUntil: row.snoozedUntil } : {}),
         pinned: row.settledOverride === "active",
         unread: !busy && hasUnreadResult(session),
         status: statusOf(row, now),
@@ -134,6 +146,13 @@ export function railSections(inboxes: readonly HostInbox[], now: number, filter?
   sections.snoozed.sort((left, right) => right.updatedAt - left.updatedAt);
   sections.settled.sort((left, right) => right.updatedAt - left.updatedAt);
   return sections;
+}
+
+/** The list with the shelf's sessions it does not already hold; the list's own rows and assignments win. */
+export function withShelf(answer: LiveSessionsAnswer | undefined, shelf: LiveSessionsAnswer | undefined): LiveSessionsAnswer | undefined {
+  if (!answer || !shelf) return answer;
+  const listed = new Set(answer.sessions.map((session) => session.id));
+  return { ...answer, sessions: [...answer.sessions, ...shelf.sessions.filter((session) => !listed.has(session.id))], assignments: { ...shelf.assignments, ...answer.assignments } };
 }
 
 /** What the Lock Screen card counts on one computer: its active rows plus shelved sessions that are still busy. */

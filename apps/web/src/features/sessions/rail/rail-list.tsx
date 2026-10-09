@@ -3,6 +3,7 @@ import { FolderPlusIcon, FoldVerticalIcon, MessageSquareIcon, MessageSquarePlusI
 import { FlatSessionList } from "./flat-session-list";
 import { ProjectGroupSection } from "./project-group";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
+import { ScrollArea } from "@/ui/scroll-area";
 import { SidebarGroup, SidebarGroupContent } from "@/ui/sidebar";
 import { projectPlaces } from "@/features/hosts";
 import { CAPTION } from "./idiom";
@@ -62,13 +63,9 @@ export function RailSessionList(props: ListProps & { canStart: boolean; onAddPro
     <SidebarGroup className="min-h-0 flex-1">
       <ContextMenu>
         <ContextMenuTrigger render={<div className="flex min-h-0 flex-1 flex-col" />}>
-          <SidebarGroupContent
-            id="sidebar-session-results"
-            role={props.query ? "listbox" : undefined}
-            className="min-h-0 space-y-0.5 overflow-y-auto"
-          >
+          <ScrollArea viewportClassName="space-y-0.5 text-sm" viewportProps={{ id: "sidebar-session-results", role: props.query ? "listbox" : undefined }}>
             <RailRows {...props} />
-          </SidebarGroupContent>
+          </ScrollArea>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
           <ContextMenuItem disabled={!canStart} onClick={() => startSession()}>

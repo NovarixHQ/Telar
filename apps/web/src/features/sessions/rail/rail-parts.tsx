@@ -1,10 +1,11 @@
 import { ChevronRightIcon } from "lucide-react";
 import { KeyHint } from "@/features/commands";
-import { SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarTrigger } from "@/ui/sidebar";
+import { SidebarGroup, SidebarHeader, SidebarTrigger } from "@/ui/sidebar";
 import { CAPTION } from "./idiom";
 import { sessionKey, type SessionBand, type SidebarSession } from "../session-list";
 import type { SessionRowChanged } from "../session-mutations";
 import type { RailJumpSlot } from "../session-groups";
+import { ScrollArea } from "@/ui/scroll-area";
 import { Skeleton } from "@/ui/skeleton";
 import { cn } from "@/ui/utils";
 import { SessionRow } from "./session-row";
@@ -116,7 +117,7 @@ export function SessionShelf({
     <SidebarGroup className={cn("pt-0", open && "max-h-[45%] min-h-0 shrink-0")}>
       <BandRule label={label} count={count} open={open} onToggle={onToggle} />
       {open && (
-        <SidebarGroupContent className="min-h-0 space-y-0.5 overflow-y-auto" role="group" aria-label={label}>
+        <ScrollArea viewportClassName="space-y-0.5 text-sm" viewportProps={{ role: "group", "aria-label": label }}>
           {(limit === undefined ? rows : rows.slice(0, limit)).map((session) => (
             <SessionRow
               key={sessionKey(session)}
@@ -137,7 +138,7 @@ export function SessionShelf({
               Show more
             </button>
           )}
-        </SidebarGroupContent>
+        </ScrollArea>
       )}
     </SidebarGroup>
   );

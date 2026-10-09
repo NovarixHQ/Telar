@@ -160,9 +160,9 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
 }
 
 const styles = StyleSheet.create({
-  list: { flex: 1, backgroundColor: Theme.canvas },
-  loading: { flex: 1, backgroundColor: Theme.canvas },
+  list: { flex: 1 },
+  loading: { flex: 1 },
   patch: { paddingHorizontal: 16, paddingBottom: 10 },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 62, marginRight: 16, backgroundColor: faded("border", 0.6) },
-  failed: { flex: 1, padding: 24, textAlign: "center", fontSize: 15, color: Theme.textMuted, backgroundColor: Theme.canvas },
+  failed: { flex: 1, padding: 24, textAlign: "center", fontSize: 15, color: Theme.textMuted },
 });

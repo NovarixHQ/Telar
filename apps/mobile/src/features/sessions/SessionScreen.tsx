@@ -1,12 +1,12 @@
 import { useNavigation, useRoute, type NavigationProp, type RouteProp } from "@react-navigation/native";
-import { useHeaderHeight } from "@react-navigation/elements";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { KeyboardAvoidingView, StyleSheet } from "react-native";
 import { FloatingComposer } from "../composer";
 import { hosts, useHosts } from "../hosts";
 import { PanelColumn, PanelView, usePanelColumn } from "../panel";
 import { feedOf, TranscriptScroll, useFeed } from "../transcript";
 import { present } from "../../platform/connection";
+import { useSplitColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { useSessionHeader } from "./session-header";
 import { StatusNotice } from "./StatusNotice";
@@ -16,7 +16,7 @@ import type { RootStack } from "../../platform/navigation/routes";
 export function SessionScreen() {
   const { params } = useRoute<RouteProp<RootStack, "Session">>();
   const navigation = useNavigation<NavigationProp<RootStack>>();
-  const headerHeight = useHeaderHeight();
+  const split = useSplitColumn();
   const rows = useHosts(hosts);
   const host = hosts.get(params.hostId);
   const connection = rows.find((row) => row.connection === host)?.state;
@@ -58,29 +58,34 @@ export function SessionScreen() {
   );
 
   const panel = host ? <PanelView host={host} sessionId={params.sessionId} panel={column.panel} state={column.state} presentation="column" onClose={column.panel.close} /> : null;
+  useLayoutEffect(() => {
+    split.setAside({
+      full: column.shown && column.state.fullScreen,
+      render: (total) => <PanelColumn shown={column.shown} full={column.state.fullScreen} width={column.width} onWidth={column.setWidth} total={total} panel={panel} />,
+    });
+  }, [host, params.sessionId, column.shown, column.state, column.width]);
+  useEffect(() => () => split.setAside(undefined), []);
   return (
-    <PanelColumn shown={column.shown} full={column.state.fullScreen} width={column.width} onWidth={column.setWidth} top={headerHeight} panel={panel}>
-      <KeyboardAvoidingView style={styles.screen} behavior="padding">
-        <TranscriptScroll
-          turns={feed.turns}
-          loading={!feed.head && !feed.failed}
-          pin={pin}
-          bottomInset={footer}
-          source={host ? { host, sessionId: params.sessionId } : undefined}
-          older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
-        />
-        <FloatingComposer
-          host={host}
-          hostId={params.hostId}
-          sessionId={params.sessionId}
-          mentions={railRows}
-          notices={notices}
-          {...(params.draft ? { initialDraft: params.draft } : {})}
-          onHeight={setFooter}
-          onSent={() => setPin((value) => value + 1)}
-        />
-      </KeyboardAvoidingView>
-    </PanelColumn>
+    <KeyboardAvoidingView style={styles.screen} behavior="padding">
+      <TranscriptScroll
+        turns={feed.turns}
+        loading={!feed.head && !feed.failed}
+        pin={pin}
+        bottomInset={footer}
+        source={host ? { host, sessionId: params.sessionId } : undefined}
+        older={feed.hasOlder ? { loading: Boolean(feed.loadingOlder), load: () => void feedOf(host, params.sessionId)?.loadOlder() } : undefined}
+      />
+      <FloatingComposer
+        host={host}
+        hostId={params.hostId}
+        sessionId={params.sessionId}
+        mentions={railRows}
+        notices={notices}
+        {...(params.draft ? { initialDraft: params.draft } : {})}
+        onHeight={setFooter}
+        onSent={() => setPin((value) => value + 1)}
+      />
+    </KeyboardAvoidingView>
   );
 }
 

@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSplitColumn } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
 import { hosts, WelcomeScreen } from "../hosts";
 import { Icon, Theme, type SymbolName } from "../../ui";
@@ -129,6 +130,7 @@ export function RailScreen() {
     expandedParents = expanded;
   }, [expanded]);
   const rail = useMergedRail(chosen);
+  const { sidebar } = useSplitColumn();
   useToolbar(navigation, rail, rail.filter, setFilter, setQuery);
 
   if (rail.computers.length === 0) return <WelcomeScreen />;
@@ -158,7 +160,7 @@ export function RailScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Host style={{ flex: 1 }}>
-        <List modifiers={[listStyle("insetGrouped"), listSectionSpacing(12), scrollContentBackground("hidden"), background(Theme.sheet), refreshable(refreshAll)]}>
+        <List modifiers={[listStyle(sidebar ? "sidebar" : "insetGrouped"), listSectionSpacing(12), scrollContentBackground("hidden"), background(Theme.sheet), refreshable(refreshAll)]}>
           <FailureBanners rail={rail} />
           {found ? (
             found.length > 0 ? (

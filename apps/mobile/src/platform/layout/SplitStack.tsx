@@ -18,12 +18,12 @@ import {
   type NativeStackTypeBag,
 } from "@react-navigation/native-stack";
 import { useState, type ReactNode } from "react";
-import { LayoutAnimation, Platform, PlatformColor, StyleSheet, useWindowDimensions, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { LayoutAnimation, Platform, StyleSheet, useWindowDimensions, View } from "react-native";
+import { initialWindowMetrics, SafeAreaProvider } from "react-native-safe-area-context";
 import { Theme, type SymbolName } from "../../ui";
 import { isRegularWidth } from "./size-class";
 import { selectionBase, SIDEBAR_WIDTH, splitColumns } from "./split";
-import { SplitColumnContext, type SplitColumn } from "./split-column";
+import { SplitColumnContext, type SplitAside, type SplitColumn } from "./split-column";
 
 type State = StackNavigationState<ParamListBase>;
 type Descriptors = ReturnType<typeof useNavigationBuilder<State, SplitOptions, StackActionHelpers<ParamListBase>, NativeStackNavigationOptions, NativeStackNavigationEventMap>>["descriptors"];
@@ -60,7 +60,9 @@ function withButton(descriptors: Descriptors, key: string | undefined, side: Sid
   return { ...descriptors, [key]: { ...descriptor, options: { ...descriptor.options, [side]: items } } };
 }
 
-/** A native stack that, at regular width, pins its first route as a 300pt sidebar beside the rest, like a balanced NavigationSplitView. */
+
+/** A native stack that, at regular width, pins its first route as a 300pt sidebar beside the rest, like a balanced NavigationSplitView.
+ *  Columns meet flush on hairlines, as T3's iPad layout does; the detail column leaves room for an aside (the session's panel) at its trailing edge. */
 function SplitStackNavigator({ id, initialRouteName, children, layout, screenListeners, screenOptions, screenLayout, selection, placeholder }: Props) {
   const { state, describe, descriptors, navigation, render } = useNavigationBuilder<State, SplitOptions, StackActionHelpers<ParamListBase>, NativeStackNavigationOptions, NativeStackNavigationEventMap>(SplitRouter, {
     id,
@@ -74,6 +76,8 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   });
   const { width } = useWindowDimensions();
   const [hidden, setHidden] = useState(false);
+  const [aside, setAside] = useState<SplitAside>();
+  const [total, setTotal] = useState(0);
   const setSidebarHidden = (next: boolean) => {
     if (next === hidden) return;
     LayoutAnimation.configureNext(LayoutAnimation.create(280, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
@@ -86,7 +90,9 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
   const chosen = detail?.routes[0];
   const column: SplitColumn = {
     sidebar: false,
+    split: true,
     sidebarHidden: hidden,
+    setAside,
     showSidebar: () => setSidebarHidden(false),
     setSidebarHidden,
     ...(chosen && selection.includes(chosen.name) && chosen.params ? { selected: chosen.params } : {}),
@@ -102,7 +108,12 @@ function SplitStackNavigator({ id, initialRouteName, children, layout, screenLis
             <SplitColumnContext.Provider value={{ ...column, sidebar: true }}>{stack({ ...sidebar, preloadedRoutes: [] }, toggled)}</SplitColumnContext.Provider>
           </View>
         </View>
-        <View style={styles.detail}>{detail ? stack(detail, toggled) : <SafeAreaProvider>{placeholder}</SafeAreaProvider>}</View>
+        <View style={styles.detail} onLayout={({ nativeEvent }) => setTotal(nativeEvent.layout.width)}>
+          <View style={[styles.content, aside?.full && styles.hidden]} accessibilityElementsHidden={aside?.full} importantForAccessibility={aside?.full ? "no-hide-descendants" : "auto"}>
+            {detail ? stack(detail, toggled) : <SafeAreaProvider>{placeholder}</SafeAreaProvider>}
+          </View>
+          {aside && total ? <SafeAreaProvider initialMetrics={initialWindowMetrics} style={aside.full ? StyleSheet.absoluteFill : styles.aside}>{aside.render(total)}</SafeAreaProvider> : null}
+        </View>
       </View>
     </SplitColumnContext.Provider>,
   );
@@ -115,8 +126,11 @@ export function createSplitStackNavigator<const ParamList extends ParamListBase>
 }
 
 const styles = StyleSheet.create({
-  row: { flex: 1, flexDirection: "row" },
+  row: { flex: 1, flexDirection: "row", backgroundColor: Theme.canvas },
   clip: { overflow: "hidden" },
-  sidebar: { position: "absolute", top: 0, bottom: 0, right: 0, width: SIDEBAR_WIDTH },
-  detail: { flex: 1, backgroundColor: PlatformColor("systemBackground") },
+  sidebar: { position: "absolute", top: 0, bottom: 0, right: 0, width: SIDEBAR_WIDTH, backgroundColor: Theme.sheet, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: Theme.border },
+  detail: { flex: 1, flexDirection: "row", overflow: "hidden" },
+  content: { flex: 1 },
+  hidden: { opacity: 0 },
+  aside: { flex: 0, flexDirection: "row" },
 });

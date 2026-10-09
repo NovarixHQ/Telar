@@ -2,12 +2,14 @@ import { Button, Capsule, Circle, HStack, Overlay, Spacer, Text, VStack } from "
 import {
   accessibilityAddTraits,
   accessibilityLabel,
+  background,
   buttonStyle,
   contentShape,
   foregroundStyle,
   frame,
   lineLimit,
   listRowBackground,
+  listRowInsets,
   monospacedDigit,
   offset,
   onTapGesture,
@@ -17,7 +19,7 @@ import {
   shapes,
   truncationMode,
 } from "@expo/ui/swift-ui/modifiers";
-import { DynamicColorIOS, type ColorValue } from "react-native";
+import type { ColorValue } from "react-native";
 import { useSplitColumn } from "../../platform/layout";
 import { faded, HostMark, Icon, ProjectAvatar, ProviderIcon, SteppedPulseDot, Theme, Type } from "../../ui";
 import { useProjectIcon } from "../projects";
@@ -143,8 +145,13 @@ function FamilyToggle({ family, open, onToggle, ink }: { family: RailFamily; ope
 
 const accentColor = { amber: Theme.amber, accent: Theme.accent };
 
-// The fill UIKit gives sidebar rows in a split view, measured from the Swift app.
-const SIDEBAR_ROW = DynamicColorIOS({ light: "#E7E7E7", dark: "#1F1F1F" });
+/** iPadOS sidebar rows: plain on the glass, the chosen one on a rounded accent inset from the edges. */
+const sidebarRow = (chosen: boolean) => [
+  padding({ horizontal: 10, vertical: 7 }),
+  background(chosen ? Theme.accent : "clear", shapes.roundedRectangle({ cornerRadius: 10, roundedCornerStyle: "continuous" })),
+  listRowBackground("clear"),
+  listRowInsets({ top: 1, bottom: 1, leading: 0, trailing: 0 }),
+];
 
 const isRow = (selected: object | undefined, row: RailRow) =>
   !!selected && "hostId" in selected && "sessionId" in selected && selected.hostId === row.hostId && selected.sessionId === row.sessionId;
@@ -156,9 +163,8 @@ export function RailRowView({ row, host, slim, nested, stale, family, onOpen }: 
   const ink = chosen ? ON_ACCENT : PLAIN;
   const disclosure = family ? <FamilyToggle {...family} ink={ink} /> : null;
   const body = slim || nested ? <SlimBody row={row} host={host} ink={ink} /> : <CardBody row={row} host={host} ink={ink} disclosure={disclosure} />;
-  const fill = sidebar ? (chosen ? Theme.accent : SIDEBAR_ROW) : undefined;
   return (
-    <HStack spacing={11} modifiers={[contentShape(shapes.rectangle()), onTapGesture(onOpen), accessibilityAddTraits(["isButton"]), ...(fill ? [listRowBackground(fill)] : [])]}>
+    <HStack spacing={11} modifiers={[...(sidebar ? sidebarRow(chosen) : []), contentShape(shapes.rectangle()), onTapGesture(onOpen), accessibilityAddTraits(["isButton"])]}>
         <Overlay alignment="leading" modifiers={[opacity(stale ? 0.6 : 1), padding({ leading: nested ? 12 : 0 })]}>
           {body}
           {!slim && !nested && row.accent ? (

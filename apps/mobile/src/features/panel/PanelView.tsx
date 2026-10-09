@@ -40,7 +40,7 @@ function StripButton({ icon, label, onPress }: { icon: SymbolName; label: string
 export const PanelView = memo(function PanelView({ host, sessionId, panel, state, presentation = "page", onClose }: Props) {
   const column = presentation === "column";
   return (
-    <View style={[styles.fill, { backgroundColor: column ? Theme.sheet : Theme.canvas }]}>
+    <View style={styles.fill}>
       <Host matchContents={{ vertical: true }}>
         <VStack spacing={0}>
           <HStack spacing={4} modifiers={[padding({ horizontal: 10, vertical: 6 })]}>

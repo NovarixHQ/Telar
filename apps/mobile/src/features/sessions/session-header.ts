@@ -1,11 +1,12 @@
 import { useNavigation, type NavigationProp } from "@react-navigation/native";
 import type { NativeStackHeaderItem, NativeStackHeaderItemButton, NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { useLayoutEffect, useRef } from "react";
-import { Alert } from "react-native";
+import { Alert, useColorScheme } from "react-native";
 import type { Session } from "@telar/engine-client";
 import type { HostConnection } from "../../platform/connection";
+import { useSplitColumn } from "../../platform/layout";
 import type { RootStack } from "../../platform/navigation/routes";
-import { Theme } from "../../ui";
+import { palette, Theme } from "../../ui";
 
 type Icon = Extract<NonNullable<NativeStackHeaderItemButton["icon"]>, { type: "sfSymbol" }>;
 const symbol = (name: Icon["name"]): Icon => ({ type: "sfSymbol", name });
@@ -19,6 +20,8 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
   perform.current = act;
   const panel = useRef(openPanel);
   panel.current = openPanel;
+  const { split } = useSplitColumn();
+  const canvas = palette.canvas[useColorScheme() === "dark" ? "dark" : "light"];
 
   useLayoutEffect(() => {
     const update = (patch: Parameters<HostConnection["client"]["updateSession"]>[1]) => {
@@ -28,6 +31,7 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
       Alert.prompt("Rename session", undefined, [{ text: "Cancel", style: "cancel" }, { text: "Rename", isPreferred: true, onPress: (next?: string) => next?.trim() && update({ title: next.trim() }) }], "plain-text", title);
     const options: NativeStackNavigationOptions = {
       title,
+      ...(split ? { headerTransparent: false, headerStyle: { backgroundColor: canvas }, headerShadowVisible: false } : {}),
       unstable_headerRightItems: (): NativeStackHeaderItem[] => [
         { type: "button", label: "Panel", icon: symbol("sidebar.trailing"), tintColor: Theme.textMuted, onPress: () => panel.current(), accessibilityLabel: "Panel" },
         {
@@ -53,5 +57,5 @@ export function useSessionHeader(host: HostConnection | undefined, sessionId: st
       ],
     };
     navigation.setOptions(options);
-  }, [navigation, host, sessionId, title, settled]);
+  }, [navigation, host, sessionId, title, settled, split, canvas]);
 }

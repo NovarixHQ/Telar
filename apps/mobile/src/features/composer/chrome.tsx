@@ -2,7 +2,8 @@ import { Host, Mask, Rectangle, RoundedRectangle, ZStack } from "@expo/ui/swift-
 import { foregroundStyle, glassEffect, shadow } from "@expo/ui/swift-ui/modifiers";
 import { memo } from "react";
 import { DynamicColorIOS, StyleSheet } from "react-native";
-import { faded } from "../../ui";
+import { useSplitColumn } from "../../platform/layout";
+import { faded, Theme } from "../../ui";
 
 const SHADOW = DynamicColorIOS({ light: "#0000001F", dark: "#00000059" });
 
@@ -21,12 +22,13 @@ export const Glass = memo(function Glass({ radius, lifted = false }: { radius: n
   );
 });
 
-/** The bar material behind the footer, fading in over its top third; it runs on under the home indicator. */
+/** The bar material behind the footer, fading in over its top third; it runs on under the home indicator. In the iPad card it fades to the card itself. */
 export const Scrim = memo(function Scrim() {
+  const { split } = useSplitColumn();
   return (
     <Host style={styles.scrim} pointerEvents="none">
       <Mask>
-        <Rectangle modifiers={[foregroundStyle({ type: "material", material: "bar" })]} />
+        <Rectangle modifiers={[foregroundStyle(split ? Theme.canvas : { type: "material", material: "bar" })]} />
         <Mask.Content>
           <Rectangle modifiers={[foregroundStyle({ type: "linearGradient", colors: ["clear", "black", "black"], startPoint: { x: 0.5, y: 0 }, endPoint: { x: 0.5, y: 0.7 } })]} />
         </Mask.Content>

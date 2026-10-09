@@ -51,7 +51,12 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
       document.getElementById("turn-prompt")?.focus();
     };
     void bridge.context().then(adopt, () => undefined);
-    return bridge.onOpen(adopt);
+    const stopOpen = bridge.onOpen(adopt);
+    const stopPermissions = bridge.onPermissions((permissions) => setContext((current) => current && { ...current, permissions }));
+    return () => {
+      stopOpen();
+      stopPermissions();
+    };
   }, [bridge]);
 
   const submit = async () => {

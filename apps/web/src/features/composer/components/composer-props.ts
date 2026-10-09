@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ClaudeConversation, EngineRequest, ProviderDriverKind, RuntimeMode, Session, SessionChildState, UsageSnapshot, WhileWorking } from "@telar/engine-client";
 import type { ModelChoice } from "@telar/client/providers";
 import type { ComposerKind } from "../registry";
@@ -15,6 +16,7 @@ export type ComposerProps = {
   /** No session yet: the pills choose what the first message creates; unless `compact`, a greeting and the card fill the screen. */
   fresh?: boolean;
   compact?: boolean;
+  leading?: ReactNode;
   driver?: ProviderDriverKind;
   onDriverChange?: (driver: ProviderDriverKind) => void;
   envMode?: "local" | "worktree";

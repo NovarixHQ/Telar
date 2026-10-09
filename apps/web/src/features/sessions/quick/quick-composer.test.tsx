@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "react";
 import type { Session } from "@telar/engine-client";
 import { flush, installTestDom, mount } from "@/test/dom";
-import type { FrontContext, QuickComposerBridge } from "./front-context";
+import type { FrontContext, Permission, Permissions, QuickComposerBridge } from "./front-context";
 
 installTestDom();
 (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = class {
@@ -47,20 +47,29 @@ function wire() {
 }
 
 const GRANTED = { accessibility: true, screen: true };
+const DENIED = { accessibility: false, screen: false };
 
 function fakeBridge(context: FrontContext | null) {
   const sent: Parameters<QuickComposerBridge["sent"]>[0][] = [];
+  const settings: Permission[] = [];
   let closed = 0;
+  let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
     onOpen: () => () => {},
     close: async () => void (closed += 1),
     resize: () => {},
     sent: async (input) => void sent.push(input),
-    openSettings: async () => {},
+    onPermissions: (listener) => {
+      pushPermissions = listener;
+      return () => {};
+    },
+    openSettings: async (permission) => void settings.push(permission),
   };
-  return { bridge, sent, closed: () => closed };
+  return { bridge, sent, settings, closed: () => closed, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
+
+const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", screenshot: null, permissions, grantee: "Telar Dev", ...extra });
 
 beforeEach(() => {
   clearConnections();
@@ -98,7 +107,7 @@ const created = () => calls.find((call) => call.method === "POST" && call.url.en
 
 describe("the quick composer", () => {
   test("Enter starts a session in the project and hands it back without opening Telar", async () => {
-    const { host, sent } = await open({ app: "Notes", title: "", selection: "", screenshot: null, permissions: GRANTED });
+    const { host, sent } = await open(front(GRANTED));
     await typeAndPress(host, "Review this PR");
     const { id } = created();
     expect(calls.find((call) => call.url.endsWith(`/api/sessions/${id}/turns`))?.body).toMatchObject({ input: "Review this PR" });
@@ -106,13 +115,13 @@ describe("the quick composer", () => {
   });
 
   test("⌘Enter starts it and asks for Telar to open on it", async () => {
-    const { host, sent } = await open({ app: "Notes", title: "", selection: "", screenshot: null, permissions: GRANTED });
+    const { host, sent } = await open(front(GRANTED));
     await typeAndPress(host, "Look at this", { metaKey: true });
     expect(sent[0]?.open).toBe(true);
   });
 
   test("attaches the front window and the selection, each removable", async () => {
-    const { host } = await open({ app: "Safari", title: "pull/1439", selection: "two\nlines", screenshot: "data:image/png;base64,iVBORw0KGgo=", permissions: GRANTED });
+    const { host } = await open(front(GRANTED, { app: "Safari", title: "pull/1439", selection: "two\nlines", screenshot: "data:image/png;base64,iVBORw0KGgo=" }));
     const removeShot = host.querySelector('[aria-label="Remove Safari · pull-1439.png"]');
     expect(removeShot).not.toBeNull();
     expect(host.querySelector('[aria-label="Remove Selected text.txt"]')).not.toBeNull();
@@ -124,21 +133,21 @@ describe("the quick composer", () => {
   });
 
   test("without the permissions it explains them, attaches nothing, and still sends", async () => {
-    const { host, sent } = await open({ app: "Notes", title: "", selection: "", screenshot: null, permissions: { accessibility: false, screen: false } });
-    expect(host.querySelector('[role="note"]')?.textContent).toContain("Telar needs two permissions");
+    const { host, sent } = await open(front(DENIED));
+    expect(host.querySelector('[role="note"]')?.textContent).toContain("Allow “Telar Dev”");
     expect(host.querySelector('[aria-label^="Remove "]')).toBeNull();
     await typeAndPress(host, "Plain text only");
     expect(sent).toHaveLength(1);
   });
 
   test("shows no greeting heading", async () => {
-    const { host } = await open({ app: "Notes", title: "", selection: "", screenshot: null, permissions: GRANTED });
+    const { host } = await open(front(GRANTED));
     expect(host.querySelector("h1")).toBeNull();
     expect(host.textContent).not.toContain("What's next for");
   });
 
   test("the permissions notice sits above the composer, and Skip hides it for good", async () => {
-    const denied = { app: "Notes", title: "", selection: "", screenshot: null, permissions: { accessibility: false, screen: false } };
+    const denied = front(DENIED);
     const { host } = await open(denied);
     const note = host.querySelector('[role="note"]')!;
     expect(note.compareDocumentPosition(editor(host)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -147,6 +156,33 @@ describe("the quick composer", () => {
     expect(host.querySelector('[role="note"]')).toBeNull();
     const reopened = await open(denied);
     expect(reopened.host.querySelector('[role="note"]')).toBeNull();
+  });
+
+  test("each missing permission gets its own button, and a granted one says so", async () => {
+    const { host, settings } = await open(front({ accessibility: true, screen: false }));
+    const row = (key: Permission) => host.querySelector<HTMLElement>(`[data-permission="${key}"]`)!;
+    expect(row("accessibility").textContent).toContain("Granted");
+    expect(row("accessibility").querySelector("button")).toBeNull();
+    await act(async () => row("screen").querySelector("button")!.click());
+    expect(settings).toEqual(["screen"]);
+  });
+
+  test("a grant made in System Settings updates the rows, and the notice goes once both are in", async () => {
+    const { host, recheck } = await open(front(DENIED));
+    recheck({ accessibility: true, screen: false });
+    expect(host.querySelector('[data-permission="accessibility"]')?.textContent).toContain("Granted");
+    expect(host.querySelector('[data-permission="screen"] button')).not.toBeNull();
+    recheck(GRANTED);
+    expect(host.querySelector('[role="note"]')).toBeNull();
+  });
+
+  test("the project picker sits in the card's control row, with the send hint under the card", async () => {
+    const { host } = await open(front(GRANTED));
+    const controls = host.querySelector('[data-slot="composer-controls"]')!;
+    expect(controls.querySelector('[aria-label="Project"]')?.textContent).toContain("Telar");
+    const hint = host.querySelector('[data-slot="quick-hint"]')!;
+    expect(hint.textContent).toBe("↵ send · ⌘↵ send & open · esc close");
+    expect(editor(host).compareDocumentPosition(hint) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   test("Esc hides it", async () => {

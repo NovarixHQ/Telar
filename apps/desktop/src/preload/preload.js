@@ -185,7 +185,8 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     close: () => ipcRenderer.invoke("telar:quick-composer:close"),
     resize: (height) => ipcRenderer.send("telar:quick-composer:resize", { height }),
     sent: (input) => ipcRenderer.invoke("telar:quick-composer:sent", input),
-    openSettings: () => ipcRenderer.invoke("telar:quick-composer:open-settings"),
+    onPermissions: (listener) => on("telar:quick-composer:permissions", listener),
+    openSettings: (permission) => ipcRenderer.invoke("telar:quick-composer:open-settings", permission),
   },
 
   notifications: {

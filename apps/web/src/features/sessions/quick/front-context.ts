@@ -1,9 +1,13 @@
+export type Permission = "accessibility" | "screen";
+export type Permissions = Record<Permission, boolean>;
+
 export type FrontContext = {
   app: string;
   title: string;
   selection: string;
   screenshot: string | null;
-  permissions: { accessibility: boolean; screen: boolean };
+  permissions: Permissions;
+  grantee: string;
 };
 
 export type QuickComposerBridge = {
@@ -12,7 +16,8 @@ export type QuickComposerBridge = {
   close: () => Promise<unknown>;
   resize: (height: number) => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
-  openSettings: () => Promise<unknown>;
+  onPermissions: (listener: (permissions: Permissions) => void) => () => void;
+  openSettings: (permission: Permission) => Promise<unknown>;
 };
 
 export function quickComposerBridge(): QuickComposerBridge | undefined {

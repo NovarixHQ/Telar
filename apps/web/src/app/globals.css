@@ -1485,3 +1485,14 @@ pre span[style*="--sdm-c"] {
 [data-telar-shell] .app-no-drag {
   -webkit-app-region: no-drag;
 }
+
+html:has([data-surface="quick"]),
+html:has([data-surface="quick"]) body {
+  background: transparent !important;
+}
+[data-telar-shell] [data-surface="quick"] :is([data-slot="input-group-addon"][data-align="block-end"], [data-slot="quick-hint"]) {
+  -webkit-app-region: drag;
+}
+[data-telar-shell] [data-surface="quick"] [data-slot="input-group-addon"] :is(button, a, input, [role="button"], [role="combobox"]) {
+  -webkit-app-region: no-drag;
+}

@@ -30,7 +30,7 @@ describe("the shortcut", () => {
     expect(win.options).toMatchObject({ type: "panel", frame: false, alwaysOnTop: true, skipTaskbar: true });
     expect(win.loaded).toEqual(["http://127.0.0.1:4000/surface/quick"]);
     expect(win.isVisible()).toBe(true);
-    expect(win.webContents.sent).toEqual([{ channel: "telar:quick-composer:open", payload: CONTEXT }]);
+    expect(win.webContents.sent[0]).toEqual({ channel: "telar:quick-composer:open", payload: CONTEXT });
     expect(await electron.ipcMain.invoke("telar:quick-composer:context", eventFrom(win))).toEqual(CONTEXT);
   });
 
@@ -71,6 +71,58 @@ describe("the shortcut", () => {
     await press("Alt+Space");
     await press("Alt+Space");
     expect(electron.systemPreferences.prompted).toBe(1);
+  });
+});
+
+describe("the window", () => {
+  test("is transparent and movable, so only the composer's own card shows", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    expect(panel().options).toMatchObject({ transparent: true, movable: true, hasShadow: false, backgroundColor: "#00000000" });
+  });
+
+  test("opens where it was last dragged on that display", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    expect(panel().getPosition()).toEqual([410, 200]);
+    panel().setPosition(120, 600);
+    panel().emit("moved");
+    await press("Alt+Space");
+    await press("Alt+Space");
+    expect(panel().getPosition()).toEqual([120, 600]);
+  });
+
+  test("a spot on another display does not move it there", async () => {
+    electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    panel().setPosition(2000, 300);
+    panel().emit("moved");
+    await press("Alt+Space");
+    await press("Alt+Space");
+    expect(panel().getPosition()).toEqual([410, 200]);
+  });
+});
+
+describe("the permissions", () => {
+  test("are checked again each time the panel takes focus", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    Object.assign(electron.systemPreferences, { trusted: true, screen: "granted" });
+    panel().focus();
+    expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:permissions", payload: { accessibility: true, screen: true } });
+  });
+
+  test("each button opens its own pane, and only from the panel", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(panel()), "screen");
+    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(panel()), "accessibility");
+    await electron.ipcMain.invoke("telar:quick-composer:open-settings", eventFrom(new FakeBrowserWindow()), "screen");
+    expect(electron.shell.opened).toEqual([
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+    ]);
   });
 });
 

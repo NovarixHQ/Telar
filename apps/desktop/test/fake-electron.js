@@ -114,6 +114,9 @@ class FakeBrowserWindow extends Emitter {
   setPosition(x, y) {
     this.bounds = { ...this.bounds, x, y };
   }
+  getPosition() {
+    return [this.bounds.x, this.bounds.y];
+  }
   setContentSize(width, height) {
     this.bounds = { ...this.bounds, width, height };
   }

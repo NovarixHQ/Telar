@@ -129,15 +129,14 @@ export function Composer(props: ComposerProps) {
   const drop = useDropTarget(editor, addFiles);
   const shape = [attachments.length > 0, question.active, Boolean(driveAway)].join();
   const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
-  const pills = pillsShown && (
-    <ComposerPills
-      {...props}
-      summon={summon}
-      driver={activeDriver}
-      choice={choice}
-      instanceId={session?.providerInstanceId}
-      ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }}
-    />
+  const pills = (
+    <>
+      {props.leading}
+      {pillsShown && (
+        <ComposerPills {...props} summon={summon} driver={activeDriver} choice={choice} instanceId={session?.providerInstanceId}
+          ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }} />
+      )}
+    </>
   );
   const send = (
     <SendButton

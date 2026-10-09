@@ -83,6 +83,7 @@ export class ReadReceiptCourier {
   private inFlight = new Map<string, number>();
   private attempts = new Map<string, number>();
   private timer: Timer | undefined;
+  private armedFor: string | undefined;
   private world: ReceiptWorld | undefined;
   private disposed = false;
 
@@ -126,20 +127,24 @@ export class ReadReceiptCourier {
   private evaluate(): void {
     const world = this.world;
     const identity = this.identity;
-    // Cancelled on every re-evaluation and re-armed if it still applies: the settle window is a dwell.
+    const pending =
+      world && identity && !this.disposed
+        ? receiptToSend({
+            ...(world.candidate ? { candidate: world.candidate } : {}),
+            ...(world.readSequence === undefined ? {} : { readSequence: world.readSequence }),
+            confirmedSequence: this.claimed(),
+            gate: world.gate,
+          })
+        : undefined;
+    // The settle window is a dwell: a re-render about the same answer keeps it, anything else cancels it.
+    if (pending && this.timer !== undefined && this.armedFor === pending.runId) return;
     this.clearTimer();
-    if (!world || !identity || this.disposed) return;
-    const pending = receiptToSend({
-      ...(world.candidate ? { candidate: world.candidate } : {}),
-      ...(world.readSequence === undefined ? {} : { readSequence: world.readSequence }),
-      confirmedSequence: this.claimed(),
-      gate: world.gate,
-    });
-    if (!pending) return;
+    if (!pending || !identity) return;
     const spent = this.attempts.get(pending.runId) ?? 0;
     if (spent >= RECEIPT_MAX_ATTEMPTS) return;
     const generation = this.generation;
     const delay = spent === 0 ? RECEIPT_SETTLE_MS : receiptRetryDelayMs(spent);
+    this.armedFor = pending.runId;
     this.timer = this.ports.setTimer(() => {
       this.timer = undefined;
       if (generation !== this.generation) return;

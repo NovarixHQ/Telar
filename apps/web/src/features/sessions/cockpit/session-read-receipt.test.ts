@@ -150,6 +150,16 @@ describe("the courier", () => {
     expect(h.sent).toHaveLength(0);
   });
 
+  test("re-renders about the same answer keep the dwell running", () => {
+    const h = harness();
+    h.courier.update(open(A, turn(1)));
+    h.courier.update(open(A, turn(1)));
+    h.courier.update(open(A, turn(1)));
+    expect(h.armed()).toBe(1);
+    h.tick();
+    expect(h.sent).toHaveLength(1);
+  });
+
   test("one receipt per answer, however many renders", async () => {
     const h = harness();
     h.courier.update(open(A, turn(1)));

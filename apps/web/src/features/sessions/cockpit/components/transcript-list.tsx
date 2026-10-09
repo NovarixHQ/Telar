@@ -61,7 +61,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
           {...(turn.failureCode === "rate_limited" && turn.state === "failed" ? { onResumeNow: () => props.onResumeNow(turn.runId) } : {})}
         />
       </TurnFrame>
-      {newestResultRunId && turn.runId === markerRow && <ReadReceiptMarker markerRef={receipt.markerRefFor(newestResultRunId)} />}
+      {newestResultRunId && turn.runId === markerRow && <ReadReceiptMarker markerRef={receipt.markerRef} />}
     </Fragment>
   );
   return (

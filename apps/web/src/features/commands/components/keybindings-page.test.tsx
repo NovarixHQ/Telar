@@ -143,7 +143,8 @@ test("Esc while recording leaves the binding empty, stored as unbound, and the s
     },
   });
   try {
-    const press = { key: " ", code: "Space", altKey: true };
+    restoreDefaultKeymap();
+    const press ={ key: " ", code: "Space", altKey: true };
     expect(resolveCommandForEvent(keymapSnapshot(), press)).toBe("quick-composer");
     expect(recordedChord({ key: "Escape", code: "Escape" })).toEqual({ kind: "clear" });
     setChord("quick-composer", "");

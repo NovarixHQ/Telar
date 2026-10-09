@@ -22,7 +22,7 @@ function StatusBadge({ letter, tone, label }: { letter: string; tone: StatusTone
   );
 }
 
-function DiffCounts({ added, removed }: { added?: number; removed?: number }) {
+export function DiffCounts({ added, removed }: { added?: number; removed?: number }) {
   return (
     <HStack spacing={6} modifiers={[font({ textStyle: "footnote", weight: "medium" }), monospacedDigit()]}>
       {added === undefined ? null : <Text modifiers={[foregroundStyle(Theme.emerald)]}>{`+${count(added)}`}</Text>}
@@ -31,7 +31,7 @@ function DiffCounts({ added, removed }: { added?: number; removed?: number }) {
   );
 }
 
-function StatBar({ added, removed }: { added: number; removed: number }) {
+export function StatBar({ added, removed }: { added: number; removed: number }) {
   const blocks = statBlocks(added, removed);
   return (
     <HStack spacing={2} modifiers={[accessibilityHidden(true)]}>

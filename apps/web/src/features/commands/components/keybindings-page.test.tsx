@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { COMMANDS, defaultKeymap, mergeKeymap, type Command, type Keymap } from "../commands";
+import { COMMANDS, defaultKeymap, keymapSnapshot, mergeKeymap, resolveCommandForEvent, restoreDefaultKeymap, setChord, type Command, type Keymap } from "../commands";
 // The formatter moved out of the pane in #401 — every control bound to a chord
 // draws its caps now, so a settings page is not where they can live.
 import { keyCaps } from "../key-caps";
@@ -125,14 +125,38 @@ test("the recorder reads a press, and keeps an exit", () => {
     kind: "chord",
     chord: "CommandOrControl+Shift+D",
   });
-  // A recorder that swallowed bare Escape would have no way out; Backspace is
-  // how "no chord" gets said, because unbinding is a real answer.
-  expect(recordedChord({ key: "Escape" })).toEqual({ kind: "cancel" });
+  expect(recordedChord({ key: "Escape" })).toEqual({ kind: "clear" });
   expect(recordedChord({ key: "Backspace" })).toEqual({ kind: "clear" });
   // Escape is not lost to the registry — only its unmodified press.
   expect(recordedChord({ key: "Escape", code: "Escape", metaKey: true })).toEqual({ kind: "chord", chord: "CommandOrControl+Escape" });
   // ⌘ held on its own leaves the row waiting rather than storing half a chord.
   expect(recordedChord({ key: "Meta", code: "MetaLeft", metaKey: true })).toEqual({ kind: "waiting" });
+});
+
+test("Esc while recording leaves the binding empty, stored as unbound, and the shortcut stops firing", () => {
+  const stored = new Map<string, string>();
+  const sent: Partial<Keymap>[] = [];
+  Object.assign(globalThis, {
+    window: {
+      localStorage: { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, value: string) => void stored.set(key, value) },
+      telarDesktop: { keybindings: { set: async (overrides: Partial<Keymap>) => void sent.push(overrides) } },
+    },
+  });
+  try {
+    restoreDefaultKeymap();
+    const press ={ key: " ", code: "Space", altKey: true };
+    expect(resolveCommandForEvent(keymapSnapshot(), press)).toBe("quick-composer");
+    expect(recordedChord({ key: "Escape", code: "Escape" })).toEqual({ kind: "clear" });
+    setChord("quick-composer", "");
+
+    expect(keybindingRows("mac", keymapSnapshot()).find((row) => row.id === "quick-composer")?.caps).toEqual([]);
+    expect(JSON.parse(stored.get("telar:keybindings")!)).toEqual({ "quick-composer": "" });
+    expect(sent.at(-1)).toEqual({ "quick-composer": "" });
+    expect(resolveCommandForEvent(keymapSnapshot(), press)).toBeNull();
+  } finally {
+    restoreDefaultKeymap();
+    delete (globalThis as { window?: unknown }).window;
+  }
 });
 
 test("recording the folded row moves all nine together, or not at all", () => {

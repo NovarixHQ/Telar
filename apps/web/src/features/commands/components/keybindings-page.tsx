@@ -81,10 +81,9 @@ export function recordedChord(event: {
   ctrlKey?: boolean;
   altKey?: boolean;
   shiftKey?: boolean;
-}): { kind: "chord"; chord: string } | { kind: "cancel" } | { kind: "clear" } | { kind: "waiting" } {
+}): { kind: "chord"; chord: string } | { kind: "clear" } | { kind: "waiting" } {
   const bare = !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
-  if (bare && event.key === "Escape") return { kind: "cancel" };
-  if (bare && (event.key === "Backspace" || event.key === "Delete")) return { kind: "clear" };
+  if (bare && (event.key === "Escape" || event.key === "Backspace" || event.key === "Delete")) return { kind: "clear" };
   const chord = chordForEvent(event);
   return chord ? { kind: "chord", chord } : { kind: "waiting" };
 }
@@ -146,10 +145,6 @@ function ChordButton({
         event.stopPropagation();
         const recorded = recordedChord(event.nativeEvent);
         if (recorded.kind === "waiting") return;
-        if (recorded.kind === "cancel") {
-          onStop();
-          return;
-        }
         onRecord(recorded.kind === "clear" ? "" : recorded.chord);
       }}
       aria-label={recording ? `Press the new chord for ${row.title}` : `Change the chord for ${row.title}`}
@@ -215,7 +210,7 @@ export function KeybindingsPage() {
       <div className="mb-6 px-4">
         <h4 className="font-heading text-xs-plus font-semibold tracking-tight text-foreground">Keyboard shortcuts</h4>
         <p className="mt-1 text-xs text-muted-foreground">
-          Click a chord and press the new one. Backspace clears it, Escape leaves it alone, and Restore defaults puts every one of them
+          Click a chord and press the new one. Escape or Backspace clears it, clicking away leaves it alone, and Restore defaults puts every one of them
           back.
         </p>
       </div>

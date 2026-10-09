@@ -4,7 +4,7 @@ import type { RunView } from "@telar/engine-client";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 import type { HostConnection } from "../../platform/connection";
-import { faded, Icon, Radius, Theme, Type, type SymbolName } from "../../ui";
+import { EmptyState, faded, Icon, Radius, Theme, Type, type SymbolName } from "../../ui";
 import { TerminalInput } from "./TerminalInput";
 import { TerminalOutput } from "./TerminalOutput";
 import { isOpen, pickTerminal, statusDetail, statusLabel, statusTone } from "./terminals";
@@ -135,14 +135,7 @@ export function TerminalSurface({ host, sessionId }: { host: HostConnection; ses
       {shown ? (
         <OpenTerminal key={shown.terminalId} host={host} sessionId={sessionId} run={shown} onAdopt={adopt} />
       ) : (
-        <Host style={styles.fill}>
-          <VStack spacing={10} modifiers={[padding({ all: 24 })]}>
-            <Icon name="terminal" size={28} color={Theme.textMuted} />
-            <Text modifiers={[font({ textStyle: "subheadline", weight: "semibold" }), foregroundStyle(Theme.text)]}>No terminals</Text>
-            <Text modifiers={[Type.slim, foregroundStyle(Theme.textMuted)]}>Run a command on the computer and watch it here.</Text>
-            <Button label="New terminal" systemImage="plus" onPress={launch} />
-          </VStack>
-        </Host>
+        <EmptyState icon="terminal" title="No terminals" detail="Run a command on the computer and watch it here." action={{ label: "New terminal", icon: "plus", onPress: launch }} />
       )}
     </View>
   );

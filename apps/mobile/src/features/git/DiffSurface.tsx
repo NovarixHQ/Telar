@@ -1,10 +1,10 @@
-import { Button, ContextMenu, HStack, Host, Label, Text as SwiftText } from "@expo/ui/swift-ui";
-import { buttonStyle, disabled, font, foregroundStyle, monospacedDigit, padding } from "@expo/ui/swift-ui/modifiers";
+import { Button, ContextMenu, HStack, Host, Text as SwiftText } from "@expo/ui/swift-ui";
+import { buttonStyle, disabled, monospacedDigit, padding } from "@expo/ui/swift-ui/modifiers";
 import type { GitCommitEntry, GitFileChange, SessionDiff } from "@telar/engine-client";
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TurboModuleRegistry, View, type TurboModule } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TurboModuleRegistry, View, type TurboModule } from "react-native";
 import type { HostConnection } from "../../platform/connection";
-import { bandCaption, faded, Theme } from "../../ui";
+import { bandCaption, EmptyState, faded } from "../../ui";
 import { DiffCommitRow, DiffFileRow, DiffSummary } from "./DiffRows";
 import { PatchBody } from "./PatchBody";
 import { diffNotes, fileLine } from "./summary";
@@ -14,8 +14,7 @@ type Item =
   | { key: string; type: "file"; file: GitFileChange; open: boolean }
   | { key: string; type: "patch"; file: GitFileChange }
   | { key: string; type: "commits" }
-  | { key: string; type: "commit"; commit: GitCommitEntry }
-  | { key: string; type: "empty" };
+  | { key: string; type: "commit"; commit: GitCommitEntry };
 
 const clipboard = TurboModuleRegistry.get<TurboModule & { setString(text: string): void }>("Clipboard");
 
@@ -53,7 +52,6 @@ function items(diff: SessionDiff, collapsed: ReadonlySet<string>): Item[] {
     if (open) list.push({ key: `patch:${file.path}`, type: "patch", file });
   }
   if (diff.commits.length > 0) list.push({ key: "commits", type: "commits" }, ...diff.commits.map((commit) => ({ key: `commit:${commit.sha}`, type: "commit" as const, commit })));
-  if (diff.files.length === 0 && diff.commits.length === 0 && !diff.filesIncomplete) list.push({ key: "empty", type: "empty" });
   return list;
 }
 
@@ -123,22 +121,20 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
               </HStack>
             </SwiftRow>
           );
-        case "empty":
-          return (
-            <SwiftRow>
-              <Label title="No changes yet." systemImage="checkmark.circle" modifiers={[padding({ horizontal: 16, vertical: 8 }), font({ textStyle: "subheadline" }), foregroundStyle(Theme.textMuted)]} />
-            </SwiftRow>
-          );
       }
     },
     [diff, generation, host, sessionId, toggle, onOpenFile],
   );
 
-  if (failed && !diff) return <Text style={styles.failed}>{`Could not load changes\n${failed}`}</Text>;
+  if (failed && !diff) return <EmptyState icon="xmark.circle" title="Could not load changes" detail={failed} />;
   if (!diff) return <ActivityIndicator style={styles.loading} />;
+  const unchanged = diff.files.length === 0 && diff.commits.length === 0 && !diff.filesIncomplete;
   return (
     <FlatList
       style={styles.list}
+      contentContainerStyle={styles.content}
+      ListFooterComponent={unchanged ? <EmptyState icon="checkmark.circle" title="No changes yet." /> : undefined}
+      ListFooterComponentStyle={styles.fill}
       data={data}
       keyExtractor={(item) => item.key}
       renderItem={render}
@@ -162,7 +158,8 @@ export function DiffSurface({ host, sessionId, onOpenFile }: { host: HostConnect
 const styles = StyleSheet.create({
   list: { flex: 1 },
   loading: { flex: 1 },
+  content: { flexGrow: 1 },
+  fill: { flex: 1 },
   patch: { paddingHorizontal: 16, paddingBottom: 10 },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 62, marginRight: 16, backgroundColor: faded("border", 0.6) },
-  failed: { flex: 1, padding: 24, textAlign: "center", fontSize: 15, color: Theme.textMuted },
 });

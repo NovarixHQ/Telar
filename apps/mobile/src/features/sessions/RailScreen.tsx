@@ -75,7 +75,7 @@ function useToolbar(navigation: Navigation, rail: MergedRail, filter: string | u
               tintColor: Theme.accent,
               menu: { items: addProject.map((computer) => ({ type: "action" as const, label: computer.name, icon: sfSymbol("desktopcomputer"), onPress: () => navigation.navigate("AddProject", { hostId: computer.hostId }) })) },
             },
-        { type: "button", label: "New session", icon: sfSymbol("square.and.pencil"), tintColor: Theme.accent, onPress: () => navigation.navigate("NewSession") },
+        { type: "button", label: "New conversation", icon: sfSymbol("square.and.pencil"), tintColor: Theme.accent, onPress: () => navigation.navigate("NewSession") },
       ],
     });
   }, [navigation, computers, filter, setFilter]);

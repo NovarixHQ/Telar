@@ -16,8 +16,8 @@ export function DetailPlaceholder({ onNewSession }: { onNewSession?: () => void 
     <View style={styles.column}>
       <Host style={styles.column}>
         <VStack spacing={0} modifiers={[padding({ top: NAV_BAR }), frame({ maxWidth: Infinity, maxHeight: Infinity })]}>
-          <ContentUnavailableView title="Your work, within reach" systemImage="text.bubble" description="Choose a session from the sidebar, or start a new one." modifiers={[fixedSize({ vertical: true })]} />
-          {onNewSession ? <Button label="New session" onPress={onNewSession} modifiers={[buttonStyle("borderedProminent"), controlSize("small"), tint(Theme.accent), padding({ top: -16 })]} /> : null}
+          <ContentUnavailableView title="Your work, within reach" systemImage="text.bubble" description="Choose a session from the sidebar, or start a conversation." modifiers={[fixedSize({ vertical: true })]} />
+          {onNewSession ? <Button label="New conversation" onPress={onNewSession} modifiers={[buttonStyle("borderedProminent"), controlSize("small"), tint(Theme.accent), padding({ top: -16 })]} /> : null}
         </VStack>
       </Host>
       {sidebarHidden ? (

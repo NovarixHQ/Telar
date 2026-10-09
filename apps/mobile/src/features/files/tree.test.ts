@@ -29,3 +29,9 @@ test("a file's glyph follows its extension", () => {
   expect(fileGlyph("notes.md")).toBe("doc.text");
   expect(fileGlyph("Makefile")).toBe("doc");
 });
+
+test("a freshly read checkout shows only the root's top level until a folder is opened", () => {
+  const rows = flattenTree(buildFileTree(paths), new Set());
+  expect(rows.every((row) => row.depth === 0)).toBe(true);
+  expect(rows.map((row) => row.node.name)).toEqual(["apps/web", "src", "README.md"]);
+});

@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from "bun:test";
+import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import { installTestDom, flush } from "@/test/dom";
@@ -10,6 +10,9 @@ const NO_PYTHON = "data science has no Python interpreter: choose one in the pro
 
 type Listener = (event: { name: string; data: unknown }) => void;
 
+let closed = false;
+const cockpitTelar = Object.getOwnPropertyDescriptor(window, "telar");
+
 /** Loads Data Science's Data view against a stand-in bridge, the way the cockpit's frame runs it. */
 function open(answers: Record<string, (input?: Record<string, unknown>) => unknown>) {
   const calls: { verb: string; input?: Record<string, unknown> }[] = [];
@@ -18,6 +21,7 @@ function open(answers: Record<string, (input?: Record<string, unknown>) => unkno
     version: 1,
     context: async () => ({ plugin: "data-science", view: "data" }),
     call: async (verb: string, input?: Record<string, unknown>) => {
+      if (closed) return new Promise(() => undefined);
       calls.push({ verb, ...(input ? { input } : {}) });
       const answer = answers[verb];
       if (!answer) throw new Error(`no ${verb}`);
@@ -37,8 +41,15 @@ function open(answers: Record<string, (input?: Record<string, unknown>) => unkno
 
 const tab = (name: string) => (document.querySelector(`[data-tab="${name}"]`) as HTMLButtonElement).click();
 
-beforeEach(() => {
+// A view left running would keep drawing into whatever document the next test file mounts.
+afterEach(async () => {
+  closed = true;
+  await flush();
+  // The cockpit keeps its own `window.telar` (dictation) for the whole run.
+  if (cockpitTelar) Object.defineProperty(window, "telar", cockpitTelar);
+  else delete (window as unknown as { telar?: unknown }).telar;
   document.body.innerHTML = "";
+  closed = false;
 });
 
 test("a tab that cannot load says why in its own place, instead of keeping the last tab's content", async () => {

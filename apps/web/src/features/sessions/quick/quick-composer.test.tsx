@@ -717,3 +717,43 @@ describe("the strip of conversations that need you", () => {
     expect(strip(host)).not.toContain("Transit light-curve analysis");
   });
 });
+
+describe("the control row's pills", () => {
+  const ROW = 556;
+  const FIXED = 279;
+  const NATURAL: Record<string, number> = { Project: 125, Model: 43, Reasoning: 66, Access: 58 };
+  const pillOf = (element: Element) => element.closest("[aria-label]")?.getAttribute("aria-label")?.split(":")[0] ?? "";
+  const shown = (row: Element) => {
+    const fold = Number(row.getAttribute("data-fold") ?? 0);
+    return Object.keys(NATURAL).filter((pill) => !(pill === "Access" && fold >= 1) && !(pill === "Reasoning" && fold >= 2));
+  };
+  function layout(element: HTMLElement, natural: boolean): number {
+    const row = element.closest('[data-slot="composer-controls"]');
+    if (!row) return 0;
+    if (element === row) return ROW;
+    const pill = pillOf(element);
+    if (element.childElementCount > 0 || !(pill in NATURAL) || !shown(row).includes(pill)) return 0;
+    const width = NATURAL[pill]!;
+    if (natural || (pill !== "Project" && pill !== "Model")) return width;
+    const short = Math.max(0, FIXED + shown(row).reduce((sum, each) => sum + NATURAL[each]!, 0) - ROW);
+    return Math.max(0, width - short * (width / (NATURAL.Project! + NATURAL.Model!)));
+  }
+
+  test("at the quick composer's width the project and model names show in full; the access label folds first", async () => {
+    const saved = { scroll: Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth"), client: Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth") };
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, get(this: HTMLElement) { return layout(this, true); } });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get(this: HTMLElement) { return layout(this, false); } });
+    try {
+      const { host } = await open(front(GRANTED));
+      const row = host.querySelector<HTMLElement>('[data-slot="composer-controls"]')!;
+      const label = (pill: string) => [...row.querySelectorAll<HTMLElement>("span")].find((span) => span.childElementCount === 0 && pillOf(span) === pill && span.textContent)!;
+      for (const pill of ["Project", "Model"]) expect(label(pill).clientWidth).toBe(label(pill).scrollWidth);
+      expect(shown(row)).toEqual(["Project", "Model", "Reasoning"]);
+    } finally {
+      for (const [key, descriptor] of [["scrollWidth", saved.scroll], ["clientWidth", saved.client]] as const) {
+        if (descriptor) Object.defineProperty(HTMLElement.prototype, key, descriptor);
+        else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[key];
+      }
+    }
+  });
+});

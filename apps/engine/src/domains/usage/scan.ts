@@ -185,7 +185,6 @@ export type UsageScanOptions = {
   roots?: UsageScanRoots;
   ratesCachePath: string;
   scanCachePath?: string;
-  /** Sessionless completions, which write no transcript of their own. */
   oneShotPath?: string;
   loadRatesTable?: () => Promise<RatesTable>;
   memo?: boolean;

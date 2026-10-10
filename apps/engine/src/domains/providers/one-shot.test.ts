@@ -20,7 +20,6 @@ function store(policy: TextGenPolicy = DEFAULT_TEXT_GEN_POLICY, enabled = true) 
   };
 }
 
-/** Timers a test fires by hand. */
 function manualTimers() {
   const pending = new Map<number, { run: () => void; ms: number }>();
   let next = 0;

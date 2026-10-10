@@ -1,15 +1,3 @@
-/**
- * EXTERNAL PLUGINS (P4): a folder with a manifest becomes a plugin the host
- * runs as a supervised child, through the same doors a bundled one uses.
- *
- *   the manifest   validated strictly; a bad one is REFUSED — listed as failed
- *                  with its reason — and the engine starts regardless
- *   the process    started on first use, restarted with backoff when it dies,
- *                  stopped for good by `stop` (fake spawn, fake timers)
- *   the tools      declared in the manifest, walled under `mcp__telar__<prefix>_*`,
- *                  called end to end against a real short-lived child
- *   approval       never read-ratified: every external tool parks a card
- */
 import { afterEach, describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";

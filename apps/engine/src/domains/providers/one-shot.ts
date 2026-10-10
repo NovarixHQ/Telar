@@ -12,7 +12,6 @@ type Timers = { set(run: () => void, ms: number): unknown; clear(handle: unknown
 
 export type OneShotDeps = {
   store: TextGenStore;
-  /** Where each call's cost goes, beside the provider transcripts the usage report scans. */
   spend(entry: OneShotSpend): void;
   run?: typeof runTextOrThrow;
   timers?: Timers;
@@ -23,10 +22,8 @@ const SYSTEM = "Answer the request in plain text, as briefly as it allows.";
 
 const clamp = (value: number | undefined, fallback: number, max: number) => (typeof value === "number" && value > 0 ? Math.min(Math.floor(value), max) : fallback);
 
-/**
- * A short completion on the text generation policy's provider (its cheap model unless one is set): no tools, no session.
- * Bounded by the prompt and answer caps, a timeout that kills the child, and a few calls in flight per source.
- */
+// The text generation policy's provider and cheap model, with no tools and no session; bounded by the prompt and
+// answer caps, a timeout that kills the child, and a few calls in flight per source.
 export function oneShotCompleter(deps: OneShotDeps) {
   const run = deps.run ?? runTextOrThrow;
   const timers: Timers = deps.timers ?? { set: (handle, ms) => setTimeout(handle, ms), clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>) };

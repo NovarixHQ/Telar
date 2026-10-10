@@ -1,8 +1,3 @@
-/**
- * `/tex` end to end: an engine in a temp home, LaTeX on for a temp project, and a fake `claude` standing in for the
- * provider. The composer's request travels the generic session door, the plugin asks the host for a one-shot
- * completion, and the cost lands in the usage ledger.
- */
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
@@ -36,7 +31,6 @@ afterEach(async () => {
   for (const directory of roots.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
-/** Records its argv and stdin, then answers the way `claude -p --output-format json` does. */
 function fakeClaude(record: string): string {
   const file = path.join(root(), "claude");
   const answer = JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "```latex\n$$\\int_0^1 x^2\\,dx$$\n```", total_cost_usd: 0.0003, usage: { input_tokens: 60, output_tokens: 12 }, modelUsage: { "claude-haiku-4-5": {} } });

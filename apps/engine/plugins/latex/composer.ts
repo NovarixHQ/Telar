@@ -18,7 +18,6 @@ export const latexComposer: PluginComposer = {
   commands: [{ name: "tex", description: "Write LaTeX from a plain description", verb: "tex", hint: "what to write, in words" }],
 };
 
-/** The `tex` verb: a description in, LaTeX out, through the engine's one-shot completion. */
 export async function texFromWords(host: Pick<PluginHost, "complete">, input: Record<string, unknown>): Promise<{ text: string }> {
   const words = typeof input.text === "string" ? input.text.trim() : "";
   if (!words) throw new Error("say what to write after /tex, such as /tex the integral of x squared from 0 to 1");

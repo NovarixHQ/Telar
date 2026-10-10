@@ -3,7 +3,6 @@ import path from "node:path";
 import type { ProviderDriverKind, TokenUsage } from "@telar/engine-client";
 import type { UsageRecord } from "./log-parse";
 
-/** One sessionless completion, which leaves no provider transcript for the scanner to find. */
 export type OneShotUsage = { at: number; driver: ProviderDriverKind; model: string; tokens: TokenUsage; costUsd?: number; source: string };
 
 export function appendOneShotUsage(file: string, entry: OneShotUsage): void {

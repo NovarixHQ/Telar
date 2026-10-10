@@ -21,7 +21,6 @@ export type TextGenDriverInput = {
 
 type Structured = Record<string, unknown>;
 
-/** A plain answer, with what it cost when the provider says. */
 export type TextAnswer = { text: string; model?: string; usage?: UsageSnapshot };
 
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -49,7 +48,6 @@ export async function runStructuredOrThrow(input: TextGenDriverInput, prompt: st
   }
 }
 
-/** One answer in plain text: no tools, no session, no transcript left behind. */
 export async function runTextOrThrow(input: TextGenDriverInput, prompt: string, system: string): Promise<TextAnswer | undefined> {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "telar-textgen-"));
   try {

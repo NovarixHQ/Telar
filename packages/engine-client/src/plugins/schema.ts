@@ -221,7 +221,6 @@ export const PluginManifest = z
       .default({ session: [], project: [], machine: [] }),
     /** Panel surfaces, each drawn from a declared session verb. */
     panels: z.array(PluginPanel).max(8).default([]),
-    /** Decorations and slash commands the plugin adds to the composer of its projects' sessions. */
     composer: PluginComposer.optional(),
     /** Names of the `plugin.event`s the plugin emits; anything else it emits is refused. */
     eventKinds: z.array(PluginEventName).max(16).default([]),

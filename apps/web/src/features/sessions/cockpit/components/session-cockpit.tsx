@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ConversationFollowHandle } from "@/ui/conversation";
 import { Composer } from "@/features/composer";
 import { canvasPanelKey, RailToggle, RightPanel } from "@/features/panel";
-import { usePluginPanels } from "@/features/plugins";
+import { usePluginContributions } from "@/features/plugins";
 import { useProviderInstance } from "@/features/providers";
 import { SessionSchedules } from "@/features/schedules";
 import { floatKey, useSimulatorFloat } from "@/features/simulators";
@@ -79,7 +79,7 @@ export function SessionCockpit({
   const composer = useComposerDraft({ sessionId, projectId });
   const follow = useRef<ConversationFollowHandle>(null);
   const [readingBack, onAtBottomChange] = useReadingBack();
-  const pluginPanels = usePluginPanels(hostId, enabledPlugins);
+  const { panels: pluginPanels, composer: extensions } = usePluginContributions(hostId, enabledPlugins, sessionId);
   const panelKey = sessionId ?? (projectId === undefined ? "main" : canvasPanelKey(projectId));
   const panelState = useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId });
   const { panel, showPanelTab } = panelState;
@@ -178,6 +178,7 @@ export function SessionCockpit({
               readingBack: readingBack && transcriptLanded,
               contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
               builders,
+              extensions,
             })}
           />
           {floating && sessionId && (

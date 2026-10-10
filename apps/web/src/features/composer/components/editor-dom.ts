@@ -4,7 +4,9 @@
 import type { TelarReference } from "@telar/client/composer";
 import { CHIP_CLASS, CHIP_ICON_CLASS, CHIP_LABEL_CLASS, chipTitle } from "../chip";
 import { chipGlyphFor, glyphElement } from "../glyph-paths";
-import { markdownStyles, styleNames, type MarkdownStyle } from "../markdown";
+import { decorationBits, decorationRuns, decorationStyleOf, type ComposerDecoration, type DecorationRun } from "../decorations";
+import { isLiteral, markdownStyles, styleNames, type MarkdownStyle } from "../markdown";
+import type { PluginDecorationStyle } from "@telar/engine-client";
 import { segmentDraft } from "../tokens";
 import { cn } from "@/ui/utils";
 
@@ -43,6 +45,13 @@ const STYLE_CLASS: Record<MarkdownStyle, string> = {
   rule: "tracking-widest",
 };
 
+const DECORATION_CLASS: Record<PluginDecorationStyle, string> = {
+  math: "font-mono text-[0.875em] text-primary",
+  code: "rounded-sm bg-muted font-mono text-[0.875em]",
+  accent: "text-primary",
+  muted: "text-muted-foreground",
+};
+
 /** Dictated words still being revised, drawn dimmer. */
 const INTERIM = 1 << 15;
 const INTERIM_ATTRIBUTE = "data-dictation-interim";
@@ -51,17 +60,27 @@ function leaf(text: string, bits: number): Node {
   if (bits === 0) return document.createTextNode(text);
   const span = document.createElement("span");
   const names = styleNames(bits);
+  const decoration = decorationStyleOf(bits);
   if (names.length > 0) span.dataset.md = names.join(" ");
+  if (decoration) span.dataset.decoration = decoration;
   if (bits & INTERIM) span.setAttribute(INTERIM_ATTRIBUTE, "");
-  span.className = cn(...names.map((name) => STYLE_CLASS[name]), bits & INTERIM && "opacity-55");
+  span.className = cn(decoration && DECORATION_CLASS[decoration], ...names.map((name) => STYLE_CLASS[name]), bits & INTERIM && "opacity-55");
   span.textContent = text;
   return span;
 }
 
 type Chip = Run & { node: HTMLElement };
 
-function drawing(draft: string, chips: Chip[], interim?: Run): Node[] {
+const drawnRuns = new WeakMap<HTMLElement, DecorationRun[]>();
+
+export const decorationsDrawn = (root: HTMLElement): readonly DecorationRun[] => drawnRuns.get(root) ?? [];
+
+function drawing(draft: string, chips: Chip[], interim: Run | undefined, decorations: readonly ComposerDecoration[]): { nodes: Node[]; runs: DecorationRun[] } {
   const bits = markdownStyles(draft, chips);
+  const opaque = new Uint8Array(draft.length);
+  for (const chip of chips) opaque.fill(1, chip.start, chip.end);
+  const runs = decorationRuns(draft, decorations, (at) => opaque[at] === 1 || isLiteral(bits[at]!));
+  for (const run of runs) for (let at = run.start; at < run.end; at += 1) bits[at]! |= decorationBits(run.decoration.style);
   if (interim)
     for (let at = Math.max(0, interim.start); at < Math.min(draft.length, interim.end); at += 1) bits[at]! |= INTERIM;
   const starts = new Map(chips.map((chip) => [chip.start, chip]));
@@ -87,7 +106,7 @@ function drawing(draft: string, chips: Chip[], interim?: Run): Node[] {
   if (draft.endsWith("\n")) nodes.push(document.createElement("br"));
   // An empty text node after a chip or styled span is somewhere the caret can stand.
   else if (nodes.at(-1)?.nodeType !== Node.TEXT_NODE) nodes.push(document.createTextNode(""));
-  return nodes;
+  return { nodes, runs };
 }
 
 function chipsIn(root: HTMLElement, draft: string): Chip[] {
@@ -117,6 +136,7 @@ function sameNode(current: Node, next: Node): boolean {
   return (
     current.className === next.className &&
     current.dataset.md === next.dataset.md &&
+    current.dataset.decoration === next.dataset.decoration &&
     current.hasAttribute(INTERIM_ATTRIBUTE) === next.hasAttribute(INTERIM_ATTRIBUTE) &&
     current.childNodes.length === 1 &&
     current.firstChild?.nodeType === Node.TEXT_NODE &&
@@ -129,11 +149,12 @@ function sameNode(current: Node, next: Node): boolean {
  * report whether anything changed. `keepChips` keeps the chips already drawn
  * and makes no new ones, so typing never turns a word into a chip under the caret.
  */
-export function paint(root: HTMLElement, draft: string, interim?: Run, keepChips = false): boolean {
+export function paint(root: HTMLElement, draft: string, interim?: Run, keepChips = false, decorations: readonly ComposerDecoration[] = []): boolean {
   const chips = keepChips
     ? chipsIn(root, draft)
     : segmentDraft(draft).flatMap((segment) => (segment.type === "chip" ? [{ start: segment.start, end: segment.end, node: chipElement(segment.reference) }] : []));
-  const next = drawing(draft, chips, interim);
+  const { nodes: next, runs } = drawing(draft, chips, interim, decorations);
+  drawnRuns.set(root, runs);
   const current = [...root.childNodes];
   let head = 0;
   while (head < next.length && head < current.length && sameNode(current[head]!, next[head]!)) head += 1;

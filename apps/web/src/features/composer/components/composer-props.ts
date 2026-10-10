@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { ClaudeConversation, EngineRequest, ProviderDriverKind, RuntimeMode, Session, SessionChildState, UsageSnapshot, WhileWorking } from "@telar/engine-client";
 import type { ModelChoice } from "@telar/client/providers";
+import type { ComposerExtensions } from "../decorations";
 import type { ComposerKind } from "../registry";
 import type { QueuedMessagesProps } from "./queued-messages";
 
@@ -51,6 +52,7 @@ export type ComposerProps = {
   onWake?: () => void;
   /** This session's builders by state, while any is still out, and the brake for all of them. */
   builders?: { counts: Partial<Record<SessionChildState, number>>; stopping: boolean; onStopAll: () => void };
+  extensions?: ComposerExtensions;
   /** Submits a `/compact` turn; passed on Claude sessions only. */
   onCompact?: () => void;
   /** While present, the editor is the question's custom answer and Enter advances or answers. */

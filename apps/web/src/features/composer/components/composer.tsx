@@ -18,10 +18,13 @@ import { composerKeyHandler, useEscArm, usePromptRecall } from "../hooks/use-com
 import { useComposerRegistration } from "../hooks/use-composer-registration";
 import { MAX_ATTACHMENTS, useComposerStash } from "../hooks/use-composer-stash";
 import { useDropTarget } from "../hooks/use-drop-target";
+import { usePluginCommand } from "../hooks/use-plugin-command";
 import { useQuestionMode } from "../hooks/use-question-mode";
+import type { ComposerCommand } from "../decorations";
 import { ComposerBanners } from "./composer-banners";
 import { ComposerCard } from "./composer-card";
 import type { ComposerEditorHandle } from "./composer-editor";
+import { DecorationPreview, PluginCommandStatus } from "./decoration-preview";
 import { ComposerFoot, ComposerHead } from "./composer-frame";
 import type { ComposerProps } from "./composer-props";
 import { ComposerQuestionDrawer } from "./composer-question-drawer";
@@ -32,6 +35,8 @@ import { ControlDivider } from "./control-primitives";
 
 // External clients already reach for this id.
 const EDITOR_ID = "turn-prompt";
+
+const NO_COMMANDS: readonly ComposerCommand[] = [];
 
 function placeholderFor(busy: boolean, whileWorking: ComposerProps["whileWorking"]): string {
   if (busy) return whileWorking === "queue" ? "Enter queues this for after the running turn…" : "Enter sends into the running turn…";
@@ -46,11 +51,12 @@ function blockedReason(ready: boolean, driveAway: boolean, hasContent: boolean):
 }
 
 /** The one gate every send passes through: Enter, ⌘↵, the send button and the page API. */
-function useSubmitGate(props: ComposerProps, question: { active: boolean; advance: { current: () => boolean } }, hasContent: boolean, driveAway: boolean, startResume: () => void) {
+function useSubmitGate(props: ComposerProps, question: { active: boolean; advance: { current: () => boolean } }, hasContent: boolean, driveAway: boolean, startResume: () => void, runCommand: () => boolean) {
   const { draft, ready, fresh, onAdopt, onDraftChange, onSubmit } = props;
   const advance = question.advance;
   return useCallback((): ComposerSubmit => {
     if (question.active) return advance.current() ? { ok: true } : { ok: false, reason: "The open question has no answer to send yet." };
+    if (runCommand()) return { ok: true };
     // `/resume` typed in full is the same press as picking it from the menu.
     if (isResumeDraft(draft) && fresh && onAdopt) {
       onDraftChange("");
@@ -61,7 +67,7 @@ function useSubmitGate(props: ComposerProps, question: { active: boolean; advanc
     if (reason) return { ok: false, reason };
     onSubmit();
     return { ok: true };
-  }, [question.active, advance, ready, driveAway, draft, hasContent, onSubmit, fresh, onAdopt, onDraftChange, startResume]);
+  }, [question.active, advance, ready, driveAway, draft, hasContent, onSubmit, fresh, onAdopt, onDraftChange, startResume, runCommand]);
 }
 
 function runAction(action: Completion["action"], props: ComposerProps, startResume: () => void) {
@@ -109,7 +115,8 @@ export function Composer(props: ComposerProps) {
 
   const question = useQuestionMode(props.question, props.onAnswerQuestion, draft);
   const hasContent = turnHasContent(draft, attachments.map((file) => file.type));
-  const trySubmit = useSubmitGate(props, question, hasContent, Boolean(driveAway), startResume);
+  const command = usePluginCommand(editor, props.extensions, draft);
+  const trySubmit = useSubmitGate(props, question, hasContent, Boolean(driveAway), startResume, command.run);
   useComposerRegistration(token, EDITOR_ID, kind, editor, { text: question.boxText, ready, submit: trySubmit });
   const dictation = useComposerDictation(token);
   const esc = useEscArm(busy, onStop);
@@ -123,6 +130,7 @@ export function Composer(props: ComposerProps) {
     menuDriver: fresh ? driver : session?.driver,
     blocked: question.active,
     commands: { busy, fresh, pickers: { model: pillsShown, effort: pillsShown && hasEfforts, access: pillsShown && Boolean(props.runtimeMode) }, envMode: props.envMode, compacting: props.compacting, canResume: Boolean(props.onAdopt) },
+    pluginCommands: props.extensions?.commands ?? NO_COMMANDS,
   });
   const pick = (completion: Completion) => {
     const action = menu.take(completion);
@@ -151,16 +159,8 @@ export function Composer(props: ComposerProps) {
     </>
   );
   const send = (
-    <SendButton
-      busy={busy}
-      sending={sending}
-      hasContent={hasContent}
-      escArmed={esc.armed}
-      blocked={blockedReason(ready, Boolean(driveAway), true)}
-      onStop={onStop}
-      animate={motion}
-      {...(question.active ? { question: { label: question.submitLabel, ready: question.canAdvance } } : {})}
-    />
+    <SendButton busy={busy} sending={sending} hasContent={hasContent} escArmed={esc.armed} blocked={blockedReason(ready, Boolean(driveAway), true)} onStop={onStop} animate={motion}
+      {...(question.active ? { question: { label: question.submitLabel, ready: question.canAdvance } } : {})} />
   );
 
   const onEdit = (text: string) => {
@@ -186,6 +186,8 @@ export function Composer(props: ComposerProps) {
         <div ref={box}>
           {props.queued && <QueuedMessages {...props.queued} />}
           <ComposerBanners {...props} />
+          <PluginCommandStatus running={command.running} error={command.error} onDismiss={command.dismiss} />
+          <DecorationPreview focus={command.focus} call={props.extensions?.call} />
           {question.active && props.question && (
             <ComposerQuestionDrawer
               fields={question.fields}
@@ -227,6 +229,8 @@ export function Composer(props: ComposerProps) {
                 menu={menu}
                 pick={pick}
                 drop={drop}
+                decorations={props.extensions?.decorations}
+                onDecorationFocus={command.setFocus}
                 pills={pills}
                 trailing={
                   <>

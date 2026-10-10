@@ -66,6 +66,12 @@ function ContextOffers({ quick }: { quick: Quick }) {
 }
 
 const EDITOR = '[data-slot="composer-editor"]';
+const INTERACTIVE = 'button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [role="listbox"], [role="toolbar"], [contenteditable="true"], [data-slot="quick-transcript"], [role="note"] p';
+
+function focusFromEmpty(target: EventTarget) {
+  if (!(target instanceof Element) || target.closest(INTERACTIVE)) return;
+  document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
+}
 
 function caretAtStart(editor: Element): boolean {
   const selection = window.getSelection();
@@ -119,6 +125,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
         onKeyDownCapture={(event) => onComposerKey(quick, strip, event)}
         onPointerDownCapture={quick.forgetKey}
         onClickCapture={(event) => holdForFilePicker(event, bridge)}
+        onClick={(event) => focusFromEmpty(event.target)}
         className="flex min-h-0 flex-1 flex-col gap-1"
       >
         <div className="relative flex min-h-0 flex-1 flex-col">
@@ -146,7 +153,6 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
           )}
         </div>
         <div className="relative shrink-0">
-          <div data-slot="quick-grip" aria-hidden className="absolute top-0.5 left-1/2 z-30 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/40" />
           <Composer
             draft={quick.text}
             ready={projectId !== undefined}

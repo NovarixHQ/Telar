@@ -9,5 +9,12 @@ export function useWindowMode(bridge: QuickComposerBridge | undefined, expanded:
   useEffect(() => {
     bridge?.mode(expanded ? "expanded" : "compact");
   }, [bridge, expanded, opened]);
-  useEffect(() => bridge?.onMoved(() => document.querySelector<HTMLElement>(EDITOR)?.focus()), [bridge]);
+  useEffect(
+    () =>
+      bridge?.onMoved((how) => {
+        if (how?.ifIdle && document.activeElement && document.activeElement !== document.body) return;
+        document.querySelector<HTMLElement>(EDITOR)?.focus();
+      }),
+    [bridge],
+  );
 }

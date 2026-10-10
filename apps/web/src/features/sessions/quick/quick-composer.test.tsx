@@ -92,7 +92,7 @@ function fakeBridge(context: FrontContext | null) {
   let closed = 0;
   let held = 0;
   const modes: string[] = [];
-  let moved: () => void = () => {};
+  let moved: (how?: { ifIdle?: boolean }) => void = () => {};
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
@@ -264,15 +264,17 @@ describe("the quick composer", () => {
     expect(modes.slice(before)).toEqual(["expanded", "compact"]);
   });
 
-  test("a click on the card's padding moves nothing and leaves the editor focused; after a native move the editor takes focus back", async () => {
+  test("there is no grip: a click on the card's empty space focuses the editor, a click on a control does not, and focus comes back after a move", async () => {
     const { host, moved } = await open(front(GRANTED));
-    editor(host).focus();
-    const pad = host.querySelector<HTMLElement>('[data-slot="quick-grip"]')!;
-    act(() => {
-      pad.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
-      pad.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
-    });
+    expect(host.querySelector('[data-slot="quick-grip"]')).toBeNull();
+    const card = host.querySelector<HTMLElement>('[data-slot="quick-card"]')!;
+    (document.activeElement as HTMLElement | null)?.blur();
+    await act(async () => card.click());
     expect(document.activeElement).toBe(editor(host));
+    const chip = host.querySelector<HTMLElement>('[aria-label="Project"]')!;
+    chip.focus();
+    await act(async () => chip.click());
+    expect(document.activeElement).not.toBe(editor(host));
     (document.activeElement as HTMLElement).blur();
     moved();
     expect(document.activeElement).toBe(editor(host));

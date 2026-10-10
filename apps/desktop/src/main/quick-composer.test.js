@@ -119,6 +119,13 @@ describe("the window", () => {
     expect(panel().bounds).toMatchObject({ x: 300, y: 120 });
   });
 
+  test("when the panel becomes key, the page is told to focus the editor if nothing else has focus", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    panel().focus();
+    expect(panel().webContents.sent.some((message) => message.channel === "telar:quick-composer:moved" && message.payload?.ifIdle)).toBe(true);
+  });
+
   test("a spot dropped off the display is pulled back inside on the next open", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");

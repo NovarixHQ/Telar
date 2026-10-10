@@ -65,6 +65,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     });
     win.on("focus", () => {
       holding = false;
+      win.webContents.send("telar:quick-composer:moved", { ifIdle: true });
       win.webContents.send("telar:quick-composer:permissions", permissions());
     });
     win.on("blur", () => holding || hide({ giveBack: false }));

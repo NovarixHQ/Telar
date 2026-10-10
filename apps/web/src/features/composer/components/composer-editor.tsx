@@ -284,6 +284,9 @@ function editorKey(event: React.KeyboardEvent<HTMLDivElement>, box: HTMLElement,
   if (step) {
     event.preventDefault();
     travel(step);
+  } else if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
+    event.preventDefault();
+    window.getSelection()?.selectAllChildren(box);
   } else if (event.key === "Enter") {
     // Only a shifted Enter reaches here.
     event.preventDefault();

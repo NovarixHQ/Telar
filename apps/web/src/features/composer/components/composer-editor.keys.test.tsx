@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
@@ -35,7 +35,7 @@ function placeAt(box: HTMLElement, offset: number) {
 }
 
 /** The caret is marked with `|` in `initial`. */
-async function editor(initial: string, onPasteLargeText?: (text: string) => void) {
+async function editor(initial: string, onPasteLargeText?: (text: string) => void, props: Partial<ComponentProps<typeof ComposerEditor>> = {}) {
   const caret = initial.indexOf("|");
   const value = initial.replace("|", "");
   const changes: string[] = [];
@@ -43,7 +43,7 @@ async function editor(initial: string, onPasteLargeText?: (text: string) => void
   document.body.append(host);
   root = createRoot(host);
   await act(async () => {
-    root.render(<ComposerEditor value={value} onChange={(text) => changes.push(text)} {...(onPasteLargeText ? { onPasteLargeText } : {})} />);
+    root.render(<ComposerEditor value={value} onChange={(text) => changes.push(text)} {...(onPasteLargeText ? { onPasteLargeText } : {})} {...props} />);
   });
   const box = host.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
   box.focus();
@@ -67,6 +67,27 @@ async function editor(initial: string, onPasteLargeText?: (text: string) => void
 }
 
 const shiftEnter = { key: "Enter", shiftKey: true };
+
+describe("⌘A", () => {
+  test.each([
+    ["plain text", "hello world|", {}],
+    ["a decorated draft", "see $$x^2$$ here|", { decorations: [{ key: "math", plugin: "latex", pattern: /\$\$[^$]+\$\$/g, style: "math" as const }] }],
+  ])("in %s selects the whole draft even with an iframe on the page, so what comes next replaces it", async (_, initial, props) => {
+    const frame = document.body.appendChild(document.createElement("iframe"));
+    const box = await editor(initial, undefined, props);
+    expect(box.press({ key: "a", metaKey: true }).defaultPrevented).toBe(true);
+    box.paste("fresh");
+    expect(box.text()).toBe("fresh");
+    frame.remove();
+  });
+
+  test("with Ctrl selects the whole draft too", async () => {
+    const box = await editor("one\ntwo|");
+    box.press({ key: "a", ctrlKey: true });
+    box.paste("x");
+    expect(box.text()).toBe("x");
+  });
+});
 
 describe("Shift+Enter in a list", () => {
   test.each([

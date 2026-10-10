@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { announcePromptShelfChanged } from "@/features/prompts";
 import { browserPanelTab, panelTabForPath, revealPanelTab, setPanelTabParams, type latestBrowserState } from "@/features/panel";
 import { sessionSimulatorChanges, SIMULATOR_SURFACE, withSimulatorDropped } from "@/features/simulators";
-import { isOpenTerminal, revealTerminal, startedCommand, syncRunTabs, type RunView } from "@/features/terminal";
+import { isOpenTerminal, revealTerminal, syncRunTabs, type RunView } from "@/features/terminal";
 import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
 import { showSimulatorTab } from "../model";
 import type { useCockpitPanel } from "./use-cockpit-panel";
@@ -50,23 +50,17 @@ export function useJournalReactions({ sync: { events }, browser, enabledPlugins,
     }
   }, [events, enabledPlugins, revealSurface, mayReveal, updatePanel]);
 
-  // Every open run gets a tab once; a run whose tab the person closed is not brought back by the frame reporting the close.
+  // Every open run gets a background tab once; only the person brings one forward. A tab they closed stays closed.
   const seenTerminals = useRef<Set<string>>(new Set());
-  const previous = useRef<Map<string, RunView> | undefined>(undefined);
+  const firstRead = useRef(true);
   return useCallback(
     (terminals: readonly RunView[]) => {
-      const before = previous.current;
-      previous.current = new Map(terminals.map((run) => [run.runId, run]));
+      const dropMissing = firstRead.current;
+      firstRead.current = false;
       const fresh = terminals.filter((run) => isOpenTerminal(run) && !seenTerminals.current.has(run.terminalId)).reverse();
       for (const run of terminals) seenTerminals.current.add(run.terminalId);
-      const started = before ? terminals.filter((run) => isOpenTerminal(run) && startedCommand(run, before.get(run.runId))).reverse() : [];
-      const show = before !== undefined && mayReveal();
-      updatePanel((current) => {
-        const synced = syncRunTabs(current, terminals, "terminal", { dropMissing: before === undefined });
-        const added = fresh.reduce((state, run) => revealTerminal(state, run, "terminal", show), synced);
-        return show ? started.reduce((state, run) => revealTerminal(state, run, "terminal", true), added) : added;
-      });
+      updatePanel((current) => fresh.reduce((state, run) => revealTerminal(state, run, "terminal"), syncRunTabs(current, terminals, "terminal", { dropMissing })));
     },
-    [updatePanel, mayReveal],
+    [updatePanel],
   );
 }

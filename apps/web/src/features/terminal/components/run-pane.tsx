@@ -18,18 +18,13 @@ type RunPaneProps = {
   terminalId?: string;
   /** Whether the run can still say anything; sets the poll cadence only. */
   live: boolean;
-  /** The chip on screen. */
-  active: boolean;
+  /** On screen. A hidden pane keeps its emulator and its feed, so showing it again is one fit. */
   visible: boolean;
 };
 
-/** One run chip's pane. Only the chip on screen has an emulator: the engine keeps the run's bytes, so a hidden one re-reads them when shown. */
-export function RunPane(props: RunPaneProps) {
-  return props.active && props.visible ? <LiveRunPane {...props} /> : null;
-}
-
-function LiveRunPane({ api, sessionId, runId, terminalId, live }: RunPaneProps) {
-  const { host, notice, ...emulator } = useRunEmulator({ api, sessionId, runId, live });
+/** One run tab's pane. */
+export function RunPane({ api, sessionId, runId, terminalId, live, visible }: RunPaneProps) {
+  const { host, notice, ...emulator } = useRunEmulator({ api, sessionId, runId, live }, visible);
   const dropped = useRunFeed(emulator, { sessionId, runId, terminalId, live });
 
   useEffect(() => claimChords(TERMINAL_CHORD_CLAIMS), []);

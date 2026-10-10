@@ -95,7 +95,6 @@ function ShellTerminal({ sessionId, projectId, params, onParams, visible = true 
         {...(terminalId ? { terminalId } : {})}
         onTerminalId={(id) => update((tab) => withTerminalId(tab, id))}
         onTitle={(title) => update((tab) => withTitle(tab, title))}
-        active
         visible={visible}
       />
     </div>
@@ -146,7 +145,6 @@ function RunTerminal({ sessionId, hostId, tab, run, visible = true }: SurfacePro
           runId={run.runId}
           {...(tab.terminalId ? { terminalId: tab.terminalId } : {})}
           live={isOpenTerminal(view)}
-          active
           visible={visible}
         />
       </div>

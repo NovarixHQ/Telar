@@ -2,7 +2,6 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import {
   cssColorReader,
-  ensureTerminalSymbolsFont,
   forgetTerminalSymbolsFont,
   loadTerminalFonts,
   TERMINAL_SYMBOLS_FONT,
@@ -105,6 +104,7 @@ describe("the bundled symbols face", () => {
     forgetTerminalSymbolsFont();
     const loaded: string[] = [];
     const added: unknown[] = [];
+    let measured = 0;
     class FakeFontFace {
       constructor(
         readonly family: string,
@@ -121,6 +121,7 @@ describe("the bundled symbols face", () => {
       add: (face: unknown) => added.push(face),
       // A chain this parser cannot take: the swallow is the assertion.
       load: async () => {
+        measured += 1;
         throw new Error("no such font shorthand");
       },
     };
@@ -128,8 +129,9 @@ describe("the bundled symbols face", () => {
     try {
       // The face is asked for by URL, not by name — nothing has to be installed.
       await loadTerminalFonts('monospace, "Symbols Nerd Font Mono"', 13);
-      // Second terminal on the same page: the same download, not another.
-      await ensureTerminalSymbolsFont();
+      // Second terminal on the same page: the same download and no second font load.
+      await loadTerminalFonts('monospace, "Symbols Nerd Font Mono"', 13);
+      expect(measured).toBe(1);
       expect(loaded).toEqual(["url(/fonts/SymbolsNerdFontMono-Regular.woff2)"]);
       expect(added).toHaveLength(1);
       expect((added[0] as FakeFontFace).family).toBe(TERMINAL_SYMBOLS_FONT);

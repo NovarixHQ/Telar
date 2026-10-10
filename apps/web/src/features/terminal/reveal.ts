@@ -22,10 +22,6 @@ export function revealTerminal<Kind extends string>(state: PanelTabState<Kind>, 
   return revealPanelTab(state, held ?? { id: nextPanelTabId(state, kind), kind, params: terminalTabParams(runTab(run)) }, show);
 }
 
-export function startedCommand(run: RunView, before: RunView | undefined): boolean {
-  return run.activity === "busy" && (before === undefined || before.activity !== "busy" || before.command !== run.command);
-}
-
 /**
  * Keeps every run tab current with the feed and closes the tabs of runs that ended. `dropMissing` (the first read)
  * also closes tabs of runs the engine no longer lists. Same object when nothing changed.

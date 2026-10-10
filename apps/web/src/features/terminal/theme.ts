@@ -122,13 +122,15 @@ const TERMINAL_SYMBOLS_FONT_URL = "/fonts/SymbolsNerdFontMono-Regular.woff2";
 const PLATFORM_MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 let symbolsFontLoad: Promise<void> | null = null;
+const fontLoads = new Map<string, Promise<void>>();
 
 export function forgetTerminalSymbolsFont(): void {
   symbolsFontLoad = null;
+  fontLoads.clear();
 }
 
 /** Registers the bundled symbols face once per page; a failed load leaves tofu, never a broken terminal. */
-export function ensureTerminalSymbolsFont(): Promise<void> {
+function ensureTerminalSymbolsFont(): Promise<void> {
   if (symbolsFontLoad !== null) return symbolsFontLoad;
   symbolsFontLoad = (async () => {
     try {
@@ -141,14 +143,21 @@ export function ensureTerminalSymbolsFont(): Promise<void> {
   return symbolsFontLoad;
 }
 
-/** Await before the first fit: xterm sizes the grid from one measured cell. */
-export async function loadTerminalFonts(fontFamily: string, fontSize: number): Promise<void> {
-  await ensureTerminalSymbolsFont();
-  try {
-    await document.fonts.load(`${fontSize}px ${fontFamily}`);
-  } catch {
-    // No Font Loading API (a test DOM), or a chain its parser refuses.
+/** Await before the first fit: xterm sizes the grid from one measured cell. Loaded once per face and size. */
+export function loadTerminalFonts(fontFamily: string, fontSize: number): Promise<void> {
+  const spec = `${fontSize}px ${fontFamily}`;
+  let load = fontLoads.get(spec);
+  if (!load) {
+    load = ensureTerminalSymbolsFont().then(async () => {
+      try {
+        await document.fonts.load(spec);
+      } catch {
+        // No Font Loading API (a test DOM), or a chain its parser refuses.
+      }
+    });
+    fontLoads.set(spec, load);
   }
+  return load;
 }
 
 /** Appearance's code stack (which ends in a bundled or platform mono), then the symbols face. */

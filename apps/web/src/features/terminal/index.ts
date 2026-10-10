@@ -5,7 +5,7 @@ export { RunRow } from "./components/run-row";
 export { useCanOpenShells } from "./hooks/use-can-open-shells";
 export { TerminalSurface } from "./components/terminal-surface";
 export { TerminalPreview } from "./components/terminal-preview";
-export { revealTerminal, startedCommand, syncRunTabs } from "./reveal";
+export { revealTerminal, syncRunTabs } from "./reveal";
 export { isOpenTerminal, statusLabel } from "./run/presentation";
 export { createRunApi, type RunApi } from "./run/api";
 export type { RunView } from "./run/types";

@@ -120,7 +120,7 @@ async function mount(props: Partial<Parameters<typeof RunPane>[0]> & { api: RunA
   const root = createRoot(host);
   mounted = root;
   await act(async () => {
-    root.render(<RunPane sessionId="session_a" runId="run_a" live={false} active visible {...props} />);
+    root.render(<RunPane sessionId="session_a" runId="run_a" live={false} visible {...props} />);
   });
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -231,8 +231,8 @@ describe("the scrollback a chip attaches to", () => {
   });
 });
 
-describe("a chip that is not on screen", () => {
-  test("has no emulator and reads nothing until it is shown, then draws the run from the engine's window", async () => {
+describe("a run tab that is not on screen", () => {
+  test("keeps its emulator: switching back builds no new xterm and reads nothing again", async () => {
     let adopted = 0;
     installBridge();
     const bridge = (window as unknown as { telarDesktop: { terminal: { adopt: () => Promise<{ ok: boolean }> } } }).telarDesktop.terminal;
@@ -241,29 +241,36 @@ describe("a chip that is not on screen", () => {
       return { ok: true };
     };
     const api = runDoor({ chunks: WINDOW, cursor: 3, dropped: 0 });
-    const host = await mount({ api, terminalId: "term_run", live: true, active: false });
-    expect(host.querySelector(".xterm")).toBeNull();
-    expect(adopted).toBe(0);
-    expect(written).toEqual([]);
+    const host = await mount({ api, terminalId: "term_run", live: true });
+    const emulator = host.querySelector(".xterm");
+    expect(emulator).not.toBeNull();
 
-    await act(async () => {
-      mounted!.render(<RunPane api={api} sessionId="session_a" runId="run_a" terminalId="term_run" live active visible />);
-    });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    const show = async (visible: boolean) => {
+      await act(async () => {
+        mounted!.render(<RunPane api={api} sessionId="session_a" runId="run_a" terminalId="term_run" live visible={visible} />);
+      });
+    };
+    await show(false);
+    await show(true);
+    await show(false);
+    await show(true);
     expect(host.querySelectorAll(".xterm")).toHaveLength(1);
+    expect(host.querySelector(".xterm")).toBe(emulator);
     expect(adopted).toBe(1);
     expect(written).toEqual(WINDOW);
   });
 
-  test("a collapsed panel drops the emulator of the chip it was showing", async () => {
+  test("a run opened in the background draws its window before it is ever shown", async () => {
     const api = runDoor({ chunks: WINDOW, cursor: 3, dropped: 0 });
-    const host = await mount({ api });
+    const host = await mount({ api, visible: false });
     expect(host.querySelectorAll(".xterm")).toHaveLength(1);
-    await act(async () => {
-      mounted!.render(<RunPane api={api} sessionId="session_a" runId="run_a" live={false} active visible={false} />);
-    });
-    expect(host.querySelector(".xterm")).toBeNull();
+    expect(written).toEqual(WINDOW);
+  });
+
+  test("a chunk longer than one parser item is written in item-sized pieces", async () => {
+    const { ITEM_CHARS } = await import("../frames");
+    const long = "z".repeat(ITEM_CHARS * 2 + 10);
+    await mount({ api: runDoor({ chunks: [long], cursor: 1, dropped: 0 }) });
+    expect(written.map((item) => item.length)).toEqual([ITEM_CHARS, ITEM_CHARS, 10]);
   });
 });

@@ -13,18 +13,14 @@ export function TerminalPane(props: {
   onTerminalId: (id: string) => void;
   /** What the shell called itself through OSC 0/2. */
   onTitle: (title: string) => void;
-  /** Fits and takes the keyboard; an inactive pane stays mounted, hidden. */
-  active: boolean;
-  /** The panel is on screen; a closing panel stays mounted at zero width. */
+  /** On screen: fits and takes the keyboard. A hidden pane stays mounted. */
   visible: boolean;
 }) {
   const { host, phase, retryInHome } = useShellEmulator(props);
   return (
     <div
       data-testid="terminal-pane"
-      data-active={props.active ? "true" : "false"}
-      // Hidden, not unmounted: unmounting drops the scrollback, which the host does not record.
-      className={cn("absolute inset-0 flex flex-col", !props.active && "hidden")}
+      className="absolute inset-0 flex flex-col"
     >
       {phase.kind === "ended" && (
         <p className="shrink-0 border-b px-3 py-1.5 text-xs text-muted-foreground" role="status">

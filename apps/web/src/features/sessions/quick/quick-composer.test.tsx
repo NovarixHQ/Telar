@@ -235,6 +235,34 @@ describe("the quick composer", () => {
     expect(host.querySelector('[role="note"]')).toBeNull();
   });
 
+  test("the permissions notice takes the taller size, and shows only once the window has it, so it is never cut", async () => {
+    const fake = fakeBridge(front(DENIED));
+    fake.holdResize();
+    const { host } = await mount(
+      <SidebarProvider>
+        <QuickComposer bridge={fake.bridge} />
+      </SidebarProvider>,
+    );
+    await flush();
+    const arriving = () => host.querySelector('[role="note"]')!.closest('[data-slot="quick-arriving"]')!;
+    expect(fake.modes.at(-1)).toBe("expanded");
+    expect(arriving().hasAttribute("data-ready")).toBe(false);
+    fake.resized("expanded");
+    expect(arriving().hasAttribute("data-ready")).toBe(true);
+  });
+
+  test("once the notice is skipped or its permission granted, the window gives the taller size back", async () => {
+    const skipped = await open(front(DENIED));
+    await act(async () => [...skipped.host.querySelectorAll<HTMLElement>('[role="note"] button')].find((button) => button.textContent === "Skip")!.click());
+    await flush();
+    expect(skipped.modes.at(-1)).toBe("compact");
+    window.localStorage.clear();
+    const granted = await open(front(DENIED));
+    granted.recheck(GRANTED);
+    await flush();
+    expect(granted.modes.at(-1)).toBe("compact");
+  });
+
   test("the project picker sits in the card's control row, with nothing under the card", async () => {
     const { host } = await open(front(GRANTED));
     const controls = host.querySelector('[data-slot="composer-controls"]')!;

@@ -11,7 +11,7 @@ import { DestinationPicker, placeOf } from "./destination-picker";
 import { projectKey } from "./hosts";
 import { missingPermissions, quickComposerBridge, type QuickComposerBridge } from "./front-context";
 import { NeedsYouStrip } from "./needs-you-strip";
-import { PermissionNotice } from "./permission-notice";
+import { PermissionNotice, usePermissionNotice } from "./permission-notice";
 import { useQuickComposer } from "./use-quick-composer";
 import { useWindowMode } from "./use-window-layout";
 
@@ -113,7 +113,8 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
   const strip = useRef<HTMLDivElement>(null);
-  const sized = useWindowMode(bridge, quick.destination.destination?.kind === "session" || quick.destination.picking, quick.opened);
+  const notice = usePermissionNotice(Boolean(bridge && missingPermissions(context)));
+  const sized = useWindowMode(bridge, notice.shown || quick.destination.destination?.kind === "session" || quick.destination.picking, quick.opened);
   const arriving = cn("motion-safe:transition-[opacity,translate] motion-safe:duration-[120ms] motion-safe:ease-out", sized ? "translate-y-0 opacity-100" : "invisible translate-y-2 opacity-0");
   useSurfaceCommandKeys(SURFACE_COMMANDS);
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
@@ -137,8 +138,12 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
         className="flex min-h-0 flex-1 flex-col gap-1"
       >
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="-mb-5 flex min-h-0 flex-1 flex-col justify-end gap-1 overflow-y-auto pb-4">
-          {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
+          <div className="-mb-5 flex min-h-0 flex-1 flex-col justify-end-safe gap-1 overflow-y-auto pb-4">
+          {bridge && context && notice.shown && (
+            <div data-slot="quick-arriving" data-ready={sized || undefined} className={arriving}>
+              <PermissionNotice bridge={bridge} context={context} onSkip={notice.skip} />
+            </div>
+          )}
           <ContextOffers quick={quick} />
           <NeedsYouStrip
             items={quick.needs}

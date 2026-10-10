@@ -5,7 +5,7 @@ export { FileKindIcon } from "./components/file-icon";
 export { OpenWorkspaceRow } from "./components/open-workspace-row";
 export { OpenerIcon } from "./components/opener-icon";
 export { OverlayEditor } from "./components/overlay-editor";
-export { claimCellDraft, claimCellDrafts, draftScope, forgetCellDraft, newDraftOwner, rememberCellDraft } from "./editor-drafts";
+export { draftScope } from "./editor-drafts";
 export {
   clearEditor,
   editorFileForPath,

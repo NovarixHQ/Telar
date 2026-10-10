@@ -15,6 +15,7 @@ export * from "./plugins/composer";
 export * from "./plugins/events";
 export * from "./plugins/schema";
 export * from "./plugins/toolchains";
+export * from "./plugins/view-bridge";
 export * from "./projects/workspace";
 export * from "./prompts/schema";
 export * from "./providers/compaction";

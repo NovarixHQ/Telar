@@ -1,0 +1,25 @@
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; font: 12px/1.5 var(--font-sans, system-ui, sans-serif); color: var(--foreground); background: var(--background); }
+button { font: inherit; color: inherit; background: none; border: 1px solid transparent; border-radius: 6px; padding: 1px 6px; cursor: pointer; }
+button:hover:not(:disabled) { background: var(--muted); }
+button:disabled { opacity: 0.4; cursor: default; }
+.bar { display: flex; align-items: center; gap: 6px; height: 32px; flex-shrink: 0; padding: 0 10px; border-bottom: 1px solid var(--border); }
+.bar .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; }
+.bar .detail { color: var(--muted-foreground); font-size: 11px; white-space: nowrap; }
+.pill { border: 1px solid var(--border); border-radius: 999px; padding: 0 7px; font-size: 10px; color: var(--muted-foreground); }
+.pill[data-state="busy"], .pill[data-state="starting"] { color: var(--warning); }
+.pill[data-state="idle"] { color: var(--success); }
+.pill[data-state="dead"] { color: var(--destructive); }
+.scroll { flex: 1; min-height: 0; overflow: auto; }
+.empty { padding: 24px; text-align: center; color: var(--muted-foreground); }
+.empty strong { display: block; color: var(--foreground); margin-bottom: 4px; }
+.empty button { margin-top: 10px; border-color: var(--border); }
+.problem { padding: 4px 10px; color: var(--destructive); background: color-mix(in srgb, var(--destructive) 10%, transparent); font-size: 11px; }
+pre, code, textarea, table.grid { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; }
+table.grid { border-collapse: collapse; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
+table.grid th { position: sticky; top: 0; background: var(--muted); text-align: left; font-weight: 500; padding: 2px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.grid td { padding: 0 8px; white-space: nowrap; max-width: 24rem; overflow: hidden; text-overflow: ellipsis; }
+table.grid tr:nth-child(odd) td { background: color-mix(in srgb, var(--muted) 30%, transparent); }
+table.grid .dtype { margin-left: 4px; font-weight: 400; color: var(--muted-foreground); }
+table.grid .null { color: color-mix(in srgb, var(--muted-foreground) 50%, transparent); }
+table.grid .index { text-align: right; color: color-mix(in srgb, var(--muted-foreground) 60%, transparent); border-right: 1px solid var(--border); }

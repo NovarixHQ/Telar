@@ -35,9 +35,8 @@ const DesktopBrowserSurface = dynamic(() => import("@/features/browser").then((m
 const DiffSurface = dynamic(() => import("@/features/git").then((mod) => mod.DiffSurface));
 const EditorSurface = dynamic(() => import("@/features/files/components/editor-surface").then((mod) => mod.EditorSurface));
 const FileViewSurface = dynamic(() => import("@/features/files").then((mod) => mod.FileViewSurface));
-const NotebookSurface = dynamic(() => import("@/features/plugins/data-science/notebook-surface").then((mod) => mod.NotebookSurface));
 const PdfSurface = dynamic(() => import("@/features/files/components/pdf-surface").then((mod) => mod.PdfSurface));
-const TableSurface = dynamic(() => import("@/features/files/components/table-surface").then((mod) => mod.TableSurface));
+const PluginFileView = dynamic(() => import("@/features/plugins/views/plugin-file-view").then((mod) => mod.PluginFileView));
 const GitHubSurface = dynamic(() => import("@/features/github").then((mod) => mod.GitHubSurface));
 const TerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.TerminalSurface));
 const SimulatorSurface = dynamic(() => import("@/features/simulators/components/simulator-surface").then((mod) => mod.SimulatorSurface));
@@ -106,10 +105,19 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
   const scoped = { ...(sessionId ? { sessionId } : {}), ...(projectId ? { projectId } : {}) };
   // Keyed by checkout and instance: a session switch replaces the surface, and two instances never share state or PTYs.
   const instanceKey = `${hostId ?? "local"}:${sessionId ?? projectId ?? "none"}:${tab.id}`;
-  const notebookPath = model.notebookPanelPath(kind);
-  if (notebookPath !== undefined) return <NotebookSurface path={notebookPath} {...(sessionId ? { sessionId } : {})} {...(hostId ? { hostId } : {})} {...(active ? { active } : {})} onOpenImage={onOpenImage} />;
-  const tablePath = model.tablePanelPath(kind);
-  if (tablePath !== undefined) return <TableSurface path={tablePath} {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} />;
+  const viewPath = model.viewPanelPath(kind);
+  if (viewPath !== undefined)
+    return (
+      <PluginFileView
+        path={viewPath}
+        enabledPlugins={enabledPlugins}
+        {...(sessionId ? { sessionId } : {})}
+        {...(hostId ? { hostId } : {})}
+        onOpenFile={(path) => props.onOpenTab(model.panelTabForPath(path, enabledPlugins))}
+        {...(onInsertReference ? { onInsertText: onInsertReference } : {})}
+        fallback={<FileViewSurface path={viewPath} {...scoped} {...(active ? { active } : {})} />}
+      />
+    );
   const pdfPath = model.pdfPanelPath(kind);
   if (pdfPath !== undefined) return <PdfSurface path={pdfPath} {...scoped} {...(active ? { active } : {})} />;
   if (kind === "editor")
@@ -122,8 +130,7 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
         {...(hostId ? { hostId } : {})}
         {...(active ? { active } : {})}
         enabledPlugins={enabledPlugins}
-        onOpenImage={onOpenImage}
-        {...(onInsertReference ? { onInsertReference: (reference: TelarReference) => onInsertReference(reference.text) } : {})}
+        {...(onInsertReference ? { onInsertText: onInsertReference, onInsertReference: (reference: TelarReference) => onInsertReference(reference.text) } : {})}
         {...(onOpenFileInNewTab ? { onOpenInNewPanelTab: onOpenFileInNewTab } : {})}
       />
     ) : null;
@@ -136,6 +143,7 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
         {...(active ? { active } : {})}
         events={props.events ?? []}
         onOpenImage={onOpenImage}
+        {...(onInsertReference ? { onInsertText: onInsertReference } : {})}
         onOpenFile={(path) => props.onOpenTab(model.panelTabForPath(path, enabledPlugins))}
         panels={props.pluginPanels ?? model.NO_PANELS}
       />

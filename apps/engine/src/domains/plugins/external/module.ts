@@ -1,6 +1,7 @@
 import type { PluginEngineModule, PluginInitContext } from "../contract";
 import { manifestMeta, TOOL_VERB, zodFrom } from "../manifest";
 import type { PluginMachineRoutes, PluginProjectRoutes, PluginRouteRequest } from "../scoped-routes";
+import { readFolderAsset } from "../assets";
 import { isSymlink } from "./installer";
 import type { LoadedExternalPlugin } from "./manifest";
 import { ExternalPluginProcess, type ExternalProcessOptions } from "./process";
@@ -110,6 +111,7 @@ export function externalPlugin(loaded: LoadedExternalPlugin, deps: ExternalPlugi
     projectRoutes,
     machineRoutes,
     resolve: (sessionId) => deps.resolve(sessionId),
+    assets: (asset) => readFolderAsset(dir, asset),
     process: () => child,
   };
 }

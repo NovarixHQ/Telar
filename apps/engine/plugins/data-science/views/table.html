@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="views.css">
+<style>
+  th { cursor: pointer; user-select: none; }
+  th:hover { background: color-mix(in srgb, var(--muted) 60%, var(--border)); }
+  tr { height: 22px; }
+</style>
+</head>
+<body>
+<div class="bar"><span class="path" id="path"></span><span class="detail" id="detail"></span></div>
+<div class="scroll" id="scroll"><p class="empty">Reading…</p></div>
+<script>
+(async () => {
+  const ROW = 22;
+  const PAGE = 200;
+  const telar = window.telar;
+  const { path } = await telar.context();
+  const scroll = document.getElementById("scroll");
+  document.getElementById("path").textContent = path;
+  let meta;
+  let sort;
+  let rows = new Map();
+  const inflight = new Set();
+  let generation = 0;
+
+  const cell = (tag, text, className) => {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  };
+
+  function fail(message) {
+    scroll.replaceChildren(cell("p", message, "empty"));
+  }
+
+  async function fetchPage(offset) {
+    if (inflight.has(offset)) return;
+    inflight.add(offset);
+    const asked = generation;
+    try {
+      const window = await telar.call("table", { path, offset, limit: PAGE, ...(sort ? { sort: sort.column, desc: sort.desc } : {}) });
+      if (asked !== generation) return;
+      meta = window;
+      window.rows.forEach((row, index) => rows.set(offset + index, row));
+      document.getElementById("detail").textContent = `${window.total.toLocaleString()} rows × ${window.columns.length}${window.truncated ? " · partial read" : ""}`;
+      draw();
+    } catch (error) {
+      if (asked === generation) fail(error.message);
+    } finally {
+      inflight.delete(offset);
+    }
+  }
+
+  function toggle(column) {
+    sort = sort?.column !== column ? { column, desc: false } : sort.desc ? undefined : { column, desc: true };
+    generation += 1;
+    rows = new Map();
+    inflight.clear();
+    void fetchPage(0);
+  }
+
+  function draw() {
+    if (!meta) return;
+    const top = scroll.scrollTop;
+    const first = Math.max(0, Math.floor(top / ROW) - 10);
+    const last = Math.min(meta.total, Math.ceil((top + scroll.clientHeight) / ROW) + 10);
+    for (let page = Math.floor(first / PAGE) * PAGE; page < last; page += PAGE) if (!rows.has(page)) void fetchPage(page);
+    const table = document.createElement("table");
+    table.className = "grid";
+    const head = table.createTHead().insertRow();
+    head.append(cell("th", "#", "index"));
+    meta.columns.forEach((column, index) => {
+      const th = cell("th", column);
+      if (meta.dtypes?.[index]) th.append(cell("span", meta.dtypes[index], "dtype"));
+      if (sort?.column === column) th.append(cell("span", sort.desc ? " ↓" : " ↑"));
+      th.addEventListener("click", () => toggle(column));
+      head.append(th);
+    });
+    const body = table.createTBody();
+    const spacer = (height) => {
+      const row = body.insertRow();
+      row.style.height = `${height}px`;
+      row.insertCell().colSpan = meta.columns.length + 1;
+    };
+    if (first > 0) spacer(first * ROW);
+    for (let index = first; index < last; index++) {
+      const row = body.insertRow();
+      row.append(cell("td", String(index + 1), "index"));
+      const values = rows.get(index);
+      if (!values) {
+        const waiting = cell("td", "…", "null");
+        waiting.colSpan = meta.columns.length;
+        row.append(waiting);
+        continue;
+      }
+      for (const value of values) row.append(value === null || value === "" ? cell("td", value === null ? "null" : "", "null") : cell("td", String(value)));
+    }
+    if (last < meta.total) spacer((meta.total - last) * ROW);
+    scroll.replaceChildren(table);
+    scroll.scrollTop = top;
+  }
+
+  let frame = 0;
+  scroll.addEventListener("scroll", () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(draw);
+  });
+  addEventListener("resize", draw);
+  void fetchPage(0);
+})();
+</script>
+</body>
+</html>

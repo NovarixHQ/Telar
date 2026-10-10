@@ -22,9 +22,7 @@ import { EDITOR_HEADER_ROW } from "./editor-chrome";
 import { EditorSurface } from "./editor-surface";
 import { FilesSurface } from "./files-surface";
 import { FileViewSurface } from "./file-view-surface";
-import { NotebookSurface } from "@/features/plugins/data-science/notebook-surface";
 import { PdfSurface } from "./pdf-surface";
-import { TableSurface } from "./table-surface";
 import { emptyEditor, setExplorerOpen } from "../editor-workspace";
 
 /** The two properties the issue measured: one height, one inset. Spelled out
@@ -66,23 +64,19 @@ describe("the tree header and the open-file strip are one bar", () => {
 describe("the address row does not move between file kinds", () => {
   const rows = () => ({
     code: renderToStaticMarkup(<FileViewSurface path="src/main.ts" sessionId="session_1" />),
-    notebook: renderToStaticMarkup(<NotebookSurface path="analysis.ipynb" sessionId="session_1" />),
-    table: renderToStaticMarkup(<TableSurface path="data/rows.csv" sessionId="session_1" />),
     pdf: renderToStaticMarkup(<PdfSurface path="docs/paper.pdf" sessionId="session_1" />),
   });
 
-  test("all four wear the header token — the same one the strip above them does", () => {
+  test("both wear the header token — the same one the strip above them does", () => {
     for (const [kind, html] of Object.entries(rows())) {
       expect(`${kind}: ${html.includes(EDITOR_HEADER_ROW)}`).toBe(`${kind}: true`);
     }
   });
 
   test("each one still names its own file, split at the last slash", () => {
-    const { code, notebook, table, pdf } = rows();
+    const { code, pdf } = rows();
     expect(code).toContain("main.ts");
     expect(code).toContain("src/");
-    expect(notebook).toContain("analysis.ipynb");
-    expect(table).toContain("rows.csv");
     expect(pdf).toContain("paper.pdf");
   });
 });

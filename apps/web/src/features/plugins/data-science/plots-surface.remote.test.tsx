@@ -8,7 +8,6 @@ GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { PlotsSurface } = await import("./plots-surface");
-const { CellOutputView } = await import("./cell-output");
 
 const PLOT: TurnAttachment = { id: "plot_1", name: "plot_1.png", mediaType: "image/png", bytes: 1, path: "/tmp/plot_1.png", tags: ["plot"], title: "Radius", createdAt: 1 };
 
@@ -45,13 +44,6 @@ async function mount(node: React.ReactNode) {
 test("a remote host's plot image is fetched through that host", async () => {
   const { host, done } = await mount(<PlotsSurface sessionId="session_1" hostId="mac-2" />);
   expect(host.querySelector('img[alt="Radius"]')?.getAttribute("src")).toBe("/api/hosts/mac-2/sessions/session_1/attachments/plot_1");
-  done();
-});
-
-test("a remote host's notebook figure is fetched through that host", async () => {
-  const output = { kind: "image", mediaType: "image/png", attachmentId: "plot_1" } as const;
-  const { host, done } = await mount(<CellOutputView output={output} sessionId="session_1" hostId="mac-2" />);
-  expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/hosts/mac-2/sessions/session_1/attachments/plot_1");
   done();
 });
 

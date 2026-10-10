@@ -36,6 +36,7 @@ export type PluginEngineModule<Settings = unknown> = {
   projectRoutes?: PluginProjectRoutes;
   machineRoutes?: PluginMachineRoutes;
   resolve?(sessionId: string): unknown;
+  assets?(asset: string): string | undefined;
 };
 
 export type PluginRecord = {

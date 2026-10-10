@@ -3,12 +3,9 @@ import { act, useState } from "react";
 import { UNKNOWN_PATH, type GitFileChange, type SessionDiff } from "@telar/engine-client";
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
 import { fileReference, REFERENCE_MIME } from "@telar/client/composer";
-import type { NotebookCell, NotebookRead } from "@/features/plugins/data-science/ds";
 import type { JournalItem, JournalTask } from "@telar/client/journal";
 import type { DiffTab } from "@/features/git/diff-scope";
 import { messagePlainText, quoteForComposer } from "@/ui/message";
-import { NotebookSurface } from "@/features/plugins/data-science/notebook-surface";
-import { TableSurface } from "./table-surface";
 import { DiffSurface, ReviewFileRow } from "@/features/git";
 import { TranscriptItem } from "@/features/transcript";
 import { Composer } from "@/features/composer";
@@ -39,155 +36,6 @@ const disabled = (label: string) => row(label)?.hasAttribute("data-disabled");
 const choose = (label: string) => click(row(label));
 const byText = (root: ParentNode, selector: string, text: string) =>
   [...root.querySelectorAll(selector)].find((node) => node.textContent?.trim() === text)!;
-describe("the notebook cell's menu", () => {
-  const cell = (index: number, patch: Partial<NotebookCell> = {}): NotebookCell => ({ id: `c${index}`, index, type: "code", source: `x = ${index}`, ...patch });
-  const notebook: NotebookRead = {
-    path: "a.ipynb",
-    sha256: "sha",
-    cellCount: 3,
-    cells: [cell(0, { outputs: [{ kind: "text", stream: "stdout", text: "0" }] }), cell(1, { type: "markdown", source: "# Title" }), cell(2)],
-  };
-  const base = "POST /api/sessions/s1/ds/notebook";
-
-  async function open(index: number) {
-    const calls = stubFetch({ [`${base}/read`]: () => notebook, [`${base}/edit`]: () => notebook, [`${base}/run`]: () => ({ results: [], notebook }) });
-    const { host } = await mount(<NotebookSurface path="a.ipynb" sessionId="s1" />);
-    await flush(() => host.querySelectorAll(".group\\/cell").length === 3);
-    const target = host.querySelectorAll(".group\\/cell")[index]!;
-    await rightClick(target);
-    return { calls, host, target };
-  }
-  const edits = (calls: { route: string; body: unknown }[]) => calls.filter((call) => call.route === `${base}/edit`).map((call) => (call.body as { edit: unknown }).edit);
-
-  test("a code cell with outputs offers its own verbs, and Move up is disabled at the top", async () => {
-    await open(0);
-    expect(labels()).toEqual([
-      "Run cell", "Run all", "Insert cell above", "Insert cell below", "Move up", "Move down",
-      "Change to Markdown", "Delete cell", "Copy source", "Collapse outputs", "Clear outputs",
-    ]);
-    expect(disabled("Move up")).toBe(true);
-    expect(disabled("Move down")).toBe(false);
-  });
-
-  test("a markdown cell cannot run, offers the other type, and has no outputs verbs", async () => {
-    await open(1);
-    expect(labels()).toEqual(["Run all", "Insert cell above", "Insert cell below", "Move up", "Move down", "Change to Code", "Delete cell", "Copy source"]);
-  });
-
-  test("the last cell cannot move down, and a code cell with no outputs has nothing to clear", async () => {
-    await open(2);
-    expect(disabled("Move down")).toBe(true);
-    expect(labels()).not.toContain("Clear outputs");
-  });
-
-  test("Move and Clear outputs send the engine's own edits, never a delete-then-insert", async () => {
-    const { calls, target } = await open(0);
-    await choose("Move down");
-    await flush(() => edits(calls).length === 1);
-    await rightClick(target);
-    await choose("Clear outputs");
-    await flush(() => edits(calls).length === 2);
-    expect(edits(calls)).toEqual([{ kind: "move", cellId: "c0", to: 1 }, { kind: "clearOutputs", cellId: "c0" }]);
-  });
-
-  test("Insert above on the first cell sends after -1, the same as the strip above it", async () => {
-    const { calls, target, host } = await open(0);
-    await choose("Insert cell above");
-    await flush(() => edits(calls).length === 1);
-    await rightClick(target);
-    await choose("Insert cell below");
-    await flush(() => edits(calls).length === 2);
-    await click(byText(host, "button", "+ markdown"));
-    await flush(() => edits(calls).length === 3);
-    expect(edits(calls)).toEqual([
-      { kind: "insert", after: -1, source: "", cellType: "code" },
-      { kind: "insert", after: "c0", source: "", cellType: "code" },
-      { kind: "insert", after: -1, source: "", cellType: "markdown" },
-    ]);
-  });
-
-  test("Change type, Delete and Run fire what the cell's buttons fire", async () => {
-    const { calls, target } = await open(0);
-    await choose("Change to Markdown");
-    await rightClick(target);
-    await choose("Delete cell");
-    await rightClick(target);
-    await choose("Run cell");
-    await flush(() => calls.some((call) => call.route === `${base}/run`));
-    expect(edits(calls)).toEqual([{ kind: "set", cellId: "c0", cellType: "markdown" }, { kind: "delete", cellId: "c0" }]);
-    expect(calls.find((call) => call.route === `${base}/run`)?.body).toMatchObject({ path: "a.ipynb", cellId: "c0" });
-  });
-
-  test("Copy source copies the unsaved draft, not what is on disk", async () => {
-    const { host, target } = await open(0);
-    const box = host.querySelector('textarea[aria-label="Cell 0 source"]') as HTMLTextAreaElement;
-    await act(async () => {
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(box, "x = 42");
-      box.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-    await rightClick(target);
-    await choose("Copy source");
-    expect(copied).toEqual(["x = 42"]);
-  });
-});
-
-describe("the table's column header and its cells", () => {
-  const long = "a".repeat(400);
-  const answer = { path: "t.csv", columns: ["name", "note"], dtypes: ["str", "str"], total: 1, offset: 0, rows: [[long, null]] };
-
-  async function table() {
-    const queries: URLSearchParams[] = [];
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
-      queries.push(new URL(String(input), "http://localhost").searchParams);
-      return Response.json(answer);
-    }) as typeof fetch;
-    const { host } = await mount(<TableSurface path="t.csv" sessionId="s1" />);
-    await flush(() => Boolean(host.querySelector("tbody td:nth-child(2)")));
-    const reads = () => queries.map((query) => ({ sort: query.get("sort") ?? undefined, desc: query.get("desc") === "1" }));
-    return { host, reads, header: () => host.querySelector("th:nth-child(2) > span")! };
-  }
-
-  test("the header offers the three sort choices as one radio group, plus Copy column name", async () => {
-    const { header } = await table();
-    await rightClick(header());
-    expect(labels()).toEqual(["Sort ascending", "Sort descending", "Clear sort", "Copy column name"]);
-    expect(row("Clear sort")?.getAttribute("aria-checked")).toBe("true");
-    await choose("Copy column name");
-    expect(copied).toEqual(["name"]);
-  });
-
-  test("picking a direction re-reads sorted, the group shows it, and Clear sort drops it", async () => {
-    const { header, reads } = await table();
-    await rightClick(header());
-    await choose("Sort descending");
-    await flush(() => reads().some((read) => read.desc === true));
-    expect(reads().at(-1)).toMatchObject({ sort: "name", desc: true });
-    await rightClick(header());
-    expect(row("Sort descending")?.getAttribute("aria-checked")).toBe("true");
-    expect(row("Sort ascending")?.getAttribute("aria-checked")).toBe("false");
-    await choose("Clear sort");
-    await flush(() => reads().at(-1)?.sort === undefined);
-    expect(reads().at(-1)?.sort).toBeUndefined();
-  });
-
-  test("the header's own click still cycles the sort", async () => {
-    const { host, reads } = await table();
-    await click(host.querySelector("th:nth-child(2)")!);
-    await flush(() => reads().some((read) => read.sort === "name"));
-    expect(reads().at(-1)).toMatchObject({ sort: "name", desc: false });
-  });
-
-  test("a cell offers only Copy value, and copies the whole string rather than the clipped one", async () => {
-    const { host } = await table();
-    await rightClick(host.querySelector("tbody td:nth-child(2) > span")!);
-    expect(labels()).toEqual(["Copy value"]);
-    await choose("Copy value");
-    await rightClick(host.querySelector("tbody td:nth-child(3) > span")!);
-    await choose("Copy value");
-    expect(copied).toEqual([long, "null"]);
-  });
-});
-
 describe("the diff surface's file row", () => {
   const file: GitFileChange = { path: "src/a.ts", status: "modified" };
   const view = { layout: "stacked", wrap: false, ignoreWhitespace: false, tree: false } as const;

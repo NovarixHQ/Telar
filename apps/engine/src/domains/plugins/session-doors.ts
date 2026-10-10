@@ -85,6 +85,7 @@ export class PluginDoors {
       waitJob: (jobId, timeoutMs) => this.dsJobs.wait(jobId, timeoutMs),
       environments: async () => ({ environments: await this.host.dataScienceOps().environmentRows(projectId, cwd) }),
       useEnvironment: (target) => this.host.dataScienceOps().useEnvironment(sessionId, target),
+      table: (target, options) => this.table(sessionId, target, options),
     });
   }
 

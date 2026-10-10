@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
-import { EngineClient, parsePluginPanelView } from "@telar/engine-client";
+import { EngineClient, parsePluginPanelView, PluginManifest } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../../daemon";
 import { requestKindForTool } from "../../../drivers/claude";
 import { loadInstalledPlugins } from "./manifest";
@@ -444,7 +444,7 @@ describe("the example plugin", () => {
 
 describe("approval", () => {
   test("an external tool is never read-ratified, so it always parks a card", () => {
-    const meta = manifestMeta({ ...ECHO_MANIFEST, routes: { session: [], project: [], machine: [] } } as never);
+    const meta = manifestMeta(PluginManifest.parse(ECHO_MANIFEST));
     expect(meta.readTools).toEqual([]);
     expect(ratifiedReadTools({ ...meta, readTools: ["echo_say"] })).toEqual([]);
     expect(requestKindForTool("mcp__telar__echo_say")).toBe("tool_call");

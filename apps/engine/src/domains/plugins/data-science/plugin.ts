@@ -15,6 +15,7 @@ import { KernelHost, type KernelHostOptions } from "./kernel-host";
 import { clientDsCapability } from "./client-capability";
 import { dsTools } from "./ds-tools";
 import { notebookTools } from "./notebook-tools";
+import { DATA_SCIENCE_VIEWS } from "../../../../plugins/data-science/views";
 import type { PluginEngineModule, PluginInitContext } from "../contract";
 import type { PluginToolModule } from "../tool-module";
 
@@ -44,6 +45,10 @@ export const dataScienceMeta: PluginMeta = {
     why: "kernel state and snapshots from Telar's cells",
     alreadyCovered: [".telar/", ".telar", "/.telar/", ".telar/ds/"],
   },
+  viewers: [
+    { id: "notebook", label: "Notebook", entry: "notebook.html", extensions: [".ipynb"], mimes: ["application/x-ipynb+json"] },
+    { id: "table", label: "Table", entry: "table.html", extensions: [".csv", ".tsv", ".parquet"], mimes: ["text/csv", "text/tab-separated-values"] },
+  ],
   settings: [
     {
       id: "environment",
@@ -213,6 +218,13 @@ export function dataSciencePlugin(deps: DataSciencePluginDeps): PluginEngineModu
           ...(input.all === true ? { all: true } : {}),
           ...(typeof input.stopOnError === "boolean" ? { stopOnError: input.stopOnError } : {}),
         }),
+      table: (input, capability) =>
+        (capability as DsCapability).table(String(input.path ?? ""), {
+          offset: typeof input.offset === "number" ? Math.max(0, input.offset) : 0,
+          limit: typeof input.limit === "number" ? Math.min(Math.max(1, input.limit), 1000) : 200,
+          ...(typeof input.sort === "string" ? { sort: input.sort } : {}),
+          ...(input.desc === true ? { desc: true } : {}),
+        }),
       plot: (input, capability) =>
         (capability as DsCapability).plot({
           code: String(input.code ?? ""),
@@ -261,5 +273,6 @@ export function dataSciencePlugin(deps: DataSciencePluginDeps): PluginEngineModu
     machineRoutes: scoped.machine,
 
     resolve: (sessionId) => deps.resolve(sessionId),
+    assets: (asset) => (Object.hasOwn(DATA_SCIENCE_VIEWS, asset) ? DATA_SCIENCE_VIEWS[asset] : undefined),
   };
 }

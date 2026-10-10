@@ -1,4 +1,5 @@
 import type { CellOutput, ExecResult, KernelState } from "./outputs";
+import type { TableWindow } from "./table";
 import type { Experiment, LineageRow, Snapshot, Watch } from "./state-files";
 
 export type NotebookCellSummary = {
@@ -65,6 +66,7 @@ export type DsCapability = {
 
   packages(): Promise<{ packages: PackageRow[]; environment: { manager: string; root: string; python: string } }>;
   install(input: { add?: string[]; remove?: string[]; requirements?: string }): Promise<{ ok: boolean; lines: string[]; error?: string }>;
+  table(path: string, options: { offset: number; limit: number; sort?: string; desc?: boolean }): Promise<TableWindow>;
 };
 
 export type PackageRow = { name: string; version: string; channel?: string; direct?: boolean };

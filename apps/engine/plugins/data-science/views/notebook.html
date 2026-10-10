@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="views.css">
+<style>
+  #cells { padding: 8px 0 32px; }
+  .cell { position: relative; display: grid; grid-template-columns: 44px 1fr; padding: 2px 10px 2px 0; }
+  .cell:focus-within { background: color-mix(in srgb, var(--muted) 35%, transparent); }
+  .gutter { padding-top: 5px; text-align: right; padding-right: 8px; color: var(--muted-foreground); font: 10px var(--font-mono, ui-monospace, monospace); }
+  .cell.running .gutter { color: var(--warning); }
+  textarea { box-sizing: border-box; width: 100%; resize: none; overflow: hidden; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; background: var(--card, var(--background)); color: var(--foreground); line-height: 1.5; outline: none; }
+  textarea:focus { border-color: var(--ring, var(--primary)); }
+  .cell.markdown textarea { font-family: var(--font-sans, system-ui, sans-serif); font-size: 12px; background: transparent; }
+  .tools { position: absolute; top: 2px; right: 14px; display: none; gap: 2px; background: var(--popover, var(--background)); border: 1px solid var(--border); border-radius: 6px; }
+  .cell:hover .tools, .cell:focus-within .tools { display: flex; }
+  .tools button { font-size: 10px; }
+  .outputs { grid-column: 2; }
+  .outputs pre { margin: 0; padding: 2px 8px; white-space: pre-wrap; word-break: break-word; }
+  .outputs .stderr { color: var(--warning); }
+  .outputs .error { background: color-mix(in srgb, var(--destructive) 10%, transparent); color: var(--destructive); }
+  .outputs img { display: block; max-width: 100%; max-height: 20rem; margin: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: white; }
+  .outputs .frame { margin: 6px 8px; max-height: 20rem; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+  .outputs .html table { border-collapse: collapse; } .outputs .html td, .outputs .html th { padding: 2px 6px; border: 1px solid var(--border); }
+  .insert { display: flex; justify-content: center; gap: 6px; height: 12px; opacity: 0; } .insert:hover { opacity: 1; }
+  .insert button { font-size: 10px; line-height: 1; border-color: var(--border); background: var(--background); }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="path" id="path"></span>
+  <span class="pill" id="kernel" data-state="none">no kernel</span>
+  <button id="run-all" title="Run all cells">Run all</button>
+  <button id="interrupt" title="Interrupt">Stop</button>
+  <button id="restart" title="Restart kernel — every variable is lost">Restart</button>
+</div>
+<div id="problem" class="problem" hidden></div>
+<div class="scroll"><div id="cells"><p class="empty">Opening…</p></div></div>
+<script>
+(async () => {
+  const SAVE_DEBOUNCE_MS = 600;
+  const telar = window.telar;
+  const { path } = await telar.context();
+  const cells = document.getElementById("cells");
+  const kernelPill = document.getElementById("kernel");
+  const problem = document.getElementById("problem");
+  document.getElementById("path").textContent = path;
+  let notebook;
+  let kernel = "none";
+  const running = new Set();
+  const drafts = new Map();
+  const timers = new Map();
+
+  const el = (tag, props = {}, ...children) => {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  };
+  const stripAnsi = (text) => text.replace(/\u001b\[[0-9;]*m/g, "");
+
+  function report(error) {
+    problem.hidden = !error;
+    problem.textContent = error ? error.message ?? String(error) : "";
+  }
+
+  function setKernel(state) {
+    kernel = state;
+    kernelPill.dataset.state = state;
+    kernelPill.textContent = state === "none" ? "no kernel" : state;
+    document.getElementById("interrupt").disabled = state !== "busy";
+    document.getElementById("restart").disabled = state === "none";
+    document.getElementById("run-all").disabled = !notebook || running.size > 0;
+  }
+
+  async function refreshKernel() {
+    try {
+      setKernel((await telar.call("kernel")).state);
+    } catch {
+      setKernel("none");
+    }
+  }
+
+  async function load() {
+    try {
+      notebook = await telar.call("notebook/read", { path, withOutputs: true });
+      report();
+      draw();
+    } catch (error) {
+      notebook = undefined;
+      if (/no such file/i.test(error.message)) drawMissing();
+      else cells.replaceChildren(el("p", { className: "empty" }, el("strong", { textContent: "Could not read this notebook" }), error.message, el("br"), el("button", { textContent: "Retry", onclick: () => void load() })));
+    }
+    setKernel(kernel);
+  }
+
+  function drawMissing() {
+    const create = el("button", { textContent: `Create ${path.split("/").pop()}` });
+    create.onclick = () => attempt(async () => {
+      notebook = await telar.call("notebook/edit", { path, edit: { kind: "create" } });
+      draw();
+    });
+    cells.replaceChildren(el("p", { className: "empty" }, el("strong", { textContent: "No notebook here yet" }), create));
+  }
+
+  async function attempt(work) {
+    try {
+      await work();
+      report();
+    } catch (error) {
+      report(error);
+    }
+  }
+
+  async function save(cellId) {
+    clearTimeout(timers.get(cellId));
+    timers.delete(cellId);
+    const source = drafts.get(cellId);
+    if (source === undefined) return;
+    await attempt(async () => {
+      notebook = await telar.call("notebook/edit", { path, edit: { kind: "set", cellId, source } });
+      if (drafts.get(cellId) === source) drafts.delete(cellId);
+    });
+  }
+
+  const saveAll = () => Promise.all([...drafts.keys()].map(save));
+
+  async function run(cellId) {
+    if (!notebook) return;
+    await saveAll();
+    running.add(cellId ?? "*");
+    setKernel(kernel === "none" ? "starting" : "busy");
+    draw();
+    await attempt(() => telar.call("notebook/run", { path, ...(cellId ? { cellId } : { all: true }) }));
+    running.delete(cellId ?? "*");
+    await load();
+    await refreshKernel();
+  }
+
+  async function structural(edit) {
+    await saveAll();
+    await attempt(async () => {
+      await telar.call("notebook/edit", { path, edit });
+      await load();
+    });
+  }
+
+  function output(out) {
+    switch (out.kind) {
+      case "text":
+        return el("pre", { className: out.stream === "stderr" ? "stderr" : "", textContent: out.text + (out.truncated ? " … truncated" : "") });
+      case "error":
+        return el("pre", { className: "error", textContent: `${out.ename}: ${out.evalue}\n${out.traceback.map(stripAnsi).join("\n")}` });
+      case "image":
+        return out.dataB64 ? el("img", { src: `data:${out.mediaType};base64,${out.dataB64}`, alt: "Cell output figure" }) : el("pre", { textContent: "[image]" });
+      case "html": {
+        const frame = el("div", { className: "frame html" });
+        frame.innerHTML = out.html;
+        return frame;
+      }
+      case "dataframe": {
+        const table = el("table", { className: "grid" });
+        const head = table.createTHead().insertRow();
+        out.columns.forEach((column, index) => head.append(el("th", {}, column, el("span", { className: "dtype", textContent: out.dtypes[index] ?? "" }))));
+        const body = table.createTBody();
+        for (const row of out.rows) {
+          const tr = body.insertRow();
+          for (const value of row) tr.append(el("td", { className: value === null ? "null" : "", textContent: value === null ? "null" : String(value) }));
+        }
+        return el("div", { className: "frame" }, table, el("pre", { textContent: `${out.shape[0]} × ${out.shape[1]}${out.truncated ? " · preview" : ""}` }));
+      }
+      case "json":
+        return el("pre", { textContent: JSON.stringify(out.value, null, 2) });
+      default:
+        return el("span");
+    }
+  }
+
+  function grow(area) {
+    area.style.height = "auto";
+    area.style.height = `${area.scrollHeight + 2}px`;
+  }
+
+  function insertBar(after) {
+    const add = (cellType, label) => el("button", { textContent: label, onclick: () => void structural({ kind: "insert", after, source: "", cellType }) });
+    return el("div", { className: "insert" }, add("code", "+ code"), add("markdown", "+ markdown"));
+  }
+
+  function drawCell(cell, count) {
+    const code = cell.type === "code";
+    const area = el("textarea", { value: drafts.get(cell.id) ?? cell.source, spellcheck: !code, rows: 1 });
+    area.dataset.cell = cell.id;
+    area.addEventListener("input", () => {
+      grow(area);
+      drafts.set(cell.id, area.value);
+      clearTimeout(timers.get(cell.id));
+      timers.set(cell.id, setTimeout(() => void save(cell.id), SAVE_DEBOUNCE_MS));
+    });
+    area.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.shiftKey || event.metaKey || event.ctrlKey) && code) {
+        event.preventDefault();
+        void run(cell.id);
+      }
+    });
+    const busy = running.has(cell.id) || running.has("*");
+    const tool = (label, title, onclick, disabled = false) => el("button", { textContent: label, title, onclick, disabled });
+    const tools = el(
+      "div",
+      { className: "tools" },
+      ...(code ? [tool("Run", "Run cell (Shift+Enter)", () => void run(cell.id), busy)] : []),
+      tool("↑", "Move up", () => void structural({ kind: "move", cellId: cell.id, to: cell.index - 1 }), cell.index === 0),
+      tool("↓", "Move down", () => void structural({ kind: "move", cellId: cell.id, to: cell.index + 1 }), cell.index >= count - 1),
+      tool(code ? "Md" : "Code", code ? "Change to Markdown" : "Change to Code", () => void structural({ kind: "set", cellId: cell.id, cellType: code ? "markdown" : "code" })),
+      ...(code && cell.outputs?.length ? [tool("Clear", "Clear outputs", () => void structural({ kind: "clearOutputs", cellId: cell.id }))] : []),
+      tool("Delete", "Delete cell", () => void structural({ kind: "delete", cellId: cell.id })),
+    );
+    const gutter = el("div", { className: "gutter", textContent: code ? (busy ? "[*]" : `[${cell.executionCount ?? " "}]`) : "" });
+    const outputs = el("div", { className: "outputs" }, ...(code ? (cell.outputs ?? []).map(output) : []));
+    return el("section", { className: `cell ${cell.type}${busy ? " running" : ""}` }, gutter, area, tools, outputs);
+  }
+
+  function draw() {
+    if (!notebook) return;
+    const focused = document.activeElement?.dataset?.cell;
+    const selection = focused ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : undefined;
+    const children = [insertBar(-1)];
+    for (const cell of notebook.cells) children.push(drawCell(cell, notebook.cells.length), insertBar(cell.id));
+    if (notebook.cells.length === 0) children.push(el("p", { className: "empty", textContent: "An empty notebook. Add a cell above." }));
+    cells.replaceChildren(...children);
+    for (const area of cells.querySelectorAll("textarea")) grow(area);
+    const again = focused && cells.querySelector(`textarea[data-cell="${CSS.escape(focused)}"]`);
+    if (again) {
+      again.focus();
+      again.setSelectionRange(...selection);
+    }
+  }
+
+  document.getElementById("run-all").onclick = () => void run();
+  document.getElementById("interrupt").onclick = () => void attempt(() => telar.call("interrupt")).then(refreshKernel);
+  document.getElementById("restart").onclick = () => void attempt(() => telar.call("restart")).then(refreshKernel);
+  telar.onEvent((event) => {
+    if (event?.name === "kernel.state.changed" && typeof event.data?.state === "string") setKernel(event.data.state);
+  });
+  addEventListener("pagehide", () => void saveAll());
+  setKernel("none");
+  await load();
+  await refreshKernel();
+})();
+</script>
+</body>
+</html>

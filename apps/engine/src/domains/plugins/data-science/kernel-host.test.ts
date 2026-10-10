@@ -157,6 +157,7 @@ describe.skipIf(skip)("kernel host against a real ipykernel", () => {
     const table = await store.pluginDoors.table("session_k", "data.csv", { offset: 0, limit: 10 });
     expect(table.total).toBe(3);
     expect(table.rows[0]).toEqual([1, "x"]);
+    expect((await ds.table("data.csv", { offset: 1, limit: 1 })).rows).toEqual([table.rows[1]!]);
   }, 120_000);
 
   test("ds_env lists the environments and switching restarts the kernel into the chosen one", async () => {

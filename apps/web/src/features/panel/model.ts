@@ -1,8 +1,8 @@
-import { CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, NotebookIcon, SmartphoneIcon, SquareTerminalIcon, TableIcon, type LucideIcon } from "lucide-react";
+import { CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIcon, GlobeIcon, PuzzleIcon, SmartphoneIcon, SquareTerminalIcon, type LucideIcon } from "lucide-react";
 import type { CommandId } from "@/features/commands";
 import type { BrowserProvider, BrowserTab } from "@telar/engine-client";
 import { fileKind } from "@/features/files";
-import { isPluginSurface, PLUGIN_SURFACES, pluginSurfaces, viewerAvailable, type PluginSurfaceId, type PluginPanelSource } from "@/features/plugins";
+import { isPluginSurface, PLUGIN_SURFACES, pluginSurfaces, viewerFor, type PluginSurfaceId, type PluginPanelSource } from "@/features/plugins";
 import type { PanelTabInstance, PanelTabParams } from "./tabs";
 
 const SURFACES = [
@@ -40,7 +40,7 @@ function surfacesFor(enabledPlugins: readonly string[], pluginPanels: readonly P
 }
 
 /** File, issue and pull ids are requests to open something inside a surface, never tabs of their own. */
-export type PanelTab = SurfaceId | `browser:${string}` | `file:${string}` | `notebook:${string}` | `table:${string}` | `pdf:${string}` | `issue:${number}` | `pull:${number}`;
+export type PanelTab = SurfaceId | `browser:${string}` | `file:${string}` | `view:${string}` | `pdf:${string}` | `issue:${number}` | `pull:${number}`;
 
 export type PanelTabItem = PanelTabInstance<PanelTab>;
 
@@ -52,19 +52,18 @@ export type TabDescription = { label: string; icon: LucideIcon; blurb: string; m
 
 const BROWSER_PREFIX = "browser:";
 const FILE_PREFIX = "file:";
-const NOTEBOOK_PREFIX = "notebook:";
-const TABLE_PREFIX = "table:";
+const VIEW_PREFIX = "view:";
 const PDF_PREFIX = "pdf:";
 const ISSUE_PREFIX = "issue:";
 const PULL_PREFIX = "pull:";
-const FILE_TAB_PREFIXES = [FILE_PREFIX, NOTEBOOK_PREFIX, TABLE_PREFIX, PDF_PREFIX] as const;
+const FILE_TAB_PREFIXES = [FILE_PREFIX, VIEW_PREFIX, PDF_PREFIX] as const;
 
 const MULTI_INSTANCE: ReadonlySet<string> = new Set<string>(["editor", "diff", "terminal"]);
 
 const suffixed = (prefix: string) => (tab: string) => (tab.startsWith(prefix) ? tab.slice(prefix.length) : undefined);
 
-export const notebookPanelPath = suffixed(NOTEBOOK_PREFIX);
-export const tablePanelPath = suffixed(TABLE_PREFIX);
+/** A file a plugin's viewer draws. */
+export const viewPanelPath = suffixed(VIEW_PREFIX);
 export const pdfPanelPath = suffixed(PDF_PREFIX);
 export const filePanelPath = suffixed(FILE_PREFIX);
 export const browserTabId = suffixed(BROWSER_PREFIX);
@@ -105,11 +104,8 @@ export function pullPanelTab(number: number): PanelTab {
 
 /** A plugin's viewer only while that plugin is on; the PDF viewer is core. */
 export function panelTabForPath(path: string, enabledPlugins: readonly string[]): PanelTab {
-  const viewer = fileKind(path).viewer;
-  if (!viewer || !viewerAvailable(viewer, enabledPlugins)) return filePanelTab(path);
-  if (viewer === "notebook") return `${NOTEBOOK_PREFIX}${path}`;
-  if (viewer === "table") return `${TABLE_PREFIX}${path}`;
-  return pdfPanelTab(path);
+  if (fileKind(path).viewer === "pdf") return pdfPanelTab(path);
+  return viewerFor(path, enabledPlugins) ? `${VIEW_PREFIX}${path}` : filePanelTab(path);
 }
 
 export function editorInstanceKey(panelKey: string, instanceId: string): string {
@@ -137,8 +133,7 @@ export function ownsItsHeight(tab: PanelTab): boolean {
   return (
     browserTabId(tab) !== undefined ||
     filePanelPath(tab) !== undefined ||
-    notebookPanelPath(tab) !== undefined ||
-    tablePanelPath(tab) !== undefined ||
+    viewPanelPath(tab) !== undefined ||
     pdfPanelPath(tab) !== undefined ||
     tab === "issues" ||
     tab === "pulls" ||
@@ -172,10 +167,8 @@ const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 export function describePanelTab(tab: PanelTab, browser?: BrowserState, live?: readonly LivePage[]): TabDescription {
   const path = filePanelPath(tab);
   if (path !== undefined) return { label: path.split("/").at(-1) || path, icon: FileIcon, blurb: path };
-  const notebookPath = notebookPanelPath(tab);
-  if (notebookPath !== undefined) return { label: basename(notebookPath), icon: NotebookIcon, blurb: notebookPath };
-  const tablePath = tablePanelPath(tab);
-  if (tablePath !== undefined) return { label: basename(tablePath), icon: TableIcon, blurb: tablePath };
+  const viewPath = viewPanelPath(tab);
+  if (viewPath !== undefined) return { label: basename(viewPath), icon: PuzzleIcon, blurb: viewPath };
   const pdfPath = pdfPanelPath(tab);
   if (pdfPath !== undefined) return { label: basename(pdfPath), icon: FileIcon, blurb: pdfPath };
   const issueNumber = issuePanelNumber(tab);

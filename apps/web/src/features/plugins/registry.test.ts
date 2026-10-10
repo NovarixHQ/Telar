@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { isPluginSurface, pluginSurfaces, viewerAvailable } from "./registry";
+import { isPluginSurface, pluginSurfaces } from "./registry";
+import { setPluginStatuses } from "./views/contributions";
+import { DATA_SCIENCE_STATUS } from "@/test/plugin-statuses";
 import { panelTabForPath } from "@/features/panel";
 import { editorFileForPath } from "@/features/files/editor-workspace";
 import { defaultRightPanelWidth } from "@/features/panel";
@@ -19,11 +21,11 @@ describe("the web plugin registry, gated by the enabled ids", () => {
     expect(editorFileForPath("data.csv", ["hello"]).view).toBe("code");
   });
 
-  test("a plugin's viewers are gated; the PDF viewer is core", () => {
-    expect(viewerAvailable("notebook", [])).toBe(false);
-    expect(viewerAvailable("notebook", ["data-science"])).toBe(true);
-    expect(viewerAvailable("table", ["latex"])).toBe(false);
-    expect(viewerAvailable("pdf", [])).toBe(true);
+  test("a plugin's viewers are gated on that plugin; the PDF viewer is core", () => {
+    setPluginStatuses([DATA_SCIENCE_STATUS]);
+    expect(panelTabForPath("analysis.ipynb", [])).toBe("file:analysis.ipynb");
+    expect(panelTabForPath("analysis.ipynb", ["data-science"])).toBe("view:analysis.ipynb");
+    expect(panelTabForPath("data.csv", ["latex"])).toBe("file:data.csv");
     expect(panelTabForPath("paper.pdf", [])).toBe("pdf:paper.pdf");
   });
 

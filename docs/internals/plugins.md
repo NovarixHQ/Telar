@@ -15,11 +15,14 @@
 | `settingsSchema`, `machineSettingsSchema` | generated rows in Settings ▸ Plugins and a project's page. A property with `widget: "view"` is left to the plugin's view. |
 | `settings[].view` | a GET route in the section's scope. It answers blocks, which are drawn under the generated rows. |
 | `panels` | the Plugins panel tab, drawn from blocks a session verb answers. `refreshOn` names events that make it read again. |
+| `viewers` | files opened by extension or media type, in a frame drawn from the plugin's `views/` folder |
+| `views` | the Plugins panel tab, drawn in a frame instead of blocks |
+| `fileScope` | extensions a frame may read from the session's tree, beyond the file it was opened on |
 | `eventKinds` | the names of the `plugin.event`s it may emit. Anything else is refused. |
 | `gitignore` | the rule written into a project when it turns the plugin on |
 | `composer` | decorations and `/` commands in the composer of the plugin's projects |
 
-The cockpit has no plugin-specific React for a manifest plugin: every surface it draws is blocks (`PluginPanelBlock`). A view may ask to be read again with `refreshMs` while something runs that emits no event.
+The cockpit has no plugin-specific React for a manifest plugin. It draws blocks (`PluginPanelBlock`), or a frame for what blocks cannot say. A block view may ask to be read again with `refreshMs` while something runs that emits no event.
 
 ## Events
 
@@ -40,6 +43,13 @@ The cockpit has no plugin-specific React for a manifest plugin: every surface it
 - It is bounded by an 8,000-character prompt, a 4,000-character answer (at most 16,000 on request), a 30 s timeout (at most 60 s) that kills the child, and two calls in flight per plugin.
 - These runs leave no provider transcript, so their cost is appended to `usage-one-shot.jsonl`, which the usage report merges. Only Claude reports tokens today.
 
+## Frames
+
+- A frame's files come from `/v2/plugin-assets/<id>/<file>`: an installed plugin's `views/` folder, or a bundled one's text imports. A link out of the folder is refused.
+- The cockpit inlines the entry's own scripts and stylesheets into a `srcdoc` frame with `sandbox="allow-scripts"` (no same origin) and a CSP that runs only scripts carrying a per-mount nonce, with no network. Anything else the page references is dropped.
+- The frame reaches the cockpit only through the versioned postMessage bridge (`view-bridge.ts`), as `window.telar`, which the cockpit loads first. A plugin copies `plugins/sdk/telar-view.d.ts` beside its views for types. A message counts only from that frame, from origin `"null"`, with its nonce.
+- The bridge can read the opened file or a `fileScope` file, call the plugin's own session verbs (never `tool`), open a file, insert into the composer, and subscribe to the plugin's own `plugin.event`s for its session or the whole Mac, live from the stream. The Appearance theme arrives on load and on every change.
+
 ## Gating
 
 - A plugin runs only when the Mac allows it **and** the project enabled it. An unset machine entry counts as allowed.
@@ -50,6 +60,5 @@ The cockpit has no plugin-specific React for a manifest plugin: every surface it
 ## Not built yet
 
 - Plugins that replace whole regions of the UI (the sidebar, the transcript).
-- File viewers, which only Data Science has.
 - Style plugins.
 - Third-party sandboxing and signing.

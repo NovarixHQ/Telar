@@ -6,18 +6,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { SaveCoordinator, type SaveOutcome } from "./save-coordinator";
 import {
-  claimCellDraft,
-  claimCellDrafts,
   claimDraft,
   clearDrafts,
   discardDraft,
   draftCount,
   draftScope,
-  forgetCellDraft,
   forgetDraft,
   newDraftOwner,
   readDraft,
-  rememberCellDraft,
   rememberDraft,
 } from "./editor-drafts";
 
@@ -302,7 +298,6 @@ describe("ownership does not expire", () => {
     // Enough traffic that an eviction policy would have forgotten this key.
     for (let index = 0; index < CLAIMS; index += 1) {
       claimDraft(SCOPE, `noise/file-${index}.ts`, newDraftOwner());
-      claimCellDraft(SCOPE, "noise.ipynb", `cell_${index}`, newDraftOwner());
     }
 
     first.settle({ status: "refused", reason: "conflict" });
@@ -314,16 +309,13 @@ describe("ownership does not expire", () => {
     // The mount whose ownership would be evicted is the one being typed in.
     const live = newDraftOwner();
     claimDraft(SCOPE, PATH, live);
-    claimCellDraft(SCOPE, "live.ipynb", "cell_1", live);
 
     for (let index = 0; index < CLAIMS; index += 1) {
       claimDraft(SCOPE, `noise/file-${index}.ts`, newDraftOwner());
-      claimCellDraft(SCOPE, "noise.ipynb", `cell_${index}`, newDraftOwner());
     }
 
     expect(rememberDraft(SCOPE, PATH, { text: "typed much later", baseline: "sha" }, live)).toBe(true);
     expect(readDraft(SCOPE, PATH)?.text).toBe("typed much later");
-    expect(rememberCellDraft(SCOPE, "live.ipynb", "cell_1", "typed much later", live)).toBe(true);
   });
 });
 
@@ -416,74 +408,6 @@ describe("nothing crosses a checkout — or a Mac", () => {
     expect(draftScope(undefined, "session_1", "project_1")).toBe(draftScope(undefined, "session_1"));
   });
 });
-
-describe("notebook cells", () => {
-  const NOTEBOOK = "analysis.ipynb";
-
-  test("a cell whose write FAILS is still there when the notebook is re-opened", async () => {
-    /** Flushing on unmount saves only the cells whose write succeeds; a failed one must stay stashed. */
-    const first = newDraftOwner();
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_2", "x = 41  # nearly", first);
-    // The flush fails, so nothing forgets it.
-    const second = newDraftOwner();
-    expect([...claimCellDrafts(SCOPE, NOTEBOOK, second)]).toEqual([["cell_2", "x = 41  # nearly"]]);
-  });
-
-  test("a cell whose write LANDS is forgotten, and only that cell", () => {
-    const owner = newDraftOwner();
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "saved", owner);
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_2", "still owed", owner);
-    forgetCellDraft(SCOPE, NOTEBOOK, "cell_1", owner);
-    expect([...claimCellDrafts(SCOPE, NOTEBOOK, newDraftOwner())]).toEqual([["cell_2", "still owed"]]);
-  });
-
-  test("an old mount's late answer cannot clear or overwrite a re-opened cell", () => {
-    // The same race as a file's, one level down.
-    const old = newDraftOwner();
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "older", old);
-    const fresh = newDraftOwner();
-    claimCellDrafts(SCOPE, NOTEBOOK, fresh);
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "newer", fresh);
-    // Now the old mount's write answers — either way.
-    expect(forgetCellDraft(SCOPE, NOTEBOOK, "cell_1", old)).toBe(false);
-    expect(rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "older", old)).toBe(false);
-    expect([...claimCellDrafts(SCOPE, NOTEBOOK, fresh)]).toEqual([["cell_1", "newer"]]);
-  });
-
-  test("an old mount's late answer cannot resurrect a cell the newer mount SAVED", () => {
-    // The emptied-key window, one level down.
-    const old = newDraftOwner();
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "older", old);
-    const fresh = newDraftOwner();
-    claimCellDrafts(SCOPE, NOTEBOOK, fresh);
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "newer", fresh);
-    // The newer write lands: the cell is clean, and the key is empty.
-    forgetCellDraft(SCOPE, NOTEBOOK, "cell_1", fresh);
-    // Now the old mount answers — either way.
-    expect(rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "older", old)).toBe(false);
-    expect([...claimCellDrafts(SCOPE, NOTEBOOK, newDraftOwner())]).toEqual([]);
-  });
-
-  test("a live mount can type into a cell an earlier mount still owns", () => {
-    // Ownership outlives the text, so typing into a cell the previous mount saved must claim it first.
-    const old = newDraftOwner();
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "saved by the last mount", old);
-    forgetCellDraft(SCOPE, NOTEBOOK, "cell_1", old);
-    const fresh = newDraftOwner();
-    claimCellDrafts(SCOPE, NOTEBOOK, fresh); // nothing to adopt: the key is empty
-    claimCellDraft(SCOPE, NOTEBOOK, "cell_1", fresh);
-    expect(rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "typed now", fresh)).toBe(true);
-  });
-
-  test("cells of two notebooks, and of two Macs, do not mix", () => {
-    const owner = newDraftOwner();
-    rememberCellDraft(SCOPE, NOTEBOOK, "cell_1", "here", owner);
-    rememberCellDraft(SCOPE, "other.ipynb", "cell_1", "elsewhere", owner);
-    rememberCellDraft(draftScope("mac-studio", "session_1"), NOTEBOOK, "cell_1", "another Mac", owner);
-    expect([...claimCellDrafts(SCOPE, NOTEBOOK, owner)]).toEqual([["cell_1", "here"]]);
-  });
-});
-
 describe("a save that lands leaves nothing behind", () => {
   test("the ordinary path stashes while typing and clears when it is written", async () => {
     const file = mount(async () => ({ status: "saved" }));

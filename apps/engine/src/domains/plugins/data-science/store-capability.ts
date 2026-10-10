@@ -33,6 +33,7 @@ export type StoreDsDeps = {
   waitJob: (jobId: string, timeoutMs: number) => Promise<{ status: string; lines: string[]; error?: string }>;
   environments: () => Promise<{ environments: EnvironmentRow[] }>;
   useEnvironment: (target: string) => Promise<{ environments: EnvironmentRow[]; switched: string }>;
+  table: DsCapability["table"];
 };
 
 function storeDsCapabilityContext(deps: StoreDsDeps) {
@@ -159,6 +160,7 @@ export function storeDsCapability(deps: StoreDsDeps): DsCapability {
     ...kernelMethods(h),
     ...notebookMethods(h),
     ...historyMethods(h),
+    table: deps.table,
   };
 }
 

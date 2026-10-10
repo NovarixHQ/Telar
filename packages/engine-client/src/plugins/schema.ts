@@ -146,6 +146,29 @@ export function parsePluginPanelView(value: unknown): PluginPanelView {
   return { blocks, skipped: raw.length - blocks.length, ...(refreshMs ? { refreshMs } : {}) };
 }
 
+export const PluginAssetPath = z
+  .string()
+  .max(200)
+  .regex(/^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)*[A-Za-z0-9_-][A-Za-z0-9_.-]*\.(?:html|js|css|svg|json)$/, "an asset is a relative path ending in .html, .js, .css, .svg or .json");
+
+const FileExtension = z.string().regex(/^\.[a-z0-9]+$/, "an extension is a dot and lowercase letters or digits: .ipynb");
+
+export const PluginViewer = z.strictObject({
+  id: z.string().regex(/^[a-z][a-z0-9-]*$/).max(64),
+  label: z.string().min(1).max(40),
+  entry: PluginAssetPath,
+  extensions: z.array(FileExtension).max(16).default([]),
+  mimes: z.array(z.string().regex(/^[a-z]+\/[a-z0-9.+-]+$/)).max(16).default([]),
+});
+export type PluginViewer = z.infer<typeof PluginViewer>;
+
+export const PluginRichView = z.strictObject({
+  id: z.string().regex(/^[a-z][a-z0-9-]*$/).max(64),
+  label: z.string().min(1).max(40),
+  entry: PluginAssetPath,
+});
+export type PluginRichView = z.infer<typeof PluginRichView>;
+
 export const PluginMeta = z.object({
   id: PluginId,
   /** The contract revision this plugin is written against. */
@@ -174,6 +197,9 @@ export const PluginMeta = z.object({
   /** Panel surfaces drawn from blocks. */
   panels: z.array(PluginPanel).optional(),
   composer: PluginComposer.optional(),
+  viewers: z.array(PluginViewer).optional(),
+  views: z.array(PluginRichView).optional(),
+  fileScope: z.array(FileExtension).optional(),
 });
 export type PluginMeta = z.infer<typeof PluginMeta>;
 
@@ -222,6 +248,9 @@ export const PluginManifest = z
     /** Panel surfaces, each drawn from a declared session verb. */
     panels: z.array(PluginPanel).max(8).default([]),
     composer: PluginComposer.optional(),
+    viewers: z.array(PluginViewer).max(16).default([]),
+    views: z.array(PluginRichView).max(8).default([]),
+    fileScope: z.array(FileExtension).max(32).default([]),
     /** Names of the `plugin.event`s the plugin emits; anything else it emits is refused. */
     eventKinds: z.array(PluginEventName).max(16).default([]),
     /** A `.gitignore` rule written into a project when it turns the plugin on. */
@@ -255,6 +284,12 @@ export const PluginManifest = z
     }
     for (const { path, verb } of manifest.composer ? composerVerbs(manifest.composer) : []) {
       if (!manifest.routes.session.includes(verb)) context.addIssue({ code: "custom", path: ["composer", ...path], message: `"${verb}" is not a declared session route` });
+    }
+    if (new Set(manifest.viewers.map((viewer) => viewer.id)).size !== manifest.viewers.length) {
+      context.addIssue({ code: "custom", path: ["viewers"], message: "two viewers share an id" });
+    }
+    if (new Set(manifest.views.map((view) => view.id)).size !== manifest.views.length) {
+      context.addIssue({ code: "custom", path: ["views"], message: "two views share an id" });
     }
     for (const [index, section] of (manifest.settings ?? []).entries()) {
       if (section.view && !manifest.routes[section.scope].includes(`GET ${section.view}`)) {

@@ -38,7 +38,7 @@ export type FileKind = {
   tint: string;
   lang?: string;
   binary?: boolean;
-  viewer?: "notebook" | "table" | "pdf";
+  viewer?: "pdf";
   media?: "image" | "pdf" | "audio" | "video";
 };
 
@@ -118,10 +118,10 @@ const BY_EXTENSION: Record<string, FileKind> = {
   htm: KIND("HTML", "code", "orange", "html"),
   xml: KIND("XML", "code", "orange", "xml"),
   svg: KIND("SVG image", "image", "purple", "xml"),
-  csv: KIND("CSV", "table", "green", "csv", false, "table"),
-  tsv: KIND("TSV", "table", "green", undefined, false, "table"),
-  parquet: KIND("Parquet", "table", "green", undefined, true, "table"),
-  ipynb: KIND("Jupyter notebook", "code", "orange", "json", false, "notebook"),
+  csv: KIND("CSV", "table", "green", "csv"),
+  tsv: KIND("TSV", "table", "green"),
+  parquet: KIND("Parquet", "table", "green", undefined, true),
+  ipynb: KIND("Jupyter notebook", "code", "orange", "json"),
   css: KIND("CSS", "style", "blue", "css"),
   scss: KIND("Sass", "style", "pink", "scss"),
   sass: KIND("Sass", "style", "pink", "sass"),

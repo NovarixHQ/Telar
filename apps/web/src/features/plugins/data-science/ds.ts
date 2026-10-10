@@ -1,6 +1,6 @@
 import { rewriteApiPath } from "@/platform/engine/host-client";
 
-export type CellOutput =
+type CellOutput =
   | { kind: "text"; stream: "stdout" | "stderr" | "result"; text: string; truncated?: boolean }
   | { kind: "html"; html: string; truncated?: boolean }
   | { kind: "image"; mediaType: "image/png" | "image/svg+xml"; dataB64?: string; attachmentId?: string; width?: number; height?: number }
@@ -19,17 +19,6 @@ export function latestKernelState(events: readonly { type: string; state?: strin
   return state;
 }
 
-export type NotebookCell = {
-  id: string;
-  index: number;
-  type: "code" | "markdown" | "raw";
-  source: string;
-  executionCount?: number | null;
-  outputs?: CellOutput[];
-};
-
-export type NotebookRead = { path: string; sha256: string; cellCount: number; cells: NotebookCell[] };
-
 export type ExecResult = {
   execId: string;
   ok: boolean;
@@ -39,8 +28,6 @@ export type ExecResult = {
 };
 
 export type VarRow = { name: string; type: string; shape?: number[]; len?: number; sizeBytes?: number; repr?: string };
-
-export type TableWindow = { path: string; columns: string[]; dtypes?: string[]; total: number; offset: number; rows: unknown[][]; truncated?: boolean };
 
 export function attachmentUrl(sessionId: string, attachmentId: string, options: { display?: boolean; hostId?: string } = {}): string {
   const path = `/api/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}${options.display ? "?variant=display" : ""}`;
@@ -52,9 +39,4 @@ export function humanBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
-export function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  return text.replace(/\u001b\[[0-9;]*m/g, "");
 }

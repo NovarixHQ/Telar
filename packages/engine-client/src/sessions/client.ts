@@ -176,15 +176,6 @@ export const sessionsClient = {
     return this.request("DELETE", sessionPath(sessionId));
   },
 
-  sessionTable(
-    this: EngineTransport,
-    sessionId: string,
-    path: string,
-    options: { offset: number; limit: number; sort?: string; desc?: boolean },
-  ): Promise<{ path: string; columns: string[]; dtypes?: string[]; total: number; offset: number; rows: unknown[][]; truncated?: boolean }> {
-    return this.request("GET", `${sessionPath(sessionId)}/data/table${queryOf({ path, offset: options.offset, limit: options.limit, sort: options.sort || undefined, desc: options.desc ? "1" : undefined })}`);
-  },
-
   /** Newest first, optionally by tag (`plot`). */
   attachments(this: EngineTransport, sessionId: string, options: { tag?: string } = {}): Promise<{ attachments: TurnAttachment[] }> {
     return this.request("GET", `${sessionPath(sessionId)}/attachments${queryOf({ tag: options.tag || undefined })}`);

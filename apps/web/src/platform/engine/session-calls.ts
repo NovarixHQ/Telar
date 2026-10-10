@@ -39,7 +39,7 @@ export function sessionCalls(fetcher: Fetcher) {
     uninstallPlugin: (id: string) => request<{ removed: true }>(fetcher, "DELETE", `/api/plugins/installed/${encodeURIComponent(id)}`),
     /** Any plugin's session verb, through the generic door. */
     sessionPluginVerb: (sessionId: string, plugin: string, verb: string, input: Record<string, unknown> = {}) =>
-      request<unknown>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/plugins/${encodeURIComponent(plugin)}/${encodeURIComponent(verb)}`, input),
+      request<unknown>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/plugins/${encodeURIComponent(plugin)}/${verb.split("/").map(encodeURIComponent).join("/")}`, input),
     /** Any plugin's project or machine route; `projectId` absent means this Mac's. */
     scopedPluginRoute: (scope: { projectId?: string }, plugin: string, method: "GET" | "POST", verb: string, input: Record<string, unknown> = {}) =>
       request<unknown>(

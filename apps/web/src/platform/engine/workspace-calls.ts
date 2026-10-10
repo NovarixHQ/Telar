@@ -13,7 +13,7 @@ ProviderProbe,Session,Turn,UsageLimitWindow,WorkspaceFile,
 WorkspaceListing,
 WorkspaceWriteResult
 } from "@telar/engine-client";
-import type { ExecResult, KernelState, NotebookRead, TableWindow, VarRow } from "@/features/plugins";
+import type { ExecResult, KernelState, VarRow } from "@/features/plugins";
 import type { Fetcher } from "./host-client";
 import { request } from "./transport";
 
@@ -104,26 +104,6 @@ export function workspaceCalls(fetcher: Fetcher) {
       request<{ ok: boolean; lines: string[]; error?: string }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/install`, input),
     kernelInspect: (sessionId: string, name: string, depth = 10) =>
       request<Record<string, unknown>>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/inspect`, { name, depth }),
-    notebook: (sessionId: string, path: string, options: { from?: number; to?: number; withOutputs?: boolean } = {}) =>
-      request<NotebookRead>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/notebook/read`, { path, ...options }),
-    notebookEdit: (
-      sessionId: string,
-      path: string,
-      edit:
-        | { kind: "set"; cellId?: string; index?: number; source?: string; cellType?: "code" | "markdown" | "raw" }
-        | { kind: "insert"; after?: string | number; source: string; cellType?: "code" | "markdown" | "raw" }
-        | { kind: "delete"; cellId?: string; index?: number }
-        | { kind: "move"; cellId?: string; index?: number; to: number }
-        | { kind: "clearOutputs"; cellId?: string; index?: number }
-        | { kind: "create" },
-    ) => request<NotebookRead>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/notebook/edit`, { path, edit }),
-    notebookRun: (sessionId: string, path: string, input: { cellId?: string; all?: boolean; stopOnError?: boolean }) =>
-      request<{ results: Array<{ cellId: string; result: ExecResult }>; notebook: NotebookRead }>(
-        fetcher,
-        "POST",
-        `/api/sessions/${encodeURIComponent(sessionId)}/ds/notebook/run`,
-        { path, ...input },
-      ),
   };
 }
 
@@ -138,19 +118,6 @@ export function integrationCalls(fetcher: Fetcher) {
       ),
     tagAttachment: (sessionId: string, attachmentId: string, tags: string[]) =>
       request<{ attachment: TurnAttachment }>(fetcher, "PATCH", `/api/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}`, { tags }),
-    /** A window of rows from a CSV, TSV or Parquet file, for the table view. */
-    sessionTable: (sessionId: string, path: string, options: { offset: number; limit: number; sort?: string; desc?: boolean }) =>
-      request<TableWindow>(
-        fetcher,
-        "GET",
-        `/api/sessions/${encodeURIComponent(sessionId)}/data/table?${new URLSearchParams({
-          path,
-          offset: String(options.offset),
-          limit: String(options.limit),
-          ...(options.sort ? { sort: options.sort } : {}),
-          ...(options.desc ? { desc: "1" } : {}),
-        }).toString()}`,
-      ),
     /** What the session's browser is looking at. `screenshot` costs a round trip
      *  through Chromium and `start` would LAUNCH one, so both are opt-in. */
     browserState: (sessionId: string, options: { screenshot?: boolean; start?: boolean } = {}) => {

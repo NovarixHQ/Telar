@@ -18,7 +18,7 @@ mock.module("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) })
 
 const { fakeSessionsStream } = await import("@/test/sessions-stream");
 const { PluginPanelsSurface } = await import("./plugin-panels-surface");
-const { pluginPanelSources } = await import("../panels");
+const { panelSourceKey, pluginPanelSources } = await import("../panels");
 const { pluginSurfaces } = await import("../registry");
 
 const status = (id: string, panels: { id: string; label: string; verb: string; refreshOn?: string[] }[], state: PluginStatus["state"] = "ready"): PluginStatus => ({
@@ -202,7 +202,7 @@ describe("the tab", () => {
     const statuses = [status("echo", [{ id: "jobs", label: "Jobs", verb: "status" }]), status("broken", [{ id: "x", label: "X", verb: "x" }], "failed")];
     expect(pluginPanelSources(statuses, [])).toEqual([]);
     expect(pluginPanelSources(statuses, ["broken"])).toEqual([]);
-    expect(pluginPanelSources(statuses, ["echo"]).map((source) => source.panel.id)).toEqual(["jobs"]);
+    expect(pluginPanelSources(statuses, ["echo"]).map(panelSourceKey)).toEqual(["echo/jobs"]);
     expect(pluginSurfaces(["latex"], false).map((surface) => surface.id)).toEqual([]);
     expect(pluginSurfaces(["latex"], true).map((surface) => surface.id)).toEqual(["plugin-panels"]);
   });

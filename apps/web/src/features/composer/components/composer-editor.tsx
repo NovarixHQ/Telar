@@ -11,6 +11,7 @@ import { insertReference } from "@telar/client/composer";
 import { runAt, type ComposerDecoration, type DecorationRun } from "../decorations";
 import { decorationsDrawn, paint, placeCaret, selectionRange, serialize, type Run } from "./editor-dom";
 import { cn } from "@/ui/utils";
+import { commandModifierDown } from "@/features/commands";
 
 /**
  * The caret's rect where the layout can answer: the collapsed range, else the
@@ -284,7 +285,7 @@ function editorKey(event: React.KeyboardEvent<HTMLDivElement>, box: HTMLElement,
   if (step) {
     event.preventDefault();
     travel(step);
-  } else if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
+  } else if (commandModifierDown(event) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
     event.preventDefault();
     window.getSelection()?.selectAllChildren(box);
   } else if (event.key === "Enter") {

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -8,6 +8,7 @@ GlobalRegistrator.register({ url: "http://localhost/" });
 
 const { ComposerEditor } = await import("./composer-editor");
 const { PASTED_TEXT_ATTACHMENT_THRESHOLD_BYTES } = await import("../editor-keys");
+const { forgetModifierPlatform } = await import("@/features/commands");
 
 afterAll(async () => {
   await GlobalRegistrator.unregister();
@@ -68,7 +69,17 @@ async function editor(initial: string, onPasteLargeText?: (text: string) => void
 
 const shiftEnter = { key: "Enter", shiftKey: true };
 
-describe("⌘A", () => {
+function onPlatform(agent: string) {
+  Object.defineProperty(navigator, "userAgent", { value: agent, configurable: true });
+  forgetModifierPlatform();
+}
+
+const MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)";
+const LINUX = "Mozilla/5.0 (X11; Linux x86_64)";
+
+describe("⌘A on a Mac", () => {
+  beforeEach(() => onPlatform(MAC));
+
   test.each([
     ["plain text", "hello world|", {}],
     ["a decorated draft", "see $$x^2$$ here|", { decorations: [{ key: "math", plugin: "latex", pattern: /\$\$[^$]+\$\$/g, style: "math" as const }] }],
@@ -81,9 +92,20 @@ describe("⌘A", () => {
     frame.remove();
   });
 
-  test("with Ctrl selects the whole draft too", async () => {
+  test("Ctrl+A keeps its line-start meaning", async () => {
     const box = await editor("one\ntwo|");
-    box.press({ key: "a", ctrlKey: true });
+    expect(box.press({ key: "a", ctrlKey: true }).defaultPrevented).toBe(false);
+    box.paste("x");
+    expect(box.text()).toBe("one\ntwox");
+  });
+});
+
+describe("Ctrl+A elsewhere", () => {
+  beforeEach(() => onPlatform(LINUX));
+
+  test("selects the whole draft", async () => {
+    const box = await editor("one\ntwo|");
+    expect(box.press({ key: "a", ctrlKey: true }).defaultPrevented).toBe(true);
     box.paste("x");
     expect(box.text()).toBe("x");
   });

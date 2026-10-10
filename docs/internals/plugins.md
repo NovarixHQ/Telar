@@ -1,16 +1,16 @@
 # Plugins
 
 - Every plugin declares itself with one manifest (`PluginManifest`): the fields of a `plugin.json`.
-- **Module plugins** ship with the app under `apps/engine/plugins/<id>/`. A module exports its manifest and an engine module (`BundledPlugin`, from `plugins/sdk`). The engine loads it in-process, before anything installed. LaTeX is one.
+- **Module plugins** ship with the app under `apps/engine/plugins/<id>/`. A module exports its manifest and an engine module (`BundledPlugin`, from `plugins/sdk`). The engine loads it in-process, before anything installed. LaTeX and Data Science are.
 - **External plugins** live in `<TELAR_HOME>/plugins/<id>/`. They have the same manifest plus a `command`, which the engine supervises as a child process. The child speaks JSON-RPC over stdio: MCP `initialize`/`tools/call`, plus `telar/route`, and it sends `telar/event` notifications and `telar/complete` requests.
 - An installed plugin can't take a bundled plugin's id or tool prefix. It is refused and listed as failed.
-- Data Science and the `hello` proof plugin still predate the manifest. They are wired in `domains/plugins/bundled.ts`, and their tool prefixes are listed in `BUNDLED_PLUGIN_TOOL_PREFIXES`.
+- The `hello` proof plugin still predates the manifest. It is wired in `domains/plugins/bundled.ts`, and its prefix is listed in `BUNDLED_PLUGIN_TOOL_PREFIXES`.
 
 ## What a manifest declares
 
 | Field | Where it shows |
 | --- | --- |
-| `tools`, `toolPrefix`, `briefing` | `telarWall`, under the plugin's prefix. A call travels through the session verb `tool`. |
+| `tools`, `toolPrefix`, `briefing` | `telarWall`, under the plugin's prefix (one, or a list of up to four). A call travels through the session verb `tool`. |
 | `routes.session` / `.project` / `.machine` | `/v2/sessions/:id/plugins/<id>/<verb>`, `/v2/projects/:id/plugins/…`, `/v2/plugins/…` |
 | `settingsSchema`, `machineSettingsSchema` | generated rows in Settings ▸ Plugins and a project's page. A property with `widget: "view"` is left to the plugin's view. |
 | `settings[].view` | a GET route in the section's scope. It answers blocks, which are drawn under the generated rows. |
@@ -21,13 +21,14 @@
 | `eventKinds` | the names of the `plugin.event`s it may emit. Anything else is refused. |
 | `gitignore` | the rule written into a project when it turns the plugin on |
 | `composer` | decorations and `/` commands in the composer of the plugin's projects |
+| `sessionStateDir` | the module's folder under each session's directory |
 
 The cockpit has no plugin-specific React for a manifest plugin. It draws blocks (`PluginPanelBlock`), or a frame for what blocks cannot say. A block view may ask to be read again with `refreshMs` while something runs that emits no event.
 
 ## Events
 
 - A plugin emits `{ scope, sessionId | projectId, name, data, note? }` (`PluginEventInput`): a module through `host.emit`, an external plugin as a `telar/event` notification. A refused event from a child process is written to its `log.txt`, since a notification has no answer.
-- Events are gated like routes: the plugin must be on for that session's or that project's project.
+- Events are gated like routes: the plugin must be on for that session's or that project's project. An event emitted after the plugin is turned off is refused, so a module's teardown can't announce itself.
 - A session event is journaled as `plugin.event`, and a `note` on it becomes a transcript row. Project and machine events are live only.
 - All of them travel whole on `/v2/sessions/stream`. The cockpit listens with `usePluginEvents`. There is no replay, so a view reads its state on mount and treats events only as a cue to read again.
 
@@ -50,12 +51,20 @@ The cockpit has no plugin-specific React for a manifest plugin. It draws blocks 
 - The frame reaches the cockpit only through the versioned postMessage bridge (`view-bridge.ts`), as `window.telar`, which the cockpit loads first. A plugin copies `plugins/sdk/telar-view.d.ts` beside its views for types. A message counts only from that frame, from origin `"null"`, with its nonce.
 - The bridge can read the opened file or a `fileScope` file, call the plugin's own session verbs (never `tool`), open a file, insert into the composer, and subscribe to the plugin's own `plugin.event`s for its session or the whole Mac, live from the stream. The Appearance theme arrives on load and on every change.
 
+## What the engine lends a module
+
+- `processes`: long-lived children keyed by the module. Each start writes a pid file in the plugin's state folder, so the next engine reaps what a crash left. Grandchildren registered with `adopt` die with their parent. All are stopped when the plugin is disabled or the engine stops. Absent on an engine that runs no turns.
+- `attachments`: files the plugin produces, kept with the session beside the person's own.
+- `files`: reads and writes fenced inside a root, with the write carrying the hash it expects.
+- `available(session)`: when false, a turn leaves the plugin's tools out, as when Data Science has no interpreter.
+- `releaseProject` runs once a disabled project drains; `releaseSession` runs on archive and delete, with the session's worktree name.
+
 ## Gating
 
 - A plugin runs only when the Mac allows it **and** the project enabled it. An unset machine entry counts as allowed.
 - Routes refuse when the plugin is off. The exception is routes marked `beforeEnable`, which the settings panes need before the plugin is turned on.
 - A bad manifest is refused and listed as failed with its reason. The engine still starts.
-- A manifest plugin's tools are never treated as read-only; they always go through approvals.
+- A tool marked `readOnly` skips approval only when its plugin ships with the app. An installed plugin's tools always go through approvals.
 
 ## Not built yet
 

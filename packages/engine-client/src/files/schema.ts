@@ -8,6 +8,7 @@ export const WorkspaceListing = z.object({
   workspacePath: z.string().min(1),
   repository: z.boolean(),
   files: z.array(z.string().min(1)),
+  submodules: z.array(z.string().min(1)).optional(),
   source: WorkspaceListingSource,
   truncated: z.boolean(),
   readAt: Timestamp,

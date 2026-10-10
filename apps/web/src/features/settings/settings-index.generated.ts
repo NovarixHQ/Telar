@@ -87,8 +87,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     ] },
     { "title":"Plugin defaults", rows: [
       {"title":"Default packages","hint":"Installed into environments Telar creates from here on. Nothing is installed into an environment that already exists.","keywords":["pandas","numpy","packages","pip","environment","data science"],"id":"plugins-data-science-packages"},
-      {"title":"TeX distribution","hint":"What this computer compiles with when a project has not chosen its own.","keywords":["latex","tex","tex live","tectonic","distribution","compiler"],"id":"plugins-latex-distribution"},
-      {"title":"Telar (managed)","keywords":["tectonic","latex","install","tex","download"],"id":"plugins-latex-managed"},
     ] },
     { rows: [
       {"title":"Add plugin from folder","keywords":["install","plugin","folder","link","remove","uninstall","plugin.json"]},
@@ -126,13 +124,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Environment"},
       {"title":"Install packages","keywords":["pip","package","install","dependencies"]},
       {"title":"The project's own dependencies","hint":"Install everything the checkout already declares.","keywords":["requirements","pyproject","dependencies","sync"]},
-    ] },
-    { "title":"LaTeX", rows: [
-      {"title":"LaTeX for this project","keywords":["latex","tex","enable","plugin"]},
-      {"title":"Default document","keywords":["main file","main.tex","document","entry"]},
-      {"title":"Engine","hint":"What latexmk drives. pdflatex unless the document needs system fonts (xelatex, lualatex)."},
-      {"title":"Distributions","hint":"What compiles this project.","keywords":["tex live","toolchain","detect"]},
-      {"title":"TeX packages","keywords":["tlmgr","package","install"]},
     ] },
   ] },
   { id: "source-control", groups: [

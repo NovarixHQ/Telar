@@ -79,9 +79,9 @@ describe("the menu is built from the stored map, not the defaults", () => {
     const file = menuCommands(defaultKeymap(), "file");
     const panel = menuCommands(defaultKeymap(), "panel");
     expect(file.filter((command) => command.jump)).toHaveLength(9);
-    expect(panel.map((command) => command.id)).toContain("open-latex");
+    expect(panel.map((command) => command.id)).toContain("open-plugin-panels");
 
-    expect(file.map((command) => command.id)).not.toContain("open-latex");
+    expect(file.map((command) => command.id)).not.toContain("open-plugin-panels");
   });
 
   test("Developer tools is a View menu row on ⌥⌘I, and reaches no other menu", () => {

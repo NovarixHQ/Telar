@@ -63,7 +63,7 @@ export function settingsFields(schema: Record<string, unknown> | undefined): Set
   const fields: SettingsField[] = [];
   for (const [key, raw] of Object.entries(properties)) {
     const property = unwrap(raw);
-    const kind = kindOf(property);
+    const kind = property.widget === "view" ? undefined : kindOf(property);
     if (!kind) continue;
     const types = Array.isArray(property.type) ? property.type : [property.type];
     fields.push({

@@ -6,13 +6,14 @@
  *   a confirm     declined, nothing is posted
  *   the tab       offered only while an enabled plugin has a panel
  */
-import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import type { PluginStatus } from "@telar/engine-client";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
+mock.module("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { PluginPanelsSurface } = await import("./plugin-panels-surface");
@@ -43,6 +44,21 @@ beforeEach(() => {
     if (url.endsWith("/plugins/echo/clear")) {
       cleared += 1;
       return json({ ok: true });
+    }
+    if (url.endsWith("/plugins/latex/compile")) {
+      cleared += 1;
+      return json({ ok: true });
+    }
+    if (url.endsWith("/plugins/latex/panel")) {
+      return json({
+        blocks: [
+          { type: "action", label: "Compile", verb: "compile", field: { name: "path", placeholder: "Default: main.tex" } },
+          { type: "status", text: "Failed · main.tex", tone: "error" },
+          { type: "file", label: "Open PDF", path: "main.pdf" },
+          { type: "issues", items: [{ severity: "error", message: "Undefined control sequence.", file: "main.tex", line: 3 }] },
+          { type: "log", title: "Log tail", lines: ["! Undefined control sequence."], collapsed: true },
+        ],
+      });
     }
     if (url.endsWith("/plugins/echo/status")) {
       return json({
@@ -79,11 +95,11 @@ const flush = async () => {
   for (let i = 0; i < 20; i++) await act(async () => await Promise.resolve());
 };
 
-async function mount() {
+async function mount(panels = PANELS, onOpenFile?: (path: string) => void) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  await act(async () => root.render(<PluginPanelsSurface sessionId="session_one" panels={PANELS} />));
+  await act(async () => root.render(<PluginPanelsSurface sessionId="session_one" panels={panels} {...(onOpenFile ? { onOpenFile } : {})} />));
   await flush();
   return { host, done: () => act(() => root.unmount()) };
 }
@@ -126,13 +142,45 @@ describe("a panel's blocks", () => {
   });
 });
 
+describe("LaTeX's compile panel, drawn from its blocks", () => {
+  const LATEX = pluginPanelSources([status("latex", [{ id: "compile", label: "Compile", verb: "panel" }])], ["latex"]);
+
+  test("a problem and the PDF open their file; the log stays folded until asked", async () => {
+    const opened: string[] = [];
+    const { host, done } = await mount(LATEX, (path) => opened.push(path));
+    expect(posted[0]?.url).toBe("/api/sessions/session_one/plugins/latex/panel");
+    expect(host.textContent).toContain("Failed · main.tex");
+    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Undefined control sequence."))!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Open PDF"))!.click());
+    expect(opened).toEqual(["main.tex", "main.pdf"]);
+    expect(host.querySelector('[role="log"]')).toBeNull();
+    await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent === "Log tail")!.click());
+    expect(host.querySelector('[role="log"]')?.textContent).toBe("! Undefined control sequence.");
+    done();
+  });
+
+  test("Compile posts the typed path with its verb", async () => {
+    const { host, done } = await mount(LATEX);
+    const input = host.querySelector("input")!;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!;
+      setter.call(input, "paper/main.tex");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => button(host, "Compile").click());
+    await flush();
+    expect(posted.find((call) => call.url.endsWith("/latex/compile"))?.body).toEqual({ path: "paper/main.tex" });
+    done();
+  });
+});
+
 describe("the tab", () => {
   test("is offered only while an enabled, running plugin has a panel", () => {
     const statuses = [status("echo", [{ id: "jobs", label: "Jobs", verb: "status" }]), status("broken", [{ id: "x", label: "X", verb: "x" }], "failed")];
     expect(pluginPanelSources(statuses, [])).toEqual([]);
     expect(pluginPanelSources(statuses, ["broken"])).toEqual([]);
     expect(pluginPanelSources(statuses, ["echo"]).map((source) => source.panel.id)).toEqual(["jobs"]);
-    expect(pluginSurfaces(["latex"], false).map((surface) => surface.id)).toEqual(["latex"]);
-    expect(pluginSurfaces(["latex"], true).map((surface) => surface.id)).toEqual(["latex", "plugin-panels"]);
+    expect(pluginSurfaces(["latex"], false).map((surface) => surface.id)).toEqual([]);
+    expect(pluginSurfaces(["latex"], true).map((surface) => surface.id)).toEqual(["plugin-panels"]);
   });
 });

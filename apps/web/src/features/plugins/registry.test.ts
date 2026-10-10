@@ -5,11 +5,11 @@ import { editorFileForPath } from "@/features/files/editor-workspace";
 import { defaultRightPanelWidth } from "@/features/panel";
 
 describe("the web plugin registry, gated by the enabled ids", () => {
-  test("Data Science and LaTeX contribute their tab and opener only while on", () => {
+  test("Data Science contributes its tab only while on; LaTeX has none of its own", () => {
     expect(pluginSurfaces([]).map((surface) => surface.id)).toEqual([]);
     expect(pluginSurfaces(["data-science"]).map((surface) => surface.id)).toEqual(["data"]);
-    expect(pluginSurfaces(["latex", "data-science"]).map((surface) => surface.id)).toEqual(["data", "latex"]);
-    expect(pluginSurfaces(["latex"]).map((surface) => surface.command)).toEqual(["open-latex"]);
+    expect(pluginSurfaces(["latex", "data-science"]).map((surface) => surface.id)).toEqual(["data"]);
+    expect(pluginSurfaces(["latex"], true).map((surface) => surface.command)).toEqual(["open-plugin-panels"]);
   });
 
   test("a plugin with no web contributions draws nothing and breaks nothing", () => {
@@ -29,12 +29,12 @@ describe("the web plugin registry, gated by the enabled ids", () => {
 
   test("a restored plugin tab still validates with the plugin off", () => {
     expect(isPluginSurface("data")).toBe(true);
-    expect(isPluginSurface("latex")).toBe(true);
+    expect(isPluginSurface("plugin-panels")).toBe(true);
     expect(isPluginSurface("diff")).toBe(false);
   });
 
   test("a wide plugin surface widens the panel's default, as Data always did", () => {
     expect(defaultRightPanelWidth([{ kind: "data" }])).toBe(720);
-    expect(defaultRightPanelWidth([{ kind: "latex" }])).toBe(480);
+    expect(defaultRightPanelWidth([{ kind: "plugin-panels" }])).toBe(480);
   });
 });

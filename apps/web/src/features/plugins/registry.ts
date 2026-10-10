@@ -1,4 +1,4 @@
-import { FlaskConicalIcon, PuzzleIcon, SigmaIcon, type LucideIcon } from "lucide-react";
+import { FlaskConicalIcon, PuzzleIcon, type LucideIcon } from "lucide-react";
 import type { CommandId } from "@/features/commands";
 
 export type PluginSurface = { id: string; label: string; icon: LucideIcon; blurb: string; wide?: boolean; key?: string; command?: CommandId };
@@ -15,16 +15,15 @@ export const PLUGIN_WEB = {
     surfaces: [{ id: "data", label: "Data", icon: FlaskConicalIcon, blurb: "Plots, variables and the Python environment", wide: true, key: "a", command: "open-data" }],
     viewers: ["notebook", "table"],
   },
-  latex: {
-    surfaces: [{ id: "latex", label: "LaTeX", icon: SigmaIcon, blurb: "Compile status, errors and the log", key: "x", command: "open-latex" }],
-  },
 } as const satisfies Record<string, PluginWebContribution>;
 
 const PLUGIN_PANELS_SURFACE = {
   id: "plugin-panels",
   label: "Plugins",
   icon: PuzzleIcon,
-  blurb: "Panels from the plugins you installed",
+  blurb: "Panels your plugins draw, such as LaTeX's compile",
+  key: "x",
+  command: "open-plugin-panels",
 } as const satisfies PluginSurface;
 
 export type PluginSurfaceId = (typeof PLUGIN_WEB)[keyof typeof PLUGIN_WEB]["surfaces"][number]["id"] | typeof PLUGIN_PANELS_SURFACE.id;

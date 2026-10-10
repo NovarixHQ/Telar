@@ -1,15 +1,19 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import type { Project } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
-import { enablePatch, type PluginSectionEntry } from "../sections";
+import { enablePatch, togglePatch, type PluginSectionEntry } from "../sections";
 import { pluginEnabled, pluginSettings, readProjectPlugins } from "@telar/engine-client";
 import { Badge } from "@/ui/badge";
 import { Switch } from "@/ui/switch";
 import { GeneratedSettingsRows } from "./generated-settings";
+import { PluginView } from "./plugin-view";
 import { settingsFields } from "../settings-form";
 import { Row, SettingsGroup } from "@/features/settings";
+import { writeDraft } from "@/features/composer";
+import { canvasHref } from "@/features/sessions";
 
 const api = createEngineApi();
 
@@ -41,6 +45,7 @@ export function PluginSettings({
   const { plugins } = readProjectPlugins(project);
   const enabled = pluginEnabled(plugins, entry.pluginId);
   const fields = settingsFields(entry.settingsSchema);
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -48,7 +53,7 @@ export function PluginSettings({
     setBusy(true);
     setError(undefined);
     try {
-      const answer = await api.updateProject(project.id, enablePatch(entry.pluginId, next));
+      const answer = await api.updateProject(project.id, togglePatch(project, entry.pluginId, next));
       onChange(answer.project);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
@@ -90,7 +95,22 @@ export function PluginSettings({
         />
       )}
 
-      {enabled && !machineOff && !failed && fields.length === 0 && <NothingToConfigure hint="This plugin has no settings for a project." />}
+      {enabled && !machineOff && !failed && entry.view && (
+        <div className="py-3">
+          <PluginView
+            scope={{ projectId: project.id }}
+            plugin={entry.pluginId}
+            verb={entry.view}
+            refreshKey={project.updatedAt}
+            onPrompt={(text) => {
+              writeDraft(undefined, project.id, text);
+              router.push(canvasHref(project.id));
+            }}
+          />
+        </div>
+      )}
+
+      {enabled && !machineOff && !failed && fields.length === 0 && !entry.view && <NothingToConfigure hint="This plugin has no settings for a project." />}
 
       {failed && (
         <Row

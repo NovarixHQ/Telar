@@ -5,8 +5,8 @@
  * and Data Science — an engine test fails if it drifts. Against it:
  *
  *   LaTeX          one "Plugin defaults" group: the generated rows (Default
- *                  engine, Install missing packages automatically), then its
- *                  distribution rows
+ *                  engine, Install missing packages automatically), then the
+ *                  view its machine section declares
  *   Data Science   the same group: Default Python, then its packages row
  *   a write        the generated row writes the whole blob, keeping the rest
  */
@@ -21,7 +21,7 @@ GlobalRegistrator.register({ url: "http://localhost/" });
 
 const { PluginsPage } = await import("./plugins-page");
 
-const meta = (id: string, name: string, machineLabel: string) => ({
+const meta = (id: string, name: string, machineLabel: string, view?: string) => ({
   id,
   api: 1,
   name,
@@ -29,11 +29,11 @@ const meta = (id: string, name: string, machineLabel: string) => ({
   toolPrefixes: [id === "data-science" ? "ds" : id],
   readTools: [],
   eventKinds: [],
-  settings: [{ id: "defaults", scope: "machine", label: machineLabel }],
+  settings: [{ id: "defaults", scope: "machine", label: machineLabel, ...(view ? { view } : {}) }],
 });
 
 const PLUGINS = [
-  { meta: meta("latex", "LaTeX", "Compiling"), state: "ready", machineSettingsSchema: schemas.latex },
+  { meta: meta("latex", "LaTeX", "Compiling", "defaults"), state: "ready", machineSettingsSchema: schemas.latex },
   { meta: meta("data-science", "Data science", "Data science defaults"), state: "ready", machineSettingsSchema: schemas.dataScience },
 ];
 
@@ -60,8 +60,8 @@ beforeEach(() => {
       machine = { ...machine, entries: { ...machine.entries, ...(body.plugins as typeof machine.entries) } };
       return json({ machine });
     }
+    if (url.endsWith("/api/plugins/latex/defaults")) return json({ blocks: [{ type: "text", text: "TeX distribution: what this computer compiles with." }] });
     if (url.includes("/api/plugins")) return json({ plugins: PLUGINS, machine });
-    if (url.includes("/latex/toolchain")) return json({ toolchain: { texlive: [] } });
     return json({});
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void) => {
@@ -92,7 +92,7 @@ async function mount() {
   return { host, done: () => act(() => root.unmount()) };
 }
 
-test("each plugin's defaults are one group: the generated rows, then its bespoke rows", async () => {
+test("each plugin's defaults are one group: the generated rows, then its view or bespoke rows", async () => {
   const { host, done } = await mount();
   const latex = host.querySelector('[data-detail-for="latex"]')!;
   expect(latex.querySelectorAll("section")).toHaveLength(1);

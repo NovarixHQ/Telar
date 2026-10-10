@@ -47,7 +47,7 @@ export type CommandId =
   | "open-issues"
   | "open-pulls"
   | "open-data"
-  | "open-latex"
+  | "open-plugin-panels"
   | "float-browser"
   | "toggle-devtools"
   | "go-to-file"

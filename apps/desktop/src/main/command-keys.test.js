@@ -161,3 +161,11 @@ describe("a surface claiming chords (#656)", () => {
     expect(claimedCommandIds(defaultKeymap(), ["Ctrl+Digit1"])).toEqual(["jump-1"]);
   });
 });
+
+describe("the quick composer's default chord", () => {
+  test("avoids the launchers' and 1Password's defaults, and leaves a person's own chord alone", () => {
+    expect(defaultKeymap()["quick-composer"]).toBe("Alt+Shift+Space");
+    expect(["Alt+Space", "CommandOrControl+Shift+Space", "Control+Alt+Space", "CommandOrControl+Space"]).not.toContain(defaultKeymap()["quick-composer"]);
+    expect(mergeKeymap({ "quick-composer": "CommandOrControl+Shift+Space" })["quick-composer"]).toBe("CommandOrControl+Shift+Space");
+  });
+});

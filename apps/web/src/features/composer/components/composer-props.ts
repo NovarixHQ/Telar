@@ -7,6 +7,8 @@ import type { QueuedMessagesProps } from "./queued-messages";
 export type ComposerProps = {
   draft: string;
   ready: boolean;
+  /** Scrolled back through the transcript, or too little height: one line, pills in a tray. Anything that needs the full box keeps it. */
+  readingBack?: boolean;
   /** Names the editable root and is what the page API reports. */
   kind?: ComposerKind;
   /** Picked files not yet sent; the cockpit owns them because it uploads them with the submit. */

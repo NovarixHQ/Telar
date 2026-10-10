@@ -26,6 +26,7 @@ type BoxProps = {
   files?: File[];
   busy?: boolean;
   ready?: boolean;
+  readingBack?: boolean;
   fresh?: boolean;
   projectId?: string;
   session?: Session;
@@ -37,7 +38,7 @@ type BoxProps = {
   onModelChange?: (next: ModelChoice) => void;
 };
 
-function Box({ initial = "", files = [], busy = false, ready = true, fresh = false, projectId, session, runtimeMode, sentPrompts, usage, onSubmit = () => {}, onStop = () => {}, onModelChange }: BoxProps) {
+function Box({ initial = "", files = [], busy = false, ready = true, readingBack = false, fresh = false, projectId, session, runtimeMode, sentPrompts, usage, onSubmit = () => {}, onStop = () => {}, onModelChange }: BoxProps) {
   const [draft, setDraft] = useState(initial);
   const [attachments, setAttachments] = useState(files);
   return (
@@ -49,6 +50,7 @@ function Box({ initial = "", files = [], busy = false, ready = true, fresh = fal
         attachments={attachments}
         onAttach={setAttachments}
         busy={busy}
+        readingBack={readingBack}
         fresh={fresh}
         driver="claude"
         sending={false}
@@ -505,13 +507,49 @@ describe("what the corner button and the empty box say", () => {
   });
 });
 
+describe("the compact composer, while reading back", () => {
+  const expand = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('button[aria-label="Open the full composer"]');
+
+  test("focusing and clicking the box keeps it compact", async () => {
+    const { host, editor } = await composer({ readingBack: true });
+    await click(editor);
+    await type(editor, "hello");
+    expect(expand(host)).not.toBeNull();
+    expect(editor.style.maxHeight).toBe("calc(5lh + 1.25rem)");
+  });
+
+  test("typing and Enter sends from the compact box, steering a running turn too", async () => {
+    let sends = 0;
+    const { host, editor } = await composer({ readingBack: true, busy: true, onSubmit: () => sends++ });
+    await type(editor, "steer left");
+    key(editor, { key: "Enter" });
+    await flush();
+    expect(sends).toBe(1);
+    expect(expand(host)).not.toBeNull();
+  });
+
+  test("its height is capped, then it scrolls", async () => {
+    const { editor } = await composer({ readingBack: true, initial: "one\ntwo\nthree\nfour\nfive\nsix\nseven" });
+    expect(editor.style.maxHeight).toBe("calc(5lh + 1.25rem)");
+  });
+
+  test("the expand button opens the full composer", async () => {
+    const { host, editor } = await composer({ readingBack: true });
+    await click(expand(host)!);
+    expect(expand(host)).toBeNull();
+    expect(editor.style.maxHeight).toBe("");
+  });
+});
+
 describe("a narrow column, such as one beside an open panel", () => {
   const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
   const row = (host: HTMLElement) => host.querySelector("[data-slot=composer-controls]");
   const tray = (host: HTMLElement) => host.querySelector("[data-slot=composer-foot]")!;
+  const expand = (host: HTMLElement) => host.querySelector('button[aria-label="Open the full composer"]');
 
   test("keeps the full composer with model, reasoning and access in the toolbar row", async () => {
     const { host, editor } = await narrowable({ session, runtimeMode: "full-access" }, 320);
+    expect(expand(host)).toBeNull();
     expect(editor.style.maxHeight).toBe("");
     expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
     expect(row(host)?.querySelector('[aria-label^="Reasoning effort:"]')).not.toBeNull();
@@ -525,12 +563,14 @@ describe("a narrow column, such as one beside an open panel", () => {
     act(() => editor.focus());
     await resize(320);
     expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
+    expect(expand(host)).toBeNull();
     expect(editor.textContent).toBe("half a thought");
     expect(document.activeElement).toBe(editor);
   });
 
   test("a new conversation's canvas stays full too", async () => {
     const { host } = await narrowable({ fresh: true }, 320);
+    expect(expand(host)).toBeNull();
     expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
   });
 });

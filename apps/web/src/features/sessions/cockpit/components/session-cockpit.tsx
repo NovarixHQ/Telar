@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { ConversationFollowHandle } from "@/ui/conversation";
@@ -44,6 +44,11 @@ import { TranscriptList } from "./transcript-list";
 
 const FloatingSimulator = dynamic(() => import("@/features/simulators/components/floating-simulator").then((mod) => mod.FloatingSimulator));
 
+function useReadingBack() {
+  const [readingBack, setReadingBack] = useState(false);
+  return [readingBack, useCallback((atBottom: boolean) => setReadingBack(!atBottom), [])] as const;
+}
+
 export function SessionCockpit({
   projectId,
   sessionId: routeSessionId,
@@ -60,10 +65,8 @@ export function SessionCockpit({
   const [pending, setPending] = useState<PendingTurn>();
   const pathname = usePathname();
   const hostId = hostFromPathname(pathname);
-  // A session with no project has no canvas URL, so it is never on the canvas.
   const onCanvas = projectId !== undefined && pathname === canvasHref(projectId, hostId);
   const sessionId = routeSessionId ?? (onCanvas ? undefined : createdSessionId);
-  /** No session yet: the composer is the whole screen and nothing is polled. */
   const fresh = !sessionId && !pending;
   const sync = useSessionSync({ hostId, sessionId, initiallyLoading: Boolean(routeSessionId) });
   if (pending && !pendingStillShown(pending, sessionId, sync.turns)) setPending(undefined);
@@ -75,6 +78,7 @@ export function SessionCockpit({
   const draftConfig = useDraftConfig({ projectId, fresh, projectDefaults });
   const composer = useComposerDraft({ sessionId, projectId });
   const follow = useRef<ConversationFollowHandle>(null);
+  const [readingBack, onAtBottomChange] = useReadingBack();
   const pluginPanels = usePluginPanels(hostId, enabledPlugins);
   const panelKey = sessionId ?? (projectId === undefined ? "main" : canvasPanelKey(projectId));
   const panelState = useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId });
@@ -152,6 +156,7 @@ export function SessionCockpit({
               model={model}
               receipt={receipt}
               follow={follow}
+              onAtBottomChange={onAtBottomChange}
               onConversationClick={onConversationClick}
               projectId={projectId}
               hostId={hostId}
@@ -170,6 +175,7 @@ export function SessionCockpit({
           <Composer
             {...composerProps({
               fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,
+              readingBack: readingBack && transcriptLanded,
               contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
               builders,
             })}

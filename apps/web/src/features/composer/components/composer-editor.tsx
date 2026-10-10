@@ -510,9 +510,18 @@ function caretEdit(
   return edit(text, range.start);
 }
 
-function EditorPlaceholder({ text }: { text: string }) {
+const COMPACT_MAX_HEIGHT = "calc(5lh + 1.25rem)";
+
+function EditorPlaceholder({ text, compact }: { text: string; compact: boolean | undefined }) {
   return (
-    <span aria-hidden data-slot="composer-placeholder" className="pointer-events-none absolute top-3 left-3 z-10 select-none text-[0.9375rem] leading-6 text-muted-foreground">
+    <span
+      aria-hidden
+      data-slot="composer-placeholder"
+      className={cn(
+        "pointer-events-none absolute left-3 z-10 select-none text-[0.9375rem] leading-6 text-muted-foreground",
+        compact ? "top-2.5 right-3 truncate" : "top-3",
+      )}
+    >
       {text}
     </span>
   );
@@ -543,10 +552,11 @@ export const ComposerEditor = forwardRef<
     /** WHICH COMPOSER THIS IS, ON THE EDITABLE ROOT ITSELF. Stable for
      *  external clients, beside `data-slot`. */
     "data-composer"?: "session";
+    compact?: boolean;
     className?: string;
   }
 >(function ComposerEditor(
-  { value, onChange, onKeyDown, onSelectionChange, onPasteFiles, onPasteLargeText, onFocus, onBlur, placeholder, disabled, id, "data-composer": dataComposer, className },
+  { value, onChange, onKeyDown, onSelectionChange, onPasteFiles, onPasteLargeText, onFocus, onBlur, placeholder, disabled, id, "data-composer": dataComposer, compact, className },
   ref,
 ) {
   const root = useRef<HTMLDivElement>(null);
@@ -615,10 +625,11 @@ export const ComposerEditor = forwardRef<
         // the transcript it sits under.
         className={cn(
           "w-full whitespace-pre-wrap break-words px-3 text-[0.9375rem] leading-6 outline-none",
-          "max-h-48 min-h-[76px] overflow-y-auto pt-3 pb-2",
+          compact ? "overflow-y-auto py-2.5" : "max-h-48 min-h-[76px] overflow-y-auto pt-3 pb-2",
           "data-dictating:caret-primary",
           disabled && "opacity-60",
         )}
+        style={compact ? { maxHeight: COMPACT_MAX_HEIGHT } : undefined}
         onInput={() => {
           const box = root.current;
           if (!box) return;
@@ -684,7 +695,7 @@ export const ComposerEditor = forwardRef<
           rewrite(next.text, next.cursor);
         }}
       />
-      {empty && placeholder ? <EditorPlaceholder text={placeholder} /> : null}
+      {empty && placeholder ? <EditorPlaceholder text={placeholder} compact={compact} /> : null}
     </div>
   );
 });

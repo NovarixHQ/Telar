@@ -27,6 +27,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   model: ReturnType<typeof useTranscriptModel>;
   receipt: ReturnType<typeof useReadReceipt>;
   follow: RefObject<ConversationFollowHandle | null>;
+  onAtBottomChange: (atBottom: boolean) => void;
   onConversationClick: (event: React.MouseEvent) => void;
   projectId: string | undefined;
   hostId: string;
@@ -69,7 +70,7 @@ export function TranscriptList({ sync, model, receipt, ...props }: {
   return (
     // `display: contents`: a click boundary, never a layout box.
     <div className="contents" aria-busy={sync.updating || undefined} onClickCapture={props.onConversationClick}>
-      <ConversationViewport className="min-w-0 flex-1" conversation={sync.syncKey} landed={sync.transcriptLanded} followRef={props.follow}>
+      <ConversationViewport className="min-w-0 flex-1" conversation={sync.syncKey} landed={sync.transcriptLanded} followRef={props.follow} onAtBottomChange={props.onAtBottomChange}>
         <ConversationContent className="gap-3">
           {props.projectId !== session?.projectId && session && (
             <Alert variant="destructive" className="mx-auto max-w-(--chat-content-max-width)">

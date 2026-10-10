@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -91,6 +91,17 @@ afterAll(async () => {
   await act(async () => { await settle(); });
   await GlobalRegistrator.unregister();
 });
+
+/** Lays every element out over the same box, so a menu's box overlaps the view's. */
+function laidOut() {
+  const original = HTMLElement.prototype.getBoundingClientRect;
+  beforeEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = () => ({ left: 0, top: 0, right: 640, bottom: 400, width: 640, height: 400, x: 0, y: 0 }) as DOMRect;
+  });
+  afterEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = original;
+  });
+}
 
 async function waitFor(ready: () => boolean) {
   for (let attempt = 0; attempt < 25 && !ready(); attempt += 1) {
@@ -212,18 +223,6 @@ describe("the options menu", () => {
     expect(rows).toContain("Clear cache…");
   });
 
-  test("takes the native browser view down while it is open", async () => {
-    const { host, visibility } = await mount(panelState());
-    expect(nativeViewOverlayHidden()).toBe(false);
-
-    await mouseClick(optionsTrigger(host));
-    expect(nativeViewOverlayHidden()).toBe(true);
-    expect(visibility.at(-1)).toBe(false);
-
-    await mouseClick(optionsTrigger(host));
-    expect(nativeViewOverlayHidden()).toBe(false);
-    expect(visibility.at(-1)).toBe(true);
-  });
 
   test("hard reload and DevTools are the shell's own verbs, not a second reload", async () => {
     const { actions, host } = await mount(panelState());
@@ -406,39 +405,58 @@ describe("the live viewport's box", () => {
 });
 
 describe("the frozen frame a menu opens over", () => {
+  laidOut();
+
+  test("the options menu takes the native browser view down while it is open", async () => {
+    const { host, visibility } = await mount(panelState());
+    expect(nativeViewOverlayHidden()).toBe(false);
+
+    await mouseClick(optionsTrigger(host));
+    expect(nativeViewOverlayHidden()).toBe(true);
+    await waitFor(() => visibility.at(-1) === false);
+    expect(visibility.at(-1)).toBe(false);
+
+    await mouseClick(optionsTrigger(host));
+    expect(nativeViewOverlayHidden()).toBe(false);
+    await waitFor(() => visibility.at(-1) === true);
+    expect(visibility.at(-1)).toBe(true);
+  });
+
   test("the shell's last frame of the page is painted at the rect the view filled, and goes when the view is back", async () => {
     const frame = { data: "cG5n", mimeType: "image/png", rect: { x: 0, y: 0, width: 640, height: 400 } };
     const froze: string[] = [];
     const { host, visibility } = await mount(panelState(), {
-      freezeView: async (scopeKey: string) => {
+      captureView: async (scopeKey: string) => {
         froze.push(scopeKey);
         return frame;
       },
     });
 
+    const before = visibility.length;
     await mouseClick(optionsTrigger(host));
-    await waitFor(() => Boolean(frozenImage(host)));
+    await waitFor(() => visibility.at(-1) === false);
     expect(froze).toEqual(["session_a"]);
     expect(frozenImage(host)!.getAttribute("src")).toBe("data:image/png;base64,cG5n");
-    expect(visibility).not.toContain(false);
 
     await mouseClick(optionsTrigger(host));
     await waitFor(() => !frozenImage(host));
-    expect(visibility.at(-1)).toBe(true);
+    expect(visibility.slice(before)).toEqual([false, true]);
   });
 
   test("a shell that has nothing to freeze paints nothing, and the view still goes down", async () => {
-    const { host, visibility } = await mount(panelState(), { freezeView: async () => null });
+    const { host, visibility } = await mount(panelState(), { captureView: async () => null });
     await mouseClick(optionsTrigger(host));
+    await waitFor(() => visibility.at(-1) === false);
     expect(frozenImage(host)).toBeNull();
-    expect(nativeViewOverlayHidden()).toBe(true);
+    expect(visibility.at(-1)).toBe(false);
 
     await mouseClick(optionsTrigger(host));
+    await waitFor(() => visibility.at(-1) === true);
     expect(visibility.at(-1)).toBe(true);
   });
 
   test("a panel menu that closes as the surface unmounts leaves the view down", async () => {
-    const { root, visibility } = await mount(panelState(), { freezeView: async () => null });
+    const { root, visibility } = await mount(panelState(), { captureView: async () => null });
     const release = claimNativeView();
     await act(async () => {});
 
@@ -715,6 +733,8 @@ describe("the browser's camera", () => {
 });
 
 describe("annotate mode", () => {
+  laidOut();
+
   test("it asks for the element boxes in the same call as the frame, and takes the native view down", async () => {
     const shell = capturingBridge();
     const { host, visibility } = await mount(panelState(), { capture: shell.capture }, () => {});

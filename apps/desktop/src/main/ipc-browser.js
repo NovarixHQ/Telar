@@ -229,8 +229,8 @@ function registerTabIpc({ requireLoginOffer }) {
     requireBrowserManager(event).setVisible(input?.scopeKey, input?.visible, event.sender),
   );
 
-  ipcMain.handle("telar:browser:freeze-view", (event, input) =>
-    requireBrowserManager(event).freezeView(input?.scopeKey, event.sender),
+  ipcMain.handle("telar:browser:capture-view", (event, input) =>
+    requireBrowserManager(event).captureView(input?.scopeKey, event.sender),
   );
 
   ipcMain.handle("telar:browser:release-scope", (event, input) =>

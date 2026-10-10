@@ -185,7 +185,7 @@ async function main() {
 
     assert(Math.abs(live.box[0] - 50 * live.ratio) <= 2 && Math.abs(live.box[1] - 50 * live.ratio) <= 2, `the page is not scaled into the full view: box at ${live.box}`);
 
-    const frame = await manager.freezeView("s");
+    const frame = await manager.captureView("s");
     assert(frame, "no frozen frame for a shown fixed page");
     assert(JSON.stringify(frame.rect) === JSON.stringify(presented), `frozen rect ${JSON.stringify(frame.rect)} is not the live rect ${JSON.stringify(presented)}`);
     const frozen = surfaceFacts(nativeImage.createFromBuffer(Buffer.from(frame.data, "base64")), 640, 400, nativeDpr);

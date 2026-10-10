@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     },
     setVisible: (scopeKey, visible) => ipcRenderer.invoke("telar:browser:set-visible", { scopeKey, visible }),
 
-    freezeView: (scopeKey) => ipcRenderer.invoke("telar:browser:freeze-view", { scopeKey }),
+    captureView: (scopeKey) => ipcRenderer.invoke("telar:browser:capture-view", { scopeKey }),
 
     releaseScope: (scopeKey, destroy = false, { closedByPerson = false } = {}) =>
       ipcRenderer.invoke("telar:browser:release-scope", { scopeKey, destroy, closedByPerson }),

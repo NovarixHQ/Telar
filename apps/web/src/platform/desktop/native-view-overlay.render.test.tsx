@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/ui/sheet";
 import { flush, installTestDom, mount, press } from "@/test/dom";
-import { nativeViewOverlayHidden, onNativeViewOverlay } from "./native-view-overlay";
+import { nativeViewCovered, nativeViewOverlayHidden, onNativeViewOverlay } from "./native-view-overlay";
 
 installTestDom();
 
@@ -123,6 +123,18 @@ describe("an overlay takes the native browser view down while it is open", () =>
     expect(nativeViewOverlayHidden()).toBe(true);
     await press(trigger);
     expect(nativeViewOverlayHidden()).toBe(false);
+  });
+
+  test("a menu is measured where it draws, while a dialog or sheet covers the browser wherever it is", async () => {
+    const view = { left: 600, top: 40, right: 1240, bottom: 440, width: 640, height: 400 } as DOMRect;
+    for (const [name, overlay] of Object.entries(OVERLAYS)) {
+      const toggle = await harness(overlay);
+      await toggle(0, true);
+      // The test DOM lays nothing out, so a measured popup sits at 0×0 in the corner, away from the view.
+      expect([name, nativeViewCovered(view)]).toEqual([name, name === "dialog" || name === "sheet"]);
+      await toggle(0, false);
+      toggle.unmount();
+    }
   });
 
   test("unmounting an open overlay shows the view again", async () => {

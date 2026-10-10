@@ -9,7 +9,7 @@ import { Button } from "@/ui/button"
 import { XIcon } from "lucide-react"
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
-  const onOpenChange = useOverlayRootClaim(props)
+  const { onOpenChange } = useOverlayRootClaim(props)
   return <SheetPrimitive.Root data-slot="sheet" modal="trap-focus" {...props} onOpenChange={onOpenChange} />
 }
 

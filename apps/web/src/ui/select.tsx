@@ -4,12 +4,16 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/ui/utils"
-import { useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
+import { NativeViewOverlayElements, useNativeViewOverlayRef, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
 function Select<Value, Multiple extends boolean | undefined = false>({ ...props }: SelectPrimitive.Root.Props<Value, Multiple>) {
-  const onOpenChange = useOverlayRootClaim(props)
-  return <SelectPrimitive.Root {...props} onOpenChange={onOpenChange} />
+  const { onOpenChange, elements } = useOverlayRootClaim(props)
+  return (
+    <NativeViewOverlayElements value={elements}>
+      <SelectPrimitive.Root {...props} onOpenChange={onOpenChange} />
+    </NativeViewOverlayElements>
+  )
 }
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
@@ -74,9 +78,11 @@ function SelectContent({
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
   >) {
+  const positioner = useNativeViewOverlayRef()
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
+        ref={positioner}
         side={side}
         sideOffset={sideOffset}
         align={align}

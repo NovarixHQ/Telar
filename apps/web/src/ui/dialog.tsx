@@ -9,7 +9,7 @@ import { Button } from "@/ui/button"
 import { XIcon } from "lucide-react"
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  const onOpenChange = useOverlayRootClaim(props)
+  const { onOpenChange } = useOverlayRootClaim(props)
   return <DialogPrimitive.Root data-slot="dialog" modal="trap-focus" {...props} onOpenChange={onOpenChange} />
 }
 

@@ -1,39 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, use, useEffect, useState } from "react";
 
 type OverlayListener = (hidden: boolean) => void;
+/** What an overlay draws. While it is empty the overlay is taken to cover everything. */
+export type OverlayElements = Set<Element>;
 
-let openCount = 0;
+const claims = new Set<{ elements: OverlayElements }>();
 const listeners = new Set<OverlayListener>();
 
 function publish(): void {
-  const hidden = openCount > 0;
+  const hidden = claims.size > 0;
   for (const listener of listeners) listener(hidden);
 }
 
 export function onNativeViewOverlay(listener: OverlayListener): () => void {
   listeners.add(listener);
-  listener(openCount > 0);
+  listener(claims.size > 0);
   return () => {
     listeners.delete(listener);
   };
 }
 
-export function claimNativeView(): () => void {
-  openCount += 1;
+export function claimNativeView(elements: OverlayElements = new Set()): () => void {
+  const claim = { elements };
+  claims.add(claim);
   publish();
-  let released = false;
   return () => {
-    if (released) return;
-    released = true;
-    openCount -= 1;
+    if (!claims.delete(claim)) return;
     publish();
   };
 }
 
-export function useNativeViewOverlay(open: boolean): void {
-  useEffect(() => (open ? claimNativeView() : undefined), [open]);
+export function useNativeViewOverlay(open: boolean, elements?: OverlayElements): void {
+  useEffect(() => (open ? claimNativeView(elements) : undefined), [open, elements]);
+}
+
+export function useOverlayElements(): OverlayElements {
+  return useState<OverlayElements>(() => new Set())[0];
+}
+
+const OverlayElementsContext = createContext<OverlayElements | null>(null);
+export const NativeViewOverlayElements = OverlayElementsContext.Provider;
+
+/** A stable ref that adds what it is attached to to `elements`. */
+export function useOverlayElementRef(elements: OverlayElements | null) {
+  const [ref] = useState(() => (element: Element | null) => {
+    if (!element || !elements) return;
+    elements.add(element);
+    return () => void elements.delete(element);
+  });
+  return ref;
+}
+
+/** Ref for an overlay's positioner: the root's claim then measures it instead of covering everything. */
+export function useNativeViewOverlayRef() {
+  return useOverlayElementRef(use(OverlayElementsContext));
 }
 
 type OverlayRoot<Details> = {
@@ -42,18 +64,33 @@ type OverlayRoot<Details> = {
   onOpenChange?: ((open: boolean, details: Details) => void) | undefined;
 };
 
-/** For an overlay's root, controlled or not: pass the result as its `onOpenChange`. */
+/** For an overlay's root, controlled or not: pass `onOpenChange` to it and `elements` to a `NativeViewOverlayElements` around it. */
 export function useOverlayRootClaim<Details>({ open, defaultOpen, onOpenChange }: OverlayRoot<Details>) {
   const [ownOpen, setOwnOpen] = useState(defaultOpen ?? false);
-  useNativeViewOverlay(open ?? ownOpen);
-  return (next: boolean, details: Details) => {
+  const elements = useOverlayElements();
+  useNativeViewOverlay(open ?? ownOpen, elements);
+  const change = (next: boolean, details: Details) => {
     setOwnOpen(next);
     onOpenChange?.(next, details);
   };
+  return { onOpenChange: change, elements };
 }
 
 export function nativeViewOverlayHidden(): boolean {
-  return openCount > 0;
+  return claims.size > 0;
+}
+
+function overlaps(a: DOMRect, b: DOMRect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+export function nativeViewCovered(view: DOMRect): boolean {
+  if (view.width === 0 || view.height === 0) return false;
+  for (const { elements } of claims) {
+    if (elements.size === 0) return true;
+    for (const element of elements) if (overlaps(element.getBoundingClientRect(), view)) return true;
+  }
+  return false;
 }
 
 export type FrozenFrame = {
@@ -62,35 +99,42 @@ export type FrozenFrame = {
   rect: { x: number; y: number; width: number; height: number };
 };
 
+/** `paint` resolves once the frame is on screen, so the view only goes down over it. */
 export type OverlayShell = {
-  freeze: () => Promise<FrozenFrame | null>;
+  capture: () => Promise<FrozenFrame | null>;
+  paint: (frame: FrozenFrame | null) => Promise<void>;
+  hide: () => Promise<void>;
   show: () => Promise<void>;
-  paint: (frame: FrozenFrame | null) => void;
 };
 
-export function createOverlayFreezer(shell: OverlayShell): (hidden: boolean) => Promise<void> {
+export function createOverlayFreezer(shell: OverlayShell): (covered: boolean) => Promise<void> {
   let generation = 0;
+  let down = false;
+  let painted = false;
   let queue: Promise<void> = Promise.resolve();
-  return (hidden: boolean) => {
+  const swap = async (covered: boolean, mine: number) => {
+    if (generation !== mine) return;
+    if (!covered) {
+      if (down) await shell.show();
+      down = false;
+      if (painted) await shell.paint(null);
+      painted = false;
+      return;
+    }
+    if (down) return;
+    const frame = await shell.capture().catch(() => null);
+    if (generation !== mine) return;
+    if (frame) {
+      painted = true;
+      await shell.paint(frame);
+      if (generation !== mine) return;
+    }
+    down = true;
+    await shell.hide();
+  };
+  return (covered: boolean) => {
     const mine = (generation += 1);
-    queue = queue
-      .then(async () => {
-        if (generation !== mine) return;
-        if (!hidden) {
-          await shell.show();
-          shell.paint(null);
-          return;
-        }
-        let frame: FrozenFrame | null = null;
-        try {
-          frame = await shell.freeze();
-        } catch {
-          frame = null;
-        }
-        if (generation !== mine) return;
-        shell.paint(frame);
-      })
-      .catch(() => undefined);
+    queue = queue.then(() => swap(covered, mine)).catch(() => undefined);
     return queue;
   };
 }

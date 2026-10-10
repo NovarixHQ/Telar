@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { z } from "zod";
 import type { ResolvedLatex } from "./compile";
+import type { LatexToolchain, TexliveDistribution } from "./toolchain";
 
 export const LatexEngine = z.enum(["pdflatex", "lualatex", "xelatex"]);
 export type LatexEngine = z.infer<typeof LatexEngine>;
@@ -69,4 +70,23 @@ export function resolveLatex(project: LatexSettings, machine: LatexMachineSettin
   }
   if (!managedPath) return undefined;
   return { kind: "tectonic", binPath: managedPath, ...(project.mainFile ? { mainFile: project.mainFile } : {}) };
+}
+
+export function detectedDistribution(toolchain: LatexToolchain): { kind: "texlive"; dist: TexliveDistribution } | { kind: "tectonic"; path: string } | undefined {
+  const dist = toolchain.texlive.find((candidate) => candidate.latexmk);
+  if (dist) return { kind: "texlive", dist };
+  return toolchain.tectonic ? { kind: "tectonic", path: toolchain.tectonic.path } : undefined;
+}
+
+export function resolveDetected(project: LatexSettings, machine: LatexMachineSettings, toolchain: LatexToolchain): ResolvedLatex | undefined {
+  const detected = detectedDistribution(toolchain);
+  if (!detected) return undefined;
+  const engine = detected.kind === "texlive" ? machine.engine : undefined;
+  return {
+    kind: detected.kind,
+    binPath: detected.kind === "texlive" ? detected.dist.binDir : detected.path,
+    ...(engine ? { engine } : {}),
+    ...(project.mainFile ? { mainFile: project.mainFile } : {}),
+    ...(machine.autoInstallPackages && detected.kind === "texlive" ? { autoInstallPackages: true } : {}),
+  };
 }

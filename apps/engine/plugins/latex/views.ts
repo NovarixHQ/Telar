@@ -1,7 +1,7 @@
 import type { PluginPanelBlock } from "@telar/engine-client";
 import type { JobRead } from "../sdk/jobs";
 import type { ManagedTectonicStatus } from "./managed";
-import type { LatexMachineSettings, LatexSettings } from "./settings";
+import { detectedDistribution, type LatexMachineSettings, type LatexSettings } from "./settings";
 import type { LatexToolchain, TexliveDistribution } from "./toolchain";
 import type { CompileStatus, LatexPackagesAnswer } from "./types";
 
@@ -40,7 +40,8 @@ export function compileView(status: CompileStatus | { status: "never" }, mainFil
   }
   const label = last.status === "ok" ? "Compiled" : last.status === "failed" ? "Failed" : last.status === "running" ? "Compiling" : "Cancelled";
   const tone = last.status === "ok" ? "ok" : last.status === "failed" ? "error" : "neutral";
-  blocks.push({ type: "status", text: `${label} · ${last.path}`, tone });
+  blocks.push({ type: "status", text: last.path ? `${label} · ${last.path}` : label, tone });
+  if (last.error) blocks.push({ type: "text", text: last.error });
   if (last.pdfPath) blocks.push({ type: "file", label: "Open PDF", path: last.pdfPath });
   if (last.diagnostics.length > 0) {
     blocks.push({
@@ -65,11 +66,14 @@ export function compileView(status: CompileStatus | { status: "never" }, mainFil
 function inherited(machine: LatexMachineSettings, toolchain: LatexToolchain): string {
   const mac = machine.toolchain;
   const texlive = mac?.kind === "texlive" ? toolchain.texlive.find((dist) => dist.binDir === mac.path) : undefined;
+  const detected = detectedDistribution(toolchain);
   const label =
     mac?.kind === "managed" ? "Telar (managed)"
     : mac?.kind === "tectonic" ? "Tectonic"
     : mac?.kind === "texlive" ? (texlive ? distName(texlive) : "TeX Live")
     : toolchain.managed?.installed ? "Telar (managed)"
+    : detected?.kind === "texlive" ? distName(detected.dist)
+    : detected?.kind === "tectonic" ? "Tectonic"
     : "none";
   return `Inherit (${label})`;
 }

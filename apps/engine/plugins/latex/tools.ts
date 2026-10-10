@@ -126,13 +126,13 @@ export const latexToolDeclarations: NonNullable<PluginManifestInput["tools"]> = 
 });
 
 /** Every tool answers a failure as a sentence, never a crash. */
-export function latexToolHandlers(capability: (session: PluginSession) => LatexCapability): NonNullable<PluginEngine["tools"]> {
+export function latexToolHandlers(capability: (session: PluginSession) => Promise<LatexCapability>): NonNullable<PluginEngine["tools"]> {
   return Object.fromEntries(
     Object.entries(TOOLS).map(([name, tool]) => [
       name,
       async (args: Record<string, unknown>, session: PluginSession) => {
         try {
-          return await tool.run(capability(session), args);
+          return await tool.run(await capability(session), args);
         } catch (error) {
           return textAnswer(`${tool.failed}: ${failure(error)}`, true);
         }

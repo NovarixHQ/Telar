@@ -46,6 +46,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   let fresh = false;
   let returnTo = null;
   const placement = createPlacement({ screen, window: () => win });
+  for (const change of ["display-added", "display-removed", "display-metrics-changed"]) screen.on(change, () => placement.reclamp());
 
   const recover = (reason) => {
     log(`quick composer page failed: ${reason}`);

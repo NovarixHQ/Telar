@@ -263,6 +263,9 @@ const electron = {
     cursor: { x: 0, y: 0 },
     getCursorScreenPoint: () => ({ ...electron.screen.cursor }),
     getDisplayNearestPoint: (point) => electron.screen.getDisplayMatching(point),
+    listeners: new Map(),
+    on: (name, listener) => electron.screen.listeners.set(name, [...(electron.screen.listeners.get(name) ?? []), listener]),
+    emit: (name, ...args) => (electron.screen.listeners.get(name) ?? []).forEach((listener) => listener({}, ...args)),
   },
   shell: { opened: [], openExternal: (url) => { electron.shell.opened.push(url); return Promise.resolve(); }, showItemInFolder: (target) => electron.shell.opened.push(target), openPath: (target) => { electron.shell.opened.push(target); return Promise.resolve(""); } },
   webContents: { getAllWebContents: () => [] },
@@ -303,6 +306,7 @@ function resetElectron() {
   electron.nativeTheme.shouldUseDarkColors = false;
   electron.screen.displays = [{ id: 1, workArea: { x: 0, y: 25, width: 1440, height: 875 } }];
   electron.screen.cursor = { x: 0, y: 0 };
+  electron.screen.listeners = new Map();
   for (const emitter of [electron.app, electron.nativeTheme, electron.powerMonitor]) emitter.listeners.clear();
 }
 

@@ -17,11 +17,6 @@ function anchorOn(display, offset) {
   return { x, bottom: end };
 }
 
-function displayFor(screen, held) {
-  if (!held) return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  return screen.getAllDisplays().find((each) => each.id === held.display) ?? screen.getPrimaryDisplay();
-}
-
 function boundsFor({ area, anchor, mode }) {
   const width = Math.min(WIDTH, area.width);
   const height = Math.min(HEIGHTS[mode] ?? HEIGHTS.compact, area.height);
@@ -30,4 +25,4 @@ function boundsFor({ area, anchor, mode }) {
   return { x, y: end - height, width, height };
 }
 
-module.exports = { HEIGHTS, WIDTH, anchorOn, boundsFor, displayFor };
+module.exports = { HEIGHTS, WIDTH, anchorOn, boundsFor };

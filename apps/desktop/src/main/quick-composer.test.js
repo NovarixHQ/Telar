@@ -137,6 +137,53 @@ describe("the window", () => {
     expect(panel().bounds).toEqual({ x: 1440 - WIDTH, y: 900 - HEIGHTS.compact, width: WIDTH, height: HEIGHTS.compact });
   });
 
+  describe("with two displays", () => {
+    const B = { x: 1440, y: 0, width: 1920, height: 1080 };
+    const defaultOnB = { x: 1440 + Math.round((1920 - WIDTH) / 2), y: Math.round(1080 - 1080 * 0.22) - HEIGHTS.compact, width: WIDTH, height: HEIGHTS.compact };
+    beforeEach(() => {
+      electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: B }];
+      quick.bind("Alt+Space");
+    });
+
+    test("opens on the cursor's display even when the remembered spot is on the other one", async () => {
+      await press("Alt+Space");
+      panel().setPosition(200, 100);
+      panel().emit("moved");
+      await press("Alt+Space");
+      electron.screen.cursor = { x: 2000, y: 500 };
+      await press("Alt+Space");
+      expect(panel().bounds).toEqual(defaultOnB);
+    });
+
+    test("a spot remembered on the cursor's display is restored there", async () => {
+      electron.screen.cursor = { x: 2000, y: 500 };
+      await press("Alt+Space");
+      panel().setPosition(2200, 300);
+      panel().emit("moved");
+      await press("Alt+Space");
+      await press("Alt+Space");
+      expect(panel().bounds).toMatchObject({ x: 2200, y: 300 });
+    });
+
+    test("dragged to the other display, it stays there when it reopens with the cursor on that display", async () => {
+      await press("Alt+Space");
+      panel().setPosition(2200, 300);
+      panel().emit("moved");
+      await press("Alt+Space");
+      electron.screen.cursor = { x: 2000, y: 500 };
+      await press("Alt+Space");
+      expect(panel().bounds).toMatchObject({ x: 2200, y: 300 });
+    });
+
+    test("when its display goes away while open, it is pulled inside the one that remains", async () => {
+      electron.screen.cursor = { x: 2000, y: 500 };
+      await press("Alt+Space");
+      electron.screen.displays = [electron.screen.displays[0]];
+      electron.screen.emit("display-removed");
+      expect(panel().bounds).toEqual({ ...defaultOnB, x: 1440 - WIDTH });
+    });
+  });
+
   test("reopened within a minute it comes back where it was, at the size it was; after a minute it starts fresh and compact", async () => {
     jest.useFakeTimers();
     try {

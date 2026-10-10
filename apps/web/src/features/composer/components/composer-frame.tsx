@@ -8,6 +8,7 @@ import { WorkspaceEnvironment } from "@/features/worktrees";
 import { cn } from "@/ui/utils";
 import { ComposerNote } from "./composer-chrome";
 import { BackgroundPresence } from "./context-pill";
+import { PillRow } from "./control-primitives";
 import type { ComposerProps } from "./composer-props";
 
 /** Above the card: the fresh canvas's greeting and `/resume` picker, background work, and a stash note. */
@@ -65,7 +66,7 @@ export function ComposerFoot({
     >
       {tray && pills && (
         <div className="mx-3 -mt-px">
-          <div className="flex items-center gap-1 rounded-b-2xl border border-t-0 border-border/80 bg-card/95 px-2 py-0.5 shadow-1 backdrop-blur-xl">{pills}</div>
+          <PillRow className="flex items-center gap-1 rounded-b-2xl border border-t-0 border-border/80 bg-card/95 px-2 py-0.5 shadow-1 backdrop-blur-xl">{pills}</PillRow>
         </div>
       )}
       {/* Hidden, not unmounted, while one line: its poll is what reports an unreachable drive. */}

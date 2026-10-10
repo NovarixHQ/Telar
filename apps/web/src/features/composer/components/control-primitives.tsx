@@ -5,6 +5,7 @@ import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { PopoverTrigger } from "@/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/ui/utils";
+import { usePillFold } from "../hooks/use-pill-fold";
 
 // Nothing inside the composer's InputGroup may carry `disabled`: its `has-disabled:opacity-50` greys the whole box.
 function controlClass(open: boolean, disabled?: boolean) {
@@ -20,8 +21,17 @@ export function ControlDivider() {
   return <span aria-hidden className="h-4 w-px shrink-0 bg-border @max-md/composer:hidden" />;
 }
 
-// Inside a narrow composer a pill drops its words, keeping its icon; elsewhere it always shows them.
-const FOLD = { md: "@max-md/composer:hidden", xl: "@max-xl/composer:hidden" } as const;
+// Inside a narrow composer, or a row whose more important labels would be cut, a pill drops its words; xl goes first.
+const FOLD = { md: "@max-md/composer:hidden group-data-[fold=2]/pills:hidden", xl: "@max-xl/composer:hidden group-data-[fold]/pills:hidden" } as const;
+
+export function PillRow({ className, children }: { className?: string; children: ReactNode }) {
+  const [row, fold] = usePillFold();
+  return (
+    <div ref={row} data-slot="composer-controls" data-fold={fold || undefined} className={cn("group/pills", className)}>
+      {children}
+    </div>
+  );
+}
 
 type ControlTriggerProps = ComponentPropsWithoutRef<"button"> & {
   open: boolean;

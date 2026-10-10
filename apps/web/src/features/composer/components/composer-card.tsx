@@ -16,6 +16,7 @@ import { ComposerEditor, type ComposerEditorHandle, type DecorationFocus } from 
 import { ComposerMenu } from "./composer-menu";
 import { ComposerStashMenu } from "./composer-stash-menu";
 import { StashBadge } from "./composer-toolbar";
+import { PillRow } from "./control-primitives";
 
 // A right-press on selected text keeps the browser's menu. Both stops are needed: React's keeps the
 // card's trigger shut, and the immediate one beats Base UI's document listener.
@@ -175,11 +176,11 @@ export function ComposerCard({
             <CompactControls addFiles={addFiles} onExpand={onExpand} trailing={trailing} />
           ) : (
             <InputGroupAddon align="block-end" className="min-h-10 flex-nowrap justify-between gap-1 border-t border-border/40 px-2 pt-1 pb-1.5">
-              <div data-slot="composer-controls" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <PillRow className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <AddContextMenu onPick={addFiles} />
                 <StashBadge stash={stash} />
                 {pills}
-              </div>
+              </PillRow>
               <div className="ml-auto flex shrink-0 items-center gap-1.5 self-end">{trailing}</div>
             </InputGroupAddon>
           )}

@@ -13,7 +13,7 @@ import { filesRoutes, sessionFilesRoutes } from "./domains/files";
 import { sessionGitRoutes } from "./domains/git";
 import { githubRoutes, sessionGitHubRoutes, type GhRunner } from "./domains/github";
 import { createHostsStore, hostsRoutes, identityRoutes, readHostId } from "./domains/hosts";
-import { createEnginePlugins, externalPluginsDir, PluginInputError, pluginRoutes, pluginScopedRoutes, pluginSessionRoutes } from "./domains/plugins";
+import { createEnginePlugins, externalPluginsDir, PluginInputError, pluginAssetRoutes, pluginRoutes, pluginScopedRoutes, pluginSessionRoutes } from "./domains/plugins";
 import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
 import { maybeRetitleSession, providersRoutes, readModelCatalogue, sessionProviderRoutes, type AgentRouteDeps, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
@@ -234,6 +234,7 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...githubRoutes(store),
     ...pluginRoutes(store, plugins.host, { dir: plugins.dir, installed: plugins.installed, moduleFor: plugins.moduleFor }),
     ...pluginScopedRoutes(store, plugins.host),
+    ...pluginAssetRoutes(store, plugins.host),
     ...sessionReadRoutes(store),
     ...sessionLifecycleRoutes(store, push.dismiss),
     ...sessionFilesRoutes(store),

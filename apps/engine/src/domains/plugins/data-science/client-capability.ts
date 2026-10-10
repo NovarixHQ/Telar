@@ -25,5 +25,6 @@ export function clientDsCapability(call: PluginCall): DsCapability {
     environment: (input) => ds("env", input ?? {}),
     packages: () => ds("packages"),
     install: (input) => ds("install", input),
+    table: (path, options) => ds("table", { path, ...options }),
   };
 }

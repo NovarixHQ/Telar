@@ -84,5 +84,6 @@ export function modulePlugin(plugin: BundledPlugin, manifest: PluginManifest, de
     projectRoutes: scoped<{ projectId: string }, PluginProject>("project", ({ projectId }) => deps.project(projectId)) as PluginProjectRoutes,
     machineRoutes: scoped<Record<string, never>, Record<string, never>>("machine", (scope) => scope) as PluginMachineRoutes,
     resolve: (sessionId) => deps.session(sessionId),
+    assets: (asset) => (plugin.assets && Object.hasOwn(plugin.assets, asset) ? plugin.assets[asset] : undefined),
   };
 }

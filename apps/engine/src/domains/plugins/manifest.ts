@@ -21,6 +21,9 @@ export function manifestMeta(manifest: PluginManifest): PluginMeta {
     ...(manifest.gitignore ? { gitignore: manifest.gitignore } : {}),
     ...(manifest.panels.length > 0 ? { panels: manifest.panels } : {}),
     ...(manifest.composer ? { composer: manifest.composer } : {}),
+    ...(manifest.viewers.length > 0 ? { viewers: manifest.viewers } : {}),
+    ...(manifest.views.length > 0 ? { views: manifest.views } : {}),
+    ...(manifest.fileScope.length > 0 ? { fileScope: manifest.fileScope } : {}),
     settings: manifest.settings ?? [
       { id: "settings", scope: "project" as const, label: manifest.name },
       ...(manifest.machineSettingsSchema ? [{ id: "defaults", scope: "machine" as const, label: manifest.name }] : []),

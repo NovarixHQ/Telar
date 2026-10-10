@@ -69,6 +69,7 @@ export type BundledPlugin = {
   /** Stricter checks than the manifest's JSON Schema can say; the manifest's schema is what clients see. */
   settingsSchema?: z.ZodType<unknown>;
   machineSettingsSchema?: z.ZodType<unknown>;
+  assets?: Readonly<Record<string, string>>;
   engine(host: PluginHost): PluginEngine;
 };
 

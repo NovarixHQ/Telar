@@ -1,3 +1,4 @@
+export { pluginAssetRoutes } from "./assets";
 export { pluginRoutes } from "./routes";
 export { pluginScopedRoutes } from "./scoped";
 export { pluginSessionRoutes } from "./session-routes";

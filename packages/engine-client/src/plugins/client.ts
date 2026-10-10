@@ -23,6 +23,11 @@ export const pluginsClient = {
     return this.request("DELETE", `/v2/plugins/installed/${encodeURIComponent(id)}`);
   },
 
+  async pluginAsset(this: EngineTransport, pluginId: string, asset: string): Promise<{ text: string; contentType: string }> {
+    const { data, contentType } = await this.readBytes(`/v2/plugin-assets/${encodeURIComponent(pluginId)}/${asset.split("/").map(encodeURIComponent).join("/")}`);
+    return { text: new TextDecoder().decode(data), contentType };
+  },
+
   updateMachinePlugins(
     this: EngineTransport,
     plugins: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>,

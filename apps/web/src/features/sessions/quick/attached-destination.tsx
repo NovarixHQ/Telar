@@ -16,7 +16,7 @@ function SessionCard({ destination, nudge, height, manyHosts, onClear }: CardPro
   const session = { ...destination.session, ...(live.sync.session ? { activity: live.sync.session.activity, activityDetail: live.sync.session.activityDetail, activityAt: live.sync.session.activityAt, updatedAt: live.sync.session.updatedAt, title: live.sync.session.title } : {}) };
   const [now] = useState(Date.now);
   return (
-    <div data-slot="quick-destination" className="mx-7 rounded-t-xl border border-b-0 border-border bg-popover px-3 pt-2 pb-2.5 text-popover-foreground shadow-1">
+    <div data-slot="quick-destination" className="mx-4 rounded-t-2xl border border-b-0 border-border/80 bg-popover px-3 pt-2 text-popover-foreground shadow-2">
       <div className="flex items-center gap-2 text-xs">
         <span className={cn("size-2 shrink-0 rounded-full", statusDot(session))} />
         <span className="min-w-0 truncate font-semibold">{session.title}</span>
@@ -34,7 +34,7 @@ export function AttachedDestination({ destination, ...card }: CardProps & { dest
   if (!destination) return null;
   if (destination.kind === "session") return <SessionCard destination={destination} {...card} />;
   return (
-    <div data-slot="quick-destination" className="mx-7 flex items-center gap-1.5 rounded-t-xl border border-b-0 border-dashed border-border bg-popover px-3 py-1.5 text-xs text-muted-foreground">
+    <div data-slot="quick-destination" className="mx-4 flex items-center gap-1.5 rounded-t-2xl border border-b-0 border-dashed border-border bg-popover px-3 py-1.5 text-xs text-muted-foreground">
       <span>＋ New session in</span>
       <b className="font-semibold text-foreground">{placeOf(destination.project, card.manyHosts)}</b>
       <span>· {destination.envMode === "worktree" ? "new worktree" : "checkout"}</span>

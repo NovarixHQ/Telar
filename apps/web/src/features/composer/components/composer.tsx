@@ -163,6 +163,7 @@ export function Composer(props: ComposerProps) {
   return (
     <div className="relative z-20 w-full shrink-0 px-4">
       <div
+        data-slot="composer-frame"
         className={cn(
           "@container/composer relative mx-auto flex w-full max-w-(--chat-content-max-width) flex-col gap-1.5 pt-2",
           "transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none",

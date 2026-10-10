@@ -1518,3 +1518,10 @@ html:has([data-surface="quick"]) *::-webkit-scrollbar {
   background-color: var(--popover);
   backdrop-filter: none;
 }
+[data-surface="quick"] [data-attached] [data-slot="composer-frame"] {
+  padding-top: 0;
+}
+[data-surface="quick"] [data-attached] [data-slot="input-group"] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}

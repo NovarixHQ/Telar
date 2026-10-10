@@ -1,4 +1,5 @@
-import type { SessionFrame } from "@/features/sessions/sessions-stream";
+import type { PluginEventFrame } from "@telar/engine-client";
+import type { SessionFrame } from "@/platform/engine/sessions-stream";
 
 export function fakeSessionsStream() {
   const open = new Set<ReadableStreamDefaultController<Uint8Array>>();
@@ -20,7 +21,7 @@ export function fakeSessionsStream() {
       });
       return new Response(body, { headers: { "content-type": "text/event-stream" } });
     },
-    announce(frame: SessionFrame) {
+    announce(frame: SessionFrame | PluginEventFrame) {
       const bytes = new TextEncoder().encode(`data: ${JSON.stringify(frame)}\n\n`);
       for (const controller of open) controller.enqueue(bytes);
     },

@@ -8,7 +8,7 @@ import { isActiveTurn } from "@telar/client/journal";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { headConnection, headKey, headStore, openHead, saveHead } from "../../session-heads";
-import { useSessionsStream } from "../../sessions-stream";
+import { useSessionsStream } from "@/platform/engine/sessions-stream";
 import { decideStale } from "../stale-state";
 import { emptySessionData, sessionDataReducer, type SessionData } from "../session-data";
 

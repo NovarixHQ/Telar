@@ -8,7 +8,7 @@ import { PROJECTS_CHANGED_EVENT, projectFilterKey } from "@/features/projects";
 import { dedupeAcrossHosts } from "../session-groups";
 import { sessionKey, toSidebarSession, type SidebarSession } from "../session-list";
 import { applyRowChange, type SessionRowChange } from "../session-mutations";
-import { changesRow, useSessionsStream } from "../sessions-stream";
+import { changesRow, useSessionsStream } from "@/platform/engine/sessions-stream";
 import { readSettledCache, readSidebarCache, rememberRows, staleRows, writeSettledCache, writeSidebarCache } from "./sidebar-cache";
 import { observeSidebarLayout } from "./sidebar-layout";
 

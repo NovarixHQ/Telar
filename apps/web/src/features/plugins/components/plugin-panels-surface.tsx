@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import type { TurnState } from "@telar/engine-client";
+import { usePluginEvents } from "../hooks/use-plugin-events";
 import { panelSourceKey, type PluginPanelSource } from "../panels";
 import { cn } from "@/ui/utils";
 import { PluginView } from "./plugin-view";
 
 export function PluginPanelsSurface({
   sessionId,
+  hostId,
   panels,
   active,
   onOpenFile,
 }: {
   sessionId?: string;
+  hostId?: string;
   panels: readonly PluginPanelSource[];
   active?: TurnState;
   onOpenFile?: (path: string) => void;
@@ -21,6 +24,9 @@ export function PluginPanelsSurface({
   const [chosen, setChosen] = useState<string>();
   const [refreshes, setRefreshes] = useState(0);
   const source = panels.find((candidate) => panelSourceKey(candidate) === chosen) ?? panels[0];
+  usePluginEvents(sessionId && hostId, { pluginId: source?.plugin, name: source?.panel.refreshOn ?? [], ...(sessionId ? { sessionId } : {}) }, () =>
+    setRefreshes((count) => count + 1),
+  );
 
   if (!sessionId) return <p className="p-4 text-xs text-muted-foreground">Start the session to see plugin panels.</p>;
   if (!source) return <p className="p-4 text-xs text-muted-foreground">No enabled plugin has a panel.</p>;

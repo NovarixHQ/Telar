@@ -31,9 +31,10 @@ const SURFACES: Record<PluginSurfaceId, (props: PluginSurfaceProps) => ReactNode
       {...(onOpenImage ? { onOpenImage } : {})}
     />
   ),
-  "plugin-panels": ({ sessionId, active, panels, onOpenFile }) => (
+  "plugin-panels": ({ sessionId, hostId, active, panels, onOpenFile }) => (
     <PluginPanelsSurface
       {...(sessionId ? { sessionId } : {})}
+      {...(hostId ? { hostId } : {})}
       {...(active ? { active } : {})}
       panels={panels ?? []}
       onOpenFile={onOpenFile}

@@ -7,13 +7,12 @@ import { Composer } from "@/features/composer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { AttachedDestination } from "./attached-destination";
 import { DestinationPicker, placeOf } from "./destination-picker";
-import { sessionKey } from "../session-list";
 import { projectKey } from "./hosts";
 import { missingPermissions, quickComposerBridge, type QuickComposerBridge } from "./front-context";
 import { NeedsYouStrip } from "./needs-you-strip";
 import { PermissionNotice } from "./permission-notice";
 import { useQuickComposer } from "./use-quick-composer";
-import { useFieldDrag, useWindowLayout } from "./use-window-layout";
+import { useWindowMode } from "./use-window-layout";
 
 type Quick = ReturnType<typeof useQuickComposer>;
 
@@ -80,7 +79,7 @@ function caretAtStart(editor: Element): boolean {
 }
 
 const SURFACE_COMMANDS: readonly CommandId[] = ["toggle-dictation"];
-const clampTo = (value: number, low: number, high: number) => Math.max(low, Math.min(high, value));
+const TRANSCRIPT_PX = 300;
 
 function onComposerKey(quick: Quick, strip: RefObject<HTMLDivElement | null>, event: ReactKeyboardEvent) {
   const editor = (event.target as Element).closest(EDITOR);
@@ -100,13 +99,9 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const [bridge] = useState(() => given ?? quickComposerBridge());
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
-  const root = useRef<HTMLDivElement>(null);
-  const composer = useRef<HTMLDivElement>(null);
   const strip = useRef<HTMLDivElement>(null);
-  const target = quick.destination.destination;
-  const structure = [quick.opened, target?.kind === "session" ? sessionKey(target.session) : target ? projectKey(target.project) : "", quick.destination.picking, quick.needs.length > 0, quick.offers.length, quick.files.length, quick.error ?? "", context ? missingPermissions(context) : ""].join("|");
-  const room = useWindowLayout(bridge, root, composer, structure);
-  const fieldDrag = useFieldDrag(bridge, quick.text === "");
+  const attached = quick.destination.destination?.kind === "session";
+  useWindowMode(bridge, attached, quick.opened);
   useSurfaceCommandKeys(SURFACE_COMMANDS);
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
 
@@ -119,16 +114,17 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   }, [bridge]);
 
   return (
-    <div ref={root} data-surface="quick" className="flex flex-col p-6">
+    <div data-surface="quick" className="flex h-screen flex-col p-6">
       <div
         data-slot="quick-card"
-        onPointerDown={fieldDrag}
         onKeyDownCapture={(event) => onComposerKey(quick, strip, event)}
         onPointerDownCapture={quick.forgetKey}
         onClickCapture={(event) => holdForFilePicker(event, bridge)}
-        className="flex flex-col gap-1"
+        className="flex min-h-0 flex-1 flex-col gap-1"
       >
-        <div className="flex flex-col gap-1">
+        <div data-slot="quick-grip" aria-hidden className="mx-auto mb-1 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/40" />
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col justify-end gap-1 overflow-y-auto">
           {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
           <ContextOffers quick={quick} />
           <NeedsYouStrip
@@ -141,14 +137,17 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             }}
             onLeave={toComposer}
           />
-          {quick.destination.picking && (
-            <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} maxHeight={clampTo(room.above - 80, 96, 320)} manyHosts={quick.manyHosts} />
-          )}
           <div className="-mb-3">
-            <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} height={clampTo(room.above - 120, 96, 320)} onClear={quick.destination.clear} />
+            <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} height={TRANSCRIPT_PX} onClear={quick.destination.clear} />
           </div>
+          </div>
+          {quick.destination.picking && (
+            <div className="absolute inset-x-0 bottom-0 flex max-h-full flex-col justify-end">
+              <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} manyHosts={quick.manyHosts} />
+            </div>
+          )}
         </div>
-        <div ref={composer}>
+        <div className="shrink-0">
           <Composer
             draft={quick.text}
             ready={projectId !== undefined}

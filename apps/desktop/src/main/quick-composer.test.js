@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { electron, eventFrom, FakeBrowserWindow, FakeNotification, resetElectron, userData } = require("../../test/fake-electron");
 const { createQuickComposer } = require("./quick-composer");
-const { WIDTH } = require("./quick-composer-layout");
+const { HEIGHTS, WIDTH } = require("./quick-composer-layout");
 const { registerPrefsIpc } = require("./ipc-prefs");
 const { applyTranslucency } = require("./appearance");
 
@@ -11,22 +11,14 @@ const CONTEXT = { app: "Notes", title: "Plan", selection: "two lines", permissio
 
 let opened;
 let quick;
-let tick = null;
-const ticker = (next) => {
-  tick = next;
-  return () => {
-    tick = null;
-  };
-};
 beforeEach(() => {
   resetElectron();
   fs.rmSync(path.join(userData, "quick-composer.json"), { force: true });
   opened = [];
-  quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: (route) => opened.push(route), readContext: async () => CONTEXT, ticker });
+  quick = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: (route) => opened.push(route), readContext: async () => CONTEXT });
 });
 
 const panel = () => FakeBrowserWindow.all[0];
-const report = (height, composerTop) => electron.ipcMain.send("telar:quick-composer:layout", eventFrom(panel()), { height, composerTop });
 const lastOpen = () => panel().webContents.sent.filter((message) => message.channel === "telar:quick-composer:open").at(-1)?.payload;
 const press = async (chord) => {
   electron.globalShortcut.press(chord);
@@ -86,48 +78,83 @@ describe("the shortcut", () => {
 });
 
 describe("the window", () => {
-  test("is a card-sized pop-up panel that only main moves and sizes, with no click-through", async () => {
+  test("opens compact, low on the cursor's display, and only attaching or detaching changes its size", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
+    const low = Math.round(900 - 875 * 0.22);
     expect(panel().options).toMatchObject({ type: "panel", transparent: true, hasShadow: false, resizable: false, width: WIDTH });
     expect(panel().onTop).toBe("pop-up-menu");
-    expect(panel().ignoresMouse).toBeUndefined();
-    expect(panel().bounds).toMatchObject({ x: Math.round((1440 - WIDTH) / 2), width: WIDTH, y: Math.round(900 - 875 * 0.22 + 24) - 260 });
-  });
-
-  test("sizes itself to what the page reports, the composer's bottom staying put, and only when it changed", async () => {
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
-    let sets = 0;
+    expect(panel().bounds).toEqual({ x: Math.round((1440 - WIDTH) / 2), y: low - HEIGHTS.compact, width: WIDTH, height: HEIGHTS.compact });
+    const sets = [];
     const setBounds = panel().setBounds.bind(panel());
     panel().setBounds = (bounds, animate) => {
-      sets += 1;
-      expect(animate).toBe(false);
+      sets.push(animate);
       setBounds(bounds);
     };
-    report(200, 24);
-    const bottom = panel().bounds.y + panel().bounds.height;
-    report(520, 344);
-    expect(panel().bounds.height).toBe(520);
-    expect(panel().bounds.y + panel().bounds.height).toBe(bottom);
-    report(521, 345);
-    expect(sets).toBe(2);
-    expect(panel().webContents.sent.at(-1)).toMatchObject({ channel: "telar:quick-composer:room", payload: { above: expect.any(Number) } });
+    expect(electron.ipcMain.listeners.has("telar:quick-composer:layout")).toBe(false);
+    electron.ipcMain.send("telar:quick-composer:mode", eventFrom(panel()), "expanded");
+    expect(panel().bounds).toMatchObject({ y: low - HEIGHTS.expanded, height: HEIGHTS.expanded });
+    electron.ipcMain.send("telar:quick-composer:mode", eventFrom(panel()), "expanded");
+    electron.ipcMain.send("telar:quick-composer:mode", eventFrom(panel()), "huge");
+    electron.ipcMain.send("telar:quick-composer:mode", eventFrom(new FakeBrowserWindow()), "compact");
+    expect(sets).toEqual([true]);
   });
 
-  test("follows the page down as well as up, and a reopen restores the spot but never the old height", async () => {
+  test("a native move keeps the window inside the display it landed on and tells the page to take focus back", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
-    report(200, 24);
-    const bottom = panel().bounds.y + panel().bounds.height;
-    report(560, 344);
-    report(200, 24);
-    expect(panel().bounds).toMatchObject({ height: 200, y: bottom - 200 });
-    report(560, 344);
+    panel().setPosition(5000, 9000);
+    panel().emit("moved");
+    expect(panel().bounds).toEqual({ x: 1440 - WIDTH, y: 900 - HEIGHTS.compact, width: WIDTH, height: HEIGHTS.compact });
+    expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:moved", payload: undefined });
+  });
+
+  test("reopened within a minute it comes back where it was, at the size it was; after a minute it starts fresh and compact", async () => {
+    jest.useFakeTimers();
+    try {
+      quick.bind("Alt+Space");
+      await press("Alt+Space");
+      electron.ipcMain.send("telar:quick-composer:mode", eventFrom(panel()), "expanded");
+      panel().setPosition(200, 100);
+      panel().emit("moved");
+      await press("Alt+Space");
+      jest.advanceTimersByTime(59_000);
+      await press("Alt+Space");
+      expect(panel().bounds).toMatchObject({ x: 200, y: 100, height: HEIGHTS.expanded });
+      expect(lastOpen()).toMatchObject({ fresh: false });
+      await press("Alt+Space");
+      jest.advanceTimersByTime(60_000);
+      await press("Alt+Space");
+      expect(lastOpen()).toMatchObject({ fresh: true });
+      expect(panel().bounds).toMatchObject({ x: Math.round((1440 - WIDTH) / 2), height: HEIGHTS.compact });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("closing it gives focus back to the Telar window that had it, and asks its page to restore the caret", async () => {
+    const main = new FakeBrowserWindow();
+    main.focus();
+    quick.bind("Alt+Space");
     await press("Alt+Space");
+    await electron.ipcMain.invoke("telar:quick-composer:close", eventFrom(panel()));
+    expect(FakeBrowserWindow.focused).toBe(main);
+    expect(main.webContents.sent.at(-1)).toEqual({ channel: "telar:focus:restore", payload: undefined });
+    expect(electron.app.hidden ?? 0).toBe(0);
+  });
+
+  test("closing it when another app was in front hands focus back to that app, and a blur gives nothing back", async () => {
+    quick.bind("Alt+Space");
     await press("Alt+Space");
-    expect(panel().bounds.height).toBe(260);
-    expect(panel().bounds.y + 260).toBe(bottom);
+    await electron.ipcMain.invoke("telar:quick-composer:close", eventFrom(panel()));
+    const handedBack = process.platform === "darwin" ? 1 : 0;
+    expect(electron.app.hidden).toBe(handedBack);
+    const main = new FakeBrowserWindow();
+    main.focus();
+    await press("Alt+Space");
+    panel().emit("blur");
+    expect(main.webContents.sent.some((message) => message.channel === "telar:focus:restore")).toBe(false);
+    expect(electron.app.hidden).toBe(handedBack);
   });
 
   test("keeps its window clear when the appearance retints every window", async () => {
@@ -136,56 +163,6 @@ describe("the window", () => {
     applyTranslucency(true, "blur");
     expect(panel().vibrancy).toBeUndefined();
     expect(panel().backgroundColor).toBeUndefined();
-  });
-
-  test("a native move re-anchors it on the display it landed on", async () => {
-    electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
-    report(200, 24);
-    panel().setPosition(3000, 500);
-    panel().emit("moved");
-    expect(panel().bounds.x).toBe(1440 + 1920 - WIDTH);
-  });
-
-  test("the editor's fallback drag follows the cursor from main until the page lets go", async () => {
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "start", offsetX: 30, offsetY: 12 });
-    electron.screen.cursor = { x: 2000, y: 300 };
-    tick();
-    expect(panel().getPosition()).toEqual([1970, 288]);
-    electron.ipcMain.send("telar:quick-composer:drag", eventFrom(panel()), { phase: "end" });
-    expect(tick).toBeNull();
-  });
-
-  test("reopened within a minute it comes back where it was on that display; after a minute, or if that display is gone, it starts fresh", async () => {
-    jest.useFakeTimers();
-    try {
-      electron.screen.displays = [electron.screen.displays[0], { id: 2, workArea: { x: 1440, y: 0, width: 1920, height: 1080 } }];
-      electron.screen.cursor = { x: 2000, y: 500 };
-      quick.bind("Alt+Space");
-      await press("Alt+Space");
-      report(200, 24);
-      panel().setPosition(1600, 300);
-      panel().emit("moved");
-      await press("Alt+Space");
-      electron.screen.cursor = { x: 10, y: 10 };
-      jest.advanceTimersByTime(59_000);
-      await press("Alt+Space");
-      expect(panel().bounds).toMatchObject({ x: 1600, y: 500 - 260 });
-      expect(lastOpen()).toMatchObject({ fresh: false });
-      await press("Alt+Space");
-      electron.screen.displays = [electron.screen.displays[0]];
-      await press("Alt+Space");
-      expect(panel().bounds.x).toBe(Math.round((1440 - WIDTH) / 2));
-      await press("Alt+Space");
-      jest.advanceTimersByTime(60_000);
-      await press("Alt+Space");
-      expect(lastOpen()).toMatchObject({ fresh: true });
-    } finally {
-      jest.useRealTimers();
-    }
   });
 
   test("a lost or failed page is logged and reloaded once, not forever", () => {

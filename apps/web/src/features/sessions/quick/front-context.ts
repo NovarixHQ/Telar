@@ -1,7 +1,6 @@
 export type Permission = "accessibility";
 export type Permissions = Record<Permission, boolean>;
 
-export type Room = { above: number };
 
 export type FrontContext = {
   app: string;
@@ -16,9 +15,8 @@ export type QuickComposerBridge = {
   context: () => Promise<FrontContext | null>;
   onOpen: (listener: (context: FrontContext) => void) => () => void;
   close: () => Promise<unknown>;
-  layout: (metrics: { height: number; composerTop: number }) => void;
-  onRoom: (listener: (room: Room) => void) => () => void;
-  drag: (input: { phase: "start"; offsetX: number; offsetY: number } | { phase: "end" }) => void;
+  mode: (mode: "compact" | "expanded") => void;
+  onMoved: (listener: () => void) => () => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
   hold: () => void;
   failed: (message: string) => void;

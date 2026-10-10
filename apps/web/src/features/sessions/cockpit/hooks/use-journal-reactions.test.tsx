@@ -88,29 +88,20 @@ test("terminals already running when the cockpit opens get tabs without taking t
   expect(strip().open).toBe(false);
 });
 
-test("a terminal opened later opens the panel on its tab", async () => {
-  const { Probe, strip, runs } = harness({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: false });
-  await mount(<Probe />);
-  await runs([]);
-  await runs([run("t1")]);
-  expect(strip().open).toBe(true);
-  expect(strip().activeTab).toBe("terminal");
-});
-
-test("a command typed into an existing shell brings its tab forward", async () => {
+test("a terminal an agent or Run opens later is added in the background", async () => {
   const { Probe, strip, runs } = harness({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: true });
-  await mount(<Probe />);
-  await runs([run("t1")]);
-  expect(strip().activeTab).toBe("diff");
-  await runs([run("t1", "busy", "bun test")]);
-  expect(strip().activeTab).toBe("terminal");
-});
-
-test("the person's recent choice wins over a new terminal: it is added, not shown", async () => {
-  const { Probe, strip, runs } = harness({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: true }, { touched: true });
   await mount(<Probe />);
   await runs([]);
   await runs([run("t1", "busy", "bun dev")]);
   expect(strip().tabs.map((tab) => tab.kind)).toEqual(["diff", "terminal"]);
+  expect(strip().activeTab).toBe("diff");
+  expect(strip().open).toBe(true);
+});
+
+test("a command started in an existing shell leaves the selected tab alone", async () => {
+  const { Probe, strip, runs } = harness({ tabs: [{ id: "diff", kind: "diff", params: {} }], activeTab: "diff", open: true });
+  await mount(<Probe />);
+  await runs([run("t1")]);
+  await runs([run("t1", "busy", "bun test")]);
   expect(strip().activeTab).toBe("diff");
 });

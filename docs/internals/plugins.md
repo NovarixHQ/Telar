@@ -17,6 +17,7 @@
 | `panels` | the Plugins panel tab, drawn from blocks a session verb answers. `refreshOn` names events that make it read again. |
 | `eventKinds` | the names of the `plugin.event`s it may emit. Anything else is refused. |
 | `gitignore` | the rule written into a project when it turns the plugin on |
+| `composer` | decorations and `/` commands in the composer of the plugin's projects |
 
 The cockpit has no plugin-specific React for a manifest plugin: every surface it draws is blocks (`PluginPanelBlock`). A view may ask to be read again with `refreshMs` while something runs that emits no event.
 
@@ -27,6 +28,19 @@ The cockpit has no plugin-specific React for a manifest plugin: every surface it
 - A session event is journaled as `plugin.event`, and a `note` on it becomes a transcript row. Project and machine events are live only.
 - All of them travel whole on `/v2/sessions/stream`. The cockpit listens with `usePluginEvents`. There is no replay, so a view reads its state on mount and treats events only as a cue to read again.
 
+## Composer extensions
+
+- A decoration is a regular expression, matched one line at a time, plus a style from a fixed set. It never matches inside code, links or chips, or where it would touch a word character. Earlier decorations win an overlap. Its preview is KaTeX or a session route's `{ text }`.
+- `/name words` on the caret's line runs on Enter instead of sending. It posts `{ text }` to the command's session route, and the answer's `text` replaces the line as one undo step. Typed alone, the command takes the rest of the draft as its input and replaces the whole draft.
+- Commands need a session, so a fresh canvas shows the decorations but not the commands.
+
+## One-shot completion
+
+- `host.complete()` lends a module plugin one short answer from the text generation policy's provider and cheap model, with no tools and no session.
+- It is bounded by an 8,000-character prompt, a 4,000-character answer (at most 16,000 on request), a 30 s timeout (at most 60 s) that kills the child, and two calls in flight per plugin.
+- These runs leave no provider transcript, so their cost is appended to `usage-one-shot.jsonl`, which the usage report merges. Only Claude reports tokens today.
+- Installed plugins can't call it yet: it needs a request from the child to the engine.
+
 ## Gating
 
 - A plugin runs only when the Mac allows it **and** the project enabled it. An unset machine entry counts as allowed.
@@ -36,7 +50,6 @@ The cockpit has no plugin-specific React for a manifest plugin: every surface it
 
 ## Not built yet
 
-- Composer extensions.
 - Plugins that replace whole regions of the UI (the sidebar, the transcript).
 - File viewers, which only Data Science has.
 - Style plugins.

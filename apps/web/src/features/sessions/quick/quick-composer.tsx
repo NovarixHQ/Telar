@@ -128,8 +128,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
         onPointerDownCapture={quick.forgetKey}
         onClickCapture={(event) => holdForFilePicker(event, bridge)}
         onClick={(event) => focusFromEmpty(event.target)}
-        data-attached={quick.destination.destination ? "" : undefined}
-        className="flex min-h-0 flex-1 flex-col gap-1 data-attached:gap-0"
+        className="flex min-h-0 flex-1 flex-col gap-1"
       >
         <div className="relative flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col justify-end gap-1 overflow-y-auto">
@@ -145,7 +144,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             }}
             onLeave={toComposer}
           />
-          <div data-slot="quick-arriving" data-ready={sized || undefined} className={arriving}>
+          <div data-slot="quick-arriving" data-ready={sized || undefined} className={cn("-mb-1", arriving)}>
             <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} height={TRANSCRIPT_PX} onClear={quick.destination.clear} />
           </div>
           </div>

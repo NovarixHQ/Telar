@@ -1515,7 +1515,7 @@ html:has([data-surface="quick"]) *::-webkit-scrollbar {
   -webkit-app-region: no-drag;
 }
 [data-surface="quick"] [data-slot="input-group"] {
-  background-color: var(--popover);
+  background-color: var(--card);
   backdrop-filter: none;
 }
 [data-slot="quick-transcript"] :is(.text-sm, .telar-markdown) {

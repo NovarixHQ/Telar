@@ -28,8 +28,8 @@ const row = (id: string, extra: Partial<ProviderModel> = {}): ProviderModel => (
 const CATALOGUE_2_1_280 = [
   row("opus[1m]", { resolves: "claude-opus-5-5[1m]", label: "Opus (1M context)", isDefault: true }),
   row("claude-fable-5[1m]", { resolves: "claude-fable-5[1m]", label: "Fable" }),
-  row("sonnet", { resolves: "claude-sonnet-5", label: "Sonnet" }),
-  row("sonnet[1m]", { resolves: "claude-sonnet-5[1m]", label: "Sonnet 5 (1M context)" }),
+  row("sonnet", { resolves: "claude-sonnet-5-5", label: "Sonnet" }),
+  row("sonnet[1m]", { resolves: "claude-sonnet-5-5[1m]", label: "Sonnet 5.5 (1M context)" }),
   row("haiku", { resolves: "claude-haiku-4-5-20251001", label: "Haiku", efforts: [] }),
 ];
 
@@ -41,7 +41,14 @@ describe("T3 Code's list, applied to the 2.1.280 catalogue", () => {
 
   test("current and legacy come from the manifest's status, in its order", () => {
     const families = (legacy: boolean) => [...new Set(out.filter((model) => model.legacy === legacy).map(canonical))];
-    expect(families(false)).toEqual(["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5"]);
+    expect(families(false)).toEqual([
+      "claude-fable-5-1",
+      "claude-opus-5-5",
+      "claude-opus-5",
+      "claude-sonnet-5-5",
+      "claude-sonnet-5",
+      "claude-haiku-4-5",
+    ]);
     expect(families(true)).toEqual([
       "claude-fable-5",
       "claude-opus-4-8",
@@ -49,7 +56,6 @@ describe("T3 Code's list, applied to the 2.1.280 catalogue", () => {
       "claude-opus-4-6",
       "claude-opus-4-5",
       "claude-sonnet-4-6",
-      "claude-haiku-4-5",
     ]);
   });
 
@@ -58,18 +64,25 @@ describe("T3 Code's list, applied to the 2.1.280 catalogue", () => {
     expect(longDefaultOf(out)).toBe("claude-fable-5-1[1m]");
   });
 
-  test("Opus 5.5 carries the CLI's row and label, and the `new` badge", () => {
+  test("Opus 5.5 and Sonnet 5.5 carry the CLI's row and label, and the `new` badge", () => {
     expect(bySlug("claude-opus-5-5")).toMatchObject([
       { id: "opus", badge: "new", isDefault: false },
       { id: "opus[1m]", label: "Opus (1M context)", badge: "new", defaultWindow: true, isDefault: false },
     ]);
-    expect(new Set(out.filter((model) => model.badge).map(canonical))).toEqual(new Set(["claude-opus-5-5"]));
+    expect(new Set(out.filter((model) => model.badge).map(canonical))).toEqual(new Set(["claude-opus-5-5", "claude-sonnet-5-5"]));
   });
 
-  test("Sonnet 5 publishes BOTH windows, 200k marked as its default", () => {
-    expect(bySlug("claude-sonnet-5").map((model) => [model.id, model.defaultWindow ?? false])).toEqual([
+  test("Sonnet 5.5 publishes BOTH windows, 200k marked as its default", () => {
+    expect(bySlug("claude-sonnet-5-5").map((model) => [model.id, model.defaultWindow ?? false])).toEqual([
       ["sonnet", true],
       ["sonnet[1m]", false],
+    ]);
+  });
+
+  test("Sonnet 5 stays current beside 5.5, as its own rows", () => {
+    expect(bySlug("claude-sonnet-5").map((model) => [model.id, model.legacy])).toEqual([
+      ["claude-sonnet-5", false],
+      ["claude-sonnet-5[1m]", false],
     ]);
   });
 
@@ -89,8 +102,8 @@ describe("T3 Code's list, applied to the 2.1.280 catalogue", () => {
   });
 
   test("a listed row keeps its own efforts; an empty list is filled from the profile", () => {
-    expect(bySlug("claude-sonnet-5")[0]!.efforts).toEqual(["high"]);
-    expect(bySlug("claude-haiku-4-5")).toMatchObject([{ id: "haiku", efforts: [], legacy: true }]);
+    expect(bySlug("claude-sonnet-5-5")[0]!.efforts).toEqual(["high"]);
+    expect(bySlug("claude-haiku-4-5")).toMatchObject([{ id: "haiku", efforts: [], legacy: false }]);
   });
 
   test("nothing is hidden when the installed CLI is new enough", () => {
@@ -149,7 +162,7 @@ describe("a fixed window is published, not guessed from the suffix (#914)", () =
     expect(windowOf("claude-opus-4-8")).toEqual([1_000_000]);
     expect(windowOf("claude-opus-4-7")).toEqual([1_000_000]);
     expect(windowOf("claude-haiku-4-5")).toEqual([200_000]);
-    expect(windowOf("claude-sonnet-5")).toEqual([undefined, undefined]);
+    expect(windowOf("claude-sonnet-5-5")).toEqual([undefined, undefined]);
   });
 
   test("claudeFixedWindowOf reads the same profile, by slug or alias", () => {
@@ -190,9 +203,16 @@ test("the bundled manifest is well-formed: every model has a profile, the defaul
   expect(claude.models.some((model) => model.slug === claude.defaults?.chat)).toBe(true);
 });
 
+test("the bare `sonnet` alias is Sonnet 5.5; Sonnet 5 keeps only its own names", () => {
+  const slugOf = (alias: string) => BUNDLED_MANIFEST.claude!.models.find((model) => model.slug === alias || model.aliases?.includes(alias))?.slug;
+  for (const alias of ["sonnet", "sonnet-5.5", "claude-sonnet-5.5"]) expect(slugOf(alias), alias).toBe("claude-sonnet-5-5");
+  for (const alias of ["sonnet-5", "claude-sonnet-5.0"]) expect(slugOf(alias), alias).toBe("claude-sonnet-5");
+});
+
 test("a model's cost tier is found by any of its spellings, and an unknown model has none", () => {
   expect(claudeTierOf("haiku")).toBe(1);
   expect(claudeTierOf("claude-sonnet-5[1m]")).toBe(2);
+  expect(claudeTierOf("sonnet-5.5")).toBe(2);
   expect(claudeTierOf("claude-opus-5-5")).toBe(3);
   expect(claudeTierOf("claude-fable-5-1[1m]")).toBe(4);
   expect(claudeTierOf("claude-mystery-9")).toBeUndefined();

@@ -8,10 +8,15 @@ export type FlatEntry = {
   children: SidebarSession[];
 };
 
-export function parentKeyOf(session: Pick<SidebarSession, "id" | "hostId" | "startedFrom" | "assignments">): string | undefined {
+export function parentIdOf(session: Pick<SidebarSession, "id" | "startedFrom" | "assignments">): string | undefined {
   const first = (session.assignments ?? []).filter((each) => each.outcome !== "detached").sort((left, right) => left.receivedAt - right.receivedAt)[0];
   const parentId = session.startedFrom?.sessionId ?? first?.fromSessionId;
-  if (!parentId || parentId === session.id) return undefined;
+  return parentId && parentId !== session.id ? parentId : undefined;
+}
+
+export function parentKeyOf(session: Pick<SidebarSession, "id" | "hostId" | "startedFrom" | "assignments">): string | undefined {
+  const parentId = parentIdOf(session);
+  if (!parentId) return undefined;
   return session.hostId ? `${session.hostId}:${parentId}` : parentId;
 }
 

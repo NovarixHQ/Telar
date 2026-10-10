@@ -1,31 +1,24 @@
 import path from "node:path";
-import { machineAllows, type ProjectPlugins, type Session, type TurnAttachment } from "@telar/engine-client";
+import type { Session, TurnAttachment } from "@telar/engine-client";
 import { EngineStateError, type JournalEntry } from "../../platform/kernel";
 import { readFenced, writeFenced } from "../files";
 import { workspaceRootOf } from "../sessions";
 import type { DsCapability } from "./data-science/capability";
-import type { JobRunner } from "./data-science/jobs";
+import type { JobRunner } from "../../../plugins/sdk/jobs";
 import type { KernelHost } from "./data-science/kernel-host";
 import type { DataScienceOps } from "./data-science/operations";
 import { DsFiles } from "./data-science/state-files";
 import { NOTEBOOK_MAX_BYTES, storeDsCapability } from "./data-science/store-capability";
 import { type TableWindow, windowCsv } from "./data-science/table";
 import { telarVenvDir } from "./data-science/telar-venv";
-import type { CompileStatus, LatexCapability } from "./latex/capability";
-import type { ResolvedLatex } from "./latex/compile";
-import { storeLatexCapability } from "./latex/store-capability";
-import type { LatexToolchain } from "./latex/toolchain";
 
 export type PluginDoorsHost = {
   engineRoot: string;
   now(): number;
   getSession(sessionId: string): Session;
   requireSession(sessionId: string): Session;
-  machinePlugins(): ProjectPlugins;
   resolveDataScience(session: Session): { pythonPath: string } | undefined;
   dataScienceRefusal(session: Session): string;
-  resolveLatex(session: Session): ResolvedLatex | undefined;
-  latexToolchain(): Promise<LatexToolchain>;
   sessionDir(sessionId: string): string;
   putAttachment(sessionId: string, input: { name: string; mediaType: string; data: Uint8Array; tags?: string[]; producer?: string }): TurnAttachment;
   attachmentBytes(sessionId: string, attachmentId: string): Uint8Array;
@@ -35,17 +28,14 @@ export type PluginDoorsHost = {
 
 export type KernelState = "starting" | "idle" | "busy" | "restarting" | "dead";
 
-/** The data-science and LaTeX doors for one session: every route and toolkit reaches a kernel or a compile through these. */
+/** The data-science doors for one session: every route and toolkit reaches a kernel through these. */
 export class PluginDoors {
   /** Absent means every kernel verb refuses with "no kernel host": the store must build in a test without spawning Python. */
   private kernels?: KernelHost;
   private pluginRelease?: (sessionId: string, reason: string) => void;
-  /** The last compile per session, for `latex_status` and the surface. */
-  private readonly latexCompiles = new Map<string, CompileStatus>();
 
   constructor(
     private readonly dsJobs: JobRunner,
-    private readonly latexJobs: JobRunner,
     private readonly host: PluginDoorsHost,
   ) {}
 
@@ -95,30 +85,6 @@ export class PluginDoors {
       waitJob: (jobId, timeoutMs) => this.dsJobs.wait(jobId, timeoutMs),
       environments: async () => ({ environments: await this.host.dataScienceOps().environmentRows(projectId, cwd) }),
       useEnvironment: (target) => this.host.dataScienceOps().useEnvironment(sessionId, target),
-    });
-  }
-
-  latex(sessionId: string): LatexCapability {
-    const session = this.host.getSession(sessionId);
-    const resolved = this.host.resolveLatex(session);
-    if (!resolved) {
-      throw new EngineStateError(
-        "invalid_request",
-        machineAllows(this.host.machinePlugins(), "latex") ? "LaTeX is not enabled for this session's project" : "LaTeX is turned off for this computer",
-      );
-    }
-    return storeLatexCapability({
-      sessionId,
-      cwd: workspaceRootOf(session),
-      resolved,
-      toolchain: () => this.host.latexToolchain(),
-      jobs: this.latexJobs,
-      appendEvent: (event) => this.host.appendEvent(sessionId, event),
-      now: () => this.host.now(),
-      lastCompile: {
-        get: () => this.latexCompiles.get(sessionId),
-        set: (status) => { this.latexCompiles.set(sessionId, status); },
-      },
     });
   }
 

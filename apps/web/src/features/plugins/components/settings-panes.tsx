@@ -2,9 +2,7 @@ import type { ComponentType } from "react";
 import type { Project, ProjectPlugins } from "@telar/engine-client";
 import { DataSciencePackagesRow } from "../data-science/machine-settings";
 import { DataScienceSection, dataScienceToggle } from "../data-science/data-science-section";
-import { LatexDistributionRows } from "../latex/machine-settings";
-import { LatexSection, latexToggle } from "../latex/latex-section";
-import { blockPatch, enablePatch } from "../sections";
+import { blockPatch, togglePatch } from "../sections";
 
 export type ProjectSettingsPane = ComponentType<{ project: Project; onChange: (project: Project) => void }>;
 type MachineSettingsBlock = ComponentType<{ machine?: ProjectPlugins; onChange: (machine: ProjectPlugins) => void }>;
@@ -18,7 +16,6 @@ export type PluginSettingsPanes = {
 
 export const SETTINGS_PANES: Readonly<Record<string, PluginSettingsPanes>> = {
   "data-science": { project: DataScienceSection, projectToggle: dataScienceToggle, machineRows: DataSciencePackagesRow },
-  latex: { project: LatexSection, projectToggle: latexToggle, machineRows: LatexDistributionRows },
 };
 
 function panesFor(pluginId: string): PluginSettingsPanes | undefined {
@@ -31,7 +28,7 @@ export function projectPaneFor(pluginId: string): ProjectSettingsPane | undefine
 
 export function projectTogglePatch(project: Project, pluginId: string, next: boolean) {
   const toggle = panesFor(pluginId)?.projectToggle;
-  return toggle ? blockPatch(pluginId, toggle(project, next)) : enablePatch(pluginId, next);
+  return toggle ? blockPatch(pluginId, toggle(project, next)) : togglePatch(project, pluginId, next);
 }
 
 export function machineBlocksFor(pluginId: string): { machineRows?: MachineSettingsBlock } {

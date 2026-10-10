@@ -1,29 +1,47 @@
+import { BUNDLED_PLUGIN_TOOL_PREFIXES, PluginManifest } from "@telar/engine-client";
+import { latexPlugin } from "../../../plugins/latex";
+import type { BundledPlugin } from "../../../plugins/sdk";
 import { helloPlugin, helloToolModule, type HelloSession } from "./hello";
-import { latexPlugin, latexToolModule, type LatexPluginDeps } from "./latex/plugin";
 import { dataSciencePlugin, dataScienceToolModule, type DataSciencePluginDeps } from "./data-science/plugin";
 import type { PluginEngineModule } from "./contract";
+import { manifestToolModule } from "./manifest";
 import type { PluginToolModule } from "./tool-module";
 
 export type BundledPluginDeps = {
   resolveHello: (sessionId: string) => HelloSession;
-  latex: LatexPluginDeps;
   dataScience: DataSciencePluginDeps;
 };
 
 export const HELLO_GATE = "TELAR_PLUGIN_HELLO";
 
-export const BUNDLED_PLUGIN_IDS = ["latex", "data-science", "hello"] as const;
+/** Ship with the app and load before `<TELAR_HOME>/plugins`, on the contract an installed plugin uses. */
+const MODULE_PLUGINS: readonly BundledPlugin[] = [latexPlugin];
 
-export function bundledPlugins(deps: BundledPluginDeps, env: NodeJS.ProcessEnv = process.env): PluginEngineModule[] {
-  const modules: PluginEngineModule[] = [];
-  modules.push(latexPlugin(deps.latex));
-  modules.push(dataSciencePlugin(deps.dataScience));
+export const bundledModules = (): { plugin: BundledPlugin; manifest: PluginManifest }[] =>
+  MODULE_PLUGINS.map((plugin) => ({ plugin, manifest: PluginManifest.parse(plugin.manifest) }));
+
+/** Built-in plugins that predate the manifest contract. */
+const BUILT_IN_IDS = ["data-science", "hello"];
+
+/** What an installed plugin may not take: every bundled id and tool prefix. */
+export function bundledReservations(): { ids: ReadonlySet<string>; prefixes: ReadonlySet<string> } {
+  const manifests = bundledModules().map(({ manifest }) => manifest);
+  return {
+    ids: new Set([...BUILT_IN_IDS, ...manifests.map((manifest) => manifest.id)]),
+    prefixes: new Set([...BUNDLED_PLUGIN_TOOL_PREFIXES, ...bundledModulePrefixes()]),
+  };
+}
+
+export const bundledModulePrefixes = (): string[] => bundledModules().flatMap(({ manifest }) => (manifest.toolPrefix ? [manifest.toolPrefix] : []));
+
+export function builtInPlugins(deps: BundledPluginDeps, env: NodeJS.ProcessEnv = process.env): PluginEngineModule[] {
+  const modules: PluginEngineModule[] = [dataSciencePlugin(deps.dataScience)];
   if (env[HELLO_GATE] === "1") modules.push(helloPlugin({ resolve: deps.resolveHello }));
   return modules;
 }
 
 export function bundledPluginToolModules(env: NodeJS.ProcessEnv = process.env): PluginToolModule[] {
-  const modules: PluginToolModule[] = [latexToolModule, dataScienceToolModule];
+  const modules: PluginToolModule[] = [...bundledModules().map(({ manifest }) => manifestToolModule(manifest)), dataScienceToolModule];
   if (env[HELLO_GATE] === "1") modules.push(helloToolModule);
   return modules;
 }

@@ -17,7 +17,7 @@ import { Kernel } from "./platform/kernel";
 import { SettingsStore } from "./domains/settings";
 import { AppearanceStore } from "./domains/appearance";
 import { chosenModel, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
-import { DataScienceOps, LatexOps, PluginToolchains } from "./domains/plugins";
+import { DataScienceOps, PluginToolchains } from "./domains/plugins";
 import { UsageLimitSources } from "./domains/usage";
 import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionChildren, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
 import { driverCapabilities } from "./drivers/capabilities";
@@ -30,7 +30,8 @@ import { SessionBrowser } from "./domains/browser";
 import { GitHubStore, defaultGhRunner, SessionPulls, type GhRunner } from "./domains/github";
 import { ConversationAdoption } from "./domains/providers";
 import { BUNDLED_MANIFEST, type ModelManifest, readModelCatalogue } from "./domains/providers";
-import { PluginDoors, JobRunner } from "./domains/plugins";
+import { PluginDoors } from "./domains/plugins";
+import { JobRunner } from "../plugins/sdk/jobs";
 import { ScheduleBook } from "./domains/schedules";
 import { derivedBranchFor, liveCheckouts, prepareSessionWorktree, WorktreeMaintenance, createWorktreeQueue, defaultWorktreeGitRunner, type WorktreeQueue, SETUP_STOP_GRACE_MS, WorktreeSetups } from "./domains/worktrees";
 import { defaultAsyncGitRunner, type AsyncGitRunner, type GitRunner } from "./platform/git/runner";
@@ -125,7 +126,6 @@ export class EngineStore {
   readonly adoption: ConversationAdoption;
   readonly dictation: Dictation;
   readonly dataScienceOps: DataScienceOps;
-  readonly latexOps: LatexOps;
 
   private registerCacheHooks(): void {
     this.kernel.onRollback(() => this.kernel.runProgress.clear());
@@ -180,9 +180,6 @@ export class EngineStore {
 
   /** Environment builds and package installs, as jobs the settings page polls. */
   readonly dsJobs = new JobRunner(() => this.now());
-
-  /** Compile and tlmgr jobs: a sibling runner, so a compile never queues behind pip installs. */
-  readonly latexJobs = new JobRunner(() => this.now());
 
   constructor(
     root: string,
@@ -285,7 +282,7 @@ export class EngineStore {
     });
     ({ worker: this.worker, settler: this.settler, wakes: this.wakes, recovery: this.recovery, ingest: this.ingest } = this.turnModules());
     this.worktrees = this.worktreeMaintenance();
-    ({ dataScienceOps: this.dataScienceOps, latexOps: this.latexOps } = this.createPluginOps());
+    this.dataScienceOps = this.createDataScienceOps();
     this.dictation = new Dictation(this.paths.root, {
       liveSessions: () => this.live.rows().sessions,
       projects: () => this.projectRegistry.read().projects,
@@ -413,16 +410,13 @@ export class EngineStore {
       appendEvent: (sessionId, event, runId) => this.kernel.appendEvent(sessionId, event, runId),
       requestOpened: (sessionId, turn, request) => this.wakes.fireSubscriptions(sessionId, "request_opened", turn, { request }),
     });
-    const pluginDoors = new PluginDoors(this.dsJobs, this.latexJobs, {
+    const pluginDoors = new PluginDoors(this.dsJobs, {
       engineRoot: this.paths.root,
       now: () => this.now(),
       getSession: (sessionId) => this.records.get(sessionId),
       requireSession: (sessionId) => this.records.require(sessionId),
-      machinePlugins: () => this.toolchains.machine(),
       resolveDataScience: (session) => this.toolchains.resolveDataScience(session),
       dataScienceRefusal: (session) => this.toolchains.dataScienceRefusal(session),
-      resolveLatex: (session) => this.toolchains.resolveLatex(session),
-      latexToolchain: () => this.latexOps.toolchain(),
       sessionDir: (sessionId) => sessionDir(this.paths, sessionId),
       putAttachment: (sessionId, input) => this.attachments.put(sessionId, input),
       attachmentBytes: (sessionId, attachmentId) => this.attachments.bytes(sessionId, attachmentId).data,
@@ -583,19 +577,16 @@ export class EngineStore {
   /** What the turn projection built on open, reported like the index backfill. */
   readonly turnSummaryBackfill?: { sessions: number; turns: number };
 
-  private createPluginOps(): { dataScienceOps: DataScienceOps; latexOps: LatexOps } {
-    return {
-      dataScienceOps: new DataScienceOps(this.toolchains, this.dsJobs, {
-        root: this.paths.root,
-        now: () => this.now(),
-        getProject: (projectId) => this.projectRegistry.get(projectId),
-        updateProject: (projectId, patch) => this.projectRegistry.update(projectId, patch),
-        getSession: (sessionId) => this.records.get(sessionId),
-        restartKernel: (sessionId) => this.pluginDoors.dataScience(sessionId).restart(),
-        machinePlugins: () => this.toolchains.machine(),
-      }),
-      latexOps: new LatexOps(this.toolchains, this.latexJobs, (projectId) => this.projectRegistry.get(projectId)),
-    };
+  private createDataScienceOps(): DataScienceOps {
+    return new DataScienceOps(this.toolchains, this.dsJobs, {
+      root: this.paths.root,
+      now: () => this.now(),
+      getProject: (projectId) => this.projectRegistry.get(projectId),
+      updateProject: (projectId, patch) => this.projectRegistry.update(projectId, patch),
+      getSession: (sessionId) => this.records.get(sessionId),
+      restartKernel: (sessionId) => this.pluginDoors.dataScience(sessionId).restart(),
+      machinePlugins: () => this.toolchains.machine(),
+    });
   }
 
   private createClaims(): TurnClaims {
@@ -617,7 +608,6 @@ export class EngineStore {
       resolveProviderInstance: (instanceId, driver) => this.providers.resolve(instanceId, driver),
       getProject: (id) => this.projectRegistry.get(id),
       resolveDataScience: (session) => this.toolchains.resolveDataScience(session),
-      resolveLatex: (session) => this.toolchains.resolveLatex(session),
       enabledPluginIds: (session) => this.toolchains.enabledIds(session),
       getAgentOrientation: () => this.settings.orientation(),
       simulatorAccess: () => this.simulatorAccess?.(),

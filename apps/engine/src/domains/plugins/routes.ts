@@ -3,7 +3,8 @@ import { PluginInstallInput } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
 import { ok, type Route } from "../../platform/http/route";
 import { installPluginFolder, PluginInstallError, removePluginFolder } from "./external/installer";
-import { BUNDLED_RESERVATIONS, type LoadedExternalPlugin } from "./external/manifest";
+import type { LoadedExternalPlugin } from "./external/manifest";
+import { bundledReservations } from "./bundled";
 import type { PluginEngineModule } from "./contract";
 import type { PluginHost } from "./host";
 import type { EngineStore } from "../../state";
@@ -61,9 +62,10 @@ export function pluginRoutes(store: EngineStore, host: PluginHost, folders: Plug
         if (!parsed.success) throw new HttpError(400, "invalid_request", "path must be a folder and mode copy or link");
         let loaded: LoadedExternalPlugin;
         try {
+          const reserved = bundledReservations();
           loaded = installPluginFolder(folders.dir, parsed.data.path, parsed.data.mode, {
-            ids: new Set([...BUNDLED_RESERVATIONS.ids, ...installed.loaded.keys()]),
-            prefixes: new Set([...BUNDLED_RESERVATIONS.prefixes, ...installed.prefixes()]),
+            ids: new Set([...reserved.ids, ...installed.loaded.keys()]),
+            prefixes: new Set([...reserved.prefixes, ...installed.prefixes()]),
           });
         } catch (error) {
           if (error instanceof PluginInstallError) throw new HttpError(400, "invalid_request", error.message);

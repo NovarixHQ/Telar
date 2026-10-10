@@ -2,7 +2,6 @@ import fs from "node:fs";
 import {
   applyPluginPatch,
   DataScienceConfig as DataScienceConfigSchema,
-  LatexConfig as LatexConfigSchema,
   machineAllows,
   machineSettings,
   pluginBlock,
@@ -11,7 +10,6 @@ import {
   ProjectPlugins as ProjectPluginsSchema,
   readProjectPlugins,
   type DataScienceConfig,
-  type LatexConfig,
   type PluginPatch,
   type Project,
   type ProjectPlugins,
@@ -19,12 +17,8 @@ import {
 } from "@telar/engine-client";
 import { resolvePythonPath } from "./data-science/python-env";
 import { toolchainStatus, type Toolchain } from "./data-science/toolchain";
-import type { ResolvedLatex } from "./latex/compile";
-import { ManagedTectonic, type ManagedTectonicStatus } from "./latex/managed";
-import { latexToolchainStatus, type LatexToolchain } from "./latex/toolchain";
 import type { Kernel } from "../../platform/kernel";
 import { DataScienceMachineSettings as DataScienceMachineSettingsSchema } from "./data-science/plugin";
-import { LatexMachineSettings as LatexMachineSettingsSchema } from "./latex/plugin";
 import { workspaceRootOf } from "../sessions";
 
 const TOOLCHAIN_CACHE_MS = 5_000;
@@ -37,19 +31,16 @@ function typedPluginBlock<T>(project: Project, id: string, schema: { safeParse(v
   return parsed.success ? parsed.data : schema.safeParse({ enabled: block.enabled === true }).data;
 }
 export const dataScienceBlock = (project: Project): DataScienceConfig | undefined => typedPluginBlock(project, "data-science", DataScienceConfigSchema);
-export const latexBlock = (project: Project): LatexConfig | undefined => typedPluginBlock(project, "latex", LatexConfigSchema);
 
 type ToolchainDeps = { getProject: (projectId: string) => Project };
 
 /**
- * The Mac's plugin ceiling, which interpreter and TeX toolchain a session
- * resolves to, the toolchain probes behind the Plugins pane, and Telar's own
- * Tectonic. Disabling a plugin for the Mac never touches a project's settings.
+ * The Mac's plugin ceiling, which interpreter a session resolves to, and the
+ * toolchain probes behind the Plugins pane. Disabling a plugin for the Mac never
+ * touches a project's settings.
  */
 export class PluginToolchains {
   private dsToolchainCache?: { until: number; value: Promise<Toolchain> };
-  private latexToolchainCache?: { until: number; value: Promise<LatexToolchain> };
-  private managedInstall?: ManagedTectonic;
 
   constructor(
     private readonly kernel: Kernel,
@@ -113,35 +104,6 @@ export class PluginToolchains {
     return { pythonPath };
   }
 
-  /**
-   * The TeX toolchain a session compiles with: the project's choice, then the
-   * Mac's default, then Telar's managed Tectonic. Each must exist on disk;
-   * `mainFile` resolves against the session's own tree when compiling.
-   */
-  resolveLatex(session: Session): ResolvedLatex | undefined {
-    const project = this.projectOf(session);
-    const config = project && latexBlock(project);
-    if (!config?.enabled || !machineAllows(this.machine(), "latex")) return undefined;
-    const machine = LatexMachineSettingsSchema.safeParse(machineSettings(this.machine(), "latex"));
-    const machineDefaults = machine.success ? machine.data : {};
-    for (const choice of [config.toolchain, machineDefaults.toolchain]) {
-      if (!choice) continue;
-      const binPath = choice.kind === "managed" ? this.managed().found()?.path : choice.path;
-      if (!binPath || !fs.existsSync(binPath)) continue;
-      const engine = choice.engine ?? machineDefaults.engine;
-      return {
-        kind: choice.kind === "managed" ? "tectonic" : (choice.kind as ResolvedLatex["kind"]),
-        binPath,
-        ...(engine ? { engine: engine as ResolvedLatex["engine"] } : {}),
-        ...(config.mainFile ? { mainFile: config.mainFile } : {}),
-        ...(machineDefaults.autoInstallPackages ? { autoInstallPackages: true } : {}),
-      };
-    }
-    const managed = this.managed().found();
-    if (!managed) return undefined;
-    return { kind: "tectonic", binPath: managed.path, ...(config.mainFile ? { mainFile: config.mainFile } : {}) };
-  }
-
   /** uv, conda, Homebrew and the Pythons they see; cached briefly because each answer is several spawns. */
   dataScienceToolchain(fresh = false): Promise<Toolchain> {
     if (!fresh && this.dsToolchainCache && this.kernel.now() < this.dsToolchainCache.until) return this.dsToolchainCache.value;
@@ -153,37 +115,6 @@ export class PluginToolchains {
 
   forgetDataScienceToolchain(): void {
     this.dsToolchainCache = undefined;
-  }
-
-  /** The managed Tectonic's status rides outside the cache: it is one `stat` and changes when a download finishes. */
-  latexToolchain(fresh = false): Promise<LatexToolchain> {
-    if (fresh || !this.latexToolchainCache || this.kernel.now() >= this.latexToolchainCache.until) {
-      const value = latexToolchainStatus();
-      this.latexToolchainCache = { until: this.kernel.now() + TOOLCHAIN_CACHE_MS, value };
-      void value.catch(() => { this.latexToolchainCache = undefined; });
-    }
-    return this.latexToolchainCache.value.then((toolchain) => ({ ...toolchain, managed: this.managedStatus() }));
-  }
-
-  forgetLatexToolchain(): void {
-    this.latexToolchainCache = undefined;
-  }
-
-  managedStatus(): ManagedTectonicStatus {
-    return this.managed().status();
-  }
-
-  /** Idempotent; the toolchain cache is dropped so the next probe reports the new binary. */
-  async installManaged(): Promise<ManagedTectonicStatus> {
-    const status = await this.managed().install();
-    this.latexToolchainCache = undefined;
-    return status;
-  }
-
-  // One instance: the single-flight install and its last error are shared by every request.
-  private managed(): ManagedTectonic {
-    this.managedInstall ??= new ManagedTectonic({ root: this.kernel.paths.root });
-    return this.managedInstall;
   }
 
   private projectOf(session: Session): Project | undefined {

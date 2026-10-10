@@ -13,7 +13,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const ENGINE_DIR = "apps/engine";
 
 /** Where the engine's tests live, relative to ENGINE_DIR: next to the code, and shared ones in test/. */
-export const ENGINE_TEST_DIRS = ["src", "test"];
+export const ENGINE_TEST_DIRS = ["src", "plugins", "test"];
 
 export async function testCeilingMs() {
   const source = await readFile(join(ROOT, "scripts/test-ceiling.mjs"), "utf8");

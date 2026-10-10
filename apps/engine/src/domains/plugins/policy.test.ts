@@ -15,11 +15,16 @@
  *      process must fail CLOSED: everything asks.
  */
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { canonicalToolName, TELAR_MCP_SERVER } from "@telar/engine-client";
+import { canonicalToolName, PluginManifest, TELAR_MCP_SERVER } from "@telar/engine-client";
 import { codexApprovalRequest, MCP_ELICITATION } from "../../drivers/codex";
 import { requestKindForTool, setPluginReadTools } from "../../drivers/claude";
 import { HOST_RATIFIED_READ_TOOLS, ratifiedReadTools } from "./policy";
-import { latexMeta } from "./latex/plugin";
+import { latexPlugin } from "../../../plugins/latex";
+import { manifestMeta } from "./manifest";
+
+const latexManifest = PluginManifest.parse(latexPlugin.manifest);
+const latexMeta = manifestMeta(latexManifest);
+
 
 /** What the daemon installs after the host ratifies. */
 const installed = Object.values(HOST_RATIFIED_READ_TOOLS).flat();

@@ -4,7 +4,7 @@ BrowserSnapshot,
 ClaudeConversation,
 ConversationImportDetail,DataScienceInstallCommand,
 DataScienceManager,
-DataSciencePackage,DataScienceRequirementsSource,LatexCompileStatus,LatexDiagnostic,LatexToolchain,TurnAttachment,ProviderDriverKind,
+DataSciencePackage,DataScienceRequirementsSource,TurnAttachment,ProviderDriverKind,
 ProviderSkills,
 ProviderInstance,
 ProviderInstanceEnvVar,
@@ -104,21 +104,6 @@ export function workspaceCalls(fetcher: Fetcher) {
       request<{ ok: boolean; lines: string[]; error?: string }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/install`, input),
     kernelInspect: (sessionId: string, name: string, depth = 10) =>
       request<Record<string, unknown>>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/inspect`, { name, depth }),
-    /**
-     * THE SESSION'S LATEX DOOR — the same capability the agent's `latex_*`
-     * tools use, so a compile pressed here and one the model ran land on the
-     * same job runner and the same last-compile memory.
-     */
-    latexCompile: (sessionId: string, input: { path?: string; timeoutMs?: number } = {}) =>
-      request<{ ok: boolean; path: string; pdfPath?: string; diagnostics: LatexDiagnostic[]; logTail: string[]; error?: string }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/latex/compile`, input),
-    latexStatus: (sessionId: string) =>
-      request<LatexCompileStatus | { status: "never" }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/latex/status`, {}),
-    latexLog: (sessionId: string, input: { tail?: number; around?: number; find?: string } = {}) =>
-      request<{ lines: string[] }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/latex/log`, input),
-    sessionLatexToolchain: (sessionId: string) =>
-      request<{ kind: "tectonic" | "texlive"; binPath: string; engine?: string; version?: string; tlmgr: boolean; mainFile?: string; available: LatexToolchain }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/latex/toolchain`, {}),
-    latexClean: (sessionId: string, input: { pdf?: boolean } = {}) =>
-      request<{ removed: string[] }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/latex/clean`, input),
     notebook: (sessionId: string, path: string, options: { from?: number; to?: number; withOutputs?: boolean } = {}) =>
       request<NotebookRead>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/notebook/read`, { path, ...options }),
     notebookEdit: (

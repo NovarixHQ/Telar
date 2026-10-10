@@ -17,9 +17,9 @@ GlobalRegistrator.register({ url: "http://localhost/settings" });
 const { ProjectPluginList } = await import("./project-plugins");
 const { blockPatch, enablePatch } = await import("../sections");
 
-const status = (id: string, name: string): PluginStatus =>
-  ({ meta: { id, name, blurb: `${name} blurb`, settings: [] }, state: "ready" }) as never;
-const LATEX = status("latex", "LaTeX");
+const status = (id: string, name: string, settings: unknown[] = []): PluginStatus =>
+  ({ meta: { id, name, blurb: `${name} blurb`, settings }, state: "ready" }) as never;
+const LATEX = status("latex", "LaTeX", [{ id: "document", scope: "project", label: "LaTeX", view: "settings" }]);
 const HELLO = status("hello", "Hello");
 
 const project = (patch: Partial<Project & { hostId: string; hostName: string }> = {}, ...enabled: string[]) =>
@@ -93,13 +93,17 @@ test("choosing a registry-only plugin shows its page, which has nothing to confi
   view.done();
 });
 
-test("a plugin with its own pane gets that pane once it is on, and the generic one while off", () => {
-  const on = renderToStaticMarkup(<ProjectPluginList project={project({}, "latex")} plugins={[LATEX]} onChange={() => {}} />);
-  expect(on).toContain('aria-label="Enable LaTeX for this project"');
-  expect(on).not.toContain('aria-label="LaTeX enabled"');
+test("a plugin's declared settings view draws on its page once it is on", async () => {
   const off = renderToStaticMarkup(<ProjectPluginList project={project()} plugins={[LATEX]} onChange={() => {}} />);
   expect(off).toContain('aria-label="LaTeX enabled"');
-  expect(off).not.toContain('aria-label="Enable LaTeX for this project"');
+  expect(off).not.toContain("Loading");
+  globalThis.fetch = (async (input: RequestInfo | URL) =>
+    String(input).endsWith("/api/projects/project_abc/plugins/latex/settings")
+      ? json({ blocks: [{ type: "select", label: "Default document", name: "mainFile", options: [{ value: "", label: "No default" }], verb: "document" }] })
+      : json({})) as typeof fetch;
+  const view = await mount(<ProjectPluginList project={project({}, "latex")} plugins={[LATEX]} onChange={() => {}} />);
+  expect(view.host.querySelector('[data-detail-for="latex"]')?.textContent).toContain("Default document");
+  view.done();
 });
 
 test("the list switch sends the patch the plugin's own switch sends", async () => {

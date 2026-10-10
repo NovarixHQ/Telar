@@ -40,6 +40,14 @@ export function sessionCalls(fetcher: Fetcher) {
     /** Any plugin's session verb, through the generic door. */
     sessionPluginVerb: (sessionId: string, plugin: string, verb: string, input: Record<string, unknown> = {}) =>
       request<unknown>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/plugins/${encodeURIComponent(plugin)}/${encodeURIComponent(verb)}`, input),
+    /** Any plugin's project or machine route; `projectId` absent means this Mac's. */
+    scopedPluginRoute: (scope: { projectId?: string }, plugin: string, method: "GET" | "POST", verb: string, input: Record<string, unknown> = {}) =>
+      request<unknown>(
+        fetcher,
+        method,
+        `/api/${scope.projectId ? `projects/${encodeURIComponent(scope.projectId)}/` : ""}plugins/${encodeURIComponent(plugin)}/${encodeURIComponent(verb)}`,
+        method === "POST" ? input : undefined,
+      ),
     updateMachinePlugins: (plugins: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>) =>
       request<{ machine: ProjectPlugins }>(fetcher, "PATCH", "/api/plugins", { plugins }),
     liveSessions: (options: LiveScope = {}) => request<LiveSessionsPage>(fetcher, "GET", livePath(options)),

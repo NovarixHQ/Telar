@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { JobStep } from "./jobs";
+import type { JobStep } from "../../../../plugins/sdk/jobs";
 import { canonicalName, validSpec } from "./packages";
-import { BRIDGE_MODULES, STACK_MODULES, defaultExec, type Exec } from "./python-env";
+import { BRIDGE_MODULES, STACK_MODULES } from "./python-env";
+import { defaultExec, type Exec } from "../../../../plugins/sdk/probe";
 import type { Toolchain } from "./toolchain";
 
 function telarPythonRoot(engineRoot: string): string {

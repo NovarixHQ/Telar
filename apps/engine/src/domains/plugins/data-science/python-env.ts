@@ -1,6 +1,6 @@
-import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { defaultExec, executable, type Exec } from "../../../../plugins/sdk/probe";
 
 export const STACK_MODULES = ["pandas", "matplotlib", "duckdb", "pyarrow"] as const;
 
@@ -43,31 +43,6 @@ print(json.dumps({
 }))
 `.trim();
 
-export type Exec = (file: string, args: string[], options: { cwd?: string; timeoutMs: number }) =>
-  Promise<{ status: number; stdout: string; stderr: string }>;
-
-export const defaultExec: Exec = (file, args, options) =>
-  new Promise((resolve) => {
-    execFile(
-      file,
-      args,
-      { cwd: options.cwd, timeout: options.timeoutMs, maxBuffer: 4 * 1024 * 1024, env: process.env },
-      (error, stdout, stderr) => {
-        const status = error && "code" in error && typeof error.code === "number" ? error.code : error ? 1 : 0;
-        resolve({ status, stdout: String(stdout), stderr: String(stderr) });
-      },
-    );
-  });
-
-function isExecutable(file: string): boolean {
-  try {
-    fs.accessSync(file, fs.constants.X_OK);
-    return fs.statSync(file).isFile();
-  } catch {
-    return false;
-  }
-}
-
 const ENV_SIGNALS = ["uv.lock", "pyproject.toml", "poetry.lock", "Pipfile.lock", "requirements.txt", "environment.yml"] as const;
 
 export function projectEnvSignals(root: string): string[] {
@@ -80,7 +55,7 @@ export async function preflightPython(
   exec: Exec = defaultExec,
   dists: readonly string[] = [],
 ): Promise<PythonPreflight> {
-  if (!isExecutable(pythonPath)) return { ok: false, path: pythonPath, reason: "not an executable file" };
+  if (!executable(pythonPath)) return { ok: false, path: pythonPath, reason: "not an executable file" };
   const result = await exec(pythonPath, ["-I", "-c", PROBE, modules.join(","), dists.join(",")], { timeoutMs: 15_000 }).catch(
     (error: unknown) => ({ status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) }),
   );

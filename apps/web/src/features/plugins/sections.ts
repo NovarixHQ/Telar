@@ -1,5 +1,5 @@
-import type { PluginStatus, ProjectPlugins } from "@telar/engine-client";
-import { machineAllows, pluginConfigFromLegacy } from "@telar/engine-client";
+import type { PluginStatus, Project, ProjectPlugins } from "@telar/engine-client";
+import { machineAllows, pluginConfigFromLegacy, pluginSettings, readProjectPlugins } from "@telar/engine-client";
 
 export type PluginSectionEntry = {
   key: string;
@@ -12,6 +12,7 @@ export type PluginSectionEntry = {
   state: PluginStatus["state"];
   error?: string;
   settingsSchema?: Record<string, unknown>;
+  view?: string;
 };
 
 export function projectPluginSections(plugins: readonly PluginStatus[] | undefined): PluginSectionEntry[] {
@@ -30,6 +31,7 @@ export function projectPluginSections(plugins: readonly PluginStatus[] | undefin
         label: section.label,
         ...(section.blurb ? { blurb: section.blurb } : {}),
         ...(section.icon ? { icon: section.icon } : {}),
+        ...("view" in section && section.view ? { view: section.view } : {}),
         scope: "project",
         state: status.state,
         ...(status.error ? { error: status.error } : {}),
@@ -46,6 +48,13 @@ export function enablePatch(pluginId: string, enabled: boolean, settings?: Recor
       [pluginId]: enabled ? { enabled: true, ...(settings ? { settings } : {}) } : null,
     },
   };
+}
+
+/** Turning a plugin off keeps what the project chose, so turning it back on restores it. */
+export function togglePatch(project: Project, pluginId: string, enabled: boolean) {
+  const settings = pluginSettings(readProjectPlugins(project).plugins, pluginId);
+  if (Object.keys(settings).length === 0) return enablePatch(pluginId, enabled);
+  return { plugins: { [pluginId]: { enabled, settings } } };
 }
 
 export function blockPatch(pluginId: string, block: { enabled: boolean; [setting: string]: unknown } | null) {

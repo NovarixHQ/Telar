@@ -66,7 +66,6 @@ type ClaimDeps = {
   resolveProviderInstance: (instanceId: string, driver: ProviderDriverKind) => ProviderInstance;
   getProject: (projectId: string) => Project;
   resolveDataScience: (session: Session) => unknown;
-  resolveLatex: (session: Session) => unknown;
   enabledPluginIds: (session: Session) => string[];
   getAgentOrientation: () => AgentOrientation;
   simulatorAccess: () => WorkerClaim["simulators"];
@@ -398,7 +397,6 @@ export class TurnClaims {
       ...(() => {
         const resolves: Record<string, () => unknown> = {
           "data-science": () => this.deps.resolveDataScience(session),
-          latex: () => this.deps.resolveLatex(session),
         };
         const ids = this.deps.enabledPluginIds(session).filter((id) => (id in resolves ? resolves[id]!() !== undefined : true));
         return ids.length > 0 ? { plugins: ids } : {};

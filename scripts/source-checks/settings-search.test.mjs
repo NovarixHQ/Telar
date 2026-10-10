@@ -15,7 +15,7 @@ test("rows a component draws inside its own group's children take that group", (
 
 test("rows built from a list and plugin panes are found, and state rows are not", () => {
   expect(group("projects", "New worktrees")?.rows.map((row) => row.title)).toContain("Ports");
-  expect(group("projects", "LaTeX")?.rows.map((row) => row.title)).toContain("LaTeX for this project");
+  expect(group("projects", "Data science")?.rows.map((row) => row.title)).toContain("Data science for this project");
   const titles = pages.flatMap((page) => page.groups.flatMap((entry) => entry.rows.map((row) => row.title)));
   expect(titles).not.toContain("Loading");
 });

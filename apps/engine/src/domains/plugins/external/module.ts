@@ -1,52 +1,9 @@
-import { z } from "zod";
-import { PLUGIN_API_VERSION, type ExternalPluginManifest, type PluginMeta } from "@telar/engine-client";
-import { err, json, type ToolFactory } from "../../agent-tools";
 import type { PluginEngineModule, PluginInitContext } from "../contract";
+import { manifestMeta, TOOL_VERB, zodFrom } from "../manifest";
 import type { PluginMachineRoutes, PluginProjectRoutes, PluginRouteRequest } from "../scoped-routes";
-import type { PluginToolModule } from "../tool-module";
 import { isSymlink } from "./installer";
 import type { LoadedExternalPlugin } from "./manifest";
 import { ExternalPluginProcess, type ExternalProcessOptions } from "./process";
-
-const TOOL_VERB = "tool";
-
-export function externalMeta(manifest: ExternalPluginManifest): PluginMeta {
-  return {
-    id: manifest.id,
-    api: PLUGIN_API_VERSION,
-    name: manifest.name,
-    version: manifest.version,
-    ...(manifest.description ? { blurb: manifest.description } : {}),
-    ...(manifest.icon ? { icon: manifest.icon } : {}),
-    toolPrefixes: manifest.toolPrefix ? [manifest.toolPrefix] : [],
-    readTools: [],
-    ...(manifest.briefing ? { briefing: manifest.briefing } : {}),
-    eventKinds: [],
-    ...(manifest.panels.length > 0 ? { panels: manifest.panels } : {}),
-    settings: [
-      { id: "settings", scope: "project" as const, label: manifest.name },
-      ...(manifest.machineSettingsSchema ? [{ id: "defaults", scope: "machine" as const, label: manifest.name }] : []),
-    ],
-  };
-}
-
-function zodFrom(schema: Record<string, unknown> | undefined): z.ZodType<unknown> | undefined {
-  if (!schema) return undefined;
-  try {
-    return z.fromJSONSchema(schema as never) as z.ZodType<unknown>;
-  } catch {
-    return z.record(z.string(), z.unknown());
-  }
-}
-
-function shapeOf(schema: Record<string, unknown>): Record<string, unknown> {
-  try {
-    const parsed = z.fromJSONSchema(schema as never);
-    return parsed instanceof z.ZodObject ? (parsed.shape as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
 
 export type ExternalPluginDeps = {
   resolve: (sessionId: string) => { projectId: string; sessionId: string };
@@ -57,6 +14,8 @@ export type ExternalPluginDeps = {
 
 export function externalPlugin(loaded: LoadedExternalPlugin, deps: ExternalPluginDeps): PluginEngineModule & { process(): ExternalPluginProcess | undefined } {
   const { manifest, dir } = loaded;
+  const command = manifest.command;
+  if (!command) throw new Error(`${manifest.id} has no command`);
   let child: ExternalPluginProcess | undefined;
   const running = (): ExternalPluginProcess => {
     if (!child) throw new Error(`${manifest.id} is not initialised`);
@@ -102,7 +61,7 @@ export function externalPlugin(loaded: LoadedExternalPlugin, deps: ExternalPlugi
   const settingsSchema = zodFrom(manifest.settingsSchema);
   const machineSettingsSchema = zodFrom(manifest.machineSettingsSchema);
   return {
-    meta: externalMeta(manifest),
+    meta: manifestMeta(manifest),
     ...(settingsSchema ? { settingsSchema } : {}),
     ...(machineSettingsSchema ? { machineSettingsSchema } : {}),
     ...(manifest.settingsSchema ? { publishedSettingsSchema: manifest.settingsSchema } : {}),
@@ -112,7 +71,7 @@ export function externalPlugin(loaded: LoadedExternalPlugin, deps: ExternalPlugi
       const created = new ExternalPluginProcess({
         id: manifest.id,
         dir,
-        command: manifest.command,
+        command,
         stateDir: context.stateDir,
         ...deps.process,
       });
@@ -131,36 +90,5 @@ export function externalPlugin(loaded: LoadedExternalPlugin, deps: ExternalPlugi
     machineRoutes,
     resolve: (sessionId) => deps.resolve(sessionId),
     process: () => child,
-  };
-}
-
-const EXTERNAL_TOOL_MODULES = new WeakSet<PluginToolModule>();
-
-export const isExternalToolModule = (module: PluginToolModule) => EXTERNAL_TOOL_MODULES.has(module);
-
-export function externalToolModule(loaded: LoadedExternalPlugin): PluginToolModule {
-  const module = buildExternalToolModule(loaded);
-  EXTERNAL_TOOL_MODULES.add(module);
-  return module;
-}
-
-function buildExternalToolModule(loaded: LoadedExternalPlugin): PluginToolModule {
-  const { manifest } = loaded;
-  return {
-    meta: externalMeta(manifest),
-    capability: (call) => ({ call }),
-    tools(tool: ToolFactory, capability: unknown) {
-      const { call } = capability as { call: <T>(verb: string, body?: unknown) => Promise<T> };
-      return manifest.tools.map((declared) =>
-        tool(declared.name, declared.description, shapeOf(declared.inputSchema), async (args) => {
-          try {
-            const answer = await call<{ content?: unknown[]; isError?: boolean }>(TOOL_VERB, { name: declared.name, arguments: args });
-            return Array.isArray(answer?.content) ? { content: answer.content, ...(answer.isError ? { isError: true } : {}) } : json(answer);
-          } catch (error) {
-            return err(error instanceof Error ? error.message : String(error));
-          }
-        }),
-      );
-    },
   };
 }

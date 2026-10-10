@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { defaultExec, preflightPython, projectEnvSignals, type Exec, type PythonPreflight } from "./python-env";
+import { preflightPython, projectEnvSignals, type PythonPreflight } from "./python-env";
+import { defaultExec, type Exec } from "../../../../plugins/sdk/probe";
 import type { Toolchain } from "./toolchain";
 import { telarVenvPython } from "./telar-venv";
 

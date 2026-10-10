@@ -27,6 +27,8 @@ export const PluginSettingsSection = z.object({
   blurb: z.string().max(200).optional(),
   /** Lucide icon name, resolved by the web registry. Unknown names fall back. */
   icon: z.string().min(1).max(64).optional(),
+  /** A GET route in the section's scope that answers a `PluginPanelView`; its actions POST to that scope. */
+  view: z.string().regex(/^[a-z][a-z0-9-]*$/).max(64).optional(),
 });
 export type PluginSettingsSection = z.infer<typeof PluginSettingsSection>;
 
@@ -44,6 +46,22 @@ export type PluginPanel = z.infer<typeof PluginPanel>;
 
 const Cell = z.union([z.string().max(2000), z.number(), z.boolean(), z.null()]);
 
+const Tone = z.enum(["ok", "error", "warning", "neutral"]);
+
+/** A text box whose value is sent under `name` with the action it sits beside. */
+const PluginField = z.strictObject({
+  name: z.string().regex(/^[a-zA-Z][a-zA-Z0-9]*$/).max(64),
+  placeholder: z.string().max(200).optional(),
+  value: z.string().max(2000).optional(),
+});
+
+const PluginAction = z.strictObject({
+  label: z.string().min(1).max(40),
+  verb: PluginSessionVerb,
+  input: z.record(z.string(), z.unknown()).optional(),
+  confirm: z.string().min(1).max(200).optional(),
+});
+
 export const PluginPanelBlock = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("heading"), text: z.string().min(1).max(200) }),
   /** Plain text, or Markdown when `markdown` is set. */
@@ -57,31 +75,71 @@ export const PluginPanelBlock = z.discriminatedUnion("type", [
     columns: z.array(z.string().max(200)).min(1).max(20),
     rows: z.array(z.array(Cell).max(20)).max(500),
   }),
-  /** The tail of something, oldest line first, drawn monospaced. */
-  z.strictObject({ type: z.literal("log"), lines: z.array(z.string().max(2000)).max(500) }),
-  /**
-   * A button that calls one of the plugin's session verbs with `input`, then
-   * redraws the panel. `confirm` is the sentence asked before it runs.
-   */
+  /** The tail of something, oldest line first, drawn monospaced; `collapsed` hides it behind its title. */
   z.strictObject({
-    type: z.literal("action"),
-    label: z.string().min(1).max(40),
-    verb: PluginSessionVerb,
-    input: z.record(z.string(), z.unknown()).optional(),
-    confirm: z.string().min(1).max(200).optional(),
+    type: z.literal("log"),
+    lines: z.array(z.string().max(2000)).max(500),
+    title: z.string().min(1).max(80).optional(),
+    collapsed: z.boolean().optional(),
   }),
+  /** Calls one of the plugin's verbs in the view's scope with `input` (and the field's text), then redraws. */
+  PluginAction.extend({ type: z.literal("action"), field: PluginField.optional() }),
+  z.strictObject({ type: z.literal("status"), text: z.string().min(1).max(80), tone: Tone.default("neutral") }),
+  /** Problems found in files; a row with a `file` opens it in the cockpit. */
+  z.strictObject({
+    type: z.literal("issues"),
+    items: z
+      .array(
+        z.strictObject({
+          severity: z.enum(["error", "warning"]),
+          message: z.string().min(1).max(2000),
+          file: z.string().max(1000).optional(),
+          line: z.number().int().optional(),
+          detail: z.string().max(2000).optional(),
+        }),
+      )
+      .max(200),
+  }),
+  /** A button that opens a file of the session's tree in the cockpit. */
+  z.strictObject({ type: z.literal("file"), label: z.string().min(1).max(40), path: z.string().min(1).max(1000) }),
+  /** A choice that calls `verb` with `{[name]: value}`; the empty value means "none". */
+  z.strictObject({
+    type: z.literal("select"),
+    label: z.string().min(1).max(80),
+    hint: z.string().max(300).optional(),
+    name: PluginField.shape.name,
+    value: z.string().max(1000).optional(),
+    options: z.array(z.strictObject({ value: z.string().max(1000), label: z.string().min(1).max(120) })).max(100),
+    verb: PluginSessionVerb,
+  }),
+  /** One choice among several, drawn as a card; `selected` marks the one in use. */
+  z.strictObject({
+    type: z.literal("option"),
+    title: z.string().min(1).max(120),
+    detail: z.string().max(500).optional(),
+    badge: z.string().max(60).optional(),
+    selected: z.boolean().optional(),
+    action: PluginAction.optional(),
+  }),
+  /** Opens a new session's composer on the view's project with `text` drafted. */
+  z.strictObject({ type: z.literal("prompt"), label: z.string().min(1).max(40), text: z.string().min(1).max(4000) }),
 ]);
 export type PluginPanelBlock = z.infer<typeof PluginPanelBlock>;
 
-export function parsePluginPanelView(value: unknown): { blocks: PluginPanelBlock[]; skipped: number } {
-  const raw = (value as { blocks?: unknown } | null)?.blocks;
+export type PluginPanelView = { blocks: PluginPanelBlock[]; skipped: number; refreshMs?: number };
+
+/** `refreshMs` asks the cockpit to read the view again after that long, while something runs. */
+export function parsePluginPanelView(value: unknown): PluginPanelView {
+  const view = value as { blocks?: unknown; refreshMs?: unknown } | null;
+  const raw = view?.blocks;
   if (!Array.isArray(raw)) return { blocks: [], skipped: 0 };
   const blocks: PluginPanelBlock[] = [];
   for (const candidate of raw.slice(0, 200)) {
     const parsed = PluginPanelBlock.safeParse(candidate);
     if (parsed.success) blocks.push(parsed.data);
   }
-  return { blocks, skipped: raw.length - blocks.length };
+  const refreshMs = typeof view?.refreshMs === "number" && view.refreshMs >= 500 ? Math.min(view.refreshMs, 60_000) : undefined;
+  return { blocks, skipped: raw.length - blocks.length, ...(refreshMs ? { refreshMs } : {}) };
 }
 
 export const PluginMeta = z.object({
@@ -109,24 +167,28 @@ export const PluginMeta = z.object({
     })
     .optional(),
   settings: z.array(PluginSettingsSection).default([]),
-  /** Panel surfaces drawn from blocks (external plugins). Absent for bundled ones, which ship components. */
+  /** Panel surfaces drawn from blocks. */
   panels: z.array(PluginPanel).optional(),
 });
 export type PluginMeta = z.infer<typeof PluginMeta>;
 
-export const ExternalPluginTool = z.strictObject({
+export const PluginTool = z.strictObject({
   /** Must start with the manifest's `toolPrefix` and an underscore. */
   name: z.string().regex(/^[a-z][a-z0-9]*_[a-z0-9_]+$/, "a tool name is <prefix>_<name>, lowercase"),
   description: z.string().min(1).max(2000),
   /** The arguments, as a JSON Schema object. */
   inputSchema: z.record(z.string(), z.unknown()).default({ type: "object", properties: {} }),
 });
-export type ExternalPluginTool = z.infer<typeof ExternalPluginTool>;
+export type PluginTool = z.infer<typeof PluginTool>;
 
 /** A route key as the host's scoped tables spell it: `"GET status"`, `"POST jobs/:id"`. */
-const ExternalRouteKey = z.string().regex(/^(GET|POST|DELETE) [a-z][a-z0-9-]*(\/(:?[a-z][a-z0-9-]*))*$/, "a route is '<METHOD> <path>'");
+const RouteKey = z.string().regex(/^(GET|POST|DELETE) [a-z][a-z0-9-]*(\/(:?[a-z][a-z0-9-]*))*$/, "a route is '<METHOD> <path>'");
 
-export const ExternalPluginManifest = z
+/**
+ * What every plugin declares, bundled or installed. An installed plugin's `plugin.json` names the `command`
+ * the engine runs it with; a bundled one has none, because its engine module is linked into the engine.
+ */
+export const PluginManifest = z
   .strictObject({
     id: PluginId,
     api: z.literal(PLUGIN_API_VERSION),
@@ -135,23 +197,31 @@ export const ExternalPluginManifest = z
     description: z.string().max(300).optional(),
     icon: z.string().min(1).max(64).optional(),
     /** argv. A first element starting with `./` is resolved inside the plugin's folder. */
-    command: z.array(z.string().min(1)).min(1),
+    command: z.array(z.string().min(1)).min(1).optional(),
     /** Required once the plugin declares a tool. */
     toolPrefix: PluginToolPrefix.optional(),
-    tools: z.array(ExternalPluginTool).max(64).default([]),
+    tools: z.array(PluginTool).max(64).default([]),
     /** The paragraph a session is told while the plugin is on. */
     briefing: z.string().min(1).max(2000).optional(),
     settingsSchema: z.record(z.string(), z.unknown()).optional(),
     machineSettingsSchema: z.record(z.string(), z.unknown()).optional(),
+    /** Settings sections; absent means one per schema the plugin declares. */
+    settings: z.array(PluginSettingsSection).max(8).optional(),
     routes: z
       .strictObject({
         session: z.array(PluginSessionVerb).default([]),
-        project: z.array(ExternalRouteKey).default([]),
-        machine: z.array(ExternalRouteKey).default([]),
+        project: z.array(RouteKey).default([]),
+        machine: z.array(RouteKey).default([]),
       })
       .default({ session: [], project: [], machine: [] }),
     /** Panel surfaces, each drawn from a declared session verb. */
     panels: z.array(PluginPanel).max(8).default([]),
+    /** Journal event kinds the plugin appends to its sessions. */
+    eventKinds: z.array(z.string().min(1).max(64)).max(16).default([]),
+    /** A `.gitignore` rule written into a project when it turns the plugin on. */
+    gitignore: z
+      .strictObject({ rule: z.string().min(1).max(200), why: z.string().min(1).max(200), alreadyCovered: z.array(z.string().min(1)).default([]) })
+      .optional(),
   })
   .superRefine((manifest, context) => {
     if (manifest.tools.length > 0 && !manifest.toolPrefix) {
@@ -177,8 +247,14 @@ export const ExternalPluginManifest = z
     if (new Set(manifest.panels.map((panel) => panel.id)).size !== manifest.panels.length) {
       context.addIssue({ code: "custom", path: ["panels"], message: "two panels share an id" });
     }
+    for (const [index, section] of (manifest.settings ?? []).entries()) {
+      if (section.view && !manifest.routes[section.scope].includes(`GET ${section.view}`)) {
+        context.addIssue({ code: "custom", path: ["settings", index, "view"], message: `"GET ${section.view}" is not a declared ${section.scope} route` });
+      }
+    }
   });
-export type ExternalPluginManifest = z.infer<typeof ExternalPluginManifest>;
+export type PluginManifest = z.infer<typeof PluginManifest>;
+export type PluginManifestInput = z.input<typeof PluginManifest>;
 
 /** What a plugin's runtime is doing, as the health document reports it. */
 export const PluginRuntimeState = z.enum(["ready", "failed", "disposed"]);
@@ -225,7 +301,7 @@ export const LEGACY_PLUGIN_KEYS = {
   "data-science": "dataScience",
 } as const satisfies Record<string, "latex" | "dataScience">;
 
-export const BUNDLED_PLUGIN_TOOL_PREFIXES = ["ds", "notebook", "latex", "hello"] as const;
+export const BUNDLED_PLUGIN_TOOL_PREFIXES = ["ds", "notebook", "hello"] as const;
 
 export function pluginConfigFromLegacy(legacy: Record<string, unknown>): PluginConfig {
   const { enabled, ...rest } = legacy;
@@ -328,49 +404,7 @@ export function machineSettings(machine: ProjectPlugins | undefined, id: string)
   return machine?.entries[id]?.settings ?? {};
 }
 
-// ── the bundled plugins' machine settings, for clients ──────────────────────
-
-/** What latexmk drives when nothing more specific said. Tectonic ignores it. */
-export const PluginLatexEngine = z.enum(["pdflatex", "lualatex", "xelatex"]);
-export type PluginLatexEngine = z.infer<typeof PluginLatexEngine>;
-
-/**
- * A distribution choice, as a machine default. `managed` is Telar's own
- * Tectonic and carries no path — see `LatexToolchainKind` for why naming the
- * intent beats storing a versioned path that goes stale on the next bump.
- */
-export const PluginLatexDistribution = z.object({
-  kind: z.enum(["tectonic", "texlive", "managed"]),
-  path: z.string().min(1).optional(),
-  engine: PluginLatexEngine.optional(),
-});
-export type PluginLatexDistribution = z.infer<typeof PluginLatexDistribution>;
-
-export const PluginLatexDistributionWrite = PluginLatexDistribution.refine(
-  (choice) => choice.kind === "managed" || (choice.path !== undefined && choice.path.length > 0),
-  { message: "a tectonic or texlive distribution needs the path it lives at", path: ["path"] },
-);
-
-const latexMachineFields = {
-  /** Which TeX install compiles here when the project has not chosen one. */
-  toolchain: PluginLatexDistribution.optional(),
-  /**
-   * The engine a TeX Live compile runs. Tectonic is XeTeX inside and ignores it.
-   * The `.meta()` here and below is the cockpit's generated settings row.
-   */
-  engine: PluginLatexEngine.optional().meta({
-    title: "Default engine",
-    description: "What latexmk drives on a TeX Live install. Tectonic is XeTeX inside and ignores it.",
-    icon: "settings",
-    labels: { pdflatex: "pdfLaTeX", lualatex: "LuaLaTeX", xelatex: "XeLaTeX" },
-  }),
-  autoInstallPackages: z.boolean().optional().meta({
-    title: "Install missing packages automatically",
-    description:
-      "When a TeX Live compile fails on a package it does not have, install it with tlmgr and compile once more. Tectonic already fetches packages by itself.",
-    icon: "package-plus",
-  }),
-};
+// ── Data Science's machine settings, for clients ──────────────────────────────
 
 const dataScienceMachineFields = {
   python: z.string().min(1).optional().meta({
@@ -386,27 +420,14 @@ const dataScienceMachineFields = {
 export const PLUGIN_PACKAGE_REQUIREMENT =
   /^[A-Za-z0-9][A-Za-z0-9._-]*(\[[A-Za-z0-9._,\s-]+\])?\s*((?:[<>=!~]=?|===)\s*[A-Za-z0-9.*+!_-]+(?:\s*,\s*(?:[<>=!~]=?|===)\s*[A-Za-z0-9.*+!_-]+)*)?$/;
 
-export const LatexMachineSettings = z.object(latexMachineFields);
-export type LatexMachineSettings = z.infer<typeof LatexMachineSettings>;
-
 export const DataScienceMachineSettings = z.object(dataScienceMachineFields);
 export type DataScienceMachineSettings = z.infer<typeof DataScienceMachineSettings>;
 
 /** What a write is checked against. Strict, and per-kind about the path. */
-export const LatexMachineSettingsWrite = z.strictObject({
-  ...latexMachineFields,
-  toolchain: PluginLatexDistributionWrite.optional(),
-});
 export const DataScienceMachineSettingsWrite = z.strictObject({
   ...dataScienceMachineFields,
   packages: z.array(z.string().min(1).max(200).regex(PLUGIN_PACKAGE_REQUIREMENT, "not a package requirement")).max(200).optional(),
 });
-
-/** The LaTeX defaults this Mac carries, read out of the opaque blob. */
-export function latexMachineSettings(machine: ProjectPlugins | undefined): LatexMachineSettings {
-  const parsed = LatexMachineSettings.safeParse(machineSettings(machine, "latex"));
-  return parsed.success ? parsed.data : {};
-}
 
 /** The data-science defaults this Mac carries, read out of the opaque blob. */
 export function dataScienceMachineSettings(machine: ProjectPlugins | undefined): DataScienceMachineSettings {

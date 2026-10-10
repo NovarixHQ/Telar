@@ -101,6 +101,13 @@ export class ProjectRegistry {
     private readonly deps: RegistryDeps,
   ) {}
 
+  private pluginGitignore?: (pluginId: string) => { rule: string; why: string; alreadyCovered: string[] } | undefined;
+
+  /** The `.gitignore` rule a plugin asks for, written when a project turns it on. */
+  attachPluginGitignore(lookup: (pluginId: string) => { rule: string; why: string; alreadyCovered: string[] } | undefined): void {
+    this.pluginGitignore = lookup;
+  }
+
   /** The parsed document, or an empty one when none was written. */
   read(): ProjectRegistryDocument {
     const stored = this.kernel.readDocument(this.kernel.paths.projects);
@@ -309,10 +316,11 @@ export class ProjectRegistry {
     const pluginPatch: PluginPatch = { ...fromLegacy, ...patch.plugins };
     if (Object.keys(pluginPatch).length > 0) {
       next.plugins = applyPluginPatch(readProjectPlugins(next).plugins, pluginPatch);
-      if (pluginPatch.latex?.enabled) {
+      const rules = Object.entries(pluginPatch).flatMap(([id, config]) => (config?.enabled && this.pluginGitignore?.(id)) || []);
+      if (rules.length > 0) {
         try {
-          ensureTelarGitignore(next.root, [{ rule: ".telar/latex/", alreadyCovered: [".telar/", ".telar", "/.telar/", ".telar/latex/"], why: "LaTeX aux files from Telar's compiles" }]);
-        } catch { /* not a repo, or unwritable — compiles still work */ }
+          ensureTelarGitignore(next.root, rules);
+        } catch { /* not a repo, or unwritable — the plugin still works */ }
       }
     }
     delete (next as Record<string, unknown>).dataScience;

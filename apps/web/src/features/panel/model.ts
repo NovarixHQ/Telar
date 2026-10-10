@@ -24,8 +24,11 @@ const ALL_SURFACES: readonly Surface[] = [...SURFACES, ...PLUGIN_SURFACES];
 /** The launcher's Browser row: not a tab kind, since it starts the browser or shows the last page. */
 export const BROWSER_SURFACE = { label: "Browser", icon: GlobeIcon, key: "b", command: "open-browser" } as const satisfies Omit<Surface, "id" | "blurb">;
 
-export function surfaceCommands(enabledPlugins: readonly string[], { shells }: { shells: boolean }): { command: CommandId; tab: PanelTab }[] {
-  return surfacesFor(enabledPlugins, NO_PANELS, shells).flatMap((surface) => (surface.command ? [{ command: surface.command, tab: surface.id as PanelTab }] : []));
+export function surfaceCommands(
+  enabledPlugins: readonly string[],
+  { shells, pluginPanels = NO_PANELS }: { shells: boolean; pluginPanels?: readonly PluginPanelSource[] },
+): { command: CommandId; tab: PanelTab }[] {
+  return surfacesFor(enabledPlugins, pluginPanels, shells).flatMap((surface) => (surface.command ? [{ command: surface.command, tab: surface.id as PanelTab }] : []));
 }
 
 export const NO_PLUGINS: readonly string[] = [];

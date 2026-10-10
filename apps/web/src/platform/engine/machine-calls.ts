@@ -16,11 +16,6 @@ DataSciencePackage,
 DataSciencePreflight,
 DataScienceRequirementsSource,
 DataScienceToolchain,
-LatexBootstrap,LatexConfig,LatexDistributions,
-LatexJob,
-LatexPackagesAnswer,
-LatexToolchain,
-ManagedTectonic,
 InboxPolicy,EnvMode,
 DictationAnswer,
 DictationProviderId,SidebarLayout,
@@ -96,7 +91,6 @@ export function machineCalls(fetcher: Fetcher) {
         defaultModel?: ModelSelection | null;
         envMode?: EnvMode | null;
         dataScience?: DataScienceConfig | null;
-        latex?: LatexConfig | null;
         // The generic arm — one entry per plugin, `null` to turn it off.
         plugins?: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>;
       },
@@ -127,21 +121,6 @@ export function machineCalls(fetcher: Fetcher) {
     dataScienceCancelJob: (jobId: string) => request<Record<string, never>>(fetcher, "DELETE", `/api/data-science/jobs/${encodeURIComponent(jobId)}`),
     dataScienceProbe: (projectId: string, path: string) =>
       request<{ probe: DataSciencePreflight & { relativePath?: string; root?: string; manager?: DataScienceManager } }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/data-science/probe`, { path }),
-    /** Spawns `--version` probes for each TeX root — open a page, never poll. */
-    latexDistributions: (projectId: string) =>
-      request<LatexDistributions>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/latex/distributions`),
-    latexPackages: (projectId: string) =>
-      request<LatexPackagesAnswer>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/latex/packages`),
-    latexInstall: (projectId: string, input: { add?: string[]; remove?: string[] }) =>
-      request<{ jobId: string }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/latex/packages`, input),
-    latexBootstrap: (input: LatexBootstrap) => request<{ jobId: string }>(fetcher, "POST", "/api/latex/bootstrap", input),
-    latexToolchain: (fresh = false) => request<{ toolchain: LatexToolchain }>(fetcher, "GET", `/api/latex/toolchain${fresh ? "?fresh=1" : ""}`),
-    /** Telar's own Tectonic — cheap enough to poll while an install downloads. */
-    managedTectonic: () => request<{ managed: ManagedTectonic }>(fetcher, "GET", "/api/latex/managed"),
-    /** Fetch it. Idempotent: a second press joins the install already running. */
-    installManagedTectonic: () => request<{ managed: ManagedTectonic }>(fetcher, "POST", "/api/latex/managed", {}),
-    latexJob: (jobId: string, after = 0) => request<{ job: LatexJob }>(fetcher, "GET", `/api/latex/jobs/${encodeURIComponent(jobId)}?after=${after}`),
-    latexCancelJob: (jobId: string) => request<Record<string, never>>(fetcher, "DELETE", `/api/latex/jobs/${encodeURIComponent(jobId)}`),
   };
 }
 

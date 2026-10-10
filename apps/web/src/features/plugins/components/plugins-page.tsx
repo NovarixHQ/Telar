@@ -9,6 +9,7 @@ import { Button } from "@/ui/button";
 import { chooseDirectory } from "@/platform/desktop/choose-directory";
 import { Switch } from "@/ui/switch";
 import { machineBlocksFor } from "./settings-panes";
+import { PluginView } from "./plugin-view";
 import { GeneratedSettingsRows, pluginIcon } from "./generated-settings";
 import { NothingToConfigure } from "./plugin-settings";
 import { settingsFields } from "../settings-form";
@@ -35,7 +36,8 @@ function MachinePluginSettings({
   const { machineRows: Rows } = machineBlocksFor(status.meta.id);
   const fields = settingsFields(status.machineSettingsSchema);
   const section = status.meta.settings.find((entry) => entry.scope === "machine");
-  if (fields.length === 0 && !Rows) return null;
+  const views = status.meta.settings.flatMap((entry) => (entry.scope === "machine" && entry.view ? [entry.view] : []));
+  if (fields.length === 0 && !Rows && views.length === 0) return null;
   return (
     <SettingsGroup title="Plugin defaults" {...(section?.blurb ? { description: section.blurb } : {})}>
       <GeneratedSettingsRows
@@ -46,6 +48,11 @@ function MachinePluginSettings({
         }}
       />
       {Rows && <Rows machine={machine} onChange={onMachine} />}
+      {views.map((view) => (
+        <div key={view} className="py-3">
+          <PluginView scope={{}} plugin={status.meta.id} verb={view} refreshKey={machine} />
+        </div>
+      ))}
     </SettingsGroup>
   );
 }

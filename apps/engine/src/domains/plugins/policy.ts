@@ -2,7 +2,6 @@ import type { PluginMeta } from "@telar/engine-client";
 
 export const HOST_RATIFIED_READ_TOOLS: Readonly<Record<string, readonly string[]>> = {
   "data-science": ["ds_packages", "ds_kernel"],
-  latex: [],
   hello: [],
 };
 

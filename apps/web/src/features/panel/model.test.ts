@@ -175,8 +175,9 @@ describe("a browser tab's label comes from the live page when the shell has one"
 
 describe("a surface's letter", () => {
   test("its ⌘⇧ chord opens the same surface from anywhere, plugins included", () => {
-    const rows = launcherRows([], { enabledPlugins: ["data-science", "latex"], pluginPanels: [], canOpenNew: true, shells: true, browser: {} });
-    const commands = new Map<string, string>([["browser", BROWSER_SURFACE.command], ...surfaceCommands(["data-science", "latex"], { shells: true }).map(({ command, tab }) => [tab, command] as [string, string])]);
+    const panels = [{ plugin: "latex", pluginName: "LaTeX", panel: { id: "compile", label: "Compile", verb: "panel" } }];
+    const rows = launcherRows([], { enabledPlugins: ["data-science", "latex"], pluginPanels: panels, canOpenNew: true, shells: true, browser: {} });
+    const commands = new Map<string, string>([["browser", BROWSER_SURFACE.command], ...surfaceCommands(["data-science", "latex"], { shells: true, pluginPanels: panels }).map(({ command, tab }) => [tab, command] as [string, string])]);
     const keyed = rows.filter((row) => row.key);
     expect(keyed.map((row) => row.key)).toEqual(["b", "t", "e", "d", "s", "i", "u", "a", "x"]);
     for (const row of keyed) {

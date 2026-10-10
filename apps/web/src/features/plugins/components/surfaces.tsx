@@ -7,7 +7,6 @@ import type { PluginPanelSource } from "../panels";
 import type { PluginSurfaceId } from "../registry";
 
 const DataSurface = dynamic(() => import("../data-science/data-surface").then((mod) => mod.DataSurface));
-const LatexSurface = dynamic(() => import("../latex/latex-surface").then((mod) => mod.LatexSurface));
 const PluginPanelsSurface = dynamic(() => import("./plugin-panels-surface").then((mod) => mod.PluginPanelsSurface));
 
 export type PluginSurfaceProps = {
@@ -32,11 +31,13 @@ const SURFACES: Record<PluginSurfaceId, (props: PluginSurfaceProps) => ReactNode
       {...(onOpenImage ? { onOpenImage } : {})}
     />
   ),
-  latex: ({ sessionId, active, onOpenFile }) => (
-    <LatexSurface {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} onOpenFile={onOpenFile} />
-  ),
-  "plugin-panels": ({ sessionId, active, panels }) => (
-    <PluginPanelsSurface {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} panels={panels ?? []} />
+  "plugin-panels": ({ sessionId, active, panels, onOpenFile }) => (
+    <PluginPanelsSurface
+      {...(sessionId ? { sessionId } : {})}
+      {...(active ? { active } : {})}
+      panels={panels ?? []}
+      onOpenFile={onOpenFile}
+    />
   ),
 };
 

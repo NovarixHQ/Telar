@@ -8,6 +8,7 @@ import {
   type PluginEngineModule,
   type PluginRecord,
 } from "./contract";
+import { bundledModulePrefixes } from "./bundled";
 import { ratifiedReadToolSet, unratifiedReadClaims } from "./policy";
 import { PluginWorkLog, type PluginWorkRecord } from "./work-log";
 
@@ -42,7 +43,7 @@ export class PluginHost {
       refused?: readonly { meta: PluginMeta; error: string; installed?: { linked: boolean } }[];
     },
   ) {
-    const declared = options.declaredPrefixes ?? BUNDLED_PLUGIN_TOOL_PREFIXES;
+    const declared = options.declaredPrefixes ?? [...BUNDLED_PLUGIN_TOOL_PREFIXES, ...bundledModulePrefixes()];
     for (const module of modules) {
       const { id, toolPrefixes } = module.meta;
       if (this.records.has(id)) throw new Error(`duplicate plugin id: ${id}`);
@@ -51,8 +52,8 @@ export class PluginHost {
         if (owner) throw new Error(`tool prefix "${prefix}" is claimed by both ${owner} and ${id}`);
         if (!declared.includes(prefix)) {
           throw new Error(
-            `plugin ${id} claims tool prefix "${prefix}", which is not declared in BUNDLED_PLUGIN_TOOL_PREFIXES; ` +
-              "add it there so approvals and timeline rows keep their type",
+            `plugin ${id} claims tool prefix "${prefix}", which no manifest or BUNDLED_PLUGIN_TOOL_PREFIXES declares; ` +
+              "declare it so approvals and timeline rows keep their type",
           );
         }
         this.prefixOwners.set(prefix, id);

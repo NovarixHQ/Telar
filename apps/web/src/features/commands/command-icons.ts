@@ -1,5 +1,6 @@
 
 import {
+  BlocksIcon,
   AArrowDownIcon,
   AArrowUpIcon,
   AppWindowIcon,
@@ -38,7 +39,6 @@ import {
   SendIcon,
   Settings2Icon,
   SettingsIcon,
-  SigmaIcon,
   SmartphoneIcon,
   SquareIcon,
   SquarePenIcon,
@@ -57,6 +57,7 @@ export const COMMAND_ICONS: Record<string, LucideIcon> = {
   "a-arrow-down": AArrowDownIcon,
   "a-arrow-up": AArrowUpIcon,
   "app-window": AppWindowIcon,
+  blocks: BlocksIcon,
   "arrow-down": ArrowDownIcon,
   "arrow-left": ArrowLeftIcon,
   "arrow-right": ArrowRightIcon,
@@ -91,7 +92,6 @@ export const COMMAND_ICONS: Record<string, LucideIcon> = {
   send: SendIcon,
   settings: SettingsIcon,
   "settings-2": Settings2Icon,
-  sigma: SigmaIcon,
   smartphone: SmartphoneIcon,
   square: SquareIcon,
   "square-pen": SquarePenIcon,

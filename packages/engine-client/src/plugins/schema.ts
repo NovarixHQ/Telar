@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { composerVerbs, PluginComposer } from "./composer";
 
 export const PLUGIN_API_VERSION = 1;
 
@@ -172,6 +173,7 @@ export const PluginMeta = z.object({
   settings: z.array(PluginSettingsSection).default([]),
   /** Panel surfaces drawn from blocks. */
   panels: z.array(PluginPanel).optional(),
+  composer: PluginComposer.optional(),
 });
 export type PluginMeta = z.infer<typeof PluginMeta>;
 
@@ -219,6 +221,8 @@ export const PluginManifest = z
       .default({ session: [], project: [], machine: [] }),
     /** Panel surfaces, each drawn from a declared session verb. */
     panels: z.array(PluginPanel).max(8).default([]),
+    /** Decorations and slash commands the plugin adds to the composer of its projects' sessions. */
+    composer: PluginComposer.optional(),
     /** Names of the `plugin.event`s the plugin emits; anything else it emits is refused. */
     eventKinds: z.array(PluginEventName).max(16).default([]),
     /** A `.gitignore` rule written into a project when it turns the plugin on. */
@@ -249,6 +253,9 @@ export const PluginManifest = z
     }
     if (new Set(manifest.panels.map((panel) => panel.id)).size !== manifest.panels.length) {
       context.addIssue({ code: "custom", path: ["panels"], message: "two panels share an id" });
+    }
+    for (const { path, verb } of manifest.composer ? composerVerbs(manifest.composer) : []) {
+      if (!manifest.routes.session.includes(verb)) context.addIssue({ code: "custom", path: ["composer", ...path], message: `"${verb}" is not a declared session route` });
     }
     for (const [index, section] of (manifest.settings ?? []).entries()) {
       if (section.view && !manifest.routes[section.scope].includes(`GET ${section.view}`)) {

@@ -20,6 +20,7 @@ export function manifestMeta(manifest: PluginManifest): PluginMeta {
     eventKinds: manifest.eventKinds,
     ...(manifest.gitignore ? { gitignore: manifest.gitignore } : {}),
     ...(manifest.panels.length > 0 ? { panels: manifest.panels } : {}),
+    ...(manifest.composer ? { composer: manifest.composer } : {}),
     settings: manifest.settings ?? [
       { id: "settings", scope: "project" as const, label: manifest.name },
       ...(manifest.machineSettingsSchema ? [{ id: "defaults", scope: "machine" as const, label: manifest.name }] : []),

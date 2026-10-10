@@ -318,6 +318,29 @@ describe("the daemon", () => {
   });
 });
 
+describe("composer contributions", () => {
+  test("an installed plugin's decoration and command reach clients, and the command's route answers text", async () => {
+    const pluginsDir = tempDir();
+    const composer = {
+      decorations: [{ id: "ticket", pattern: "#[0-9]+", style: "accent" }],
+      commands: [{ name: "shout", description: "Shout it", verb: "shout" }],
+    };
+    writePlugin(pluginsDir, "echo", { ...ECHO_MANIFEST, routes: { session: ["status", "shout"] }, composer });
+    writePlugin(pluginsDir, "loose", { ...ECHO_MANIFEST, id: "loose", toolPrefix: "loose", tools: [], composer: { commands: [{ name: "x", description: "X", verb: "nope" }] } });
+    const engineRoot = tempDir();
+    const daemon = await startEngine({ models: stubModels, engineRoot, pluginsDir });
+    daemons.push(daemon);
+    const client = new EngineClient(daemon.discovery);
+    await client.registerProject({ id: "project_one", name: "One", root: tempDir() });
+    await client.createSession({ id: "session_one", projectId: "project_one" });
+    const byId = Object.fromEntries((await client.machinePlugins()).plugins.map((status) => [status.meta.id, status]));
+    expect(byId.echo?.meta.composer).toEqual({ decorations: [{ id: "ticket", pattern: "#[0-9]+", style: "accent" }], commands: composer.commands });
+    expect(byId.loose).toMatchObject({ state: "failed", error: expect.stringContaining("composer.commands.0.verb") });
+    await client.updateProject("project_one", { plugins: { echo: { enabled: true } } });
+    await expect(client.plugin("session_one", "echo", "shout", { text: "hi" })).resolves.toEqual({ text: "HI!" });
+  });
+});
+
 describe("install and remove", () => {
   async function engine() {
     const pluginsDir = path.join(tempDir(), "plugins");

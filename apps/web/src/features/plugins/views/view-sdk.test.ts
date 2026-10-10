@@ -1,9 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { VIEW_BRIDGE_VERSION, VIEW_SDK_SOURCE } from "@telar/engine-client";
 import { installTestDom } from "@/test/dom";
 import { assetReference, newNonce, viewDocument } from "./view-document";
 
 installTestDom();
+
+// The cockpit's own page API lives at `window.telar` too, installed once per process; this file must hand it back.
+const pageApi = Object.getOwnPropertyDescriptor(window, "telar");
+const realPostMessage = window.postMessage;
+afterEach(() => {
+  delete (window as { telar?: unknown }).telar;
+  if (pageApi) Object.defineProperty(window, "telar", pageApi);
+  window.postMessage = realPostMessage;
+});
 
 type Telar = {
   context(): Promise<unknown>;

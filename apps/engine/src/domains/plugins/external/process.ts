@@ -28,6 +28,7 @@ export type ExternalProcessOptions = {
   requestTimeoutMs?: number;
   startTimeoutMs?: number;
   onNotification?: (method: string, params: unknown) => void;
+  onRequest?: (method: string, params: unknown) => Promise<unknown>;
 };
 
 export type ExternalProcessState = "stopped" | "starting" | "running" | "backoff";
@@ -183,6 +184,10 @@ export class ExternalPluginProcess {
         this.log(`${line}\n`);
         continue;
       }
+      if (typeof message.method === "string" && (typeof message.id === "number" || typeof message.id === "string")) {
+        this.answer(message.id, message.method, message.params);
+        continue;
+      }
       if (message.id === undefined && typeof message.method === "string") {
         this.notified(message.method, message.params);
         continue;
@@ -202,6 +207,16 @@ export class ExternalPluginProcess {
     } catch (error) {
       this.log(`[telar] ${method} refused: ${error instanceof Error ? error.message : String(error)}\n`);
     }
+  }
+
+  private answer(id: number | string, method: string, params: unknown): void {
+    const child = this.child;
+    const reply = (body: object) => child?.stdin?.write(`${JSON.stringify({ jsonrpc: "2.0", id, ...body })}\n`);
+    const handled = this.options.onRequest?.(method, params) ?? Promise.reject(Object.assign(new Error(`no method ${method}`), { code: -32601 }));
+    handled.then(
+      (result) => reply({ result: result ?? {} }),
+      (error: unknown) => reply({ error: { code: (error as { code?: number }).code ?? -32000, message: error instanceof Error ? error.message : String(error) } }),
+    );
   }
 
   private exited(child: PluginChild, why: string): void {

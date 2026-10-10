@@ -17,7 +17,7 @@ export {
 } from "./cli";
 export { type CliUpdateRun } from "./cli-updates";
 export { providerProcessEnv, type VersionProbe } from "./instances";
-export { oneShotCompleter, type OneShotCompleter } from "./one-shot";
+export { oneShotCompleter, type OneShotCompleter, type OneShotRequest } from "./one-shot";
 export { withClaudeSettingsEnv } from "./claude-settings-env";
 export {
   codexHome,

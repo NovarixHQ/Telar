@@ -118,11 +118,16 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
       },
     },
   });
+  const complete = oneShotCompleter({
+    store,
+    spend: ({ usage, ...entry }) => appendOneShotUsage(store.paths.usageOneShot, { ...entry, tokens: usage.tokens, ...(usage.costUsd !== undefined ? { costUsd: usage.costUsd } : {}) }),
+  });
   const moduleFor = (loaded: LoadedExternalPlugin) =>
     externalPlugin(loaded, {
       resolve: (sessionId) => resolve(loaded.manifest.id, sessionId),
       emit: (event) => void events.emit(loaded.manifest.id, loaded.manifest.eventKinds, event),
       enabledAnywhere: () => store.projectRegistry.list().some((project) => store.toolchains.runs(project, loaded.manifest.id)),
+      complete: (request) => complete(`plugin:${loaded.manifest.id}`, request),
       settings: (projectId) => {
         const machine = pluginSettings(store.toolchains.machine(), loaded.manifest.id);
         if (projectId === undefined) return machine;
@@ -133,10 +138,6 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
         }
       },
     });
-  const complete = oneShotCompleter({
-    store,
-    spend: ({ usage, ...entry }) => appendOneShotUsage(store.paths.usageOneShot, { ...entry, tokens: usage.tokens, ...(usage.costUsd !== undefined ? { costUsd: usage.costUsd } : {}) }),
-  });
   const external = loadInstalledPlugins(dir);
   const installed = installedPlugins(external);
   const host = new PluginHost([...bundledModules().map((entry) => bundledModulePlugin(store, resolve, events, complete, entry)), ...bundled, ...external.loaded.map(moduleFor)], {

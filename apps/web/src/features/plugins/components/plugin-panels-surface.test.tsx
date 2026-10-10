@@ -4,7 +4,7 @@
  *   the blocks    heading, text, key-value, table and log render as the cockpit's own
  *   an action     posts its verb with its input, then redraws the panel
  *   a confirm     declined, nothing is posted
- *   the tab       offered only while an enabled plugin has a panel
+ *   the sources   only an enabled, running plugin contributes a panel
  */
 import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
@@ -19,7 +19,6 @@ mock.module("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) })
 const { fakeSessionsStream } = await import("@/test/sessions-stream");
 const { PluginPanelsSurface } = await import("./plugin-panels-surface");
 const { panelSourceKey, pluginPanelSources } = await import("../panels");
-const { pluginSurfaces } = await import("../registry");
 
 const status = (id: string, panels: { id: string; label: string; verb: string; refreshOn?: string[] }[], state: PluginStatus["state"] = "ready"): PluginStatus => ({
   meta: { id, api: 1, name: id === "echo" ? "Echo" : id, version: "1", toolPrefixes: [], readTools: [], eventKinds: [], settings: [], panels },
@@ -198,12 +197,10 @@ describe("LaTeX's compile panel, drawn from its blocks", () => {
 });
 
 describe("the tab", () => {
-  test("is offered only while an enabled, running plugin has a panel", () => {
+  test("come only from an enabled, running plugin", () => {
     const statuses = [status("echo", [{ id: "jobs", label: "Jobs", verb: "status" }]), status("broken", [{ id: "x", label: "X", verb: "x" }], "failed")];
     expect(pluginPanelSources(statuses, [])).toEqual([]);
     expect(pluginPanelSources(statuses, ["broken"])).toEqual([]);
     expect(pluginPanelSources(statuses, ["echo"]).map(panelSourceKey)).toEqual(["echo/jobs"]);
-    expect(pluginSurfaces(["latex"], false).map((surface) => surface.id)).toEqual([]);
-    expect(pluginSurfaces(["latex"], true).map((surface) => surface.id)).toEqual(["plugin-panels"]);
   });
 });

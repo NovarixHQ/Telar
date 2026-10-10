@@ -3,7 +3,8 @@
 import { createContext, useContext, useState } from "react";
 import { PaperclipIcon } from "lucide-react";
 import type { ProviderDriverKind, TurnAttachment } from "@telar/engine-client";
-import { attachmentUrl, humanBytes } from "@/features/plugins";
+import { attachmentUrl } from "@/platform/engine/host-client";
+import { formatBytes } from "@/ui/format";
 import { ImageLightbox } from "@/ui/image-lightbox";
 
 /** The session, the host it lives on, and the provider it runs on, for the rows drawn below it. */
@@ -16,7 +17,7 @@ function ChipBody({ attachment }: { attachment: TurnAttachment }) {
     <>
       <PaperclipIcon className="size-3 shrink-0" />
       <span className="max-w-48 truncate">{attachment.name}</span>
-      <span className="shrink-0 tabular-nums opacity-70">{humanBytes(attachment.bytes)}</span>
+      <span className="shrink-0 tabular-nums opacity-70">{formatBytes(attachment.bytes)}</span>
     </>
   );
 }

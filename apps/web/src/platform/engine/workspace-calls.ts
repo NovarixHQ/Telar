@@ -2,9 +2,7 @@ import type {
 AgentCatalog,
 BrowserSnapshot,
 ClaudeConversation,
-ConversationImportDetail,DataScienceInstallCommand,
-DataScienceManager,
-DataSciencePackage,DataScienceRequirementsSource,TurnAttachment,ProviderDriverKind,
+ConversationImportDetail,ProviderDriverKind,
 ProviderSkills,
 ProviderInstance,
 ProviderInstanceEnvVar,
@@ -13,7 +11,6 @@ ProviderProbe,Session,Turn,UsageLimitWindow,WorkspaceFile,
 WorkspaceListing,
 WorkspaceWriteResult
 } from "@telar/engine-client";
-import type { ExecResult, KernelState, VarRow } from "@/features/plugins";
 import type { Fetcher } from "./host-client";
 import { request } from "./transport";
 
@@ -84,40 +81,11 @@ export function workspaceCalls(fetcher: Fetcher) {
         `/api/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ path }).toString()}`,
         { text, expectedSha256 },
       ),
-    /**
-     * THE SESSION'S KERNEL, NOTEBOOKS AND PLOTS. Every verb is a POST to one
-     * `ds/<method>` door on the engine — the same door the agent's toolkit
-     * uses — so a cell run from here and one run by `notebook_run_cell` land
-     * in the same kernel and write the same file.
-     */
-    kernel: (sessionId: string) =>
-      request<{ state: KernelState; executionCount?: number; modules?: Record<string, boolean>; python?: string; executable?: string }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/kernel`, {}),
-    kernelInterrupt: (sessionId: string) => request<object>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/interrupt`, {}),
-    kernelRestart: (sessionId: string) => request<object>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/restart`, {}),
-    kernelExecute: (sessionId: string, code: string) => request<ExecResult>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/execute`, { code, producer: "cockpit" }),
-    kernelVars: (sessionId: string, limit = 200) => request<VarRow[]>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/vars`, { limit }),
-    /** The project's environment as THIS session resolves it (worktree rule), and its packages. */
-    sessionPackages: (sessionId: string) =>
-      request<{ packages: DataSciencePackage[]; environment: { manager: DataScienceManager; root: string; python: string; command: DataScienceInstallCommand } }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/packages`, {}),
-    /** Install / remove in the session's environment. WAITS for the job (the engine's tool does the same). */
-    sessionInstall: (sessionId: string, input: { add?: string[]; remove?: string[]; requirements?: DataScienceRequirementsSource }) =>
-      request<{ ok: boolean; lines: string[]; error?: string }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/install`, input),
-    kernelInspect: (sessionId: string, name: string, depth = 10) =>
-      request<Record<string, unknown>>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/ds/inspect`, { name, depth }),
   };
 }
 
 export function integrationCalls(fetcher: Fetcher) {
   return {
-    /** The attachment index, optionally by tag. `plot` is what the gallery reads. */
-    attachments: (sessionId: string, options: { tag?: string } = {}) =>
-      request<{ attachments: TurnAttachment[] }>(
-        fetcher,
-        "GET",
-        `/api/sessions/${encodeURIComponent(sessionId)}/attachments${options.tag ? `?tag=${encodeURIComponent(options.tag)}` : ""}`,
-      ),
-    tagAttachment: (sessionId: string, attachmentId: string, tags: string[]) =>
-      request<{ attachment: TurnAttachment }>(fetcher, "PATCH", `/api/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}`, { tags }),
     /** What the session's browser is looking at. `screenshot` costs a round trip
      *  through Chromium and `start` would LAUNCH one, so both are opt-in. */
     browserState: (sessionId: string, options: { screenshot?: boolean; start?: boolean } = {}) => {

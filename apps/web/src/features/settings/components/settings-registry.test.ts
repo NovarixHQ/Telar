@@ -66,16 +66,13 @@ test("generated plugin rows join the index on the Projects and Plugins panes", a
     settingsSchema: FIXTURE_SCHEMA,
     machineSettingsSchema: FIXTURE_SCHEMA,
   };
-  expect(settingsSearchIndex([], () => false)).toBe(SETTINGS_SEARCH_INDEX);
+  expect(settingsSearchIndex([])).toBe(SETTINGS_SEARCH_INDEX);
 
-  const hits = searchSettings(settingsSearchIndex([plugin], () => false), "output folder");
+  const hits = searchSettings(settingsSearchIndex([plugin]), "output folder");
   expect(hits.map((hit) => [hit.pageId, hit.pageLabel])).toEqual([
     ["projects", "Projects"],
     ["plugins", "Plugins"],
   ]);
-
-  const bespoke = settingsSearchIndex([plugin], (scope) => scope === "project");
-  expect(searchSettings(bespoke, "output folder").map((hit) => hit.pageId)).toEqual(["plugins"]);
 });
 
 test("search finds every row the panes render, by its own name", () => {

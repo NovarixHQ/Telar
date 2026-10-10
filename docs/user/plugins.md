@@ -16,7 +16,7 @@ Once it's on, agents in that project get the plugin's tools and the panel gets i
 Data Science gives a session a Python kernel. Agents can run code and notebook cells in it, and you can follow along.
 
 - **Notebooks** open in the panel as cells. Edit a cell and press ⇧Return to run it in the session's kernel. Cells the agent runs show up with their output, because you and the agent work on the same file.
-- **The Data tab** (⇧⌘B) shows plots, the kernel's variables and its environment. You can interrupt or restart the kernel there. Restarting loses every variable.
+- **Data**, on the Plugins tab (⇧⌘X), shows plots, the kernel's variables and its environment, and has a line for running Python, drawing a plot or installing a package. You can interrupt or restart the kernel there. Restarting loses every variable.
 - **Environments**: in Settings → Projects → Data Science, pick the Python environment the kernel runs in, such as the project's own virtual environment, a conda environment or another interpreter. Telar can create one for you, and install uv, conda or a Python version if they're missing. Installs run with their log on screen.
 - **Packages**: the same page lists what's installed in the chosen environment and can install more. An agent can install packages too, after you approve it. Set the packages every new environment gets in Settings → Plugins → Data Science.
 
@@ -41,5 +41,5 @@ Telar checks the plugin before it installs it, and tells you why if it refuses. 
 ## What's not obvious
 
 - Telar never treats a tool from a plugin you added as a harmless read. It goes through the same approvals as a command or an edit. See [Permissions and requests](permissions.md).
-- The Data and LaTeX tabs, and their shortcuts, only appear in projects where the plugin is on.
+- The Plugins tab and its shortcut only appear in projects where a plugin that draws there (Data Science, LaTeX) is on.
 - Each session has its own kernel, even on the same project.

@@ -1,52 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/ui/utils";
 
-export type PanelTone = "none" | "active" | "attention" | "danger" | "done" | "info";
-
-export function PanelHeader({
-  icon,
-  label,
-  count,
-  tone = "none",
-  actions,
-  className,
-  ...props
-}: Omit<ComponentProps<"div">, "children"> & {
-  icon?: ReactNode;
-  label: string;
-  count?: number;
-  tone?: PanelTone;
-  actions?: ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex shrink-0 items-center gap-1.5 border-b border-border px-3 py-2 font-mono text-3xs tracking-[0.08em] text-muted-foreground uppercase",
-        className,
-      )}
-      {...props}
-    >
-      {icon && (
-        <span
-          className={cn(
-            "flex shrink-0 [&_svg]:size-3.5",
-            tone === "attention" && "text-warning",
-            tone === "danger" && "text-destructive",
-            tone === "done" && "text-success",
-            tone === "active" && "text-primary",
-            tone === "info" && "text-info",
-          )}
-        >
-          {icon}
-        </span>
-      )}
-      <span className="min-w-0 truncate">{label}</span>
-      {count !== undefined && <span className="shrink-0 text-muted-foreground/60 tabular-nums">{count}</span>}
-      {actions && <span className="ml-auto flex shrink-0 items-center gap-0.5">{actions}</span>}
-    </div>
-  );
-}
-
 export function PanelRow({ active, className, ...props }: ComponentProps<"div"> & { active?: boolean }) {
   return (
     <div

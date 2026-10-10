@@ -86,11 +86,6 @@ test("generated rows are searchable, anchored where the pane draws them", () => 
   expect(entries[0]!.folded.hint).toContain("hello");
 });
 
-test("a scope whose pane is bespoke indexes no generated rows", () => {
-  const entries = pluginSettingsSearchEntries([status("latex")], PAGES, (scope) => scope === "project");
-  expect(entries.map((entry) => entry.pageId)).toEqual(["plugins"]);
-});
-
 test("the section entry carries the schema to the generated pane, once", () => {
   const [first] = projectPluginSections([status("hello")]);
   expect(first!.settingsSchema).toBe(FIXTURE_SCHEMA);

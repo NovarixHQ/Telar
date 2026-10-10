@@ -15,7 +15,7 @@ GlobalRegistrator.register({ url: "http://localhost/settings" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { ProjectPluginList } = await import("./project-plugins");
-const { blockPatch, enablePatch } = await import("../sections");
+const { enablePatch } = await import("../sections");
 
 const status = (id: string, name: string, settings: unknown[] = []): PluginStatus =>
   ({ meta: { id, name, blurb: `${name} blurb`, settings }, state: "ready" }) as never;
@@ -111,7 +111,7 @@ test("the list switch sends the patch the plugin's own switch sends", async () =
   await click(view.host.querySelector('[aria-label="LaTeX for this project"]'));
   await click(view.host.querySelector('[aria-label="Hello for this project"]'));
   expect(patches).toEqual([
-    { url: "/api/projects/project_abc", body: blockPatch("latex", { enabled: true }) },
+    { url: "/api/projects/project_abc", body: enablePatch("latex", true) },
     { url: "/api/projects/project_abc", body: enablePatch("hello", true) },
   ]);
   view.done();

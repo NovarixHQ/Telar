@@ -61,7 +61,6 @@ const EXPECTED_IDS: CommandId[] = [
   "open-simulator",
   "open-issues",
   "open-pulls",
-  "open-data",
   "open-plugin-panels",
   "float-browser",
   "toggle-devtools",
@@ -227,7 +226,7 @@ describe("conflicts", () => {
   });
 
   test("unbound commands do not collide with each other", () => {
-    const keymap = { ...defaultKeymap(), "open-diff": "", "open-editor": "", "open-data": "" } as Keymap;
+    const keymap = { ...defaultKeymap(), "open-diff": "", "open-editor": "", "open-pulls": "" } as Keymap;
     expect(keymapConflicts(keymap)).toEqual({});
   });
 

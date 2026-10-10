@@ -179,19 +179,27 @@ describe("a browser tab's label comes from the live page when the shell has one"
 describe("a surface's letter", () => {
   test("its ⌘⇧ chord opens the same surface from anywhere, plugins included", () => {
     const panels = [{ plugin: "latex", pluginName: "LaTeX", panel: { id: "compile", label: "Compile", verb: "panel" } }];
-    const rows = launcherRows([], { enabledPlugins: ["data-science", "latex"], pluginPanels: panels, canOpenNew: true, shells: true, browser: {} });
-    const commands = new Map<string, string>([["browser", BROWSER_SURFACE.command], ...surfaceCommands(["data-science", "latex"], { shells: true, pluginPanels: panels }).map(({ command, tab }) => [tab, command] as [string, string])]);
+    const rows = launcherRows([], { pluginPanels: panels, canOpenNew: true, shells: true, browser: {} });
+    const commands = new Map<string, string>([["browser", BROWSER_SURFACE.command], ...surfaceCommands({ shells: true, pluginPanels: panels }).map(({ command, tab }) => [tab, command] as [string, string])]);
     const keyed = rows.filter((row) => row.key);
-    expect(keyed.map((row) => row.key)).toEqual(["b", "t", "e", "d", "s", "i", "u", "a", "x"]);
+    expect(keyed.map((row) => row.key)).toEqual(["b", "t", "e", "d", "s", "i", "u", "x"]);
     for (const row of keyed) {
       const chord = { key: row.key!.toUpperCase(), code: `Key${row.key!.toUpperCase()}`, metaKey: true, shiftKey: true };
       expect(resolveCommandForEvent(defaultKeymap(), chord)).toBe(commands.get(row.id)!);
     }
   });
 
+  test("Plugins is offered only while an enabled plugin draws something there", () => {
+    const panels = [{ plugin: "latex", pluginName: "LaTeX", panel: { id: "compile", label: "Compile", verb: "panel" } }];
+    expect(launcherRows([], { pluginPanels: [], canOpenNew: true, shells: true }).map((row) => row.id)).not.toContain("plugin-panels");
+    expect(launcherRows([], { pluginPanels: panels, canOpenNew: true, shells: true }).map((row) => row.id)).toContain("plugin-panels");
+    expect(surfaceCommands({ shells: true }).map((entry) => entry.command)).not.toContain("open-plugin-panels");
+    expect(isPanelTab("plugin-panels")).toBe(true);
+  });
+
   test("an open singleton leaves the launcher; a second Terminal or Diff stays as another", () => {
     const open = [{ id: "issues", kind: "issues", params: {} }, { id: "terminal", kind: "terminal", params: {} }, { id: "diff", kind: "diff", params: {} }] as const;
-    const rows = launcherRows([...open], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: true });
+    const rows = launcherRows([...open], { pluginPanels: [], canOpenNew: true, shells: true });
     expect(rows.some((row) => row.id === "issues")).toBe(false);
     expect(rows.find((row) => row.id === "terminal")?.another).toBe(true);
     expect(rows.find((row) => row.id === "diff")?.another).toBe(true);
@@ -199,16 +207,16 @@ describe("a surface's letter", () => {
   });
 
   test("offers no Agents or Processes surface", () => {
-    const labels = launcherRows([], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: true }).map((row) => row.label);
+    const labels = launcherRows([], { pluginPanels: [], canOpenNew: true, shells: true }).map((row) => row.label);
     expect(labels).not.toContain("Agents");
     expect(labels).not.toContain("Processes");
   });
 
   test("a client that cannot open a shell is offered no Terminal, by letter or by chord", () => {
-    const rows = launcherRows([], { enabledPlugins: [], pluginPanels: [], canOpenNew: true, shells: false });
+    const rows = launcherRows([], { pluginPanels: [], canOpenNew: true, shells: false });
     expect(rows.map((row) => row.id)).not.toContain("terminal");
     expect(launcherRowForKey(rows, "t")).toBeUndefined();
-    expect(surfaceCommands([], { shells: false }).map((entry) => entry.command)).not.toContain("open-terminal");
-    expect(surfaceCommands([], { shells: true }).map((entry) => entry.command)).toContain("open-terminal");
+    expect(surfaceCommands({ shells: false }).map((entry) => entry.command)).not.toContain("open-terminal");
+    expect(surfaceCommands({ shells: true }).map((entry) => entry.command)).toContain("open-terminal");
   });
 });

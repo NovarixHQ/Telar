@@ -7,7 +7,7 @@
  *   LaTeX          one "Plugin defaults" group: the generated rows (Default
  *                  engine, Install missing packages automatically), then the
  *                  view its machine section declares
- *   Data Science   the same group: Default Python, then its packages row
+ *   Data Science   the same group, through the same generic path: Default Python
  *   a write        the generated row writes the whole blob, keeping the rest
  */
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
@@ -92,7 +92,7 @@ async function mount() {
   return { host, done: () => act(() => root.unmount()) };
 }
 
-test("each plugin's defaults are one group: the generated rows, then its view or bespoke rows", async () => {
+test("each plugin's defaults are one group: the generated rows, then its declared view", async () => {
   const { host, done } = await mount();
   const latex = host.querySelector('[data-detail-for="latex"]')!;
   expect(latex.querySelectorAll("section")).toHaveLength(1);
@@ -103,7 +103,7 @@ test("each plugin's defaults are one group: the generated rows, then its view or
   expect(text.indexOf("Install missing packages automatically")).toBeLessThan(text.indexOf("TeX distribution"));
   const science = host.querySelector('[data-detail-for="data-science"]')!;
   expect(science.querySelectorAll("section")).toHaveLength(1);
-  expect(science.textContent!.indexOf("Default Python")).toBeLessThan(science.textContent!.indexOf("Default packages"));
+  expect(science.textContent).toContain("Default Python");
   expect((host.querySelector('[aria-label="Default Python"]') as HTMLInputElement).value).toBe("/usr/bin/python3");
   done();
 });

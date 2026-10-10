@@ -9,7 +9,6 @@ import { SettingsGroup, SettingsShell } from "./settings-shell";
 import { SettingsSkeleton } from "./settings-skeleton";
 import { SECTION_IDS, SECTIONS } from "../settings-sections";
 import { settingsSearchIndex } from "../registry";
-import { projectPaneFor } from "@/features/plugins";
 import { useSectionFromUrl } from "../use-section-from-url";
 import { useSettingsReturnPath } from "../return-path";
 
@@ -65,10 +64,7 @@ export function SettingsPage() {
     return () => window.clearTimeout(task);
   }, [load]);
 
-  const search = useMemo(
-    () => settingsSearchIndex(health?.plugins, (scope, id) => scope === "project" && projectPaneFor(id) !== undefined),
-    [health],
-  );
+  const search = useMemo(() => settingsSearchIndex(health?.plugins), [health]);
 
   return (
     <SettingsShell

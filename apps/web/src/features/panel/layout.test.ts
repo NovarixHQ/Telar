@@ -1,7 +1,7 @@
 /**
  * HOW WIDE THE PANEL OPENS, and whose answer that is.
  *
- * A Data or Editor tab at the list width (480px) is a notebook, a PDF page or
+ * An Editor tab at the list width (480px) is a notebook, a PDF page or
  * a file-beside-its-tree in a column too narrow for any of them, so every one
  * of them asked to be dragged wider on sight (#357). The rule has to raise the
  * DEFAULT without ever touching a width the person chose — including a narrow
@@ -25,7 +25,7 @@ describe("defaultRightPanelWidth", () => {
 
   test("a document surface opens wide", () => {
     expect(defaultRightPanelWidth([tab("editor")])).toBe(RIGHT_PANEL_WIDE_DEFAULT_WIDTH);
-    expect(defaultRightPanelWidth([tab("data")])).toBe(RIGHT_PANEL_WIDE_DEFAULT_WIDTH);
+    expect(defaultRightPanelWidth([tab("plugin-panels")])).toBe(RIGHT_PANEL_DEFAULT_WIDTH);
   });
 
   test("the widest thing in the strip decides, wherever it sits and whichever is showing", () => {

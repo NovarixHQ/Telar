@@ -2,7 +2,7 @@ import { CircleDotIcon, FileCode2Icon, FileDiffIcon, FileIcon, GitPullRequestIco
 import type { CommandId } from "@/features/commands";
 import type { BrowserProvider, BrowserTab } from "@telar/engine-client";
 import { fileKind } from "@/features/files";
-import { isPluginSurface, PLUGIN_SURFACES, pluginSurfaces, viewerFor, type PluginSurfaceId, type PluginPanelSource } from "@/features/plugins";
+import { viewerFor, type PluginPanelSource } from "@/features/plugins";
 import type { PanelTabInstance, PanelTabParams } from "./tabs";
 
 const SURFACES = [
@@ -12,31 +12,29 @@ const SURFACES = [
   { id: "simulator", label: "Simulator", icon: SmartphoneIcon, blurb: "This Mac's simulators, live and controllable", key: "s", command: "open-simulator" },
   { id: "issues", label: "Issues", icon: CircleDotIcon, blurb: "Open issues", key: "i", command: "open-issues" },
   { id: "pulls", label: "Pull requests", icon: GitPullRequestIcon, blurb: "Open pull requests", key: "u", command: "open-pulls" },
+  { id: "plugin-panels", label: "Plugins", icon: PuzzleIcon, blurb: "Panels and views your plugins draw", key: "x", command: "open-plugin-panels" },
 ] as const;
 
-type SurfaceId = (typeof SURFACES)[number]["id"] | PluginSurfaceId;
+type SurfaceId = (typeof SURFACES)[number]["id"];
 
 /** `key` is the launcher letter; `command` is the ⌘⇧ chord that opens the same surface from anywhere. */
 type Surface = { id: SurfaceId; label: string; icon: LucideIcon; blurb: string; key?: string; command?: CommandId };
 
-const ALL_SURFACES: readonly Surface[] = [...SURFACES, ...PLUGIN_SURFACES];
+const ALL_SURFACES: readonly Surface[] = SURFACES;
 
 /** The launcher's Browser row: not a tab kind, since it starts the browser or shows the last page. */
 export const BROWSER_SURFACE = { label: "Browser", icon: GlobeIcon, key: "b", command: "open-browser" } as const satisfies Omit<Surface, "id" | "blurb">;
 
-export function surfaceCommands(
-  enabledPlugins: readonly string[],
-  { shells, pluginPanels = NO_PANELS }: { shells: boolean; pluginPanels?: readonly PluginPanelSource[] },
-): { command: CommandId; tab: PanelTab }[] {
-  return surfacesFor(enabledPlugins, pluginPanels, shells).flatMap((surface) => (surface.command ? [{ command: surface.command, tab: surface.id as PanelTab }] : []));
+export function surfaceCommands({ shells, pluginPanels = NO_PANELS }: { shells: boolean; pluginPanels?: readonly PluginPanelSource[] }): { command: CommandId; tab: PanelTab }[] {
+  return surfacesFor(pluginPanels, shells).flatMap((surface) => (surface.command ? [{ command: surface.command, tab: surface.id }] : []));
 }
 
 export const NO_PLUGINS: readonly string[] = [];
 export const NO_PANELS: readonly PluginPanelSource[] = [];
 
-/** The surfaces a project offers: the core ones, then the enabled plugins'. The Terminal only where this client can open a shell. */
-function surfacesFor(enabledPlugins: readonly string[], pluginPanels: readonly PluginPanelSource[], shells: boolean): Surface[] {
-  return [...SURFACES.filter((surface) => shells || surface.id !== "terminal"), ...pluginSurfaces(enabledPlugins, pluginPanels.length > 0)];
+/** The Terminal only where this client can open a shell; Plugins only while an enabled plugin draws something there. */
+function surfacesFor(pluginPanels: readonly PluginPanelSource[], shells: boolean): Surface[] {
+  return SURFACES.filter((surface) => (shells || surface.id !== "terminal") && (pluginPanels.length > 0 || surface.id !== "plugin-panels"));
 }
 
 /** File, issue and pull ids are requests to open something inside a surface, never tabs of their own. */
@@ -139,7 +137,7 @@ export function ownsItsHeight(tab: PanelTab): boolean {
     tab === "pulls" ||
     tab === "editor" ||
     tab === "simulator" ||
-    isPluginSurface(tab) ||
+    tab === "plugin-panels" ||
     tab === "terminal"
   );
 }
@@ -231,7 +229,7 @@ export type LauncherRow = { id: PanelTab | "browser"; label: string; icon: Lucid
  */
 export function launcherRows(
   tabs: readonly PanelTabItem[],
-  { enabledPlugins, pluginPanels, canOpenNew, shells, browser }: { enabledPlugins: readonly string[]; pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; shells: boolean; browser?: { unavailable?: string } },
+  { pluginPanels, canOpenNew, shells, browser }: { pluginPanels: readonly PluginPanelSource[]; canOpenNew: boolean; shells: boolean; browser?: { unavailable?: string } },
 ): LauncherRow[] {
   const holdsKind = (kind: PanelTab) => tabs.some((entry) => entry.kind === kind);
   const offersAnother = (kind: PanelTab) => MULTI_INSTANCE.has(kind) && canOpenNew;
@@ -240,7 +238,7 @@ export function launcherRows(
     : [];
   return [
     ...browserRow,
-    ...surfacesFor(enabledPlugins, pluginPanels, shells)
+    ...surfacesFor(pluginPanels, shells)
       .filter((surface) => !holdsKind(surface.id) || offersAnother(surface.id))
       .map((surface) => ({ id: surface.id as PanelTab, label: surface.label, icon: surface.icon, ...(surface.key ? { key: surface.key } : {}), another: holdsKind(surface.id) })),
   ];

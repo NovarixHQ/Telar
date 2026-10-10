@@ -19,12 +19,9 @@ export const SETTINGS_SEARCH_PAGES: readonly SettingsPageSpec[] = SECTIONS.map((
 
 export const SETTINGS_SEARCH_INDEX = indexSettings(SETTINGS_SEARCH_PAGES);
 
-export function settingsSearchIndex(
-  plugins: readonly PluginStatus[] | undefined,
-  bespoke: (scope: "project" | "machine", pluginId: string) => boolean,
-): SettingsSearchIndex {
+export function settingsSearchIndex(plugins: readonly PluginStatus[] | undefined): SettingsSearchIndex {
   if (!plugins?.length) return SETTINGS_SEARCH_INDEX;
   const page = (id: string) => ({ id, label: SECTIONS.find((entry) => entry.id === id)?.label ?? id });
-  const generated = pluginSettingsSearchEntries(plugins, { project: page("projects"), machine: page("plugins") }, bespoke);
+  const generated = pluginSettingsSearchEntries(plugins, { project: page("projects"), machine: page("plugins") });
   return { entries: [...SETTINGS_SEARCH_INDEX.entries, ...generated] };
 }

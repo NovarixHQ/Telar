@@ -13,7 +13,7 @@ Minimize2Icon
 } from "lucide-react";
 import { itemLabel, itemText, type JournalItem, type JournalTurn } from "@telar/client/journal";
 import { fmtTokens, plural } from "@/ui/format";
-import { attachmentUrl } from "@/features/plugins";
+import { attachmentUrl } from "@/platform/engine/host-client";
 import { MessageMenu, MessageResponse, messagePlainText } from "@/ui/message";
 import { Shimmer } from "@/ui/shimmer";
 import { ROW } from "./transcript-fold";

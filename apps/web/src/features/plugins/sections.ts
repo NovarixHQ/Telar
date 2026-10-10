@@ -1,5 +1,5 @@
 import type { PluginStatus, Project, ProjectPlugins } from "@telar/engine-client";
-import { machineAllows, pluginConfigFromLegacy, pluginSettings, readProjectPlugins } from "@telar/engine-client";
+import { machineAllows, pluginSettings, readProjectPlugins } from "@telar/engine-client";
 
 export type PluginSectionEntry = {
   key: string;
@@ -55,10 +55,6 @@ export function togglePatch(project: Project, pluginId: string, enabled: boolean
   const settings = pluginSettings(readProjectPlugins(project).plugins, pluginId);
   if (Object.keys(settings).length === 0) return enablePatch(pluginId, enabled);
   return { plugins: { [pluginId]: { enabled, settings } } };
-}
-
-export function blockPatch(pluginId: string, block: { enabled: boolean; [setting: string]: unknown } | null) {
-  return { plugins: { [pluginId]: block && pluginConfigFromLegacy(block) } };
 }
 
 export function machineSettingsPatch(machine: ProjectPlugins | undefined, pluginId: string, settings: Record<string, unknown>) {

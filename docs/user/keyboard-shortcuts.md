@@ -6,7 +6,7 @@ Telar is built to be driven from the keyboard. Every shortcut can be changed, an
 
 Press ⌘K to open it. It has four sections, always in this order:
 
-- **Actions**: every command that can run where you are right now. A command whose surface isn't on screen (Send with no session open, Open data in a project without the Data plugin) doesn't appear.
+- **Actions**: every command that can run where you are right now. A command whose surface isn't on screen (Send with no session open, Open plugin panels when no enabled plugin draws one) doesn't appear.
 - **Quick settings**: the colour scheme, the accent, text size, translucency and the rail. These apply on Enter instead of opening Settings, and show their current value.
 - **Projects**: start a conversation in one.
 - **Recent conversations**: the eight most recent, across every project. Type to search all of them.
@@ -38,8 +38,7 @@ On a Mac, ⌘ is Command and ⌥ is Option. In a browser on another system, Ctrl
 | ⌥⌘P | Float the browser on top |
 | ⇧⌘D | Open diff |
 | ⇧⌘E | Open editor |
-| ⇧⌘B | Open data |
-| ⇧⌘X | Open LaTeX |
+| ⇧⌘X | Open plugin panels |
 | ⇧⌘P | Go to file |
 | ⌥⌘I | Developer tools |
 | ⌘, | Settings |

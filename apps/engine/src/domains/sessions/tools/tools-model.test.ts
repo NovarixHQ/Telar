@@ -8,8 +8,8 @@ describe("choosing a model for a session an agent starts", () => {
     const { store, projectId } = engine();
     withCatalogue(store);
     const created = await call(wall(store), "sessions_create", { projectId, envMode: "local", model: "sonnet", effort: "medium" });
-    expect(created.json!.model).toBe("claude-sonnet-5 at medium");
-    expect(store.records.get(created.json!.id as string).model).toEqual({ instanceId: "claude", model: "claude-sonnet-5", effort: "medium" });
+    expect(created.json!.model).toBe("claude-sonnet-5-5 at medium");
+    expect(store.records.get(created.json!.id as string).model).toEqual({ instanceId: "claude", model: "claude-sonnet-5-5", effort: "medium" });
   });
 
   test("omitting both keeps today's session, with no model of its own", async () => {

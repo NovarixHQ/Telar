@@ -18,8 +18,8 @@ const row = (id: string, extra: Partial<ProviderModel> = {}): ProviderModel => (
 const ROWS: ProviderModel[] = [
   row("claude-opus-5-5[1m]", { resolves: "claude-opus-5-5[1m]", isDefault: true, defaultWindow: true }),
   row("claude-opus-5-5", { resolves: "claude-opus-5-5" }),
-  row("claude-sonnet-5", { resolves: "claude-sonnet-5", defaultWindow: true }),
-  row("claude-sonnet-5[1m]", { resolves: "claude-sonnet-5[1m]" }),
+  row("claude-sonnet-5-5", { resolves: "claude-sonnet-5-5", defaultWindow: true }),
+  row("claude-sonnet-5-5[1m]", { resolves: "claude-sonnet-5-5[1m]" }),
   row("claude-haiku-4-5", { legacy: true, efforts: [] }),
   row("claude-opus-4-8[1m]", { legacy: true }),
   row("claude-fable-5-1", { hidden: true }),
@@ -32,8 +32,8 @@ test("the offer keeps current models and the cheapest legacy tier, never a hidde
   expect(offeredRows("claude", ROWS).map((each) => each.id)).toEqual([
     "claude-opus-5-5[1m]",
     "claude-opus-5-5",
-    "claude-sonnet-5",
-    "claude-sonnet-5[1m]",
+    "claude-sonnet-5-5",
+    "claude-sonnet-5-5[1m]",
     "claude-haiku-4-5",
   ]);
 });
@@ -41,7 +41,7 @@ test("the offer keeps current models and the cheapest legacy tier, never a hidde
 test("an alias resolves to the model's default window, and an effort it lists is kept", () => {
   expect(chosenModel("claude", "claude", { model: "sonnet", effort: "medium" }, ROWS)).toEqual({
     instanceId: "claude",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     effort: "medium",
   });
   expect(chosenModel("claude", "claude", { model: "claude-opus-5-5[1m]" }, ROWS)).toEqual({ instanceId: "claude", model: "claude-opus-5-5[1m]" });
@@ -49,13 +49,13 @@ test("an alias resolves to the model's default window, and an effort it lists is
 
 test("a model the Mac does not offer is refused with the ones it does", () => {
   expect(() => chosenModel("claude", "claude", { model: "claude-fable-5-1" }, ROWS)).toThrow(
-    '"claude-fable-5-1" is not a model claude offers. Offered: claude-opus-5-5[1m], claude-opus-5-5, claude-sonnet-5, claude-sonnet-5[1m], claude-haiku-4-5. sessions_capabilities lists each with its efforts.',
+    '"claude-fable-5-1" is not a model claude offers. Offered: claude-opus-5-5[1m], claude-opus-5-5, claude-sonnet-5-5, claude-sonnet-5-5[1m], claude-haiku-4-5. sessions_capabilities lists each with its efforts.',
   );
 });
 
 test("an effort the model does not take is refused, and a model with none says to omit it", () => {
-  expect(() => chosenModel("claude", "claude", { model: "claude-sonnet-5", effort: "ludicrous" }, ROWS)).toThrow(
-    'claude-sonnet-5 takes effort low, medium, high, not "ludicrous".',
+  expect(() => chosenModel("claude", "claude", { model: "claude-sonnet-5-5", effort: "ludicrous" }, ROWS)).toThrow(
+    'claude-sonnet-5-5 takes effort low, medium, high, not "ludicrous".',
   );
   expect(() => chosenModel("claude", "claude", { model: "haiku", effort: "low" }, ROWS)).toThrow("claude-haiku-4-5 takes no effort; omit it.");
 });
@@ -71,8 +71,8 @@ test("with no catalogue read yet the choice passes as named", () => {
 });
 
 test("a turn's effort alone keeps the session's model and options; a new model drops them", () => {
-  const worker = session({ instanceId: "claude", model: "claude-sonnet-5", effort: "medium", fastMode: true });
-  expect(turnModelChoice(worker, { effort: "high" }, ROWS)).toEqual({ model: "claude-sonnet-5", effort: "high", fastMode: true });
+  const worker = session({ instanceId: "claude", model: "claude-sonnet-5-5", effort: "medium", fastMode: true });
+  expect(turnModelChoice(worker, { effort: "high" }, ROWS)).toEqual({ model: "claude-sonnet-5-5", effort: "high", fastMode: true });
   expect(turnModelChoice(worker, { model: "haiku" }, ROWS)).toEqual({ model: "claude-haiku-4-5" });
   expect(turnModelChoice(worker, {}, ROWS)).toBeUndefined();
 });

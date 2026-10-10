@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { ChevronRightIcon, FolderIcon, FolderOpenIcon, FolderTreeIcon, HardDriveIcon, RotateCwIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, FolderGit2Icon, FolderIcon, FolderOpenIcon, FolderTreeIcon, HardDriveIcon, RotateCwIcon, SearchIcon } from "lucide-react";
 import type { GitChangeStatus, TurnState, WorkspaceListing } from "@telar/engine-client";
 import type { matchFiles } from "../file-tree";
 import { useFilesTree, type FileTreeRowModel } from "../hooks/use-files-tree";
@@ -132,7 +132,8 @@ function FileTreeRow({
   onOpenInNewPanelTab?: ((path: string) => void) | undefined;
 }) {
   const directory = row.node.kind === "directory";
-  const Folder = expanded ? FolderOpenIcon : FolderIcon;
+  const submodule = row.node.kind === "directory" && row.node.submodule;
+  const Folder = submodule ? FolderGit2Icon : expanded ? FolderOpenIcon : FolderIcon;
   return (
     <div
       draggable
@@ -154,7 +155,7 @@ function FileTreeRow({
               onFocus={onFocus}
               onClick={directory ? onToggle : onOpen}
               {...(directory ? {} : { onDoubleClick: onKeep })}
-              title={row.node.path}
+              title={submodule ? `${row.node.path} (submodule)` : row.node.path}
               style={{ paddingLeft: 6 + row.depth * INDENT }}
               className={cn(
                 "flex h-6 w-full min-w-0 items-center gap-1 pr-2 text-left outline-none hover:bg-muted/60 focus-visible:bg-muted/60",
@@ -172,6 +173,9 @@ function FileTreeRow({
               <span className={cn("min-w-0 flex-1 truncate font-mono text-2xs", directory ? "text-foreground" : "text-muted-foreground")}>
                 {row.node.name}
               </span>
+              {submodule && row.node.kind === "directory" && row.node.children.length === 0 && (
+                <span className="shrink-0 text-3xs text-muted-foreground">not checked out</span>
+              )}
               {status && (
                 <span className="shrink-0 font-mono text-3xs text-muted-foreground" title={REVIEW_STATUS_WORD[status]}>
                   {REVIEW_STATUS_LETTER[status]}

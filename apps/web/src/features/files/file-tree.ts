@@ -1,7 +1,7 @@
 
 export type FileTreeNode =
   | { kind: "file"; path: string; name: string }
-  | { kind: "directory"; path: string; name: string; children: FileTreeNode[] };
+  | { kind: "directory"; path: string; name: string; children: FileTreeNode[]; submodule?: true };
 
 function compareNodes(left: FileTreeNode, right: FileTreeNode): number {
   if (left.kind !== right.kind) return left.kind === "directory" ? -1 : 1;
@@ -18,40 +18,46 @@ function collapse(node: FileTreeNode): FileTreeNode {
   if (node.kind === "file") return node;
   const children = node.children.map(collapse);
   const only = children[0];
-  if (children.length === 1 && only?.kind === "directory") {
-    return { kind: "directory", path: only.path, name: `${node.name}/${only.name}`, children: only.children };
+  if (!node.submodule && children.length === 1 && only?.kind === "directory") {
+    return { ...only, name: `${node.name}/${only.name}` };
   }
-  return { kind: "directory", path: node.path, name: node.name, children };
+  return { ...node, children };
 }
 
-function toNodes(building: Building, prefix: string): FileTreeNode[] {
+function toNodes(building: Building, prefix: string, submodules: ReadonlySet<string>): FileTreeNode[] {
   const nodes: FileTreeNode[] = [];
   for (const [name, child] of building.dirs) {
     const path = prefix ? `${prefix}/${name}` : name;
-    nodes.push({ kind: "directory", path, name, children: toNodes(child, path) });
+    const children = toNodes(child, path, submodules);
+    nodes.push(submodules.has(path) ? { kind: "directory", path, name, children, submodule: true } : { kind: "directory", path, name, children });
   }
   for (const name of building.files) nodes.push({ kind: "file", path: prefix ? `${prefix}/${name}` : name, name });
   return nodes.sort(compareNodes);
 }
 
-export function buildFileTree(paths: readonly string[]): FileTreeNode[] {
+function descend(root: Building, segments: readonly string[]): Building {
+  let cursor = root;
+  for (const segment of segments) {
+    let next = cursor.dirs.get(segment);
+    if (!next) {
+      next = emptyBuilding();
+      cursor.dirs.set(segment, next);
+    }
+    cursor = next;
+  }
+  return cursor;
+}
+
+export function buildFileTree(paths: readonly string[], submodules: readonly string[] = []): FileTreeNode[] {
   const root = emptyBuilding();
   for (const path of paths) {
     const segments = path.split("/").filter(Boolean);
     const name = segments.pop();
     if (name === undefined) continue;
-    let cursor = root;
-    for (const segment of segments) {
-      let next = cursor.dirs.get(segment);
-      if (!next) {
-        next = emptyBuilding();
-        cursor.dirs.set(segment, next);
-      }
-      cursor = next;
-    }
-    cursor.files.push(name);
+    descend(root, segments).files.push(name);
   }
-  return toNodes(root, "").map(collapse);
+  for (const path of submodules) descend(root, path.split("/").filter(Boolean));
+  return toNodes(root, "", new Set(submodules)).map(collapse);
 }
 
 export const MAX_SEARCH_MATCHES = 400;

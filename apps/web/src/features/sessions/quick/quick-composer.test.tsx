@@ -524,6 +524,15 @@ describe("the attached conversation's transcript", () => {
     expect(text.indexOf("Hello")).toBeLessThan(text.indexOf("The four artifacts"));
   });
 
+  test("a conversation with no turns says so once it has loaded", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#readme");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("No messages yet") ?? false);
+    expect(host.querySelector('[data-slot="quick-transcript"] [role="status"]')).toBeNull();
+  });
+
   test("typing # closes the attached conversation and opens the picker in its place", async () => {
     const { host } = await open(front(GRANTED));
     await type(host, "#sales");

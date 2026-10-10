@@ -3,17 +3,13 @@ import type { CommandId } from "@/features/commands";
 
 export type PluginSurface = { id: string; label: string; icon: LucideIcon; blurb: string; wide?: boolean; key?: string; command?: CommandId };
 
-type PluginViewer = "notebook" | "table";
-
-export type PluginWebContribution = {
+type PluginWebContribution = {
   surfaces?: readonly PluginSurface[];
-  viewers?: readonly PluginViewer[];
 };
 
-export const PLUGIN_WEB = {
+const PLUGIN_WEB = {
   "data-science": {
     surfaces: [{ id: "data", label: "Data", icon: FlaskConicalIcon, blurb: "Plots, variables and the Python environment", wide: true, key: "a", command: "open-data" }],
-    viewers: ["notebook", "table"],
   },
 } as const satisfies Record<string, PluginWebContribution>;
 
@@ -29,9 +25,6 @@ const PLUGIN_PANELS_SURFACE = {
 export type PluginSurfaceId = (typeof PLUGIN_WEB)[keyof typeof PLUGIN_WEB]["surfaces"][number]["id"] | typeof PLUGIN_PANELS_SURFACE.id;
 
 const REGISTRY: Readonly<Record<string, PluginWebContribution>> = PLUGIN_WEB;
-
-const contributions = (enabled: readonly string[]): PluginWebContribution[] =>
-  enabled.flatMap((id) => (REGISTRY[id] ? [REGISTRY[id]] : []));
 
 export const PLUGIN_SURFACES: readonly (PluginSurface & { id: PluginSurfaceId })[] = [
   ...Object.values(REGISTRY).flatMap((entry) => (entry.surfaces ?? []) as readonly (PluginSurface & { id: PluginSurfaceId })[]),
@@ -50,10 +43,4 @@ export function pluginSurfaces(enabled: readonly string[], hasPanels = false): (
 
 export function isPluginSurface(id: string): id is PluginSurfaceId {
   return PLUGIN_SURFACES.some((surface) => surface.id === id);
-}
-
-export function viewerAvailable(viewer: string | undefined, enabled: readonly string[]): boolean {
-  if (viewer === undefined) return false;
-  const owned = Object.values(REGISTRY).some((entry) => entry.viewers?.includes(viewer as PluginViewer));
-  return !owned || contributions(enabled).some((entry) => entry.viewers?.includes(viewer as PluginViewer));
 }

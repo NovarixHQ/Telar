@@ -80,7 +80,7 @@ describe("media kinds", () => {
   test("the pdf kind also names the pdf viewer, ungated by data science", () => {
     // Other features (compiled LaTeX output) route through `viewer: "pdf"` without a dataScience gate.
     expect(fileKind("out/main.pdf").viewer).toBe("pdf");
-    expect(fileKind("data.csv").viewer).toBe("table");
+    expect(fileKind("data.csv").viewer).toBeUndefined();
     expect(fileKind("notes.md").viewer).toBeUndefined();
   });
 });

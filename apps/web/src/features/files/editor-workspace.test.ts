@@ -1,6 +1,8 @@
 // A pinned or edited file is never replaced by the next tree click; browsing
 // never leaves a tab per file. The preview slot reconciles the two.
 import { describe, expect, test } from "bun:test";
+import { setPluginStatuses } from "@/features/plugins";
+import { DATA_SCIENCE_STATUS } from "@/test/plugin-statuses";
 import {
   activateEditorFile,
   activeEditorFile,
@@ -75,8 +77,8 @@ describe("the preview slot", () => {
     expect(pinEditorFile(state, "nowhere.ts")).toBe(state);
   });
 
-  test("a notebook is never a preview", () => {
-    let state = openInEditor(emptyEditor(), { path: "a.ipynb", view: "notebook" });
+  test("a plugin's viewer is never a preview", () => {
+    let state = openInEditor(emptyEditor(), { path: "a.ipynb", view: "plugin" });
     state = openInEditor(state, code("b.ts"));
     expect(paths(state)).toEqual(["a.ipynb!", "b.ts"]);
   });
@@ -148,10 +150,11 @@ describe("which files a close verb sweeps", () => {
 });
 
 describe("editorFileForPath", () => {
-  test("the data-science pair is gated, the PDF viewer is not", () => {
+  test("a plugin's viewers are gated on the plugin, the PDF viewer is not", () => {
+    setPluginStatuses([DATA_SCIENCE_STATUS]);
     expect(editorFileForPath("analysis.ipynb", []).view).toBe("code");
-    expect(editorFileForPath("analysis.ipynb", ["data-science"]).view).toBe("notebook");
-    expect(editorFileForPath("data.csv", ["data-science"]).view).toBe("table");
+    expect(editorFileForPath("analysis.ipynb", ["data-science"]).view).toBe("plugin");
+    expect(editorFileForPath("data.csv", ["data-science"]).view).toBe("plugin");
     expect(editorFileForPath("docs/paper.pdf", []).view).toBe("pdf");
     expect(editorFileForPath("README.md", []).view).toBe("code");
     expect(editorFileForPath("src/weird:name.ts", [])).toEqual({ path: "src/weird:name.ts", view: "code" });
@@ -179,14 +182,14 @@ describe("what survives a reload", () => {
   test("the open files, which one was active, and the tree's state come back", () => {
     withStorage(() => {
       let state = openInEditor(emptyEditor(), code("a.ts"), "pin");
-      state = openInEditor(state, { path: "b.csv", view: "table" });
+      state = openInEditor(state, { path: "b.pdf", view: "pdf" });
       writeEditor("session_1", state, 1);
       const restored = readEditor("session_1");
       expect(restored.files).toEqual([
         { path: "a.ts", view: "code", pinned: true },
-        { path: "b.csv", view: "table", pinned: false },
+        { path: "b.pdf", view: "pdf", pinned: false },
       ]);
-      expect(restored.activePath).toBe("b.csv");
+      expect(restored.activePath).toBe("b.pdf");
       expect(restored.explorerOpen).toBe(true);
     });
   });

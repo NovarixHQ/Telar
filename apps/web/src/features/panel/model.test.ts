@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { setPluginStatuses } from "@/features/plugins";
+import { DATA_SCIENCE_STATUS } from "@/test/plugin-statuses";
 import { defaultKeymap, resolveCommandForEvent } from "@/features/commands";
 import {
   BROWSER_SURFACE,
@@ -76,7 +78,8 @@ describe("pdf tabs", () => {
     expect(panelTabForPath("docs/paper.pdf", ["data-science"])).toBe("pdf:docs/paper.pdf");
     // While the data-science pair keeps its gate.
     expect(panelTabForPath("analysis.ipynb", [])).toBe("file:analysis.ipynb");
-    expect(panelTabForPath("analysis.ipynb", ["data-science"])).toBe("notebook:analysis.ipynb");
+    setPluginStatuses([DATA_SCIENCE_STATUS]);
+    expect(panelTabForPath("analysis.ipynb", ["data-science"])).toBe("view:analysis.ipynb");
     // And markdown stays a `file:` tab — the file view renders it itself.
     expect(panelTabForPath("README.md", [])).toBe("file:README.md");
   });
@@ -95,8 +98,8 @@ describe("files are the Editor's, not the strip's", () => {
     // — a chip, the display tool, a compiled PDF — and the cockpit reads the
     // path back out of them instead of minting a tab.
     expect(filePanelTabPath("file:src/a.ts")).toBe("src/a.ts");
-    expect(filePanelTabPath("notebook:nb.ipynb")).toBe("nb.ipynb");
-    expect(filePanelTabPath("table:d.csv")).toBe("d.csv");
+    expect(filePanelTabPath("view:nb.ipynb")).toBe("nb.ipynb");
+    expect(filePanelTabPath("notebook:nb.ipynb")).toBeUndefined();
     expect(filePanelTabPath("pdf:docs/paper.pdf")).toBe("docs/paper.pdf");
     // First separator only: a colon is legal in a filename.
     expect(filePanelTabPath("file:src/weird:name.ts")).toBe("src/weird:name.ts");

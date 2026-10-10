@@ -20,12 +20,11 @@ export function draftScope(hostId: string | undefined, sessionId?: string, proje
 }
 
 const drafts = new Map<string, EditorDraft>();
-const cells = new Map<string, string>();
 
 const owners = new Map<string, DraftOwner>();
 
-function key(scope: string, path: string, cellId?: string): string {
-  return cellId === undefined ? `${scope}\u0000${path}` : `${scope}\u0000${path}\u0000${cellId}`;
+function key(scope: string, path: string): string {
+  return `${scope}\u0000${path}`;
 }
 
 function claim<T>(store: Map<string, T>, at: string, owner: DraftOwner): T | undefined {
@@ -77,35 +76,11 @@ export function discardDraft(scope: string, path: string): void {
   take(at, newDraftOwner());
 }
 
-export function rememberCellDraft(scope: string, path: string, cellId: string, text: string, owner: DraftOwner): boolean {
-  return put(cells, key(scope, path, cellId), owner, text);
-}
-
-export function forgetCellDraft(scope: string, path: string, cellId: string, owner: DraftOwner): boolean {
-  return drop(cells, key(scope, path, cellId), owner);
-}
-
-export function claimCellDrafts(scope: string, path: string, owner: DraftOwner): Map<string, string> {
-  const prefix = key(scope, path, "");
-  const adopted = new Map<string, string>();
-  for (const [at, text] of cells) {
-    if (!at.startsWith(prefix)) continue;
-    take(at, owner);
-    adopted.set(at.slice(prefix.length), text);
-  }
-  return adopted;
-}
-
-export function claimCellDraft(scope: string, path: string, cellId: string, owner: DraftOwner): string | undefined {
-  return claim(cells, key(scope, path, cellId), owner);
-}
-
 export function clearDrafts(): void {
   drafts.clear();
-  cells.clear();
   owners.clear();
 }
 
 export function draftCount(): number {
-  return drafts.size + cells.size;
+  return drafts.size;
 }

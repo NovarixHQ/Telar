@@ -4,7 +4,8 @@ import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import type { TurnState } from "@telar/engine-client";
 import { usePluginEvents } from "../hooks/use-plugin-events";
-import { panelSourceKey, type PluginPanelSource } from "../panels";
+import { panelSourceKey, panelSourceLabel, type PluginPanelSource } from "../panels";
+import { PluginFrame } from "../views/plugin-frame";
 import { cn } from "@/ui/utils";
 import { PluginView } from "./plugin-view";
 
@@ -14,17 +15,19 @@ export function PluginPanelsSurface({
   panels,
   active,
   onOpenFile,
+  onInsertText,
 }: {
   sessionId?: string;
   hostId?: string;
   panels: readonly PluginPanelSource[];
   active?: TurnState;
   onOpenFile?: (path: string) => void;
+  onInsertText?: (text: string) => void;
 }) {
   const [chosen, setChosen] = useState<string>();
   const [refreshes, setRefreshes] = useState(0);
   const source = panels.find((candidate) => panelSourceKey(candidate) === chosen) ?? panels[0];
-  usePluginEvents(sessionId && hostId, { pluginId: source?.plugin, name: source?.panel.refreshOn ?? [], ...(sessionId ? { sessionId } : {}) }, () =>
+  usePluginEvents(sessionId && hostId, { pluginId: source?.plugin, name: source?.panel?.refreshOn ?? [], ...(sessionId ? { sessionId } : {}) }, () =>
     setRefreshes((count) => count + 1),
   );
 
@@ -42,14 +45,26 @@ export function PluginPanelsSurface({
               onClick={() => setChosen(panelSourceKey(candidate))}
               className={cn("rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted/60", candidate === source && "bg-muted text-foreground")}
             >
-              {candidate.pluginName} · {candidate.panel.label}
+              {panelSourceLabel(candidate)}
             </button>
           ))}
-        {panels.length === 1 && <span className="px-1 text-xs text-muted-foreground">{source.pluginName} · {source.panel.label}</span>}
+        {panels.length === 1 && <span className="px-1 text-xs text-muted-foreground">{panelSourceLabel(source)}</span>}
         <button type="button" aria-label="Refresh" onClick={() => setRefreshes((count) => count + 1)} className="ml-auto rounded p-1 text-muted-foreground hover:bg-muted/60">
           <RefreshCwIcon className="size-3.5" />
         </button>
       </div>
+      {source.frame ? (
+        <div className="min-h-0 flex-1">
+          <PluginFrame
+            key={`${panelSourceKey(source)}:${refreshes}`}
+            source={source.frame}
+            sessionId={sessionId}
+            {...(hostId ? { hostId } : {})}
+            {...(onOpenFile ? { onOpenFile } : {})}
+            {...(onInsertText ? { onInsertText } : {})}
+          />
+        </div>
+      ) : (
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <PluginView
           key={panelSourceKey(source)}
@@ -60,6 +75,7 @@ export function PluginPanelsSurface({
           {...(onOpenFile ? { onOpenFile } : {})}
         />
       </div>
+      )}
     </div>
   );
 }

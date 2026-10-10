@@ -20,15 +20,17 @@ import { EDITOR_HEADER_ROW } from "./editor-chrome";
 import { EditorTab } from "./editor-tab";
 import { FilesSurface } from "./files-surface";
 import { FileViewSurface } from "./file-view-surface";
-import { NotebookSurface } from "@/features/plugins";
+import { PluginFileView } from "@/features/plugins";
 import { PdfSurface } from "./pdf-surface";
-import { TableSurface } from "./table-surface";
 import { PanelEmpty } from "@/ui/panel";
 import { cn } from "@/ui/utils";
 
 const EXPLORER_WIDTH = "13rem";
 
 const NO_PLUGINS: readonly string[] = [];
+
+/** What a plugin's viewer in the editor reaches: opening a file, and the composer. */
+type EditorPlugins = { enabled: readonly string[]; openFile: (path: string) => void; insertText?: ((text: string) => void) | undefined };
 
 function EditorBody({
   state,
@@ -40,7 +42,7 @@ function EditorBody({
   workspacePath,
   views,
   reportSave,
-  onOpenImage,
+  plugins,
   onInsertReference,
   onOpenInNewPanelTab,
 }: {
@@ -53,7 +55,7 @@ function EditorBody({
   workspacePath: string | undefined;
   views: { current: Map<string, EditorViewState> };
   reportSave: (path: string, next: "clean" | SaveState) => void;
-  onOpenImage?: ((attachmentId: string) => void) | undefined;
+  plugins: EditorPlugins;
   onInsertReference?: ((reference: TelarReference) => void) | undefined;
   onOpenInNewPanelTab?: ((path: string) => void) | undefined;
 }) {
@@ -66,27 +68,12 @@ function EditorBody({
     );
   }
   const key = `${hostId ?? "local"}:${sessionId ?? projectId ?? "none"}:${file.path}`;
-  if (file.view === "notebook") {
-    return (
-      <NotebookSurface
-        key={key}
-        path={file.path}
-        {...(sessionId ? { sessionId } : {})}
-        {...(hostId ? { hostId } : {})}
-        {...(active ? { active } : {})}
-        {...(onOpenImage ? { onOpenImage } : {})}
-      />
-    );
-  }
-  if (file.view === "table") {
-    return <TableSurface key={key} path={file.path} {...(sessionId ? { sessionId } : {})} {...(active ? { active } : {})} />;
-  }
   if (file.view === "pdf") {
     return (
       <PdfSurface key={key} path={file.path} {...(sessionId ? { sessionId } : {})} {...(projectId ? { projectId } : {})} {...(active ? { active } : {})} />
     );
   }
-  return (
+  const code = (
     <FileViewSurface
       key={key}
       path={file.path}
@@ -103,6 +90,18 @@ function EditorBody({
       {...(onOpenInNewPanelTab ? { onOpenInNewPanelTab } : {})}
     />
   );
+  if (file.view !== "plugin") return code;
+  return (
+    <PluginFileView
+      path={file.path}
+      enabledPlugins={plugins.enabled}
+      {...(sessionId ? { sessionId } : {})}
+      {...(hostId ? { hostId } : {})}
+      onOpenFile={plugins.openFile}
+      {...(plugins.insertText ? { onInsertText: plugins.insertText } : {})}
+      fallback={code}
+    />
+  );
 }
 
 export function EditorSurface({
@@ -113,7 +112,7 @@ export function EditorSurface({
   hostId,
   active,
   enabledPlugins = NO_PLUGINS,
-  onOpenImage,
+  onInsertText,
   onInsertReference,
   onOpenInNewPanelTab,
 }: {
@@ -124,7 +123,7 @@ export function EditorSurface({
   hostId?: string;
   active?: TurnState;
   enabledPlugins?: readonly string[];
-  onOpenImage?: (attachmentId: string) => void;
+  onInsertText?: (text: string) => void;
   onInsertReference?: (reference: TelarReference) => void;
   onOpenInNewPanelTab?: (path: string) => void;
 }) {
@@ -208,7 +207,7 @@ export function EditorSurface({
             workspacePath={workspacePath}
             views={tabs.views}
             reportSave={tabs.reportSave}
-            onOpenImage={onOpenImage}
+            plugins={{ enabled: enabledPlugins, openFile: (path) => tabs.openFile(path, "pin"), insertText: onInsertText }}
             onInsertReference={onInsertReference}
             onOpenInNewPanelTab={onOpenInNewPanelTab}
           />

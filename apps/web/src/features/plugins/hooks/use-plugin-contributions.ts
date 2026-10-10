@@ -7,17 +7,17 @@ import { createEngineApi } from "@/platform/engine";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { composerExtensions } from "../composer";
 import { pluginPanelSources, type PluginPanelSource } from "../panels";
-import { PLUGIN_WEB } from "../registry";
+import { setPluginStatuses } from "../views/contributions";
 
 const NONE: readonly PluginStatus[] = [];
 const NO_PANELS: readonly PluginPanelSource[] = [];
 
 export function usePluginContributions(hostId: string, enabled: readonly string[], sessionId: string | undefined): { panels: readonly PluginPanelSource[]; composer: ComposerExtensions } {
   const [statuses, setStatuses] = useState<readonly PluginStatus[]>(NONE);
-  const installed = enabled.some((id) => !Object.hasOwn(PLUGIN_WEB, id));
+  const any = enabled.length > 0;
   useEffect(() => {
     let cancelled = false;
-    if (!installed) {
+    if (!any) {
       const task = window.setTimeout(() => !cancelled && setStatuses(NONE), 0);
       return () => {
         cancelled = true;
@@ -30,6 +30,7 @@ export function usePluginContributions(hostId: string, enabled: readonly string[
         ({ plugins }) => {
           if (cancelled) return;
           registerPluginToolPrefixes(plugins.flatMap((status) => status.meta.toolPrefixes));
+          setPluginStatuses(plugins);
           setStatuses(plugins);
         },
         () => undefined,
@@ -37,7 +38,7 @@ export function usePluginContributions(hostId: string, enabled: readonly string[
     return () => {
       cancelled = true;
     };
-  }, [hostId, enabled, installed]);
+  }, [hostId, enabled, any]);
   const panels = useMemo(() => {
     const found = pluginPanelSources(statuses, enabled);
     return found.length > 0 ? found : NO_PANELS;

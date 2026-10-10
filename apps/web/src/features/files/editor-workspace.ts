@@ -1,8 +1,9 @@
 
 import { fileKind } from "./file-kinds";
-import { viewerAvailable } from "@/features/plugins";
+import { viewerFor } from "@/features/plugins";
 
-export type EditorView = "code" | "notebook" | "table" | "pdf";
+/** `plugin` is drawn by whichever enabled plugin views the path, and falls back to code without one. */
+export type EditorView = "code" | "pdf" | "plugin";
 
 export type EditorFile = {
   path: string;
@@ -25,12 +26,12 @@ export function emptyEditor(): EditorState {
 }
 
 export function editorFileForPath(path: string, enabledPlugins: readonly string[]): { path: string; view: EditorView } {
-  const viewer = fileKind(path).viewer;
-  return { path, view: viewer && viewerAvailable(viewer, enabledPlugins) ? viewer : "code" };
+  if (fileKind(path).viewer === "pdf") return { path, view: "pdf" };
+  return { path, view: viewerFor(path, enabledPlugins) ? "plugin" : "code" };
 }
 
 function intentFor(view: EditorView, intent: OpenIntent): OpenIntent {
-  return view === "notebook" ? "pin" : intent;
+  return view === "plugin" ? "pin" : intent;
 }
 
 export function openInEditor(state: EditorState, file: { path: string; view: EditorView }, intent: OpenIntent = "preview"): EditorState {
@@ -117,7 +118,7 @@ function readStore(): StoredEditor {
   }
 }
 
-const VIEWS: ReadonlySet<string> = new Set<EditorView>(["code", "notebook", "table", "pdf"]);
+const VIEWS: ReadonlySet<string> = new Set<EditorView>(["code", "pdf", "plugin"]);
 
 export function readEditor(sessionId: string): EditorState {
   const stored = readStore().sessions[sessionId];

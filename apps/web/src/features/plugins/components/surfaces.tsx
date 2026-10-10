@@ -17,6 +17,7 @@ export type PluginSurfaceProps = {
   events: readonly EngineEvent[];
   onOpenImage?: (attachmentId: string) => void;
   onOpenFile: (path: string) => void;
+  onInsertText?: (text: string) => void;
   panels?: readonly PluginPanelSource[];
 };
 
@@ -31,13 +32,14 @@ const SURFACES: Record<PluginSurfaceId, (props: PluginSurfaceProps) => ReactNode
       {...(onOpenImage ? { onOpenImage } : {})}
     />
   ),
-  "plugin-panels": ({ sessionId, hostId, active, panels, onOpenFile }) => (
+  "plugin-panels": ({ sessionId, hostId, active, panels, onOpenFile, onInsertText }) => (
     <PluginPanelsSurface
       {...(sessionId ? { sessionId } : {})}
       {...(hostId ? { hostId } : {})}
       {...(active ? { active } : {})}
       panels={panels ?? []}
       onOpenFile={onOpenFile}
+      {...(onInsertText ? { onInsertText } : {})}
     />
   ),
 };

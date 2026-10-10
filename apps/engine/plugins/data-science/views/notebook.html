@@ -238,7 +238,7 @@
   document.getElementById("interrupt").onclick = () => void attempt(() => telar.call("interrupt")).then(refreshKernel);
   document.getElementById("restart").onclick = () => void attempt(() => telar.call("restart")).then(refreshKernel);
   telar.onEvent((event) => {
-    if (event?.name === "kernel.state.changed" && typeof event.data?.state === "string") setKernel(event.data.state);
+    if (event?.name === "kernel.state" && typeof event.data?.state === "string") setKernel(event.data.state);
   });
   addEventListener("pagehide", () => void saveAll());
   setKernel("none");

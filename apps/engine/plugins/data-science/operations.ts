@@ -137,6 +137,20 @@ export class DataScienceOps {
     });
   }
 
+  /** Uses the environment a create job made, once it finishes; a failed or cancelled job changes nothing. */
+  async adoptWhenCreated(projectId: string, jobId: string): Promise<void> {
+    const read = await this.jobs.wait(jobId, 60 * 60_000);
+    const made = read.result as { path: string; root: string; manager: EnvManager; source: "detected" | "chosen" | "telar" } | undefined;
+    if (read.status !== "ok" || !made) return;
+    this.choose(projectId, made);
+  }
+
+  /** Writes the project's interpreter choice, keeping its other settings. */
+  choose(projectId: string, env: { path: string; root?: string; manager: EnvManager; source: "detected" | "chosen" | "telar" }): void {
+    const settings = this.settings(this.host.project(projectId));
+    this.host.writeProjectSettings(projectId, { ...settings, python: { source: env.source, path: env.path, resolvedAt: this.host.now(), manager: env.manager, ...(env.root ? { root: env.root } : {}) } });
+  }
+
   /** `direct` marks the packages the project declares, when it declares any. */
   async packages(projectId: string, workspace?: string): Promise<{ packages: (PackageInfo & { direct?: boolean })[]; environment: { manager: EnvManager; root: string; python: string; command: InstallCommand } }> {
     const project = this.host.project(projectId);

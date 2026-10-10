@@ -1,5 +1,5 @@
-import { DataScienceBootstrap, DataScienceCreateEnvironment } from "@telar/engine-client";
-import type { PluginEngine, PluginSession } from "../sdk";
+import { DataScienceBootstrap } from "@telar/engine-client";
+import type { PluginEngine, PluginHost, PluginSession } from "../sdk";
 import type { DsCapability } from "./capability";
 import type { DataScienceOps } from "./operations";
 
@@ -8,10 +8,41 @@ const number = (value: unknown) => (typeof value === "number" ? value : undefine
 const strings = (value: unknown) => (Array.isArray(value) ? value.map(String) : undefined);
 const defined = <T extends Record<string, unknown>>(value: T): T => Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
 
+/** The plots the session's kernel drew, for the Data view: listed, read one at a time, and pinned. */
+function plotVerbs(attachments: PluginHost["attachments"]): NonNullable<PluginEngine["session"]> {
+  const plot = (session: PluginSession, id: unknown) => {
+    const found = attachments.list(session.sessionId, { tag: "plot" }).find((attachment) => attachment.id === id);
+    if (!found) throw new Error("no such plot in this session");
+    return found;
+  };
+  return {
+    plots: (_input, session) => ({
+      plots: attachments.list(session.sessionId, { tag: "plot" }).map((attachment) => ({
+        id: attachment.id,
+        ...(attachment.title ? { title: attachment.title } : {}),
+        ...(attachment.producer ? { producer: attachment.producer } : {}),
+        ...(attachment.createdAt ? { createdAt: attachment.createdAt } : {}),
+        pinned: attachment.tags?.includes("pinned") ?? false,
+      })),
+    }),
+    "plots/image": (input, session) => {
+      const found = plot(session, input.id);
+      return { mediaType: found.mediaType, dataB64: Buffer.from(attachments.bytes(session.sessionId, found.id)).toString("base64") };
+    },
+    "plots/pin": (input, session) => {
+      const found = plot(session, input.id);
+      const tags = (found.tags ?? []).filter((tag) => tag !== "pinned");
+      attachments.tag(session.sessionId, found.id, input.pinned === true ? [...tags, "pinned"] : tags);
+      return {};
+    },
+  };
+}
+
 /** The kernel, notebook and state verbs the cockpit and released clients call on a session. */
-export function sessionVerbs(capability: (session: PluginSession) => DsCapability): NonNullable<PluginEngine["session"]> {
+export function sessionVerbs(capability: (session: PluginSession) => DsCapability, attachments: PluginHost["attachments"]): NonNullable<PluginEngine["session"]> {
   const on = <T>(run: (ds: DsCapability, input: Record<string, unknown>, session: PluginSession) => T) => (input: Record<string, unknown>, session: PluginSession) => run(capability(session), input, session);
   return {
+    ...plotVerbs(attachments),
     kernel: on((ds) => ds.kernel()),
     execute: on((ds, input) => ds.execute(defined({ code: String(input.code ?? ""), cellId: text(input.cellId), timeoutMs: number(input.timeoutMs), producer: text(input.producer) }))),
     interrupt: on((ds) => ds.interrupt()),
@@ -52,34 +83,6 @@ export function sessionVerbs(capability: (session: PluginSession) => DsCapabilit
         desc: input.desc === true ? true : undefined,
       })),
     ),
-  };
-}
-
-export function projectRoutes(ops: DataScienceOps): NonNullable<PluginEngine["project"]> {
-  return {
-    "GET environments": { beforeEnable: true, handle: (_request, project) => ops.environments(project.projectId) },
-    "POST environments": {
-      status: 202,
-      beforeEnable: true,
-      handle: ({ input }, project) => {
-        const parsed = DataScienceCreateEnvironment.safeParse(input);
-        if (!parsed.success) throw new Error("not a valid environment request");
-        return ops.createEnvironment(project.projectId, parsed.data);
-      },
-    },
-    "POST probe": {
-      beforeEnable: true,
-      handle: async ({ input }, project) => {
-        if (typeof input.path !== "string") throw new Error("python path must be a string");
-        return { probe: await ops.probe(project.projectId, input.path) };
-      },
-    },
-    "GET packages": { handle: (_request, project) => ops.packages(project.projectId) },
-    "POST packages": {
-      status: 202,
-      handle: ({ input }, project) =>
-        ops.install(project.projectId, defined({ add: strings(input.add), remove: strings(input.remove), requirements: text(input.requirements) as Parameters<DataScienceOps["install"]>[1]["requirements"] })),
-    },
   };
 }
 

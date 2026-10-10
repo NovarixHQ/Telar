@@ -51,6 +51,14 @@ describe.skipIf(skip)("data science on a real kernel", () => {
   const tools: Record<string, (args: Record<string, unknown>) => Promise<ToolAnswer>> = {};
   const call = <T,>(verb: string, body: Record<string, unknown> = {}) => client.plugin<T>("session_one", "data-science", verb, body);
   const events = async () => (await client.events("session_one")).events as EngineEvent[];
+  const engine = async (method: string, pathname: string, body?: unknown) => {
+    const response = await fetch(`http://127.0.0.1:${daemon.discovery.port}${pathname}`, {
+      method,
+      headers: { authorization: `Bearer ${daemon.discovery.token}`, "content-type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { status: response.status, type: response.headers.get("content-type") ?? "", text: await response.text() };
+  };
   const status = async () => (await client.machinePlugins()).plugins.find((entry) => entry.meta.id === "data-science")!;
   const enable = (enabled: boolean) =>
     client.updateProject("project_one", { plugins: { "data-science": { enabled, settings: { python: { source: "detected", path: python, resolvedAt: 1 } } } } });
@@ -126,6 +134,36 @@ describe.skipIf(skip)("data science on a real kernel", () => {
 
     const kernel = (await status()).processes ?? [];
     expect(kernel).toContainEqual(expect.objectContaining({ key: "session_one", alive: true }));
+  }, 120_000);
+
+  test("the Data view is served and its plot verbs list, read and pin what the kernel drew", async () => {
+    const plugin = await status();
+    expect(plugin.meta.views).toEqual([{ id: "data", label: "Data", entry: "data.html" }]);
+    const page = await engine("GET", "/v2/plugin-assets/data-science/data.html");
+    expect(page.status).toBe(200);
+    expect(page.text).toContain('telar.call("vars")');
+
+    const { plots } = await call<{ plots: { id: string; producer?: string; pinned: boolean }[] }>("plots");
+    expect(plots.map((plot) => plot.producer)).toContain("e2e");
+    const image = await call<{ mediaType: string; dataB64: string }>("plots/image", { id: plots[0]!.id });
+    expect(image.mediaType).toBe("image/png");
+    expect(Buffer.from(image.dataB64, "base64").subarray(1, 4).toString()).toBe("PNG");
+    await call("plots/pin", { id: plots[0]!.id, pinned: true });
+    expect((await call<{ plots: { id: string; pinned: boolean }[] }>("plots")).plots.find((plot) => plot.id === plots[0]!.id)?.pinned).toBe(true);
+  }, 60_000);
+
+  test("the project's settings view shows the environment in use and its packages, and choosing by path writes it", async () => {
+    const view = JSON.parse((await engine("GET", "/v2/projects/project_one/plugins/data-science/settings")).text) as { blocks: { type: string; title?: string; selected?: boolean; label?: string; text?: string; rows?: unknown[][] }[] };
+    expect(view.blocks[0]).toMatchObject({ type: "prompt", label: "Ask agent to set up" });
+    expect(view.blocks.find((block) => block.type === "option" && block.selected)?.title).toBe(".venv");
+    expect(view.blocks.find((block) => block.type === "table")?.rows?.map((row) => row[0])).toEqual(expect.arrayContaining(["pandas", "matplotlib"]));
+
+    const chosen = await engine("POST", "/v2/projects/project_one/plugins/data-science/use-path", { path: python });
+    expect(chosen.status).toBe(200);
+    const project = daemon.store.projectRegistry.get("project_one");
+    expect(project.plugins?.entries["data-science"]?.settings).toMatchObject({ python: { source: "chosen", manager: "venv" } });
+    const refused = await engine("POST", "/v2/projects/project_one/plugins/data-science/use-path", { path: "/nowhere/python" });
+    expect(refused.status).toBe(400);
   }, 120_000);
 
   test("the variable inspector sees the cell's state, and a restart clears it", async () => {

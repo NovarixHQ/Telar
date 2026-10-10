@@ -7,7 +7,8 @@ import { dsTools } from "./ds-tools";
 import { KernelHost } from "./kernel-host";
 import { notebookTools } from "./notebook-tools";
 import { DataScienceOps } from "./operations";
-import { machineRoutes, projectRoutes, sessionVerbs } from "./routes";
+import { machineRoutes, sessionVerbs } from "./routes";
+import { projectRoutes } from "./setup-routes";
 import { DataScienceSettings, resolveInterpreter } from "./settings";
 import { DsFiles } from "./state-files";
 import { NOTEBOOK_MAX_BYTES, storeDsCapability } from "./store-capability";
@@ -73,7 +74,7 @@ function dataScienceEngine(host: PluginHost): PluginEngine {
 
   return {
     tools: tools.handlers(capability),
-    session: sessionVerbs(capability),
+    session: sessionVerbs(capability, host.attachments),
     project: projectRoutes(ops),
     machine: machineRoutes(ops),
     available: (session) => "pythonPath" in resolveInterpreter(session),
@@ -109,16 +110,17 @@ export const dataSciencePlugin: BundledPlugin = {
     settingsSchema: schema(DataScienceSettings),
     machineSettingsSchema: schema(DataScienceMachineSettingsWrite),
     settings: [
-      { id: "environment", scope: "project", label: "Data science", blurb: "The Python environment this project's kernel runs in.", icon: "FlaskConical" },
+      { id: "environment", scope: "project", label: "Data science", blurb: "The Python environment this project's kernel runs in.", icon: "FlaskConical", view: "settings" },
       { id: "defaults", scope: "machine", label: "Data science defaults", blurb: "What a project on this computer inherits when it has not chosen for itself.", icon: "FlaskConical" },
     ],
     routes: {
-      session: ["kernel", "execute", "interrupt", "restart", "vars", "inspect", "notebook/read", "notebook/edit", "notebook/run", "plot", "snapshot", "snapshots", "diff", "checkpoint", "lineage", "watches", "watch", "env", "packages", "install", "experiment", "table"],
-      project: ["GET environments", "POST environments", "POST probe", "GET packages", "POST packages"],
+      session: ["kernel", "execute", "interrupt", "restart", "vars", "inspect", "notebook/read", "notebook/edit", "notebook/run", "plot", "snapshot", "snapshots", "diff", "checkpoint", "lineage", "watches", "watch", "env", "packages", "install", "experiment", "table", "plots", "plots/image", "plots/pin"],
+      project: ["GET settings", "POST use", "POST use-path", "POST draft", "POST create", "POST bootstrap", "POST python", "POST detect", "GET environments", "POST environments", "POST probe", "GET packages", "POST packages"],
       machine: ["POST bootstrap", "GET toolchain", "GET jobs/:id", "DELETE jobs/:id"],
     },
     eventKinds: ["kernel.state", "cell.output", "watch.violated"],
     sessionStateDir: "ds",
+    views: [{ id: "data", label: "Data", entry: "data.html" }],
     viewers: [
       { id: "notebook", label: "Notebook", entry: "notebook.html", extensions: [".ipynb"], mimes: ["application/x-ipynb+json"] },
       { id: "table", label: "Table", entry: "table.html", extensions: [".csv", ".tsv", ".parquet"], mimes: ["text/csv", "text/tab-separated-values"] },

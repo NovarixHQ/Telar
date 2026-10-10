@@ -75,7 +75,9 @@ function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvent
       complete: (request) => complete(`plugin:${id}`, request),
       attachments: {
         put: (sessionId, input) => store.attachments.put(sessionId, input),
+        list: (sessionId, options) => store.attachments.list(sessionId, options),
         bytes: (sessionId, attachmentId) => store.attachments.bytes(sessionId, attachmentId).data,
+        tag: (sessionId, attachmentId, tags) => store.attachments.tag(sessionId, attachmentId, tags),
       },
       files: {
         read: (root, target, maxBytes) => readFenced(root, target, "session workspace", maxBytes),

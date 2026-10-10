@@ -77,7 +77,9 @@ export type PluginHost = {
   /** Files a plugin produces, kept with the session and listed beside the person's own. */
   attachments: {
     put(sessionId: string, input: PluginAttachmentInput): TurnAttachment;
+    list(sessionId: string, options?: { tag?: string }): TurnAttachment[];
     bytes(sessionId: string, attachmentId: string): Uint8Array;
+    tag(sessionId: string, attachmentId: string, tags: string[]): TurnAttachment;
   };
   /** Reads and writes fenced inside `root`; a write carries the hash it expects on disk. */
   files: {

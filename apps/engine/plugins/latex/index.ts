@@ -3,6 +3,7 @@ import { PLUGIN_API_VERSION } from "@telar/engine-client";
 import { JobRunner } from "../sdk/jobs";
 import type { BundledPlugin, PluginEngine, PluginHost, PluginProject, PluginSession } from "../sdk";
 import { LATEX_AUX_DIR } from "./compile";
+import { latexComposer, texFromWords } from "./composer";
 import { LatexEngine, LatexMachineSettingsWrite, LatexSettings, machineSettings, projectSettings, resolveLatex } from "./settings";
 import { LatexSetup, mainFileCandidates } from "./setup";
 import { storeLatexCapability } from "./store-capability";
@@ -15,7 +16,7 @@ const schema = (type: z.ZodType) => z.toJSONSchema(type, { io: "input", unrepres
 const list = (value: unknown): string[] | undefined =>
   Array.isArray(value) ? value.map(String) : typeof value === "string" ? value.split(/[\s,]+/).filter(Boolean) : undefined;
 
-const SESSION_VERBS = ["toolchain", "compile", "status", "log", "packages", "install", "clean", "panel"];
+const SESSION_VERBS = ["toolchain", "compile", "status", "log", "packages", "install", "clean", "panel", "tex"];
 
 function latexEngine(host: PluginHost): PluginEngine {
   const jobs = new JobRunner(() => host.now());
@@ -69,6 +70,7 @@ function latexEngine(host: PluginHost): PluginEngine {
       install: (input, session) => capability(session).install({ ...(list(input.add) ? { add: list(input.add)! } : {}), ...(list(input.remove) ? { remove: list(input.remove)! } : {}) }),
       clean: (input, session) => capability(session).clean(input.pdf === true ? { pdf: true } : {}),
       panel: (_input, session) => compileView(compiles.get(session.sessionId) ?? { status: "never" }, projectSettings(session.settings).mainFile),
+      tex: (input) => texFromWords(host, input),
     },
     project: {
       "GET distributions": {
@@ -171,6 +173,7 @@ export const latexPlugin: BundledPlugin = {
       machine: ["POST bootstrap", "GET toolchain", "GET managed", "POST managed", "GET jobs/:id", "DELETE jobs/:id", "GET defaults", "POST default"],
     },
     panels: [{ id: "compile", label: "Compile", verb: "panel", refreshOn: ["compile.started", "compile.finished"] }],
+    composer: latexComposer,
     eventKinds: ["compile.started", "compile.finished"],
     gitignore: { rule: `${LATEX_AUX_DIR}/`, why: "LaTeX aux files from Telar's compiles", alreadyCovered: [".telar/", ".telar", "/.telar/", `${LATEX_AUX_DIR}/`] },
   },

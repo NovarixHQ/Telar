@@ -1,4 +1,4 @@
-import type { PluginManifestInput } from "@telar/engine-client";
+import type { PluginEventInput, PluginManifestInput } from "@telar/engine-client";
 import type { z } from "zod";
 
 /** A session the plugin is on for, with the project's settings and this Mac's, each as stored. */
@@ -41,8 +41,8 @@ export type PluginHost = {
   /** The engine's data root, for state a plugin kept there before it had a `stateDir`. */
   engineRoot: string;
   now(): number;
-  /** Appends one of the manifest's `eventKinds` to a session's journal. */
-  appendEvent(sessionId: string, event: { type: string } & Record<string, unknown>): void;
+  /** Emits one of the manifest's `eventKinds`: journaled on a session, live only on a project or this Mac. */
+  emit(event: PluginEventInput): void;
   machineSettings(): Record<string, unknown>;
   project(projectId: string): PluginProject;
   writeProjectSettings(projectId: string, settings: Record<string, unknown>): void;

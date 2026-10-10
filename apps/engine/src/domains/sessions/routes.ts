@@ -32,10 +32,10 @@ const DECISIONS = ["accept", "acceptForSession", "decline", "cancel"] as const;
 // Weak: two answers at one revision carry the same rows, not the same bytes. The mode is in the tag.
 const liveSessionsETag = (revision: number, scope: string): string => `W/"live-${revision}-${scope}"`;
 
-type SessionsRouteDeps = { daemonId: string; openStreams: Set<OpenStream>; mcpInfo: () => unknown };
+type SessionsRouteDeps = { daemonId: string; openStreams: Set<OpenStream>; mcpInfo: () => unknown; watchPluginFrames?: Parameters<typeof sessionsStreamRoute>[2] };
 
 /** The literal `/v2/sessions/<name>` reads; the router puts them ahead of any `/v2/sessions/:id` pattern. */
-export function sessionsRoutes(store: EngineStore, { daemonId, openStreams, mcpInfo }: SessionsRouteDeps): Route[] {
+export function sessionsRoutes(store: EngineStore, { daemonId, openStreams, mcpInfo, watchPluginFrames }: SessionsRouteDeps): Route[] {
   return [
     {
       method: "GET",
@@ -65,7 +65,7 @@ export function sessionsRoutes(store: EngineStore, { daemonId, openStreams, mcpI
         return { status: 200, body: { ...store.live.rows(options), projects: store.projectRegistry.list(), daemonId }, headers: { etag } };
       },
     },
-    sessionsStreamRoute(store, openStreams),
+    sessionsStreamRoute(store, openStreams, watchPluginFrames),
     { method: "GET", path: "/v2/sessions/activity", auth: "engine", handle: () => ok({ projects: store.live.projectActivity() }) },
     {
       method: "GET",

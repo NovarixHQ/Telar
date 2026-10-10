@@ -11,9 +11,11 @@ const LOG_TAIL = 40;
 const DEFAULT_COMPILE_TIMEOUT_MS = 10 * 60 * 1000;
 const PACKAGE_INSTALL_TIMEOUT_MS = 10 * 60 * 1000;
 
-type JournalEntry =
-  | { type: "latex.compile.started"; path: string }
-  | { type: "latex.compile.finished"; path: string; ok: boolean; pdfPath?: string; errors: number; warnings: number; firstError?: string };
+type CompileEvent =
+  | { name: "compile.started"; data: { path: string } }
+  | { name: "compile.finished"; data: { path: string; ok: boolean; pdfPath?: string; errors: number; warnings: number; firstError?: string }; note: { text: string; failed?: boolean } };
+
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 export type StoreLatexDeps = {
   sessionId: string;
@@ -21,7 +23,7 @@ export type StoreLatexDeps = {
   resolved: ResolvedLatex;
   toolchain: () => Promise<LatexToolchain>;
   jobs: JobRunner;
-  appendEvent: (event: JournalEntry) => void;
+  emit: (event: CompileEvent) => void;
   now: () => number;
   lastCompile: { get: () => CompileStatus | undefined; set: (status: CompileStatus) => void };
 };
@@ -89,7 +91,7 @@ function storeLatexCapabilityContext(deps: StoreLatexDeps) {
     const startedAt = deps.now();
     const running = (jobId: string) =>
       deps.lastCompile.set({ status: "running", path: plan.mainFile, diagnostics: [], logTail: [], jobId, startedAt });
-    deps.appendEvent({ type: "latex.compile.started", path: plan.mainFile });
+    deps.emit({ name: "compile.started", data: { path: plan.mainFile } });
 
     let attempt = await runOnce(plan, timeoutMs, running);
     let installLines: string[] = [];
@@ -122,14 +124,12 @@ function storeLatexCapabilityContext(deps: StoreLatexDeps) {
     const errors = diagnostics.filter((d: LatexDiagnostic) => d.severity === "error").length;
     const warnings = diagnostics.length - errors;
     const firstError = firstErrorSentence(diagnostics);
-    deps.appendEvent({
-      type: "latex.compile.finished",
-      path: plan.mainFile,
-      ok,
-      ...(pdfPath ? { pdfPath } : {}),
-      errors,
-      warnings,
-      ...(firstError ? { firstError } : {}),
+    deps.emit({
+      name: "compile.finished",
+      data: { path: plan.mainFile, ok, ...(pdfPath ? { pdfPath } : {}), errors, warnings, ...(firstError ? { firstError } : {}) },
+      note: ok
+        ? { text: `Compiled ${plan.mainFile}${warnings ? ` — ${plural(warnings, "warning")}` : ""}` }
+        : { text: `Compile of ${plan.mainFile} failed — ${plural(errors, "error")}${firstError ? `, first: ${firstError}` : ""}`, failed: true },
     });
 
     return { ok, path: plan.mainFile, ...(pdfPath ? { pdfPath } : {}), diagnostics, logTail, ...(read.error ? { error: read.error } : {}) };

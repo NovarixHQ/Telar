@@ -7,6 +7,7 @@ import { ExternalPluginProcess, type ExternalProcessOptions } from "./process";
 
 export type ExternalPluginDeps = {
   resolve: (sessionId: string) => { projectId: string; sessionId: string };
+  emit?: (event: unknown) => void;
   enabledAnywhere: () => boolean;
   settings: (projectId: string | undefined) => Record<string, unknown>;
   process?: Pick<ExternalProcessOptions, "spawn" | "timers" | "requestTimeoutMs" | "startTimeoutMs">;
@@ -73,6 +74,9 @@ export function externalPlugin(loaded: LoadedExternalPlugin, deps: ExternalPlugi
         dir,
         command,
         stateDir: context.stateDir,
+        onNotification: (method, params) => {
+          if (method === "telar/event") deps.emit?.(params);
+        },
         ...deps.process,
       });
       child = created;

@@ -1,4 +1,5 @@
 import type http from "node:http";
+import type { EngineEvent, PluginEventFrame } from "@telar/engine-client";
 import type { Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
 
@@ -51,19 +52,28 @@ export function holdEventStream(
   if (!openStreams.has(finish)) stop();
 }
 
+type WatchPluginFrames = (listener: (frame: PluginEventFrame) => void) => () => void;
+
+const frameOf = (event: EngineEvent) => {
+  if (event.type !== "plugin.event") return { sessionId: event.sessionId, id: event.id, type: event.type };
+  const { runId: _run, providerRefs: _refs, raw: _raw, ...frame } = event;
+  return frame;
+};
+
 /**
  * Every session's events on one connection, live only: event ids are per session, so there is no
- * global cursor to replay from. A frame names a fact a reader re-derives from `/events`; it is never the record.
+ * global cursor to replay from. A frame names a fact a reader re-derives from `/events`, except a plugin event, which travels whole.
  */
-export function sessionsStreamRoute(store: EngineStore, openStreams: Set<OpenStream>): Route {
+export function sessionsStreamRoute(store: EngineStore, openStreams: Set<OpenStream>, watchPluginFrames?: WatchPluginFrames): Route {
   return {
     method: "GET",
     path: "/v2/sessions/stream",
     auth: "engine",
     handle({ request, response }) {
-      holdEventStream(request, response, openStreams, (send) =>
-        store.kernel.watch((event: { sessionId: string; id: number; type: string }) => send({ sessionId: event.sessionId, id: event.id, type: event.type })),
-      );
+      holdEventStream(request, response, openStreams, (send) => {
+        const stops = [store.kernel.watch((event) => send(frameOf(event))), watchPluginFrames?.(send)];
+        return () => stops.forEach((stop) => stop?.());
+      });
       return undefined;
     },
   };

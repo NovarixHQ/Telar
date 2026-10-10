@@ -10,6 +10,7 @@ import { EngineClient, TELAR_MCP_SERVER, canonicalToolName, parsePluginPanelView
 import { startEngine, type EngineDaemon } from "../../src/daemon";
 import { bundledPluginToolModules } from "../../src/domains/plugins";
 import { ECHO_MANIFEST, writePlugin } from "../../test/fixtures/external-plugin";
+import { openSessionsStream, readFrames } from "../../test/sse-frames";
 import { stubModels } from "../../test/stub-models";
 
 const roots: string[] = [];
@@ -65,7 +66,8 @@ test("LaTeX loads from its manifest like an installed plugin, and the host decid
   const latex = (await client.health()).plugins?.find((status) => status.meta.id === "latex");
   expect(latex?.state).toBe("ready");
   expect(latex?.meta.readTools).toEqual([]);
-  expect(latex?.meta.panels).toEqual([{ id: "compile", label: "Compile", verb: "panel" }]);
+  expect(latex?.meta.panels).toEqual([{ id: "compile", label: "Compile", verb: "panel", refreshOn: ["compile.started", "compile.finished"] }]);
+  expect(latex?.meta.eventKinds).toEqual(["compile.started", "compile.finished"]);
   expect(latex?.meta.settings.map((section) => [section.scope, section.view])).toEqual([["machine", "defaults"], ["project", "settings"]]);
   expect(latex?.machineSettingsSchema?.properties).toMatchObject({ engine: { title: "Default engine" } });
 });
@@ -106,13 +108,22 @@ test("a tool runs through the generic tool verb, and says why when there is no T
   expect(JSON.stringify(compile.body.content)).toContain("no TeX toolchain");
 });
 
-test("a compile journals its events and the panel view shows the result", async () => {
+test("a compile emits its events to the journal and the stream, and the panel view shows the result", async () => {
   const { daemon, client, checkout } = await ready({ enable: true, tectonic: fakeTectonic() });
+  const stream = await openSessionsStream(daemon);
+  const streamed = readFrames(stream.body!, 2, (frame) => frame.type === "plugin.event");
   const compiled = await door(daemon, "plugins/latex/tool", { name: "latex_compile", arguments: {} });
+  expect((await streamed).map((frame) => [frame.pluginId, frame.sessionId, frame.name])).toEqual([
+    ["latex", "session_one", "compile.started"],
+    ["latex", "session_one", "compile.finished"],
+  ]);
   expect(JSON.stringify(compiled.body.content)).toContain("Compiled main.tex → main.pdf");
   expect(fs.existsSync(path.join(checkout, "main.pdf"))).toBe(true);
-  const kinds = (await client.events("session_one")).events.map((event) => event.type);
-  expect(kinds).toEqual(expect.arrayContaining(["latex.compile.started", "latex.compile.finished"]));
+  const emitted = (await client.events("session_one")).events.filter((event) => event.type === "plugin.event");
+  expect(emitted).toEqual([
+    expect.objectContaining({ pluginId: "latex", scope: "session", name: "compile.started", data: { path: "main.tex" } }),
+    expect.objectContaining({ pluginId: "latex", name: "compile.finished", data: expect.objectContaining({ ok: true, pdfPath: "main.pdf" }), note: { text: "Compiled main.tex" } }),
+  ]);
   const view = parsePluginPanelView((await door(daemon, "plugins/latex/panel")).body);
   expect(view.skipped).toBe(0);
   expect(view.blocks).toEqual(expect.arrayContaining([

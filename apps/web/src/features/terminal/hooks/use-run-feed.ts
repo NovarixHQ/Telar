@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePoll } from "@/ui/hooks/use-poll";
 import { terminalBridge } from "../bridge";
-import { frameWriter } from "../frames";
+import { frameWriter, ITEM_CHARS } from "../frames";
 import { byteFeed, type RunByteFeed } from "../run/terminal-feed";
 import { ptyByteWriter } from "../session";
 import type { RunEmulator } from "./use-run-emulator";
@@ -21,7 +21,8 @@ function redraw(emulator: RunEmulator, feed: Pick<RunByteFeed, "chunks" | "reset
     emulator.writeRef.current = ptyByteWriter(term);
   }
   const write = emulator.writeRef.current ?? ptyByteWriter(term);
-  for (const chunk of feed.chunks) write(chunk);
+  // Never one item longer than ITEM_CHARS: xterm's parser yields only between items.
+  for (const chunk of feed.chunks) for (let at = 0; at < chunk.length; at += ITEM_CHARS) write(chunk.slice(at, at + ITEM_CHARS));
 }
 
 type OnRead = (answer: { dropped: number; cursor: number }, skipped: number) => void;

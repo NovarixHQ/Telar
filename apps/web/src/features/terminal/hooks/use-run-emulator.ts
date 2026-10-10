@@ -13,13 +13,14 @@ const SCROLLBACK = 3000;
 
 export type RunTarget = { api: RunApi; sessionId: string; runId: string; live: boolean };
 
-/** A run's emulator, built each time its chip comes on screen. Keys and resizes always go through the engine, never the IPC bridge. */
-export function useRunEmulator(target: RunTarget) {
+/** A run's emulator, built once per pane and kept while hidden. Keys and resizes always go through the engine, never the IPC bridge. */
+export function useRunEmulator(target: RunTarget, visible: boolean) {
   const host = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   // Held across frames because an escape sequence can end in the next one.
   const writeRef = useRef<((data: string) => void) | null>(null);
+  const measurer = useRef<ReturnType<typeof gridMeasurer> | null>(null);
   const [notice, setNotice] = useState<string>();
   const latest = useRef(target);
   useEffect(() => {
@@ -50,6 +51,7 @@ export function useRunEmulator(target: RunTarget) {
         void api.resize(sessionId, { runId, cols: grid.cols, rows: grid.rows }).catch(() => undefined);
       },
     );
+    measurer.current = measurement;
 
     // Typed input is not redacted: redaction covers what the process writes.
     const send = (data: string) => {
@@ -68,8 +70,6 @@ export function useRunEmulator(target: RunTarget) {
 
     const observer = new ResizeObserver(() => measurement.measure());
     observer.observe(element);
-    measurement.measure();
-    term.focus();
     void fontsReady.then(() => {
       if (!disposed) measurement.measure();
     });
@@ -78,13 +78,20 @@ export function useRunEmulator(target: RunTarget) {
       disposed = true;
       observer.disconnect();
       measurement.cancel();
+      measurer.current = null;
       offKeys.dispose();
-      // The run is not stopped here: this unmounts on every tab switch.
+      // The run is not stopped here: its tab closed or the session changed.
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    measurer.current?.measure();
+    termRef.current?.focus();
+  }, [visible]);
 
   return { host, termRef, writeRef, notice, latest };
 }

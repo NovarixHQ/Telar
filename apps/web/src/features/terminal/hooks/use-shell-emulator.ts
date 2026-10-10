@@ -30,7 +30,7 @@ type Mount = {
   measurer: MutableRefObject<ReturnType<typeof gridMeasurer> | null>;
   retryInHome: MutableRefObject<(() => void) | null>;
   setPhase: (phase: Phase) => void;
-  latest: MutableRefObject<{ onTerminalId: (id: string) => void; onTitle: (title: string) => void; active: boolean }>;
+  latest: MutableRefObject<{ onTerminalId: (id: string) => void; onTitle: (title: string) => void; visible: boolean }>;
 };
 
 /** Runs once per pane: builds the emulator, re-adopts or opens a PTY, and follows the box's size. Returns the teardown. */
@@ -80,7 +80,7 @@ function mountShell(m: Mount): () => void {
       if (!disposed) measure();
     });
     // Only the shell on screen takes the keyboard.
-    if (m.latest.current.active) term.focus();
+    if (m.latest.current.visible) term.focus();
   };
 
   const openShell = async (cwd: string | undefined) => {
@@ -110,7 +110,7 @@ function mountShell(m: Mount): () => void {
     void openShell(undefined);
   };
 
-  // Re-adopt before opening: the panel unmounts this on every tab switch. Scrollback does not come back.
+  // Re-adopt before opening: a session switch remounts this. Scrollback does not come back.
   void (async () => {
     if (m.adopt) {
       try {
@@ -141,7 +141,7 @@ function mountShell(m: Mount): () => void {
     m.measurer.current = null;
     for (const off of cleanups.splice(0)) off();
     m.retryInHome.current = null;
-    // The shell is not killed: this unmounts on every outer tab switch. Closing the chip ends it.
+    // The shell is not killed: a session switch unmounts this. Closing the tab ends it.
     if (m.termRef.current === term) {
       term.dispose();
       m.termRef.current = null;
@@ -157,7 +157,6 @@ export function useShellEmulator(props: {
   terminalId?: string;
   onTerminalId: (id: string) => void;
   onTitle: (title: string) => void;
-  active: boolean;
   visible: boolean;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
@@ -167,9 +166,9 @@ export function useShellEmulator(props: {
   const retryInHome = useRef<(() => void) | null>(null);
   // Decided on the first render, so a missing bridge never flashes an empty box.
   const [phase, setPhase] = useState<Phase>(() => (terminalBridge() ? { kind: "starting" } : { kind: "unavailable", why: NO_BRIDGE }));
-  const latest = useRef({ onTerminalId: props.onTerminalId, onTitle: props.onTitle, active: props.active });
+  const latest = useRef({ onTerminalId: props.onTerminalId, onTitle: props.onTitle, visible: props.visible });
   useEffect(() => {
-    latest.current = { onTerminalId: props.onTerminalId, onTitle: props.onTitle, active: props.active };
+    latest.current = { onTerminalId: props.onTerminalId, onTitle: props.onTitle, visible: props.visible };
   });
   const adopt = useRef(props.terminalId);
 
@@ -183,12 +182,12 @@ export function useShellEmulator(props: {
   }, []);
 
   // Coming back into view is a fit and a focus: a hidden or animating pane was never a grid.
-  const { active, visible } = props;
+  const { visible } = props;
   useEffect(() => {
-    if (!active || !visible || phase.kind !== "live") return;
+    if (!visible || phase.kind !== "live") return;
     measurer.current?.measure();
     termRef.current?.focus();
-  }, [active, visible, phase]);
+  }, [visible, phase]);
 
   return { host, phase, retryInHome };
 }

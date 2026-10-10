@@ -16,6 +16,7 @@ export type QuickComposerBridge = {
   onOpen: (listener: (context: FrontContext) => void) => () => void;
   close: () => Promise<unknown>;
   mode: (mode: "compact" | "expanded") => void;
+  onResized: (listener: (mode: "compact" | "expanded") => void) => () => void;
   onMoved: (listener: (how?: { ifIdle?: boolean }) => void) => () => void;
   sent: (input: { route: string; title: string; detail: string; open: boolean }) => Promise<unknown>;
   hold: () => void;

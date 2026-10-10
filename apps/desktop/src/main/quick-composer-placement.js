@@ -24,7 +24,7 @@ function createPlacement({ screen, window: current }) {
     resize(nextMode) {
       if (nextMode === mode || (nextMode !== "compact" && nextMode !== "expanded")) return;
       mode = nextMode;
-      apply(true);
+      apply(false);
     },
     settle() {
       const win = live();

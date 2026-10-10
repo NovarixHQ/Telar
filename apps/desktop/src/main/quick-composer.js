@@ -134,7 +134,11 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   ipcMain.handle("telar:quick-composer:toggle", () => toggle());
   ipcMain.handle("telar:quick-composer:context", (event) => (fromPanel(event) ? latest : null));
   ipcMain.handle("telar:quick-composer:close", (event) => fromPanel(event) && hide());
-  ipcMain.on("telar:quick-composer:mode", (event, mode) => fromPanel(event) && placement.resize(mode));
+  ipcMain.on("telar:quick-composer:mode", (event, mode) => {
+    if (!fromPanel(event)) return;
+    placement.resize(mode);
+    win.webContents.send("telar:quick-composer:resized", placement.mode());
+  });
   ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
   ipcMain.on("telar:quick-composer:failed", (event, message) => fromPanel(event) && recover(`page error ${String(message).slice(0, 2000)}`));
   ipcMain.on("telar:quick-composer:hold", (event) => {

@@ -92,13 +92,22 @@ function fakeBridge(context: FrontContext | null) {
   let closed = 0;
   let held = 0;
   const modes: string[] = [];
+  let resized: (mode: "compact" | "expanded") => void = () => {};
+  let autoResize = true;
   let moved: (how?: { ifIdle?: boolean }) => void = () => {};
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
     onOpen: () => () => {},
     close: async () => void (closed += 1),
-    mode: (mode) => void modes.push(mode),
+    mode: (mode) => {
+      modes.push(mode);
+      if (autoResize) queueMicrotask(() => resized(mode));
+    },
+    onResized: (listener) => {
+      resized = listener;
+      return () => {};
+    },
     onMoved: (listener) => {
       moved = listener;
       return () => {};
@@ -112,7 +121,7 @@ function fakeBridge(context: FrontContext | null) {
     hold: () => void (held += 1),
     failed: () => {},
   };
-  return { bridge, sent, settings, modes, moved: () => act(() => moved()), closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, modes, holdResize: () => void (autoResize = false), resized: (mode: "compact" | "expanded") => act(() => resized(mode)), moved: () => act(() => moved()), closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
 const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", permissions, grantee: "Telar Dev", ...extra });
@@ -278,6 +287,18 @@ describe("the quick composer", () => {
     (document.activeElement as HTMLElement).blur();
     moved();
     expect(document.activeElement).toBe(editor(host));
+  });
+
+  test("the picker stays hidden until the window has its taller size, then arrives", async () => {
+    const { host, holdResize, resized } = await open(front(GRANTED));
+    await flush();
+    holdResize();
+    await type(host, "#");
+    const arriving = () => host.querySelector('[data-slot="quick-arriving"] [role="listbox"]')?.closest('[data-slot="quick-arriving"]');
+    expect(arriving()?.hasAttribute("data-ready")).toBe(false);
+    expect(arriving()?.className).toContain("invisible");
+    resized("expanded");
+    expect(arriving()?.hasAttribute("data-ready")).toBe(true);
   });
 
   test("opening the # picker asks for the taller size, and closing it gives it back", async () => {

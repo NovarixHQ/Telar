@@ -78,7 +78,7 @@ describe("the shortcut", () => {
 });
 
 describe("the window", () => {
-  test("opens compact, low on the cursor's display, and only attaching or detaching changes its size", async () => {
+  test("opens compact, low on the cursor's display, switches size in one unanimated step, and tells the page once it has", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
     const low = Math.round(900 - 875 * 0.22);
@@ -97,7 +97,8 @@ describe("the window", () => {
     electron.ipcMain.send("telar:quick-composer:mode", eventFrom(panel()), "expanded");
     electron.ipcMain.send("telar:quick-composer:mode", eventFrom(panel()), "huge");
     electron.ipcMain.send("telar:quick-composer:mode", eventFrom(new FakeBrowserWindow()), "compact");
-    expect(sets).toEqual([true]);
+    expect(sets).toEqual([false]);
+    expect(panel().webContents.sent.filter((message) => message.channel === "telar:quick-composer:resized").map((message) => message.payload)).toEqual(["expanded", "expanded", "expanded"]);
   });
 
   test("a native drag is never fought: moving sets no bounds, keeps the spot as dropped, and tells the page to take focus back", async () => {

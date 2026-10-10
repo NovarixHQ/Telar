@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, 
 import { FolderIcon, PlusIcon } from "lucide-react";
 import { useSurfaceCommandKeys, type CommandId } from "@/features/commands";
 import { Composer } from "@/features/composer";
+import { cn } from "@/ui/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { AttachedDestination } from "./attached-destination";
 import { DestinationPicker, placeOf } from "./destination-picker";
@@ -106,7 +107,8 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
   const strip = useRef<HTMLDivElement>(null);
-  useWindowMode(bridge, quick.destination.destination?.kind === "session" || quick.destination.picking, quick.opened);
+  const sized = useWindowMode(bridge, quick.destination.destination?.kind === "session" || quick.destination.picking, quick.opened);
+  const arriving = cn("motion-safe:transition-[opacity,translate] motion-safe:duration-[120ms] motion-safe:ease-out", sized ? "translate-y-0 opacity-100" : "invisible translate-y-2 opacity-0");
   useSurfaceCommandKeys(SURFACE_COMMANDS);
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
 
@@ -142,12 +144,12 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             }}
             onLeave={toComposer}
           />
-          <div className="-mb-3">
+          <div data-slot="quick-arriving" data-ready={sized || undefined} className={cn("-mb-3", arriving)}>
             <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} height={TRANSCRIPT_PX} onClear={quick.destination.clear} />
           </div>
           </div>
           {quick.destination.picking && (
-            <div className="absolute inset-x-0 bottom-0 flex max-h-full flex-col justify-end">
+            <div data-slot="quick-arriving" data-ready={sized || undefined} className={cn("absolute inset-x-0 bottom-0 flex max-h-full flex-col justify-end", arriving)}>
               <DestinationPicker rows={quick.destination.rows} index={quick.destination.index} onPick={quick.destination.pick} manyHosts={quick.manyHosts} />
             </div>
           )}

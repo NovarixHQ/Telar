@@ -8,7 +8,8 @@ import os from "node:os";
 import path from "node:path";
 import { EngineClient, TELAR_MCP_SERVER, canonicalToolName, parsePluginPanelView, parseToolName, pluginEnabled, readProjectPlugins } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../src/daemon";
-import { bundledPluginToolModules, loadInstalledPlugins } from "../../src/domains/plugins";
+import { bundledPluginToolModules } from "../../src/domains/plugins";
+import { ECHO_MANIFEST, writePlugin } from "../../test/fixtures/external-plugin";
 import { stubModels } from "../../test/stub-models";
 
 const roots: string[] = [];
@@ -43,8 +44,8 @@ function fakeTectonic(): string {
   return file;
 }
 
-async function ready(options: { enable?: boolean; tectonic?: string } = {}) {
-  const daemon = await startEngine({ models: stubModels, engineRoot: root() });
+async function ready(options: { enable?: boolean; tectonic?: string; pluginsDir?: string } = {}) {
+  const daemon = await startEngine({ models: stubModels, engineRoot: root(), pluginsDir: options.pluginsDir ?? root() });
   daemons.push(daemon);
   const client = new EngineClient(daemon.discovery);
   const checkout = root();
@@ -69,18 +70,20 @@ test("LaTeX loads from its manifest like an installed plugin, and the host decid
   expect(latex?.machineSettingsSchema?.properties).toMatchObject({ engine: { title: "Default engine" } });
 });
 
-test("an installed plugin cannot take the bundled id or tool prefix", () => {
-  const dir = root();
-  for (const [name, manifest] of [
-    ["latex", { id: "latex", api: 1, name: "Mine", version: "1", command: ["/bin/true"] }],
-    ["mytex", { id: "mytex", api: 1, name: "Mine", version: "1", command: ["/bin/true"], toolPrefix: "latex" }],
-  ] as const) {
-    fs.mkdirSync(path.join(dir, name));
-    fs.writeFileSync(path.join(dir, name, "plugin.json"), JSON.stringify(manifest));
-  }
-  const { loaded, refused } = loadInstalledPlugins(dir);
-  expect(loaded).toEqual([]);
-  expect(refused.map((plugin) => plugin.error)).toEqual([expect.stringContaining("already taken"), expect.stringContaining("already owned")]);
+test("a user plugin cannot take the bundled id or prefix, and an external plugin beside them loads as before", async () => {
+  const pluginsDir = root();
+  writePlugin(pluginsDir, "latex", { ...ECHO_MANIFEST, id: "latex" });
+  writePlugin(pluginsDir, "mytex", { ...ECHO_MANIFEST, id: "mytex", toolPrefix: "latex", tools: [] });
+  writePlugin(pluginsDir, "echo");
+  const { client, daemon } = await ready({ pluginsDir });
+  const byId = Object.fromEntries((await client.machinePlugins()).plugins.map((status) => [status.meta.id, status]));
+  expect(byId.latex).toMatchObject({ state: "ready", meta: { name: "LaTeX", toolPrefixes: ["latex"] } });
+  expect(byId.latex?.installed).toBeUndefined();
+  expect(byId.mytex).toMatchObject({ state: "failed", error: expect.stringContaining('tool prefix "latex" is already owned') });
+  expect(byId.echo).toMatchObject({ state: "ready", installed: { linked: false }, meta: { toolPrefixes: ["echo"] } });
+  await client.updateProject("project_one", { plugins: { echo: { enabled: true } } });
+  expect(await door(daemon, "plugins/echo/tool", { name: "echo_say", arguments: { text: "hi" } })).toEqual({ status: 200, body: { content: [{ type: "text", text: "echo: hi" }] } });
+  expect(fs.existsSync(path.join(pluginsDir, "latex", "plugin.json"))).toBe(true);
 });
 
 test("the released door and the generic door answer alike, and refuse alike while LaTeX is off", async () => {

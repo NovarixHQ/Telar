@@ -33,9 +33,15 @@ function ProjectChip({ quick }: { quick: Quick }) {
   };
   return (
     <Select value={quick.project ? projectKey(quick.project) : null} onValueChange={choose}>
-      <SelectTrigger size="sm" className="h-7 min-w-0 max-w-40 gap-1 rounded-full border-border/60 px-2.5 text-xs" aria-label="Project">
-        <FolderIcon className="size-3.5 text-muted-foreground" />
-        <SelectValue placeholder="Choose a project">{quick.project ? placeOf(quick.project, quick.manyHosts) : undefined}</SelectValue>
+      <SelectTrigger
+        size="sm"
+        aria-label="Project"
+        className="h-7 min-w-0 gap-1.5 rounded-md border-0 bg-transparent px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground dark:bg-transparent dark:hover:bg-accent [&>svg:last-child]:size-3 [&>svg:last-child]:opacity-60"
+      >
+        <FolderIcon className="size-3.5" />
+        <SelectValue placeholder="Choose a project" className="min-w-0">
+          {quick.project ? <span className="min-w-0 max-w-48 truncate text-foreground">{placeOf(quick.project, quick.manyHosts)}</span> : undefined}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent side="top" alignItemWithTrigger={false}>
         {quick.projects.map((project) => (
@@ -131,7 +137,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
         className="flex min-h-0 flex-1 flex-col gap-1"
       >
         <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1 flex-col justify-end gap-1 overflow-y-auto">
+          <div className="-mb-5 flex min-h-0 flex-1 flex-col justify-end gap-1 overflow-y-auto pb-4">
           {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
           <ContextOffers quick={quick} />
           <NeedsYouStrip
@@ -144,7 +150,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             }}
             onLeave={toComposer}
           />
-          <div data-slot="quick-arriving" data-ready={sized || undefined} className={cn("-mb-1", arriving)}>
+          <div data-slot="quick-arriving" data-ready={sized || undefined} className={arriving}>
             <AttachedDestination destination={quick.destination.destination} manyHosts={quick.manyHosts} nudge={quick.nudge} height={TRANSCRIPT_PX} onClear={quick.destination.clear} />
           </div>
           </div>

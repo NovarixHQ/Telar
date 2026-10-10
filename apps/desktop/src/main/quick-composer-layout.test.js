@@ -1,5 +1,5 @@
 const { describe, expect, test } = require("bun:test");
-const { HEIGHTS, WIDTH, anchorOn, boundsFor, displayFor } = require("./quick-composer-layout");
+const { HEIGHTS, WIDTH, anchorOn, boundsFor } = require("./quick-composer-layout");
 
 const AREA = { x: 0, y: 25, width: 1440, height: 875 };
 const SIDE = { x: 1440, y: 0, width: 1920, height: 1080 };
@@ -26,20 +26,5 @@ describe("the window's bounds", () => {
 
   test("a remembered offset wins over the default spot", () => {
     expect(anchorOn({ workArea: SIDE }, { x: 100, bottom: 600 })).toEqual({ x: 1540, bottom: 600 });
-  });
-});
-
-describe("where it opens", () => {
-  test("on the remembered display while it exists, the primary when it is gone, the cursor's otherwise", () => {
-    const displays = [{ id: 1, workArea: AREA }, { id: 2, workArea: SIDE }];
-    const screen = {
-      getAllDisplays: () => displays,
-      getPrimaryDisplay: () => displays[0],
-      getCursorScreenPoint: () => ({ x: 2000, y: 10 }),
-      getDisplayNearestPoint: (point) => (point.x >= 1440 ? displays[1] : displays[0]),
-    };
-    expect(displayFor(screen, null).id).toBe(2);
-    expect(displayFor(screen, { display: 1 }).id).toBe(1);
-    expect(displayFor(screen, { display: 7 }).id).toBe(1);
   });
 });

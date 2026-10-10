@@ -28,6 +28,7 @@ import { ComposerQuestionDrawer } from "./composer-question-drawer";
 import { ContextPill } from "./context-pill";
 import { QueuedMessages } from "./queued-messages";
 import { ComposerPills, SendButton } from "./composer-toolbar";
+import { ControlDivider } from "./control-primitives";
 
 // External clients already reach for this id.
 const EDITOR_ID = "turn-prompt";
@@ -142,7 +143,7 @@ export function Composer(props: ComposerProps) {
   const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
   const pills = (
     <>
-      {props.leading}
+      {props.leading && <>{props.leading}{pillsShown && <ControlDivider />}</>}
       {pillsShown && (
         <ComposerPills {...props} summon={summon} driver={activeDriver} choice={choice} instanceId={session?.providerInstanceId}
           ultrathink={{ active: hasUltrathink(draft), toggle: () => onDraftChange(toggleUltrathink(draft)) }} />

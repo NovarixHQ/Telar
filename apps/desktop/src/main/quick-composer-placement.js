@@ -1,6 +1,6 @@
 "use strict";
 
-const { anchorOn, boundsFor, displayFor } = require("./quick-composer-layout");
+const { anchorOn, boundsFor } = require("./quick-composer-layout");
 
 function createPlacement({ screen, window: current }) {
   let place = null;
@@ -16,7 +16,7 @@ function createPlacement({ screen, window: current }) {
 
   return {
     open(held, nextMode = "compact") {
-      const display = displayFor(screen, held);
+      const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
       place = { display: display.id, area: display.workArea, anchor: anchorOn(display, held?.display === display.id ? held.offset : null) };
       mode = nextMode;
       apply(false);
@@ -32,6 +32,13 @@ function createPlacement({ screen, window: current }) {
       const bounds = win.getBounds();
       const display = screen.getDisplayMatching(bounds);
       place = { display: display.id, area: display.workArea, anchor: { x: bounds.x, bottom: bounds.y + bounds.height } };
+    },
+    reclamp() {
+      const win = live();
+      if (!place || !win || !win.isVisible()) return;
+      const display = screen.getDisplayMatching(win.getBounds());
+      place = { ...place, display: display.id, area: display.workArea };
+      apply(false);
     },
     mode: () => mode,
     held: () => (place ? { display: place.display, offset: { x: place.anchor.x - place.area.x, bottom: place.anchor.bottom - place.area.y } } : null),

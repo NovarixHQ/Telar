@@ -1515,6 +1515,20 @@ html:has([data-surface="quick"]) *::-webkit-scrollbar {
   -webkit-app-region: no-drag;
 }
 [data-surface="quick"] [data-slot="input-group"] {
-  background-color: var(--popover);
+  background-color: var(--card);
   backdrop-filter: none;
+}
+[data-slot="quick-transcript"] :is(.text-sm, .telar-markdown) {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+[data-slot="quick-transcript"] [data-role] {
+  gap: 0.25rem;
+}
+[data-slot="quick-transcript"] [data-role="user"] > :first-child {
+  border-radius: var(--radius);
+  padding: 0.375rem 0.625rem;
+}
+[data-slot="quick-transcript"] [data-slot="message-actions"] {
+  display: none;
 }

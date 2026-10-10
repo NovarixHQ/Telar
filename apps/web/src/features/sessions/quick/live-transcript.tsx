@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { EngineRequest } from "@telar/engine-client";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
-import { SessionTurn, TurnRow } from "../cockpit/components/session-turn";
+import { MessageSquareIcon } from "lucide-react";
+import { typedOpening } from "@/features/transcript";
+import { cn } from "@/ui/utils";
+import { SessionTurn } from "../cockpit/components/session-turn";
 import { useSessionSync } from "../cockpit/hooks/use-session-sync";
 import { useTranscriptModel } from "../cockpit/hooks/use-transcript-model";
 import { transcriptRows } from "../cockpit/model";
@@ -37,7 +40,7 @@ export function LiveTranscript({ hostId, sessionId, live, height }: { hostId: st
       data-slot="quick-transcript"
       data-fade-top={fade.top || undefined}
       data-fade-bottom={fade.bottom || undefined}
-      className="mt-2 flex-none text-xs"
+      className="flex-none text-xs"
       style={{ height, "--chat-content-max-width": "100%", "--fade-top": fade.top ? FADE : "0px", "--fade-bottom": fade.bottom ? FADE : "0px" } as CSSProperties}
       conversation={sync.syncKey}
       landed={sync.transcriptLanded}
@@ -47,15 +50,15 @@ export function LiveTranscript({ hostId, sessionId, live, height }: { hostId: st
         <>
           <FadeEdges scrollRef={context.scrollRef} atBottom={context.isAtBottom} onFade={setFade} />
           <ConversationContent
-            className="gap-3 px-0 py-1 [&_.telar-markdown]:text-xs"
+            className="gap-2 px-3 py-2"
             scrollClassName="[mask-image:linear-gradient(to_bottom,transparent,#000_var(--fade-top),#000_calc(100%_-_var(--fade-bottom)),transparent)]"
           >
             <ConversationTopEdge more={Boolean(sync.page?.more)} loading={sync.loadingOlder} onReach={sync.loadOlder}>
               <p className="text-center text-2xs text-muted-foreground">{sync.loadingOlder ? "Loading earlier turns…" : "Scroll up for earlier turns"}</p>
             </ConversationTopEdge>
-            {shown.length === 0 && <p className="text-muted-foreground">{sync.loading ? "Loading…" : "Nothing here yet."}</p>}
+            {shown.length === 0 && <EmptyState loading={sync.loading} />}
             {shown.map((turn) => (
-              <TurnRow key={turn.runId} turn={turn} skippable={turn.runId !== model.active?.runId}>
+              <div key={turn.runId} className={cn(typedOpening(turn) && "not-first:pt-2")}>
                 <SessionTurn
                   turn={turn}
                   live={turn.runId === model.active?.runId}
@@ -63,7 +66,7 @@ export function LiveTranscript({ hostId, sessionId, live, height }: { hostId: st
                   requests={model.openRequests.filter((request) => hostRun(request) === turn.runId)}
                   onDecide={decide}
                 />
-              </TurnRow>
+              </div>
             ))}
           </ConversationContent>
           <ConversationScrollButton />
@@ -90,4 +93,22 @@ function FadeEdges({ scrollRef, atBottom, onFade }: { scrollRef: RefObject<HTMLE
     return () => element.removeEventListener("scroll", report);
   }, [scrollRef, atBottom, onFade]);
   return null;
+}
+
+function EmptyState({ loading }: { loading: boolean }) {
+  if (loading) {
+    return (
+      <div role="status" aria-label="Loading conversation" className="flex flex-col gap-2 py-2">
+        <div className="ml-auto h-7 w-2/5 animate-pulse rounded-lg bg-muted/60" />
+        <div className="h-3 w-11/12 animate-pulse rounded-md bg-muted/60" />
+        <div className="h-3 w-2/3 animate-pulse rounded-md bg-muted/60" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-1.5 py-10 text-muted-foreground">
+      <MessageSquareIcon className="size-4" />
+      <p className="text-xs">No messages yet</p>
+    </div>
+  );
 }

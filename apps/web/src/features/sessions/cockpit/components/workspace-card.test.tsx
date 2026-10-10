@@ -140,6 +140,27 @@ describe("the Workspace card", () => {
     expect(props.onOpenAgent).toHaveBeenCalledWith(agent);
   });
 
+  test("an agent's row shows its provider's icon", async () => {
+    const { host } = await mount({ agents: [{ ...agent, provider: "codex" }] });
+    const row = button(section(host, "Agents")!, "Settings mockup")!;
+    expect(row.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe("Codex");
+  });
+
+  test("a child session's card leads with its parent, which opens the parent", async () => {
+    const onOpenParent = mock();
+    const { host } = await mount({ parent: { id: "session_parent", title: "Orchestrate fixes", driver: "claude" }, onOpenParent });
+    const first = host.querySelector("section")!;
+    expect(first.getAttribute("aria-label")).toBe("Parent session");
+    expect(first.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe("Claude");
+    await act(async () => button(first, "Orchestrate fixes")!.click());
+    expect(onOpenParent).toHaveBeenCalledTimes(1);
+  });
+
+  test("a top-level session's card has no parent row", async () => {
+    const { host } = await mount();
+    expect(section(host, "Parent session")).toBeNull();
+  });
+
   test("a running shell's row opens its terminal", async () => {
     const { host, props } = await mount();
     await act(async () => button(section(host, "Workspace")!, "bun dev")!.click());

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { BotIcon, ChevronDownIcon, CopyIcon, FolderGitIcon, GitBranchIcon, GitCompareIcon, MessageSquarePlusIcon } from "lucide-react";
 import { type ProviderDriverKind, type Session, type SessionChild, type SessionDiff, workspacePath } from "@telar/engine-client";
 import { OpenWorkspaceRow } from "@/features/files";
-import { ProviderIcon } from "@/features/providers";
+import { driverLabel, ProviderIcon } from "@/features/providers";
 import { PublishRows, useGitHubReady } from "@/features/git";
 import { isOpenTerminal, revealTerminal, RunRow, statusLabel, type RunView } from "@/features/terminal";
 import { createEngineApi } from "@/platform/engine";
@@ -16,7 +16,7 @@ import { cn } from "@/ui/utils";
 import { canvasHref, sessionHref } from "../../session-list";
 import type { useCockpitPanel } from "../hooks/use-cockpit-panel";
 import type { CardSubagent } from "../model";
-import { useWorkspaceCardData, useWorkspaceCardOpen, type CardPlacement } from "../hooks/use-workspace-card";
+import { useParentSession, useWorkspaceCardData, useWorkspaceCardOpen, type CardParent, type CardPlacement } from "../hooks/use-workspace-card";
 
 const CHILD_STATE: Record<SessionChild["state"], string> = { working: "Running", waiting: "Waiting", done: "Done", failed: "Failed", stopped: "Stopped" };
 
@@ -56,6 +56,8 @@ export type WorkspaceCardViewProps = {
   agents: readonly SessionChild[];
   subagents?: readonly CardSubagent[];
   driver?: ProviderDriverKind;
+  parent?: CardParent;
+  onOpenParent?: () => void;
   run?: ReactNode;
   editor?: ReactNode;
   publish?: ReactNode;
@@ -74,14 +76,14 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
   const out = (agent: { state: SessionChild["state"] }) => agent.state === "working" || agent.state === "waiting";
   const builderRow = (agent: SessionChild) => (
     <ActionRow key={agent.sessionId} onClick={() => props.onOpenAgent(agent)}>
-      <BotIcon />
+      <AgentIcon driver={agent.provider} />
       <span className="min-w-0 flex-1 truncate">{agent.title ?? "Untitled"}</span>
       <RowMeta className={cn("font-sans", agent.state === "working" && "text-primary")}>{CHILD_STATE[agent.state]}</RowMeta>
     </ActionRow>
   );
   const subagentRow = (agent: CardSubagent) => (
     <div key={agent.id} className={cn(ROW, "text-foreground")}>
-      {props.driver ? <ProviderIcon provider={props.driver} size={16} className="shrink-0" /> : <BotIcon />}
+      <AgentIcon driver={props.driver} />
       <span className="min-w-0 flex-1 truncate">{agent.title}</span>
       <RowMeta className={cn("font-sans", agent.state === "working" && "text-primary")}>{CHILD_STATE[agent.state]}</RowMeta>
     </div>
@@ -95,6 +97,14 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
   );
   return (
     <div role="complementary" aria-label="Workspace card" className="w-72 overflow-hidden rounded-2xl border border-border/80 bg-popover/95 text-popover-foreground shadow-2 backdrop-blur-xl">
+      {props.parent && (
+        <Section title="Parent session">
+          <ActionRow onClick={props.onOpenParent}>
+            <AgentIcon driver={props.parent.driver} />
+            <span className="min-w-0 flex-1 truncate">{props.parent.title}</span>
+          </ActionRow>
+        </Section>
+      )}
       <Section title="Workspace">
         <SplitRow menu={<RowMenu label="Workspace actions">{newSession}<CopyItem label="Copy path" value={path} /></RowMenu>}>
           <div className={cn(ROW, "flex-1 font-medium")} title={path}>
@@ -164,6 +174,15 @@ export function WorkspaceCardView(props: WorkspaceCardViewProps) {
         </Section>
       )}
     </div>
+  );
+}
+
+function AgentIcon({ driver }: { driver: ProviderDriverKind | undefined }) {
+  if (!driver) return <BotIcon />;
+  return (
+    <span role="img" aria-label={driverLabel(driver)} className="flex shrink-0">
+      <ProviderIcon provider={driver} size={16} />
+    </span>
   );
 }
 
@@ -270,6 +289,7 @@ export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgr
   const publishable = Boolean(diff?.branch) && diff?.shared !== true;
   const github = useGitHubReady(open && publishable, session.projectId);
   const api = createEngineApi(hostFetcher(hostId));
+  const parent = useParentSession(hostId, session, open);
   return (
     <WorkspaceCardFrame open={open} placement={placement} onClose={close}>
       <WorkspaceCardView
@@ -281,6 +301,7 @@ export function WorkspaceCard({ hostId, session, agents, subagents, busy, backgr
         agents={agents}
         subagents={subagents}
         driver={session.driver}
+        {...(parent ? { parent, onOpenParent: () => router.push(sessionHref({ id: parent.id, projectId: parent.projectId ?? session.projectId, hostId })) } : {})}
         {...(path === undefined
           ? {}
           : {

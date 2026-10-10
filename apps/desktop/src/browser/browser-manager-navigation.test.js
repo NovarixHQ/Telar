@@ -153,3 +153,33 @@ describe("navigation replacement — the waiter's endings", () => {
     expect(EVENTS.map((name) => wc.listenerCount(name))).toEqual(before);
   });
 });
+
+describe("page favicon", () => {
+  test("the page's favicon reaches tab state, stays within the site and clears when the tab moves to another", async () => {
+    const { manager, views } = makeHarness();
+    await manager.createTab("s", "https://one.example/");
+    const wc = views[0].webContents;
+    const favicon = () => manager.state("s").tabs[0].favicon;
+
+    wc.emit("page-favicon-updated", {}, ["https://one.example/f.ico"]);
+    expect(favicon()).toBe("https://one.example/f.ico");
+
+    wc.url = "https://one.example/next";
+    wc.emit("did-navigate", {}, wc.url, 200);
+    expect(favicon()).toBe("https://one.example/f.ico");
+
+    wc.url = "https://two.example/";
+    wc.emit("did-navigate", {}, wc.url, 200);
+    expect(favicon()).toBeNull();
+  });
+
+  test("candidates a remote cockpit cannot load are skipped", async () => {
+    const { manager, views } = makeHarness();
+    await manager.createTab("s", "https://one.example/");
+    const wc = views[0].webContents;
+    wc.emit("page-favicon-updated", {}, [`data:image/png;base64,${"A".repeat(5000)}`, "file:///etc/icon.png", "data:image/svg+xml,<svg/>"]);
+    expect(manager.state("s").tabs[0].favicon).toBe("data:image/svg+xml,<svg/>");
+    wc.emit("page-favicon-updated", {}, ["chrome://favicon/x"]);
+    expect(manager.state("s").tabs[0].favicon).toBeNull();
+  });
+});

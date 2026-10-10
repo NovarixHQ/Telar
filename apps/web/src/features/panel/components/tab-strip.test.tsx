@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { act, useState } from "react";
 import { filePanelTab, type PanelTabItem } from "../model";
 import { closePanelTab, type PanelTabState } from "../tabs";
@@ -168,5 +168,53 @@ describe("the strip's scroll buttons", () => {
     expect(button("Scroll tabs right")!.disabled).toBe(true);
     await click(button("Scroll tabs left")!);
     expect(viewport.scrollLeft).toBe(50);
+  });
+});
+
+describe("a page tab's icon", () => {
+  const PAGE_TABS = [{ id: "browser:a", kind: "browser:a", params: {} }, TABS[1]!] as PanelTabItem[];
+  const page = (favicon: string | null, url = "https://a.test/") => ({ id: "a", index: 0, active: true, title: "A", url, favicon, loading: false, canGoBack: false, canGoForward: false });
+
+  async function stripWithPage(favicon: string | null) {
+    let push: (state: unknown) => void = () => {};
+    (window as { telarDesktop?: unknown }).telarDesktop = {
+      browser: {
+        getState: async () => ({ scopeKey: "s1", tabs: [page(favicon)] }),
+        onState: (listener: (state: unknown) => void) => ((push = listener), () => {}),
+        setVisible: async () => {},
+      },
+    };
+    const { host } = await mount(
+      <SidebarProvider storageKey="tab-strip-test">
+        <RightPanel sessionId="s1" projectId="p1" tabs={PAGE_TABS} tab="diff" open onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} />
+      </SidebarProvider>,
+    );
+    const chip = () => host.querySelector('[role="tab"][aria-controls="right-panel-browser:a"]')!;
+    await flush(() => chip().textContent === "A");
+    return { chip, push: (state: unknown) => act(async () => push({ scopeKey: "s1", tabs: [state] })) };
+  }
+
+  afterEach(() => {
+    delete (window as { telarDesktop?: unknown }).telarDesktop;
+  });
+
+  test("shows the page's favicon, and follows it when the page moves on", async () => {
+    const { chip, push } = await stripWithPage("https://a.test/favicon.ico");
+    expect(chip().querySelector("img")?.getAttribute("src")).toBe("https://a.test/favicon.ico");
+    await push(page("https://b.test/icon.png", "https://b.test/"));
+    expect(chip().querySelector("img")?.getAttribute("src")).toBe("https://b.test/icon.png");
+    await push(page(null, "https://c.test/"));
+    expect(chip().querySelector("img")).toBeNull();
+    expect(chip().querySelector("svg")).not.toBeNull();
+  });
+
+  test("a page with no favicon, or one that fails to load, keeps the globe", async () => {
+    const { chip, push } = await stripWithPage(null);
+    expect(chip().querySelector("img")).toBeNull();
+    expect(chip().querySelector("svg")).not.toBeNull();
+    await push(page("https://a.test/missing.ico"));
+    await act(async () => void chip().querySelector("img")!.dispatchEvent(new Event("error")));
+    expect(chip().querySelector("img")).toBeNull();
+    expect(chip().querySelector("svg")).not.toBeNull();
   });
 });

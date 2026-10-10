@@ -174,6 +174,12 @@ describe("a browser tab's label comes from the live page when the shell has one"
   test("no live tabs at all falls back to the journal's answer", () => {
     expect(describePanelTab(browserPanelTab("gone"), journal, [])).toMatchObject({ label: "Closed page", missing: true });
   });
+
+  test("a cockpit with no shell takes the favicon from the engine's page state", () => {
+    const remote = { provider: "attached", tabs: [{ id: "p1", title: "One", url: "https://one.example", active: true, favicon: "https://one.example/f.ico" }] } as never;
+    expect(describePanelTab(browserPanelTab("p1"), remote).favicon).toBe("https://one.example/f.ico");
+    expect(describePanelTab(browserPanelTab("p1"), journal).favicon).toBeUndefined();
+  });
 });
 
 describe("a surface's letter", () => {

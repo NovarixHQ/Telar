@@ -46,9 +46,9 @@ export type PanelTabItem = PanelTabInstance<PanelTab>;
 
 export type BrowserState = { provider: BrowserProvider; tabs: BrowserTab[] };
 
-export type LivePage = Pick<BrowserTab, "id" | "title" | "url"> & { active?: boolean };
+export type LivePage = Pick<BrowserTab, "id" | "title" | "url"> & { active?: boolean; favicon?: string | null };
 
-export type TabDescription = { label: string; icon: LucideIcon; blurb: string; missing?: boolean };
+export type TabDescription = { label: string; icon: LucideIcon; blurb: string; missing?: boolean; favicon?: string };
 
 const BROWSER_PREFIX = "browser:";
 const FILE_PREFIX = "file:";
@@ -181,11 +181,9 @@ export function describePanelTab(tab: PanelTab, browser?: BrowserState, live?: r
     return { label: surface.label, icon: surface.icon, blurb: surface.blurb };
   }
   // The native browser's own list wins over the journal's, which lags or never names the native tab.
-  const livePage = live?.find((entry) => entry.id === pageId);
-  if (livePage) return { label: browserTabLabel(livePage), icon: GlobeIcon, blurb: livePage.url };
-  const page = browser?.tabs.find((entry) => entry.id === pageId);
+  const page = live?.find((entry) => entry.id === pageId) ?? browser?.tabs.find((entry) => entry.id === pageId);
   if (!page) return { label: "Closed page", icon: GlobeIcon, blurb: "This page is no longer open.", missing: true };
-  return { label: browserTabLabel(page), icon: GlobeIcon, blurb: page.url };
+  return { label: browserTabLabel(page), icon: GlobeIcon, blurb: page.url, ...(page.favicon ? { favicon: page.favicon } : {}) };
 }
 
 /** What tells two tabs of one kind apart: a basename, a host, or a filter. */

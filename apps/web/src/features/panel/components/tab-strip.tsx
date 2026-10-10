@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
+import { Favicon } from "@/features/browser";
 import { KeyHint } from "@/features/commands";
 import { HeaderToggleGroup } from "@/ui/header-toggle";
 import { ScrollArea } from "@/ui/scroll-area";
@@ -44,7 +45,7 @@ function TabChip({
   const { id } = entry;
   const { tabs, onCloseTab, fullscreen, onToggleFullscreen } = strip;
   const on = id === strip.tab;
-  const { label, icon: Icon, missing } = describePanelTabInstance(entry, { ...(strip.browser ? { browser: strip.browser } : {}), ...(live ? { live } : {}), duplicate });
+  const { label, icon: Icon, missing, favicon } = describePanelTabInstance(entry, { ...(strip.browser ? { browser: strip.browser } : {}), ...(live ? { live } : {}), duplicate });
   const insert = drag.insert?.id === id ? drag.insert.side : undefined;
   const right = tabs.slice(tabs.findIndex((other) => other.id === id) + 1);
   const path = entry.params.path ?? filePanelTabPath(entry.kind);
@@ -82,7 +83,7 @@ function TabChip({
             title={label}
             className="flex min-w-0 flex-1 items-center gap-1.5 outline-none"
           >
-            <Icon className="size-3.5 shrink-0" />
+            <Favicon src={favicon} fallback={<Icon className="size-3.5 shrink-0" />} className="size-3.5" />
             <span className="truncate">{label}</span>
           </button>
           <button

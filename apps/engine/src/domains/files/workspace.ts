@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 import { createReadStream, promises as fsAsync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync, type Dirent } from "node:fs";
 import path from "node:path";
 import type { WorkspaceFile, WorkspaceListing } from "@telar/engine-client";
-import { nulFields } from "../../platform/git/parse";
 import type { AsyncGitRunner } from "../../platform/git/runner";
+import { gitListing } from "./git-listing";
 
 export const MAX_WORKSPACE_FILES = 5_000;
 
@@ -122,16 +122,6 @@ export async function readWorkspaceFileBytes(input: { cwd: string; path: string;
   return { data: await fsAsync.readFile(absolute), mediaType: mediaTypeFor(input.path), bytes };
 }
 
-async function gitWorkspaceFilesAsync(git: AsyncGitRunner, cwd: string): Promise<string[] | undefined> {
-  const inside = await git(cwd, ["rev-parse", "--is-inside-work-tree"]);
-  if (inside.timedOut) throw new Error(inside.stderr || "Git file listing timed out");
-  if (inside.status !== 0 || inside.stdout.trim() !== "true") return undefined;
-  const listed = await git(cwd, ["ls-files", "--cached", "--others", "--exclude-standard", "--deduplicate", "-z"]);
-  if (listed.timedOut) throw new Error(listed.stderr || "Git file listing timed out");
-  if (listed.status !== 0) return [];
-  return nulFields(listed.stdout).filter((entry) => entry.length > 0);
-}
-
 export async function walkWorkspaceFilesAsync(root: string, limit = MAX_WORKSPACE_FILES): Promise<string[]> {
   const files: string[] = [];
   let frontier: { dir: string; depth: number }[] = [{ dir: root, depth: 0 }];
@@ -161,13 +151,14 @@ export async function walkWorkspaceFilesAsync(root: string, limit = MAX_WORKSPAC
 }
 
 export async function listWorkspaceFilesAsync(git: AsyncGitRunner, input: { cwd: string; now: number }): Promise<WorkspaceListing> {
-  const tracked = await gitWorkspaceFilesAsync(git, input.cwd);
+  const tracked = await gitListing(git, input.cwd);
   const repository = tracked !== undefined;
-  const all = tracked ?? await walkWorkspaceFilesAsync(input.cwd, MAX_WORKSPACE_FILES + 1);
+  const all = tracked?.files ?? await walkWorkspaceFilesAsync(input.cwd, MAX_WORKSPACE_FILES + 1);
   return {
     workspacePath: input.cwd,
     repository,
     files: all.slice(0, MAX_WORKSPACE_FILES).sort(),
+    ...(tracked?.submodules.length ? { submodules: tracked.submodules.sort() } : {}),
     source: repository ? "git" : "walk",
     truncated: all.length > MAX_WORKSPACE_FILES,
     readAt: input.now,

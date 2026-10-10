@@ -124,8 +124,14 @@ export function useFilesTree({
   const [shutWhileSearching, setShutWhileSearching] = useState<ReadonlySet<string>>(new Set());
 
   const searched = useMemo(() => matchFiles(listing?.files ?? [], query), [listing, query]);
-  const tree = useMemo(() => buildFileTree(searched.files), [searched.files]);
   const searching = query.trim().length > 0;
+  const submodules = useMemo(() => {
+    const all = listing?.submodules ?? [];
+    if (!searching) return all;
+    const needle = query.trim().toLowerCase();
+    return all.filter((path) => path.toLowerCase().includes(needle) || searched.files.some((file) => file.startsWith(`${path}/`)));
+  }, [listing, searching, query, searched.files]);
+  const tree = useMemo(() => buildFileTree(searched.files, submodules), [searched.files, submodules]);
   const expanded = useMemo(
     () => (searching ? new Set(directoryPaths(tree).filter((path) => !shutWhileSearching.has(path))) : opened),
     [searching, tree, shutWhileSearching, opened],

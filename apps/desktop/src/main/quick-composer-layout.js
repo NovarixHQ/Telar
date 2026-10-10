@@ -3,7 +3,7 @@
 const CARD_WIDTH = 680;
 const MARGIN = 24;
 const WIDTH = CARD_WIDTH + 2 * MARGIN;
-const HEIGHTS = { compact: 320, expanded: 660 };
+const HEIGHTS = { compact: 236, expanded: 600 };
 const LIFT = 0.22;
 
 const right = (area) => area.x + area.width;

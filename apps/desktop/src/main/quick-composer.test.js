@@ -100,13 +100,33 @@ describe("the window", () => {
     expect(sets).toEqual([true]);
   });
 
-  test("a native move keeps the window inside the display it landed on and tells the page to take focus back", async () => {
+  test("a native drag is never fought: moving sets no bounds, keeps the spot as dropped, and tells the page to take focus back", async () => {
+    quick.bind("Alt+Space");
+    await press("Alt+Space");
+    let sets = 0;
+    const setBounds = panel().setBounds.bind(panel());
+    panel().setBounds = (bounds, animate) => {
+      sets += 1;
+      setBounds(bounds, animate);
+    };
+    panel().setPosition(300, 120);
+    panel().emit("moved");
+    expect(sets).toBe(0);
+    expect(panel().getPosition()).toEqual([300, 120]);
+    expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:moved", payload: undefined });
+    await press("Alt+Space");
+    await press("Alt+Space");
+    expect(panel().bounds).toMatchObject({ x: 300, y: 120 });
+  });
+
+  test("a spot dropped off the display is pulled back inside on the next open", async () => {
     quick.bind("Alt+Space");
     await press("Alt+Space");
     panel().setPosition(5000, 9000);
     panel().emit("moved");
+    await press("Alt+Space");
+    await press("Alt+Space");
     expect(panel().bounds).toEqual({ x: 1440 - WIDTH, y: 900 - HEIGHTS.compact, width: WIDTH, height: HEIGHTS.compact });
-    expect(panel().webContents.sent.at(-1)).toEqual({ channel: "telar:quick-composer:moved", payload: undefined });
   });
 
   test("reopened within a minute it comes back where it was, at the size it was; after a minute it starts fresh and compact", async () => {

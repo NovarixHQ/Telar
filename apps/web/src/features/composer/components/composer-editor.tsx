@@ -512,7 +512,7 @@ function caretEdit(
 
 function EditorPlaceholder({ text }: { text: string }) {
   return (
-    <span aria-hidden className="pointer-events-none absolute top-3 left-3 select-none text-[0.9375rem] leading-6 text-muted-foreground">
+    <span aria-hidden data-slot="composer-placeholder" className="pointer-events-none absolute top-3 left-3 z-10 select-none text-[0.9375rem] leading-6 text-muted-foreground">
       {text}
     </span>
   );

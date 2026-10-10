@@ -278,6 +278,29 @@ describe("the quick composer", () => {
     expect(document.activeElement).toBe(editor(host));
   });
 
+  test("opening the # picker asks for the taller size, and closing it gives it back", async () => {
+    const { host, modes } = await open(front(GRANTED));
+    await flush();
+    const before = modes.length;
+    await type(host, "#");
+    await flush();
+    await press(host, "Escape");
+    await flush();
+    expect(modes.slice(before)).toEqual(["expanded", "compact"]);
+  });
+
+  test("the placeholder shows whenever the field is empty, also after coming back to an empty target", async () => {
+    const { host } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 0);
+    const placeholder = () => host.querySelector('[data-slot="composer-placeholder"]')?.textContent;
+    expect(placeholder()).toBe("Ask anything · # to reply to a session or pick a project · / commands");
+    await type(host, "draft");
+    expect(placeholder()).toBeUndefined();
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')][0]!.click());
+    await flush();
+    expect(placeholder()).toBe("Reply to Sales dashboard and checkout");
+  });
+
   test("the empty composer says # picks where the message goes", async () => {
     const { host } = await open(front(GRANTED));
     expect(host.querySelector('[data-slot="input-group"]')?.textContent).toContain("Ask anything · # to reply to a session or pick a project · / commands");

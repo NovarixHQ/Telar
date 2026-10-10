@@ -100,8 +100,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const quick = useQuickComposer(bridge);
   const { draft, projectId, context } = quick;
   const strip = useRef<HTMLDivElement>(null);
-  const attached = quick.destination.destination?.kind === "session";
-  useWindowMode(bridge, attached, quick.opened);
+  useWindowMode(bridge, quick.destination.destination?.kind === "session" || quick.destination.picking, quick.opened);
   useSurfaceCommandKeys(SURFACE_COMMANDS);
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
 
@@ -114,7 +113,7 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   }, [bridge]);
 
   return (
-    <div data-surface="quick" className="flex h-screen flex-col p-6">
+    <div data-surface="quick" className="flex h-screen flex-col justify-end p-6">
       <div
         data-slot="quick-card"
         onKeyDownCapture={(event) => onComposerKey(quick, strip, event)}
@@ -122,7 +121,6 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
         onClickCapture={(event) => holdForFilePicker(event, bridge)}
         className="flex min-h-0 flex-1 flex-col gap-1"
       >
-        <div data-slot="quick-grip" aria-hidden className="mx-auto mb-1 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/40" />
         <div className="relative flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col justify-end gap-1 overflow-y-auto">
           {bridge && context && missingPermissions(context) && <PermissionNotice bridge={bridge} context={context} />}
@@ -147,7 +145,8 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             </div>
           )}
         </div>
-        <div className="shrink-0">
+        <div className="relative shrink-0">
+          <div data-slot="quick-grip" aria-hidden className="absolute top-0.5 left-1/2 z-30 h-1 w-10 -translate-x-1/2 rounded-full bg-muted-foreground/40" />
           <Composer
             draft={quick.text}
             ready={projectId !== undefined}

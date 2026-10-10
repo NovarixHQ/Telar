@@ -32,8 +32,6 @@ function createPlacement({ screen, window: current }) {
       const bounds = win.getBounds();
       const display = screen.getDisplayMatching(bounds);
       place = { display: display.id, area: display.workArea, anchor: { x: bounds.x, bottom: bounds.y + bounds.height } };
-      const fitted = boundsFor({ area: place.area, anchor: place.anchor, mode });
-      if (fitted.x !== bounds.x || fitted.y !== bounds.y) apply(false);
     },
     mode: () => mode,
     held: () => (place ? { display: place.display, offset: { x: place.anchor.x - place.area.x, bottom: place.anchor.bottom - place.area.y } } : null),

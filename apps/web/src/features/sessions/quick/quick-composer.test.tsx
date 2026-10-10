@@ -91,20 +91,27 @@ function fakeBridge(context: FrontContext | null) {
   const settings: Permission[] = [];
   let closed = 0;
   let held = 0;
-  const layouts: { height: number; composerTop: number }[] = [];
-  const drags: unknown[] = [];
-  let room: Parameters<QuickComposerBridge["onRoom"]>[0] = () => {};
+  const modes: string[] = [];
+  let resized: (mode: "compact" | "expanded") => void = () => {};
+  let autoResize = true;
+  let moved: (how?: { ifIdle?: boolean }) => void = () => {};
   let pushPermissions: (permissions: Permissions) => void = () => {};
   const bridge: QuickComposerBridge = {
     context: async () => context,
     onOpen: () => () => {},
     close: async () => void (closed += 1),
-    layout: (metrics) => void layouts.push(metrics),
-    onRoom: (listener) => {
-      room = listener;
+    mode: (mode) => {
+      modes.push(mode);
+      if (autoResize) queueMicrotask(() => resized(mode));
+    },
+    onResized: (listener) => {
+      resized = listener;
       return () => {};
     },
-    drag: (input) => void drags.push(input),
+    onMoved: (listener) => {
+      moved = listener;
+      return () => {};
+    },
     sent: async (input) => void sent.push(input),
     onPermissions: (listener) => {
       pushPermissions = listener;
@@ -114,7 +121,7 @@ function fakeBridge(context: FrontContext | null) {
     hold: () => void (held += 1),
     failed: () => {},
   };
-  return { bridge, sent, settings, layouts, drags, room: (next: Parameters<typeof room>[0]) => act(() => room(next)), closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
+  return { bridge, sent, settings, modes, holdResize: () => void (autoResize = false), resized: (mode: "compact" | "expanded") => act(() => resized(mode)), moved: () => act(() => moved()), closed: () => closed, held: () => held, recheck: (permissions: Permissions) => act(() => pushPermissions(permissions)) };
 }
 
 const front = (permissions: Permissions, extra: Partial<FrontContext> = {}): FrontContext => ({ app: "Notes", title: "", selection: "", permissions, grantee: "Telar Dev", ...extra });
@@ -139,14 +146,6 @@ async function open(context: FrontContext | null) {
   return { host, ...fake };
 }
 
-function gesture(target: Element, moveTo: number) {
-  const card = target.closest('[data-slot="quick-card"]')!;
-  act(() => {
-    target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX: 40, clientY: 30, screenX: 0, screenY: 0 }));
-    card.dispatchEvent(new PointerEvent("pointermove", { screenX: moveTo, screenY: 0 }));
-    card.dispatchEvent(new PointerEvent("pointerup", {}));
-  });
-}
 
 const editor = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-slot="composer-editor"]')!;
 
@@ -256,38 +255,73 @@ describe("the quick composer", () => {
     expect(held()).toBe(1);
   });
 
-  test("the empty field drags the window through main once a press moves; a click, or a field with text, does not", async () => {
-    const { host, drags } = await open(front(GRANTED));
-    gesture(editor(host), 1);
-    expect(drags).toEqual([]);
-    gesture(editor(host), 20);
-    expect(drags).toEqual([{ phase: "start", offsetX: 40, offsetY: 30 }, { phase: "end" }]);
-    await type(host, "half a thought");
-    gesture(editor(host), 20);
-    expect(drags).toHaveLength(2);
-  });
-
-  test("reports its height and where the composer starts, so main can size the window around it", async () => {
-    const { layouts } = await open(front(GRANTED));
-    await flush(() => layouts.length > 0);
-    expect(layouts.at(-1)).toEqual({ height: expect.any(Number), composerTop: expect.any(Number) });
-  });
-
-  test("typing and an open menu never resize the window; attaching a conversation does", async () => {
-    const { host, layouts } = await open(front(GRANTED));
+  test("asks for the expanded size only while a conversation is attached; typing and menus ask for nothing", async () => {
+    const { host, modes } = await open(front(GRANTED));
     await flush(() => strip(host).length > 0);
-    await flush();
-    const settled = layouts.length;
+    expect(modes.at(-1)).toBe("compact");
+    const before = modes.length;
     await type(host, "a long thought that keeps going");
-    const access = host.querySelector<HTMLElement>('[aria-label^="Access:"]')!;
-    await act(async () => access.click());
-    await flush(() => document.body.textContent?.includes("Auto-accept edits") ?? false);
+    await act(async () => host.querySelector<HTMLElement>('[aria-label^="Access:"]')!.click());
     await flush();
-    expect(layouts.length).toBe(settled);
+    expect(modes.length).toBe(before);
     await type(host, "");
     await act(async () => [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')][0]!.click());
-    await flush(() => layouts.length > settled);
-    expect(layouts.length).toBe(settled + 1);
+    await flush();
+    expect(modes.slice(before)).toEqual(["expanded"]);
+    await act(async () => host.querySelector<HTMLElement>('[aria-label="Detach session"]')!.click());
+    await flush();
+    expect(modes.slice(before)).toEqual(["expanded", "compact"]);
+  });
+
+  test("there is no grip: a click on the card's empty space focuses the editor, a click on a control does not, and focus comes back after a move", async () => {
+    const { host, moved } = await open(front(GRANTED));
+    expect(host.querySelector('[data-slot="quick-grip"]')).toBeNull();
+    const card = host.querySelector<HTMLElement>('[data-slot="quick-card"]')!;
+    (document.activeElement as HTMLElement | null)?.blur();
+    await act(async () => card.click());
+    expect(document.activeElement).toBe(editor(host));
+    const chip = host.querySelector<HTMLElement>('[aria-label="Project"]')!;
+    chip.focus();
+    await act(async () => chip.click());
+    expect(document.activeElement).not.toBe(editor(host));
+    (document.activeElement as HTMLElement).blur();
+    moved();
+    expect(document.activeElement).toBe(editor(host));
+  });
+
+  test("the picker stays hidden until the window has its taller size, then arrives", async () => {
+    const { host, holdResize, resized } = await open(front(GRANTED));
+    await flush();
+    holdResize();
+    await type(host, "#");
+    const arriving = () => host.querySelector('[data-slot="quick-arriving"] [role="listbox"]')?.closest('[data-slot="quick-arriving"]');
+    expect(arriving()?.hasAttribute("data-ready")).toBe(false);
+    expect(arriving()?.className).toContain("invisible");
+    resized("expanded");
+    expect(arriving()?.hasAttribute("data-ready")).toBe(true);
+  });
+
+  test("opening the # picker asks for the taller size, and closing it gives it back", async () => {
+    const { host, modes } = await open(front(GRANTED));
+    await flush();
+    const before = modes.length;
+    await type(host, "#");
+    await flush();
+    await press(host, "Escape");
+    await flush();
+    expect(modes.slice(before)).toEqual(["expanded", "compact"]);
+  });
+
+  test("the placeholder shows whenever the field is empty, also after coming back to an empty target", async () => {
+    const { host } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 0);
+    const placeholder = () => host.querySelector('[data-slot="composer-placeholder"]')?.textContent;
+    expect(placeholder()).toBe("Ask anything · # to reply to a session or pick a project · / commands");
+    await type(host, "draft");
+    expect(placeholder()).toBeUndefined();
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')][0]!.click());
+    await flush();
+    expect(placeholder()).toBe("Reply to Sales dashboard and checkout");
   });
 
   test("the empty composer says # picks where the message goes", async () => {
@@ -505,14 +539,26 @@ describe("the attached conversation's transcript", () => {
     expect(editor(host).textContent).toBe("");
   });
 
-  test("with little room above, the picker caps its height to the room instead of moving the card", async () => {
-    const { host, room } = await open(front(GRANTED));
-    room({ above: 150 });
-    await type(host, "#");
-    await flush(() => options(host).length > 1);
-    const list = host.querySelector<HTMLElement>('[role="listbox"]')!;
-    expect(list.compareDocumentPosition(editor(host)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(list.style.maxHeight).toBe("96px");
+  test("fades its edges only where lines scroll past them", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#sales");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Can you check the build?") ?? false);
+    const transcript = host.querySelector<HTMLElement>('[data-slot="quick-transcript"]')!;
+    const scroller = transcript.firstElementChild as HTMLElement;
+    expect(transcript.hasAttribute("data-fade-top")).toBe(false);
+    expect(transcript.hasAttribute("data-fade-bottom")).toBe(false);
+    await act(async () => {
+      scroller.scrollTop = 40;
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+    expect(transcript.hasAttribute("data-fade-top")).toBe(true);
+    await act(async () => {
+      scroller.scrollTop = 0;
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+    expect(transcript.hasAttribute("data-fade-top")).toBe(false);
   });
 });
 

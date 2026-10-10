@@ -5,8 +5,8 @@ const { keepClear } = require("./appearance");
 const { cockpitWindowOptions } = require("./cockpit-window");
 const { jsonPrefs } = require("./prefs");
 const { openSettings, permissions, readFrontContext, requestPermissions } = require("./front-context");
-const { WIDTH } = require("./quick-composer-layout");
-const { FIRST_METRICS, createPlacement } = require("./quick-composer-placement");
+const { HEIGHTS, WIDTH } = require("./quick-composer-layout");
+const { createPlacement } = require("./quick-composer-placement");
 const prefs = jsonPrefs("quick-composer.json", { asked: false }, (raw) => ({ asked: raw?.asked === true }), "quick composer");
 const REMEMBER_MS = 60_000;
 
@@ -16,7 +16,7 @@ function panelOptions() {
     type: "panel",
     title: "Quick Composer",
     width: WIDTH,
-    height: FIRST_METRICS.height,
+    height: HEIGHTS.compact,
     show: false,
     frame: false,
     resizable: false,
@@ -34,7 +34,7 @@ function panelOptions() {
 }
 
 /** The global shortcut and the panel it opens over any app; `openRoute` brings a cockpit window to a path. */
-function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, log = () => {}, ticker }) {
+function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, log = () => {} }) {
   let win = null;
   let chord = "";
   let suspended = false;
@@ -44,7 +44,8 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   let held = null;
   let forget = null;
   let fresh = false;
-  const placement = createPlacement({ screen, window: () => win, ...(ticker ? { ticker } : {}) });
+  let returnTo = null;
+  const placement = createPlacement({ screen, window: () => win });
 
   const recover = (reason) => {
     log(`quick composer page failed: ${reason}`);
@@ -58,23 +59,41 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     win = new BrowserWindow(panelOptions());
     keepClear(win);
     win.setAlwaysOnTop(true, "pop-up-menu");
-    win.on("moved", () => placement.settle());
+    win.on("moved", () => {
+      placement.settle();
+      win.webContents.send("telar:quick-composer:moved");
+    });
     win.on("focus", () => {
       holding = false;
+      win.webContents.send("telar:quick-composer:moved", { ifIdle: true });
       win.webContents.send("telar:quick-composer:permissions", permissions());
     });
-    win.on("blur", () => holding || hide());
+    win.on("blur", () => holding || hide({ giveBack: false }));
     win.webContents.on("render-process-gone", (_event, details) => recover(`renderer gone (${details?.reason})`));
     win.webContents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => isMainFrame && recover(`load failed ${code} ${description}`));
     win.loadURL(new URL("/surface/quick", appUrl).href);
     return win;
   };
 
-  const hide = () => {
+  const giveFocusBack = () => {
+    const previous = returnTo;
+    returnTo = null;
+    if (previous && !previous.isDestroyed()) {
+      previous.focus();
+      previous.webContents.focus();
+      previous.webContents.send("telar:focus:restore");
+      return;
+    }
+    const others = BrowserWindow.getAllWindows().filter((other) => other !== win && !other.isDestroyed() && other.isVisible());
+    if (process.platform === "darwin" && others.length === 0) app.hide();
+  };
+
+  const hide = ({ giveBack = true } = {}) => {
     if (!win || win.isDestroyed() || !win.isVisible()) return;
-    placement.endDrag();
-    held = placement.held();
+    held = { ...placement.held(), mode: placement.mode() };
     win.hide();
+    if (giveBack) giveFocusBack();
+    else returnTo = null;
     clearTimeout(forget);
     forget = setTimeout(() => {
       held = null;
@@ -89,7 +108,9 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
       await requestPermissions();
     }
     clearTimeout(forget);
-    placement.open(held);
+    const focused = BrowserWindow.getFocusedWindow();
+    returnTo = focused && focused !== target ? focused : null;
+    placement.open(held, held?.mode);
     latest = { ...(await readContext()), fresh };
     fresh = false;
     target.webContents.send("telar:quick-composer:open", latest);
@@ -113,11 +134,10 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   ipcMain.handle("telar:quick-composer:toggle", () => toggle());
   ipcMain.handle("telar:quick-composer:context", (event) => (fromPanel(event) ? latest : null));
   ipcMain.handle("telar:quick-composer:close", (event) => fromPanel(event) && hide());
-  ipcMain.on("telar:quick-composer:layout", (event, metrics) => fromPanel(event) && placement.report(metrics));
-  ipcMain.on("telar:quick-composer:drag", (event, { phase, ...offset } = {}) => {
+  ipcMain.on("telar:quick-composer:mode", (event, mode) => {
     if (!fromPanel(event)) return;
-    if (phase === "end") placement.endDrag();
-    else if (phase === "start") placement.startDrag(offset);
+    placement.resize(mode);
+    win.webContents.send("telar:quick-composer:resized", placement.mode());
   });
   ipcMain.handle("telar:quick-composer:open-settings", (event, permission) => fromPanel(event) && openSettings(permission, (url) => shell.openExternal(url)));
   ipcMain.on("telar:quick-composer:failed", (event, message) => fromPanel(event) && recover(`page error ${String(message).slice(0, 2000)}`));
@@ -126,7 +146,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   });
   ipcMain.handle("telar:quick-composer:sent", (event, { route, title, detail, open } = {}) => {
     if (!fromPanel(event) || typeof route !== "string" || !route.startsWith("/")) return;
-    hide();
+    hide({ giveBack: !open });
     const go = () => {
       app.focus({ steal: true });
       openRoute(route);

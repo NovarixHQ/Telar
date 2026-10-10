@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/ui/sidebar";
 import { APP_SIDEBAR_STORAGE_KEY } from "@/ui/sidebar-width";
 import { installNavigationMarks, isMeasuredHref, markNavigation, startNavigation } from "@/platform/perf-marks";
 import { installPageApi } from "@/features/composer";
+import { installFocusRestore } from "@/platform/desktop/focus-restore";
 import { rememberSettingsReturn } from "@/features/settings";
 import { useRouteSwap } from "./route-swap";
 
@@ -38,6 +39,7 @@ function CockpitShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     installPageApi();
   }, []);
+  useEffect(() => installFocusRestore(), []);
   useEffect(() => {
     if (!settings) rememberSettingsReturn(`${window.location.pathname}${window.location.search}`);
   }, [pathname, settings]);

@@ -1,45 +1,24 @@
 "use client";
 
-import { useEffect, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
-import type { QuickComposerBridge, Room } from "./front-context";
+import { useEffect, useState } from "react";
+import type { QuickComposerBridge } from "./front-context";
 
-const FIELD = '[data-slot="composer-editor"]';
-const SLOP = 3;
-const FIRST_ROOM: Room = { above: 400 };
+const EDITOR = '[data-surface="quick"] [data-slot="composer-editor"]';
 
-export function useWindowLayout(bridge: QuickComposerBridge | undefined, root: RefObject<HTMLElement | null>, composer: RefObject<HTMLElement | null>, structure: string) {
-  const [room, setRoom] = useState<Room>(FIRST_ROOM);
-  useEffect(() => bridge?.onRoom(setRoom), [bridge]);
+export function useWindowMode(bridge: QuickComposerBridge | undefined, expanded: boolean, opened: number) {
+  const wanted = expanded ? "expanded" : "compact";
+  const [size, setSize] = useState<"compact" | "expanded" | undefined>(undefined);
+  useEffect(() => bridge?.onResized(setSize), [bridge]);
   useEffect(() => {
-    const node = root.current;
-    if (!bridge || !node) return;
-    const frame = requestAnimationFrame(() => bridge.layout({ height: node.scrollHeight, composerTop: composer.current?.offsetTop ?? 0 }));
-    return () => cancelAnimationFrame(frame);
-  }, [bridge, root, composer, structure]);
-  return room;
-}
-
-export function useFieldDrag(bridge: QuickComposerBridge | undefined, fieldEmpty: boolean) {
-  return (event: ReactPointerEvent<HTMLElement>) => {
-    if (!bridge || !fieldEmpty || event.button !== 0 || !(event.target as Element).closest(FIELD)) return;
-    const surface = event.currentTarget;
-    const from = { x: event.clientX, y: event.clientY, screenX: event.screenX, screenY: event.screenY };
-    let dragging = false;
-    const move = (next: PointerEvent) => {
-      if (dragging || Math.hypot(next.screenX - from.screenX, next.screenY - from.screenY) <= SLOP) return;
-      dragging = true;
-      window.getSelection()?.removeAllRanges();
-      surface.setPointerCapture?.(event.pointerId);
-      bridge.drag({ phase: "start", offsetX: from.x, offsetY: from.y });
-    };
-    const stop = () => {
-      surface.removeEventListener("pointermove", move);
-      surface.removeEventListener("pointerup", stop);
-      surface.removeEventListener("pointercancel", stop);
-      if (dragging) bridge.drag({ phase: "end" });
-    };
-    surface.addEventListener("pointermove", move);
-    surface.addEventListener("pointerup", stop);
-    surface.addEventListener("pointercancel", stop);
-  };
+    bridge?.mode(wanted);
+  }, [bridge, wanted, opened]);
+  useEffect(
+    () =>
+      bridge?.onMoved((how) => {
+        if (how?.ifIdle && document.activeElement && document.activeElement !== document.body) return;
+        document.querySelector<HTMLElement>(EDITOR)?.focus();
+      }),
+    [bridge],
+  );
+  return !bridge || size === wanted;
 }

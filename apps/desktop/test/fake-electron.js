@@ -37,6 +37,9 @@ class FakeWebContents extends Emitter {
   send(channel, payload) {
     this.sent.push({ channel, payload });
   }
+  focus() {
+    this.focused = (this.focused ?? 0) + 1;
+  }
   getURL() {
     return this.url;
   }
@@ -225,6 +228,8 @@ const electron = {
     quit: () => { electron.app.quits += 1; },
     focused: 0,
     focus: () => { electron.app.focused += 1; },
+    hidden: 0,
+    hide: () => { electron.app.hidden += 1; },
     badgeCount: 0,
     setBadgeCount: (count) => { electron.app.badgeCount = count; return true; },
   }),
@@ -275,6 +280,7 @@ mock.module("electron", () => electron);
 
 /** Clears what a test recorded; the module mock itself stays for the whole run. */
 function resetElectron() {
+  electron.app.hidden = 0;
   FakeBrowserWindow.all = [];
   FakeBrowserWindow.focused = null;
   ipcMain.handlers.clear();

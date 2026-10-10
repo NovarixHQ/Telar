@@ -1511,7 +1511,7 @@ html:has([data-surface="quick"]) *::-webkit-scrollbar {
 [data-telar-shell] [data-surface="quick"] {
   -webkit-app-region: drag;
 }
-[data-telar-shell] [data-surface="quick"] :is(button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [role="listbox"], [role="toolbar"], [contenteditable="true"], [data-slot="composer-editor"], [data-slot="quick-transcript"], [role="note"] p) {
+[data-telar-shell] [data-surface="quick"] :is(button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [role="listbox"], [role="toolbar"], [contenteditable="true"], [data-slot="composer-editor"], [data-slot="composer-placeholder"], [data-slot="quick-transcript"], [role="note"] p) {
   -webkit-app-region: no-drag;
 }
 [data-surface="quick"] [data-slot="input-group"] {

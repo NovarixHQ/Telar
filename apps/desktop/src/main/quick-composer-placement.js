@@ -1,80 +1,41 @@
 "use strict";
 
-const { anchorOn, displayFor, layout } = require("./quick-composer-layout");
+const { anchorOn, boundsFor, displayFor } = require("./quick-composer-layout");
 
-const NUDGE_PX = 4;
-const FIRST_METRICS = { height: 260, composerTop: 24 };
-
-const everyFrame = (tick) => {
-  const timer = setInterval(tick, 8);
-  return () => clearInterval(timer);
-};
-
-function createPlacement({ screen, window: current, ticker = everyFrame }) {
+function createPlacement({ screen, window: current }) {
   let place = null;
-  let metrics = FIRST_METRICS;
-  let applied = null;
-  let stopFollowing = null;
+  let mode = "compact";
   const live = () => {
     const win = current();
     return win && !win.isDestroyed() ? win : null;
   };
-
-  const apply = () => {
+  const apply = (animate) => {
     const win = live();
-    if (!place || !win) return;
-    const next = layout({ area: place.area, anchor: place.anchor, ...metrics });
-    const same = applied && ["x", "y", "width", "height"].every((key) => applied.bounds[key] === next.bounds[key]);
-    if (!same) win.setBounds(next.bounds, false);
-    if (!same || applied.room.above !== next.room.above) win.webContents.send("telar:quick-composer:room", next.room);
-    applied = next;
-  };
-
-  const settle = () => {
-    const win = live();
-    if (!place || !win) return;
-    const bounds = win.getBounds();
-    const display = screen.getDisplayMatching(bounds);
-    place = { display: display.id, area: display.workArea, anchor: { x: bounds.x, bottom: bounds.y + bounds.height } };
-    applied = null;
-    apply();
-  };
-
-  const endDrag = () => {
-    if (!stopFollowing) return;
-    stopFollowing();
-    stopFollowing = null;
-    settle();
+    if (place && win) win.setBounds(boundsFor({ area: place.area, anchor: place.anchor, mode }), animate);
   };
 
   return {
-    open(held) {
+    open(held, nextMode = "compact") {
       const display = displayFor(screen, held);
       place = { display: display.id, area: display.workArea, anchor: anchorOn(display, held?.display === display.id ? held.offset : null) };
-      metrics = FIRST_METRICS;
-      applied = null;
-      apply();
+      mode = nextMode;
+      apply(false);
     },
-    report({ height, composerTop } = {}) {
-      if (!Number.isFinite(height) || !Number.isFinite(composerTop)) return;
-      if (Math.abs(height - metrics.height) < NUDGE_PX && Math.abs(composerTop - metrics.composerTop) < NUDGE_PX) return;
-      metrics = { height, composerTop };
-      apply();
+    resize(nextMode) {
+      if (nextMode === mode || (nextMode !== "compact" && nextMode !== "expanded")) return;
+      mode = nextMode;
+      apply(false);
     },
-    settle,
-    startDrag({ offsetX, offsetY } = {}) {
-      if (!Number.isFinite(offsetX) || !Number.isFinite(offsetY)) return;
-      stopFollowing?.();
-      stopFollowing = ticker(() => {
-        const win = live();
-        if (!win) return endDrag();
-        const { x, y } = screen.getCursorScreenPoint();
-        win.setPosition(Math.round(x - offsetX), Math.round(y - offsetY));
-      });
+    settle() {
+      const win = live();
+      if (!place || !win) return;
+      const bounds = win.getBounds();
+      const display = screen.getDisplayMatching(bounds);
+      place = { display: display.id, area: display.workArea, anchor: { x: bounds.x, bottom: bounds.y + bounds.height } };
     },
-    endDrag,
+    mode: () => mode,
     held: () => (place ? { display: place.display, offset: { x: place.anchor.x - place.area.x, bottom: place.anchor.bottom - place.area.y } } : null),
   };
 }
 
-module.exports = { FIRST_METRICS, createPlacement };
+module.exports = { createPlacement };

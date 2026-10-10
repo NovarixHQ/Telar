@@ -9,6 +9,7 @@ import {
   ORCHESTRATE_SKILL,
   providerCommandCompletions,
   rankCommands,
+  TELAR_COMMAND_NAMES,
   rankPaths,
   rankSessions,
   rankSkills,
@@ -17,6 +18,8 @@ import {
   type PathEntry,
   type SessionCandidate,
 } from "../completions";
+import type { ComposerCommand } from "../decorations";
+import { pluginCommandCompletions, writingPluginCommand } from "../plugin-commands";
 import { detectComposerTrigger, type ComposerTrigger } from "../tokens";
 import type { ComposerEditorHandle } from "../components/composer-editor";
 
@@ -65,6 +68,7 @@ export function useComposerCompletions({
   menuDriver,
   blocked,
   commands,
+  pluginCommands,
 }: {
   editor: RefObject<ComposerEditorHandle | null>;
   sessionId: string | undefined;
@@ -73,6 +77,7 @@ export function useComposerCompletions({
   /** A question is open: the editor holds an answer, and `@` in it is punctuation. */
   blocked: boolean;
   commands: CommandState;
+  pluginCommands: readonly ComposerCommand[];
 }) {
   const [trigger, setTrigger] = useState<ComposerTrigger | null>(null);
   const [active, setActive] = useState(0);
@@ -105,7 +110,8 @@ export function useComposerCompletions({
       const files = paths.failed ? [PATHS_FAILED] : paths.value ? rankPaths(paths.value, trigger.query, 12) : [PATHS_READING];
       return [...files, ...sessionRows];
     }
-    // Two ranked lists, not one: a plugin command must not outscore `/stop`.
+    if (writingPluginCommand(trigger.query, pluginCommands)) return [];
+    // Ranked lists, not one: a plugin command must not outscore `/stop`.
     const own = availableCommands({
       busy,
       fresh,
@@ -116,8 +122,10 @@ export function useComposerCompletions({
       canResume,
       orchestrate: Boolean(skills.value?.skills.some((skill) => skill.name === ORCHESTRATE_SKILL)),
     });
-    return [...rankCommands(own, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? []), trigger.query)];
-  }, [trigger, dismissed, paths.value, paths.failed, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, effortPicker, accessPicker, menuDriver, compacting, envMode, canResume]);
+    const plugins = pluginCommandCompletions(pluginCommands, TELAR_COMMAND_NAMES);
+    const taken = new Set([...TELAR_COMMAND_NAMES, ...pluginCommands.map((command) => command.name)]);
+    return [...rankCommands(own, trigger.query), ...rankCommands(plugins, trigger.query), ...rankCommands(providerCommandCompletions(skills.value?.commands ?? [], taken), trigger.query)];
+  }, [trigger, dismissed, paths.value, paths.failed, sessions.value, sessionId, projectId, skills.value, busy, fresh, modelPicker, effortPicker, accessPicker, menuDriver, compacting, envMode, canResume, pluginCommands]);
 
   // `@` always opens, so an empty or unreadable listing says so instead of looking like a dead key.
   const loading = (trigger?.kind === "path" && (paths.reading || sessions.reading)) || (trigger?.kind === "skill" && skills.reading);

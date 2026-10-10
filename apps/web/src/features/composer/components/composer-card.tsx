@@ -11,7 +11,8 @@ import type { Completion } from "../completions";
 import { pastedTextFile } from "../editor-keys";
 import type { ComposerKind } from "../registry";
 import { AddContextMenu, AttachmentChip, ComposerChromeMenu } from "./composer-chrome";
-import { ComposerEditor, type ComposerEditorHandle } from "./composer-editor";
+import type { ComposerDecoration } from "../decorations";
+import { ComposerEditor, type ComposerEditorHandle, type DecorationFocus } from "./composer-editor";
 import { ComposerMenu } from "./composer-menu";
 import { ComposerStashMenu } from "./composer-stash-menu";
 import { StashBadge } from "./composer-toolbar";
@@ -66,6 +67,8 @@ export function ComposerCard({
   menu,
   pick,
   drop,
+  decorations,
+  onDecorationFocus,
   pills,
   trailing,
 }: {
@@ -90,6 +93,8 @@ export function ComposerCard({
   menu: ComposerCompletions;
   pick: (completion: Completion) => void;
   drop: ReturnType<typeof useDropTarget>;
+  decorations?: readonly ComposerDecoration[] | undefined;
+  onDecorationFocus?: (focus: DecorationFocus | undefined) => void;
   pills: ReactNode;
   /** The context ring, dictation and send; while compact, dictation and send. */
   trailing: ReactNode;
@@ -149,6 +154,8 @@ export function ComposerCard({
               onPasteLargeText={(pasted) => addFiles([pastedTextFile(pasted, attachments.map((file) => file.name))])}
               onFocus={onFocus}
               compact={compact}
+              {...(decorations ? { decorations } : {})}
+              {...(onDecorationFocus ? { onDecorationFocus } : {})}
               {...(compact ? { className: "min-w-0 flex-1" } : {})}
             />
           </div>

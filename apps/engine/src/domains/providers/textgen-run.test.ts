@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { OPENCODE_VERSION } from "../../drivers/opencode/version";
-import { runStructured, runStructuredOrThrow, TextGenFailure } from "./textgen-run";
+import { runStructured, runStructuredOrThrow, runTextOrThrow, TextGenFailure } from "./textgen-run";
 
 const roots: string[] = [];
 let previous: string | undefined;
@@ -97,4 +97,23 @@ test("a CLI that floods stdout is killed past 4 MB and logged, not buffered", as
     console.error = original;
   }
   expect(logged).toEqual(["[engine] claude text generation failed: output passed 4 MB"]);
+});
+
+test("a plain claude answer comes back with its model and cost, and no schema is asked for", async () => {
+  const binaryPath = fakeCli(
+    "claude",
+    `case "$*" in *--json-schema*) exit 9;; esac\necho '{"type":"result","subtype":"success","is_error":false,"result":"$x^2$","total_cost_usd":0.0002,"usage":{"input_tokens":30,"output_tokens":4},"modelUsage":{"claude-haiku-4-5":{}}}'`,
+  );
+  expect(await runTextOrThrow({ driver: "claude", binaryPath }, "x squared", "LaTeX only.")).toEqual({
+    text: "$x^2$",
+    model: "claude-haiku-4-5",
+    usage: { tokens: { input: 30, output: 4, cacheRead: 0, cacheCreate: 0 }, costUsd: 0.0002 },
+  });
+});
+
+test("plain codex and opencode answers are their last message and their text events", async () => {
+  const codex = fakeCli("codex", `case "$*" in *--output-schema*) exit 9;; esac\nwhile [ "$1" != "--output-last-message" ]; do shift; done\nprintf 'x^2' > "$2"`);
+  expect(await runTextOrThrow({ driver: "codex", binaryPath: codex }, "x squared", "LaTeX only.")).toEqual({ text: "x^2" });
+  const opencode = fakeCli("opencode", `echo '{"type":"text","part":{"text":"x^"}}'\necho '{"type":"text","part":{"text":"3"}}'`);
+  expect(await runTextOrThrow({ driver: "opencode", binaryPath: opencode }, "x cubed", "LaTeX only.")).toEqual({ text: "x^3" });
 });

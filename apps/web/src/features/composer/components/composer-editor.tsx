@@ -8,7 +8,8 @@ import { replaceTextRange } from "../tokens";
 import { continueLine, indentLine, isLargePaste } from "../editor-keys";
 import { editorHistory } from "../editor-history";
 import { insertReference } from "@telar/client/composer";
-import { paint, placeCaret, selectionRange, serialize, type Run } from "./editor-dom";
+import { runAt, type ComposerDecoration, type DecorationRun } from "../decorations";
+import { decorationsDrawn, paint, placeCaret, selectionRange, serialize, type Run } from "./editor-dom";
 import { cn } from "@/ui/utils";
 
 /**
@@ -93,13 +94,17 @@ export type ComposerEditorHandle = {
   dictating: (state: { listening: boolean; interim?: Run }) => void;
   /** The caret's index in the draft, or the draft's length when unfocused. */
   caret: () => number;
-  /** Swap a run of the draft and return the committed draft. */
-  replaceRange: (start: number, end: number, text: string) => string;
+  /** Swap a run of the draft and return the committed draft; `burst: false` makes it its own undo step. */
+  replaceRange: (start: number, end: number, text: string, burst?: boolean) => string;
   /** Splice text in at the caret and return the committed draft, for callers that cannot wait for the render. */
   insertAtCaret: (text: string) => string;
 };
 
 type History = ReturnType<typeof editorHistory>;
+
+type Decorations = RefObject<readonly ComposerDecoration[]>;
+
+export type DecorationFocus = DecorationRun & { text: string };
 
 function useDraftSync(
   value: string,
@@ -108,6 +113,7 @@ function useDraftSync(
   interimRef: RefObject<Run | null>,
   history: History,
   setEmpty: (empty: boolean) => void,
+  decorations: Decorations,
 ) {
   const mounted = useRef(false);
   useEffect(() => {
@@ -115,7 +121,7 @@ function useDraftSync(
     if (!box) return;
     if (!mounted.current) {
       mounted.current = true;
-      paint(box, value, interimRef.current ?? undefined);
+      paint(box, value, interimRef.current ?? undefined, false, decorations.current);
       paintedRef.current = value;
       history.reset(value);
       setEmpty(value.length === 0);
@@ -125,14 +131,14 @@ function useDraftSync(
     // The parent replaced the whole draft: the caret goes to the end, and the
     // interim run is dropped because its offsets no longer describe this text.
     interimRef.current = null;
-    paint(box, value);
+    paint(box, value, undefined, false, decorations.current);
     paintedRef.current = value;
     history.reset(value);
     setEmpty(value.length === 0);
     if (document.activeElement !== box) return;
     placeCaret(box, value.length);
     revealCaret(box);
-  }, [value, root, paintedRef, interimRef, history, setEmpty]);
+  }, [value, root, paintedRef, interimRef, history, setEmpty, decorations]);
 }
 
 function useEditorHandle(
@@ -143,12 +149,14 @@ function useEditorHandle(
     interim,
     setListening,
     rewrite,
+    decorations,
   }: {
     root: RefObject<HTMLDivElement | null>;
     painted: RefObject<string>;
     interim: RefObject<Run | null>;
     setListening: (listening: boolean) => void;
     rewrite: (text: string, caret: number, burst?: boolean) => void;
+    decorations: Decorations;
   },
 ) {
   useImperativeHandle(
@@ -170,7 +178,7 @@ function useEditorHandle(
         const box = root.current;
         if (!box) return;
         const at = selectionRange(box)?.end ?? painted.current.length;
-        paint(box, painted.current, interim.current ?? undefined);
+        paint(box, painted.current, interim.current ?? undefined, false, decorations.current);
         if (document.activeElement !== box) return;
         placeCaret(box, at);
         revealCaret(box);
@@ -181,9 +189,9 @@ function useEditorHandle(
         const range = selectionRange(box);
         return range ? range.end : painted.current.length;
       },
-      replaceRange: (start, end, text) => {
+      replaceRange: (start, end, text, burst = true) => {
         const next = replaceTextRange(painted.current, start, end, text);
-        rewrite(next.text, next.cursor, true);
+        rewrite(next.text, next.cursor, burst);
         return next.text;
       },
       insertAtCaret: (text) => {
@@ -195,7 +203,7 @@ function useEditorHandle(
         return next.draft;
       },
     }),
-    [root, painted, interim, setListening, rewrite],
+    [root, painted, interim, setListening, rewrite, decorations],
   );
 }
 
@@ -241,7 +249,62 @@ function useUndo(root: RefObject<HTMLDivElement | null>, show: (text: string, ca
   return { history, travel };
 }
 
+function useDecorationFocus(
+  root: RefObject<HTMLDivElement | null>,
+  painted: RefObject<string>,
+  decorations: readonly ComposerDecoration[],
+  onDecorationFocus: ((focus: DecorationFocus | undefined) => void) | undefined,
+) {
+  const decorationsRef = useRef(decorations);
+  const focusRef = useRef(onDecorationFocus);
+  useEffect(() => {
+    focusRef.current = onDecorationFocus;
+  });
+  const report = useCallback(() => {
+    const box = root.current;
+    if (!box || !focusRef.current) return;
+    const at = document.activeElement === box ? selectionRange(box) : undefined;
+    const run = at && at.start === at.end ? runAt(decorationsDrawn(box), at.end) : undefined;
+    focusRef.current(run && { ...run, text: painted.current.slice(run.start, run.end) });
+  }, [root, painted]);
+  const leave = useCallback(() => focusRef.current?.(undefined), []);
+  return { decorationsRef, report, leave };
+}
+
+type KeyActions = {
+  painted: string;
+  travel: (step: "undo" | "redo") => void;
+  rewrite: (text: string, caret: number) => void;
+  settle: () => void;
+  lineBreak: (text: string, caret: number) => void;
+};
+
+function editorKey(event: React.KeyboardEvent<HTMLDivElement>, box: HTMLElement, { painted, travel, rewrite, settle, lineBreak }: KeyActions) {
+  const step = historyStep(event);
+  if (step) {
+    event.preventDefault();
+    travel(step);
+  } else if (event.key === "Enter") {
+    // Only a shifted Enter reaches here.
+    event.preventDefault();
+    const list = caretEdit(box, painted, (text, caret) => continueLine(text, caret));
+    if (list) return rewrite(list.text, list.cursor);
+    document.execCommand("insertLineBreak");
+    const text = serialize(box);
+    lineBreak(text, selectionRange(box)?.end ?? text.length);
+    settle();
+    revealCaret(box);
+  } else if (event.key === "Tab" && !event.altKey && !event.metaKey && !event.ctrlKey) {
+    const indented = caretEdit(box, painted, (text, caret) => indentLine(text, caret, event.shiftKey));
+    if (!indented) return;
+    event.preventDefault();
+    rewrite(indented.text, indented.cursor);
+  }
+}
+
 const COMPACT_MAX_HEIGHT = "calc(5lh + 1.25rem)";
+
+const NO_DECORATIONS: readonly ComposerDecoration[] = [];
 
 function EditorPlaceholder({ text, compact }: { text: string; compact: boolean | undefined }) {
   return (
@@ -269,25 +332,22 @@ export const ComposerEditor = forwardRef<
     /** The caret moved without the text changing — arrow keys, a click. The
      *  completion menu needs it, because moving out of a `@word` closes it. */
     onSelectionChange?: () => void;
-    /** Pasted files become attachments, exactly as they did in the textarea. */
     onPasteFiles?: (files: File[]) => void;
     /** Text over the paste threshold, which the parent attaches as a file instead of inserting. */
     onPasteLargeText?: (text: string) => void;
-    /** The caret entered this box. The composer registry's "most recently
-     *  focused" is this event and nothing else — see lib/composer-registry.ts. */
     onFocus?: () => void;
     onBlur?: () => void;
     placeholder?: string;
     disabled?: boolean;
     id?: string;
-    /** WHICH COMPOSER THIS IS, ON THE EDITABLE ROOT ITSELF. Stable for
-     *  external clients, beside `data-slot`. */
     "data-composer"?: "session";
     compact?: boolean;
     className?: string;
+    decorations?: readonly ComposerDecoration[];
+    onDecorationFocus?: (focus: DecorationFocus | undefined) => void;
   }
 >(function ComposerEditor(
-  { value, onChange, onKeyDown, onSelectionChange, onPasteFiles, onPasteLargeText, onFocus, onBlur, placeholder, disabled, id, "data-composer": dataComposer, compact, className },
+  { value, onChange, onKeyDown, onSelectionChange, onPasteFiles, onPasteLargeText, onFocus, onBlur, placeholder, disabled, id, "data-composer": dataComposer, compact, className, decorations = NO_DECORATIONS, onDecorationFocus },
   ref,
 ) {
   const root = useRef<HTMLDivElement>(null);
@@ -297,6 +357,7 @@ export const ComposerEditor = forwardRef<
   /** The dictation run still being revised: a property of the drawing, so a ref, not state. */
   const interim = useRef<Run>(null);
   const [listening, setListening] = useState(false);
+  const { decorationsRef, report, leave } = useDecorationFocus(root, painted, decorations, onDecorationFocus);
 
   const commit = useCallback(
     (text: string) => {
@@ -312,13 +373,14 @@ export const ComposerEditor = forwardRef<
     (text: string, caret: number) => {
       const box = root.current;
       if (!box) return;
-      paint(box, text, interim.current ?? undefined);
+      paint(box, text, interim.current ?? undefined, false, decorationsRef.current);
       commit(text);
       box.focus();
       placeCaret(box, caret);
       revealCaret(box);
+      report();
     },
-    [commit],
+    [commit, report],
   );
 
   const { history, travel } = useUndo(root, show);
@@ -336,12 +398,19 @@ export const ComposerEditor = forwardRef<
     const box = root.current;
     if (!box) return;
     const at = selectionRange(box);
-    if (paint(box, painted.current, interim.current ?? undefined, true) && at) placeCaret(box, at.end);
-  }, []);
+    if (paint(box, painted.current, interim.current ?? undefined, true, decorationsRef.current) && at) placeCaret(box, at.end);
+    report();
+  }, [report]);
 
-  useDraftSync(value, root, painted, interim, history, setEmpty);
+  useEffect(() => {
+    if (decorationsRef.current === decorations) return;
+    decorationsRef.current = decorations;
+    settle();
+  }, [decorations, settle]);
 
-  useEditorHandle(ref, { root, painted, interim, setListening, rewrite });
+  useDraftSync(value, root, painted, interim, history, setEmpty, decorationsRef);
+
+  useEditorHandle(ref, { root, painted, interim, setListening, rewrite, decorations: decorationsRef });
 
   return (
     <div className={cn("relative w-full", className)}>
@@ -377,37 +446,22 @@ export const ComposerEditor = forwardRef<
         onCompositionEnd={settle}
         onKeyDown={(event) => {
           onKeyDown?.(event);
-          if (event.defaultPrevented) return;
-          const box = root.current;
-          if (!box) return;
-          const step = historyStep(event);
-          if (step) {
-            event.preventDefault();
-            travel(step);
-          } else if (event.key === "Enter") {
-            // Only a shifted Enter reaches here.
-            event.preventDefault();
-            const list = caretEdit(box, painted.current, (text, caret) => continueLine(text, caret));
-            if (list) return rewrite(list.text, list.cursor);
-            document.execCommand("insertLineBreak");
-            const text = serialize(box);
-            commit(text);
-            history.record(text, selectionRange(box)?.end ?? text.length, false);
-            settle();
-            revealCaret(box);
-          } else if (event.key === "Tab" && !event.altKey && !event.metaKey && !event.ctrlKey) {
-            const indented = caretEdit(box, painted.current, (text, caret) => indentLine(text, caret, event.shiftKey));
-            if (!indented) return;
-            event.preventDefault();
-            rewrite(indented.text, indented.cursor);
-          }
+          if (event.defaultPrevented || !root.current) return;
+          editorKey(event, root.current, { painted: painted.current, travel, rewrite, settle, lineBreak: (text, caret) => (commit(text), history.record(text, caret, false)) });
         }}
         onFocus={() => onFocus?.()}
-        onKeyUp={() => onSelectionChange?.()}
-        onMouseUp={() => onSelectionChange?.()}
+        onKeyUp={() => {
+          onSelectionChange?.();
+          report();
+        }}
+        onMouseUp={() => {
+          onSelectionChange?.();
+          report();
+        }}
         onBlur={() => {
           onSelectionChange?.();
           onBlur?.();
+          leave();
         }}
         onPaste={(event) => {
           // A pasted screenshot attaches.

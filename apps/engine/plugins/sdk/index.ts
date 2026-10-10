@@ -47,6 +47,8 @@ export type PluginHost = {
   project(projectId: string): PluginProject;
   writeProjectSettings(projectId: string, settings: Record<string, unknown>): void;
   writeMachineSettings(settings: Record<string, unknown>): void;
+  /** A short model completion on the engine's cheap model: no tools, no session. Capped, timed out and counted in usage. */
+  complete(request: { prompt: string; system?: string; maxChars?: number; timeoutMs?: number }): Promise<{ text: string }>;
 };
 
 export type PluginEngine = {

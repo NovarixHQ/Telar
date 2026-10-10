@@ -19,6 +19,7 @@ export {
   type ComposerEntry,
   type ComposerWrite,
 } from "./registry";
+export { type ComposerDecoration, type ComposerExtensions } from "./decorations";
 export { chipIsDirectory, chipPath, replaceTextRange, segmentDraft } from "./tokens";
 export { AgentControl } from "./components/agent-control";
 export { ModelChoiceControl } from "./components/model-choice-control";

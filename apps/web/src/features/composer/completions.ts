@@ -7,7 +7,7 @@ import type { ProviderDriverKind, ProviderSkill, ProviderSkillSource } from "@te
 import { fileReference, directoryReference, sessionReference, skillReference } from "@telar/client/composer";
 import { insertRankedSearchResult, normalizeSearchQuery, scoreQueryMatch, type RankedSearchResult } from "@/ui/search-ranking";
 
-export type CompletionGlyph = "file" | "directory" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session";
+export type CompletionGlyph = "file" | "directory" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session" | "plugin";
 
 type CompletionAction =
   /** Replace the trigger with this text; the only action that touches the draft. */
@@ -356,16 +356,16 @@ export function rankSkills(skills: readonly ProviderSkill[], query: string, limi
 
 export const PROVIDER_COMMAND_GROUP = "Provider commands";
 
-const TELAR_COMMAND_NAMES = new Set(
+export const TELAR_COMMAND_NAMES: ReadonlySet<string> = new Set(
   [
     ...availableCommands({ busy: true, fresh: true, pickers: { model: true, effort: true, access: true }, canResume: true, orchestrate: true }),
     ...availableCommands({ busy: false, fresh: false, driver: "claude" }),
   ].map((command) => command.label.slice(1)),
 );
 
-/** Picking one inserts `/name`, which the harness parses when the message arrives. Telar's own names are never repeated. */
-export function providerCommandCompletions(commands: readonly ProviderSkill[]): Completion[] {
-  return commands.filter((command) => !TELAR_COMMAND_NAMES.has(command.name)).map((command) => ({
+/** Picking one inserts `/name`, which the harness parses when the message arrives. Names Telar or a plugin owns are skipped. */
+export function providerCommandCompletions(commands: readonly ProviderSkill[], taken: ReadonlySet<string> = TELAR_COMMAND_NAMES): Completion[] {
+  return commands.filter((command) => !taken.has(command.name)).map((command) => ({
     id: `provider:${command.name}`,
     label: `/${command.name}`,
     detail: detailFor(command),

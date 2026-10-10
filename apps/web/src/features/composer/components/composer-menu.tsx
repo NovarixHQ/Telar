@@ -3,7 +3,7 @@
 // Keys are the composer's; every row prevents mousedown so a click never blurs the editor mid-pick.
 
 import { Fragment } from "react";
-import { BotIcon, DownloadIcon, FolderIcon, GaugeIcon, GitBranchIcon, MessagesSquareIcon, Minimize2Icon, ShieldCheckIcon, SparklesIcon, SquareIcon, WandSparklesIcon } from "lucide-react";
+import { BotIcon, DownloadIcon, FolderIcon, GaugeIcon, GitBranchIcon, MessagesSquareIcon, Minimize2Icon, PuzzleIcon, ShieldCheckIcon, SparklesIcon, SquareIcon, WandSparklesIcon } from "lucide-react";
 import type { Completion, CompletionGlyph } from "../completions";
 import { FileKindIcon } from "@/features/files";
 import { cn } from "@/ui/utils";
@@ -25,6 +25,7 @@ const COMMAND_GLYPHS: Partial<Record<CompletionGlyph, typeof BotIcon>> = {
   skill: WandSparklesIcon,
   stop: SquareIcon,
   session: MessagesSquareIcon,
+  plugin: PuzzleIcon,
 };
 
 function RowIcon({ completion }: { completion: Completion }) {

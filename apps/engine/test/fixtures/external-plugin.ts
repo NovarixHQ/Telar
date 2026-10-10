@@ -1,7 +1,7 @@
 /**
  * A REAL EXTERNAL PLUGIN, WRITTEN INTO A TEMP FOLDER — the manifest and a
  * stdio JSON-RPC server a test can install and a daemon can spawn. It answers
- * `initialize`, one tool (`echo_say`) and one session route (`status`), and
+ * `initialize`, one tool (`echo_say`) and the session routes `status`, `shout` and `ask`, and
  * exits when stdin closes. A route whose input has `emit` sends it as a `telar/event` first.
  */
 import fs from "node:fs";
@@ -11,12 +11,20 @@ const SERVER = `
 const readline = require("node:readline");
 const send = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\\n");
 process.stderr.write("echo plugin started\\n");
+const waiting = new Map();
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
-  const { id, method, params } = JSON.parse(line);
+  const message = JSON.parse(line);
+  const { id, method, params } = message;
   if (id === undefined) return;
+  if (method === undefined) return waiting.get(id)?.(message);
+  if (method === "telar/route" && params.verb === "ask") {
+    waiting.set("ask-" + id, (answer) => send(answer.error ? { id, error: answer.error } : { id, result: { text: answer.result.text } }));
+    return send({ id: "ask-" + id, method: "telar/complete", params: params.input });
+  }
   if (method === "initialize") return send({ id, result: { protocolVersion: params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "echo", version: "1" } } });
   if (method === "tools/call") return send({ id, result: { content: [{ type: "text", text: (params._meta?.telar?.settings?.greeting ?? "echo") + ": " + params.arguments.text }] } });
   if (method === "telar/route" && params.input?.emit) send({ method: "telar/event", params: params.input.emit });
+  if (method === "telar/route" && params.verb === "shout") return send({ id, result: { text: String(params.input.text).toUpperCase() + "!" } });
   if (method === "telar/route") return send({ id, result: { scope: params.scope, verb: params.verb, sessionId: params.sessionId, projectId: params.projectId } });
   send({ id, error: { code: -32601, message: "no method " + method } });
 });

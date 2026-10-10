@@ -177,6 +177,8 @@ export function markdownStyles(draft: string, opaque: readonly { start: number; 
   return bits;
 }
 
+export const isLiteral = (bits: number) => (bits & (MD.code | MD.codeBlock | MD.link)) !== 0;
+
 /** The style names a bit set stands for, in `MD` order. */
 export function styleNames(bits: number): MarkdownStyle[] {
   return (Object.keys(MD) as MarkdownStyle[]).filter((name) => bits & MD[name]);

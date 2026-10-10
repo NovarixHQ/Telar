@@ -14,7 +14,7 @@ export async function usageDigestFor(store: EngineStore, exclude?: (sessionId: s
   const now = store.kernel.now();
   const [rates, report] = await Promise.all([
     loadRates(store.paths.usageModelRates),
-    readUsageReport({ sinceMs: now - MONTH_MS, untilMs: now, resolution: "day", timeZone: "UTC" }, { ratesCachePath: store.paths.usageModelRates, scanCachePath: store.paths.usageScanCache }),
+    readUsageReport({ sinceMs: now - MONTH_MS, untilMs: now, resolution: "day", timeZone: "UTC" }, { ratesCachePath: store.paths.usageModelRates, scanCachePath: store.paths.usageScanCache, oneShotPath: store.paths.usageOneShot }),
   ]);
   const logs = new Map<string, { provider: string; tokens: number; costUsd: number }>();
   for (const bucket of report.buckets) {

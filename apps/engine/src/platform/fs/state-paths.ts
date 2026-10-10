@@ -34,6 +34,7 @@ export type EngineStatePaths = {
   worktreesLocation: string;
   usageScanCache: string;
   usageModelRates: string;
+  usageOneShot: string;
   mainSession: string;
   decommissionMarker: string;
   retired: string;
@@ -82,6 +83,7 @@ export function statePaths(root: string): EngineStatePaths {
     worktreesLocation: path.join(resolved, "worktrees-location.json"),
     usageScanCache: path.join(resolved, "usage-scan-cache.json"),
     usageModelRates: path.join(resolved, "usage-model-rates.json"),
+    usageOneShot: path.join(resolved, "usage-one-shot.jsonl"),
     mainSession: path.join(resolved, "main-session.json"),
     decommissionMarker: path.join(resolved, "decommissioned-spool-looms"),
     retired: path.join(resolved, "retired"),

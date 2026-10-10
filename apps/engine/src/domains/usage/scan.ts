@@ -5,6 +5,7 @@ import { setImmediate as yieldImmediate } from "node:timers/promises";
 import type { ProviderDriverKind, UsageBucket, UsageReport, UsageResolution, UsageSource } from "@telar/engine-client";
 import { loadRates, priceTokens, type RatesTable } from ".";
 import { type CodexState, MTIME_SLACK_MS, NL, parseClaudeLines, parseCodexLines, type UsageRecord, WARM_WINDOW_MS } from "./log-parse";
+import { readOneShotUsage } from "./one-shot-ledger";
 import { cacheFor, UsageScanCache } from "./scan-cache";
 
 async function readRange(file: string, from: number, to: number): Promise<Buffer> {
@@ -147,6 +148,36 @@ function dayFormatter(timeZone: string): Intl.DateTimeFormat {
 
 const HOUR_MS = 3_600_000;
 
+type Bucket = UsageBucket & { allPriced: boolean };
+
+function tally(buckets: Map<string, Bucket>, period: string, provider: ProviderDriverKind, record: UsageRecord, rates: RatesTable): void {
+  const key = `${period}\0${provider}\0${record.model}`;
+  const bucket = buckets.get(key) ?? {
+    period,
+    driver: provider,
+    model: record.model,
+    tokens: { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 },
+    costUsd: 0,
+    priced: true,
+    allPriced: true,
+    turns: 0,
+  };
+  bucket.tokens.input += record.tokens.input;
+  bucket.tokens.output += record.tokens.output;
+  bucket.tokens.cacheRead += record.tokens.cacheRead;
+  bucket.tokens.cacheCreate += record.tokens.cacheCreate;
+  if (record.tokens.reasoning !== undefined) {
+    bucket.tokens.reasoning = (bucket.tokens.reasoning ?? 0) + record.tokens.reasoning;
+  }
+  const cost =
+    record.costUsd ??
+    priceTokens(rates, record.model, record.tokens, record.cacheCreate1h !== undefined ? { cacheCreate1h: record.cacheCreate1h } : {});
+  bucket.costUsd += cost ?? 0;
+  bucket.allPriced = bucket.allPriced && cost !== undefined;
+  bucket.turns += 1;
+  buckets.set(key, bucket);
+}
+
 const reportMemo = new Map<string, { at: number; report: UsageReport }>();
 const REPORT_MEMO_TTL_MS = 60_000;
 
@@ -154,6 +185,7 @@ export type UsageScanOptions = {
   roots?: UsageScanRoots;
   ratesCachePath: string;
   scanCachePath?: string;
+  oneShotPath?: string;
   loadRatesTable?: () => Promise<RatesTable>;
   memo?: boolean;
 };
@@ -184,7 +216,8 @@ export async function readUsageReport(
   const [rates] = await Promise.all([(options.loadRatesTable ?? (() => loadRates(options.ratesCachePath)))(), cache.load()]);
 
   const calendar = input.resolution === "day" ? dayFormatter(input.timeZone) : undefined;
-  const buckets = new Map<string, UsageBucket & { allPriced: boolean }>();
+  const buckets = new Map<string, Bucket>();
+  const periodOf = (at: number) => (input.resolution === "hour" ? String(Math.floor(at / HOUR_MS) * HOUR_MS) : calendar!.format(at));
   const sessions = new Set<string>();
   const seen = new Set<string>();
   const sources: UsageSource[] = [];
@@ -208,34 +241,13 @@ export async function readUsageReport(
       providerSessions.add(record.sessionId);
       sessions.add(`${provider}:${record.sessionId}`);
 
-      const period = input.resolution === "hour" ? String(Math.floor(record.at / HOUR_MS) * HOUR_MS) : calendar!.format(record.at);
-      const key = `${period}\0${provider}\0${record.model}`;
-      const bucket = buckets.get(key) ?? {
-        period,
-        driver: provider,
-        model: record.model,
-        tokens: { input: 0, output: 0, cacheRead: 0, cacheCreate: 0 },
-        costUsd: 0,
-        priced: true,
-        allPriced: true,
-        turns: 0,
-      };
-      bucket.tokens.input += record.tokens.input;
-      bucket.tokens.output += record.tokens.output;
-      bucket.tokens.cacheRead += record.tokens.cacheRead;
-      bucket.tokens.cacheCreate += record.tokens.cacheCreate;
-      if (record.tokens.reasoning !== undefined) {
-        bucket.tokens.reasoning = (bucket.tokens.reasoning ?? 0) + record.tokens.reasoning;
-      }
-      const cost =
-        record.costUsd ??
-        priceTokens(rates, record.model, record.tokens, record.cacheCreate1h !== undefined ? { cacheCreate1h: record.cacheCreate1h } : {});
-      bucket.costUsd += cost ?? 0;
-      bucket.allPriced = bucket.allPriced && cost !== undefined;
-      bucket.turns += 1;
-      buckets.set(key, bucket);
+      tally(buckets, periodOf(record.at), provider, record, rates);
     }
     sources.push({ provider, status: scan.failed ? "failed" : "ok", path: candidates[0]!, files: scan.files, sessions: providerSessions.size });
+  }
+
+  for (const { driver, record } of readOneShotUsage(options.oneShotPath, input.sinceMs)) {
+    if (record.at < input.untilMs) tally(buckets, periodOf(record.at), driver, record, rates);
   }
 
   const report: UsageReport = {

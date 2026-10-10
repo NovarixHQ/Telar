@@ -2,7 +2,8 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { ProviderDriverKind } from "@telar/engine-client";
+import type { ProviderDriverKind, UsageSnapshot } from "@telar/engine-client";
+import { usageFrom } from "../../drivers/claude/usage";
 import { requireCli } from "./cli";
 import { withClaudeSettingsEnv } from "./claude-settings-env";
 
@@ -19,6 +20,8 @@ export type TextGenDriverInput = {
 };
 
 type Structured = Record<string, unknown>;
+
+export type TextAnswer = { text: string; model?: string; usage?: UsageSnapshot };
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 const MAX_STDOUT_BYTES = 4 * 1024 * 1024;
@@ -45,14 +48,24 @@ export async function runStructuredOrThrow(input: TextGenDriverInput, prompt: st
   }
 }
 
-function claudeTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, schema: object): string[] {
+export async function runTextOrThrow(input: TextGenDriverInput, prompt: string, system: string): Promise<TextAnswer | undefined> {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "telar-textgen-"));
+  try {
+    if (input.driver === "claude") return await runClaudeText(input, scratch, prompt, system);
+    if (input.driver === "codex") return await runCodexText(input, scratch, `${system}\n\n${prompt}`);
+    return await runOpenCodeText(input, scratch, prompt, system);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+function claudeTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, schema: object | undefined, system = SYSTEM_PROMPT): string[] {
   return [
     "-p",
     "--no-session-persistence",
     "--output-format",
     "json",
-    "--json-schema",
-    JSON.stringify(schema),
+    ...(schema ? ["--json-schema", JSON.stringify(schema)] : []),
     "--tools",
     "",
     "--disable-slash-commands",
@@ -66,27 +79,42 @@ function claudeTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, 
     "--max-turns",
     "1",
     "--system-prompt",
-    SYSTEM_PROMPT,
+    system,
     ...(input.model ? ["--model", input.model] : []),
     "--effort",
     input.effort ?? DEFAULT_EFFORT,
   ];
 }
 
-async function runClaude(input: TextGenDriverInput, scratch: string, prompt: string, schema: object): Promise<Structured | undefined> {
+async function claudeAnswer(input: TextGenDriverInput, scratch: string, prompt: string, args: string[]): Promise<Structured | undefined> {
   const executable = requireCli("claude", input.binaryPath ? { binaryPath: input.binaryPath } : {});
   const env = withClaudeSettingsEnv(spawnEnv(input.env)) as NodeJS.ProcessEnv;
-  const exit = await runToCompletion(executable, claudeTextGenArgs(input, schema), scratch, input, env, prompt);
+  const exit = await runToCompletion(executable, args, scratch, input, env, prompt);
   if (exit === undefined) return undefined;
   const answer = parseJson(exit.out);
   if (answer?.["is_error"] === true && typeof answer["result"] === "string") throw new TextGenFailure(redactedTail(answer["result"]));
   if (exit.code !== 0) throw exitFailure(exit);
+  return answer ?? noAnswer(exit);
+}
+
+async function runClaude(input: TextGenDriverInput, scratch: string, prompt: string, schema: object): Promise<Structured | undefined> {
+  const answer = await claudeAnswer(input, scratch, prompt, claudeTextGenArgs(input, schema));
+  if (answer === undefined) return undefined;
   const structured = answer?.["structured_output"];
   if (typeof structured === "object" && structured !== null) return structured as Structured;
   throw new TextGenFailure(`no structured output (${String(answer?.["subtype"] ?? "unparsable answer")})`);
 }
 
-function codexTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, schemaPath: string, outputPath: string): string[] {
+async function runClaudeText(input: TextGenDriverInput, scratch: string, prompt: string, system: string): Promise<TextAnswer | undefined> {
+  const answer = await claudeAnswer(input, scratch, prompt, claudeTextGenArgs(input, undefined, system));
+  if (answer === undefined) return undefined;
+  if (typeof answer["result"] !== "string") throw new TextGenFailure(`no answer (${String(answer["subtype"] ?? "unparsable answer")})`);
+  const usage = usageFrom(answer["usage"], answer["total_cost_usd"]);
+  const model = Object.keys((answer["modelUsage"] as Structured | undefined) ?? {})[0] ?? input.model;
+  return { text: answer["result"], ...(model ? { model } : {}), ...(usage ? { usage } : {}) };
+}
+
+function codexTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, schemaPath: string | undefined, outputPath: string): string[] {
   return [
     "exec",
     "--ephemeral",
@@ -100,8 +128,7 @@ function codexTextGenArgs(input: Pick<TextGenDriverInput, "model" | "effort">, s
     `model_reasoning_effort="${input.effort ?? DEFAULT_EFFORT}"`,
     "--config",
     'web_search="disabled"',
-    "--output-schema",
-    schemaPath,
+    ...(schemaPath ? ["--output-schema", schemaPath] : []),
     "--output-last-message",
     outputPath,
     "-",
@@ -121,37 +148,66 @@ async function runCodex(input: TextGenDriverInput, scratch: string, prompt: stri
   return parseJson(readOrEmpty(outputPath)) ?? noAnswer(exit);
 }
 
+async function runCodexText(input: TextGenDriverInput, scratch: string, prompt: string): Promise<TextAnswer | undefined> {
+  const executable = requireCli("codex", input.binaryPath ? { binaryPath: input.binaryPath } : {});
+  const outputPath = path.join(scratch, "answer.txt");
+  const work = path.join(scratch, "work");
+  fs.mkdirSync(work);
+  const exit = await runToCompletion(executable, codexTextGenArgs(input, undefined, outputPath), work, input, spawnEnv(input.env), prompt);
+  if (exit === undefined) return undefined;
+  if (exit.code !== 0) throw exitFailure(exit);
+  const text = readOrEmpty(outputPath);
+  return text ? { text, ...(input.model ? { model: input.model } : {}) } : noAnswer(exit);
+}
+
 function openCodeTextGenArgs(input: Pick<TextGenDriverInput, "model">): string[] {
   return ["run", "--format", "json", "--pure", ...(input.model ? ["--model", input.model] : [])];
 }
 
-function openCodeTextGenConfig(schema: object): string {
+function openCodeTextGenConfig(prompt: string): string {
   return JSON.stringify({
     permission: "deny",
     tools: { "*": false },
     share: "disabled",
     autoupdate: false,
     instructions: [],
-    agent: { build: { prompt: `${SYSTEM_PROMPT} It must match this JSON schema: ${JSON.stringify(schema)}` } },
+    agent: { build: { prompt } },
   });
 }
 
 async function runOpenCode(input: TextGenDriverInput, scratch: string, prompt: string, schema: object): Promise<Structured | undefined> {
-  const executable = requireCli("opencode", input.binaryPath ? { binaryPath: input.binaryPath } : {});
-  const env = spawnEnv({ ...input.env, OPENCODE_CONFIG_CONTENT: openCodeTextGenConfig(schema), OPENCODE_DISABLE_PROJECT_CONFIG: "1" });
-  const exit = await runToCompletion(executable, openCodeTextGenArgs(input), scratch, input, env, prompt);
+  const config = openCodeTextGenConfig(`${SYSTEM_PROMPT} It must match this JSON schema: ${JSON.stringify(schema)}`);
+  const exit = await openCodeExit(input, scratch, prompt, config);
   if (exit === undefined) return undefined;
-  if (exit.code !== 0) throw exitFailure(exit);
   return parseOpenCodeAnswer(exit.out) ?? noAnswer(exit);
 }
 
-function parseOpenCodeAnswer(stdout: string): Structured | undefined {
-  const text = stdout
+async function runOpenCodeText(input: TextGenDriverInput, scratch: string, prompt: string, system: string): Promise<TextAnswer | undefined> {
+  const exit = await openCodeExit(input, scratch, prompt, openCodeTextGenConfig(system));
+  if (exit === undefined) return undefined;
+  const text = openCodeText(exit.out);
+  return text ? { text, ...(input.model ? { model: input.model } : {}) } : noAnswer(exit);
+}
+
+async function openCodeExit(input: TextGenDriverInput, scratch: string, prompt: string, config: string): Promise<Exit | undefined> {
+  const executable = requireCli("opencode", input.binaryPath ? { binaryPath: input.binaryPath } : {});
+  const env = spawnEnv({ ...input.env, OPENCODE_CONFIG_CONTENT: config, OPENCODE_DISABLE_PROJECT_CONFIG: "1" });
+  const exit = await runToCompletion(executable, openCodeTextGenArgs(input), scratch, input, env, prompt);
+  if (exit !== undefined && exit.code !== 0) throw exitFailure(exit);
+  return exit;
+}
+
+function openCodeText(stdout: string): string {
+  return stdout
     .split("\n")
     .map((line) => parseJson(line))
     .flatMap((event) => (event?.["type"] === "text" ? [(event["part"] as { text?: unknown } | undefined)?.text] : []))
     .filter((part): part is string => typeof part === "string")
     .join("");
+}
+
+function parseOpenCodeAnswer(stdout: string): Structured | undefined {
+  const text = openCodeText(stdout);
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   return start >= 0 && end > start ? parseJson(text.slice(start, end + 1)) : undefined;

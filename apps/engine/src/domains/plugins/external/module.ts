@@ -4,12 +4,25 @@ import type { PluginMachineRoutes, PluginProjectRoutes, PluginRouteRequest } fro
 import { isSymlink } from "./installer";
 import type { LoadedExternalPlugin } from "./manifest";
 import { ExternalPluginProcess, type ExternalProcessOptions } from "./process";
+import type { OneShotRequest } from "../../providers";
+
+function oneShotRequest(params: unknown): OneShotRequest {
+  const given = (params ?? {}) as Record<string, unknown>;
+  if (typeof given.prompt !== "string") throw new Error("telar/complete needs a prompt");
+  return {
+    prompt: given.prompt,
+    ...(typeof given.system === "string" ? { system: given.system } : {}),
+    ...(typeof given.maxChars === "number" ? { maxChars: given.maxChars } : {}),
+    ...(typeof given.timeoutMs === "number" ? { timeoutMs: given.timeoutMs } : {}),
+  };
+}
 
 export type ExternalPluginDeps = {
   resolve: (sessionId: string) => { projectId: string; sessionId: string };
   emit?: (event: unknown) => void;
   enabledAnywhere: () => boolean;
   settings: (projectId: string | undefined) => Record<string, unknown>;
+  complete?: (request: OneShotRequest) => Promise<{ text: string }>;
   process?: Pick<ExternalProcessOptions, "spawn" | "timers" | "requestTimeoutMs" | "startTimeoutMs">;
 };
 
@@ -76,6 +89,10 @@ export function externalPlugin(loaded: LoadedExternalPlugin, deps: ExternalPlugi
         stateDir: context.stateDir,
         onNotification: (method, params) => {
           if (method === "telar/event") deps.emit?.(params);
+        },
+        onRequest: async (method, params) => {
+          if (method !== "telar/complete" || !deps.complete) throw Object.assign(new Error(`no method ${method}`), { code: -32601 });
+          return deps.complete(oneShotRequest(params));
         },
         ...deps.process,
       });

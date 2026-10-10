@@ -1,15 +1,3 @@
-/**
- * EXTERNAL PLUGINS (P4): a folder with a manifest becomes a plugin the host
- * runs as a supervised child, through the same doors a bundled one uses.
- *
- *   the manifest   validated strictly; a bad one is REFUSED — listed as failed
- *                  with its reason — and the engine starts regardless
- *   the process    started on first use, restarted with backoff when it dies,
- *                  stopped for good by `stop` (fake spawn, fake timers)
- *   the tools      declared in the manifest, walled under `mcp__telar__<prefix>_*`,
- *                  called end to end against a real short-lived child
- *   approval       never read-ratified: every external tool parks a card
- */
 import { afterEach, describe, expect, test } from "bun:test";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
@@ -315,6 +303,29 @@ describe("the daemon", () => {
     await expect(registered[0]!.run({ text: "hi" })).resolves.toEqual({ content: [{ type: "text", text: "hey: hi" }] });
     // Only declared tools pass the door.
     await expect(client.plugin(sessionId, "echo", "tool", { name: "echo_other" })).rejects.toThrow("has no tool echo_other");
+  });
+});
+
+describe("composer contributions", () => {
+  test("an installed plugin's decoration and command reach clients, and the command's route answers text", async () => {
+    const pluginsDir = tempDir();
+    const composer = {
+      decorations: [{ id: "ticket", pattern: "#[0-9]+", style: "accent" }],
+      commands: [{ name: "shout", description: "Shout it", verb: "shout" }],
+    };
+    writePlugin(pluginsDir, "echo", { ...ECHO_MANIFEST, routes: { session: ["status", "shout"] }, composer });
+    writePlugin(pluginsDir, "loose", { ...ECHO_MANIFEST, id: "loose", toolPrefix: "loose", tools: [], composer: { commands: [{ name: "x", description: "X", verb: "nope" }] } });
+    const engineRoot = tempDir();
+    const daemon = await startEngine({ models: stubModels, engineRoot, pluginsDir });
+    daemons.push(daemon);
+    const client = new EngineClient(daemon.discovery);
+    await client.registerProject({ id: "project_one", name: "One", root: tempDir() });
+    await client.createSession({ id: "session_one", projectId: "project_one" });
+    const byId = Object.fromEntries((await client.machinePlugins()).plugins.map((status) => [status.meta.id, status]));
+    expect(byId.echo?.meta.composer).toEqual({ decorations: [{ id: "ticket", pattern: "#[0-9]+", style: "accent" }], commands: composer.commands });
+    expect(byId.loose).toMatchObject({ state: "failed", error: expect.stringContaining("composer.commands.0.verb") });
+    await client.updateProject("project_one", { plugins: { echo: { enabled: true } } });
+    await expect(client.plugin("session_one", "echo", "shout", { text: "hi" })).resolves.toEqual({ text: "HI!" });
   });
 });
 

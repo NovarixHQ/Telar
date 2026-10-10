@@ -40,7 +40,7 @@ export function usageRoutes(store: EngineStore): Route[] {
           throw new HttpError(400, "invalid_request", "usage needs a since/until window in epoch milliseconds");
         }
         const window = { sinceMs, untilMs, resolution: query.get("resolution") === "hour" ? ("hour" as const) : ("day" as const), timeZone: query.get("tz")?.trim() || "UTC" };
-        return ok({ usage: await readUsageReport(window, { ratesCachePath: store.paths.usageModelRates, scanCachePath: store.paths.usageScanCache }) });
+        return ok({ usage: await readUsageReport(window, { ratesCachePath: store.paths.usageModelRates, scanCachePath: store.paths.usageScanCache, oneShotPath: store.paths.usageOneShot }) });
       },
     },
     {

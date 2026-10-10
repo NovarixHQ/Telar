@@ -14,14 +14,21 @@
  *      `"tool_call"` unconditionally. That made `display_open` auto-accept
  *      under one provider and park a card under the other, for the same read.
  */
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { codexApprovalRequest, MCP_ELICITATION } from "../../drivers/codex";
 import { requestKindForTool, setPluginReadTools } from "../../drivers/claude";
-import { HOST_RATIFIED_READ_TOOLS, ratifiedReadTools } from "./policy";
+import { PluginManifest, type PluginMeta } from "@telar/engine-client";
+import { dataSciencePlugin } from "../../../plugins/data-science";
+import { latexPlugin } from "../../../plugins/latex";
+import { manifestMeta } from "./manifest";
+import { ratifiedReadTools } from "./policy";
 
-/** The default the module boots with, restored after any test that installs. */
-const defaults = new Set(Object.values(HOST_RATIFIED_READ_TOOLS).flat());
-afterEach(() => setPluginReadTools(defaults));
+const dataScienceMeta = manifestMeta(PluginManifest.parse(dataSciencePlugin.manifest));
+const latexMeta = manifestMeta(PluginManifest.parse(latexPlugin.manifest));
+const meta = (extra: Partial<PluginMeta>): PluginMeta => ({ ...latexMeta, ...extra });
+
+beforeEach(() => setPluginReadTools(ratifiedReadTools({ meta: dataScienceMeta })));
+afterEach(() => setPluginReadTools([]));
 
 /** How Codex asks. The tool name lives only inside the prose. */
 const codexAsks = (server: string, tool: string) =>
@@ -78,67 +85,26 @@ describe("both providers classify a tool the same way", () => {
 });
 
 describe("a self-declared read claim is not a grant", () => {
-  test("a manifest claiming a tool the host has not ratified gets nothing", () => {
-    const granted = ratifiedReadTools({
-      id: "latex",
-      api: 1,
-      name: "LaTeX",
-      version: "1.0.0",
-      toolPrefixes: ["latex"],
-      // The plugin asks for its whole surface, including the one that compiles.
-      readTools: ["latex_status", "latex_compile"],
-      eventKinds: [],
-      settings: [],
-    });
+  test("an installed plugin claiming reads gets nothing, whatever it claims", () => {
+    const granted = ratifiedReadTools({ meta: meta({ readTools: ["latex_status", "latex_compile"] }), installed: {} });
     expect(granted).toEqual([]);
   });
 
-  test("INSTALLING A HOSTILE CLAIM DOES NOT CHANGE THE ANSWER ON EITHER PROVIDER", () => {
-    // The end-to-end statement: even if a plugin's ratified set were computed
-    // from its own manifest, the host is what installs into the driver — and
-    // `ratifiedReadTools` returns nothing for an unratified claim, so there is
-    // nothing to install.
-    setPluginReadTools(
-      new Set(
-        ratifiedReadTools({
-          id: "latex",
-          api: 1,
-          name: "LaTeX",
-          version: "1.0.0",
-          toolPrefixes: ["latex"],
-          readTools: ["latex_compile"],
-          eventKinds: [],
-          settings: [],
-        }),
-      ),
-    );
+  test("installing an installed plugin's hostile claim does not change the answer on either provider", () => {
+    setPluginReadTools(ratifiedReadTools({ meta: meta({ readTools: ["latex_compile"] }), installed: {} }));
     expect(claudeAsks("telar", "latex_compile")).toBe("tool_call");
     expect(codexAsks("telar", "latex_compile")?.kind).toBe("tool_call");
   });
 
-  test("a plugin cannot borrow another plugin's ratification", () => {
-    // `ds_kernel` IS in the host table — but under `data-science`, and only for
-    // a plugin whose own tool namespace covers it.
-    const granted = ratifiedReadTools({
-      id: "latex",
-      api: 1,
-      name: "LaTeX",
-      version: "1.0.0",
-      toolPrefixes: ["latex"],
-      readTools: ["ds_kernel"],
-      eventKinds: [],
-      settings: [],
-    });
-    expect(granted).toEqual([]);
+  test("a plugin cannot borrow another plugin's namespace", () => {
+    expect(ratifiedReadTools({ meta: meta({ readTools: ["ds_kernel"] }) })).toEqual([]);
   });
 });
 
 describe("the driver's default and the host's installation", () => {
-  test("the cold default is the host table, so nothing regresses before startup", () => {
-    // `requestKindForTool` is a pure module function reached from tests and from
-    // both drivers with no daemon around it. Booting empty would silently turn
-    // today's data-science reads into parking approval cards.
-    expect(requestKindForTool("mcp__telar__ds_packages")).toBe("file_read");
+  test("the cold default asks for everything, so an uninstalled process fails closed", () => {
+    setPluginReadTools([]);
+    expect(requestKindForTool("mcp__telar__ds_packages")).toBe("tool_call");
   });
 
   test("the host can only narrow — installing an empty set removes plugin reads, not core ones", () => {

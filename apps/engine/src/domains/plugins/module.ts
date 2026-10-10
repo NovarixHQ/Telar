@@ -1,13 +1,21 @@
+import path from "node:path";
 import type { PluginManifest } from "@telar/engine-client";
-import type { BundledPlugin, PluginEngine, PluginHost, PluginProject, PluginRoute, PluginSession } from "../../../plugins/sdk";
+import { PluginNotFoundError, type BundledPlugin, type PluginEngine, type PluginHost, type PluginProject, type PluginRoute, type PluginSession } from "../../../plugins/sdk";
+import { EngineStateError } from "../../platform/kernel/errors";
 import type { PluginEngineModule } from "./contract";
 import { manifestMeta, TOOL_VERB, zodFrom } from "./manifest";
+import { ModuleProcesses } from "./processes";
 import { PluginInputError, type PluginMachineRoutes, type PluginProjectRoutes } from "./scoped-routes";
 
 export type ModulePluginDeps = {
+  /** Refuses a session whose project or Mac has the plugin off. */
   session(sessionId: string): PluginSession;
+  /** Ungated, for a session being released; undefined once it no longer resolves. */
+  sessionOf(sessionId: string): Omit<PluginSession, "settings" | "machine"> | undefined;
   project(projectId: string): PluginProject;
-  host: Omit<PluginHost, "stateDir">;
+  host: Omit<PluginHost, "stateDir" | "processes">;
+  /** Whether this engine may own child processes. */
+  withProcesses: boolean;
 };
 
 function missing(manifest: PluginManifest, engine: PluginEngine): string[] {
@@ -23,6 +31,7 @@ function missing(manifest: PluginManifest, engine: PluginEngine): string[] {
 /** A plugin whose engine module runs in-process, reached through the same doors and tables as an installed one. */
 export function modulePlugin(plugin: BundledPlugin, manifest: PluginManifest, deps: ModulePluginDeps): PluginEngineModule {
   let engine: PluginEngine | undefined;
+  let processes: ModuleProcesses | undefined;
   const running = (): PluginEngine => {
     if (!engine) throw new Error(`${manifest.id} is not initialised`);
     return engine;
@@ -53,6 +62,7 @@ export function modulePlugin(plugin: BundledPlugin, manifest: PluginManifest, de
               try {
                 return await route().handle(request, target);
               } catch (error) {
+                if (error instanceof PluginNotFoundError) throw new EngineStateError("not_found", error.message);
                 throw new PluginInputError(error instanceof Error ? error.message : String(error));
               }
             },
@@ -69,7 +79,12 @@ export function modulePlugin(plugin: BundledPlugin, manifest: PluginManifest, de
     ...(manifest.settingsSchema ? { publishedSettingsSchema: manifest.settingsSchema } : {}),
     ...(manifest.machineSettingsSchema ? { publishedMachineSettingsSchema: manifest.machineSettingsSchema } : {}),
     init(context) {
-      const created = plugin.engine({ ...deps.host, stateDir: context.stateDir });
+      if (deps.withProcesses) {
+        const owned = new ModuleProcesses(path.join(context.stateDir, "processes"));
+        processes = owned;
+        context.onDispose(`${manifest.id} processes`, () => owned.stopAll());
+      }
+      const created = plugin.engine({ ...deps.host, stateDir: context.stateDir, ...(processes ? { processes } : {}) });
       const gaps = missing(manifest, created);
       if (gaps.length > 0) throw new Error(`${manifest.id} declares ${gaps.join(", ")} but its module does not answer it`);
       engine = created;
@@ -77,9 +92,19 @@ export function modulePlugin(plugin: BundledPlugin, manifest: PluginManifest, de
     },
     hooks: {
       drain: () => undefined,
-      busy: () => engine?.busy?.() ?? false,
-      releaseSession: (sessionId) => engine?.releaseSession?.(sessionId),
+      busy: (projectId) => engine?.busy?.(projectId) ?? false,
+      releaseProject: (projectId) => engine?.releaseProject?.(projectId),
+      releaseSession: (sessionId, reason) => engine?.releaseSession?.(sessionId, reason, deps.sessionOf(sessionId)),
     },
+    available: (sessionId) => {
+      if (!engine?.available) return true;
+      try {
+        return engine.available(deps.session(sessionId));
+      } catch {
+        return false;
+      }
+    },
+    processes: () => processes?.list() ?? [],
     routes: sessionRoutes,
     projectRoutes: scoped<{ projectId: string }, PluginProject>("project", ({ projectId }) => deps.project(projectId)) as PluginProjectRoutes,
     machineRoutes: scoped<Record<string, never>, Record<string, never>>("machine", (scope) => scope) as PluginMachineRoutes,

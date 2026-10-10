@@ -106,7 +106,7 @@ export class EngineWorker {
     // An out-of-process worker does not share the daemon's globals, so it ratifies from the same manifests.
     try {
       const health = await this.options.client.health();
-      setPluginReadTools((health.plugins ?? []).flatMap((status) => ratifiedReadTools(status.meta)));
+      setPluginReadTools((health.plugins ?? []).flatMap(ratifiedReadTools));
     } catch {
       // Left empty, so every plugin tool asks.
     }

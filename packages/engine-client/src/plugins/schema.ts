@@ -35,8 +35,8 @@ export const PluginSettingsSection = z.object({
 });
 export type PluginSettingsSection = z.infer<typeof PluginSettingsSection>;
 
-/** A session verb, as the generic door spells it: `status`, `jobs-refresh`. */
-const PluginSessionVerb = z.string().regex(/^[a-z][a-z0-9-]*$/, "a verb is lowercase letters, digits and dashes");
+/** A session verb, as the generic door spells it: `status`, `jobs-refresh`, `notebook/read`. */
+const PluginSessionVerb = z.string().regex(/^[a-z][a-z0-9-]*(\/[a-z][a-z0-9-]*)?$/, "a verb is lowercase letters, digits and dashes, with at most one /");
 
 export const PluginPanel = z.strictObject({
   /** Unique within the plugin. */
@@ -204,11 +204,12 @@ export const PluginMeta = z.object({
 export type PluginMeta = z.infer<typeof PluginMeta>;
 
 export const PluginTool = z.strictObject({
-  /** Must start with the manifest's `toolPrefix` and an underscore. */
   name: z.string().regex(/^[a-z][a-z0-9]*_[a-z0-9_]+$/, "a tool name is <prefix>_<name>, lowercase"),
   description: z.string().min(1).max(2000),
   /** The arguments, as a JSON Schema object. */
   inputSchema: z.record(z.string(), z.unknown()).default({ type: "object", properties: {} }),
+  /** Runs without asking; honoured only for a plugin that ships with the app. */
+  readOnly: z.boolean().optional(),
 });
 export type PluginTool = z.infer<typeof PluginTool>;
 
@@ -229,8 +230,8 @@ export const PluginManifest = z
     icon: z.string().min(1).max(64).optional(),
     /** argv. A first element starting with `./` is resolved inside the plugin's folder. */
     command: z.array(z.string().min(1)).min(1).optional(),
-    /** Required once the plugin declares a tool. */
-    toolPrefix: PluginToolPrefix.optional(),
+    /** Required once the plugin declares a tool; several when its tools fall into families. */
+    toolPrefix: z.union([PluginToolPrefix, z.array(PluginToolPrefix).min(1).max(4)]).optional(),
     tools: z.array(PluginTool).max(64).default([]),
     /** The paragraph a session is told while the plugin is on. */
     briefing: z.string().min(1).max(2000).optional(),
@@ -257,14 +258,16 @@ export const PluginManifest = z
     gitignore: z
       .strictObject({ rule: z.string().min(1).max(200), why: z.string().min(1).max(200), alreadyCovered: z.array(z.string().min(1)).default([]) })
       .optional(),
+    sessionStateDir: z.string().regex(/^[a-z][a-z0-9-]*$/).max(64).optional(),
   })
   .superRefine((manifest, context) => {
-    if (manifest.tools.length > 0 && !manifest.toolPrefix) {
+    const prefixes = manifestToolPrefixes(manifest);
+    if (manifest.tools.length > 0 && prefixes.length === 0) {
       context.addIssue({ code: "custom", path: ["toolPrefix"], message: "a plugin that declares tools needs a toolPrefix" });
     }
     for (const [index, tool] of manifest.tools.entries()) {
-      if (manifest.toolPrefix && !tool.name.startsWith(`${manifest.toolPrefix}_`)) {
-        context.addIssue({ code: "custom", path: ["tools", index, "name"], message: `must start with "${manifest.toolPrefix}_"` });
+      if (prefixes.length > 0 && !prefixes.some((prefix) => tool.name.startsWith(`${prefix}_`))) {
+        context.addIssue({ code: "custom", path: ["tools", index, "name"], message: `must start with ${prefixes.map((prefix) => `"${prefix}_"`).join(" or ")}` });
       }
     }
     if (new Set(manifest.tools.map((tool) => tool.name)).size !== manifest.tools.length) {
@@ -300,6 +303,11 @@ export const PluginManifest = z
 export type PluginManifest = z.infer<typeof PluginManifest>;
 export type PluginManifestInput = z.input<typeof PluginManifest>;
 
+export function manifestToolPrefixes(manifest: { toolPrefix?: string | string[] | undefined }): string[] {
+  const { toolPrefix } = manifest;
+  return toolPrefix === undefined ? [] : Array.isArray(toolPrefix) ? toolPrefix : [toolPrefix];
+}
+
 /** What a plugin's runtime is doing, as the health document reports it. */
 export const PluginRuntimeState = z.enum(["ready", "failed", "disposed"]);
 export type PluginRuntimeState = z.infer<typeof PluginRuntimeState>;
@@ -314,6 +322,7 @@ export const PluginStatus = z.object({
   settingsSchema: z.record(z.string(), z.unknown()).optional(),
   machineSettingsSchema: z.record(z.string(), z.unknown()).optional(),
   installed: z.object({ linked: z.boolean() }).optional(),
+  processes: z.array(z.object({ key: z.string(), pid: z.number().optional(), startedAt: z.number(), alive: z.boolean() })).optional(),
 });
 export type PluginStatus = z.infer<typeof PluginStatus>;
 
@@ -345,7 +354,7 @@ export const LEGACY_PLUGIN_KEYS = {
   "data-science": "dataScience",
 } as const satisfies Record<string, "latex" | "dataScience">;
 
-export const BUNDLED_PLUGIN_TOOL_PREFIXES = ["ds", "notebook", "hello"] as const;
+export const BUNDLED_PLUGIN_TOOL_PREFIXES = ["hello"] as const;
 
 export function pluginConfigFromLegacy(legacy: Record<string, unknown>): PluginConfig {
   const { enabled, ...rest } = legacy;

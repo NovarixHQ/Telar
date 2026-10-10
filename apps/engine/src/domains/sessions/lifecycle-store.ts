@@ -24,7 +24,6 @@ import {
 import type { AsyncGitRunner, GitRunner } from "../../platform/git/runner";
 import type { ProjectAvailability } from "../../platform/fs/volumes";
 import { assertId, EngineStateError, type JournalEntry, type Kernel } from "../../platform/kernel";
-import { removeTelarVenv, telarVenvDir } from "../plugins";
 import { RUNTIME_MODES } from "../settings";
 import { createSessionWorktreeAsync, derivedBranchFor, isGitWorkTree, prepareSessionWorktree, pruneBuildOutputs, removeSessionWorktreeAsync, resolveWorktreeBaseAsync, type WorktreePlan, type WorktreeQueue } from "../worktrees";
 import { parseSession, releaseDelegationSettle, sessionDir, sessionMetadataFile, storedSession } from "./metadata";
@@ -440,7 +439,7 @@ export class SessionLifecycle {
     // until the pool's LRU evicts them six sessions later — which is a leak
     // measured in hundreds of megabytes on a machine running detached work.
     void this.host.releaseBrowser(sessionId, "session archived");
-    this.releaseDataScience(session, "session archived");
+    this.host.releasePlugins(sessionId, "session archived");
 
     // A worktree implies a project; the checkout goes only when a caller gives it back, otherwise Storage's sweep takes it later.
     if (session.workspace.mode === "worktree" && session.projectId && !session.workspace.released) {
@@ -479,13 +478,6 @@ export class SessionLifecycle {
     void this.host.worktreeQueue(project.root, () => pruneBuildOutputs(this.host.worktreeGit, worktreePath).catch(() => []));
   }
 
-  private releaseDataScience(session: Session, reason: string): void {
-    this.host.releasePlugins(session.id, reason);
-    if (session.workspace.mode === "worktree" && session.projectId) {
-      removeTelarVenv(telarVenvDir(this.kernel.paths.root, session.projectId, path.basename(session.workspace.path)));
-    }
-  }
-
   /** Continue independently: marks outstanding task turns detached without deleting or stopping anything. */
   detachAssignments(sessionId: string, runId?: string): Turn[] {
     const session = this.records.get(sessionId);
@@ -516,7 +508,7 @@ export class SessionLifecycle {
     if (active) throw new EngineStateError("conflict", "session has an active turn; stop it before deleting");
 
     void this.host.releaseBrowser(sessionId, "session deleted");
-    this.releaseDataScience(session, "session deleted");
+    this.host.releasePlugins(sessionId, "session deleted");
 
     // See `archiveSession` for why the project is checked beside the mode.
     if (session.workspace.mode === "worktree" && session.projectId) {

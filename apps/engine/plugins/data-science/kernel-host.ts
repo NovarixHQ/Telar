@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import BRIDGE_SOURCE from "./bridge.py" with { type: "text" };
+import type { PluginProcesses } from "../sdk";
 import { KernelBridge, type SpawnBridge } from "./kernel-bridge";
 import { CellOutput, plotTitleFrom, withoutPlotTitle, type ExecResult, type KernelState } from "./outputs";
 
@@ -42,7 +43,8 @@ type Entry = {
 
 export type KernelHostOptions = {
   engineRoot: string;
-  sessionDir: (sessionId: string) => string;
+  /** Owns the bridge processes; absent, the bridge spawns its own (tests). */
+  processes?: PluginProcesses;
   idleMs?: number;
   maxKernels?: number;
   now?: () => number;
@@ -63,7 +65,6 @@ export class KernelHost {
     this.maxKernels = options.maxKernels ?? 8;
     this.reaper = setInterval(() => this.reap(), 60_000);
     this.reaper.unref?.();
-    this.reapOrphans();
   }
 
   bridgeFile(): string {
@@ -77,22 +78,10 @@ export class KernelHost {
     return file;
   }
 
-  private pidFile(sessionId: string): string {
-    return path.join(this.options.sessionDir(sessionId), "ds", "kernel.json");
-  }
-
-  private reapOrphans(): void {
-    const sessions = path.join(this.options.engineRoot, "sessions");
-    let names: string[] = [];
-    try { names = fs.readdirSync(sessions); } catch { return; }
-    for (const name of names) {
-      const file = path.join(sessions, name, "ds", "kernel.json");
-      try {
-        const record = JSON.parse(fs.readFileSync(file, "utf8")) as { pid?: number; kernelPid?: number };
-        for (const pid of [record.pid, record.kernelPid]) if (pid) { try { process.kill(pid, "SIGKILL"); } catch { } }
-        fs.rmSync(file, { force: true });
-      } catch { }
-    }
+  private spawnFor(sessionId: string): SpawnBridge | undefined {
+    if (this.options.spawnImpl) return this.options.spawnImpl;
+    const processes = this.options.processes;
+    return processes && ((python, script, { cwd, env }) => processes.start(sessionId, { command: python, args: ["-u", script], cwd, env }));
   }
 
   info(sessionId: string): KernelInfo | undefined {
@@ -114,7 +103,8 @@ export class KernelHost {
       await this.dispose(oldest[0], "evicted: too many live kernels");
     }
 
-    const bridge = new KernelBridge(spec.bridgePython, this.bridgeFile(), { cwd: spec.cwd, ...(this.options.spawnImpl ? { spawnImpl: this.options.spawnImpl } : {}) });
+    const spawnImpl = this.spawnFor(spec.sessionId);
+    const bridge = new KernelBridge(spec.bridgePython, this.bridgeFile(), { cwd: spec.cwd, ...(spawnImpl ? { spawnImpl } : {}) });
     const info: KernelInfo = { sessionId: spec.sessionId, state: "starting", startedAt: this.now(), lastUsedAt: this.now(), pid: bridge.pid, kernelPython: spec.kernelPython };
     const entry: Entry = { bridge, info, waiters: new Map(), chain: Promise.resolve() };
     this.kernels.set(spec.sessionId, entry);
@@ -146,14 +136,11 @@ export class KernelHost {
       if (this.kernels.get(spec.sessionId) === entry) this.kernels.delete(spec.sessionId);
       info.state = "dead";
       this.options.events?.onState?.(spec.sessionId, "dead", error.message);
-      fs.rmSync(this.pidFile(spec.sessionId), { force: true });
     };
 
     try {
       const started = await bridge.request<{ pid?: number }>("start", { cwd: spec.cwd, sitePackages: spec.sitePackages, kernelPython: spec.kernelPython });
-      const record = { pid: bridge.pid, kernelPid: started.pid ?? null, startedAt: info.startedAt };
-      fs.mkdirSync(path.dirname(this.pidFile(spec.sessionId)), { recursive: true });
-      fs.writeFileSync(this.pidFile(spec.sessionId), JSON.stringify(record), { mode: 0o600 });
+      if (started.pid) this.options.processes?.adopt(spec.sessionId, started.pid);
       const probe = await bridge.request<{ modules: Record<string, boolean>; executable?: string }>("probe", { modules: ["pandas", "matplotlib", "duckdb", "pyarrow", "polars"] });
       info.modules = probe.modules;
       if (probe.executable) info.executable = probe.executable;
@@ -234,9 +221,9 @@ export class KernelHost {
     try { await entry.bridge.request("shutdown"); } catch { }
     clearTimeout(killer);
     entry.bridge.kill();
+    await this.options.processes?.stop(sessionId, 1_000);
     entry.info.state = "dead";
     this.options.events?.onState?.(sessionId, "dead", reason);
-    fs.rmSync(this.pidFile(sessionId), { force: true });
   }
 
   private reap(): void {

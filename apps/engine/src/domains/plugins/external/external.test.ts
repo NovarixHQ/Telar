@@ -446,7 +446,7 @@ describe("approval", () => {
   test("an external tool is never read-ratified, so it always parks a card", () => {
     const meta = manifestMeta(PluginManifest.parse(ECHO_MANIFEST));
     expect(meta.readTools).toEqual([]);
-    expect(ratifiedReadTools({ ...meta, readTools: ["echo_say"] })).toEqual([]);
+    expect(ratifiedReadTools({ meta: { ...meta, readTools: ["echo_say"] }, installed: { linked: false } })).toEqual([]);
     expect(requestKindForTool("mcp__telar__echo_say")).toBe("tool_call");
   });
 });

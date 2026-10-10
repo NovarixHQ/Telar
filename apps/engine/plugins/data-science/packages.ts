@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { PythonEnvironment } from "./environments";
-import type { JobStep } from "../../../../plugins/sdk/jobs";
-import { defaultExec, type Exec } from "../../../../plugins/sdk/probe";
+import type { JobStep } from "../sdk/jobs";
+import { defaultExec, type Exec } from "../sdk/probe";
 import type { Toolchain } from "./toolchain";
 
 export type PackageInfo = { name: string; version: string; channel?: string };

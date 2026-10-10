@@ -107,12 +107,13 @@ export class PluginHost {
         ...(project ? { settingsSchema: project } : {}),
         ...(machine ? { machineSettingsSchema: machine } : {}),
         ...(record.module.installed ? { installed: record.module.installed } : {}),
+        ...(record.state === "ready" && record.module.processes?.().length ? { processes: record.module.processes() } : {}),
       };
     });
   }
 
   ratifiedReadTools(): Set<string> {
-    return ratifiedReadToolSet(this.metas());
+    return ratifiedReadToolSet([...this.records.values()].map((record) => record.module));
   }
 
   async add(module: PluginEngineModule): Promise<PluginStatus> {
@@ -154,11 +155,11 @@ export class PluginHost {
     }
     this.interrupted = interrupted;
     await Promise.all([...this.records.keys()].map((id) => this.start(id)));
-    for (const meta of this.metas()) {
-      const refused = unratifiedReadClaims(meta);
+    for (const { module } of this.records.values()) {
+      const refused = unratifiedReadClaims(module);
       if (refused.length > 0) {
         this.log("plugin read-tool claims not ratified by the host; they will require approval", {
-          plugin: meta.id,
+          plugin: module.meta.id,
           tools: refused,
         });
       }

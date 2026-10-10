@@ -1,33 +1,13 @@
-/**
- * THE NOTEBOOK DOOR — the live failure this file exists for.
- *
- * A real session had `ds_kernel`, `ds_scratch`, `ds_inspect` and `ds_plot` all
- * answer, and `notebook_open` fail with **"no data-science method
- * notebook/edit"** and the same for `notebook/read`. Every single-word `ds`
- * verb worked; every notebook verb 404'd.
- *
- * WHY: `notebook` is the data-science plugin's second tool prefix, the worker's
- * capability calls these verbs as `notebook/read`, `notebook/edit` and
- * `notebook/run` (`ds/client-capability.ts`), the door's matcher admits exactly
- * one slash in a method (`daemon.ts`) — and the plugin's route table had no
- * two-segment keys at all. The verbs existed on the capability and nothing
- * routed to them.
- *
- * These cases go through the ACTUAL path: a real engine, a real store, a real
- * project and session, and `EngineClient.ds(...)` — the same call the worker
- * makes. Notebook create/read/edit are file operations and need no Python; the
- * one case that needs a kernel is skipped without `uv`, and live cell execution
- * against a real ipykernel is `src/domains/plugins/data-science/kernel-host.test.ts`.
- */
 import { afterEach, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EngineClient, type EngineClientError } from "@telar/engine-client";
-import { startEngine, type EngineDaemon } from "../../../daemon";
-import { dataScienceMeta } from "./plugin";
-import { stubModels } from "../../../../test/stub-models";
+import { manifestToolPrefixes } from "@telar/engine-client";
+import { startEngine, type EngineDaemon } from "../../src/daemon";
+import { dataSciencePlugin } from ".";
+import { stubModels } from "../../test/stub-models";
 
 const roots: string[] = [];
 const daemons: EngineDaemon[] = [];
@@ -41,16 +21,7 @@ afterEach(async () => {
   for (const directory of roots.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
-/**
- * A project with data science on, a session in it, and a client.
- *
- * `embeddedWorker` because the kernel host is attached in that branch
- * (`daemon.ts`) and `store.dataScience()` refuses without one — and an
- * INTERPRETER PATH THAT EXISTS, because the gate checks it on disk. No cell is
- * executed by the file-only cases below, so `/bin/echo` standing in for python
- * is never run: it only has to be there, the way `plugin-latex-migration`
- * points a toolchain at it.
- */
+/** `/bin/echo` stands in for python: the file-only verbs never run it, but the gate checks it is on disk. */
 async function ready(python = "/bin/echo") {
   const checkout = root();
   const daemon = await startEngine({ models: stubModels, engineRoot: root(), embeddedWorker: true });
@@ -73,11 +44,9 @@ const generic = <T,>(client: EngineClient, method: string, body?: unknown) => cl
 
 type NotebookRead = { path: string; cells: Array<{ id: string; cellType: string; source: string; executionCount?: number | null }> };
 
-test("the plugin claims the notebook prefix AND routes every notebook verb", () => {
-  // The manifest said `notebook` was this plugin's; the route table did not.
-  // Both halves, asserted together, because it was their disagreement that
-  // broke a live session.
-  expect(dataScienceMeta.toolPrefixes).toContain("notebook");
+test("the manifest claims the notebook prefix and routes every notebook verb", () => {
+  expect(manifestToolPrefixes(dataSciencePlugin.manifest)).toContain("notebook");
+  expect(dataSciencePlugin.manifest.routes?.session).toEqual(expect.arrayContaining(["notebook/read", "notebook/edit", "notebook/run"]));
 });
 
 test("notebook/edit creates a notebook and notebook/read reads it back — the verbs that 404'd", async () => {

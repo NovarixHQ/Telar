@@ -18,16 +18,17 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import { canonicalToolName, PluginManifest, TELAR_MCP_SERVER } from "@telar/engine-client";
 import { codexApprovalRequest, MCP_ELICITATION } from "../../drivers/codex";
 import { requestKindForTool, setPluginReadTools } from "../../drivers/claude";
-import { HOST_RATIFIED_READ_TOOLS, ratifiedReadTools } from "./policy";
+import { ratifiedReadTools } from "./policy";
+import { dataSciencePlugin } from "../../../plugins/data-science";
 import { latexPlugin } from "../../../plugins/latex";
 import { manifestMeta } from "./manifest";
 
 const latexManifest = PluginManifest.parse(latexPlugin.manifest);
 const latexMeta = manifestMeta(latexManifest);
-
+const dataScienceMeta = manifestMeta(PluginManifest.parse(dataSciencePlugin.manifest));
 
 /** What the daemon installs after the host ratifies. */
-const installed = Object.values(HOST_RATIFIED_READ_TOOLS).flat();
+const installed = ratifiedReadTools({ meta: dataScienceMeta });
 
 beforeEach(() => setPluginReadTools(installed));
 afterEach(() => setPluginReadTools([]));
@@ -85,23 +86,21 @@ test("the host can only NARROW — installing a smaller set removes plugin reads
   expect(codex("ds_kernel")).toBe("tool_call");
 });
 
-test("a manifest cannot promote its own tool — the host's table is the authority", () => {
-  // LaTeX's manifest claims nothing, and the host has ratified nothing for it,
-  // so every `latex_*` tool asks. A manifest that CLAIMED them would still get
-  // this answer: `ratifiedReadTools` intersects the claim with the host table.
-  expect(ratifiedReadTools(latexMeta)).toEqual([]);
+test("a bundled plugin's read-only tools are ratified, and only those", () => {
+  expect(ratifiedReadTools({ meta: dataScienceMeta }).sort()).toEqual(["ds_kernel", "ds_packages"]);
+  expect(ratifiedReadTools({ meta: latexMeta })).toEqual([]);
+});
+
+test("an installed plugin cannot promote its own tool", () => {
   const claiming = { ...latexMeta, readTools: ["latex_status", "latex_log"] };
-  expect(ratifiedReadTools(claiming)).toEqual([]);
+  expect(ratifiedReadTools({ meta: claiming, installed: {} })).toEqual([]);
   expect(claude("latex_status")).toBe("tool_call");
   expect(codex("latex_status")).toBe("tool_call");
 });
 
 test("a plugin may only be believed about its OWN namespace", () => {
-  // Without the namespace guard a plugin owning `hello` could claim `ds_kernel`
-  // — a name the host HAS ratified, just for somebody else — and the
-  // intersection alone would let it through.
   const impostor = { ...latexMeta, id: "hello", toolPrefixes: ["hello"], readTools: ["ds_kernel"] };
-  expect(ratifiedReadTools(impostor)).toEqual([]);
+  expect(ratifiedReadTools({ meta: impostor })).toEqual([]);
 });
 
 test("a user-configured server does not inherit Telar's posture", () => {

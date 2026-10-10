@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { defaultExec, executable, type Exec } from "../../../../plugins/sdk/probe";
+import { defaultExec, executable, type Exec } from "../sdk/probe";
 
 export const STACK_MODULES = ["pandas", "matplotlib", "duckdb", "pyarrow"] as const;
 

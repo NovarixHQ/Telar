@@ -49,14 +49,15 @@ test("Data Science's and LaTeX's Mac fields are published for the generated pane
   const { latexPlugin } = await import("../../../plugins/latex");
   const { PluginManifest } = await import("@telar/engine-client");
   const { modulePlugin } = await import("./module");
-  const { dataSciencePlugin } = await import("./data-science/plugin");
+  const { dataSciencePlugin } = await import("../../../plugins/data-science");
   const never = () => {
     throw new Error("not used");
   };
+  const deps = { session: never, sessionOf: never, project: never, host: {} as never, withProcesses: false };
   const host = new PluginHost(
     [
-      modulePlugin(latexPlugin, PluginManifest.parse(latexPlugin.manifest), { session: never, project: never, host: {} as never }),
-      dataSciencePlugin({ resolve: never, projectOf: () => undefined, settings: {} as never }),
+      modulePlugin(latexPlugin, PluginManifest.parse(latexPlugin.manifest), deps),
+      modulePlugin(dataSciencePlugin, PluginManifest.parse(dataSciencePlugin.manifest), deps),
     ],
     { daemonId: "d", stateDir: tempDir() },
   );

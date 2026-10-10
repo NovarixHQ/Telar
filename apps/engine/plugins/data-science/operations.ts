@@ -1,35 +1,26 @@
 import fs from "node:fs";
 import path from "node:path";
-import { machineSettings, type Project, type ProjectPlugins, type Session } from "@telar/engine-client";
-import { EngineStateError } from "../../../platform/kernel";
-import { ensureTelarGitignore } from "../../git";
-import type { ProjectPatch } from "../../projects";
-import { workspaceRootOf } from "../../sessions";
-import { dataScienceBlock, type PluginToolchains } from "../toolchains";
+import { PluginNotFoundError, type PluginHost, type PluginProject, type PluginSession } from "../sdk";
 import type { EnvironmentRow } from "./capability";
 import { discoverEnvironments, environmentId, environmentRootOf, type EnvManager, type PythonEnvironment } from "./environments";
-import type { JobRead, JobRunner } from "../../../../plugins/sdk/jobs";
+import type { JobRead, JobRunner } from "../sdk/jobs";
 import { canonicalName, declaredDependencies, type InstallCommand, installCommandFor, installSteps, listPackages, type PackageInfo, projectRequirements, removeSteps, type RequirementsSource, requirementsStep } from "./packages";
-import { DataScienceMachineSettings } from "./plugin";
+import { machineDefaults, projectSettings, type DataScienceSettings } from "./settings";
 import { preflightPython, type PythonPreflight, relativisePythonPath, resolvePythonPath } from "./python-env";
 import { type BootstrapRequest, type CreateEnvironmentRequest, planBootstrap, planEnvironment, telarVenvDir, telarVenvPython } from "./telar-venv";
-import type { Toolchain } from "./toolchain";
-import { adoptBinaryDir, findBinary } from "../../../../plugins/sdk/probe";
+import { toolchainStatus, type Toolchain } from "./toolchain";
+import { adoptBinaryDir, findBinary } from "../sdk/probe";
 
-export type DataScienceOpsHost = {
-  root: string;
-  now(): number;
-  getProject(projectId: string): Project;
-  updateProject(projectId: string, patch: ProjectPatch): unknown;
-  getSession(sessionId: string): Session;
-  restartKernel(sessionId: string): Promise<unknown>;
-  machinePlugins(): ProjectPlugins;
+const TOOLCHAIN_CACHE_MS = 5_000;
+
+export type DataScienceOpsHost = Pick<PluginHost, "engineRoot" | "now" | "project" | "writeProjectSettings" | "machineSettings" | "files"> & {
+  restartKernel(session: PluginSession): Promise<unknown>;
 };
 
 type ConfiguredEnvironment = { id: string; manager: EnvManager; root: string; python: string };
 
-function invalid(error: unknown): EngineStateError {
-  return new EngineStateError("invalid_request", error instanceof Error ? error.message : String(error));
+function invalid(error: unknown): Error {
+  return new Error(error instanceof Error ? error.message : String(error));
 }
 
 function environmentRow(env: PythonEnvironment, inUse: boolean): EnvironmentRow {
@@ -38,26 +29,36 @@ function environmentRow(env: PythonEnvironment, inUse: boolean): EnvironmentRow 
 
 /** The settings page's and the agent's environment and package operations; installs run as `jobs`. */
 export class DataScienceOps {
+  private toolchainCache?: { until: number; value: Promise<Toolchain> };
+
   constructor(
-    private readonly toolchains: PluginToolchains,
     private readonly jobs: JobRunner,
     private readonly host: DataScienceOpsHost,
   ) {}
 
+  /** uv, conda, Homebrew and the Pythons they see; cached briefly because each answer is several spawns. */
   toolchain(fresh = false): Promise<Toolchain> {
-    return this.toolchains.dataScienceToolchain(fresh);
+    if (!fresh && this.toolchainCache && this.host.now() < this.toolchainCache.until) return this.toolchainCache.value;
+    const value = toolchainStatus();
+    this.toolchainCache = { until: this.host.now() + TOOLCHAIN_CACHE_MS, value };
+    void value.catch(() => { this.toolchainCache = undefined; });
+    return value;
+  }
+
+  private settings(project: PluginProject): DataScienceSettings {
+    return projectSettings(project.settings);
   }
 
   /** Paths inside the checkout are stored relative, so a worktree session resolves `.venv/bin/python` against its own tree. */
   async environments(projectId: string, workspace?: string): Promise<{ toolchain: Toolchain; environments: (PythonEnvironment & { path: string })[]; requirements: RequirementsSource[]; declared?: string[]; currentId?: string }> {
-    const project = this.host.getProject(projectId);
+    const project = this.host.project(projectId);
     const base = workspace ?? project.root;
     const toolchain = await this.toolchain(true);
-    const telarVenv = telarVenvDir(this.host.root, projectId);
+    const telarVenv = telarVenvDir(this.host.engineRoot, projectId);
     const declared = declaredDependencies(base);
     const found = await discoverEnvironments(base, { toolchain, ...(telarVenvPython(telarVenv) ? { telarVenv } : {}), ...(declared.length ? { dists: declared } : {}) });
     const environments = found.map((env) => ({ ...env, path: relativisePythonPath(base, env.python) }));
-    const current = dataScienceBlock(project)?.python ? this.current(project, base) : undefined;
+    const current = this.settings(project).python ? this.current(project, base) : undefined;
     return { toolchain, environments, requirements: projectRequirements(base), ...(declared.length ? { declared } : {}), ...(current ? { currentId: current.id } : {}) };
   }
 
@@ -67,59 +68,53 @@ export class DataScienceOps {
   }
 
   /** Persists the choice on the project, then restarts the session's kernel into it. `target` is an id, name, root or interpreter path. */
-  async useEnvironment(sessionId: string, target: string): Promise<{ environments: EnvironmentRow[]; switched: string }> {
-    const session = this.host.getSession(sessionId);
-    if (!session.projectId) throw new EngineStateError("invalid_request", "this session has no project");
-    const workspace = workspaceRootOf(session);
+  async useEnvironment(session: PluginSession, target: string): Promise<{ environments: EnvironmentRow[]; switched: string }> {
+    const workspace = session.cwd;
     const { environments } = await this.environments(session.projectId, workspace);
     const match = environments.find((env) => env.id === target || env.name === target || env.root === target || env.python === target || env.path === target);
-    if (!match) throw new EngineStateError("invalid_request", `no environment matches "${target}" — the choices are ${environments.map((env) => `${env.name} (${env.id})`).join(", ") || "none"}`);
-    if (!match.preflight.ok) throw new EngineStateError("invalid_request", `${match.name} is unusable: ${match.preflight.reason}`);
-    this.host.updateProject(session.projectId, {
-      dataScience: {
-        enabled: true,
-        python: {
-          source: match.manager === "telar" ? "telar" : "chosen",
-          path: match.path,
-          resolvedAt: this.host.now(),
-          manager: match.manager,
-          root: relativisePythonPath(workspace, match.root),
-        },
-      },
-    });
-    await this.host.restartKernel(sessionId);
+    if (!match) throw new Error(`no environment matches "${target}" — the choices are ${environments.map((env) => `${env.name} (${env.id})`).join(", ") || "none"}`);
+    if (!match.preflight.ok) throw new Error(`${match.name} is unusable: ${match.preflight.reason}`);
+    const python = {
+      source: match.manager === "telar" ? ("telar" as const) : ("chosen" as const),
+      path: match.path,
+      resolvedAt: this.host.now(),
+      manager: match.manager,
+      root: relativisePythonPath(workspace, match.root),
+    };
+    this.host.writeProjectSettings(session.projectId, { ...this.settings(this.host.project(session.projectId)), python });
+    await this.host.restartKernel({ ...session, settings: { ...session.settings, python } });
     return { environments: environments.map((env) => environmentRow(env, env.id === match.id)), switched: match.name };
   }
 
   /** Older configs stored only the path; the manager is then read off the directory. */
-  private current(project: Project, workspace = project.root): ConfiguredEnvironment | undefined {
-    const config = dataScienceBlock(project)?.python;
+  private current(project: PluginProject, workspace = project.root): ConfiguredEnvironment | undefined {
+    const config = this.settings(project).python;
     if (!config) return undefined;
     const python = resolvePythonPath(workspace, config.path);
     if (!fs.existsSync(python)) return undefined;
     const detected = environmentRootOf(python);
     const root = config.root ? resolvePythonPath(workspace, config.root) : detected?.root ?? path.dirname(python);
-    const manager: EnvManager = config.manager ?? (root.startsWith(telarVenvDir(this.host.root, project.id)) ? "telar" : detected?.manager ?? "system");
+    const manager: EnvManager = config.manager ?? (root.startsWith(telarVenvDir(this.host.engineRoot, project.projectId)) ? "telar" : detected?.manager ?? "system");
     return { id: environmentId(root), manager, root, python };
   }
 
-  private requireCurrent(project: Project, workspace?: string): ConfiguredEnvironment {
+  private requireCurrent(project: PluginProject, workspace?: string): ConfiguredEnvironment {
     const env = this.current(project, workspace);
-    if (!env) throw new EngineStateError("invalid_request", "this project has no Python environment configured");
+    if (!env) throw new Error("this project has no Python environment configured");
     return env;
   }
 
   /** The Mac's default packages apply only to an environment Telar creates, never to one that already exists. */
   async createEnvironment(projectId: string, request: CreateEnvironmentRequest): Promise<{ jobId: string }> {
-    const project = this.host.getProject(projectId);
+    const project = this.host.project(projectId);
     const toolchain = await this.toolchain(true);
     let plan;
     try {
-      const defaults = DataScienceMachineSettings.safeParse(machineSettings(this.host.machinePlugins(), "data-science"));
+      const defaults = machineDefaults(this.host.machineSettings());
       plan = planEnvironment(request, toolchain, {
         projectRoot: project.root,
-        telarVenv: telarVenvDir(this.host.root, projectId),
-        ...(defaults.success && defaults.data.packages ? { defaultPackages: defaults.data.packages } : {}),
+        telarVenv: telarVenvDir(this.host.engineRoot, projectId),
+        ...(defaults.packages ? { defaultPackages: defaults.packages } : {}),
       });
     } catch (error) {
       throw invalid(error);
@@ -133,7 +128,7 @@ export class DataScienceOps {
         if (!fs.existsSync(python)) throw new Error("the environment was created but has no python executable");
         if (request.manager === "venv" && request.location === "project") {
           try {
-            ensureTelarGitignore(project.root, [{ rule: ".venv/", alreadyCovered: [".venv", "/.venv", "/.venv/", ".venv/"], why: "the Python environment uv created for this project" }]);
+            this.host.files.ignore(project.root, { rule: ".venv/", alreadyCovered: [".venv", "/.venv", "/.venv/", ".venv/"], why: "the Python environment uv created for this project" });
           } catch { /* not a repo, or unwritable — the venv still works */ }
         }
         const manager: EnvManager = request.manager === "venv" && request.location === "telar" ? "telar" : request.manager;
@@ -144,7 +139,7 @@ export class DataScienceOps {
 
   /** `direct` marks the packages the project declares, when it declares any. */
   async packages(projectId: string, workspace?: string): Promise<{ packages: (PackageInfo & { direct?: boolean })[]; environment: { manager: EnvManager; root: string; python: string; command: InstallCommand } }> {
-    const project = this.host.getProject(projectId);
+    const project = this.host.project(projectId);
     const root = workspace ?? project.root;
     const env = this.requireCurrent(project, workspace);
     const toolchain = await this.toolchain();
@@ -159,7 +154,7 @@ export class DataScienceOps {
 
   /** The manager's own tool does the work, so a conda env stays solvable. */
   async install(projectId: string, input: { add?: string[]; remove?: string[]; requirements?: RequirementsSource }, workspace?: string): Promise<{ jobId: string }> {
-    const project = this.host.getProject(projectId);
+    const project = this.host.project(projectId);
     const env = this.requireCurrent(project, workspace);
     const toolchain = await this.toolchain();
     const context = { root: workspace ?? project.root };
@@ -191,7 +186,7 @@ export class DataScienceOps {
       lock: `bootstrap:${request.what}`,
       steps: plan.steps,
       onDone: () => {
-        this.toolchains.forgetDataScienceToolchain();
+        this.toolchainCache = undefined;
         if (!expect) return {};
         const found = findBinary(expect);
         if (!found) throw new Error(`${expect} was installed but cannot be found — open a new terminal, check your PATH, then detect again`);
@@ -205,7 +200,7 @@ export class DataScienceOps {
     try {
       return this.jobs.read(jobId, after);
     } catch (error) {
-      throw new EngineStateError("not_found", error instanceof Error ? error.message : String(error));
+      throw new PluginNotFoundError(error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -215,7 +210,7 @@ export class DataScienceOps {
 
   /** Probes one interpreter a person typed or picked: a python binary, a venv or a conda env dir. */
   async probe(projectId: string, target: string): Promise<PythonPreflight & { relativePath?: string; root?: string; manager?: EnvManager }> {
-    const project = this.host.getProject(projectId);
+    const project = this.host.project(projectId);
     const resolved = resolvePythonPath(project.root, target.trim());
     const python = telarVenvPython(resolved) ?? resolved;
     const probe = await preflightPython(python, undefined, undefined, declaredDependencies(project.root));

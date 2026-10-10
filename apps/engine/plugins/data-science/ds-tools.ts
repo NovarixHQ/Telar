@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { err, failure, json, ok, type ToolFactory } from "../../agent-tools";
+import { err, failure, json, ok, type ToolFactory } from "../sdk";
 import type { DsCapability } from "./capability";
 import { describeOutputs, PLOT_TITLE_PROBE } from "./outputs";
 

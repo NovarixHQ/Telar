@@ -131,8 +131,7 @@ const McpStatusUpdated = event("mcp.status.updated", {
   status: z.enum(["connecting", "ready", "failed", "disabled"]),
   message: z.string().optional(),
 });
-// ── data science: the session's kernel ─────────────────────────────────────
-/** The kernel process changed state. `dead` with a reason is how a crash is told. */
+// Data Science mirrors its `kernel.state` and `cell.output` plugin events here for released iOS builds; remove by 2027-01-01.
 const KernelStateChanged = event("kernel.state.changed", {
   state: z.enum(["starting", "idle", "busy", "restarting", "dead"]),
   reason: z.string().optional(),
@@ -140,15 +139,8 @@ const KernelStateChanged = event("kernel.state.changed", {
 const NotebookCellOutput = event("notebook.cell.output", {
   execId: z.string(),
   cellId: z.string().optional(),
-  /** What produced it: a notebook path, `ds_scratch`, `ds_plot`… */
   producer: z.string().optional(),
   output: z.unknown(),
-});
-/** A registered watch evaluated false after an execution. */
-const DsWatchViolated = event("ds.watch.violated", {
-  watch: z.string(),
-  assert: z.string(),
-  detail: z.string().optional(),
 });
 
 // ── plugins: a plugin's own events on a session, in one envelope ──────────
@@ -203,7 +195,6 @@ export const EngineEvent = z.discriminatedUnion("type", [
   McpStatusUpdated,
   KernelStateChanged,
   NotebookCellOutput,
-  DsWatchViolated,
   PluginEvent,
   RuntimeWarning,
   RuntimeError,

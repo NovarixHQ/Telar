@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { compareVersions, defaultExec, executable, findBinary, findBrew, toolVersion, type Exec, type ToolInfo } from "../../../../plugins/sdk/probe";
+import { compareVersions, defaultExec, executable, findBinary, findBrew, toolVersion, type Exec, type ToolInfo } from "../sdk/probe";
 type CondaInfo = ToolInfo & { flavour: "conda" | "mamba" | "micromamba" };
 
 export type PythonVersion = {

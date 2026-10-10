@@ -1,4 +1,4 @@
-import { registerPluginToolPrefixes } from "@telar/engine-client";
+import { manifestToolPrefixes, registerPluginToolPrefixes } from "@telar/engine-client";
 import { bundledModulePrefixes, pluginToolModules, setPluginToolModules } from "./bundled";
 import type { LoadedExternalPlugin, RefusedExternalPlugin } from "./external/manifest";
 import { manifestToolModule } from "./manifest";
@@ -22,7 +22,7 @@ export function installedPlugins(external: { loaded: LoadedExternalPlugin[]; ref
   const loaded = new Map(external.loaded.map((plugin) => [plugin.manifest.id, plugin]));
   const refused = new Map(external.refused.map((plugin) => [plugin.meta.id, plugin.dir]));
   const baseToolModules = pluginToolModules().filter((module) => !INSTALLED_TOOL_MODULES.has(module));
-  const prefixes = () => [...loaded.values()].flatMap((plugin) => (plugin.manifest.toolPrefix ? [plugin.manifest.toolPrefix] : []));
+  const prefixes = () => [...loaded.values()].flatMap((plugin) => manifestToolPrefixes(plugin.manifest));
   const sync = () => {
     registerPluginToolPrefixes([...bundledModulePrefixes(), ...prefixes()]);
     setPluginToolModules([...baseToolModules, ...[...loaded.values()].map(installedToolModule)]);

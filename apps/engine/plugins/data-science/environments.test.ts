@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { preflightPython, projectEnvSignals, relativisePythonPath, resolvePythonPath } from "./python-env";
-import type { Exec } from "../../../../plugins/sdk/probe";
+import type { Exec } from "../sdk/probe";
 import { telarVenvDir } from "./telar-venv";
 import { discoverEnvironments, environmentRootOf, isCondaEnv, isVenv } from "./environments";
 import type { Toolchain } from "./toolchain";

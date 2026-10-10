@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { latestKernelState } from "./ds";
 
-const state = (value: string) => ({ type: "kernel.state.changed", state: value });
+const state = (value: string) => ({ type: "plugin.event", pluginId: "data-science", name: "kernel.state", data: { state: value } });
 const other = (type: string) => ({ type });
 
 describe("latestKernelState", () => {

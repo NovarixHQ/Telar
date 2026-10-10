@@ -6,7 +6,7 @@ import { TECTONIC_PACKAGES_NOTE } from "./packages";
 
 type Registered = { name: string; run: (args: Record<string, unknown>) => Promise<{ content: unknown[]; isError?: boolean }> };
 
-const session = { sessionId: "session_one", projectId: "project_one", cwd: "/tmp", settings: {}, machine: {} } satisfies PluginSession;
+const session = { sessionId: "session_one", projectId: "project_one", cwd: "/tmp", stateDir: "/tmp/state", settings: {}, machine: {} } satisfies PluginSession;
 
 function build(capability: Partial<LatexCapability>): Registered[] {
   const refuse = async () => { throw new Error("not in this test"); };

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { atomicWrite } from "../../../platform/fs/atomic";
+import { atomicWrite } from "../sdk";
 
 export type Snapshot = { name: string; at: number; vars: Record<string, SnapshotVar> };
 export type SnapshotVar = {

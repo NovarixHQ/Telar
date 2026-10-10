@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { WorkspaceFile, WorkspaceWriteResult, TurnAttachment, EngineEvent } from "@telar/engine-client";
+import type { PluginEventNote, WorkspaceFile, WorkspaceWriteResult, TurnAttachment } from "@telar/engine-client";
 import type { DsCapability, EnvironmentRow, KernelStatus, NotebookEdit, NotebookRead, PackageRow, SnapshotDiff, VarRow } from "./capability";
 import type { KernelHost } from "./kernel-host";
 import { clearCellOutputs, emptyNotebook, findCell, fromNbOutputs, mintCellId, moveCell, parseNotebookText, serializeNotebook, toNbOutputs, type Notebook } from "./notebook-file";
@@ -11,9 +11,12 @@ import { namesIn, type DsFiles, type Snapshot, type SnapshotVar, type Watch } fr
 
 export const NOTEBOOK_MAX_BYTES = 32 * 1024 * 1024;
 
-type JournalEntry = Omit<Extract<EngineEvent, { type: "notebook.cell.output" }>, "id" | "at" | "sessionId" | "runId">
-  | Omit<Extract<EngineEvent, { type: "kernel.state.changed" }>, "id" | "at" | "sessionId" | "runId">
-  | Omit<Extract<EngineEvent, { type: "ds.watch.violated" }>, "id" | "at" | "sessionId" | "runId">;
+const OUTPUT_EVENT_MAX_CHARS = 48 * 1024;
+
+/** An output too large for an event carries only its kind; the notebook and the cell's answer keep the whole of it. */
+function outputEvent(output: CellOutput): { output: unknown } {
+  return { output: JSON.stringify(output).length <= OUTPUT_EVENT_MAX_CHARS ? output : { kind: output.kind, truncated: true } };
+}
 
 export type StoreDsDeps = {
   sessionId: string;
@@ -26,7 +29,8 @@ export type StoreDsDeps = {
   writeFile: (target: string, text: string, expected: string) => WorkspaceWriteResult;
   putAttachment: (input: { name: string; mediaType: string; data: Uint8Array; tags?: string[]; producer?: string }) => TurnAttachment;
   attachmentBytes: (id: string) => Uint8Array;
-  appendEvent: (event: JournalEntry) => void;
+  /** Best-effort: a session that can no longer take the event drops it. */
+  emit: (name: string, data: Record<string, unknown>, note?: PluginEventNote) => void;
   now: () => number;
   packages: () => Promise<{ packages: PackageRow[]; environment: { manager: string; root: string; python: string } }>;
   startInstall: (input: { add?: string[]; remove?: string[]; requirements?: string }) => Promise<{ jobId: string }>;
@@ -86,7 +90,10 @@ function storeDsCapabilityContext(deps: StoreDsDeps) {
     const producer = input.producer ?? input.cellId ?? "scratch";
     const names = namesIn(input.code);
     if (names.assigned.length || names.read.length) files.appendLineage({ at: deps.now(), producer, code: input.code.slice(0, 2000), assigned: names.assigned, read: names.read });
-    for (const output of result.outputs) deps.appendEvent({ type: "notebook.cell.output", execId: result.execId, ...(input.cellId ? { cellId: input.cellId } : {}), producer, output });
+    for (const output of result.outputs) {
+      const plot = output.kind === "image" && output.attachmentId ? { text: `Drew a figure — ${input.title ?? producer}`, attachmentId: output.attachmentId } : undefined;
+      deps.emit("cell.output", { execId: result.execId, ...(input.cellId ? { cellId: input.cellId } : {}), producer, ...outputEvent(output) }, plot);
+    }
     await evaluateWatches();
     return result;
   }
@@ -104,7 +111,10 @@ function storeDsCapabilityContext(deps: StoreDsDeps) {
       const watch = watches.find((w) => w.name === name);
       if (!watch) continue;
       watch.lastResult = { ok: okay, at, ...(detail ? { detail } : {}) };
-      if (!okay) deps.appendEvent({ type: "ds.watch.violated", watch: name, assert: watch.assert, ...(detail ? { detail } : {}) });
+      if (!okay) {
+        const text = `Watch "${name}" violated: ${watch.assert}${detail ? ` (${detail})` : ""}`;
+        deps.emit("watch.violated", { watch: name, assert: watch.assert, ...(detail ? { detail } : {}) }, { text: text.slice(0, 500), failed: true });
+      }
     }
     files.saveWatches(watches);
   }

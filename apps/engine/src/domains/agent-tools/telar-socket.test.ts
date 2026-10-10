@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { TELAR_MCP_SERVER, canonicalToolName, PluginManifest } from "@telar/engine-client";
 import { latexPlugin } from "../../../plugins/latex";
-import { dsTools, notebookTools } from "../plugins";
+import { dataSciencePlugin } from "../../../plugins/data-science";
 import { manifestToolModule } from "../plugins/manifest";
 import { displayTools } from "./display-tools";
 import { TelarToolSocket, collectTelarWall } from "./telar-socket";
@@ -12,6 +12,7 @@ afterEach(async () => {
 });
 
 const latexTools = manifestToolModule(PluginManifest.parse(latexPlugin.manifest)).tools;
+const dataScienceTools = manifestToolModule(PluginManifest.parse(dataSciencePlugin.manifest)).tools;
 
 /** What the engine's `tool` verb answers, marked so a test can tell two capabilities apart. */
 const latexLike = (mark: string, slow?: () => Promise<void>) => ({
@@ -50,11 +51,7 @@ test("the migrated toolkits collect under their SHIPPED names", async () => {
 });
 
 test("data science and notebook collect side by side, with no duplicate tool", async () => {
-  const ds = { packages: async () => ({ ok: true }) } as unknown as Parameters<typeof dsTools>[1];
-  const { lease } = await bound([
-    { name: "ds", build: dsTools, capability: () => ds },
-    { name: "notebook", build: notebookTools, capability: () => ds },
-  ]);
+  const { lease } = await bound([{ name: "data-science", build: dataScienceTools, capability: () => latexLike("ds") }]);
 
   const names = listed((await mcp(lease, "tools/list")).body);
   expect(names.some((name) => name.startsWith("ds_"))).toBe(true);

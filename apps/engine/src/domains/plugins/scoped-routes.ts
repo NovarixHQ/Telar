@@ -41,19 +41,9 @@ export function matchPluginRoute<Route>(
   return undefined;
 }
 
-export function requiredString(value: unknown, label: string): string {
-  if (typeof value !== "string") throw new PluginInputError(`${label} must be a string`);
-  return value;
-}
-
 export class PluginInputError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "PluginInputError";
   }
-}
-
-export function jobCursor(query: URLSearchParams): number {
-  const after = Number(query.get("after") ?? "0");
-  return Number.isFinite(after) ? after : 0;
 }

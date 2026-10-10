@@ -169,7 +169,7 @@ describe("the capability list", () => {
   test("the built-in capabilities, and none a manifest plugin declares for itself", () => {
     expect(TELAR_CAPABILITIES).not.toContain("spool");
     expect<string[]>([...TELAR_CAPABILITIES].sort()).toEqual(
-      ["browser", "sessions", "notebook", "ds", "display", "run", "terminal", "prompt", "simulator", "hello"].sort(),
+      ["browser", "sessions", "display", "run", "terminal", "prompt", "simulator", "hello"].sort(),
     );
   });
 

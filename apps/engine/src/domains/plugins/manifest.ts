@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PLUGIN_API_VERSION, type PluginManifest, type PluginMeta } from "@telar/engine-client";
+import { manifestToolPrefixes, PLUGIN_API_VERSION, type PluginManifest, type PluginMeta } from "@telar/engine-client";
 import { err, json, type ToolFactory } from "../agent-tools";
 import type { PluginToolModule } from "./tool-module";
 
@@ -14,10 +14,11 @@ export function manifestMeta(manifest: PluginManifest): PluginMeta {
     version: manifest.version,
     ...(manifest.description ? { blurb: manifest.description } : {}),
     ...(manifest.icon ? { icon: manifest.icon } : {}),
-    toolPrefixes: manifest.toolPrefix ? [manifest.toolPrefix] : [],
-    readTools: [],
+    toolPrefixes: manifestToolPrefixes(manifest),
+    readTools: manifest.tools.filter((tool) => tool.readOnly).map((tool) => tool.name),
     ...(manifest.briefing ? { briefing: manifest.briefing } : {}),
     eventKinds: manifest.eventKinds,
+    ...(manifest.sessionStateDir ? { sessionStateDir: manifest.sessionStateDir } : {}),
     ...(manifest.gitignore ? { gitignore: manifest.gitignore } : {}),
     ...(manifest.panels.length > 0 ? { panels: manifest.panels } : {}),
     ...(manifest.composer ? { composer: manifest.composer } : {}),

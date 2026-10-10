@@ -37,6 +37,9 @@ export type PluginEngineModule<Settings = unknown> = {
   machineRoutes?: PluginMachineRoutes;
   resolve?(sessionId: string): unknown;
   assets?(asset: string): string | undefined;
+  /** Whether a session can use the plugin now; a turn leaves out the tools of one that cannot. */
+  available?(sessionId: string): boolean;
+  processes?(): { key: string; pid?: number; startedAt: number; alive: boolean }[];
 };
 
 export type PluginRecord = {

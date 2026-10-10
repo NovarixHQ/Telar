@@ -1,3 +1,4 @@
+import { pluginEventsIn } from "@telar/engine-client";
 import { rewriteApiPath } from "@/platform/engine/host-client";
 
 type CellOutput =
@@ -11,12 +12,9 @@ type CellOutput =
 
 export type KernelState = "starting" | "idle" | "busy" | "restarting" | "dead" | "none";
 
-export function latestKernelState(events: readonly { type: string; state?: string }[]): KernelState | undefined {
-  let state: KernelState | undefined;
-  for (const event of events) {
-    if (event.type === "kernel.state.changed" && event.state) state = event.state as KernelState;
-  }
-  return state;
+export function latestKernelState(events: readonly { type: string }[]): KernelState | undefined {
+  const last = pluginEventsIn(events, "data-science", "kernel.state").at(-1);
+  return (last?.data as { state?: KernelState } | undefined)?.state;
 }
 
 export type ExecResult = {

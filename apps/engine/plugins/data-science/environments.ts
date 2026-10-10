@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { preflightPython, projectEnvSignals, type PythonPreflight } from "./python-env";
-import { defaultExec, type Exec } from "../../../../plugins/sdk/probe";
+import { defaultExec, type Exec } from "../sdk/probe";
 import type { Toolchain } from "./toolchain";
 import { telarVenvPython } from "./telar-venv";
 

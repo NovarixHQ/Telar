@@ -2,8 +2,7 @@
  * DATA SCIENCE AND LATEX, REGISTERED THROUGH THE PLUGIN HOST — the invariants
  * that moving them off hand-written registration must not break.
  *
- *   names       every path offers exactly the tools the old hand-written
- *               registration offered (`dsTools` + `notebookTools`, `latexTools`),
+ *   names       every path offers exactly the tools each manifest declares,
  *               under the `telar` key, so `mcp__telar__ds_*` and every stored
  *               approval keep their identity
  *   disabled    a plugin the project did not enable contributes no tools
@@ -21,13 +20,11 @@ import { startEngine, type EngineDaemon } from "../../daemon";
 import { createClaudeDriver } from "../../drivers/claude";
 import type { DriverRun, TurnDriver } from "../../drivers";
 import { bundledPluginToolModules, pluginBriefings, setPluginToolModules } from "./bundled";
-import { dataScienceMeta } from "./data-science/plugin";
+import { dataSciencePlugin } from "../../../plugins/data-science";
 import { latexPlugin } from "../../../plugins/latex";
 import { manifestMeta, manifestToolModule } from "./manifest";
 
 import { driverBriefings } from "../../drivers/briefings";
-import { dsTools } from "./data-science/ds-tools";
-import { notebookTools } from "./data-science/notebook-tools";
 import type { ToolFactory } from "../agent-tools";
 import { TELAR_SKILL } from "../sessions";
 import { stubModels } from "../../../test/stub-models";
@@ -36,6 +33,8 @@ import { STUB_CAPABILITIES } from "../../../test/stub-driver";
 
 const latexManifest = PluginManifest.parse(latexPlugin.manifest);
 const latexMeta = manifestMeta(latexManifest);
+const dataScienceManifest = PluginManifest.parse(dataSciencePlugin.manifest);
+const dataScienceMeta = manifestMeta(dataScienceManifest);
 
 allowCliInThisFile();
 pinFakeClaudeInThisFile();
@@ -67,8 +66,7 @@ function namesOf(...builders: ((tool: ToolFactory, capability: never) => unknown
   return names.sort();
 }
 
-/** What the hand-written registration offered, before the move. */
-const DS_NAMES = namesOf(notebookTools, dsTools);
+const DS_NAMES = namesOf(manifestToolModule(dataScienceManifest).tools);
 const LATEX_NAMES = namesOf(manifestToolModule(latexManifest).tools);
 const PLUGIN_PREFIX = /^(ds|notebook|latex)_/;
 const pluginNames = (names: string[]) => names.filter((name) => PLUGIN_PREFIX.test(name)).sort();

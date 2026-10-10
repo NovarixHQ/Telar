@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test";
-import { assertTelarToolNames } from "@telar/engine-client";
+import { manifestToolPrefixes } from "@telar/engine-client";
+import { dataSciencePlugin } from ".";
 import type { DsCapability } from "./capability";
 import { dsTools } from "./ds-tools";
 import { notebookTools } from "./notebook-tools";
-import type { ToolFactory } from "../../agent-tools";
+import type { ToolFactory } from "../sdk";
 
 type Registered = { name: string; description: string; shape: Record<string, unknown>; run: (args: Record<string, unknown>) => Promise<{ content: unknown[]; isError?: boolean }> };
 
@@ -22,10 +23,12 @@ function build(capability: Partial<DsCapability>): Registered[] {
 
 const text = (r: { content: unknown[] }) => (r.content[0] as { text: string }).text;
 
-test("every notebook_* and ds_* tool carries a declared capability prefix", () => {
+test("every tool carries one of the manifest's prefixes, and the manifest declares every tool", () => {
   const names = build({}).map((t) => t.name);
   expect(names.length).toBeGreaterThan(15);
-  expect(() => assertTelarToolNames(names)).not.toThrow();
+  const prefixes = manifestToolPrefixes(dataSciencePlugin.manifest);
+  expect(names.filter((name) => !prefixes.some((prefix) => name.startsWith(`${prefix}_`)))).toEqual([]);
+  expect(dataSciencePlugin.manifest.tools?.map((tool) => tool.name)).toEqual(names);
   expect(names.some((n) => /accept|approve|merge/.test(n))).toBe(false);
 });
 

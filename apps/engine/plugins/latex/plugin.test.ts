@@ -99,13 +99,54 @@ test("the released door and the generic door answer alike, and refuse alike whil
   expect((await door(on.daemon, "plugins/latex/nosuchverb")).status).toBe(404);
 });
 
-test("a tool runs through the generic tool verb, and says why when there is no TeX", async () => {
-  const { daemon } = await ready({ enable: true });
+test("an agent compile that fails before TeX runs still lands in the panel and on the stream", async () => {
+  const { daemon } = await ready({ enable: true, tectonic: fakeTectonic() });
   const status = await door(daemon, "plugins/latex/tool", { name: "latex_status", arguments: {} });
   expect(status.body).toEqual({ content: [{ type: "text", text: "Nothing has been compiled in this session yet." }] });
-  const compile = await door(daemon, "plugins/latex/tool", { name: "latex_compile", arguments: {} });
+  const stream = await openSessionsStream(daemon);
+  const streamed = readFrames(stream.body!, 1, (frame) => frame.type === "plugin.event");
+  const compile = await door(daemon, "plugins/latex/tool", { name: "latex_compile", arguments: { path: "missing.tex" } });
   expect(compile.body.isError).toBe(true);
-  expect(JSON.stringify(compile.body.content)).toContain("no TeX toolchain");
+  expect((await streamed).map((frame) => [frame.name, (frame.data as { ok: boolean }).ok])).toEqual([["compile.finished", false]]);
+  const view = parsePluginPanelView((await door(daemon, "plugins/latex/panel")).body);
+  expect(view.blocks).toEqual(expect.arrayContaining([
+    { type: "status", text: "Failed · missing.tex", tone: "error" },
+    { type: "text", text: "missing.tex is not in this session's tree" },
+  ]));
+});
+
+function fakeTexLive(): string {
+  const bin = root();
+  fs.writeFileSync(path.join(bin, "pdflatex"), '#!/bin/sh\necho "pdfTeX 3.141592653-2.6-1.40.27 (TeX Live 2099)"\n', { mode: 0o755 });
+  fs.writeFileSync(
+    path.join(bin, "latexmk"),
+    '#!/bin/sh\n[ "$1" = "--version" ] && { echo "Latexmk, John Collins, Version 4.86"; exit 0; }\nfor arg; do case "$arg" in -outdir=*) out="${arg#-outdir=}";; *.tex) base=$(basename "$arg" .tex);; esac; done\nmkdir -p "$out"\necho "%PDF-1.5" > "$out/$base.pdf"\necho "Output written on $base.pdf" > "$out/$base.log"\n',
+    { mode: 0o755 },
+  );
+  return bin;
+}
+
+test("with no distribution chosen, an agent compile uses the detected TeX Live and the panel shows it", async () => {
+  const bin = fakeTexLive();
+  const previous = process.env.PATH;
+  process.env.PATH = `${bin}${path.delimiter}${previous ?? ""}`;
+  try {
+    const { daemon, client, checkout } = await ready();
+    await client.updateProject("project_one", { plugins: { latex: { enabled: true, settings: { mainFile: "main.tex" } } } });
+    const compiled = await door(daemon, "plugins/latex/tool", { name: "latex_compile", arguments: {} });
+    expect(compiled.body.isError).toBeUndefined();
+    expect(JSON.stringify(compiled.body.content)).toContain("Compiled main.tex → main.pdf");
+    expect(fs.existsSync(path.join(checkout, "main.pdf"))).toBe(true);
+    const view = parsePluginPanelView((await door(daemon, "plugins/latex/panel")).body);
+    expect(view.blocks).toEqual(expect.arrayContaining([
+      { type: "status", text: "Compiled · main.tex", tone: "ok" },
+      { type: "file", label: "Open PDF", path: "main.pdf" },
+    ]));
+    const settings = parsePluginPanelView((await call(daemon, "GET", "/v2/projects/project_one/plugins/latex/settings")).body);
+    expect(settings.blocks).toContainEqual(expect.objectContaining({ type: "option", title: "Inherit (TeX Live 2099)", selected: true }));
+  } finally {
+    process.env.PATH = previous;
+  }
 });
 
 test("a compile emits its events to the journal and the stream, and the panel view shows the result", async () => {

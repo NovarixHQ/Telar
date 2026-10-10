@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { LatexMachineSettingsWrite, resolveLatex } from "./settings";
+import { LatexMachineSettingsWrite, resolveDetected, resolveLatex } from "./settings";
 
 const ECHO = "/bin/echo";
 const LS = "/bin/ls";
@@ -28,6 +28,22 @@ test("the Mac's engine and auto-install reach the compile; a project's own engin
   expect(resolveLatex({}, machine, undefined)?.autoInstallPackages).toBeUndefined();
   expect(resolveLatex({}, { ...machine, autoInstallPackages: true }, undefined)?.autoInstallPackages).toBe(true);
   expect(resolveLatex({ toolchain: { kind: "texlive", path: ECHO, engine: "xelatex" } }, machine, undefined)).toMatchObject({ engine: "xelatex" });
+});
+
+const mactex = { binDir: "/Library/TeX/texbin", flavour: "mactex" as const, year: "2026", latexmk: { path: "/Library/TeX/texbin/latexmk", version: "4.86" } };
+const tectonic = { path: "/opt/homebrew/bin/tectonic", version: "0.15.0" };
+
+test("with nothing chosen, the newest detected TeX Live with latexmk compiles, then a detected Tectonic", () => {
+  const machine = { engine: "lualatex" as const, autoInstallPackages: true };
+  expect(resolveDetected({ mainFile: "paper.tex" }, machine, { texlive: [mactex], tectonic })).toEqual({
+    kind: "texlive",
+    binPath: "/Library/TeX/texbin",
+    engine: "lualatex",
+    mainFile: "paper.tex",
+    autoInstallPackages: true,
+  });
+  expect(resolveDetected({}, {}, { texlive: [{ ...mactex, latexmk: undefined }], tectonic })).toEqual({ kind: "tectonic", binPath: tectonic.path });
+  expect(resolveDetected({}, {}, { texlive: [] })).toBeUndefined();
 });
 
 test("only `managed` may omit a path in a machine default, and project fields are refused there", () => {

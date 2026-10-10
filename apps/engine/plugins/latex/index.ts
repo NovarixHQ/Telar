@@ -4,9 +4,9 @@ import { JobRunner } from "../sdk/jobs";
 import type { BundledPlugin, PluginEngine, PluginHost, PluginProject, PluginSession } from "../sdk";
 import { LATEX_AUX_DIR } from "./compile";
 import { latexComposer, texFromWords } from "./composer";
-import { LatexEngine, LatexMachineSettingsWrite, LatexSettings, machineSettings, projectSettings, resolveLatex } from "./settings";
+import { LatexEngine, LatexMachineSettingsWrite, LatexSettings, machineSettings, projectSettings, resolveDetected, resolveLatex } from "./settings";
 import { LatexSetup, mainFileCandidates } from "./setup";
-import { storeLatexCapability } from "./store-capability";
+import { recordingFailures, storeLatexCapability, type StoreLatexDeps } from "./store-capability";
 import { latexToolDeclarations, latexToolHandlers } from "./tools";
 import type { CompileStatus, LatexCapability } from "./types";
 import { compileView, machineView, projectView } from "./views";
@@ -23,25 +23,24 @@ function latexEngine(host: PluginHost): PluginEngine {
   const setup = new LatexSetup(jobs, () => host.now(), host.engineRoot);
   const compiles = new Map<string, CompileStatus>();
 
-  const capability = (session: PluginSession): LatexCapability => {
-    const resolved = resolveLatex(projectSettings(session.settings), machineSettings(session.machine), setup.managed.found()?.path);
+  const capability = async (session: PluginSession): Promise<LatexCapability> => {
+    const project = projectSettings(session.settings);
+    const machine = machineSettings(session.machine);
+    const resolved = resolveLatex(project, machine, setup.managed.found()?.path) ?? resolveDetected(project, machine, await setup.toolchain());
+    const recorded = {
+      emit: (event: Parameters<StoreLatexDeps["emit"]>[0]) => host.emit({ scope: "session", sessionId: session.sessionId, ...event }),
+      now: () => host.now(),
+      lastCompile: { get: () => compiles.get(session.sessionId), set: (status: CompileStatus) => void compiles.set(session.sessionId, status) },
+      mainFile: project.mainFile,
+    };
     if (!resolved) {
       const refuse = async (): Promise<never> => {
         throw new Error("LaTeX has no TeX toolchain on this computer: choose one in the project's LaTeX settings, or install Telar's own under Settings → Plugins");
       };
       const status = async () => compiles.get(session.sessionId) ?? { status: "never" as const };
-      return { toolchain: refuse, compile: refuse, status, log: refuse, packages: refuse, install: refuse, clean: refuse };
+      return recordingFailures({ toolchain: refuse, compile: refuse, status, log: refuse, packages: refuse, install: refuse, clean: refuse }, recorded);
     }
-    return storeLatexCapability({
-      sessionId: session.sessionId,
-      cwd: session.cwd,
-      resolved,
-      toolchain: () => setup.toolchain(),
-      jobs,
-      emit: (event) => host.emit({ scope: "session", sessionId: session.sessionId, ...event }),
-      now: () => host.now(),
-      lastCompile: { get: () => compiles.get(session.sessionId), set: (status) => void compiles.set(session.sessionId, status) },
-    });
+    return recordingFailures(storeLatexCapability({ sessionId: session.sessionId, cwd: session.cwd, resolved, toolchain: () => setup.toolchain(), jobs, ...recorded }), recorded);
   };
 
   const writeProject = (project: PluginProject, patch: Partial<LatexSettings>) => {
@@ -53,22 +52,22 @@ function latexEngine(host: PluginHost): PluginEngine {
   return {
     tools: latexToolHandlers(capability),
     session: {
-      toolchain: (_input, session) => capability(session).toolchain(),
-      compile: (input, session) =>
-        capability(session).compile({
+      toolchain: async (_input, session) => (await capability(session)).toolchain(),
+      compile: async (input, session) =>
+        (await capability(session)).compile({
           ...(typeof input.path === "string" && input.path.trim() ? { path: input.path.trim() } : {}),
           ...(typeof input.timeoutMs === "number" ? { timeoutMs: input.timeoutMs } : {}),
         }),
       status: async (_input, session) => compiles.get(session.sessionId) ?? { status: "never" as const },
-      log: (input, session) =>
-        capability(session).log({
+      log: async (input, session) =>
+        (await capability(session)).log({
           ...(typeof input.tail === "number" ? { tail: input.tail } : {}),
           ...(typeof input.around === "number" ? { around: input.around } : {}),
           ...(typeof input.find === "string" ? { find: input.find } : {}),
         }),
-      packages: (_input, session) => capability(session).packages(),
-      install: (input, session) => capability(session).install({ ...(list(input.add) ? { add: list(input.add)! } : {}), ...(list(input.remove) ? { remove: list(input.remove)! } : {}) }),
-      clean: (input, session) => capability(session).clean(input.pdf === true ? { pdf: true } : {}),
+      packages: async (_input, session) => (await capability(session)).packages(),
+      install: async (input, session) => (await capability(session)).install({ ...(list(input.add) ? { add: list(input.add)! } : {}), ...(list(input.remove) ? { remove: list(input.remove)! } : {}) }),
+      clean: async (input, session) => (await capability(session)).clean(input.pdf === true ? { pdf: true } : {}),
       panel: (_input, session) => compileView(compiles.get(session.sessionId) ?? { status: "never" }, projectSettings(session.settings).mainFile),
       tex: (input) => texFromWords(host, input),
     },

@@ -117,6 +117,7 @@ function storeLatexCapabilityContext(deps: StoreLatexDeps) {
       ...(pdfPath ? { pdfPath } : {}),
       diagnostics,
       logTail,
+      ...(read.error ? { error: read.error } : {}),
       jobId,
       startedAt,
       finishedAt,
@@ -135,6 +136,28 @@ function storeLatexCapabilityContext(deps: StoreLatexDeps) {
     return { ok, path: plan.mainFile, ...(pdfPath ? { pdfPath } : {}), diagnostics, logTail, ...(read.error ? { error: read.error } : {}) };
   }
   return { deps, sessionId, cwd, resolved, jobs, runOnce, installMissing, compile };
+}
+
+export function recordingFailures(
+  capability: LatexCapability,
+  deps: Pick<StoreLatexDeps, "emit" | "now" | "lastCompile"> & { mainFile: string | undefined },
+): LatexCapability {
+  return {
+    ...capability,
+    compile: (input) =>
+      capability.compile(input).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const target = input?.path ?? deps.mainFile ?? "";
+        const at = deps.now();
+        deps.lastCompile.set({ status: "failed", path: target, diagnostics: [], logTail: [], error: message, startedAt: at, finishedAt: at });
+        deps.emit({
+          name: "compile.finished",
+          data: { path: target, ok: false, errors: 0, warnings: 0, firstError: message },
+          note: { text: `Compile${target ? ` of ${target}` : ""} failed — ${message}`, failed: true },
+        });
+        throw error;
+      }),
+  };
 }
 
 export function storeLatexCapability(deps: StoreLatexDeps): LatexCapability {

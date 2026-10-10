@@ -10,8 +10,8 @@ const session = { sessionId: "session_one", projectId: "project_one", cwd: "/tmp
 
 function build(capability: Partial<LatexCapability>): Registered[] {
   const refuse = async () => { throw new Error("not in this test"); };
-  const full = new Proxy({} as LatexCapability, { get: (_, prop) => (capability as Record<string | symbol, unknown>)[prop] ?? refuse });
-  return Object.entries(latexToolHandlers(() => full)).map(([name, handler]) => ({ name, run: (args) => handler(args, session) }));
+  const full = new Proxy({} as LatexCapability, { get: (_, prop) => (prop === "then" ? undefined : (capability as Record<string | symbol, unknown>)[prop] ?? refuse) });
+  return Object.entries(latexToolHandlers(async () => full)).map(([name, handler]) => ({ name, run: (args) => handler(args, session) }));
 }
 
 const text = (r: { content: unknown[] }) => (r.content[0] as { text: string }).text;

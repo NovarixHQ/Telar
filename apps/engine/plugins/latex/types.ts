@@ -21,7 +21,8 @@ export type CompileStatus = {
   pdfPath?: string;
   diagnostics: LatexDiagnostic[];
   logTail: string[];
-  jobId: string;
+  error?: string;
+  jobId?: string;
   startedAt: number;
   finishedAt?: number;
 };

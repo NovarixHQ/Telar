@@ -73,10 +73,10 @@ test("the DS alias answers, and the arm beside it still does", async () => {
   await submitTurnStillWorks(client, "run_after_ds");
 });
 
-test("the LaTeX alias answers, and the arm beside it still does", async () => {
+test("LaTeX's session door answers, and the arm beside it still does", async () => {
   const { client } = await ready();
 
-  const refused = await client.latex("session_one", "status", {}).catch((error: EngineClientError) => error);
+  const refused = await client.plugin("session_one", "latex", "status", {}).catch((error: EngineClientError) => error);
   expect((refused as EngineClientError).status).toBe(400);
   expect((refused as EngineClientError).message).toMatch(/not enabled|needs a project/i);
 
@@ -148,7 +148,6 @@ test("every migrated door is reachable in ONE session, in sequence", async () =>
 
   await expect(client.runConfigurations("session_one")).resolves.toMatchObject({ configurations: [] });
   await expect(client.ds("session_one", "kernel", {})).rejects.toMatchObject({ status: 400 });
-  await expect(client.latex("session_one", "status", {})).rejects.toMatchObject({ status: 400 });
   await expect(client.plugin("session_one", "latex", "status", {})).rejects.toMatchObject({ status: 400 });
   await submitTurnStillWorks(client, "run_sequence");
   // …and the plugin health document still reports both migrated plugins ready.

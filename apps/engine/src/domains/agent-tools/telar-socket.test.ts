@@ -1,6 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
-import { TELAR_MCP_SERVER, assertTelarToolNames, canonicalToolName } from "@telar/engine-client";
-import { dsTools, latexTools, notebookTools } from "../plugins";
+import { TELAR_MCP_SERVER, canonicalToolName, PluginManifest } from "@telar/engine-client";
+import { latexPlugin } from "../../../plugins/latex";
+import { dsTools, notebookTools } from "../plugins";
+import { manifestToolModule } from "../plugins/manifest";
 import { displayTools } from "./display-tools";
 import { TelarToolSocket, collectTelarWall } from "./telar-socket";
 
@@ -9,14 +11,14 @@ afterEach(async () => {
   for (const socket of sockets.splice(0)) await socket.close();
 });
 
-const latexLike = (mark: string) => ({
-  toolchain: async () => ({ mark }),
-  status: async () => ({ status: "never", mark }),
-  compile: async () => ({ ok: true, path: `${mark}.tex`, pdfPath: `${mark}.pdf`, diagnostics: [], logTail: [] }),
-  log: async () => ({ lines: [mark] }),
-  packages: async () => ({ mark }),
-  install: async () => ({ ok: true, lines: [mark] }),
-  clean: async () => ({ removed: [mark] }),
+const latexTools = manifestToolModule(PluginManifest.parse(latexPlugin.manifest)).tools;
+
+/** What the engine's `tool` verb answers, marked so a test can tell two capabilities apart. */
+const latexLike = (mark: string, slow?: () => Promise<void>) => ({
+  call: async () => {
+    await slow?.();
+    return { content: [{ type: "text", text: mark }] };
+  },
 });
 
 async function bound(parts: Parameters<typeof collectTelarWall>[0]) {
@@ -45,7 +47,6 @@ test("the migrated toolkits collect under their SHIPPED names", async () => {
   expect(names).toContain("latex_compile");
   expect(names).toContain("latex_status");
   expect(canonicalToolName(TELAR_MCP_SERVER, "latex_compile")).toBe("mcp__telar__latex_compile");
-  expect(() => assertTelarToolNames(names)).not.toThrow();
 });
 
 test("data science and notebook collect side by side, with no duplicate tool", async () => {
@@ -59,7 +60,6 @@ test("data science and notebook collect side by side, with no duplicate tool", a
   expect(names.some((name) => name.startsWith("ds_"))).toBe(true);
   expect(names.some((name) => name.startsWith("notebook_"))).toBe(true);
   expect(new Set(names).size).toBe(names.length);
-  expect(() => assertTelarToolNames(names)).not.toThrow();
 });
 
 test("a capability the turn does not carry contributes NO tools", async () => {
@@ -156,14 +156,10 @@ test("an in-flight call finishes against the capability it STARTED with", async 
   let entered!: () => void;
   const gate = new Promise<void>((resolve) => (released = resolve));
   const started = new Promise<void>((resolve) => (entered = resolve));
-  let current: unknown = {
-    ...latexLike("first"),
-    log: async () => {
-      entered();
-      await gate;
-      return { lines: ["first"] };
-    },
-  };
+  let current: unknown = latexLike("first", async () => {
+    entered();
+    await gate;
+  });
   const { lease } = await bound([{ name: "latex", build: latexTools, capability: () => current }]);
 
   const inFlight = mcp(lease, "tools/call", { name: "latex_log", arguments: {} });

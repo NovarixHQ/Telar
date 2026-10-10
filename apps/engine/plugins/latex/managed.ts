@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import type { ToolInfo } from "../data-science/toolchain";
+import type { ToolInfo } from "../sdk/probe";
 
 export const MANAGED_TECTONIC_VERSION = "0.17.0";
 

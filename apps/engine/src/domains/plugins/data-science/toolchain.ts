@@ -1,9 +1,6 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { defaultExec, type Exec } from "./python-env";
-
-export type ToolInfo = { path: string; version: string };
+import { compareVersions, defaultExec, executable, findBinary, findBrew, toolVersion, type Exec, type ToolInfo } from "../../../../plugins/sdk/probe";
 type CondaInfo = ToolInfo & { flavour: "conda" | "mamba" | "micromamba" };
 
 export type PythonVersion = {
@@ -21,64 +18,10 @@ export type Toolchain = {
   pythons: PythonVersion[];
 };
 
-const home = () => os.homedir();
-
-const FALLBACK_DIRS: Record<string, () => string[]> = {
-  uv: () => [path.join(home(), ".local", "bin"), path.join(home(), ".cargo", "bin"), "/opt/homebrew/bin", "/usr/local/bin"],
-  brew: () => ["/opt/homebrew/bin", "/usr/local/bin", "/home/linuxbrew/.linuxbrew/bin"],
-  conda: () => [
-    path.join(home(), "miniforge3", "bin"),
-    path.join(home(), "miniconda3", "bin"),
-    path.join(home(), "anaconda3", "bin"),
-    path.join(home(), "mambaforge", "bin"),
-    "/opt/homebrew/Caskroom/miniforge/base/bin",
-    "/opt/homebrew/Caskroom/miniconda/base/bin",
-    "/opt/miniconda3/bin",
-    "/opt/anaconda3/bin",
-    "/usr/local/Caskroom/miniforge/base/bin",
-  ],
-  micromamba: () => [path.join(home(), ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin"],
-};
-
-function executable(file: string): boolean {
-  try {
-    fs.accessSync(file, fs.constants.X_OK);
-    return fs.statSync(file).isFile();
-  } catch {
-    return false;
-  }
-}
-
-export function findBinary(name: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  for (const dir of (env.PATH ?? "").split(path.delimiter).filter(Boolean)) {
-    const candidate = path.join(dir, name);
-    if (executable(candidate)) return candidate;
-  }
-  for (const dir of FALLBACK_DIRS[name]?.() ?? []) {
-    const candidate = path.join(dir, name);
-    if (executable(candidate)) return candidate;
-  }
-  return undefined;
-}
-
-async function version(exec: Exec, file: string, args: string[] = ["--version"]): Promise<string | undefined> {
-  const result = await exec(file, args, { timeoutMs: 10_000 }).catch(() => undefined);
-  if (!result || result.status !== 0) return undefined;
-  const match = /(\d+\.\d+(?:\.\d+)?)/.exec(result.stdout || result.stderr);
-  return match?.[1];
-}
-
 async function findUv(exec: Exec = defaultExec, env = process.env): Promise<ToolInfo | undefined> {
   const file = findBinary("uv", env);
   if (!file) return undefined;
-  const found = await version(exec, file);
-  return found ? { path: file, version: found } : undefined;
-}
-
-export async function findBrew(exec: Exec = defaultExec, env = process.env): Promise<ToolInfo | undefined> {
-  const file = findBinary("brew", env);
-  if (!file) return undefined;
-  const found = await version(exec, file);
+  const found = await toolVersion(exec, file);
   return found ? { path: file, version: found } : undefined;
 }
 
@@ -86,7 +29,7 @@ async function findConda(exec: Exec = defaultExec, env = process.env): Promise<C
   for (const flavour of ["conda", "mamba", "micromamba"] as const) {
     const file = findBinary(flavour, env);
     if (!file) continue;
-    const found = await version(exec, file);
+    const found = await toolVersion(exec, file);
     if (found) return { path: file, version: found, flavour };
   }
   return undefined;
@@ -145,27 +88,8 @@ export function scanPathPythons(env: NodeJS.ProcessEnv = process.env): PythonVer
   return [...found.values()].sort((a, b) => compareVersions(b.version, a.version));
 }
 
-export function compareVersions(a: string, b: string): number {
-  const pa = a.split(/[.\-+]/).map((p) => Number.parseInt(p, 10));
-  const pb = b.split(/[.\-+]/).map((p) => Number.parseInt(p, 10));
-  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
-    const x = pa[i] ?? 0;
-    const y = pb[i] ?? 0;
-    if (Number.isNaN(x) || Number.isNaN(y)) continue;
-    if (x !== y) return x - y;
-  }
-  return 0;
-}
-
 export async function toolchainStatus(exec: Exec = defaultExec, env = process.env): Promise<Toolchain> {
   const [uv, conda, brew] = await Promise.all([findUv(exec, env), findConda(exec, env), findBrew(exec, env)]);
   const pythons = uv ? await listPythons(uv.path, exec) : scanPathPythons(env);
   return { ...(uv ? { uv } : {}), ...(conda ? { conda } : {}), ...(brew ? { brew } : {}), pythons };
-}
-
-export function adoptBinaryDir(file: string, env: NodeJS.ProcessEnv = process.env): void {
-  const dir = path.dirname(file);
-  const entries = (env.PATH ?? "").split(path.delimiter).filter(Boolean);
-  if (entries.includes(dir)) return;
-  env.PATH = [dir, ...entries].join(path.delimiter);
 }

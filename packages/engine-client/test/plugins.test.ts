@@ -13,7 +13,7 @@ import {
   ProjectPlugins,
   readProjectPlugins,
 } from "../src/plugins/schema";
-import { TELAR_CAPABILITIES, parseToolName } from "../src/protocol/tools";
+import { TELAR_CAPABILITIES, parseToolName, registerPluginToolPrefixes } from "../src/protocol/tools";
 
 const latexLegacy = { enabled: true, mainFile: "paper.tex", toolchain: { kind: "tectonic" } };
 const dsLegacy = { enabled: true, stack: ["pandas"] };
@@ -166,22 +166,18 @@ describe("patching", () => {
 });
 
 describe("the capability list", () => {
-  test("MOVING THE PLUGIN PREFIXES OUT OF `TELAR_CAPABILITIES` TOOK NOTHING AWAY", () => {
-    for (const capability of ["browser", "sessions", "notebook", "ds", "latex", "display"] as const) {
-      expect(TELAR_CAPABILITIES).toContain(capability);
-    }
+  test("the built-in capabilities, and none a manifest plugin declares for itself", () => {
     expect(TELAR_CAPABILITIES).not.toContain("spool");
     expect<string[]>([...TELAR_CAPABILITIES].sort()).toEqual(
-      ["browser", "sessions", "notebook", "ds", "latex", "display", "run", "terminal", "prompt", "simulator", "hello"].sort(),
+      ["browser", "sessions", "notebook", "ds", "display", "run", "terminal", "prompt", "simulator", "hello"].sort(),
     );
   });
 
-  test("a plugin tool still parses to its capability", () => {
-    expect(parseToolName("mcp__telar__latex_compile")).toEqual({
-      server: "telar",
-      tool: "latex_compile",
-      capability: "latex",
-    });
+  test("a manifest plugin's tool parses to its capability once its prefix is registered", () => {
+    expect(parseToolName("mcp__telar__latex_compile").capability).toBeUndefined();
+    registerPluginToolPrefixes(["latex"]);
+    expect(parseToolName("mcp__telar__latex_compile")).toEqual({ server: "telar", tool: "latex_compile", capability: "latex" });
+    registerPluginToolPrefixes([]);
   });
 });
 

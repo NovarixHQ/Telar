@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { defaultExec, type Exec } from "../data-science/python-env";
-import { compareVersions, findBrew, type ToolInfo } from "../data-science/toolchain";
+import { defaultExec, type Exec } from "../sdk/probe";
+import { compareVersions, findBrew, type ToolInfo } from "../sdk/probe";
 
 type TexliveFlavour = "mactex" | "tinytex" | "texlive";
 

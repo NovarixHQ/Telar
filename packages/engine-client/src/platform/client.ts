@@ -51,10 +51,6 @@ export class EngineClient implements EngineTransport {
     return this.request("POST", `${sessionPath(sessionId)}/ds/${method}`, body ?? {});
   }
 
-  latex<T>(sessionId: string, method: string, body?: unknown): Promise<T> {
-    return this.request("POST", `${sessionPath(sessionId)}/latex/${method}`, body ?? {});
-  }
-
   plugin<T>(sessionId: string, pluginId: string, method: string, body?: unknown): Promise<T> {
     return this.request("POST", `${sessionPath(sessionId)}/plugins/${pluginId}/${method}`, body ?? {});
   }

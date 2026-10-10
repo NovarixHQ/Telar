@@ -1,6 +1,6 @@
 import type { EngineTransport } from "../platform/transport";
 import type { PluginInstallInput, PluginStatus, ProjectPlugins } from "./schema";
-import type { DataScienceBootstrap, DataScienceCreateEnvironment, DataScienceEnvironments, DataScienceInstallCommand, DataScienceJob, DataScienceManager, DataSciencePackage, DataSciencePreflight, DataScienceRequirementsSource, DataScienceToolchain, LatexBootstrap, LatexDistributions, LatexJob, LatexPackagesAnswer, LatexToolchain, ManagedTectonic } from "./toolchains";
+import type { DataScienceBootstrap, DataScienceCreateEnvironment, DataScienceEnvironments, DataScienceInstallCommand, DataScienceJob, DataScienceManager, DataSciencePackage, DataSciencePreflight, DataScienceRequirementsSource, DataScienceToolchain } from "./toolchains";
 
 type JobStarted = Promise<{ jobId: string }>;
 type DataScienceInstalled = { packages: DataSciencePackage[]; environment: { manager: DataScienceManager; root: string; python: string; command: DataScienceInstallCommand } };
@@ -69,43 +69,5 @@ export const pluginsClient = {
     path: string,
   ): Promise<{ probe: DataSciencePreflight & { relativePath?: string; root?: string; manager?: DataScienceManager } }> {
     return this.request("POST", project(projectId, "data-science/probe"), { path });
-  },
-
-  /** Spawns `--version` probes: call it from a page, never a poll. */
-  latexDistributions(this: EngineTransport, projectId: string): Promise<LatexDistributions> {
-    return this.request("GET", project(projectId, "latex/distributions"));
-  },
-
-  latexPackages(this: EngineTransport, projectId: string): Promise<LatexPackagesAnswer> {
-    return this.request("GET", project(projectId, "latex/packages"));
-  },
-
-  /** Refused for tectonic projects. */
-  latexInstall(this: EngineTransport, projectId: string, input: { add?: string[]; remove?: string[] }): JobStarted {
-    return this.request("POST", project(projectId, "latex/packages"), input);
-  },
-
-  latexBootstrap(this: EngineTransport, request: LatexBootstrap): JobStarted {
-    return this.request("POST", "/v2/latex/bootstrap", request);
-  },
-
-  latexToolchain(this: EngineTransport, refresh = false): Promise<{ toolchain: LatexToolchain }> {
-    return this.request("GET", `/v2/latex/toolchain${fresh(refresh)}`);
-  },
-
-  managedTectonic(this: EngineTransport): Promise<{ managed: ManagedTectonic }> {
-    return this.request("GET", "/v2/latex/managed");
-  },
-
-  installManagedTectonic(this: EngineTransport): Promise<{ managed: ManagedTectonic }> {
-    return this.request("POST", "/v2/latex/managed", {});
-  },
-
-  latexJob(this: EngineTransport, jobId: string, after = 0): Promise<{ job: LatexJob }> {
-    return this.request("GET", `/v2/latex/jobs/${encodeURIComponent(jobId)}?after=${after}`);
-  },
-
-  latexCancelJob(this: EngineTransport, jobId: string): Promise<Record<string, never>> {
-    return this.request("DELETE", `/v2/latex/jobs/${encodeURIComponent(jobId)}`);
   },
 };

@@ -8,7 +8,7 @@ import { hydrateHostPath } from "../platform/process/host-path";
 import { isMcpBridgeProcess, runMcpBridge } from "../drivers/acp/mcp-bridge";
 import { TelarToolSocket } from "../domains/agent-tools";
 import { createLoginGrantStore } from "../domains/browser";
-import { bundledPluginToolModules, externalPluginsDir, externalToolModule, loadInstalledPlugins, setPluginToolModules } from "../domains/plugins";
+import { bundledModulePrefixes, bundledPluginToolModules, externalPluginsDir, installedToolModule, loadInstalledPlugins, setPluginToolModules } from "../domains/plugins";
 import { engineRootFromEnv } from "../platform/fs/engine-root";
 import { statePaths } from "../platform/fs/state-paths";
 import { EngineWorker, workerConcurrencyFromEnv } from ".";
@@ -26,8 +26,8 @@ if (!/^[A-Za-z0-9_-]+$/.test(workerId)) {
 
 const loadPluginTools = () => {
   const installed = loadInstalledPlugins(externalPluginsDir(root)).loaded;
-  registerPluginToolPrefixes(installed.flatMap((loaded) => (loaded.manifest.toolPrefix ? [loaded.manifest.toolPrefix] : [])));
-  setPluginToolModules([...bundledPluginToolModules(), ...installed.map(externalToolModule)]);
+  registerPluginToolPrefixes([...bundledModulePrefixes(), ...installed.flatMap((loaded) => (loaded.manifest.toolPrefix ? [loaded.manifest.toolPrefix] : []))]);
+  setPluginToolModules([...bundledPluginToolModules(), ...installed.map(installedToolModule)]);
 };
 loadPluginTools();
 

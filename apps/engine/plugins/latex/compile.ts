@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { JobStep } from "../data-science/jobs";
+import type { JobStep } from "../sdk/jobs";
 
 export const LATEX_AUX_DIR = ".telar/latex";
 

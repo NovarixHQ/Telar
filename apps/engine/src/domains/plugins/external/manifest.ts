@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { BUNDLED_PLUGIN_TOOL_PREFIXES, ExternalPluginManifest, PLUGIN_API_VERSION, PluginId, type PluginMeta } from "@telar/engine-client";
-import { BUNDLED_PLUGIN_IDS } from "../bundled";
+import { PLUGIN_API_VERSION, PluginId, PluginManifest, type PluginMeta } from "@telar/engine-client";
+import { bundledReservations } from "../bundled";
 
 const MANIFEST_FILE = "plugin.json";
 
-export type LoadedExternalPlugin = { dir: string; manifest: ExternalPluginManifest };
+export type LoadedExternalPlugin = { dir: string; manifest: PluginManifest & { command: string[] } };
 export type RefusedExternalPlugin = { dir: string; meta: PluginMeta; error: string };
 
 export function externalPluginsDir(engineRoot: string): string {
@@ -28,14 +28,14 @@ export function checkPluginFolder(
   folder: string,
   expectedId: string | undefined,
   reserved: Reservations,
-): { manifest: ExternalPluginManifest } | { error: string; name?: string } {
+): { manifest: LoadedExternalPlugin["manifest"] } | { error: string; name?: string } {
   let raw: unknown;
   try {
     raw = JSON.parse(fs.readFileSync(path.join(folder, MANIFEST_FILE), "utf8"));
   } catch (error) {
     return { error: `${MANIFEST_FILE}: ${error instanceof SyntaxError ? `not valid JSON (${error.message})` : "missing"}` };
   }
-  const parsed = ExternalPluginManifest.safeParse(raw);
+  const parsed = PluginManifest.safeParse(raw);
   if (!parsed.success) {
     const named = (raw as { name?: unknown } | null)?.name;
     return { error: `${MANIFEST_FILE}: ${describe(parsed.error)}`, ...(typeof named === "string" ? { name: named } : {}) };
@@ -47,9 +47,11 @@ export function checkPluginFolder(
   if (manifest.toolPrefix && reserved.prefixes.has(manifest.toolPrefix)) {
     return refuse(`tool prefix "${manifest.toolPrefix}" is already owned by another plugin`);
   }
-  const program = manifest.command[0]!;
+  const command = manifest.command;
+  if (!command) return refuse("command: a plugin folder names the program that runs it");
+  const program = command[0]!;
   if (program.startsWith("./") && !fs.existsSync(path.join(folder, program))) return refuse(`command "${program}" is not in the plugin's folder`);
-  return { manifest };
+  return { manifest: { ...manifest, command } };
 }
 
 function listedId(name: string): string {
@@ -97,7 +99,5 @@ function loadExternalPlugins(dir: string, reserved: Reservations): { loaded: Loa
 }
 
 export function loadInstalledPlugins(dir: string) {
-  return loadExternalPlugins(dir, BUNDLED_RESERVATIONS);
+  return loadExternalPlugins(dir, bundledReservations());
 }
-
-export const BUNDLED_RESERVATIONS: Reservations = { ids: new Set(BUNDLED_PLUGIN_IDS), prefixes: new Set(BUNDLED_PLUGIN_TOOL_PREFIXES) };

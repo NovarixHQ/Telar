@@ -20,7 +20,8 @@ import { EngineClient, parsePluginPanelView } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../../daemon";
 import { requestKindForTool } from "../../../drivers/claude";
 import { loadInstalledPlugins } from "./manifest";
-import { externalMeta, externalToolModule } from "./module";
+import { manifestMeta } from "../manifest";
+import { installedToolModule } from "../installed";
 import { ExternalPluginProcess, RESTART_BACKOFF_MS, type PluginChild, type PluginTimers } from "./process";
 import { pluginToolModules } from "../bundled";
 import { ratifiedReadTools } from "../policy";
@@ -287,7 +288,7 @@ describe("the daemon", () => {
     const { client, sessionId } = await ready(pluginsDir);
 
     // The worker's wall, built the way the worker builds it.
-    const module = externalToolModule(plugin);
+    const module = installedToolModule(plugin);
     const registered: { name: string; run: (args: Record<string, unknown>) => Promise<{ content: unknown[]; isError?: boolean }> }[] = [];
     const factory: ToolFactory = (name, _description, _shape, handler) => {
       registered.push({ name, run: handler });
@@ -432,7 +433,7 @@ describe("the example plugin", () => {
 
 describe("approval", () => {
   test("an external tool is never read-ratified, so it always parks a card", () => {
-    const meta = externalMeta({ ...ECHO_MANIFEST, routes: { session: [], project: [], machine: [] } } as never);
+    const meta = manifestMeta({ ...ECHO_MANIFEST, routes: { session: [], project: [], machine: [] } } as never);
     expect(meta.readTools).toEqual([]);
     expect(ratifiedReadTools({ ...meta, readTools: ["echo_say"] })).toEqual([]);
     expect(requestKindForTool("mcp__telar__echo_say")).toBe("tool_call");

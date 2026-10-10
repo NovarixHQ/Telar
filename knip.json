@@ -18,6 +18,7 @@
       ],
       "project": [
         "src/**/*.ts",
+        "plugins/**/*.ts",
         "bench/**/*.ts",
         "scripts/**/*.{ts,mjs}",
         "test/**/*.ts"

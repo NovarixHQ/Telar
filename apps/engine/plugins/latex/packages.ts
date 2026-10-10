@@ -1,6 +1,6 @@
-import type { LatexPackagesAnswer } from "@telar/engine-client";
-import type { JobStep } from "../data-science/jobs";
-import { defaultExec, type Exec } from "../data-science/python-env";
+import type { LatexPackagesAnswer } from "./types";
+import type { JobStep } from "../sdk/jobs";
+import { defaultExec, type Exec } from "../sdk/probe";
 import type { TexliveDistribution } from "./toolchain";
 
 export type TexPackage = { name: string; revision?: string; description?: string };

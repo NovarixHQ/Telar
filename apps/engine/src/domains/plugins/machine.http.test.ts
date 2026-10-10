@@ -65,13 +65,13 @@ test("absence of a global entry means ALLOWED — an upgrade disables nothing", 
 test("a globally disabled plugin is refused at EVERY door, not just hidden", async () => {
   const { daemon, client } = await ready();
   // Working first, through both doors.
-  await expect(client.latex("session_one", "status", {})).resolves.toBeDefined();
+  await expect(client.plugin("session_one", "latex", "status", {})).resolves.toBeDefined();
   await expect(client.plugin("session_one", "latex", "status", {})).resolves.toBeDefined();
 
   expect((await machine(daemon, { latex: { enabled: false } })).status).toBe(200);
 
   // The legacy alias, the generic door — both refuse, and say which switch.
-  for (const call of [client.latex("session_one", "status", {}), client.plugin("session_one", "latex", "status", {})]) {
+  for (const call of [client.plugin("session_one", "latex", "status", {})]) {
     const refused = await call.catch((error: EngineClientError) => error);
     expect((refused as EngineClientError).status).toBe(400);
     expect((refused as EngineClientError).message).toContain("this computer");
@@ -92,13 +92,6 @@ test("a globally disabled plugin does not reach a worker's CLAIM", async () => {
   expect(store.toolchains.enabledIds(store.records.get("session_one"))).toEqual([]);
 });
 
-test("the CAPABILITY RESOLVER refuses too, so a tool wall cannot reach a runtime", async () => {
-  const { daemon, store } = await ready();
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toBeDefined();
-  await machine(daemon, { latex: { enabled: false } });
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toBeUndefined();
-});
-
 test("PROJECT SETTINGS SURVIVE a global disable, and re-enabling restores them", async () => {
   const { daemon, client, store } = await ready();
   await machine(daemon, { latex: { enabled: false } });
@@ -110,7 +103,7 @@ test("PROJECT SETTINGS SURVIVE a global disable, and re-enabling restores them",
   expect(readProjectPlugins(stored).plugins.entries.latex?.enabled).toBe(true);
 
   await machine(daemon, { latex: { enabled: true } });
-  await expect(client.latex("session_one", "status", {})).resolves.toBeDefined();
+  await expect(client.plugin("session_one", "latex", "status", {})).resolves.toBeDefined();
 });
 
 test("a globally disabled project keeps its OWN switch answerable", async () => {
@@ -121,26 +114,6 @@ test("a globally disabled project keeps its OWN switch answerable", async () => 
   // @ts-expect-error deprecated alias the engine still accepts
   await client.updateProject("project_one", { latex: null });
   expect(pluginBlock(store.projectRegistry.get("project_one"), "latex")).toBeUndefined();
-});
-
-test("the MACHINE'S TeX install is a real fallback, not an inert stored field", async () => {
-  // A machine setting that only persisted would be a lie in the settings pane.
-  const { daemon, client, store } = await ready();
-  // A project with LaTeX on but NO toolchain of its own.
-  // @ts-expect-error deprecated alias the engine still accepts
-  await client.updateProject("project_one", { latex: { enabled: true, mainFile: "paper.tex" } });
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toBeUndefined();
-
-  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "texlive", path: "/bin/echo" } } } });
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ binPath: "/bin/echo", kind: "texlive" });
-});
-
-test("a project's OWN toolchain still wins — the more specific choice", async () => {
-  const { daemon, client, store } = await ready();
-  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "tectonic", path: "/bin/ls" } } } });
-  // @ts-expect-error deprecated alias the engine still accepts
-  await client.updateProject("project_one", { latex: { enabled: true, toolchain: { kind: "texlive", path: "/bin/echo" } } });
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ binPath: "/bin/echo" });
 });
 
 test("machine settings are validated by the PLUGIN's own schema", async () => {

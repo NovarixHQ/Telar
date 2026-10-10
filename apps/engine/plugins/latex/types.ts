@@ -1,5 +1,19 @@
-import { type LatexDiagnostic, type LatexPackagesAnswer } from "@telar/engine-client";
 import type { LatexToolchain } from "./toolchain";
+
+export type LatexDiagnostic = {
+  severity: "error" | "warning";
+  file?: string;
+  line?: number;
+  message: string;
+  code?: "missing-package" | "missing-file" | "undefined-control-sequence" | "undefined-reference" | "citation-undefined" | "overfull" | "other";
+  detail?: string;
+  suggestion?: string;
+};
+
+export type LatexPackagesAnswer =
+  | { mode: "automatic"; note: string }
+  | { mode: "managed"; packages: { name: string; revision?: string; description?: string }[] }
+  | { mode: "unavailable"; reason: string };
 
 export type CompileStatus = {
   status: "running" | "ok" | "failed" | "cancelled";

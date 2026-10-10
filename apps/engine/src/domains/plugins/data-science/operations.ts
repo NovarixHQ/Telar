@@ -8,12 +8,13 @@ import { workspaceRootOf } from "../../sessions";
 import { dataScienceBlock, type PluginToolchains } from "../toolchains";
 import type { EnvironmentRow } from "./capability";
 import { discoverEnvironments, environmentId, environmentRootOf, type EnvManager, type PythonEnvironment } from "./environments";
-import type { JobRead, JobRunner } from "./jobs";
+import type { JobRead, JobRunner } from "../../../../plugins/sdk/jobs";
 import { canonicalName, declaredDependencies, type InstallCommand, installCommandFor, installSteps, listPackages, type PackageInfo, projectRequirements, removeSteps, type RequirementsSource, requirementsStep } from "./packages";
 import { DataScienceMachineSettings } from "./plugin";
 import { preflightPython, type PythonPreflight, relativisePythonPath, resolvePythonPath } from "./python-env";
 import { type BootstrapRequest, type CreateEnvironmentRequest, planBootstrap, planEnvironment, telarVenvDir, telarVenvPython } from "./telar-venv";
-import { adoptBinaryDir, findBinary, type Toolchain } from "./toolchain";
+import type { Toolchain } from "./toolchain";
+import { adoptBinaryDir, findBinary } from "../../../../plugins/sdk/probe";
 
 export type DataScienceOpsHost = {
   root: string;

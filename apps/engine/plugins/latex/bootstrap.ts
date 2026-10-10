@@ -1,6 +1,6 @@
 import os from "node:os";
 import path from "node:path";
-import type { JobStep } from "../data-science/jobs";
+import type { JobStep } from "../sdk/jobs";
 import type { LatexToolchain } from "./toolchain";
 
 export type LatexBootstrapRequest = { what: "tectonic" } | { what: "tinytex" };

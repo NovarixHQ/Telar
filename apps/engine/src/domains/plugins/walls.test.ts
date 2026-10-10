@@ -16,22 +16,26 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { EngineClient, TELAR_MCP_SERVER, canonicalToolName } from "@telar/engine-client";
+import { EngineClient, PluginManifest, TELAR_MCP_SERVER, canonicalToolName } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
 import { createClaudeDriver } from "../../drivers/claude";
 import type { DriverRun, TurnDriver } from "../../drivers";
 import { bundledPluginToolModules, pluginBriefings, setPluginToolModules } from "./bundled";
 import { dataScienceMeta } from "./data-science/plugin";
-import { latexMeta } from "./latex/plugin";
+import { latexPlugin } from "../../../plugins/latex";
+import { manifestMeta, manifestToolModule } from "./manifest";
+
 import { driverBriefings } from "../../drivers/briefings";
 import { dsTools } from "./data-science/ds-tools";
 import { notebookTools } from "./data-science/notebook-tools";
-import { latexTools } from "./latex/latex-tools";
 import type { ToolFactory } from "../agent-tools";
 import { TELAR_SKILL } from "../sessions";
 import { stubModels } from "../../../test/stub-models";
 import { allowCliInThisFile, pinFakeClaudeInThisFile } from "../../../test/allow-cli";
 import { STUB_CAPABILITIES } from "../../../test/stub-driver";
+
+const latexManifest = PluginManifest.parse(latexPlugin.manifest);
+const latexMeta = manifestMeta(latexManifest);
 
 allowCliInThisFile();
 pinFakeClaudeInThisFile();
@@ -65,7 +69,7 @@ function namesOf(...builders: ((tool: ToolFactory, capability: never) => unknown
 
 /** What the hand-written registration offered, before the move. */
 const DS_NAMES = namesOf(notebookTools, dsTools);
-const LATEX_NAMES = namesOf(latexTools);
+const LATEX_NAMES = namesOf(manifestToolModule(latexManifest).tools);
 const PLUGIN_PREFIX = /^(ds|notebook|latex)_/;
 const pluginNames = (names: string[]) => names.filter((name) => PLUGIN_PREFIX.test(name)).sort();
 

@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { LatexDiagnostic } from "@telar/engine-client";
+import type { LatexDiagnostic } from "./types";
 
 const MAX_DIAGNOSTICS = 100;
 const MAX_DETAIL = 600;

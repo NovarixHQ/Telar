@@ -1,30 +1,26 @@
 import { expect, test } from "bun:test";
-import { assertTelarToolNames } from "@telar/engine-client";
-import type { LatexCapability } from "./capability";
-import { latexTools } from "./latex-tools";
+import type { PluginSession } from "../sdk";
+import type { LatexCapability } from "./types";
+import { latexToolDeclarations, latexToolHandlers } from "./tools";
 import { TECTONIC_PACKAGES_NOTE } from "./packages";
-import type { ToolFactory } from "../../agent-tools";
 
-type Registered = { name: string; description: string; run: (args: Record<string, unknown>) => Promise<{ content: unknown[]; isError?: boolean }> };
+type Registered = { name: string; run: (args: Record<string, unknown>) => Promise<{ content: unknown[]; isError?: boolean }> };
+
+const session = { sessionId: "session_one", projectId: "project_one", cwd: "/tmp", settings: {}, machine: {} } satisfies PluginSession;
 
 function build(capability: Partial<LatexCapability>): Registered[] {
-  const tools: Registered[] = [];
-  const factory: ToolFactory = (name, description, _shape, handler) => {
-    tools.push({ name, description, run: handler });
-    return { name };
-  };
   const refuse = async () => { throw new Error("not in this test"); };
   const full = new Proxy({} as LatexCapability, { get: (_, prop) => (capability as Record<string | symbol, unknown>)[prop] ?? refuse });
-  latexTools(factory, full);
-  return tools;
+  return Object.entries(latexToolHandlers(() => full)).map(([name, handler]) => ({ name, run: (args) => handler(args, session) }));
 }
 
 const text = (r: { content: unknown[] }) => (r.content[0] as { text: string }).text;
 
-test("every latex_* tool carries the declared capability prefix", () => {
+test("every declared tool has a handler, and every tool carries the latex_ prefix", () => {
   const names = build({}).map((t) => t.name);
   expect(names).toHaveLength(7);
-  expect(() => assertTelarToolNames(names)).not.toThrow();
+  expect(latexToolDeclarations.map((tool) => tool.name)).toEqual(names);
+  expect(names.every((name) => name.startsWith("latex_"))).toBe(true);
 });
 
 test("latex_compile reports the PDF on success and the diagnostics on failure", async () => {

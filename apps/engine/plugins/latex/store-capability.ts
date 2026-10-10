@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { type EngineEvent, type LatexDiagnostic, type LatexPackagesAnswer } from "@telar/engine-client";
-import type { JobRunner } from "../data-science/jobs";
-import type { CompileResult, CompileStatus, LatexCapability, ResolvedToolchainAnswer } from "./capability";
+import type { JobRunner } from "../sdk/jobs";
+import type { CompileResult, CompileStatus, LatexCapability, LatexDiagnostic, LatexPackagesAnswer, ResolvedToolchainAnswer } from "./types";
 import { LATEX_AUX_DIR, logFileFor, planCompile, type ResolvedLatex } from "./compile";
 import { firstErrorSentence, parseLatexLog } from "./log-parser";
 import { listTexPackages, missingTexPackages, TECTONIC_PACKAGES_NOTE, texInstallSteps, texRemoveSteps } from "./packages";
@@ -13,8 +12,8 @@ const DEFAULT_COMPILE_TIMEOUT_MS = 10 * 60 * 1000;
 const PACKAGE_INSTALL_TIMEOUT_MS = 10 * 60 * 1000;
 
 type JournalEntry =
-  | Omit<Extract<EngineEvent, { type: "latex.compile.started" }>, "id" | "at" | "sessionId" | "runId">
-  | Omit<Extract<EngineEvent, { type: "latex.compile.finished" }>, "id" | "at" | "sessionId" | "runId">;
+  | { type: "latex.compile.started"; path: string }
+  | { type: "latex.compile.finished"; path: string; ok: boolean; pdfPath?: string; errors: number; warnings: number; firstError?: string };
 
 export type StoreLatexDeps = {
   sessionId: string;

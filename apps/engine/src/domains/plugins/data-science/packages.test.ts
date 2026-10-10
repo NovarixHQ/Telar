@@ -5,7 +5,7 @@ import path from "node:path";
 import { canonicalName, declaredDependencies, installCommandFor, installSteps, listPackages, projectRequirements, removeSteps, requirementsStep, validSpec } from "./packages";
 import { condaEnvRoot, planBootstrap, planEnvironment } from "./telar-venv";
 import type { Toolchain } from "./toolchain";
-import type { Exec } from "./python-env";
+import type { Exec } from "../../../../plugins/sdk/probe";
 
 const roots: string[] = [];
 const root = (): string => {

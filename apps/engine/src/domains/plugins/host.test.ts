@@ -268,7 +268,7 @@ describe("one prefix, one owner", () => {
     // every call would render as an anonymous MCP row.
     expect(
       () => new PluginHost([{ meta: meta("mystery") }], { daemonId: "d1", stateDir: tempDir() }),
-    ).toThrow(/not declared in BUNDLED_PLUGIN_TOOL_PREFIXES/);
+    ).toThrow(/which no manifest or BUNDLED_PLUGIN_TOOL_PREFIXES declares/);
     expect(() => new PluginHost([{ meta: meta("latex") }], { daemonId: "d1", stateDir: tempDir() })).not.toThrow();
   });
 
@@ -307,7 +307,7 @@ describe("the host owns approval policy", () => {
   test("the host table reproduces today's classification exactly and widens nothing", () => {
     // Guards against a later diff quietly promoting latex_status to a read.
     expect(HOST_RATIFIED_READ_TOOLS["data-science"]).toEqual(["ds_packages", "ds_kernel"]);
-    expect(HOST_RATIFIED_READ_TOOLS.latex).toEqual([]);
+    expect(HOST_RATIFIED_READ_TOOLS.latex).toBeUndefined();
   });
 
   test("an unknown plugin ratifies nothing", () => {

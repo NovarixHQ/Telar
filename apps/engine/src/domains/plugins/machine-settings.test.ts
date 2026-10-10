@@ -1,30 +1,13 @@
 /**
- * GLOBAL CONFIGURATION — the Mac-wide defaults a project inherits.
- *
- * Two things are proved here, and the first is the one that matters:
- *
- *   THEY ARE A FALLBACK CHAIN, NOT STORED PREFERENCES. Every case asserts what
- *   `resolveLatex` / `resolveDataScience` actually RESOLVE TO, because a
- *   settings pane whose fields only persisted would be a page of lies. The
- *   order is project → this Mac → Telar's own Tectonic, most specific first,
- *   and a step that names something no longer on disk falls THROUGH rather than
- *   resolving onto a path that is not there.
- *
- *   THEY SURVIVE THE ROUND TRIP. Written over HTTP, validated by the plugin's
- *   own machine schema, read back after a restart.
- *
- * The managed Tectonic is represented here by a real file in the place the
- * installer publishes to — `resolveLatex` asks the filesystem, so a stub would
- * be testing the stub. Nothing downloads: `src/domains/plugins/latex/managed.test.ts` owns the
- * installer itself, with a fetch that never leaves the process.
+ * The Mac-wide defaults a project inherits: Data Science's interpreter resolves through them, and every plugin's
+ * are validated by its own machine schema and survive a restart. LaTeX's fallback chain is `plugins/latex/settings.test.ts`.
  */
 import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { EngineClient, latexMachineSettings, dataScienceMachineSettings } from "@telar/engine-client";
+import { EngineClient, dataScienceMachineSettings, machineSettings, type ProjectPlugins } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
-import { MANAGED_TECTONIC_VERSION, managedTectonicBinary } from "./latex/managed";
 import { stubModels } from "../../../test/stub-models";
 
 const roots: string[] = [];
@@ -58,133 +41,6 @@ const machine = (daemon: EngineDaemon, plugins: Record<string, { enabled: boolea
     body: JSON.stringify({ plugins }),
   });
 
-/** Put a file where the managed installer publishes to, without downloading one. */
-function pretendInstalled(daemon: EngineDaemon): string {
-  const binary = managedTectonicBinary(daemon.store.paths.root, MANAGED_TECTONIC_VERSION);
-  fs.mkdirSync(path.dirname(binary), { recursive: true });
-  fs.writeFileSync(binary, "#!/bin/sh\nexit 0\n");
-  fs.chmodSync(binary, 0o755);
-  return binary;
-}
-
-// ── the managed Tectonic as a fallback ──────────────────────────────────────
-
-test("with NOTHING chosen and NOTHING installed, LaTeX still does not resolve", async () => {
-  // The honest baseline. The managed copy is a fallback, not a fiction: before
-  // it is fetched there is no binary, and claiming otherwise would fail at
-  // spawn instead of in the settings pane.
-  const { store } = await ready();
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toBeUndefined();
-});
-
-test("TELAR'S OWN TECTONIC COMPILES A PROJECT THAT CHOSE NOTHING — the point of the whole feature", async () => {
-  // A checkout opened on a Mac with no TeX on it. Nobody picked a distribution
-  // here and nobody will; it compiles because Telar fetched one.
-  const { daemon, store } = await ready();
-  const binary = pretendInstalled(daemon);
-
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ kind: "tectonic", binPath: binary });
-});
-
-test("the managed copy is LAST — a Mac default still wins over it", async () => {
-  const { daemon, store } = await ready();
-  pretendInstalled(daemon);
-  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "texlive", path: "/bin/echo" } } } });
-
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ kind: "texlive", binPath: "/bin/echo" });
-});
-
-test("…and a PROJECT's own choice still wins over the Mac's", async () => {
-  const { daemon, client, store } = await ready();
-  pretendInstalled(daemon);
-  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "texlive", path: "/bin/echo" } } } });
-  // @ts-expect-error deprecated alias the engine still accepts
-  await client.updateProject("project_one", { latex: { enabled: true, toolchain: { kind: "tectonic", path: "/bin/ls" } } });
-
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ kind: "tectonic", binPath: "/bin/ls" });
-});
-
-test("A DEFAULT NAMING SOMETHING THAT IS GONE FALLS THROUGH, it does not resolve onto a dead path", async () => {
-  // The difference between "your document compiled" and "latexmk: command not
-  // found". A TeX Live that was deleted must not shadow a working install.
-  const { daemon, store } = await ready();
-  const binary = pretendInstalled(daemon);
-  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "texlive", path: "/nowhere/that/exists" } } } });
-
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ kind: "tectonic", binPath: binary });
-});
-
-test("`kind: \"managed\"` names an INTENT and resolves to today's binary", async () => {
-  // Stored as a kind rather than as the versioned path, so bumping the pinned
-  // Tectonic does not strand every Mac that had chosen it.
-  const { daemon, store } = await ready();
-  const binary = pretendInstalled(daemon);
-  expect((await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "managed" } } } })).status).toBe(200);
-
-  const resolved = store.toolchains.resolveLatex(store.records.get("session_one"));
-  // `tectonic` is what it IS — `planCompile` knows two programs, not three.
-  expect(resolved).toMatchObject({ kind: "tectonic", binPath: binary });
-});
-
-test("the toolchain answer carries the managed copy, installed or not", async () => {
-  const { daemon } = await ready();
-  const before = await daemon.store.latexOps.toolchain(true);
-  expect(before.managed).toMatchObject({ version: MANAGED_TECTONIC_VERSION, installed: false, installing: false });
-  // Supported on whatever this test is running on; the table covers macOS and
-  // Linux, which is every platform the engine runs on today.
-  expect(before.managed?.supported).toBe(true);
-
-  const binary = pretendInstalled(daemon);
-  const after = await daemon.store.latexOps.toolchain(true);
-  expect(after.managed).toMatchObject({ installed: true, path: binary });
-});
-
-test("the managed status is NOT served from the toolchain's stale cache", async () => {
-  // The probe is cached for five seconds because it is a fistful of spawns.
-  // Reading the managed field out of that cache would leave a pane showing
-  // "not installed" beside a binary that had just landed.
-  const { daemon } = await ready();
-  await daemon.store.latexOps.toolchain();
-  const binary = pretendInstalled(daemon);
-
-  const cached = await daemon.store.latexOps.toolchain();
-  expect(cached.managed).toMatchObject({ installed: true, path: binary });
-});
-
-// ── the other LaTeX defaults ────────────────────────────────────────────────
-
-test("the DEFAULT ENGINE reaches a resolved compile", async () => {
-  const { daemon, store } = await ready();
-  await machine(daemon, {
-    latex: { enabled: true, settings: { toolchain: { kind: "texlive", path: "/bin/echo" }, engine: "lualatex" } },
-  });
-
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ engine: "lualatex" });
-});
-
-test("a project's own engine beats the Mac's default", async () => {
-  const { daemon, client, store } = await ready();
-  await machine(daemon, { latex: { enabled: true, settings: { engine: "lualatex" } } });
-  await client.updateProject("project_one", {
-    // @ts-expect-error deprecated alias the engine still accepts
-    latex: { enabled: true, toolchain: { kind: "texlive", path: "/bin/echo", engine: "xelatex" } },
-  });
-
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toMatchObject({ engine: "xelatex" });
-});
-
-test("AUTO-INSTALL IS OFF UNLESS ASKED FOR, and reaches the resolved compile when it is", async () => {
-  // It runs tlmgr behind a compile, so the default has to be "no".
-  const { daemon, store } = await ready();
-  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "texlive", path: "/bin/echo" } } } });
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))?.autoInstallPackages).toBeUndefined();
-
-  await machine(daemon, {
-    latex: { enabled: true, settings: { toolchain: { kind: "texlive", path: "/bin/echo" }, autoInstallPackages: true } },
-  });
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))?.autoInstallPackages).toBe(true);
-});
-
 // ── data science defaults ───────────────────────────────────────────────────
 
 test("the MAC'S DEFAULT PYTHON runs a project that chose none", async () => {
@@ -214,16 +70,20 @@ test("a project's own interpreter still wins, and a Mac default that is gone res
   expect(store.toolchains.dataScienceRefusal(store.records.get("session_one"))).toBe("data science's Python interpreter is not on disk: /nowhere/python3");
 });
 
-test("the machine ceiling still wins over a machine DEFAULT", async () => {
-  // Turning the plugin off for this Mac makes it unavailable even though the
-  // very same file holds a perfectly good default. `effective = machine AND
-  // project` is not weakened by there being settings beside the switch.
-  const { daemon, store } = await ready();
-  pretendInstalled(daemon);
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toBeDefined();
-
+test("the machine ceiling and a project's own switch both win over a machine DEFAULT", async () => {
+  const { daemon } = await ready();
+  const status = () =>
+    fetch(`http://127.0.0.1:${daemon.discovery.port}/v2/sessions/session_one/plugins/latex/status`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${daemon.discovery.token}`, "content-type": "application/json" },
+      body: "{}",
+    }).then((response) => response.json() as Promise<{ error?: { message: string } }>);
+  expect((await status()).error).toBeUndefined();
   await machine(daemon, { latex: { enabled: false, settings: { toolchain: { kind: "managed" } } } });
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toBeUndefined();
+  expect((await status()).error?.message).toContain("turned off for this computer");
+  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "managed" } } } });
+  await new EngineClient(daemon.discovery).updateProject("project_one", { plugins: { latex: null } });
+  expect((await status()).error?.message).toContain("not enabled");
 });
 
 // ── the round trip ──────────────────────────────────────────────────────────
@@ -237,8 +97,8 @@ test("the new settings ROUND-TRIP: written, read back, and survive a restart", a
   const answer = await fetch(`http://127.0.0.1:${daemon.discovery.port}/v2/plugins`, {
     headers: { authorization: `Bearer ${daemon.discovery.token}` },
   });
-  const body = (await answer.json()) as { machine: Parameters<typeof latexMachineSettings>[0] };
-  expect(latexMachineSettings(body.machine)).toEqual({ toolchain: { kind: "managed" }, engine: "xelatex", autoInstallPackages: true });
+  const body = (await answer.json()) as { machine: ProjectPlugins };
+  expect(machineSettings(body.machine, "latex")).toEqual({ toolchain: { kind: "managed" }, engine: "xelatex", autoInstallPackages: true });
   expect(dataScienceMachineSettings(body.machine)).toEqual({ python: "/bin/echo", packages: ["pandas", "matplotlib"] });
 
   const home = daemon.store.paths.root;
@@ -246,7 +106,7 @@ test("the new settings ROUND-TRIP: written, read back, and survive a restart", a
   daemons.length = 0;
   const restarted = await startEngine({ models: stubModels, engineRoot: home });
   daemons.push(restarted);
-  expect(latexMachineSettings(restarted.store.toolchains.machine()).engine).toBe("xelatex");
+  expect(machineSettings(restarted.store.toolchains.machine(), "latex").engine).toBe("xelatex");
   expect(dataScienceMachineSettings(restarted.store.toolchains.machine()).packages).toEqual(["pandas", "matplotlib"]);
 });
 
@@ -340,16 +200,4 @@ test("ONLY `managed` may omit a path — the other kinds name a place", async ()
   expect((await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "texlive" } } } })).status).toBe(400);
   expect((await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "tectonic" } } } })).status).toBe(400);
   expect((await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "managed" } } } })).status).toBe(200);
-});
-
-test("a machine default is a DEFAULT, and a project turning the plugin off still wins", async () => {
-  // The chain starts at the project's switch, not at the Mac's settings: a
-  // project that never asked for LaTeX gets none, however configured this Mac is.
-  const { daemon, client, store } = await ready();
-  pretendInstalled(daemon);
-  await machine(daemon, { latex: { enabled: true, settings: { toolchain: { kind: "managed" } } } });
-  // @ts-expect-error deprecated alias the engine still accepts
-  await client.updateProject("project_one", { latex: null });
-
-  expect(store.toolchains.resolveLatex(store.records.get("session_one"))).toBeUndefined();
 });

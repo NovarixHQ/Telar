@@ -46,14 +46,16 @@ test("a plugin without a schema publishes none, and one that cannot be expressed
 });
 
 test("Data Science's and LaTeX's Mac fields are published for the generated pane — and the web fixture matches", async () => {
-  const { latexPlugin } = await import("./latex/plugin");
+  const { latexPlugin } = await import("../../../plugins/latex");
+  const { PluginManifest } = await import("@telar/engine-client");
+  const { modulePlugin } = await import("./module");
   const { dataSciencePlugin } = await import("./data-science/plugin");
   const never = () => {
     throw new Error("not used");
   };
   const host = new PluginHost(
     [
-      latexPlugin({ resolve: never, jobs: { list: () => [], disposeAll: () => {} }, settings: {} as never, managed: {} as never }),
+      modulePlugin(latexPlugin, PluginManifest.parse(latexPlugin.manifest), { session: never, project: never, host: {} as never }),
       dataSciencePlugin({ resolve: never, projectOf: () => undefined, settings: {} as never }),
     ],
     { daemonId: "d", stateDir: tempDir() },

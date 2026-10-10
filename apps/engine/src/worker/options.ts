@@ -30,7 +30,6 @@ export type WorkerClient = Pick<
   | "deleteProjectPrompt"
   | "liveSessions"
   | "ds"
-  | "latex"
   | "runConfigurations"
   | "createRunConfiguration"
   | "updateRunConfiguration"

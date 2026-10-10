@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { ExternalPluginManifest, parsePluginPanelView } from "../src/plugins/schema";
+import { PluginManifest, parsePluginPanelView } from "../src/plugins/schema";
 import { parseToolName, registerPluginToolPrefixes } from "../src/protocol/tools";
 
 const manifest = {
@@ -14,20 +14,20 @@ const manifest = {
 
 describe("panels in the manifest", () => {
   test("a panel drawn from a declared session verb is accepted", () => {
-    expect(ExternalPluginManifest.parse(manifest).panels).toEqual([{ id: "status", label: "Status", verb: "status" }]);
+    expect(PluginManifest.parse(manifest).panels).toEqual([{ id: "status", label: "Status", verb: "status" }]);
   });
 
   test("a panel whose verb is not a declared route is refused", () => {
-    const parsed = ExternalPluginManifest.safeParse({ ...manifest, panels: [{ id: "status", label: "Status", verb: "missing" }] });
+    const parsed = PluginManifest.safeParse({ ...manifest, panels: [{ id: "status", label: "Status", verb: "missing" }] });
     expect(parsed.success).toBe(false);
     expect(parsed.error?.issues[0]?.path).toEqual(["panels", 0, "verb"]);
   });
 
   test("two panels with one id, and a route named tool, are refused", () => {
     const twice = { ...manifest, panels: [manifest.panels[0], manifest.panels[0]] };
-    expect(ExternalPluginManifest.safeParse(twice).success).toBe(false);
+    expect(PluginManifest.safeParse(twice).success).toBe(false);
     const shadow = { ...manifest, routes: { session: ["tool"] }, panels: [] };
-    expect(ExternalPluginManifest.safeParse(shadow).error?.issues[0]?.message).toContain("reserved");
+    expect(PluginManifest.safeParse(shadow).error?.issues[0]?.message).toContain("reserved");
   });
 });
 

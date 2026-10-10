@@ -673,6 +673,7 @@ export class EngineStore {
       rewriteNotificationItem: (id, turn) => this.wakes.rewriteNotificationItem(id, turn),
       waitingSubscription: (subscriber, target) =>
         this.subscriptions.readSubscriptions().some((sub) => sub.subscriberSessionId === subscriber && sub.targetSessionId === target && sub.events.includes("turn_completed")),
+      releaseHeld: (id) => this.wakes.flushPendingNotifications(id, { steer: true }),
       holdsChild: (parent, child) => this.children.holds(parent, child),
       childWaitingOn: (parent, child) => this.children.waitingOn(parent, child),
       recordChildMessage: (recipient, sender, intent, message) => this.children.recordMessage(recipient, sender, intent, message),

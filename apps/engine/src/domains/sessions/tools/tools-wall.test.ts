@@ -56,11 +56,11 @@ describe("what the wall is", () => {
   test("the journal read names its cheaper views, and its view parameter offers each one", () => {
     const { store } = engine();
     const read = wall(store).get("sessions_read")!;
-    for (const cheaper of ["status", "outline", "answer", "steps", "step", "grep"]) {
+    for (const cheaper of ["status", "builders", "outline", "answer", "steps", "step", "grep"]) {
       expect(read.description).toContain(cheaper);
     }
     expect(read.description).toContain("raw journal");
-    expect(JSON.stringify(toolInputSchema(read.shape))).toContain('"enum":["summary","status","outline","answer","steps","step","events","grep","diff"]');
+    expect(JSON.stringify(toolInputSchema(read.shape))).toContain('"enum":["summary","status","builders","outline","answer","steps","step","events","grep","diff"]');
   });
 });
 

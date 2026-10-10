@@ -62,6 +62,8 @@ export type TurnSubmission = {
   corrects?: string;
   /** The short line the model reads in place of `input`; minted by `submitAgentTurn` only. */
   agentNotice?: string;
+  /** Steers into the running turn whatever its origin: held news released beside a person's message. */
+  steerNow?: boolean;
   /** Makes the engine write a `notification` item and the drivers deliver off the user channel. */
   notification?: NotificationDetail;
   assignmentScope?: string;
@@ -101,6 +103,7 @@ type IntakeDeps = {
   waitingSubscription: (subscriberSessionId: string, targetSessionId: string) => boolean;
   holdsChild: (parentSessionId: string, childSessionId: string) => boolean;
   childWaitingOn: (parentSessionId: string, childSessionId: string) => boolean;
+  releaseHeld: (sessionId: string) => void;
   recordChildMessage: (recipientSessionId: string, senderSessionId: string, intent: NonNullable<Turn["agentIntent"]>, message: { runId: string; body: string; senderRunId?: string }) => void;
   agentTurnModel: (sessionId: string, choice: AgentModelChoice) => TurnModelSelection | undefined;
   runSpend: (sessionId: string, runId: string) => RunSpend | undefined;
@@ -168,10 +171,13 @@ export class TurnIntake {
       // A compaction is a gesture on the session, not words for the running model; it always waits its turn.
       const interrupts = turn.origin === undefined
         ? this.deps.whileWorking() === "steer"
-        : turn.origin !== "session" || turn.agentIntent === "task" || turn.agentIntent === "blocker" || turn.wakeReason?.kind === "request_opened";
+        : input.steerNow === true || turn.origin !== "session" || turn.agentIntent === "task" || turn.agentIntent === "blocker" || turn.wakeReason?.kind === "request_opened";
       if (kind !== "compact" && interrupts && !session.paused && this.deps.capabilities(session.driver).liveSteering) {
         const steered = this.steerIfRunning(sessionId, turn.runId);
-        if (steered) return { turn: steered, replayed: false };
+        if (steered) {
+          if (turn.origin === undefined) this.deps.releaseHeld(sessionId);
+          return { turn: steered, replayed: false };
+        }
       }
       if (turn.notification) this.writeNotificationItem(sessionId, turn);
       return { turn: structuredClone(turn), replayed: false };
@@ -208,7 +214,8 @@ export class TurnIntake {
         : undefined;
       // The child's ending notice tells this result, so the message itself wakes no one.
       const childHeld = intent === "result" && sender.sessionId !== undefined && this.deps.holdsChild(sessionId, sender.sessionId);
-      const delivery = !childHeld && (intent === "task" || intent === "blocker" || waiting || correction === "read" || correction === "queued")
+      const answers = intent === "result" && sender.sessionId !== undefined && this.assignedBy(sender.sessionId, sessionId);
+      const delivery = !childHeld && (intent === "task" || intent === "blocker" || waiting || answers || correction === "read" || correction === "queued")
         ? "wake"
         : "passive";
       const scope = intent === "task" ? input.scope : undefined;

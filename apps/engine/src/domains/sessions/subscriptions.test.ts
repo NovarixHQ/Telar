@@ -368,7 +368,7 @@ test("a wake's own ending wakes nobody, so two sessions subscribed to each other
   expect(wakes(store, "session_two")).toHaveLength(0);
 });
 
-test("an archived subscriber is dropped; a full backlog holds the wake until there is room; the target's transition still succeeds", () => {
+test("an archived subscriber is dropped; a full backlog holds the wake until the next turn carries it; the target's transition still succeeds", () => {
   const { store } = pair();
   store.lifecycle.createSession({ id: "session_three", projectId: "project_one" });
   store.subscriptions.subscribe("session_one", { targetSessionId: "session_two" });
@@ -392,7 +392,10 @@ test("an archived subscriber is dropped; a full backlog holds the wake until the
   const fill = store.claims.claimTurn("session_one", "worker_one")!;
   store.turnLifecycle.markRunning("session_one", fill.runId, fill.claim!.token);
   store.turnLifecycle.completeTurn("session_one", fill.runId, fill.claim!.token, { text: "ok" });
-  expect(wakes(store, "session_one").map((turn) => turn.wakeReason?.runId)).toEqual(["run_w"]);
+  expect(store.wakes.pendingNotifications("session_one")).toHaveLength(1);
+  const next = store.claims.claimNextTurn("worker_one")!;
+  expect(next.turn.runId).toBe("run_fill_1");
+  expect(next.notes!.join("\n")).toContain("run_w");
   expect(store.wakes.pendingNotifications("session_one")).toHaveLength(0);
 });
 

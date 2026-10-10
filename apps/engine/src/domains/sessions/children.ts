@@ -5,7 +5,7 @@ import { childEndingNotification, firstLine } from "../turns";
 import { childProgress } from "./child-progress";
 import { TERMINAL_WAKE_KINDS } from "./subscriptions";
 
-const StoredChild = SessionChild.omit({ provider: true, model: true, progress: true });
+const StoredChild = SessionChild.omit({ provider: true, model: true, progress: true, blocked: true, updatedAt: true });
 type StoredChild = z.infer<typeof StoredChild>;
 
 const SUMMARY_CHARS = 200;
@@ -57,6 +57,8 @@ export class SessionChildren {
         ...(session ? { provider: session.driver } : {}),
         ...(session?.model?.model ? { model: session.model.model } : {}),
         ...(progress ? { progress } : {}),
+        ...(pending(child) && session?.activity === "blocked" ? { blocked: true } : {}),
+        updatedAt: Math.max(child.endedAt ?? child.startedAt, pending(child) ? (session?.updatedAt ?? 0) : 0),
       };
     });
   }
@@ -172,13 +174,13 @@ export class SessionChildren {
   /** Ends a pending record once and tells the parent; an ended record is never told again. */
   private end(parentSessionId: string, childSessionId: string, state: Exclude<SessionChildState, "working" | "waiting">, ending: { summary?: string | undefined; fetch?: StoredChild["fetch"] }): void {
     let ended: StoredChild | undefined;
+    const fetch = ending.fetch ?? this.latestRunOf(childSessionId);
     this.update(
       (child) => child.parentSessionId === parentSessionId && child.sessionId === childSessionId && pending(child),
-      (child) => (ended = { ...child, state, ...(ending.summary ? { summary: ending.summary } : {}), ...(ending.fetch ? { fetch: ending.fetch } : {}), endedAt: this.kernel.now() }),
+      (child) => (ended = { ...child, state, ...(ending.summary ? { summary: ending.summary } : {}), ...(fetch ? { fetch } : {}), endedAt: this.kernel.now() }),
     );
     if (!ended) return;
     const title = this.host.find(childSessionId)?.title ?? ended.title;
-    const fetch = ended.fetch ?? this.latestRunOf(childSessionId);
     this.host.announce(parentSessionId, childEndingNotification({ sessionId: childSessionId, ...(title ? { title } : {}), state, ...(ended.summary ? { summary: ended.summary } : {}), ...(fetch ? { fetch } : {}) }));
   }
 

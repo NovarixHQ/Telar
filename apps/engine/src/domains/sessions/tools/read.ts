@@ -2,11 +2,12 @@ import { z } from "zod";
 import type { EngineEvent, NotificationDetail, Session, Turn } from "@telar/engine-client";
 import { STALLED_AFTER_MS } from "@telar/engine-client";
 import { err, failure, json, type ToolFactory } from "../../agent-tools";
+import { buildersView } from "./builders";
 import { diffView } from "./control";
 import { answerView, CHARS_DEFAULT, CHARS_MAX, grepView, outlineView, stepsView, STEPS_LIMIT_MAX, stepView } from "./query";
 import { LIVE_TURN_STATES, MAX_EVENTS, MAX_RESULT_CHARS, MAX_RUN_ANSWER_CHARS, MAX_RUN_EVENT_CHARS, pageEvents, pageEventsFromEnd, quietNote, READ, readable, type SessionsCapability, summariseOne, summariseTurns, SUMMARY_TURNS_DEFAULT, SUMMARY_TURNS_MAX, TAIL_WINDOW, tailEvents, turnLine, WAITING_PHRASE, wholeNumber, withoutDuplicateBody } from "./shared";
 
-const VIEWS = ["summary", "status", "outline", "answer", "steps", "step", "events", "grep", "diff"] as const;
+const VIEWS = ["summary", "status", "builders", "outline", "answer", "steps", "step", "events", "grep", "diff"] as const;
 
 export function readTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
   return [
@@ -92,6 +93,8 @@ export function readTools(tool: ToolFactory, capability: SessionsCapability): un
         switch (args.view) {
           case "status":
             return statusView(capability, sessionId, args);
+          case "builders":
+            return buildersView(capability, sessionId);
           case "outline":
             return outlineView(capability.query, sessionId, args);
           case "answer":

@@ -8,7 +8,7 @@ import { sessionDir } from "./metadata";
 
 const MAX_NEXT_TURN_NOTES = 5;
 
-export const isPeerMail = (detail: NotificationDetail): boolean => detail.kind === "peer_message";
+export const isQuietMail = (detail: NotificationDetail): boolean => detail.kind === "peer_message" && (detail.intent === undefined || detail.intent === "fyi");
 
 function notificationsFile(paths: EngineStatePaths, sessionId: string): string {
   return path.join(sessionDir(paths, sessionId), "notifications.json");
@@ -89,12 +89,12 @@ export class SessionMailbox {
     if (kept.length !== pending.length) this.setPending(sessionId, kept, kept.length > 0 ? this.heldSince(sessionId) : undefined);
   }
 
-  /** A box of peer mail alone rides ahead of the next turn's input; anything else waits for the flush. */
+  /** Whatever was held rides ahead of the next turn's input, so that turn never answers without it. */
   takeHeldMail(sessionId: string): string[] {
     const pending = this.pending(sessionId);
-    if (pending.length === 0 || !pending.every(isPeerMail)) return [];
+    if (pending.length === 0) return [];
     this.setPending(sessionId, []);
-    return [`Held for you while you were busy; no reply needed.\n${mergeNotifications(pending).body}`];
+    return [`Held for you while you were busy${pending.every(isQuietMail) ? "; no reply needed" : ""}.\n${mergeNotifications(pending).body}`];
   }
 
   /** A sentence for the session's next turn, deduplicated and capped. Lost on restart. */

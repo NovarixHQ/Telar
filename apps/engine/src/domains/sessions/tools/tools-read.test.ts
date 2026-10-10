@@ -458,10 +458,10 @@ describe("sessions_read returns the message a notice stands in for", () => {
     expect(tools.get("sessions_subscribe")!.description).toContain("Be woken once");
   });
 
-  test("the descriptions say: never poll, and a tasked worker ends with one result", () => {
+  test("the descriptions say: read your builders first, and a tasked worker ends with one result", () => {
     const { store } = engine();
     const tools = wall(store);
-    expect(tools.get("sessions_read")!.description).toContain("Never poll it to wait");
+    expect(tools.get("sessions_read")!.description).toContain("Read your builders before you report their status");
     expect(tools.get("sessions_send")!.description).toContain("End with one result");
     expect(tools.get("sessions_send")!.description).toContain("no progress reports");
   });

@@ -1,4 +1,4 @@
-import type { EngineClient, EngineEvent, Session, SessionCapabilities, SessionDiff, SessionSettleEnded, Subscription, Turn } from "@telar/engine-client";
+import type { EngineClient, EngineEvent, Session, SessionCapabilities, SessionChild, SessionDiff, SessionSettleEnded, Subscription, Turn } from "@telar/engine-client";
 import type { SessionsCapability } from "./tools/shared";
 import type { EngineStore } from "../../state";
 
@@ -35,6 +35,7 @@ export type SessionsPort = {
     input: Parameters<Capability["resolveRequest"]>[2] & { resolvedBy: "session" },
   ): Promise<{ request: Result<Capability["resolveRequest"]> }>;
   acknowledgeRead(readerSessionId: string, input: { sessionId: string; runId: string }): Promise<unknown>;
+  children(sessionId: string): Promise<{ children: SessionChild[] }>;
   findSessions: Query["find"];
   sessionOutline: Query["outline"];
   turnAnswer: Query["answer"];
@@ -109,6 +110,7 @@ export function storeSessionsPort(store: EngineStore): SessionsPort {
     subscriptions: async (subscriber) => ({ subscriptions: store.subscriptions.subscriptionsFor(subscriber) }),
     resolveRequest: async (id, requestId, input) => ({ request: store.requestGate.resolve(id, requestId, input) }),
     acknowledgeRead: async (reader, { sessionId, runId }) => store.wakes.acknowledgeRead(reader, sessionId, runId),
+    children: async (id) => ({ children: store.children.childrenOf(id) }),
     findSessions: async (query) => store.queries.findSessions(query),
     sessionOutline: async (id, window) => store.queries.turnOutline(id, window),
     turnAnswer: async (id, options) => store.queries.turnAnswer(id, options),
@@ -130,6 +132,10 @@ export function sessionsCapability(port: SessionsPort, identity: SessionIdentity
       const turn = reads.turn ? await reads.turn(id, runId) : (await reads.status(id)).turns.find((candidate) => candidate.runId === runId);
       if (identity && turn && ENDED_STATES.has(turn.state)) await port.acknowledgeRead(identity.sessionId, { sessionId: id, runId });
       return turn;
+    },
+    builders: async (id) => (await port.children(id)).children,
+    acknowledge: async (id, runId) => {
+      if (identity) await port.acknowledgeRead(identity.sessionId, { sessionId: id, runId });
     },
     list: (options) => port.liveSessions({ all: options?.settled === true }),
     create: async ({ owner, ...input }) =>

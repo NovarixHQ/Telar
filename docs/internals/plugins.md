@@ -2,7 +2,7 @@
 
 - Every plugin declares itself with one manifest (`PluginManifest`): the fields of a `plugin.json`.
 - **Module plugins** ship with the app under `apps/engine/plugins/<id>/`. A module exports its manifest and an engine module (`BundledPlugin`, from `plugins/sdk`). The engine loads it in-process, before anything installed. LaTeX is one.
-- **External plugins** live in `<TELAR_HOME>/plugins/<id>/`. They have the same manifest plus a `command`, which the engine supervises as a child process. The child speaks JSON-RPC over stdio: MCP `initialize`/`tools/call`, plus `telar/route`, and it sends `telar/event` notifications.
+- **External plugins** live in `<TELAR_HOME>/plugins/<id>/`. They have the same manifest plus a `command`, which the engine supervises as a child process. The child speaks JSON-RPC over stdio: MCP `initialize`/`tools/call`, plus `telar/route`, and it sends `telar/event` notifications and `telar/complete` requests.
 - An installed plugin can't take a bundled plugin's id or tool prefix. It is refused and listed as failed.
 - Data Science and the `hello` proof plugin still predate the manifest. They are wired in `domains/plugins/bundled.ts`, and their tool prefixes are listed in `BUNDLED_PLUGIN_TOOL_PREFIXES`.
 
@@ -30,16 +30,15 @@ The cockpit has no plugin-specific React for a manifest plugin: every surface it
 
 ## Composer extensions
 
-- A decoration is a regular expression, matched one line at a time, plus a style from a fixed set. It never matches inside code, links or chips, or where it would touch a word character. Earlier decorations win an overlap. Its preview is KaTeX or a session route's `{ text }`.
+- A decoration is a regular expression plus a style from a fixed set. It is matched one line at a time, or across the whole draft when `multiline` is set. It never matches inside code, links or chips, or where it would touch a word character. Earlier decorations win an overlap. Its preview is KaTeX or a session route's `{ text }`.
 - `/name words` on the caret's line runs on Enter instead of sending. It posts `{ text }` to the command's session route, and the answer's `text` replaces the line as one undo step. Typed alone, the command takes the rest of the draft as its input and replaces the whole draft.
 - Commands need a session, so a fresh canvas shows the decorations but not the commands.
 
 ## One-shot completion
 
-- `host.complete()` lends a module plugin one short answer from the text generation policy's provider and cheap model, with no tools and no session.
+- `host.complete()` lends a module plugin one short answer from the text generation policy's provider and cheap model, with no tools and no session. An installed plugin asks for the same thing by sending the engine a `telar/complete` request over stdio, and gets the same answer and errors.
 - It is bounded by an 8,000-character prompt, a 4,000-character answer (at most 16,000 on request), a 30 s timeout (at most 60 s) that kills the child, and two calls in flight per plugin.
 - These runs leave no provider transcript, so their cost is appended to `usage-one-shot.jsonl`, which the usage report merges. Only Claude reports tokens today.
-- Installed plugins can't call it yet: it needs a request from the child to the engine.
 
 ## Gating
 

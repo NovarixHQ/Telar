@@ -1,6 +1,6 @@
-import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
@@ -8,6 +8,7 @@ GlobalRegistrator.register({ url: "http://localhost/" });
 
 const { ComposerEditor } = await import("./composer-editor");
 const { PASTED_TEXT_ATTACHMENT_THRESHOLD_BYTES } = await import("../editor-keys");
+const { forgetModifierPlatform } = await import("@/features/commands");
 
 afterAll(async () => {
   await GlobalRegistrator.unregister();
@@ -35,7 +36,7 @@ function placeAt(box: HTMLElement, offset: number) {
 }
 
 /** The caret is marked with `|` in `initial`. */
-async function editor(initial: string, onPasteLargeText?: (text: string) => void) {
+async function editor(initial: string, onPasteLargeText?: (text: string) => void, props: Partial<ComponentProps<typeof ComposerEditor>> = {}) {
   const caret = initial.indexOf("|");
   const value = initial.replace("|", "");
   const changes: string[] = [];
@@ -43,7 +44,7 @@ async function editor(initial: string, onPasteLargeText?: (text: string) => void
   document.body.append(host);
   root = createRoot(host);
   await act(async () => {
-    root.render(<ComposerEditor value={value} onChange={(text) => changes.push(text)} {...(onPasteLargeText ? { onPasteLargeText } : {})} />);
+    root.render(<ComposerEditor value={value} onChange={(text) => changes.push(text)} {...(onPasteLargeText ? { onPasteLargeText } : {})} {...props} />);
   });
   const box = host.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
   box.focus();
@@ -67,6 +68,48 @@ async function editor(initial: string, onPasteLargeText?: (text: string) => void
 }
 
 const shiftEnter = { key: "Enter", shiftKey: true };
+
+function onPlatform(agent: string) {
+  Object.defineProperty(navigator, "userAgent", { value: agent, configurable: true });
+  forgetModifierPlatform();
+}
+
+const MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)";
+const LINUX = "Mozilla/5.0 (X11; Linux x86_64)";
+
+describe("⌘A on a Mac", () => {
+  beforeEach(() => onPlatform(MAC));
+
+  test.each([
+    ["plain text", "hello world|", {}],
+    ["a decorated draft", "see $$x^2$$ here|", { decorations: [{ key: "math", plugin: "latex", pattern: /\$\$[^$]+\$\$/g, style: "math" as const }] }],
+  ])("in %s selects the whole draft even with an iframe on the page, so what comes next replaces it", async (_, initial, props) => {
+    const frame = document.body.appendChild(document.createElement("iframe"));
+    const box = await editor(initial, undefined, props);
+    expect(box.press({ key: "a", metaKey: true }).defaultPrevented).toBe(true);
+    box.paste("fresh");
+    expect(box.text()).toBe("fresh");
+    frame.remove();
+  });
+
+  test("Ctrl+A keeps its line-start meaning", async () => {
+    const box = await editor("one\ntwo|");
+    expect(box.press({ key: "a", ctrlKey: true }).defaultPrevented).toBe(false);
+    box.paste("x");
+    expect(box.text()).toBe("one\ntwox");
+  });
+});
+
+describe("Ctrl+A elsewhere", () => {
+  beforeEach(() => onPlatform(LINUX));
+
+  test("selects the whole draft", async () => {
+    const box = await editor("one\ntwo|");
+    expect(box.press({ key: "a", ctrlKey: true }).defaultPrevented).toBe(true);
+    box.paste("x");
+    expect(box.text()).toBe("x");
+  });
+});
 
 describe("Shift+Enter in a list", () => {
   test.each([

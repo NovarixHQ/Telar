@@ -31,6 +31,10 @@ function commandModifierPlatform(): KeyCapPlatform {
   return platform;
 }
 
+export function commandModifierDown(event: ModifierEventLike): boolean {
+  return commandModifierPlatform() === "mac" ? Boolean(event.metaKey) : Boolean(event.ctrlKey);
+}
+
 export function forgetModifierPlatform(): void {
   platform = undefined;
 }

@@ -8,6 +8,7 @@ import { browserPageReference, startReferenceDrag } from "@telar/client/composer
 import { cn } from "@/ui/utils";
 import type { BrowserUi } from "../hooks/use-browser-session";
 import type { DesktopBrowserTab } from "../types";
+import { Favicon } from "./favicon";
 
 // Every item names this tab by index, so a right-click on a background tab never selects it.
 function TabMenu({ tab, b, className, children }: { tab: DesktopBrowserTab; b: BrowserUi; className: string; children: React.ReactNode }) {
@@ -60,10 +61,9 @@ function TabMarks({ tab, b }: { tab: DesktopBrowserTab; b: BrowserUi }) {
         <span title="Remembered — loads when selected" className="flex shrink-0">
           <MoonIcon aria-label="Not loaded yet" className="size-3 text-muted-foreground/70" />
         </span>
-      ) : tab.favicon ? (
-        // eslint-disable-next-line @next/next/no-img-element -- page-supplied favicon URL; nothing for next/image here
-        <img src={tab.favicon} alt="" aria-hidden className="size-3 shrink-0 rounded-[2px]" />
-      ) : null}
+      ) : (
+        <Favicon src={tab.favicon} className="size-3" />
+      )}
       {prompt && !tab.active ? (
         <span title={`This page is asking to use your ${describePermissionKinds(prompt.kinds)}`} className="flex shrink-0">
           <span aria-label="Waiting for a permission answer" role="img" className="block size-1.5 rounded-full bg-primary" />

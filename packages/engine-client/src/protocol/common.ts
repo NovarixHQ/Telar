@@ -168,8 +168,9 @@ export const BrowserTab = z.object({
    *  to share with) simply omits these. */
   controller: BrowserTabController.optional(),
   openedBy: z.enum(["agent", "human"]).optional(),
+  favicon: z.string().optional(),
 });
-export type BrowserTab = z.infer<typeof BrowserTab>;
+export type BrowserTab= z.infer<typeof BrowserTab>;
 
 export const BrowserSnapshot = z.object({
   /** The session whose browser this is. Scopes are per session by construction:

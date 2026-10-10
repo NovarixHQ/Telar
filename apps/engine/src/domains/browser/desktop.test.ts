@@ -257,7 +257,18 @@ test("a rejected profile restore prevents both opening and agent calls", async (
   expect(actions).toEqual([]);
 });
 
-function hostWithTabs(initial: { index: number; title: string; url: string; active: boolean; openedBy?: string }[], options: { openFails?: string } = {}) {
+test("a page's favicon URL travels to remote cockpits; a page with none carries no field", async () => {
+  const { port } = hostWithTabs([
+    { index: 0, title: "One", url: "https://one.example", active: true, favicon: "https://one.example/f.ico" },
+    { index: 1, title: "Two", url: "https://two.example", active: false, favicon: null },
+  ]);
+  const router = new BrowserRouter(fakeHeadless([]), new DesktopBrowserClient({ port: await port, token: "tok", probeTtlMs: 0 }));
+  const { tabs } = await router.state("s", { screenshot: false });
+  expect(tabs[0].favicon).toBe("https://one.example/f.ico");
+  expect("favicon" in tabs[1]).toBe(false);
+});
+
+function hostWithTabs(initial: { index: number; title: string; url: string; active: boolean; openedBy?: string; favicon?: string | null }[], options: { openFails?: string } = {}) {
   const tabs = [...initial];
   const opens: Record<string, unknown>[] = [];
   const port = fakeHost(({ method, url, body }) => {

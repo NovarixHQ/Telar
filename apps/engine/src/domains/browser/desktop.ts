@@ -183,7 +183,7 @@ export class DesktopBrowserClient implements PreviewRenderer {
       running: payload.running !== false,
       controller,
       tabs: (Array.isArray(payload.tabs) ? payload.tabs : []).map((tab, position) => {
-        const raw = tab as { controller?: unknown; openedBy?: unknown; loading?: unknown };
+        const raw = tab as { controller?: unknown; openedBy?: unknown; loading?: unknown; favicon?: unknown };
         const controller = raw.controller === "human" || raw.controller === "agent" || raw.controller === "idle" ? raw.controller : undefined;
         const openedBy = raw.openedBy === "human" || raw.openedBy === "agent" ? raw.openedBy : undefined;
         return {
@@ -194,6 +194,7 @@ export class DesktopBrowserClient implements PreviewRenderer {
           ...(raw.loading === true ? { loading: true } : {}),
           ...(controller ? { controller } : {}),
           ...(openedBy ? { openedBy } : {}),
+          ...(typeof raw.favicon === "string" && raw.favicon ? { favicon: raw.favicon } : {}),
         };
       }),
     };

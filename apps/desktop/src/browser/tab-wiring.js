@@ -2,6 +2,22 @@ const { HUMAN_ATTRIBUTION_GRACE_MS, MAX_TABS_PER_SCOPE, navigationFlag } = requi
 const { SEARCH_URL, VIEW_SOURCE_PREFIX, normalizePopupUrl } = require("./urls");
 const { browserContextMenuTemplate } = require("./browser-context-menu");
 
+const MAX_DATA_FAVICON = 4096;
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+}
+
+function pickFavicon(favicons) {
+  if (!Array.isArray(favicons)) return null;
+  const url = favicons.find((entry) => typeof entry === "string" && (/^https?:\/\//.test(entry) || (entry.startsWith("data:image/") && entry.length <= MAX_DATA_FAVICON)));
+  return url || null;
+}
+
 module.exports = {
   popupOpener(tab) {
     const recentAgentInput = this.now() - (this.lastAgentInputAt.get(tab.scopeKey) || 0) < HUMAN_ATTRIBUTION_GRACE_MS;
@@ -131,6 +147,7 @@ module.exports = {
       queue: Promise.resolve(),
       lastJournaled: "idle",
       faviconUrl: null,
+      faviconOrigin: "",
       refs: new Map(),
       console: [],
       network: [],
@@ -205,10 +222,12 @@ module.exports = {
       this.emitState(tab.scopeKey);
     });
     wc.on("page-favicon-updated", (_event, favicons) => {
-      tab.faviconUrl = (Array.isArray(favicons) && favicons[0]) || null;
+      tab.faviconUrl = pickFavicon(favicons);
+      tab.faviconOrigin = originOf(wc.getURL());
       this.emitState(tab.scopeKey);
     });
     wc.on("did-navigate", (_event, navigatedUrl, httpResponseCode) => {
+      if (tab.faviconUrl && originOf(navigatedUrl || wc.getURL()) !== tab.faviconOrigin) tab.faviconUrl = null;
       this.noteNavigation(tab);
       sync();
       this.noteVisited(tab, navigatedUrl || wc.getURL(), httpResponseCode);

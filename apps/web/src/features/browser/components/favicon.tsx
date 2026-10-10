@@ -3,7 +3,6 @@
 import { useState, type ReactNode } from "react";
 import { cn } from "@/ui/utils";
 
-/** A page's favicon, or `fallback` when it has none or it fails to load. */
 export function Favicon({ src, fallback = null, className }: { src: string | null | undefined; fallback?: ReactNode; className?: string }) {
   const [broken, setBroken] = useState<string>();
   if (!src || broken === src) return fallback;

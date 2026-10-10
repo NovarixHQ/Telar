@@ -11,6 +11,7 @@ import { PluginView } from "./plugin-view";
 
 export function PluginPanelsSurface({
   sessionId,
+  projectId,
   hostId,
   panels,
   active,
@@ -18,6 +19,7 @@ export function PluginPanelsSurface({
   onInsertText,
 }: {
   sessionId?: string;
+  projectId?: string;
   hostId?: string;
   panels: readonly PluginPanelSource[];
   active?: TurnState;
@@ -59,6 +61,7 @@ export function PluginPanelsSurface({
             key={`${panelSourceKey(source)}:${refreshes}`}
             source={source.frame}
             sessionId={sessionId}
+            {...(projectId ? { projectId } : {})}
             {...(hostId ? { hostId } : {})}
             {...(onOpenFile ? { onOpenFile } : {})}
             {...(onInsertText ? { onInsertText } : {})}

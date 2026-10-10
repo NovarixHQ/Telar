@@ -64,12 +64,13 @@
         "title": "Default Python",
         "description": "The interpreter a project with none of its own runs its kernel on.",
         "info": "An absolute path: a default for the computer cannot be relative to a checkout.",
-        "widget": "path",
-        "icon": "flask-conical",
+        "widget": "view",
         "type": "string",
         "minLength": 1
       },
       "packages": {
+        "title": "Default packages",
+        "widget": "view",
         "maxItems": 200,
         "type": "array",
         "items": {

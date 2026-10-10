@@ -1,10 +1,14 @@
 import fs from "node:fs";
-import type { z } from "zod";
+import { z } from "zod";
 import { DataScienceConfig, DataScienceMachineSettings } from "@telar/engine-client";
 import type { PluginSession } from "../sdk";
 import { resolvePythonPath } from "./python-env";
 
-export const DataScienceSettings = DataScienceConfig.omit({ enabled: true });
+/** Both fields are chosen in the plugin's own settings view, so no generated row draws them. */
+export const DataScienceSettings = z.object({
+  python: DataScienceConfig.shape.python.meta({ widget: "view" }),
+  stack: DataScienceConfig.shape.stack.meta({ widget: "view" }),
+});
 export type DataScienceSettings = z.infer<typeof DataScienceSettings>;
 
 /** Settings that no longer parse read as none, so the plugin's switch survives a bad value. */

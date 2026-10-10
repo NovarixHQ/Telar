@@ -67,9 +67,10 @@ export async function answer(request: ViewRequest, grant: FrameGrant, deps: Brid
   }
 }
 
-/** The plugin's own event, for this frame's session or the whole Mac, as the frame sees it. */
-export function eventForFrame(frame: PluginEventFrame, plugin: string, sessionId: string | undefined): { name: string; data: unknown } | undefined {
+/** The plugin's own event, for this frame's session, its project or the whole Mac, as the frame sees it. */
+export function eventForFrame(frame: PluginEventFrame, plugin: string, sessionId: string | undefined, projectId?: string): { name: string; data: unknown } | undefined {
   if (frame.pluginId !== plugin) return undefined;
-  if (frame.scope === "project" || (frame.scope === "session" && frame.sessionId !== sessionId)) return undefined;
+  if (frame.scope === "project" && frame.projectId !== projectId) return undefined;
+  if (frame.scope === "session" && frame.sessionId !== sessionId) return undefined;
   return { name: frame.name, data: frame.data };
 }

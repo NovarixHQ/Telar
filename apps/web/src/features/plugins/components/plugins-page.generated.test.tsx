@@ -7,7 +7,8 @@
  *   LaTeX          one "Plugin defaults" group: the generated rows (Default
  *                  engine, Install missing packages automatically), then the
  *                  view its machine section declares
- *   Data Science   the same group, through the same generic path: Default Python
+ *   Data Science   the same group, with every field left to its view: the
+ *                  detected-Python picker and the default packages
  *   a write        the generated row writes the whole blob, keeping the rest
  */
 import { afterAll, afterEach, beforeEach, expect, test } from "bun:test";
@@ -34,7 +35,7 @@ const meta = (id: string, name: string, machineLabel: string, view?: string) => 
 
 const PLUGINS = [
   { meta: meta("latex", "LaTeX", "Compiling", "defaults"), state: "ready", machineSettingsSchema: schemas.latex },
-  { meta: meta("data-science", "Data science", "Data science defaults"), state: "ready", machineSettingsSchema: schemas.dataScience },
+  { meta: meta("data-science", "Data science", "Data science defaults", "defaults"), state: "ready", machineSettingsSchema: schemas.dataScience },
 ];
 
 let machine = {
@@ -61,6 +62,15 @@ beforeEach(() => {
       return json({ machine });
     }
     if (url.endsWith("/api/plugins/latex/defaults")) return json({ blocks: [{ type: "text", text: "TeX distribution: what this computer compiles with." }] });
+    if (url.endsWith("/api/plugins/data-science/defaults")) {
+      return json({
+        blocks: [
+          { type: "select", label: "Default Python", name: "python", value: "/usr/bin/python3", options: [{ value: "", label: "None" }, { value: "/usr/bin/python3", label: "Python 3.12.4 — /usr/bin/python3" }], verb: "default-python" },
+          { type: "heading", text: "Default packages" },
+          { type: "action", label: "Save", verb: "default-packages", field: { name: "packages", value: "pandas" } },
+        ],
+      });
+    }
     if (url.includes("/api/plugins")) return json({ plugins: PLUGINS, machine });
     return json({});
   }) as typeof fetch;
@@ -103,8 +113,9 @@ test("each plugin's defaults are one group: the generated rows, then its declare
   expect(text.indexOf("Install missing packages automatically")).toBeLessThan(text.indexOf("TeX distribution"));
   const science = host.querySelector('[data-detail-for="data-science"]')!;
   expect(science.querySelectorAll("section")).toHaveLength(1);
-  expect(science.textContent).toContain("Default Python");
-  expect((host.querySelector('[aria-label="Default Python"]') as HTMLInputElement).value).toBe("/usr/bin/python3");
+  expect(science.textContent).toContain("Python 3.12.4 — /usr/bin/python3");
+  expect(science.textContent).toContain("Default packages");
+  expect(science.querySelector('input[aria-label="Default Python"]')).toBeNull();
   done();
 });
 

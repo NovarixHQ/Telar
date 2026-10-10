@@ -66,7 +66,8 @@ test("Data Science's and LaTeX's Mac fields are published for the generated pane
   expect(latexMachine.properties.engine).toMatchObject({ title: "Default engine", labels: { pdflatex: "pdfLaTeX" } });
   expect(latexMachine.properties.autoInstallPackages).toMatchObject({ type: "boolean", title: "Install missing packages automatically" });
   const dsMachine = ds!.machineSettingsSchema as Schema;
-  expect(dsMachine.properties.python).toMatchObject({ title: "Default Python", widget: "path" });
+  expect(dsMachine.properties.python).toMatchObject({ title: "Default Python", widget: "view" });
+  expect(dsMachine.properties.packages).toMatchObject({ title: "Default packages", widget: "view" });
   // The section labels head the generated groups, so a search anchor survives the move.
   expect(latex!.meta.settings.find((section) => section.scope === "machine")?.label).toBe("Compiling");
   expect(ds!.meta.settings.find((section) => section.scope === "machine")?.label).toBe("Data science defaults");

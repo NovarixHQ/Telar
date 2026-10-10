@@ -16,6 +16,7 @@ export type PluginFrameProps = {
   source: FrameSource;
   path?: string;
   sessionId?: string;
+  projectId?: string;
   hostId?: string;
   onOpenFile?: (path: string, line?: number) => void;
   onInsertText?: (text: string) => void;
@@ -43,7 +44,7 @@ function useFrameDocument(source: FrameSource, api: ReturnType<typeof createEngi
 }
 
 /** A plugin's page in a sandboxed frame, spoken to only through the bridge. */
-export function PluginFrame({ source, path, sessionId, hostId, onOpenFile, onInsertText }: PluginFrameProps) {
+export function PluginFrame({ source, path, sessionId, projectId, hostId, onOpenFile, onInsertText }: PluginFrameProps) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [nonce] = useState(newNonce);
   const theme = useArtifactTheme(frame);
@@ -84,7 +85,7 @@ export function PluginFrame({ source, path, sessionId, hostId, onOpenFile, onIns
   }, [theme]);
 
   usePluginFrames(hostId ?? LOCAL_HOST_ID, (event) => {
-    const forwarded = subscribed.current ? eventForFrame(event, source.plugin, sessionId) : undefined;
+    const forwarded = subscribed.current ? eventForFrame(event, source.plugin, sessionId, projectId) : undefined;
     if (forwarded) post(frame.current, { telarView: VIEW_BRIDGE_VERSION, type: "event", event: forwarded });
   });
 

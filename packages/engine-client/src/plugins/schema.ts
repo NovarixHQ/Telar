@@ -464,8 +464,7 @@ const dataScienceMachineFields = {
     title: "Default Python",
     description: "The interpreter a project with none of its own runs its kernel on.",
     info: "An absolute path: a default for the computer cannot be relative to a checkout.",
-    widget: "path",
-    icon: "flask-conical",
+    widget: "view",
   }),
   packages: z.array(z.string().min(1).max(200)).max(200).optional(),
 };
@@ -479,7 +478,7 @@ export type DataScienceMachineSettings = z.infer<typeof DataScienceMachineSettin
 /** What a write is checked against. Strict, and per-kind about the path. */
 export const DataScienceMachineSettingsWrite = z.strictObject({
   ...dataScienceMachineFields,
-  packages: z.array(z.string().min(1).max(200).regex(PLUGIN_PACKAGE_REQUIREMENT, "not a package requirement")).max(200).optional(),
+  packages: z.array(z.string().min(1).max(200).regex(PLUGIN_PACKAGE_REQUIREMENT, "not a package requirement")).max(200).optional().meta({ title: "Default packages", widget: "view" }),
 });
 
 /** The data-science defaults this Mac carries, read out of the opaque blob. */

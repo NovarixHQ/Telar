@@ -36,7 +36,7 @@
   <button id="restart" title="Restart the kernel — clears every variable">Restart</button>
 </div>
 <div id="problem" class="problem" hidden></div>
-<form class="run" id="run"><input id="code" placeholder="" aria-label="Python" spellcheck="false"><button id="go"></button></form>
+<div class="run" id="run"><input id="code" placeholder="" aria-label="Python" spellcheck="false"><button id="go"></button></div>
 <pre class="answer" id="answer" hidden></pre>
 <div class="scroll" id="body"></div>
 <script>
@@ -164,10 +164,11 @@
     answer.hidden = false;
     answer.textContent = result.ok ? `${result.lines.slice(-6).join("\n") || "Done."}${kernel !== "none" ? "\nRestart the kernel to import what changed." : ""}` : result.error ?? result.lines.slice(-10).join("\n");
     await show();
+    return result;
   }
 
   const VIEWS = {
-    plots: { view: plotsView, placeholder: "plt.plot(df.x, df.y) — draws a figure", go: "Plot", run: (text) => telar.call("plot", { code: text }) },
+    plots: { view: plotsView, placeholder: "plt.plot(df.x, df.y) — draws a figure", go: "Plot", run: (text) => telar.call("plot", { code: `import matplotlib.pyplot as plt\n${text}` }) },
     variables: { view: variablesView, placeholder: "Python to run in the kernel", go: "Run", run: (text) => telar.call("execute", { code: text, producer: "data view" }) },
     environment: { view: environmentView, placeholder: "Packages to install, e.g. polars seaborn", go: "Install", run: (text) => install({ add: text.split(/[\s,]+/).filter(Boolean) }) },
   };
@@ -176,8 +177,9 @@
     for (const button of document.querySelectorAll("[data-tab]")) button.setAttribute("aria-selected", String(button.dataset.tab === tab));
     code.placeholder = VIEWS[tab].placeholder;
     document.getElementById("go").textContent = VIEWS[tab].go;
-    const view = await attempt(VIEWS[tab].view);
-    if (view) body.replaceChildren(view);
+    const shown = tab;
+    const view = await VIEWS[shown].view().catch((error) => empty("Not available yet", error?.message ?? String(error)));
+    if (tab === shown) body.replaceChildren(view);
   }
 
   async function refreshKernel() {
@@ -190,11 +192,13 @@
 
   const text = (outputs) => outputs.map((o) => (o.kind === "text" ? o.text : o.kind === "error" ? `${o.ename}: ${o.evalue}` : o.kind === "image" ? "[figure]" : "")).filter(Boolean).join("").trim();
 
-  document.getElementById("run").onsubmit = (event) => {
-    event.preventDefault();
+  const submit = () => {
     const source = code.value.trim();
     if (!source) return;
+    answer.hidden = false;
+    answer.textContent = kernel === "none" || kernel === "dead" ? "Starting the kernel…" : "Running…";
     void attempt(() => VIEWS[tab].run(source)).then((result) => {
+      if (!result) answer.hidden = true;
       if (result?.outputs) {
         answer.hidden = false;
         const failed = typeof result.error === "string" ? result.error : result.error ? `${result.error.ename}: ${result.error.evalue}` : "";
@@ -204,10 +208,18 @@
       return show();
     });
   };
+  document.getElementById("go").onclick = submit;
+  code.onkeydown = (event) => {
+    if (event.key === "Enter") submit();
+  };
   for (const button of document.querySelectorAll("[data-tab]")) button.onclick = () => { tab = button.dataset.tab; answer.hidden = true; void show(); };
   document.getElementById("interrupt").onclick = () => void attempt(() => telar.call("interrupt")).then(refreshKernel);
   document.getElementById("restart").onclick = () => void attempt(() => telar.call("restart")).then(refreshKernel).then(show);
   telar.onEvent((event) => {
+    if (event?.name === "settings.changed") {
+      report();
+      return void refreshKernel().then(show);
+    }
     if (event?.name === "kernel.state" && typeof event.data?.state === "string") setKernel(event.data.state);
     if (event?.name !== "cell.output" && !(event?.name === "kernel.state" && event.data?.state === "idle")) return;
     clearTimeout(queued);

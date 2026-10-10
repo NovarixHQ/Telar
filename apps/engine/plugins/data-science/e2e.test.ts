@@ -16,7 +16,7 @@ import type { ToolFactory } from "../../src/domains/agent-tools";
 import { stubModels } from "../../test/stub-models";
 import { STUB_CAPABILITIES } from "../../test/stub-driver";
 import { dataSciencePlugin } from ".";
-import { telarVenvPython } from "./telar-venv";
+import { telarVenvDir, telarVenvPython } from "./telar-venv";
 
 function hasUv(): boolean {
   try {
@@ -49,6 +49,7 @@ describe.skipIf(skip)("data science on a real kernel", () => {
   let daemon: EngineDaemon;
   let client: EngineClient;
   const tools: Record<string, (args: Record<string, unknown>) => Promise<ToolAnswer>> = {};
+  const turns: { sessionId: string; plugins: string[] }[] = [];
   const call = <T,>(verb: string, body: Record<string, unknown> = {}) => client.plugin<T>("session_one", "data-science", verb, body);
   const events = async () => (await client.events("session_one")).events as EngineEvent[];
   const engine = async (method: string, pathname: string, body?: unknown) => {
@@ -76,7 +77,16 @@ describe.skipIf(skip)("data science on a real kernel", () => {
       models: stubModels,
       engineRoot: path.join(home, "engine"),
       pluginsDir: path.join(home, "plugins"),
-      embeddedWorker: { createDriver: () => ({ capabilities: STUB_CAPABILITIES, run: async () => ({ text: "ok" }) }), pollMs: 20 },
+      embeddedWorker: {
+        createDriver: () => ({
+          capabilities: STUB_CAPABILITIES,
+          run: async (input: { sessionId: string; plugins?: Record<string, unknown> }) => {
+            turns.push({ sessionId: input.sessionId, plugins: Object.keys(input.plugins ?? {}) });
+            return { text: "ok" };
+          },
+        }),
+        pollMs: 20,
+      },
     });
     client = new EngineClient(daemon.discovery);
     await client.registerProject({ id: "project_one", name: "One", root: checkout });
@@ -166,6 +176,54 @@ describe.skipIf(skip)("data science on a real kernel", () => {
     expect(refused.status).toBe(400);
   }, 120_000);
 
+  test("choosing Telar's environment in settings gives a new session the tools, with nothing restarted", async () => {
+    await client.updateProject("project_one", { plugins: { "data-science": { enabled: true } } });
+    const venv = telarVenvDir(daemon.store.paths.root, "project_one");
+    if (!telarVenvPython(venv)) execFileSync("uv", ["venv", "--python", python, venv], { stdio: "ignore" });
+    type Option = { type: string; title?: string; action?: { verb: string; input?: Record<string, unknown> } };
+    const before = JSON.parse((await engine("GET", "/v2/projects/project_one/plugins/data-science/settings")).text) as { blocks: Option[] };
+    const telar = before.blocks.find((block) => block.type === "option" && block.title === "Telar's environment")!;
+    expect(telar.action?.verb).toBe("use");
+    expect((await engine("POST", "/v2/projects/project_one/plugins/data-science/use", telar.action!.input)).status).toBe(200);
+
+    await client.createSession({ id: "session_two", projectId: "project_one" });
+    daemon.store.intake.submitTurn("session_two", { runId: "run_two", input: "hello" });
+    const turn = await until(async () => turns.find((entry) => entry.sessionId === "session_two"), "the turn to reach the driver");
+    expect(turn.plugins).toContain("data-science");
+    const after = JSON.parse((await engine("GET", "/v2/projects/project_one/plugins/data-science/settings")).text) as { blocks: (Option & { selected?: boolean })[] };
+    expect(after.blocks.find((block) => block.type === "option" && block.selected)?.title).toBe("Telar's environment");
+    await enable(true);
+  }, 120_000);
+
+  test("this Mac's defaults view offers the detected Pythons and saves the default packages", async () => {
+    type Block = { type: string; name?: string; options?: { value: string; label: string }[]; verb?: string };
+    const view = JSON.parse((await engine("GET", "/v2/plugins/data-science/defaults")).text) as { blocks: Block[] };
+    const picker = view.blocks.find((block) => block.type === "select" && block.name === "python")!;
+    const detected = picker.options!.filter((option) => option.value);
+    expect(detected.length).toBeGreaterThan(0);
+    expect(picker.verb).toBe("default-python");
+
+    expect((await engine("POST", "/v2/plugins/data-science/default-python", { python: detected[0]!.value })).status).toBe(200);
+    expect((await engine("POST", "/v2/plugins/data-science/default-packages", { packages: "polars, numpy" })).status).toBe(200);
+    expect((await engine("POST", "/v2/plugins/data-science/default-packages", { packages: "--index-url=https://evil.example" })).status).toBe(400);
+    const machine = (await client.machinePlugins()).machine.entries["data-science"]?.settings;
+    expect(machine).toEqual({ python: detected[0]!.value, packages: ["polars", "numpy"] });
+
+    const schema = (await status()).machineSettingsSchema as { properties: Record<string, { widget?: string }> };
+    expect([schema.properties.python?.widget, schema.properties.packages?.widget]).toEqual(["view", "view"]);
+    await engine("POST", "/v2/plugins/data-science/default-python", { python: "" });
+  }, 60_000);
+
+  test("a plot from a session with no kernel yet starts one and draws", async () => {
+    await client.createSession({ id: "session_plot", projectId: "project_one" });
+    const before = await client.plugin<{ state: string }>("session_plot", "data-science", "kernel", {});
+    expect(before.state).toBe("none");
+    const drawn = await client.plugin<{ ok: boolean; attachmentId?: string }>("session_plot", "data-science", "plot", { code: "import matplotlib.pyplot as plt\nplt.plot([1, 3, 2])" });
+    expect(drawn.ok).toBe(true);
+    expect(drawn.attachmentId).toBeString();
+    expect((await client.plugin<{ state: string }>("session_plot", "data-science", "kernel", {})).state).toBe("idle");
+  }, 120_000);
+
   test("the variable inspector sees the cell's state, and a restart clears it", async () => {
     const vars = await call<{ name: string; type: string }[]>("vars");
     expect(vars).toContainEqual(expect.objectContaining({ name: "x", type: "int" }));
@@ -199,4 +257,43 @@ describe.skipIf(skip)("data science on a real kernel", () => {
     expect(refused.isError).toBe(true);
     expect(refused.content[0]!.text).toContain("not enabled");
   }, 60_000);
+});
+
+describe.skipIf(skip)("data science with the engine's home inside the checkout", () => {
+  let home: string;
+  let daemon: EngineDaemon;
+
+  afterAll(async () => {
+    await daemon?.close();
+    fs.rmSync(home, { recursive: true, force: true });
+  });
+
+  test("Telar's environment stays usable from a worktree session", async () => {
+    home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "telar-ds-home-")));
+    const git = (...args: string[]) => execFileSync("git", ["-C", home, ...args], { stdio: "ignore" });
+    git("init", "-q", "-b", "main");
+    fs.writeFileSync(path.join(home, ".gitignore"), ".telar-home/\n");
+    git("add", ".");
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init");
+    daemon = await startEngine({ models: stubModels, engineRoot: path.join(home, ".telar-home"), pluginsDir: path.join(home, ".telar-home", "plugins") });
+    const client = new EngineClient(daemon.discovery);
+    await client.registerProject({ id: "project_one", name: "One", root: home });
+    await client.updateProject("project_one", { plugins: { "data-science": { enabled: true } } });
+    const base = execFileSync("uv", ["python", "find", "3.12"], { encoding: "utf8" }).trim();
+    execFileSync("uv", ["venv", "--python", base, telarVenvDir(daemon.store.paths.root, "project_one")], { stdio: "ignore" });
+
+    const call = async (method: string, verb: string, body?: unknown) =>
+      (await fetch(`http://127.0.0.1:${daemon.discovery.port}/v2/projects/project_one/plugins/data-science/${verb}`, {
+        method,
+        headers: { authorization: `Bearer ${daemon.discovery.token}`, "content-type": "application/json" },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      }).then((response) => response.json())) as { blocks: { type: string; title?: string; action?: { input?: Record<string, unknown> } }[] };
+    const telar = (await call("GET", "settings")).blocks.find((block) => block.type === "option" && block.title === "Telar's environment")!;
+    await call("POST", "use", telar.action!.input);
+
+    await client.createSession({ id: "session_wt", projectId: "project_one", envMode: "worktree" });
+    await until(async () => ((await client.session("session_wt")).session.preparation?.state ?? "ready") === "ready" || undefined, "the worktree");
+    expect(daemon.store.records.get("session_wt").workspace.mode).toBe("worktree");
+    expect(daemon.store.pluginDoors.available("data-science", "session_wt")).toBe(true);
+  }, 180_000);
 });

@@ -13,7 +13,7 @@ import { adoptBinaryDir, findBinary } from "../sdk/probe";
 
 const TOOLCHAIN_CACHE_MS = 5_000;
 
-export type DataScienceOpsHost = Pick<PluginHost, "engineRoot" | "now" | "project" | "writeProjectSettings" | "machineSettings" | "files"> & {
+export type DataScienceOpsHost = Pick<PluginHost, "engineRoot" | "now" | "project" | "writeProjectSettings" | "machineSettings" | "files" | "emit"> & {
   restartKernel(session: PluginSession): Promise<unknown>;
 };
 
@@ -45,6 +45,20 @@ export class DataScienceOps {
     return value;
   }
 
+  /** Tells the project's open views the environment changed; a project with the plugin off has none to tell. */
+  private announce(projectId: string): void {
+    try {
+      this.host.emit({ scope: "project", projectId, name: "settings.changed" });
+    } catch {
+      // the plugin is off for this project
+    }
+  }
+
+  /** Relative inside the checkout, so a worktree resolves its own copy; absolute under the engine's home, which a worktree does not carry. */
+  private stored(base: string, file: string): string {
+    return file.startsWith(this.host.engineRoot + path.sep) ? file : relativisePythonPath(base, file);
+  }
+
   private settings(project: PluginProject): DataScienceSettings {
     return projectSettings(project.settings);
   }
@@ -57,7 +71,7 @@ export class DataScienceOps {
     const telarVenv = telarVenvDir(this.host.engineRoot, projectId);
     const declared = declaredDependencies(base);
     const found = await discoverEnvironments(base, { toolchain, ...(telarVenvPython(telarVenv) ? { telarVenv } : {}), ...(declared.length ? { dists: declared } : {}) });
-    const environments = found.map((env) => ({ ...env, path: relativisePythonPath(base, env.python) }));
+    const environments = found.map((env) => ({ ...env, path: this.stored(base, env.python) }));
     const current = this.settings(project).python ? this.current(project, base) : undefined;
     return { toolchain, environments, requirements: projectRequirements(base), ...(declared.length ? { declared } : {}), ...(current ? { currentId: current.id } : {}) };
   }
@@ -79,9 +93,10 @@ export class DataScienceOps {
       path: match.path,
       resolvedAt: this.host.now(),
       manager: match.manager,
-      root: relativisePythonPath(workspace, match.root),
+      root: this.stored(workspace, match.root),
     };
     this.host.writeProjectSettings(session.projectId, { ...this.settings(this.host.project(session.projectId)), python });
+    this.announce(session.projectId);
     await this.host.restartKernel({ ...session, settings: { ...session.settings, python } });
     return { environments: environments.map((env) => environmentRow(env, env.id === match.id)), switched: match.name };
   }
@@ -132,7 +147,7 @@ export class DataScienceOps {
           } catch { /* not a repo, or unwritable — the venv still works */ }
         }
         const manager: EnvManager = request.manager === "venv" && request.location === "telar" ? "telar" : request.manager;
-        return { path: relativisePythonPath(project.root, python), root: relativisePythonPath(project.root, root), manager, source: manager === "telar" ? "telar" : "detected" };
+        return { path: this.stored(project.root, python), root: this.stored(project.root, root), manager, source: manager === "telar" ? "telar" : "detected" };
       },
     });
   }
@@ -149,6 +164,7 @@ export class DataScienceOps {
   choose(projectId: string, env: { path: string; root?: string; manager: EnvManager; source: "detected" | "chosen" | "telar" }): void {
     const settings = this.settings(this.host.project(projectId));
     this.host.writeProjectSettings(projectId, { ...settings, python: { source: env.source, path: env.path, resolvedAt: this.host.now(), manager: env.manager, ...(env.root ? { root: env.root } : {}) } });
+    this.announce(projectId);
   }
 
   /** `direct` marks the packages the project declares, when it declares any. */
@@ -232,8 +248,8 @@ export class DataScienceOps {
     const env = environmentRootOf(python);
     return {
       ...probe,
-      relativePath: relativisePythonPath(project.root, python),
-      root: relativisePythonPath(project.root, env?.root ?? path.dirname(python)),
+      relativePath: this.stored(project.root, python),
+      root: this.stored(project.root, env?.root ?? path.dirname(python)),
       manager: env?.manager ?? "system",
     };
   }

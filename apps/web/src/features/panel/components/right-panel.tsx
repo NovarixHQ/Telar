@@ -137,6 +137,7 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
     return (
       <PluginPanelsSurface
         {...(sessionId ? { sessionId } : {})}
+        {...(projectId ? { projectId } : {})}
         {...(hostId ? { hostId } : {})}
         {...(active ? { active } : {})}
         panels={props.pluginPanels ?? model.NO_PANELS}

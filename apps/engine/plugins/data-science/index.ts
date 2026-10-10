@@ -8,6 +8,7 @@ import { KernelHost } from "./kernel-host";
 import { notebookTools } from "./notebook-tools";
 import { DataScienceOps } from "./operations";
 import { machineRoutes, sessionVerbs } from "./routes";
+import { defaultsRoutes } from "./defaults-view";
 import { projectRoutes } from "./setup-routes";
 import { DataScienceSettings, resolveInterpreter } from "./settings";
 import { DsFiles } from "./state-files";
@@ -76,7 +77,7 @@ function dataScienceEngine(host: PluginHost): PluginEngine {
     tools: tools.handlers(capability),
     session: sessionVerbs(capability, host.attachments),
     project: projectRoutes(ops),
-    machine: machineRoutes(ops),
+    machine: { ...machineRoutes(ops), ...defaultsRoutes(ops, host) },
     available: (session) => "pythonPath" in resolveInterpreter(session),
     busy: (projectId) => live(projectId).some((kernel) => kernel.state === "busy"),
     releaseProject: async (projectId) => void (await Promise.all(live(projectId).map((kernel) => kernels?.dispose(kernel.sessionId, "data science disabled")))),
@@ -111,14 +112,14 @@ export const dataSciencePlugin: BundledPlugin = {
     machineSettingsSchema: schema(DataScienceMachineSettingsWrite),
     settings: [
       { id: "environment", scope: "project", label: "Data science", blurb: "The Python environment this project's kernel runs in.", icon: "FlaskConical", view: "settings" },
-      { id: "defaults", scope: "machine", label: "Data science defaults", blurb: "What a project on this computer inherits when it has not chosen for itself.", icon: "FlaskConical" },
+      { id: "defaults", scope: "machine", label: "Data science defaults", blurb: "What a project on this computer inherits when it has not chosen for itself.", icon: "FlaskConical", view: "defaults" },
     ],
     routes: {
       session: ["kernel", "execute", "interrupt", "restart", "vars", "inspect", "notebook/read", "notebook/edit", "notebook/run", "plot", "snapshot", "snapshots", "diff", "checkpoint", "lineage", "watches", "watch", "env", "packages", "install", "experiment", "table", "plots", "plots/image", "plots/pin"],
       project: ["GET settings", "POST use", "POST use-path", "POST draft", "POST create", "POST bootstrap", "POST python", "POST detect", "GET environments", "POST environments", "POST probe", "GET packages", "POST packages"],
-      machine: ["POST bootstrap", "GET toolchain", "GET jobs/:id", "DELETE jobs/:id"],
+      machine: ["POST bootstrap", "GET toolchain", "GET jobs/:id", "DELETE jobs/:id", "GET defaults", "POST default-python", "POST default-packages"],
     },
-    eventKinds: ["kernel.state", "cell.output", "watch.violated"],
+    eventKinds: ["kernel.state", "cell.output", "watch.violated", "settings.changed"],
     sessionStateDir: "ds",
     views: [{ id: "data", label: "Data", entry: "data.html" }],
     viewers: [

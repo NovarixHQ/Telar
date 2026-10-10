@@ -8,14 +8,15 @@ import { isSymlink } from "./external/installer";
 import { loadInstalledPlugins, type LoadedExternalPlugin } from "./external/manifest";
 import { externalPlugin } from "./external/module";
 import { PluginHost } from "./host";
+import { createPluginEvents, type PluginEvents } from "./events";
 import { installedPlugins } from "./installed";
 import { modulePlugin } from "./module";
 import type { BundledPlugin, PluginProject } from "../../../plugins/sdk";
 
 type Gate = (pluginId: string, sessionId: string) => { projectId: string; sessionId: string };
 
-/** A bundled module's view of the engine: its sessions behind the same gate, its settings, and its journal events. */
-function bundledModulePlugin(store: EngineStore, gate: Gate, { plugin, manifest }: { plugin: BundledPlugin; manifest: PluginManifest }) {
+/** A bundled module's view of the engine: its sessions behind the same gate, its settings, and its events. */
+function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvents, { plugin, manifest }: { plugin: BundledPlugin; manifest: PluginManifest }) {
   const id = manifest.id;
   const machine = () => pluginSettings(store.toolchains.machine(), id);
   const settingsOf = (projectId: string) => pluginSettings(readProjectPlugins(store.projectRegistry.get(projectId)).plugins, id);
@@ -36,10 +37,7 @@ function bundledModulePlugin(store: EngineStore, gate: Gate, { plugin, manifest 
     host: {
       engineRoot: store.paths.root,
       now: () => Date.now(),
-      appendEvent: (sessionId, event) => {
-        if (!manifest.eventKinds.includes(event.type)) throw new Error(`${id} did not declare the event ${event.type}`);
-        store.kernel.appendEvent(sessionId, event as never);
-      },
+      emit: (event) => void events.emit(id, manifest.eventKinds, event),
       machineSettings: machine,
       project,
       writeProjectSettings: (projectId, settings) => {
@@ -71,6 +69,14 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
     }
     return { projectId: project.id, sessionId };
   };
+  const events = createPluginEvents({
+    now: () => Date.now(),
+    journal: (sessionId, entry) => store.kernel.appendEvent(sessionId, entry),
+    checkSession: (pluginId, sessionId) => void resolve(pluginId, sessionId),
+    checkProject: (pluginId, projectId) => {
+      if (!store.toolchains.runs(store.projectRegistry.get(projectId), pluginId)) throw new EngineStateError("invalid_request", `${pluginId} is not enabled for this project`);
+    },
+  });
   const bundled = builtInPlugins({
     resolveHello: (sessionId) => resolve("hello", sessionId),
     dataScience: {
@@ -112,6 +118,7 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
   const moduleFor = (loaded: LoadedExternalPlugin) =>
     externalPlugin(loaded, {
       resolve: (sessionId) => resolve(loaded.manifest.id, sessionId),
+      emit: (event) => void events.emit(loaded.manifest.id, loaded.manifest.eventKinds, event),
       enabledAnywhere: () => store.projectRegistry.list().some((project) => store.toolchains.runs(project, loaded.manifest.id)),
       settings: (projectId) => {
         const machine = pluginSettings(store.toolchains.machine(), loaded.manifest.id);
@@ -125,7 +132,7 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
     });
   const external = loadInstalledPlugins(dir);
   const installed = installedPlugins(external);
-  const host = new PluginHost([...bundledModules().map((entry) => bundledModulePlugin(store, resolve, entry)), ...bundled, ...external.loaded.map(moduleFor)], {
+  const host = new PluginHost([...bundledModules().map((entry) => bundledModulePlugin(store, resolve, events, entry)), ...bundled, ...external.loaded.map(moduleFor)], {
     daemonId,
     stateDir,
     declaredPrefixes: [...BUNDLED_PLUGIN_TOOL_PREFIXES, ...bundledModulePrefixes(), ...installed.prefixes()],
@@ -133,5 +140,5 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
     log: (message, detail) => console.warn(`[telar] ${message}${detail ? ` ${JSON.stringify(detail)}` : ""}`),
   });
   store.projectRegistry.attachPluginGitignore((id) => host.ready(id)?.meta.gitignore);
-  return { host, installed, moduleFor, dir };
+  return { host, installed, moduleFor, dir, events };
 }

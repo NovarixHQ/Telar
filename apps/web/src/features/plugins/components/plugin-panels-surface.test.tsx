@@ -16,11 +16,12 @@ GlobalRegistrator.register({ url: "http://localhost/" });
 mock.module("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const { fakeSessionsStream } = await import("@/test/sessions-stream");
 const { PluginPanelsSurface } = await import("./plugin-panels-surface");
 const { pluginPanelSources } = await import("../panels");
 const { pluginSurfaces } = await import("../registry");
 
-const status = (id: string, panels: { id: string; label: string; verb: string }[], state: PluginStatus["state"] = "ready"): PluginStatus => ({
+const status = (id: string, panels: { id: string; label: string; verb: string; refreshOn?: string[] }[], state: PluginStatus["state"] = "ready"): PluginStatus => ({
   meta: { id, api: 1, name: id === "echo" ? "Echo" : id, version: "1", toolPrefixes: [], readTools: [], eventKinds: [], settings: [], panels },
   state,
 });
@@ -28,6 +29,8 @@ const status = (id: string, panels: { id: string; label: string; verb: string }[
 const PANELS = pluginPanelSources([status("echo", [{ id: "jobs", label: "Jobs", verb: "status" }])], ["echo"]);
 
 let cleared = 0;
+let panelReads = 0;
+let stream = fakeSessionsStream();
 let posted: { url: string; body: unknown }[] = [];
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 const realFetch = globalThis.fetch;
@@ -36,10 +39,13 @@ const realConfirm = window.confirm;
 
 beforeEach(() => {
   cleared = 0;
+  panelReads = 0;
+  stream = fakeSessionsStream();
   posted = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    if (url.endsWith("/api/sessions/stream")) return stream.answer(init?.signal);
     posted.push({ url, body });
     if (url.endsWith("/plugins/echo/clear")) {
       cleared += 1;
@@ -50,6 +56,7 @@ beforeEach(() => {
       return json({ ok: true });
     }
     if (url.endsWith("/plugins/latex/panel")) {
+      panelReads += 1;
       return json({
         blocks: [
           { type: "action", label: "Compile", verb: "compile", field: { name: "path", placeholder: "Default: main.tex" } },
@@ -99,7 +106,7 @@ async function mount(panels = PANELS, onOpenFile?: (path: string) => void) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);
-  await act(async () => root.render(<PluginPanelsSurface sessionId="session_one" panels={panels} {...(onOpenFile ? { onOpenFile } : {})} />));
+  await act(async () => root.render(<PluginPanelsSurface sessionId="session_one" hostId="local" panels={panels} {...(onOpenFile ? { onOpenFile } : {})} />));
   await flush();
   return { host, done: () => act(() => root.unmount()) };
 }
@@ -156,6 +163,22 @@ describe("LaTeX's compile panel, drawn from its blocks", () => {
     expect(host.querySelector('[role="log"]')).toBeNull();
     await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent === "Log tail")!.click());
     expect(host.querySelector('[role="log"]')?.textContent).toBe("! Undefined control sequence.");
+    done();
+  });
+
+  test("a compile event on its own session redraws the panel; another session's, or another name, does not", async () => {
+    const live = pluginPanelSources([status("latex", [{ id: "compile", label: "Compile", verb: "panel", refreshOn: ["compile.finished"] }])], ["latex"]);
+    const { done } = await mount(live);
+    expect(panelReads).toBe(1);
+    const compiled = (sessionId: string, name = "compile.finished") =>
+      stream.announce({ type: "plugin.event", at: 1, id: 2, scope: "session", sessionId, pluginId: "latex", name, data: { ok: true } });
+    compiled("session_two");
+    compiled("session_one", "compile.started");
+    await flush();
+    expect(panelReads).toBe(1);
+    compiled("session_one");
+    await flush();
+    expect(panelReads).toBe(2);
     done();
   });
 

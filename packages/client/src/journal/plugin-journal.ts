@@ -13,7 +13,7 @@ const row = (event: EngineEvent, id: string) => ({
   openedBy: event.id,
 });
 
-const RENDERERS: { [T in "notebook.cell.output" | "latex.compile.finished" | "ds.watch.violated"]: Renderer<T> } = {
+const RENDERERS: { [T in "notebook.cell.output" | "plugin.event" | "ds.watch.violated"]: Renderer<T> } = {
   "notebook.cell.output": (event) => {
     const output = event.output as { kind?: string; attachmentId?: string } | null;
     if (output?.kind !== "image" || !output.attachmentId) return undefined;
@@ -24,13 +24,15 @@ const RENDERERS: { [T in "notebook.cell.output" | "latex.compile.finished" | "ds
       plotAttachmentId: output.attachmentId,
     };
   },
-  "latex.compile.finished": (event) => ({
-    ...row(event, `latex_${event.id}`),
-    status: event.ok ? "completed" : "failed",
-    detail: event.ok
-      ? { type: "unknown", label: `Compiled ${event.path}${event.warnings ? ` — ${event.warnings} warning${event.warnings === 1 ? "" : "s"}` : ""}` }
-      : { type: "error", error: { message: `Compile of ${event.path} failed — ${event.errors} error${event.errors === 1 ? "" : "s"}${event.firstError ? `, first: ${event.firstError}` : ""}` } },
-  }),
+  "plugin.event": ({ note, ...event }) => {
+    if (!note) return undefined;
+    return {
+      ...row(event as EngineEvent, `${event.pluginId}_${event.id}`),
+      status: note.failed ? "failed" : "completed",
+      detail: note.failed ? { type: "error", error: { message: note.text } } : { type: "unknown", label: note.text },
+      ...(note.attachmentId ? { plotAttachmentId: note.attachmentId } : {}),
+    };
+  },
   "ds.watch.violated": (event) => ({
     ...row(event, `watch_${event.id}`),
     status: "failed",

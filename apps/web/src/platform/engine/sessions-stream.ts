@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { readEventStream } from "@/platform/engine/event-stream";
-import { hostFetcher } from "@/platform/engine/host-client";
+import { parsePluginEventFrame, type PluginEventFrame } from "@telar/engine-client";
+import { readEventStream } from "./event-stream";
+import { hostFetcher } from "./host-client";
 
 export type SessionFrame = { sessionId: string; id: number; type: string };
-type Listener = { frame: (frame: SessionFrame) => void; open: () => void };
+type Listener = { frame?: (frame: SessionFrame) => void; plugin?: (frame: PluginEventFrame) => void; open: () => void };
 type Channel = { listeners: Set<Listener>; open: boolean; controller: AbortController };
 
 const RETRY_MAX_MS = 60_000;
@@ -35,7 +36,11 @@ async function follow(hostId: string, channel: Channel) {
       channel.open = true;
       for (const listener of channel.listeners) listener.open();
       await readEventStream(body, signal, (data) => {
-        if (isFrame(data)) for (const listener of channel.listeners) listener.frame(data);
+        const plugin = parsePluginEventFrame(data);
+        for (const listener of channel.listeners) {
+          if (plugin) listener.plugin?.(plugin);
+          if (isFrame(data)) listener.frame?.(data);
+        }
       });
     } catch {
       if (signal.aborted) return;
@@ -72,5 +77,16 @@ export function useSessionsStream(hostId: string | undefined, onFrame: (frame: S
   useEffect(() => {
     if (!hostId) return;
     return subscribe(hostId, { frame: (frame) => latest.current.onFrame(frame), open: () => latest.current.onOpen() });
+  }, [hostId]);
+}
+
+export function usePluginFrames(hostId: string | undefined, onFrame: (frame: PluginEventFrame) => void): void {
+  const latest = useRef(onFrame);
+  useEffect(() => {
+    latest.current = onFrame;
+  });
+  useEffect(() => {
+    if (!hostId) return;
+    return subscribe(hostId, { plugin: (frame) => latest.current(frame), open: () => {} });
   }, [hostId]);
 }

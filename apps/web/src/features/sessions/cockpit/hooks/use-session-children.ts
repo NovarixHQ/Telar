@@ -6,7 +6,7 @@ import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { type JournalTurn } from "@telar/client/journal";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { usePoll } from "@/ui/hooks/use-poll";
-import { changesRow, useSessionsStream } from "../../sessions-stream";
+import { changesRow, useSessionsStream } from "@/platform/engine/sessions-stream";
 
 export const CHILDREN_LIVE_MS = 3_000;
 export const CHILDREN_IDLE_MS = 15_000;

@@ -225,7 +225,7 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...providersRoutes(store, { now, ...(options.probeProviderVersion ? { probeVersion: options.probeProviderVersion } : {}), ...(options.runProviderUpdate ? { runUpdate: options.runProviderUpdate } : {}), ...(options.readProviderLimits ? { readLimits: options.readProviderLimits } : {}), ...(options.agentInstall ? { agents: options.agentInstall } : {}) }),
     ...appearanceRoutes(store),
     ...promptsRoutes(store),
-    ...sessionsRoutes(store, { daemonId, openStreams, mcpInfo: sessionsDoor.card }),
+    ...sessionsRoutes(store, { daemonId, openStreams, mcpInfo: sessionsDoor.card, watchPluginFrames: plugins.events.watch }),
     ...schedulesRoutes(store),
     ...workerRoutes(execution),
     ...turnRoutes(store, execution),

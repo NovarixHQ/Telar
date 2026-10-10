@@ -83,7 +83,7 @@ test.skipIf(!texlive)("schema and briefing come through the generic path, and di
   expect(status.state).toBe("ready");
   expect(status.settingsSchema?.properties).toHaveProperty("mainFile");
   expect(status.machineSettingsSchema?.properties).toHaveProperty("autoInstallPackages");
-  expect(status.meta.panels).toEqual([{ id: "compile", label: "Compile", verb: "panel" }]);
+  expect(status.meta.panels).toEqual([{ id: "compile", label: "Compile", verb: "panel", refreshOn: ["compile.started", "compile.finished"] }]);
   const session = () => daemon.store.records.get("session_one");
   expect(daemon.store.toolchains.enabledIds(session())).toEqual(["latex"]);
   expect(pluginBriefings(daemon.store.toolchains.enabledIds(session()))).toEqual([status.meta.briefing!]);

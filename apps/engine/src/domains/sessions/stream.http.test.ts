@@ -8,8 +8,8 @@
  *
  * THE FRAME IS THIN ON PURPOSE and the assertions say so: which session, which
  * event id, what kind. A frame is never the record — it names a fact the reader
- * re-derives from `/events` — so asserting the event BODY arrived would be
- * pinning a design this feed deliberately does not have.
+ * re-derives from `/events`. Plugin events are the exception, covered in
+ * `domains/plugins/events.http.test.ts`.
  * ────────────────────────────────────────────────────────────────────────────
  */
 import { expect, test } from "bun:test";
@@ -18,6 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { startEngine } from "../../daemon";
 import { EngineClient } from "@telar/engine-client";
+import { openSessionsStream, readFrames } from "../../../test/sse-frames";
 import { stubModels } from "../../../test/stub-models";
 
 const roots: string[] = [];
@@ -26,31 +27,6 @@ const root = (): string => {
   roots.push(directory);
   return directory;
 };
-
-/** Read SSE `data:` frames off a live response until `wanted` have arrived or
- *  the bound passes. THE READER IS ALWAYS CANCELLED by the caller's `finally`. */
-async function frames(body: ReadableStream<Uint8Array>, wanted: number, budgetMs = 4_000): Promise<Record<string, unknown>[]> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  const seen: Record<string, unknown>[] = [];
-  const deadline = Date.now() + budgetMs;
-  let buffered = "";
-  try {
-    while (seen.length < wanted && Date.now() < deadline) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffered += decoder.decode(value, { stream: true });
-      const lines = buffered.split("\n");
-      buffered = lines.pop() ?? "";
-      for (const line of lines) {
-        if (line.startsWith("data: ")) seen.push(JSON.parse(line.slice(6)) as Record<string, unknown>);
-      }
-    }
-  } finally {
-    await reader.cancel().catch(() => {});
-  }
-  return seen;
-}
 
 test("a session event reaches a watcher as a thin frame, and the daemon still closes (#586)", async () => {
   const engineRoot = root();
@@ -62,15 +38,13 @@ test("a session event reaches a watcher as a thin frame, and the daemon still cl
     await client.registerProject({ id: "project_one", name: "One", root: engineRoot });
     await client.createSession({ id: "session_one", projectId: "project_one" });
 
-    stream = await fetch(`http://127.0.0.1:${daemon.discovery.port}/v2/sessions/stream`, {
-      headers: { authorization: `Bearer ${daemon.discovery.token}` },
-    });
+    stream = await openSessionsStream(daemon);
     expect(stream.status).toBe(200);
     expect(stream.headers.get("content-type")).toContain("text/event-stream");
 
     // Something happens AFTER the subscription, which is the only thing a
     // live-only feed promises to carry.
-    const collected = frames(stream.body!, 1);
+    const collected = readFrames(stream.body!, 1);
     await client.submitTurn("session_one", { runId: "run_1", input: "hello" });
     const seen = await collected;
 

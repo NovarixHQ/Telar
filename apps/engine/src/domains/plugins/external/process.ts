@@ -27,6 +27,7 @@ export type ExternalProcessOptions = {
   timers?: PluginTimers;
   requestTimeoutMs?: number;
   startTimeoutMs?: number;
+  onNotification?: (method: string, params: unknown) => void;
 };
 
 export type ExternalProcessState = "stopped" | "starting" | "running" | "backoff";
@@ -175,11 +176,15 @@ export class ExternalPluginProcess {
       this.buffer = this.buffer.slice(newline + 1);
       newline = this.buffer.indexOf("\n");
       if (!line) continue;
-      let message: { id?: unknown; result?: unknown; error?: { message?: unknown } };
+      let message: { id?: unknown; method?: unknown; params?: unknown; result?: unknown; error?: { message?: unknown } };
       try {
         message = JSON.parse(line);
       } catch {
         this.log(`${line}\n`);
+        continue;
+      }
+      if (message.id === undefined && typeof message.method === "string") {
+        this.notified(message.method, message.params);
         continue;
       }
       const waiting = typeof message.id === "number" ? this.pending.get(message.id) : undefined;
@@ -188,6 +193,14 @@ export class ExternalPluginProcess {
       this.timers.clearTimeout(waiting.timer);
       if (message.error) waiting.reject(new Error(String(message.error.message ?? "plugin error")));
       else waiting.resolve(message.result);
+    }
+  }
+
+  private notified(method: string, params: unknown): void {
+    try {
+      this.options.onNotification?.(method, params);
+    } catch (error) {
+      this.log(`[telar] ${method} refused: ${error instanceof Error ? error.message : String(error)}\n`);
     }
   }
 

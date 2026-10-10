@@ -1,3 +1,4 @@
+import { pluginEventJournalShape } from "../plugins/events";
 import { PluginStatus } from "../plugins/schema";
 import { z } from "zod";
 import { BrowserProvider, BrowserTab, Effort, Id, ProviderRefs, RawProviderEvent, Timestamp, UsageSnapshot } from "./common";
@@ -150,16 +151,8 @@ const DsWatchViolated = event("ds.watch.violated", {
   detail: z.string().optional(),
 });
 
-// ── latex: the session's compiles ──────────────────────────────────────────
-const LatexCompileStarted = event("latex.compile.started", { path: z.string() });
-const LatexCompileFinished = event("latex.compile.finished", {
-  path: z.string(),
-  ok: z.boolean(),
-  pdfPath: z.string().optional(),
-  errors: z.number().int(),
-  warnings: z.number().int(),
-  firstError: z.string().optional(),
-});
+// ── plugins: a plugin's own events on a session, in one envelope ──────────
+const PluginEvent = event("plugin.event", pluginEventJournalShape);
 
 /** Recoverable. The turn continues. */
 const RuntimeWarning = event("runtime.warning", { message: z.string() });
@@ -211,8 +204,7 @@ export const EngineEvent = z.discriminatedUnion("type", [
   KernelStateChanged,
   NotebookCellOutput,
   DsWatchViolated,
-  LatexCompileStarted,
-  LatexCompileFinished,
+  PluginEvent,
   RuntimeWarning,
   RuntimeError,
 ]);

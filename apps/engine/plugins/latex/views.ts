@@ -59,7 +59,7 @@ export function compileView(status: CompileStatus | { status: "never" }, mainFil
     blocks.push({ type: "text", text: "Clean compile — no errors, no warnings." });
   }
   blocks.push({ type: "log", title: "Log tail", lines: last.logTail.length ? last.logTail : ["(empty)"], collapsed: true });
-  return { blocks, ...(last.status === "running" ? { refreshMs: POLL_MS } : {}) };
+  return { blocks };
 }
 
 function inherited(machine: LatexMachineSettings, toolchain: LatexToolchain): string {

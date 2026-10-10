@@ -9,6 +9,8 @@ export const PluginId = z
   .regex(/^[a-z][a-z0-9-]*$/, "a plugin id is lowercase letters, digits and dashes, starting with a letter");
 export type PluginId = z.infer<typeof PluginId>;
 
+export const PluginEventName = z.string().regex(/^[a-z][a-z0-9_-]*(\.[a-z0-9_-]+)*$/, "an event name is lowercase, dot-separated").max(64);
+
 export const PluginToolPrefix = z
   .string()
   .min(1)
@@ -41,6 +43,7 @@ export const PluginPanel = z.strictObject({
   label: z.string().min(1).max(40),
   /** The session verb that answers with a `PluginPanelView`. */
   verb: PluginSessionVerb,
+  refreshOn: z.array(PluginEventName).max(16).optional(),
 });
 export type PluginPanel = z.infer<typeof PluginPanel>;
 
@@ -155,7 +158,7 @@ export const PluginMeta = z.object({
   toolPrefixes: z.array(PluginToolPrefix),
   readTools: z.array(z.string().min(1)).default([]),
   briefing: z.string().min(1).max(2000).optional(),
-  /** Journal event kinds this plugin emits, inside the `plugin.event` envelope. */
+  /** Names of the `plugin.event`s this plugin emits. */
   eventKinds: z.array(z.string().min(1)).default([]),
   sessionStateDir: z.string().min(1).max(64).optional(),
   /** A `.gitignore` rule the plugin wants in projects that enable it. */
@@ -216,8 +219,8 @@ export const PluginManifest = z
       .default({ session: [], project: [], machine: [] }),
     /** Panel surfaces, each drawn from a declared session verb. */
     panels: z.array(PluginPanel).max(8).default([]),
-    /** Journal event kinds the plugin appends to its sessions. */
-    eventKinds: z.array(z.string().min(1).max(64)).max(16).default([]),
+    /** Names of the `plugin.event`s the plugin emits; anything else it emits is refused. */
+    eventKinds: z.array(PluginEventName).max(16).default([]),
     /** A `.gitignore` rule written into a project when it turns the plugin on. */
     gitignore: z
       .strictObject({ rule: z.string().min(1).max(200), why: z.string().min(1).max(200), alreadyCovered: z.array(z.string().min(1)).default([]) })

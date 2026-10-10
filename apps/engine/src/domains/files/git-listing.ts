@@ -24,14 +24,13 @@ async function gitlinks(git: AsyncGitRunner, cwd: string): Promise<Set<string>> 
   return links;
 }
 
-/** Submodules and untracked nested repositories come back as folders, expanded from their own tree when checked out. */
 export async function gitListing(git: AsyncGitRunner, cwd: string, depth = 0): Promise<GitListing | undefined> {
   const inside = await git(cwd, ["rev-parse", "--is-inside-work-tree", "--show-prefix", "--show-toplevel"]);
   failed(inside);
   const [isInside, prefix = "", toplevel] = inside.stdout.split("\n");
   if (inside.status !== 0 || isInside?.trim() !== "true") return undefined;
-  // An uninitialised submodule is an empty folder inside its parent's work tree.
-  if (depth > 0 && prefix !== "") return undefined;
+  const ownWorkTree = prefix === "";
+  if (depth > 0 && !ownWorkTree) return undefined;
   const listed = await git(cwd, ["ls-files", "--cached", "--others", "--exclude-standard", "--deduplicate", "-z"]);
   failed(listed);
   if (listed.status !== 0) return { files: [], submodules: [] };

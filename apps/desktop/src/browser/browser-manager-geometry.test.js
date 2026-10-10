@@ -451,46 +451,50 @@ describe("the panel's corner, and the frozen frame a menu opens over", () => {
     expect(view.radii.at(-1)).toBe(0);
   });
 
-  test("the capture finishes while the page is still shown, and the hide follows it", async () => {
+  test("capturing leaves the page up: the cockpit paints the frame before it asks for the hide", async () => {
     const { manager, tab, view } = await shown({ radius: 14 });
     let release;
     tab.view.webContents.captureGate = new Promise((resolve) => { release = resolve; });
 
-    const freezing = manager.freezeView("s");
+    const capturing = manager.captureView("s");
     await Promise.resolve();
-
     expect(tab.view.webContents.captures).toEqual([{ visibleAtCapture: true, rect: { x: 0, y: 0, width: 640, height: 400 } }]);
-    expect(view.visible).toBe(true);
 
     release();
-    const frame = await freezing;
-    expect(frame).toEqual({
+    expect(await capturing).toEqual({
       data: Buffer.from("png").toString("base64"),
       mimeType: "image/png",
-
       rect: { x: 12, y: 40, width: 640, height: 400 },
     });
-    expect(view.visible).toBe(false);
+    expect(view.visible).toBe(true);
   });
 
-  test("a capture that outruns the ceiling hides plainly, the way it did before the frame existed", async () => {
+  test("one menu over the page is one capture, one hide and one show", async () => {
     const { manager, tab, view } = await shown({ radius: 14 });
-
-    tab.view.webContents.captureGate = new Promise(() => {});
-    expect(await manager.freezeView("s")).toBeNull();
-    expect(view.visible).toBe(false);
+    view.toggles = [];
+    await manager.captureView("s");
+    await manager.setVisible("s", false);
+    await manager.setVisible("s", true);
+    await tab.geometry.queue;
+    expect(tab.view.webContents.captures).toHaveLength(1);
+    expect(view.toggles).toEqual([false, true]);
   });
 
-  test("a capture that fails, and one that comes back blank, hide plainly too", async () => {
+  test("a capture that outruns the ceiling, fails or comes back blank gives no frame and leaves the view alone", async () => {
+    const slow = await shown({ radius: 14 });
+    slow.tab.view.webContents.captureGate = new Promise(() => {});
+    expect(await slow.manager.captureView("s")).toBeNull();
+    expect(slow.view.visible).toBe(true);
+
     const failing = await shown({ radius: 14 });
     failing.tab.view.webContents.captureError = new Error("no frame");
-    expect(await failing.manager.freezeView("s")).toBeNull();
-    expect(failing.view.visible).toBe(false);
+    expect(await failing.manager.captureView("s")).toBeNull();
+    expect(failing.view.visible).toBe(true);
 
     const empty = await shown({ radius: 14 });
     empty.tab.view.webContents.captureEmpty = true;
-    expect(await empty.manager.freezeView("s")).toBeNull();
-    expect(empty.view.visible).toBe(false);
+    expect(await empty.manager.captureView("s")).toBeNull();
+    expect(empty.view.visible).toBe(true);
   });
 
   test("a blank tab is never captured — the start page is DOM, and its view is already down", async () => {
@@ -500,7 +504,7 @@ describe("the panel's corner, and the frozen frame a menu opens over", () => {
     await manager.setVisible("s", true);
     await manager.activeTab("s").geometry.queue;
 
-    expect(await manager.freezeView("s")).toBeNull();
+    expect(await manager.captureView("s")).toBeNull();
     expect(views[0].webContents.captures).toEqual([]);
     expect(views[0].visible).toBe(false);
   });

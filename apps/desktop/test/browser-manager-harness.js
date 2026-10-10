@@ -220,6 +220,7 @@ class FakeView {
   }
 
   setVisible(visible) {
+    if (visible !== this.visible) this.toggles = [...(this.toggles || []), visible];
     this.visible = visible;
   }
 

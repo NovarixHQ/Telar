@@ -105,7 +105,7 @@ export type DesktopBrowserBridge = {
   action(scopeKey: string, action: Record<string, unknown>): Promise<DesktopBrowserPanelState>;
   setBounds(scopeKey: string, bounds: { x: number; y: number; width: number; height: number; radius?: number }): Promise<void>;
   setVisible(scopeKey: string, visible: boolean): Promise<void>;
-  freezeView?(scopeKey: string): Promise<FrozenFrame | null>;
+  captureView?(scopeKey: string): Promise<FrozenFrame | null>;
   onState(listener: (state: DesktopBrowserPanelState) => void): () => void;
   releaseScope?(scopeKey: string, destroy?: boolean, options?: { closedByPerson?: boolean }): Promise<void>;
   bindProfile?(scopeKey: string, profileKey: string): Promise<{ scopeKey: string; profileKey: string; partition: string; profileId?: string; label?: string }>;

@@ -42,11 +42,8 @@ export function useDesktopBrowserViewport(
         visibilityRequested = false;
         return;
       }
-      // A menu is open over the panel: the view stays down until it closes.
-      if (overlayRef.current) {
-        visibilityRequested = false;
-        return;
-      }
+      // A menu is open over the panel: the view stays down, and the overlay's own close puts it back.
+      if (overlayRef.current) return;
       if (visibilityRequested) return;
       visibilityRequested = true;
       await bridge.setVisible(scopeKey, true);

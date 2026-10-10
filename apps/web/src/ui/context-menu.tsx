@@ -4,12 +4,16 @@ import * as React from "react"
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
 
 import { cn } from "@/ui/utils"
-import { useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
+import { NativeViewOverlayElements, useNativeViewOverlayRef, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
 function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
-  const onOpenChange = useOverlayRootClaim(props)
-  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} onOpenChange={onOpenChange} />
+  const { onOpenChange, elements } = useOverlayRootClaim(props)
+  return (
+    <NativeViewOverlayElements value={elements}>
+      <ContextMenuPrimitive.Root data-slot="context-menu" {...props} onOpenChange={onOpenChange} />
+    </NativeViewOverlayElements>
+  )
 }
 
 function ContextMenuTrigger({ ...props }: ContextMenuPrimitive.Trigger.Props) {
@@ -22,9 +26,10 @@ function ContextMenuContent({
   className,
   ...props
 }: ContextMenuPrimitive.Popup.Props) {
+  const positioner = useNativeViewOverlayRef()
   return (
     <ContextMenuPrimitive.Portal>
-      <ContextMenuPrimitive.Positioner className="isolate z-50 outline-none">
+      <ContextMenuPrimitive.Positioner ref={positioner} className="isolate z-50 outline-none">
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
           className={cn("z-50 max-h-(--available-height) w-max min-w-44 max-w-(--available-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-3 ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95 outline-none", className )}
@@ -98,9 +103,11 @@ function ContextMenuSubContent({
     ContextMenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
+  const positioner = useNativeViewOverlayRef()
   return (
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Positioner
+        ref={positioner}
         className="isolate z-50 outline-none"
         align={align}
         alignOffset={alignOffset}

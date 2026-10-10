@@ -2,7 +2,7 @@
 
 import { Toast } from "@base-ui/react/toast";
 import { CircleAlertIcon, CircleCheckIcon, XIcon } from "lucide-react";
-import { useNativeViewOverlay } from "@/platform/desktop/native-view-overlay";
+import { useNativeViewOverlay, useOverlayElementRef, useOverlayElements, type OverlayElements } from "@/platform/desktop/native-view-overlay";
 import { cn } from "@/ui/utils";
 
 export type ToastAction = { id: string; label: string; onClick: () => void; disabled?: boolean };
@@ -12,10 +12,9 @@ export const toastManager = Toast.createToastManager();
 
 const ACTION = "rounded-md border border-border px-2 py-0.5 text-2xs font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-60";
 
-function ToastList() {
+function ToastList({ elements }: { elements: OverlayElements }) {
   const { toasts } = Toast.useToastManager<ToastData>();
-  // The native browser view draws above the page, so a visible toast takes it down like any overlay.
-  useNativeViewOverlay(toasts.length > 0);
+  useNativeViewOverlay(toasts.length > 0, elements);
   return toasts.map((toast) => (
     <Toast.Root
       key={toast.id}
@@ -48,11 +47,13 @@ function ToastList() {
 }
 
 export function Toaster() {
+  const elements = useOverlayElements();
+  const viewport = useOverlayElementRef(elements);
   return (
     <Toast.Provider toastManager={toastManager}>
       <Toast.Portal>
-        <Toast.Viewport className="pointer-events-none fixed right-4 bottom-4 z-[100] flex w-80 flex-col gap-2">
-          <ToastList />
+        <Toast.Viewport ref={viewport} className="pointer-events-none fixed right-4 bottom-4 z-[100] flex w-80 flex-col gap-2">
+          <ToastList elements={elements} />
         </Toast.Viewport>
       </Toast.Portal>
     </Toast.Provider>

@@ -307,14 +307,8 @@ module.exports = {
     await this.applyVisibilityAsync(scope);
   },
 
-  async freezeView(scopeKey, sender) {
+  async captureView(scopeKey, sender) {
     const scope = this.requireScope(scopeKey);
-    const frame = await this.captureFrozenFrame(scope, sender);
-    await this.setVisible(scopeKey, false, sender);
-    return frame;
-  },
-
-  async captureFrozenFrame(scope, sender) {
     const stage = this.stageOfSender(scope, sender);
     if (!stage && this.visibleScopeKey !== scope) return null;
     const tab = this.placeTabs(scope, stage).find((candidate) => candidate.id === this.activeIdIn(scope, stage));

@@ -600,7 +600,7 @@ describe("a fixed page's widget is the view's size, never the override's", () =>
 
   test("the frozen frame is cropped to the view's own pixels and painted back at the fitted rect", async () => {
     const { manager, views } = await fixedInTallStage(1.25);
-    const frame = await manager.freezeView("s");
+    const frame = await manager.captureView("s");
     expect(views[0].webContents.captures.at(-1).rect).toEqual({ x: 0, y: 0, width: 1219, height: 761 });
 
     expect(frame.rect).toEqual({ x: 8, y: 212, width: 975, height: 609 });

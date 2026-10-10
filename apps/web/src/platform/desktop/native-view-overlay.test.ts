@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { claimNativeView, createOverlayFreezer, nativeViewOverlayHidden, onNativeViewOverlay, type FrozenFrame } from "@/platform/desktop/native-view-overlay";
+import { claimNativeView, createOverlayFreezer, nativeViewCovered, nativeViewOverlayHidden, onNativeViewOverlay, type FrozenFrame } from "@/platform/desktop/native-view-overlay";
 
 describe("the native view is claimed while a menu is open", () => {
   test("the last release is what shows the page again", () => {
@@ -33,113 +33,98 @@ describe("the native view is claimed while a menu is open", () => {
   });
 });
 
-/**
- * THE FROZEN FRAME'S LIFECYCLE (#475).
- *
- * Hiding the view is what makes a menu visible at all; it is also what made
- * the page blink out on every ⋯. The swap replaces the blink with a picture,
- * and everything worth pinning about it is ORDER — a frame painted before the
- * shell has one is nothing, a frame painted after the menu closed covers a
- * live page, and a hide that lands after the show it was meant to precede
- * leaves the panel blank with no menu on it, which is worse than the blink.
- */
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+const rect = (left: number, top: number, width: number, height: number) => ({ left, top, width, height, right: left + width, bottom: top + height }) as DOMRect;
+const drawnAt = (box: DOMRect) => ({ getBoundingClientRect: () => box }) as Element;
 
-/** The surface that owns the view, recording the swap in order. `hold` keeps
- *  a capture open the way a slow page does. */
+describe("only an overlay that reaches the browser covers it", () => {
+  const view = rect(600, 40, 640, 400);
+
+  test("a menu drawn beside the browser leaves it uncovered, one drawn over it covers it", () => {
+    const elements = new Set([drawnAt(rect(10, 40, 200, 300))]);
+    const release = claimNativeView(elements);
+    expect(nativeViewCovered(view)).toBe(false);
+    elements.add(drawnAt(rect(560, 60, 200, 300)));
+    expect(nativeViewCovered(view)).toBe(true);
+    release();
+    expect(nativeViewCovered(view)).toBe(false);
+  });
+
+  test("an overlay that does not say where it draws covers everything", () => {
+    const release = claimNativeView();
+    expect(nativeViewCovered(view)).toBe(true);
+    release();
+  });
+});
+
+/** The surface that owns the view, recording each call. `hold` keeps a capture open the way a slow page does. */
 function fakeShell() {
   let release: (() => void) | undefined;
   const shell = {
     log: [] as string[],
-    painted: [] as (FrozenFrame | null)[],
     frame: { data: "cG5n", mimeType: "image/png", rect: { x: 1, y: 2, width: 3, height: 4 } } as FrozenFrame | null,
     error: null as Error | null,
     hold: false,
     release: () => release?.(),
-    // One call, because the shell captures and THEN hides — a view already
-    // down has no frame to give.
-    freeze: async () => {
+    capture: async () => {
       shell.log.push("capture");
       if (shell.hold) await new Promise<void>((resolve) => { release = resolve; });
       if (shell.error) throw shell.error;
-      shell.log.push("hidden");
       return shell.frame;
     },
-    show: async () => { shell.log.push("shown"); },
-    paint: (frame: FrozenFrame | null) => {
-      shell.log.push(frame ? "painted" : "cleared");
-      shell.painted.push(frame);
-    },
+    paint: async (frame: FrozenFrame | null) => void shell.log.push(frame ? "painted" : "cleared"),
+    hide: async () => void shell.log.push("hidden"),
+    show: async () => void shell.log.push("shown"),
   };
   return shell;
 }
 
 describe("the page stays put behind a menu", () => {
-  test("the frame is painted only once the shell has captured and hidden", async () => {
-    const shell = fakeShell();
-    const swap = createOverlayFreezer(shell);
-    shell.hold = true;
-
-    const hiding = swap(true);
-    await tick();
-    // Mid-capture: nothing is painted, because there is nothing to paint yet.
-    expect(shell.log).toEqual(["capture"]);
-
-    shell.release();
-    await hiding;
-    expect(shell.log).toEqual(["capture", "hidden", "painted"]);
-    expect(shell.painted.at(-1)).toEqual(shell.frame);
-  });
-
-  test("the view comes back BEFORE the frame is dropped — clearing first is the blink again", async () => {
+  test("open is one capture, the frame on screen, then one hide; close is one show, then the frame goes", async () => {
     const shell = fakeShell();
     const swap = createOverlayFreezer(shell);
     await swap(true);
+    expect(shell.log).toEqual(["capture", "painted", "hidden"]);
     await swap(false);
-    expect(shell.log).toEqual(["capture", "hidden", "painted", "shown", "cleared"]);
+    expect(shell.log).toEqual(["capture", "painted", "hidden", "shown", "cleared"]);
   });
 
-  test("a menu that closes mid-capture never paints its frame over the live page", async () => {
+  test("a second cover while the view is down captures nothing more", async () => {
+    const shell = fakeShell();
+    const swap = createOverlayFreezer(shell);
+    await swap(true);
+    await swap(true);
+    expect(shell.log).toEqual(["capture", "painted", "hidden"]);
+  });
+
+  test("a menu that closes mid-capture never paints, hides or shows", async () => {
     const shell = fakeShell();
     const swap = createOverlayFreezer(shell);
     shell.hold = true;
-
     const hiding = swap(true);
     await tick();
     const showing = swap(false);
     shell.release();
     await Promise.all([hiding, showing]);
-
-    // The late frame is dropped, and the show ran AFTER the hide rather than
-    // racing it — the queue is what keeps the view from being left down.
-    expect(shell.log).toEqual(["capture", "hidden", "shown", "cleared"]);
-    expect(shell.painted).toEqual([null]);
+    expect(shell.log).toEqual(["capture"]);
   });
 
-  test("a menu opened and closed inside one tick never takes the view down at all", async () => {
+  test("rapid open and close settles on the last state without touching the view", async () => {
     const shell = fakeShell();
     const swap = createOverlayFreezer(shell);
-    await Promise.all([swap(true), swap(false)]);
-    expect(shell.log).toEqual(["shown", "cleared"]);
+    await Promise.all([swap(true), swap(false), swap(true), swap(false), swap(true), swap(false)]);
+    expect(shell.log).toEqual([]);
   });
 
-  test("nothing to capture, and a shell that throws, both leave the host empty rather than stale", async () => {
+  test("with no frame the view still goes down, and nothing is cleared on the way back", async () => {
     const shell = fakeShell();
     const swap = createOverlayFreezer(shell);
-    // An older shell, a blank tab, a capture past its budget: the view is
-    // down either way and there is simply no picture of it.
     shell.frame = null;
     await swap(true);
-    expect(shell.painted).toEqual([null]);
-
     await swap(false);
     shell.error = new Error("no frame");
     await swap(true);
-    expect(shell.painted).toEqual([null, null, null]);
-
-    // And one failed swap does not break the queue every later one rides.
-    shell.error = null;
     await swap(false);
-    expect(shell.log.at(-1)).toBe("cleared");
+    expect(shell.log).toEqual(["capture", "hidden", "shown", "capture", "hidden", "shown"]);
   });
 });

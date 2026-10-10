@@ -2,7 +2,7 @@
 
 // Enter always sends; mid-turn it steers the running turn or queues behind it. Send becomes Stop only while the box is empty.
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
 import { turnHasContent, type ProjectAvailability } from "@telar/engine-client";
 import { choiceOf } from "@telar/client/providers";
 import { useCommandHandlers } from "@/features/commands";
@@ -71,6 +71,16 @@ function runAction(action: Completion["action"], props: ComposerProps, startResu
   if (action.type === "stop") props.onStop();
 }
 
+function useCompact(readingBack: boolean, allowed: boolean, editor: RefObject<ComposerEditorHandle | null>) {
+  const [expanded, setExpanded] = useState(false);
+  if (!readingBack && expanded) setExpanded(false);
+  const expand = () => {
+    setExpanded(true);
+    editor.current?.focus();
+  };
+  return [readingBack && allowed && !expanded, expand] as const;
+}
+
 function ComposerContext({ usage, session, onCompact, busy, sending, compacting }: ComposerProps) {
   return (
     <ContextPill
@@ -84,7 +94,7 @@ function ComposerContext({ usage, session, onCompact, busy, sending, compacting 
 }
 
 export function Composer(props: ComposerProps) {
-  const { draft, ready, kind = "session", attachments, onAttach, fresh = false, driver, busy, sending, session, projectId, onDraftChange, onStop } = props;
+  const { draft, ready, readingBack = false, kind = "session", attachments, onAttach, fresh = false, driver, busy, sending, session, projectId, onDraftChange, onStop } = props;
   const editor = useRef<ComposerEditorHandle>(null);
   const box = useRef<HTMLDivElement>(null);
   // Reported up by the environment strip, which already polls the project's git state.
@@ -127,7 +137,8 @@ export function Composer(props: ComposerProps) {
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
   const drop = useDropTarget(editor, addFiles);
-  const shape = [attachments.length > 0, question.active, Boolean(driveAway)].join();
+  const [compactNow, expand] = useCompact(readingBack, !fresh && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0, editor);
+  const shape = [compactNow, attachments.length > 0, question.active, Boolean(driveAway)].join();
   const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
   const pills = (
     <>
@@ -197,6 +208,7 @@ export function Composer(props: ComposerProps) {
                 text={question.boxText}
                 placeholder={question.active ? "Type your own answer, or leave blank…" : (props.placeholder ?? placeholderFor(busy, props.whileWorking))}
                 ready={ready}
+                compact={compactNow}
                 draft={draft}
                 attachments={attachments}
                 onAttach={onAttach}
@@ -209,6 +221,7 @@ export function Composer(props: ComposerProps) {
                   markComposerActive(token);
                   menu.prime();
                 }}
+                onExpand={expand}
                 stash={stash}
                 menu={menu}
                 pick={pick}
@@ -216,7 +229,7 @@ export function Composer(props: ComposerProps) {
                 pills={pills}
                 trailing={
                   <>
-                    <ComposerContext {...props} />
+                    {!compactNow && <ComposerContext {...props} />}
                     <DictationButton dictation={dictation} />
                     {send}
                   </>
@@ -224,7 +237,7 @@ export function Composer(props: ComposerProps) {
               />
             </DictationGlow>
           </form>
-          <ComposerFoot props={props} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
+          <ComposerFoot props={props} tray={compactNow} pills={pillsShown || props.leading ? pills : null} hidden={dictation.phase !== "idle"} onAvailability={setDriveAway} />
         </div>
       </div>
     </div>

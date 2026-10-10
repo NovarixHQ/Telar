@@ -42,12 +42,12 @@ afterEach(() => {
 
 function Box({ busy = false }: { busy?: boolean }) {
   const [draft, setDraft] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [readingBack, setReadingBack] = useState(false);
   const [running, setRunning] = useState(busy);
   return (
     <>
-      <button type="button" onClick={() => setFiles((value) => (value.length ? [] : [new File(["x"], "notes.txt", { type: "text/plain" })]))}>
-        attach
+      <button type="button" onClick={() => setReadingBack((value) => !value)}>
+        scroll
       </button>
       <button type="button" onClick={() => setRunning((value) => !value)}>
         run
@@ -55,9 +55,10 @@ function Box({ busy = false }: { busy?: boolean }) {
       <Composer
         draft={draft}
         ready
-        attachments={files}
+        attachments={[]}
         onAttach={() => {}}
         busy={running}
+        readingBack={readingBack}
         sending={false}
         backgroundTasks={0}
         onDraftChange={setDraft}
@@ -71,6 +72,7 @@ function Box({ busy = false }: { busy?: boolean }) {
 }
 
 const button = (host: HTMLElement, label: string) => [...host.querySelectorAll("button")].find((node) => node.textContent === label)!;
+const expand = (host: HTMLElement) => host.querySelector('button[aria-label="Open the full composer"]');
 const heights = () => animations.filter((run) => "height" in (run.keyframes[0] ?? {})).map((run) => run.keyframes.map((frame) => frame.height));
 
 const frame = () => act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
@@ -85,21 +87,22 @@ async function settled(props: { busy?: boolean } = {}) {
 }
 
 describe("the composer's transitions", () => {
-  test("attaching a file morphs the height from the old size to the new one", async () => {
+  test("collapsing morphs the height from the old size to the new one and lands on the mini form", async () => {
     const host = await settled();
-    layout.height = 168;
-    await click(button(host, "attach"));
-    expect(heights()).toEqual([["120px", "168px"]]);
-    expect(host.textContent).toContain("notes.txt");
+    layout.height = 44;
+    await click(button(host, "scroll"));
+    expect(heights()).toEqual([["120px", "44px"]]);
+    expect(animations.some((run) => run.keyframes[0]?.opacity === 0)).toBe(true);
+    expect(expand(host)).not.toBeNull();
   });
 
-  test("with reduced motion nothing animates, and the file still shows", async () => {
+  test("with reduced motion nothing animates, and it still lands on the mini form", async () => {
     layout.reduced = true;
     const host = await settled();
-    layout.height = 168;
-    await click(button(host, "attach"));
+    layout.height = 44;
+    await click(button(host, "scroll"));
     expect(animations).toEqual([]);
-    expect(host.textContent).toContain("notes.txt");
+    expect(expand(host)).not.toBeNull();
   });
 
   test("height that follows typed text is not animated", async () => {

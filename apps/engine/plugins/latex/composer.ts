@@ -12,7 +12,7 @@ const FENCE = /^```[a-z]*\n?([\s\S]*?)\n?```$/i;
 /** Inline `$…$` (not touching a space inside, so "$5 and $10" stays plain) and display `$$…$$`, one line at a time. */
 export const latexComposer: PluginComposer = {
   decorations: [
-    { id: "display-math", pattern: String.raw`\$\$[^$\n]+?\$\$`, style: "math", preview: { renderer: "katex" } },
+    { id: "display-math", pattern: String.raw`\$\$[^$]+?\$\$`, style: "math", multiline: true, preview: { renderer: "katex" } },
     { id: "inline-math", pattern: String.raw`(?<!\$)\$(?=[^\s$])[^$\n]*?[^\s$\\]\$(?![\d$])`, style: "math", preview: { renderer: "katex" } },
   ],
   commands: [{ name: "tex", description: "Write LaTeX from a plain description", verb: "tex", hint: "what to write, in words" }],

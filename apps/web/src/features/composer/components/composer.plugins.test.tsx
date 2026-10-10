@@ -21,6 +21,7 @@ const NOTES: PluginStatus = {
     composer: {
       decorations: [
         { id: "ticket", pattern: "#[0-9]+", style: "accent" },
+        { id: "display", pattern: String.raw`\$\$[^$]+?\$\$`, style: "math", multiline: true, preview: { renderer: "katex" } },
         { id: "math", pattern: String.raw`(?<!\$)\$(?=[^\s$])[^$\n]*?[^\s$\\]\$(?![\d$])`, style: "math", preview: { renderer: "katex" } },
       ],
       commands: [{ name: "shout", description: "Say it louder", verb: "shout", hint: "what to say" }],
@@ -162,4 +163,13 @@ test("with the caret in a math decoration, KaTeX previews it above the box", asy
   expect(host.querySelector("[data-slot=decoration-preview-math] .katex")).not.toBeNull();
   caretAt(editor.lastChild!, 1);
   expect(host.querySelector("[data-slot=decoration-preview]")).toBeNull();
+});
+
+test("a display block over several lines is one decoration, previewed as a display", async () => {
+  const { editor, host, caretAt } = await composer("so\n$$\nx^2\n$$");
+  expect(decorated(editor, "math")).toEqual(["$$", "x^2", "$$"]);
+  const inside = [...editor.querySelectorAll("[data-decoration=math]")][1]!;
+  caretAt(inside.firstChild!, 1);
+  await flush(() => host.querySelector("[data-slot=decoration-preview-math] .katex-display") !== null);
+  expect(host.querySelector("[data-slot=decoration-preview-math] .katex-display")).not.toBeNull();
 });

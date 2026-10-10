@@ -18,7 +18,9 @@ export function composerExtensions(statuses: readonly PluginStatus[], enabled: r
     meta.composer!.decorations.flatMap((decoration): ComposerDecoration[] => {
       const pattern = compiled(decoration.pattern);
       const preview = decoration.preview && ("renderer" in decoration.preview || call) ? decoration.preview : undefined;
-      return pattern ? [{ key: `${meta.id}/${decoration.id}`, plugin: meta.id, pattern, style: decoration.style, ...(preview ? { preview } : {}) }] : [];
+      return pattern
+        ? [{ key: `${meta.id}/${decoration.id}`, plugin: meta.id, pattern, style: decoration.style, ...(decoration.multiline ? { multiline: true } : {}), ...(preview ? { preview } : {}) }]
+        : [];
     }),
   );
   const commands = call

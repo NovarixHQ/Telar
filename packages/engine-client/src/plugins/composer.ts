@@ -24,6 +24,7 @@ export const PluginDecoration = z.strictObject({
   id: Slug,
   pattern: Pattern,
   style: PluginDecorationStyle,
+  multiline: z.boolean().optional(),
   preview: z.union([z.strictObject({ renderer: z.literal("katex") }), z.strictObject({ verb: Slug })]).optional(),
 });
 export type PluginDecoration = z.infer<typeof PluginDecoration>;

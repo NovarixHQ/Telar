@@ -3,11 +3,11 @@ import { decorationRuns, runAt, type ComposerDecoration } from "./decorations";
 import { isLiteral, markdownStyles } from "./markdown";
 import { segmentDraft } from "./tokens";
 
-const DISPLAY = String.raw`\$\$[^$\n]+?\$\$`;
+const DISPLAY = String.raw`\$\$[^$]+?\$\$`;
 const INLINE = String.raw`(?<!\$)\$(?=[^\s$])[^$\n]*?[^\s$\\]\$(?![\d$])`;
 
-const decoration = (key: string, source: string, style: ComposerDecoration["style"] = "math"): ComposerDecoration => ({ key, plugin: "test", pattern: new RegExp(source, "u"), style });
-const math = [decoration("display", DISPLAY), decoration("inline", INLINE)];
+const decoration = (key: string, source: string, style: ComposerDecoration["style"] = "math", multiline = false): ComposerDecoration => ({ key, plugin: "test", pattern: new RegExp(source, "u"), style, ...(multiline ? { multiline } : {}) });
+const math = [decoration("display", DISPLAY, "math", true), decoration("inline", INLINE)];
 
 function matched(draft: string, decorations: readonly ComposerDecoration[] = math): string[] {
   const chips = segmentDraft(draft).flatMap((segment) => (segment.type === "chip" ? [{ start: segment.start, end: segment.end }] : []));
@@ -41,8 +41,13 @@ describe("plugin decorations", () => {
     expect(matched("cost$x$y")).toEqual([]);
   });
 
-  test("matches stay on one line and the caret finds the run it touches", () => {
+  test("a multiline decoration spans lines, but not out of a fence; the others stay on one line", () => {
+    expect(matched("see\n$$\n\\int_0^1 x\\,dx\n$$\nok")).toEqual(["$$\n\\int_0^1 x\\,dx\n$$"]);
+    expect(matched("```\n$$\nx\n```\n$$")).toEqual([]);
     expect(matched("$a\nb$")).toEqual([]);
+  });
+
+  test("the caret finds the run it touches", () => {
     const runs = decorationRuns("x $y$ z", math, () => false);
     expect(runAt(runs, 4)?.start).toBe(2);
     expect(runAt(runs, 5)?.end).toBe(5);

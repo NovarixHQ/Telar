@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import { registerPluginToolPrefixes } from "@telar/engine-client";
+import { manifestToolPrefixes, registerPluginToolPrefixes } from "@telar/engine-client";
 import { connectEngine } from "@telar/engine-client/node";
 import { BrowserRuntime } from "../domains/browser";
 import { createBrowserToolSocket, createDefaultDrivers } from "../drivers";
@@ -26,7 +26,7 @@ if (!/^[A-Za-z0-9_-]+$/.test(workerId)) {
 
 const loadPluginTools = () => {
   const installed = loadInstalledPlugins(externalPluginsDir(root)).loaded;
-  registerPluginToolPrefixes([...bundledModulePrefixes(), ...installed.flatMap((loaded) => (loaded.manifest.toolPrefix ? [loaded.manifest.toolPrefix] : []))]);
+  registerPluginToolPrefixes([...bundledModulePrefixes(), ...installed.flatMap((loaded) => manifestToolPrefixes(loaded.manifest))]);
   setPluginToolModules([...bundledPluginToolModules(), ...installed.map(installedToolModule)]);
 };
 loadPluginTools();

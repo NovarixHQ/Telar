@@ -289,7 +289,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
     dir: options.pluginsDir ?? externalPluginsDir(root),
     daemonId,
     stateDir: store.paths.root,
-    withKernels: Boolean(options.embeddedWorker),
+    withProcesses: Boolean(options.embeddedWorker),
   });
   const remoteDir = options.remoteDir ?? remoteDirFor(root);
   const remoteStore = createRemoteStore(remoteDir);
@@ -305,7 +305,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const pluginStatuses = await plugins.host.startAll();
   // The host, not a plugin's own manifest, is the authority on which of its tools are reads.
   setPluginReadTools(plugins.host.ratifiedReadTools());
-  store.pluginDoors.attachRelease((sessionId, reason) => void plugins.host.releaseSession(sessionId, reason));
+  store.pluginDoors.attach(plugins.host);
   const token = crypto.randomBytes(32).toString("base64url");
   const startedAt = now();
   const workers = createWorkerRegistry(store, { now, leaseMs: leaseMs(options), ...(options.onWorkerRetired ? { onRetired: options.onWorkerRetired } : {}) });

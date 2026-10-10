@@ -23,6 +23,11 @@ export function rewriteApiPath(pathname: string, hostId: string): string {
   return `/api/hosts/${encodeURIComponent(hostId)}${pathname.slice("/api".length)}`;
 }
 
+export function attachmentUrl(sessionId: string, attachmentId: string, options: { display?: boolean; hostId?: string } = {}): string {
+  const path = `/api/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}${options.display ? "?variant=display" : ""}`;
+  return options.hostId ? rewriteApiPath(path, options.hostId) : path;
+}
+
 export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export const HOST_NAME_HEADER = "telar-host";

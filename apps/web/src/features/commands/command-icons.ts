@@ -46,7 +46,6 @@ import {
   SquareTerminalIcon,
   SunMoonIcon,
   SwatchBookIcon,
-  TableIcon,
   TextCursorIcon,
   TextSearchIcon,
   type LucideIcon,
@@ -99,7 +98,6 @@ export const COMMAND_ICONS: Record<string, LucideIcon> = {
   "square-terminal": SquareTerminalIcon,
   "sun-moon": SunMoonIcon,
   "swatch-book": SwatchBookIcon,
-  table: TableIcon,
   "text-cursor": TextCursorIcon,
   "text-search": TextSearchIcon,
 };

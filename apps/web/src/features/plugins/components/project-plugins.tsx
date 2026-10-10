@@ -7,10 +7,9 @@ import { createEngineApi } from "@/platform/engine";
 import { Badge } from "@/ui/badge";
 import { Switch } from "@/ui/switch";
 import { MasterDetail, Row, type MasterDetailItem } from "@/features/settings";
-import { projectPluginSections } from "../sections";
+import { projectPluginSections, togglePatch } from "../sections";
 import { pluginIcon } from "./generated-settings";
 import { machineOffReason, PluginSettings } from "./plugin-settings";
-import { projectPaneFor, projectTogglePatch } from "./settings-panes";
 
 const api = createEngineApi();
 
@@ -19,8 +18,6 @@ type ScopedProject = Project & { hostId?: string; hostName?: string };
 function projectPluginPage(status: PluginStatus, project: Project, machine: ProjectPlugins | undefined, onChange: (project: Project) => void) {
   const entries = projectPluginSections([status]);
   const machineOff = !machineAllows(machine, status.meta.id);
-  const Pane = !machineOff && pluginEnabled(readProjectPlugins(project).plugins, status.meta.id) ? projectPaneFor(status.meta.id) : undefined;
-  if (Pane) return <Pane project={project} onChange={onChange} />;
   const machineSettings = machine?.entries[status.meta.id]?.settings;
   return (
     <>
@@ -58,7 +55,7 @@ export function ProjectPluginList({
     setBusy(pluginId);
     setError(undefined);
     try {
-      const answer = await api.updateProject(local.id, projectTogglePatch(local, pluginId, next));
+      const answer = await api.updateProject(local.id, togglePatch(local, pluginId, next));
       onChange?.(answer.project);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));

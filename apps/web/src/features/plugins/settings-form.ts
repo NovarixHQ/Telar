@@ -110,12 +110,10 @@ export function generatedGroupTitle(status: PluginStatus, scope: "project" | "ma
 export function pluginSettingsSearchEntries(
   plugins: readonly PluginStatus[],
   pages: Record<"project" | "machine", { id: string; label: string }>,
-  bespoke: (scope: "project" | "machine", pluginId: string) => boolean = () => false,
 ): SettingsSearchEntry[] {
   const entries: SettingsSearchEntry[] = [];
   for (const status of plugins) {
     for (const scope of ["project", "machine"] as const) {
-      if (bespoke(scope, status.meta.id)) continue;
       const schema = scope === "project" ? status.settingsSchema : status.machineSettingsSchema;
       const page = pages[scope];
       const group = generatedGroupTitle(status, scope);

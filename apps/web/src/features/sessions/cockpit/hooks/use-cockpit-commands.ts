@@ -8,9 +8,8 @@ import type { useCockpitPanel } from "./use-cockpit-panel";
 import { useWorkspaceCardOpen } from "./use-workspace-card";
 
 /** The cockpit's keyboard commands: the panel's and the Workspace card's (none on the solo route), one opener per surface, and pinning. */
-export function useCockpitCommands({ solo, enabledPlugins, pluginPanels, panel, openBrowser, pinSession }: {
+export function useCockpitCommands({ solo, pluginPanels, panel, openBrowser, pinSession }: {
   solo: boolean;
-  enabledPlugins: readonly string[];
   pluginPanels: readonly PluginPanelSource[];
   panel: ReturnType<typeof useCockpitPanel>;
   openBrowser: () => void;
@@ -29,10 +28,10 @@ export function useCockpitCommands({ solo, enabledPlugins, pluginPanels, panel, 
             "panel-previous-tab": () => stepPanelTab(-1),
             "open-browser": openBrowser,
             "toggle-workspace": toggleWorkspace,
-            ...Object.fromEntries(surfaceCommands(enabledPlugins, { shells, pluginPanels }).map(({ command, tab }) => [command, () => showPanelTab(tab)])),
+            ...Object.fromEntries(surfaceCommands({ shells, pluginPanels }).map(({ command, tab }) => [command, () => showPanelTab(tab)])),
           }),
       "pin-session": pinSession,
     },
-    [solo, enabledPlugins, pluginPanels, shells],
+    [solo, pluginPanels, shells],
   );
 }

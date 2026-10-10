@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="views.css">
+<style>
+  .tabs button[aria-selected="true"] { background: var(--muted); font-weight: 500; }
+  .run { display: flex; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  .run input { flex: 1; min-width: 0; font: 11px var(--font-mono, ui-monospace, monospace); color: var(--foreground); background: var(--background); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+  .run button { border-color: var(--border); }
+  .answer { margin: 0; padding: 4px 10px; white-space: pre-wrap; border-bottom: 1px solid var(--border); max-height: 10rem; overflow: auto; }
+  .plots { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; padding: 8px; }
+  figure { margin: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  figure.pinned { outline: 1px solid var(--primary); }
+  figure.older { margin-left: 12px; opacity: 0.7; }
+  figure img { display: block; width: 100%; background: white; cursor: zoom-in; min-height: 40px; }
+  figure.open { grid-column: 1 / -1; } figure.open img { cursor: zoom-out; }
+  figcaption { display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted-foreground); }
+  figcaption .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row { display: grid; grid-template-columns: 1fr auto 6rem 4rem; gap: 8px; width: 100%; padding: 3px 10px; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; text-align: left; font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; }
+  .row .meta { color: var(--muted-foreground); text-align: right; }
+  .detail { margin: 0; padding: 6px 10px; max-height: 18rem; overflow: auto; white-space: pre-wrap; background: color-mix(in srgb, var(--muted) 30%, transparent); }
+  .env { padding: 4px 10px; color: var(--muted-foreground); font-size: 11px; border-bottom: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="tabs" role="tablist" aria-label="Data views">
+    <button role="tab" data-tab="plots">Plots</button>
+    <button role="tab" data-tab="variables">Variables</button>
+    <button role="tab" data-tab="environment">Environment</button>
+  </span>
+  <span class="path"></span>
+  <span class="pill" id="kernel" data-state="none">no kernel</span>
+  <button id="interrupt" title="Interrupt the running cell">Stop</button>
+  <button id="restart" title="Restart the kernel — clears every variable">Restart</button>
+</div>
+<div id="problem" class="problem" hidden></div>
+<div class="run" id="run"><input id="code" placeholder="" aria-label="Python" spellcheck="false"><button id="go"></button></div>
+<pre class="answer" id="answer" hidden></pre>
+<div class="scroll" id="body"></div>
+<script>
+(async () => {
+  const telar = window.telar;
+  const body = document.getElementById("body");
+  const pill = document.getElementById("kernel");
+  const problem = document.getElementById("problem");
+  const answer = document.getElementById("answer");
+  const code = document.getElementById("code");
+  const images = new Map();
+  const unfolded = new Set();
+  let tab = "plots";
+  let kernel = "none";
+  let opened;
+  let queued;
+
+  const el = (tag, props = {}, ...children) => {
+    const node = Object.assign(document.createElement(tag), props);
+    node.append(...children);
+    return node;
+  };
+  const report = (error) => {
+    problem.hidden = !error;
+    problem.textContent = error ? error.message ?? String(error) : "";
+  };
+  const attempt = async (work) => {
+    try {
+      report();
+      return await work();
+    } catch (error) {
+      report(error);
+    }
+  };
+  const bytes = (n) => (n >= 1 << 20 ? `${(n / (1 << 20)).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`);
+  const empty = (title, text) => el("p", { className: "empty" }, el("strong", { textContent: title }), text);
+
+  function setKernel(state) {
+    kernel = state;
+    pill.dataset.state = state;
+    pill.textContent = state === "none" ? "no kernel" : state;
+    document.getElementById("interrupt").disabled = state !== "busy";
+    document.getElementById("restart").disabled = state === "none";
+  }
+
+  const label = (plot) => plot.title || plot.producer || plot.id;
+  const groupOf = (plot) => (plot.title ? `title:${plot.title.toLowerCase()}` : plot.producer && !plot.producer.startsWith("ds_") ? `producer:${plot.producer}` : `plot:${plot.id}`);
+
+  function stacks(plots) {
+    const groups = new Map();
+    for (const plot of plots) groups.set(groupOf(plot), [...(groups.get(groupOf(plot)) ?? []), plot]);
+    return [...groups].map(([key, group]) => {
+      const versions = group.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+      return { key, versions, pinned: versions.some((plot) => plot.pinned) };
+    }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || (b.versions[0].createdAt ?? 0) - (a.versions[0].createdAt ?? 0));
+  }
+
+  function figure(plot, { older = false, count = 1, key } = {}) {
+    const img = el("img", { alt: label(plot) });
+    const known = images.get(plot.id);
+    if (known) img.src = known;
+    else void telar.call("plots/image", { id: plot.id }).then(({ mediaType, dataB64 }) => {
+      images.set(plot.id, `data:${mediaType};base64,${dataB64}`);
+      img.src = images.get(plot.id);
+    }).catch(report);
+    const node = el("figure", { className: `${plot.pinned ? "pinned" : ""} ${older ? "older" : ""}` }, img);
+    img.onclick = () => node.classList.toggle("open");
+    const caption = el("figcaption", {}, el("span", { className: "label", textContent: label(plot), title: label(plot) }));
+    if (count > 1) caption.append(el("button", { textContent: `${count} versions`, onclick: () => { unfolded.has(key) ? unfolded.delete(key) : unfolded.add(key); void show(); } }));
+    if (plot.createdAt) caption.append(new Date(plot.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+    caption.append(el("button", { textContent: plot.pinned ? "Unpin" : "Pin", onclick: () => void attempt(() => telar.call("plots/pin", { id: plot.id, pinned: !plot.pinned })).then(show) }));
+    node.append(caption);
+    return node;
+  }
+
+  async function plotsView() {
+    const { plots } = await telar.call("plots");
+    if (!plots.length) return empty("No plots yet", "A figure drawn in a notebook cell, by ds_plot, or with the line above lands here.");
+    const grid = el("div", { className: "plots" });
+    for (const stack of stacks(plots)) {
+      grid.append(figure(stack.versions[0], { count: stack.versions.length, key: stack.key }));
+      if (unfolded.has(stack.key)) for (const plot of stack.versions.slice(1)) grid.append(figure(plot, { older: true }));
+    }
+    return grid;
+  }
+
+  async function variablesView() {
+    if (kernel === "none" || kernel === "dead") return empty("No kernel yet", "Run a line above, a notebook cell, or ask the agent to use ds_scratch.");
+    const vars = await telar.call("vars");
+    if (!vars.length) return empty("Empty namespace", "Nothing assigned since the last restart.");
+    const list = el("div");
+    for (const row of vars) {
+      const shape = row.shape ? row.shape.join("×") : row.len !== undefined ? `len ${row.len}` : "";
+      const button = el("button", { className: "row" }, el("span", { textContent: row.name }), el("span", { className: "meta", textContent: row.type }), el("span", { className: "meta", textContent: shape }), el("span", { className: "meta", textContent: row.sizeBytes ? bytes(row.sizeBytes) : "" }));
+      button.onclick = () => { opened = opened === row.name ? undefined : row.name; void show(); };
+      list.append(button);
+      if (opened === row.name) {
+        const detail = el("pre", { className: "detail", textContent: "…" });
+        list.append(detail);
+        void telar.call("inspect", { name: row.name }).then((value) => { detail.textContent = JSON.stringify(value, null, 2); }).catch(report);
+      }
+    }
+    return list;
+  }
+
+  async function environmentView() {
+    const { packages, environment } = await telar.call("packages");
+    const filter = el("input", { placeholder: "Filter packages", ariaLabel: "Filter packages" });
+    const table = el("table", { className: "grid" });
+    const draw = () => {
+      table.replaceChildren(el("tr", {}, el("th", { textContent: "Package" }), el("th", { textContent: "Version" }), el("th")));
+      for (const pkg of packages.filter((p) => p.name.toLowerCase().includes(filter.value.toLowerCase()))) {
+        const remove = el("button", { textContent: "Remove", onclick: () => void install({ remove: [pkg.name] }) });
+        table.append(el("tr", {}, el("td", { textContent: pkg.name }), el("td", { textContent: pkg.version }), el("td", {}, remove)));
+      }
+    };
+    filter.oninput = draw;
+    draw();
+    return el("div", {}, el("div", { className: "env", textContent: `${environment.manager} · ${environment.root}` }), el("div", { className: "run" }, filter), table);
+  }
+
+  async function install(input) {
+    const result = await attempt(() => telar.call("install", input));
+    if (!result) return;
+    answer.hidden = false;
+    answer.textContent = result.ok ? `${result.lines.slice(-6).join("\n") || "Done."}${kernel !== "none" ? "\nRestart the kernel to import what changed." : ""}` : result.error ?? result.lines.slice(-10).join("\n");
+    await show();
+    return result;
+  }
+
+  const VIEWS = {
+    plots: { view: plotsView, placeholder: "plt.plot(df.x, df.y) — draws a figure", go: "Plot", run: (text) => telar.call("plot", { code: `import matplotlib.pyplot as plt\n${text}` }) },
+    variables: { view: variablesView, placeholder: "Python to run in the kernel", go: "Run", run: (text) => telar.call("execute", { code: text, producer: "data view" }) },
+    environment: { view: environmentView, placeholder: "Packages to install, e.g. polars seaborn", go: "Install", run: (text) => install({ add: text.split(/[\s,]+/).filter(Boolean) }) },
+  };
+
+  async function show() {
+    for (const button of document.querySelectorAll("[data-tab]")) button.setAttribute("aria-selected", String(button.dataset.tab === tab));
+    code.placeholder = VIEWS[tab].placeholder;
+    document.getElementById("go").textContent = VIEWS[tab].go;
+    const shown = tab;
+    const view = await VIEWS[shown].view().catch((error) => empty("Not available yet", error?.message ?? String(error)));
+    if (tab === shown) body.replaceChildren(view);
+  }
+
+  async function refreshKernel() {
+    try {
+      setKernel((await telar.call("kernel")).state);
+    } catch {
+      setKernel("none");
+    }
+  }
+
+  const text = (outputs) => outputs.map((o) => (o.kind === "text" ? o.text : o.kind === "error" ? `${o.ename}: ${o.evalue}` : o.kind === "image" ? "[figure]" : "")).filter(Boolean).join("").trim();
+
+  const submit = () => {
+    const source = code.value.trim();
+    if (!source) return;
+    answer.hidden = false;
+    answer.textContent = kernel === "none" || kernel === "dead" ? "Starting the kernel…" : "Running…";
+    void attempt(() => VIEWS[tab].run(source)).then((result) => {
+      if (!result) answer.hidden = true;
+      if (result?.outputs) {
+        answer.hidden = false;
+        const failed = typeof result.error === "string" ? result.error : result.error ? `${result.error.ename}: ${result.error.evalue}` : "";
+        answer.textContent = [text(result.outputs), failed].filter(Boolean).join("\n") || (result.ok === false ? "Failed." : "(no output)");
+        if (result.ok !== false) code.value = "";
+      }
+      return show();
+    });
+  };
+  document.getElementById("go").onclick = submit;
+  code.onkeydown = (event) => {
+    if (event.key === "Enter") submit();
+  };
+  for (const button of document.querySelectorAll("[data-tab]")) button.onclick = () => { tab = button.dataset.tab; answer.hidden = true; void show(); };
+  document.getElementById("interrupt").onclick = () => void attempt(() => telar.call("interrupt")).then(refreshKernel);
+  document.getElementById("restart").onclick = () => void attempt(() => telar.call("restart")).then(refreshKernel).then(show);
+  telar.onEvent((event) => {
+    if (event?.name === "settings.changed") {
+      report();
+      return void refreshKernel().then(show);
+    }
+    if (event?.name === "kernel.state" && typeof event.data?.state === "string") setKernel(event.data.state);
+    if (event?.name !== "cell.output" && !(event?.name === "kernel.state" && event.data?.state === "idle")) return;
+    clearTimeout(queued);
+    queued = setTimeout(() => void show(), 300);
+  });
+  setKernel("none");
+  await refreshKernel();
+  await show();
+})();
+</script>
+</body>
+</html>

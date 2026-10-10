@@ -2,6 +2,8 @@ import path from "node:path";
 import { BUNDLED_PLUGIN_TOOL_PREFIXES, machineAllows, pluginSettings, readProjectPlugins, type PluginManifest } from "@telar/engine-client";
 import { EngineStateError } from "../../platform/kernel/errors";
 import type { EngineStore } from "../../state";
+import { readFenced, writeFenced } from "../files";
+import { ensureTelarGitignore } from "../git";
 import { oneShotCompleter, type OneShotCompleter } from "../providers";
 import { workspaceRootOf } from "../sessions";
 import { appendOneShotUsage } from "../usage";
@@ -10,6 +12,7 @@ import { isSymlink } from "./external/installer";
 import { loadInstalledPlugins, type LoadedExternalPlugin } from "./external/manifest";
 import { externalPlugin } from "./external/module";
 import { PluginHost } from "./host";
+import { legacyKernelEvent } from "./legacy-events";
 import { createPluginEvents, type PluginEvents } from "./events";
 import { installedPlugins } from "./installed";
 import { modulePlugin } from "./module";
@@ -18,7 +21,7 @@ import type { BundledPlugin, PluginProject } from "../../../plugins/sdk";
 type Gate = (pluginId: string, sessionId: string) => { projectId: string; sessionId: string };
 
 /** A bundled module's view of the engine: its sessions behind the same gate, its settings, and its events. */
-function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvents, complete: OneShotCompleter, { plugin, manifest }: { plugin: BundledPlugin; manifest: PluginManifest }) {
+function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvents, complete: OneShotCompleter, { plugin, manifest }: { plugin: BundledPlugin; manifest: PluginManifest }, withProcesses: boolean) {
   const id = manifest.id;
   const machine = () => pluginSettings(store.toolchains.machine(), id);
   const settingsOf = (projectId: string) => pluginSettings(readProjectPlugins(store.projectRegistry.get(projectId)).plugins, id);
@@ -30,12 +33,31 @@ function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvent
     const parsed = schema?.safeParse(settings);
     if (parsed && !parsed.success) throw new EngineStateError("invalid_request", `${id}: ${parsed.error.issues[0]?.message ?? "settings are not valid"}`);
   };
+  const located = (sessionId: string) => {
+    const session = store.records.get(sessionId);
+    return {
+      sessionId,
+      projectId: session.projectId ?? "",
+      cwd: workspaceRootOf(session),
+      ...(session.workspace.mode === "worktree" ? { worktree: path.basename(session.workspace.path) } : {}),
+      stateDir: path.join(store.paths.sessions, sessionId, manifest.sessionStateDir ?? id),
+    };
+  };
   return modulePlugin(plugin, manifest, {
     session: (sessionId) => {
       const { projectId } = gate(id, sessionId);
-      return { sessionId, projectId, cwd: workspaceRootOf(store.records.get(sessionId)), settings: settingsOf(projectId), machine: machine() };
+      return { ...located(sessionId), projectId, settings: settingsOf(projectId), machine: machine() };
+    },
+    sessionOf: (sessionId) => {
+      try {
+        const session = located(sessionId);
+        return session.projectId ? session : undefined;
+      } catch {
+        return undefined;
+      }
     },
     project,
+    withProcesses,
     host: {
       engineRoot: store.paths.root,
       now: () => Date.now(),
@@ -51,17 +73,28 @@ function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvent
         store.toolchains.updateMachine({ [id]: { enabled: machineAllows(store.toolchains.machine(), id), settings } });
       },
       complete: (request) => complete(`plugin:${id}`, request),
+      attachments: {
+        put: (sessionId, input) => store.attachments.put(sessionId, input),
+        list: (sessionId, options) => store.attachments.list(sessionId, options),
+        bytes: (sessionId, attachmentId) => store.attachments.bytes(sessionId, attachmentId).data,
+        tag: (sessionId, attachmentId, tags) => store.attachments.tag(sessionId, attachmentId, tags),
+      },
+      files: {
+        read: (root, target, maxBytes) => readFenced(root, target, "session workspace", maxBytes),
+        write: (root, target, text, expected, maxBytes) => writeFenced(root, target, text, expected, "session workspace", maxBytes),
+        ignore: (root, rule) => void ensureTelarGitignore(root, [{ alreadyCovered: [], ...rule }]),
+      },
     },
   });
 }
 
-type EnginePluginOptions = { dir: string; daemonId: string; stateDir: string; withKernels: boolean };
+type EnginePluginOptions = { dir: string; daemonId: string; stateDir: string; withProcesses: boolean };
 
 /**
  * The engine's plugin host: the bundled plugins, then whatever is installed under `dir`. Every door and tool wall
  * reaches a plugin through `resolve`, the one gate that refuses a plugin turned off for the Mac or the project.
  */
-export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDir, withKernels }: EnginePluginOptions) {
+export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDir, withProcesses }: EnginePluginOptions) {
   const resolve = (pluginId: string, sessionId: string): { projectId: string; sessionId: string } => {
     const session = store.records.get(sessionId);
     if (!session.projectId) throw new EngineStateError("invalid_request", `${pluginId} needs a project`);
@@ -74,50 +107,18 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
   };
   const events = createPluginEvents({
     now: () => Date.now(),
-    journal: (sessionId, entry) => store.kernel.appendEvent(sessionId, entry),
+    journal: (sessionId, entry) => {
+      const appended = store.kernel.appendEvent(sessionId, entry);
+      const legacy = legacyKernelEvent(entry);
+      if (legacy) store.kernel.appendEvent(sessionId, legacy);
+      return appended;
+    },
     checkSession: (pluginId, sessionId) => void resolve(pluginId, sessionId),
     checkProject: (pluginId, projectId) => {
       if (!store.toolchains.runs(store.projectRegistry.get(projectId), pluginId)) throw new EngineStateError("invalid_request", `${pluginId} is not enabled for this project`);
     },
   });
-  const bundled = builtInPlugins({
-    resolveHello: (sessionId) => resolve("hello", sessionId),
-    dataScience: {
-      resolve: (sessionId) => store.pluginDoors.dataScience(sessionId),
-      settings: store.dataScienceOps,
-      // Kernels only on an engine that runs turns; outputs are journaled by the store, the host persists images.
-      ...(withKernels
-        ? {
-            kernelHost: {
-              options: {
-                engineRoot: store.paths.root,
-                sessionDir: (sessionId: string) => path.join(store.paths.sessions, sessionId),
-                events: {
-                  onState: (sessionId, state, reason) => store.pluginDoors.recordKernelState(sessionId, state, reason),
-                  persistImage: (sessionId, input) =>
-                    store.attachments.put(sessionId, {
-                      name: `${input.producer}.${input.mediaType === "image/svg+xml" ? "svg" : "png"}`,
-                      mediaType: input.mediaType,
-                      data: input.data,
-                      tags: ["plot"],
-                      producer: input.producer,
-                      ...(input.title ? { title: input.title } : {}),
-                    }).id,
-                },
-              },
-              attach: (host) => store.pluginDoors.attachKernels(host),
-            },
-          }
-        : {}),
-      projectOf: (sessionId) => {
-        try {
-          return store.records.get(sessionId).projectId;
-        } catch {
-          return undefined;
-        }
-      },
-    },
-  });
+  const bundled = builtInPlugins({ resolveHello: (sessionId) => resolve("hello", sessionId) });
   const complete = oneShotCompleter({
     store,
     spend: ({ usage, ...entry }) => appendOneShotUsage(store.paths.usageOneShot, { ...entry, tokens: usage.tokens, ...(usage.costUsd !== undefined ? { costUsd: usage.costUsd } : {}) }),
@@ -140,7 +141,7 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
     });
   const external = loadInstalledPlugins(dir);
   const installed = installedPlugins(external);
-  const host = new PluginHost([...bundledModules().map((entry) => bundledModulePlugin(store, resolve, events, complete, entry)), ...bundled, ...external.loaded.map(moduleFor)], {
+  const host = new PluginHost([...bundledModules().map((entry) => bundledModulePlugin(store, resolve, events, complete, entry, withProcesses)), ...bundled, ...external.loaded.map(moduleFor)], {
     daemonId,
     stateDir,
     declaredPrefixes: [...BUNDLED_PLUGIN_TOOL_PREFIXES, ...bundledModulePrefixes(), ...installed.prefixes()],

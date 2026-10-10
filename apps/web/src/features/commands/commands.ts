@@ -46,7 +46,6 @@ export type CommandId =
   | "open-simulator"
   | "open-issues"
   | "open-pulls"
-  | "open-data"
   | "open-plugin-panels"
   | "float-browser"
   | "toggle-devtools"

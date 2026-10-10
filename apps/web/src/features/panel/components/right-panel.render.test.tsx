@@ -106,7 +106,6 @@ describe("the panel opens as wide as the widest thing in it (#357)", () => {
 
   test("a notebook or a file beside its tree opens wide enough to read", () => {
     expect(width(strip([tab("editor", "editor", { path: "a.ipynb" })], "editor"))).toBe("720");
-    expect(width(strip([tab("data", "data")], "data"))).toBe("720");
     // And from behind a list tab, because the room is the strip's need.
     expect(width(strip([tab("diff", "diff"), tab("editor", "editor")], "diff"))).toBe("720");
   });

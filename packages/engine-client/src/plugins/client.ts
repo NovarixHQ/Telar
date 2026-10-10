@@ -1,12 +1,6 @@
 import type { EngineTransport } from "../platform/transport";
 import type { PluginInstallInput, PluginStatus, ProjectPlugins } from "./schema";
-import type { DataScienceBootstrap, DataScienceCreateEnvironment, DataScienceEnvironments, DataScienceInstallCommand, DataScienceJob, DataScienceManager, DataSciencePackage, DataSciencePreflight, DataScienceRequirementsSource, DataScienceToolchain } from "./toolchains";
-
-type JobStarted = Promise<{ jobId: string }>;
-type DataScienceInstalled = { packages: DataSciencePackage[]; environment: { manager: DataScienceManager; root: string; python: string; command: DataScienceInstallCommand } };
-
-const project = (projectId: string, tail: string) => `/v2/projects/${encodeURIComponent(projectId)}/${tail}`;
-const fresh = (value: boolean) => (value ? "?fresh=1" : "");
+import type { DataScienceCreateEnvironment } from "./toolchains";
 
 export const pluginsClient = {
   machinePlugins(this: EngineTransport): Promise<{ plugins: PluginStatus[]; machine: ProjectPlugins }> {
@@ -35,44 +29,7 @@ export const pluginsClient = {
     return this.request("PATCH", "/v2/plugins", { plugins });
   },
 
-  dataScienceEnvironments(this: EngineTransport, projectId: string): Promise<DataScienceEnvironments> {
-    return this.request("GET", project(projectId, "data-science/environments"));
-  },
-
-  /** Poll the job with `dataScienceJob`; its `result` is a `DataScienceCreatedEnvironment`. */
-  dataScienceCreateEnvironment(this: EngineTransport, projectId: string, request: DataScienceCreateEnvironment): JobStarted {
-    return this.request("POST", project(projectId, "data-science/environments"), request);
-  },
-
-  dataSciencePackages(this: EngineTransport, projectId: string): Promise<DataScienceInstalled> {
-    return this.request("GET", project(projectId, "data-science/packages"));
-  },
-
-  dataScienceInstall(this: EngineTransport, projectId: string, input: { add?: string[]; remove?: string[]; requirements?: DataScienceRequirementsSource }): JobStarted {
-    return this.request("POST", project(projectId, "data-science/packages"), input);
-  },
-
-  dataScienceBootstrap(this: EngineTransport, request: DataScienceBootstrap): JobStarted {
-    return this.request("POST", "/v2/data-science/bootstrap", request);
-  },
-
-  dataScienceToolchain(this: EngineTransport, refresh = false): Promise<{ toolchain: DataScienceToolchain }> {
-    return this.request("GET", `/v2/data-science/toolchain${fresh(refresh)}`);
-  },
-
-  dataScienceJob(this: EngineTransport, jobId: string, after = 0): Promise<{ job: DataScienceJob }> {
-    return this.request("GET", `/v2/data-science/jobs/${encodeURIComponent(jobId)}?after=${after}`);
-  },
-
-  dataScienceCancelJob(this: EngineTransport, jobId: string): Promise<Record<string, never>> {
-    return this.request("DELETE", `/v2/data-science/jobs/${encodeURIComponent(jobId)}`);
-  },
-
-  dataScienceProbe(
-    this: EngineTransport,
-    projectId: string,
-    path: string,
-  ): Promise<{ probe: DataSciencePreflight & { relativePath?: string; root?: string; manager?: DataScienceManager } }> {
-    return this.request("POST", project(projectId, "data-science/probe"), { path });
+  dataScienceCreateEnvironment(this: EngineTransport, projectId: string, request: DataScienceCreateEnvironment): Promise<{ jobId: string }> {
+    return this.request("POST", `/v2/projects/${encodeURIComponent(projectId)}/data-science/environments`, request);
   },
 };

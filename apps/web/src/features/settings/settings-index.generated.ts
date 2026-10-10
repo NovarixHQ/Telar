@@ -86,7 +86,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     { "title":"Plugins", rows: [
     ] },
     { "title":"Plugin defaults", rows: [
-      {"title":"Default packages","hint":"Installed into environments Telar creates from here on. Nothing is installed into an environment that already exists.","keywords":["pandas","numpy","packages","pip","environment","data science"],"id":"plugins-data-science-packages"},
     ] },
     { rows: [
       {"title":"Add plugin from folder","keywords":["install","plugin","folder","link","remove","uninstall","plugin.json"]},
@@ -112,18 +111,6 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Environment","hint":"Exported to the setup command.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Ports","hint":"One stable port per name, exported under that name.","keywords":["install","bootstrap","prepare","script","timeout","env","variables","export","port","server","collide","build output","regenerate","cache","generated"]},
       {"title":"Dependencies","hint":"How a new worktree gets node_modules and .venv: install them with the setup command, share the checkout's, or neither.","keywords":["node_modules","venv","install","share","symlink","disk"]},
-    ] },
-    { "title":"Data science", rows: [
-      {"title":"Data science for this project","keywords":["python","jupyter","notebook","kernel","enable","plugin"]},
-      {"title":"Python tools","hint":"What environments are made with.","keywords":["uv","conda","toolchain","detect"]},
-      {"title":"uv","keywords":["python","install","package manager"]},
-      {"title":"conda","keywords":["anaconda","miniconda","environment"]},
-      {"title":"Python","keywords":["interpreter","version","install python"]},
-      {"title":"Environments","hint":"Where the kernel runs and what it can import.","keywords":["venv","kernel","interpreter"]},
-      {"title":"Python packages","keywords":["pip","package","installed"]},
-      {"title":"Environment"},
-      {"title":"Install packages","keywords":["pip","package","install","dependencies"]},
-      {"title":"The project's own dependencies","hint":"Install everything the checkout already declares.","keywords":["requirements","pyproject","dependencies","sync"]},
     ] },
   ] },
   { id: "source-control", groups: [

@@ -13,17 +13,7 @@ const row = (event: EngineEvent, id: string) => ({
   openedBy: event.id,
 });
 
-const RENDERERS: { [T in "notebook.cell.output" | "plugin.event" | "ds.watch.violated"]: Renderer<T> } = {
-  "notebook.cell.output": (event) => {
-    const output = event.output as { kind?: string; attachmentId?: string } | null;
-    if (output?.kind !== "image" || !output.attachmentId) return undefined;
-    return {
-      ...row(event, `plot_${output.attachmentId}`),
-      status: "completed",
-      detail: { type: "unknown", label: `Drew a figure${event.producer ? ` — ${event.producer}` : ""}` },
-      plotAttachmentId: output.attachmentId,
-    };
-  },
+const RENDERERS: { [T in "plugin.event"]: Renderer<T> } = {
   "plugin.event": ({ note, ...event }) => {
     if (!note) return undefined;
     return {
@@ -33,11 +23,6 @@ const RENDERERS: { [T in "notebook.cell.output" | "plugin.event" | "ds.watch.vio
       ...(note.attachmentId ? { plotAttachmentId: note.attachmentId } : {}),
     };
   },
-  "ds.watch.violated": (event) => ({
-    ...row(event, `watch_${event.id}`),
-    status: "failed",
-    detail: { type: "error", error: { message: `Watch "${event.watch}" violated: ${event.assert}${event.detail ? ` (${event.detail})` : ""}` } },
-  }),
 };
 
 export function pluginJournalRow(event: EngineEvent): JournalItem | undefined {

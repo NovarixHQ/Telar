@@ -25,7 +25,6 @@ import { codexApprovalRequest, codexItemDetail, MCP_ELICITATION } from "../../dr
 import { createClaudeDriver, requestKindForTool, setPluginReadTools } from "../../drivers/claude";
 import { bundledPluginToolModules, setPluginToolModules } from "./bundled";
 import { helloToolModule } from "./hello";
-import { HOST_RATIFIED_READ_TOOLS } from "./policy";
 import { collectTelarWall, TelarToolSocket, telarWall } from "../agent-tools";
 import { allowCliInThisFile, pinFakeClaudeInThisFile } from "../../../test/allow-cli";
 
@@ -42,7 +41,7 @@ const sockets: TelarToolSocket[] = [];
 afterEach(async () => {
   for (const socket of sockets.splice(0)) await socket.close();
   setPluginToolModules(bundledPluginToolModules());
-  setPluginReadTools(new Set(Object.values(HOST_RATIFIED_READ_TOOLS).flat()));
+  setPluginReadTools([]);
 });
 
 /** A capability whose answers name themselves, so a case can tell WHICH one ran. */

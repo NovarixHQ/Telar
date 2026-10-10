@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { PLUGIN_API_VERSION, PluginId, PluginManifest, type PluginMeta } from "@telar/engine-client";
+import { manifestToolPrefixes, PLUGIN_API_VERSION, PluginId, PluginManifest, type PluginMeta } from "@telar/engine-client";
 import { bundledReservations } from "../bundled";
 
 const MANIFEST_FILE = "plugin.json";
@@ -44,9 +44,8 @@ export function checkPluginFolder(
   const refuse = (error: string) => ({ error: `${MANIFEST_FILE}: ${error}`, name: manifest.name });
   if (expectedId !== undefined && manifest.id !== expectedId) return refuse(`id "${manifest.id}" does not match its folder "${expectedId}"`);
   if (reserved.ids.has(manifest.id) || ROUTE_IDS.includes(manifest.id)) return refuse(`id "${manifest.id}" is already taken`);
-  if (manifest.toolPrefix && reserved.prefixes.has(manifest.toolPrefix)) {
-    return refuse(`tool prefix "${manifest.toolPrefix}" is already owned by another plugin`);
-  }
+  const taken = manifestToolPrefixes(manifest).find((prefix) => reserved.prefixes.has(prefix));
+  if (taken) return refuse(`tool prefix "${taken}" is already owned by another plugin`);
   const command = manifest.command;
   if (!command) return refuse("command: a plugin folder names the program that runs it");
   const program = command[0]!;
@@ -92,7 +91,7 @@ function loadExternalPlugins(dir: string, reserved: Reservations): { loaded: Loa
       continue;
     }
     ids.add(checked.manifest.id);
-    if (checked.manifest.toolPrefix) prefixes.add(checked.manifest.toolPrefix);
+    for (const prefix of manifestToolPrefixes(checked.manifest)) prefixes.add(prefix);
     loaded.push({ dir: folder, manifest: checked.manifest });
   }
   return { loaded, refused };

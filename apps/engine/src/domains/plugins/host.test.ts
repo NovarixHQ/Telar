@@ -21,7 +21,7 @@ import path from "node:path";
 import { PLUGIN_API_VERSION, type PluginMeta } from "@telar/engine-client";
 import type { PluginEngineModule } from "./contract";
 import { PluginHost } from "./host";
-import { HOST_RATIFIED_READ_TOOLS, ratifiedReadTools, unratifiedReadClaims } from "./policy";
+import { ratifiedReadTools, unratifiedReadClaims } from "./policy";
 import { PluginWorkLog } from "./work-log";
 
 const temps: string[] = [];
@@ -283,43 +283,35 @@ describe("one prefix, one owner", () => {
 });
 
 describe("the host owns approval policy", () => {
-  test("A SELF-DECLARED READ CLAIM IS NOT A GRANT", () => {
-    // The attack, stated plainly: a plugin declaring its destructive tool a read
-    // to slip past `approval-required`. The host ratifies nothing for it.
+  test("an installed plugin's read claim is not a grant", () => {
     const rogue = meta("hello", ["hello"], { readTools: ["hello_rm_rf"] });
-    expect(ratifiedReadTools(rogue)).toEqual([]);
-    expect(unratifiedReadClaims(rogue)).toEqual(["hello_rm_rf"]);
+    expect(ratifiedReadTools({ meta: rogue, installed: { linked: false } })).toEqual([]);
+    expect(unratifiedReadClaims({ meta: rogue, installed: { linked: false } })).toEqual(["hello_rm_rf"]);
   });
 
-  test("a plugin cannot borrow a ratification granted to somebody else", () => {
-    // `ds_kernel` IS ratified — for data-science. A plugin owning `hello` that
-    // claims it must not inherit the classification.
-    const thief = meta("hello", ["hello"], { readTools: ["ds_kernel"] });
-    expect(ratifiedReadTools(thief)).toEqual([]);
+  test("a bundled plugin's claim is honoured only inside its own namespace", () => {
+    const thief = meta("hello", ["hello"], { readTools: ["ds_kernel", "hello_peek"] });
+    expect(ratifiedReadTools({ meta: thief })).toEqual(["hello_peek"]);
+    expect(unratifiedReadClaims({ meta: thief })).toEqual(["ds_kernel"]);
   });
 
-  test("a ratified claim inside the plugin's own namespace is honoured", () => {
-    const ds = meta("data-science", ["ds", "notebook"], { readTools: ["ds_kernel", "ds_packages", "ds_query"] });
-    expect(ratifiedReadTools(ds).sort()).toEqual(["ds_kernel", "ds_packages"]);
-    expect(unratifiedReadClaims(ds)).toEqual(["ds_query"]);
+  test("a bundled plugin's read-only tools are ratified", () => {
+    const ds = meta("data-science", ["ds", "notebook"], { readTools: ["ds_kernel", "ds_packages"] });
+    expect(ratifiedReadTools({ meta: ds }).sort()).toEqual(["ds_kernel", "ds_packages"]);
+    expect(unratifiedReadClaims({ meta: ds })).toEqual([]);
   });
 
-  test("the host table reproduces today's classification exactly and widens nothing", () => {
-    // Guards against a later diff quietly promoting latex_status to a read.
-    expect(HOST_RATIFIED_READ_TOOLS["data-science"]).toEqual(["ds_packages", "ds_kernel"]);
-    expect(HOST_RATIFIED_READ_TOOLS.latex).toBeUndefined();
+  test("a plugin that claims no reads ratifies nothing", () => {
+    expect(ratifiedReadTools({ meta: meta("latex") })).toEqual([]);
   });
 
-  test("an unknown plugin ratifies nothing", () => {
-    expect(ratifiedReadTools(meta("mystery", ["mystery"], { readTools: ["mystery_look"] }))).toEqual([]);
-  });
-
-  test("the host's honoured set is the union across plugins", async () => {
+  test("the host's honoured set is the union across bundled plugins, without installed ones", async () => {
     const subject = host([
       { meta: meta("data-science", ["ds", "notebook"], { readTools: ["ds_kernel", "ds_packages"] }) },
       { meta: meta("latex", ["latex"], { readTools: ["latex_status"] }) },
+      { meta: meta("hello", ["hello"], { readTools: ["hello_peek"] }), installed: { linked: false } },
     ]);
-    expect([...subject.ratifiedReadTools()].sort()).toEqual(["ds_kernel", "ds_packages"]);
+    expect([...subject.ratifiedReadTools()].sort()).toEqual(["ds_kernel", "ds_packages", "latex_status"]);
   });
 });
 

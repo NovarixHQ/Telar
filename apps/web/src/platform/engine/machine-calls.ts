@@ -5,17 +5,6 @@ GitHubMergeResult,
 GitHubReactionContent,
 GitHubReactionResult,GitHubPullFilter,GitHubSnapshot,Schedule,
 ScheduleRule,
-DataScienceBootstrap,
-DataScienceConfig,
-DataScienceCreateEnvironment,
-DataScienceEnvironments,
-DataScienceJob,
-DataScienceInstallCommand,
-DataScienceManager,
-DataSciencePackage,
-DataSciencePreflight,
-DataScienceRequirementsSource,
-DataScienceToolchain,
 InboxPolicy,EnvMode,
 DictationAnswer,
 DictationProviderId,SidebarLayout,
@@ -90,7 +79,6 @@ export function machineCalls(fetcher: Fetcher) {
         iconEmoji?: string | null;
         defaultModel?: ModelSelection | null;
         envMode?: EnvMode | null;
-        dataScience?: DataScienceConfig | null;
         // The generic arm — one entry per plugin, `null` to turn it off.
         plugins?: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>;
       },
@@ -106,21 +94,6 @@ export function machineCalls(fetcher: Fetcher) {
       request<{ project: Project }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/restore`, {}),
     relocateProject: (projectId: string, root: string) =>
       request<{ project: Project }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/root`, { root }),
-    /** Spawns each interpreter it finds — open a page, never poll. */
-    dataScienceEnvironments: (projectId: string) =>
-      request<DataScienceEnvironments>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/data-science/environments`),
-    dataScienceCreateEnvironment: (projectId: string, input: DataScienceCreateEnvironment) =>
-      request<{ jobId: string }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/data-science/environments`, input),
-    dataSciencePackages: (projectId: string) =>
-      request<{ packages: DataSciencePackage[]; environment: { manager: DataScienceManager; root: string; python: string; command: DataScienceInstallCommand } }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/data-science/packages`),
-    dataScienceInstall: (projectId: string, input: { add?: string[]; remove?: string[]; requirements?: DataScienceRequirementsSource }) =>
-      request<{ jobId: string }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/data-science/packages`, input),
-    dataScienceBootstrap: (input: DataScienceBootstrap) => request<{ jobId: string }>(fetcher, "POST", "/api/data-science/bootstrap", input),
-    dataScienceToolchain: (fresh = false) => request<{ toolchain: DataScienceToolchain }>(fetcher, "GET", `/api/data-science/toolchain${fresh ? "?fresh=1" : ""}`),
-    dataScienceJob: (jobId: string, after = 0) => request<{ job: DataScienceJob }>(fetcher, "GET", `/api/data-science/jobs/${encodeURIComponent(jobId)}?after=${after}`),
-    dataScienceCancelJob: (jobId: string) => request<Record<string, never>>(fetcher, "DELETE", `/api/data-science/jobs/${encodeURIComponent(jobId)}`),
-    dataScienceProbe: (projectId: string, path: string) =>
-      request<{ probe: DataSciencePreflight & { relativePath?: string; root?: string; manager?: DataScienceManager } }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/data-science/probe`, { path }),
   };
 }
 

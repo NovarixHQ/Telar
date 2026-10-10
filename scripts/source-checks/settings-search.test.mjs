@@ -13,9 +13,8 @@ test("rows a component draws inside its own group's children take that group", (
   expect(group("connections", "Paired")?.rows.map((row) => row.title)).toEqual(["Pair a device", "Revoke all other devices", "Add a computer"]);
 });
 
-test("rows built from a list and plugin panes are found, and state rows are not", () => {
+test("rows built from a list are found, and state rows are not", () => {
   expect(group("projects", "New worktrees")?.rows.map((row) => row.title)).toContain("Ports");
-  expect(group("projects", "Data science")?.rows.map((row) => row.title)).toContain("Data science for this project");
   const titles = pages.flatMap((page) => page.groups.flatMap((entry) => entry.rows.map((row) => row.title)));
   expect(titles).not.toContain("Loading");
 });

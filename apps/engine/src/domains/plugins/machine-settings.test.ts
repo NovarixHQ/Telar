@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { EngineClient, dataScienceMachineSettings, machineSettings, type ProjectPlugins } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
+import { resolveInterpreter } from "../../../plugins/data-science/settings";
 import { stubModels } from "../../../test/stub-models";
 
 const roots: string[] = [];
@@ -43,31 +44,26 @@ const machine = (daemon: EngineDaemon, plugins: Record<string, { enabled: boolea
 
 // ── data science defaults ───────────────────────────────────────────────────
 
+const interpreter = (store: EngineDaemon["store"], project: Record<string, unknown> = {}) =>
+  resolveInterpreter({ cwd: os.tmpdir(), settings: project, machine: dataScienceMachineSettings(store.toolchains.machine()) });
+
 test("the MAC'S DEFAULT PYTHON runs a project that chose none", async () => {
   const { daemon, client, store } = await ready();
   // @ts-expect-error deprecated alias the engine still accepts
   await client.updateProject("project_one", { dataScience: { enabled: true } });
-  expect(store.toolchains.resolveDataScience(store.records.get("session_one"))).toBeUndefined();
-  expect(() => store.pluginDoors.dataScience("session_one")).toThrow(/has no Python interpreter/);
+  expect(interpreter(store)).toMatchObject({ refusal: expect.stringContaining("has no Python interpreter") });
 
   await machine(daemon, { "data-science": { enabled: true, settings: { python: "/bin/echo" } } });
-  expect(store.toolchains.resolveDataScience(store.records.get("session_one"))).toEqual({ pythonPath: "/bin/echo" });
+  expect(interpreter(store)).toEqual({ pythonPath: "/bin/echo" });
 });
 
 test("a project's own interpreter still wins, and a Mac default that is gone resolves to nothing", async () => {
-  const { daemon, client, store } = await ready();
+  const { daemon, store } = await ready();
   await machine(daemon, { "data-science": { enabled: true, settings: { python: "/bin/echo" } } });
-  await client.updateProject("project_one", {
-    // @ts-expect-error deprecated alias the engine still accepts
-    dataScience: { enabled: true, python: { source: "chosen", path: "/bin/ls", resolvedAt: Date.now() } },
-  });
-  expect(store.toolchains.resolveDataScience(store.records.get("session_one"))).toEqual({ pythonPath: "/bin/ls" });
+  expect(interpreter(store, { python: { source: "chosen", path: "/bin/ls", resolvedAt: Date.now() } })).toEqual({ pythonPath: "/bin/ls" });
 
   await machine(daemon, { "data-science": { enabled: true, settings: { python: "/nowhere/python3" } } });
-  // @ts-expect-error deprecated alias the engine still accepts
-  await client.updateProject("project_one", { dataScience: { enabled: true } });
-  expect(store.toolchains.resolveDataScience(store.records.get("session_one"))).toBeUndefined();
-  expect(store.toolchains.dataScienceRefusal(store.records.get("session_one"))).toBe("data science's Python interpreter is not on disk: /nowhere/python3");
+  expect(interpreter(store)).toEqual({ refusal: "data science's Python interpreter is not on disk: /nowhere/python3" });
 });
 
 test("the machine ceiling and a project's own switch both win over a machine DEFAULT", async () => {
@@ -139,40 +135,8 @@ test("A DEFAULT PACKAGE THAT COULD BE READ AS A FLAG IS REFUSED AT THE WRITE", a
 });
 
 test("THE STORE PASSES THIS MAC'S DEFAULTS INTO ENVIRONMENT CREATION", async () => {
-  /**
-   * The end of the wire, proved through the refusal rather than through the
-   * happy path — and deliberately so.
-   *
-   * A successful plan needs uv on the machine running the test, which is not
-   * something a test may assume. The package check runs BEFORE the uv check,
-   * so a bad default produces its own message and a good one falls through to
-   * "uv is not installed". Getting the first message can only happen if the
-   * store actually read this Mac's settings and handed them to
-   * `planEnvironment` — which is the wiring under test. `ds-packages.test.ts`
-   * owns what the plan then contains.
-   *
-   * The blob is written to disk rather than over HTTP because the write arm now
-   * refuses this, and a value that PREDATES that check is exactly the case the
-   * second check exists for.
-   *
-   * WHAT THIS TEST IS NOT, SINCE #792 READ IT AS THAT. It does not guard the
-   * ORDER of the two checks, and cannot: a runner with uv satisfies the uv
-   * check either way, so the order leaves no trace here. `ds-packages.test.ts`
-   * owns that, with a uv-less toolchain injected — the only arrangement in
-   * which the two refusals are distinguishable on any machine.
-   *
-   * ITS ONE ENVIRONMENTAL DEPENDENCY IS NOT uv EITHER. It is that
-   * `dataScienceToolchain` finishes inside the per-test ceiling: this call
-   * probes for uv, conda and Homebrew, and a cold GitHub runner can spend
-   * seconds in that before the store ever reaches the package check. When #792's
-   * CI failure hit it at bun's 5 s default — #740 having left every file but
-   * the first on that default — the fixture's temp root was already removed by
-   * `afterEach` by the time the probe returned, so the store read no machine
-   * defaults at all, found nothing to refuse, and fell through to "uv is not
-   * installed". The message was an artefact of the teardown, not evidence about
-   * the order, and it is why a duration and a message from a timed-out test are
-   * both worth distrusting.
-   */
+  // The package check runs before the uv check, so a bad default refuses on its own message on any machine.
+  // Written to disk because the write arm refuses it, and a value that predates that check is the case here.
   const { daemon, client } = await ready();
   // @ts-expect-error deprecated alias the engine still accepts
   await client.updateProject("project_one", { dataScience: { enabled: true } });
@@ -184,8 +148,8 @@ test("THE STORE PASSES THIS MAC'S DEFAULTS INTO ENVIRONMENT CREATION", async () 
   // rather than being silently dropped on the way.
   expect(dataScienceMachineSettings(daemon.store.toolchains.machine()).packages).toEqual(["--index-url=https://evil.example"]);
 
-  const refused = await daemon.store
-    .dataScienceOps.createEnvironment("project_one", { manager: "venv", location: "telar", python: "3.13" })
+  const refused = await client
+    .dataScienceCreateEnvironment("project_one", { manager: "venv", location: "telar", python: "3.13" })
     .then(() => undefined)
     .catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
   expect(refused).toContain("not a package requirement");

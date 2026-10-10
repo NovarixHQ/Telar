@@ -84,13 +84,15 @@ describe("what a frame may do", () => {
 });
 
 describe("events", () => {
-  test("only the plugin's own, for this frame's session or the whole Mac", () => {
+  test("only the plugin's own, for this frame's session, its project or the whole Mac", () => {
     const base = { type: "plugin.event", at: 1, pluginId: "data-science", data: null } as const;
     const session = { ...base, id: 4, scope: "session", sessionId: "session_1", name: "kernel.state.changed", data: { state: "idle" } } as const;
     expect(eventForFrame(session, "data-science", "session_1")).toEqual({ name: "kernel.state.changed", data: { state: "idle" } });
     expect(eventForFrame({ ...session, sessionId: "session_2" }, "data-science", "session_1")).toBeUndefined();
     expect(eventForFrame({ ...session, pluginId: "latex" }, "data-science", "session_1")).toBeUndefined();
     expect(eventForFrame({ ...base, scope: "project", projectId: "p", name: "x" }, "data-science", "session_1")).toBeUndefined();
+    expect(eventForFrame({ ...base, scope: "project", projectId: "p", name: "settings.changed" }, "data-science", "session_1", "p")).toEqual({ name: "settings.changed", data: null });
+    expect(eventForFrame({ ...base, scope: "project", projectId: "q", name: "settings.changed" }, "data-science", "session_1", "p")).toBeUndefined();
     expect(eventForFrame({ ...base, scope: "machine", name: "envs.changed" }, "data-science", undefined)).toEqual({ name: "envs.changed", data: null });
   });
 });

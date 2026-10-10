@@ -4,7 +4,7 @@ import { ScrollArea } from "@/ui/scroll-area";
 import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { EngineEvent, Item, Turn, TurnState } from "@telar/engine-client";
-import { attachmentUrl, PluginSurface, type PluginPanelSource, isPluginSurface } from "@/features/plugins";
+import type { PluginPanelSource } from "@/features/plugins";
 import { desktopBrowserBridge } from "@/features/browser";
 import { diffTabParams, readDiffTab, type DiffTab, diffTurns, type DiffTurn } from "@/features/git";
 import type { TelarReference } from "@telar/client/composer";
@@ -37,10 +37,10 @@ const EditorSurface = dynamic(() => import("@/features/files/components/editor-s
 const FileViewSurface = dynamic(() => import("@/features/files").then((mod) => mod.FileViewSurface));
 const PdfSurface = dynamic(() => import("@/features/files/components/pdf-surface").then((mod) => mod.PdfSurface));
 const PluginFileView = dynamic(() => import("@/features/plugins/views/plugin-file-view").then((mod) => mod.PluginFileView));
+const PluginPanelsSurface = dynamic(() => import("@/features/plugins/components/plugin-panels-surface").then((mod) => mod.PluginPanelsSurface));
 const GitHubSurface = dynamic(() => import("@/features/github").then((mod) => mod.GitHubSurface));
 const TerminalSurface = dynamic(() => import("@/features/terminal").then((mod) => mod.TerminalSurface));
 const SimulatorSurface = dynamic(() => import("@/features/simulators/components/simulator-surface").then((mod) => mod.SimulatorSurface));
-const ImageLightbox = dynamic(() => import("@/ui/image-lightbox").then((mod) => mod.ImageLightbox));
 
 export type RightPanelProps = {
   active?: TurnState;
@@ -91,7 +91,6 @@ type SurfaceProps = Pick<RightPanelProps, Forwarded> & {
   browser: BrowserState | undefined;
   onTabParams: ((params: PanelTabParams) => void) | undefined;
   onCloseSelf: () => void;
-  onOpenImage: (attachmentId: string) => void;
   editor: EditorState | undefined;
   onEditorChange: ((next: (current: EditorState) => EditorState) => void) | undefined;
   /** False while kept mounted off screen, so polling surfaces can stop. */
@@ -100,7 +99,7 @@ type SurfaceProps = Pick<RightPanelProps, Forwarded> & {
 
 /** The surfaces that show a file or hold live state; `undefined` when the tab is none of them. */
 function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
-  const { tab, sessionId, projectId, hostId, active, onOpenImage, onInsertReference, onOpenFileInNewTab, onTabParams, onCloseSelf, enabledPlugins = model.NO_PLUGINS } = props;
+  const { tab, sessionId, projectId, hostId, active, onInsertReference, onOpenFileInNewTab, onTabParams, onCloseSelf, enabledPlugins = model.NO_PLUGINS } = props;
   const kind = tab.kind;
   const scoped = { ...(sessionId ? { sessionId } : {}), ...(projectId ? { projectId } : {}) };
   // Keyed by checkout and instance: a session switch replaces the surface, and two instances never share state or PTYs.
@@ -134,18 +133,16 @@ function workspaceSurface(props: SurfaceProps): ReactNode | undefined {
         {...(onOpenFileInNewTab ? { onOpenInNewPanelTab: onOpenFileInNewTab } : {})}
       />
     ) : null;
-  if (isPluginSurface(kind))
+  if (kind === "plugin-panels")
     return (
-      <PluginSurface
-        id={kind}
-        {...scoped}
+      <PluginPanelsSurface
+        {...(sessionId ? { sessionId } : {})}
+        {...(projectId ? { projectId } : {})}
         {...(hostId ? { hostId } : {})}
         {...(active ? { active } : {})}
-        events={props.events ?? []}
-        onOpenImage={onOpenImage}
-        {...(onInsertReference ? { onInsertText: onInsertReference } : {})}
-        onOpenFile={(path) => props.onOpenTab(model.panelTabForPath(path, enabledPlugins))}
         panels={props.pluginPanels ?? model.NO_PANELS}
+        onOpenFile={(path) => props.onOpenTab(model.panelTabForPath(path, enabledPlugins))}
+        {...(onInsertReference ? { onInsertText: onInsertReference } : {})}
       />
     );
   if (kind === "terminal")
@@ -220,7 +217,7 @@ function PanelSurface(props: SurfaceProps) {
 
 export function RightPanel(props: RightPanelProps) {
   const { active, sessionId, tabs, tab, onCloseTab, onTabParams, editors, onEditorChange, onOpenTab, onOpenNewTab, onOpenBrowser, browserUnavailable, open = true, items = [], turns = [], events = [] } = props;
-  const { browserStart = { status: "idle" }, enabledPlugins = model.NO_PLUGINS, pluginPanels = model.NO_PANELS } = props;
+  const { browserStart = { status: "idle" }, pluginPanels = model.NO_PANELS } = props;
   const [fullscreen, setFullscreen] = useState(false);
   const toggleFullscreen = () => setFullscreen((current) => !current);
   useCommandHandlers(open ? { "panel-fullscreen": toggleFullscreen } : {}, [open]);
@@ -237,7 +234,6 @@ export function RightPanel(props: RightPanelProps) {
   const diffTurnList = useMemo(() => diffTurns(items, turns), [items, turns]);
   const browser = useMemo(() => latestBrowserState(events), [events]);
   const activeTab = useMemo(() => tabs.find((entry) => entry.id === tab), [tabs, tab]);
-  const [lightbox, setLightbox] = useState<string>();
   const keptTerminals = useKeptTerminals(tabs, activeTab);
   const showingPage = activeTab !== undefined && model.browserTabId(activeTab.kind) !== undefined;
   useEffect(() => {
@@ -246,7 +242,6 @@ export function RightPanel(props: RightPanelProps) {
   }, [showingPage, sessionId]);
   const shells = useCanOpenShells();
   const launcher = model.launcherRows(tabs, {
-    enabledPlugins,
     pluginPanels,
     canOpenNew: onOpenNewTab !== undefined,
     shells,
@@ -264,7 +259,6 @@ export function RightPanel(props: RightPanelProps) {
       browser={browser}
       onTabParams={onTabParams ? (params) => onTabParams(entry.id, params) : undefined}
       onCloseSelf={() => onCloseTab(entry.id)}
-      onOpenImage={setLightbox}
       editor={editors?.[entry.id]}
       onEditorChange={onEditorChange ? (next) => onEditorChange(entry.id, next) : undefined}
       visible={open && showing}
@@ -309,13 +303,6 @@ export function RightPanel(props: RightPanelProps) {
           </SurfaceBoundary>
         ) : (
           <PanelEmptyState rows={launcher} actions={actions} browserStart={browserStart} canOpenNew={onOpenNewTab !== undefined} />
-        )}
-        {activeTab && sessionId && (
-          <SurfaceBoundary label="This image">
-            <Suspense fallback={null}>
-              <ImageLightbox {...(lightbox ? { src: attachmentUrl(sessionId, lightbox, props.hostId ? { hostId: props.hostId } : {}) } : {})} onClose={() => setLightbox(undefined)} />
-            </Suspense>
-          </SurfaceBoundary>
         )}
       </ScrollArea>
     </aside>

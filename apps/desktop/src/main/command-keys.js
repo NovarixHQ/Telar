@@ -51,7 +51,6 @@ const COMMANDS = [
   { id: "open-simulator", label: "Open simulator", group: "Panel", icon: "smartphone", defaultChord: "CommandOrControl+Shift+S", menu: "panel" },
   { id: "open-issues", label: "Open issues", group: "Panel", icon: "circle-dot", defaultChord: "CommandOrControl+Shift+I", menu: "panel" },
   { id: "open-pulls", label: "Open pull requests", group: "Panel", icon: "git-pull-request", defaultChord: "CommandOrControl+Shift+U", menu: "panel" },
-  { id: "open-data", label: "Open data", group: "Panel", icon: "table", defaultChord: "CommandOrControl+Shift+A", menu: "panel" },
   { id: "open-plugin-panels", label: "Open plugin panels", group: "Panel", icon: "blocks", defaultChord: "CommandOrControl+Shift+X", menu: "panel" },
 
   { id: "float-browser", label: "Float browser on top", group: "Panel", icon: "picture-in-picture-2", defaultChord: "CommandOrControl+Alt+P", menu: "window" },

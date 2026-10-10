@@ -69,13 +69,15 @@ export function sessionFilesRoutes(store: EngineStore): Route[] {
         return ok(store.files.writeSession(sessionId!, target, stringValue(input.text, "file text")!, stringValue(input.expectedSha256, "expected hash")!));
       },
     },
+    // Released iOS builds read tables here; Data Science's `table` verb answers. Remove by 2027-01-01.
     {
       method: "GET",
       path: sessionRoute("/data/table"),
       auth: "engine",
       async handle({ params: [sessionId], query }) {
         return ok(
-          await store.pluginDoors.table(sessionId!, requiredPath(query), {
+          await store.pluginDoors.call("data-science", "table", sessionId!, {
+            path: requiredPath(query),
             offset: Number(query.get("offset") ?? 0),
             limit: Math.min(Number(query.get("limit") ?? 200), 1000),
             ...(query.get("sort") ? { sort: query.get("sort")! } : {}),

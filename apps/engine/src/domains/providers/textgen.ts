@@ -54,7 +54,7 @@ export async function generateSessionTitle(input: TextGenDriverInput & { message
 
 type TextGenInstance = { enabled: boolean; binaryPath?: string; configDir?: string; env: { name: string; value: string }[] };
 
-type TextGenStore = {
+export type TextGenStore = {
   settings: { textGen(): TextGenPolicy };
   providers: { resolve(instanceId: string, driver: ProviderDriverKind): TextGenInstance };
   catalogues?: { cachedRows(driver: ProviderDriverKind): readonly { id: string }[] | undefined };
@@ -71,7 +71,7 @@ export function cheapModel(ids: readonly string[]): string | undefined {
   return undefined;
 }
 
-function driverInput(store: TextGenStore, policy: TextGenPolicy, model?: string): TextGenDriverInput | undefined {
+export function driverInput(store: TextGenStore, policy: TextGenPolicy, model?: string): TextGenDriverInput | undefined {
   const instance = store.providers.resolve(defaultInstanceIdForDriver(policy.driver), policy.driver);
   if (!instance.enabled) return undefined;
   const env = providerProcessEnv({ ...instance, driver: policy.driver });

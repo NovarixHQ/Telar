@@ -2,7 +2,9 @@ import path from "node:path";
 import { BUNDLED_PLUGIN_TOOL_PREFIXES, machineAllows, pluginSettings, readProjectPlugins, type PluginManifest } from "@telar/engine-client";
 import { EngineStateError } from "../../platform/kernel/errors";
 import type { EngineStore } from "../../state";
+import { oneShotCompleter, type OneShotCompleter } from "../providers";
 import { workspaceRootOf } from "../sessions";
+import { appendOneShotUsage } from "../usage";
 import { builtInPlugins, bundledModulePrefixes, bundledModules } from "./bundled";
 import { isSymlink } from "./external/installer";
 import { loadInstalledPlugins, type LoadedExternalPlugin } from "./external/manifest";
@@ -16,7 +18,7 @@ import type { BundledPlugin, PluginProject } from "../../../plugins/sdk";
 type Gate = (pluginId: string, sessionId: string) => { projectId: string; sessionId: string };
 
 /** A bundled module's view of the engine: its sessions behind the same gate, its settings, and its events. */
-function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvents, { plugin, manifest }: { plugin: BundledPlugin; manifest: PluginManifest }) {
+function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvents, complete: OneShotCompleter, { plugin, manifest }: { plugin: BundledPlugin; manifest: PluginManifest }) {
   const id = manifest.id;
   const machine = () => pluginSettings(store.toolchains.machine(), id);
   const settingsOf = (projectId: string) => pluginSettings(readProjectPlugins(store.projectRegistry.get(projectId)).plugins, id);
@@ -48,6 +50,7 @@ function bundledModulePlugin(store: EngineStore, gate: Gate, events: PluginEvent
         check(plugin.machineSettingsSchema, settings);
         store.toolchains.updateMachine({ [id]: { enabled: machineAllows(store.toolchains.machine(), id), settings } });
       },
+      complete: (request) => complete(`plugin:${id}`, request),
     },
   });
 }
@@ -130,9 +133,13 @@ export function createEnginePlugins(store: EngineStore, { dir, daemonId, stateDi
         }
       },
     });
+  const complete = oneShotCompleter({
+    store,
+    spend: ({ usage, ...entry }) => appendOneShotUsage(store.paths.usageOneShot, { ...entry, tokens: usage.tokens, ...(usage.costUsd !== undefined ? { costUsd: usage.costUsd } : {}) }),
+  });
   const external = loadInstalledPlugins(dir);
   const installed = installedPlugins(external);
-  const host = new PluginHost([...bundledModules().map((entry) => bundledModulePlugin(store, resolve, events, entry)), ...bundled, ...external.loaded.map(moduleFor)], {
+  const host = new PluginHost([...bundledModules().map((entry) => bundledModulePlugin(store, resolve, events, complete, entry)), ...bundled, ...external.loaded.map(moduleFor)], {
     daemonId,
     stateDir,
     declaredPrefixes: [...BUNDLED_PLUGIN_TOOL_PREFIXES, ...bundledModulePrefixes(), ...installed.prefixes()],

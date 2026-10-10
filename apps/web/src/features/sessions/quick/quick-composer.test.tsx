@@ -539,6 +539,27 @@ describe("the attached conversation's transcript", () => {
     expect(editor(host).textContent).toBe("");
   });
 
+  test("fades its edges only where lines scroll past them", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#sales");
+    await flush(() => options(host).length > 0);
+    await press(host, "Enter");
+    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Can you check the build?") ?? false);
+    const transcript = host.querySelector<HTMLElement>('[data-slot="quick-transcript"]')!;
+    const scroller = transcript.firstElementChild as HTMLElement;
+    expect(transcript.hasAttribute("data-fade-top")).toBe(false);
+    expect(transcript.hasAttribute("data-fade-bottom")).toBe(false);
+    await act(async () => {
+      scroller.scrollTop = 40;
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+    expect(transcript.hasAttribute("data-fade-top")).toBe(true);
+    await act(async () => {
+      scroller.scrollTop = 0;
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+    expect(transcript.hasAttribute("data-fade-top")).toBe(false);
+  });
 });
 
 describe("drafts", () => {

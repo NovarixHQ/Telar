@@ -21,6 +21,19 @@ afterEach(async () => {
   host.remove();
 });
 
+/** A caret at a draft offset, counting each <br> as a newline. */
+function placeAt(box: HTMLElement, offset: number) {
+  let remaining = offset;
+  const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const length = node.nodeValue!.length;
+      if (remaining <= length) return window.getSelection()!.collapse(node, remaining);
+      remaining -= length;
+    } else if ((node as Element).tagName === "BR") remaining -= 1;
+  }
+}
+
 /** The caret is marked with `|` in `initial`. */
 async function editor(initial: string, onPasteLargeText?: (text: string) => void) {
   const caret = initial.indexOf("|");
@@ -34,7 +47,7 @@ async function editor(initial: string, onPasteLargeText?: (text: string) => void
   });
   const box = host.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
   box.focus();
-  window.getSelection()!.collapse(box.firstChild, caret);
+  placeAt(box, caret);
   const text = () => changes.at(-1) ?? value;
   const press = (init: KeyboardEventInit) => {
     const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });

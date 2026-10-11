@@ -667,6 +667,11 @@ describe("the context ring", () => {
     expect(Number(fill.getAttribute("stroke-dashoffset"))).toBeCloseTo(circumference * (1 - 0.365), 3);
   });
 
+  test("a new session's composer still has one", async () => {
+    const { host } = await composer({ fresh: true });
+    expect(ring(host)).not.toBeNull();
+  });
+
   test("a figure the provider never reported draws the empty track, not a partial arc", async () => {
     const { host } = await composer();
     expect(ring(host).getAttribute("aria-label")).toBe("Context window, size not reported");

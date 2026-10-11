@@ -1,3 +1,4 @@
+import { parentKeyOf } from "../rail/flat-rail";
 import type { SidebarSession } from "../session-list";
 import type { QuickProject } from "./hosts";
 
@@ -17,7 +18,7 @@ export function destinationRows(query: string, projects: readonly QuickProject[]
   const needle = query.trim().toLowerCase();
   const fresh = needle ? projects.filter((project) => (project.name ?? project.id).toLowerCase().includes(needle)).slice(0, 2) : current ? [current] : [];
   const matching = sessions
-    .filter((session) => !session.archived && (!needle || `${session.title} ${session.projectName ?? ""} ${session.hostName ?? ""}`.toLowerCase().includes(needle)))
+    .filter((session) => !session.archived && parentKeyOf(session) === undefined && (!needle || `${session.title} ${session.projectName ?? ""} ${session.hostName ?? ""}`.toLowerCase().includes(needle)))
     .sort((a, b) => live(a) - live(b) || b.updatedAt - a.updatedAt)
     .slice(0, MAX_SESSIONS);
   return [...fresh.map((project) => ({ kind: "project" as const, project })), ...matching.map((session) => ({ kind: "session" as const, session }))];

@@ -33,7 +33,7 @@ const session = (id: string, title: string) => ({ id, title, projectId: "project
 
 const PROJECTS = [
   { id: "project_1", name: "Telar", root: "/tmp", createdAt: 2 },
-  { id: "project_2", name: "exoplanets", root: "/tmp/exo", createdAt: 1 },
+  { id: "project_2", name: "exoplanets", root: "/tmp/exo", createdAt: 1, icon: "k2" },
 ];
 const live = (id: string, title: string, projectId: string, activity: string, updatedAt: number, read: Partial<{ lastTurnSequence: number; lastReadTurnSequence: number }> = {}) => ({
   id, title, projectId, activity, updatedAt, state: "active", createdAt: 1, driver: "claude", workspace: { mode: "none" }, ...read,
@@ -164,7 +164,8 @@ async function press(host: HTMLElement, key: string, keys: KeyboardEventInit = {
 }
 
 const strip = (host: HTMLElement) => [...host.querySelectorAll('[role="toolbar"] button')].map((pill) => pill.getAttribute("title")?.split(" · ")[0]);
-const options = (host: HTMLElement) => [...host.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
+const shown = (node: Element) => [...node.childNodes].map((child): string => (child instanceof Element ? (child.hasAttribute("aria-hidden") ? "" : shown(child)) : (child.textContent ?? ""))).join("");
+const options = (host: HTMLElement) => [...host.querySelectorAll('[role="option"]')].map(shown);
 
 async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEventInit = {}) {
   await type(host, text);
@@ -207,6 +208,16 @@ describe("the quick composer", () => {
     expect(host.querySelector('[aria-label^="Remove "]')).toBeNull();
     await typeAndPress(host, "Plain text only");
     expect(sent).toHaveLength(1);
+  });
+
+  test("has no context ring, also with a conversation attached", async () => {
+    const { host } = await open(front(GRANTED));
+    const ring = () => host.querySelector('button[aria-label^="Context window"]');
+    expect(ring()).toBeNull();
+    await flush(() => strip(host).length > 0);
+    await act(async () => host.querySelector<HTMLButtonElement>('[role="toolbar"] button')!.click());
+    await flush(() => host.querySelector('[data-slot="quick-destination"]') !== null);
+    expect(ring()).toBeNull();
   });
 
   test("shows no greeting heading", async () => {
@@ -446,6 +457,7 @@ describe("the # destination picker", () => {
     await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Shall I run it?") ?? false);
     const card = host.querySelector('[data-slot="quick-destination"]')!;
     expect(card.textContent).toContain("Sales dashboard and checkout");
+    expect(card.querySelector("img")?.getAttribute("src")).toBe("/api/projects/project_2/icon?v=k2");
     expect(card.textContent).toContain("exoplanets · Waiting on you");
     const transcript = card.querySelector('[data-slot="quick-transcript"]')!;
     expect(transcript.textContent).toContain("Can you check the build?");
@@ -483,6 +495,32 @@ describe("the # destination picker", () => {
     await typeAndPress(host, "Fix the CI build");
     expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/projects/project_2/sessions"))?.body).toMatchObject({ envMode: "worktree" });
     expect(sent[0]?.detail).toBe("exoplanets");
+  });
+
+  test("Esc steps back one layer at a time: an open menu, then the attached conversation, then the window", async () => {
+    const { host, closed } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 0);
+    await type(host, "plain idea");
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')].find((button) => button.title.startsWith("Sales dashboard"))!.click());
+    await flush();
+    await type(host, "half a reply");
+    const escape = async (target: EventTarget = document.activeElement ?? window) => {
+      await act(async () => void target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+      await flush();
+    };
+    await act(async () => host.querySelector<HTMLElement>('[aria-label="Project"]')!.click());
+    await flush(() => document.querySelector('[role="listbox"]') !== null);
+    expect(document.querySelector('[role="listbox"]')).not.toBeNull();
+    await escape();
+    await flush(() => document.querySelector('[role="listbox"]') === null);
+    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    expect(closed()).toBe(0);
+    await escape(editor(host));
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    expect(editor(host).textContent).toBe("plain idea");
+    expect(closed()).toBe(0);
+    await escape(editor(host));
+    expect(closed()).toBe(1);
   });
 
   test("Esc closes the picker without hiding the window", async () => {

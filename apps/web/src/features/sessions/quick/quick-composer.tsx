@@ -107,7 +107,7 @@ function onComposerKey(quick: Quick, strip: RefObject<HTMLDivElement | null>, ev
   quick.noteKey(event);
 }
 
-/** A new session's composer floating over any app: Enter starts it, ⌘Enter starts it and opens Telar, Esc hides. */
+/** A new session's composer floating over any app: Enter starts it, ⌘Enter starts it and opens Telar, Esc detaches a conversation, then hides. */
 export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge }) {
   const [bridge] = useState(() => given ?? quickComposerBridge());
   const quick = useQuickComposer(bridge);
@@ -119,13 +119,17 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   useSurfaceCommandKeys(SURFACE_COMMANDS);
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
 
+  const attached = quick.destination.destination?.kind === "session";
+  const { clear } = quick.destination;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented) void bridge?.close();
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (attached) clear();
+      else void bridge?.close();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [bridge]);
+  }, [bridge, attached, clear]);
 
   return (
     <div data-surface="quick" className="flex h-screen flex-col justify-end p-6">

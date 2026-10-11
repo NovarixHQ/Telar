@@ -4,9 +4,9 @@ import type { ReactNode, RefObject } from "react";
 import Link from "next/link";
 import { GitBranchIcon } from "lucide-react";
 import { HostMark } from "@/features/hosts";
-import { ProjectAvatar } from "@/features/projects";
 import { ProviderIcon } from "@/features/providers";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/ui/hover-card";
+import { SessionProjectAvatar } from "../components/session-project-avatar";
 import { rowSubtitle } from "../session-activity";
 import type { SidebarSession } from "../session-list";
 
@@ -31,14 +31,7 @@ export function RowBody({
         {marks}
         {showProject && session.projectName ? (
           <>
-            <ProjectAvatar
-              name={session.projectName}
-              {...(session.projectId ? { projectId: session.projectId } : {})}
-              {...(session.hostId ? { hostId: session.hostId } : {})}
-              {...(session.projectIcon ? { icon: session.projectIcon } : {})}
-              {...(session.projectIconName ? { iconName: session.projectIconName } : {})}
-              size={12}
-            />
+            <SessionProjectAvatar session={session} />
             <span className="min-w-0 flex-1 truncate text-2xs text-sidebar-foreground/50">{session.projectName}</span>
           </>
         ) : (

@@ -5,6 +5,7 @@ import { XIcon } from "lucide-react";
 import { ProviderIcon } from "@/features/providers";
 import { Button } from "@/ui/button";
 import { cn } from "@/ui/utils";
+import { SessionProjectAvatar } from "../components/session-project-avatar";
 import type { Destination } from "./destination";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { placeOf, sessionStatus, statusDot } from "./destination-picker";
@@ -26,7 +27,10 @@ function SessionCard({ destination, nudge, height, manyHosts, onClear }: CardPro
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-xs font-semibold leading-snug">{session.title || "Untitled session"}</span>
-          <span className="block truncate text-2xs text-muted-foreground">{placeOf(session, manyHosts)} · {sessionStatus(session, now)}</span>
+          <span className="flex min-w-0 items-center gap-1 text-2xs text-muted-foreground">
+            <SessionProjectAvatar session={session} />
+            <span className="truncate">{placeOf(session, manyHosts)} · {sessionStatus(session, now)}</span>
+          </span>
         </span>
         <Button variant="ghost" size="icon-xs" aria-label="Detach session" title="Detach (⌫ when empty)" onClick={onClear} className="text-muted-foreground hover:text-foreground">
           <XIcon />

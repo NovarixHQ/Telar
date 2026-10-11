@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import fs from "node:fs";
+import path from "node:path";
 import { EngineStore } from "../../state";
 import { PROJECT_SEARCH_SQL } from "../../platform/db/tables";
 import { useTempStores } from "../../../test/temp-store";
@@ -13,9 +15,15 @@ function converse(store: EngineStore, sessionId: string, runId: string, input: s
 }
 
 function busyEngine(others: number): EngineStore {
-  const store = new EngineStore(root(), () => Date.now());
-  store.projectRegistry.register({ id: "project_one", name: "One", root: "/tmp" });
-  store.projectRegistry.register({ id: "project_busy", name: "Busy", root: "/private/var/tmp" });
+  const home = root();
+  const checkout = (name: string) => {
+    const directory = path.join(home, name);
+    fs.mkdirSync(directory);
+    return directory;
+  };
+  const store = new EngineStore(home, () => Date.now());
+  store.projectRegistry.register({ id: "project_one", name: "One", root: checkout("one") });
+  store.projectRegistry.register({ id: "project_busy", name: "Busy", root: checkout("busy") });
   store.lifecycle.createSession({ id: "session_old", projectId: "project_one" });
   converse(store, "session_old", "run_1", "how did we wire the orchestrator wake", "the orchestrator wakes on a peer result");
   store.lifecycle.updateSession("session_old", { settledOverride: "settled" });

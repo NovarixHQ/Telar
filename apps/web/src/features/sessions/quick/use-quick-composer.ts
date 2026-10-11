@@ -173,8 +173,9 @@ export function useQuickComposer(bridge: QuickComposerBridge | undefined) {
     if (!picking) drafts.keep({ text: next, files });
     setText(next);
   };
+  const completionsFrom = target?.kind === "session" ? { hostId: target.session.hostId ?? LOCAL_HOST_ID, sessionId: target.session.id } : project ? { hostId: project.hostId } : undefined;
   const needs = needsYou(rail.sessions, bandFor, attachedKey);
   const manyHosts = rail.hosts.length > 0;
 
-  return { projects, projectId, setProject, project, manyHosts, draft, text, setText, edit, files, attach, opened, context, offers, toggleOffer, destination, needs, nudge, sending, error, submit, noteKey, forgetKey };
+  return { projects, projectId, completionsFrom, setProject, project, manyHosts, draft, text, setText, edit, files, attach, opened, context, offers, toggleOffer, destination, needs, nudge, sending, error, submit, noteKey, forgetKey };
 }

@@ -114,7 +114,8 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
   const { draft, projectId, context } = quick;
   const strip = useRef<HTMLDivElement>(null);
   const notice = usePermissionNotice(Boolean(bridge && missingPermissions(context)));
-  const sized = useWindowMode(bridge, notice.shown || quick.destination.destination?.kind === "session" || quick.destination.picking, quick.opened);
+  const [referencing, setReferencing] = useState(false);
+  const sized = useWindowMode(bridge, notice.shown || quick.destination.destination?.kind === "session" || quick.destination.picking || referencing, quick.opened);
   const arriving = cn("motion-safe:transition-[opacity,translate] motion-safe:duration-[120ms] motion-safe:ease-out", sized ? "translate-y-0 opacity-100" : "invisible translate-y-2 opacity-0");
   useSurfaceCommandKeys(SURFACE_COMMANDS);
   const toComposer = () => document.querySelector<HTMLElement>(`[data-surface="quick"] ${EDITOR}`)?.focus();
@@ -191,6 +192,8 @@ export function QuickComposer({ bridge: given }: { bridge?: QuickComposerBridge 
             runtimeMode={draft.runtimeMode}
             {...(projectId ? { projectId } : {})}
             {...(quick.project?.name ? { projectName: quick.project.name } : {})}
+            {...(quick.completionsFrom ? { completionsFrom: quick.completionsFrom } : {})}
+            onCompletionsOpen={setReferencing}
             backgroundTasks={0}
             onDraftChange={quick.edit}
             onSubmit={() => void quick.submit()}

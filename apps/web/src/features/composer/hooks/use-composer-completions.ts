@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
 import type { ProviderDriverKind, ProviderSkills } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
+import { hostFetcher } from "@/platform/engine/host-client";
 import {
   availableCommands,
   buildPathIndex,
@@ -23,7 +24,7 @@ import { pluginCommandCompletions, writingPluginCommand } from "../plugin-comman
 import { detectComposerTrigger, type ComposerTrigger } from "../tokens";
 import type { ComposerEditorHandle } from "../components/composer-editor";
 
-const api = createEngineApi();
+const pageApi = createEngineApi();
 
 const PATHS_FAILED: Completion = { id: "paths:failed", label: "Files", detail: "Could not read the files here.", glyph: "directory", action: { type: "insert", text: "" }, disabled: true };
 const PATHS_READING: Completion = { id: "paths:reading", label: "Reading files…", detail: "", glyph: "directory", action: { type: "insert", text: "" }, disabled: true };
@@ -63,14 +64,17 @@ function useLazyRead<T>(wanted: boolean, checkout: string, read: (() => Promise<
 /** `@` for paths, `$` for skills, `/` for this box's commands then the provider's. */
 export function useComposerCompletions({
   editor,
+  hostId,
   sessionId,
   projectId,
   menuDriver,
   blocked,
   commands,
   pluginCommands,
+  onOpen,
 }: {
   editor: RefObject<ComposerEditorHandle | null>;
+  hostId?: string | undefined;
   sessionId: string | undefined;
   projectId: string | undefined;
   menuDriver: ProviderDriverKind | undefined;
@@ -78,12 +82,14 @@ export function useComposerCompletions({
   blocked: boolean;
   commands: CommandState;
   pluginCommands: readonly ComposerCommand[];
+  onOpen?: ((open: boolean) => void) | undefined;
 }) {
   const [trigger, setTrigger] = useState<ComposerTrigger | null>(null);
   const [active, setActive] = useState(0);
   // Escape hides the list without clearing the trigger; the next edit re-arms it.
   const [dismissed, setDismissed] = useState(false);
-  const checkout = sessionId ?? (projectId ? `project:${projectId}` : "none");
+  const api = useMemo(() => (hostId ? createEngineApi(hostFetcher(hostId)) : pageApi), [hostId]);
+  const checkout = `${hostId ?? ""}:${sessionId ?? (projectId ? `project:${projectId}` : "none")}`;
   const [primed, setPrimed] = useState<string>();
   const wantPaths = trigger?.kind === "path" || primed === checkout;
 
@@ -91,7 +97,7 @@ export function useComposerCompletions({
     ? async () => buildPathIndex((sessionId ? await api.sessionFiles(sessionId) : await api.projectFiles(projectId!)).listing.files)
     : async () => [] as PathEntry[];
   const paths = useLazyRead(wantPaths, checkout, listPaths, [] as PathEntry[], trigger?.query);
-  // This engine's sessions only: a reference to another host's session would not resolve here.
+  // The reading engine's sessions only: a reference to another host's session would not resolve there.
   const listSessions = async (): Promise<SessionCandidate[]> => {
     const live = await api.liveSessions();
     const names = new Map(live.projects.map((project) => [project.id, project.name]));
@@ -130,6 +136,7 @@ export function useComposerCompletions({
   // `@` always opens, so an empty or unreadable listing says so instead of looking like a dead key.
   const loading = (trigger?.kind === "path" && (paths.reading || sessions.reading)) || (trigger?.kind === "skill" && skills.reading);
   const open = !blocked && trigger !== null && !dismissed && (completions.length > 0 || loading || trigger.kind === "path");
+  useEffect(() => onOpen?.(open), [onOpen, open]);
 
   /** Recompute from the live caret after every edit and caret move; leaving a `@word` closes the list. */
   const retrigger = useCallback(

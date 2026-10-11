@@ -125,12 +125,14 @@ export function Composer(props: ComposerProps) {
   const pillsShown = Boolean(session || (fresh && driver));
   const menu = useComposerCompletions({
     editor,
-    sessionId: session?.id,
+    hostId: props.completionsFrom?.hostId,
+    sessionId: session?.id ?? props.completionsFrom?.sessionId,
     projectId,
     menuDriver: fresh ? driver : session?.driver,
     blocked: question.active,
     commands: { busy, fresh, pickers: { model: pillsShown, effort: pillsShown && hasEfforts, access: pillsShown && Boolean(props.runtimeMode) }, envMode: props.envMode, compacting: props.compacting, canResume: Boolean(props.onAdopt) },
     pluginCommands: props.extensions?.commands ?? NO_COMMANDS,
+    onOpen: props.onCompletionsOpen,
   });
   const pick = (completion: Completion) => {
     const action = menu.take(completion);

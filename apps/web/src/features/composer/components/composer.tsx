@@ -234,7 +234,7 @@ export function Composer(props: ComposerProps) {
                 pills={pills}
                 trailing={
                   <>
-                    {!compactNow && <ComposerContext {...props} />}
+                    {!compactNow && !props.compact && <ComposerContext {...props} />}
                     <DictationButton dictation={dictation} />
                     {send}
                   </>

@@ -218,6 +218,18 @@ describe("the quick composer", () => {
     expect(sent).toHaveLength(1);
   });
 
+  test("has no context ring, also with a conversation attached", async () => {
+    const { host } = await open(front(GRANTED));
+    const ring = () => host.querySelector('button[aria-label^="Context window"]');
+    expect(editor(host)).not.toBeNull();
+    expect(ring()).toBeNull();
+    await flush(() => strip(host).length > 0);
+    await act(async () => host.querySelector<HTMLButtonElement>('[role="toolbar"] button')!.click());
+    await flush();
+    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    expect(ring()).toBeNull();
+  });
+
   test("shows no greeting heading", async () => {
     const { host } = await open(front(GRANTED));
     expect(host.querySelector("h1")).toBeNull();

@@ -9,7 +9,6 @@ const MAX_ROWS = 6;
 const IP_HOST = /^(\d{1,3}(?:\.\d{1,3}){3}|\[[\da-fA-F:]+\])$/;
 const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])$/;
 
-/** Mirrors the shell's own test: anything else in the bar becomes a search. */
 export function looksLikeAddress(value: string): boolean {
   const text = value.trim();
   if (!text) return false;
@@ -65,7 +64,6 @@ function frecency(visits: number, lastVisit: number, now: number): number {
 
 type Sources = { history: readonly BrowserHistoryEntry[]; tabs: readonly DesktopBrowserTab[]; now: number };
 
-/** Open tabs and visited pages that match `text`, best first, then the row that submits `text` as typed. */
 export function rankSuggestions(text: string, { history, tabs, now }: Sources): AddressSuggestion[] {
   const query = text.trim().toLowerCase();
   if (!query) return [];

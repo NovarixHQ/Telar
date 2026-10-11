@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { Favicon } from "@/features/browser";
-import { KeyHint } from "@/features/commands";
 import { HeaderToggleGroup } from "@/ui/header-toggle";
 import { ScrollArea } from "@/ui/scroll-area";
 import { cn } from "@/ui/utils";
@@ -166,12 +165,6 @@ export function TabStrip(strip: StripProps) {
       )}
       {launcher.length > 0 && <SurfaceChooser rows={launcher} actions={strip.actions} browserStart={browserStart} />}
       <div className="flex shrink-0 items-center gap-0.5">
-        {tabs.length > 1 && (
-          <span className="mr-1 hidden items-center gap-0.5 @2xl/strip:flex">
-            <KeyHint command="panel-previous-tab" />
-            <KeyHint command="panel-next-tab" />
-          </span>
-        )}
         <button
           type="button"
           aria-label={fullscreen ? "Exit fullscreen" : "Fill the window"}

@@ -1,3 +1,5 @@
+const { HUMAN_ATTRIBUTION_GRACE_MS } = require("./shared");
+
 module.exports = {
   async keepCockpitFocus(scope, work) {
     if (this.window.isDestroyed() || !this.window.webContents.isFocused?.()) return work();
@@ -13,13 +15,31 @@ module.exports = {
   },
 
   noteTabFocused(tab) {
-    if (this.focusHolds.has(tab.scopeKey) || !this.isTabShown(tab)) this.returnFocusFrom(tab);
+    const held = this.focusHolds.has(tab.scopeKey) || !this.isTabShown(tab);
+    if (held ? this.humanActive(tab) : this.justTouched(tab)) return;
+    if (this.focusCockpitFrom(tab)) tab.focusReturnedAt = this.now();
+  },
+
+  noteTabPointerDown(tab) {
+    tab.pointerDownAt = this.now();
+    const returnedAt = tab.focusReturnedAt;
+    tab.focusReturnedAt = undefined;
+    if (returnedAt !== undefined && this.now() - returnedAt < HUMAN_ATTRIBUTION_GRACE_MS) this.contentsOf(tab)?.focus();
+  },
+
+  justTouched(tab) {
+    return tab.pointerDownAt !== undefined && this.now() - tab.pointerDownAt < HUMAN_ATTRIBUTION_GRACE_MS;
   },
 
   returnFocusFrom(tab) {
+    if (!this.humanActive(tab)) this.focusCockpitFrom(tab);
+  },
+
+  focusCockpitFrom(tab) {
     const page = tab.view?.webContents;
-    if (!page || page.isDestroyed() || !page.isFocused?.()) return;
-    if (tab.stage || this.humanActive(tab) || this.window.isDestroyed()) return;
+    if (!page || page.isDestroyed() || !page.isFocused?.()) return false;
+    if (tab.stage || this.window.isDestroyed()) return false;
     this.window.webContents.focus();
+    return true;
   },
 };

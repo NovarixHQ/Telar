@@ -185,7 +185,7 @@ module.exports = {
       if (tab.view !== view || view.webContents.isDestroyed?.()) return;
       this.applyBorderRadius(tab, view);
       this.applyCanvas(tab, view);
-      const shown = this.isTabShown(tab) && !this.isBlank(tab);
+      const shown = this.isTabShown(tab) && !this.isBlank(tab) && !tab.loadError;
       view.setVisible(shown);
 
       if (shown) view.setBounds(this.windowRect(this.nativeRect(tab), tab));

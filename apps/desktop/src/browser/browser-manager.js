@@ -1,6 +1,7 @@
 const { randomUUID } = require("node:crypto");
 const path = require("node:path");
 const { isProtectedUrl } = require("./protected-urls");
+const { isLoadFailure } = require("./load-error");
 const { ProfileRegistry } = require("./browser-profiles");
 const { serializeInventory, parseInventory } = require("./browser-tab-store");
 const {
@@ -235,6 +236,7 @@ class DesktopBrowserManager {
 
         agentFocus: tab.id === agentTabId,
         loading: tab.loading,
+        loadError: tab.loadError ? { code: tab.loadError.code, url: tab.loadError.url } : null,
         controller: this.tabActivity(tab),
         openedBy: tab.openedBy || "agent",
 
@@ -333,7 +335,7 @@ class DesktopBrowserManager {
 
       return action.live === true ? null : this.state(scope, sender);
     }
-    return viewed(this.performAction(scope, action, "human", stage));
+    return viewed(this.performAction(scope, action, "human", stage).catch((error) => { if (!isLoadFailure(error)) throw error; }));
   }
 
   persistSync() {

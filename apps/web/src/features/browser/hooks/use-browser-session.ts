@@ -3,6 +3,7 @@ import type { SitePermissionKind } from "../desktop-site-permissions";
 import { claimChords, useCommandHandlers } from "@/features/commands";
 import { captionFor } from "../annotation";
 import { describePermissionDenial, type PermissionAnswer } from "../components/permission-prompt";
+import { errorText } from "../load-error";
 import { addressValue, fileFromCapture, originOfUrl, readSitePermissionsFor, StaleScopeError, TAB_SELECT_CHORDS } from "../model";
 import type { ScopeGuard } from "../scope-guard";
 import { showScreenshotFailure, showScreenshotToast } from "../screenshot-toast";
@@ -131,7 +132,7 @@ export function useBrowserSync({ bridge, scopeKey, projectId, onEnded }: Browser
       .then((status) => { if (!cancelled && scope.isCurrent(gen) && status) setExtension(status); })
       .catch((error: unknown) => {
         if (cancelled || !scope.isCurrent(gen) || error instanceof StaleScopeError) return;
-        setExtensionError(error instanceof Error ? error.message : "Could not load the password manager for this session.");
+        setExtensionError(errorText(error, "Could not load the password manager for this session."));
       });
     // Until the partition is known a partitioned push may be another project's; a legacy push without one is accepted.
     const unsubscribe = bridge.onExtension?.((next) => {
@@ -163,7 +164,7 @@ async function attempt(scope: ScopeGuard, report: Report, fallback: string, work
     return false;
   } catch (error) {
     if (!scope.isCurrent(gen) || error instanceof StaleScopeError) return false;
-    report(error instanceof Error ? error.message : fallback);
+    report(errorText(error, fallback));
     return true;
   }
 }
@@ -202,7 +203,7 @@ export function useBrowserActions({ bridge, scopeKey }: BrowserProps, s: Browser
       if (scope.isCurrent(gen)) setExtension(status);
     } catch (error) {
       if (!scope.isCurrent(gen) || error instanceof StaleScopeError) return;
-      setExtensionError(error instanceof Error ? error.message : String(error));
+      setExtensionError(errorText(error, String(error)));
     }
   },[bridge, bindNow, scope, scopeKey, keyButtonRef, setExtension, setExtensionError]);
 
@@ -298,7 +299,7 @@ export function useBrowserPermissions({ bridge, scopeKey }: BrowserProps, s: Bro
     try {
       await bridge.forgetSitePermission({ scopeKey, origin: activeOrigin, ...(kind ? { kind } : {}) });
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "That site permission could not be forgotten.");
+      setActionError(errorText(error, "That site permission could not be forgotten."));
     } finally {
       settle();
     }
@@ -323,7 +324,7 @@ export function useBrowserCapture({ bridge, scopeKey, onAttach }: BrowserProps, 
       apply(shot);
     } catch (error) {
       if (!scope.isCurrent(gen)) return;
-      setActionError(error instanceof Error ? error.message : failed);
+      setActionError(errorText(error, failed));
     } finally {
       setCapturing(false);
     }

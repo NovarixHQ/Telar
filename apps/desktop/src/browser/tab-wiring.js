@@ -1,6 +1,7 @@
 const { HUMAN_ATTRIBUTION_GRACE_MS, MAX_TABS_PER_SCOPE, navigationFlag } = require("./shared");
 const { SEARCH_URL, VIEW_SOURCE_PREFIX, normalizePopupUrl } = require("./urls");
 const { browserContextMenuTemplate } = require("./browser-context-menu");
+const { pageLoadError } = require("./load-error");
 
 const MAX_DATA_FAVICON = 4096;
 
@@ -132,6 +133,7 @@ module.exports = {
       title: "New tab",
       url: "about:blank",
       loading: false,
+      loadError: null,
       openedBy,
 
       lastHumanInputAt: undefined,
@@ -227,7 +229,18 @@ module.exports = {
       tab.faviconOrigin = originOf(wc.getURL());
       this.emitState(tab.scopeKey);
     });
+    wc.on("did-fail-load", (_event, errno, code, failedUrl, isMainFrame) => {
+      const failure = isMainFrame ? pageLoadError(errno, code, failedUrl) : null;
+      if (!failure) return;
+      tab.loadError = failure;
+      this.applyGeometry(tab).catch(() => {});
+      this.emitState(tab.scopeKey);
+    });
     wc.on("did-navigate", (_event, navigatedUrl, httpResponseCode) => {
+      if (tab.loadError) {
+        tab.loadError = null;
+        this.applyGeometry(tab).catch(() => {});
+      }
       if (tab.faviconUrl && originOf(navigatedUrl || wc.getURL()) !== tab.faviconOrigin) tab.faviconUrl = null;
       this.noteNavigation(tab);
       sync();

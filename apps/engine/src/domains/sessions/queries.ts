@@ -191,7 +191,7 @@ export class SessionQueries {
   } {
     const store = this.kernel.executionStore;
     const terms = query.q.split(/\s+/).map((term) => term.trim()).filter(Boolean);
-    const hits = store.searchTurnText(terms, FIND_SCAN);
+    const hits = store.searchTurnText(terms, FIND_SCAN, query.projectId);
     const at = { now: this.kernel.now(), autoSettleAfterHours: this.deps.autoSettleAfterHours() };
     const chosen = new Map<string, { id: string; title?: string; projectId?: string; activity: string; updatedAt: number; runId?: string; why: string }>();
     let more = false;

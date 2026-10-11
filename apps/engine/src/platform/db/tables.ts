@@ -354,25 +354,32 @@ export function turnSummaryGaps(store: ExecutionStore): string[] {
   return sessionIds(store).filter((id) => !summarised.has(id));
 }
 
-export function searchTurnText(store: ExecutionStore, terms: string[], scan: number): Array<{ sessionId: string; runId: string; text: string }> {
+export const PROJECT_SEARCH_SQL =
+  `SELECT session_search.text, session_id, run_id FROM session_search JOIN sessions ON sessions.id = session_search.session_id
+     WHERE session_search MATCH ? AND sessions.project_id = ? ORDER BY session_search.rank LIMIT ?`;
+
+export function searchTurnText(store: ExecutionStore, terms: string[], scan: number, projectId?: string): Array<{ sessionId: string; runId: string; text: string }> {
   if (terms.length === 0) return [];
   if (store.searchIndex === "fts5") {
     // Every term quoted as a phrase, so user text is never fts5 syntax.
     const query = terms.map((term) => `"${term.replace(/"/g, '""')}"`).join(" AND ");
-    return store.statement("SELECT text, session_id, run_id FROM session_search WHERE session_search MATCH ? ORDER BY rank LIMIT ?")
-      .all(query, scan)
-      .map((row) => ({ sessionId: String(row.session_id), runId: String(row.run_id), text: String(row.text) }));
+    const rows = projectId === undefined
+      ? store.statement("SELECT text, session_id, run_id FROM session_search WHERE session_search MATCH ? ORDER BY rank LIMIT ?").all(query, scan)
+      : store.statement(PROJECT_SEARCH_SQL).all(query, projectId, scan);
+    return rows.map((row) => ({ sessionId: String(row.session_id), runId: String(row.run_id), text: String(row.text) }));
   }
   const like = `%${escapeLike(terms[0]!)}%`;
+  const scope = projectId === undefined ? "" : "AND session_id IN (SELECT id FROM sessions WHERE project_id = ?)";
+  const scoped = projectId === undefined ? [] : [projectId];
   const rows = store.statement(
     `SELECT session_id, run_id, input_line || char(10) || answer_head AS text FROM turn_summaries
-       WHERE input_line LIKE ? ESCAPE '\\' OR answer_head LIKE ? ESCAPE '\\'
+       WHERE (input_line LIKE ? ESCAPE '\\' OR answer_head LIKE ? ESCAPE '\\') ${scope}
        ORDER BY session_id, sequence DESC LIMIT ?`,
-  ).all(like, like, scan);
+  ).all(like, like, ...scoped, scan);
   const titles = store.statement(
     `SELECT id AS session_id, '' AS run_id, COALESCE(title,'') || char(10) || COALESCE(branch,'') AS text FROM sessions
-       WHERE title LIKE ? ESCAPE '\\' OR branch LIKE ? ESCAPE '\\' LIMIT ?`,
-  ).all(like, like, scan);
+       WHERE (title LIKE ? ESCAPE '\\' OR branch LIKE ? ESCAPE '\\') ${projectId === undefined ? "" : "AND project_id = ?"} LIMIT ?`,
+  ).all(like, like, ...scoped, scan);
   return [...titles, ...rows].map((row) => ({ sessionId: String(row.session_id), runId: String(row.run_id), text: String(row.text) }));
 }
 

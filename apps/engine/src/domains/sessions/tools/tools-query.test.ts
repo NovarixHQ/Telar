@@ -227,6 +227,24 @@ describe("the query views of sessions_read and sessions_list", () => {
     expect(orphan.text).toContain("pass q");
   });
 
+  test("a cited project's settled sessions are searchable by content, scoped to that project", async () => {
+    const { store, projectId } = queryEngine();
+    const other = store.projectRegistry.register({ name: "borealis", root: repo() });
+    const settled = store.lifecycle.createSession({ projectId, title: "orchestrator notes" });
+    conversation(store, settled.id, "run_1", "how should the orchestrator wake its builders", "on a peer result");
+    store.lifecycle.updateSession(settled.id, { settledOverride: "settled" });
+    const elsewhere = store.lifecycle.createSession({ projectId: other.id });
+    conversation(store, elsewhere.id, "run_1", "the orchestrator wake again", "elsewhere");
+    const tools = wall(store);
+
+    const found = await call(tools, "sessions_list", { q: "orchestrator wake", projectId });
+    const rows = found.json!.sessions as Array<{ id: string; title?: string; updatedAt: number; why: string }>;
+    expect(rows.map((row) => row.id)).toEqual([settled.id]);
+    expect(rows[0]!.title).toBe("orchestrator notes");
+    expect(rows[0]!.updatedAt).toBeGreaterThan(0);
+    expect(rows[0]!.why).toContain("orchestrator");
+  });
+
   test("the retired query tools are gone from the wall", () => {
     const { store } = queryEngine();
     const names = [...wall(store).keys()];

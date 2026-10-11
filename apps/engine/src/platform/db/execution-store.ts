@@ -204,7 +204,7 @@ export class ExecutionStore {
   latestAnsweredTurn(sessionId: string): TurnSummary | undefined { return tables.latestAnsweredTurn(this, sessionId); }
   turnSummaryCount(sessionId: string): number { return tables.turnSummaryCount(this, sessionId); }
   turnSummaryGaps(): string[] { return tables.turnSummaryGaps(this); }
-  searchTurnText(terms: string[], scan: number) { return tables.searchTurnText(this, terms, scan); }
+  searchTurnText(terms: string[], scan: number, projectId?: string) { return tables.searchTurnText(this, terms, scan, projectId); }
   grepEvents(sessionId: string, needle: string, before: number | undefined, limit: number) { return tables.grepEvents(this, sessionId, needle, before, limit); }
 
   /** `(after, ...]` in id order, with `limit` pushed into sqlite. Held deltas are newer than every stored row, so they come last. */

@@ -390,6 +390,7 @@ function makeHarness(options = {}) {
     ...(options.now ? { now: options.now } : {}),
     ...(options.onControlChanged ? { onControlChanged: options.onControlChanged } : {}),
     ...(options.onVisited ? { onVisited: options.onVisited } : {}),
+    ...(options.onTitled ? { onTitled: options.onTitled } : {}),
     ...(options.onChordScope ? { onChordScope: options.onChordScope } : {}),
     ...(options.onStageClosed ? { onStageClosed: options.onStageClosed } : {}),
     ...(options.onLoginEntryFinished ? { onLoginEntryFinished: options.onLoginEntryFinished } : {}),

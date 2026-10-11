@@ -221,6 +221,7 @@ module.exports = {
     });
     wc.on("page-title-updated", (_event, title) => {
       tab.title = title || tab.title;
+      this.noteTitled(tab, wc.getURL(), title);
       this.emitState(tab.scopeKey);
     });
     wc.on("page-favicon-updated", (_event, favicons) => {

@@ -4,15 +4,16 @@
  */
 
 import type { ProviderDriverKind, ProviderSkill, ProviderSkillSource } from "@telar/engine-client";
-import { fileReference, directoryReference, sessionReference, skillReference } from "@telar/client/composer";
+import { fileReference, directoryReference, projectReference, sessionReference, skillReference } from "@telar/client/composer";
 import { insertRankedSearchResult, normalizeSearchQuery, scoreQueryMatch, type RankedSearchResult } from "@/ui/search-ranking";
 
-export type CompletionGlyph = "file" | "directory" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session" | "plugin";
+export type CompletionGlyph = "file" | "directory" | "access" | "model" | "effort" | "driver" | "env" | "stop" | "compact" | "resume" | "skill" | "session" | "project" | "settled" | "plugin";
 
 type CompletionAction =
   /** Replace the trigger with this text; the only action that touches the draft. */
   | { type: "insert"; text: string }
   | { type: "picker"; picker: ComposerPicker }
+  | { type: "search-settled"; query: string }
   | { type: "env-mode"; mode: "local" | "worktree" }
   | { type: "driver"; driver: ProviderDriverKind }
   | { type: "compact" }
@@ -28,6 +29,7 @@ export type Completion = {
   glyph: CompletionGlyph;
   action: CompletionAction;
   path?: string;
+  project?: ProjectCandidate;
   /** A section heading, drawn above the first row that carries it (see `ComposerMenu`). */
   group?: string;
   /** Listed but not pickable; the detail says why. */
@@ -148,6 +150,46 @@ export function rankSessions(
       group: "Sessions",
     };
   });
+}
+
+export type ProjectCandidate = { id: string; name: string; root: string; icon?: string; iconName?: string; iconEmoji?: string };
+
+export function rankProjects(projects: readonly ProjectCandidate[], query: string, limit = 3): Completion[] {
+  const normalized = normalizeSearchQuery(query);
+  if (!normalized) return [];
+  const ranked: RankedSearchResult<ProjectCandidate>[] = [];
+  for (const project of projects) {
+    const score = scoreQueryMatch({ value: project.name.toLowerCase(), query: normalized, exactBase: 0, prefixBase: 2, boundaryBase: 8, includesBase: 16, boundaryMarkers: [" ", "-", "_", "."] });
+    if (score === null) continue;
+    insertRankedSearchResult(ranked, { item: project, score, tieBreaker: project.name }, limit);
+  }
+  return ranked.map(({ item }) => ({
+    id: `project:${item.id}`,
+    label: item.name,
+    detail: "Project",
+    glyph: "project",
+    action: { type: "insert", text: projectReference(item).text },
+    project: item,
+    group: "Projects",
+  }));
+}
+
+export function settledSearchRow(query: string): Completion | undefined {
+  const text = query.trim();
+  if (!text) return undefined;
+  return { id: "settled:search", label: `Search "${text}" in settled sessions`, detail: "", glyph: "settled", action: { type: "search-settled", query: text }, group: "Settled sessions" };
+}
+
+export type SettledHit = { id: string; title?: string; projectId?: string; updatedAt: number; why: string };
+
+export function settledCompletions(hits: readonly SettledHit[], here: { sessionId?: string }): Completion[] {
+  return [...hits]
+    .filter((hit) => hit.id !== here.sessionId)
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .map((hit) => {
+      const reference = sessionReference({ id: hit.id, title: hit.title ?? "" });
+      return { id: `settled:${hit.id}`, label: reference.label, detail: hit.why, glyph: "session", action: { type: "insert", text: reference.text }, group: "Settled sessions" };
+    });
 }
 
 type CommandContext = {

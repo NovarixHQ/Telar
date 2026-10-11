@@ -3,9 +3,10 @@
 // Keys are the composer's; every row prevents mousedown so a click never blurs the editor mid-pick.
 
 import { Fragment } from "react";
-import { BotIcon, DownloadIcon, FolderIcon, GaugeIcon, GitBranchIcon, MessagesSquareIcon, Minimize2Icon, PuzzleIcon, ShieldCheckIcon, SparklesIcon, SquareIcon, WandSparklesIcon } from "lucide-react";
+import { ArchiveIcon, BotIcon, DownloadIcon, FolderIcon, GaugeIcon, GitBranchIcon, MessagesSquareIcon, Minimize2Icon, PuzzleIcon, ShieldCheckIcon, SparklesIcon, SquareIcon, WandSparklesIcon } from "lucide-react";
 import type { Completion, CompletionGlyph } from "../completions";
 import { FileKindIcon } from "@/features/files";
+import { ProjectAvatar } from "@/features/projects";
 import { cn } from "@/ui/utils";
 
 const COMMAND_GLYPHS: Partial<Record<CompletionGlyph, typeof BotIcon>> = {
@@ -26,10 +27,15 @@ const COMMAND_GLYPHS: Partial<Record<CompletionGlyph, typeof BotIcon>> = {
   stop: SquareIcon,
   session: MessagesSquareIcon,
   plugin: PuzzleIcon,
+  settled: ArchiveIcon,
 };
 
 function RowIcon({ completion }: { completion: Completion }) {
   if (completion.glyph === "file" && completion.path) return <FileKindIcon path={completion.path} className="size-4" />;
+  if (completion.project) {
+    const { id, name, icon, iconName, iconEmoji } = completion.project;
+    return <ProjectAvatar projectId={id} name={name} size={16} {...(icon ? { icon } : {})} {...(iconName ? { iconName } : {})} {...(iconEmoji ? { iconEmoji } : {})} />;
+  }
   if (completion.glyph === "directory") return <FolderIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />;
   const Glyph = COMMAND_GLYPHS[completion.glyph] ?? BotIcon;
   return <Glyph aria-hidden className="size-4 shrink-0 text-muted-foreground" />;

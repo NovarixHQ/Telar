@@ -7,9 +7,13 @@ function focusOf(manager) {
   const calls = { cockpit: 0, page: 0, window: 0 };
   let holder = cockpit;
   cockpit.isFocused = () => holder === cockpit;
+  const toComposer = () => {
+    holder = cockpit;
+    cockpit.emit("focus");
+  };
   cockpit.focus = () => {
     calls.cockpit += 1;
-    holder = cockpit;
+    toComposer();
   };
   manager.window.focus = () => { calls.window += 1; };
   const page = (wc) => {
@@ -21,7 +25,7 @@ function focusOf(manager) {
     holder = wc;
     wc.emit("focus");
   };
-  return { calls, page, steal, inCockpit: () => holder === cockpit };
+  return { calls, page, steal, toComposer, inCockpit: () => holder === cockpit };
 }
 
 function stealOn(focus, wc, method, when = () => true) {
@@ -34,8 +38,8 @@ function stealOn(focus, wc, method, when = () => true) {
   };
 }
 
-async function agentTab(scope, url, { shown = false } = {}) {
-  const harness = makeHarness();
+async function agentTab(scope, url, { shown = false, now } = {}) {
+  const harness = makeHarness(now ? { now } : {});
   const focus = focusOf(harness.manager);
   await harness.manager.callTool(scope, "browser_tabs", { action: "new", url });
   if (shown) await harness.manager.setVisible(scope, true);
@@ -90,10 +94,151 @@ describe("agent actions leave keyboard focus where the person is typing", () => 
     expect(focus.inCockpit()).toBe(true);
   });
 
-  test("the person's own focus in the shown page is left alone", async () => {
-    const { focus, wc } = await agentTab("s", "https://agent.example/", { shown: true });
+  test("an agent navigating the shown tab does not take focus from the composer", async () => {
+    const { manager, focus, wc } = await agentTab("s", "https://agent.example/", { shown: true });
+    const load = wc.loadURL.bind(wc);
+    wc.loadURL = async (url) => {
+      await load(url);
+      focus.steal(wc);
+    };
+
+    await manager.callTool("s", "browser_navigate", { url: "https://next.example/" });
+
+    expect(focus.inCockpit()).toBe(true);
+    expect(focus.calls.page).toBe(0);
+  });
+});
+
+describe("the shown page changing leaves keyboard focus in the composer", () => {
+  async function shownTab() {
+    let clock = 1_000_000;
+    const harness = await agentTab("s", "https://app.example/", { shown: true, now: () => clock });
+    clock += 5_000;
+    return { ...harness, tick: (ms) => { clock += ms; } };
+  }
+
+  test("a reload from the panel that focuses the page hands focus back", async () => {
+    const { manager, focus, wc } = await shownTab();
+    wc.reload = () => focus.steal(wc);
+
+    await manager.action("s", { action: "reload" });
+
+    expect(focus.inCockpit()).toBe(true);
+    expect(focus.calls.page).toBe(0);
+  });
+
+  test("an address bar navigation that focuses the page hands focus back", async () => {
+    const { manager, focus, wc } = await shownTab();
+    const load = wc.loadURL.bind(wc);
+    wc.loadURL = async (url) => {
+      await load(url);
+      focus.steal(wc);
+    };
+
+    await manager.action("s", { action: "navigate", url: "https://next.example/" });
+
+    expect(focus.inCockpit()).toBe(true);
+    expect(focus.calls.page).toBe(0);
+  });
+
+  test("a page that reloads itself, redirects or retitles never keeps focus", async () => {
+    const { focus, wc } = await shownTab();
+    wc.emit("did-start-loading");
     focus.steal(wc);
+    wc.emit("did-navigate");
+    wc.emit("page-title-updated", {}, "Rebuilt");
+    wc.emit("page-favicon-updated", {}, ["https://app.example/favicon.ico"]);
+    wc.emit("did-stop-loading");
+
+    expect(focus.inCockpit()).toBe(true);
+    expect(focus.calls.page).toBe(0);
+  });
+
+  test("a failed load does not focus the page", async () => {
+    const { focus, wc } = await shownTab();
+    wc.emit("did-fail-load", {}, -105, "ERR_NAME_NOT_RESOLVED", "https://gone.example/", true);
+
+    expect(focus.inCockpit()).toBe(true);
+    expect(focus.calls.page).toBe(0);
+  });
+
+  test("clicking into the page keeps focus there", async () => {
+    const { manager, focus, wc } = await shownTab();
+    manager.noteHumanInputFromWebContents(wc, "pointerdown");
+    focus.steal(wc);
+
     expect(focus.inCockpit()).toBe(false);
     expect(focus.calls.cockpit).toBe(0);
+  });
+
+  test("a click reported after the focus it caused takes focus back into the page", async () => {
+    const { manager, focus, wc } = await shownTab();
+    focus.steal(wc);
+    expect(focus.inCockpit()).toBe(true);
+
+    manager.noteHumanInputFromWebContents(wc, "pointerdown");
+
+    expect(focus.calls.page).toBe(1);
+  });
+
+  test("a scroll or a late click does not pull focus back into the page", async () => {
+    const { manager, focus, wc, tick } = await shownTab();
+    focus.steal(wc);
+    manager.noteHumanInputFromWebContents(wc, "wheel");
+    tick(1_000);
+    manager.noteHumanInputFromWebContents(wc, "pointerdown");
+
+    expect(focus.inCockpit()).toBe(true);
+    expect(focus.calls.page).toBe(0);
+  });
+});
+
+describe("a person working inside the page keeps focus there when it changes", () => {
+  async function inPage() {
+    let clock = 1_000_000;
+    const harness = await agentTab("s", "https://app.example/", { shown: true, now: () => clock });
+    clock += 5_000;
+    harness.manager.noteHumanInputFromWebContents(harness.wc, "pointerdown");
+    harness.focus.steal(harness.wc);
+    clock += 5_000;
+    return harness;
+  }
+
+  test("pressing Enter in the page's search box navigates and the page keeps focus", async () => {
+    const { manager, focus, wc } = await inPage();
+    manager.noteHumanInputFromWebContents(wc, "keydown");
+    wc.emit("blur");
+    wc.emit("did-start-loading");
+    focus.steal(wc);
+    wc.emit("did-navigate");
+
+    expect(focus.inCockpit()).toBe(false);
+    expect(focus.calls.cockpit).toBe(0);
+  });
+
+  test("the page reloading while the person is in it leaves focus in the page", async () => {
+    const { focus, wc } = await inPage();
+    wc.emit("blur");
+    focus.steal(wc);
+
+    expect(focus.inCockpit()).toBe(false);
+    expect(focus.calls.cockpit).toBe(0);
+  });
+
+  test("once the person moves to the composer, a reload or an agent navigation does not pull focus back", async () => {
+    const { manager, focus, wc } = await inPage();
+    focus.toComposer();
+    focus.steal(wc);
+    expect(focus.inCockpit()).toBe(true);
+
+    const load = wc.loadURL.bind(wc);
+    wc.loadURL = async (url) => {
+      await load(url);
+      focus.steal(wc);
+    };
+    await manager.callTool("s", "browser_navigate", { url: "https://next.example/" });
+
+    expect(focus.inCockpit()).toBe(true);
+    expect(focus.calls.page).toBe(0);
   });
 });

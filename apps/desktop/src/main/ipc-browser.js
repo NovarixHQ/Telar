@@ -264,9 +264,9 @@ function registerTabIpc({ requireLoginOffer }) {
     }
   });
 
-  ipcMain.on("telar:browser:human-input", (event) => {
+  ipcMain.on("telar:browser:human-input", (event, type) => {
     try {
-      for (const manager of browserManagers) manager.noteHumanInputFromWebContents(event.sender);
+      for (const manager of browserManagers) manager.noteHumanInputFromWebContents(event.sender, type);
     } catch {
     }
   });

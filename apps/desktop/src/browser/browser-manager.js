@@ -114,6 +114,7 @@ class DesktopBrowserManager {
       if (this._disposed) return;
       this.applyVisibility();
     });
+    this.window?.webContents?.on?.("focus", () => this.noteCockpitFocused());
 
     this.displayScaleFactor =
       dependencies.scaleFactor || ((win) => this.electron().screen.getDisplayMatching((win || this.window).getBounds()).scaleFactor);

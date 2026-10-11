@@ -3,12 +3,12 @@ const { ipcRenderer } = require("electron");
 const REPORT_EVERY_MS = 40;
 let lastReport = 0;
 
-function report() {
+function report(event) {
   const now = Date.now();
-  if (now - lastReport < REPORT_EVERY_MS) return;
+  if (event.type !== "pointerdown" && now - lastReport < REPORT_EVERY_MS) return;
   lastReport = now;
   try {
-    ipcRenderer.send("telar:browser:human-input");
+    ipcRenderer.send("telar:browser:human-input", event.type);
   } catch {
   }
 }

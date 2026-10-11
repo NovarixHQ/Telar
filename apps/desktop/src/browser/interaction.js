@@ -67,9 +67,9 @@ module.exports = {
     return true;
   },
 
-  noteHumanInputFromWebContents(webContents) {
+  noteHumanInputFromWebContents(webContents, type) {
     const tab = this.tabs.find((candidate) => candidate.view && candidate.view.webContents === webContents);
-    if (tab) this.noteHumanInput(tab.scopeKey, { tab });
+    if (tab && this.noteHumanInput(tab.scopeKey, { tab }) && (type === "pointerdown" || type === "keydown")) this.noteTabGesture(tab);
   },
 
   noteLoginEntryFromWebContents(webContents, detail = {}) {

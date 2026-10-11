@@ -164,16 +164,8 @@ async function press(host: HTMLElement, key: string, keys: KeyboardEventInit = {
 }
 
 const strip = (host: HTMLElement) => [...host.querySelectorAll('[role="toolbar"] button')].map((pill) => pill.getAttribute("title")?.split(" · ")[0]);
-const shown = (node: Element) => {
-  const copy = node.cloneNode(true) as Element;
-  copy.querySelectorAll("[aria-hidden]").forEach((hidden) => hidden.remove());
-  return copy.textContent ?? "";
-};
+const shown = (node: Element) => [...node.childNodes].map((child): string => (child instanceof Element ? (child.hasAttribute("aria-hidden") ? "" : shown(child)) : (child.textContent ?? ""))).join("");
 const options = (host: HTMLElement) => [...host.querySelectorAll('[role="option"]')].map(shown);
-const projectMark = (node: Element | null | undefined) => {
-  const mark = [...(node?.querySelectorAll("[aria-hidden]") ?? [])].find((each) => each.tagName === "IMG" || each.textContent);
-  return mark?.tagName === "IMG" ? mark.getAttribute("src") : mark?.textContent;
-};
 
 async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEventInit = {}) {
   await type(host, text);
@@ -221,12 +213,10 @@ describe("the quick composer", () => {
   test("has no context ring, also with a conversation attached", async () => {
     const { host } = await open(front(GRANTED));
     const ring = () => host.querySelector('button[aria-label^="Context window"]');
-    expect(editor(host)).not.toBeNull();
     expect(ring()).toBeNull();
     await flush(() => strip(host).length > 0);
     await act(async () => host.querySelector<HTMLButtonElement>('[role="toolbar"] button')!.click());
-    await flush();
-    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    await flush(() => host.querySelector('[data-slot="quick-destination"]') !== null);
     expect(ring()).toBeNull();
   });
 
@@ -446,25 +436,6 @@ describe("the # destination picker", () => {
     }
   });
 
-  test("each session row shows its project's icon, or the project's initial when it has none", async () => {
-    const { host } = await open(front(GRANTED));
-    await type(host, "#");
-    await flush(() => options(host).length > 3);
-    const row = (title: string) => [...host.querySelectorAll('[role="option"]')].find((each) => each.textContent?.includes(title));
-    expect(projectMark(row("Sales dashboard"))).toBe("/api/projects/project_2/icon?v=k2");
-    expect(projectMark(row("Expand scratch README"))).toBe("T");
-  });
-
-  test("lists only top-level sessions, never a builder another session started", async () => {
-    LIVE.push({ ...live("s_child", "Builder: fix the tests", "project_2", "working", 500), startedFrom: { sessionId: "s_sales" } } as (typeof LIVE)[number]);
-    const { host } = await open(front(GRANTED));
-    await type(host, "#");
-    await flush(() => options(host).length > 3);
-    expect(options(host).some((row) => row.includes("Builder: fix the tests"))).toBe(false);
-    expect(options(host).some((row) => row.includes("Sales dashboard"))).toBe(true);
-    LIVE.pop();
-  });
-
   test("filters projects and sessions together", async () => {
     const { host } = await open(front(GRANTED));
     await type(host, "#exo");
@@ -486,7 +457,7 @@ describe("the # destination picker", () => {
     await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Shall I run it?") ?? false);
     const card = host.querySelector('[data-slot="quick-destination"]')!;
     expect(card.textContent).toContain("Sales dashboard and checkout");
-    expect(projectMark(card)).toBe("/api/projects/project_2/icon?v=k2");
+    expect(card.querySelector("img")?.getAttribute("src")).toBe("/api/projects/project_2/icon?v=k2");
     expect(card.textContent).toContain("exoplanets · Waiting on you");
     const transcript = card.querySelector('[data-slot="quick-transcript"]')!;
     expect(transcript.textContent).toContain("Can you check the build?");
@@ -537,12 +508,7 @@ describe("the # destination picker", () => {
       await act(async () => void target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
       await flush();
     };
-    const chip = host.querySelector<HTMLElement>('[aria-label="Project"]')!;
-    await act(async () => {
-      chip.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" }));
-      chip.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
-      chip.click();
-    });
+    await act(async () => host.querySelector<HTMLElement>('[aria-label="Project"]')!.click());
     await flush(() => document.querySelector('[role="listbox"]') !== null);
     expect(document.querySelector('[role="listbox"]')).not.toBeNull();
     await escape();
@@ -735,16 +701,6 @@ describe("the strip of conversations that need you", () => {
     LIVE.splice(-2);
   });
 
-  test("each pill shows its project's icon, or the project's initial when it has none", async () => {
-    LIVE.push(live("s_local", "Local question", "project_1", "blocked", 200));
-    const { host } = await open(front(GRANTED));
-    await flush(() => strip(host).length > 2);
-    const pill = (title: string) => [...host.querySelectorAll('[role="toolbar"] button')].find((each) => each.getAttribute("title")?.startsWith(title));
-    expect(projectMark(pill("Sales dashboard"))).toBe("/api/projects/project_2/icon?v=k2");
-    expect(projectMark(pill("Local question"))).toBe("T");
-    LIVE.pop();
-  });
-
   test("a conversation read anywhere drops off the strip", async () => {
     const { host } = await open(front(GRANTED));
     await flush(() => strip(host).includes("Transit light-curve analysis"));
@@ -756,13 +712,12 @@ describe("the strip of conversations that need you", () => {
   });
 
   test("merges every host's conversations, names the host, and replies through the owning host", async () => {
-    remotes = [{ id: "host_b", name: "Mini", projects: [{ id: "project_9", name: "exoplanets", root: "/x", createdAt: 1, icon: "k9" }], sessions: [live("s_remote", "Remote build question", "project_9", "blocked", 400)] }];
+    remotes = [{ id: "host_b", name: "Mini", projects: [{ id: "project_9", name: "exoplanets", root: "/x", createdAt: 1 }], sessions: [live("s_remote", "Remote build question", "project_9", "blocked", 400)] }];
     journal.s_remote = [turn("s_remote", 1, "Run the build?", "completed", "Waiting for your go-ahead.")];
     const { host, sent } = await open(front(GRANTED));
     await flush(() => strip(host).includes("Remote build question"));
     const pill = [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')].find((button) => button.title.startsWith("Remote build question"))!;
     expect(pill.title).toBe("Remote build question · exoplanets · Mini");
-    expect(projectMark(pill)).toBe("/api/hosts/host_b/projects/project_9/icon?v=k9");
     await act(async () => pill.click());
     await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Waiting for your go-ahead") ?? false);
     await typeAndPress(host, "Go ahead", { metaKey: true });

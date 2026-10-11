@@ -252,10 +252,9 @@ async function main() {
     await settle(manager, tab);
     note(`replacement navigation: state.error=${replaced.error} url=${tab.url}`);
     assert(tab.url.endsWith("/?page=landed"), `replacement did not land: ${tab.url}`);
-    let dead = null;
-    try { await manager.action("s1", { action: "navigate", url: "http://127.0.0.1:9/" }); } catch (error) { dead = error; }
-    note(`dead address: ${dead ? String(dead.message).slice(0, 70) : "NO ERROR"}`);
-    assert(dead, "a genuinely failed navigation was swallowed");
+    const dead = (await manager.action("s1", { action: "navigate", url: "http://127.0.0.1:9/" })).tabs.find((entry) => entry.active)?.loadError;
+    note(`dead address: ${dead ? dead.code : "NO ERROR PAGE"}`);
+    assert(dead?.code === "ERR_CONNECTION_REFUSED", "a genuinely failed navigation left no error page");
     const agentReplaced = await manager.callTool("s1", "browser_navigate", { url: `${base}/bounce` });
     await settle(manager, tab);
     note(`agent replacement navigate: ${textOf(agentReplaced)}`);

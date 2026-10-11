@@ -34,7 +34,7 @@ describe("navigation replacement — ERR_ABORTED from a superseded load is not a
     expect(textOf(result)).toContain("landed.example");
   });
 
-  test("an abort with NO replacement, and any other failure, still throws", async () => {
+  test("an abort with NO replacement, and any other failure, still fails the agent's navigate", async () => {
     const { manager, views } = makeHarness();
     await manager.createTab("s", "about:blank");
     const wc = views[0].webContents;
@@ -47,13 +47,17 @@ describe("navigation replacement — ERR_ABORTED from a superseded load is not a
       throw error;
     };
     wc.isLoading = () => false;
-    await expect(manager.action("s", { action: "navigate", url: "https://stopped.example/" })).rejects.toThrow(/ERR_ABORTED/);
+    const stopped = await manager.callTool("s", "browser_navigate", { url: "https://stopped.example/" });
+    expect(stopped.isError).toBe(true);
+    expect(textOf(stopped)).toContain("ERR_ABORTED");
     wc.loadURL = async function () {
       const error = new Error("ERR_CONNECTION_REFUSED (-102)");
       error.errno = -102;
       throw error;
     };
-    await expect(manager.action("s", { action: "navigate", url: "https://dead.example/" })).rejects.toThrow(/CONNECTION_REFUSED/);
+    const dead = await manager.callTool("s", "browser_navigate", { url: "https://dead.example/" });
+    expect(dead.isError).toBe(true);
+    expect(textOf(dead)).toContain("CONNECTION_REFUSED");
   });
 
   test("a replacement that itself fails reports THAT failure", async () => {
@@ -70,7 +74,67 @@ describe("navigation replacement — ERR_ABORTED from a superseded load is not a
       throw error;
     };
     wc.isLoading = () => true;
-    await expect(manager.action("s", { action: "navigate", url: "https://bounce.example/" })).rejects.toThrow(/ERR_NAME_NOT_RESOLVED/);
+    const state = await manager.action("s", { action: "navigate", url: "https://bounce.example/" });
+    expect(state.tabs[0].loadError).toEqual({ code: "ERR_NAME_NOT_RESOLVED", url: "https://nowhere.example/" });
+  });
+});
+
+describe("a page that fails to load is page state, not a failed action", () => {
+  function refusing(wc) {
+    wc.loadURL = async function (url) {
+      this.emit("did-start-loading");
+      this.emit("did-start-navigation", { isMainFrame: true, isSameDocument: false });
+      this.emit("did-fail-load", null, -102, "ERR_CONNECTION_REFUSED", url, true);
+      this.url = url;
+      this.emit("did-stop-loading");
+      throw Object.assign(new Error(`ERR_CONNECTION_REFUSED (-102) loading '${url}'`), { errno: -102, code: "ERR_CONNECTION_REFUSED" });
+    };
+  }
+
+  test("a refused load answers with an error page on the tab and hides the native view; the next page clears it", async () => {
+    const { manager, views } = makeHarness();
+    await manager.createTab("s", "about:blank", "human");
+    manager.setBounds("s", { x: 0, y: 0, width: 640, height: 400 });
+    await manager.setVisible("s", true);
+    const tab = manager.activeTab("s");
+    const wc = views[0].webContents;
+    const loadURL = wc.loadURL;
+    refusing(wc);
+    const state = await manager.action("s", { action: "navigate", url: "http://localhost:5173/" });
+    await tab.geometry.queue;
+    expect(state.tabs[0].loadError).toEqual({ code: "ERR_CONNECTION_REFUSED", url: "http://localhost:5173/" });
+    expect(views[0].visible).toBe(false);
+    wc.loadURL = loadURL;
+    const next = await manager.action("s", { action: "navigate", url: "https://one.example/" });
+    await tab.geometry.queue;
+    expect(next.tabs[0].loadError).toBeNull();
+    expect(views[0].visible).toBe(true);
+  });
+
+  test("aborted loads and subframe failures leave no error page", async () => {
+    const { manager, views } = makeHarness();
+    await manager.createTab("s", "about:blank", "human");
+    const wc = views[0].webContents;
+    wc.loadURL = async function (url) {
+      this.emit("did-start-loading");
+      this.emit("did-start-navigation", { isMainFrame: true, isSameDocument: false });
+      this.emit("did-fail-load", null, -102, "ERR_CONNECTION_REFUSED", "https://ads.example/frame", false);
+      this.emit("did-fail-load", null, -3, "ERR_ABORTED", url, true);
+      this.emit("did-stop-loading");
+      throw Object.assign(new Error(`ERR_ABORTED (-3) loading '${url}'`), { errno: -3 });
+    };
+    wc.isLoading = () => false;
+    const state = await manager.action("s", { action: "navigate", url: "https://stopped.example/" });
+    expect(state.tabs[0].loadError).toBeNull();
+  });
+
+  test("a failure that is not a page load still rejects", async () => {
+    const { manager, views } = makeHarness();
+    await manager.createTab("s", "about:blank", "human");
+    views[0].webContents.loadURL = async function () {
+      throw new Error("The tab was closed while the page was still loading.");
+    };
+    await expect(manager.action("s", { action: "navigate", url: "https://one.example/" })).rejects.toThrow(/tab was closed/);
   });
 });
 
@@ -120,10 +184,10 @@ describe("navigation replacement — the waiter's endings", () => {
     const { manager, views } = makeHarness();
     await manager.createTab("s", "about:blank");
     const wc = stalledReplacement(views);
-    const pending = manager.action("s", { action: "navigate", url: "https://bounce.example/" });
+    const pending = manager.callTool("s", "browser_navigate", { url: "https://bounce.example/" });
     await new Promise((resolve) => setTimeout(resolve, 0));
     wc.emit("did-stop-loading");
-    await expect(pending).rejects.toThrow(/stopped before a page committed/);
+    expect(textOf(await pending)).toContain("stopped before a page committed");
   });
 
   test("a tab closed mid-replacement rejects; a same-document replacement counts as a commit", async () => {

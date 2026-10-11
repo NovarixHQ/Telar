@@ -268,7 +268,7 @@ test("a page's favicon URL travels to remote cockpits; a page with none carries 
   expect("favicon" in tabs[1]).toBe(false);
 });
 
-function hostWithTabs(initial: { index: number; title: string; url: string; active: boolean; openedBy?: string; favicon?: string | null }[], options: { openFails?: string } = {}) {
+function hostWithTabs(initial: { index: number; title: string; url: string; active: boolean; openedBy?: string; favicon?: string | null; loadError?: { code: string; url: string } | null }[], options: { openFails?: string } = {}) {
   const tabs = [...initial];
   const opens: Record<string, unknown>[] = [];
   const port = fakeHost(({ method, url, body }) => {
@@ -396,4 +396,15 @@ test("render() posts the preview to /preview with the token and checks what come
 test("render() against a desktop that is gone says so", async () => {
   const client = new DesktopBrowserClient({ port: 1, token: "t", fetchImpl: (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch });
   await expect(client.render({ html: "<p/>", width: 728, appearance: "light", timeoutMs: 1_000 })).rejects.toThrow("the desktop app did not answer");
+});
+
+test("a page that failed to load reaches remote cockpits as a small field; a loaded page carries none", async () => {
+  const { port } = hostWithTabs([
+    { index: 0, title: "localhost", url: "http://localhost:5173/", active: true, loadError: { code: "ERR_CONNECTION_REFUSED", url: "http://localhost:5173/" } },
+    { index: 1, title: "Two", url: "https://two.example", active: false, loadError: null },
+  ]);
+  const router = new BrowserRouter(fakeHeadless([]), new DesktopBrowserClient({ port: await port, token: "tok", probeTtlMs: 0 }));
+  const { tabs } = await router.state("s", { screenshot: false });
+  expect(tabs[0].loadError).toEqual({ code: "ERR_CONNECTION_REFUSED", url: "http://localhost:5173/" });
+  expect("loadError" in tabs[1]).toBe(false);
 });

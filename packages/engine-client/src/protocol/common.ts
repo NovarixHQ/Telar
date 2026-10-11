@@ -169,6 +169,7 @@ export const BrowserTab = z.object({
   controller: BrowserTabController.optional(),
   openedBy: z.enum(["agent", "human"]).optional(),
   favicon: z.string().optional(),
+  loadError: z.object({ code: z.string(), url: z.string() }).optional(),
 });
 export type BrowserTab= z.infer<typeof BrowserTab>;
 

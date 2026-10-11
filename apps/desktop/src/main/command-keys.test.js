@@ -53,6 +53,35 @@ describe("the registry", () => {
   });
 });
 
+describe("⌃⌘ is its own chord", () => {
+  test("Control beside Command is kept; Control alone still folds into CommandOrControl", () => {
+    expect(normalizeChord("Control+Command+2")).toBe("CommandOrControl+Control+2");
+    expect(normalizeChord("Cmd+Ctrl+Digit9")).toBe("CommandOrControl+Control+9");
+    expect(normalizeChord("Ctrl+K")).toBe("CommandOrControl+K");
+  });
+
+  test("⌃⌘1…9 select panel tabs, while ⌘1…9 and ⌃1…9 stay the rail's jumps", () => {
+    const keymap = defaultKeymap();
+    for (let n = 1; n <= 9; n += 1) {
+      expect(keymap[`panel-tab-${n}`]).toBe(`CommandOrControl+Control+${n}`);
+      expect(resolveCommandForEvent(keymap, { key: String(n), code: `Digit${n}`, metaKey: true, ctrlKey: true })).toBe(`panel-tab-${n}`);
+      expect(resolveCommandForEvent(keymap, { key: String(n), metaKey: true })).toBe(`jump-${n}`);
+      expect(resolveCommandForEvent(keymap, { key: String(n), ctrlKey: true })).toBe(`jump-${n}`);
+    }
+    expect(chordForEvent({ key: "2", metaKey: true, ctrlKey: true })).toBe("CommandOrControl+Control+2");
+  });
+
+  test("⌘W and the panel tab chords ship without a conflict and reach the Panel menu", () => {
+    const keymap = defaultKeymap();
+    expect(keymapConflicts(keymap)).toEqual({});
+    const panel = menuCommands(keymap, "panel");
+    expect(panel.find((command) => command.id === "close-panel-tab").accelerator).toBe("CommandOrControl+W");
+    expect(panel.filter((command) => command.panelTab).map((command) => command.accelerator)).toEqual(
+      Array.from({ length: 9 }, (_, index) => `CommandOrControl+Control+${index + 1}`),
+    );
+  });
+});
+
 describe("the menu is built from the stored map, not the defaults", () => {
   test("A STORED CHORD BECOMES THE ELECTRON ACCELERATOR", () => {
     const keymap = mergeKeymap({ "new-conversation": "CommandOrControl+Alt+9" });

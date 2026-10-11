@@ -107,3 +107,22 @@ describe("each window keeps its own shortcut state, and the menu follows the foc
     removeHost(manager);
   });
 });
+
+test("⌘W is the Panel menu's Close panel tab, sent to the cockpit, and no other item claims ⌘W", () => {
+  buildApplicationMenu();
+  const item = menuItem("Close panel tab");
+  expect(item.accelerator).toBe("CommandOrControl+W");
+  const win = new FakeBrowserWindow();
+  item.click(null, win);
+  expect(win.webContents.sent).toContainEqual({ channel: "telar:command-keys:invoke", payload: "close-panel-tab" });
+  const all = (items) => items.flatMap((entry) => [entry, ...(Array.isArray(entry.submenu) ? all(entry.submenu) : [])]);
+  const closers = all(electron.Menu.current).filter((entry) => entry.accelerator === "CommandOrControl+W");
+  expect(closers).toEqual([item]);
+});
+
+test("the Panel menu's Select tab carries ⌃⌘1…9", () => {
+  buildApplicationMenu();
+  const select = menuItem("Select tab");
+  expect(select.submenu.map((entry) => entry.accelerator)).toEqual(Array.from({ length: 9 }, (_, index) => `CommandOrControl+Control+${index + 1}`));
+  expect(select.submenu.at(-1).label).toBe("Last panel tab");
+});

@@ -114,8 +114,6 @@ export function SessionCockpit({
     ? {}
     : { onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
 
-  const panelToggle = <RailToggle open={panel.open} onToggle={panelState.togglePanel} />;
-
   return (
     <main data-surfaces className="group/surfaces flex min-h-0 flex-1 overflow-hidden md:overflow-visible">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:rounded-xl md:bg-sidebar md:shadow-1 md:ring-1 md:ring-sidebar-border md:group-has-[[data-panel-fullscreen]]/surfaces:shadow-none md:group-has-[[data-panel-fullscreen]]/surfaces:ring-0">
@@ -138,7 +136,7 @@ export function SessionCockpit({
                 {session && (
                   <SessionSchedules key={`${hostId}:${session.id}`} sessionId={session.id} hostId={hostId} refreshKey={`${turns.at(-1)?.runId}:${turns.at(-1)?.state}`} />
                 )}
-                {!panelPresence.mounted && panelToggle}
+                {!panelPresence.mounted && <RailToggle open={panel.open} onToggle={panelState.togglePanel} hint />}
               </>
             }
           />
@@ -193,7 +191,7 @@ export function SessionCockpit({
           {...rightPanelProps({
             open: panelPresence.shown, hostId, sessionId, projectId, sync, model, panel: panelState, browser, composer, enabledPlugins, pluginPanels,
           })}
-          controls={panelToggle}
+          controls={<RailToggle open={panel.open} onToggle={panelState.togglePanel} />}
         />
       )}
     </main>

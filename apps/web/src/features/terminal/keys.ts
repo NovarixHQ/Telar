@@ -37,12 +37,8 @@
  *      and macOS matches those before the page ever sees the keydown. No bubble
  *      to stop there, so no `stopPropagation` can help.
  *
- * ONE COST, STATED: this repo's chord vocabulary folds Control and Command into
- * one `CommandOrControl` token (`apps/desktop/command-keys.js`), so claiming
- * `^W` also stands ⌘W down while the terminal has focus. Nothing is bound to
- * either by default. It is the right trade anyway — a focused terminal is the
- * one surface where those presses are the shell's — but it is a trade, not a
- * free win.
+ * `^W` is not claimed: on macOS the menu's ⌘W never matches it, and ⌘W is
+ * "Close panel tab", which closes a focused terminal the same way.
  */
 
 /** A keydown, as much of one as this needs — so the rule runs against a real
@@ -104,4 +100,4 @@ export function ptyBytesForKey(event: TerminalKeyEvent): string | undefined {
  * application menu's rebuild, and a menu that is a frame behind is a key
  * equivalent firing over a live shell.
  */
-export const TERMINAL_CHORD_CLAIMS: readonly string[] = ["Escape", "CommandOrControl+W", "CommandOrControl+R"];
+export const TERMINAL_CHORD_CLAIMS: readonly string[] = ["Escape", "CommandOrControl+R"];

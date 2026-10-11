@@ -184,7 +184,7 @@ export function paletteActions(
 ): PaletteAction[] {
   const actions: PaletteAction[] = [];
   for (const command of commands) {
-    if (command.jump) continue;
+    if (command.jump || command.panelTab) continue;
     if (exclude.includes(command.id)) continue;
     if (!runnable(command.id)) continue;
     const page = PALETTE_SUB_PAGES[command.id];

@@ -17,11 +17,13 @@ export function modifierHeldAfter(event: ModifierEventLike, platform: KeyCapPlat
 }
 
 let held = false;
+let withControl = false;
 const listeners = new Set<() => void>();
 
-function publish(next: boolean) {
-  if (held === next) return;
+function publish(next: boolean, control = false) {
+  if (held === next && withControl === (next && control)) return;
   held = next;
+  withControl = next && control;
   for (const listener of listeners) listener();
 }
 
@@ -40,7 +42,7 @@ export function forgetModifierPlatform(): void {
 }
 
 function onKey(event: KeyboardEvent) {
-  publish(modifierHeldAfter(event, commandModifierPlatform(), document.activeElement));
+  publish(modifierHeldAfter(event, commandModifierPlatform(), document.activeElement), event.metaKey && event.ctrlKey);
 }
 const onLeave = () => publish(false);
 
@@ -61,6 +63,7 @@ export function subscribeModifierHeld(listener: () => void): () => void {
     document.removeEventListener("visibilitychange", onLeave);
     window.removeEventListener("blur", onLeave);
     held = false;
+    withControl = false;
   };
 }
 
@@ -74,4 +77,8 @@ function serverModifierHeld(): boolean {
 
 export function useModifierHeld(): boolean {
   return useSyncExternalStore(subscribeModifierHeld, modifierHeldSnapshot, serverModifierHeld);
+}
+
+export function useControlCommandHeld(): boolean {
+  return useSyncExternalStore(subscribeModifierHeld, () => withControl, serverModifierHeld);
 }

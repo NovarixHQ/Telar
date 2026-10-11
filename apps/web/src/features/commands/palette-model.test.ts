@@ -197,7 +197,7 @@ describe("a glyph per command, not one per group", () => {
   });
 
   test("distinct commands get distinct glyphs, which is the point of the field", () => {
-    const icons = COMMANDS.filter((command) => !command.jump).map((command) => command.icon);
+    const icons = COMMANDS.filter((command) => !command.jump && !command.panelTab).map((command) => command.icon);
     expect(new Set(icons).size).toBe(icons.length);
   });
 

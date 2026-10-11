@@ -379,7 +379,7 @@ module.exports = {
       return;
     }
     if (!input || input.type !== "keyDown" || input.alt || input.shift) return;
-    if (!(input.meta || input.control)) return;
+    if (input.meta === input.control) return;
     if (!/^[1-9]$/.test(String(input.key))) return;
     let scoped;
     try {

@@ -83,7 +83,7 @@ describe("TERMINAL_CHORD_CLAIMS", () => {
     const release = claimChords(TERMINAL_CHORD_CLAIMS);
     try {
       expect(claimedCommandIds(rebound)).toContain("toggle-panel");
-      // ...and the claim is THREE CHORDS, not a mute: everything at its shipped
+      // ...and the claim is a few chords, not a mute: everything at its shipped
       // chord is still live under the same claim.
       expect(claimedCommandIds(defaultKeymap())).toEqual([]);
     } finally {

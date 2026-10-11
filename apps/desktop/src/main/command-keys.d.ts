@@ -29,6 +29,7 @@ export type Command = {
   defaultChord: string;
   menu?: CommandMenu;
   jump?: number;
+  panelTab?: number;
   global?: boolean;
 };
 

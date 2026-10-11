@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/ui/context-menu";
 import { Favicon } from "@/features/browser";
-import { KeyHint } from "@/features/commands";
+import { KeyHint, useControlCommandHeld, type CommandId } from "@/features/commands";
 import { HeaderToggleGroup } from "@/ui/header-toggle";
 import { ScrollArea } from "@/ui/scroll-area";
 import { cn } from "@/ui/utils";
@@ -34,7 +34,9 @@ function TabChip({
   duplicate,
   drag,
   menu,
+  slot,
 }: {
+  slot: CommandId | undefined;
   entry: PanelTabItem;
   strip: StripProps;
   live: readonly LivePage[] | undefined;
@@ -85,6 +87,7 @@ function TabChip({
           >
             <Favicon src={favicon} fallback={<Icon className="size-3.5 shrink-0" />} className="size-3.5" />
             <span className="truncate">{label}</span>
+            {slot && <KeyHint command={slot} always />}
           </button>
           <button
             type="button"
@@ -128,6 +131,12 @@ export function TabStrip(strip: StripProps) {
   const drag = useTabDrag(tabs, strip.onMoveTab);
   const livePages = useLivePages(sessionId);
   const scroll = useStripScroll(tabs.length);
+  const numbered = useControlCommandHeld();
+  const slotOf = (index: number): CommandId | undefined => {
+    if (!numbered) return undefined;
+    if (index < 8) return `panel-tab-${(index + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
+    return index === tabs.length - 1 ? "panel-tab-9" : undefined;
+  };
   const duplicated = useMemo(() => {
     const counted = new Map<string, number>();
     for (const entry of tabs) counted.set(entry.kind, (counted.get(entry.kind) ?? 0) + 1);
@@ -142,9 +151,10 @@ export function TabStrip(strip: StripProps) {
       )}
     >
       <ScrollArea orientation="horizontal" className="flex-1" viewportRef={scroll.viewport} viewportClassName="flex gap-1" viewportProps={{ role: "tablist", "aria-label": "Right panel tabs" }}>
-        {tabs.map((entry) => (
+        {tabs.map((entry, index) => (
           <TabChip
             key={entry.id}
+            slot={slotOf(index)}
             entry={entry}
             strip={strip}
             live={livePages}
@@ -166,12 +176,6 @@ export function TabStrip(strip: StripProps) {
       )}
       {launcher.length > 0 && <SurfaceChooser rows={launcher} actions={strip.actions} browserStart={browserStart} />}
       <div className="flex shrink-0 items-center gap-0.5">
-        {tabs.length > 1 && (
-          <span className="mr-1 hidden items-center gap-0.5 @2xl/strip:flex">
-            <KeyHint command="panel-previous-tab" />
-            <KeyHint command="panel-next-tab" />
-          </span>
-        )}
         <button
           type="button"
           aria-label={fullscreen ? "Exit fullscreen" : "Fill the window"}

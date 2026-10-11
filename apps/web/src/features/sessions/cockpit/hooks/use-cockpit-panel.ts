@@ -230,10 +230,30 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
     [updatePanel, panelNow],
   );
 
+  const selectPanelTab = useCallback(
+    (slot: number) => {
+      const { tabs } = panelNow.current;
+      const target = slot === 9 ? tabs.at(-1) : tabs[slot - 1];
+      touch();
+      if (target) updatePanel((state) => ({ ...state, activeTab: target.id, open: true }));
+    },
+    [updatePanel, panelNow],
+  );
+
   const setOpen = (open: boolean) => {
     touch();
     if (open) makeRoomForPanel();
     updatePanel((current) => ({ ...current, open }));
+  };
+
+  const closePanelTabById = (id: string) => {
+    touch();
+    closeTab(panelNow.current, id, { hostId, sessionId, updatePanel });
+  };
+
+  const closeActivePanelTab = () => {
+    const { open, activeTab } = panelNow.current;
+    if (open && activeTab) closePanelTabById(activeTab);
   };
 
   const tabHandlers = {
@@ -241,10 +261,7 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
       touch();
       updatePanel((current) => ({ ...current, activeTab: id }));
     },
-    onCloseTab: (id: string) => {
-      touch();
-      closeTab(panel, id, { hostId, sessionId, updatePanel });
-    },
+    onCloseTab: closePanelTabById,
     onTabParams: (id: string, params: PanelTabParams) => updatePanel((current) => setPanelTabParams(current, id, params)),
     onMoveTab: (id: string, toIndex: number) => {
       touch();
@@ -253,7 +270,7 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
   };
 
   return {
-    panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
+    panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab, selectPanelTab, closeActivePanelTab,
     openPanel: () => setOpen(true), togglePanel: () => setOpen(!panelNow.current.open), tabHandlers,
   };
 }

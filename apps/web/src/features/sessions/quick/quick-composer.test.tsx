@@ -33,7 +33,7 @@ const session = (id: string, title: string) => ({ id, title, projectId: "project
 
 const PROJECTS = [
   { id: "project_1", name: "Telar", root: "/tmp", createdAt: 2 },
-  { id: "project_2", name: "exoplanets", root: "/tmp/exo", createdAt: 1 },
+  { id: "project_2", name: "exoplanets", root: "/tmp/exo", createdAt: 1, icon: "k2" },
 ];
 const live = (id: string, title: string, projectId: string, activity: string, updatedAt: number, read: Partial<{ lastTurnSequence: number; lastReadTurnSequence: number }> = {}) => ({
   id, title, projectId, activity, updatedAt, state: "active", createdAt: 1, driver: "claude", workspace: { mode: "none" }, ...read,
@@ -164,7 +164,16 @@ async function press(host: HTMLElement, key: string, keys: KeyboardEventInit = {
 }
 
 const strip = (host: HTMLElement) => [...host.querySelectorAll('[role="toolbar"] button')].map((pill) => pill.getAttribute("title")?.split(" · ")[0]);
-const options = (host: HTMLElement) => [...host.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
+const shown = (node: Element) => {
+  const copy = node.cloneNode(true) as Element;
+  copy.querySelectorAll("[aria-hidden]").forEach((hidden) => hidden.remove());
+  return copy.textContent ?? "";
+};
+const options = (host: HTMLElement) => [...host.querySelectorAll('[role="option"]')].map(shown);
+const projectMark = (node: Element | null | undefined) => {
+  const mark = [...(node?.querySelectorAll("[aria-hidden]") ?? [])].find((each) => each.tagName === "IMG" || each.textContent);
+  return mark?.tagName === "IMG" ? mark.getAttribute("src") : mark?.textContent;
+};
 
 async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEventInit = {}) {
   await type(host, text);
@@ -425,6 +434,15 @@ describe("the # destination picker", () => {
     }
   });
 
+  test("each session row shows its project's icon, or the project's initial when it has none", async () => {
+    const { host } = await open(front(GRANTED));
+    await type(host, "#");
+    await flush(() => options(host).length > 3);
+    const row = (title: string) => [...host.querySelectorAll('[role="option"]')].find((each) => each.textContent?.includes(title));
+    expect(projectMark(row("Sales dashboard"))).toBe("/api/projects/project_2/icon?v=k2");
+    expect(projectMark(row("Expand scratch README"))).toBe("T");
+  });
+
   test("filters projects and sessions together", async () => {
     const { host } = await open(front(GRANTED));
     await type(host, "#exo");
@@ -446,6 +464,7 @@ describe("the # destination picker", () => {
     await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Shall I run it?") ?? false);
     const card = host.querySelector('[data-slot="quick-destination"]')!;
     expect(card.textContent).toContain("Sales dashboard and checkout");
+    expect(projectMark(card)).toBe("/api/projects/project_2/icon?v=k2");
     expect(card.textContent).toContain("exoplanets · Waiting on you");
     const transcript = card.querySelector('[data-slot="quick-transcript"]')!;
     expect(transcript.textContent).toContain("Can you check the build?");
@@ -663,6 +682,16 @@ describe("the strip of conversations that need you", () => {
     LIVE.splice(-2);
   });
 
+  test("each pill shows its project's icon, or the project's initial when it has none", async () => {
+    LIVE.push(live("s_local", "Local question", "project_1", "blocked", 200));
+    const { host } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 2);
+    const pill = (title: string) => [...host.querySelectorAll('[role="toolbar"] button')].find((each) => each.getAttribute("title")?.startsWith(title));
+    expect(projectMark(pill("Sales dashboard"))).toBe("/api/projects/project_2/icon?v=k2");
+    expect(projectMark(pill("Local question"))).toBe("T");
+    LIVE.pop();
+  });
+
   test("a conversation read anywhere drops off the strip", async () => {
     const { host } = await open(front(GRANTED));
     await flush(() => strip(host).includes("Transit light-curve analysis"));
@@ -674,12 +703,13 @@ describe("the strip of conversations that need you", () => {
   });
 
   test("merges every host's conversations, names the host, and replies through the owning host", async () => {
-    remotes = [{ id: "host_b", name: "Mini", projects: [{ id: "project_9", name: "exoplanets", root: "/x", createdAt: 1 }], sessions: [live("s_remote", "Remote build question", "project_9", "blocked", 400)] }];
+    remotes = [{ id: "host_b", name: "Mini", projects: [{ id: "project_9", name: "exoplanets", root: "/x", createdAt: 1, icon: "k9" }], sessions: [live("s_remote", "Remote build question", "project_9", "blocked", 400)] }];
     journal.s_remote = [turn("s_remote", 1, "Run the build?", "completed", "Waiting for your go-ahead.")];
     const { host, sent } = await open(front(GRANTED));
     await flush(() => strip(host).includes("Remote build question"));
     const pill = [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')].find((button) => button.title.startsWith("Remote build question"))!;
     expect(pill.title).toBe("Remote build question · exoplanets · Mini");
+    expect(projectMark(pill)).toBe("/api/hosts/host_b/projects/project_9/icon?v=k9");
     await act(async () => pill.click());
     await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Waiting for your go-ahead") ?? false);
     await typeAndPress(host, "Go ahead", { metaKey: true });

@@ -2,6 +2,7 @@
 
 import type { KeyboardEvent, RefObject } from "react";
 import { cn } from "@/ui/utils";
+import { SessionProjectAvatar } from "../components/session-project-avatar";
 import { sessionKey } from "../session-list";
 import { placeOf, statusDot } from "./destination-picker";
 import type { NeedsYou } from "./needs-you";
@@ -38,6 +39,7 @@ export function NeedsYouStrip({ items, strip, manyHosts, onPick, onLeave }: {
           className="flex h-7 max-w-56 shrink-0 items-center gap-1.5 rounded-full border border-border bg-popover px-2.5 text-xs text-popover-foreground shadow-1 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className={cn("size-2 shrink-0 rounded-full", item.kind === "unread" ? "bg-primary" : statusDot(item.session))} />
+          <SessionProjectAvatar session={item.session} />
           <span className="truncate">{item.session.title}</span>
           <span className="sr-only">{LABEL[item.kind]}</span>
         </button>

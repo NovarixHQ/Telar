@@ -5,6 +5,7 @@ import { sessionKey, type SidebarSession } from "../session-list";
 import { PlusIcon } from "lucide-react";
 import { fmtAgo } from "@/ui/format";
 import { cn } from "@/ui/utils";
+import { SessionProjectAvatar } from "../components/session-project-avatar";
 import { rowStatusText } from "../session-activity";
 import type { DestinationRow } from "./destination";
 
@@ -69,7 +70,10 @@ export function DestinationPicker({ rows, index, onPick, manyHosts }: {
                 <span className={cn("size-2 shrink-0 rounded-full", statusDot(row.session))} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{row.session.title}</span>
-                  <span className="block truncate text-2xs text-muted-foreground">{placeOf(row.session, manyHosts)} · {sessionStatus(row.session, now)}</span>
+                  <span className="flex min-w-0 items-center gap-1 text-2xs text-muted-foreground">
+                    <SessionProjectAvatar session={row.session} />
+                    <span className="truncate">{placeOf(row.session, manyHosts)} · {sessionStatus(row.session, now)}</span>
+                  </span>
                 </span>
                 <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">{fmtAgo(row.session.updatedAt, now)}</span>
               </>

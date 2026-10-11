@@ -14,21 +14,26 @@ module.exports = {
     }
   },
 
-  noteTabFocused(tab) {
-    const held = this.focusHolds.has(tab.scopeKey) || !this.isTabShown(tab);
-    if (held ? this.humanActive(tab) : this.justTouched(tab)) return;
-    if (this.focusCockpitFrom(tab)) tab.focusReturnedAt = this.now();
+  noteCockpitFocused() {
+    this.pageKeysTabId = null;
   },
 
-  noteTabPointerDown(tab) {
-    tab.pointerDownAt = this.now();
+  noteTabFocused(tab) {
+    const held = this.focusHolds.has(tab.scopeKey) || !this.isTabShown(tab);
+    const keep = held ? this.humanActive(tab) : this.pageKeysTabId === tab.id || this.justTouched(tab);
+    if (keep) this.pageKeysTabId = tab.id;
+    else if (this.focusCockpitFrom(tab)) tab.focusReturnedAt = this.now();
+  },
+
+  noteTabGesture(tab) {
+    tab.gestureAt = this.now();
     const returnedAt = tab.focusReturnedAt;
     tab.focusReturnedAt = undefined;
     if (returnedAt !== undefined && this.now() - returnedAt < HUMAN_ATTRIBUTION_GRACE_MS) this.contentsOf(tab)?.focus();
   },
 
   justTouched(tab) {
-    return tab.pointerDownAt !== undefined && this.now() - tab.pointerDownAt < HUMAN_ATTRIBUTION_GRACE_MS;
+    return tab.gestureAt !== undefined && this.now() - tab.gestureAt < HUMAN_ATTRIBUTION_GRACE_MS;
   },
 
   returnFocusFrom(tab) {
@@ -39,6 +44,7 @@ module.exports = {
     const page = tab.view?.webContents;
     if (!page || page.isDestroyed() || !page.isFocused?.()) return false;
     if (tab.stage || this.window.isDestroyed()) return false;
+    this.pageKeysTabId = null;
     this.window.webContents.focus();
     return true;
   },

@@ -354,8 +354,13 @@ function makeHarness(options = {}) {
       focus() { this.focused += 1; },
       send: (channel, payload) => messages.push({ channel, payload }),
       getZoomFactor: () => cockpitZoom.factor,
-      on: (event, listener) => {
+      listeners: new Map(),
+      on(event, listener) {
         if (event === "zoom-changed") cockpitZoom.listeners.push(listener);
+        else this.listeners.set(event, [...(this.listeners.get(event) || []), listener]);
+      },
+      emit(event) {
+        for (const listener of this.listeners.get(event) || []) listener();
       },
     },
     contentView: {

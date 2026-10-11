@@ -92,7 +92,7 @@ async function type(host: HTMLElement, text: string) {
     window.getSelection()?.addRange(range);
     box.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await flush(() => options(host).some((row) => !row.includes("Reading")));
+  await flush(() => options(host).length > 0 && !options(host).some((row) => row.includes("Reading")));
 }
 
 describe("@ in the quick composer", () => {

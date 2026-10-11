@@ -514,6 +514,37 @@ describe("the # destination picker", () => {
     expect(sent[0]?.detail).toBe("exoplanets");
   });
 
+  test("Esc steps back one layer at a time: an open menu, then the attached conversation, then the window", async () => {
+    const { host, closed } = await open(front(GRANTED));
+    await flush(() => strip(host).length > 0);
+    await type(host, "plain idea");
+    await act(async () => [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')].find((button) => button.title.startsWith("Sales dashboard"))!.click());
+    await flush();
+    await type(host, "half a reply");
+    const escape = async (target: EventTarget = document.activeElement ?? window) => {
+      await act(async () => void target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+      await flush();
+    };
+    const chip = host.querySelector<HTMLElement>('[aria-label="Project"]')!;
+    await act(async () => {
+      chip.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" }));
+      chip.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+      chip.click();
+    });
+    await flush(() => document.querySelector('[role="listbox"]') !== null);
+    expect(document.querySelector('[role="listbox"]')).not.toBeNull();
+    await escape();
+    await flush(() => document.querySelector('[role="listbox"]') === null);
+    expect(host.querySelector('[data-slot="quick-destination"]')).not.toBeNull();
+    expect(closed()).toBe(0);
+    await escape(editor(host));
+    expect(host.querySelector('[data-slot="quick-destination"]')).toBeNull();
+    expect(editor(host).textContent).toBe("plain idea");
+    expect(closed()).toBe(0);
+    await escape(editor(host));
+    expect(closed()).toBe(1);
+  });
+
   test("Esc closes the picker without hiding the window", async () => {
     const { host, closed } = await open(front(GRANTED));
     await type(host, "#");

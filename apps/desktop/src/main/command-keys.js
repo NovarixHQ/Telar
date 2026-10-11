@@ -43,6 +43,7 @@ const COMMANDS = [
   { id: "toggle-panel", label: "Toggle right panel", group: "Panel", icon: "panel-right", defaultChord: "CommandOrControl+\\", menu: "panel" },
   { id: "panel-next-tab", label: "Next panel tab", group: "Panel", icon: "arrow-right", defaultChord: "CommandOrControl+Alt+Right", menu: "panel" },
   { id: "panel-previous-tab", label: "Previous panel tab", group: "Panel", icon: "arrow-left", defaultChord: "CommandOrControl+Alt+Left", menu: "panel" },
+  { id: "close-panel-tab", label: "Close panel tab", group: "Panel", icon: "x", defaultChord: "CommandOrControl+W", menu: "panel" },
   { id: "panel-fullscreen", label: "Fill the window", group: "Panel", icon: "maximize", defaultChord: "CommandOrControl+Alt+F", menu: "panel" },
   { id: "open-browser", label: "Open browser", group: "Panel", icon: "globe", defaultChord: "CommandOrControl+Shift+B", menu: "panel" },
   { id: "open-terminal", label: "Open terminal", group: "Panel", icon: "square-terminal", defaultChord: "CommandOrControl+Shift+T", menu: "panel" },

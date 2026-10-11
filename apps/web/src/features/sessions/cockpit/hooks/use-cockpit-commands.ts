@@ -15,7 +15,7 @@ export function useCockpitCommands({ solo, pluginPanels, panel, openBrowser, pin
   openBrowser: () => void;
   pinSession: () => void;
 }) {
-  const { togglePanel, stepPanelTab, showPanelTab } = panel;
+  const { togglePanel, stepPanelTab, showPanelTab, closeActivePanelTab } = panel;
   const toggleWorkspace = useWorkspaceCardOpen().toggle;
   const shells = useCanOpenShells();
   useCommandHandlers(
@@ -26,6 +26,7 @@ export function useCockpitCommands({ solo, pluginPanels, panel, openBrowser, pin
             "toggle-panel": togglePanel,
             "panel-next-tab": () => stepPanelTab(1),
             "panel-previous-tab": () => stepPanelTab(-1),
+            "close-panel-tab": closeActivePanelTab,
             "open-browser": openBrowser,
             "toggle-workspace": toggleWorkspace,
             ...Object.fromEntries(surfaceCommands({ shells, pluginPanels }).map(({ command, tab }) => [command, () => showPanelTab(tab)])),

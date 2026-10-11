@@ -236,15 +236,22 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
     updatePanel((current) => ({ ...current, open }));
   };
 
+  const closePanelTabById = (id: string) => {
+    touch();
+    closeTab(panelNow.current, id, { hostId, sessionId, updatePanel });
+  };
+
+  const closeActivePanelTab = () => {
+    const { open, activeTab } = panelNow.current;
+    if (open && activeTab) closePanelTabById(activeTab);
+  };
+
   const tabHandlers = {
     onTabChange: (id: string) => {
       touch();
       updatePanel((current) => ({ ...current, activeTab: id }));
     },
-    onCloseTab: (id: string) => {
-      touch();
-      closeTab(panel, id, { hostId, sessionId, updatePanel });
-    },
+    onCloseTab: closePanelTabById,
     onTabParams: (id: string, params: PanelTabParams) => updatePanel((current) => setPanelTabParams(current, id, params)),
     onMoveTab: (id: string, toIndex: number) => {
       touch();
@@ -253,7 +260,7 @@ export function useCockpitPanel({ panelKey, enabledPlugins, hostId, sessionId }:
   };
 
   return {
-    panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab,
+    panel, editors, updatePanel, updateEditor, showPanelTab, revealSurface, mayReveal, openFileInNewPanelTab, showNewPanelTab, stepPanelTab, closeActivePanelTab,
     openPanel: () => setOpen(true), togglePanel: () => setOpen(!panelNow.current.open), tabHandlers,
   };
 }

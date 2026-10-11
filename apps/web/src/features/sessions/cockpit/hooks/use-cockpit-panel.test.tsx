@@ -1,8 +1,10 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { act } from "react";
+import { runCommand } from "@/features/commands";
 import { writePanelTabs, type PanelTab, type PanelTabState } from "@/features/panel";
 import { SidebarProvider } from "@/ui/sidebar";
 import { flush, installTestDom, mount } from "@/test/dom";
+import { useCockpitCommands } from "./use-cockpit-commands";
 import { useCockpitPanel } from "./use-cockpit-panel";
 
 installTestDom();
@@ -21,6 +23,7 @@ async function cockpit(stored?: Strip) {
   let hook: ReturnType<typeof useCockpitPanel> | undefined;
   function Probe() {
     hook = useCockpitPanel({ panelKey: "session_a", enabledPlugins: [], hostId: "local", sessionId: "session_a" });
+    useCockpitCommands({ solo: false, pluginPanels: [], panel: hook, openBrowser: () => {}, pinSession: () => {} });
     return null;
   }
   await mount(
@@ -75,6 +78,40 @@ test("the tab arrows step through every tab and wrap", async () => {
   expect(hook().panel.activeTab).toBe("terminal");
   await act(async () => hook().stepPanelTab(-1));
   expect(hook().panel.activeTab).toBe("terminal#3");
+});
+
+describe("Close panel tab", () => {
+  const strip = (open: boolean): Strip => ({ tabs: [{ id: "diff", kind: "diff", params: {} }, { id: "issues", kind: "issues", params: {} }], activeTab: "issues", open });
+
+  test("closes the tab in front", async () => {
+    const hook = await cockpit(strip(true));
+    await act(async () => void runCommand("close-panel-tab"));
+    expect(ids(hook().panel)).toEqual(["diff"]);
+    expect(hook().panel.activeTab).toBe("diff");
+  });
+
+  test("does nothing with no tabs or with the panel closed", async () => {
+    const empty = await cockpit();
+    await act(async () => void runCommand("close-panel-tab"));
+    expect(ids(empty().panel)).toEqual([]);
+    const hidden = await cockpit(strip(false));
+    await act(async () => void runCommand("close-panel-tab"));
+    expect(ids(hidden().panel)).toEqual(["diff", "issues"]);
+  });
+
+  test("a terminal with a running process asks before it closes", async () => {
+    const asked: string[] = [];
+    const confirm = spyOn(window, "confirm").mockImplementation((message?: string) => (asked.push(String(message)), false));
+    try {
+      desktop({ terminal: { active: async () => ({ terminals: [{ id: "pty_1", active: true, processes: 1, command: "vim" }] }), close: async () => ({ ok: true }) } });
+      const hook = await cockpit({ tabs: [{ id: "terminal", kind: "terminal", params: { terminal: "pty_1" } }], activeTab: "terminal", open: true });
+      await act(async () => void runCommand("close-panel-tab"));
+      await flush(() => asked.length > 0);
+      expect(ids(hook().panel)).toEqual(["terminal"]);
+    } finally {
+      confirm.mockRestore();
+    }
+  });
 });
 
 describe("in the desktop app", () => {

@@ -38,6 +38,7 @@ export type CommandId =
   | "toggle-panel"
   | "panel-next-tab"
   | "panel-previous-tab"
+  | "close-panel-tab"
   | "panel-fullscreen"
   | "open-browser"
   | "open-terminal"

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { chipBasename, chipIsDirectory, chipPath, detectComposerTrigger, replaceTextRange, segmentDraft } from "./tokens";
-import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, pageReference, pullReference, sessionReference, skillReference, taskReference } from "@telar/client/composer";
+import { browserPageReference, checkReference, directoryReference, fileReference, issueReference, pageReference, projectReference, pullReference, sessionReference, skillReference, taskReference } from "@telar/client/composer";
 
 describe("what the caret is in the middle of", () => {
   test("an at-sign opens the path menu and carries what follows it", () => {
@@ -200,6 +200,15 @@ describe("which runs of a draft draw as chips", () => {
     const segments = segmentDraft(draft);
     expect(segments.map((segment) => segment.type)).toEqual(["text", "chip", "text"]);
     expect(segments[1]).toMatchObject({ type: "chip", reference: { kind: "session", label: "Study T3 Code handoff", text: reference.text } });
+    expect(rebuild(draft)).toBe(draft);
+  });
+
+  test("a project reference is one chip, search hint included, named by the project", () => {
+    const reference = projectReference({ id: "project_9f2c", name: "Telar", root: "/Volumes/Taller/telar" });
+    const draft = `in ${reference.text} we wired the wake`;
+    const segments = segmentDraft(draft);
+    expect(segments.map((segment) => segment.type)).toEqual(["text", "chip", "text"]);
+    expect(segments[1]).toMatchObject({ type: "chip", reference: { kind: "project", label: "Telar", text: reference.text } });
     expect(rebuild(draft)).toBe(draft);
   });
 

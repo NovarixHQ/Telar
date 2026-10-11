@@ -95,6 +95,11 @@ const PATTERNS: { kind: ReferenceKind; pattern: RegExp; label: (match: RegExpExe
     label: (match) => match[1] || "session",
   },
   {
+    kind: "project",
+    pattern: /the "([^"]*)" project \(project_[^\s)"]+ at [^)\n]+\), as reference: search its sessions, settled included, with sessions_list \(q, projectId: "project_[^\s)"]+"\), then read one with sessions_read\./g,
+    label: (match) => match[1] || "project",
+  },
+  {
     kind: "quote",
     pattern: /^(?:>(?: [^\n]*)?\n)+> — \[source\]\(telar:item\/[^)\s]+\)/gm,
     label: (match) => quoteLabel(match[0]),

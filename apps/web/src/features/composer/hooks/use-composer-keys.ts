@@ -61,6 +61,11 @@ function stashKeys(event: KeyboardEvent<HTMLDivElement>, stash: ComposerStash): 
 
 function menuKeys(event: KeyboardEvent<HTMLDivElement>, menu: ComposerCompletions, pick: (completion: Completion) => void): boolean {
   const { completions } = menu;
+  if ((event.key === "Escape" || event.key === "Backspace") && menu.back()) {
+    event.preventDefault();
+    return true;
+  }
+  if (event.key === "Backspace") return false;
   if (event.key === "ArrowDown") menu.setActive((index) => (index + 1) % completions.length);
   else if (event.key === "ArrowUp") menu.setActive((index) => (index - 1 + completions.length) % completions.length);
   else if (event.key === "Enter" || event.key === "Tab") {
@@ -120,7 +125,7 @@ export function composerKeyHandler({
       return;
     }
     if (stash.open && stashKeys(event, stash)) return;
-    if (menu.open && (menu.completions.length > 0 || event.key === "Escape") && menuKeys(event, menu, pick)) return;
+    if (menu.open && (menu.completions.length > 0 || event.key === "Escape" || event.key === "Backspace") && menuKeys(event, menu, pick)) return;
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       submit();

@@ -6,6 +6,7 @@ import {
   fileReference,
   issueReference,
   pageReference,
+  projectReference,
   pullReference,
   quoteReference,
   sessionReference,
@@ -24,6 +25,7 @@ const EVERY_KIND: Record<ReferenceKind, ReturnType<typeof fileReference>> = {
   check: checkReference({ name: "typecheck", status: "completed", conclusion: "failure" }),
   skill: skillReference({ name: "commit-messages" }),
   session: sessionReference({ id: "session_abc123", title: "Study handoff" }),
+  project: projectReference({ id: "project_abc", name: "Telar", root: "/src/telar" }),
   quote: quoteReference("Ship it.", "item_1"),
 };
 
@@ -34,7 +36,7 @@ describe("a chip can draw every reference there is", () => {
       expect(glyph.markup.length, `${kind} has markup`).toBeGreaterThan(0);
       expect(glyph.tint.length, `${kind} has a tint`).toBeGreaterThan(0);
     }
-    expect(Object.keys(EVERY_KIND)).toHaveLength(9);
+    expect(Object.keys(EVERY_KIND)).toHaveLength(10);
   });
 
   test("a file asks the second question and a directory does not", () => {

@@ -200,6 +200,7 @@ function createWindow(url, { main = false } = {}) {
         onLoginEntryFinished: (capture) => requireLoginOffer().entryFinished(capture),
 
         onVisited: (scopeKey, url) => requireBrowserSuggestions().remember(manager.activeProfile(scopeKey)?.id, url),
+        onTitled: (scopeKey, url, title) => requireBrowserSuggestions().retitle(manager.activeProfile(scopeKey)?.id, url, title),
         profiles: readProfileRegistry(app.getPath("userData")),
 
         onProfileMigrated: (from, to) => requireBrowserSuggestions().adopt(from, to),

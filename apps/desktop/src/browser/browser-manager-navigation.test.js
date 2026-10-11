@@ -87,6 +87,16 @@ describe("the start page's contract — onVisited and the hidden blank view", ()
     expect(visited).toEqual([["s", "https://one.example/"], ["s", "https://two.example/path"]]);
   });
 
+  test("onTitled reports a page's title for its history row, never an extension page's", async () => {
+    const titled = [];
+    const { manager, views } = makeHarness({ onTitled: (scopeKey, url, title) => titled.push([scopeKey, url, title]) });
+    await manager.createTab("s", "https://one.example/");
+    const wc = views[0].webContents;
+    wc.url = "https://one.example/"; wc.emit("page-title-updated", null, "One");
+    wc.url = "chrome-extension://abc/x.html"; wc.emit("page-title-updated", null, "Extension");
+    expect(titled).toEqual([["s", "https://one.example/", "One"]]);
+  });
+
   test("a blank active tab shows NO native view (the DOM start page is under it); a navigation reveals it", async () => {
     const { manager, views } = makeHarness();
     await manager.createTab("s", "about:blank", "human");

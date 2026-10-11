@@ -67,6 +67,7 @@ class DesktopBrowserManager {
     this.onControlChanged = dependencies.onControlChanged || null;
 
     this.onVisited = dependencies.onVisited || null;
+    this.onTitled = dependencies.onTitled || null;
 
     this.uiHolds = new Map();
 

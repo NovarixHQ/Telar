@@ -14,6 +14,7 @@ import { useFrozenOverlay } from "../hooks/use-frozen-overlay";
 import { addressValue, presentationZoomLabel } from "../model";
 import type { DesktopBrowserTab } from "../types";
 import { describeViewport, groupedViewportPresets, stageOf, viewportPreset, VIEWPORT_ZOOMS, zoomFits } from "../viewport";
+import { AddressBar } from "./address-bar";
 import { CameraButton, CheckRow, Divider, ExtensionButton, menuRow, Notices } from "./browser-chrome";
 import { OptionsMenu } from "./browser-menus";
 import { CompactBar } from "./compact-bar";
@@ -67,13 +68,7 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
     <form
       ref={addressRowRef}
       className="flex shrink-0 items-center gap-1 border-b border-border px-2 py-1.5"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const next = (b.draft ?? addressValue(activeTab?.url)).trim();
-        if (!next) return;
-        b.setDraft(undefined);
-        void act({ action: (state?.tabs.length ?? 0) > 0 ? "navigate" : "new", url: next });
-      }}
+      onSubmit={(event) => event.preventDefault()}
     >
       <button type="button" aria-label="Go back" disabled={!activeTab?.canGoBack} className={cn(GLYPH, "disabled:opacity-40")} onClick={() => void act({ action: "back" })}>
         <ArrowLeftIcon className="size-3.5" />
@@ -85,18 +80,15 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
         <RotateCwIcon className={cn("size-3.5", activeTab?.loading && "animate-spin text-primary")} />
       </button>
       <SitePermissions b={b} openOverlay={openOverlay} anchor={addressRef} />
-      <input
-        ref={addressRef}
-        aria-label="Address"
-        placeholder="Type an address"
-        spellCheck={false}
-        className="h-6 min-w-0 flex-1 rounded-md border border-transparent bg-muted/60 px-2 font-mono text-2xs outline-none focus:border-ring"
-        value={b.draft ?? addressValue(activeTab?.url)}
-        onChange={(event) => {
-          b.setDraft(event.target.value);
-          b.signalIntent();
-        }}
-        onBlur={() => b.setDraft(undefined)}
+      <AddressBar
+        key={b.scopeKey}
+        url={activeTab?.url}
+        tabs={state?.tabs ?? []}
+        inputRef={addressRef}
+        loadHistory={async () => (await b.bridge.history?.(b.scopeKey)) ?? []}
+        onOpen={(url) => void act({ action: (state?.tabs.length ?? 0) > 0 ? "navigate" : "new", url })}
+        onSelectTab={(index) => void act({ action: "select", index })}
+        onTyping={b.signalIntent}
       />
       <ExtensionButton b={b} keyButtonRef={keyButtonRef} />
       {b.rowFitsTools && b.canSave ? <CameraButton busy={b.capturing} onCapture={(fullPage) => void b.saveShot(fullPage ? { fullPage: true } : {})} /> : null}

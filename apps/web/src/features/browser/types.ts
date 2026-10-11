@@ -99,6 +99,8 @@ export type DesktopBrowserDownload = {
   filename: string;
 };
 
+export type BrowserHistoryEntry = { url: string; title: string; visits: number; lastVisit: number };
+
 /** The shell's `telarDesktop.browser`. Optional methods are absent on older shells; their controls are hidden. */
 export type DesktopBrowserBridge = {
   getState(scopeKey: string): Promise<DesktopBrowserPanelState>;
@@ -107,6 +109,7 @@ export type DesktopBrowserBridge = {
   setVisible(scopeKey: string, visible: boolean): Promise<void>;
   captureView?(scopeKey: string): Promise<FrozenFrame | null>;
   onState(listener: (state: DesktopBrowserPanelState) => void): () => void;
+  history?(scopeKey: string): Promise<BrowserHistoryEntry[]>;
   releaseScope?(scopeKey: string, destroy?: boolean, options?: { closedByPerson?: boolean }): Promise<void>;
   bindProfile?(scopeKey: string, profileKey: string): Promise<{ scopeKey: string; profileKey: string; partition: string; profileId?: string; label?: string }>;
   createProfile?(input: { label: string; account?: string; scopeKey?: string; assignProject?: boolean }): Promise<{ profiles: DesktopBrowserProfile[]; active: DesktopBrowserProfile }>;

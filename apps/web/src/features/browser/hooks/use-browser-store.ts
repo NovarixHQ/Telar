@@ -10,7 +10,6 @@ export type BrowserOverlay = "options" | "device" | "zoom" | "site" | null;
 /** Every piece of the surface's state. The component instance is reused across scopes, so a scope change resets it. */
 export function useBrowserStore(scopeKey: string, projectId: string | undefined, addressRowRef: RefObject<HTMLFormElement | null>, partitionRef: RefObject<string | undefined>) {
   const [state, setState] = useState<DesktopBrowserPanelState>();
-  const [draft, setDraft] = useState<string>();
   const [extension, setExtension] = useState<DesktopExtensionStatus>();
   const [extensionError, setExtensionError] = useState<string>();
   const [actionError, setActionError] = useState<string>();
@@ -66,7 +65,7 @@ export function useBrowserStore(scopeKey: string, projectId: string | undefined,
   };
 
   return {
-    state, setState, draft, setDraft, extension, setExtension, extensionError, setExtensionError, actionError, setActionError,
+    state, setState, extension, setExtension, extensionError, setExtensionError, actionError, setActionError,
     scope, bound, setBound, openOverlay, setOpenOverlay, profilePane, setProfilePane,
     optionsPane, setOptionsPane, clearing, setClearing, annotating, setAnnotating, capturing, setCapturing, rowFitsTools,
     sizeDraft, setSizeDraft, prompts, setPrompts, dismissedPrompts, setDismissedPrompts, sitePermissions, setSitePermissions,

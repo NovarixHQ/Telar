@@ -55,6 +55,49 @@ function applyScheme(setup: Setup) {
 const COLOR_MIX_ONLY = new Set(["overlay"]);
 const COLOURS = ARTIFACT_THEME_TOKENS.filter(([name]) => !ARTIFACT_NOT_COLOURS.has(name) && !COLOR_MIX_ONLY.has(name)).map(([name]) => `--${name}`);
 
+function countStyleRecalcsForcedByReads() {
+  let dirty = false;
+  let flushes = 0;
+  const { append, remove } = Element.prototype;
+  const read = window.getComputedStyle;
+  Element.prototype.append = function (this: Element, ...nodes) {
+    dirty = true;
+    return append.apply(this, nodes);
+  };
+  Element.prototype.remove = function (this: Element) {
+    dirty = true;
+    return remove.call(this);
+  };
+  window.getComputedStyle = ((element: Element, pseudo?: string | null) => {
+    if (dirty) flushes += 1;
+    dirty = false;
+    return read.call(window, element, pseudo);
+  }) as typeof window.getComputedStyle;
+  return {
+    flushes: () => flushes,
+    restore: () => {
+      Object.assign(Element.prototype, { append, remove });
+      window.getComputedStyle = read;
+    },
+  };
+}
+
+test("drawing three artifacts reads the page's style a handful of times, not once per colour", async () => {
+  const counter = countStyleRecalcsForcedByReads();
+  try {
+    await mount(
+      <>
+        <Probe />
+        <Probe />
+        <Probe />
+      </>,
+    );
+    expect(counter.flushes()).toBeLessThanOrEqual(6);
+  } finally {
+    counter.restore();
+  }
+});
+
 test("every appearance reaches an artifact as real colours and shadows, with its scheme stated on the page", async () => {
   const sheet = document.createElement("style");
   sheet.textContent = GLOBALS;

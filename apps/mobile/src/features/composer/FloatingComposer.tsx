@@ -10,7 +10,7 @@ import { SessionMenus, setAccessMode } from "../providers";
 import { feedOf, newRunId, sendMessage, useFeed } from "../transcript";
 import { answerRequest, openRequests, promoteTurn, RequestCards, stopSession, withdrawTurn } from "../turns";
 import { AttachmentStrip } from "./AttachmentStrip";
-import { Scrim } from "./chrome";
+import { HomeIndicatorFill } from "./chrome";
 import type { MentionTarget } from "./completions";
 import { Composer } from "./Composer";
 import { readDraft, writeDraft } from "./drafts";
@@ -43,7 +43,7 @@ type Props = {
 
 const PROMOTES = new Set(["claude", "codex"]);
 
-/** The footer that floats over the transcript: notices, open requests, then the composer, over a bar-material scrim. */
+/** The footer that floats over the transcript: notices, open requests, then the composer. */
 export function FloatingComposer({ host, hostId, sessionId, mentions, notices, initialDraft, keyboard, onHeight, onSent, reference, onReference }: Props) {
   const feed = useFeed(host, sessionId);
   const [draft, setDraftState] = useState(() => initialDraft ?? readDraft(Settings, hostId, sessionId));
@@ -53,7 +53,7 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   const [problem, setProblem] = useState<string>();
   const [unsent, setUnsent] = useState<{ text: string; ids: string[]; runId: string; error: string }>();
   const [cleared, setCleared] = useState(0);
-  const insets = useSafeAreaInsets();
+  const underside = Math.max(useSafeAreaInsets().bottom - keyboard, 0);
   const setDraft = (text: string) => {
     setDraftState(text);
     setCaret(text.length);
@@ -175,10 +175,10 @@ export function FloatingComposer({ host, hostId, sessionId, mentions, notices, i
   const shownProblem = problem ?? dictation.problem;
   return (
     <View
-      style={[styles.footer, { bottom: keyboard, paddingBottom: Math.max(insets.bottom - keyboard, 0) + 8 }]}
+      style={[styles.footer, { bottom: keyboard, paddingBottom: underside + 8 }]}
       onLayout={({ nativeEvent }) => onHeight(nativeEvent.layout.height)}
     >
-      <Scrim />
+      <HomeIndicatorFill height={underside} />
       <ReadingColumn margins={16} style={styles.lane}>
         {notices}
         <RequestCards cards={openRequests(feed.head?.requests)} {...(deciding ? { deciding } : {})} onDecide={(id, decision, extra) => void decide(id, decision, extra)} />

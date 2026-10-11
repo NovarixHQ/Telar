@@ -6,7 +6,7 @@ import { ReadingColumn } from "../../platform/layout";
 import { Theme } from "../../ui";
 import { appendSpoken, insertSpoken, useDictation, useDictationAvailable } from "../dictation";
 import { AttachmentStrip } from "./AttachmentStrip";
-import { Scrim } from "./chrome";
+import { HomeIndicatorFill } from "./chrome";
 import type { CompletionAction, CompletionContext } from "./completions";
 import { Composer } from "./Composer";
 import { readDraft, writeDraft } from "./drafts";
@@ -46,7 +46,7 @@ export function DraftComposer({ keyboard, host, draftKey, placeholder, controls,
   const [draft, setDraft] = useState(() => (draftKey ? readDraft(Settings, draftKey.hostId, draftKey.id) : ""));
   const [caret, setCaret] = useState(draft.length);
   const [cleared, setCleared] = useState(0);
-  const insets = useSafeAreaInsets();
+  const underside = Math.max(useSafeAreaInsets().bottom - keyboard, 0);
   const attachments = useDraftAttachments();
   const dictationAvailable = useDictationAvailable(host);
   const latest = useRef({ draft, caret });
@@ -101,8 +101,8 @@ export function DraftComposer({ keyboard, host, draftKey, placeholder, controls,
   };
   const note = attachments.note ?? dictation.problem;
   return (
-    <View style={[styles.footer, { marginBottom: keyboard, paddingBottom: Math.max(insets.bottom - keyboard, 0) + 8 }]}>
-      <Scrim />
+    <View style={[styles.footer, { marginBottom: keyboard, paddingBottom: underside + 8 }]}>
+      <HomeIndicatorFill height={underside} />
       <ReadingColumn margins={16} style={styles.lane}>
         {notices}
         {note ? <Text style={styles.note}>{note}</Text> : null}

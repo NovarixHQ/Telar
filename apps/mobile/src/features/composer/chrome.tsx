@@ -1,8 +1,7 @@
-import { Host, Mask, Rectangle, RoundedRectangle, ZStack } from "@expo/ui/swift-ui";
+import { Host, RoundedRectangle, ZStack } from "@expo/ui/swift-ui";
 import { foregroundStyle, glassEffect, shadow } from "@expo/ui/swift-ui/modifiers";
 import { memo } from "react";
-import { DynamicColorIOS, StyleSheet } from "react-native";
-import { useSplitColumn } from "../../platform/layout";
+import { DynamicColorIOS, StyleSheet, View } from "react-native";
 import { faded, Theme } from "../../ui";
 
 const SHADOW = DynamicColorIOS({ light: "#0000001F", dark: "#00000059" });
@@ -22,21 +21,11 @@ export const Glass = memo(function Glass({ radius, lifted = false }: { radius: n
   );
 });
 
-/** The bar material behind the footer, fading in over its top third; it runs on under the home indicator. In the iPad card it fades to the card itself. */
-export const Scrim = memo(function Scrim() {
-  const { split } = useSplitColumn();
-  return (
-    <Host style={styles.scrim} pointerEvents="none">
-      <Mask>
-        <Rectangle modifiers={[foregroundStyle(split ? Theme.canvas : { type: "material", material: "bar" })]} />
-        <Mask.Content>
-          <Rectangle modifiers={[foregroundStyle({ type: "linearGradient", colors: ["clear", "black", "black"], startPoint: { x: 0.5, y: 0 }, endPoint: { x: 0.5, y: 0.7 } })]} />
-        </Mask.Content>
-      </Mask>
-    </Host>
-  );
+/** A flat canvas strip under the home indicator, so the transcript doesn't scroll through it; the keyboard covers it when up. */
+export const HomeIndicatorFill = memo(function HomeIndicatorFill({ height }: { height: number }) {
+  return height > 0 ? <View style={[styles.fill, { height }]} pointerEvents="none" /> : null;
 });
 
 const styles = StyleSheet.create({
-  scrim: { position: "absolute", top: 0, left: 0, right: 0, bottom: -60 },
+  fill: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: Theme.canvas },
 });

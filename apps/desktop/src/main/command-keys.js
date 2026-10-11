@@ -43,6 +43,18 @@ const COMMANDS = [
   { id: "toggle-panel", label: "Toggle right panel", group: "Panel", icon: "panel-right", defaultChord: "CommandOrControl+\\", menu: "panel" },
   { id: "panel-next-tab", label: "Next panel tab", group: "Panel", icon: "arrow-right", defaultChord: "CommandOrControl+Alt+Right", menu: "panel" },
   { id: "panel-previous-tab", label: "Previous panel tab", group: "Panel", icon: "arrow-left", defaultChord: "CommandOrControl+Alt+Left", menu: "panel" },
+  ...Array.from({ length: 9 }, (_, index) => {
+    const n = index + 1;
+    return {
+      id: `panel-tab-${n}`,
+      label: n === 9 ? "Last panel tab" : `Panel tab ${n}`,
+      group: "Panel",
+      icon: "hash",
+      defaultChord: `CommandOrControl+Control+${n}`,
+      menu: "panel",
+      panelTab: n,
+    };
+  }),
   { id: "close-panel-tab", label: "Close panel tab", group: "Panel", icon: "x", defaultChord: "CommandOrControl+W", menu: "panel" },
   { id: "panel-fullscreen", label: "Fill the window", group: "Panel", icon: "maximize", defaultChord: "CommandOrControl+Alt+F", menu: "panel" },
   { id: "open-browser", label: "Open browser", group: "Panel", icon: "globe", defaultChord: "CommandOrControl+Shift+B", menu: "panel" },
@@ -74,7 +86,7 @@ const COMMANDS = [
   { id: "check-for-updates", label: "Check for updates…", group: "Application", icon: "refresh-cw", defaultChord: "" },
 ];
 
-const MODIFIER_ORDER = ["CommandOrControl", "Alt", "Shift"];
+const MODIFIER_ORDER = ["CommandOrControl", "Control", "Alt", "Shift"];
 
 const MODIFIER_ALIASES = {
   commandorcontrol: "CommandOrControl",
@@ -83,8 +95,6 @@ const MODIFIER_ALIASES = {
   cmd: "CommandOrControl",
   meta: "CommandOrControl",
   super: "CommandOrControl",
-  control: "CommandOrControl",
-  ctrl: "CommandOrControl",
   alt: "Alt",
   option: "Alt",
   altgr: "Alt",
@@ -156,9 +166,15 @@ function normalizeChord(chord) {
     .filter((part) => part !== "");
   if (parts.length === 0) return "";
   const modifiers = new Set();
+  let control = false;
   let key = "";
   for (const part of parts) {
-    const modifier = MODIFIER_ALIASES[part.toLowerCase()];
+    const lower = part.toLowerCase();
+    if (lower === "control" || lower === "ctrl") {
+      control = true;
+      continue;
+    }
+    const modifier = MODIFIER_ALIASES[lower];
     if (modifier) {
       modifiers.add(modifier);
       continue;
@@ -167,6 +183,7 @@ function normalizeChord(chord) {
     key = normalizeKeyToken(part);
   }
   if (key === "") return "";
+  if (control) modifiers.add(modifiers.has("CommandOrControl") ? "Control" : "CommandOrControl");
   return [...MODIFIER_ORDER.filter((modifier) => modifiers.has(modifier)), key].join("+");
 }
 
@@ -220,6 +237,7 @@ function chordsForEvent(event) {
   if (!event || isModifierKey(event.key)) return [];
   const modifiers = [];
   if (event.metaKey || event.ctrlKey) modifiers.push("CommandOrControl");
+  if (event.metaKey && event.ctrlKey) modifiers.push("Control");
   if (event.altKey) modifiers.push("Alt");
   if (event.shiftKey) modifiers.push("Shift");
   const tokens = [];

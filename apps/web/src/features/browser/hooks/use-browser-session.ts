@@ -434,7 +434,7 @@ export function useBrowserKeys(s: BrowserStore, { activeTab }: BrowserView, act:
     } else if (event.key === "w" && activeTab) {
       event.preventDefault();
       void act({ action: "close", index: activeTab.index });
-    } else if (/^[1-9]$/.test(event.key)) {
+    } else if (/^[1-9]$/.test(event.key) && !(event.metaKey && event.ctrlKey)) {
       const target = tabs[Number(event.key) - 1];
       if (target) {
         event.preventDefault();

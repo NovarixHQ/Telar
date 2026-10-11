@@ -641,10 +641,10 @@ describe("a focused page owns ⌘1..⌘9 (#660)", () => {
     expect(press(views[0], "7")).toBe(false);
   });
 
-  test("⌥⌘1, ⇧⌘1, a bare 1 and a keyUp are all somebody else's", async () => {
+  test("⌥⌘1, ⇧⌘1, ⌃⌘1, a bare 1 and a keyUp are all somebody else's", async () => {
     const { manager, views } = await withTabs(3);
     await manager.selectTab("s1", 2);
-    for (const input of [{ meta: true, alt: true }, { meta: true, shift: true }, {}]) {
+    for (const input of [{ meta: true, alt: true }, { meta: true, shift: true }, { meta: true, control: true }, {}]) {
       expect(press(views[0], "1", input)).toBe(false);
     }
     let prevented = false;

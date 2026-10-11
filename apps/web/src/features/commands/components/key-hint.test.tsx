@@ -3,6 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { restoreDefaultKeymap, setChord } from "../commands";
+import { forgetModifierPlatform } from "../modifier-held";
 import type { PanelTabItem } from "@/features/panel";
 import type { SidebarSession } from "@/features/sessions";
 import { KeyHint, KeyHintOverlay } from "./key-hint";
@@ -203,14 +204,32 @@ describe("the call sites #401 lists", () => {
     expect(caps(open)).toEqual(caps(closed));
   });
 
-  test("the panel's tab strip shows no hints on its controls while ⌘ is held", async () => {
-    const { RailToggle, RightPanel } = await import("@/features/panel");
-    const tabs = [{ id: "editor", kind: "editor", params: {} }, { id: "issues", kind: "issues", params: {} }] as PanelTabItem[];
-    const host = await mount(
-      <RightPanel sessionId="session_a" tabs={tabs} tab="editor" onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} controls={<RailToggle open onToggle={() => {}} />} />,
-    );
-    await hold(true);
-    expect(host.querySelectorAll("[data-slot=key-hint]").length).toBe(0);
+  describe("the panel's tab strip", () => {
+    const keys = (init: KeyboardEventInit) => act(async () => void document.dispatchEvent(new KeyboardEvent("keydown", { key: "Meta", bubbles: true, ...init })));
+    const strip = async (count: number) => {
+      forgetModifierPlatform();
+      const { RailToggle, RightPanel } = await import("@/features/panel");
+      const tabs = Array.from({ length: count }, (_, n) => ({ id: `file:${n + 1}.md`, kind: `file:${n + 1}.md`, params: {} })) as PanelTabItem[];
+      return mount(
+        <RightPanel sessionId="session_a" tabs={tabs} tab={tabs[0]!.id} onTabChange={() => {}} onOpenTab={() => {}} onCloseTab={() => {}} controls={<RailToggle open onToggle={() => {}} />} />,
+      );
+    };
+    const hints = (host: HTMLElement) => [...host.querySelectorAll("[data-slot=key-hint]")].map((hint) => hint.textContent);
+
+    test("shows no hints while ⌘ alone is held", async () => {
+      const host = await strip(2);
+      await keys({ metaKey: true });
+      expect(hints(host)).toEqual([]);
+    });
+
+    test("numbers every tab while ⌃⌘ is held, the last one 9 past eight", async () => {
+      const host = await strip(10);
+      await keys({ metaKey: true, ctrlKey: true });
+      expect(hints(host)).toEqual(["⌘⌃1", "⌘⌃2", "⌘⌃3", "⌘⌃4", "⌘⌃5", "⌘⌃6", "⌘⌃7", "⌘⌃8", "⌘⌃9"]);
+      expect(host.querySelectorAll('[role="tab"]')[9]!.textContent).toContain("⌘⌃9");
+      await keys({ type: "keyup", metaKey: false, ctrlKey: false } as KeyboardEventInit);
+      expect(hints(host)).toEqual([]);
+    });
   });
 });
 

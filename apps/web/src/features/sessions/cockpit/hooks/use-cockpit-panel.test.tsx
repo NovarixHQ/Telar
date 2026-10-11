@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { act } from "react";
-import { runCommand } from "@/features/commands";
+import { keymapSnapshot, resolveCommandForEvent, runCommand, type CommandId } from "@/features/commands";
 import { writePanelTabs, type PanelTab, type PanelTabState } from "@/features/panel";
 import { SidebarProvider } from "@/ui/sidebar";
 import { flush, installTestDom, mount } from "@/test/dom";
@@ -78,6 +78,19 @@ test("the tab arrows step through every tab and wrap", async () => {
   expect(hook().panel.activeTab).toBe("terminal");
   await act(async () => hook().stepPanelTab(-1));
   expect(hook().panel.activeTab).toBe("terminal#3");
+});
+
+test("⌃⌘2 selects the second tab and ⌃⌘9 the last", async () => {
+  const tabs = (["diff", "issues", "pulls"] as const).map((id) => ({ id, kind: id, params: {} }));
+  const hook = await cockpit({ tabs, activeTab: "diff", open: false });
+  const press = (key: string) => act(async () => void runCommand(resolveCommandForEvent(keymapSnapshot(), { key, metaKey: true, ctrlKey: true }) as CommandId));
+  await press("2");
+  expect(hook().panel.activeTab).toBe("issues");
+  expect(hook().panel.open).toBe(true);
+  await press("9");
+  expect(hook().panel.activeTab).toBe("pulls");
+  await press("5");
+  expect(hook().panel.activeTab).toBe("pulls");
 });
 
 describe("Close panel tab", () => {

@@ -119,3 +119,10 @@ test("⌘W is the Panel menu's Close panel tab, sent to the cockpit, and no othe
   const closers = all(electron.Menu.current).filter((entry) => entry.accelerator === "CommandOrControl+W");
   expect(closers).toEqual([item]);
 });
+
+test("the Panel menu's Select tab carries ⌃⌘1…9", () => {
+  buildApplicationMenu();
+  const select = menuItem("Select tab");
+  expect(select.submenu.map((entry) => entry.accelerator)).toEqual(Array.from({ length: 9 }, (_, index) => `CommandOrControl+Control+${index + 1}`));
+  expect(select.submenu.at(-1).label).toBe("Last panel tab");
+});

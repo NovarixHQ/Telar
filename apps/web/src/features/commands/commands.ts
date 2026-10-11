@@ -39,6 +39,7 @@ export type CommandId =
   | "panel-next-tab"
   | "panel-previous-tab"
   | "close-panel-tab"
+  | `panel-tab-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
   | "panel-fullscreen"
   | "open-browser"
   | "open-terminal"

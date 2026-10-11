@@ -97,6 +97,7 @@ function buildApplicationMenu(keymap = readKeymap()) {
   });
   const fileCommands = menuCommands(keymap, "file");
   const panelCommands = menuCommands(keymap, "panel");
+  const panelTabBindings = panelCommands.filter((command) => command.panelTab);
   const viewCommands = menuCommands(keymap, "view");
   const windowCommands = menuCommands(keymap, "window");
 
@@ -142,7 +143,14 @@ function buildApplicationMenu(keymap = readKeymap()) {
       ],
     },
 
-    ...(panelCommands.length > 0 ? [{ label: "Panel", submenu: panelCommands.map(toMenuItem) }] : []),
+    {
+      label: "Panel",
+      submenu: [
+        ...panelCommands.filter((command) => !command.panelTab).map(toMenuItem),
+        { type: "separator" },
+        { label: "Select tab", submenu: panelTabBindings.map(toMenuItem) },
+      ],
+    },
     {
       role: "window",
       submenu: [

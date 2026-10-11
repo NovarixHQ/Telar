@@ -21,6 +21,7 @@ import { DeviceFrame } from "./device-frame";
 import { PoppedBrowser, usePoppedScope } from "./popped-browser";
 import { SitePermissionPrompt, SitePermissionsPopover } from "./permission-prompt";
 import { BrowserStartPage } from "./start-page";
+import { LoadErrorPage } from "./load-error-page";
 import { TabStrip } from "./tab-strip";
 
 const BrowserAnnotateOverlay = dynamic(() => import("./annotate-overlay").then((mod) => mod.BrowserAnnotateOverlay));
@@ -319,7 +320,8 @@ function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: R
           />
         </Suspense>
       ) : null}
-      {b.bound && state && (state.tabs.length === 0 || (activeTab && !activeTab.sleeping && blank && !activeTab.loading)) && (
+      {activeTab?.loadError && !activeTab.sleeping && <LoadErrorPage error={activeTab.loadError} onRetry={() => void act({ action: "reload" })} />}
+      {b.bound && state && (state.tabs.length === 0 || (activeTab && !activeTab.sleeping && !activeTab.loadError && blank && !activeTab.loading)) && (
         <BrowserStartPage scopeKey={b.scopeKey} onOpen={(url) => void act(activeTab && blank ? { action: "navigate", url } : { action: "new", url })} />
       )}
     </div>

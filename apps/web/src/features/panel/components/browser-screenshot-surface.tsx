@@ -10,6 +10,7 @@ import { Spinner } from "@/ui/spinner";
 import { PanelEmpty } from "@/ui/panel";
 import { cn } from "@/ui/utils";
 import { usePoll } from "@/ui/hooks/use-poll";
+import { LoadErrorPage } from "@/features/browser";
 import { browserTabLabel, type BrowserState } from "../model";
 
 const api = createEngineApi();
@@ -67,7 +68,11 @@ export function BrowserScreenshotSurface({ pageId, state, sessionId }: { pageId:
         {page.loading && <Badge variant="outline" className="shrink-0 px-1 py-0 text-4xs font-normal">loading</Badge>}
         {page.active && <Badge variant="secondary" className="shrink-0 px-1 py-0 text-4xs font-normal">active</Badge>}
       </div>
-      {snapshot?.screenshot ? (
+      {page.loadError ? (
+        <div className="relative min-h-0 flex-1">
+          <LoadErrorPage error={page.loadError} />
+        </div>
+      ) : snapshot?.screenshot ? (
         <div className="min-h-0 flex-1 overflow-auto bg-muted/40 p-2">
           {/* eslint-disable-next-line @next/next/no-img-element -- a data URL polled from the engine; there is nothing for next/image to optimise */}
           <img

@@ -1,6 +1,7 @@
 import type { FrozenFrame } from "@/platform/desktop/native-view-overlay";
 import type { SitePermissionsBridge } from "./desktop-site-permissions";
 import type { ElementBox } from "./annotation";
+import type { PageLoadError } from "./load-error";
 import type { ViewportMode, ViewportPresetKey, ViewportZoom } from "./viewport";
 
 export type DesktopBrowserTab = {
@@ -25,6 +26,7 @@ export type DesktopBrowserTab = {
   zoom?: number;
   colorScheme?: "light" | "dark" | "system";
   profileId?: string | null;
+  loadError?: PageLoadError | null;
 };
 
 export type DesktopBrowserProfile = {

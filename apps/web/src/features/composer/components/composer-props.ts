@@ -41,6 +41,8 @@ export type ComposerProps = {
   /** Absent means a project-less conversation: no environment strip, greeting or `@` file listing. */
   projectId?: string;
   projectName?: string;
+  completionsFrom?: { hostId: string; sessionId?: string };
+  onCompletionsOpen?: (open: boolean) => void;
   usage?: UsageSnapshot;
   backgroundTasks: number;
   settled?: boolean;

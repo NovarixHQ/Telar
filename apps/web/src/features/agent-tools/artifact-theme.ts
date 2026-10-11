@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore, type RefObject } from "react";
-import { artifactTheme, cssColorToHex, type ArtifactTheme } from "@telar/engine-client";
+import { ARTIFACT_NOT_COLOURS, ARTIFACT_THEME_TOKENS, artifactTheme, cssColorToHex, type ArtifactTheme } from "@telar/engine-client";
 
 let paintCanvas: HTMLCanvasElement | undefined;
 
@@ -20,13 +20,23 @@ function paintedHex(value: string): string | undefined {
 
 const MISSING = "#010203";
 
-function colourIn(host: Element, value: string): string | undefined {
-  const probe = document.createElement("span");
-  probe.style.color = value;
-  host.append(probe);
-  const computed = getComputedStyle(probe).color;
-  probe.remove();
-  return cssColorToHex(computed) ?? paintedHex(computed);
+const COLOUR_TOKENS = ARTIFACT_THEME_TOKENS.filter(([name]) => !ARTIFACT_NOT_COLOURS.has(name)).map(([, token]) => token);
+
+function colourTokensIn(host: Element): Map<string, string | undefined> {
+  const probes = COLOUR_TOKENS.map((token) => {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${token}-wash, var(${token}, ${MISSING}))`;
+    return probe;
+  });
+  host.append(...probes);
+  const computed = probes.map((probe) => getComputedStyle(probe).color);
+  for (const probe of probes) probe.remove();
+  return new Map(
+    COLOUR_TOKENS.map((token, index) => {
+      const hex = cssColorToHex(computed[index]!) ?? paintedHex(computed[index]!);
+      return [token, hex === MISSING ? undefined : hex];
+    }),
+  );
 }
 
 const TRANSPARENT = /^#[0-9a-f]{6}00$/;
@@ -44,17 +54,15 @@ function canvasBehind(host: Element): string {
 function readArtifactTheme(host: Element): ArtifactTheme {
   const root = document.documentElement;
   const style = getComputedStyle(root);
-  const paint = (token: string) => {
-    const hex = colourIn(host, `var(${token}-wash, var(${token}, ${MISSING}))`);
-    return hex === MISSING ? undefined : hex;
-  };
-  return artifactTheme(root.classList.contains("dark") ? "dark" : "light", (token) => style.getPropertyValue(token), { paint, canvas: canvasBehind(host) });
+  const painted = colourTokensIn(host);
+  const canvas = canvasBehind(host);
+  return artifactTheme(root.classList.contains("dark") ? "dark" : "light", (token) => style.getPropertyValue(token), { paint: (token) => painted.get(token), canvas });
 }
 
 const SERVER_THEME = JSON.stringify({ scheme: "light", variables: {} } satisfies ArtifactTheme);
 
 function themeStore(host?: RefObject<Element | null>) {
-  let cached: string | undefined;
+  let cached: { at: Element; json: string } | undefined;
   return {
     subscribe(onChange: () => void) {
       const observer = new MutationObserver(() => {
@@ -63,11 +71,13 @@ function themeStore(host?: RefObject<Element | null>) {
       });
       observer.observe(document.documentElement, { attributes: true });
       observer.observe(document.head, { childList: true, subtree: true, characterData: true });
-      cached = undefined;
-      onChange();
       return () => observer.disconnect();
     },
-    snapshot: () => (cached ??= JSON.stringify(readArtifactTheme(host?.current?.parentElement ?? document.body))),
+    snapshot: () => {
+      const at = host?.current?.parentElement ?? document.body;
+      if (cached?.at !== at) cached = { at, json: JSON.stringify(readArtifactTheme(at)) };
+      return cached.json;
+    },
   };
 }
 

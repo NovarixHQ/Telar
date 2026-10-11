@@ -17,7 +17,6 @@ function reasonFor(code: string, host: string, hostname: string): string {
   return `The page could not be loaded (${code}).`;
 }
 
-/** What the error page says about a failed load. */
 export function describeLoadError({ code, url }: PageLoadError) {
   const { host, hostname } = hostOf(url);
   return { title: "Can’t reach this page", host, reason: reasonFor(code, host, hostname) };
@@ -25,7 +24,6 @@ export function describeLoadError({ code, url }: PageLoadError) {
 
 const REMOTE_PREFIX = /^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/;
 
-/** An error as people should read it, without the shell's IPC wrapper. */
 export function errorText(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message.replace(REMOTE_PREFIX, "") || fallback : fallback;
 }

@@ -4,7 +4,6 @@ import { CloudOffIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { describeLoadError, type PageLoadError } from "../load-error";
 
-/** The page area when the tab's page failed to load; `onRetry` is absent where the page can't be driven. */
 export function LoadErrorPage({ error, onRetry }: { error: PageLoadError; onRetry?: () => void }) {
   const { title, host, reason } = describeLoadError(error);
   return (

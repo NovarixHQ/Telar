@@ -443,6 +443,16 @@ describe("the # destination picker", () => {
     expect(projectMark(row("Expand scratch README"))).toBe("T");
   });
 
+  test("lists only top-level sessions, never a builder another session started", async () => {
+    LIVE.push({ ...live("s_child", "Builder: fix the tests", "project_2", "working", 500), startedFrom: { sessionId: "s_sales" } } as (typeof LIVE)[number]);
+    const { host } = await open(front(GRANTED));
+    await type(host, "#");
+    await flush(() => options(host).length > 3);
+    expect(options(host).some((row) => row.includes("Builder: fix the tests"))).toBe(false);
+    expect(options(host).some((row) => row.includes("Sales dashboard"))).toBe(true);
+    LIVE.pop();
+  });
+
   test("filters projects and sessions together", async () => {
     const { host } = await open(front(GRANTED));
     await type(host, "#exo");

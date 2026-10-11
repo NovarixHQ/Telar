@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld("telarDesktop", {
   },
   browser: {
     suggestions: (scopeKey) => ipcRenderer.invoke("telar:browser:suggestions", scopeKey),
+    history: (scopeKey) => ipcRenderer.invoke("telar:browser:history", scopeKey),
     removeSuggestion: (scopeKey, url) => ipcRenderer.invoke("telar:browser:remove-suggestion", { scopeKey, url }),
     getState: (scopeKey) => ipcRenderer.invoke("telar:browser:state", scopeKey),
     action: (scopeKey, action) => ipcRenderer.invoke("telar:browser:action", { scopeKey, action }),

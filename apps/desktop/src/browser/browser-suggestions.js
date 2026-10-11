@@ -2,13 +2,35 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 
-function siteOrigin(raw) {
+const HISTORY_CAP = 1000;
+const TITLE_CAP = 300;
+
+function parsedVisit(raw) {
   try {
     const url = new URL(raw);
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
-    // Suggestions remember sites, never login callback paths, queries or fragments.
-    return url.origin + '/';
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url : null;
   } catch { return null; }
+}
+
+function siteOrigin(raw) {
+  const url = parsedVisit(raw);
+  return url ? url.origin + '/' : null;
+}
+
+// History keeps the page, never its query or fragment, where login callbacks carry codes and tokens.
+function pageUrl(raw) {
+  const url = parsedVisit(raw);
+  return url ? url.origin + url.pathname : null;
+}
+
+function validEntry(entry) {
+  if (!entry || typeof entry.url !== 'string' || pageUrl(entry.url) !== entry.url) return null;
+  return {
+    url: entry.url,
+    title: typeof entry.title === 'string' ? entry.title.slice(0, TITLE_CAP) : '',
+    visits: Number.isInteger(entry.visits) && entry.visits > 0 ? entry.visits : 1,
+    lastVisit: Number.isFinite(entry.lastVisit) ? entry.lastVisit : 0,
+  };
 }
 
 function listeningPorts(text) {
@@ -30,6 +52,7 @@ function scanPorts() {
 
 function createBrowserSuggestions(userData, dependencies = {}) {
   const filename = path.join(userData, 'browser-recent-sites.json');
+  const now = dependencies.now || Date.now;
   let profiles = {};
   try {
     const data = JSON.parse(fs.readFileSync(filename, 'utf8'));
@@ -45,19 +68,31 @@ function createBrowserSuggestions(userData, dependencies = {}) {
       fs.renameSync(filename + '.tmp', filename);
     } catch { /* Suggestions do not gate browsing. */ }
   };
-  const recent = profile => Array.isArray(profiles[profile]) ? profiles[profile].filter(entry => entry && typeof entry.url === "string" && siteOrigin(entry.url) === entry.url).slice(0, 8) : [];
+  const history = profile => Object.hasOwn(profiles, profile) && Array.isArray(profiles[profile]) ? profiles[profile].map(validEntry).filter(Boolean).slice(0, HISTORY_CAP) : [];
+  // Own-property assignment even for an unusual profile name.
+  const store = (profile, entries) => Object.defineProperty(profiles, profile, { value: entries, enumerable: true, configurable: true, writable: true });
+  const recent = profile => [...new Set(history(profile).map(entry => siteOrigin(entry.url)))].slice(0, 8).map(url => ({ url }));
   return {
     remember(profile, raw) {
-      const url = siteOrigin(raw);
+      const url = pageUrl(raw);
       if (!profile || !url) return;
-      const entries = recent(profile);
-      if (entries[0]?.url === url) return;
-      // Use own-property assignment even for an unusual profile name.
-      Object.defineProperty(profiles, profile, { value: [{ url }, ...entries.filter(entry => entry.url !== url)].slice(0, 8), enumerable: true, configurable: true, writable: true });
+      const entries = history(profile);
+      const seen = entries.find(entry => entry.url === url);
+      const visit = { url, title: seen?.title ?? '', visits: (seen?.visits ?? 0) + 1, lastVisit: now() };
+      store(profile, [visit, ...entries.filter(entry => entry.url !== url)].slice(0, HISTORY_CAP));
       persist();
     },
+    retitle(profile, raw, title) {
+      const url = pageUrl(raw);
+      const entry = url && history(profile).find(candidate => candidate.url === url);
+      const next = String(title || '').slice(0, TITLE_CAP);
+      if (!entry || entry.title === next) return;
+      store(profile, history(profile).map(candidate => candidate.url === url ? { ...candidate, title: next } : candidate));
+      persist();
+    },
+    history,
     /**
-     * Metadata migration only: move one key's remembered sites to another
+     * Metadata migration only: move one key's history to another
      * (a project key that became a named profile id). A no-op when the source
      * has nothing or the target already has history — this never merges two
      * identities' browsing into one list.
@@ -65,13 +100,13 @@ function createBrowserSuggestions(userData, dependencies = {}) {
     adopt(fromProfile, toProfile) {
       if (!fromProfile || !toProfile || fromProfile === toProfile) return;
       if (!Object.hasOwn(profiles, fromProfile) || Object.hasOwn(profiles, toProfile)) return;
-      Object.defineProperty(profiles, toProfile, { value: recent(fromProfile), enumerable: true, configurable: true, writable: true });
+      store(toProfile, history(fromProfile));
       delete profiles[fromProfile];
       persist();
     },
-    remove(profile, raw) {
+    remove(profile, site) {
       if (!Object.hasOwn(profiles, profile)) return;
-      profiles[profile] = recent(profile).filter(entry => entry.url !== raw);
+      profiles[profile] = history(profile).filter(entry => siteOrigin(entry.url) !== site);
       persist();
     },
     async list(profile, excludedPorts = []) {
@@ -99,4 +134,4 @@ function createBrowserSuggestions(userData, dependencies = {}) {
     },
   };
 }
-module.exports = { createBrowserSuggestions, siteOrigin, listeningPorts };
+module.exports = { HISTORY_CAP, createBrowserSuggestions, siteOrigin, pageUrl, listeningPorts };

@@ -132,6 +132,11 @@ module.exports = {
     try { this.onVisited(tab.scopeKey, parsed.href); } catch {  }
   },
 
+  noteTitled(tab, url, title) {
+    if (!this.onTitled || !title || isProtectedUrl(String(url || ""))) return;
+    try { this.onTitled(tab.scopeKey, url, title); } catch {  }
+  },
+
   stampAgentInput(tab, reports = 0) {
     const now = this.now();
 

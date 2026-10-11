@@ -20,6 +20,12 @@ function registerViewIpc({ requireBrowserSuggestions }) {
     ]);
   });
 
+  ipcMain.handle("telar:browser:history", (event, scopeKey) => {
+    const manager = requireBrowserManager(event);
+    manager.partitionOf(scopeKey);
+    return requireBrowserSuggestions().history(manager.activeProfile(scopeKey)?.id);
+  });
+
   ipcMain.handle("telar:browser:remove-suggestion", (event, input) => {
     const manager = requireBrowserManager(event);
     manager.partitionOf(input?.scopeKey);

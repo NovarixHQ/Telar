@@ -35,15 +35,9 @@ export async function openUrlInSessionBrowser(
   if (!sessionId) return undefined;
   const bridge = desktopBrowserBridge();
   if (bridge) {
-    try {
-      // The host refuses tabs for an unbound scope; binding is idempotent and
-      // re-declared here exactly as the browser panel does before its actions.
-      await bridge.bindProfile?.(sessionId, projectId ?? "none");
-      await bridge.action(sessionId, { action: "new", url });
-      return "native";
-    } catch {
-      return undefined;
-    }
+    await bridge.bindProfile?.(sessionId, projectId ?? "none");
+    await bridge.action(sessionId, { action: "new", url });
+    return "native";
   }
   try {
     const answer = await createEngineApi(hostFetcher(hostId ?? "local")).browserOpen(sessionId, url);

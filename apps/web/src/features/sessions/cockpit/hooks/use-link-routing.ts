@@ -3,12 +3,22 @@
 import { useCallback, useEffect, useRef } from "react";
 import { createEngineApi } from "@/platform/engine";
 import { browserPanelTab, issuePanelTab, pullPanelTab } from "@/features/panel";
-import { desktopBrowserBridge } from "@/features/browser/desktop-browser-bridge";
-import { nativePageToShow } from "@/features/browser/native-pages";
+import { desktopBrowserBridge, errorText, nativePageToShow } from "@/features/browser";
 import { hostFetcher } from "@/platform/engine/host-client";
 import { claimLinks, openInSystemBrowser, openLinksInSessionBrowser } from "@/platform/link-policy";
+import { toastManager, type ToastData } from "@/ui/toast";
 import { openUrlInSessionBrowser, parseForgeLink, sameRepository } from "../session-links";
 import type { useCockpitPanel } from "./use-cockpit-panel";
+
+function showLinkRefused(url: string, error: unknown) {
+  const actions = [{ id: "outside", label: "Open outside Telar", onClick: () => openInSystemBrowser(url) }];
+  toastManager.add({
+    type: "error",
+    title: "This link could not open in the session's browser",
+    description: errorText(error, "The browser refused it."),
+    data: { actions } satisfies ToastData,
+  });
+}
 
 /** Routes web links from the conversation (and ones claimed app-wide) to this project's forge tabs or the session browser. */
 export function useLinkRouting({ hostId, projectId, sessionId, solo, panel: { showPanelTab, updatePanel } }: {
@@ -32,7 +42,13 @@ export function useLinkRouting({ hostId, projectId, sessionId, solo, panel: { sh
             return;
           }
         }
-        const landed = await openUrlInSessionBrowser(sessionId, projectId, href, hostId);
+        let landed: Awaited<ReturnType<typeof openUrlInSessionBrowser>>;
+        try {
+          landed = await openUrlInSessionBrowser(sessionId, projectId, href, hostId);
+        } catch (error) {
+          showLinkRefused(href, error);
+          return;
+        }
         const bridge = desktopBrowserBridge();
         if (landed === "native" && bridge && sessionId) {
           const page = await nativePageToShow(bridge, sessionId);

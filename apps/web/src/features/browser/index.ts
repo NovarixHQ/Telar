@@ -5,3 +5,4 @@ export { LoadErrorPage } from "./components/load-error-page";
 export { DesktopBrowserSurface } from "./components/desktop-browser-surface";
 export { desktopBrowserBridge } from "./desktop-browser-bridge";
 export { closeNativePage, nativePageToShow } from "./native-pages";
+export { errorText } from "./load-error";

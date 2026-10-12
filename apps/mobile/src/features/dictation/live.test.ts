@@ -6,7 +6,7 @@ const grant = { token: "jwt", language: "es", keyterms: ["Telar"] };
 
 class FakeSocket {
   readyState = 0;
-  sent: Array<string | ArrayBuffer> = [];
+  sent: Array<string | Uint8Array> = [];
   closed = false;
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: unknown }) => void) | null = null;
@@ -16,7 +16,7 @@ class FakeSocket {
     readonly url: string,
     readonly protocols: string[],
   ) {}
-  send(data: string | ArrayBuffer) {
+  send(data: string | Uint8Array) {
     this.sent.push(data);
   }
   close() {
@@ -58,11 +58,11 @@ test("only result frames are read as words", () => {
 test("the grant rides in the subprotocol and audio captured before the socket opens is sent once it does", () => {
   const { live, socket } = start();
   expect(socket.protocols).toEqual(["bearer", "jwt"]);
-  const early = new ArrayBuffer(2);
+  const early = new Uint8Array(2);
   live.send(early);
   expect(socket.sent).toEqual([]);
   socket.open();
-  const late = new ArrayBuffer(4);
+  const late = new Uint8Array(4);
   live.send(late);
   expect(socket.sent).toEqual([early, late]);
 });
@@ -105,4 +105,15 @@ test("a keep-alive goes out only on an open socket that is still listening", () 
   live.cancel();
   live.keepAlive();
   expect(socket.sent.filter((sent) => sent === JSON.stringify({ type: "KeepAlive" }))).toHaveLength(1);
+});
+
+test("a send the socket refuses ends the listen instead of throwing out of the open callback", () => {
+  const { live, socket, ended } = start();
+  live.send(new Uint8Array(2));
+  socket.send = () => {
+    throw new Error("Unsupported data type");
+  };
+  expect(() => socket.open()).not.toThrow();
+  expect(socket.closed).toBe(true);
+  expect(ended()).toBe(1);
 });

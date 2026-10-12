@@ -44,11 +44,11 @@ type Socket = {
   onmessage: ((event: { data: unknown }) => void) | null;
   onerror: (() => void) | null;
   onclose: (() => void) | null;
-  send(data: string | ArrayBuffer): void;
+  send(data: string | Uint8Array): void;
   close(): void;
 };
 
-export type Live = { send(chunk: ArrayBuffer): void; keepAlive(): void; finish(): Promise<void>; cancel(): void };
+export type Live = { send(chunk: Uint8Array): void; keepAlive(): void; finish(): Promise<void>; cancel(): void };
 
 const OPEN = 1;
 
@@ -61,7 +61,7 @@ export function openLive(
   connect: (url: string, protocols: string[]) => Socket = (url, protocols) => new WebSocket(url, protocols) as unknown as Socket,
 ): Live {
   const socket = connect(listenUrl(grant.language, grant.keyterms, sampleRate), ["bearer", grant.token]);
-  const held: ArrayBuffer[] = [];
+  const held: Uint8Array[] = [];
   let closing = false;
   let drained: (() => void) | undefined;
   const closed = () => {
@@ -69,8 +69,16 @@ export function openLive(
     closing = true;
     on.ended();
   };
+  const put = (data: string | Uint8Array) => {
+    try {
+      socket.send(data);
+    } catch {
+      socket.close();
+      closed();
+    }
+  };
   socket.onopen = () => {
-    for (const chunk of held.splice(0)) socket.send(chunk);
+    for (const chunk of held.splice(0)) put(chunk);
   };
   socket.onmessage = ({ data }) => {
     const words = typeof data === "string" ? readWords(data) : undefined;
@@ -80,24 +88,24 @@ export function openLive(
   socket.onclose = closed;
   const close = () => {
     closing = true;
-    if (socket.readyState === OPEN) socket.send(CLOSE_STREAM);
+    if (socket.readyState === OPEN) put(CLOSE_STREAM);
     socket.close();
   };
   return {
     send(chunk) {
       if (closing) return;
-      if (socket.readyState === OPEN) socket.send(chunk);
+      if (socket.readyState === OPEN) put(chunk);
       else held.push(chunk);
     },
     // The service drops a socket after ~10 s without audio; this holds it through a call or a route switch.
     keepAlive() {
-      if (!closing && socket.readyState === OPEN) socket.send(KEEP_ALIVE);
+      if (!closing && socket.readyState === OPEN) put(KEEP_ALIVE);
     },
     async finish() {
       if (closing) return;
       if (socket.readyState !== OPEN) return close();
       closing = true;
-      socket.send(CLOSE_STREAM);
+      put(CLOSE_STREAM);
       await new Promise<void>((resolve) => {
         drained = resolve;
         setTimeout(resolve, DRAIN_MS);

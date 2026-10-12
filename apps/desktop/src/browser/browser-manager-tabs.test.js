@@ -107,6 +107,37 @@ describe("DesktopBrowserManager", () => {
     ]);
   });
 
+  test("a link opened with a modifier loads its address: in the background for ⌘-click, in front for ⌘⇧-click", async () => {
+    const { manager, views } = makeHarness();
+    await manager.createTab("session-a", "https://one.example/", "human");
+
+    expect(views[0].webContents.openWindow("https://two.example/a", { disposition: "background-tab" }, { link: true }).action).toBe("allow");
+    await manager.settlePopupTabs();
+    expect(manager.state("session-a").tabs.map((tab) => [tab.url, tab.active])).toEqual([
+      ["https://one.example/", true],
+      ["https://two.example/a", false],
+    ]);
+
+    views[0].webContents.openWindow("https://three.example/b", { disposition: "foreground-tab" }, { link: true });
+    await manager.settlePopupTabs();
+    expect(manager.state("session-a").tabs.map((tab) => [tab.url, tab.active])).toEqual([
+      ["https://one.example/", false],
+      ["https://two.example/a", false],
+      ["https://three.example/b", true],
+    ]);
+  });
+
+  test("a link opened as a new window loads its address in a tab in front", async () => {
+    const { manager, views } = makeHarness();
+    await manager.createTab("session-a", "https://one.example/", "human");
+    views[0].webContents.openWindow("https://two.example/", { disposition: "new-window" }, { link: true });
+    await manager.settlePopupTabs();
+    expect(manager.state("session-a").tabs.map((tab) => [tab.url, tab.active])).toEqual([
+      ["https://one.example/", false],
+      ["https://two.example/", true],
+    ]);
+  });
+
   test("a popup keeps the OPENER's profile, not the scope's", async () => {
     const { manager, views } = makeHarness();
     manager.declareProfile("session-a", `project_${"a".repeat(32)}`);

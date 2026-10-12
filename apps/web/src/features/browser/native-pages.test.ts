@@ -8,9 +8,9 @@ function fakeBridge(ids: string[], active?: string) {
   const tabs = (): DesktopBrowserTab[] => pages.map((id, index) => ({ id, index, active: id === active, title: id, url: "", loading: false, canGoBack: false, canGoForward: false }));
   const bridge = {
     getState: async (scopeKey: string) => ({ scopeKey, tabs: tabs() }),
-    action: async (scopeKey: string, action: { action: string; index: number }) => {
+    action: async (scopeKey: string, action: { action: string; id: string }) => {
       calls.push(["action", scopeKey, action]);
-      pages = pages.filter((_, index) => index !== action.index);
+      pages = pages.filter((id) => id !== action.id);
       return { scopeKey, tabs: tabs() };
     },
     releaseScope: async (...args: unknown[]) => void calls.push(["release", ...args]),
@@ -19,18 +19,18 @@ function fakeBridge(ids: string[], active?: string) {
 }
 
 describe("closeNativePage", () => {
-  test("closes that page by its current index", async () => {
+  test("closes that page by its id", async () => {
     const { bridge, calls } = fakeBridge(["a", "b", "c"]);
     await closeNativePage(bridge, "s1", "b");
-    expect(calls).toEqual([["action", "s1", { action: "close", index: 1 }]]);
+    expect(calls).toEqual([["action", "s1", { action: "close", id: "b" }]]);
   });
 
   test("two closes at once each close their own page", async () => {
     const { bridge, calls } = fakeBridge(["a", "b", "c"]);
     await Promise.all([closeNativePage(bridge, "s1", "a"), closeNativePage(bridge, "s1", "c")]);
     expect(calls).toEqual([
-      ["action", "s1", { action: "close", index: 0 }],
-      ["action", "s1", { action: "close", index: 1 }],
+      ["action", "s1", { action: "close", id: "a" }],
+      ["action", "s1", { action: "close", id: "c" }],
     ]);
   });
 

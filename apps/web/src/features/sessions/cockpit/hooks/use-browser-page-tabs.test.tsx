@@ -21,10 +21,10 @@ function fakeShell(ids: string[]) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    action: (_scope: string, action: { index: number }) =>
+    action: (_scope: string, action: { id: string }) =>
       new Promise((resolve) => {
         finishClose = () => {
-          pages = pages.filter((_, index) => index !== action.index);
+          pages = pages.filter((id) => id !== action.id);
           resolve(state());
         };
       }),

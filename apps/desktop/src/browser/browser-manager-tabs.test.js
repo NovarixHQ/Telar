@@ -572,11 +572,42 @@ describe("duplicating a tab", () => {
     expect(manager.state("s").tabs[1].url).toBe("https://one.example/deep/page");
   });
 
-  test("an index that names no tab is refused, rather than duplicating something else", async () => {
+  test("an index that names no tab duplicates nothing and answers the current tabs", async () => {
     const { manager } = makeHarness();
     await manager.createTab("s", "https://one.example/", "human");
-    await expect(manager.action("s", { action: "duplicate", index: 9 })).rejects.toThrow(/does not exist/);
+    const answer = await manager.action("s", { action: "duplicate", index: 9 });
+    expect(answer.tabs).toHaveLength(1);
     expect(manager.state("s").tabs).toHaveLength(1);
+  });
+});
+
+describe("a cockpit action on a tab that already closed", () => {
+  test("is ignored quietly and answers the tabs that remain, for every action that names a tab", async () => {
+    const { manager } = makeHarness();
+    await manager.createTab("s", "https://one.example/", "human");
+    await manager.createTab("s", "https://two.example/", "human");
+    const [first, second] = manager.state("s").tabs;
+    await manager.action("s", { action: "close", id: second.id });
+
+    for (const action of ["select", "close", "resize", "reload", "duplicate", "zoom", "pop-out", "float"]) {
+      const answer = await manager.action("s", { action, id: second.id, width: 400, height: 300, direction: "in" });
+      expect(answer.tabs.map((tab) => tab.id)).toEqual([first.id]);
+    }
+    await expect(manager.action("s", { action: "select", index: 1 })).resolves.toMatchObject({ tabs: [{ id: first.id }] });
+    expect(manager.state("s").tabs.map((tab) => tab.id)).toEqual([first.id]);
+    expect(manager.isPopped("s")).toBe(false);
+  });
+
+  test("an id reaches its tab even after a close renumbered it", async () => {
+    const { manager } = makeHarness();
+    await manager.createTab("s", "https://one.example/", "human");
+    await manager.createTab("s", "https://two.example/", "human");
+    await manager.createTab("s", "https://three.example/", "human");
+    const third = manager.state("s").tabs[2];
+    await manager.action("s", { action: "close", index: 0 });
+
+    await manager.action("s", { action: "select", id: third.id });
+    expect(manager.state("s").tabs.find((tab) => tab.active)?.url).toBe("https://three.example/");
   });
 });
 

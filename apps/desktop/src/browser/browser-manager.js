@@ -286,9 +286,11 @@ class DesktopBrowserManager {
     this.sendState(scope, extra);
   }
 
-  async action(scopeKey, action, sender = null) {
+  async action(scopeKey, named, sender = null) {
     const scope = this.requireScope(scopeKey);
-    const kind = action?.action;
+    const action = this.cockpitAction(scope, named);
+    if (!action) return this.state(scope, sender);
+    const kind = action.action;
     const stage = this.stageOfSender(scope, sender);
     const here = () => this.placeTabs(scope, stage).find((tab) => tab.id === this.activeIdIn(scope, stage));
     const chosen = () => (action.index === undefined ? this.activeTab(scope, stage) : this.tabAt(scope, action.index));

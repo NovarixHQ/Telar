@@ -20,9 +20,9 @@ function TabMenu({ tab, b, className, children }: { tab: DesktopBrowserTab; b: B
     <ContextMenu>
       <ContextMenuTrigger className={className}>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-auto">
-        <ContextMenuItem onClick={() => void act({ action: "reload", index: tab.index })}>Reload</ContextMenuItem>
+        <ContextMenuItem onClick={() => void act({ action: "reload", id: tab.id })}>Reload</ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => void act({ action: "duplicate", index: tab.index })}>Duplicate</ContextMenuItem>
+        <ContextMenuItem onClick={() => void act({ action: "duplicate", id: tab.id })}>Duplicate</ContextMenuItem>
         <ContextMenuItem onClick={() => void navigator.clipboard.writeText(tab.url)}>Copy URL</ContextMenuItem>
         {onOpenExternal && (
           <ContextMenuItem disabled={!web} onClick={() => void onOpenExternal(tab.url)}>
@@ -30,14 +30,13 @@ function TabMenu({ tab, b, className, children }: { tab: DesktopBrowserTab; b: B
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
-        <ContextMenuItem onClick={() => void act({ action: "close", index: tab.index })}>Close</ContextMenuItem>
+        <ContextMenuItem onClick={() => void act({ action: "close", id: tab.id })}>Close</ContextMenuItem>
         <ContextMenuItem
           disabled={tabs.length < 2}
           onClick={() => {
-            // Descending: closing a tab renumbers every tab after it.
             void (async () => {
-              for (const other of [...tabs].sort((a, c) => c.index - a.index)) {
-                if (other.id !== tab.id) await act({ action: "close", index: other.index });
+              for (const other of tabs) {
+                if (other.id !== tab.id) await act({ action: "close", id: other.id });
               }
             })();
           }}
@@ -103,7 +102,7 @@ export function TabStrip({ b }: { b: BrowserUi }) {
           draggable
           onDragStart={(event) => startReferenceDrag(event.dataTransfer, browserPageReference({ title: tab.title, url: tab.url }))}
           onAuxClick={(event) => {
-            if (event.button === 1) void act({ action: "close", index: tab.index });
+            if (event.button === 1) void act({ action: "close", id: tab.id });
           }}
         >
           <TabMenu
@@ -128,7 +127,7 @@ export function TabStrip({ b }: { b: BrowserUi }) {
               aria-selected={tab.active}
               className="min-w-0 flex-1 truncate text-left text-xs"
               title={`${tab.url}\nDrag into the message to reference this page`}
-              onClick={() => void act({ action: "select", index: tab.index })}
+              onClick={() => void act({ action: "select", id: tab.id })}
             >
               {tab.title || "New tab"}
             </button>
@@ -138,7 +137,7 @@ export function TabStrip({ b }: { b: BrowserUi }) {
               className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={(event) => {
                 event.stopPropagation();
-                void act({ action: "close", index: tab.index });
+                void act({ action: "close", id: tab.id });
               }}
             >
               <XIcon className="size-3" />

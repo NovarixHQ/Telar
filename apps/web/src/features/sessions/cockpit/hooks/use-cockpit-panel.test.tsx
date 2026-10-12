@@ -158,7 +158,7 @@ describe("in the desktop app", () => {
     await flush(() => hook().panel.tabs.length === 3);
     await act(async () => hook().tabHandlers.onCloseTab("browser:a"));
     await flush(() => actions.length > 0);
-    expect(actions).toEqual([{ action: "close", index: 0 }]);
+    expect(actions).toEqual([{ action: "close", id: "a" }]);
     expect(ids(hook().panel)).toEqual(["diff", "browser:b"]);
   });
 

@@ -246,7 +246,7 @@ describe("the options menu", () => {
     const { actions, host, unmount } = await mount(panelState({ tabs: [tab({ index: 0, active: false }), tab({ index: 1, id: "tab-2" })] }));
     await mouseClick(optionsTrigger(host));
     await mouseClick(menuRow("Open in its own window"));
-    expect(actions.at(-1)).toEqual({ action: "pop-out", index: 1 });
+    expect(actions.at(-1)).toEqual({ action: "pop-out", id: "tab-2" });
     unmount();
 
     const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
@@ -321,7 +321,7 @@ describe("the device toolbar", () => {
     await mouseClick(optionsTrigger(host));
     expect(menuRow("Show device toolbar").getAttribute("aria-pressed")).toBe("false");
     await mouseClick(menuRow("Show device toolbar"));
-    expect(actions.at(-1)).toEqual({ action: "resize", index: 0, mode: "fixed" });
+    expect(actions.at(-1)).toEqual({ action: "resize", id: "tab_1", mode: "fixed" });
   });
 
   test("is shown for a fixed tab, and turning it off puts the tab back in fit mode", async () => {
@@ -332,7 +332,7 @@ describe("the device toolbar", () => {
     await mouseClick(optionsTrigger(host));
     expect(menuRow("Show device toolbar").getAttribute("aria-pressed")).toBe("true");
     await mouseClick(menuRow("Show device toolbar"));
-    expect(actions.at(-1)).toEqual({ action: "resize", index: 0, mode: "fit" });
+    expect(actions.at(-1)).toEqual({ action: "resize", id: "tab_1", mode: "fit" });
   });
 
   test("carries the preset, the two numbers, rotate, and what the panel is scaling to", async () => {
@@ -351,7 +351,7 @@ describe("the device toolbar", () => {
     const fixed = tab({ viewport: { width: 390, height: 844, preset: "phone", mode: "fixed" } });
     const { actions, host } = await mount(panelState({ tabs: [fixed] }));
     await mouseClick(host.querySelector('[aria-label="Rotate the viewport"]')!);
-    expect(actions.at(-1)).toEqual({ action: "resize", index: 0, width: 844, height: 390 });
+    expect(actions.at(-1)).toEqual({ action: "resize", id: "tab_1", width: 844, height: 390 });
   });
 
   test("the preset picker is a menu, so it takes the native view down too", async () => {
@@ -362,7 +362,7 @@ describe("the device toolbar", () => {
     await mouseClick(picker);
     expect(nativeViewOverlayHidden()).toBe(true);
     await mouseClick(menuRow("iPad Mini768×1024"));
-    expect(actions.at(-1)).toEqual({ action: "resize", index: 0, preset: "ipad-mini" });
+    expect(actions.at(-1)).toEqual({ action: "resize", id: "tab_1", preset: "ipad-mini" });
     expect(nativeViewOverlayHidden()).toBe(false);
   });
 
@@ -377,7 +377,7 @@ describe("the device toolbar", () => {
     expect(menuRows()[0]).toBe("Fit to panel");
 
     await mouseClick(menuRow("Fit to panel"));
-    expect(actions.at(-1)).toEqual({ action: "resize", index: 0, mode: "fit" });
+    expect(actions.at(-1)).toEqual({ action: "resize", id: "tab_1", mode: "fit" });
   });
 
 });
@@ -527,7 +527,7 @@ describe("a browser popped out into its own window", () => {
   test("the toolbar's picture-in-picture button floats the panel's current tab, or the window itself", async () => {
     const panel = await mount(panelState({ tabs: [tab({ index: 0, active: false }), tab({ index: 1, id: "tab-2" })] }));
     await mouseClick(panel.host.querySelector('[aria-label="Picture in picture"]')!);
-    expect(panel.actions.at(-1)).toEqual({ action: "float", on: true, index: 1 });
+    expect(panel.actions.at(-1)).toEqual({ action: "float", on: true, id: "tab-2" });
     panel.unmount();
 
     const own = await mount(panelState({ popped: true }), {}, undefined, { inWindow: true });
@@ -599,7 +599,7 @@ describe("a panel tab for one page", () => {
     expect(host.querySelector('[role="tab"]')).toBeNull();
     expect(host.querySelector('[aria-label="New tab"]')).toBeNull();
     expect(host.querySelector('[aria-label="Address"]')).not.toBeNull();
-    expect(actions).toEqual([{ action: "select", index: 1 }]);
+    expect(actions).toEqual([{ action: "select", id: "tab_2" }]);
   });
 
   test("selects nothing when its page is already in front", async () => {

@@ -101,7 +101,7 @@ class FakeWebContents extends EventEmitter {
     this.windowOpenHandler = handler;
   }
 
-  openWindow(url, details = {}) {
+  openWindow(url, details = {}, { link = false } = {}) {
     if (!this.windowOpenHandler) return { action: "allow" };
     const response = this.windowOpenHandler({
       url,
@@ -111,6 +111,10 @@ class FakeWebContents extends EventEmitter {
       ...details,
     });
     if (response?.action !== "allow" || typeof response.createWindow !== "function") return response;
+    if (link) {
+      response.adopted = response.createWindow({ webPreferences: {} });
+      return response;
+    }
     const guest = new FakeWebContents();
     guest.opener = this;
     guest.session = this.session;

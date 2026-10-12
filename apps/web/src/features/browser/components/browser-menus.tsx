@@ -238,7 +238,7 @@ function OptionsRows({ b }: { b: BrowserUi }) {
         type="button"
         disabled={!activeTab}
         title={b.inWindow ? "Put this window's tabs back in the panel." : "Move this tab into a window of its own. The agent keeps working in it."}
-        onClick={() => run(() => void b.act(b.inWindow || !activeTab ? { action: "bring-back" } : { action: "pop-out", index: activeTab.index }))}
+        onClick={() => run(() => void b.act(b.inWindow || !activeTab ? { action: "bring-back" } : { action: "pop-out", id: activeTab.id }))}
         className={row}
       >
         <span className="min-w-0 flex-1">{b.inWindow ? "Bring back to the panel" : "Open in its own window"}</span>
@@ -249,7 +249,7 @@ function OptionsRows({ b }: { b: BrowserUi }) {
         disabled={!activeTab?.viewport}
         title="Lay the page out at a chosen size instead of following the panel."
         onClick={() => {
-          if (activeTab) run(() => void b.act({ action: "resize", index: activeTab.index, mode: deviceToolbar ? "fit" : "fixed" }));
+          if (activeTab) run(() => void b.act({ action: "resize", id: activeTab.id, mode: deviceToolbar ? "fit" : "fixed" }));
         }}
       >
         <span className="min-w-0 flex-1">Show device toolbar</span>

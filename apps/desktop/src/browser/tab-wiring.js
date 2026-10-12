@@ -48,11 +48,11 @@ module.exports = {
       action: "allow",
 
       outlivesOpener: true,
-      createWindow: (options) => this.adoptPopupTab(opener, options, openedBy),
+      createWindow: (options) => this.adoptPopupTab(opener, options, openedBy, details),
     };
   },
 
-  adoptPopupTab(opener, options, openedBy) {
+  adoptPopupTab(opener, options, openedBy, details = {}) {
     const guest = options?.webContents || null;
 
     const expected = this.sessionFor(opener.partition);
@@ -67,25 +67,27 @@ module.exports = {
     const wasEmpty = this.placeTabs(scope, tab.stage).length === 0;
     this.tabs.push(tab);
 
-    if (openedBy === "human" || wasEmpty) this.setActiveIn(scope, tab.stage, tab.id);
+    if ((openedBy === "human" && details.disposition !== "background-tab") || wasEmpty) this.setActiveIn(scope, tab.stage, tab.id);
     if (openedBy === "agent") {
       this.agentTabIds.set(scope, tab.id);
       this.agentTabClosed.delete(scope);
     }
     const view = this.adoptViewForTab(tab, guest);
+    const destination = guest ? null : normalizePopupUrl(details.url);
 
     if (openedBy === "human") tab.lastHumanInputAt = this.now();
     this.journalControl(tab, openedBy === "human" ? "human" : "agent");
     this.applyVisibility();
     this.emitState(scope);
-    this.trackPopupTab(this.finishPopupTab(tab, view));
+    this.trackPopupTab(this.finishPopupTab(tab, view, destination));
     return view.webContents;
   },
 
-  async finishPopupTab(tab, view) {
+  async finishPopupTab(tab, view, destination) {
     const scope = tab.scopeKey;
     const humanTabBefore = this.activeIdIn(scope, tab.stage);
     await this.readyHostForTab(tab, view);
+    if (destination && destination !== "about:blank" && tab.view === view) await this.loadTab(tab, destination).catch(() => {});
 
     if (
       tab.openedBy === "agent" &&

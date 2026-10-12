@@ -350,7 +350,7 @@ describe("the integrated browser's tab strip", () => {
     return { actions, menuOf };
   }
 
-  test("every item names the right-clicked tab by index, and none selects it", async () => {
+  test("every item names the right-clicked tab, and none selects it", async () => {
     const { actions, menuOf } = await strip([tab(0), tab(1)]);
     for (const label of ["Reload", "Duplicate", "Close"]) {
       await menuOf(1);
@@ -358,16 +358,16 @@ describe("the integrated browser's tab strip", () => {
     }
     await menuOf(1);
     await choose("Copy URL");
-    expect(actions).toEqual([{ action: "reload", index: 1 }, { action: "duplicate", index: 1 }, { action: "close", index: 1 }]);
+    expect(actions).toEqual([{ action: "reload", id: "tab_1" }, { action: "duplicate", id: "tab_1" }, { action: "close", id: "tab_1" }]);
     expect(copied).toEqual(["https://example.com/1"]);
   });
 
-  test("Close others walks down, because closing renumbers the tabs above", async () => {
+  test("Close others closes every other tab by id", async () => {
     const { actions, menuOf } = await strip([tab(0), tab(1), tab(2)]);
     await menuOf(1);
     await choose("Close others");
     await flush(() => actions.length === 2);
-    expect(actions).toEqual([{ action: "close", index: 2 }, { action: "close", index: 0 }]);
+    expect(actions).toEqual([{ action: "close", id: "tab_0" }, { action: "close", id: "tab_2" }]);
   });
 
   test("Close others is disabled on a lone tab", async () => {

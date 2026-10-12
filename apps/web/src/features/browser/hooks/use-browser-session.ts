@@ -367,7 +367,7 @@ export function useDeviceSize({ bridge, scopeKey }: BrowserProps, s: BrowserStor
   const resize = (next: { width: number; height: number }) => {
     const viewport = activeTab?.viewport;
     if (!viewport || !activeTab || (next.width === viewport.width && next.height === viewport.height)) return;
-    void act({ action: "resize", index: activeTab.index, width: next.width, height: next.height });
+    void act({ action: "resize", id: activeTab.id, width: next.width, height: next.height });
   };
   // A draft that is not two numbers falls back to the tab's own size rather than resizing.
   const commitSize = () => {
@@ -391,7 +391,7 @@ export function useDeviceSize({ bridge, scopeKey }: BrowserProps, s: BrowserStor
   // A live frame of a rail drag: the shell answers nothing and only the release reports failure.
   const liveResize = (size: { width: number; height: number }) => {
     if (!activeTab) return;
-    void bridge.action(scopeKey, { action: "resize", index: activeTab.index, width: size.width, height: size.height, live: true }).catch(() => {});
+    void bridge.action(scopeKey, { action: "resize", id: activeTab.id, width: size.width, height: size.height, live: true }).catch(() => {});
   };
   return { commitSize, stepSize, liveResize };
 }
@@ -403,7 +403,7 @@ export function useShownPage(pageId: string | undefined, s: BrowserStore, act: A
   useEffect(() => {
     if (!page || requested.current === page.id) return;
     requested.current = page.id;
-    if (!page.active) void act({ action: "select", index: page.index });
+    if (!page.active) void act({ action: "select", id: page.id });
   }, [page, act]);
 }
 
@@ -424,7 +424,7 @@ export function useBrowserKeys(s: BrowserStore, { activeTab }: BrowserView, act:
       const current = tabs.findIndex((tab) => tab.active);
       const next = tabs[(current + (event.shiftKey ? tabs.length - 1 : 1)) % tabs.length]!;
       event.preventDefault();
-      void act({ action: "select", index: next.index });
+      void act({ action: "select", id: next.id });
       return;
     }
     if (!meta) return;
@@ -433,12 +433,12 @@ export function useBrowserKeys(s: BrowserStore, { activeTab }: BrowserView, act:
       void act({ action: "new" });
     } else if (event.key === "w" && activeTab) {
       event.preventDefault();
-      void act({ action: "close", index: activeTab.index });
+      void act({ action: "close", id: activeTab.id });
     } else if (/^[1-9]$/.test(event.key) && !(event.metaKey && event.ctrlKey)) {
       const target = tabs[Number(event.key) - 1];
       if (target) {
         event.preventDefault();
-        void act({ action: "select", index: target.index });
+        void act({ action: "select", id: target.id });
       }
     }
   };

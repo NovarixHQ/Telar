@@ -111,6 +111,20 @@ describe("a page that fails to load is page state, not a failed action", () => {
     expect(views[0].visible).toBe(true);
   });
 
+  test("a new tab whose page fails answers with that tab, so a link opened in it never falls back to the system browser", async () => {
+    const { manager } = makeHarness();
+    const make = manager.createView;
+    manager.createView = (options) => {
+      const view = make(options);
+      refusing(view.webContents);
+      return view;
+    };
+    const state = await manager.action("s", { action: "new", url: "http://localhost:5173/" });
+    expect(state.tabs.map((tab) => [tab.url, tab.active, tab.loadError])).toEqual([
+      ["http://localhost:5173/", true, { code: "ERR_CONNECTION_REFUSED", url: "http://localhost:5173/" }],
+    ]);
+  });
+
   test("aborted loads and subframe failures leave no error page", async () => {
     const { manager, views } = makeHarness();
     await manager.createTab("s", "about:blank", "human");

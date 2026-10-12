@@ -9,7 +9,7 @@ export function isClosingPage(scopeKey: string, pageId: string): boolean {
 
 /**
  * Close one page of a native browser by id; closing its last page releases the scope as the person's close.
- * Queued per scope: the shell closes by index, and every close renumbers the pages after it.
+ * Queued per scope, so closing the last pages releases the scope once.
  */
 export function closeNativePage(bridge: DesktopBrowserBridge, scopeKey: string, pageId: string): Promise<void> {
   const pages = closingPages.get(scopeKey) ?? new Set<string>();
@@ -20,7 +20,7 @@ export function closeNativePage(bridge: DesktopBrowserBridge, scopeKey: string, 
       const page = tabs.find((tab) => tab.id === pageId);
       if (!page) return;
       if (tabs.length === 1 && bridge.releaseScope) await bridge.releaseScope(scopeKey, true, { closedByPerson: true });
-      else await bridge.action(scopeKey, { action: "close", index: page.index });
+      else await bridge.action(scopeKey, { action: "close", id: page.id });
     })
     .catch(() => undefined);
   closing.set(scopeKey, run);

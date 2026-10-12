@@ -311,6 +311,15 @@ module.exports = {
     return tab;
   },
 
+  cockpitAction(scope, action) {
+    const tabs = this.scopeTabs(scope);
+    if (action?.id !== undefined) {
+      const index = tabs.findIndex((tab) => tab.id === action.id);
+      return index < 0 ? null : { ...action, index };
+    }
+    return action?.index !== undefined && !tabs[Number(action.index)] ? null : action;
+  },
+
   agentTab(scopeKey) {
     const scope = this.requireScope(scopeKey);
     const closed = this.agentTabClosed.get(scope);

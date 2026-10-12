@@ -114,7 +114,7 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
           aria-label="Picture in picture"
           title={pipOpen ? "Close picture in picture" : "Picture in picture: this page in a small window above other apps"}
           className={cn("shrink-0", GLYPH, pipOpen && "bg-muted text-foreground")}
-          onClick={() => void act(pipOpen ? { action: "bring-back" } : b.inWindow ? { action: "float", on: true } : { action: "float", on: true, index: activeTab.index })}
+          onClick={() => void act(pipOpen ? { action: "bring-back" } : b.inWindow ? { action: "float", on: true } : { action: "float", on: true, id: activeTab.id })}
         >
           <PictureInPicture2Icon className="size-3.5" />
         </button>
@@ -137,10 +137,10 @@ function AddressRow({ b, openOverlay, addressRowRef, keyButtonRef }: AddressRowP
 }
 
 // Returns the two popovers rather than rendering them, so the toolbar can place them apart.
-function deviceMenus({ b, openOverlay, index, viewport }: { b: BrowserUi; openOverlay: BrowserOverlay; index: number; viewport: NonNullable<DesktopBrowserTab["viewport"]> }) {
+function deviceMenus({ b, openOverlay, id, viewport }: { b: BrowserUi; openOverlay: BrowserOverlay; id: string; viewport: NonNullable<DesktopBrowserTab["viewport"]> }) {
   const pick = (action: Record<string, unknown>) => {
     b.closeOverlay();
-    void b.act({ action: "resize", index, ...action });
+    void b.act({ action: "resize", id, ...action });
   };
   const current = viewportPreset(viewport.preset)?.key;
   const zoom = b.state?.presentation?.zoom ?? "fit";
@@ -205,7 +205,7 @@ function DeviceToolbar({ b, openOverlay }: { b: BrowserUi; openOverlay: BrowserO
   const { activeTab, draftSize, lockRatio } = b;
   const viewport = activeTab?.viewport;
   if (!b.deviceToolbar || !activeTab || !viewport) return null;
-  const menus = deviceMenus({ b, openOverlay, index: activeTab.index, viewport });
+  const menus = deviceMenus({ b, openOverlay, id: activeTab.id, viewport });
   const field = (key: "width" | "height") => (
     <input
       aria-label={`Viewport ${key}`}
@@ -219,7 +219,7 @@ function DeviceToolbar({ b, openOverlay }: { b: BrowserUi; openOverlay: BrowserO
       className={SIZE_FIELD}
     />
   );
-  const fit = () => { b.setSizeDraft(undefined); void b.act({ action: "resize", index: activeTab.index, mode: "fit" }); };
+  const fit = () => { b.setSizeDraft(undefined); void b.act({ action: "resize", id: activeTab.id, mode: "fit" }); };
   return (
     <div className="flex shrink-0 items-center gap-1.5 border-b border-border px-2 py-1" aria-label="Device toolbar">
       <MonitorSmartphoneIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
@@ -243,7 +243,7 @@ function DeviceToolbar({ b, openOverlay }: { b: BrowserUi; openOverlay: BrowserO
         type="button"
         aria-label="Rotate the viewport"
         title="Swap width and height"
-        onClick={() => { b.setSizeDraft(undefined); void b.act({ action: "resize", index: activeTab.index, width: viewport.height, height: viewport.width }); }}
+        onClick={() => { b.setSizeDraft(undefined); void b.act({ action: "resize", id: activeTab.id, width: viewport.height, height: viewport.width }); }}
         className={cn("shrink-0", GLYPH)}
       >
         <RotateCwSquareIcon className="size-3.5" />
@@ -288,7 +288,7 @@ function BrowserHost({ b, frozenFrame, hostRef }: { b: BrowserUi; frozenFrame: R
           preview={b.dragPreview}
           onPreview={b.setDragPreview}
           onLive={b.liveResize}
-          onCommit={(size) => void act({ action: "resize", index: activeTab.index, width: size.width, height: size.height })}
+          onCommit={(size) => void act({ action: "resize", id: activeTab.id, width: size.width, height: size.height })}
           railsKey={`${b.scopeKey}:${activeTab.id}`}
         />
       ) : null}

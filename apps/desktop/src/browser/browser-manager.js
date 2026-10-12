@@ -286,9 +286,11 @@ class DesktopBrowserManager {
     this.sendState(scope, extra);
   }
 
-  async action(scopeKey, action, sender = null) {
+  async action(scopeKey, named, sender = null) {
     const scope = this.requireScope(scopeKey);
-    const kind = action?.action;
+    const action = this.cockpitAction(scope, named);
+    if (!action) return this.state(scope, sender);
+    const kind = action.action;
     const stage = this.stageOfSender(scope, sender);
     const here = () => this.placeTabs(scope, stage).find((tab) => tab.id === this.activeIdIn(scope, stage));
     const chosen = () => (action.index === undefined ? this.activeTab(scope, stage) : this.tabAt(scope, action.index));
@@ -328,7 +330,7 @@ class DesktopBrowserManager {
     if (kind === "show-window") return this.showStage(scope);
     if (kind === "bring-back") return (this.bringBack(scope, { focus: action.focus === true }), this.state(scope, sender));
     if (kind === "float") return (this.floatStage(scope, typeof action.on === "boolean" ? action.on : undefined, { index: action.index, fromWindow: Boolean(stage) }), this.state(scope, sender));
-    if (kind === "new") return viewed(this.createTab(scope, action.url || "about:blank", "human", stage));
+    if (kind === "new") return viewed(this.createTab(scope, action.url || "about:blank", "human", stage).catch((error) => { if (!isLoadFailure(error)) throw error; }));
     if (kind === "close") return (this.closeTab(scope, action.index, stage), this.state(scope, sender));
 
     if (kind === "resize") {

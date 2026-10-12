@@ -69,7 +69,7 @@ export function relativeTime(at: number, now: number): string {
   return at > now ? `in ${count}${unit}` : `${count}${unit} ago`;
 }
 
-const lastActivityOf = (session: Pick<LiveSessionRow, "updatedAt" | "activityAt" | "lastTurnEndedAt">): number => Math.max(session.updatedAt, session.activityAt ?? 0, session.lastTurnEndedAt ?? 0);
+const lastActivityOf = (session: Pick<LiveSessionRow, "createdAt" | "activityAt" | "lastTurnEndedAt">): number => Math.max(session.createdAt, session.activityAt ?? 0, session.lastTurnEndedAt ?? 0);
 
 function statusOf(session: LiveSessionRow, now: number): RailStatus {
   if (session.snoozedUntil !== undefined && session.snoozedUntil > now && session.activity !== "blocked") return { kind: "snoozed", label: relativeTime(session.snoozedUntil, now) };

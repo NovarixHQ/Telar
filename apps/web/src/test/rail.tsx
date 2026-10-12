@@ -7,10 +7,11 @@ export const pushes: string[] = [];
 const router = { push: (to: string) => pushes.push(to), replace: () => {}, refresh: () => {}, back: () => {}, forward: () => {}, prefetch: () => {} };
 // Module mocks are process-wide and last-wins, and this file is imported once per
 // process, so every mount re-installs the router another file may have replaced.
+let pathname = "/";
 const installNavigation = () =>
   mock.module("next/navigation", () => ({
     ...navigation,
-    usePathname: () => "/",
+    usePathname: () => pathname,
     useRouter: () => router,
     useSearchParams: () => new URLSearchParams(),
     redirect: navigation.redirect,
@@ -75,7 +76,8 @@ export const liveReads = (requests: RailRequest[]) => requests.filter((request) 
 export const loadRail = () => import("@/features/sessions/rail/app-sidebar?rail" as string) as Promise<typeof import("@/features/sessions/rail/app-sidebar")>;
 
 /** Mounts the whole rail and waits for its first pass (and the layout read) to land. */
-export async function mountRail() {
+export async function mountRail({ viewing = "/" }: { viewing?: string } = {}) {
+  pathname = viewing;
   installNavigation();
   window.localStorage.clear();
   pushes.length = 0;

@@ -129,10 +129,14 @@ function bareNotification(turn: JournalTurn): boolean {
   return turn.state !== "failed" && turn.state !== "stopped" && turn.state !== "discarded";
 }
 
+// Waiting messages live in the queue line, and a steered one renders inside the run it joined.
+const OFF_TRANSCRIPT = new Set<JournalTurn["state"]>(["queued", "steering", "steered"]);
+
 /** Runs of bare notification turns sit 2pt apart instead of a turn's 16pt, as in the Swift transcript. */
 export function groupTurns(turns: readonly JournalTurn[]): JournalTurn[][] {
   const groups: JournalTurn[][] = [];
   for (const turn of turns) {
+    if (OFF_TRANSCRIPT.has(turn.state)) continue;
     const previous = groups.at(-1)?.at(-1);
     if (previous && turn.notification && bareNotification(previous)) groups.at(-1)!.push(turn);
     else groups.push([turn]);

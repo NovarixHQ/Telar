@@ -227,14 +227,24 @@ describe("deriveSessionList", () => {
     expect(titles(list.settled)).toContain("Old spike");
   });
 
-  test("the open session survives a SNOOZE too", () => {
-    // Reading a session you snoozed from another window is exactly as
-    // disorienting as reading one that aged out, so the rule covers both.
-    const rows = [row("s4", "Asleep", { snoozedUntil: NOW + HOUR, snoozedAt: NOW - 1_000 })];
-    const list = deriveSessionList({ sessions: rows, activeSessionId: "s4", now: NOW });
-    expect(titles(list.sessions)).toEqual(["Asleep"]);
-    expect(list.snoozed).toEqual([]);
-    expect(list.snoozedCount).toBe(0);
+  test("snoozing the open session moves it to its shelf, as settling does", () => {
+    const rows = [
+      row("s3", "Newer", { createdAt: NOW - 500 }),
+      row("s4", "Asleep", { snoozedUntil: NOW + HOUR, snoozedAt: NOW, updatedAt: NOW }),
+    ];
+    for (const order of ["created", "activity"] as const) {
+      const list = deriveSessionList({ sessions: rows, activeSessionId: "s4", now: NOW, order });
+      expect(titles(list.sessions)).toEqual(["Newer"]);
+      expect(titles(list.snoozed)).toEqual(["Asleep"]);
+    }
+  });
+
+  test("a snooze or rename does not lift a row in activity order", () => {
+    const rows = [
+      row("s1", "Older", { createdAt: NOW - 2_000, updatedAt: NOW }),
+      row("s2", "Newer", { createdAt: NOW - 1_000, updatedAt: NOW - 1_000 }),
+    ];
+    expect(titles(deriveSessionList({ sessions: rows, now: NOW, order: "activity" }).sessions)).toEqual(["Newer", "Older"]);
   });
 
   test("the open session is pinned onto the page even past the limit", () => {

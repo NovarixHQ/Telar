@@ -181,8 +181,8 @@ export type SessionListResult = {
 const createdNewestFirst = (a: SidebarSession, b: SidebarSession) =>
   b.createdAt - a.createdAt || b.updatedAt - a.updatedAt || a.id.localeCompare(b.id);
 
-function lastActivityAt(session: Pick<SidebarSession, "updatedAt" | "activityAt" | "lastTurnEndedAt">): number {
-  return Math.max(session.updatedAt, session.activityAt ?? 0, session.lastTurnEndedAt ?? 0);
+function lastActivityAt(session: Pick<SidebarSession, "createdAt" | "activityAt" | "lastTurnEndedAt">): number {
+  return Math.max(session.createdAt, session.activityAt ?? 0, session.lastTurnEndedAt ?? 0);
 }
 
 const activeNewestFirst = (a: SidebarSession, b: SidebarSession) =>
@@ -254,17 +254,13 @@ export function deriveSessionList({
     (band === "pinned" ? pinned : band === "snoozed" ? snoozed : band === "settled" ? settled : current).push(session);
   }
 
-  const activeSnoozed = activeSessionId ? snoozed.find((session) => sessionKey(session) === activeSessionId) : undefined;
-  const currentWithSurvivor = activeSnoozed ? [...current, activeSnoozed].sort(newestFirst) : current;
-  const snoozedRest = activeSnoozed ? snoozed.filter((session) => sessionKey(session) !== sessionKey(activeSnoozed)) : snoozed;
-
   const settledPage = pageWithActive(settled, settledLimit, activeSessionId);
 
   return {
     pinned,
-    sessions: currentWithSurvivor,
-    snoozed: snoozedRest.slice().sort((left, right) => (left.snoozedUntil ?? 0) - (right.snoozedUntil ?? 0)),
-    snoozedCount: snoozedRest.length,
+    sessions: current,
+    snoozed: snoozed.sort((left, right) => (left.snoozedUntil ?? 0) - (right.snoozedUntil ?? 0)),
+    snoozedCount: snoozed.length,
     settled: settledPage.rows,
     settledCount: settled.length,
     hasMoreSessions: false,

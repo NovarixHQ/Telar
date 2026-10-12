@@ -11,7 +11,7 @@ export type RouteReason =
   | "unknown";
 
 type Events = {
-  onAudio: (event: { data: ArrayBuffer }) => void;
+  onAudio: (event: { data: Uint8Array }) => void;
   onRoute: (event: { reason: RouteReason }) => void;
   onInterruption: (event: { began: boolean }) => void;
   onReset: () => void;

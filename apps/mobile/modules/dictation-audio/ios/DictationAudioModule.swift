@@ -107,7 +107,7 @@ public final class DictationAudioModule: Module {
     }
   }
 
-  private static func pcm16(_ buffer: AVAudioPCMBuffer, _ converter: AVAudioConverter, _ wire: AVAudioFormat) -> ArrayBuffer? {
+  private static func pcm16(_ buffer: AVAudioPCMBuffer, _ converter: AVAudioConverter, _ wire: AVAudioFormat) -> Data? {
     let capacity = AVAudioFrameCount(Double(buffer.frameLength) * wire.sampleRate / buffer.format.sampleRate) + 1
     guard let out = AVAudioPCMBuffer(pcmFormat: wire, frameCapacity: capacity) else { return nil }
     var handed = false
@@ -122,7 +122,7 @@ public final class DictationAudioModule: Module {
       return buffer
     }
     guard failure == nil, out.frameLength > 0, let channel = out.int16ChannelData else { return nil }
-    return ArrayBuffer.copy(of: channel[0], count: Int(out.frameLength) * MemoryLayout<Int16>.size)
+    return Data(bytes: channel[0], count: Int(out.frameLength) * MemoryLayout<Int16>.size)
   }
 }
 

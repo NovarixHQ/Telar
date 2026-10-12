@@ -21,7 +21,8 @@ type Deps = {
 };
 
 export const MIC_LOST = "Dictation stopped because the microphone went away. Tap the mic to start again.";
-export const NO_ROUTE = "Dictation stopped because no microphone is available on this audio route.";
+export const NO_AUDIO = "Dictation stopped because the microphone sent audio Telar cannot read. Update the app and try again.";
+export const NO_ROUTE ="Dictation stopped because no microphone is available on this audio route.";
 
 const SILENT_MS = 3_000;
 const KEEP_ALIVE_MS = 4_000;
@@ -36,7 +37,7 @@ const idle = Promise.resolve();
  */
 export class Listening {
   private live: Live | undefined;
-  private held: ArrayBuffer[] = [];
+  private held: Uint8Array[] = [];
   private paused = false;
   private rebuilding: Promise<void> | undefined;
   private again = false;
@@ -56,8 +57,9 @@ export class Listening {
     return this.attach();
   }
 
-  audio(chunk: ArrayBuffer): void {
+  audio(chunk: unknown): void {
     if (this.done) return;
+    if (!(chunk instanceof Uint8Array)) return this.stop(new Error(NO_AUDIO));
     this.heardAt = this.deps.now();
     this.nudged = false;
     if (this.live) this.live.send(chunk);

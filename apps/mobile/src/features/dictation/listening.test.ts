@@ -1,15 +1,15 @@
 import { expect, test } from "bun:test";
 import { SOCKET_ENDED, TranscriptionRefused } from "./grant";
-import { Listening, MIC_LOST, NO_ROUTE } from "./listening";
+import { Listening, MIC_LOST, NO_AUDIO, NO_ROUTE } from "./listening";
 import type { Live } from "./live";
 import { EMPTY_STRIP, flush, hear, type Words } from "./strip";
 
 class FakeLive implements Live {
-  sent: ArrayBuffer[] = [];
+  sent: Uint8Array[] = [];
   keptAlive = 0;
   cancelled = false;
   constructor(readonly on: { words: (words: Words) => void; ended: () => void }) {}
-  send(chunk: ArrayBuffer) {
+  send(chunk: Uint8Array) {
     this.sent.push(chunk);
   }
   keepAlive() {
@@ -50,7 +50,7 @@ const setup = (rebuild: () => Promise<void> = async () => undefined) => {
   return { run, capture, sockets, socket, say, draft, problems, heard: () => strip.heard, advance };
 };
 
-const chunk = () => new ArrayBuffer(2);
+const chunk = () => new Uint8Array(2);
 
 test("a route change taps the microphone again and keeps the socket and the words already heard", async () => {
   const { run, capture, sockets, socket, say, draft, heard, problems } = setup();
@@ -191,4 +191,14 @@ test("finishing stops capture and nothing that follows is reported", async () =>
   await run.tick();
   expect(capture.stopped).toBe(1);
   expect(problems).toEqual([]);
+});
+
+test("audio that is not bytes stops dictation with a reason instead of reaching the socket", async () => {
+  const { run, capture, socket, problems } = setup();
+  await run.begin();
+  run.audio(undefined);
+  expect(socket().sent).toEqual([]);
+  expect(socket().cancelled).toBe(true);
+  expect(capture.stopped).toBe(1);
+  expect(problems).toEqual([new Error(NO_AUDIO)]);
 });

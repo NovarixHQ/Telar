@@ -48,7 +48,6 @@ export function webhookStatus(config = readWebhook()): WebhookStatus {
   };
 }
 
-/** The same transitions, and the same once-per-transition memory, as the desktop banner. */
 export function webhookEvents(state: WebhookState, sessions: readonly SessionSignal[], changed: ReadonlySet<string> | undefined, now: number): { events: WebhookEvent[]; state: WebhookState } {
   const next: WebhookState = { seen: { ...state.seen }, baselined: true };
   const events: WebhookEvent[] = [];
@@ -75,7 +74,6 @@ export function webhookEvents(state: WebhookState, sessions: readonly SessionSig
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms).unref());
 const retryable = (status: number) => status === 0 || status === 408 || status === 429 || status >= 500;
 
-/** Resolves with the last status (0 when nothing answered); it never throws. */
 export async function deliverWebhook(config: WebhookConfig, event: WebhookEvent, deps: WebhookDeps = {}, attempts = BACKOFF_MS.length + 1): Promise<number> {
   const send = deps.fetch ?? fetch;
   const body = JSON.stringify(event);
@@ -100,7 +98,6 @@ export async function deliverWebhook(config: WebhookConfig, event: WebhookEvent,
   return status;
 }
 
-/** Fire and forget: delivery runs off the caller's path, and a full queue drops the event rather than wait. */
 export function notifyWebhook(sessions: readonly SessionSignal[], changed: ReadonlySet<string> | undefined, deps: WebhookDeps & { config?: WebhookConfig } = {}): Promise<number>[] {
   const config = "config" in deps ? deps.config : readWebhook();
   if (!config) {

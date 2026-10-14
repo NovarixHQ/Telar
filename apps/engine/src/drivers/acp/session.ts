@@ -55,6 +55,15 @@ const modelIds = (created: Record<string, unknown>): string[] => {
   return (Array.isArray(available) ? available : []).flatMap((model) => (typeof record(model).modelId === "string" ? [record(model).modelId as string] : []));
 };
 
+async function loadSession(rpc: AcpConnection, params: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
+  try {
+    return { ...record(await rpc.request("session/load", params)), sessionId: params.sessionId };
+  } catch (error) {
+    if (error instanceof AcpRpcError) return undefined;
+    throw error;
+  }
+}
+
 export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
   const clock = options.clock ?? realClock;
   const runtimes = new Map<string, Runtime>();
@@ -90,9 +99,12 @@ export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
         }),
       );
       const capabilities = record(initialized.agentCapabilities);
-      const created = record(await rpc.request("session/new", { cwd: run.cwd ?? os.homedir(), mcpServers: acpMcpServers(run, leaseDir) }));
+      const params = { cwd: run.cwd ?? os.homedir(), mcpServers: acpMcpServers(run, leaseDir) };
+      const loaded = capabilities.loadSession === true && run.providerSessionId ? await loadSession(rpc, { ...params, sessionId: run.providerSessionId }) : undefined;
+      const created = loaded ?? record(await rpc.request("session/new", params));
       if (typeof created.sessionId !== "string") throw new Error("the agent started no session");
       runtime.sessionId = created.sessionId;
+      runtime.fresh = !loaded;
       runtime.options = configOptions(created);
       runtime.models = modelIds(created);
       runtime.images = record(capabilities.promptCapabilities).image === true;

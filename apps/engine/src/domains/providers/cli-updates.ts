@@ -32,6 +32,8 @@ type UpdatePlan = {
   lockKey: string;
 };
 
+type UpdatableCli = Exclude<CliId, "cursor">;
+
 type CliUpdate = {
   status: UpdateStatus;
   latest?: string;
@@ -39,19 +41,19 @@ type CliUpdate = {
   command?: string;
 };
 
-const NPM_PACKAGE: Record<CliId, string> = {
+const NPM_PACKAGE: Record<UpdatableCli, string> = {
   opencode: "opencode-ai",
   claude: "@anthropic-ai/claude-code",
   codex: "@openai/codex",
 };
 
-const HOMEBREW_CASK: Record<CliId, string> = {
+const HOMEBREW_CASK: Record<UpdatableCli, string> = {
   opencode: "opencode",
   claude: "claude-code",
   codex: "codex",
 };
 
-const NATIVE_UPDATE: Record<CliId, readonly string[]> = {
+const NATIVE_UPDATE: Record<UpdatableCli, readonly string[]> = {
   opencode: ["upgrade"],
   claude: ["update"],
   codex: ["update"],
@@ -59,7 +61,7 @@ const NATIVE_UPDATE: Record<CliId, readonly string[]> = {
 
 const normalize = (candidate: string): string => candidate.replaceAll("\\", "/").toLowerCase();
 
-const NATIVE_PATHS: Record<CliId, (candidate: string) => boolean> = {
+const NATIVE_PATHS: Record<UpdatableCli, (candidate: string) => boolean> = {
   opencode: (candidate) => candidate.includes("/.opencode/bin/"),
   claude: (candidate) => candidate.endsWith("/.local/bin/claude") || candidate.includes("/.local/share/claude/"),
   codex: (candidate) => candidate.endsWith("/.local/bin/codex") || candidate.includes("/.codex/packages/"),
@@ -90,7 +92,7 @@ function plan(method: InstallMethod, executable: string, args: readonly string[]
 }
 
 export function updatePlanFor(id: CliId, paths: { path?: string; realPath?: string }): UpdatePlan | undefined {
-  if (id === "opencode") return undefined;
+  if (id === "opencode" || id === "cursor") return undefined;
   const candidates = [paths.path, paths.realPath].filter((candidate): candidate is string => Boolean(candidate)).map(normalize);
   if (candidates.length === 0) return undefined;
 
@@ -106,7 +108,7 @@ export function updatePlanFor(id: CliId, paths: { path?: string; realPath?: stri
   return undefined;
 }
 
-function registryFor(id: CliId, method: InstallMethod | undefined): Registry {
+function registryFor(id: UpdatableCli, method: InstallMethod | undefined): Registry {
   return method === "homebrew" ? { kind: "homebrew", cask: HOMEBREW_CASK[id] } : { kind: "npm", name: NPM_PACKAGE[id] };
 }
 
@@ -195,7 +197,7 @@ type CliUpdateDeps = {
 };
 
 export async function cliUpdateFor(resolution: CliResolution, deps: CliUpdateDeps = {}): Promise<CliUpdate> {
-  if (resolution.id === "opencode") return { status: "unknown" };
+  if (resolution.id === "opencode" || resolution.id === "cursor") return { status: "unknown" };
   const now = deps.now ?? Date.now;
   const fetcher = deps.latest ?? fetchLatest;
 

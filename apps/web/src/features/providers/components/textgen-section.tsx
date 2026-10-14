@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_TEXT_GEN_POLICY, type TextGenEffort } from "@telar/engine-client";
+import { DEFAULT_TEXT_GEN_POLICY, TEXT_GEN_DRIVERS, type TextGenEffort } from "@telar/engine-client";
 import { ModelChoiceControl } from "@/features/composer";
 import { useTextGenPolicy } from "../text-gen-policy";
 import { Row, SettingsGroup, ToggleRow, useRestoreDefaults } from "@/features/settings";
@@ -29,6 +29,7 @@ export function TextGenSection() {
           loading ? null : (
             <ModelChoiceControl
               driver={policy.driver}
+              providers={TEXT_GEN_DRIVERS}
               choice={{ ...(policy.model ? { model: policy.model } : {}), ...(policy.effort ? { effort: policy.effort } : {}) }}
               onChange={(driver, next) =>
                 void save({ driver, model: next.model ?? null, effort: (next.effort as TextGenEffort | undefined) ?? null })

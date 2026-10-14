@@ -21,7 +21,7 @@ export type EnvironmentId = z.infer<typeof EnvironmentId>;
 export const ProviderDriverKind = z.string().min(1);
 export type ProviderDriverKind = z.infer<typeof ProviderDriverKind>;
 
-export const BUILT_IN_DRIVERS = ["claude", "codex", "opencode"] as const;
+export const BUILT_IN_DRIVERS = ["claude", "codex", "opencode", "cursor"] as const;
 export type BuiltInDriver = (typeof BUILT_IN_DRIVERS)[number];
 export const isBuiltInDriver = (driver: unknown): driver is BuiltInDriver => (BUILT_IN_DRIVERS as readonly unknown[]).includes(driver);
 export const ACP_DRIVER = "acp";

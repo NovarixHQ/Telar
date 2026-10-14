@@ -14,6 +14,7 @@ import {
   isValidInstanceId,
   providerSummary,
   signInCommand,
+  LOGIN_DRIVERS,
   sortInstances,
   STATUS_DOT,
   suggestInstanceId,
@@ -162,6 +163,12 @@ test("the sign-in command is the user's to run, and names the account", () => {
     'CLAUDE_CONFIG_DIR="~/.claude-work" claude auth login',
   );
   expect(signInCommand({ driver: "codex", configDir: "~/.codex-work" })).toBe('CODEX_HOME="~/.codex-work" codex login');
+  expect(signInCommand({ driver: "opencode", configDir: "~/.config/opencode-work" })).toBe("opencode auth login");
+  expect(signInCommand({ driver: "cursor" })).toBe("agent login");
+});
+
+test("a new login is offered only for providers whose login lives in a config folder", () => {
+  expect(LOGIN_DRIVERS).toEqual(["claude", "codex", "opencode"]);
 });
 
 describe("updateAdvisory", () => {

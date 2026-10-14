@@ -1,3 +1,4 @@
+import { isBuiltInDriver } from "@telar/engine-client";
 import { engineClient, engineRoute } from "@/platform/engine/server";
 
 /**
@@ -14,7 +15,7 @@ export const runtime = "nodejs";
 export const GET = engineRoute(async (request: Request) => {
   const url = new URL(request.url);
   const requested = url.searchParams.get("driver");
-  const driver = requested === "codex" || requested === "opencode" ? requested : "claude";
+  const driver = isBuiltInDriver(requested) ? requested : "claude";
   // WHICH LOGIN, for the overlay laid over the provider's answer. The answer
   // itself is still driver-wide; absent means that driver's built-in slot.
   const instanceId = url.searchParams.get("instanceId");

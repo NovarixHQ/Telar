@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
-import { createProviderProber, providerProcessEnv, signInOf, statusOf } from "./instances";
+import { createProviderProber, cursorSignIn, providerProcessEnv, signInOf, statusOf } from "./instances";
 import { resolveChildEnv } from "../../drivers/claude";
 
 function knownClaudeDefault(directory: string): string {
@@ -27,9 +27,9 @@ afterEach(() => {
 
 const store = (): EngineStore => new EngineStore(root(), () => 100);
 
-test("a fresh install already has built-in slots with OpenCode disabled", () => {
+test("a fresh install already has built-in slots with OpenCode and Cursor disabled", () => {
   const instances = store().providers.list();
-  expect(instances.map((instance) => instance.id)).toEqual(["claude", "codex", "opencode"]);
+  expect(instances.map((instance) => instance.id)).toEqual(["claude", "codex", "opencode", "cursor"]);
   expect(instances.filter((instance) => instance.enabled).map((instance) => instance.id)).toEqual(["claude", "codex"]);
   expect(instances[0]?.configDir).toBeUndefined();
 });
@@ -392,6 +392,15 @@ test("two logins on the same driver get separate probes when they pin separate b
   expect(probes.map((probe) => probe.version)).toEqual(["2.1.232", "2.1.232", "2.2.0"]);
 });
 
+test("Cursor's sign-in comes from `agent status`, and only its verdict is kept", async () => {
+  expect(cursorSignIn("\u2713 Logged in as someone@example.com\n")).toBe("signed-in");
+  expect(cursorSignIn("Not logged in\n")).toBe("signed-out");
+  expect(cursorSignIn("Error: network unreachable")).toBe("unknown");
+  const prober = createProviderProber({ version: async () => ({ installed: true, version: "2026.10.14", signIn: "signed-out", usable: true }), now: () => 500 });
+  const [probe] = await prober([{ id: "cursor", driver: "cursor", enabled: true, env: [], createdAt: 1, updatedAt: 1 }]);
+  expect(probe).toMatchObject({ signIn: "signed-out", status: "warning", message: expect.stringContaining("agent login") });
+});
+
 function upgradedFrom526(directory: string, key = "sk-from-526"): void {
   fs.writeFileSync(
     path.join(directory, "provider-instances.json"),
@@ -423,9 +432,9 @@ test("a registry naming a driver this build retired still reads", () => {
   upgradedFrom526(directory);
   const engine = new EngineStore(directory, () => 100);
 
-  expect(engine.providers.list().map((instance) => instance.id)).toEqual(["claude", "codex", "opencode"]);
+  expect(engine.providers.list().map((instance) => instance.id)).toEqual(["claude", "codex", "opencode", "cursor"]);
   const onDisk = JSON.parse(fs.readFileSync(path.join(directory, "provider-instances.json"), "utf8"));
-  expect(onDisk.providerInstances.map((instance: { id: string }) => instance.id)).toEqual(["claude", "codex", "opencode"]);
+  expect(onDisk.providerInstances.map((instance: { id: string }) => instance.id)).toEqual(["claude", "codex", "opencode", "cursor"]);
 });
 
 test("the read drops the retired row but will not touch its key", () => {

@@ -67,16 +67,12 @@ export function computerUseHint(state: ComputerUseState, { bundled = false }: { 
 
 export function ComputerUseProviders() {
   const supplied = DRIVERS.filter(driverTakesComputerUse);
-  const theirOwn = DRIVERS.filter((driver) => !driverTakesComputerUse(driver));
   return (
     <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
       {supplied.map((driver) => (
         <Badge key={driver} variant="secondary" className="font-normal">
           {driverLabel(driver)}
         </Badge>
-      ))}
-      {theirOwn.map((driver) => (
-        <span key={driver}>{driverLabel(driver)} uses its own</span>
       ))}
     </p>
   );

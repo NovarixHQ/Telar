@@ -109,22 +109,30 @@ function ConfigDirField({ instance, onPatch }: { instance: ProviderInstance; onP
   );
 }
 
+const BINARY: Record<string, { name: string; env: string }> = {
+  claude: { name: "claude", env: "CLAUDE_CODE_EXECUTABLE" },
+  codex: { name: "codex", env: "CODEX_BIN" },
+  opencode: { name: "opencode", env: "OPENCODE_BIN" },
+  cursor: { name: "agent", env: "CURSOR_BIN" },
+};
+
 function BinaryPathField({ instance, onPatch }: { instance: ProviderInstance; onPatch: (patch: InstancePatch) => void }) {
+  const binary = BINARY[instance.driver] ?? BINARY.claude!;
   return (
     <label className="block">
       <span className="text-xs font-medium text-foreground">Binary path</span>
       <BlurInput
         value={instance.binaryPath ?? ""}
         onCommit={(next) => onPatch({ binaryPath: next.trim() || null })}
-        placeholder={instance.driver}
+        placeholder={binary.name}
         className="mt-1.5 h-8 font-mono text-xs"
         spellCheck={false}
         autoComplete="off"
       />
       <span className="mt-1 block text-2xs text-muted-foreground">
-        Empty uses <code className="font-mono">{instance.driver}</code> as your shell would resolve it. A bare name looks that name up on PATH; a full
+        Empty uses <code className="font-mono">{binary.name}</code> as your shell would resolve it. A bare name looks that name up on PATH; a full
         path runs exactly that file. Beats{" "}
-        <code className="font-mono">{instance.driver === "opencode" ? "OPENCODE_BIN" : instance.driver === "codex" ? "CODEX_BIN" : "CLAUDE_CODE_EXECUTABLE"}</code> when both are
+        <code className="font-mono">{binary.env}</code> when both are
         set.
       </span>
     </label>
@@ -183,12 +191,14 @@ export function ProviderConfigurationTab({
       </div>
 
       <ContextNoticeField instance={instance} onPatch={onPatch} />
-      <ConfigDirField instance={instance} onPatch={onPatch} />
+      {instance.driver !== "cursor" && <ConfigDirField instance={instance} onPatch={onPatch} />}
       <BinaryPathField instance={instance} onPatch={onPatch} />
       <ExtraArgsField instance={instance} onPatch={onPatch} />
       {instance.driver === "codex" && <UsageLimitsField instance={instance} />}
 
-      <CompactionField driver={instance.driver} value={instance.autoCompact} onChange={(autoCompact) => onPatch({ autoCompact })} />
+      {instance.driver !== "cursor" && (
+        <CompactionField driver={instance.driver} value={instance.autoCompact} onChange={(autoCompact) => onPatch({ autoCompact })} />
+      )}
 
       <div>
         <span className="text-xs font-medium text-foreground">Environment variables</span>

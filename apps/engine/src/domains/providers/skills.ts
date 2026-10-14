@@ -34,11 +34,12 @@ export function openCodeHome(env: NodeJS.ProcessEnv = process.env): string {
 export function providerSkillRoot(driver: ProviderDriverKind, env: NodeJS.ProcessEnv = process.env): string {
   if (driver === "codex") return path.join(codexHome(env), "skills");
   if (driver === "opencode") return path.join(openCodeHome(env), "skill");
+  if (driver === "cursor") return path.join(os.homedir(), ".cursor", "skills");
   return path.join(claudeHome(env), "skills");
 }
 
 export function providerSkillRoots(env: NodeJS.ProcessEnv = process.env): string[] {
-  return [...new Set((["claude", "codex", "opencode"] as const).map((driver) => providerSkillRoot(driver, env)))];
+  return [...new Set((["claude", "codex", "opencode", "cursor"] as const).map((driver) => providerSkillRoot(driver, env)))];
 }
 
 export function parseFrontMatter(text: string): Record<string, string> {

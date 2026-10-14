@@ -1,19 +1,22 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type ProviderProbe, type ProviderSignIn, type ProviderUpdate } from "@telar/engine-client";
-import { cliUsable, resolveCliAsync, type CliId } from "./cli";
+import { cliSpawnAllowed, cliUsable, resolveCliAsync, type CliId } from "./cli";
 import { cliUpdateFor } from "./cli-updates";
 
 const VERSION_CACHE_MS = 60_000;
+const STATUS_TIMEOUT_MS = 5_000;
 
-const LOGIN_ARTIFACT: Record<BuiltInDriver, string> = {
+const LOGIN_ARTIFACT: Partial<Record<BuiltInDriver, string>> = {
   opencode: "auth.json",
   claude: ".credentials.json",
   codex: "auth.json",
 };
 
-const CONFIG_DIR_ENV: Record<BuiltInDriver, string> = {
+const CONFIG_DIR_ENV: Partial<Record<BuiltInDriver, string>> = {
   opencode: "OPENCODE_CONFIG_DIR",
   claude: "CLAUDE_CONFIG_DIR",
   codex: "CODEX_HOME",
@@ -42,6 +45,7 @@ const OWNED_ENV: Record<BuiltInDriver, readonly string[]> = {
     "CLAUDE_CODE_USE_FOUNDRY",
   ],
   codex: ["CODEX_HOME", "OPENAI_BASE_URL", "OPENAI_API_KEY"],
+  cursor: [],
 };
 
 const CREDENTIAL_ENV: ReadonlySet<string> = new Set([
@@ -100,11 +104,28 @@ export function providerProcessEnv<T extends EnvSource>(instance: T): Record<str
 
 export type VersionProbe = {
   installed: boolean;
+  signIn?: ProviderSignIn;
   version?: string;
   message?: string;
   usable?: boolean;
   update?: ProviderUpdate;
 };
+
+export function cursorSignIn(statusOutput: string): ProviderSignIn {
+  if (/not logged in/i.test(statusOutput)) return "signed-out";
+  if (/logged in/i.test(statusOutput)) return "signed-in";
+  return "unknown";
+}
+
+async function cursorStatus(executable: string): Promise<ProviderSignIn> {
+  if (!cliSpawnAllowed()) return "unknown";
+  try {
+    const { stdout, stderr } = await promisify(execFile)(executable, ["status"], { encoding: "utf8", timeout: STATUS_TIMEOUT_MS, maxBuffer: 1 << 16 });
+    return cursorSignIn(`${stdout}\n${stderr}`);
+  } catch {
+    return "unknown";
+  }
+}
 
 async function probeVersion(driver: CliId, binaryPath?: string, force = false): Promise<VersionProbe> {
   const resolution = await resolveCliAsync(driver, binaryPath ? { binaryPath } : {});
@@ -113,6 +134,7 @@ async function probeVersion(driver: CliId, binaryPath?: string, force = false): 
   }
   return {
     installed: true,
+    ...(driver === "cursor" && resolution.path ? { signIn: await cursorStatus(resolution.path) } : {}),
     ...(resolution.version ? { version: resolution.version } : {}),
     update: await cliUpdateFor(resolution, { force }),
     ...(resolution.message ? { message: resolution.message } : {}),
@@ -125,12 +147,13 @@ export function signInOf(instance: Pick<ProviderInstance, "driver" | "configDir"
   if (!instance.configDir) {
     return { signIn: "unknown", message: "Base login — sign-in state cannot be verified from disk." };
   }
-  if (!isBuiltInDriver(instance.driver)) return { signIn: "unknown" };
+  const artifact = isBuiltInDriver(instance.driver) ? LOGIN_ARTIFACT[instance.driver] : undefined;
+  if (!artifact) return { signIn: "unknown" };
   const dir = expandHome(instance.configDir);
   if (!fs.existsSync(dir)) {
     return { signIn: "missing-config-dir", message: "Config directory not found on this machine." };
   }
-  if (fs.existsSync(path.join(dir, LOGIN_ARTIFACT[instance.driver]))) {
+  if (fs.existsSync(path.join(dir, artifact))) {
     return { signIn: "signed-in" };
   }
   if (instance.driver === "codex") {
@@ -140,6 +163,10 @@ export function signInOf(instance: Pick<ProviderInstance, "driver" | "configDir"
     signIn: "unknown",
     message: "Claude keeps credentials in the Keychain, so sign-in cannot be confirmed from disk.",
   };
+}
+
+function signInFromStatus(signIn: ProviderSignIn): { signIn: ProviderSignIn; message?: string } {
+  return signIn === "signed-out" ? { signIn, message: "Not signed in. Run `agent login` in a terminal." } : { signIn };
 }
 
 export function statusOf(input: {
@@ -197,7 +224,7 @@ export function createProviderProber(deps: ProviderProbeDeps = {}) {
     const checkedAt = now();
     return instances.map((instance) => {
       const found = versions.get(keyFor(instance.driver, instance.binaryPath)) ?? { installed: false };
-      const sign = signInOf(instance);
+      const sign = found.signIn ? signInFromStatus(found.signIn) : signInOf(instance);
       const status = statusOf({
         enabled: instance.enabled,
         installed: found.installed,

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { parseClaudeModels, parseCodexModels, readClaudeModels, readModelCatalogue, stripPricing } from "./models";
+import { fileURLToPath } from "node:url";
+import { AcpConnection } from "../../drivers/acp";
+import { parseAcpModelOption, parseClaudeModels, parseCodexModels, readableModelName, readClaudeModels, readCursorModels, readModelCatalogue, stripPricing } from "./models";
 
 describe("parseCodexModels", () => {
   test("reads each model's service tiers and its default tier", () => {
@@ -284,5 +286,64 @@ describe("readModelCatalogue", () => {
       );
       expect(catalogue).toMatchObject({ models: [], source: "builtin", message: "not installed" });
     }
+  });
+});
+
+describe("Cursor's models", () => {
+  const FAKE = fileURLToPath(new URL("../../../test/fixtures/fake-acp-agent.mjs", import.meta.url));
+
+  test("the catalogue is the live session's model option, read from the same directory every time", async () => {
+    const dirs: string[] = [];
+    const read = () =>
+      readCursorModels((cwd) => {
+        dirs.push(cwd);
+        return new AcpConnection(process.execPath, [FAKE], { cwd, env: { ...process.env, ACP_FAKE_SCRIPT: "options" } });
+      });
+    const { models, message } = await read();
+    await read();
+    expect(message).toBeUndefined();
+    expect(models.map((model) => [model.id, model.label, model.isDefault, model.efforts])).toEqual([
+      ["fast", "Fast", true, []],
+      ["smart", "Smart", false, []],
+    ]);
+    expect(dirs[0]).toBe(dirs[1]!);
+  });
+
+  test("an agent that will not start is a reason, not a throw", async () => {
+    const { models, message } = await readCursorModels(() => {
+      throw new Error("Cursor is not installed");
+    });
+    expect(models).toEqual([]);
+    expect(message).toBe("Cursor is not installed");
+  });
+
+  test("ids stay exactly what the agent accepts; labels and variants are made readable", () => {
+    const models = parseAcpModelOption({
+      configOptions: [
+        { id: "mode", category: "mode", currentValue: "agent", options: [{ value: "agent", name: "Agent" }] },
+        {
+          id: "model",
+          category: "model",
+          currentValue: "default[]",
+          options: [
+            { value: "default[]", name: "Auto" },
+            { value: "claude-opus-5-5[context=300k,effort=medium,fast=false]", name: "claude-opus-5-5" },
+            { value: "composer-2.5[fast=true]", name: "composer-2.5" },
+          ],
+        },
+      ],
+    });
+    expect(models.map((model) => [model.id, model.label, model.description, model.isDefault])).toEqual([
+      ["default[]", "Auto", undefined, true],
+      ["claude-opus-5-5[context=300k,effort=medium,fast=false]", "Claude Opus 5.5", "context 300k · effort medium", false],
+      ["composer-2.5[fast=true]", "Composer 2.5", "fast", false],
+    ]);
+    expect(readableModelName("gpt-5.6-sol")).toBe("GPT 5.6 Sol");
+    expect(readableModelName("kimi-k2.7-code")).toBe("Kimi K2.7 Code");
+  });
+
+  test("the catalogue asks Cursor's own reader for the cursor driver", async () => {
+    const catalogue = await readModelCatalogue("cursor", () => 3, undefined, undefined, async () => ({ models: parseAcpModelOption({ configOptions: [{ id: "model", options: [{ value: "a[]", name: "a" }] }] }) }));
+    expect(catalogue).toMatchObject({ driver: "cursor", source: "provider", models: [{ id: "a[]" }] });
   });
 });

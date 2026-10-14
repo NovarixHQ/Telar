@@ -10,6 +10,7 @@ import { createAcpDriver, type AcpDriverOptions } from "./session";
 
 const FAKE = fileURLToPath(new URL("../../../test/fixtures/fake-acp-agent.mjs", import.meta.url));
 const SAMPLE = fileURLToPath(new URL("../../../test/fixtures/acp/sample-agent.ndjson", import.meta.url));
+const CURSOR = fileURLToPath(new URL("../../../test/fixtures/acp/cursor-agent.ndjson", import.meta.url));
 const dirs: string[] = [];
 const drivers: TurnDriver[] = [];
 
@@ -178,6 +179,16 @@ test("a recorded transcript replays into the same rows", async () => {
   await expect(result).resolves.toMatchObject({ text: "The readme is a single heading.", providerSessionId: "rec-1" });
   expect(started(observations, "file_read")).toEqual([expect.objectContaining({ detail: { type: "file_read", read: { path: "/tmp/project/README.md" } } })]);
   expect(started(observations, "unknown")).toEqual([]);
+});
+
+test("a recorded Cursor turn folds its MCP call into a tool row, with no unknown rows", async () => {
+  const { turn } = setup();
+  const { result, observations } = turn("plain", { onRequest: async () => "accept" }, { ACP_FAKE_REPLAY: CURSOR });
+  await expect(result).resolves.toMatchObject({ text: expect.stringContaining("The secret word is lantern."), providerSessionId: "cursor-rec-1" });
+  const finished = observations.flatMap((o) => (o.kind === "item.completed" && o.detail?.type === "dynamic_tool_call" ? [o.detail.call] : []));
+  expect(finished).toContainEqual(expect.objectContaining({ name: "probe: probe_ping" }));
+  expect(started(observations, "unknown")).toEqual([]);
+  expect(started(observations, "reasoning").length).toBeGreaterThan(0);
 });
 
 test("TELAR_ACP_RECORD keeps every line both ways as NDJSON", async () => {

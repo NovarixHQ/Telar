@@ -21,6 +21,8 @@ import { assertInstanceId } from "./registry";
 
 const MODEL_CACHE_MS = 5 * 60_000;
 const MODEL_VERSION_CHECK_MS = 60_000;
+// Each Cursor read opens a session the agent keeps on disk, so its list is reread daily or when the CLI changes.
+const cacheMs = (driver: ProviderDriverKind): number => (driver === "cursor" ? 24 * 60 * 60_000 : MODEL_CACHE_MS);
 // Loose on purpose: it refuses only what can't be an id (blank, overlong, whitespace, quotes, control characters).
 const MODEL_ID = /^[^\s"'`\\]{1,200}$/;
 const isModelId = (value: string): boolean => MODEL_ID.test(value) && ![...value].some((char) => char.charCodeAt(0) < 0x20);
@@ -122,7 +124,7 @@ export class ModelCatalogues {
       const checkedAt = this.versionCheckedAt.get(driver);
       const attemptedAt = this.attemptedAt.get(driver);
       const retrying = attemptedAt !== undefined && this.kernel.now() - attemptedAt < MODEL_VERSION_CHECK_MS;
-      if (this.kernel.now() - known.catalogue.readAt >= MODEL_CACHE_MS && !retrying) void this.refresh(driver).catch(() => undefined);
+      if (this.kernel.now() - known.catalogue.readAt >= cacheMs(driver) && !retrying) void this.refresh(driver).catch(() => undefined);
       else if (checkedAt === undefined || this.kernel.now() - checkedAt >= MODEL_VERSION_CHECK_MS) void this.revalidate(driver).catch(() => undefined);
     } else {
       const failed = this.failures.get(driver);
@@ -138,7 +140,7 @@ export class ModelCatalogues {
   }
 
   /** Reads each provider once soon after start, only where the stored answer is missing, old or from another CLI. */
-  async prefetch(drivers: readonly ProviderDriverKind[] = ["claude", "codex", "opencode"]): Promise<void> {
+  async prefetch(drivers: readonly ProviderDriverKind[] = ["claude", "codex", "opencode", "cursor"]): Promise<void> {
     for (const driver of drivers) {
       try {
         await this.revalidate(driver);
@@ -264,7 +266,7 @@ export class ModelCatalogues {
     const changed = known !== undefined && known.cliVersion !== installed.version;
     const attemptedAt = this.attemptedAt.get(driver);
     const retrying = attemptedAt !== undefined && this.kernel.now() - attemptedAt < MODEL_VERSION_CHECK_MS;
-    if (changed || ((!known || this.kernel.now() - known.catalogue.readAt >= MODEL_CACHE_MS) && !retrying)) await this.refresh(driver);
+    if (changed || ((!known || this.kernel.now() - known.catalogue.readAt >= cacheMs(driver)) && !retrying)) await this.refresh(driver);
   }
 
   // Shared by concurrent readers and queued behind other providers' reads.

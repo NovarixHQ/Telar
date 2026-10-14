@@ -78,13 +78,14 @@ struct UsageFold: Equatable {
     var sessions = 0
 }
 
-let usageDrivers = ["claude", "codex", "opencode", "telar"]
+let usageDrivers = ["claude", "codex", "opencode", "cursor", "telar"]
 
 func usageDriverLabel(_ driver: String) -> String {
     switch driver {
     case "claude": "Claude"
     case "codex": "Codex"
     case "opencode": "OpenCode"
+    case "cursor": "Cursor"
     case "telar": "Telar"
 
     default: driver

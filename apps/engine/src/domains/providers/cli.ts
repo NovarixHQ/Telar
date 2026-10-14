@@ -34,6 +34,7 @@ type CliSpec = {
   id: CliId;
   label: string;
   bin: string;
+  altBins?: readonly string[];
   overrideEnv: string;
   installHint: string;
   expectedVersion?: () => string | undefined;
@@ -107,6 +108,15 @@ const SPECS: Record<CliId, CliSpec> = {
     overrideEnv: "CODEX_BIN",
     installHint:
       "Install it (https://github.com/openai/codex) and sign in, or set CODEX_BIN to its full path, then retry.",
+  },
+  cursor: {
+    id: "cursor",
+    label: "Cursor",
+    bin: "agent",
+    altBins: ["cursor-agent"],
+    overrideEnv: "CURSOR_BIN",
+    installHint:
+      "Install it with `curl https://cursor.com/install -fsS | bash`, then run `agent login`, or set CURSOR_BIN to its full path.",
   },
 };
 
@@ -278,7 +288,8 @@ function locate(spec: CliSpec, binaryPath?: string): Located {
   }
 
   const bin = pin?.value ?? spec.bin;
-  const [executable, ...alternatives] = candidatePathsFor(bin).filter(isExecutableFile);
+  const bins = pin ? [bin] : [bin, ...(spec.altBins ?? [])];
+  const [executable, ...alternatives] = bins.map((name) => candidatePathsFor(name).filter(isExecutableFile)).find((found) => found.length > 0) ?? [];
   if (!executable) {
     return missing(
       pin

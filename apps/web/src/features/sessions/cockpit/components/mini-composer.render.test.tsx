@@ -19,13 +19,14 @@ afterAll(async () => {
 installDictationFakes();
 
 let sends = 0;
+let stops = 0;
 
 function Fullscreen({ on }: { on: boolean }) {
   usePublishPanelFullscreen(on);
   return null;
 }
 
-function Cockpit({ start = "" }: { start?: string }) {
+function Cockpit({ start = "", busy = false }: { start?: string; busy?: boolean }) {
   const [draft, setDraft] = useState(start);
   const [fullscreen, setFullscreen] = useState(true);
   const props = {
@@ -33,7 +34,7 @@ function Cockpit({ start = "" }: { start?: string }) {
     ready: true,
     attachments: [],
     onAttach: () => {},
-    busy: false,
+    busy,
     sending: false,
     backgroundTasks: 0,
     onDraftChange: setDraft,
@@ -41,7 +42,9 @@ function Cockpit({ start = "" }: { start?: string }) {
       sends += 1;
       setDraft("");
     },
-    onStop: () => {},
+    onStop: () => {
+      stops += 1;
+    },
     onStopBackground: () => {},
     onRuntimeMode: () => {},
   };
@@ -112,6 +115,20 @@ describe("with the panel filling the window, the dictation chord floats the sess
     await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Exit fullscreen")!.click());
     expect(draftOf(host)).toBe("half a thought");
     expect(editor()?.textContent).toBe("half a thought");
+  });
+
+  test("while a turn runs, Esc arms stop like the session's composer, and the second Esc stops it", async () => {
+    knobs.provider = "off";
+    await mounted(<Cockpit busy />);
+    await chord();
+    const before = stops;
+
+    await key("Escape");
+    expect(floating()).not.toBeNull();
+    expect(stops).toBe(before);
+    await key("Escape");
+    expect(stops).toBe(before + 1);
+    expect(floating()).not.toBeNull();
   });
 
   test("with dictation off, ⌘D still floats the composer, without listening", async () => {

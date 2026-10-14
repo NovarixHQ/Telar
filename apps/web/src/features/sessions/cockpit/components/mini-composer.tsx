@@ -56,7 +56,7 @@ function FloatingComposer({ onClose, ...props }: ComposerProps & { onClose: () =
     onClose();
   }, [onSubmit, onClose]);
   const escape = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Escape" || (event.defaultPrevented && !busy)) return;
+    if (event.key !== "Escape" || event.defaultPrevented || busy) return;
     event.preventDefault();
     onClose();
   };

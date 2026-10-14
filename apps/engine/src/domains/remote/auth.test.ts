@@ -47,6 +47,12 @@ describe("api gate", () => {
     expect(ask("/api/sessions/live")).toEqual({ allow: false, code: "cockpit_unauthorized" });
   });
 
+  test("/api/mcp reaches the engine for any caller on an allowed host, which then checks the bearer", () => {
+    expect(ask("/api/mcp", { method: "POST" })).toEqual({ allow: true });
+    expect(ask("/api/mcp", { method: "POST", authorization: `Bearer ${RAW}` }, file({}, "observer"))).toEqual({ allow: true });
+    expect(decideAccess(file(), { pathname: "/api/mcp", method: "POST", host: "evil.example" }, undefined)).toEqual({ allow: false, code: "cockpit_misdirected" });
+  });
+
   test("/api/health is gated by name — it identifies the daemon", () => {
     expect(ask("/api/health")).toEqual({ allow: false, code: "cockpit_unauthorized" });
   });

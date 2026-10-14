@@ -6,6 +6,7 @@ import type { Presence } from "./presence";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
 export const EXEMPT_PATHS = new Set(["/api/ping", "/api/pair", "/api/identity"]);
+const DEVICE_DOORS = new Set(["/api/mcp"]);
 const OBSERVER_METHODS = new Set(["GET", "HEAD"]);
 
 export type Credentials = { authorization?: string | null; deviceCookie?: string | null; hostHeader?: string | null };
@@ -49,6 +50,7 @@ export function decideAccess(
   checkTicket: TicketCheck = () => undefined,
 ): AccessDecision {
   if (!hostIsAllowed(request.host)) return { allow: false, code: "cockpit_misdirected" };
+  if (DEVICE_DOORS.has(request.pathname)) return { allow: true };
   if (!file.requireAuth || EXEMPT_PATHS.has(request.pathname)) return { allow: true };
   if (isHostCaller(request, hostSecret)) return { allow: true, role: "full" };
   const device = identifyDevice(file, request);

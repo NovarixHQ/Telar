@@ -216,12 +216,12 @@ export function engineProxy(request: Request): Promise<Response> {
   return engineForward(request, `${pathname.replace(/^\/api\//, "/v2/")}${search}`);
 }
 
-/** Streams `request` to the engine and its answer back unbuffered, for answers that may be a live stream. */
-export async function enginePipe(request: Request, pathname: string): Promise<Response> {
+/** Streams `request` to the engine and its answer back unbuffered, for answers that may be a live stream. `asCaller` keeps the caller's own Authorization for a route the engine authenticates by device token. */
+export async function enginePipe(request: Request, pathname: string, { asCaller = false } = {}): Promise<Response> {
   const { url, headers: auth } = (await engineClient()).locate(pathname);
   const headers = new Headers(request.headers);
   for (const name of ["cookie", "host", "connection", "content-length"]) headers.delete(name);
-  headers.set("authorization", auth.authorization!);
+  if (!asCaller) headers.set("authorization", auth.authorization!);
   const hasBody = request.method !== "GET" && request.method !== "HEAD";
   let answer: Response;
   try {

@@ -310,7 +310,8 @@ export async function readCursorModels(
   spawnAgent: (cwd: string) => AcpConnection = spawnCursorAgent,
   timeoutMs = MODEL_LIST_TIMEOUT_MS,
 ): Promise<{ models: ProviderModel[]; message?: string }> {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "telar-cursor-models-"));
+  const cwd = path.join(os.tmpdir(), "telar-cursor");
+  fs.mkdirSync(cwd, { recursive: true });
   let rpc: AcpConnection | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -333,7 +334,6 @@ export async function readCursorModels(
   } finally {
     if (timer !== undefined) clearTimeout(timer);
     rpc?.kill();
-    fs.rmSync(cwd, { recursive: true, force: true });
   }
 }
 

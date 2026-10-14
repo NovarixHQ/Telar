@@ -4,6 +4,7 @@ import { desktopAttached, notifyDesktop } from "./desktop";
 import { collectReads, noteAlert, READ_SYNC_BATCH, readSyncDelivery, readSyncDue, readSyncWanted } from "./read-sync";
 import { ACTIVITY_REFRESH_S, CARD_LINGER_S, tokenFingerprint, isDeadToken, notRegistered, notification, pushAvailable, pushConfigured, readPushRecords, sendAPNs, signalKey, writePushRecords, type Delivery, type DeliveryResult, type PushRecord, type RelayCredential, type SessionSignal } from "./push";
 import { automaticActivityDelivery, automaticSessions, cardAlert, cardPost, cardRows, type CardAlert, type CardPost } from "./card";
+import { notifyWebhook, readWebhook } from "./webhook";
 
 const RETRY_FLOOR = 30;
 const RETRY_CEILING = 3600;
@@ -331,7 +332,7 @@ export function stopMobilePushWorker(): void {
 export function startMobilePushWorker(given?: PushWorkerDeps): void {
   if (given) workerGlobal.telarMobilePushDeps = given;
   const desktop = desktopAttached();
-  if (workerGlobal.telarMobilePushTimer || !workerGlobal.telarMobilePushDeps || (!pushAvailable() && !desktop)) return;
+  if (workerGlobal.telarMobilePushTimer || !workerGlobal.telarMobilePushDeps || (!pushAvailable() && !desktop && !readWebhook())) return;
   const schedule = (delay: number) => {
     if (workerGlobal.telarMobilePushTimer) clearTimeout(workerGlobal.telarMobilePushTimer);
     workerGlobal.telarMobilePushDueAt = Date.now() + delay;
@@ -359,7 +360,7 @@ export function startMobilePushWorker(given?: PushWorkerDeps): void {
         if (stale.size) writePushRecords(current.filter(r => !stale.has(r)));
       }
       const records = stored.length ? sendableRecords(readPushRecords(), direct) : [];
-      if (!records.length && !desktopAttached()) return;
+      if (!records.length && !desktopAttached() && !readWebhook()) return;
 
       const reconcile = nowMs - (workerGlobal.telarMobilePushReconciledAt ?? 0) >= RECONCILE_INTERVAL;
       const api = deps().client();
@@ -382,6 +383,7 @@ export function startMobilePushWorker(given?: PushWorkerDeps): void {
         workerGlobal.telarMobilePushSnapshot = sessions;
         await markApprovable(sessions, changed, id => api.session(id, { turns: 1 }));
         if (desktopAttached()) notifyDesktop(sessions, changed);
+        void notifyWebhook(sessions, changed);
         const reads = readSyncPass(records, sessions, nowMs / 1000);
         workerGlobal.telarMobilePushHeartbeat = heartbeatWanted(records, sessions) || reads.waiting;
         if (changed && changed.size === 0 && !heartbeatDue(records, sessions, workerGlobal.telarMobilePushBeatAt, nowMs) && !reads.due) return;

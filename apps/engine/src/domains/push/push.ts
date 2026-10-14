@@ -133,6 +133,7 @@ function remoteHome(): string {
   return path.join(fs.realpathSync.native(home), "remote");
 }
 export function pushFile(): string { return path.join(remoteHome(), "mobile-push.json"); }
+export function webhookFile(): string { return path.join(remoteHome(), "webhook.json"); }
 export function legacyPushFile(): string { return path.join(remoteHome(), "remote", "mobile-push.json"); }
 export function readPushRecords(file?: string): PushRecord[] {
   const read = (at: string): PushRecord[] | undefined => {

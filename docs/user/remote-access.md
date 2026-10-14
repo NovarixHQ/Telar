@@ -54,6 +54,28 @@ Its alerts show on this Mac too, and reading one on any device takes it down her
 
 Forgetting a Mac removes its conversations from your rail. The other Mac still lists this one as a paired device until you revoke it there.
 
+## Assistants (MCP connector)
+
+Telar is also an MCP server, so an assistant that takes a custom connector by URL can list and read your sessions, start one, send it a message, stop or settle it, and answer its permission prompts. The address is your cockpit address followed by `/api/mcp`, over Streamable HTTP.
+
+1. Show a pairing code in Settings → Connections → Pair a device.
+2. Trade it for a token from any machine that reaches the cockpit:
+   ```sh
+   curl -s https://<mac>.<tailnet>.ts.net/api/pair -H 'content-type: application/json' -d '{"token":"<code>","deviceName":"Grok"}'
+   ```
+   The `deviceToken` in the answer (`tlr_…`) is the connector's secret. It is listed under Paired devices like any other.
+3. In the assistant, add a connector with the address and the header `Authorization: Bearer tlr_…`.
+
+Give the device **View only** and the assistant sees only the reading tools: it can list a session's permission prompts but not answer them. Secret-access prompts are never answerable from a connector.
+
+What is not obvious:
+- The connector always needs a device token, even with Require pairing off. A browser's pairing cookie doesn't open it.
+- An assistant that runs in the cloud, like Grok, is not on your tailnet, so Tailscale HTTPS is not enough. Publish just the connector on the internet with Tailscale Funnel, using the port of the cockpit's Local network address:
+  ```sh
+  tailscale funnel --bg --https=8443 --set-path=/api/mcp http://127.0.0.1:<port>/api/mcp
+  ```
+  The address is then `https://<mac>.<tailnet>.ts.net:8443/api/mcp`. Anyone on the internet can reach it and only the token keeps them out, so revoke the device if the token leaks. `tailscale funnel --https=8443 off` takes it down.
+
 ## Push notifications
 
 Phone notifications are set on the phone. See [iPhone](iphone.md).

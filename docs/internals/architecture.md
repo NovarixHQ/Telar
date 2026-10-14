@@ -25,6 +25,14 @@ No device holds back another's alert. Each copy, the APNs push and the Mac banne
 
 NotificationCenter on macOS 26 finds a Developer ID app's custom banner sound only in `~/Library/Sounds`: copies in `Contents/Resources` or an app group container play the default alert. Desktop main copies Felt's `telar-felt-*.caf` files there at startup under the names the banner uses. It caches each name's lookup until it restarts, so a name that once missed keeps playing the default, and a cached file that is deleted plays nothing.
 
+### Popups over the integrated browser
+
+A browser tab is a native view above the cockpit, so HTML can't cover it. While a tab view is shown, the `ui/` popover, menu, select and context menu portal into the overlay layer instead: a same-origin child the cockpit opens with `window.open('', 'telar-overlay')`, which desktop main adopts as a transparent `WebContentsView` (`windows/overlay-layer.js`). It is one React tree in one renderer. Dialogs, sheets, toasts and the address list still freeze the tab into a picture.
+
+- The view covers only the popups' bounding box, so clicks around them reach the page. The overlay document keeps the cockpit's coordinates. Its content sits in a wrapper translated by the view's origin, and device emulation lays it out to the window's right and bottom edges. Translating `<html>` instead breaks floating-ui's clipping.
+- floating-ui converts a cockpit anchor's rect through `window.frameElement`, so the cockpit reports a probe that sits at its origin inside the overlay. An anchor without an element (a context menu's point) can't be converted that way, so `ui/context-menu` passes one tied to its trigger. Selects drop `alignItemWithTrigger` in the overlay.
+- base-ui only listens for outside presses in the popup's own document. The layer replays cockpit presses there, and main reports a press on a tab, seen as focus moving to another view in the same window. Showing the overlay gives it the keys.
+
 ## Domains
 
 A domain is one feature, and it has the same name in every app:

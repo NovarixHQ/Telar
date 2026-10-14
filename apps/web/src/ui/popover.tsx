@@ -3,10 +3,10 @@
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
 import { cn } from "@/ui/utils"
-import { NativeViewOverlayElements, useNativeViewOverlayRef, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
+import { NativeViewOverlayElements, useOverlayPositioner, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
 
 function Popover({ ...props }: PopoverPrimitive.Root.Props) {
-  const { onOpenChange, elements } = useOverlayRootClaim(props)
+  const { onOpenChange, elements } = useOverlayRootClaim(props, true)
   return (
     <NativeViewOverlayElements value={elements}>
       <PopoverPrimitive.Root data-slot="popover" {...props} onOpenChange={onOpenChange} />
@@ -31,11 +31,11 @@ function PopoverContent({
     PopoverPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "anchor"
   >) {
-  const positioner = useNativeViewOverlayRef()
+  const positioner = useOverlayPositioner()
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={positioner.container}>
       <PopoverPrimitive.Positioner
-        ref={positioner}
+        ref={positioner.ref}
         align={align}
         alignOffset={alignOffset}
         side={side}

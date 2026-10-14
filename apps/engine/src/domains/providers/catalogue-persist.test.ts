@@ -1,13 +1,3 @@
-/**
- * THE MODEL CATALOGUE ANSWERS AT ONCE ONCE IT HAS EVER BEEN READ.
- *
- * A provider read is a subprocess (Codex's app-server, `opencode models`,
- * Claude's handshake and effort probe), and the cache used to live in memory
- * for five minutes — so every engine start put a spinner in the picker. The
- * last good answer is now persisted and served first, and the provider is asked
- * again in the background. Every read here is a fake that COUNTS: "answered
- * from disk" is only a claim if the count says nothing was spawned.
- */
 import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
@@ -166,4 +156,20 @@ test("after a failed refresh, opening the picker again does not respawn the prov
   for (let open = 0; open < 5; open += 1) await store.catalogues.catalogue("codex");
   await settle();
   expect(fake.state.reads).toBe(2);
+});
+
+test("Cursor's list is reread daily, not every five minutes, because each read leaves a session behind", async () => {
+  const clock = { now: 1_000 };
+  const cursor = provider(["claude-opus-5-5[effort=medium]"]);
+  const store = new EngineStore(home(), () => clock.now, cursor.options);
+  await store.catalogues.catalogue("cursor");
+  clock.now += 6 * 60_000;
+  await store.catalogues.catalogue("cursor");
+  await settle();
+  expect(cursor.state.reads).toBe(1);
+
+  clock.now += 24 * 60 * 60_000;
+  await store.catalogues.catalogue("cursor");
+  await settle();
+  expect(cursor.state.reads).toBe(2);
 });

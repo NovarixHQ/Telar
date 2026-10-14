@@ -108,7 +108,7 @@ import Observation
     }
 
     func loadModels() async {
-        for driver in ["claude", "codex", "opencode"] where catalogues[driver] == nil {
+        for driver in ["claude", "codex", "opencode", "cursor"] where catalogues[driver] == nil {
             if let catalogue = try? await api.models(driver: driver) { catalogues[driver] = catalogue }
         }
     }

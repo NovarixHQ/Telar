@@ -25,7 +25,7 @@ export type UsageFold = {
   sessions: number;
 };
 
-const DRIVERS: ProviderDriverKind[] = ["claude", "codex", "opencode"];
+const DRIVERS: ProviderDriverKind[] = ["claude", "codex", "opencode", "cursor"];
 
 const zeroTokens = (): TokenUsage => ({ input: 0, output: 0, cacheRead: 0, cacheCreate: 0 });
 const zeroTotals = (): UsageTotals => ({ tokens: zeroTokens(), processed: 0, costUsd: 0, priced: true, turns: 0 });

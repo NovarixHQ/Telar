@@ -1,8 +1,13 @@
 import { execFile } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { promisify } from "node:util";
 import type { Effort, ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
 import { refuseCliSpawnUnderTest, requireCli, resolveCliAsync } from "./cli";
+import { AcpConnection } from "../../drivers/acp";
 import { CodexAppServer, readCodexWindows, resolveCodexBinary, withCodexLongRows, type CodexWindow } from "../../drivers/codex";
+import { agentEnv } from "../../platform/process/agent-env";
 
 const MODEL_LIST_TIMEOUT_MS = 10_000;
 
@@ -249,18 +254,104 @@ async function readOpenCodeModels(): Promise<{ models: ProviderModel[]; message?
   } catch (error) { return { models: [], message: error instanceof Error ? error.message : "OpenCode did not answer models" }; }
 }
 
+const ACRONYMS = new Set(["gpt", "glm"]);
+
+export function readableModelName(name: string): string {
+  const words = name.split("-").filter(Boolean);
+  const out: string[] = [];
+  for (const word of words) {
+    const previous = out.at(-1);
+    if (/^\d+$/.test(word) && previous && /^\d+(\.\d+)*$/.test(previous)) out[out.length - 1] = `${previous}.${word}`;
+    else out.push(ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1));
+  }
+  return out.join(" ") || name;
+}
+
+const variantOf = (value: string): string =>
+  (/\[(.*)\]$/.exec(value)?.[1] ?? "")
+    .split(",")
+    .map((pair) => pair.split("="))
+    .flatMap(([key, setting]) => (!key || setting === "false" ? [] : setting === "true" || setting === undefined ? [key] : [`${key} ${setting}`]))
+    .join(" · ");
+
+type AcpModelOption = { value?: unknown; name?: unknown; options?: unknown };
+
+export function parseAcpModelOption(session: unknown): ProviderModel[] {
+  const configOptions = (session as { configOptions?: unknown })?.configOptions;
+  const option = (Array.isArray(configOptions) ? configOptions : []).find((entry) => entry?.category === "model" || entry?.id === "model") as
+    | { currentValue?: unknown; options?: unknown }
+    | undefined;
+  const flatten = (entries: unknown): AcpModelOption[] =>
+    (Array.isArray(entries) ? (entries as AcpModelOption[]) : []).flatMap((entry) => (typeof entry?.value === "string" ? [entry] : flatten(entry?.options)));
+  return flatten(option?.options).flatMap((entry) => {
+    const id = entry.value as string;
+    if (!id) return [];
+    const variant = variantOf(id);
+    return [{
+      id,
+      label: readableModelName(typeof entry.name === "string" && entry.name ? entry.name : id),
+      ...(variant ? { description: variant } : {}),
+      isDefault: id === option?.currentValue,
+      hidden: false,
+      hiddenByUser: false,
+      legacy: false,
+      source: "provider" as const,
+      efforts: [],
+      fastMode: false,
+    }];
+  });
+}
+
+function spawnCursorAgent(cwd: string): AcpConnection {
+  return new AcpConnection(requireCli("cursor"), ["acp"], { cwd, env: agentEnv() });
+}
+
+export async function readCursorModels(
+  spawnAgent: (cwd: string) => AcpConnection = spawnCursorAgent,
+  timeoutMs = MODEL_LIST_TIMEOUT_MS,
+): Promise<{ models: ProviderModel[]; message?: string }> {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "telar-cursor-models-"));
+  let rpc: AcpConnection | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const agent = spawnAgent(cwd);
+    rpc = agent;
+    const exchange = async () => {
+      await agent.request("initialize", {
+        protocolVersion: 1,
+        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+        clientInfo: { name: "telar", title: "Telar", version: "0.1.0" },
+      });
+      return parseAcpModelOption(await agent.request("session/new", { cwd, mcpServers: [] }));
+    };
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error("Cursor did not answer with its models in time")), timeoutMs);
+    });
+    return { models: await Promise.race([exchange(), timeout]) };
+  } catch (error) {
+    return { models: [], message: error instanceof Error ? error.message : "Cursor did not answer with its models" };
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    rpc?.kill();
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
 export async function readModelCatalogue(
   driver: ProviderDriverKind,
   now: () => number,
   readCodex: typeof readCodexModels = readCodexModels,
   readClaude: typeof readClaudeModels = readClaudeModels,
+  readCursor: typeof readCursorModels = readCursorModels,
 ): Promise<ModelCatalogue> {
   const answer: { models: ProviderModel[]; message?: string; cliVersion?: string } =
     driver === "claude"
       ? await readClaude()
       : driver === "opencode"
         ? await readOpenCodeModels()
-        : await readCodex();
+        : driver === "cursor"
+          ? await readCursor()
+          : await readCodex();
   return {
     driver,
     models: answer.models,

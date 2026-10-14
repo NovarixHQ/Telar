@@ -137,7 +137,7 @@ test("Ultrathink is the word in the draft, added and removed where it can be see
 describe("the popover", () => {
   let host: HTMLDivElement;
   let root: Root;
-  const CATALOGUES: Record<BuiltInDriver, ProviderModel[]> = { claude: CLAUDE, codex: CODEX, opencode: OPENCODE };
+  const CATALOGUES: Record<BuiltInDriver, ProviderModel[]> = { claude: CLAUDE, codex: CODEX, opencode: OPENCODE, cursor: [] };
 
   beforeEach(() => {
     forgetModelCatalogues();

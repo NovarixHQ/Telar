@@ -43,7 +43,7 @@ export const ACP_CAPABILITIES: DriverCapabilities = {
   usageLimits: false,
 };
 
-const BY_DRIVER: Record<string, DriverCapabilities> = { claude: CLAUDE_CAPABILITIES, codex: CODEX_CAPABILITIES, opencode: OPENCODE_CAPABILITIES, acp: ACP_CAPABILITIES };
+const BY_DRIVER: Record<string, DriverCapabilities> = { claude: CLAUDE_CAPABILITIES, codex: CODEX_CAPABILITIES, opencode: OPENCODE_CAPABILITIES, cursor: ACP_CAPABILITIES, acp: ACP_CAPABILITIES };
 
 /** For the engine, which never loads the drivers themselves. */
 export const driverCapabilities = (driver: string): DriverCapabilities => BY_DRIVER[driver] ?? ACP_CAPABILITIES;

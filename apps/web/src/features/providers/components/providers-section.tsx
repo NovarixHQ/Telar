@@ -5,7 +5,7 @@ import { PlusIcon, RotateCwIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
 import { cn } from "@/ui/utils";
-import { displayNameOf, DRIVERS, isDefaultInstance, isValidInstanceId, providerSummary, signInCommand, suggestInstanceId, versionLabel } from "../provider-instances";
+import { displayNameOf, isDefaultInstance, LOGIN_DRIVERS, isValidInstanceId, providerSummary, signInCommand, suggestInstanceId, versionLabel } from "../provider-instances";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -95,7 +95,7 @@ function AddInstanceDialog({
           <div>
             <span className="text-xs font-medium text-foreground">Provider</span>
             <div className="mt-1.5 flex gap-1.5">
-              {DRIVERS.map((option) => (
+              {LOGIN_DRIVERS.map((option) => (
                 <button
                   key={option}
                   type="button"

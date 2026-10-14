@@ -1,3 +1,4 @@
+import { BotIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import { routeOf } from "../model-connections";
 import type { ProviderDriverKind } from "@telar/engine-client";
@@ -81,5 +82,6 @@ export function ModelRowIcon({ driver, modelId, size = 14, className }: { driver
   const route = routeOf(modelId);
   if (route) return <ConnectionIcon connection={route.connection} size={size} className={className} />;
   if (driver === "opencode") return <MarkIcon mark={OPENCODE_MARK} size={size} className={className} />;
+  if (driver !== "claude" && driver !== "codex") return <BotIcon size={size} className={className} style={{ width: size, height: size }} aria-hidden />;
   return <ConnectionIcon connection={driver === "claude" ? "anthropic" : "openai"} size={size} className={className} />;
 }

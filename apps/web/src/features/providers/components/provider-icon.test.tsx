@@ -13,7 +13,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { ConnectionIcon, connectionMark, ModelRowIcon, OPENCODE_MARK } from "./connection-icon";
-import { ProviderIcon } from "./provider-icon";
+import { driverLabel, ProviderIcon } from "./provider-icon";
 
 const SIZES = [11, 13, 14, 16, 20];
 
@@ -32,6 +32,14 @@ describe("a provider mark", () => {
       expect(renderToStaticMarkup(<ProviderIcon provider={provider} size={13} />)).toContain('shape-rendering="geometricPrecision"');
     });
   }
+
+  test("Cursor wears a generic glyph at the size it is given, not another provider's mark", () => {
+    const markup = renderToStaticMarkup(<ProviderIcon provider="cursor" size={13} />);
+    expect(markup).toContain("width:13px");
+    expect(markup).toContain("text-foreground/80");
+    expect(markup).not.toContain("#d97757");
+    expect(driverLabel("cursor")).toBe("Cursor");
+  });
 
   test("Claude keeps its brand colour; the other two take the surface's", () => {
     expect(renderToStaticMarkup(<ProviderIcon provider="claude" />)).toContain("text-[#d97757]");

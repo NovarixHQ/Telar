@@ -19,7 +19,7 @@
  */
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   ORIENTATION_VERSION,
@@ -354,7 +354,8 @@ test("each provider's install location is that provider's own convention", () =>
   expect(openCodeHome(env)).toBe(join(home, "cfg", "opencode"));
   // `OPENCODE_CONFIG` names a FILE, so the directory is its parent.
   expect(openCodeHome({ OPENCODE_CONFIG: join(home, "elsewhere", "opencode.json") })).toBe(join(home, "elsewhere"));
-  expect(providerSkillRoots(env)).toHaveLength(3);
+  expect(providerSkillRoot("cursor", env)).toBe(join(homedir(), ".cursor", "skills"));
+  expect(providerSkillRoots(env)).toHaveLength(4);
 });
 
 test("the skill is written once and left alone until its content hash moves", async () => {

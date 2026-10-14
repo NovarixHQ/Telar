@@ -6,7 +6,7 @@ import path from "node:path";
 import { DEFAULT_TEXT_GEN_POLICY, type Item, type TextGenPolicy } from "@telar/engine-client";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
-import { cheapModel, generateSessionTitle, maybeRetitleSession, regenerateSessionTitle, sanitizeTitle, titleIsSeed, type RegenerateStore, type RetitleStore } from "./textgen";
+import { cheapModel, driverInput, generateSessionTitle, maybeRetitleSession, regenerateSessionTitle, sanitizeTitle, titleIsSeed, type RegenerateStore, type RetitleStore } from "./textgen";
 import { TextGenFailure } from "./textgen-run";
 import { buildTitlePrompt } from "./title-prompts";
 import { OPENCODE_VERSION } from "../../drivers/opencode/version";
@@ -112,6 +112,14 @@ describe("text generation policy", () => {
     expect(() => store.settings.setTextGen({ titles: "yes" })).toThrow(EngineStateError);
     expect(() => store.settings.setTextGen({ model: "" })).toThrow(EngineStateError);
     expect(() => store.settings.setTextGen({ effort: "max" })).toThrow(EngineStateError);
+  });
+
+  test("a provider without a text generation recipe never writes titles, whatever the file says", () => {
+    const store = new EngineStore(tmp("telar-tg-state-"), () => 100);
+    expect(driverInput(store, { titles: true, driver: "cursor" })).toBeUndefined();
+    expect(driverInput(store, { titles: true, driver: "opencode", model: "anthropic/claude-haiku" })).toBeUndefined();
+    store.providers.save({ id: "opencode", enabled: true });
+    expect(driverInput(store, { titles: true, driver: "opencode", model: "anthropic/claude-haiku" })).toMatchObject({ driver: "opencode" });
   });
 
   test("a mangled file costs the preference, never a throw", () => {

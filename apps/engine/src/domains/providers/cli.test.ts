@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -183,6 +183,20 @@ test("the exact tested OpenCode is plain `ok`, with nothing to say about it", ()
   const resolution = resolveCli("opencode", { binaryPath: pinned });
   expect(resolution.status).toBe("ok");
   expect(resolution.message).toBeUndefined();
+});
+
+test("Cursor is found as `agent`, and as `cursor-agent` only when there is no `agent`", () => {
+  const directory = root();
+  const home = spyOn(os, "homedir").mockReturnValue(root());
+  process.env.PATH = directory;
+  try {
+    const alias = fakeCli(directory, "cursor-agent", "2026.10.14-0f9edde");
+    expect(resolveCli("cursor")).toMatchObject({ status: "ok", path: alias, version: "2026.10.14" });
+    const agent = fakeCli(directory, "agent", "2026.10.14-0f9edde");
+    expect(resolveCli("cursor").path).toBe(agent);
+  } finally {
+    home.mockRestore();
+  }
 });
 
 test("an OpenCode that will not name its version is incompatible, not drifted", () => {

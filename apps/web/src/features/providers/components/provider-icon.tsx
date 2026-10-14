@@ -1,4 +1,5 @@
 import { isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind } from "@telar/engine-client";
+import { BotIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
 import { MarkIcon, OPENCODE_MARK } from "./connection-icon";
 
@@ -19,6 +20,7 @@ export function ProviderIcon({
   size?: number;
 }) {
   if (provider === "opencode") return <MarkIcon mark={OPENCODE_MARK} size={size} className={cn("text-foreground/80", className)} />;
+  if (provider !== "claude" && provider !== "codex") return <BotIcon size={size} className={cn("text-foreground/80", className)} style={{ width: size, height: size }} aria-hidden />;
   if (provider === "codex") {
     return (
       <svg
@@ -57,6 +59,7 @@ const DRIVER_LABELS: Record<BuiltInDriver, string> = {
   claude: "Claude",
   codex: "Codex",
   opencode: "OpenCode",
+  cursor: "Cursor",
 };
 
 export const driverLabel = (driver: string): string => (isBuiltInDriver(driver) ? DRIVER_LABELS[driver] : driver);

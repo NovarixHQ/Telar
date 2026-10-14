@@ -78,6 +78,7 @@ struct ModelMenu: View {
                 familySection("Claude", driver: "claude")
                 familySection("Codex", driver: "codex")
                 familySection("OpenCode", driver: "opencode")
+                familySection("Cursor", driver: "cursor")
             } else {
                 familySection(nil, driver: choice.driver)
             }

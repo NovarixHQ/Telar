@@ -71,7 +71,7 @@ export class SessionTasks {
   readStops(): TaskStopDelivery[] {
     const value = this.kernel.readDocument(this.kernel.paths.taskStops) ?? [];
     if (!Array.isArray(value) || value.some((row) => !row || typeof row.deliveryId !== "string" || typeof row.sessionId !== "string" ||
-      typeof row.providerTaskId !== "string" || typeof row.workerId !== "string" || !["claude", "codex", "opencode"].includes(row.driver)))
+      typeof row.providerTaskId !== "string" || typeof row.workerId !== "string" || !["claude", "codex", "opencode", "cursor"].includes(row.driver)))
       throw new EngineStateError("invalid_request", "invalid task-stop delivery store");
     return value;
   }

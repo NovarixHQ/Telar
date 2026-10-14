@@ -1,5 +1,6 @@
 import {
   isBuiltInDriver,
+  TEXT_GEN_DRIVERS,
   AgentOrientation as AgentOrientationSchema,
   DEFAULT_AGENT_ORIENTATION,
   DEFAULT_INBOX_POLICY,
@@ -224,7 +225,7 @@ export class SettingsStore {
     const next: TextGenPolicy = { ...this.textGen() };
     if (patch.titles !== undefined) next.titles = boolean(patch.titles, "titles must be a boolean");
     if (patch.driver !== undefined) {
-      if (!isBuiltInDriver(patch.driver)) {
+      if (!isBuiltInDriver(patch.driver) || !TEXT_GEN_DRIVERS.includes(patch.driver)) {
         throw new EngineStateError("invalid_request", "text generation driver must be claude, codex or opencode");
       }
       if (patch.driver !== next.driver) delete next.model;

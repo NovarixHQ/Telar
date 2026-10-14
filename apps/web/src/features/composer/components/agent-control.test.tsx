@@ -87,6 +87,7 @@ const CATALOGUES: Record<BuiltInDriver, ProviderModel[]> = {
   claude: CLAUDE_BASE,
   codex: [model("gpt-6-astra", "GPT-6 Astra")],
   opencode: [model("opencode-go/gpt-5.6-luna", "gpt-5.6-luna"), model("openai/gpt-5.6-luna", "gpt-5.6-luna")],
+  cursor: [model("default[]", "Auto")],
 };
 
 /** Which drivers the engine was asked for, so "it did not ask" is testable
@@ -344,7 +345,7 @@ describe("a live query replaces the rail", () => {
     expect(asked).toEqual(["opencode"]);
     await type("opus");
     // ...and the first keystroke is what asks for the rest of the scope.
-    expect([...asked].sort()).toEqual(["claude", "codex", "opencode"]);
+    expect([...asked].sort()).toEqual(["claude", "codex", "cursor", "opencode"]);
     // A match on another harness is reachable, which is the whole point of
     // widening: "Opus 5" is Claude's and this session is on OpenCode.
     expect(rowText()).toEqual(["Opus 5 | Claude"]);
@@ -393,8 +394,16 @@ describe("the empty state says which scope came up empty", () => {
  */
 describe("which catalogues a live query reads", () => {
   test("every harness while the provider can still change, the session's own first", () => {
-    expect(searchScope("opencode", true)).toEqual(["opencode", "claude", "codex"]);
-    expect(searchScope("claude", true)).toEqual(["claude", "codex", "opencode"]);
+    expect(searchScope("opencode", true)).toEqual(["opencode", "claude", "codex", "cursor"]);
+    expect(searchScope("claude", true)).toEqual(["claude", "codex", "opencode", "cursor"]);
+  });
+
+  test("a control that offers fewer providers searches only those, and its rail shows only those", async () => {
+    expect(searchScope("claude", true, ["claude", "codex", "opencode"])).toEqual(["claude", "codex", "opencode"]);
+    const railLabel = (label: string) => document.body.querySelector(`button[aria-label="${label}"]`);
+    await open({ providers: ["claude", "codex", "opencode"] });
+    expect(railLabel("OpenCode")).not.toBeNull();
+    expect(railLabel("Cursor")).toBeNull();
   });
 
   test("only its own once the session has fixed the provider", () => {
@@ -403,10 +412,10 @@ describe("which catalogues a live query reads", () => {
   });
 
   test("no provider is listed twice, whichever one you are on", () => {
-    for (const driver of ["claude", "codex", "opencode"] as ProviderDriverKind[]) {
+    for (const driver of ["claude", "codex", "opencode", "cursor"] as ProviderDriverKind[]) {
       const scope = searchScope(driver, true);
       expect(new Set(scope).size).toBe(scope.length);
-      expect(scope).toHaveLength(3);
+      expect(scope).toHaveLength(4);
     }
   });
 });

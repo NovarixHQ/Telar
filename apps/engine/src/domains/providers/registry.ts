@@ -34,7 +34,7 @@ function secretKey(instanceId: string, name: string): string {
 
 /** The built-in slot. No `configDir`: for Claude, setting it at all points at a different, empty Keychain entry. */
 function seedProviderInstance(driver: ProviderDriverKind, at: number): ProviderInstance {
-  return { id: defaultInstanceIdForDriver(driver), driver, enabled: driver !== "opencode", env: [], createdAt: at, updatedAt: at };
+  return { id: defaultInstanceIdForDriver(driver), driver, enabled: driver === "claude" || driver === "codex", env: [], createdAt: at, updatedAt: at };
 }
 
 /** `null` clears, `undefined` keeps, anything else is normalised and set; a blank string also clears. */
@@ -116,7 +116,7 @@ export class ProviderRegistry {
     const existing = instances.find((instance) => instance.id === input.id);
     const driver = input.driver === undefined ? existing?.driver : input.driver;
     if (!isKnownDriver(driver)) {
-      throw new EngineStateError("invalid_request", "provider instance driver must be claude, codex, opencode or acp");
+      throw new EngineStateError("invalid_request", "provider instance driver must be claude, codex, opencode, cursor or acp");
     }
     if (existing && existing.driver !== driver) throw new EngineStateError("conflict", "a provider instance cannot change driver");
     const at = this.kernel.now();
@@ -240,7 +240,7 @@ export class ProviderRegistry {
     }
     const parsed = ProviderInstanceSchema.array().safeParse(stored.providerInstances ?? []);
     if (!parsed.success) throw new EngineStateError("invalid_request", "invalid provider instance registry");
-    const missing = (["opencode"] as const).filter((driver) => !parsed.data.some((instance) => instance.id === driver));
+    const missing = (["opencode", "cursor"] as const).filter((driver) => !parsed.data.some((instance) => instance.id === driver));
     if (missing.length > 0) {
       for (const driver of missing) parsed.data.push(seedProviderInstance(driver, this.kernel.now()));
       this.writeInstances(parsed.data);

@@ -4,6 +4,7 @@ import { BROWSER_TOOLS, BrowserToolSocket, type BrowserSocketCapability, type En
 import { createClaudeDriver } from "./claude";
 import type { DriverSelector } from "../worker";
 import { createCodexDriver } from "./codex";
+import { createCursorDriver } from "./cursor";
 import type { TurnDriver } from "./contract";
 export { withCarriedContext } from "./carried-context";
 import { createOpenCodeDriver } from "./opencode";
@@ -45,6 +46,6 @@ export function createBrowserToolSocket(browser: EngineBrowser): BrowserToolSock
 export function createDefaultDrivers(): DriverSelector {
   const claude = createClaudeDriver();
   const codex = createCodexDriver();
-  const byKind: Record<string, TurnDriver> = { claude, codex, opencode: createOpenCodeDriver(), [ACP_DRIVER]: createAcpDriver() };
+  const byKind: Record<string, TurnDriver> = { claude, codex, opencode: createOpenCodeDriver(), cursor: createCursorDriver(), [ACP_DRIVER]: createAcpDriver() };
   return (kind) => byKind[kind];
 }

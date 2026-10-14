@@ -1,4 +1,4 @@
-import { defaultInstanceIdForDriver, type ModelSelection, type ProviderDriverKind, type ProviderModel } from "@telar/engine-client";
+import { BUILT_IN_DRIVERS, defaultInstanceIdForDriver, type ModelSelection, type ProviderDriverKind, type ProviderModel } from "@telar/engine-client";
 
 type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -53,7 +53,7 @@ export function sessionModelSelection(instanceId: string, choice: ModelChoice): 
 
 export function projectDraftModel(selection: ModelSelection | undefined): { driver: ProviderDriverKind; choice: ModelChoice } | undefined {
   if (!selection) return undefined;
-  const driver = (["claude", "codex", "opencode"] as const).find((option) => defaultInstanceIdForDriver(option) === selection.instanceId);
+  const driver = BUILT_IN_DRIVERS.find((option) => defaultInstanceIdForDriver(option) === selection.instanceId);
   if (!driver) return undefined;
   return {
     driver,

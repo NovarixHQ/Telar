@@ -1,7 +1,7 @@
 import { driverLabel } from "./components/provider-icon";
-import { isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type ProviderProbe } from "@telar/engine-client";
+import { BUILT_IN_DRIVERS, isBuiltInDriver, type BuiltInDriver, type ProviderDriverKind, type ProviderInstance, type ProviderProbe } from "@telar/engine-client";
 
-export const DRIVERS: readonly ProviderDriverKind[] = ["claude", "codex", "opencode"];
+export const DRIVERS: readonly ProviderDriverKind[] = BUILT_IN_DRIVERS;
 
 export const STATUS_DOT: Record<ProviderProbe["status"], string> = {
   ready: "bg-success",
@@ -123,21 +123,24 @@ export function isValidInstanceId(id: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(id);
 }
 
-const CONFIG_DIR_ENV: Record<BuiltInDriver, string> = {
+const CONFIG_DIR_ENV: Partial<Record<BuiltInDriver, string>> = {
   claude: "CLAUDE_CONFIG_DIR",
   codex: "CODEX_HOME",
   opencode: "OPENCODE_CONFIG_DIR",
 };
 
+export const LOGIN_DRIVERS: readonly ProviderDriverKind[] = DRIVERS.filter((driver) => isBuiltInDriver(driver) && CONFIG_DIR_ENV[driver] !== undefined);
+
 const LOGIN_COMMAND: Record<BuiltInDriver, string> = {
   claude: "claude auth login",
   codex: "codex login",
   opencode: "opencode auth login",
+  cursor: "agent login",
 };
 
 export function signInCommand(instance: Pick<ProviderInstance, "driver" | "configDir">): string {
   if (!isBuiltInDriver(instance.driver)) return "";
   const command = LOGIN_COMMAND[instance.driver];
-  if (instance.driver === "opencode") return command; // configDir does not isolate native OpenCode credentials.
-  return instance.configDir ? `${CONFIG_DIR_ENV[instance.driver]}="${instance.configDir}" ${command}` : command;
+  const configDirEnv = instance.driver === "opencode" ? undefined : CONFIG_DIR_ENV[instance.driver];
+  return instance.configDir && configDirEnv ? `${configDirEnv}="${instance.configDir}" ${command}` : command;
 }

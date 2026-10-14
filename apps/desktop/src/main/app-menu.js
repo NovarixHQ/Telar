@@ -1,5 +1,5 @@
 const { app, BrowserWindow, Menu } = require("electron");
-const { claimedCommandIds, keymapOverrides, menuCommands, mergeKeymap } = require("./command-keys");
+const { claimedCommandIds, keymapOverrides, menuCommands, mergeKeymap, resolveCommandForEvent } = require("./command-keys");
 const { ChordScopes } = require("./chord-scope");
 const { browserManagers } = require("./browser-hosts");
 const { jsonPrefs } = require("./prefs");
@@ -82,6 +82,15 @@ function followFocusedWindow() {
 function sendCommandKey(browserWindow, id) {
   const win = browserWindow || BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
   win?.webContents.send("telar:command-keys:invoke", id);
+}
+
+const PAGE_COMMANDS = new Set(["toggle-dictation"]);
+
+function forwardPageCommand(win, input) {
+  const id = resolveCommandForEvent(readKeymap(), { key: input.key, code: input.code, metaKey: input.meta, ctrlKey: input.control, altKey: input.alt, shiftKey: input.shift });
+  if (!PAGE_COMMANDS.has(id)) return false;
+  sendCommandKey(win, id);
+  return true;
 }
 
 function buildApplicationMenu(keymap = readKeymap()) {
@@ -169,6 +178,7 @@ module.exports = {
   buildApplicationMenu,
   followFocusedWindow,
   forgetBrowserChordScope,
+  forwardPageCommand,
   readKeybindingOverrides,
   setBrowserChordScope,
   setChordCapture,

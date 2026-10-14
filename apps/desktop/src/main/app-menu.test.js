@@ -1,6 +1,6 @@
 const { afterEach, beforeEach, describe, expect, test } = require("bun:test");
 const { electron, eventFrom, FakeBrowserWindow, resetElectron } = require("../../test/fake-electron");
-const { buildApplicationMenu, followFocusedWindow, setBrowserChordScope } = require("./app-menu");
+const { buildApplicationMenu, followFocusedWindow, forwardPageCommand, setBrowserChordScope } = require("./app-menu");
 const { addHost, removeHost } = require("./browser-hosts");
 const { registerPrefsIpc } = require("./ipc-prefs");
 
@@ -28,6 +28,16 @@ test("the Window menu offers to float the browser on top, with its shortcut", ()
   const win = new FakeBrowserWindow();
   item.click(null, win);
   expect(win.webContents.sent).toContainEqual({ channel: "telar:command-keys:invoke", payload: "float-browser" });
+});
+
+test("the dictation chord pressed on a browser page reaches the cockpit, and other chords stay with the page", () => {
+  const win = new FakeBrowserWindow();
+  const press = (key, code) => forwardPageCommand(win, { type: "keyDown", key, code, meta: true, control: false, alt: false, shift: false });
+  expect(press("d", "KeyD")).toBe(true);
+  expect(win.webContents.sent).toEqual([{ channel: "telar:command-keys:invoke", payload: "toggle-dictation" }]);
+  expect(press("s", "KeyS")).toBe(false);
+  expect(press("k", "KeyK")).toBe(false);
+  expect(win.webContents.sent).toHaveLength(1);
 });
 
 test("it keeps the system's window items", () => {

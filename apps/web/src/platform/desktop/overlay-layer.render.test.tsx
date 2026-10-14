@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { act } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/ui/context-menu";
 import { flush, installTestDom, mount, press } from "@/test/dom";
 import { nativeViewOverlayHidden } from "./native-view-overlay";
@@ -161,6 +162,37 @@ describe("popups draw in the overlay layer while a native view is shown", () => 
     typed({ key: "j" });
     window.removeEventListener("keydown", listen);
     expect(heard).toEqual(["k"]);
+  });
+
+  test("a select opens in the overlay over its selected item, as it does in the cockpit", async () => {
+    HTMLElement.prototype.getBoundingClientRect = () => new DOMRect(200, 300, 160, 24);
+    for (const html of [document.documentElement, overlay.documentElement]) {
+      Object.defineProperty(html, "clientHeight", { configurable: true, value: 768 });
+      Object.defineProperty(html, "clientWidth", { configurable: true, value: 1024 });
+    }
+    await mount(
+      <>
+        <BrowserHost />
+        <Select defaultValue="b">
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="a">Alpha</SelectItem>
+            <SelectItem value="b">Bravo</SelectItem>
+          </SelectContent>
+        </Select>
+      </>,
+    );
+    await press(document.querySelector('[data-slot="select-trigger"]')!);
+    const positioner = () => overlay.querySelector<HTMLElement>('[data-side]');
+    await flush(() => positioner() !== null);
+    expect(overlay.querySelector('[role="listbox"]')?.textContent).toContain("Bravo");
+    expect(positioner()?.getAttribute("data-side")).toBe("none");
+    for (const html of [document.documentElement, overlay.documentElement]) {
+      delete (html as { clientHeight?: number }).clientHeight;
+      delete (html as { clientWidth?: number }).clientWidth;
+    }
   });
 
   test("dialogs keep freezing the page", async () => {

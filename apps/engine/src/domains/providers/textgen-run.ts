@@ -6,6 +6,7 @@ import type { ProviderDriverKind, UsageSnapshot } from "@telar/engine-client";
 import { usageFrom } from "../../drivers/claude/usage";
 import { requireCli } from "./cli";
 import { withClaudeSettingsEnv } from "./claude-settings-env";
+import { cursorWorkDir } from "./models";
 
 export type TextGenEffort = "low" | "medium" | "high";
 
@@ -42,6 +43,7 @@ export async function runStructuredOrThrow(input: TextGenDriverInput, prompt: st
   try {
     if (input.driver === "claude") return await runClaude(input, scratch, prompt, schema);
     if (input.driver === "codex") return await runCodex(input, scratch, prompt, schema);
+    if (input.driver === "cursor") return jsonIn(await cursorAnswer(input, `${SYSTEM_PROMPT} It must match this JSON schema: ${JSON.stringify(schema)}\n\n${prompt}`));
     return await runOpenCode(input, scratch, prompt, schema);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -53,6 +55,7 @@ export async function runTextOrThrow(input: TextGenDriverInput, prompt: string, 
   try {
     if (input.driver === "claude") return await runClaudeText(input, scratch, prompt, system);
     if (input.driver === "codex") return await runCodexText(input, scratch, `${system}\n\n${prompt}`);
+    if (input.driver === "cursor") return await runCursorText(input, `${system}\n\n${prompt}`);
     return await runOpenCodeText(input, scratch, prompt, system);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -207,10 +210,34 @@ function openCodeText(stdout: string): string {
 }
 
 function parseOpenCodeAnswer(stdout: string): Structured | undefined {
-  const text = openCodeText(stdout);
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return start >= 0 && end > start ? parseJson(text.slice(start, end + 1)) : undefined;
+  return jsonIn(openCodeText(stdout));
+}
+
+function jsonIn(text: string | undefined): Structured | undefined {
+  const start = text?.indexOf("{") ?? -1;
+  const end = text?.lastIndexOf("}") ?? -1;
+  return text && start >= 0 && end > start ? parseJson(text.slice(start, end + 1)) : undefined;
+}
+
+function cursorTextGenArgs(input: Pick<TextGenDriverInput, "model">): string[] {
+  return ["-p", "--trust", "--sandbox", "enabled", "--mode", "ask", "--output-format", "stream-json", ...(input.model ? ["--model", input.model] : [])];
+}
+
+const cursorResult = (stdout: string): Structured | undefined => stdout.split("\n").map(parseJson).find((event) => event?.["type"] === "result");
+
+async function cursorAnswer(input: TextGenDriverInput, prompt: string): Promise<string | undefined> {
+  const executable = requireCli("cursor", input.binaryPath ? { binaryPath: input.binaryPath } : {});
+  const exit = await runToCompletion(executable, cursorTextGenArgs(input), cursorWorkDir(), input, spawnEnv(input.env), prompt, cursorResult);
+  if (exit === undefined) return undefined;
+  const result = cursorResult(exit.out);
+  if (result?.["is_error"] === true) throw new TextGenFailure(redactedTail(String(result["result"] ?? "error")));
+  if (typeof result?.["result"] === "string") return result["result"];
+  throw exit.code !== 0 ? exitFailure(exit) : noAnswer(exit);
+}
+
+async function runCursorText(input: TextGenDriverInput, prompt: string): Promise<TextAnswer | undefined> {
+  const text = await cursorAnswer(input, prompt);
+  return text === undefined ? undefined : { text, ...(input.model ? { model: input.model } : {}) };
 }
 
 export class TextGenFailure extends Error {}
@@ -236,6 +263,7 @@ function runToCompletion(
   input: TextGenDriverInput,
   env: NodeJS.ProcessEnv,
   prompt: string,
+  answered?: (stdout: string) => unknown,
 ): Promise<Exit | undefined> {
   return new Promise((resolve, reject) => {
     if (input.signal?.aborted) {
@@ -270,6 +298,10 @@ function runToCompletion(
     child.on("error", (error) => finish(undefined, `could not start: ${error.message}`));
     child.stdout.on("data", (chunk: Buffer) => {
       out += chunk.toString("utf8");
+      if (answered?.(out)) {
+        child.kill("SIGKILL");
+        finish({ code: 0, out, err });
+      }
       if (out.length <= MAX_STDOUT_BYTES) return;
       child.kill("SIGKILL");
       finish(undefined, `output passed ${MAX_STDOUT_BYTES / 1024 / 1024} MB`);

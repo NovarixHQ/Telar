@@ -19,10 +19,9 @@ export type ModelPickerProps = {
   /** Before the session exists: picking another provider's model changes what the first message creates. */
   onDriverChange?: (driver: ProviderDriverKind) => void;
   onSwitchProvider?: (driver: ProviderDriverKind, next: ModelChoice) => void;
-  providers?: readonly ProviderDriverKind[];
 };
 
-export function useModelPicker({ driver, choice, instanceId, onChange, onDriverChange, onSwitchProvider, providers = PROVIDERS }: ModelPickerProps) {
+export function useModelPicker({ driver, choice, instanceId, onChange, onDriverChange, onSwitchProvider }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
   const [showLegacy, setShowLegacy] = useState(false);
   // A live query replaces every scope the rail selects: the legacy fold, favourites and the provider.
@@ -34,7 +33,7 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
   const crossProvider = (view === "favorites" || searching) && canSwitch;
   const other = view !== "favorites" && view !== driver ? view : undefined;
   const scopes = crossProvider || other
-    ? providers.map((option) => (option === driver && instanceId ? { driver: option, instanceId } : { driver: option }))
+    ? PROVIDERS.map((option) => (option === driver && instanceId ? { driver: option, instanceId } : { driver: option }))
     : [{ driver, ...(instanceId ? { instanceId } : {}) }];
   const catalogues = useModelCatalogues(scopes);
   const catalogue = catalogues.get(driver);
@@ -44,12 +43,12 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
   const starredRows = overlays.get(driver)?.favorites ?? [];
   const favorites = useMemo(() => {
     const out = new Set<string>();
-    for (const option of crossProvider ? providers : [driver]) {
+    for (const option of crossProvider ? PROVIDERS : [driver]) {
       const rows = new Set(overlays.get(option)?.favorites ?? []);
       for (const id of familyFavorites(catalogues.get(option)?.models ?? [], rows)) out.add(id);
     }
     return out;
-  }, [overlays, catalogues, crossProvider, driver, providers]);
+  }, [overlays, catalogues, crossProvider, driver]);
 
   const overlayLoaded = overlays.get(driver) !== undefined;
   useEffect(() => {
@@ -73,7 +72,7 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
   const listedOf = (option: ProviderDriverKind) => newestFirst(groupFamilies(visibleModels(catalogues.get(option)?.models ?? [], choice.model)));
   const { current, legacy } = keepStarredVisible(splitGenerations(listedOf(driver)), favorites);
   const matches = (family: ModelFamily) => familySearchText(family).includes(query.trim().toLowerCase());
-  const scope = other ? [other] : searchScope(driver, crossProvider, providers);
+  const scope = other ? [other] : searchScope(driver, crossProvider);
   const searchable = (option: ProviderDriverKind) => (option === driver ? [...current, ...legacy] : listedOf(option));
   const listed: { from: ProviderDriverKind; family: ModelFamily }[] = searching
     ? scope.flatMap((option) => searchable(option).filter(matches).map((family) => ({ from: option, family })))
@@ -125,7 +124,6 @@ export function useModelPicker({ driver, choice, instanceId, onChange, onDriverC
     setShowLegacy,
     crossProvider,
     canSwitch,
-    providers,
     catalogue,
     models,
     selectedFamily,

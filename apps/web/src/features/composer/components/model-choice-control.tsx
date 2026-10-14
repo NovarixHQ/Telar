@@ -11,13 +11,11 @@ export function ModelChoiceControl({
   choice,
   instanceId,
   onChange,
-  providers,
 }: {
   driver: ProviderDriverKind;
   choice: ModelChoice;
   instanceId?: string;
   onChange: (driver: ProviderDriverKind, next: ModelChoice) => void;
-  providers?: readonly ProviderDriverKind[];
 }) {
   const [picked, setPicked] = useState<ProviderDriverKind>();
   const pending = useRef<ProviderDriverKind | undefined>(undefined);
@@ -36,7 +34,7 @@ export function ModelChoiceControl({
   };
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
-      <AgentControl driver={shown} choice={shownChoice} {...login} onChange={change} onDriverChange={switchDriver} {...(providers ? { providers } : {})} />
+      <AgentControl driver={shown} choice={shownChoice} {...login} onChange={change} onDriverChange={switchDriver} />
       <ReasoningControl driver={shown} choice={shownChoice} {...login} onChange={change} />
     </div>
   );

@@ -66,8 +66,6 @@ export const DEFAULT_SIDEBAR_LAYOUT: SidebarLayout = { projectOrder: [], session
 export const TextGenEffort = z.enum(["low", "medium", "high"]);
 export type TextGenEffort = z.infer<typeof TextGenEffort>;
 
-export const TEXT_GEN_DRIVERS: readonly ProviderDriverKind[] = ["claude", "codex", "opencode"];
-
 export const TextGenPolicy = z.object({
   /** Also renames the engine-cut `telar/…` branch to match, never one a human named. */
   titles: z.boolean(),

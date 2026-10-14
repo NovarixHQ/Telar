@@ -398,14 +398,6 @@ describe("which catalogues a live query reads", () => {
     expect(searchScope("claude", true)).toEqual(["claude", "codex", "opencode", "cursor"]);
   });
 
-  test("a control that offers fewer providers searches only those, and its rail shows only those", async () => {
-    expect(searchScope("claude", true, ["claude", "codex", "opencode"])).toEqual(["claude", "codex", "opencode"]);
-    const railLabel = (label: string) => document.body.querySelector(`button[aria-label="${label}"]`);
-    await open({ providers: ["claude", "codex", "opencode"] });
-    expect(railLabel("OpenCode")).not.toBeNull();
-    expect(railLabel("Cursor")).toBeNull();
-  });
-
   test("only its own once the session has fixed the provider", () => {
     expect(searchScope("opencode", false)).toEqual(["opencode"]);
     expect(searchScope("claude", false)).toEqual(["claude"]);

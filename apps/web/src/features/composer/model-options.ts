@@ -180,6 +180,6 @@ export function withModel(choice: ModelChoice, row: ProviderModel): ModelChoice 
 }
 
 /** The catalogues a live model search reads: every provider while it can still be switched, else the session's own. */
-export function searchScope(driver: ProviderDriverKind, canSwitchProvider: boolean, providers: readonly ProviderDriverKind[] = PROVIDERS): ProviderDriverKind[] {
-  return canSwitchProvider ? [driver, ...providers.filter((option) => option !== driver)] : [driver];
+export function searchScope(driver: ProviderDriverKind, canSwitchProvider: boolean): ProviderDriverKind[] {
+  return canSwitchProvider ? [driver, ...PROVIDERS.filter((option) => option !== driver)] : [driver];
 }

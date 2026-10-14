@@ -13,6 +13,7 @@ import { forgeParams, readForgeOpen, type ForgeOpen } from "@/features/github";
 import { SurfaceBoundary } from "@/ui/load-failure";
 import { useSuspendSidebar } from "@/ui/sidebar";
 import { useSidebarPrefs } from "@/ui/sidebar-width";
+import { usePublishPanelFullscreen } from "../fullscreen";
 import { useCommandHandlers } from "@/features/commands";
 import { useCanOpenShells } from "@/features/terminal";
 import { cn } from "@/ui/utils";
@@ -221,6 +222,7 @@ export function RightPanel(props: RightPanelProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const toggleFullscreen = () => setFullscreen((current) => !current);
   useCommandHandlers(open ? { "panel-fullscreen": toggleFullscreen } : {}, [open]);
+  usePublishPanelFullscreen(open && fullscreen);
   const suspendRail = useSuspendSidebar();
   useEffect(() => {
     if (!suspendRail || !open || !fullscreen) return;

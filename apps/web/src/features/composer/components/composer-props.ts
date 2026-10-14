@@ -67,6 +67,8 @@ export type ComposerProps = {
   sentPrompts?: readonly string[];
   onDraftChange: (draft: string) => void;
   onSubmit: () => void;
+  onDictationPhase?: (phase: "idle" | "starting" | "listening") => void;
+  dictateOnOpen?: boolean;
   onStop: () => void;
   /** Stops the lingering background tasks; `onStop` ends the turn and spares them. */
   onStopBackground: () => void;

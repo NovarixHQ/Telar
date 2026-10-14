@@ -27,11 +27,14 @@ export type ComposerDictation = DictationState & {
   stream?: MediaStream;
 };
 
-export function useComposerDictation(token: string): ComposerDictation {
+type Opening = { onPhase?: ((phase: DictationState["phase"]) => void) | undefined; startNow?: boolean | undefined };
+
+export function useComposerDictation(token: string, { onPhase, startNow = false }: Opening = {}): ComposerDictation {
   // Resolved at the press, since the active composer changes with focus.
   const box = useCallback((): DictationBox | undefined => activeComposer(), []);
   const [stream, setStream] = useState<MediaStream>();
   const dictation = useDictation({ box, onStream: setStream });
+  useEffect(() => onPhase?.(dictation.phase), [onPhase, dictation.phase]);
   const { provider } = useDictationSettings();
   const available = provider !== "off" && dictation.supported;
   /** `undefined` on the server and on any page that can record. */
@@ -65,6 +68,13 @@ export function useComposerDictation(token: string): ComposerDictation {
    * necessarily the one being typed into.
    */
   useCommandHandlers(offerable ? { "toggle-dictation": toggleActiveDictation } : {}, [offerable]);
+
+  const started = useRef(false);
+  useEffect(() => {
+    if (!startNow || !available || started.current) return;
+    started.current = true;
+    dictation.toggle();
+  }, [startNow, available, dictation]);
 
   return {
     ...dictation,

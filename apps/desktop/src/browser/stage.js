@@ -1,3 +1,5 @@
+const { raiseOverlay } = require("../windows/overlay-layer");
+
 const UNMEASURED = { x: 0, y: 0, width: 1, height: 1 };
 
 const SCOPE_CLAIM = { visible: 3, panel: 2, pages: 1 };
@@ -104,6 +106,7 @@ module.exports = {
   mountView(tab, view) {
     const win = this.windowOfTab(tab);
     win.contentView.addChildView(view);
+    raiseOverlay(win);
     tab.stageWindow = win;
   },
 
@@ -119,6 +122,7 @@ module.exports = {
     view.setVisible(false);
     this.unmountView(tab, view);
     win.contentView.addChildView(view);
+    raiseOverlay(win);
     tab.stageWindow = win;
     tab.lastPlaced = undefined;
   },

@@ -76,6 +76,22 @@ What is not obvious:
   ```
   The address is then `https://<mac>.<tailnet>.ts.net:8443/api/mcp`. Anyone on the internet can reach it and only the token keeps them out, so revoke the device if the token leaks. `tailscale funnel --https=8443 off` takes it down.
 
+## Webhook
+
+Telar can POST to a URL of yours when a session finishes, fails or needs your approval: the same moments a notification fires, once each. Set the URL, and optionally a secret, in Settings → Connections → Webhook. **Send a test** posts a `test` event right away.
+
+```json
+{ "id": "…", "event": "session.finished", "sessionId": "…", "title": "Fix the login", "project": { "id": "…", "name": "Telar" }, "status": "idle", "at": "2026-10-13T12:00:00.000Z" }
+```
+
+`event` is `session.finished`, `session.failed` or `session.blocked`. `status` is what the session is doing at that moment. The headers `X-Telar-Event` and `X-Telar-Delivery` repeat the event and its `id`. With a secret, each request carries `Authorization: Bearer <secret>` and `X-Telar-Signature: sha256=<hex HMAC-SHA256 of the raw body>`, so check whichever your receiver supports.
+
+What is not obvious:
+- Each try times out after 5 seconds. No answer, a 408, a 429 or a 5xx is retried three more times, after 1, 5 and 30 seconds. Other refusals and redirects are not. A retry keeps the same `id`, so deduplicate on it.
+- Nothing is sent for what happened while Telar was closed. After a launch it starts from how things are now.
+- A session another session started sends only `session.blocked`, as with notifications.
+- The settings show only the URL's origin, and the secret is never shown again.
+
 ## Push notifications
 
 Phone notifications are set on the phone. See [iPhone](iphone.md).

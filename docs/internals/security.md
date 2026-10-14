@@ -28,3 +28,4 @@ Telar runs agents that can execute commands and write files, so whoever can reac
 
 - `TELAR_HOME` is the owner's. Tests and agents build fixtures in temp dirs.
 - Secrets live in the Keychain (`com.telar.push-relay`) or the provider's own config. They are never logged or journaled.
+- The outgoing webhook's secret is kept in `remote/webhook.json` (0600), goes only to that URL, and is never returned by the engine; the settings see the URL's origin alone. Delivery never follows a redirect, so the Authorization header can't be carried to another host.

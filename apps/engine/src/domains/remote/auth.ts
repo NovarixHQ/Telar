@@ -25,6 +25,14 @@ function identifyDevice(file: RemoteFile, credentials: Credentials): PairedDevic
   return candidate ? matchDevice(file, candidate) : undefined;
 }
 
+/** A paired device named by a bearer alone, never a cookie, so a browser page cannot ride a device's session into it. */
+export function deviceForBearer(store: RemoteStore, authorization: string | undefined): { id: string; role: DeviceRole } | undefined {
+  const device = identifyDevice(store.read(), { authorization: authorization ?? null });
+  if (!device) return undefined;
+  store.touchDevice(device.id);
+  return { id: device.id, role: device.role };
+}
+
 const isHostCaller = (credentials: Credentials, secret: string | undefined): boolean =>
   isHostSecret(credentials.hostHeader, secret) || isHostSecret(credentials.deviceCookie, secret);
 

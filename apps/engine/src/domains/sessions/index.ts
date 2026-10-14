@@ -21,6 +21,7 @@ export { holdEventStream, type OpenStream } from "./stream";
 export { sessionAttachmentRoutes } from "./attachments";
 export { SessionAttachments } from "./attachment-store";
 export { webImageOf } from "./web-image";
+export { connectorDoor } from "./connector-door";
 export { sessionsSocketDoor } from "./socket-door";
 export { SessionSubscriptions, TERMINAL_WAKE_KINDS } from "./subscriptions";
 export { SessionChildren } from "./children";

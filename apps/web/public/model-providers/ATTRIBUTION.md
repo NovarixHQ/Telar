@@ -20,6 +20,10 @@ and using it as one is the defect issue #655 records. `opencode-go.svg` is
 vendored for the same reason: it used to be aliased to `opencode.svg`, which
 drew Go's rows with Zen's letter.
 
+`google.svg`, `xai.svg` and `meta.svg` were fetched on 2026-10-14 from
+`https://raw.githubusercontent.com/sst/models.dev/dev/providers/{id}/logo.svg`.
+They mark the vendor of a model on providers that serve several (Cursor).
+
 ## The provider mark — opencode's own brand assets
 
 `opencode-app.svg` is the **OpenCode application's** mark, vendored from
@@ -33,12 +37,21 @@ for the app itself.
   file reads in both themes — the same treatment every mark here gets. The
   upstream `clipPath` clips to the mark's own bounds and is dropped as a no-op.
 
-## Both
+## The provider mark — Cursor
+
+`cursor-app.svg` is the **Cursor application's** mark; models.dev has no entry
+for it. Vendored verbatim from `@lobehub/icons-static-svg` 1.95.1,
+`icons/cursor.svg` (MIT), the package the Codex mark comes from, on 2026-10-14.
+Its inner triangle is cut out with `fill-rule="evenodd"`, which the generator
+carries into the component.
+
+## All
 
 All marks are `fill="currentColor"`. The logos remain trademarks of their
-respective owners (OpenAI, Anthropic, Anomaly / SST, Amazon); they are used
-here to identify the corresponding service, not to imply endorsement.
+respective owners (OpenAI, Anthropic, Google, xAI, Meta, Anysphere, Anomaly /
+SST, Amazon); they are used here to identify the corresponding service, not to
+imply endorsement.
 
 `features/providers/components/connection-icon.tsx` embeds these paths and is GENERATED —
-regenerate it with `node generate-icons.mjs` from this directory after
+regenerate it with `bun generate-icons.mjs` from this directory after
 re-vendoring, rather than hand-editing it.

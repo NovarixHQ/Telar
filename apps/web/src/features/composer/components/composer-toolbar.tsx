@@ -120,8 +120,7 @@ export function ComposerPills(props: PillProps) {
   return (
     <>
       <AgentControl {...shared} summon={summoned("model")} {...(onDriverChange ? { onDriverChange } : {})} {...(props.onSwitchProvider ? { onSwitchProvider: props.onSwitchProvider } : {})} />
-      <ControlDivider />
-      <ReasoningControl {...shared} ultrathink={ultrathink} summon={summoned("effort")} />
+      <ReasoningControl {...shared} ultrathink={ultrathink} summon={summoned("effort")} leading={<ControlDivider />} />
       {runtimeMode && (
         <>
           <ControlDivider />

@@ -18,7 +18,7 @@ function controlClass(open: boolean, disabled?: boolean) {
 }
 
 export function ControlDivider() {
-  return <span aria-hidden className="h-4 w-px shrink-0 bg-border @max-md/composer:hidden" />;
+  return <span aria-hidden data-slot="composer-divider" className="h-4 w-px shrink-0 bg-border @max-md/composer:hidden" />;
 }
 
 // Inside a narrow composer, or a row whose more important labels would be cut, a pill drops its words; xl goes first.

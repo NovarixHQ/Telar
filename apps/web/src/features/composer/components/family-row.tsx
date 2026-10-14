@@ -2,7 +2,7 @@
 
 import { CheckIcon, StarIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
-import { connectionLabel, routeOf, routedModelLabel, driverLabel, ModelRowIcon } from "@/features/providers";
+import { connectionLabel, routeOf, routedModelLabel, driverLabel, ModelRowIcon, modelVendorLabel } from "@/features/providers";
 import { type ModelFamily } from "@telar/client/providers";
 import { cn } from "@/ui/utils";
 
@@ -28,7 +28,8 @@ export function FamilyRow({
 }) {
   const route = routeOf(family.id);
   const label = route ? routedModelLabel(route.model) : family.label;
-  const origin = [showDriver && driverLabel(driver), route && connectionLabel(route.connection)].filter(Boolean).join(" · ");
+  const vendor = route ? undefined : modelVendorLabel(driver, family.id);
+  const origin = [...new Set([showDriver && driverLabel(driver), route && connectionLabel(route.connection), vendor].filter(Boolean))].join(" · ");
   return (
     <div className="group/model flex items-center gap-0.5">
       <button

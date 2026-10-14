@@ -12,13 +12,13 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { ConnectionIcon, connectionMark, ModelRowIcon, OPENCODE_MARK } from "./connection-icon";
-import { driverLabel, ProviderIcon } from "./provider-icon";
+import { ConnectionIcon, connectionMark, CURSOR_MARK, OPENCODE_MARK } from "./connection-icon";
+import { driverLabel, ModelPillIcon, ModelRowIcon, modelVendorLabel, ProviderIcon } from "./provider-icon";
 
 const SIZES = [11, 13, 14, 16, 20];
 
 describe("a provider mark", () => {
-  for (const provider of ["claude", "codex", "opencode"] as const) {
+  for (const provider of ["claude", "codex", "opencode", "cursor"] as const) {
     test(`${provider} honours every size it is given, in a style a container cannot override`, () => {
       for (const size of SIZES) {
         const markup = renderToStaticMarkup(<ProviderIcon provider={provider} size={size} />);
@@ -33,12 +33,19 @@ describe("a provider mark", () => {
     });
   }
 
-  test("Cursor wears a generic glyph at the size it is given, not another provider's mark", () => {
+  test("Cursor wears its own mark, cut out rather than filled in", () => {
     const markup = renderToStaticMarkup(<ProviderIcon provider="cursor" size={13} />);
-    expect(markup).toContain("width:13px");
+    expect(markup).toContain(CURSOR_MARK.d);
+    expect(markup).toContain('fill-rule="evenodd"');
     expect(markup).toContain("text-foreground/80");
-    expect(markup).not.toContain("#d97757");
     expect(driverLabel("cursor")).toBe("Cursor");
+  });
+
+  test("a driver Telar has no mark for still gets a glyph, never a borrowed logo", () => {
+    const markup = renderToStaticMarkup(<ProviderIcon provider="some-acp-agent" size={13} />);
+    expect(markup).toContain("width:13px");
+    expect(markup).not.toContain(CURSOR_MARK.d);
+    expect(markup).not.toContain(OPENCODE_MARK.d);
   });
 
   test("Claude keeps its brand colour; the other two take the surface's", () => {
@@ -117,5 +124,44 @@ describe("OpenCode's provider mark is not Zen's account mark", () => {
     const markup = renderToStaticMarkup(<ProviderIcon provider="opencode" size={14} />);
     expect(markup.indexOf(OPENCODE_MARK.dim!)).toBeLessThan(markup.indexOf(OPENCODE_MARK.d));
     expect(markup).toContain('opacity="0.45"');
+  });
+});
+
+describe("a provider that serves several vendors under unrouted ids", () => {
+  const markOf = (connection: string) => connectionMark(connection)!.d;
+  const row = (modelId: string, driver = "cursor") => renderToStaticMarkup(<ModelRowIcon driver={driver} modelId={modelId} />);
+
+  test("each row wears the vendor its id names", () => {
+    expect(row("claude-opus-5-5[context=300k,effort=medium,fast=false]")).toContain(markOf("anthropic"));
+    expect(row("gpt-5.6-sol[context=272k,reasoning=medium,fast=false]")).toContain(markOf("openai"));
+    expect(row("o4-mini[]")).toContain(markOf("openai"));
+    expect(row("gpt-5.3-codex[]")).toContain(markOf("openai"));
+    expect(row("gemini-3.1-pro[]")).toContain(markOf("google"));
+    expect(row("grok-4.7[fast=false]")).toContain(markOf("xai"));
+    expect(row("muse-spark-1.3[]")).toContain(markOf("meta"));
+  });
+
+  test("its own models, Auto and anything unrecognised wear the provider's mark", () => {
+    for (const id of ["composer-2.5[fast=true]", "default[]", "auto", "mystery-1"]) expect(row(id)).toContain(CURSOR_MARK.d);
+  });
+
+  test("the second line names the vendor, or the provider for its own models", () => {
+    expect(modelVendorLabel("cursor", "claude-opus-5-5[]")).toBe("Anthropic");
+    expect(modelVendorLabel("cursor", "grok-4.7[]")).toBe("xAI");
+    expect(modelVendorLabel("cursor", "default[]")).toBe("Cursor");
+    expect(modelVendorLabel("claude", "claude-opus-5")).toBeUndefined();
+    expect(modelVendorLabel("opencode", "claude-sonnet")).toBeUndefined();
+  });
+
+  test("the pill shows the vendor of the chosen model, and the provider's mark on Auto", () => {
+    expect(renderToStaticMarkup(<ModelPillIcon driver="cursor" modelId="claude-opus-5-5[]" />)).toContain(markOf("anthropic"));
+    expect(renderToStaticMarkup(<ModelPillIcon driver="cursor" modelId="default[]" />)).toContain(CURSOR_MARK.d);
+  });
+
+  test("single-vendor drivers keep their own pill and row marks whatever the id says", () => {
+    expect(renderToStaticMarkup(<ModelPillIcon driver="claude" modelId="claude-opus-5" />)).toContain("text-[#d97757]");
+    expect(renderToStaticMarkup(<ModelPillIcon driver="opencode" modelId="openai/gpt-5.6" />)).toContain(OPENCODE_MARK.d);
+    expect(row("gemini-like-id", "codex")).toContain(markOf("openai"));
+    expect(row("gemini-3-pro", "opencode")).toContain(OPENCODE_MARK.d);
   });
 });

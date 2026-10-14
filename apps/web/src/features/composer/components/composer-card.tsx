@@ -21,7 +21,7 @@ import { PillRow } from "./control-primitives";
 // A right-press on selected text keeps the browser's menu. Both stops are needed: React's keeps the
 // card's trigger shut, and the immediate one beats Base UI's document listener.
 const keepSelectionMenu = (event: React.MouseEvent<HTMLDivElement>) => {
-  const selection = window.getSelection();
+  const selection = event.currentTarget.ownerDocument.getSelection();
   const anchor = selection?.anchorNode;
   if (!selection || selection.isCollapsed || !anchor || !event.currentTarget.contains(anchor)) return;
   event.stopPropagation();

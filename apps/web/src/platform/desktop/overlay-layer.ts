@@ -39,7 +39,20 @@ function mirrorAttributes(from: Element, to: Element): void {
 let shifter: HTMLElement | null = null;
 
 function shift(): void {
-  if (shifter) shifter.style.transform = `translate(${-offset.x}px,${-offset.y}px)`;
+  if (!shifter) return;
+  Object.assign(shifter.style, {
+    position: "absolute",
+    width: `${window.innerWidth}px`,
+    height: `${window.innerHeight}px`,
+    transform: `translate(${-offset.x}px,${-offset.y}px)`,
+  });
+}
+
+function forwardKey(event: KeyboardEvent): void {
+  if (event.defaultPrevented || !(event.metaKey || event.ctrlKey)) return;
+  const copy = new KeyboardEvent("keydown", { key: event.key, code: event.code, metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey, repeat: event.repeat, cancelable: true });
+  window.dispatchEvent(copy);
+  if (copy.defaultPrevented) event.preventDefault();
 }
 
 function mirrorStyles(doc: Document, copies: Map<Node, Element>): void {
@@ -101,8 +114,10 @@ function watchOutside(doc: Document, bridge: OverlayBridge): () => void {
   const stop = bridge.onOutside(() => {
     for (const type of PRESS_EVENTS) replay(doc, type);
   });
+  doc.addEventListener("keydown", forwardKey);
   return () => {
     for (const type of PRESS_EVENTS) document.removeEventListener(type, forward, true);
+    doc.removeEventListener("keydown", forwardKey);
     stop();
   };
 }

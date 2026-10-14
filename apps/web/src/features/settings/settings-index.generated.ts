@@ -143,5 +143,10 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Revoke all other devices","hint":"Keeps this one — the lost-phone button. Any of them can pair again with a new code.","keywords":["sign out","logout","lost","stolen"]},
       {"title":"Add a computer","hint":"Shows another Mac's sessions in this rail.","keywords":["host","pair","second machine","remote","mac","computer"]},
     ] },
+    { "title":"Webhook", rows: [
+      {"title":"Webhook URL","keywords":["webhook","http","post","callback","automation","notify","finished","failed","approval","url"]},
+      {"title":"Secret","keywords":["webhook","secret","key","token","signature","hmac","bearer"]},
+      {"title":"Send a test","keywords":["webhook","test","try","check"]},
+    ] },
   ] },
 ];

@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { AcpConnection } from "../../drivers/acp";
 import { parseAcpModelOption, parseClaudeModels, parseCodexModels, readableModelName, readClaudeModels, readCursorModels, readModelCatalogue, stripPricing } from "./models";
@@ -293,18 +292,21 @@ describe("readModelCatalogue", () => {
 describe("Cursor's models", () => {
   const FAKE = fileURLToPath(new URL("../../../test/fixtures/fake-acp-agent.mjs", import.meta.url));
 
-  test("the catalogue is the live session's model option, read from a scratch directory that is then removed", async () => {
-    let scratch = "";
-    const { models, message } = await readCursorModels((cwd) => {
-      scratch = cwd;
-      return new AcpConnection(process.execPath, [FAKE], { cwd, env: { ...process.env, ACP_FAKE_SCRIPT: "options" } });
-    });
+  test("the catalogue is the live session's model option, read from the same directory every time", async () => {
+    const dirs: string[] = [];
+    const read = () =>
+      readCursorModels((cwd) => {
+        dirs.push(cwd);
+        return new AcpConnection(process.execPath, [FAKE], { cwd, env: { ...process.env, ACP_FAKE_SCRIPT: "options" } });
+      });
+    const { models, message } = await read();
+    await read();
     expect(message).toBeUndefined();
     expect(models.map((model) => [model.id, model.label, model.isDefault, model.efforts])).toEqual([
       ["fast", "Fast", true, []],
       ["smart", "Smart", false, []],
     ]);
-    expect(fs.existsSync(scratch)).toBe(false);
+    expect(dirs[0]).toBe(dirs[1]!);
   });
 
   test("an agent that will not start is a reason, not a throw", async () => {

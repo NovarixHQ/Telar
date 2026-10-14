@@ -31,11 +31,11 @@ function PopoverContent({
     PopoverPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "anchor"
   >) {
-  const positioner = useOverlayPositioner()
+  const [positionerRef, layer] = useOverlayPositioner()
   return (
-    <PopoverPrimitive.Portal container={positioner.container}>
+    <PopoverPrimitive.Portal container={layer}>
       <PopoverPrimitive.Positioner
-        ref={positioner.ref}
+        ref={positionerRef}
         align={align}
         alignOffset={alignOffset}
         side={side}

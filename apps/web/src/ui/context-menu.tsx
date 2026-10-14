@@ -7,29 +7,48 @@ import { cn } from "@/ui/utils"
 import { NativeViewOverlayElements, useOverlayPositioner, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
-type PressPoint = { x: number; y: number; element: Element | null }
+type PressAnchor = {
+  getBoundingClientRect: () => DOMRect
+  readonly contextElement: Element | undefined
+  press: (x: number, y: number, element: Element) => void
+}
 
-const PressPointContext = React.createContext<React.RefObject<PressPoint> | null>(null)
+function createPressAnchor(): PressAnchor {
+  let point = { x: 0, y: 0 }
+  let pressed: Element | undefined
+  return {
+    getBoundingClientRect: () => DOMRect.fromRect({ ...point, width: 0, height: 0 }),
+    get contextElement() {
+      return pressed
+    },
+    press: (x, y, element) => {
+      point = { x, y }
+      pressed = element
+    },
+  }
+}
+
+const PressAnchorContext = React.createContext<PressAnchor | null>(null)
 
 function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
   const { onOpenChange, elements } = useOverlayRootClaim(props, true)
-  const point = React.useRef<PressPoint>({ x: 0, y: 0, element: null })
+  const [anchor] = React.useState(createPressAnchor)
   return (
     <NativeViewOverlayElements value={elements}>
-      <PressPointContext value={point}>
+      <PressAnchorContext value={anchor}>
         <ContextMenuPrimitive.Root data-slot="context-menu" {...props} onOpenChange={onOpenChange} />
-      </PressPointContext>
+      </PressAnchorContext>
     </NativeViewOverlayElements>
   )
 }
 
 function ContextMenuTrigger({ onContextMenu, ...props }: ContextMenuPrimitive.Trigger.Props) {
-  const point = React.use(PressPointContext)
+  const anchor = React.use(PressAnchorContext)
   return (
     <ContextMenuPrimitive.Trigger
       data-slot="context-menu-trigger"
       onContextMenu={(event) => {
-        if (point) point.current = { x: event.clientX, y: event.clientY, element: event.currentTarget }
+        anchor?.press(event.clientX, event.clientY, event.currentTarget)
         onContextMenu?.(event)
       }}
       {...props}
@@ -38,25 +57,19 @@ function ContextMenuTrigger({ onContextMenu, ...props }: ContextMenuPrimitive.Tr
 }
 
 function usePressAnchor(layered: boolean) {
-  const point = React.use(PressPointContext)
-  const [anchor] = React.useState(() => ({
-    getBoundingClientRect: () => DOMRect.fromRect({ x: point?.current.x ?? 0, y: point?.current.y ?? 0, width: 0, height: 0 }),
-    get contextElement() {
-      return point?.current.element ?? undefined
-    },
-  }))
-  return layered && point ? anchor : undefined
+  const anchor = React.use(PressAnchorContext)
+  return layered && anchor ? anchor : undefined
 }
 
 function ContextMenuContent({
   className,
   ...props
 }: ContextMenuPrimitive.Popup.Props) {
-  const positioner = useOverlayPositioner()
-  const anchor = usePressAnchor(Boolean(positioner.container))
+  const [positionerRef, layer] = useOverlayPositioner()
+  const anchor = usePressAnchor(Boolean(layer))
   return (
-    <ContextMenuPrimitive.Portal container={positioner.container}>
-      <ContextMenuPrimitive.Positioner ref={positioner.ref} anchor={anchor} className="isolate z-50 outline-none">
+    <ContextMenuPrimitive.Portal container={layer}>
+      <ContextMenuPrimitive.Positioner ref={positionerRef} anchor={anchor} className="isolate z-50 outline-none">
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
           className={cn("z-50 max-h-(--available-height) w-max min-w-44 max-w-(--available-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-3 ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95 outline-none", className )}
@@ -130,11 +143,11 @@ function ContextMenuSubContent({
     ContextMenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
-  const positioner = useOverlayPositioner()
+  const [positionerRef, layer] = useOverlayPositioner()
   return (
-    <ContextMenuPrimitive.Portal container={positioner.container}>
+    <ContextMenuPrimitive.Portal container={layer}>
       <ContextMenuPrimitive.Positioner
-        ref={positioner.ref}
+        ref={positionerRef}
         className="isolate z-50 outline-none"
         align={align}
         alignOffset={alignOffset}

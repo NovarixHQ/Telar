@@ -32,11 +32,11 @@ function DropdownMenuContent({
     MenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
-  const positioner = useOverlayPositioner()
+  const [positionerRef, layer] = useOverlayPositioner()
   return (
-    <MenuPrimitive.Portal container={positioner.container}>
+    <MenuPrimitive.Portal container={layer}>
       <MenuPrimitive.Positioner
-        ref={positioner.ref}
+        ref={positionerRef}
         className="isolate z-50 outline-none"
         align={align}
         alignOffset={alignOffset}

@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, test } from "bun:test";
-import { act, useState } from "react";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { act } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/ui/context-menu";
@@ -15,9 +15,18 @@ const rects: Rect[] = [];
 let outside: (() => void) | null = null;
 let overlay: Document;
 
+const measure = HTMLElement.prototype.getBoundingClientRect;
+const openWindow = window.open;
+
+afterEach(() => {
+  HTMLElement.prototype.getBoundingClientRect = measure;
+  window.open = openWindow;
+  delete (window as { telarDesktop?: unknown }).telarDesktop;
+  document.querySelector("iframe")?.remove();
+});
+
 beforeEach(() => {
   rects.length = 0;
-  document.querySelector("iframe")?.remove();
   const frame = document.createElement("iframe");
   document.body.append(frame);
   const child = frame.contentWindow!;

@@ -62,7 +62,7 @@ export function useOverlayPositioner() {
     elements?.add(element);
     return () => void elements?.delete(element);
   }, [elements, layer]);
-  return { ref, container: layer ?? undefined };
+  return [ref, layer ?? undefined] as const;
 }
 
 type OverlayRoot<Details> = {

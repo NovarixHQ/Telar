@@ -193,7 +193,7 @@ function openNotificationPath(route) {
 function createWindow(url, { main = false } = {}) {
   return createCockpitWindow(url, {
     main,
-    createManager: (win, { onChordScope }) => {
+    createManager: (win, { onChordScope, forwardPageCommand }) => {
       const manager = new DesktopBrowserManager(win, {
         onControlChanged: reportBrowserControl,
 
@@ -220,6 +220,7 @@ function createWindow(url, { main = false } = {}) {
         stageWindowCompact: isCompact,
 
         onChordScope,
+        forwardPageCommand,
       });
       return manager;
     },

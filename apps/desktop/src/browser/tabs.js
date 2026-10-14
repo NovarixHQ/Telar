@@ -387,6 +387,10 @@ module.exports = {
       this.bringBack(tab.scopeKey);
       return;
     }
+    if (input?.type === "keyDown" && (input.meta || input.control) && this.forwardPageCommand(input)) {
+      event.preventDefault();
+      return;
+    }
     if (!input || input.type !== "keyDown" || input.alt || input.shift) return;
     if (input.meta === input.control) return;
     if (!/^[1-9]$/.test(String(input.key))) return;

@@ -28,6 +28,7 @@ class DesktopBrowserManager {
     this.electron = dependencies.electron || (() => require("electron"));
 
     this.onChordScope = dependencies.onChordScope || (() => {});
+    this.forwardPageCommand = dependencies.forwardPageCommand || (() => false);
 
     this.keyFocusedTabId = null;
     this.tabs = [];

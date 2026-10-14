@@ -118,7 +118,7 @@ export function Composer(props: ComposerProps) {
   const command = usePluginCommand(editor, props.extensions, draft);
   const trySubmit = useSubmitGate(props, question, hasContent, Boolean(driveAway), startResume, command.run);
   useComposerRegistration(token, EDITOR_ID, kind, editor, { text: question.boxText, ready, submit: trySubmit });
-  const dictation = useComposerDictation(token);
+  const dictation = useComposerDictation(token, { onPhase: props.onDictationPhase, startNow: props.dictateOnOpen });
   const esc = useEscArm(busy, onStop);
   const stash = useComposerStash({ draft, attachments, projectId, sessionId: session?.id, onDraftChange, onAttach, editor });
   const hasEfforts = useHasEfforts(activeDriver, choice, session?.providerInstanceId);

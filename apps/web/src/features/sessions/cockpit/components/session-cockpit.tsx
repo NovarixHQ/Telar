@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import type { ConversationFollowHandle } from "@/ui/conversation";
 import { Composer } from "@/features/composer";
-import { canvasPanelKey, RailToggle, RightPanel } from "@/features/panel";
+import { canvasPanelKey, RailToggle, RightPanel, usePanelFullscreen } from "@/features/panel";
 import { usePluginContributions } from "@/features/plugins";
 import { useProviderInstance } from "@/features/providers";
 import { SessionSchedules } from "@/features/schedules";
@@ -34,6 +34,7 @@ import { useTranscriptModel } from "../hooks/use-transcript-model";
 import { useCardPlacement } from "../hooks/use-workspace-card";
 import { pendingStillShown, type PendingTurn } from "../pending-turn";
 import { composerProps } from "./composer-props";
+import { MiniComposer } from "./mini-composer";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
 import { WorkspaceCard } from "./workspace-card";
@@ -110,6 +111,14 @@ export function SessionCockpit({
   const receipt = useReadReceipt(hostId, sessionId, sync);
   const providerInstance = useProviderInstance(session?.providerInstanceId, session?.driver);
   const floating = useSimulatorFloat(sessionId && !solo ? floatKey(hostId, sessionId) : undefined).simulator;
+  const fullscreen = usePanelFullscreen();
+  const composing = composerProps({
+    fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,
+    readingBack: readingBack && transcriptLanded,
+    contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
+    builders,
+    extensions,
+  });
   const panelGestures = solo
     ? {}
     : { onOpenTab: showPanelTab, onOpenFile: (path: string) => showPanelTab(`file:${path}`), onOpenFileInNewTab: panelState.openFileInNewPanelTab };
@@ -170,15 +179,7 @@ export function SessionCockpit({
               onResumeNow={(runId) => void actions.resumeNow(runId)}
             />
           </div>
-          <Composer
-            {...composerProps({
-              fresh, solo, session, projectId, projectName, composer, draft: draftConfig, actions, settling, model, submit,
-              readingBack: readingBack && transcriptLanded,
-              contextNoticePercent: normaliseContextNoticePercent(providerInstance?.contextNoticePercent),
-              builders,
-              extensions,
-            })}
-          />
+          {fullscreen ? <MiniComposer {...composing} /> : <Composer {...composing} />}
           {floating && sessionId && (
             <Suspense fallback={null}>
               <FloatingSimulator sessionId={sessionId} hostId={hostId} onOpenInPanel={(id) => panelState.updatePanel((current) => showSimulatorTab(current, id))} />

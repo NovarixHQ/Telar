@@ -233,7 +233,7 @@ function offsetOf(root: HTMLElement, target: Node, targetOffset: number): number
 
 /** The selection as draft offsets, or nothing when it is not in this box. */
 export function selectionRange(root: HTMLElement): Run | undefined {
-  const selection = window.getSelection();
+  const selection = root.ownerDocument.getSelection();
   if (!selection || selection.rangeCount === 0) return undefined;
   const range = selection.getRangeAt(0);
   if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return undefined;
@@ -242,7 +242,7 @@ export function selectionRange(root: HTMLElement): Run | undefined {
 
 /** Put the caret at a draft offset; an offset inside a chip resolves to its leading edge. */
 export function placeCaret(root: HTMLElement, offset: number): void {
-  const range = document.createRange();
+  const range = root.ownerDocument.createRange();
   let remaining = Math.max(0, offset);
   let placed = false;
   const before = (node: Node) => {
@@ -289,7 +289,7 @@ export function placeCaret(root: HTMLElement, offset: number): void {
     range.collapse(false);
   }
   range.collapse(true);
-  const selection = window.getSelection();
+  const selection = root.ownerDocument.getSelection();
   selection?.removeAllRanges();
   selection?.addRange(range);
 }

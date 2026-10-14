@@ -9,7 +9,7 @@ const { seatHostCookie, seatHostHeader } = require("./ui-server");
 const { developmentIconPath, windowTitle } = require("./bundle-paths");
 const { watchForUnpairing } = require("./shell-log");
 const { readUiPrefs, supportsTranslucency } = require("./appearance");
-const { forgetBrowserChordScope, setBrowserChordScope } = require("./app-menu");
+const { forgetBrowserChordScope, forwardPageCommand, setBrowserChordScope } = require("./app-menu");
 const { applyExternalLinkPolicy, linkRouting } = require("./window-links");
 const { addHost, rememberWindowUrl, removeHost } = require("./browser-hosts");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
@@ -78,7 +78,7 @@ function createCockpitWindow(appUrl, { createManager, main = false }) {
   if (main) adoptMainWindow(win, place);
   watchWindowVisibility(win);
 
-  const manager = createManager(win, { onChordScope: (owned) => setBrowserChordScope(manager, owned) });
+  const manager = createManager(win, { onChordScope: (owned) => setBrowserChordScope(manager, owned), forwardPageCommand: (input) => forwardPageCommand(win, input) });
   addHost(win, manager);
 
   applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl }));

@@ -19,7 +19,7 @@ import { commandModifierDown } from "@/features/commands";
  * a caret at the start of a line after a `<br>`.
  */
 function measuredCaretRect(root: HTMLElement): DOMRect | undefined {
-  const selection = window.getSelection();
+  const selection = root.ownerDocument.getSelection();
   if (!selection || selection.rangeCount === 0) return undefined;
   const range = selection.getRangeAt(0);
   if (!root.contains(range.startContainer)) return undefined;
@@ -28,7 +28,7 @@ function measuredCaretRect(root: HTMLElement): DOMRect | undefined {
   if (own.height > 0) return own;
 
   const measure = (node: Node, offset: number, side: "left" | "right"): DOMRect | undefined => {
-    const one = document.createRange();
+    const one = root.ownerDocument.createRange();
     one.setStart(node, offset);
     one.setEnd(node, offset + 1);
     const rect = one.getBoundingClientRect();
@@ -72,7 +72,7 @@ function revealCaret(root: HTMLElement): void {
 
 /** Where the caret is, in viewport coordinates (the dictation pill is portalled to `body`). */
 function caretRectIn(root: HTMLElement): DOMRect | undefined {
-  const selection = window.getSelection();
+  const selection = root.ownerDocument.getSelection();
   if (!selection || selection.rangeCount === 0) return undefined;
   if (!root.contains(selection.getRangeAt(0).startContainer)) return undefined;
 
@@ -136,7 +136,7 @@ function useDraftSync(
     paintedRef.current = value;
     history.reset(value);
     setEmpty(value.length === 0);
-    if (document.activeElement !== box) return;
+    if (box.ownerDocument.activeElement !== box) return;
     placeCaret(box, value.length);
     revealCaret(box);
   }, [value, root, paintedRef, interimRef, history, setEmpty, decorations]);
@@ -164,7 +164,7 @@ function useEditorHandle(
     ref,
     () => ({
       focus: () => root.current?.focus(),
-      focused: () => Boolean(root.current) && document.activeElement === root.current,
+      focused: () => Boolean(root.current) && root.current?.ownerDocument.activeElement === root.current,
       caretRect: () => {
         const box = root.current;
         return box ? caretRectIn(box) : undefined;
@@ -180,7 +180,7 @@ function useEditorHandle(
         if (!box) return;
         const at = selectionRange(box)?.end ?? painted.current.length;
         paint(box, painted.current, interim.current ?? undefined, false, decorations.current);
-        if (document.activeElement !== box) return;
+        if (box.ownerDocument.activeElement !== box) return;
         placeCaret(box, at);
         revealCaret(box);
       },
@@ -264,7 +264,7 @@ function useDecorationFocus(
   const report = useCallback(() => {
     const box = root.current;
     if (!box || !focusRef.current) return;
-    const at = document.activeElement === box ? selectionRange(box) : undefined;
+    const at = box.ownerDocument.activeElement === box ? selectionRange(box) : undefined;
     const run = at && at.start === at.end ? runAt(decorationsDrawn(box), at.end) : undefined;
     focusRef.current(run && { ...run, text: painted.current.slice(run.start, run.end) });
   }, [root, painted]);
@@ -287,13 +287,13 @@ function editorKey(event: React.KeyboardEvent<HTMLDivElement>, box: HTMLElement,
     travel(step);
   } else if (commandModifierDown(event) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
     event.preventDefault();
-    window.getSelection()?.selectAllChildren(box);
+    box.ownerDocument.getSelection()?.selectAllChildren(box);
   } else if (event.key === "Enter") {
     // Only a shifted Enter reaches here.
     event.preventDefault();
     const list = caretEdit(box, painted, (text, caret) => continueLine(text, caret));
     if (list) return rewrite(list.text, list.cursor);
-    document.execCommand("insertLineBreak");
+    box.ownerDocument.execCommand("insertLineBreak");
     const text = serialize(box);
     lineBreak(text, selectionRange(box)?.end ?? text.length);
     settle();

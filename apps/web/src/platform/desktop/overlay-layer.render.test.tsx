@@ -143,6 +143,26 @@ describe("popups draw in the overlay layer while a native view is shown", () => 
     expect(menuIn(document)).toBeNull();
   });
 
+  test("a chorded key typed in the overlay reaches the cockpit's shortcuts, and plain typing does not", async () => {
+    await mount(<Cockpit />);
+    await openMenu();
+    const heard: string[] = [];
+    const listen = (event: KeyboardEvent) => {
+      heard.push(event.key);
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", listen);
+    const typed = (init: KeyboardEventInit) => {
+      const event = new KeyboardEvent("keydown", { ...init, bubbles: true, cancelable: true });
+      overlay.body.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(typed({ key: "k", metaKey: true })).toBe(true);
+    typed({ key: "j" });
+    window.removeEventListener("keydown", listen);
+    expect(heard).toEqual(["k"]);
+  });
+
   test("dialogs keep freezing the page", async () => {
     const { unmount } = await mount(<Cockpit dialog />);
     await flush(() => nativeViewOverlayHidden());

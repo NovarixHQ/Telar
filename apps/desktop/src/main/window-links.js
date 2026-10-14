@@ -1,5 +1,6 @@
-const { shell } = require("electron");
+const { BrowserWindow, shell } = require("electron");
 const { createLinkRouting } = require("./link-routing");
+const { OVERLAY_FRAME, adoptOverlay } = require("../windows/overlay-layer");
 
 const linkRouting = createLinkRouting();
 
@@ -17,9 +18,24 @@ function actOnLinkDecision(decision, webContents) {
   }
 }
 
+function overlayWindow(webContents, createPolicy) {
+  const win = BrowserWindow.fromWebContents(webContents);
+  if (!win || win.webContents !== webContents) return null;
+  return {
+    action: "allow",
+    createWindow: (options) => {
+      const overlay = adoptOverlay(win, options);
+      applyExternalLinkPolicy(overlay, createPolicy);
+      return overlay;
+    },
+  };
+}
+
 function applyExternalLinkPolicy(webContents, createPolicy) {
   const policy = createPolicy();
-  webContents.setWindowOpenHandler(({ url }) => {
+  webContents.setWindowOpenHandler(({ url, frameName }) => {
+    const overlay = frameName === OVERLAY_FRAME && url === "about:blank" ? overlayWindow(webContents, createPolicy) : null;
+    if (overlay) return overlay;
     const decision = policy.decide(url);
     actOnLinkDecision(decision, webContents);
     return decision.action === "allow" ? { action: "allow" } : { action: "deny" };

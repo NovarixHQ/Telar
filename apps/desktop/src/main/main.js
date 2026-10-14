@@ -443,6 +443,8 @@ require("./ipc-prefs").registerPrefsIpc({
 
 require("./ipc-app").registerAppIpc({ createWindow });
 
+require("../windows/overlay-layer").registerOverlayIpc();
+
 const { configureAutoUpdater } = require("./updates").registerUpdates({
   telarHome,
   get updaterWindow() {

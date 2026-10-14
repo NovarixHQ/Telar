@@ -6,6 +6,7 @@ import { ArrowLeftIcon, ArrowRightIcon, ChevronRightIcon, EllipsisIcon, LockIcon
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { useCommandHandlers } from "@/features/commands";
 import { useNativeViewOverlay } from "@/platform/desktop/native-view-overlay";
+import { useOverlayLayerHost } from "@/platform/desktop/overlay-layer";
 import { cn } from "@/ui/utils";
 import { browserView, useBrowserActions, useBrowserCapture, useBrowserKeys, useBrowserPermissions, useBrowserSync, useDeviceSize, useShownPage, type BrowserProps, type BrowserUi } from "../hooks/use-browser-session";
 import { useBrowserStore, type BrowserOverlay } from "../hooks/use-browser-store";
@@ -339,6 +340,7 @@ function BrowserBody(props: BrowserProps) {
   const s = useBrowserStore(props.scopeKey, props.projectId, addressRowRef, partitionRef);
   const { openOverlay, annotating } = s;
   useNativeViewOverlay(Boolean(annotating));
+  useOverlayLayerHost();
   const view = browserView(s);
   const hostSize = useHostSize(hostRef);
   const frozenFrame = useFrozenOverlay(props.bridge, props.scopeKey, hostRef, overlayRef);

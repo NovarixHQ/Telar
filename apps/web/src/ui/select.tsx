@@ -4,11 +4,11 @@ import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/ui/utils"
-import { NativeViewOverlayElements, useNativeViewOverlayRef, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
+import { NativeViewOverlayElements, useOverlayPositioner, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
 function Select<Value, Multiple extends boolean | undefined = false>({ ...props }: SelectPrimitive.Root.Props<Value, Multiple>) {
-  const { onOpenChange, elements } = useOverlayRootClaim(props)
+  const { onOpenChange, elements } = useOverlayRootClaim(props, true)
   return (
     <NativeViewOverlayElements value={elements}>
       <SelectPrimitive.Root {...props} onOpenChange={onOpenChange} />
@@ -78,21 +78,21 @@ function SelectContent({
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
   >) {
-  const positioner = useNativeViewOverlayRef()
+  const [positionerRef, layer] = useOverlayPositioner()
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={layer}>
       <SelectPrimitive.Positioner
-        ref={positioner}
+        ref={positionerRef}
         side={side}
         sideOffset={sideOffset}
         align={align}
         alignOffset={alignOffset}
-        alignItemWithTrigger={alignItemWithTrigger}
+        alignItemWithTrigger={alignItemWithTrigger && !layer}
         className="isolate z-50"
       >
         <SelectPrimitive.Popup
           data-slot="select-content"
-          data-align-trigger={alignItemWithTrigger}
+          data-align-trigger={alignItemWithTrigger && !layer}
           className={cn("relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-36 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-3 ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
           {...props}
         >

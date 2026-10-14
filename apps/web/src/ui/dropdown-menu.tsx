@@ -4,11 +4,11 @@ import * as React from "react"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 
 import { cn } from "@/ui/utils"
-import { NativeViewOverlayElements, useNativeViewOverlayRef, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
+import { NativeViewOverlayElements, useOverlayPositioner, useOverlayRootClaim } from "@/platform/desktop/native-view-overlay"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
-  const { onOpenChange, elements } = useOverlayRootClaim(props)
+  const { onOpenChange, elements } = useOverlayRootClaim(props, true)
   return (
     <NativeViewOverlayElements value={elements}>
       <MenuPrimitive.Root data-slot="dropdown-menu" {...props} onOpenChange={onOpenChange} />
@@ -32,11 +32,11 @@ function DropdownMenuContent({
     MenuPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
-  const positioner = useNativeViewOverlayRef()
+  const [positionerRef, layer] = useOverlayPositioner()
   return (
-    <MenuPrimitive.Portal>
+    <MenuPrimitive.Portal container={layer}>
       <MenuPrimitive.Positioner
-        ref={positioner}
+        ref={positionerRef}
         className="isolate z-50 outline-none"
         align={align}
         alignOffset={alignOffset}

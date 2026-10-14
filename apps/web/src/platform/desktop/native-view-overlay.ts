@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, use, useEffect, useState } from "react";
+import { createContext, use, useCallback, useEffect, useState } from "react";
+import { trackOverlayElement, useOverlayLayer } from "./overlay-layer";
 
 type OverlayListener = (hidden: boolean) => void;
 /** What an overlay draws. While it is empty the overlay is taken to cover everything. */
@@ -43,7 +44,6 @@ export function useOverlayElements(): OverlayElements {
 const OverlayElementsContext = createContext<OverlayElements | null>(null);
 export const NativeViewOverlayElements = OverlayElementsContext.Provider;
 
-/** A stable ref that adds what it is attached to to `elements`. */
 export function useOverlayElementRef(elements: OverlayElements | null) {
   const [ref] = useState(() => (element: Element | null) => {
     if (!element || !elements) return;
@@ -53,9 +53,16 @@ export function useOverlayElementRef(elements: OverlayElements | null) {
   return ref;
 }
 
-/** Ref for an overlay's positioner: the root's claim then measures it instead of covering everything. */
-export function useNativeViewOverlayRef() {
-  return useOverlayElementRef(use(OverlayElementsContext));
+export function useOverlayPositioner() {
+  const elements = use(OverlayElementsContext);
+  const layer = useOverlayLayer();
+  const ref = useCallback((element: Element | null) => {
+    if (!element) return;
+    if (layer) return trackOverlayElement(element);
+    elements?.add(element);
+    return () => void elements?.delete(element);
+  }, [elements, layer]);
+  return [ref, layer ?? undefined] as const;
 }
 
 type OverlayRoot<Details> = {
@@ -65,10 +72,11 @@ type OverlayRoot<Details> = {
 };
 
 /** For an overlay's root, controlled or not: pass `onOpenChange` to it and `elements` to a `NativeViewOverlayElements` around it. */
-export function useOverlayRootClaim<Details>({ open, defaultOpen, onOpenChange }: OverlayRoot<Details>) {
+export function useOverlayRootClaim<Details>({ open, defaultOpen, onOpenChange }: OverlayRoot<Details>, popup = false) {
   const [ownOpen, setOwnOpen] = useState(defaultOpen ?? false);
   const elements = useOverlayElements();
-  useNativeViewOverlay(open ?? ownOpen, elements);
+  const layer = useOverlayLayer();
+  useNativeViewOverlay(!(popup && layer) && (open ?? ownOpen), elements);
   const change = (next: boolean, details: Details) => {
     setOwnOpen(next);
     onOpenChange?.(next, details);

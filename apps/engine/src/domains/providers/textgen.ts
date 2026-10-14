@@ -1,4 +1,4 @@
-import { defaultInstanceIdForDriver, TEXT_GEN_DRIVERS, type Item, type ProviderDriverKind, type TextGenPolicy } from "@telar/engine-client";
+import { defaultInstanceIdForDriver, type Item, type ProviderDriverKind, type TextGenPolicy } from "@telar/engine-client";
 import { EngineStateError } from "../../platform/kernel";
 import { providerProcessEnv } from "./instances";
 import { runStructured, runStructuredOrThrow, TextGenFailure, type TextGenDriverInput, type TextGenEffort } from "./textgen-run";
@@ -72,7 +72,6 @@ export function cheapModel(ids: readonly string[]): string | undefined {
 }
 
 export function driverInput(store: TextGenStore, policy: TextGenPolicy, model?: string): TextGenDriverInput | undefined {
-  if (!TEXT_GEN_DRIVERS.includes(policy.driver)) return undefined;
   const instance = store.providers.resolve(defaultInstanceIdForDriver(policy.driver), policy.driver);
   if (!instance.enabled) return undefined;
   const env = providerProcessEnv({ ...instance, driver: policy.driver });

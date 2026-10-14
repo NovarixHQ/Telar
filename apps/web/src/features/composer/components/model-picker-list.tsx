@@ -6,6 +6,7 @@ import { ProviderIcon, driverLabel } from "@/features/providers";
 import { type ModelChoice } from "@telar/client/providers";
 import { cn } from "@/ui/utils";
 import type { ModelPicker } from "../hooks/use-model-picker";
+import { PROVIDERS } from "../model-options";
 import { CompactRow, MenuHeading } from "./control-primitives";
 import { FamilyRow } from "./family-row";
 
@@ -31,7 +32,7 @@ export function ModelPickerRail({
       <button type="button" onClick={() => picker.showView("favorites")} aria-label="Favourites" title="Favourites" className={railClass(picker.view === "favorites")}>
         <StarIcon className={cn("size-4", picker.view === "favorites" && "fill-current text-primary")} />
       </button>
-      {picker.providers.map((option) => (
+      {PROVIDERS.map((option) => (
         <button
           key={option}
           type="button"

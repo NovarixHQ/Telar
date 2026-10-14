@@ -6,8 +6,8 @@ import path from "node:path";
 import { DEFAULT_TEXT_GEN_POLICY, type Item, type TextGenPolicy } from "@telar/engine-client";
 import { EngineStore } from "../../state";
 import { EngineStateError } from "../../platform/kernel";
-import { cheapModel, driverInput, generateSessionTitle, maybeRetitleSession, regenerateSessionTitle, sanitizeTitle, titleIsSeed, type RegenerateStore, type RetitleStore } from "./textgen";
-import { TextGenFailure } from "./textgen-run";
+import { cheapModel, generateSessionTitle, maybeRetitleSession, regenerateSessionTitle, sanitizeTitle, titleIsSeed, type RegenerateStore, type RetitleStore } from "./textgen";
+import { runStructuredOrThrow, TextGenFailure } from "./textgen-run";
 import { buildTitlePrompt } from "./title-prompts";
 import { OPENCODE_VERSION } from "../../drivers/opencode/version";
 import { worktreeReady } from "../../../test/worktree-ready";
@@ -108,18 +108,10 @@ describe("text generation policy", () => {
 
   test("refuses shapes that are not the policy's", () => {
     const store = new EngineStore(tmp("telar-tg-state-"), () => 100);
-    expect(() => store.settings.setTextGen({ driver: "cursor" })).toThrow(EngineStateError);
+    expect(() => store.settings.setTextGen({ driver: "acp" })).toThrow(EngineStateError);
     expect(() => store.settings.setTextGen({ titles: "yes" })).toThrow(EngineStateError);
     expect(() => store.settings.setTextGen({ model: "" })).toThrow(EngineStateError);
     expect(() => store.settings.setTextGen({ effort: "max" })).toThrow(EngineStateError);
-  });
-
-  test("a provider without a text generation recipe never writes titles, whatever the file says", () => {
-    const store = new EngineStore(tmp("telar-tg-state-"), () => 100);
-    expect(driverInput(store, { titles: true, driver: "cursor" })).toBeUndefined();
-    expect(driverInput(store, { titles: true, driver: "opencode", model: "anthropic/claude-haiku" })).toBeUndefined();
-    store.providers.save({ id: "opencode", enabled: true });
-    expect(driverInput(store, { titles: true, driver: "opencode", model: "anthropic/claude-haiku" })).toMatchObject({ driver: "opencode" });
   });
 
   test("a mangled file costs the preference, never a throw", () => {
@@ -259,6 +251,25 @@ describe("each provider answers one bare call from an empty scratch directory", 
     expect(config.permission).toBe("deny");
     expect(config.tools).toEqual({ "*": false });
     expect(args.join(" ")).toBe("[run] [--format] [json] [--pure] [--model] [anthropic/claude-haiku-4-5]");
+  });
+
+  test("Cursor: a read-only, sandboxed run in one trusted directory, ended at its result line though the CLI lingers", async () => {
+    const result = JSON.stringify({ type: "result", subtype: "success", is_error: false, result: 'Sure: {"title":"Queue refill race"}' });
+    const cli = fakeCli("cursor", `echo '{"type":"system","subtype":"init"}'; echo '${result}'; exec sleep 60`, "2026.10.14-0f9edde");
+    const first = await generateSessionTitle({ driver: "cursor", binaryPath: cli.binaryPath, env: { A: "b" }, message: "fix it" });
+    expect(first).toBe("Queue refill race");
+    const { cwd, env, args } = cli.recorded();
+    expect(env[0]).toBe("A=b");
+    expect(args.join(" ")).toBe("[-p] [--trust] [--sandbox] [enabled] [--mode] [ask] [--output-format] [stream-json]");
+    await generateSessionTitle({ driver: "cursor", binaryPath: cli.binaryPath, model: "gpt-5.5[reasoning=medium]", message: "fix it" });
+    expect(cli.recorded().cwd).toBe(cwd);
+    expect(cli.recorded().args.slice(-2)).toEqual(["[--model]", "[gpt-5.5[reasoning=medium]]"]);
+  });
+
+  test("Cursor: an error result is the failure, in its own words", async () => {
+    const result = JSON.stringify({ type: "result", is_error: true, result: "This model uses credits" });
+    const cli = fakeCli("cursor", `echo '${result}'`, "2026.10.14-0f9edde");
+    await expect(runStructuredOrThrow({ driver: "cursor", binaryPath: cli.binaryPath }, "fix it", { type: "object" })).rejects.toThrow("This model uses credits");
   });
 });
 

@@ -302,6 +302,12 @@ export function parseAcpModelOption(session: unknown): ProviderModel[] {
   });
 }
 
+export function cursorWorkDir(): string {
+  const dir = path.join(os.tmpdir(), "telar-cursor");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
 function spawnCursorAgent(cwd: string): AcpConnection {
   return new AcpConnection(requireCli("cursor"), ["acp"], { cwd, env: agentEnv() });
 }
@@ -310,8 +316,7 @@ export async function readCursorModels(
   spawnAgent: (cwd: string) => AcpConnection = spawnCursorAgent,
   timeoutMs = MODEL_LIST_TIMEOUT_MS,
 ): Promise<{ models: ProviderModel[]; message?: string }> {
-  const cwd = path.join(os.tmpdir(), "telar-cursor");
-  fs.mkdirSync(cwd, { recursive: true });
+  const cwd = cursorWorkDir();
   let rpc: AcpConnection | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {

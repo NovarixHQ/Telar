@@ -6,6 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 
 import { turnHasContent, type ProjectAvailability } from "@telar/engine-client";
 import { choiceOf } from "@telar/client/providers";
 import { useCommandHandlers } from "@/features/commands";
+import { reportsContextUsage } from "@/features/providers";
 import { DictationButton, DictationGlow, useComposerDictation } from "@/features/dictation";
 import { cn } from "@/ui/utils";
 import { compactBlockedReason, isResumeDraft, type Completion, type ComposerPicker } from "../completions";
@@ -88,7 +89,9 @@ function useCompact(readingBack: boolean, allowed: boolean, editor: RefObject<Co
   return [readingBack && allowed && !expanded, expand] as const;
 }
 
-function ComposerContext({ usage, session, onCompact, busy, sending, compacting }: ComposerProps) {
+function ComposerContext({ usage, session, driver, onCompact, busy, sending, compacting }: ComposerProps) {
+  const reported = usage?.contextUsed !== undefined || usage?.contextMax !== undefined;
+  if (!reported && !reportsContextUsage(session?.driver ?? driver ?? "claude")) return null;
   return (
     <ContextPill
       {...(usage ? { usage } : {})}

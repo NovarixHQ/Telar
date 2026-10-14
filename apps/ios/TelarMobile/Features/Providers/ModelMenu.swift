@@ -5,8 +5,8 @@ struct ProviderIconView: View {
     var size: CGFloat = 16
 
     var body: some View {
-        if driver == "codex" {
-            Image("ProviderOpenAI")
+        if driver == "codex" || driver == "cursor" {
+            Image(driver == "codex" ? "ProviderOpenAI" : "ProviderCursor")
                 .resizable()
                 .renderingMode(.template)
                 .scaledToFit()

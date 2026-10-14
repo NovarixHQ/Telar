@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckIcon, GaugeIcon } from "lucide-react";
 import type { ProviderDriverKind } from "@telar/engine-client";
 import { useModelCatalogue } from "@/features/providers";
@@ -21,6 +21,7 @@ export function ReasoningControl({
   onChange,
   ultrathink,
   summon,
+  leading,
 }: {
   driver: ProviderDriverKind;
   choice: ModelChoice;
@@ -29,6 +30,8 @@ export function ReasoningControl({
   /** The draft's keyword; absent where there is no message, and then Ultrathink is not offered. */
   ultrathink?: { active: boolean; toggle: () => void };
   summon?: number | undefined;
+  /** Drawn before the pill, and only when the pill is: a divider never outlives the control it separates. */
+  leading?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   useSummon(summon, () => setOpen(true));
@@ -84,32 +87,35 @@ export function ReasoningControl({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PillTrigger
-        tip={isDefault && defaultEffort ? "Reasoning effort. The model's default; pick a level to change it." : "Reasoning effort"}
-        open={open}
-        icon={<GaugeIcon className="size-3.5" />}
-        label={label}
-        fold="md"
-        {...(detail ? { detail } : {})}
-        ariaLabel={`Reasoning effort: ${spoken}${suffix ? `, ${suffix} context` : ""}`}
-      />
-      <PopoverContent align="start" side="top" sideOffset={8} className="max-h-[min(30rem,70vh)] w-72 gap-0 overflow-y-auto rounded-xl p-1">
-        <div ref={list} role="group" aria-label="Model options" onKeyDown={onKeyDown}>
-          {sections.map((section, index) => (
-            <div key={section.id} className={cn(index > 0 && "mt-1 border-t border-border pt-1")} role="group" aria-label={section.title}>
-              <MenuHeading>{section.title}</MenuHeading>
-              {section.rows.map((option) => (
-                <OptionRow key={option.key} option={option} disabled={readOnly || option.disabled === true} onSelect={() => choose(option)} />
-              ))}
-            </div>
-          ))}
-          {sections.length === 0 && catalogue?.message && (
-            <p className="px-2 py-1.5 text-2xs leading-snug text-muted-foreground">{catalogue.message}</p>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <>
+      {leading}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PillTrigger
+          tip={isDefault && defaultEffort ? "Reasoning effort. The model's default; pick a level to change it." : "Reasoning effort"}
+          open={open}
+          icon={<GaugeIcon className="size-3.5" />}
+          label={label}
+          fold="md"
+          {...(detail ? { detail } : {})}
+          ariaLabel={`Reasoning effort: ${spoken}${suffix ? `, ${suffix} context` : ""}`}
+        />
+        <PopoverContent align="start" side="top" sideOffset={8} className="max-h-[min(30rem,70vh)] w-72 gap-0 overflow-y-auto rounded-xl p-1">
+          <div ref={list} role="group" aria-label="Model options" onKeyDown={onKeyDown}>
+            {sections.map((section, index) => (
+              <div key={section.id} className={cn(index > 0 && "mt-1 border-t border-border pt-1")} role="group" aria-label={section.title}>
+                <MenuHeading>{section.title}</MenuHeading>
+                {section.rows.map((option) => (
+                  <OptionRow key={option.key} option={option} disabled={readOnly || option.disabled === true} onSelect={() => choose(option)} />
+                ))}
+              </div>
+            ))}
+            {sections.length === 0 && catalogue?.message && (
+              <p className="px-2 py-1.5 text-2xs leading-snug text-muted-foreground">{catalogue.message}</p>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </>
   );
 }
 

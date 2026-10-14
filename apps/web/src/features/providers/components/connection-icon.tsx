@@ -1,12 +1,9 @@
-import { BotIcon } from "lucide-react";
 import { cn } from "@/ui/utils";
-import { routeOf } from "../model-connections";
-import type { ProviderDriverKind } from "@telar/engine-client";
 
-// Connection marks are models.dev provider logos (MIT, github.com/sst/models.dev); OPENCODE_MARK is from
-// opencode's brand assets (MIT, github.com/anomalyco/opencode). Originals and ATTRIBUTION.md: public/model-providers/.
+// Connection marks are models.dev provider logos (MIT, github.com/sst/models.dev); the app marks are from
+// opencode's brand assets and @lobehub/icons-static-svg (MIT). Originals and ATTRIBUTION.md: public/model-providers/.
 
-export type Mark = { viewBox: string; d: string; dim?: string; dimOpacity?: number };
+export type Mark = { viewBox: string; d: string; dim?: string; dimOpacity?: number; fillRule?: "evenodd" };
 
 const MARKS: Record<string, Mark> = {
   "openai": {
@@ -16,6 +13,18 @@ const MARKS: Record<string, Mark> = {
   "anthropic": {
     "viewBox": "0 0 40 40",
     "d": "M26.9568 9.88184H22.1265L30.7753 31.7848H35.4917L26.9568 9.88184ZM13.028 9.88184L4.4917 31.7848H9.32203L11.2305 27.1793H20.2166L22.0126 31.6724H26.8444L18.0832 9.88184H13.028ZM12.5783 23.1361L15.4987 15.3853L18.5315 23.1361H12.5783Z"
+  },
+  "google": {
+    "viewBox": "0 0 40 40",
+    "d": "M37 20.034C27.8809 20.5837 20.5808 27.8809 20.0326 37H19.966C19.4163 27.8809 12.1177 20.5837 3 20.034V19.9674C12.1191 19.4163 19.4163 12.1191 19.966 3H20.0326C20.5822 12.1191 27.8809 19.4163 37 19.9674V20.034Z"
+  },
+  "xai": {
+    "viewBox": "0 0 40 40",
+    "d": "M12.4579 15.6036L26.1529 35H20.0656L6.37059 15.6036H12.4579ZM12.4524 26.3764L15.4974 30.6909L12.4551 35H6.36377L12.4524 26.3764ZM33.6365 7.15727V35H28.647V14.2236L33.6365 7.15727ZM33.6365 5L20.0656 24.2205L17.0206 19.9073L27.5451 5H33.6365Z"
+  },
+  "meta": {
+    "viewBox": "0 0 40 40",
+    "d": "M27.1942 9.03509C24.4881 9.03509 22.3726 11.0731 20.4574 13.6623C17.8258 10.3114 15.6255 9.03509 12.9925 9.03509C7.62404 9.03509 3.51001 16.0234 3.51001 23.4181C3.51001 28.0453 5.74831 30.9649 9.49831 30.9649C12.1971 30.9649 14.1387 29.693 17.5904 23.6594C17.5904 23.6594 19.029 21.1199 20.0173 19.3699C20.3643 19.9293 20.7298 20.5327 21.1138 21.1798L22.7322 23.902C25.8843 29.1769 27.6416 30.9649 30.8229 30.9649C34.4778 30.9649 36.51 28.0058 36.51 23.2822C36.51 15.538 32.3039 9.03509 27.1942 9.03509ZM14.9574 22.0263C12.1606 26.4123 11.1928 27.3962 9.63574 27.3962C8.03194 27.3962 7.07872 25.9883 7.07872 23.4781C7.07872 18.1096 9.75562 12.6199 12.9471 12.6199C14.6752 12.6199 16.1197 13.617 18.3316 16.7836C16.2308 20.0058 14.9574 22.0263 14.9574 22.0263ZM25.5202 21.4751L23.5831 18.2456C23.0969 17.4514 22.5938 16.6676 22.0743 15.8947C23.8185 13.2032 25.2556 11.8611 26.9676 11.8611C30.5202 11.8611 33.3638 17.095 33.3638 23.5219C33.3638 25.9722 32.5612 27.3947 30.8989 27.3947C29.3053 27.3947 28.5451 26.3421 25.5188 21.4737"
   },
   "opencode": {
     "viewBox": "0 0 24 24",
@@ -38,6 +47,12 @@ export const OPENCODE_MARK: Mark = {
   "dimOpacity": 0.45
 };
 
+export const CURSOR_MARK: Mark = {
+  "viewBox": "0 0 24 24",
+  "d": "M22.106 5.68L12.5.135a.998.998 0 00-.998 0L1.893 5.68a.84.84 0 00-.419.726v11.186c0 .3.16.577.42.727l9.607 5.547a.999.999 0 00.998 0l9.608-5.547a.84.84 0 00.42-.727V6.407a.84.84 0 00-.42-.726zm-.603 1.176L12.228 22.92c-.063.108-.228.064-.228-.061V12.34a.59.59 0 00-.295-.51l-9.11-5.26c-.107-.062-.063-.228.062-.228h18.55c.264 0 .428.286.296.514z",
+  "fillRule": "evenodd"
+};
+
 const ALIASES: Record<string, string> = { "bedrock-mantle": "amazon-bedrock" };
 
 export function connectionMark(connection: string): Mark | undefined {
@@ -51,6 +66,7 @@ export function MarkIcon({ mark, size = 14, className }: { mark: Mark; size?: nu
       height={size}
       viewBox={mark.viewBox}
       fill="currentColor"
+      fillRule={mark.fillRule}
       shapeRendering="geometricPrecision"
       className={className}
       style={{ width: size, height: size }}
@@ -76,12 +92,4 @@ export function ConnectionIcon({ connection, size = 14, className }: { connectio
     );
   }
   return <MarkIcon mark={mark} size={size} className={className} />;
-}
-
-export function ModelRowIcon({ driver, modelId, size = 14, className }: { driver: ProviderDriverKind; modelId: string; size?: number; className?: string }) {
-  const route = routeOf(modelId);
-  if (route) return <ConnectionIcon connection={route.connection} size={size} className={className} />;
-  if (driver === "opencode") return <MarkIcon mark={OPENCODE_MARK} size={size} className={className} />;
-  if (driver !== "claude" && driver !== "codex") return <BotIcon size={size} className={className} style={{ width: size, height: size }} aria-hidden />;
-  return <ConnectionIcon connection={driver === "claude" ? "anthropic" : "openai"} size={size} className={className} />;
 }

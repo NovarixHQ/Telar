@@ -1,6 +1,6 @@
 "use client";
 
-import { ProviderIcon, driverLabel } from "@/features/providers";
+import { ModelPillIcon, driverLabel } from "@/features/providers";
 import { effortLabel } from "@telar/client/providers";
 import { Popover, PopoverContent } from "@/ui/popover";
 import { useModelPicker, type ModelPickerProps } from "../hooks/use-model-picker";
@@ -21,7 +21,7 @@ export function AgentControl({ summon, ...props }: ModelPickerProps & { summon?:
       <PillTrigger
         tip="Model"
         open={open}
-        icon={<ProviderIcon provider={driver} size={14} />}
+        icon={<ModelPillIcon driver={driver} modelId={picker.selectedFamily?.id ?? choice.model ?? ""} size={14} />}
         label={label}
         {...(effort ? { detail: effortLabel(effort) } : {})}
         ariaLabel={`Model: ${label} on ${driverLabel(driver)}`}

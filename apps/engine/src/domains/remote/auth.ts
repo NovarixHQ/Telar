@@ -6,6 +6,7 @@ import type { Presence } from "./presence";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
 export const EXEMPT_PATHS = new Set(["/api/ping", "/api/pair", "/api/identity"]);
+const DEVICE_DOORS = new Set(["/api/mcp"]);
 const OBSERVER_METHODS = new Set(["GET", "HEAD"]);
 
 export type Credentials = { authorization?: string | null; deviceCookie?: string | null; hostHeader?: string | null };
@@ -25,6 +26,14 @@ function identifyDevice(file: RemoteFile, credentials: Credentials): PairedDevic
   return candidate ? matchDevice(file, candidate) : undefined;
 }
 
+/** A paired device named by a bearer alone, never a cookie, so a browser page cannot ride a device's session into it. */
+export function deviceForBearer(store: RemoteStore, authorization: string | undefined): { id: string; role: DeviceRole } | undefined {
+  const device = identifyDevice(store.read(), { authorization: authorization ?? null });
+  if (!device) return undefined;
+  store.touchDevice(device.id);
+  return { id: device.id, role: device.role };
+}
+
 const isHostCaller = (credentials: Credentials, secret: string | undefined): boolean =>
   isHostSecret(credentials.hostHeader, secret) || isHostSecret(credentials.deviceCookie, secret);
 
@@ -41,6 +50,7 @@ export function decideAccess(
   checkTicket: TicketCheck = () => undefined,
 ): AccessDecision {
   if (!hostIsAllowed(request.host)) return { allow: false, code: "cockpit_misdirected" };
+  if (DEVICE_DOORS.has(request.pathname)) return { allow: true };
   if (!file.requireAuth || EXEMPT_PATHS.has(request.pathname)) return { allow: true };
   if (isHostCaller(request, hostSecret)) return { allow: true, role: "full" };
   const device = identifyDevice(file, request);

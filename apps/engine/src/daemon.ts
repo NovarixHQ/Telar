@@ -18,9 +18,9 @@ import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
 import { maybeRetitleSession, providersRoutes, readModelCatalogue, sessionProviderRoutes, type AgentRouteDeps, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
 import { createPushService } from "./domains/push";
-import { createRemoteStore, remoteDirFor, remoteRoutes } from "./domains/remote";
+import { createRemoteStore, deviceForBearer, remoteDirFor, remoteRoutes } from "./domains/remote";
 import { schedulesRoutes } from "./domains/schedules";
-import { sessionAttachmentRoutes, sessionLifecycleRoutes, sessionReadRoutes, sessionsRoutes, sessionsSocketDoor, syncTelarSkill, type OpenStream } from "./domains/sessions";
+import { connectorDoor, sessionAttachmentRoutes, sessionLifecycleRoutes, sessionReadRoutes, sessionsRoutes, sessionsSocketDoor, syncTelarSkill, type OpenStream } from "./domains/sessions";
 import { settingsRoutes } from "./domains/settings";
 import { simulatorSessionRoutes, Simulators, simulatorsRoutes, type SimulatorsDeps } from "./domains/simulators";
 import { createStorageMeter, reportBootHousekeeping, storageRoutes, sweepCheckoutsAfterBoot, type CheckoutSizesOptions } from "./domains/storage";
@@ -194,6 +194,7 @@ type RouteContext = {
   simulators: Simulators;
   storageMeter: ReturnType<typeof createStorageMeter>;
   sessionsDoor: ReturnType<typeof sessionsSocketDoor>;
+  connector: ReturnType<typeof connectorDoor>;
   daemonId: string;
   openStreams: Set<OpenStream>;
   execution: ReturnType<typeof createExecutionPort>;
@@ -205,9 +206,10 @@ type RouteContext = {
 };
 
 function engineRoutes(ctx: RouteContext): Route[] {
-  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, identity } = ctx;
+  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity } = ctx;
   return [
     sessionsDoor.route,
+    connector.route,
     { method: "GET", path: "/v2/health", auth: "engine", handle: () => ({ status: 200, body: health() }) },
     ...filesRoutes(),
     ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket)),
@@ -325,16 +327,19 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   });
   let port = 0;
   const sessionsDoor = sessionsSocketDoor(store, () => port);
-  const secrets: Record<Route["auth"], () => string> = { engine: () => token, "sessions-socket": sessionsDoor.secret };
+  const connector = connectorDoor(store, (authorization) => deviceForBearer(remoteStore, authorization));
+  const secrets: Record<Exclude<Route["auth"], "device">, () => string> = { engine: () => token, "sessions-socket": sessionsDoor.secret };
   const refusals: Record<Route["auth"], string> = {
     engine: "engine authentication failed",
     "sessions-socket": "the sessions socket answers to its own secret — see /v2/sessions/mcp-info",
+    device: "send a paired device's token as Authorization: Bearer tlr_…",
   };
   const authorize = (auth: Route["auth"], request: http.IncomingMessage): void => {
-    if (!bearerIsValid(request.headers.authorization, secrets[auth]())) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
+    const allowed = auth === "device" ? connector.device(request) !== undefined : bearerIsValid(request.headers.authorization, secrets[auth]());
+    if (!allowed) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
   };
   const identity: EngineIdentity = { hostId: readHostId(remoteDir), ...(hostname ? { name: hostname } : {}), appVersion: pkg.version };
-  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, daemonId, openStreams, execution, plugins, runMount, workers, health, identity });
+  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity });
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run }));
 
   try {

@@ -28,6 +28,7 @@ const ComputerUseRow = dynamic(() => import("@/features/providers/components/per
 const ProvidersSection = dynamic(() => import("@/features/providers/components/providers-section").then((mod) => mod.ProvidersSection), { loading: SectionSkeleton });
 const RemoteSection = dynamic(() => import("@/features/remote/components/remote-section").then((mod) => mod.RemoteSection), { loading: SectionSkeleton });
 const DesktopNotificationsGroup = dynamic(() => import("@/features/push").then((mod) => mod.DesktopNotificationsGroup), { loading: SectionSkeleton });
+const WebhookGroup = dynamic(() => import("@/features/push").then((mod) => mod.WebhookGroup), { loading: SectionSkeleton });
 const SourceControlPage = dynamic(() => import("@/features/github/components/source-control-page").then((mod) => mod.SourceControlPage), { loading: SectionSkeleton });
 const ComputerRows = dynamic(() => import("@/features/hosts/components/other-hosts").then((mod) => mod.ComputerRows), { loading: SectionSkeleton });
 const TextGenSection = dynamic(() => import("@/features/providers/components/textgen-section").then((mod) => mod.TextGenSection), { loading: SectionSkeleton });
@@ -131,9 +132,12 @@ export function SettingsPage() {
       )}
 
       {active === "connections" && (
-        <RemoteSection>
-          <ComputerRows />
-        </RemoteSection>
+        <>
+          <RemoteSection>
+            <ComputerRows />
+          </RemoteSection>
+          <WebhookGroup />
+        </>
       )}
     </SettingsShell>
   );

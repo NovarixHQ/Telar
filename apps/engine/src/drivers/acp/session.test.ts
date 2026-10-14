@@ -146,7 +146,20 @@ test("an agent that ignores the cancel is killed after the grace period, and the
   const next = turn("plain", { providerSessionId: "session-before-the-kill" });
   await expect(next.result).resolves.toMatchObject({ text: "hello" });
   expect(sent().filter((message) => message.method === "initialize")).toHaveLength(2);
+  expect(sent().filter((message) => message.method === "session/load")).toHaveLength(1);
   expect(next.observations.find((o) => o.kind === "runtime.warning")).toMatchObject({ message: expect.stringContaining("does not remember") });
+});
+
+test("after a restart the agent reloads its session: no replayed rows, no warning, no second briefing", async () => {
+  const { turn, sent } = setup();
+  const { result, observations } = turn("plain", { providerSessionId: "fake-acp-session", orientation: "You run inside Telar." });
+  await expect(result).resolves.toMatchObject({ text: "hello", providerSessionId: "fake-acp-session" });
+  const methods = sent().map((message) => message.method);
+  expect(methods).toContain("session/load");
+  expect(methods).not.toContain("session/new");
+  expect(kinds(observations)).not.toContain("runtime.warning");
+  expect(observations.some((o) => o.kind === "content.delta" && o.text === "earlier answer")).toBeFalse();
+  expect(JSON.stringify(sent().find((message) => message.method === "session/prompt")?.params?.prompt)).not.toContain("You run inside Telar.");
 });
 
 test("an agent that dies mid-turn fails the turn with what it said", async () => {

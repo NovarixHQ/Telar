@@ -89,9 +89,14 @@ readline.createInterface({ input: process.stdin }).on("line", (raw) => {
   if (message.method === undefined) return waiting.get(message.id)?.(message.result ?? {});
   switch (message.method) {
     case "initialize":
-      return send({ id: message.id, result: { protocolVersion: 1, agentCapabilities: { promptCapabilities: { image: script === "images" }, mcpCapabilities: { http: false } } } });
+      return send({ id: message.id, result: { protocolVersion: 1, agentCapabilities: { loadSession: true, promptCapabilities: { image: script === "images" }, mcpCapabilities: { http: false } } } });
     case "session/new":
       return send({ id: message.id, result: { sessionId: SESSION, configOptions: options() } });
+    case "session/load":
+      if (message.params.sessionId !== SESSION) return send({ id: message.id, error: { code: -32002, message: "session not found" } });
+      update({ sessionUpdate: "user_message_chunk", content: { type: "text", text: "earlier question" } });
+      chunk("earlier answer");
+      return send({ id: message.id, result: { configOptions: options() } });
     case "session/set_config_option":
       if (message.params.value === "smart") return send({ id: message.id, error: { code: -32602, message: "smart is not available on this plan" } });
       return send({ id: message.id, result: { configOptions: options() } });

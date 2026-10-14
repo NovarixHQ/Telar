@@ -63,7 +63,7 @@ function SearchField({ picker, driver, canSwitch }: { picker: ModelPicker; drive
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") {
             event.preventDefault();
-            document.getElementById(MODEL_LIST_ID)?.querySelector("button")?.focus();
+            event.currentTarget.ownerDocument.getElementById(MODEL_LIST_ID)?.querySelector("button")?.focus();
           }
         }}
         placeholder={canSwitch ? "Search every provider…" : `Search ${driverLabel(driver)} models…`}
@@ -82,7 +82,7 @@ function SearchField({ picker, driver, canSwitch }: { picker: ModelPicker; drive
 const walkRows = (event: React.KeyboardEvent<HTMLDivElement>) => {
   if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
   const rows = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[data-model-row]")];
-  const at = rows.findIndex((row) => row === document.activeElement);
+  const at = rows.findIndex((row) => row === event.currentTarget.ownerDocument.activeElement);
   if (at === -1) return;
   event.preventDefault();
   const next = event.key === "ArrowDown" ? Math.min(at + 1, rows.length - 1) : at - 1;

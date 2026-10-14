@@ -71,7 +71,7 @@ export function ReasoningControl({
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const rows = [...(list.current?.querySelectorAll<HTMLButtonElement>(ROWS) ?? [])];
-    const at = rows.indexOf(document.activeElement as HTMLButtonElement);
+    const at = rows.indexOf(event.currentTarget.ownerDocument.activeElement as HTMLButtonElement);
     const to =
       event.key === "ArrowDown" ? (at + 1) % rows.length
       : event.key === "ArrowUp" ? (at - 1 + rows.length) % rows.length

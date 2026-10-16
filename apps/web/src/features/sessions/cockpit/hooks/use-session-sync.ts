@@ -61,7 +61,8 @@ export function useSessionSync({ hostId, sessionId, initiallyLoading }: { hostId
   if (transcriptSubject !== syncKey) {
     setTranscriptSubject(syncKey);
     const held = heldData(hostId, sessionId, syncKey);
-    if (held.readKey) dispatch({ type: "replace", data: held, readKey: syncKey });
+    dispatch({ type: "replace", data: held, ...(held.readKey ? { readKey: syncKey } : {}) });
+    if (!held.readKey) setLoading(Boolean(sessionId));
   }
 
   useEffect(() => {

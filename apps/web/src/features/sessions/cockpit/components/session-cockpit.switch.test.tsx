@@ -63,6 +63,8 @@ const record = (id: string): Session =>
 
 /** Every `/bootstrap` this fixture answered, so an opening can be counted. */
 let opened: string[] = [];
+/** Bootstraps that wait for the test to release them, like a slow host. */
+const held = new Map<string, Promise<void>>();
 const realFetch = globalThis.fetch;
 
 function wire() {
@@ -71,6 +73,7 @@ function wire() {
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
     if (url.includes("/bootstrap")) {
       opened.push(id);
+      if (held.has(id)) await held.get(id);
       return Response.json({
         session: record(id),
         turns: [turn(id, `answer from ${id}`)],
@@ -99,6 +102,7 @@ let host: HTMLDivElement | undefined;
 beforeEach(() => {
   clearConnections();
   opened = [];
+  held.clear();
   wire();
 });
 
@@ -137,8 +141,8 @@ async function show(sessionId: string, at = "") {
 }
 
 /** Render without letting anything settle: the commit, and nothing after it. */
-function switchTo(sessionId: string) {
-  pathname = `/projects/project_1/sessions/${sessionId}`;
+function switchTo(sessionId: string, at = "") {
+  pathname = `${at}/projects/project_1/sessions/${sessionId}`;
   act(() => {
     root!.render(
       <SidebarProvider>
@@ -192,5 +196,28 @@ describe("a sent image on a conversation from another host", () => {
     await show("session_f", "/hosts/host_mini");
     await show("session_e", "/hosts/host_mini");
     expect(thumbnail()).toBe("/api/hosts/host_mini/sessions/session_e/attachments/att_session_e?variant=display");
+  });
+});
+
+describe("switching to a conversation another host has not answered for yet", () => {
+  test("the previous transcript leaves at once and the new one shows as loading", async () => {
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    let release = () => {};
+    held.set("session_slow", new Promise<void>((resolve) => (release = resolve)));
+
+    await show("session_here", "/hosts/host_mini");
+    expect(host.textContent).toContain("answer from session_here");
+
+    switchTo("session_slow", "/hosts/host_mini");
+    await settle();
+    expect(host.textContent).not.toContain("answer from session_here");
+    expect(host.querySelector('[aria-label="Loading session"]')).not.toBeNull();
+
+    release();
+    await settle();
+    expect(host.textContent).toContain("answer from session_slow");
+    expect(host.querySelector('[aria-label="Loading session"]')).toBeNull();
   });
 });

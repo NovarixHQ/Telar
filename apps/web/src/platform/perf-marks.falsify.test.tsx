@@ -355,62 +355,12 @@ describe("the navigation clock, made slow on purpose", () => {
     markNavigation("idle", href);
   });
 
-  test("DEFECT, PINNED: on a switch, `idle` is stamped BEFORE the transcript it claims to follow", async () => {
-    /**
-     * THE PHASE IS WRONG — NOT MISSING — FOR EXACTLY THE POPULATION #490 IS
-     * ABOUT, and wrong in the flattering direction.
-     *
-     * `loading` is a ONE-WAY LATCH: `useState(Boolean(routeSessionId))` at
-     * `session-cockpit.tsx:1515`, and the only writes are `setLoading(false)`
-     * (`:2848`, `:2863`). Nothing sets it true again, and the cockpit does not
-     * remount between conversations — that is #497's whole design.
-     *
-     * So the FIRST opening on a mounted cockpit is honest: `loading` goes
-     * true→false when the read lands, and `idle` is stamped with it. On every
-     * switch after that, the effect keyed `[loading, pathname]` re-runs because
-     * the ADDRESS changed while `loading` is already false — in the commit that
-     * switches, before `/bootstrap` has even been asked. `idle` is therefore
-     * stamped a few milliseconds into an opening that is still hundreds of
-     * milliseconds from painting, and the ring records a conversation that
-     * settled before its own transcript arrived.
-     *
-     * THE ASSERTION IS THE CONTRADICTION ITSELF — `idle` earlier than
-     * `transcript` — rather than a threshold, because the contradiction cannot
-     * be produced by a slow machine, a fast machine, or any amount of jitter.
-     * "Everything else the screen wanted before it settled" cannot complete
-     * before the rows it was waiting for.
-     *
-     * WHAT IT COSTS #490: "transcript → idle", one of the three spans this
-     * instrument's header promises, is negative on every switch. The owner's
-     * complaint is "switching between them is instant, not 2 minutes" — and the
-     * instrument reports switching as the fastest thing the app does.
-     *
-     * THE `from: "route"` VARIANT IS WORSE AND IS NOT PINNED HERE. Mounted under
-     * `<AppShell>`, where the shell rather than a press starts the clock, the
-     * same latch drops `idle` on the `current.href !== href` guard and the phase
-     * is absent altogether: measured 41.3 ms / 313.3 ms on first openings and
-     * nothing at all on the three switches that followed. That measurement is in
-     * the doc; it is not a test here because mounting the shell breaks
-     * `app-shell.solo.test.tsx` (see the note at the top of this file).
-     *
-     * WHEN THIS IS FIXED — by resetting `loading` on a switch, or by stamping
-     * idle off the read settling rather than off a latch — this will fail.
-     * Replace it with the same slow-versus-fast pair the first two tests use,
-     * which is the assertion `idle` deserves once it means anything.
-     */
+  test("on a switch, `idle` waits for the transcript it follows", async () => {
     const first = await open("falsify_idle_first", DELAY_MS);
     const second = await open("falsify_idle_second", DELAY_MS);
-
-    // The first opening on this cockpit is honest, and tracks the injected
-    // delay — so the phase is not broken in itself, only unreachable after this.
     expect(first?.idle).toBeGreaterThanOrEqual(DELAY_MS * 0.75);
-
-    // The switch took just as long: the transcript proves it.
     expect(second?.transcript).toBeGreaterThanOrEqual(DELAY_MS * 0.75);
-    // ...and `idle` says it was over before that. The impossible ordering is
-    // the whole finding.
-    expect(second?.idle).toBeDefined();
-    expect(second!.idle!).toBeLessThan(second!.transcript!);
+    expect(second!.idle!).toBeGreaterThanOrEqual(second!.transcript!);
   });
 
   test("and this file leaves no warm cache behind for the next one", async () => {

@@ -4,6 +4,8 @@ import { hydrateSession, mergeRows, needsSessionSnapshot, tailSession, type Hydr
 
 type Update = { events: EngineEvent[]; cursor: number; snapshot?: SessionSnapshot };
 
+export const READ_DEADLINE_MS = 15_000;
+
 /** Owns a host/session's cursor and head; mounts borrow it, and failures keep the last committed view. */
 export class SessionConnection {
   private current?: HydratedSession;
@@ -27,10 +29,19 @@ export class SessionConnection {
     this.commit(head, savedAt);
     return true;
   }
+  /** A read past the deadline is dropped, so the next one asks again; its late answer is not committed. */
   private fly(work: () => Promise<HydratedSession>): Promise<HydratedSession> {
     if (this.flight) return this.flight;
-    this.flight = work().finally(() => { this.flight = undefined; });
-    return this.flight;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("The host did not answer in time.")), READ_DEADLINE_MS);
+    });
+    const flight: Promise<HydratedSession> = Promise.race([work().then((next) => (this.flight === flight ? this.commit(next) : next)), deadline]).finally(() => {
+      clearTimeout(timer);
+      if (this.flight === flight) this.flight = undefined;
+    });
+    this.flight = flight;
+    return flight;
   }
   private commit(next: HydratedSession, at = Date.now()): HydratedSession {
     this.readAt = at;
@@ -42,12 +53,12 @@ export class SessionConnection {
     return next;
   }
   private hydrate(): Promise<HydratedSession> {
-    return hydrateSession(this.api, this.id, this.window).then((next) => this.commit(next));
+    return hydrateSession(this.api, this.id, this.window);
   }
   private async refresh(): Promise<HydratedSession> {
     const previous = this.current;
     if (!previous) return this.hydrate();
-    return this.commit(apply(previous, await tailSession(this.api, this.id, previous.cursor, this.window), "merge"));
+    return apply(previous, await tailSession(this.api, this.id, previous.cursor, this.window), "merge");
   }
   private async reconcile(): Promise<HydratedSession> {
     const previous = this.current;
@@ -55,9 +66,9 @@ export class SessionConnection {
     // An engine without `/delta` answers 404; a real outage fails the bootstrap too.
     const delta = await this.api.sessionDelta(this.id, previous.cursor).catch(() => ({ reset: true as const }));
     if (delta.reset) return this.hydrate();
-    if (!delta.events.length) return this.commit(previous);
+    if (!delta.events.length) return previous;
     const snapshot = needsSessionSnapshot(delta.events) ? await this.api.session(this.id, this.window) : undefined;
-    return this.commit(apply(previous, { events: delta.events, cursor: delta.cursor, ...(snapshot ? { snapshot } : {}) }, "replace"));
+    return apply(previous, { events: delta.events, cursor: delta.cursor, ...(snapshot ? { snapshot } : {}) }, "replace");
   }
 }
 

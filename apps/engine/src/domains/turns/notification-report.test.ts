@@ -96,7 +96,7 @@ test("a report and a result from one run, before the host has started: one deliv
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
 });
 
-test("a result told by its builder's ending notice also silences a plain subscription's completion", () => {
+test("a result told by its builder's ending is the parent's only notice; a plain subscription adds nothing", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a" });
   store.lineage.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
@@ -105,7 +105,7 @@ test("a result told by its builder's ending notice also silences a plain subscri
 
   worker.end();
 
-  expect(recordOf(store, worker.runId)).toBeDefined();
+  expect(recordOf(store, worker.runId)).toBeUndefined();
   expect(notifications(store).filter((turn) => turn.agentDelivery !== "passive").map((turn) => turn.notification!.summary)).toEqual([expect.stringContaining("[builder done]")]);
 });
 
@@ -129,7 +129,7 @@ test("after its result, a later turn on the same errand does not wake the host",
   expect(recordOf(store, "run_later")).toBeDefined();
 });
 
-test("a new errand resets it: the next run's completion without a result wakes as before", () => {
+test("a new errand's completion without a result is the builder's to finish: it is nudged, and the parent hears nothing yet", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", once: false });
   const first = reports(store, { runId: "run_one" });
@@ -144,5 +144,6 @@ test("a new errand resets it: the next run's completion without a result wakes a
   store.turnLifecycle.completeTurn("session_a", child.runId, child.claim!.token, { text: "Stopped halfway." });
 
   expect(recordOf(store, child.runId)).toBeUndefined();
-  expect(store.queries.turns("session_host").some((turn) => turn.state === "queued" && turn.notification?.runId === child.runId)).toBe(true);
+  expect(store.queries.turns("session_host").some((turn) => turn.state === "queued" && turn.notification?.runId === child.runId)).toBe(false);
+  expect(store.queries.turns("session_a").filter((turn) => turn.state === "queued").map((turn) => turn.notification?.body)).toEqual([expect.stringContaining("nothing is running in this session")]);
 });

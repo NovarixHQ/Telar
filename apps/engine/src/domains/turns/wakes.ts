@@ -90,7 +90,9 @@ type WakeDeps = {
   items: SessionItems;
   mailbox: SessionMailbox;
   subscriptions: SessionSubscriptions;
-  lineage: Pick<SessionLineage, "parentsOf">;
+  lineage: Pick<SessionLineage, "parentsOf" | "coversRun">;
+  acknowledgeDeliveries: (readerId: string, targetSessionId: string, runId: string) => void;
+  pendingDeliveries: (sessionId: string) => NotificationDetail[];
   readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   scanQueue: (sessionId: string) => SessionQueue;
@@ -119,7 +121,8 @@ export class TurnWakes {
     if (turn.origin === "provider" && turn.providerReason?.kind === "background_task" && TERMINAL_WAKE_KINDS.includes(kind)) return;
     if (turn.origin === "session" && turn.wakeReason) return;
     const all = this.deps.subscriptions.readSubscriptions();
-    const hits = all.filter((each) => each.targetSessionId === targetSessionId && each.events.includes(kind));
+    const hits = all.filter((each) => each.targetSessionId === targetSessionId && each.events.includes(kind)
+      && !(TERMINAL_WAKE_KINDS.includes(kind) && this.deps.lineage.coversRun(each.subscriberSessionId, targetSessionId, turn)));
     if (kind === "request_opened") {
       for (const parentId of this.deps.lineage.parentsOf(targetSessionId)) {
         if (hits.some((each) => each.subscriberSessionId === parentId)) continue;
@@ -418,19 +421,6 @@ export class TurnWakes {
     this.deps.mailbox.setPending(sessionId, []);
   }
 
-  /** A builder's ending goes through the mailbox, so a busy parent hears of several at once when its turn ends. */
-  announceChildEnding(parentId: string, notification: NotificationDetail): void {
-    let parent: Session;
-    try {
-      parent = this.deps.records.require(parentId);
-    } catch {
-      return;
-    }
-    if (parent.state !== "active") return;
-    this.deps.mailbox.hold(parentId, notification);
-    this.flushPendingNotifications(parentId);
-  }
-
   nudgeIdle(sessionId: string, endedRunId: string): boolean {
     const notification: NotificationDetail = {
       ...wakeNotification({ wakeKind: "turn_completed", targetSessionId: sessionId, runId: endedRunId, body: IDLE_NUDGE }),
@@ -454,7 +444,7 @@ export class TurnWakes {
   /** What the cap kept from being pushed again, for `sessions_read` view "status". */
   pendingNotifications(sessionId: string): NotificationDetail[] {
     this.deps.records.require(sessionId);
-    return structuredClone(this.deps.mailbox.pending(sessionId));
+    return structuredClone([...this.deps.mailbox.pending(sessionId), ...this.deps.pendingDeliveries(sessionId)]);
   }
 
   /** The other half of `writeNotificationItem`: the row a coalesce superseded. */
@@ -479,6 +469,7 @@ export class TurnWakes {
       this.deps.records.require(readerId);
       this.discardQueuedWakes(readerId, targetSessionId, runId);
       this.deps.mailbox.forgetWake(readerId, targetSessionId, runId);
+      this.deps.acknowledgeDeliveries(readerId, targetSessionId, runId);
     });
   }
 

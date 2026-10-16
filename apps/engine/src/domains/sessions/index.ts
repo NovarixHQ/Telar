@@ -25,6 +25,7 @@ export { connectorDoor } from "./connector-door";
 export { sessionsSocketDoor } from "./socket-door";
 export { SessionSubscriptions, TERMINAL_WAKE_KINDS } from "./subscriptions";
 export { SessionLineage } from "./lineage";
+export { SessionDeliveries, type Delivery } from "./deliveries";
 export { SessionLifecycle } from "./lifecycle-store";
 export { SessionHandoff } from "./handoff";
 export { ACTIVE_TURN_STATES, SessionQueries } from "./queries";

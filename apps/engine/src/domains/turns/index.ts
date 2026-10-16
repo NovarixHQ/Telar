@@ -12,6 +12,7 @@ export { TurnIngest } from "./ingest";
 export { isLiveTask, TurnClaims } from "./claims";
 export { TurnRecovery } from "./recovery";
 export { TurnWakes } from "./wakes";
+export { BuilderDeliveries } from "./deliveries";
 export { requireRunningClaimFromQueue, WorkerChannel } from "./worker-channel";
 export { TurnAnchors } from "./anchors";
 export { RequestPath } from "./request-path";

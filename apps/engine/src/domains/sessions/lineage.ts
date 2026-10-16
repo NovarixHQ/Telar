@@ -46,7 +46,9 @@ type LineageHost = {
   subtree(sessionId: string): Omit<SessionSubtree, "workingBuilders" | "now">;
   liveTurns(sessionId: string): Turn[];
   runItems(sessionId: string, runId: string): Item[];
-  announce(parentSessionId: string, notification: NotificationDetail): void;
+  deliver(ending: { parentSessionId: string; childSessionId: string; generation: number; notification: NotificationDetail }): void;
+  settleDeliveries(): boolean;
+  sweepDeliveries(): void;
   nudge(sessionId: string, endedRunId: string): boolean;
 };
 
@@ -81,6 +83,7 @@ export class SessionLineage {
     this.kernel.command("sweepLineage", () => {
       this.review();
       for (const node of this.read().filter(pending)) this.dirty.add(node.sessionId);
+      this.host.sweepDeliveries();
     });
   }
 
@@ -121,6 +124,12 @@ export class SessionLineage {
   /** A result from this child to this parent is told by the ending notice, not delivered on its own. */
   holds(parentSessionId: string, childSessionId: string): boolean {
     return this.read().some((node) => node.parentSessionId === parentSessionId && node.sessionId === childSessionId && pending(node));
+  }
+
+  /** The parent hears of this run through the child's delivery: it ran on the errand of the child's latest generation. */
+  coversRun(parentSessionId: string, childSessionId: string, turn: Turn): boolean {
+    const node = this.read().find((each) => each.parentSessionId === parentSessionId && each.sessionId === childSessionId);
+    return node !== undefined && (pending(node) || (turn.startedAt ?? turn.acceptedAt) <= (node.endedAt ?? 0));
   }
 
   /** The child is waiting on this parent's answer to its blocker. */
@@ -194,7 +203,7 @@ export class SessionLineage {
   }
 
   private settle(): void {
-    for (let pass = 0; pass < MAX_SETTLE_PASSES && this.dirty.size > 0; pass += 1) {
+    for (let pass = 0; pass < MAX_SETTLE_PASSES; pass += 1) {
       const batch = [...this.dirty];
       this.dirty.clear();
       for (const sessionId of batch) {
@@ -204,6 +213,7 @@ export class SessionLineage {
           console.warn(`[engine] could not settle the lineage of ${sessionId}:`, error);
         }
       }
+      if (!this.host.settleDeliveries() && this.dirty.size === 0) return;
     }
   }
 
@@ -264,7 +274,8 @@ export class SessionLineage {
     if (!ended) return;
     this.touch(node.parentSessionId);
     const title = this.host.find(node.sessionId)?.title ?? ended.title;
-    this.host.announce(node.parentSessionId, childEndingNotification({ sessionId: node.sessionId, ...(title ? { title } : {}), state, ...(ended.summary ? { summary: ended.summary } : {}), ...(ended.fetch ? { fetch: ended.fetch } : {}) }));
+    const notification = childEndingNotification({ sessionId: node.sessionId, ...(title ? { title } : {}), state, ...(ended.summary ? { summary: ended.summary } : {}), ...(ended.fetch ? { fetch: ended.fetch } : {}) });
+    this.host.deliver({ parentSessionId: node.parentSessionId, childSessionId: node.sessionId, generation: node.generation, notification });
   }
 
   private pendingNode(parentSessionId: string, childSessionId: string): StoredNode | undefined {

@@ -20,9 +20,9 @@ import { AppearanceStore } from "./domains/appearance";
 import { chosenModel, delegatedChoice, type Delegated, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
 import { PluginToolchains } from "./domains/plugins";
 import { UsageLimitReader, UsageLimitSources } from "./domains/usage";
-import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, isQuietMail, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionLineage, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
+import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, isQuietMail, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionLineage, SessionDeliveries, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
 import { driverCapabilities } from "./drivers/capabilities";
-import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, QueuedTurns, RequestPath } from "./domains/turns";
+import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, BuilderDeliveries, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, QueuedTurns, RequestPath } from "./domains/turns";
 import { Dictation } from "./domains/dictation";
 import { type ResolvedComputerUse } from "./domains/computer-use";
 import { WorkspaceFiles } from "./domains/files";
@@ -114,6 +114,8 @@ export class EngineStore {
   private readonly activity: SessionActivity;
   readonly subscriptions: SessionSubscriptions;
   readonly lineage: SessionLineage;
+  readonly deliveries: SessionDeliveries;
+  readonly builderDeliveries: BuilderDeliveries;
   readonly lifecycle: SessionLifecycle;
   readonly handoff: SessionHandoff;
   readonly schedules: ScheduleBook;
@@ -235,13 +237,17 @@ export class EngineStore {
     } = this.leafStores(options));
     this.usageLimits = new UsageLimitReader(this.usageSources);
     // Before the session modules: its commit hook writes rows the session index's hook then flushes.
+    this.deliveries = new SessionDeliveries(this.kernel);
     this.lineage = this.createLineage();
     ({
       records: this.records, items: this.sessionItems, requests: this.sessionRequests, tasks: this.sessionTasks, mailbox: this.mailbox,
       activity: this.activity, index: this.sessionIndex, queues: this.sessionQueues, prefixes: this.prefixes, attachments: this.attachments, queries: this.queries,
     } = createSessionModules(this.kernel, {
       subscriptionsOf: (sessionId) => [...this.subscriptions.subscriptionsOf(sessionId), ...this.lineage.awaitedBy(sessionId)],
-      nodesChanged: (sessionId) => this.lineage.touch(sessionId),
+      nodesChanged: (sessionId) => {
+        this.lineage.touch(sessionId);
+        this.builderDeliveries.touch(sessionId);
+      },
       nextWake: (sessionId) => this.schedules.nextWake(sessionId),
       autoSettleAfterHours: () => this.settings.inbox().autoSettleAfterHours,
       ...(options.onQueueChanged ? { onQueueChanged: options.onQueueChanged } : {}),
@@ -282,7 +288,7 @@ export class EngineStore {
       getProject: (id) => this.projectRegistry.get(id),
       registerProject: (input) => this.projectRegistry.register(input),
     });
-    ({ worker: this.worker, settler: this.settler, wakes: this.wakes, recovery: this.recovery, ingest: this.ingest } = this.turnModules());
+    ({ worker: this.worker, settler: this.settler, wakes: this.wakes, builderDeliveries: this.builderDeliveries, recovery: this.recovery, ingest: this.ingest } = this.turnModules());
     this.worktrees = this.worktreeMaintenance();
     this.dictation = new Dictation(this.paths.root, {
       liveSessions: () => this.live.rows().sessions,
@@ -354,11 +360,23 @@ export class EngineStore {
       mailbox: this.mailbox,
       subscriptions: this.subscriptions,
       lineage: this.lineage,
+      acknowledgeDeliveries: (reader, target, runId) => this.builderDeliveries.acknowledge(reader, target, runId),
+      pendingDeliveries: (id) => this.builderDeliveries.pendingNotifications(id),
       readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       scanQueue: (id) => this.sessionQueues.scan(id),
       submitTurn: (id, input) => this.intake.submitTurn(id, input),
       writeNotificationItem: (id, turn) => this.intake.writeNotificationItem(id, turn),
+    });
+    const builderDeliveries = new BuilderDeliveries(this.kernel, {
+      deliveries: this.deliveries,
+      records: this.records,
+      readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
+      submitTurn: (id, input) => this.intake.submitTurn(id, input),
+      hasLiveTurn: (id) => wakes.hasLiveTurn(id),
+      waitingNotificationTurn: (id) => wakes.waitingNotificationTurn(id),
+      joinWaitingNotification: (id, runId, notification) => wakes.joinWaitingNotification(id, runId, notification),
+      discardQueuedWakes: (subscriber, target, runId) => wakes.discardQueuedWakes(subscriber, target, runId),
     });
     const recovery = new TurnRecovery(this.kernel, {
       records: this.records,
@@ -388,7 +406,7 @@ export class EngineStore {
         if (root !== undefined) this.workspaceReads.forgetUnder(root);
       },
     });
-    return { worker, settler, wakes, recovery, ingest };
+    return { worker, settler, wakes, builderDeliveries, recovery, ingest };
   }
 
   /** What a session reaches beyond its transcript: pulls, terminals, requests, plugins, anchors and schedules. */
@@ -524,10 +542,15 @@ export class EngineStore {
         scheduled: this.schedules.nextWake(sessionId) !== undefined,
         awaitsSubscription: this.subscriptions.subscriptionsOf(sessionId).some((each) => each.once === true),
         heldMail: this.mailbox.pending(sessionId).some((detail) => !isQuietMail(detail)),
+        openDeliveries: this.deliveries.openFor(sessionId).length > 0,
       }),
       liveTurns: (sessionId) => this.sessionQueues.live(sessionId),
       runItems: (sessionId, runId) => this.sessionItems.peekRun(sessionId, runId),
-      announce: (parentId, notification) => this.wakes.announceChildEnding(parentId, notification),
+      deliver: (ending) => {
+        if (this.deliveries.record(ending)) this.builderDeliveries.touch(ending.parentSessionId);
+      },
+      settleDeliveries: () => this.builderDeliveries.settle(),
+      sweepDeliveries: () => this.builderDeliveries.markAll(),
       nudge: (sessionId, endedRunId) => this.wakes.nudgeIdle(sessionId, endedRunId),
     });
   }
@@ -664,7 +687,10 @@ export class EngineStore {
       rewriteNotificationItem: (id, turn) => this.wakes.rewriteNotificationItem(id, turn),
       waitingSubscription: (subscriber, target) =>
         this.subscriptions.readSubscriptions().some((sub) => sub.subscriberSessionId === subscriber && sub.targetSessionId === target && sub.events.includes("turn_completed")),
-      releaseHeld: (id) => this.wakes.flushPendingNotifications(id, { steer: true }),
+      releaseHeld: (id) => {
+        this.wakes.flushPendingNotifications(id, { steer: true });
+        this.builderDeliveries.steer(id);
+      },
       holdsChild: (parent, child) => this.lineage.holds(parent, child),
       childWaitingOn: (parent, child) => this.lineage.waitingOn(parent, child),
       recordChildMessage: (recipient, sender, intent, message) => this.lineage.recordMessage(recipient, sender, intent, message),

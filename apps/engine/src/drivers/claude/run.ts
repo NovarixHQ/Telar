@@ -158,6 +158,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
   /** Last seed per task, so `task_updated`'s PATCH can be folded onto
    *  something rather than sent as a task with no title or kind. */
   turn.knownTasks = new Map();
+  turn.taskParents = new Map();
   /** The SDK's `task_type` per task id — see `TaskMemory.typesBySdkId`. */
   turn.taskTypesBySdkId = new Map();
   turn.suppressedTasks = new Set();
@@ -298,6 +299,7 @@ async function claimTurnRuntime(deps: DriverDeps, input: DriverRun, scope: TurnS
   // From here on the turn reads and writes the PROCESS's task memory.
   turn.taskIdsBySdkId = turn.runtime.tasks.bySdkId;
   turn.knownTasks = turn.runtime.tasks.known;
+  turn.taskParents = turn.runtime.tasks.parents;
   turn.suppressedTasks = turn.runtime.tasks.suppressed;
   turn.taskTypesBySdkId = turn.runtime.tasks.typesBySdkId;
 

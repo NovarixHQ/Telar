@@ -111,7 +111,7 @@ export function storeSessionsPort(store: EngineStore): SessionsPort {
     subscriptions: async (subscriber) => ({ subscriptions: store.subscriptions.subscriptionsFor(subscriber) }),
     resolveRequest: async (id, requestId, input) => ({ request: store.requestGate.resolve(id, requestId, input) }),
     acknowledgeRead: async (reader, { sessionId, runId }) => store.wakes.acknowledgeRead(reader, sessionId, runId),
-    children: async (id) => ({ children: store.children.childrenOf(id) }),
+    children: async (id) => ({ children: store.lineage.childrenOf(id) }),
     findSessions: async (query) => store.queries.findSessions(query),
     sessionOutline: async (id, window) => store.queries.turnOutline(id, window),
     turnAnswer: async (id, options) => store.queries.turnAnswer(id, options),

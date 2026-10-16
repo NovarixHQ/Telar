@@ -46,7 +46,7 @@ test("detaching makes the session stand alone and its old parent stops waiting o
   expect(session.startedFrom).toBeUndefined();
   expect(store.handoff.parentOf("session_child")).toBeUndefined();
   expect(store.records.get("session_a").activity).toBe("idle");
-  expect(store.children.childrenOf("session_a")).toEqual([]);
+  expect(store.lineage.childrenOf("session_a")).toEqual([]);
   expect(handedOff(store, "session_a")).toMatchObject([{ subject: "session_child", from: "session_a" }]);
   expect(handedOff(store, "session_child")).toHaveLength(1);
 });

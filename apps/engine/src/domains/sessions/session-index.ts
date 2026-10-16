@@ -199,7 +199,7 @@ export class SessionIndex {
   private bumpFor(file: string, owner: Owner | undefined): void {
     if (owner !== undefined) return;
     const paths = this.kernel.paths;
-    if (file === paths.projects || file === paths.sidebarLayout || file === paths.inbox || file === paths.subscriptions || file === paths.children) {
+    if (file === paths.projects || file === paths.sidebarLayout || file === paths.inbox || file === paths.subscriptions || file === paths.lineage) {
       this.bumpList();
     }
   }

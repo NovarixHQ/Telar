@@ -98,7 +98,7 @@ export function sessionLifecycleRoutes(store: EngineStore, dismiss: (sessionId: 
       auth: "engine",
       handle: ({ params }) => {
         store.records.require(params[0]!);
-        return ok({ children: store.children.childrenOf(params[0]!) });
+        return ok({ children: store.lineage.childrenOf(params[0]!) });
       },
     },
     { method: "GET", path: sessionRoute("/held-reports"), auth: "engine", handle: ({ params }) => ok({ held: store.wakes.pendingNotifications(params[0]!).length }) },

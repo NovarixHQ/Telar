@@ -65,7 +65,7 @@ export function capabilityOver(store: EngineStore, self?: { sessionId: string })
       turns: store.queries.turns(sessionId),
       pendingNotifications: store.wakes.pendingNotifications(sessionId),
     }),
-    builders: async (sessionId) => store.children.childrenOf(sessionId),
+    builders: async (sessionId) => store.lineage.childrenOf(sessionId),
     acknowledge: async (sessionId, runId) => {
       if (self) store.wakes.acknowledgeRead(self.sessionId, sessionId, runId);
     },

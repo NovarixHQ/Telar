@@ -67,6 +67,27 @@ test("a sub-agent's work is FILED under its task and never becomes the turn's an
   );
 });
 
+test("a sub-agent's own sub-agent names the task that launched it", async () => {
+  const driver = createClaudeDriver(async () => ({
+    async *query() {
+      yield { type: "system", subtype: "task_started", task_id: "t_outer", tool_use_id: "toolu_outer", description: "Migrations", is_backgrounded: true };
+      yield {
+        type: "assistant",
+        parent_tool_use_id: "toolu_outer",
+        message: { content: [{ type: "tool_use", id: "toolu_inner", name: "Agent", input: { description: "Read 24 migrations" } }] },
+      };
+      yield { type: "system", subtype: "task_started", task_id: "t_inner", tool_use_id: "toolu_inner", description: "Read 24 migrations" };
+      yield { type: "system", subtype: "task_progress", task_id: "t_inner", tool_use_id: "toolu_inner", description: "Read 24 migrations" };
+      yield { type: "result", subtype: "success" };
+    },
+  }));
+  const { sink, result } = run(driver);
+  await result;
+  const tasks = sink.observations.flatMap((o) => (o.kind === "task.started" || o.kind === "task.progress" ? [o.task] : []));
+  expect(tasks.filter((task) => task.id === "task_toolu_inner").map((task) => task.parentTaskId)).toEqual(["task_toolu_outer", "task_toolu_outer"]);
+  expect(tasks.find((task) => task.id === "task_toolu_outer")?.parentTaskId).toBeUndefined();
+});
+
 test("task lifecycle rides the stream, and a partial patch does not erase the title", async () => {
   const driver = createClaudeDriver(async () => ({
     async *query() {

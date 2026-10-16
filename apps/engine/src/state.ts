@@ -20,7 +20,7 @@ import { AppearanceStore } from "./domains/appearance";
 import { chosenModel, delegatedChoice, type Delegated, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
 import { PluginToolchains } from "./domains/plugins";
 import { UsageLimitReader, UsageLimitSources } from "./domains/usage";
-import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionChildren, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
+import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, isQuietMail, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionLineage, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
 import { driverCapabilities } from "./drivers/capabilities";
 import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, QueuedTurns, RequestPath } from "./domains/turns";
 import { Dictation } from "./domains/dictation";
@@ -113,7 +113,7 @@ export class EngineStore {
   private readonly sessionIndex: SessionIndex;
   private readonly activity: SessionActivity;
   readonly subscriptions: SessionSubscriptions;
-  readonly children: SessionChildren;
+  readonly lineage: SessionLineage;
   readonly lifecycle: SessionLifecycle;
   readonly handoff: SessionHandoff;
   readonly schedules: ScheduleBook;
@@ -132,7 +132,7 @@ export class EngineStore {
     this.kernel.onSessionDeleted((id) => this.kernel.runProgress.delete(id));
     this.kernel.onSessionDeleted((id) => {
       this.subscriptions.dropSubscriptionsOf(id);
-      this.children.review();
+      this.lineage.review();
     });
   }
 
@@ -234,11 +234,14 @@ export class EngineStore {
       projectProbes: this.projectProbes, projectRegistry: this.projectRegistry, catalogues: this.catalogues, providers: this.providers, toolchains: this.toolchains, github: this.github, browser: this.browser, remounts: this.remounts,
     } = this.leafStores(options));
     this.usageLimits = new UsageLimitReader(this.usageSources);
+    // Before the session modules: its commit hook writes rows the session index's hook then flushes.
+    this.lineage = this.createLineage();
     ({
       records: this.records, items: this.sessionItems, requests: this.sessionRequests, tasks: this.sessionTasks, mailbox: this.mailbox,
       activity: this.activity, index: this.sessionIndex, queues: this.sessionQueues, prefixes: this.prefixes, attachments: this.attachments, queries: this.queries,
     } = createSessionModules(this.kernel, {
-      subscriptionsOf: (sessionId) => [...this.subscriptions.subscriptionsOf(sessionId), ...this.children.awaitedBy(sessionId)],
+      subscriptionsOf: (sessionId) => [...this.subscriptions.subscriptionsOf(sessionId), ...this.lineage.awaitedBy(sessionId)],
+      nodesChanged: (sessionId) => this.lineage.touch(sessionId),
       nextWake: (sessionId) => this.schedules.nextWake(sessionId),
       autoSettleAfterHours: () => this.settings.inbox().autoSettleAfterHours,
       ...(options.onQueueChanged ? { onQueueChanged: options.onQueueChanged } : {}),
@@ -255,13 +258,12 @@ export class EngineStore {
       terminalCounts: (ids) => this.sessionTerminals.countsFor(ids),
     });
     this.subscriptions = this.createSubscriptions();
-    this.children = this.createChildren();
     this.lifecycle = this.createLifecycle();
     this.handoff = new SessionHandoff(this.kernel, {
       records: this.records,
       lifecycle: this.lifecycle,
       subscriptions: this.subscriptions,
-      children: this.children,
+      lineage: this.lineage,
       assignments: (id) => this.queries.assignments(id),
       appendEvent: (id, event) => this.kernel.appendEvent(id, event),
     });
@@ -311,6 +313,7 @@ export class EngineStore {
     });
     this.registerCacheHooks();
     this.fyiIntentMigration = migrateReportIntent(this.kernel);
+    this.lineageMigration = this.lineage.migrate();
     // The backfill's writes go through one transaction rather than one per row.
     this.sessionIndexBackfill = this.sessionIndex.backfill();
     this.turnSummaryBackfill = backfillTurnSummaries(this.kernel, this.sessionItems, this.sessionQueues);
@@ -332,6 +335,7 @@ export class EngineStore {
       liveQueueSessionIds: () => this.sessionQueues.liveSessionIds(),
       stopSession: (id) => this.turnLifecycle.stopSession(id),
       assertProjectAvailable: (id) => this.projectRegistry.assertAvailable(id),
+      backgroundStopped: (id) => this.lineage.noteStopped(id),
     });
     const settler = new SessionSettler(this.kernel, {
       records: this.records,
@@ -339,7 +343,7 @@ export class EngineStore {
       delegatesOf: (id) => this.kernel.executionStore.delegatesOf(id),
       assignedTurns: (id) => this.sessionQueues.assigned(id),
       autoSettleAfterHours: () => this.settings.inbox().autoSettleAfterHours,
-      settled: () => this.children.review(),
+      settled: () => this.lineage.review(),
       stopBackgroundTasks: (id, reason) => this.worker.stopBackgroundTasks(id, reason),
       releaseBrowser: (id, reason) => this.browser.release(id, reason),
       closeTerminals: (id, scope) => (scope === "archive" ? this.sessionTerminals.closeForArchive(id) : this.sessionTerminals.closeForSettle(id)),
@@ -349,7 +353,7 @@ export class EngineStore {
       items: this.sessionItems,
       mailbox: this.mailbox,
       subscriptions: this.subscriptions,
-      children: this.children,
+      lineage: this.lineage,
       readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
       scanQueue: (id) => this.sessionQueues.scan(id),
@@ -476,7 +480,7 @@ export class EngineStore {
       startSetup: (sessionId, worktree) => this.startWorktreeSetup(sessionId, worktree),
       releaseBrowser: (sessionId, reason) => this.browser.release(sessionId, reason),
       releasePlugins: (sessionId, reason) => this.pluginDoors.release(sessionId, reason),
-      reviewChildren: () => this.children.review(),
+      reviewChildren: () => this.lineage.review(),
     });
   }
 
@@ -510,15 +514,19 @@ export class EngineStore {
     });
   }
 
-  private createChildren(): SessionChildren {
-    return new SessionChildren(this.kernel, {
+  private createLineage(): SessionLineage {
+    return new SessionLineage(this.kernel, {
       find: (sessionId) => this.findSession(sessionId),
-      turnsOf: (sessionId) => this.sessionQueues.scan(sessionId).turns,
+      subtree: (sessionId) => ({
+        liveTurns: this.sessionQueues.live(sessionId),
+        recentTurns: this.sessionQueues.window(sessionId, 20).turns,
+        tasks: [...this.sessionTasks.read(sessionId).values()],
+        scheduled: this.schedules.nextWake(sessionId) !== undefined,
+        awaitsSubscription: this.subscriptions.subscriptionsOf(sessionId).some((each) => each.once === true),
+        heldMail: this.mailbox.pending(sessionId).some((detail) => !isQuietMail(detail)),
+      }),
       liveTurns: (sessionId) => this.sessionQueues.live(sessionId),
       runItems: (sessionId, runId) => this.sessionItems.peekRun(sessionId, runId),
-      hasScheduledWake: (sessionId) => this.schedules.nextWake(sessionId) !== undefined,
-      waitsOnSubscription: (sessionId) => this.subscriptions.subscriptionsOf(sessionId).some((each) => each.once === true),
-      hasBackgroundWork: (sessionId) => this.sessionTasks.hasLiveBackground(sessionId),
       announce: (parentId, notification) => this.wakes.announceChildEnding(parentId, notification),
       nudge: (sessionId, endedRunId) => this.wakes.nudgeIdle(sessionId, endedRunId),
     });
@@ -570,6 +578,8 @@ export class EngineStore {
   readonly pluginFieldMigration: number;
   /** How many logins the one-time compaction rewrite changed on this open, or nothing when it had already run. */
   readonly claudeCompactionMigration?: number;
+  /** How many child records the one-time move to the lineage carried over, or nothing when it had already run. */
+  readonly lineageMigration?: number;
   /** How many rows and documents the one-time `report` → `fyi` rewrite changed on this open, or nothing when it had already run. */
   readonly fyiIntentMigration?: number;
   /** What the one-time `[1m]` rewrite changed on this open, or nothing when it had already run. */
@@ -655,9 +665,9 @@ export class EngineStore {
       waitingSubscription: (subscriber, target) =>
         this.subscriptions.readSubscriptions().some((sub) => sub.subscriberSessionId === subscriber && sub.targetSessionId === target && sub.events.includes("turn_completed")),
       releaseHeld: (id) => this.wakes.flushPendingNotifications(id, { steer: true }),
-      holdsChild: (parent, child) => this.children.holds(parent, child),
-      childWaitingOn: (parent, child) => this.children.waitingOn(parent, child),
-      recordChildMessage: (recipient, sender, intent, message) => this.children.recordMessage(recipient, sender, intent, message),
+      holdsChild: (parent, child) => this.lineage.holds(parent, child),
+      childWaitingOn: (parent, child) => this.lineage.waitingOn(parent, child),
+      recordChildMessage: (recipient, sender, intent, message) => this.lineage.recordMessage(recipient, sender, intent, message),
       agentTurnModel: (id, choice, from) => {
         const session = this.records.get(id);
         const own = { ...(session.model?.model ? { model: session.model.model } : {}), ...choice };

@@ -18,7 +18,7 @@ describe("sessions_create with a task", () => {
     expect(store.queries.turns(id).map((turn) => ({ runId: turn.runId, intent: turn.agentIntent, sender: turn.sender }))).toEqual([
       { runId: created.json!.runId as string, intent: "task", sender: { sessionId: parent.id } },
     ]);
-    expect(store.children.childrenOf(parent.id)).toEqual([expect.objectContaining({ sessionId: id, title: "port the parser", state: "working" })]);
+    expect(store.lineage.childrenOf(parent.id)).toEqual([expect.objectContaining({ sessionId: id, title: "port the parser", state: "working" })]);
     expect(String(created.json!.note)).toContain("end your turn");
   });
 });

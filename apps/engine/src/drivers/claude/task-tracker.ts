@@ -18,16 +18,16 @@ export const liveBackgroundTasks = (ctx: TaskCtx): Array<TaskSeed & { id: string
   );
 
 export const reportLostBackgroundWork = (ctx: TaskCtx): void => {
-  const lost = liveBackgroundTasks(ctx);
+  const lost = [...ctx.turn.knownTasks.entries()].flatMap(([id, task]) => (isTerminalTaskState(task.state) ? [] : [{ ...task, id }]));
   if (lost.length === 0) return;
   for (const task of lost) {
-    const ended: TaskSeed = { ...task, state: "stopped", failure: "the provider process ended before this background task reported back" };
+    const ended: TaskSeed = { ...task, state: "stopped", failure: "the provider process ended before this task reported back" };
     ctx.turn.knownTasks.set(task.id, ended);
     ctx.emit({ kind: "task.completed", task: ended });
   }
   ctx.emit({
     kind: "runtime.warning",
-    message: `the Claude process ended with ${lost.length} background task${lost.length === 1 ? "" : "s"} still running; ${lost.length === 1 ? "it was" : "they were"} lost with it`,
+    message: `the Claude process ended with ${lost.length} task${lost.length === 1 ? "" : "s"} still running; ${lost.length === 1 ? "it was" : "they were"} lost with it`,
   });
 };
 
@@ -59,9 +59,11 @@ export const emitTask = (ctx: TaskCtx,
   const pendingOutput = sdkTaskId ? ctx.turn.pendingOutputFiles.get(sdkTaskId) : undefined;
   if (sdkTaskId) ctx.turn.pendingOutputFiles.delete(sdkTaskId);
   const { resultText: _result, failure: _failure, ...reopened } = known ?? {};
+  const parentTaskId = ctx.turn.taskParents.get(id);
   const task: TaskSeed = {
     ...(resumed ? reopened : known),
     ...(pendingOutput ? { outputFile: pendingOutput } : {}),
+    ...(parentTaskId && parentTaskId !== id ? { parentTaskId } : {}),
     ...patch,
     id,
     kind: patch.kind ?? statedKind ?? known?.kind ?? "agent",
@@ -107,6 +109,8 @@ export const handleTaskFrame = async (ctx: TaskCtx, item: SdkFrame): Promise<boo
     // `local_bash` and then earns no row, so this is the only place its
     // type is stated before Ctrl+B gives it one.
     if (str(item.task_id) && str(item.task_type)) ctx.turn.taskTypesBySdkId.set(item.task_id!, item.task_type!);
+    const launchedBy = str(item.parent_tool_use_id ?? undefined);
+    if (launchedBy) ctx.turn.taskParents.set(taskIdFor(ctx, str(item.task_id), str(item.tool_use_id)), `task_${launchedBy}`);
     if (item.ambient === true || isForegroundShell(str(item.task_type), item.is_backgrounded)) {
       if (str(item.task_id)) ctx.turn.suppressedTasks.add(item.task_id!);
       return true;

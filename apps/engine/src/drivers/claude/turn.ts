@@ -38,6 +38,7 @@ export type TurnState = {
   planItemId: string | undefined;
   taskIdsBySdkId: Map<string, string>;
   knownTasks: Map<string, TaskSeed>;
+  taskParents: Map<string, string>;
   taskTypesBySdkId: Map<string, string>;
   suppressedTasks: Set<string>;
   pendingOutputFiles: Map<string, string>;

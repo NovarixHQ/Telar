@@ -11,7 +11,7 @@ import {
   type WakeReason,
 } from "@telar/engine-client";
 import { EngineStateError, type Kernel } from "../../platform/kernel";
-import { isQuietMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionChildren, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
+import { isQuietMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionLineage, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
 import { quotedExcerpt } from "./agent-notice";
 import { RELAY_RULE } from "./attribution";
 import { FOLDING_INTENTS, type TurnSubmission } from "./intake";
@@ -90,7 +90,7 @@ type WakeDeps = {
   items: SessionItems;
   mailbox: SessionMailbox;
   subscriptions: SessionSubscriptions;
-  children: Pick<SessionChildren, "turnEnded" | "parentsOf">;
+  lineage: Pick<SessionLineage, "parentsOf">;
   readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   scanQueue: (sessionId: string) => SessionQueue;
@@ -107,7 +107,7 @@ export class TurnWakes {
 
   /**
    * The wake, after a terminal transition or a parked request has been written, so it can never fail that transition.
-   * A wake is a turn on the subscriber through `submitTurn`; a wake's own ending wakes nobody, but may end an errand.
+   * A wake is a turn on the subscriber through `submitTurn`; a wake's own ending wakes nobody.
    */
   fireSubscriptions(
     targetSessionId: string,
@@ -117,12 +117,11 @@ export class TurnWakes {
   ): void {
     // A background-claim turn only decided a tool call for work still running: no model spoke, so it is nobody's news.
     if (turn.origin === "provider" && turn.providerReason?.kind === "background_task" && TERMINAL_WAKE_KINDS.includes(kind)) return;
-    this.deps.children.turnEnded(targetSessionId, kind, turn, context);
     if (turn.origin === "session" && turn.wakeReason) return;
     const all = this.deps.subscriptions.readSubscriptions();
     const hits = all.filter((each) => each.targetSessionId === targetSessionId && each.events.includes(kind));
     if (kind === "request_opened") {
-      for (const parentId of this.deps.children.parentsOf(targetSessionId)) {
+      for (const parentId of this.deps.lineage.parentsOf(targetSessionId)) {
         if (hits.some((each) => each.subscriberSessionId === parentId)) continue;
         hits.push({ id: `child_${targetSessionId}`, subscriberSessionId: parentId, targetSessionId, events: ["request_opened"], createdAt: turn.acceptedAt });
       }
@@ -147,7 +146,6 @@ export class TurnWakes {
       ...(context.request ? { requestId: context.request.id } : {}),
       body: wakeMessage(kind, target, turn, context),
     });
-    // Asked once, not per subscriber: it is a fact about the run.
     const silentTurn = kind === "turn_completed" && this.saidNothing(targetSessionId, turn);
     for (const subscription of hits) {
       const subscriberId = subscription.subscriberSessionId;
@@ -159,7 +157,6 @@ export class TurnWakes {
         subscriber = undefined;
       }
       if (!subscriber || subscriber.state !== "active") {
-        // The subscriber is gone; its wish goes with it.
         remove(subscription);
         continue;
       }
@@ -193,9 +190,6 @@ export class TurnWakes {
             agentDelivery: "passive",
           });
         } catch (error) {
-          // The same contract as the wake path below: a subscriber that cannot
-          // take a row (its project put away, say) keeps its own state, and the
-          // reason goes on its journal.
           if (!(error instanceof EngineStateError && error.code === "conflict")) throw error;
           this.kernel.appendEvent(subscriberId, {
             type: "runtime.warning",
@@ -230,13 +224,10 @@ export class TurnWakes {
             notification: delivered,
           });
         }
-        // ONLY AN ENDING SPENDS A ONE-SHOT — see `TERMINAL_WAKE_KINDS`. A
-        // `request_opened` says the target is waiting on someone, not that it
-        // is finished, and a subscription spent there never fired again.
+        // Only an ending spends a one-shot: a parked request is not the target finishing.
         if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);
       } catch (error) {
-        // A full backlog on the subscriber is its own state, not worth breaking: the wake is held,
-        // and the next turn to end there or the mailbox sweep delivers it.
+        // A full backlog is held for the next turn's end or the mailbox sweep.
         if (error instanceof EngineStateError && error.code === "conflict") {
           this.deps.mailbox.hold(subscriberId, notification);
           if (subscription.once && TERMINAL_WAKE_KINDS.includes(kind)) remove(subscription);
@@ -274,12 +265,8 @@ export class TurnWakes {
     waiting.updatedAt = at;
     this.deps.writeQueue(subscriberId, queue);
     this.deps.records.touch(subscriberId, at);
-    // The ROW is rewritten with the turn: the transcript's notification says
-    // what the turn says, or a person reads a superseded line beside a turn that
-    // will announce something else.
     this.rewriteNotificationItem(subscriberId, waiting);
-    // The strip redraws from `turn.accepted`; re-announcing the same run id
-    // with `replayed: true` is how a client learns the words changed.
+    // A `replayed` re-announcement is how a client learns the words changed.
     this.kernel.appendEvent(subscriberId, { type: "turn.accepted", turn: structuredClone(waiting), replayed: true }, waiting.runId);
     return true;
   }
@@ -319,9 +306,6 @@ export class TurnWakes {
 
   // Folds a run's ending into the unread result it already sent. The peer's body (`input`) is never rewritten.
   private mergeIntoWaitingResult(subscriberId: string, targetSessionId: string, notification: NotificationDetail, kind: WakeKind): boolean {
-    // AN ENDING, NOT A PARKED REQUEST. "Someone is waiting on you" is a thing
-    // to act on rather than an outcome, and folding it under a result would
-    // hide the one notification a person is meant to answer.
     if (!TERMINAL_WAKE_KINDS.includes(kind)) return false;
     const queue = this.deps.readQueue(subscriberId);
     const waiting = queue.turns.find(

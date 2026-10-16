@@ -17,7 +17,7 @@
 ## Sessions talking to sessions
 
 - `sessions_send` carries an intent (`task`, `fyi`, `result`, `blocker`). With no intent, a send to a session the sender tasked is a `task`; anything else is an `fyi`. An `fyi` never opens a turn. Blockers and parked requests interrupt, a busy parent included.
-- A `task` files the recipient in the child registry (`domains/sessions/children.ts`, one record per parent and child, `GET /v2/sessions/:id/children`). The record ends once — a `result`, a failed or stopped turn, a completion Telar will not follow with another turn, or the child put away — and the parent is told in one line that names the `sessions_read` call; the result message itself stays passive. Endings go through the mailbox, so a busy parent gets them merged when its turn ends. A child waiting on its blocker refuses an `fyi`: only a `task` reopens it.
+- A `task` files the recipient as a child node of the lineage (`domains/sessions/lineage.ts`, `GET /v2/sessions/:id/children`). A child ends once: on its `result`, when it is put away, or when nothing below it is live any more (`liveness.ts`: no live turn, task, builder, schedule, awaited subscription or held mail). Liveness is recomputed before every commit that writes one of its turns or tasks, and by the 30 s sweep, never only when a turn ends; a process death, the boot sweep and a Stop end it like a turn does. The parent is told in one line that names the `sessions_read` call; the result message itself stays passive. Endings go through the mailbox, so a busy parent gets them merged when its turn ends. A child waiting on its blocker refuses an `fyi`: only a `task` reopens it.
 - Planned: `create` takes a mode, `child` or `handoff`, and the intents go away.
 
 ## HTTP

@@ -100,7 +100,7 @@ describe("background work outlives its turn, but not its process (#465)", () => 
 
     await settleUntil(() => door.tasks.some((o) => o.kind === "runtime.warning"));
     const warning = door.tasks.find((o) => o.kind === "runtime.warning");
-    expect(warning?.kind === "runtime.warning" && warning.message).toContain("2 background tasks still running");
+    expect(warning?.kind === "runtime.warning" && warning.message).toContain("2 tasks still running");
     // Both rows are closed, so `livenessOf` stops reading the session as busy.
     const closed = door.tasks.filter((o) => o.kind === "task.completed");
     expect(closed.map((o) => (o.kind === "task.completed" ? [o.task.id, o.task.state] : []))).toEqual([
@@ -123,7 +123,7 @@ describe("background work outlives its turn, but not its process (#465)", () => 
     // The turn still fails — the process really did go away mid-answer.
     await expect(result).rejects.toThrow();
     const warning = sink.observations.find((o) => o.kind === "runtime.warning");
-    expect(warning?.kind === "runtime.warning" && warning.message).toContain("1 background task still running");
+    expect(warning?.kind === "runtime.warning" && warning.message).toContain("1 task still running");
     const closed = sink.observations.find((o) => o.kind === "task.completed");
     expect(closed?.kind === "task.completed" && closed.task).toMatchObject({ id: "task_toolu_bg", state: "stopped" });
   });

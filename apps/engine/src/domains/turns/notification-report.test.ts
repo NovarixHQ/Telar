@@ -40,7 +40,9 @@ test("a run that FAILS after a held report still wakes the host, carrying the re
 test("a background-claim turn reaches no subscriber or parent, even one that asked for every completion", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", completionWake: "always", once: false });
-  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "plan it" });
+  store.lineage.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "plan it" });
+  const agent = { id: "task_agent", sessionId: "session_a", runId: "run_errand", kind: "agent" as const, backgrounded: true, state: "running" as const, startedAt: 1, updatedAt: 1 };
+  store.sessionTasks.write("session_a", new Map([[agent.id, agent]]));
   for (const end of ["complete", "fail"] as const) {
     const claim = store.claims.openProviderTurn("session_a", { workerId: "worker_child", input: "", reason: { kind: "background_task" } });
     if (end === "complete") store.turnLifecycle.completeTurn("session_a", claim.runId, claim.claim!.token, { text: "Decided a tool call for background work still running after its turn ended." });
@@ -49,7 +51,7 @@ test("a background-claim turn reaches no subscriber or parent, even one that ask
 
   expect(notifications(store)).toHaveLength(0);
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
-  expect(store.children.childrenOf("session_host")[0]!.state).toBe("working");
+  expect(store.lineage.childrenOf("session_host")[0]!.state).toBe("working");
 });
 
 test("a completion that said nothing is recorded, not woken on", () => {
@@ -97,7 +99,7 @@ test("a report and a result from one run, before the host has started: one deliv
 test("a result told by its builder's ending notice also silences a plain subscription's completion", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a" });
-  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
+  store.lineage.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
   const worker = reports(store);
   expect(worker.sent.agentDelivery).toBe("passive");
 

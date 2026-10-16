@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EngineStore } from "../../state";
+import { CUT_OFF_GRACE_MS } from "./liveness";
 
 const homes: string[] = [];
 const stores: EngineStore[] = [];
@@ -14,10 +15,11 @@ afterEach(() => {
 const HOST = "session_host";
 
 function setup() {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-children-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-lineage-"));
   homes.push(home);
   let now = 1_000_000;
-  const store = new EngineStore(home, () => (now += 1));
+  const clock = () => (now += 1);
+  const store = new EngineStore(home, clock);
   stores.push(store);
   store.projectRegistry.register({ id: "project_one", name: "test", root: "/tmp" });
   for (const id of [HOST, "session_a", "session_b", "session_other"]) store.lifecycle.createSession({ id, projectId: "project_one", title: id.replace("session_", "worker ") });
@@ -37,6 +39,7 @@ function setup() {
     return {
       runId: claimed.runId,
       say,
+      observe: (...observations: unknown[]) => store.ingest.ingestObservations(sessionId, claimed.runId, token, observations),
       complete: (text = "finished") => store.turnLifecycle.completeTurn(sessionId, claimed.runId, token, { text }),
       fail: () => store.turnLifecycle.failTurn(sessionId, claimed.runId, token, { code: "driver_failed", message: "the CLI died\nstack" }),
       stop: () => store.turnLifecycle.stopTurn(sessionId, claimed.runId),
@@ -53,8 +56,16 @@ function setup() {
 
   /** Turns on the host that its model is handed. */
   const woken = () => store.queries.turns(HOST).filter((turn) => turn.origin === "session" && turn.agentDelivery !== "passive");
-  const children = () => store.children.childrenOf(HOST);
-  return { store, run, task, woken, children };
+  const children = () => store.lineage.childrenOf(HOST);
+  const advance = (ms: number) => void (now += ms);
+  const reopen = () => {
+    store.kernel.executionStore.close();
+    stores.splice(stores.indexOf(store), 1);
+    const fresh = new EngineStore(home, clock);
+    stores.push(fresh);
+    return fresh;
+  };
+  return { store, run, task, woken, children, advance, reopen };
 }
 
 test("a task registers the child under the run that sent it", () => {
@@ -156,12 +167,13 @@ test("a child settled before it reported is stopped; a parent settled drops its 
   expect(children()).toEqual([]);
 });
 
-test("an archived child is stopped", () => {
-  const { store, task, children } = setup();
+test("a child stopped and then archived is told as stopped, once", () => {
+  const { store, task, children, woken } = setup();
   task("session_a");
   store.turnLifecycle.stopSession("session_a");
   store.lifecycle.archiveSession("session_a");
-  expect(children()[0]).toMatchObject({ state: "stopped", summary: "archived" });
+  expect(children()[0]).toMatchObject({ state: "stopped", summary: "stopped" });
+  expect(woken().flatMap((turn) => turn.notification?.entries ?? []).filter((entry) => entry.sessionId === "session_a")).toHaveLength(1);
 });
 
 test("a handoff moves the record to the new parent, and a detach drops it", () => {
@@ -169,10 +181,10 @@ test("a handoff moves the record to the new parent, and a detach drops it", () =
   task("session_a");
   store.handoff.handOff("session_a", { to: "session_other" });
   expect(children()).toEqual([]);
-  expect(store.children.childrenOf("session_other")).toEqual([expect.objectContaining({ sessionId: "session_a", parentSessionId: "session_other", state: "working" })]);
+  expect(store.lineage.childrenOf("session_other")).toEqual([expect.objectContaining({ sessionId: "session_a", parentSessionId: "session_other", state: "working" })]);
 
   store.handoff.handOff("session_a", {});
-  expect(store.children.childrenOf("session_other")).toEqual([]);
+  expect(store.lineage.childrenOf("session_other")).toEqual([]);
 });
 
 test("a working child shows what its live turn is doing", () => {
@@ -266,4 +278,95 @@ test("a blocker reaches the parent at once even while background work runs", () 
   backgroundTask(store, "session_a", a.runId, "running");
   a.say(HOST, "blocker", "Which database?");
   expect(woken().map((turn) => turn.agentIntent)).toEqual(["blocker"]);
+});
+
+const agent = (id: string, state: "running" | "completed" | "stopped", extra: Record<string, unknown> = {}) => ({ id, kind: "agent", state, backgrounded: true, providerTaskId: `p_${id}`, title: id, ...extra });
+const started = (id: string, extra: Record<string, unknown> = {}) => ({ kind: "task.started", task: agent(id, "running", extra) });
+const ended = (id: string, state: "completed" | "stopped" = "completed") => ({ kind: "task.completed", task: agent(id, state) });
+const between = (store: EngineStore, ...observations: unknown[]) => store.ingest.reportSessionTasks("session_a", "worker_session_a", observations);
+const queuedOn = (store: EngineStore, sessionId: string) => store.queries.turns(sessionId).filter((turn) => turn.state === "queued");
+
+test("nested sub-agents keep the builder live until the last leaf, after the agent that launched them has ended", () => {
+  const { store, run, task, woken, children } = setup();
+  task("session_a");
+  const first = run("session_a");
+  first.observe(...["task_inventory", "task_deps", "task_default", "task_migrations"].map((id) => started(id)));
+  first.complete("Four agents running; waiting on their reports.");
+  between(store, started("task_m1", { parentTaskId: "task_migrations" }), started("task_m2", { parentTaskId: "task_migrations" }));
+  between(store, ended("task_migrations"), ended("task_inventory"), ended("task_deps"), ended("task_default"));
+  const wake = store.claims.openProviderTurn("session_a", { workerId: "worker_session_a", input: "", reason: { kind: "task_notification", taskId: "task_migrations" } });
+  store.turnLifecycle.completeTurn("session_a", wake.runId, wake.claim!.token, { text: "Waiting on the consolidated report of the 24 migrations." });
+  between(store, ended("task_m1"));
+  expect(queuedOn(store, "session_a")).toEqual([]);
+  expect(children()[0]!.state).toBe("working");
+
+  between(store, ended("task_m2"));
+  expect(queuedOn(store, "session_a").map((turn) => turn.notification?.body)).toEqual([expect.stringContaining("nothing is running in this session")]);
+  expect(woken()).toHaveLength(0);
+});
+
+test("background work lost with its process ends the builder's liveness, and the parent hears once", () => {
+  const { store, run, task, woken, children } = setup();
+  task("session_a");
+  const first = run("session_a");
+  first.observe(started("task_review"));
+  first.complete("Waiting on the review agent.");
+  between(store, ended("task_review", "stopped"));
+  expect(queuedOn(store, "session_a")).toHaveLength(1);
+
+  run("session_a").complete("The review agent is gone; still waiting.");
+  expect(woken()).toHaveLength(1);
+  expect(woken()[0]!.notification!.body).toContain("will not continue on its own");
+  expect(children()[0]!.state).toBe("done");
+});
+
+test("the boot sweep ends a builder whose background work did not survive the restart", () => {
+  const { run, task, reopen } = setup();
+  task("session_a");
+  const first = run("session_a");
+  first.observe(started("task_review"));
+  first.complete("Waiting on the review agent.");
+
+  const fresh = reopen();
+  fresh.recovery.recover();
+  fresh.lineage.sweep();
+  expect(queuedOn(fresh, "session_a").map((turn) => turn.notification?.body)).toEqual([expect.stringContaining("nothing is running in this session")]);
+});
+
+test("stopping a builder's background work ends it as stopped, without a nudge", () => {
+  const { store, run, task, woken, children } = setup();
+  task("session_a");
+  const first = run("session_a");
+  first.observe(started("task_review"));
+  first.complete("Waiting on the review agent.");
+  store.worker.stopBackgroundTasks("session_a");
+
+  expect(queuedOn(store, "session_a")).toEqual([]);
+  expect(children()[0]).toMatchObject({ state: "stopped", summary: "its work was stopped" });
+  expect(woken()).toHaveLength(1);
+});
+
+test("a turn cut off by a lost worker stays live through the grace, then ends the builder as stopped", () => {
+  const { store, run, task, children, advance } = setup();
+  task("session_a");
+  run("session_a");
+  store.recovery.retireWorkerRegistration("worker_session_a");
+  store.lineage.sweep();
+  expect(children()[0]!.state).toBe("working");
+
+  advance(CUT_OFF_GRACE_MS);
+  store.lineage.sweep();
+  expect(children()[0]).toMatchObject({ state: "stopped", summary: "cut off when its worker went away" });
+});
+
+test("the old child registry is carried into the lineage once, and removed", () => {
+  const { store, reopen } = setup();
+  const record = { sessionId: "session_a", parentSessionId: HOST, state: "working", startedAt: 5 };
+  store.intake.submitTurn("session_a", { runId: "run_queued", input: "go" });
+  store.kernel.writeDocument(store.paths.children, { version: 1, children: [record] });
+
+  const fresh = reopen();
+  expect(fresh.lineageMigration).toBe(1);
+  expect(fresh.lineage.childrenOf(HOST)).toEqual([expect.objectContaining({ sessionId: "session_a", state: "working" })]);
+  expect(fresh.kernel.readDocument(fresh.paths.children)).toBeUndefined();
 });

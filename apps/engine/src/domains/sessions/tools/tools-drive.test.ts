@@ -57,7 +57,7 @@ describe("driving a session", () => {
     const sent = await call(tools, "sessions_send", { intent: "task", sessionId: lone, input: "look into it" });
     expect(String(sent.json!.note)).toContain("End your turn: one line reaches you when it finishes");
     expect(String(sent.json!.note)).not.toContain("sessions_subscribe");
-    expect(store.children.childrenOf(parent.id).map((child) => child.sessionId)).toEqual([lone]);
+    expect(store.lineage.childrenOf(parent.id).map((child) => child.sessionId)).toEqual([lone]);
   });
 
   test("status answers the question it exists for as a boolean, not an inference", async () => {

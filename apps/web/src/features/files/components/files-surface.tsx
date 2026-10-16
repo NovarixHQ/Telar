@@ -14,7 +14,6 @@ import { FileKindIcon } from "./file-icon";
 import { OpenerIcon } from "./opener-icon";
 import { PanelEmpty, PanelRow } from "@/ui/panel";
 import { awayReason, awayTitle, isAway } from "@/features/projects";
-import { plural } from "@/ui/format";
 import { Spinner } from "@/ui/spinner";
 import {
   ContextMenu,
@@ -133,6 +132,7 @@ function FileTreeRow({
 }) {
   const directory = row.node.kind === "directory";
   const submodule = row.node.kind === "directory" && row.node.submodule;
+  const link = row.node.kind === "file" && row.node.link;
   const Folder = submodule ? FolderGit2Icon : expanded ? FolderOpenIcon : FolderIcon;
   return (
     <div
@@ -153,13 +153,14 @@ function FileTreeRow({
               tabIndex={focused ? 0 : -1}
               ref={register}
               onFocus={onFocus}
-              onClick={directory ? onToggle : onOpen}
-              {...(directory ? {} : { onDoubleClick: onKeep })}
-              title={submodule ? `${row.node.path} (submodule)` : row.node.path}
+              {...(link ? {} : { onClick: directory ? onToggle : onOpen })}
+              {...(directory || link ? {} : { onDoubleClick: onKeep })}
+              title={submodule ? `${row.node.path} (submodule)` : link ? `${row.node.path} (link not followed)` : row.node.path}
               style={{ paddingLeft: 6 + row.depth * INDENT }}
               className={cn(
                 "flex h-6 w-full min-w-0 items-center gap-1 pr-2 text-left outline-none hover:bg-muted/60 focus-visible:bg-muted/60",
                 open && "bg-muted/40",
+                row.node.ignored && "opacity-50",
               )}
             >
               <span className="flex size-3 shrink-0 items-center justify-center">
@@ -173,9 +174,6 @@ function FileTreeRow({
               <span className={cn("min-w-0 flex-1 truncate font-mono text-2xs", directory ? "text-foreground" : "text-muted-foreground")}>
                 {row.node.name}
               </span>
-              {submodule && row.node.kind === "directory" && row.node.children.length === 0 && (
-                <span className="shrink-0 text-3xs text-muted-foreground">not checked out</span>
-              )}
               {status && (
                 <span className="shrink-0 font-mono text-3xs text-muted-foreground" title={REVIEW_STATUS_WORD[status]}>
                   {REVIEW_STATUS_LETTER[status]}
@@ -258,9 +256,9 @@ function FilesFooter({ listing, searching, searched }: { listing: WorkspaceListi
         ? `${searched.matches.toLocaleString("en-US")} of ${listing.files.length.toLocaleString("en-US")} paths match${
             searched.truncated ? `, showing the first ${searched.files.length}` : ""
           }.`
-        : `${plural(listing.files.length, "file")}${listing.truncated ? " (capped)" : ""} · ${
-            listing.repository ? "tracked and unignored, from git" : "walked — this directory is not a repository"
-          }`}
+        : listing.repository
+          ? "Everything on disk · git-ignored paths are dimmed and left out of search"
+          : "Everything on disk · not a repository"}
     </p>
   );
 }
@@ -335,17 +333,13 @@ export function FilesSurface({
         <FilesToolbar refreshing={tree.refreshing} query={tree.query} onRefresh={tree.refresh} onSearch={tree.search} />
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {!listing ? (
+          {!listing || (!searching && !tree.loaded) ? (
             <p className="flex items-center gap-2 px-4 py-3 text-2xs text-muted-foreground">
               <Spinner className="size-3" /> reading the checkout…
             </p>
           ) : rows.length === 0 ? (
             <PanelEmpty icon={<FolderTreeIcon />} title={searching ? "Nothing matches" : "This checkout is empty"}>
-              {searching
-                ? `No path in this checkout contains “${tree.query.trim()}”.`
-                : listing.repository
-                  ? "git lists no files here — every path is ignored."
-                  : "There are no files in this directory."}
+              {searching ? `No path in this checkout contains “${tree.query.trim()}”.` : "There are no files in this directory."}
             </PanelEmpty>
           ) : (
             <div role="tree" aria-label="Workspace files" onKeyDown={tree.onKeyDown} className="flex flex-col py-0.5">

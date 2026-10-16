@@ -32,6 +32,7 @@ export function sessionFilesRoutes(store: EngineStore): Route[] {
         store.worktrees.restore(sessionId!);
         const target = query.get("path");
         if (target) return ok({ file: await store.files.session(sessionId!, target) });
+        if (query.has("dir")) return ok({ directory: await store.files.sessionDirectory(sessionId!, query.get("dir")!) });
         return ok({ listing: await store.workspaceReads.sessionFiles(sessionId!) });
       },
     },

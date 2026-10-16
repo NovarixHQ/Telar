@@ -296,6 +296,7 @@ export class EngineStore {
     });
     ({ sessionPulls: this.sessionPulls, sessionTerminals: this.sessionTerminals, requestGate: this.requestGate, pluginDoors: this.pluginDoors, anchors: this.anchors, schedules: this.schedules } = this.sessionSurfaces());
     this.files = new WorkspaceFiles({
+      git: this.asyncGit,
       projectRoot: (id) => this.projectRegistry.get(id).root,
       sessionRoot: (id) => workspaceRootOf(this.records.get(id)),
     });

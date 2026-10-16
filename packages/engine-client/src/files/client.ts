@@ -1,5 +1,5 @@
 import type { EngineTransport } from "../platform/transport";
-import type { FileReference, WorkspaceFile, WorkspaceListing, WorkspaceWriteResult } from "./schema";
+import type { FileReference, WorkspaceDirectory, WorkspaceFile, WorkspaceListing, WorkspaceWriteResult } from "./schema";
 
 type Owner = "projects" | "sessions";
 type Bytes = { data: Uint8Array; contentType: string };
@@ -14,6 +14,14 @@ export const filesClient = {
 
   sessionFiles(this: EngineTransport, sessionId: string): Promise<{ listing: WorkspaceListing }> {
     return this.request("GET", files("sessions", sessionId));
+  },
+
+  projectDirectory(this: EngineTransport, projectId: string, dir: string): Promise<{ directory: WorkspaceDirectory }> {
+    return this.request("GET", `${files("projects", projectId)}?${new URLSearchParams({ dir }).toString()}`);
+  },
+
+  sessionDirectory(this: EngineTransport, sessionId: string, dir: string): Promise<{ directory: WorkspaceDirectory }> {
+    return this.request("GET", `${files("sessions", sessionId)}?${new URLSearchParams({ dir }).toString()}`);
   },
 
   /** Fenced inside the checkout by the engine. */

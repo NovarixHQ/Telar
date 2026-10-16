@@ -3,14 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GitChangeStatus, TurnState, WorkspaceListing } from "@telar/engine-client";
 import { createEngineApi, EngineApiError } from "@/platform/engine";
-import { ancestorsOf, buildFileTree, directoryPaths, flattenTree, matchFiles, type FileTreeNode } from "../file-tree";
+import { ancestorsOf, buildFileTree, directoryPaths, flattenLevels, flattenTree, matchFiles, type FileTreeNode } from "../file-tree";
+import { useDirectoryTree } from "./use-directory-tree";
 import type { OpenIntent } from "../editor-workspace";
 
 const api = createEngineApi();
 
 export type FileTreeRowModel = { node: FileTreeNode; depth: number };
 
-function useWorkspaceListing(sessionId: string | undefined, projectId: string | undefined, active: TurnState | undefined) {
+function useWorkspaceListing(sessionId: string | undefined, projectId: string | undefined, active: TurnState | undefined, reloadTree: () => Promise<void>) {
   const [listing, setListing] = useState<WorkspaceListing>();
   const [statuses, setStatuses] = useState<ReadonlyMap<string, GitChangeStatus>>(new Map());
   const [error, setError] = useState<string>();
@@ -35,10 +36,17 @@ function useWorkspaceListing(sessionId: string | undefined, projectId: string | 
     return () => window.clearTimeout(first);
   }, [load, active]);
 
+  const seenActive = useRef(active);
+  useEffect(() => {
+    if (seenActive.current === active) return;
+    seenActive.current = active;
+    void reloadTree();
+  }, [active, reloadTree]);
+
   const refresh = useCallback(() => {
     setRefreshing(true);
-    void load().finally(() => setRefreshing(false));
-  }, [load]);
+    void Promise.all([load(), reloadTree()]).finally(() => setRefreshing(false));
+  }, [load, reloadTree]);
 
   return { listing, statuses, error, refreshing, refresh };
 }
@@ -118,9 +126,10 @@ export function useFilesTree({
   active?: TurnState | undefined;
   onOpenFile: (path: string, intent: OpenIntent) => void;
 }) {
-  const { listing, statuses, error, refreshing, refresh } = useWorkspaceListing(sessionId, projectId, active);
   const [query, setQuery] = useState("");
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  const disk = useDirectoryTree(sessionId, projectId, opened);
+  const { listing, statuses, error, refreshing, refresh } = useWorkspaceListing(sessionId, projectId, active, disk.reload);
   const [shutWhileSearching, setShutWhileSearching] = useState<ReadonlySet<string>>(new Set());
 
   const searched = useMemo(() => matchFiles(listing?.files ?? [], query), [listing, query]);
@@ -131,12 +140,12 @@ export function useFilesTree({
     const needle = query.trim().toLowerCase();
     return all.filter((path) => path.toLowerCase().includes(needle) || searched.files.some((file) => file.startsWith(`${path}/`)));
   }, [listing, searching, query, searched.files]);
-  const tree = useMemo(() => buildFileTree(searched.files, submodules), [searched.files, submodules]);
+  const tree = useMemo(() => (searching ? buildFileTree(searched.files, submodules) : []), [searching, searched.files, submodules]);
   const expanded = useMemo(
     () => (searching ? new Set(directoryPaths(tree).filter((path) => !shutWhileSearching.has(path))) : opened),
     [searching, tree, shutWhileSearching, opened],
   );
-  const rows = useMemo(() => flattenTree(tree, expanded), [tree, expanded]);
+  const rows = useMemo(() => (searching ? flattenTree(tree, expanded) : flattenLevels(disk.levels, opened)), [searching, tree, expanded, disk.levels, opened]);
   const dirty = useMemo(() => ancestorsOf(statuses.keys()), [statuses]);
 
   const toggle = useCallback(
@@ -182,10 +191,10 @@ export function useFilesTree({
   useEffect(() => {
     const path = revealing.current;
     if (path === undefined) return;
-    if (searching || ![...ancestorsOf([path])].every((directory) => expanded.has(directory))) return;
+    if (searching || !rowsRef.current.has(path)) return;
     revealing.current = undefined;
     rowsRef.current.get(path)?.scrollIntoView({ block: "nearest" });
   }, [searching, expanded, rows, rowsRef]);
 
-  return { listing, statuses, error, refreshing, refresh, query, search, searched, searching, expanded, rows, dirty, toggle, collapseAll, ...keys };
+  return { listing, loaded: disk.loaded, statuses, error, refreshing, refresh, query, search, searched, searching, expanded, rows, dirty, toggle, collapseAll, ...keys };
 }

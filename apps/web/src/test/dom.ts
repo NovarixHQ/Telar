@@ -63,12 +63,14 @@ export async function press(element: Element) {
 
 export type Route = (body: unknown) => unknown;
 
-/** Stubs `fetch` until the test ends: `"METHOD /path"` answers with its route's
- *  JSON, a route that throws answers 500, and a missing one 404. Returns the calls. */
+/** Stubs `fetch` until the test ends: `"METHOD /path?query"`, else `"METHOD /path"`, answers with its
+ *  route's JSON, a route that throws answers 500, and a missing one 404. Returns the calls. */
 export function stubFetch(routes: Record<string, Route>) {
   const calls: { route: string; body: unknown }[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const route = `${init?.method ?? "GET"} ${new URL(String(input), "http://localhost").pathname}`;
+    const url = new URL(String(input), "http://localhost");
+    const exact = `${init?.method ?? "GET"} ${url.pathname}${url.search}`;
+    const route = routes[exact] ? exact : `${init?.method ?? "GET"} ${url.pathname}`;
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ route, body });
     const answer = routes[route];

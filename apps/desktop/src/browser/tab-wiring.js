@@ -4,6 +4,8 @@ const { browserContextMenuTemplate } = require("./browser-context-menu");
 const { pageLoadError } = require("./load-error");
 
 const MAX_DATA_FAVICON = 4096;
+const RENDERER_GONE = "ERR_RENDERER_GONE";
+const RENDERER_RETRY_MS = 60_000;
 
 function originOf(url) {
   try {
@@ -258,11 +260,7 @@ module.exports = {
     wc.on("devtools-opened", () => this.devToolsEdge(tab));
     wc.on("devtools-closed", () => this.devToolsEdge(tab));
 
-    wc.on("render-process-gone", () => {
-      this.forgetEmulation(tab);
-      tab.documentReady = false;
-      this.applyGeometry(tab).catch(() => {});
-    });
+    wc.on("render-process-gone", (_event, details) => this.recoverRenderer(tab, view, details?.reason));
     wc.on("destroyed", () => {
       if (tab.hibernating || tab.view !== view) return;
       this.settleActiveAfter(tab, tab.stage);
@@ -276,6 +274,23 @@ module.exports = {
       this.applyVisibility();
       this.emitState(tab.scopeKey);
     });
+  },
+
+  recoverRenderer(tab, view, reason) {
+    const wc = view.webContents;
+    if (this._disposed || tab.view !== view || wc.isDestroyed()) return;
+    console.warn(`[telar-desktop] a browser page's renderer is gone (${reason || "unknown"})`);
+    this.forgetEmulation(tab);
+    tab.documentReady = false;
+    const now = Date.now();
+    const crashLoop = now - (tab.rendererRecoveredAt ?? -Infinity) < RENDERER_RETRY_MS;
+    if (crashLoop) tab.loadError = { errno: -1, code: RENDERER_GONE, url: wc.getURL() || tab.url || "" };
+    else {
+      tab.rendererRecoveredAt = now;
+      wc.reload();
+    }
+    this.applyGeometry(tab).catch(() => {});
+    this.emitState(tab.scopeKey);
   },
 
   contentsOf(tab) {

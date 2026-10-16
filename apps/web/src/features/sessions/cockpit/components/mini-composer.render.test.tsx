@@ -1,8 +1,9 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeEach, describe, expect, jest, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, useState } from "react";
 import { Composer } from "@/features/composer";
 import { installDictationFakes, knobs, live, results, mounted, draftOf, chord } from "@/features/dictation/components/dictation-button-fakes";
+import { flush } from "@/test/dom";
 import { usePublishPanelFullscreen } from "@/features/panel";
 import { MiniComposer } from "./mini-composer";
 
@@ -17,6 +18,9 @@ afterAll(async () => {
 });
 
 installDictationFakes();
+beforeEach(() => {
+  knobs.reducedMotion = true;
+});
 
 let sends = 0;
 let stops = 0;
@@ -55,7 +59,7 @@ function Cockpit({ start = "", busy = false }: { start?: string; busy?: boolean 
         Exit fullscreen
       </button>
       <p data-testid="draft">{draft}</p>
-      {fullscreen ? <MiniComposer {...props} /> : <Composer {...props} />}
+      {fullscreen ? <MiniComposer composer={props} exchange={<p data-testid="exchange">The last reply</p>} /> : <Composer {...props} />}
     </>
   );
 }
@@ -137,5 +141,78 @@ describe("with the panel filling the window, the dictation chord floats the sess
     expect(await chord()).toBe(true);
     expect(floating()).not.toBeNull();
     expect(live).toBeUndefined();
+  });
+});
+
+const notch = () => document.querySelector<HTMLButtonElement>('button[aria-label="Write a message"]');
+const pointerAt = (clientY: number) =>
+  act(async () => {
+    document.dispatchEvent(new MouseEvent("mousemove", { clientX: window.innerWidth / 2, clientY, bubbles: true }));
+  });
+
+describe("with the panel filling the window, a message can be typed over it", () => {
+  test("the chord opens the session's composer for typing, with the last exchange above it and nothing listening", async () => {
+    knobs.provider = "deepgram";
+    const { runCommand } = await import("@/features/commands");
+    await mounted(<Cockpit start="draft kept" />);
+    await act(async () => void runCommand("mini-composer"));
+    expect(floating()).not.toBeNull();
+    expect(document.querySelector('[data-testid="exchange"]')?.textContent).toBe("The last reply");
+    expect(editor()?.textContent).toBe("draft kept");
+    expect(live).toBeUndefined();
+  });
+
+  test("Enter sends and closes it; a press on the dimmed page behind closes it too", async () => {
+    const { runCommand } = await import("@/features/commands");
+    await mounted(<Cockpit start="ship it" />);
+    await act(async () => void runCommand("mini-composer"));
+    const before = sends;
+    await key("Enter");
+    expect(sends).toBe(before + 1);
+    await flush(() => floating() === null);
+    expect(floating()).toBeNull();
+
+    await act(async () => void runCommand("mini-composer"));
+    expect(floating()).not.toBeNull();
+    await act(async () => {
+      document.querySelector('[data-slot="mini-backdrop"]')!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      await new Promise((settle) => setTimeout(settle, 0));
+    });
+    await flush(() => floating() === null);
+    expect(floating()).toBeNull();
+  });
+
+  test("a notch shows near the bottom edge, hides a moment after the pointer leaves, and opens the composer", async () => {
+    await mounted(<Cockpit />);
+    expect(notch()).toBeNull();
+    await pointerAt(window.innerHeight - 10);
+    expect(notch()).not.toBeNull();
+
+    jest.useFakeTimers();
+    try {
+      await pointerAt(window.innerHeight / 2);
+      expect(notch()).not.toBeNull();
+      await act(async () => void jest.advanceTimersByTime(500));
+      expect(notch()).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+
+    await pointerAt(window.innerHeight - 5);
+    await act(async () => notch()!.click());
+    expect(floating()).not.toBeNull();
+    expect(notch()).toBeNull();
+  });
+
+  test("the shell's report of the pointer at a browser page's bottom edge shows the notch too", async () => {
+    let report: ((value: { near: boolean }) => void) | undefined;
+    (window as { telarDesktop?: unknown }).telarDesktop = { browser: { onNearBottom: (listener: typeof report) => ((report = listener), () => (report = undefined)) } };
+    try {
+      await mounted(<Cockpit />);
+      await act(async () => report?.({ near: true }));
+      expect(notch()).not.toBeNull();
+    } finally {
+      delete (window as { telarDesktop?: unknown }).telarDesktop;
+    }
   });
 });

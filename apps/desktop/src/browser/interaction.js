@@ -2,6 +2,8 @@ const { HUMAN_ACTIVE_MS, HUMAN_ATTRIBUTION_GRACE_MS, SYNTHETIC_REPORT_TTL_MS, hu
 const { captureEntry } = require("../login/login-offer");
 const { isProtectedUrl } = require("./protected-urls");
 
+const PAGE_EDGE_PX = 48;
+
 module.exports = {
   humanActive(tab) {
     return tab.lastHumanInputAt !== undefined && this.now() - tab.lastHumanInputAt < HUMAN_ACTIVE_MS;
@@ -163,6 +165,15 @@ module.exports = {
 
   noteObserved(tab) {
     tab.observedGeneration = tab.generation;
+  },
+
+  notePagePointer(tab, mouse) {
+    const height = tab.view?.getBounds?.().height ?? 0;
+    const near = Boolean(mouse) && mouse.type !== "mouseLeave" && !tab.pageFullscreen && height > 0 && height - mouse.y <= PAGE_EDGE_PX;
+    if (Boolean(tab.nearBottom) === near) return;
+    tab.nearBottom = near;
+    const win = this.windowOfTab(tab);
+    if (win && !win.isDestroyed()) win.webContents.send("telar:browser:near-bottom", { scopeKey: tab.scopeKey, near });
   },
 
   nextTicket(tab) {

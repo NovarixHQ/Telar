@@ -32,6 +32,7 @@ const EXPECTED_IDS: CommandId[] = [
   "send",
   "stop-turn",
   "toggle-dictation",
+  "mini-composer",
   "open-in-app",
   "reveal-in-finder",
   "toggle-workspace",

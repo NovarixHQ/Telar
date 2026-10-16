@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     adoptScope: (fromScopeKey, toScopeKey) => ipcRenderer.invoke("telar:browser:adopt-scope", { fromScopeKey, toScopeKey }),
     onState: (listener) => on("telar:browser:state", listener),
     onPointer: (listener) => on("telar:browser:pointer", listener),
+    onNearBottom: (listener) => on("telar:browser:near-bottom", listener),
 
     bindProfile: (scopeKey, profileKey) => ipcRenderer.invoke("telar:browser:bind-profile", { scopeKey, profileKey }),
 

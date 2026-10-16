@@ -192,6 +192,14 @@ module.exports = {
     wc.on("blur", () => this.noteTabKeyFocus(tab, false));
 
     wc.on("before-input-event", (event, input) => this.handleTabKey(tab, event, input));
+    wc.on("before-mouse-event", (_event, mouse) => this.notePagePointer(tab, mouse));
+    wc.on("enter-html-full-screen", () => {
+      tab.pageFullscreen = true;
+      this.notePagePointer(tab, null);
+    });
+    wc.on("leave-html-full-screen", () => {
+      tab.pageFullscreen = false;
+    });
 
     wc.on("did-start-navigation", (details) => {
       if (!details?.isMainFrame || details.isSameDocument || !tab.viewportOverride || !tab.debuggerReady) return;

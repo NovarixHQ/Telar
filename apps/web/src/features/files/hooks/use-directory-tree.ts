@@ -10,7 +10,6 @@ type Levels = ReadonlyMap<string, readonly WorkspaceEntry[]>;
 
 const NONE: Levels = new Map();
 
-/** The tree read from disk one folder at a time: the root, then each folder as it is expanded. */
 export function useDirectoryTree(sessionId: string | undefined, projectId: string | undefined, expanded: ReadonlySet<string>) {
   const scope = sessionId ? `session:${sessionId}` : projectId ? `project:${projectId}` : "";
   const [read, setRead] = useState<{ scope: string; levels: Levels }>({ scope, levels: NONE });
@@ -49,7 +48,6 @@ export function useDirectoryTree(sessionId: string | undefined, projectId: strin
     }
   }, [scope, levels, expanded, readLevel, store]);
 
-  /** Re-reads every folder on screen in one pass, so a file that appeared or went away shows at once. */
   const reload = useCallback(async () => {
     const { levels: current, expanded: open } = shown.current;
     const dirs = [...current.keys()].filter((dir) => dir === "" || open.has(dir));

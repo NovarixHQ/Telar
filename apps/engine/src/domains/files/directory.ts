@@ -47,7 +47,6 @@ async function followLink(target: string, place: { real: string; rootReal: strin
   return { kind: "directory", symlink: true };
 }
 
-/** git is decoration here: outside a repository, or when it is slow, nothing is marked ignored. */
 async function ignoredNames(git: AsyncGitRunner, cwd: string, names: string[]): Promise<Set<string>> {
   const batches: string[][] = [];
   for (let start = 0; start < names.length; start += IGNORE_CHECK_BATCH) batches.push(names.slice(start, start + IGNORE_CHECK_BATCH));
@@ -67,7 +66,6 @@ const compareEntries = (left: WorkspaceEntry, right: WorkspaceEntry) => {
   return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" });
 };
 
-/** One level of a workspace as it is on disk, fenced to `root` through symlinks too. */
 export async function listWorkspaceDirectory(git: AsyncGitRunner, input: { root: string; dir: string; label: string }): Promise<WorkspaceDirectory> {
   const place = await fencedDirectory(input.root, input.dir, input.label);
   const { entries, truncated } = await readEntries(place.absolute);

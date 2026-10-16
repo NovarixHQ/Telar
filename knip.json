@@ -39,7 +39,8 @@
       "entry": [
         "scripts/*.mjs",
         "public/**/*.mjs",
-        "src/**/*.worker.ts"
+        "src/**/*.worker.ts",
+        "src/test/*.page.tsx"
       ]
     },
     "apps/desktop": {

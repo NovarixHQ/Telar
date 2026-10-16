@@ -548,6 +548,7 @@ jobs:
           run_case profile-cookies PROFILE_COOKIES_OK
           run_case host-header     HOST_HEADER_OK
           run_case popup-geometry  POPUP_GEOMETRY_OK
+          run_case native-messaging "NATIVE_MESSAGING_OK 3/3"
           run_case clipboard       "CLIPBOARD OK"
           # #488: the per-process-type surface. Here rather than only in the
           # unit suite because everything load-bearing about it is a question

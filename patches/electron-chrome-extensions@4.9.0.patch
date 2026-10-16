@@ -1,0 +1,104 @@
+diff --git a/dist/cjs/index.js b/dist/cjs/index.js
+index b4242b0b847d33d8544832bfb2d8723a884a3072..4d93ad618fa35e576b36deef53b79b04745f0cd0 100644
+--- a/dist/cjs/index.js
++++ b/dist/cjs/index.js
+@@ -1844,14 +1844,27 @@ var NativeMessagingHost = class {
+     this.receiveExtensionMessage = (_event, message) => {
+       this.send(message);
+     };
++    this.inbox = Buffer.alloc(0);
+     this.receive = (data) => {
+-      const length = data.readUInt32LE(0);
+-      const message = JSON.parse(data.subarray(4, 4 + length).toString());
+-      d7("receive: %s", message);
+-      if (this.keepAlive && this.sender) {
+-        this.sender.send(`crx-native-msg-${this.connectionId}`, message);
+-      } else {
+-        this.resolveResponse?.(message);
++      this.inbox = Buffer.concat([this.inbox, data]);
++      while (this.inbox.length >= 4) {
++        const length = this.inbox.readUInt32LE(0);
++        if (this.inbox.length < 4 + length) return;
++        const frame = this.inbox.subarray(4, 4 + length);
++        this.inbox = this.inbox.subarray(4 + length);
++        let message;
++        try {
++          message = JSON.parse(frame.toString());
++        } catch (error) {
++          d7("receive: invalid message", error);
++          continue;
++        }
++        d7("receive: %s", message);
++        if (this.keepAlive && this.sender) {
++          this.sender.send(`crx-native-msg-${this.connectionId}`, message);
++        } else {
++          this.resolveResponse?.(message);
++        }
+       }
+     };
+     this.keepAlive = keepAlive;
+@@ -1929,10 +1942,10 @@ var NativeMessagingHost = class {
+       d7("send: pending");
+       return;
+     }
+-    const message = JSON.stringify(json);
++    const message = Buffer.from(JSON.stringify(json));
+     const buffer = Buffer.alloc(4 + message.length);
+     buffer.writeUInt32LE(message.length, 0);
+-    buffer.write(message, 4);
++    message.copy(buffer, 4);
+     this.process.stdin.write(buffer);
+   }
+   sendAndReceive(message) {
+diff --git a/dist/esm/index.mjs b/dist/esm/index.mjs
+index dc598ce8f74c1e813c4014ecf8fc6ca5809f4ba5..5dc9195231a06b6bf848e686743a400a3c2f4d4b 100644
+--- a/dist/esm/index.mjs
++++ b/dist/esm/index.mjs
+@@ -1807,14 +1807,27 @@ var NativeMessagingHost = class {
+     this.receiveExtensionMessage = (_event, message) => {
+       this.send(message);
+     };
++    this.inbox = Buffer.alloc(0);
+     this.receive = (data) => {
+-      const length = data.readUInt32LE(0);
+-      const message = JSON.parse(data.subarray(4, 4 + length).toString());
+-      d7("receive: %s", message);
+-      if (this.keepAlive && this.sender) {
+-        this.sender.send(`crx-native-msg-${this.connectionId}`, message);
+-      } else {
+-        this.resolveResponse?.(message);
++      this.inbox = Buffer.concat([this.inbox, data]);
++      while (this.inbox.length >= 4) {
++        const length = this.inbox.readUInt32LE(0);
++        if (this.inbox.length < 4 + length) return;
++        const frame = this.inbox.subarray(4, 4 + length);
++        this.inbox = this.inbox.subarray(4 + length);
++        let message;
++        try {
++          message = JSON.parse(frame.toString());
++        } catch (error) {
++          d7("receive: invalid message", error);
++          continue;
++        }
++        d7("receive: %s", message);
++        if (this.keepAlive && this.sender) {
++          this.sender.send(`crx-native-msg-${this.connectionId}`, message);
++        } else {
++          this.resolveResponse?.(message);
++        }
+       }
+     };
+     this.keepAlive = keepAlive;
+@@ -1892,10 +1905,10 @@ var NativeMessagingHost = class {
+       d7("send: pending");
+       return;
+     }
+-    const message = JSON.stringify(json);
++    const message = Buffer.from(JSON.stringify(json));
+     const buffer = Buffer.alloc(4 + message.length);
+     buffer.writeUInt32LE(message.length, 0);
+-    buffer.write(message, 4);
++    message.copy(buffer, 4);
+     this.process.stdin.write(buffer);
+   }
+   sendAndReceive(message) {

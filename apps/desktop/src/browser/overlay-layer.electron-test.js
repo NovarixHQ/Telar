@@ -1,6 +1,5 @@
 const { app, BrowserWindow } = require("electron");
 const fs = require("node:fs");
-const { createRequire } = require("node:module");
 const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
@@ -16,9 +15,6 @@ const TAB_RECT = { x: 0, y: 0, width: 1000, height: 700 };
 const CARD = { x: 200, y: 150, width: 320, height: 200 };
 const RECT = { x: 192, y: 142, width: 336, height: 216 };
 
-const fromBaseUi = createRequire(createRequire(path.join(__dirname, "../../../web/package.json")).resolve("@base-ui/react"));
-const FLOATING_DOM = fromBaseUi.resolve("@floating-ui/dom");
-const FLOATING_CORE = createRequire(FLOATING_DOM).resolve("@floating-ui/core");
 
 const TAB_PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>tab</title>
 <style>body{margin:0;background:#7255ba}</style></head><body><script>
@@ -29,8 +25,7 @@ const TAB_PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>tab</t
 
 const COCKPIT_PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>cockpit</title>
 <style>body{margin:0;background:#202020}</style></head><body>
-<button id="anchor" style="position:fixed;left:600px;top:700px;width:80px;height:20px">menu</button>
-<script src="/floating-core.js"></script><script src="/floating-dom.js"></script><script>
+<script>
   const CARD = ${JSON.stringify(CARD)}, RECT = ${JSON.stringify(RECT)};
   window.log_ = [];
   window.telarDesktop.overlay.onOutside(() => { log_.push('outside'); hide(); });
@@ -44,31 +39,6 @@ const COCKPIT_PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>co
     doc.addEventListener('keydown', (e) => { if (e.key === 'Escape') { log_.push('escape'); hide(); } });
     window.telarDesktop.overlay.setRect(RECT);
     return [innerWidth, innerHeight];
-  };
-  window.placeNearBottom = async (point) => {
-    const doc = window.open('', 'telar-overlay').document;
-    doc.head.innerHTML = '<style>html,body{margin:0;background:transparent}</style>';
-    doc.body.innerHTML = '<div id="shift"><div id="pop" style="position:absolute;left:0;top:0;width:200px;height:150px"></div><div id="probe" style="position:fixed;left:0;top:0;width:1px;height:1px"></div></div>';
-    Object.defineProperty(window, 'frameElement', { configurable: true, get: () => doc.getElementById('probe') });
-    const button = document.getElementById('anchor');
-    const anchor = point ? { contextElement: button, getBoundingClientRect: () => DOMRect.fromRect({ x: 610, y: 705, width: 0, height: 0 }) } : button;
-    const pop = doc.getElementById('pop');
-    const place = async () => {
-      const { x, y, placement } = await FloatingUIDOM.computePosition(anchor, pop, { placement: 'bottom', middleware: [FloatingUIDOM.flip(), FloatingUIDOM.shift()] });
-      Object.assign(pop.style, { left: x + 'px', top: y + 'px' });
-      return placement;
-    };
-    const onScreen = (at) => { const r = pop.getBoundingClientRect(); return [r.x + at.x, r.y + at.y]; };
-    const first = [...onScreen({ x: 0, y: 0 }), await place()];
-    const before = onScreen({ x: 0, y: 0 });
-    const rect = { x: before[0] - 8, y: before[1] - 8, width: 216, height: 166 };
-    doc.getElementById('shift').style.transform = 'translate(' + -rect.x + 'px,' + -rect.y + 'px)';
-    window.telarDesktop.overlay.setRect(rect);
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    const placement = await place();
-    const after = [...onScreen(rect), placement];
-    hide();
-    return { first: [...before, first[2]], after };
   };
   window.overlaySize = () => { const w = window.open('', 'telar-overlay'); return [w.innerWidth, w.innerHeight]; };
 </script></body></html>`;
@@ -105,8 +75,6 @@ async function main() {
   registerOverlayIpc();
   const server = http.createServer((request, response) => {
     response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    if (request.url === "/floating-core.js") return response.end(fs.readFileSync(FLOATING_CORE));
-    if (request.url === "/floating-dom.js") return response.end(fs.readFileSync(FLOATING_DOM));
     response.end(request.url.startsWith("/tab") ? TAB_PAGE : COCKPIT_PAGE);
   });
   const base = `http://127.0.0.1:${await listen(server)}`;
@@ -132,21 +100,13 @@ async function main() {
     const fresh = await cockpit.executeJavaScript("overlaySize()");
     const cockpitSize = await cockpit.executeJavaScript("[innerWidth, innerHeight]");
     await until(() => cockpit.executeJavaScript("overlaySize()"), (s) => s.join() === cockpitSize.join(), `a new overlay lays out at the cockpit's size (first read ${fresh})`);
-    for (const point of [false, true]) {
-      const placed = await cockpit.executeJavaScript(`placeNearBottom(${point})`);
-      note(`${point ? "a point anchor" : "an anchor element"} near the bottom: ${JSON.stringify(placed)}`);
-      assert(placed.first[2] === "top", "the popup did not flip above an anchor near the window's bottom");
-      assert(JSON.stringify(placed.after) === JSON.stringify(placed.first), "the popup moved once the overlay shrank to it");
-    }
-    await until(() => cockpit.executeJavaScript("overlaySize()"), (s) => s.join() === cockpitSize.join(), "overlay back at cockpit size");
     await cockpit.executeJavaScript("show()");
     const view = await until(async () => win.contentView.children.at(-1), (v) => v?.getVisible?.() && v.webContents !== tab(), "overlay view");
     const overlay = view.webContents;
     assert(overlay.getOSProcessId() === cockpit.getOSProcessId(), "the overlay is not in the cockpit's renderer");
     assert(JSON.stringify(view.getBounds()) === JSON.stringify(RECT), `overlay bounds ${JSON.stringify(view.getBounds())}`);
-    const shown = [cockpitSize[0] - RECT.x, cockpitSize[1] - RECT.y];
-    const overlaySize = await until(() => overlay.executeJavaScript("[innerWidth, innerHeight]"), (s) => s.join() === shown.join(), "overlay viewport");
-    note(`the overlay covers only ${JSON.stringify(RECT)} and lays out ${overlaySize.join("×")}, to the window's far edges`);
+    const overlaySize = await until(() => overlay.executeJavaScript("[innerWidth, innerHeight]"), (s) => s.join() === cockpitSize.join(), "overlay viewport");
+    note(`the overlay covers only ${JSON.stringify(RECT)} and still lays out at the cockpit's ${overlaySize.join("×")}`);
 
     const fps = await frameRate(tab());
     note(`the page underneath keeps animating: ${fps * 2}fps`);

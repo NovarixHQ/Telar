@@ -18,7 +18,9 @@ const FONT = path.join(path.dirname(createRequire(path.join(WEB, "package.json")
 const STYLE = `@font-face{font-family:"Face";src:url(/face.woff2) format("woff2");font-display:swap}
 body{margin:0;background:#202020;font:13px "Face",monospace}
 [data-slot="dropdown-menu-content"]{background:#fff;width:max-content;max-height:var(--available-height);overflow:auto}
-[data-slot="dropdown-menu-item"]{height:24px}`;
+[data-slot="dropdown-menu-item"]{height:24px}
+.picker{background:#fff;width:min(20rem,calc(100vw - 2rem));max-height:min(30rem,70vh);overflow-y:auto}
+.picker-row{height:24px}`;
 
 const TAB_PAGE = `<!doctype html><body style="margin:0;background:#7255ba"></body>`;
 
@@ -75,7 +77,9 @@ async function main() {
 
   const winHolder = {};
   const win = winHolder.win = new BrowserWindow({ ...cockpitWindowOptions("overlay menus"), show: false, width: 1200, height: 800 });
-  win.webContents.on("console-message", (e) => note(`CONSOLE ${e.level} ${e.message}`));
+  win.webContents.on("console-message", (event) => {
+    if (event.level === "error") note(`page error: ${event.message}`);
+  });
   applyExternalLinkPolicy(win.webContents, () => createExternalLinkPolicy({ appUrl: `${base}/` }));
   const manager = new DesktopBrowserManager(win);
   try {
@@ -91,7 +95,7 @@ async function main() {
     const tabContents = manager.activeTab("s").view.webContents;
     const view = await until(async () => win.contentView.children.find((child) => child.webContents && child.webContents !== tabContents), Boolean, "overlay view adopted");
 
-    for (const [trigger, selector] of [["low", ".menu-low"], ["high", ".menu-high"]]) {
+    for (const [trigger, selector] of [["pick", ".picker"], ["low", ".menu-low"], ["high", ".menu-high"]]) {
       const box = await cockpit.executeJavaScript(`(() => { const r = document.getElementById(${JSON.stringify(trigger)}).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
       cockpit.sendInputEvent({ type: "mouseDown", x: Math.round(box[0]), y: Math.round(box[1]), button: "left", clickCount: 1 });
       cockpit.sendInputEvent({ type: "mouseUp", x: Math.round(box[0]), y: Math.round(box[1]), button: "left", clickCount: 1 });
@@ -101,13 +105,19 @@ async function main() {
       assert(seen.length === 1, `${trigger}: the menu moved or resized after it first showed: ${seen.join(" → ")}`);
 
       const [x, y, w, h] = seen[0].split(",").map(Number);
-      await view.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).style.minHeight = "${h + 60}px"`);
+      if (trigger === "pick") {
+        const sized = await view.webContents.executeJavaScript(`[innerWidth, innerHeight]`);
+        note(`pick: the overlay lays out at ${sized.join("×")}, the cockpit at ${win.getContentSize().join("×")}`);
+        assert(h === 480 && w === 320, `pick: a picker sized by the viewport (min(20rem, 100vw - 2rem) × min(30rem, 70vh)) is ${w}×${h} over the browser, not 320×480`);
+      } else {
+        await view.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).style.minHeight = "${h + 60}px"`);
       const grown = await until(() => sampleShownMenuOnWindow(win, view, selector, 80), (rects) => rects.at(-1)?.endsWith(`,${h + 60}`), `${trigger}: the menu grew in place`).catch((error) => error.message);
       const room = await view.webContents.executeJavaScript(`(() => { let node = document.querySelector(${JSON.stringify(selector)}); while (node && !node.style.getPropertyValue("--available-height")) node = node.parentElement; return node ? parseFloat(node.style.getPropertyValue("--available-height")) : -1; })()`);
       note(`${trigger}: after its content grew by 60px ${JSON.stringify(grown)}, room left ${room}px`);
       assert(room > 400, `${trigger}: the menu was measured against the overlay's edges, not the window's: only ${room}px of room`);
       const expected = trigger === "low" ? [x, y - 60, w, h + 60] : [x, y, w, h + 60];
       assert(JSON.stringify(grown.at?.(-1)) === JSON.stringify(expected.join(",")), `${trigger}: a menu that grew while shown was placed against the overlay's edges, not the window's: ${grown}`);
+      }
 
       cockpit.sendInputEvent({ type: "keyDown", keyCode: "Escape" });
       view.webContents.sendInputEvent({ type: "keyDown", keyCode: "Escape" });

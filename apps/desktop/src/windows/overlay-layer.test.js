@@ -70,4 +70,18 @@ describe("an open overlay closes when the keys leave it", () => {
     expect(cockpit.sent).not.toContain("telar:overlay:outside");
     win.isFocused = () => true;
   });
+
+  test("closing one menu and opening the next does not close the next one", async () => {
+    const overlay = contents("overlay");
+    adoptOverlay(win, { webContents: overlay });
+    setRect({ x: 10, y: 10, width: 100, height: 100 });
+    cockpit.sent.length = 0;
+    setRect(null);
+    expect(keys.holder).toBe("cockpit");
+    overlay.emit("blur");
+    setRect({ x: 300, y: 300, width: 100, height: 100 });
+    keys.holder = "cockpit";
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(cockpit.sent).not.toContain("telar:overlay:outside");
+  });
 });

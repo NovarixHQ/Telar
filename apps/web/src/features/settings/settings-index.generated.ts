@@ -8,6 +8,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Access level","keywords":["permissions","supervised","auto","full access","approval","runtime mode","prompts"]},
       {"title":"Workspace","keywords":["worktree","branch","git","isolation"]},
       {"title":"While an agent is working","keywords":["queue","steer","follow-up","busy","running","interrupt","send"]},
+      {"title":"Delegation","keywords":["delegation","builders","orchestrate","cost","quota","limit","cheaper","tier","effort"]},
       {"title":"Continue after Telar restarts","hint":"When Telar restarts to update or you quit it mid-turn, the sessions it stopped pick up where they left off.","keywords":["resume","restart","update","quit","continue","interrupted"]},
       {"title":"Ask before quitting while sessions work","hint":"Quitting the desktop app while an agent is working asks first.","keywords":["quit","close","confirm","working","interrupt"]},
     ] },

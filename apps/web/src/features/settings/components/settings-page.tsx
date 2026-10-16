@@ -19,6 +19,7 @@ const AppearanceSection = dynamic(() => import("@/features/appearance/components
 const RailSection = dynamic(() => import("@/features/sessions/components/rail-section").then((mod) => mod.RailSection), { loading: SectionSkeleton });
 const ContinueAfterRestartRow = dynamic(() => import("@/features/sessions/components/rail-section").then((mod) => mod.ContinueAfterRestartRow));
 const AskBeforeQuitRow = dynamic(() => import("@/features/sessions/components/rail-section").then((mod) => mod.AskBeforeQuitRow));
+const DelegationRow = dynamic(() => import("@/features/sessions/components/delegation-row").then((mod) => mod.DelegationRow));
 const DictationRows = dynamic(() => import("@/features/dictation/components/dictation-section").then((mod) => mod.DictationRows));
 const SimulatorsRows = dynamic(() => import("@/features/simulators/components/simulators-section").then((mod) => mod.SimulatorsRows));
 const GlobalInstructionsRow = dynamic(() => import("@/features/agent-tools/components/instructions-row").then((mod) => mod.GlobalInstructionsRow));
@@ -82,6 +83,7 @@ export function SettingsPage() {
       {active === "general" && (
         <Suspense fallback={<SettingsSkeleton />}>
           <WorkspaceSection>
+            <DelegationRow />
             <ContinueAfterRestartRow />
             <AskBeforeQuitRow />
           </WorkspaceSection>

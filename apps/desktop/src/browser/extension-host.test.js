@@ -206,3 +206,47 @@ describe("a host lets go of what outlives it", () => {
     expect(host.health.workerErrors).toEqual({ "core-not-initialized": 1 });
   });
 });
+
+describe("1Password's worker stays running like it does in Chrome", () => {
+  const { EventEmitter } = require("node:events");
+  function workerSession() {
+    const serviceWorkers = new EventEmitter();
+    const tasks = [];
+    let version = 0;
+    serviceWorkers.startWorkerForScope = async (scope) => {
+      version += 1;
+      const versionId = version;
+      return { scope, versionId, startTask: () => { const task = { versionId, ended: false, end: () => { task.ended = true; } }; tasks.push(task); return task; } };
+    };
+    return { serviceWorkers, tasks };
+  }
+  const hostOn = (session) => Object.assign(Object.create(ExtensionHost.prototype), { session });
+
+  test("a ready host holds the worker open, and holds the next one when it stops anyway", async () => {
+    const session = workerSession();
+    const host = hostOn(session);
+    await host.holdWorker();
+    await host.holdWorker();
+    expect(session.tasks.map((task) => [task.versionId, task.ended])).toEqual([[1, false]]);
+
+    session.serviceWorkers.emit("running-status-changed", { versionId: 99, runningStatus: "stopped" });
+    session.serviceWorkers.emit("running-status-changed", { versionId: 1, runningStatus: "running" });
+    expect(session.tasks).toHaveLength(1);
+
+    session.serviceWorkers.emit("running-status-changed", { versionId: 1, runningStatus: "stopped" });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(session.tasks.map((task) => task.versionId)).toEqual([1, 2]);
+  });
+
+  test("disposing lets the worker go and stops restarting it", async () => {
+    const session = workerSession();
+    const host = hostOn(session);
+    await host.holdWorker();
+    host.dispose();
+    expect(session.tasks[0].ended).toBe(true);
+    expect(session.serviceWorkers.listenerCount("running-status-changed")).toBe(0);
+    await host.holdWorker();
+    expect(session.tasks).toHaveLength(1);
+  });
+});

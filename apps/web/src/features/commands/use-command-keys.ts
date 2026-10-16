@@ -9,6 +9,7 @@ import {
   isCapturingChord,
   keymapSnapshot,
   runCommand,
+  focusComposerOnScreen,
   serverKeymapSnapshot,
   subscribeKeymap,
   syncKeymapWithShell,
@@ -24,6 +25,7 @@ type DesktopCommandKeyBridge = {
   notifications?: { onOpen?: (listener: (path: unknown) => void) => (() => void) | undefined };
   app?: { openWindow?: (path: string) => Promise<unknown> };
   quickComposer?: { toggle?: () => Promise<unknown> };
+  compose?: { onSummon?: (focus: () => boolean) => (() => void) | undefined };
 };
 
 function desktop(): DesktopCommandKeyBridge | undefined {
@@ -134,6 +136,7 @@ export function useCommandKeys(
     };
     window.addEventListener("keydown", onKeyDown);
     const offInvoke = desktop()?.commandKeys?.onInvoke?.((id) => run(id as CommandId));
+    const offSummon = desktop()?.compose?.onSummon?.(focusComposerOnScreen);
     const offOpen = desktop()?.notifications?.onOpen?.((path) => {
       if (typeof path === "string" && path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/\\")) router.push(path);
     });
@@ -141,6 +144,7 @@ export function useCommandKeys(
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       offInvoke?.();
+      offSummon?.();
       offOpen?.();
     };
   }, [run, router]);

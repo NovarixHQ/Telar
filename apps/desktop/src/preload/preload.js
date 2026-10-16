@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     adoptScope: (fromScopeKey, toScopeKey) => ipcRenderer.invoke("telar:browser:adopt-scope", { fromScopeKey, toScopeKey }),
     onState: (listener) => on("telar:browser:state", listener),
     onPointer: (listener) => on("telar:browser:pointer", listener),
+    onNearBottom: (listener) => on("telar:browser:near-bottom", listener),
 
     bindProfile: (scopeKey, profileKey) => ipcRenderer.invoke("telar:browser:bind-profile", { scopeKey, profileKey }),
 
@@ -131,6 +132,9 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     openFile: (path, openerId) => ipcRenderer.invoke("telar:workspace:open", { path, kind: "file", ...(openerId ? { openerId } : {}) }),
   },
 
+  compose: {
+    onSummon: (focus) => on("telar:compose:summon", (id) => ipcRenderer.send("telar:compose:summoned", { id, handled: focus() === true })),
+  },
   overlay: {
     setRect: (rect) => ipcRenderer.send("telar:overlay:set-rect", rect),
     onOutside: (listener) => on("telar:overlay:outside", listener),

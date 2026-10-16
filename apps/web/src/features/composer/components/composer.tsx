@@ -151,7 +151,6 @@ export function Composer(props: ComposerProps) {
   };
   const recall = usePromptRecall(props.sentPrompts, session?.id ?? `fresh:${projectId}`, draft, onDraftChange);
   const onKeyDown = composerKeyHandler({ draft, attachments, busy, questionActive: question.active, stash, menu, pick, submit: () => void trySubmit(), recall, esc });
-  useCommandHandlers({ "focus-composer": () => editor.current?.focus(), send: () => void trySubmit(), "stop-turn": () => busy && onStop() });
   useEffect(() => {
     if (takeComposerFocus(session?.id)) editor.current?.focus();
   }, [session?.id]);
@@ -159,6 +158,7 @@ export function Composer(props: ComposerProps) {
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
   const drop = useDropTarget(editor, addFiles);
   const { inline, compactNow, expand } = useComposerShape(box, editor, readingBack, !fresh && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0);
+  useCommandHandlers({ "focus-composer": () => (compactNow && !props.compact ? expand() : editor.current?.focus()), send: () => void trySubmit(), "stop-turn": () => busy && onStop() });
   const motion = useComposerMotion(box, [compactNow, inline, attachments.length > 0, question.active, Boolean(driveAway)].join(), session?.id ?? `fresh:${projectId}`);
   const pills = (
     <>

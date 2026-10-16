@@ -39,6 +39,8 @@
     "test:desktop:pty": "env -u ELECTRON_RUN_AS_NODE electron ./src/terminal/pty-host.electron-test.js",
     "test:desktop:overlay-menus": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/overlay-menus.electron-test.js",
     "test:desktop:blank-tab": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/blank-tab.electron-test.js",
+    "test:desktop:page-edge": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/page-edge.electron-test.js",
+    "test:desktop:compose-summon": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/compose-summon.electron-test.js",
     "test:desktop:preview": "env -u ELECTRON_RUN_AS_NODE electron ./src/agent-tools/preview-renderer.electron-test.js",
     "smoke": "bun run test:desktop:smoke",
     "pack": "bash ../../scripts/package-desktop.sh",

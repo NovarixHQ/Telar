@@ -11,6 +11,7 @@ const COMMANDS = [
   { id: "stop-turn", label: "Stop turn", group: "Session", icon: "square", defaultChord: "CommandOrControl+." },
 
   { id: "toggle-dictation", label: "Dictate", group: "Session", icon: "mic", defaultChord: "CommandOrControl+D" },
+  { id: "mini-composer", label: "Message over the full panel", group: "Session", icon: "message-square-text", defaultChord: "" },
 
   { id: "open-in-app", label: "Open in preferred app", group: "Session", icon: "external-link", defaultChord: "CommandOrControl+O", menu: "file" },
   { id: "reveal-in-finder", label: "Reveal in Finder", group: "Session", icon: "folder-open", defaultChord: "CommandOrControl+Alt+O", menu: "file" },

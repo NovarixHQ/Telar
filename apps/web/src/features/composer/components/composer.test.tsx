@@ -3,6 +3,7 @@ import { act, useState } from "react";
 import type { ModelCatalogue, ProviderModel, RuntimeMode, Session, UsageSnapshot } from "@telar/engine-client";
 import type { ModelChoice } from "@telar/client/providers";
 import { activeComposer } from "@/features/composer";
+import { focusComposerOnScreen } from "@/features/commands";
 import { installTestDom, mount, flush, click, stubFetch } from "@/test/dom";
 import { Composer } from "./composer";
 import { draftAfterStash } from "../hooks/use-composer-stash";
@@ -531,6 +532,19 @@ describe("the compact composer, while reading back", () => {
   test("its height is capped, then it scrolls", async () => {
     const { editor } = await composer({ readingBack: true, initial: "one\ntwo\nthree\nfour\nfive\nsix\nseven" });
     expect(editor.style.maxHeight).toBe("calc(5lh + 1.25rem)");
+  });
+
+  test("the shell's write-to-the-agent chord opens the full composer and focuses it", async () => {
+    const { host, editor } = await composer({ readingBack: true });
+    let handled = false;
+    await act(async () => void (handled = focusComposerOnScreen()));
+    expect(handled).toBe(true);
+    expect(expand(host)).toBeNull();
+    expect(document.activeElement).toBe(editor);
+  });
+
+  test("with no composer on screen the chord is left to the floating Quick Composer", async () => {
+    expect(focusComposerOnScreen()).toBe(false);
   });
 
   test("the expand button opens the full composer", async () => {

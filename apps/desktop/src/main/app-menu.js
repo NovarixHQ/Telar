@@ -84,7 +84,7 @@ function sendCommandKey(browserWindow, id) {
   win?.webContents.send("telar:command-keys:invoke", id);
 }
 
-const PAGE_COMMANDS = new Set(["toggle-dictation"]);
+const PAGE_COMMANDS = new Set(["toggle-dictation", "mini-composer"]);
 
 function forwardPageCommand(win, input) {
   const id = resolveCommandForEvent(readKeymap(), { key: input.key, code: input.code, metaKey: input.meta, ctrlKey: input.control, altKey: input.alt, shiftKey: input.shift });

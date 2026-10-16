@@ -3,6 +3,7 @@ export {
   type CommandId,
   claimChords,
   claimedCommandIds,
+  focusComposerOnScreen,
   defaultKeymap,
   keymapSnapshot,
   normalizeChord,

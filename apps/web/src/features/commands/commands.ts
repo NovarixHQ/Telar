@@ -25,6 +25,7 @@ export type CommandId =
   | "send"
   | "stop-turn"
   | "toggle-dictation"
+  | "mini-composer"
   | "open-in-app"
   | "reveal-in-finder"
   | "pin-session"
@@ -277,6 +278,10 @@ export function bindCommands(handlers: CommandHandlers): () => void {
 export function commandHandler(id: CommandId): (() => void) | undefined {
   const stack = bound.get(id);
   return stack?.[stack.length - 1];
+}
+
+export function focusComposerOnScreen(): boolean {
+  return runCommand("mini-composer") || runCommand("focus-composer");
 }
 
 export function runCommand(id: CommandId): boolean {

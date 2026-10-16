@@ -212,12 +212,30 @@ function measure(): void {
   const waiting = sent === "" && rect !== null && (key !== candidate || !settled(root.ownerDocument));
   candidate = key;
   if (key !== sent && !waiting) {
+    if (sent === "" && rect) announceShown();
     sent = key;
     offset = rect ? { x: rect.x, y: rect.y } : { x: 0, y: 0 };
     shift();
     bridge.setRect(rect);
   }
   if (tracked.size > 0) frame = window.requestAnimationFrame(measure);
+}
+
+const shownListeners = new Set<() => void>();
+
+function announceShown(): void {
+  const waiting = [...shownListeners];
+  shownListeners.clear();
+  window.requestAnimationFrame(() => window.requestAnimationFrame(() => waiting.forEach((run) => run())));
+}
+
+export function afterOverlayShows(run: () => void): () => void {
+  if (!root || hosts === 0 || sent !== "") {
+    run();
+    return () => undefined;
+  }
+  shownListeners.add(run);
+  return () => void shownListeners.delete(run);
 }
 
 export function trackOverlayElement(element: Element): () => void {

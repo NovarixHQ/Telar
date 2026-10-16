@@ -16,6 +16,23 @@ export const WorkspaceListing = z.object({
 });
 export type WorkspaceListing = z.infer<typeof WorkspaceListing>;
 
+export const WorkspaceEntry = z.object({
+  name: z.string().min(1),
+  path: z.string().min(1),
+  kind: z.enum(["file", "directory", "link"]),
+  symlink: z.literal(true).optional(),
+  submodule: z.literal(true).optional(),
+  ignored: z.literal(true).optional(),
+});
+export type WorkspaceEntry = z.infer<typeof WorkspaceEntry>;
+
+export const WorkspaceDirectory = z.object({
+  path: z.string(),
+  entries: z.array(WorkspaceEntry),
+  truncated: z.boolean(),
+});
+export type WorkspaceDirectory = z.infer<typeof WorkspaceDirectory>;
+
 export const WorkspaceFile = z.object({
   path: z.string().min(1),
   text: z.string(),

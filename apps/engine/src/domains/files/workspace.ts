@@ -137,7 +137,6 @@ export async function walkWorkspaceFilesAsync(root: string, limit = MAX_WORKSPAC
       }
       for (const entry of entries) {
         if (files.length >= limit) break;
-        if (entry.name.startsWith(".") && entry.isDirectory()) continue;
         if (entry.isDirectory()) {
           if (!WALK_DENY.has(entry.name) && depth + 1 <= MAX_WALK_DEPTH) next.push({ dir: path.join(dir, entry.name), depth: depth + 1 });
           continue;

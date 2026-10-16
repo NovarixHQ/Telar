@@ -92,15 +92,16 @@ describe("listWorkspaceFilesAsync, in a plain directory", () => {
 });
 
 describe("walkWorkspaceFilesAsync", () => {
-  test("skips the caches nobody reads source out of, and every dotted directory", async () => {
+  test("skips the caches nobody reads source out of, and keeps other dotted directories", async () => {
     const root = scratch();
-    for (const dir of ["node_modules", "dist", ".git", "src"]) mkdirSync(path.join(root, dir));
+    for (const dir of ["node_modules", "dist", ".git", ".github", "src"]) mkdirSync(path.join(root, dir));
     writeFileSync(path.join(root, "node_modules/dep.js"), "");
     writeFileSync(path.join(root, "dist/bundle.js"), "");
     writeFileSync(path.join(root, ".git/config"), "");
+    writeFileSync(path.join(root, ".github/ci.yml"), "");
     writeFileSync(path.join(root, "src/real.ts"), "");
     writeFileSync(path.join(root, ".gitignore"), "");
-    expect(await walkWorkspaceFilesAsync(root)).toEqual([".gitignore", "src/real.ts"]);
+    expect((await walkWorkspaceFilesAsync(root)).sort()).toEqual([".github/ci.yml", ".gitignore", "src/real.ts"]);
   });
 
   test("does not follow a symlink into its own parent", async () => {

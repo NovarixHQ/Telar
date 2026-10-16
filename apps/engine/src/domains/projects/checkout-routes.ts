@@ -65,6 +65,7 @@ export function projectCheckoutRoutes(store: EngineStore, providerSkills: Provid
       async handle({ params, query }) {
         const target = query.get("path");
         if (target) return ok({ file: await store.files.project(params[0]!, target) });
+        if (query.has("dir")) return ok({ directory: await store.files.projectDirectory(params[0]!, query.get("dir")!) });
         return ok({ listing: await store.workspaceReads.projectFiles(params[0]!) });
       },
     },

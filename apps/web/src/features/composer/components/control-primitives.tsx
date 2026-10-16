@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { createContext, forwardRef, use, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { PopoverTrigger } from "@/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
@@ -24,11 +24,13 @@ export function ControlDivider() {
 // Inside a narrow composer, or a row whose more important labels would be cut, a pill drops its words; xl goes first.
 const FOLD = { md: "@max-md/composer:hidden group-data-[fold=2]/pills:hidden", xl: "@max-xl/composer:hidden group-data-[fold]/pills:hidden" } as const;
 
-export function PillRow({ className, children }: { className?: string; children: ReactNode }) {
+const IconsOnly = createContext(false);
+
+export function PillRow({ className, icons = false, children }: { className?: string; icons?: boolean; children: ReactNode }) {
   const [row, fold] = usePillFold();
   return (
     <div ref={row} data-slot="composer-controls" data-fold={fold || undefined} className={cn("group/pills", className)}>
-      {children}
+      <IconsOnly value={icons}>{children}</IconsOnly>
     </div>
   );
 }
@@ -44,16 +46,17 @@ type ControlTriggerProps = ComponentPropsWithoutRef<"button"> & {
   ariaLabel: string;
 };
 
-const ControlTrigger = forwardRef<HTMLButtonElement, ControlTriggerProps>(
-  ({ open, icon, label, fold, detail, ariaLabel, className, ...props }, ref) => (
-    <button {...props} ref={ref} type="button" className={cn(controlClass(open, props.disabled), fold && "shrink-0", className)} aria-label={ariaLabel}>
+const ControlTrigger = forwardRef<HTMLButtonElement, ControlTriggerProps>(({ open, icon, label, fold, detail, ariaLabel, className, ...props }, ref) => {
+  const icons = use(IconsOnly);
+  return (
+    <button {...props} ref={ref} type="button" className={cn(controlClass(open, props.disabled), (fold || icons) && "shrink-0", className, icons && "px-1.5")} aria-label={ariaLabel}>
       <span className="flex shrink-0 [&_svg]:size-3.5">{icon}</span>
-      <span className={cn("min-w-0 max-w-48 truncate text-foreground", fold && FOLD[fold])}>{label}</span>
-      {detail ? <span className="max-w-24 truncate before:mr-1.5 before:text-muted-foreground/40 before:content-['·'] @min-[0px]/composer:hidden">{detail}</span> : null}
-      <ChevronDownIcon className="size-3 shrink-0 opacity-60" />
+      {!icons && <span className={cn("min-w-0 max-w-48 truncate text-foreground", fold && FOLD[fold])}>{label}</span>}
+      {detail && !icons ? <span className="max-w-24 truncate before:mr-1.5 before:text-muted-foreground/40 before:content-['·'] @min-[0px]/composer:hidden">{detail}</span> : null}
+      {!icons && <ChevronDownIcon className="size-3 shrink-0 opacity-60" />}
     </button>
-  ),
-);
+  );
+});
 ControlTrigger.displayName = "ControlTrigger";
 
 export function PillTrigger({ tip, ...props }: ControlTriggerProps & { tip: string }) {

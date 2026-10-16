@@ -15,6 +15,7 @@ import { hasUltrathink, toggleUltrathink } from "../model-options";
 import { useHasEfforts } from "../hooks/use-composer-efforts";
 import { useComposerCompletions } from "../hooks/use-composer-completions";
 import { useComposerMotion } from "../hooks/use-composer-motion";
+import { useNarrowComposer } from "../hooks/use-narrow-composer";
 import { composerKeyHandler, useEscArm, usePromptRecall } from "../hooks/use-composer-keys";
 import { useComposerRegistration } from "../hooks/use-composer-registration";
 import { MAX_ATTACHMENTS, useComposerStash } from "../hooks/use-composer-stash";
@@ -89,6 +90,12 @@ function useCompact(readingBack: boolean, allowed: boolean, editor: RefObject<Co
   return [readingBack && allowed && !expanded, expand] as const;
 }
 
+function useComposerShape(box: RefObject<HTMLElement | null>, editor: RefObject<ComposerEditorHandle | null>, readingBack: boolean, fitsOneRow: boolean) {
+  const inline = useNarrowComposer(box) && fitsOneRow;
+  const [scrolled, expand] = useCompact(readingBack, fitsOneRow, editor);
+  return { inline, compactNow: scrolled && !inline, expand };
+}
+
 function ComposerContext({ usage, session, driver, onCompact, busy, sending, compacting }: ComposerProps) {
   const reported = usage?.contextUsed !== undefined || usage?.contextMax !== undefined;
   if (!reported && !reportsContextUsage(session?.driver ?? driver ?? "claude")) return null;
@@ -151,9 +158,8 @@ export function Composer(props: ComposerProps) {
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
   const drop = useDropTarget(editor, addFiles);
-  const [compactNow, expand] = useCompact(readingBack, !fresh && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0, editor);
-  const shape = [compactNow, attachments.length > 0, question.active, Boolean(driveAway)].join();
-  const motion = useComposerMotion(box, shape, session?.id ?? `fresh:${projectId}`);
+  const { inline, compactNow, expand } = useComposerShape(box, editor, readingBack, !fresh && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0);
+  const motion = useComposerMotion(box, [compactNow, inline, attachments.length > 0, question.active, Boolean(driveAway)].join(), session?.id ?? `fresh:${projectId}`);
   const pills = (
     <>
       {props.leading && <>{props.leading}{pillsShown && <ControlDivider />}</>}
@@ -217,6 +223,7 @@ export function Composer(props: ComposerProps) {
                 placeholder={question.active ? "Type your own answer, or leave blank…" : (props.placeholder ?? placeholderFor(busy, props.whileWorking))}
                 ready={ready}
                 compact={compactNow}
+                inline={inline}
                 draft={draft}
                 attachments={attachments}
                 onAttach={onAttach}

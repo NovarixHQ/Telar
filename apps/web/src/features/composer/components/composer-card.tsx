@@ -46,6 +46,19 @@ function CompactControls({ addFiles, onExpand, trailing }: { addFiles: (files: F
   );
 }
 
+function InlineControls({ addFiles, stash, pills, trailing }: { addFiles: (files: File[]) => void; stash: ComposerStash; pills: ReactNode; trailing: ReactNode }) {
+  return (
+    <InputGroupAddon align="inline-end" className="gap-0.5 self-end py-1.5 pr-1.5">
+      <AddContextMenu onPick={addFiles} />
+      <StashBadge stash={stash} />
+      <PillRow icons className="flex shrink-0 items-center">
+        {pills}
+      </PillRow>
+      <div className="flex shrink-0 items-center gap-1">{trailing}</div>
+    </InputGroupAddon>
+  );
+}
+
 export function ComposerCard({
   editor,
   editorId,
@@ -54,6 +67,7 @@ export function ComposerCard({
   placeholder,
   ready,
   compact,
+  inline,
   draft,
   attachments,
   onAttach,
@@ -80,6 +94,7 @@ export function ComposerCard({
   placeholder: string;
   ready: boolean;
   compact: boolean;
+  inline: boolean;
   draft: string;
   attachments: File[];
   onAttach: (files: File[]) => void;
@@ -154,10 +169,10 @@ export function ComposerCard({
               onPasteFiles={addFiles}
               onPasteLargeText={(pasted) => addFiles([pastedTextFile(pasted, attachments.map((file) => file.name))])}
               onFocus={onFocus}
-              compact={compact}
+              compact={compact || inline}
               {...(decorations ? { decorations } : {})}
               {...(onDecorationFocus ? { onDecorationFocus } : {})}
-              {...(compact ? { className: "min-w-0 flex-1" } : {})}
+              {...(compact || inline ? { className: "min-w-0 flex-1" } : {})}
             />
           </div>
           {attachments.length > 0 && (
@@ -172,7 +187,9 @@ export function ComposerCard({
               })}
             </InputGroupAddon>
           )}
-          {compact ? (
+          {inline ? (
+            <InlineControls addFiles={addFiles} stash={stash} pills={pills} trailing={trailing} />
+          ) : compact ? (
             <CompactControls addFiles={addFiles} onExpand={onExpand} trailing={trailing} />
           ) : (
             <InputGroupAddon align="block-end" className="min-h-10 flex-nowrap justify-between gap-1 border-t border-border/40 px-2 pt-1 pb-1.5">

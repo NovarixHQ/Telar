@@ -546,32 +546,51 @@ describe("a narrow column, such as one beside an open panel", () => {
   const row = (host: HTMLElement) => host.querySelector("[data-slot=composer-controls]");
   const tray = (host: HTMLElement) => host.querySelector("[data-slot=composer-foot]")!;
   const expand = (host: HTMLElement) => host.querySelector('button[aria-label="Open the full composer"]');
+  const pills = (host: HTMLElement) => ["Model:", "Reasoning effort:", "Access:"].map((name) => row(host)?.querySelector<HTMLElement>(`[aria-label^="${name}"]`));
+  const words = (host: HTMLElement) => pills(host).map((pill) => pill?.textContent ?? null);
 
-  test("keeps the full composer with model, reasoning and access in the toolbar row", async () => {
-    const { host, editor } = await narrowable({ session, runtimeMode: "full-access" }, 320);
+  test("folds into one row: the editor beside model, reasoning and access drawn as icons, none cut short", async () => {
+    const { host, editor } = await narrowable({ session, runtimeMode: "full-access" }, 370);
+    expect(pills(host).every(Boolean)).toBe(true);
+    expect(words(host)).toEqual(["", "", ""]);
+    expect(editor.style.maxHeight).toBe("calc(5lh + 1.25rem)");
     expect(expand(host)).toBeNull();
-    expect(editor.style.maxHeight).toBe("");
-    expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
-    expect(row(host)?.querySelector('[aria-label^="Reasoning effort:"]')).not.toBeNull();
-    expect(row(host)?.querySelector('[aria-label^="Access:"]')).not.toBeNull();
     expect(tray(host).querySelector('[aria-label^="Model:"]')).toBeNull();
-    expect(host.querySelector('[aria-label="More composer settings"]')).toBeNull();
+    expect(host.querySelector('button[aria-label="Dictate"], [aria-label^="Send"]')).not.toBeNull();
   });
 
-  test("narrowing a wide composer leaves the controls where they were, with the draft and focus", async () => {
+  test("a wide composer keeps its toolbar row with the pills' words", async () => {
+    const { host, editor } = await narrowable({ session, runtimeMode: "full-access" }, 720);
+    expect(words(host).every((text) => Boolean(text && text.length > 0))).toBe(true);
+    expect(editor.style.maxHeight).toBe("");
+  });
+
+  test("narrowing and widening again switch the shape, keeping the draft and focus", async () => {
     const { host, editor, resize } = await narrowable({ session, initial: "half a thought" }, 2000);
     act(() => editor.focus());
-    await resize(320);
-    expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
-    expect(expand(host)).toBeNull();
+    await resize(370);
+    expect(words(host)[0]).toBe("");
     expect(editor.textContent).toBe("half a thought");
+    expect(document.activeElement).toBe(editor);
+    await resize(460);
+    expect(words(host)[0]).toBe("");
+    await resize(720);
+    expect(words(host)[0]).not.toBe("");
     expect(document.activeElement).toBe(editor);
   });
 
-  test("a new conversation's canvas stays full too", async () => {
-    const { host } = await narrowable({ fresh: true }, 320);
+  test("whatever needs the full box still gets it when narrow", async () => {
+    const pdf = new File(["%PDF"], "notes.pdf", { type: "application/pdf" });
+    const { host, editor } = await narrowable({ session, files: [pdf] }, 370);
+    expect(words(host)[0]).not.toBe("");
+    expect(editor.style.maxHeight).toBe("");
+    expect(host.textContent).toContain("notes.pdf");
+  });
+
+  test("a new conversation's canvas stays full", async () => {
+    const { host } = await narrowable({ fresh: true }, 370);
     expect(expand(host)).toBeNull();
-    expect(row(host)?.querySelector('[aria-label^="Model:"]')).not.toBeNull();
+    expect(words(host)[0]).not.toBe("");
   });
 });
 

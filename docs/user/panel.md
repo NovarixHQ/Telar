@@ -30,6 +30,8 @@ To review part of a large change, give a Diff tab a folder or file filter.
 
 Click a file in the tree to open it. A single click opens it as a preview that the next click replaces. Double-click the tab to keep it open. Notebooks open as cells, CSV files as a table and PDFs as documents. ⇧⌘P jumps to a file by name.
 
+The tree shows everything in the folder, hidden and git-ignored files included; ignored ones are dimmed. Search and ⇧⌘P cover tracked and untracked files but skip ignored ones, so open those from the tree.
+
 Edits save on their own shortly after you stop typing, and ⌘S saves right away. If the agent changed the file while you were editing, Telar doesn't overwrite it. It tells you, and keeps your text unsaved until you reload.
 
 The editor highlights code, but it's not an IDE: there's no code completion or project-wide search.

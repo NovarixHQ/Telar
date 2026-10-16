@@ -7,7 +7,7 @@ export {
   type ModelManifest,
 } from "./manifest";
 export { chosenModel, sessionCapabilities, turnModelChoice } from "./model-choices";
-export { delegatedChoice } from "./delegation";
+export { type Delegated, delegatedChoice } from "./delegation";
 export { loadClaudeModelSdk, readClaudeModels, readModelCatalogue } from "./models";
 export {
   CLI_TEST_REFUSAL,

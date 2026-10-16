@@ -17,9 +17,9 @@ import { ProjectProbes, ProjectRegistry, ProjectRemounts, WorkspaceConfigStore }
 import { Kernel } from "./platform/kernel";
 import { SettingsStore } from "./domains/settings";
 import { AppearanceStore } from "./domains/appearance";
-import { chosenModel, delegatedChoice, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
+import { chosenModel, delegatedChoice, type Delegated, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
 import { PluginToolchains } from "./domains/plugins";
-import { UsageLimitSources } from "./domains/usage";
+import { UsageLimitReader, UsageLimitSources } from "./domains/usage";
 import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionChildren, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
 import { driverCapabilities } from "./drivers/capabilities";
 import { requireRunningClaimFromQueue, runSpendOf, TurnAnchors, WorkerChannel, TurnWakes, TurnRecovery, TurnClaims, TurnIngest, type StoppedClaim, TurnLifecycle, TurnIntake, QueuedTurns, RequestPath } from "./domains/turns";
@@ -80,6 +80,7 @@ export class EngineStore {
   readonly appearance: AppearanceStore;
   readonly providers: ProviderRegistry;
   readonly usageSources: UsageLimitSources;
+  readonly usageLimits: UsageLimitReader;
   readonly projectProbes: ProjectProbes;
   readonly projectRegistry: ProjectRegistry;
   readonly toolchains: PluginToolchains;
@@ -232,6 +233,7 @@ export class EngineStore {
       settings: this.settings, appearance: this.appearance, usageSources: this.usageSources,
       projectProbes: this.projectProbes, projectRegistry: this.projectRegistry, catalogues: this.catalogues, providers: this.providers, toolchains: this.toolchains, github: this.github, browser: this.browser, remounts: this.remounts,
     } = this.leafStores(options));
+    this.usageLimits = new UsageLimitReader(this.usageSources);
     ({
       records: this.records, items: this.sessionItems, requests: this.sessionRequests, tasks: this.sessionTasks, mailbox: this.mailbox,
       activity: this.activity, index: this.sessionIndex, queues: this.sessionQueues, prefixes: this.prefixes, attachments: this.attachments, queries: this.queries,
@@ -482,11 +484,12 @@ export class EngineStore {
       : (this.catalogues.overlay(instanceId).default ?? this.catalogues.cachedRows(driver)?.find((row) => row.isDefault)?.id);
   }
 
-  private delegated(driver: ProviderDriverKind, choice: AgentModelChoice, from: { sessionId: string; runId?: string } | undefined): AgentModelChoice {
+  private delegated(driver: ProviderDriverKind, choice: AgentModelChoice, from: { sessionId: string; runId?: string } | undefined): Delegated {
     const asking = from?.runId ? this.sessionQueues.read(from.sessionId, [from.runId]).turns.find((turn) => turn.runId === from.runId) : undefined;
     const personSaid = asking && (asking.origin === undefined || asking.origin === "user") ? asking.input : undefined;
     const mode = this.settings.sessionDefaults().delegationMode;
-    return delegatedChoice({ mode, driver, rows: this.catalogues.cachedRows(driver), choice, ...(personSaid ? { personSaid } : {}) });
+    const nearLimit = mode === "aggressive" ? undefined : this.usageLimits.nearLimit(driver);
+    return delegatedChoice({ mode, driver, rows: this.catalogues.cachedRows(driver), choice, ...(personSaid ? { personSaid } : {}), ...(nearLimit ? { nearLimit } : {}) });
   }
 
   private findSession(sessionId: string): Session | undefined {
@@ -655,7 +658,7 @@ export class EngineStore {
       agentTurnModel: (id, choice, from) => {
         const session = this.records.get(id);
         const own = { ...(session.model?.model ? { model: session.model.model } : {}), ...choice };
-        const capped = session.origin === "session" ? this.delegated(session.driver, own, from) : choice;
+        const capped = session.origin === "session" ? this.delegated(session.driver, own, from).choice : choice;
         return turnModelChoice(session, capped, this.catalogues.cachedRows(session.driver));
       },
       runSpend: (id, runId) => runSpendOf(this.records.get(id), this.sessionQueues.read(id, [runId]).turns.find((turn) => turn.runId === runId), {

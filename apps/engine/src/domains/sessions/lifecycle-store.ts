@@ -76,7 +76,7 @@ type LifecycleHost = {
   requireInstance(instanceId: string): ProviderInstance;
   cachedModels(driver: ProviderDriverKind): ModelCatalogue["models"] | undefined;
   chooseModel(driver: ProviderDriverKind, instanceId: string, choice: AgentModelChoice): ModelSelectionValue | undefined;
-  delegatedModel(driver: ProviderDriverKind, choice: AgentModelChoice, startedFrom: CreateSessionInput["startedFrom"]): AgentModelChoice;
+  delegatedModel(driver: ProviderDriverKind, choice: AgentModelChoice, startedFrom: CreateSessionInput["startedFrom"]): { choice: AgentModelChoice; note?: string };
   readQueue(sessionId: string, runIds?: readonly string[]): SessionQueue;
   assignedTurns(sessionId: string): Turn[];
   writeQueue(sessionId: string, queue: SessionQueue): void;
@@ -145,7 +145,8 @@ export class SessionLifecycle {
       if (driver === ACP_DRIVER && !chosen) throw new EngineStateError("invalid_request", "choose which agent runs this session");
       if (chosen && !chosen.enabled) throw new EngineStateError("conflict", "that provider instance is switched off");
       const instanceId = chosen?.id ?? defaultInstanceIdForDriver(driver);
-      const wanted = input.origin === "session" ? this.host.delegatedModel(driver, input.model ?? {}, input.startedFrom) : input.model;
+      const delegated = input.origin === "session" ? this.host.delegatedModel(driver, input.model ?? {}, input.startedFrom) : undefined;
+      const wanted = delegated ? delegated.choice : input.model;
       const picked = wanted ? this.host.chooseModel(driver, instanceId, wanted) : undefined;
       const cut =
         envMode === "worktree" && !input.draft && project !== undefined
@@ -192,6 +193,7 @@ export class SessionLifecycle {
         // would drift the first time a reader forgot one of them.
         ...(input.origin === "session" ? { origin: "session" as const } : {}),
         ...(input.purpose ? { purpose: input.purpose } : {}),
+        ...(delegated?.note ? { delegated: delegated.note } : {}),
         ...(input.startedFrom
           ? { startedFrom: { sessionId: input.startedFrom.sessionId, ...(input.startedFrom.runId ? { runId: input.startedFrom.runId } : {}) } }
           : {}),

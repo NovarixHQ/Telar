@@ -10,8 +10,10 @@ export const modelChoice = (args: Record<string, unknown>): { model?: { model?: 
   return model || effort ? { model: { ...(model ? { model } : {}), ...(effort ? { effort } : {}) } } : {};
 };
 
-const runsOn = (session: Session): Record<string, string> =>
-  session.model?.model ? { model: `${session.model.model}${session.model.effort ? ` at ${session.model.effort}` : ""}` } : {};
+const runsOn = (session: Session): Record<string, string> => ({
+  ...(session.model?.model ? { model: `${session.model.model}${session.model.effort ? ` at ${session.model.effort}` : ""}` } : {}),
+  ...(session.delegated ? { why: session.delegated } : {}),
+});
 
 export const runIdFor = (tool: string, toolCallId: string | undefined): string =>
   toolCallId

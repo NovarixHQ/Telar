@@ -69,6 +69,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Agent device access","hint":"Allow new agent sessions to start and control this Mac's simulators and emulators, with the tools they need set up automatically.","keywords":["simulator","emulator","device","agent","agent-device","tap","automation","access","control"]},
     ] },
     { "title":"Agent tools", rows: [
+      {"title":"Agent instructions","hint":"Sent to every agent with each turn, without touching any provider's own configuration.","keywords":["instructions","system prompt","rules","custom instructions","prompt"]},
       {"title":"Tell agents they are inside Telar","hint":"A paragraph each turn and a skill file for each provider, so agents read Telar's words the way you mean them.","keywords":["orientation","preamble","system prompt","prompt","context","skill","SKILL.md","instructions","telar","show the text"]},
       {"title":"Computer use","keywords":["cua","driver","automation","engine","access","permission","privacy","accessibility","screen recording","grant"]},
     ] },
@@ -103,6 +104,9 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Default model","keywords":["model","per project","default"]},
       {"title":"Model options","hint":"New sessions in this project start with this model and these options.","keywords":["effort","reasoning","fast mode","per project"]},
       {"title":"Where new sessions start","keywords":["worktree","checkout","workspace","branch"]},
+    ] },
+    { "title":"Agents", rows: [
+      {"title":"Agent instructions","hint":"Sent to agents in this project with each turn, after your global instructions.","keywords":["instructions","system prompt","rules","custom instructions","prompt"]},
     ] },
     { "title":"New worktrees", rows: [
       {"title":"Worktree preparation","keywords":["setup","prepare","inherit","worktree"]},

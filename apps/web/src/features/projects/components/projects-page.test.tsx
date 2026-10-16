@@ -9,6 +9,7 @@ import { isTelarIcon, TELAR_ICONS, type ProviderModel } from "@telar/engine-clie
 import type { ModelChoice } from "@telar/client/providers";
 import { modelOptionsOf } from "@/features/composer";
 import type { ScopedProject } from "./projects-page";
+import { typeInto } from "@/test/type-into";
 
 const navigation = await import("next/navigation");
 mock.module("next/navigation", () => ({
@@ -405,6 +406,16 @@ describe("the pane", () => {
     await rename(view.host.querySelector<HTMLInputElement>('[aria-label="Project name"]')!, "Loom");
     expect(calls.filter((call) => call.method === "PATCH")).toEqual([{ method: "PATCH", url: "/api/projects/project_abc", body: { name: "Loom" } }]);
     expect(view.host.querySelector<HTMLInputElement>('[aria-label="Project name"]')!.value).toBe("Loom (kept)");
+    view.done();
+  });
+
+  test("a project's agent instructions save to that project", async () => {
+    const view = await mount(<ProjectsPage />);
+    const field = view.host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Agent instructions"]')!;
+    await typeInto(field, "Use bun.");
+    await press(view.button("Save"));
+    expect(calls.filter((call) => call.method === "PATCH")).toEqual([{ method: "PATCH", url: "/api/projects/project_abc", body: { instructions: "Use bun." } }]);
+    expect(view.button("Save")).toBeUndefined();
     view.done();
   });
 

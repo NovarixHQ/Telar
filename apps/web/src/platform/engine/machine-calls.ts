@@ -79,6 +79,7 @@ export function machineCalls(fetcher: Fetcher) {
         iconEmoji?: string | null;
         defaultModel?: ModelSelection | null;
         envMode?: EnvMode | null;
+        instructions?: string | null;
         // The generic arm — one entry per plugin, `null` to turn it off.
         plugins?: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>;
       },

@@ -29,6 +29,7 @@ export const PATCH = engineRoute(async (request: Request) => {
       // route, and an absent key means "leave that one alone".
       ...("preamble" in body ? { preamble: body.preamble as boolean } : {}),
       ...("skill" in body ? { skill: body.skill as boolean } : {}),
+      ...("instructions" in body ? { instructions: body.instructions as string } : {}),
     }),
   );
 });

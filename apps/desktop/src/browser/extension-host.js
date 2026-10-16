@@ -239,14 +239,35 @@ class ExtensionHost {
       this.noteWorkerError(details.message);
     };
     this.session.serviceWorkers.on("console-message", this.onWorkerConsole);
-
-    // global spawn observer (idempotent). Whichever host installs it, ALL
-
     healthListeners.add(this);
     installNativeObserver();
   }
 
+  // Chrome keeps a worker with an open native port alive; Electron stops it after 30 s idle, orphaning 1Password's desktop-app connection.
+  async holdWorker() {
+    if (this.workerTask || this.disposed) return;
+    if (!this.onWorkerStatus) {
+      this.onWorkerStatus = (event) => {
+        if (event.versionId !== this.workerVersion || event.runningStatus !== "stopped") return;
+        this.workerTask = null;
+        this.holdWorker().catch(() => undefined);
+      };
+      this.session.serviceWorkers.on("running-status-changed", this.onWorkerStatus);
+    }
+    const worker = await this.session.serviceWorkers.startWorkerForScope(`chrome-extension://${ONE_PASSWORD.id}/`);
+    if (this.workerTask || this.disposed) return;
+    this.workerVersion = worker.versionId;
+    this.workerTask = worker.startTask();
+  }
+
   dispose() {
+    this.disposed = true;
+    this.workerTask?.end();
+    this.workerTask = null;
+    if (this.onWorkerStatus) {
+      this.session.serviceWorkers.off("running-status-changed", this.onWorkerStatus);
+      this.onWorkerStatus = null;
+    }
     if (this.onWorkerConsole) {
       try {
         this.session.serviceWorkers.off("console-message", this.onWorkerConsole);
@@ -320,6 +341,7 @@ class ExtensionHost {
       if (this.loaded.id !== ONE_PASSWORD.id) {
         throw new Error(`loaded extension id ${this.loaded.id} does not match the pinned ${ONE_PASSWORD.id}`);
       }
+      await this.holdWorker().catch(() => undefined);
       this.installedPath = dir;
       this.icon = readIconDataUrl(dir);
       this.phase = "ready";

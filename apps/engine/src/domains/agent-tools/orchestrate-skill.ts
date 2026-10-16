@@ -1,8 +1,23 @@
+import type { DelegationMode } from "@telar/engine-client";
 import { ORIENTATION_VERSION, TELAR_SKILL, TELAR_SKILL_NAME } from "../sessions";
 
 export const ORCHESTRATE_SKILL_NAME = "orchestrate";
 
-export const ORCHESTRATE_SKILL = `---
+const PICKING: Record<DelegationMode, string> = {
+  aggressive: `- Pick each worker's \`model\` and \`effort\` for its task, not yours: search
+  or read, a Haiku; mechanical edits, a Sonnet at medium; review, a Sonnet at
+  high; design or debugging, your own model.`,
+  normal: `- The person delegates in Normal mode: a worker you name no model for runs
+  on a tier-2 model at medium. Name a tier-1 model for search or reading, and
+  a tier-3 model only for design or debugging. Nothing above tier 3 or past
+  high effort runs; the engine caps it.`,
+  conservative: `- The person delegates in Conservative mode: every worker runs on tier 2 or
+  below at medium effort or less, and the engine caps anything costlier. Name
+  a tier-1 model for search or reading. Only a model the person named in their
+  own message lifts the cap.`,
+};
+
+export const orchestrateSkill = (mode: DelegationMode): string => `---
 name: ${ORCHESTRATE_SKILL_NAME}
 description: Telar Orchestrate — turn a person's list of issues or problems into parallel worker sessions, one per task: triage, brief, dispatch, verify and integrate results, relay the person's decisions, settle and summarise. Use when asked to coordinate or fan out a list of work across Telar sessions.
 telar: generated v${ORIENTATION_VERSION}
@@ -55,10 +70,9 @@ Write each worker a self-contained brief. It will not see this conversation.
   folders, and run overlapping work one after another, never in parallel.
   They open no PRs; you review the checkout yourself, and its diff
   (\`sessions_read\` \`view: "diff"\`) holds every local worker's changes.
-- Pick each worker's \`model\` and \`effort\` for its task, not yours: search
-  or read, a Haiku; mechanical edits, a Sonnet at medium; review, a Sonnet at
-  high; design or debugging, your own model. \`sessions_capabilities\` lists
-  what is offered, and each result says what that run spent.
+${PICKING[mode]} \`sessions_capabilities\` lists what is
+  offered with each model's cost tier, and each result says what that run
+  ran on and spent.
 - Then END YOUR TURN. No subscribing, no polling, no sleeping. Each worker
   reaches you as one line when it sends its result (or fails, is stopped or
   settled); several that finish while you are busy arrive together. A blocker
@@ -113,7 +127,7 @@ Releases, deploys and anything else irreversible or outward-facing wait for the
 person's explicit OK, whatever this skill says.
 `;
 
-export const BUNDLED_SKILLS: readonly { name: string; text: string }[] = [
+export const bundledSkills = (mode: DelegationMode): { name: string; text: string }[] => [
   { name: TELAR_SKILL_NAME, text: TELAR_SKILL },
-  { name: ORCHESTRATE_SKILL_NAME, text: ORCHESTRATE_SKILL },
+  { name: ORCHESTRATE_SKILL_NAME, text: orchestrateSkill(mode) },
 ];

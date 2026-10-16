@@ -25,6 +25,9 @@ export const DEFAULT_AGENT_ORIENTATION: AgentOrientation = { preamble: true, ski
 export const WhileWorking = z.enum(["steer", "queue"]);
 export type WhileWorking = z.infer<typeof WhileWorking>;
 
+export const DelegationMode = z.enum(["conservative", "normal", "aggressive"]);
+export type DelegationMode = z.infer<typeof DelegationMode>;
+
 export const SessionDefaults = z.object({
   envMode: EnvMode,
   resumeAfterRestart: z.boolean().optional(),
@@ -32,6 +35,7 @@ export const SessionDefaults = z.object({
   /** Absent keeps the posture's own default; a creator's ceiling still narrows it. */
   runtimeMode: RuntimeMode.optional(),
   defaultModel: ModelSelection.optional(),
+  delegationMode: DelegationMode.optional(),
 });
 export type SessionDefaults = z.infer<typeof SessionDefaults>;
 
@@ -42,6 +46,7 @@ export type SessionDefaultsPatch = {
   whileWorking?: WhileWorking;
   runtimeMode?: RuntimeMode | null;
   defaultModel?: ModelSelection | null;
+  delegationMode?: DelegationMode;
 };
 
 export const DEFAULT_SESSION_DEFAULTS: SessionDefaults = { envMode: "local" };

@@ -33,7 +33,9 @@ import {
   telarSkillDigest,
   writeOrientationInstructions,
 } from "./orientation";
-import { BUNDLED_SKILLS, DISPLAY_BRIEFING, displayTools, ORCHESTRATE_SKILL, ORCHESTRATE_SKILL_NAME, type ToolFactory } from "../agent-tools";
+import { bundledSkills, DISPLAY_BRIEFING, displayTools, ORCHESTRATE_SKILL_NAME, orchestrateSkill, type ToolFactory } from "../agent-tools";
+
+const ORCHESTRATE_SKILL = orchestrateSkill("normal");
 import { codexHome, openCodeHome, providerSkillRoot, providerSkillRoots } from "../providers";
 import { driverBriefings } from "../../drivers/briefings";
 import { openCodeConfigContent } from "../../drivers/opencode";
@@ -480,12 +482,14 @@ test("the orchestrate skill rides the same sync and the same toggle", async () =
 
   await eventually(() => expect(existsSync(file)).toBe(true));
   expect(readFileSync(file, "utf8")).toBe(ORCHESTRATE_SKILL);
+  await client.setSessionDefaults({ delegationMode: "conservative" });
+  expect(readFileSync(file, "utf8")).toBe(orchestrateSkill("conservative"));
   await client.setOrientation({ skill: false });
   expect(existsSync(file)).toBe(false);
 });
 
 test("the orchestrate skill is a provider-readable skill that names no repo or person", () => {
-  expect(BUNDLED_SKILLS.map((skill) => skill.name)).toEqual([TELAR_SKILL_NAME, ORCHESTRATE_SKILL_NAME]);
+  expect(bundledSkills("normal").map((skill) => skill.name)).toEqual([TELAR_SKILL_NAME, ORCHESTRATE_SKILL_NAME]);
   expect(ORCHESTRATE_SKILL.startsWith("---\n")).toBe(true);
   expect(ORCHESTRATE_SKILL).toContain(`name: ${ORCHESTRATE_SKILL_NAME}`);
   expect(ORCHESTRATE_SKILL).toContain(`telar: generated v${ORIENTATION_VERSION}`);

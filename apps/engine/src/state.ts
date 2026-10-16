@@ -5,6 +5,7 @@
 import { ExecutionStore } from "./platform/db/execution-store";
 import fs from "node:fs";
 import {
+  type AgentModelChoice,
   type ProviderDriverKind,
   type RequestKind,
   type Session,
@@ -16,7 +17,7 @@ import { ProjectProbes, ProjectRegistry, ProjectRemounts, WorkspaceConfigStore }
 import { Kernel } from "./platform/kernel";
 import { SettingsStore } from "./domains/settings";
 import { AppearanceStore } from "./domains/appearance";
-import { chosenModel, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
+import { chosenModel, delegatedChoice, installedCli, ModelCatalogues, ProviderRegistry, sessionCapabilities, turnModelChoice, type InstalledCli } from "./domains/providers";
 import { PluginToolchains } from "./domains/plugins";
 import { UsageLimitSources } from "./domains/usage";
 import { SessionQueries, LiveSessions, SessionSettler, createSessionModules, SessionAttachments, workspaceRootOf, OpenPrefixes, SessionActivity, sessionDir, SessionIndex, SessionItems, SessionMailbox, sessionMetadataFile, SessionQueues, SessionRecords, SessionRequests, SessionLifecycle, SessionHandoff, SessionSubscriptions, SessionChildren, SessionTasks, storedSession, RequestGate } from "./domains/sessions";
@@ -423,10 +424,7 @@ export class EngineStore {
     return sessionCapabilities({
       instances: () => this.providers.list(),
       rows: (driver) => this.catalogues.cachedRows(driver),
-      defaultModel: (instanceId, driver) =>
-        driver === "claude"
-          ? this.catalogues.defaultClaudeModelId(instanceId)
-          : (this.catalogues.overlay(instanceId).default ?? this.catalogues.cachedRows(driver)?.find((row) => row.isDefault)?.id),
+      defaultModel: (instanceId, driver) => this.defaultModelOf(instanceId, driver),
       sessionDefaults: () => this.settings.sessionDefaults(),
       session: (id) => this.records.get(id),
       project: (id) => { try { return this.projectRegistry.get(id); } catch { return undefined; } },
@@ -464,6 +462,7 @@ export class EngineStore {
       requireInstance: (instanceId) => this.providers.require(instanceId),
       cachedModels: (driver) => this.catalogues.cachedRows(driver),
       chooseModel: (driver, instanceId, choice) => chosenModel(driver, instanceId, choice, this.catalogues.cachedRows(driver)),
+      delegatedModel: (driver, choice, from) => this.delegated(driver, choice, from),
       readQueue: (sessionId, runIds) => this.sessionQueues.read(sessionId, runIds),
       writeQueue: (sessionId, queue) => this.sessionQueues.write(sessionId, queue),
       appendEvent: (sessionId, event, runId) => this.kernel.appendEvent(sessionId, event, runId),
@@ -475,6 +474,19 @@ export class EngineStore {
       releasePlugins: (sessionId, reason) => this.pluginDoors.release(sessionId, reason),
       reviewChildren: () => this.children.review(),
     });
+  }
+
+  private defaultModelOf(instanceId: string, driver: ProviderDriverKind): string | undefined {
+    return driver === "claude"
+      ? this.catalogues.defaultClaudeModelId(instanceId)
+      : (this.catalogues.overlay(instanceId).default ?? this.catalogues.cachedRows(driver)?.find((row) => row.isDefault)?.id);
+  }
+
+  private delegated(driver: ProviderDriverKind, choice: AgentModelChoice, from: { sessionId: string; runId?: string } | undefined): AgentModelChoice {
+    const asking = from?.runId ? this.sessionQueues.read(from.sessionId, [from.runId]).turns.find((turn) => turn.runId === from.runId) : undefined;
+    const personSaid = asking && (asking.origin === undefined || asking.origin === "user") ? asking.input : undefined;
+    const mode = this.settings.sessionDefaults().delegationMode;
+    return delegatedChoice({ mode, driver, rows: this.catalogues.cachedRows(driver), choice, ...(personSaid ? { personSaid } : {}) });
   }
 
   private findSession(sessionId: string): Session | undefined {
@@ -582,6 +594,7 @@ export class EngineStore {
       pluginAvailable: (pluginId, sessionId) => this.pluginDoors.available(pluginId, sessionId),
       enabledPluginIds: (session) => this.toolchains.enabledIds(session),
       getAgentOrientation: () => this.settings.orientation(),
+      delegationMode: () => this.settings.sessionDefaults().delegationMode,
       simulatorAccess: () => this.simulatorAccess?.(),
     });
   }
@@ -639,13 +652,15 @@ export class EngineStore {
       holdsChild: (parent, child) => this.children.holds(parent, child),
       childWaitingOn: (parent, child) => this.children.waitingOn(parent, child),
       recordChildMessage: (recipient, sender, intent, message) => this.children.recordMessage(recipient, sender, intent, message),
-      agentTurnModel: (id, choice) => {
+      agentTurnModel: (id, choice, from) => {
         const session = this.records.get(id);
-        return turnModelChoice(session, choice, this.catalogues.cachedRows(session.driver));
+        const own = { ...(session.model?.model ? { model: session.model.model } : {}), ...choice };
+        const capped = session.origin === "session" ? this.delegated(session.driver, own, from) : choice;
+        return turnModelChoice(session, capped, this.catalogues.cachedRows(session.driver));
       },
       runSpend: (id, runId) => runSpendOf(this.records.get(id), this.sessionQueues.read(id, [runId]).turns.find((turn) => turn.runId === runId), {
         tokens: this.kernel.executionStore.runTokens(id, runId),
-        defaultModel: (instanceId) => this.catalogues.defaultClaudeModelId(instanceId),
+        defaultModel: (instanceId, driver) => this.defaultModelOf(instanceId, driver),
       }),
     });
   }

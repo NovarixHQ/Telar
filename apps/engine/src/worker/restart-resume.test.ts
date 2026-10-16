@@ -216,16 +216,16 @@ test("a boot that runs twice on the same marker opens no second continuation", (
 
 test("resumeAfterRestart round-trips beside envMode without clobbering it", () => {
   const { store } = home();
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "local" });
-  expect(store.settings.setSessionDefaults({ envMode: "worktree" })).toEqual({ envMode: "worktree" });
-  expect(store.settings.setSessionDefaults({ resumeAfterRestart: true })).toEqual({ envMode: "worktree", resumeAfterRestart: true });
-  expect(store.settings.setSessionDefaults({ envMode: "local" })).toEqual({ envMode: "local", resumeAfterRestart: true });
-  expect(store.settings.setSessionDefaults({ resumeAfterRestart: false })).toEqual({ envMode: "local", resumeAfterRestart: false });
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "local", resumeAfterRestart: false });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "local" });
+  expect(store.settings.setSessionDefaults({ envMode: "worktree" })).toMatchObject({ envMode: "worktree" });
+  expect(store.settings.setSessionDefaults({ resumeAfterRestart: true })).toMatchObject({ envMode: "worktree", resumeAfterRestart: true });
+  expect(store.settings.setSessionDefaults({ envMode: "local" })).toMatchObject({ envMode: "local", resumeAfterRestart: true });
+  expect(store.settings.setSessionDefaults({ resumeAfterRestart: false })).toMatchObject({ envMode: "local", resumeAfterRestart: false });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "local", resumeAfterRestart: false });
   for (const bad of ["yes", 1, null]) {
     expect(() => store.settings.setSessionDefaults({ resumeAfterRestart: bad })).toThrow(EngineStateError);
   }
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "local", resumeAfterRestart: false });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "local", resumeAfterRestart: false });
 });
 
 test("the daemon route and client carry resumeAfterRestart without touching envMode", async () => {
@@ -234,7 +234,7 @@ test("the daemon route and client carry resumeAfterRestart without touching envM
   daemons.push(daemon);
   const client = await connectEngine(daemon.store.paths.root);
   await client.setSessionDefaults({ envMode: "worktree" });
-  expect((await client.setSessionDefaults({ resumeAfterRestart: true })).sessionDefaults).toEqual({ envMode: "worktree", resumeAfterRestart: true });
-  expect((await client.setSessionDefaults({ envMode: "local" })).sessionDefaults).toEqual({ envMode: "local", resumeAfterRestart: true });
-  expect((await client.sessionDefaults()).sessionDefaults).toEqual({ envMode: "local", resumeAfterRestart: true });
+  expect((await client.setSessionDefaults({ resumeAfterRestart: true })).sessionDefaults).toMatchObject({ envMode: "worktree", resumeAfterRestart: true });
+  expect((await client.setSessionDefaults({ envMode: "local" })).sessionDefaults).toMatchObject({ envMode: "local", resumeAfterRestart: true });
+  expect((await client.sessionDefaults()).sessionDefaults).toMatchObject({ envMode: "local", resumeAfterRestart: true });
 });

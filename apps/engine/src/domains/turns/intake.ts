@@ -105,7 +105,7 @@ type IntakeDeps = {
   childWaitingOn: (parentSessionId: string, childSessionId: string) => boolean;
   releaseHeld: (sessionId: string) => void;
   recordChildMessage: (recipientSessionId: string, senderSessionId: string, intent: NonNullable<Turn["agentIntent"]>, message: { runId: string; body: string; senderRunId?: string }) => void;
-  agentTurnModel: (sessionId: string, choice: AgentModelChoice) => TurnModelSelection | undefined;
+  agentTurnModel: (sessionId: string, choice: AgentModelChoice, from?: { sessionId: string; runId: string }) => TurnModelSelection | undefined;
   runSpend: (sessionId: string, runId: string) => RunSpend | undefined;
 };
 
@@ -205,7 +205,7 @@ export class TurnIntake {
       if (intent === "fyi" && sender.sessionId && this.deps.childWaitingOn(sender.sessionId, sessionId)) {
         throw new EngineStateError("conflict", `${sessionId} is waiting on your answer to its blocker, and an fyi does not wake it. Answer with intent: "task".`);
       }
-      const model = input.model ? this.deps.agentTurnModel(sessionId, input.model) : undefined;
+      const model = input.model ? this.deps.agentTurnModel(sessionId, input.model, proof && sender.sessionId ? { sessionId: sender.sessionId, runId: proof.runId } : undefined) : undefined;
       if ((intent === "result" || intent === "blocker") && sender.sessionId) this.assertAnswersAnAssignment(sessionId, sender.sessionId, intent);
       const spent = intent === "result" && proof && sender.sessionId ? spendPhrase(this.deps.runSpend(sender.sessionId, proof.runId)) : undefined;
       const waiting = intent === "result" && sender.sessionId ? this.deps.waitingSubscription(sessionId, sender.sessionId) : false;

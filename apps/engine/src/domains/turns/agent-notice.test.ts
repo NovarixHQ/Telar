@@ -13,9 +13,9 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { NotificationDetail } from "@telar/engine-client";
+import type { NotificationDetail, Session } from "@telar/engine-client";
 import { EngineStore } from "../../state";
-import { agentNotice, reportBack } from "./agent-notice";
+import { agentNotice, reportBack, runSpendOf } from "./agent-notice";
 import { frameAgentMessage, framedSteerText, framedTurnInput, frameWakeMessage, RELAY_RULE } from "./attribution";
 import { claudeNotificationContent } from "../../drivers/claude";
 import { codexNotificationInstruction } from "../../drivers/codex";
@@ -341,4 +341,12 @@ test("the notice survives a restart, because it is stored rather than derived", 
   const turn = reopened.queries.turns("session_host")[0]!;
   expect(turn.agentNotice).toBe(minted!);
   expect(turn.input).toBe(REPORT);
+});
+
+test("a run with no model of its own reports its provider's default, whatever the provider", () => {
+  const defaults: Record<string, string> = { claude: "claude-opus-5-5[1m]", codex: "gpt-6.1-sol" };
+  for (const driver of ["claude", "codex"]) {
+    const session = { id: "session_one", driver, providerInstanceId: driver } as Session;
+    expect(runSpendOf(session, undefined, { defaultModel: (_instance, kind) => defaults[kind] })).toEqual({ model: defaults[driver] });
+  }
 });

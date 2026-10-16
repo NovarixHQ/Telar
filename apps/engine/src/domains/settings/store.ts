@@ -9,6 +9,7 @@ import {
   DEFAULT_SIDEBAR_LAYOUT,
   DEFAULT_SIMULATOR_SETTINGS,
   DEFAULT_TEXT_GEN_POLICY,
+  DelegationMode as DelegationModeSchema,
   InboxPolicy as InboxPolicySchema,
   MAX_AUTO_SETTLE_HOURS,
   MAX_SIDEBAR_PROJECT_ORDER,
@@ -20,6 +21,7 @@ import {
   SimulatorSettings as SimulatorSettingsSchema,
   TextGenPolicy as TextGenPolicySchema,
   type AgentOrientation,
+  type DelegationMode,
   type InboxPolicy,
   type RuntimeMode,
   type SessionDefaults,
@@ -105,17 +107,35 @@ export class SettingsStore {
   }
 
   /** Read on the create path, so a broken file must never make sessions unopenable. */
-  sessionDefaults(): SessionDefaults {
+  sessionDefaults(): SessionDefaults & { delegationMode: DelegationMode } {
     try {
-      const parsed = SessionDefaultsSchema.safeParse(this.kernel.readDocument(this.kernel.paths.sessionDefaults));
-      return parsed.success ? parsed.data : { ...DEFAULT_SESSION_DEFAULTS };
+      const stored = this.kernel.readDocument(this.kernel.paths.sessionDefaults);
+      const parsed = SessionDefaultsSchema.safeParse(stored);
+      const defaults = parsed.success ? parsed.data : { ...DEFAULT_SESSION_DEFAULTS };
+      if (defaults.delegationMode) return { ...defaults, delegationMode: defaults.delegationMode };
+      const existing = stored !== undefined || this.kernel.readDocument(this.kernel.paths.projects) !== undefined;
+      const migrated = { ...defaults, delegationMode: existing ? ("aggressive" as const) : ("normal" as const) };
+      this.kernel.writeDocument(this.kernel.paths.sessionDefaults, { version: STATE_VERSION, ...migrated });
+      return migrated;
     } catch {
-      return { ...DEFAULT_SESSION_DEFAULTS };
+      return { ...DEFAULT_SESSION_DEFAULTS, delegationMode: "normal" };
     }
   }
 
-  setSessionDefaults(patch: { envMode?: unknown; resumeAfterRestart?: unknown; whileWorking?: unknown; runtimeMode?: unknown; defaultModel?: unknown }): SessionDefaults {
+  setSessionDefaults(patch: {
+    envMode?: unknown;
+    resumeAfterRestart?: unknown;
+    whileWorking?: unknown;
+    runtimeMode?: unknown;
+    defaultModel?: unknown;
+    delegationMode?: unknown;
+  }): SessionDefaults {
     const next: SessionDefaults = { ...this.sessionDefaults() };
+    if (patch.delegationMode !== undefined) {
+      const parsed = DelegationModeSchema.safeParse(patch.delegationMode);
+      if (!parsed.success) throw new EngineStateError("invalid_request", "delegationMode must be conservative, normal or aggressive");
+      next.delegationMode = parsed.data;
+    }
     if (patch.envMode !== undefined) {
       const parsed = SessionDefaultsSchema.shape.envMode.safeParse(patch.envMode);
       if (!parsed.success) throw new EngineStateError("invalid_request", "default workspace must be local or worktree");

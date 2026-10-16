@@ -34,14 +34,14 @@ export type RunSpend = { model?: string; effort?: string; tokens?: TokenUsage };
 const count = (value: number): string =>
   value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1_000 ? `${Math.round(value / 1_000)}k` : String(value);
 
-/** The model a run ran on, as the claim resolves it: the turn's pick, else the session's, else the Claude default. */
+/** The model a run ran on, as the claim resolves it: the turn's pick, else the session's, else the provider's default. */
 export function runSpendOf(
   session: Session,
   turn: Pick<Turn, "model"> | undefined,
-  known: { tokens?: TokenUsage; defaultModel: (instanceId: string) => string | undefined },
+  known: { tokens?: TokenUsage; defaultModel: (instanceId: string, driver: Session["driver"]) => string | undefined },
 ): RunSpend {
   const selection = turn?.model ?? session.model;
-  const model = selection?.model ?? (session.driver === "claude" ? known.defaultModel(session.providerInstanceId ?? defaultInstanceIdForDriver("claude")) : undefined);
+  const model = selection?.model ?? known.defaultModel(session.providerInstanceId ?? defaultInstanceIdForDriver(session.driver), session.driver);
   return { ...(model ? { model } : {}), ...(selection?.effort ? { effort: selection.effort } : {}), ...(known.tokens ? { tokens: known.tokens } : {}) };
 }
 

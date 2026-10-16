@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { call, cleanUp, engine, wall, withModelCatalogue as withCatalogue } from "./test-helpers";
+import { EngineStore } from "../../../state";
+import { call, cleanUp, engine, openStores, orchestrator, repo, tmp, wall, withModelCatalogue as withCatalogue } from "./test-helpers";
 
 afterEach(cleanUp);
 
@@ -86,5 +87,40 @@ describe("what a worker's run cost reaches its coordinator", () => {
 
     const { turn } = store.intake.submitAgentTurn(host.id, { runId: "run_result", input: "Lint fixed.", intent: "result" }, { sessionId: worker, runId: run, claimToken });
     expect(turn.agentNotice).toContain(" · its run: claude-sonnet-5 at medium effort, 1.2M tokens (1.2M cache read, 4k cache write, 2k in, 10k out)");
+  });
+});
+
+describe("the delegation mode", () => {
+  test("Conservative runs a builder on tier 2 at medium, however costly the model it was asked for", async () => {
+    const { store, projectId } = engine();
+    withCatalogue(store);
+    store.settings.setSessionDefaults({ delegationMode: "conservative" });
+    const { tools } = orchestrator(store, projectId);
+    const named = await call(tools, "sessions_create", { projectId, envMode: "local", model: "claude-opus-5-5[1m]", effort: "high" });
+    expect(named.json!.model).toBe("claude-sonnet-5-5 at medium");
+    const unnamed = await call(tools, "sessions_create", { projectId, envMode: "local" });
+    expect(store.records.get(unnamed.json!.id as string).model).toEqual({ instanceId: "claude", model: "claude-sonnet-5-5", effort: "medium" });
+  });
+
+  test("a task turn sent to a builder is capped too, and the person's own sessions never are", async () => {
+    const { store, projectId } = engine();
+    withCatalogue(store);
+    store.settings.setSessionDefaults({ delegationMode: "conservative" });
+    const { tools } = orchestrator(store, projectId);
+    const id = (await call(tools, "sessions_create", { projectId, envMode: "local", model: "claude-sonnet-5" })).json!.id as string;
+    await call(tools, "sessions_send", { sessionId: id, intent: "task", input: "go deeper", effort: "high" });
+    expect(store.queries.turns(id).at(-1)!.model).toMatchObject({ model: "claude-sonnet-5", effort: "medium" });
+    const theirs = await call(tools, "sessions_create", { projectId, envMode: "local", owner: "person", model: "claude-opus-5-5[1m]", effort: "high" });
+    expect(theirs.json!.model).toBe("claude-opus-5-5[1m] at high");
+  });
+
+  test("a fresh install delegates in Normal; one that already had settings keeps Aggressive", () => {
+    const { store } = engine();
+    expect(store.settings.sessionDefaults().delegationMode).toBe("aggressive");
+    const fresh = new EngineStore(tmp("telar-fresh-state-"), Date.now);
+    openStores.push(fresh);
+    expect(fresh.settings.sessionDefaults().delegationMode).toBe("normal");
+    fresh.projectRegistry.register({ name: "later", root: repo() });
+    expect(fresh.settings.sessionDefaults().delegationMode).toBe("normal");
   });
 });

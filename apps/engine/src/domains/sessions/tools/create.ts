@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import type { Session } from "@telar/engine-client";
 import { err, failure, json, type ToolFactory } from "../../agent-tools";
-import { CREATE, EFFORT, MODEL, type SessionsCapability, summariseOne } from "./shared";
+import { CREATE, EFFORT, modelGuide, type SessionsCapability, summariseOne } from "./shared";
 
 export const modelChoice = (args: Record<string, unknown>): { model?: { model?: string; effort?: string } } => {
   const model = typeof args.model === "string" && args.model.trim() ? args.model.trim() : undefined;
@@ -36,7 +36,7 @@ export function createTool(tool: ToolFactory, capability: SessionsCapability): u
         .enum(["claude", "codex"])
         .optional()
         .describe("Omit unless the user asked."),
-      model: z.string().min(1).optional().describe(MODEL),
+      model: z.string().min(1).optional().describe(modelGuide(capability.delegationMode)),
       effort: z.string().min(1).optional().describe(EFFORT),
       task: z.string().min(1).optional().describe("A self-contained brief; it cannot see this conversation."),
       owner: z

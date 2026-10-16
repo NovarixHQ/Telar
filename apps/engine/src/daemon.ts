@@ -4,7 +4,7 @@ import os from "node:os";
 import pkg from "../package.json" with { type: "json" };
 import path from "node:path";
 import { ENGINE_PROTOCOL_VERSION, ProviderDriverKind, type ComputerUseGrant, type EngineDiscovery, type EngineHealth, type EngineIdentity, type ProviderInstance, type UsageLimitWindow } from "@telar/engine-client";
-import { BUNDLED_SKILLS } from "./domains/agent-tools";
+import { bundledSkills } from "./domains/agent-tools";
 import { appearanceRoutes } from "./domains/appearance";
 import { browserSessionRoutes } from "./domains/browser";
 import { computerUseRoutes, createComputerUseGate, type ComputerUseGate } from "./domains/computer-use";
@@ -282,7 +282,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   // Never fatal and never awaited on start: a provider that isn't installed has nowhere to put the skill.
   const syncOrientationSkill = (policy = store.settings.orientation()): Promise<unknown> =>
     skillRoots.length
-      ? Promise.all(BUNDLED_SKILLS.map((skill) => syncTelarSkill({ install: policy.skill, roots: skillRoots, ...skill }))).catch(() => [])
+      ? Promise.all(bundledSkills(store.settings.sessionDefaults().delegationMode).map((skill) => syncTelarSkill({ install: policy.skill, roots: skillRoots, ...skill }))).catch(() => [])
       : Promise.resolve([]);
   void syncOrientationSkill();
   const storageMeter = createStorageMeter(store);

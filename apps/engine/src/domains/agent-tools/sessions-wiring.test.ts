@@ -370,18 +370,8 @@ test("the worker cannot archive, delete or accept anything — the client it hol
   // because a Pick widened by accident is exactly the change nobody notices.
   const { sawCapability } = await turnWith(async (sessions) => {
     const surface = Object.keys(sessions).sort();
-    // `cursor` joined the list with #515: the journal's last event id, so the
-    // wall can answer "what happened lately" from one page rather than by
-    // walking 61,933 events to reach the end. A READ, like every other member
-    // that is not one of the five verbs.
-    // `query` joined with #516: the six READS that ask a conversation something
-    // rather than paging it, grouped as a sub-port because they are answered by
-    // the projection and the query routes rather than by a store verb each.
-    // Read-only by construction — see `SessionsQueryCapability`, which has no
-    // member that writes for one to be misfiled as.
-    // The verb that addressed the built-in Agent came and went with it (#784, #908).
     expect(surface).toEqual([
-      "acknowledge", "builders", "capabilities", "create", "cursor", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscriptions", "turn", "unsubscribe",
+      "acknowledge", "builders", "capabilities", "create", "cursor", "delegationMode", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscriptions", "turn", "unsubscribe",
     ]);
     expect(Object.keys(sessions.query).sort()).toEqual(["answer", "find", "grep", "outline", "step", "steps"]);
     for (const forbidden of ["archive", "delete", "accept", "merge", "commit"]) {

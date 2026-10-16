@@ -20,6 +20,7 @@ export type EngineStatePaths = {
   subscriptions: string;
   children: string;
   lineage: string;
+  deliveries: string;
   textGen: string;
   sessionDefaults: string;
   simulatorSettings: string;
@@ -70,6 +71,7 @@ export function statePaths(root: string): EngineStatePaths {
     subscriptions: path.join(resolved, "subscriptions.json"),
     children: path.join(resolved, "children.json"),
     lineage: path.join(resolved, "lineage.json"),
+    deliveries: path.join(resolved, "deliveries.json"),
     textGen: path.join(resolved, "text-generation.json"),
     sessionDefaults: path.join(resolved, "session-defaults.json"),
     simulatorSettings: path.join(resolved, "simulator-settings.json"),

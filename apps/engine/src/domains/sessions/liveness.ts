@@ -13,6 +13,7 @@ export type SessionSubtree = {
   scheduled: boolean;
   awaitsSubscription: boolean;
   heldMail: boolean;
+  openDeliveries: boolean;
   workingBuilders: string[];
   now: number;
 };
@@ -47,5 +48,6 @@ export function livenessOf(subtree: SessionSubtree): string[] {
   if (subtree.scheduled) reasons.push("schedule");
   if (subtree.awaitsSubscription) reasons.push("subscription");
   if (subtree.heldMail) reasons.push("mail");
+  if (subtree.openDeliveries) reasons.push("delivery");
   return reasons;
 }

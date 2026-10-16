@@ -11,13 +11,16 @@ function closeLayer(win) {
   if (!layer.view.webContents.isDestroyed()) layer.view.webContents.close();
 }
 
-function layOut(win, layer, origin = { x: 0, y: 0 }) {
+function layOut(win, layer) {
   const [width, height] = win.getContentSize();
+  const key = `${width}x${height}`;
+  if (layer.laidOut === key) return;
+  layer.laidOut = key;
   layer.view.webContents.enableDeviceEmulation({
     screenPosition: "desktop",
     screenSize: { width, height },
     viewPosition: { x: 0, y: 0 },
-    viewSize: { width: Math.max(1, width - origin.x), height: Math.max(1, height - origin.y) },
+    viewSize: { width, height },
     deviceScaleFactor: 0,
     scale: 1,
   });
@@ -28,7 +31,6 @@ function hide(win, layer) {
   layer.shown = false;
   const hadKeys = layer.view.webContents.isFocused();
   layer.view.setVisible(false);
-  layOut(win, layer);
   if (hadKeys && !win.isDestroyed()) win.webContents.focus();
 }
 
@@ -44,9 +46,9 @@ function setOverlayRect(win, rect) {
     height: Math.ceil(rect.height * zoom),
   };
   layer.view.setBounds(bounds);
-  layOut(win, layer, bounds);
   if (layer.shown) return;
   layer.shown = true;
+  layer.shownAs = (layer.shownAs ?? 0) + 1;
   win.contentView.addChildView(layer.view);
   layer.view.setVisible(true);
   layer.view.webContents.focus();
@@ -60,8 +62,10 @@ function raiseOverlay(win) {
 function watchFocus(win, layer, onOutside) {
   const contents = layer.view.webContents;
   contents.on("blur", () => {
+    if (!layer.shown) return;
+    const shownAs = layer.shownAs;
     setImmediate(() => {
-      if (layers.get(win) !== layer || !layer.shown || win.isDestroyed()) return;
+      if (layers.get(win) !== layer || !layer.shown || layer.shownAs !== shownAs || win.isDestroyed()) return;
       if (!win.isFocused() || contents.isFocused()) return;
       onOutside();
     });
@@ -94,7 +98,7 @@ function adoptOverlay(win, options) {
     win.once("closed", () => closeLayer(win));
     win.on("resize", () => {
       const current = layers.get(win);
-      if (current && !current.shown) layOut(win, current);
+      if (current) layOut(win, current);
     });
     win.webContents.on("did-start-loading", () => {
       const current = layers.get(win);

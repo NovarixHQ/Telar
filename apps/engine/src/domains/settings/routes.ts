@@ -40,8 +40,11 @@ export function settingsRoutes(
       method: "PATCH",
       path: "/v2/session-defaults",
       auth: "engine",
-      handle: ({ body }) =>
-        ok({ sessionDefaults: store.settings.setSessionDefaults(present(body, ["envMode", "resumeAfterRestart", "whileWorking", "runtimeMode", "defaultModel"])) }),
+      async handle({ body }) {
+        const sessionDefaults = store.settings.setSessionDefaults(present(body, ["envMode", "resumeAfterRestart", "whileWorking", "runtimeMode", "defaultModel", "delegationMode"]));
+        if ("delegationMode" in body) await syncOrientationSkill(store.settings.orientation());
+        return ok({ sessionDefaults });
+      },
     },
     { method: "GET", path: "/v2/workspace", auth: "engine", handle: () => ok({ machine: store.workspace.machine() }) },
     {

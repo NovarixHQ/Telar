@@ -76,6 +76,7 @@ type LifecycleHost = {
   requireInstance(instanceId: string): ProviderInstance;
   cachedModels(driver: ProviderDriverKind): ModelCatalogue["models"] | undefined;
   chooseModel(driver: ProviderDriverKind, instanceId: string, choice: AgentModelChoice): ModelSelectionValue | undefined;
+  delegatedModel(driver: ProviderDriverKind, choice: AgentModelChoice, startedFrom: CreateSessionInput["startedFrom"]): AgentModelChoice;
   readQueue(sessionId: string, runIds?: readonly string[]): SessionQueue;
   assignedTurns(sessionId: string): Turn[];
   writeQueue(sessionId: string, queue: SessionQueue): void;
@@ -144,7 +145,8 @@ export class SessionLifecycle {
       if (driver === ACP_DRIVER && !chosen) throw new EngineStateError("invalid_request", "choose which agent runs this session");
       if (chosen && !chosen.enabled) throw new EngineStateError("conflict", "that provider instance is switched off");
       const instanceId = chosen?.id ?? defaultInstanceIdForDriver(driver);
-      const picked = input.model ? this.host.chooseModel(driver, instanceId, input.model) : undefined;
+      const wanted = input.origin === "session" ? this.host.delegatedModel(driver, input.model ?? {}, input.startedFrom) : input.model;
+      const picked = wanted ? this.host.chooseModel(driver, instanceId, wanted) : undefined;
       const cut =
         envMode === "worktree" && !input.draft && project !== undefined
           ? (() => {

@@ -45,7 +45,7 @@ export type SessionsPort = {
 };
 
 /** The reads each deployment answers its own way, kept as they are pending an owner decision. */
-export type SessionsReads = Pick<Capability, "status" | "requests" | "turn" | "putSchedule"> & { cursor: NonNullable<Capability["cursor"]> };
+export type SessionsReads = Pick<Capability, "status" | "requests" | "turn" | "putSchedule" | "delegationMode"> & { cursor: NonNullable<Capability["cursor"]> };
 
 const ENDED_STATES: ReadonlySet<Turn["state"]> = new Set(["completed", "failed", "stopped"]);
 
@@ -82,6 +82,7 @@ export function storeReads(store: EngineStore): SessionsReads {
     status: async (id) => ({ session: store.records.get(id), turns: store.queries.turns(id), pendingNotifications: store.wakes.pendingNotifications(id) }),
     requests: async (id) => store.requestGate.list(id),
     putSchedule: async (input) => store.schedules.put({ ...input, rule: input.rule as never }),
+    delegationMode: store.settings.sessionDefaults().delegationMode,
   };
 }
 

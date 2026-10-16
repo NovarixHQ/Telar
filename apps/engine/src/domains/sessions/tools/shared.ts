@@ -1,4 +1,4 @@
-import { cockpitSessionHref, type AgentModelChoice, type EngineEvent, type EngineRequest, type EnvMode, type LiveSessionRow, type NotificationDetail, type ProviderDriverKind, type Session, type SessionCapabilities, type SessionDiff, type SessionChild, type SessionSettleEnded, type Subscription, type Turn, type WaitingOn, type WakeKind } from "@telar/engine-client";
+import { cockpitSessionHref, type AgentModelChoice, type DelegationMode, type EngineEvent, type EngineRequest, type EnvMode, type LiveSessionRow, type NotificationDetail, type ProviderDriverKind, type Session, type SessionCapabilities, type SessionDiff, type SessionChild, type SessionSettleEnded, type Subscription, type Turn, type WaitingOn, type WakeKind } from "@telar/engine-client";
 import type { SessionsQueryCapability } from "./query";
 
 export type SessionsCapability = {
@@ -28,6 +28,7 @@ export type SessionsCapability = {
   builders(sessionId: string): Promise<SessionChild[]>;
   acknowledge(sessionId: string, runId: string): Promise<void>;
   self?: { sessionId: string };
+  delegationMode?: DelegationMode;
   subscribe(
     subscriberSessionId: string,
     input: { targetSessionId: string; events?: WakeKind[]; once?: boolean; completionWake?: Subscription["completionWake"] },
@@ -52,7 +53,14 @@ export const CREATE = `Start a session on a project, filed under you. task assig
 
 export const CAPABILITIES = `What a session you start can run on: each provider's models with their efforts, window and cost tier (1 is cheapest; a model with no tier is of unknown cost), the person's defaults, and your own model and access.`;
 
-export const MODEL = `Omit for the person's default. By task: search or read, a Haiku; mechanical edits, a Sonnet at medium; review, a Sonnet at high; design or debugging, your own model. sessions_capabilities lists what is offered.`;
+const MODEL_BY_MODE: Record<DelegationMode, string> = {
+  aggressive: "Omit for the person's default. By task: search or read, a Haiku; mechanical edits, a Sonnet at medium; review, a Sonnet at high; design or debugging, your own model.",
+  normal: "Omit for a tier-2 model at medium. By task: search or read, tier 1; edits and review, tier 2; design or debugging, tier 3. Nothing above tier 3 or past high effort runs.",
+  conservative: "Omit for a tier-2 model at medium; search or read, tier 1. Nothing above tier 2 or past medium effort runs unless the person named the model.",
+};
+
+export const modelGuide = (mode: DelegationMode | undefined): string =>
+  `${MODEL_BY_MODE[mode ?? "normal"]} sessions_capabilities lists what is offered, with tiers.`;
 
 export const EFFORT = "One the model lists in sessions_capabilities; omit for its default.";
 

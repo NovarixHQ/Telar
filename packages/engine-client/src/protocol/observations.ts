@@ -114,6 +114,7 @@ export const WorkerClaim = z.object({
   notes: z.array(z.string().min(1)).optional(),
   readOnly: z.literal(true).optional(),
   simulators: z.object({ binDir: z.string().min(1).optional(), developerDir: z.string().min(1).optional() }).optional(),
+  delegationMode: z.enum(["conservative", "normal", "aggressive"]).optional(),
   turn: Turn,
 });
 export type WorkerClaim = z.infer<typeof WorkerClaim>;

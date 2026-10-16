@@ -4,6 +4,7 @@ import {
   STALLED_AFTER_MS,
   workspacePath,
   type AgentOrientation,
+  type DelegationMode,
   type ModelSelection,
   type Project,
   type ProviderDriverKind,
@@ -68,6 +69,7 @@ type ClaimDeps = {
   pluginAvailable: (pluginId: string, sessionId: string) => boolean;
   enabledPluginIds: (session: Session) => string[];
   getAgentOrientation: () => AgentOrientation;
+  delegationMode?: () => DelegationMode;
   simulatorAccess: () => WorkerClaim["simulators"];
 };
 
@@ -411,6 +413,7 @@ export class TurnClaims {
         return live.length > 0 ? { tasks: live } : {};
       })(),
       ...(this.deps.getAgentOrientation().preamble ? { orientation: TELAR_ORIENTATION } : {}),
+      ...(this.deps.delegationMode ? { delegationMode: this.deps.delegationMode() } : {}),
       ...(() => {
         const simulators = this.deps.simulatorAccess();
         return simulators ? { simulators } : {};

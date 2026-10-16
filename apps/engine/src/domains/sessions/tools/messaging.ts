@@ -3,7 +3,7 @@ import { err, failure, fillWithin, json, type ToolFactory } from "../../agent-to
 import { createTool, modelChoice, runIdFor } from "./create";
 import { FIND_LIMIT_DEFAULT, findView } from "./query";
 import type { Turn } from "@telar/engine-client";
-import { EFFORT, LIST, LIST_CHARS, LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX, MODEL, SEND, type SessionsCapability, summarise } from "./shared";
+import { EFFORT, LIST, LIST_CHARS, LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX, modelGuide, SEND, type SessionsCapability, summarise } from "./shared";
 
 export function messagingTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
   return [
@@ -91,7 +91,7 @@ export function messagingTools(tool: ToolFactory, capability: SessionsCapability
           .describe("task (assigns work or changes what a running session does; the default to a session you tasked), fyi (passive, read only with its next turn; the default otherwise), result (your final answer, sent last), blocker (needs a decision)."),
         input: z.string().min(1).describe("The whole message; it cannot see this conversation."),
         corrects: z.string().min(1).optional().describe("runId of your earlier message this corrects; replaced if still unread."),
-        model: z.string().min(1).optional().describe(`With intent task, this turn only. ${MODEL}`),
+        model: z.string().min(1).optional().describe(`With intent task, this turn only. ${modelGuide(capability.delegationMode)}`),
         effort: z.string().min(1).optional().describe(EFFORT),
       },
       async (args, context) => {

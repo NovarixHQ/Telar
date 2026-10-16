@@ -24,7 +24,7 @@ export function offeredRows(driver: ProviderDriverKind, rows: readonly ProviderM
   return shown.filter((row) => !row.legacy || (tierOf(driver, row.id) ?? Infinity) < cheapest);
 }
 
-function rowNamed(driver: ProviderDriverKind, rows: readonly ProviderModel[], model: string): ProviderModel | undefined {
+export function rowNamed(driver: ProviderDriverKind, rows: readonly ProviderModel[], model: string): ProviderModel | undefined {
   const exact = rows.find((row) => row.id === model || row.resolves === model);
   if (exact || driver !== "claude") return exact;
   const slug = claudeSlugOf(model);

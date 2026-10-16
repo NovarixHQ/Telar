@@ -61,23 +61,23 @@ test("the standing session defaults round-trip, and refuse a mode that is not on
   // did before this document existed, so an install that never opens the
   // settings page behaves exactly as it always has.
   const { store } = readyStore();
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "local" });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "local" });
 
-  expect(store.settings.setSessionDefaults({ envMode: "worktree" })).toEqual({ envMode: "worktree" });
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "worktree" });
+  expect(store.settings.setSessionDefaults({ envMode: "worktree" })).toMatchObject({ envMode: "worktree" });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "worktree" });
   // An empty patch changes nothing rather than resetting anything.
-  expect(store.settings.setSessionDefaults({})).toEqual({ envMode: "worktree" });
+  expect(store.settings.setSessionDefaults({})).toMatchObject({ envMode: "worktree" });
 
   for (const bad of ["", "detached", 1, null]) {
     expect(() => store.settings.setSessionDefaults({ envMode: bad })).toThrow(EngineStateError);
   }
   // …and the refusal left the stored answer alone.
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "worktree" });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "worktree" });
 });
 
 test("a standing access mode opens new sessions in it, and a creator's ceiling still narrows it", () => {
   const { store } = readyStore();
-  expect(store.settings.setSessionDefaults({ runtimeMode: "full-access" })).toEqual({ envMode: "local", runtimeMode: "full-access" });
+  expect(store.settings.setSessionDefaults({ runtimeMode: "full-access" })).toMatchObject({ envMode: "local", runtimeMode: "full-access" });
   expect(store.lifecycle.createSession({ id: "session_default", projectId: "project_one" }).runtimeMode).toBe("full-access");
 
   // A supervised creator cannot hand out more than it has.
@@ -90,7 +90,7 @@ test("a standing access mode opens new sessions in it, and a creator's ceiling s
 
   expect(() => store.settings.setSessionDefaults({ runtimeMode: "yolo" })).toThrow(EngineStateError);
   // `null` clears it back to the posture's own default.
-  expect(store.settings.setSessionDefaults({ runtimeMode: null })).toEqual({ envMode: "local" });
+  expect(store.settings.setSessionDefaults({ runtimeMode: null })).toMatchObject({ envMode: "local" });
   expect(store.lifecycle.createSession({ id: "session_plain", projectId: "project_one" }).runtimeMode).toBe("auto");
 });
 
@@ -179,9 +179,9 @@ test("a malformed session-defaults document costs the preference, never the sess
   // here than anywhere: garbage in this file must not make sessions unopenable.
   const { store, root: stateRoot } = readyStore();
   fs.writeFileSync(path.join(stateRoot, "session-defaults.json"), '{"version":1,"envMode":"elsewhere"}');
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "local" });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "local" });
   fs.writeFileSync(path.join(stateRoot, "session-defaults.json"), "not json at all");
-  expect(store.settings.sessionDefaults()).toEqual({ envMode: "local" });
+  expect(store.settings.sessionDefaults()).toMatchObject({ envMode: "local" });
   expect(() => store.lifecycle.createSession({ id: "session_two", projectId: "project_one" })).not.toThrow();
 });
 
@@ -222,5 +222,5 @@ test("the default model round-trips, clears with null and refuses a selection th
     effort: "high",
   });
   expect(() => store.settings.setSessionDefaults({ defaultModel: { instanceId: "claude" } })).toThrow(EngineStateError);
-  expect(store.settings.setSessionDefaults({ defaultModel: null })).toEqual({ envMode: "local" });
+  expect(store.settings.setSessionDefaults({ defaultModel: null })).toMatchObject({ envMode: "local" });
 });

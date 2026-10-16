@@ -50,7 +50,7 @@ export const LIST = `Live sessions and the projects you can create in; check it 
 
 export const CREATE = `Start a session on a project, filed under you. task assigns its first work now; without it nothing starts. Several tasks: one call each, in one message, then end your turn; each reports back as one line. For a session the person asked for themselves, pass owner: "person". ${NOT_A_BYPASS}`;
 
-export const CAPABILITIES = `What a session you start can run on: each provider's models with their efforts, window and cost tier (1 is cheapest), the person's defaults, and your own model and access.`;
+export const CAPABILITIES = `What a session you start can run on: each provider's models with their efforts, window and cost tier (1 is cheapest; a model with no tier is of unknown cost), the person's defaults, and your own model and access.`;
 
 export const MODEL = `Omit for the person's default. By task: search or read, a Haiku; mechanical edits, a Sonnet at medium; review, a Sonnet at high; design or debugging, your own model. sessions_capabilities lists what is offered.`;
 

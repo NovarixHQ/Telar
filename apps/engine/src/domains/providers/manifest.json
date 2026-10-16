@@ -1,5 +1,5 @@
 {
-  "$comment": "T3 Code's Claude model list (pingdotgg/t3code f25a8e4b, apps/server/src/provider/model-manifest.json), copied. See model-manifest.ts for the rules; bundled, no network. Update by shipping a build. tier is relative list price, 1 cheapest.",
+  "$comment": "T3 Code's Claude model list (pingdotgg/t3code f25a8e4b, apps/server/src/provider/model-manifest.json), copied. See model-manifest.ts for the rules; bundled, no network. Update by shipping a build. tier is relative list price, 1 cheapest; the codex tiers are Telar's own.",
   "version": 2,
   "claude": {
     "defaults": { "chat": "claude-fable-5-1" },
@@ -29,6 +29,17 @@
       { "slug": "claude-opus-4-5", "name": "Claude Opus 4.5", "status": "legacy", "profile": "opus-4-5", "tier": 3 },
       { "slug": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "status": "legacy", "profile": "sonnet-4-6", "tier": 2, "aliases": ["sonnet-4.6", "claude-sonnet-4.6", "claude-sonnet-4-6-20251117"] },
       { "slug": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "status": "current", "profile": "haiku-4-5", "tier": 1, "aliases": ["haiku", "haiku-4.5", "claude-haiku-4.5", "claude-haiku-4-5-20251001"] }
+    ]
+  },
+  "codex": {
+    "models": [
+      { "slug": "gpt-6-astra", "tier": 3 },
+      { "slug": "gpt-6.1-sol", "tier": 2 },
+      { "slug": "gpt-6-sol", "tier": 2 },
+      { "slug": "gpt-5.6-sol", "tier": 2 },
+      { "slug": "gpt-5.6-terra", "tier": 2 },
+      { "slug": "gpt-6-luna", "tier": 1 },
+      { "slug": "gpt-5.6-luna", "tier": 1 }
     ]
   }
 }

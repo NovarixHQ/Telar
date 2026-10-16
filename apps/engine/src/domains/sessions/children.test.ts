@@ -124,12 +124,13 @@ test("a failure, a stop and a turn that ends without a result each end the child
   task("session_a", "session_b", "session_other");
   run("session_a").fail();
   run("session_b").stop();
+  run("session_other").complete("Looking around.");
   run("session_other").complete("I looked around.\nMore.");
   const states = Object.fromEntries(children().map((child) => [child.sessionId, [child.state, child.summary]]));
   expect(states).toEqual({
     session_a: ["failed", "driver_failed: the CLI died"],
     session_b: ["stopped", "stopped"],
-    session_other: ["done", "finished without a result: I looked around."],
+    session_other: ["done", "ended without a result and nothing is running there, so it will not continue on its own. It last said: I looked around."],
   });
   const endings = store.queries.turns(HOST).filter((turn) => turn.wakeReason).flatMap((turn) => turn.notification?.entries ?? []);
   expect(endings.map((entry) => entry.sessionId).sort()).toEqual(["session_a", "session_b", "session_other"]);
@@ -211,12 +212,51 @@ test("a builder that ends a turn while its background work runs, then sends its 
   expect(children()[0]).toMatchObject({ state: "done", summary: "CI green; PR #7." });
 });
 
-test("a builder that ends without a result and nothing pending gives one notice", () => {
-  const { run, task, woken } = setup();
+test("a builder that ends without a result and nothing pending is nudged once, and only its second idle ending reaches the parent", () => {
+  const { store, run, task, woken, children } = setup();
   task("session_a");
   run("session_a").complete("Looked around.");
+  expect(woken()).toHaveLength(0);
+  expect(children()[0]!.state).toBe("working");
+  const nudge = store.queries.turns("session_a").find((turn) => turn.state === "queued")!;
+  expect(nudge.notification!.body).toContain("nothing is running in this session");
+
+  run("session_a").complete("Still waiting on the report.");
+  expect(store.queries.turns("session_a").some((turn) => turn.state === "queued")).toBe(false);
   expect(woken()).toHaveLength(1);
-  expect(woken()[0]!.notification!.body).toContain("finished without a result: Looked around.");
+  expect(woken()[0]!.notification!.body).toContain("nothing is running there, so it will not continue on its own. It last said: Still waiting on the report.");
+});
+
+test("a nudged builder that then sends its result gives the parent that result and nothing else", () => {
+  const { run, task, woken, children } = setup();
+  task("session_a");
+  run("session_a").complete("Looked around.");
+  const nudged = run("session_a");
+  nudged.say(HOST, "result", "Plan ready; 3 PRs.");
+  nudged.complete();
+  expect(woken()).toHaveLength(1);
+  expect(woken()[0]!.notification!.body).toContain("Plan ready; 3 PRs.");
+  expect(children()[0]).toMatchObject({ state: "done", summary: "Plan ready; 3 PRs." });
+});
+
+test("a builder left waiting on background agents that have all ended is nudged, then its parent is told it will not continue", () => {
+  const { store, run, task, woken, children } = setup();
+  task("session_a");
+  const first = run("session_a");
+  backgroundTask(store, "session_a", first.runId, "running");
+  first.complete("Four agents running; waiting on their reports.");
+  expect(woken()).toHaveLength(0);
+
+  backgroundTask(store, "session_a", first.runId, "completed");
+  const wake = store.claims.openProviderTurn("session_a", { workerId: "worker_session_a", input: "", reason: { kind: "task_notification", taskId: "task_ci" } });
+  store.turnLifecycle.completeTurn("session_a", wake.runId, wake.claim!.token, { text: "Waiting on the consolidated report of the 24 migrations." });
+  expect(woken()).toHaveLength(0);
+  expect(children()[0]!.state).toBe("working");
+
+  run("session_a").complete("Waiting on the consolidated report of the 24 migrations.");
+  expect(woken()).toHaveLength(1);
+  expect(woken()[0]!.notification!.body).toContain("will not continue on its own");
+  expect(children()[0]!.state).toBe("done");
 });
 
 test("a blocker reaches the parent at once even while background work runs", () => {

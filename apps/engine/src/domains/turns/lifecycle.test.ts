@@ -354,6 +354,7 @@ test("a person stopping an orchestrator holds its builders' endings until they w
   const a = turn("session_a");
   expect(() => a.result("Parser ported.")).toThrow("stopped by its user");
   a.end();
+  turn("session_a").end();
   expect(endingWakes()).toHaveLength(0);
   expect(store.wakes.pendingNotifications("session_one").map((each) => each.summary)).toEqual([expect.stringContaining("[builder done]")]);
 });

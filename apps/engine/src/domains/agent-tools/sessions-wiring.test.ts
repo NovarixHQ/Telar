@@ -632,11 +632,16 @@ test("sessions_send from a turn is stamped with the sender over the wire, and th
     if ((await client.session(made!.id)).turns[0]?.state === "completed") break;
     await Bun.sleep(5);
   }
-  // A worker serves every session: once the peer settles, a later tick also claims the host's wake.
-  await worker.tick();
+  // A worker serves every session: later ticks run the peer's nudge, then the host's wake.
+  let hostRan = false;
+  void woken.then(() => (hostRan = true));
+  for (let tick = 0; tick < 10 && !hostRan; tick++) {
+    await worker.tick();
+    await Bun.sleep(5);
+  }
   await woken;
-  expect(prompts).toHaveLength(1);
   expect(prompts[0]).toStartWith("[agent message · task]");
+  expect(prompts.slice(1).every((prompt) => prompt.startsWith("[wake: nothing running]"))).toBe(true);
   /**
    * AND THE PROVIDER IS HANDED THE NOTICE, NOT THE BODY — end to end, over the
    * real HTTP surface and a real worker, which is the only place the whole

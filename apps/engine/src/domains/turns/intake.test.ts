@@ -457,7 +457,7 @@ describe("an agent's message that names no intent", () => {
     const stop = store.intake.submitAgentTurn("session_a", { runId: "run_stop", input: "Stop: the owner wants the old parser kept." }, host);
 
     expect(stop.turn).toMatchObject({ agentIntent: "task", agentDelivery: "wake", state: "queued" });
-    expect(store.claims.claimTurn("session_a", "worker_a")?.runId).toBe("run_stop");
+    expect(store.queries.turns("session_a").filter((turn) => turn.state === "queued").at(-1)?.runId).toBe("run_stop");
   });
 
   test("is a report to a session the sender never tasked, and opens no turn", () => {

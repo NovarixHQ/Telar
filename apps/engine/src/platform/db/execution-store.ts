@@ -183,6 +183,7 @@ export class ExecutionStore {
   liveQueueIds(): string[] | undefined { return tables.liveQueueIds(this); }
   markLiveQueue(sessionId: string, live: boolean): void { tables.markLiveQueue(this, sessionId, live); }
   markLiveQueuesIndexed(): void { tables.markLiveQueuesIndexed(this); }
+  workingSessionCount(): number { return tables.workingSessionCount(this); }
   sessionIdsWithTurnsEndedSince(at: number): string[] { return tables.sessionIdsWithTurnsEndedSince(this, at); }
   dueSnoozeWakes(): tables.SessionIndexRow[] { return tables.dueSnoozeWakes(this); }
   sessionRow(sessionId: string): tables.SessionIndexRow | undefined { return tables.sessionRow(this, sessionId); }

@@ -170,6 +170,10 @@ export function unfinishedSessionIds(store: ExecutionStore): string[] {
     .map((row) => String(row.id));
 }
 
+export function workingSessionCount(store: ExecutionStore): number {
+  return Number(store.statement("SELECT COUNT(*) AS n FROM sessions WHERE archived = 0 AND activity IN ('working','blocked','queued')").get()?.n ?? 0);
+}
+
 export function sessionIdsWithTurnsEndedSince(store: ExecutionStore, at: number): string[] {
   return store.statement("SELECT DISTINCT session_id FROM turn_summaries WHERE ended_at >= ?").all(at).map((row) => String(row.session_id));
 }

@@ -125,6 +125,7 @@ export class SettingsStore {
   setSessionDefaults(patch: {
     envMode?: unknown;
     resumeAfterRestart?: unknown;
+    askBeforeQuit?: unknown;
     whileWorking?: unknown;
     runtimeMode?: unknown;
     defaultModel?: unknown;
@@ -142,6 +143,7 @@ export class SettingsStore {
       next.envMode = parsed.data;
     }
     if (patch.resumeAfterRestart !== undefined) next.resumeAfterRestart = boolean(patch.resumeAfterRestart, "resumeAfterRestart must be true or false");
+    if (patch.askBeforeQuit !== undefined) next.askBeforeQuit = boolean(patch.askBeforeQuit, "askBeforeQuit must be true or false");
     if (patch.whileWorking !== undefined) {
       const parsed = SessionDefaultsSchema.shape.whileWorking.safeParse(patch.whileWorking);
       if (!parsed.success || !parsed.data) throw new EngineStateError("invalid_request", "whileWorking must be steer or queue");

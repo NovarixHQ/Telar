@@ -66,6 +66,7 @@ export function sessionsRoutes(store: EngineStore, { daemonId, openStreams, mcpI
       },
     },
     sessionsStreamRoute(store, openStreams, watchPluginFrames),
+    { method: "GET", path: "/v2/sessions/working", auth: "engine", handle: () => ok({ count: store.kernel.executionStore.workingSessionCount() }) },
     { method: "GET", path: "/v2/sessions/activity", auth: "engine", handle: () => ok({ projects: store.live.projectActivity() }) },
     {
       method: "GET",

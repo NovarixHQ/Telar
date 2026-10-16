@@ -25,6 +25,7 @@ export const PATCH = engineRoute(async (request: Request) => {
     await (await engineClient()).setSessionDefaults({
       ...("envMode" in body ? { envMode: body.envMode as EnvMode } : {}),
       ...("resumeAfterRestart" in body ? { resumeAfterRestart: body.resumeAfterRestart as boolean } : {}),
+      ...("askBeforeQuit" in body ? { askBeforeQuit: body.askBeforeQuit as boolean } : {}),
       ...("whileWorking" in body ? { whileWorking: body.whileWorking as WhileWorking } : {}),
       ...("runtimeMode" in body ? { runtimeMode: body.runtimeMode as RuntimeMode | null } : {}),
       ...("defaultModel" in body ? { defaultModel: body.defaultModel as ModelSelection | null } : {}),

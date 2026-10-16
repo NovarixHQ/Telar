@@ -12,7 +12,7 @@ To check by hand, use the update control in the rail, Settings → General → A
 
 ## Sessions across a restart
 
-With **Continue after Telar restarts** on (Settings → General), sessions stopped by an update restart pick up where they left off. Each one gets a single message saying Telar restarted.
+With **Continue after Telar restarts** on (Settings → General), sessions stopped by an update restart, or by quitting Telar mid-turn, pick up where they left off. Each one gets a single message saying Telar restarted.
 
 - This only happens when restarting to install an update. A crash never resumes anything.
 - Terminals and running processes don't come back.

@@ -43,6 +43,7 @@ test("every indexed row is declared on the pane that actually renders it", () =>
     "Name sessions": "general",
     "Desktop notifications": "general",
     "Continue after Telar restarts": "general",
+    "Ask before quitting while sessions work": "general",
     "Settle sessions": "general",
     Providers: "providers",
   };

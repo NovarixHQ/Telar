@@ -41,9 +41,7 @@ function bundlePage(out) {
   assert(built.status === 0, `bundling the cockpit's menus failed: ${built.stderr || built.stdout}`);
 }
 
-// Where the open menu is on the window, sampled as fast as the overlay answers: the view's
-// origin plus the menu's rect in the overlay document. Only frames where the view is shown count.
-async function sampleMenu(win, view, selector, ms) {
+async function sampleShownMenuOnWindow(win, view, selector, ms) {
   const seen = [];
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -97,14 +95,14 @@ async function main() {
       const box = await cockpit.executeJavaScript(`(() => { const r = document.getElementById(${JSON.stringify(trigger)}).getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
       cockpit.sendInputEvent({ type: "mouseDown", x: Math.round(box[0]), y: Math.round(box[1]), button: "left", clickCount: 1 });
       cockpit.sendInputEvent({ type: "mouseUp", x: Math.round(box[0]), y: Math.round(box[1]), button: "left", clickCount: 1 });
-      const seen = await sampleMenu(win, view, selector, 700);
+      const seen = await sampleShownMenuOnWindow(win, view, selector, 700);
       note(`${trigger}: on-screen menu rect over time ${JSON.stringify(seen)}`);
       assert(seen.length > 0, `${trigger}: the menu never showed above the browser`);
       assert(seen.length === 1, `${trigger}: the menu moved or resized after it first showed: ${seen.join(" → ")}`);
 
       const [x, y, w, h] = seen[0].split(",").map(Number);
       await view.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).style.minHeight = "${h + 60}px"`);
-      const grown = await until(() => sampleMenu(win, view, selector, 80), (rects) => rects.at(-1)?.endsWith(`,${h + 60}`), `${trigger}: the menu grew in place`).catch((error) => error.message);
+      const grown = await until(() => sampleShownMenuOnWindow(win, view, selector, 80), (rects) => rects.at(-1)?.endsWith(`,${h + 60}`), `${trigger}: the menu grew in place`).catch((error) => error.message);
       const room = await view.webContents.executeJavaScript(`(() => { let node = document.querySelector(${JSON.stringify(selector)}); while (node && !node.style.getPropertyValue("--available-height")) node = node.parentElement; return node ? parseFloat(node.style.getPropertyValue("--available-height")) : -1; })()`);
       note(`${trigger}: after its content grew by 60px ${JSON.stringify(grown)}, room left ${room}px`);
       assert(room > 400, `${trigger}: the menu was measured against the overlay's edges, not the window's: only ${room}px of room`);

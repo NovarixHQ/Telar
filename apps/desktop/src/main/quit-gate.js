@@ -15,10 +15,6 @@ function quitDialog(count, resume) {
   };
 }
 
-/**
- * Holds a normal quit while the engine has sessions working and asks first. `bypass` covers quits that must not wait,
- * like an update install; a system logout or shutdown, or a second quit while asking, goes ahead.
- */
 function createQuitGate({ ask, confirm, save, bypass = () => false, onCancel = () => {}, power }) {
   let allowed = false;
   let asking = null;
@@ -44,7 +40,6 @@ function createQuitGate({ ask, confirm, save, bypass = () => false, onCancel = (
   }
 
   return {
-    /** Call from `before-quit`; true while the gate holds this quit, and `quit` is called once it may go ahead. */
     hold(event, quit) {
       if (allowed || systemEnding || bypass()) return false;
       event.preventDefault();

@@ -217,6 +217,32 @@ describe("a turn the CLI started by itself is not this turn", () => {
     expect(prose.every((o) => o.kind === "item.started" && o.item.taskId === undefined)).toBe(true);
   });
 
+  test("between turns, a sub-agent a background agent launches is reported as a live task before its parent ends", async () => {
+    let releaseNested: (() => void) | undefined;
+    const nested = new Promise<void>((resolve) => { releaseNested = resolve; });
+    const driver = createClaudeDriver(async () => ({
+      async *query({ prompt }: { prompt: AsyncIterable<{ uuid?: string }> }) {
+        const input = prompt[Symbol.asyncIterator]();
+        const first = await input.next();
+        yield { type: "system", subtype: "task_started", task_id: "m1", tool_use_id: "toolu_migrate", description: "Migrations", task_type: "local_agent", is_backgrounded: true };
+        yield* reply(first.value!.uuid!, "Four agents running.");
+        await nested;
+        yield { type: "system", subtype: "task_started", task_id: "n1", tool_use_id: "toolu_runtime", description: "Runtime check", task_type: "local_agent", is_backgrounded: true, parent_tool_use_id: "toolu_migrate" };
+        yield { type: "system", subtype: "task_updated", task_id: "m1", patch: { status: "completed" } };
+        await input.next();
+      },
+    }) as never);
+    const door = sessionDoor();
+    await expect(run(driver, { sessionId: "session_nested", session: door.hooks }).result).resolves.toMatchObject({ text: "Four agents running." });
+
+    releaseNested!();
+    await settle(() => door.tasks.some((o) => o.kind === "task.completed"));
+    expect(door.tasks.map((o) => o.kind === "task.started" || o.kind === "task.completed" ? [o.kind, o.task.id, o.task.state] : [o.kind])).toEqual([
+      ["task.started", "task_toolu_runtime", "running"],
+      ["task.completed", "task_toolu_migrate", "completed"],
+    ]);
+  });
+
   test("BETWEEN TURNS the idle pump hears a shell end and opens a PROVIDER TURN for the wake-up", async () => {
     let releaseWake: (() => void) | undefined;
     const woke = new Promise<void>((resolve) => { releaseWake = resolve; });

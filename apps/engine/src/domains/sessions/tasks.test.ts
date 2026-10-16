@@ -82,7 +82,7 @@ test("a close the level signal inferred yields to the notification that says the
   expect(store.queries.tasks("session_one").find((task) => task.id === "task_other")?.state).toBe("completed");
 });
 
-test("task reports between turns fold onto the rows they name, and open nothing", () => {
+test("task reports between turns fold onto the rows they name; only an unknown start opens one", () => {
   const { store } = readyStore();
   store.intake.submitTurn("session_one", { runId: "run_one", input: "Watch it" });
   const first = store.claims.claimNextTurn("worker_one")!;
@@ -97,14 +97,38 @@ test("task reports between turns fold onto the rows they name, and open nothing"
   // The shell ends while the session is idle: no claim, no turn.
   const accepted = store.ingest.reportSessionTasks("session_one", "worker_one", [
     { kind: "task.completed", task: { id: "task_toolu_bg", providerTaskId: "bg1", kind: "background", state: "completed", resultText: "green" } },
-    // A row nobody opened is not minted here.
-    { kind: "task.started", task: { id: "task_ghost", kind: "agent", state: "running" } },
+    { kind: "task.progress", task: { id: "task_ghost", kind: "agent", state: "running" } },
+    { kind: "task.completed", task: { id: "task_ghost", kind: "agent", state: "completed" } },
   ]);
   expect(accepted).toEqual({ accepted: 1 });
   expect(store.queries.tasks("session_one")).toHaveLength(1);
   expect(store.queries.tasks("session_one")[0]).toMatchObject({ id: "task_toolu_bg", state: "completed", resultText: "green", runId: "run_one" });
   expect(store.records.get("session_one").activity).toBe("idle");
   expect(store.queries.readEvents("session_one").at(-1)).toMatchObject({ type: "task.completed", runId: "run_one" });
+});
+
+test("a sub-agent a background agent launched keeps the session live after its parent ends, until it ends itself", () => {
+  const { store } = readyStore();
+  store.intake.submitTurn("session_one", { runId: "run_one", input: "Fan out" });
+  const first = store.claims.claimNextTurn("worker_one")!;
+  const token = first.turn.claim!.token;
+  store.turnLifecycle.markRunning("session_one", "run_one", token);
+  const parent = { id: "task_toolu_migrate", providerTaskId: "m1", kind: "agent" as const, backgrounded: true };
+  store.ingest.ingestObservations("session_one", "run_one", token, [{ kind: "task.started", task: { ...parent, state: "running", title: "Migrations" } }]);
+  store.turnLifecycle.completeTurn("session_one", "run_one", token, { text: "Waiting on the agents" });
+
+  const nested = { id: "task_toolu_runtime", providerTaskId: "n1", kind: "agent" as const };
+  store.ingest.reportSessionTasks("session_one", "worker_one", [
+    { kind: "task.started", task: { ...nested, state: "running", title: "Runtime check" } },
+    { kind: "task.completed", task: { ...parent, state: "completed", resultText: "launched the checks" } },
+  ]);
+  expect(store.queries.tasks("session_one").find((task) => task.id === nested.id)).toMatchObject({ state: "running", backgrounded: true, runId: "run_one" });
+  expect(store.sessionTasks.hasLiveBackground("session_one")).toBe(true);
+  expect(store.records.get("session_one").activity).toBe("monitoring");
+
+  store.ingest.reportSessionTasks("session_one", "worker_one", [{ kind: "task.completed", task: { ...nested, state: "completed", resultText: "frozen libraries" } }]);
+  expect(store.sessionTasks.hasLiveBackground("session_one")).toBe(false);
+  expect(store.records.get("session_one").activity).toBe("idle");
 });
 
 test("a claim carries the session's live task rows, and only those, as seeds", () => {

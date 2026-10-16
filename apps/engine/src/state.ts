@@ -377,6 +377,7 @@ export class EngineStore {
       prefixes: this.prefixes,
       readQueue: (id, runIds) => this.sessionQueues.read(id, runIds),
       writeQueue: (id, queue) => this.sessionQueues.write(id, queue),
+      recentTurns: (id) => this.sessionQueues.window(id, 20).turns,
       requireRunningClaimFromQueue: (queue, runId, token) => requireRunningClaimFromQueue(queue, runId, token),
       filesChanged: (id) => {
         const root = workspacePath(this.records.require(id).workspace);

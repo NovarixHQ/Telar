@@ -25,6 +25,7 @@ const tracked = new Set<Element>();
 let offset = { x: 0, y: 0 };
 let sent = "";
 let frame = 0;
+let candidate = "";
 let stopWatching: (() => void) | null = null;
 
 function publish(): void {
@@ -143,6 +144,7 @@ function open(bridge: OverlayBridge): HTMLElement | null {
   root.dataset.overlayLayer = "";
   shifter.append(root, originProbe(doc));
   doc.body.append(shifter);
+  cockpitViewport(child);
   shift();
   return root;
 }
@@ -155,6 +157,28 @@ function originProbe(doc: Document): HTMLElement {
   probe.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;visibility:hidden;pointer-events:none";
   Object.defineProperty(window, "frameElement", { configurable: true, get: () => (tracked.size > 0 && probe.isConnected ? probe : null) });
   return probe;
+}
+
+function cockpitViewport(child: Window): void {
+  const real = child.visualViewport;
+  if (!real) return;
+  const viewport = new Proxy(real, {
+    get(target, key) {
+      if (key === "width") return window.innerWidth;
+      if (key === "height") return window.innerHeight;
+      if (key === "offsetLeft") return -offset.x;
+      if (key === "offsetTop") return -offset.y;
+      const value: unknown = Reflect.get(target, key, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  Object.defineProperty(child, "visualViewport", { configurable: true, get: () => viewport });
+}
+
+function settled(doc: Document): boolean {
+  if (doc.fonts && doc.fonts.status !== "loaded") return false;
+  const view = doc.defaultView;
+  return [...tracked].every((element) => view?.getComputedStyle(element).opacity !== "0");
 }
 
 function union(elements: Iterable<Element>): Rect | null {
@@ -185,7 +209,9 @@ function measure(): void {
   if (!bridge || !root) return;
   const rect = overlayRect(union(tracked), offset, { width: window.innerWidth, height: window.innerHeight });
   const key = rect ? `${rect.x},${rect.y},${rect.width},${rect.height}@${window.innerWidth}x${window.innerHeight}` : "";
-  if (key !== sent) {
+  const waiting = sent === "" && rect !== null && (key !== candidate || !settled(root.ownerDocument));
+  candidate = key;
+  if (key !== sent && !waiting) {
     sent = key;
     offset = rect ? { x: rect.x, y: rect.y } : { x: 0, y: 0 };
     shift();

@@ -141,6 +141,23 @@ test("the project-activity aggregate answers, and the arm beside it still does",
   await submitTurnStillWorks(client, "run_after_activity");
 });
 
+test("the working count is the sessions a quit would interrupt, and the arm beside it still answers", async () => {
+  const { daemon, client } = await ready();
+  const working = async () => {
+    const { host, port, token } = daemon.discovery;
+    const response = await fetch(`http://${host}:${port}/v2/sessions/working`, { headers: { authorization: `Bearer ${token}` } });
+    return ((await response.json()) as { count: number }).count;
+  };
+
+  expect(await working()).toBe(0);
+  await client.submitTurn("session_one", { runId: "run_queued", input: "Hello" });
+  expect(await working()).toBe(1);
+  await client.stopTurn("session_one", "run_queued");
+  expect(await working()).toBe(0);
+
+  await submitTurnStillWorks(client, "run_after_working");
+});
+
 test("every migrated door is reachable in ONE session, in sequence", async () => {
   // The combined case: if any arm shadows or consumes another, the sequence
   // breaks even though each suite passes alone.

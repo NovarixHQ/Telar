@@ -52,3 +52,26 @@ test("while the continuation is still answering, the marker sits above what it w
   expect(html.indexOf("continued after Telar restarted to update")).toBeGreaterThan(-1);
   expect(html.indexOf("continued after Telar restarted to update")).toBeLessThan(html.indexOf("Picking up where I left off"));
 });
+
+test("a continuation after a quit says Telar reopened", () => {
+  const html = renderToStaticMarkup(
+    createElement(SessionTurn, {
+      turn: {
+        runId: "run_1",
+        origin: "restart",
+        restartOrigin: { reason: "quit", plannedAt: 1_800_000_000_000, interruptedRunId: "run_0" },
+        prompt: "Telar was quit in the middle of your last turn and has opened again.",
+        state: "queued",
+        resultText: "",
+        items: [],
+        tasks: [],
+      },
+      requests: [],
+      sending: false,
+      live: false,
+      onDecide: () => {},
+    }),
+  );
+  expect(html).toContain("continued after Telar reopened");
+  expect(html).not.toContain("restarted to update");
+});

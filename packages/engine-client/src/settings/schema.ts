@@ -31,6 +31,7 @@ export type DelegationMode = z.infer<typeof DelegationMode>;
 export const SessionDefaults = z.object({
   envMode: EnvMode,
   resumeAfterRestart: z.boolean().optional(),
+  askBeforeQuit: z.boolean().optional(),
   whileWorking: WhileWorking.optional(),
   /** Absent keeps the posture's own default; a creator's ceiling still narrows it. */
   runtimeMode: RuntimeMode.optional(),
@@ -43,6 +44,7 @@ export type SessionDefaults = z.infer<typeof SessionDefaults>;
 export type SessionDefaultsPatch = {
   envMode?: EnvMode;
   resumeAfterRestart?: boolean;
+  askBeforeQuit?: boolean;
   whileWorking?: WhileWorking;
   runtimeMode?: RuntimeMode | null;
   defaultModel?: ModelSelection | null;

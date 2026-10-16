@@ -16,12 +16,16 @@ import {
 } from "../sessions";
 import type { TurnSubmission } from "./intake";
 
-// Covers a slow update install and relaunch; an older marker describes some earlier restart nobody remembers.
+// An update relaunches within minutes; a quit is reopened whenever the person likes.
 const PLANNED_RESTART_WINDOW_MS = 10 * 60_000;
 
-/** The engine's words to the model on the turn that continues after an update restart. */
-const PLANNED_RESTART_CONTINUATION =
-  "Telar restarted to install an update in the middle of your last turn. Check the current state before redoing anything that may already have happened, then continue.";
+type PlannedRestartReason = NonNullable<Turn["restartOrigin"]>["reason"];
+
+/** The engine's words to the model on the turn that continues after a planned restart. */
+const PLANNED_RESTART_CONTINUATION: Record<PlannedRestartReason, string> = {
+  update: "Telar restarted to install an update in the middle of your last turn. Check the current state before redoing anything that may already have happened, then continue.",
+  quit: "Telar was quit in the middle of your last turn and has opened again. Check the current state before redoing anything that may already have happened, then continue.",
+};
 
 // Ended by a worker going away, as a quit ends it; `engine_restart` is excluded because a boot also stamps it on backlog that never ran.
 function endedByShutdown(turn: Turn): boolean {
@@ -58,7 +62,7 @@ export class TurnRecovery {
   ) {}
 
   /**
-   * Boot: every live turn is stopped except a notice from another session. A planned update restart may continue what it
+   * Boot: every live turn is stopped except a notice from another session. A planned restart may continue what it
    * cut off, once per session; what nothing continues is reported to its waiters, and mail held for a stopped turn is delivered.
    */
   recover(): { stopped: string[] } {
@@ -253,7 +257,7 @@ export class TurnRecovery {
   }
 
   /**
-   * Continues what a planned update restart cut off and returns those sessions. The shell's fresh marker is the whole permission
+   * Continues what a planned update restart or a normal quit cut off and returns those sessions. The shell's fresh marker is the whole permission
    * (a crash writes none), it is deleted on every path, and the run id derives from it so a second boot cannot open a second turn.
    */
   private resumeAfterPlannedRestart(cutOff: Map<string, string[]>): string[] {
@@ -268,15 +272,12 @@ export class TurnRecovery {
         return resumed;
       }
       const now = this.kernel.now();
-      if (
-        typeof marker !== "object" || marker === null ||
-        (marker as { version?: unknown }).version !== 1 ||
-        (marker as { reason?: unknown }).reason !== "update"
-      ) return resumed;
+      if (typeof marker !== "object" || marker === null || (marker as { version?: unknown }).version !== 1) return resumed;
+      const reason = (marker as { reason?: unknown }).reason;
+      if (reason !== "update" && reason !== "quit") return resumed;
       const plannedAt = (marker as { at?: unknown }).at;
-      if (typeof plannedAt !== "number" || !Number.isFinite(plannedAt) || plannedAt > now || now - plannedAt > PLANNED_RESTART_WINDOW_MS) {
-        return resumed;
-      }
+      if (typeof plannedAt !== "number" || !Number.isFinite(plannedAt) || plannedAt > now) return resumed;
+      if (reason === "update" && now - plannedAt > PLANNED_RESTART_WINDOW_MS) return resumed;
       if (this.deps.getSessionDefaults().resumeAfterRestart !== true) return resumed;
 
       // A turn is cut off three ways: stopped by this boot, failed `interrupted`, or stopped `worker_unavailable` on a clean quit.
@@ -300,9 +301,9 @@ export class TurnRecovery {
           if (!last || last.stopReason === "user" || last.stopReason === "agent") continue;
           this.deps.submitTurn(sessionId, {
             runId: `run_restart_${plannedAt}_${sessionId}`.slice(0, 200),
-            input: PLANNED_RESTART_CONTINUATION,
+            input: PLANNED_RESTART_CONTINUATION[reason],
             origin: "restart",
-            restartOrigin: { reason: "update", plannedAt, interruptedRunId: last.runId },
+            restartOrigin: { reason, plannedAt, interruptedRunId: last.runId },
             // The same model and effort the cut-off turn was running on.
             ...(last.model ? { model: (({ instanceId: _instanceId, ...selection }) => selection)(last.model) } : {}),
           });
@@ -311,7 +312,7 @@ export class TurnRecovery {
           console.warn(`[engine] could not continue ${sessionId} after the restart:`, error);
         }
       }
-      if (resumed.length > 0) console.log(`[engine] continued ${resumed.length} session${resumed.length === 1 ? "" : "s"} cut off by the update restart.`);
+      if (resumed.length > 0) console.log(`[engine] continued ${resumed.length} session${resumed.length === 1 ? "" : "s"} cut off by the ${reason === "update" ? "update restart" : "quit"}.`);
       return resumed;
     } finally {
       fs.rmSync(file, { force: true });

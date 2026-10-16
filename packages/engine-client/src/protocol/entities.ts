@@ -426,8 +426,8 @@ export const Turn = z.object({
   scheduleOrigin: z.object({ scheduleId: Id, dueAt: Timestamp }).optional(),
   restartOrigin: z
     .object({
-      /** Why Telar restarted. Only `update` resumes today; a crash never does. */
-      reason: z.enum(["update"]),
+      /** Why Telar restarted: to install an update, or the person quit it. A crash never resumes. */
+      reason: z.enum(["update", "quit"]),
       plannedAt: Timestamp,
       /** The turn the restart cut off, which this one continues. */
       interruptedRunId: Id,

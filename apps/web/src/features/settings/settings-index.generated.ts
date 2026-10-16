@@ -8,7 +8,8 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
       {"title":"Access level","keywords":["permissions","supervised","auto","full access","approval","runtime mode","prompts"]},
       {"title":"Workspace","keywords":["worktree","branch","git","isolation"]},
       {"title":"While an agent is working","keywords":["queue","steer","follow-up","busy","running","interrupt","send"]},
-      {"title":"Continue after Telar restarts","hint":"When Telar restarts to update, the sessions it stopped pick up where they left off.","keywords":["resume","restart","update","continue","interrupted"]},
+      {"title":"Continue after Telar restarts","hint":"When Telar restarts to update or you quit it mid-turn, the sessions it stopped pick up where they left off.","keywords":["resume","restart","update","quit","continue","interrupted"]},
+      {"title":"Ask before quitting while sessions work","hint":"Quitting the desktop app while an agent is working asks first.","keywords":["quit","close","confirm","working","interrupt"]},
     ] },
     { "title":"Rail", rows: [
       {"title":"Group sessions by project","hint":"Off, the rail is one list, newest first, with spawned sessions under the one that started them.","keywords":["group by","flat","none","list","sidebar","order","newest"]},

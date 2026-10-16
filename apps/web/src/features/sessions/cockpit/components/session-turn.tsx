@@ -255,7 +255,7 @@ function SessionTurnBody({
       {answerLane && (
       <Message from="assistant">
         <MessageContent from="assistant">
-          {turn.restartOrigin !== undefined && <Marker>continued after Telar restarted to update</Marker>}
+          {turn.restartOrigin !== undefined && <Marker>{turn.restartOrigin.reason === "quit" ? "continued after Telar reopened" : "continued after Telar restarted to update"}</Marker>}
           {requests.map((request) => (
             <ApprovalCard key={request.id} request={request} sending={sending} onDecide={onDecide} />
           ))}

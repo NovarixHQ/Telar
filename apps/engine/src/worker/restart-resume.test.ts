@@ -147,6 +147,32 @@ test("with the setting off nothing is continued, and the marker is still consume
   expect(fs.existsSync(store.paths.plannedRestart)).toBe(false);
 });
 
+test("a quit with the setting on continues the interrupted session whenever Telar opens again", () => {
+  const { store } = home();
+  store.settings.setSessionDefaults({ resumeAfterRestart: true });
+  runningTurn(store, "session_one", "run_one");
+  const quitAt = NOW - 2 * 60 * 60_000;
+  writeMarker(store, { version: 1, reason: "quit", at: quitAt });
+
+  store.recovery.recover();
+  const resumed = continuations(store, "session_one");
+  expect(resumed).toHaveLength(1);
+  expect(resumed[0]).toMatchObject({
+    restartOrigin: { reason: "quit", plannedAt: quitAt, interruptedRunId: "run_one" },
+    input: expect.stringContaining("Telar was quit in the middle of your last turn"),
+  });
+  expect(fs.existsSync(store.paths.plannedRestart)).toBe(false);
+});
+
+test("a quit with the setting off continues nothing and still clears the marker", () => {
+  const { store } = home();
+  runningTurn(store, "session_one", "run_one");
+  writeMarker(store, { version: 1, reason: "quit", at: NOW - 60_000 });
+  store.recovery.recover();
+  expect(continuations(store, "session_one")).toHaveLength(0);
+  expect(fs.existsSync(store.paths.plannedRestart)).toBe(false);
+});
+
 test("a crash leaves no marker, so nothing is continued", () => {
   const { store } = home();
   store.settings.setSessionDefaults({ resumeAfterRestart: true });
@@ -162,6 +188,7 @@ test("a stale or malformed marker continues nothing and is deleted", () => {
     { version: 2, reason: "update", at: NOW },
     { version: 1, reason: "crash", at: NOW },
     { version: 1, reason: "update", at: NOW + 60_000 },
+    { version: 1, reason: "quit", at: NOW + 60_000 },
     "not an object",
   ]) {
     const { store } = home();

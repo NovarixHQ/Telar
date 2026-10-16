@@ -39,10 +39,10 @@ export function ContinueAfterRestartRow() {
 
   return (
     <Row
-      keywords={["resume", "restart", "update", "continue", "interrupted"]}
+      keywords={["resume", "restart", "update", "quit", "continue", "interrupted"]}
       label="Continue after Telar restarts"
-      hint="When Telar restarts to update, the sessions it stopped pick up where they left off."
-      info="Only a restart to install an update counts; a crash never resumes anything. Each stopped session gets one message saying Telar restarted, marked as automatic. Terminals and runs are not restarted, and a session you stopped or settled is left alone."
+      hint="When Telar restarts to update or you quit it mid-turn, the sessions it stopped pick up where they left off."
+      info="A crash never resumes anything. Each stopped session gets one message saying Telar restarted, marked as automatic. Terminals and runs are not restarted, and a session you stopped or settled is left alone."
       {...(error ? { error } : {})}
       {...(restarts ? { onRevert: () => void save({ resumeAfterRestart: false }) } : {})}
       control={
@@ -50,6 +50,31 @@ export function ContinueAfterRestartRow() {
           aria-label="Continue after Telar restarts"
           checked={restarts}
           onCheckedChange={(resumeAfterRestart) => void save({ resumeAfterRestart })}
+          disabled={loading}
+        />
+      }
+    />
+  );
+}
+
+export function AskBeforeQuitRow() {
+  const { defaults, loading, save, error } = useSessionDefaults();
+  useRestoreDefaults(() => save({ askBeforeQuit: true }));
+  const asks = defaults.askBeforeQuit !== false;
+
+  return (
+    <Row
+      keywords={["quit", "close", "confirm", "working", "interrupt"]}
+      label="Ask before quitting while sessions work"
+      hint="Quitting the desktop app while an agent is working asks first."
+      info="Restarting to update, logging out and shutting down never ask."
+      {...(error ? { error } : {})}
+      {...(asks ? {} : { onRevert: () => void save({ askBeforeQuit: true }) })}
+      control={
+        <Switch
+          aria-label="Ask before quitting while sessions work"
+          checked={asks}
+          onCheckedChange={(askBeforeQuit) => void save({ askBeforeQuit })}
           disabled={loading}
         />
       }

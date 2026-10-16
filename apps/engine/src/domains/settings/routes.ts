@@ -41,7 +41,7 @@ export function settingsRoutes(
       path: "/v2/session-defaults",
       auth: "engine",
       async handle({ body }) {
-        const sessionDefaults = store.settings.setSessionDefaults(present(body, ["envMode", "resumeAfterRestart", "whileWorking", "runtimeMode", "defaultModel", "delegationMode"]));
+        const sessionDefaults = store.settings.setSessionDefaults(present(body, ["envMode", "resumeAfterRestart", "askBeforeQuit", "whileWorking", "runtimeMode", "defaultModel", "delegationMode"]));
         if ("delegationMode" in body) await syncOrientationSkill(store.settings.orientation());
         return ok({ sessionDefaults });
       },

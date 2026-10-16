@@ -13,9 +13,8 @@ import {
   type TurnModelSelection,
 } from "@telar/engine-client";
 import { EngineStateError } from "../../platform/kernel";
-import { claudeSlugOf, claudeTierOf, claudeWindowTokensOf } from "./manifest";
-
-const tierOf = (driver: ProviderDriverKind, id: string): number | undefined => (driver === "claude" ? claudeTierOf(id) : undefined);
+import { claudeSlugOf, claudeWindowTokensOf } from "./manifest";
+import { tierOf } from "./tiers";
 
 /** Current rows, plus a legacy row cheaper than every current one, so the cheapest tier stays on offer. */
 export function offeredRows(driver: ProviderDriverKind, rows: readonly ProviderModel[]): ProviderModel[] {

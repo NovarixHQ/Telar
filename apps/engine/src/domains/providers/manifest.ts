@@ -29,6 +29,7 @@ export type ModelManifest = {
     profiles: Record<string, ManifestProfile>;
     models: ManifestModel[];
   };
+  codex?: { models: { slug: string; tier: number }[] };
 };
 
 export const BUNDLED_MANIFEST: ModelManifest = bundled as ModelManifest;
@@ -59,6 +60,11 @@ export function claudeProfileOf(id: string, manifest: ModelManifest = BUNDLED_MA
 
 export function claudeTierOf(id: string, manifest: ModelManifest = BUNDLED_MANIFEST): number | undefined {
   return modelOf(id, manifest)?.tier;
+}
+
+export function codexTierOf(id: string, manifest: ModelManifest = BUNDLED_MANIFEST): number | undefined {
+  const slug = id.replace(/\[.*$/, "").toLowerCase();
+  return manifest.codex?.models.find((model) => model.slug === slug)?.tier;
 }
 
 const WINDOW_TOKENS: Record<ContextWindow, number> = { "200k": 200_000, "1m": 1_000_000 };

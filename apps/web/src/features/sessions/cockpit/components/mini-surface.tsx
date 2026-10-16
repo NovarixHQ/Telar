@@ -81,7 +81,6 @@ function useMorph(onClosed: () => void) {
   return { card, backdrop, close };
 }
 
-/** The session's composer over the full panel, with its last exchange above it and the page dimmed behind. */
 export function MiniSurface({ composer, exchange, dictate, onClosed }: { composer: ComposerProps; exchange: ReactNode; dictate: boolean; onClosed: () => void }) {
   const layer = useOverlayLayer();
   const box = useRef<HTMLDivElement>(null);

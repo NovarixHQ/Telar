@@ -28,7 +28,6 @@ function MiniExchange({ model, sending, onDecide }: { model: ReturnType<typeof u
   );
 }
 
-/** The session's composer, or while the panel fills the window, the one that floats over it. */
 export function SessionComposer({ composer, model, sending, onDecide }: { composer: ComposerProps; model: ReturnType<typeof useTranscriptModel>; sending: boolean; onDecide: Decide }) {
   const fullscreen = usePanelFullscreen();
   if (!fullscreen) return <Composer {...composer} />;

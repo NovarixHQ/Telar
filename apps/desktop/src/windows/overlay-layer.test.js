@@ -1,4 +1,4 @@
-const { describe, expect, test } = require("bun:test");
+const { afterAll, describe, expect, mock, test } = require("bun:test");
 const { EventEmitter } = require("node:events");
 const { electron, FakeBrowserWindow } = require("../../test/fake-electron");
 
@@ -26,6 +26,8 @@ const win = Object.assign(new EventEmitter(), {
   isFocused: () => true,
 });
 
+mock.module("electron", () => electron);
+const ownView = !electron.WebContentsView;
 electron.WebContentsView ??= class {
   constructor({ webContents }) { this.webContents = webContents; }
   setBackgroundColor() {}
@@ -35,6 +37,11 @@ electron.WebContentsView ??= class {
 const setRect = (rect) => electron.ipcMain.send("telar:overlay:set-rect", { sender: cockpit }, rect);
 
 const { adoptOverlay, registerOverlayIpc } = require("./overlay-layer");
+
+afterAll(() => {
+  FakeBrowserWindow.all = FakeBrowserWindow.all.filter((candidate) => candidate !== win);
+  if (ownView) delete electron.WebContentsView;
+});
 
 describe("an open overlay closes when the keys leave it", () => {
   test("the cockpit taking the keys without a click still closes it", async () => {

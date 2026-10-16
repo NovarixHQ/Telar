@@ -37,17 +37,24 @@ test("a run that FAILS after a held report still wakes the host, carrying the re
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
 });
 
-test("a completion that said nothing — the background-claim turn — is recorded, not woken on", () => {
+test("a background-claim turn reaches no subscriber or parent, even one that asked for every completion", () => {
+  const { store } = setup();
+  store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", completionWake: "always", once: false });
+  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "plan it" });
+  for (const end of ["complete", "fail"] as const) {
+    const claim = store.claims.openProviderTurn("session_a", { workerId: "worker_child", input: "", reason: { kind: "background_task" } });
+    if (end === "complete") store.turnLifecycle.completeTurn("session_a", claim.runId, claim.claim!.token, { text: "Decided a tool call for background work still running after its turn ended." });
+    else store.turnLifecycle.failTurn("session_a", claim.runId, claim.claim!.token, { code: "interrupted", message: "cut" });
+  }
+
+  expect(notifications(store)).toHaveLength(0);
+  expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
+  expect(store.children.childrenOf("session_host")[0]!.state).toBe("working");
+});
+
+test("a completion that said nothing is recorded, not woken on", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a" });
-  // The turn the driver opens to decide a tool call for background work.
-  const claim = store.claims.openProviderTurn("session_a", { workerId: "worker_child", input: "", reason: { kind: "background_task", taskId: "task_toolu_bg" } });
-  store.turnLifecycle.completeTurn("session_a", claim.runId, claim.claim!.token, { text: "Decided a tool call for background work still running after its turn ended." });
-
-  expect(notifications(store).filter((turn) => turn.state === "queued")).toHaveLength(0);
-  expect(recordOf(store, claim.runId)).toBeDefined();
-
-  // Any other turn that journalled no text and sent nothing is the same.
   store.intake.submitTurn("session_a", { runId: "run_quiet", input: "work" });
   const token = store.claims.claimTurn("session_a", "worker_child")!.claim!.token;
   store.turnLifecycle.markRunning("session_a", "run_quiet", token);

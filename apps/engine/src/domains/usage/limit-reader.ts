@@ -33,7 +33,6 @@ export class UsageLimitReader {
     this.snapshot = undefined;
   }
 
-  /** The fullest account-wide window of a driver past 80%, from the last read; never waits on a hub. */
   nearLimit(driver: ProviderDriverKind): { label: string; usedPercent: number } | undefined {
     this.revalidate();
     const windows = (this.snapshot?.sources ?? [])

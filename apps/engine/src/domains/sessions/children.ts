@@ -15,6 +15,9 @@ const ENDED_TURN_STATES: ReadonlySet<Turn["state"]> = new Set(["completed", "fai
 
 const pending = (child: StoredChild): boolean => child.state === "working" || child.state === "waiting";
 const lineOf = (text: string): string | undefined => firstLine(text, SUMMARY_CHARS) || undefined;
+const isIdleNudge = (turn: Turn): boolean => turn.origin === "session" && turn.wakeReason?.sessionId === turn.sessionId;
+
+const LEFT_IDLE = "ended without a result and nothing is running there, so it will not continue on its own.";
 
 /** Stopped by a boot or a lost worker, or failed as `interrupted`: Telar cut it off, so it is not the child's ending. */
 function cutOffByTelar(turn: Turn): boolean {
@@ -31,6 +34,7 @@ type ChildrenHost = {
   waitsOnSubscription(sessionId: string): boolean;
   hasBackgroundWork(sessionId: string): boolean;
   announce(parentSessionId: string, notification: NotificationDetail): void;
+  nudge(sessionId: string, endedRunId: string): boolean;
 };
 
 /** One record per session a session tasked: its state, and how it ended, told to the parent once. */
@@ -101,7 +105,7 @@ export class SessionChildren {
 
   /**
    * A child's turn ended. Only on a parent's errand does it end the child: a failure or a stop does, and a completion
-   * after which Telar will not run it again. Telar's cut-offs and wakes off the errand never do.
+   * after which Telar will not run it again, once nudged. Telar's cut-offs and stray wakes never do.
    */
   turnEnded(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): void {
     if (!TERMINAL_WAKE_KINDS.includes(kind)) return;
@@ -112,6 +116,7 @@ export class SessionChildren {
     const woken = turn.origin === "session" && turn.wakeReason !== undefined;
     const fetch = { sessionId, runId: turn.runId };
     let again: boolean | undefined;
+    let nudged: boolean | undefined;
     for (const child of out) {
       if (kind === "turn_completed" && child.state === "waiting") continue;
       const errand = turns.some((each) => each.agentDelivery !== "passive" && each.sender?.sessionId === child.parentSessionId);
@@ -121,8 +126,9 @@ export class SessionChildren {
       } else if (kind === "turn_stopped") {
         this.end(child.parentSessionId, sessionId, "stopped", { summary: turn.stopReason === "engine_restart" ? "cut off when the engine restarted" : "stopped", fetch });
       } else if (!(again ??= this.runsAgain(sessionId, turn.runId, turns))) {
+        if ((nudged ??= !isIdleNudge(turn) && this.host.nudge(sessionId, turn.runId))) continue;
         const said = lineOf(context.resultText ?? "");
-        this.end(child.parentSessionId, sessionId, "done", { summary: firstLine(`finished without a result${said ? `: ${said}` : ""}`, SUMMARY_CHARS), fetch });
+        this.end(child.parentSessionId, sessionId, "done", { summary: firstLine(`${LEFT_IDLE}${said ? ` It last said: ${said}` : ""}`, SUMMARY_CHARS), fetch });
       }
     }
   }

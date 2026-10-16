@@ -127,6 +127,9 @@ test("a result from a builder whose record already ended still wakes its orchest
   const child = store.claims.claimTurn("session_a", "worker_child")!;
   store.turnLifecycle.markRunning("session_a", child.runId, child.claim!.token);
   store.turnLifecycle.completeTurn("session_a", child.runId, child.claim!.token, { text: "rebasing, back soon" });
+  const nudged = store.claims.claimTurn("session_a", "worker_child")!;
+  store.turnLifecycle.markRunning("session_a", nudged.runId, nudged.claim!.token);
+  store.turnLifecycle.completeTurn("session_a", nudged.runId, nudged.claim!.token, { text: "still rebasing" });
   store.turnLifecycle.completeTurn("session_host", first.runId, first.token, { text: "ok" });
   expect(store.children.childrenOf("session_host").map((each) => each.state)).toEqual(["done"]);
   const wake = store.claims.claimTurn("session_host", "worker_host")!;

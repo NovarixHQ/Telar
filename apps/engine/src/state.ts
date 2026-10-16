@@ -520,6 +520,7 @@ export class EngineStore {
       waitsOnSubscription: (sessionId) => this.subscriptions.subscriptionsOf(sessionId).some((each) => each.once === true),
       hasBackgroundWork: (sessionId) => this.sessionTasks.hasLiveBackground(sessionId),
       announce: (parentId, notification) => this.wakes.announceChildEnding(parentId, notification),
+      nudge: (sessionId, endedRunId) => this.wakes.nudgeIdle(sessionId, endedRunId),
     });
   }
 

@@ -78,6 +78,11 @@ function clampWake(text: string): string {
 
 const MAX_WAKE_LINE_CHARS = 240;
 
+const IDLE_NUDGE = [
+  "[wake: nothing running] Your turn ended without a result, but nothing is running in this session: no turn, background task or agent. Nothing will wake you again.",
+  "If you were waiting on something, it is not coming. Finish now with what you have, redo the missing part yourself, or send a blocker with sessions_send.",
+].join("\n");
+
 const RESULT_DELIVERED_STATES: ReadonlySet<Turn["state"]> = new Set(["claimed", "running", "steering", "steered", "completed"]);
 
 type WakeDeps = {
@@ -440,6 +445,26 @@ export class TurnWakes {
     if (parent.state !== "active") return;
     this.deps.mailbox.hold(parentId, notification);
     this.flushPendingNotifications(parentId);
+  }
+
+  nudgeIdle(sessionId: string, endedRunId: string): boolean {
+    const notification: NotificationDetail = {
+      ...wakeNotification({ wakeKind: "turn_completed", targetSessionId: sessionId, runId: endedRunId, body: IDLE_NUDGE }),
+      deliveries: 1,
+    };
+    try {
+      this.deps.submitTurn(sessionId, {
+        runId: `run_${crypto.randomUUID().replaceAll("-", "")}`,
+        input: notificationLabel(notification),
+        origin: "session",
+        wakeReason: { kind: "turn_completed", sessionId, runId: endedRunId },
+        notification,
+      });
+      return true;
+    } catch (error) {
+      if (error instanceof EngineStateError && error.code === "conflict") return false;
+      throw error;
+    }
   }
 
   /** What the cap kept from being pushed again, for `sessions_read` view "status". */

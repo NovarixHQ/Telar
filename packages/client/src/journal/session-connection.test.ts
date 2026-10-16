@@ -1,9 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import type { EngineEvent, SessionBootstrap, SessionDelta, SessionSnapshot, Turn } from "@telar/engine-client";
 import { envelope, item, turn } from "./fixtures";
 import { projectJournal } from "./journal";
 import { itemText } from "./journal-items";
-import { clearConnections, HEAD_MEMORY_BYTES, heldConnections, HEADS_IN_MEMORY, SessionConnection, sessionConnection } from "./session-connection";
+import { clearConnections, HEAD_MEMORY_BYTES, heldConnections, HEADS_IN_MEMORY, READ_DEADLINE_MS, SessionConnection, sessionConnection } from "./session-connection";
 import { hydrateSession, type HydratedSession, type SessionSyncApi } from "./session-sync";
 const initial = { session: { id: "session_1" }, turns: [], items: [], tasks: [], requests: [], cursor: 3 } as unknown as SessionSnapshot;
 test("surface reads share one hydration and an outage retains projection and cursor atomically", async () => {
@@ -180,4 +180,34 @@ describe("heads held in memory", () => {
     sessionConnection("local", api, "huge").seed(head(HEAD_MEMORY_BYTES * 2), 1);
     expect(heldConnections()).toEqual([JSON.stringify(["local", "huge", null])]);
   });
+});
+
+test("an opening the host never answers is dropped at the deadline, and the next one asks again", async () => {
+  jest.useFakeTimers();
+  try {
+    const answers: ((snapshot: SessionBootstrap) => void)[] = [];
+    const api = {
+      session: async () => initial,
+      events: async () => ({ events: [] as EngineEvent[] }),
+      sessionBootstrap: () => new Promise<SessionBootstrap>((resolve) => answers.push(resolve)),
+    };
+    const connection = new SessionConnection(api, "session_1");
+    const first = connection.open();
+    expect(connection.open()).toBe(first);
+    expect(answers).toHaveLength(1);
+
+    jest.advanceTimersByTime(READ_DEADLINE_MS);
+    await expect(first).rejects.toThrow("did not answer");
+
+    const second = connection.open();
+    expect(answers).toHaveLength(2);
+    answers[1]!({ ...initial, cursor: 9, events: [], subscriptions: [] });
+    expect((await second).cursor).toBe(9);
+
+    answers[0]!({ ...initial, cursor: 4, events: [], subscriptions: [] });
+    await Promise.resolve();
+    expect(connection.peek()?.cursor).toBe(9);
+  } finally {
+    jest.useRealTimers();
+  }
 });

@@ -108,7 +108,9 @@ async function main() {
       if (trigger === "pick") {
         const sized = await view.webContents.executeJavaScript(`[innerWidth, innerHeight]`);
         note(`pick: the overlay lays out at ${sized.join("×")}, the cockpit at ${win.getContentSize().join("×")}`);
-        assert(h === 480 && w === 320, `pick: a picker sized by the viewport (min(20rem, 100vw - 2rem) × min(30rem, 70vh)) is ${w}×${h} over the browser, not 320×480`);
+        const [cw, ch] = await cockpit.executeJavaScript("[innerWidth, innerHeight]");
+        const want = [Math.min(320, cw - 32), Math.round(Math.min(480, ch * 0.7))];
+        assert(Math.abs(w - want[0]) <= 1 && Math.abs(h - want[1]) <= 1, `pick: a picker sized by the viewport (min(20rem, 100vw - 2rem) × min(30rem, 70vh)) is ${w}×${h} over the browser, not ${want.join("×")} as in the cockpit`);
       } else {
         await view.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).style.minHeight = "${h + 60}px"`);
       const grown = await until(() => sampleShownMenuOnWindow(win, view, selector, 80), (rects) => rects.at(-1)?.endsWith(`,${h + 60}`), `${trigger}: the menu grew in place`).catch((error) => error.message);

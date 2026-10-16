@@ -200,7 +200,8 @@ export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
 }
 
 function changedInstructions(delivered: string | undefined, current: string | undefined): string[] {
-  if (delivered === undefined || delivered === (current ?? "")) return [];
+  if (delivered === undefined) return current ? [current] : [];
+  if (delivered === (current ?? "")) return [];
   return [current || "The person's earlier instructions for agents no longer apply."];
 }
 

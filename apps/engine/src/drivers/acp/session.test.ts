@@ -176,6 +176,16 @@ test("after a restart the agent reloads its session: no replayed rows, no warnin
   expect(JSON.stringify(sent().find((message) => message.method === "session/prompt")?.params?.prompt)).not.toContain("You run inside Telar.");
 });
 
+test("after a restart the reloaded session gets the person's instructions again, once", async () => {
+  const { turn, sent } = setup();
+  await turn("plain", { providerSessionId: "fake-acp-session", orientation: "You run inside Telar.", instructions: "Answer in Spanish." }).result;
+  await turn("plain", { providerSessionId: "fake-acp-session", orientation: "You run inside Telar.", instructions: "Answer in Spanish." }).result;
+  const prompts = sent().filter((message) => message.method === "session/prompt").map((message) => JSON.stringify(message.params?.prompt));
+  expect(prompts[0]).toContain("Answer in Spanish.");
+  expect(prompts[0]).not.toContain("You run inside Telar.");
+  expect(prompts[1]).not.toContain("Answer in Spanish.");
+});
+
 test("an agent that dies mid-turn fails the turn with what it said", async () => {
   const { turn } = setup();
   await expect(turn("crash").result).rejects.toThrow("the agent exited");

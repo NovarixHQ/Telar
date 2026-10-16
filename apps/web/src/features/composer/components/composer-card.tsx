@@ -143,7 +143,7 @@ export function ComposerCard({
       <ComposerChromeMenu {...chrome}>
         <InputGroup
           {...drop.handlers}
-          className={cn("rounded-2xl border-border/80 bg-card/95 shadow-2 backdrop-blur-xl", dropping && "relative border-ring ring-2 ring-ring/40", compact && "h-auto")}
+          className={cn("rounded-2xl border-border/80 bg-card/95 shadow-2 backdrop-blur-xl", dropping && "relative border-ring ring-2 ring-ring/40", (compact || inline) && "h-auto")}
         >
           {dropping && (
             <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-3.5 z-10 flex justify-center">

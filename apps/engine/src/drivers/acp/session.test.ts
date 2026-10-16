@@ -77,6 +77,19 @@ test("the next turn reuses the agent and its session, and the briefings are sent
   expect(prompts[1]).not.toContain("You run inside Telar.");
 });
 
+test("the person's instructions reach the agent first, and again only when they change", async () => {
+  const { turn, sent } = setup();
+  await turn("plain", { instructions: "Answer in Spanish." }).result;
+  await turn("plain", { instructions: "Answer in Spanish." }).result;
+  await turn("plain", { instructions: "Answer in French." }).result;
+  await turn("plain").result;
+  const prompts = sent().filter((message) => message.method === "session/prompt").map((message) => JSON.stringify(message.params?.prompt));
+  expect(prompts[0]).toContain("Answer in Spanish.");
+  expect(prompts[1]).not.toContain("Answer in");
+  expect(prompts[2]).toContain("Answer in French.");
+  expect(prompts[3]).toContain("no longer apply");
+});
+
 test("a permission becomes a Telar request, and the answer picks the agent's own option", async () => {
   const asked: DriverRequest[] = [];
   const gate = async (request: DriverRequest): Promise<RequestDecision> => {

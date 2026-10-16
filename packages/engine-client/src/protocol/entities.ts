@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { ItemDetail } from "./items";
 import { parseToolName } from "./tools";
 import {
+  AgentInstructions,
   EnvMode,
   EnvironmentId,
   Id,
@@ -39,6 +40,7 @@ export const Project = z.object({
   iconEmoji: z.string().min(1).max(16).optional(),
   defaultModel: ModelSelection.optional(),
   envMode: EnvMode.optional(),
+  instructions: AgentInstructions.optional(),
   remoteUrl: z.string().min(1).optional(),
   removedAt: Timestamp.optional(),
   volume: z

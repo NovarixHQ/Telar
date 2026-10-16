@@ -1,5 +1,7 @@
 import {
   isBuiltInDriver,
+  AgentInstructions,
+  MAX_AGENT_INSTRUCTIONS,
   AgentOrientation as AgentOrientationSchema,
   DEFAULT_AGENT_ORIENTATION,
   DEFAULT_INBOX_POLICY,
@@ -87,10 +89,16 @@ export class SettingsStore {
     }
   }
 
-  setOrientation(patch: { preamble?: unknown; skill?: unknown }): AgentOrientation {
+  setOrientation(patch: { preamble?: unknown; skill?: unknown; instructions?: unknown }): AgentOrientation {
     const next: AgentOrientation = { ...this.orientation() };
     for (const key of ["preamble", "skill"] as const) {
       if (patch[key] !== undefined) next[key] = boolean(patch[key], `${key} must be true or false`);
+    }
+    if (patch.instructions !== undefined) {
+      const text = AgentInstructions.nullable().safeParse(typeof patch.instructions === "string" ? patch.instructions.trim() : patch.instructions);
+      if (!text.success) throw new EngineStateError("invalid_request", `instructions must be text of at most ${MAX_AGENT_INSTRUCTIONS} characters`);
+      if (text.data) next.instructions = text.data;
+      else delete next.instructions;
     }
     this.kernel.writeDocument(this.kernel.paths.orientation, { version: STATE_VERSION, ...next });
     return { ...next };

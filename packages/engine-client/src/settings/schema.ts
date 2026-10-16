@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EnvMode, ModelSelection, ProviderDriverKind, RuntimeMode } from "../protocol/common";
+import { AgentInstructions, EnvMode, ModelSelection, ProviderDriverKind, RuntimeMode } from "../protocol/common";
 
 export const MIN_AUTO_SETTLE_HOURS = 1;
 export const MAX_AUTO_SETTLE_HOURS = 90 * 24;
@@ -16,6 +16,7 @@ export const AgentOrientation = z.object({
   preamble: z.boolean(),
   /** Off removes the skill file rather than merely stopping it being refreshed. */
   skill: z.boolean(),
+  instructions: AgentInstructions.optional(),
 });
 export type AgentOrientation = z.infer<typeof AgentOrientation>;
 

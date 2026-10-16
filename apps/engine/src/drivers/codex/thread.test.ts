@@ -47,3 +47,9 @@ test("the orientation leads the developer instructions, and a session without on
   expect(oriented.params.developerInstructions).toBe("You are in Telar.\n\nYou coordinate.");
   expect("developerInstructions" in codexThreadParams(run({}), thread).params).toBeFalse();
 });
+
+test("the person's instructions close the developer instructions", () => {
+  const thread = { cwd: "/tmp/project", model: "gpt-5.5", config: defaultThreadConfig(false), windowConfig: {} };
+  const run = { sessionId: "s", prompt: "hi", signal: new AbortController().signal, onObservations: async () => {}, orientation: "You are in Telar.", instructions: "Answer in Spanish." } as DriverRun;
+  expect(codexThreadParams(run, thread).params.developerInstructions).toBe("You are in Telar.\n\nAnswer in Spanish.");
+});

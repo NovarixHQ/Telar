@@ -100,6 +100,9 @@ export type InteractionMode = z.infer<typeof InteractionMode>;
 export const EnvMode = z.enum(["local", "worktree"]);
 export type EnvMode = z.infer<typeof EnvMode>;
 
+export const MAX_AGENT_INSTRUCTIONS = 4000;
+export const AgentInstructions = z.string().max(MAX_AGENT_INSTRUCTIONS);
+
 export const RateLimitType = z.enum([
   "five_hour",
   "seven_day",

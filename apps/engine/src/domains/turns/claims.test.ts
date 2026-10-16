@@ -49,6 +49,27 @@ test("a turn's service tier and ultracode reach the claim beside its model", () 
   expect(store.claims.claimNextTurn("worker_one")?.model).toMatchObject({ model: "claude-opus-5[1m]", ultracode: true, serviceTier: "priority" });
 });
 
+test("the person's global and project instructions reach the claim, and clearing them stops them", () => {
+  const { store } = readyStore();
+  store.settings.setOrientation({ instructions: "Answer in Spanish." });
+  store.projectRegistry.update("project_one", { instructions: "Use bun here." });
+  store.intake.submitTurn("session_one", { runId: "run_one", input: "hi" });
+  const first = store.claims.claimNextTurn("worker_one")!.instructions!;
+  expect(first.indexOf("Answer in Spanish.")).toBeLessThan(first.indexOf("Use bun here."));
+
+  store.settings.setOrientation({ instructions: null });
+  store.projectRegistry.update("project_one", { instructions: "" });
+  store.lifecycle.createSession({ id: "session_two", projectId: "project_one" });
+  store.intake.submitTurn("session_two", { runId: "run_two", input: "hi" });
+  expect(store.claims.claimNextTurn("worker_two")!.instructions).toBeUndefined();
+});
+
+test("instructions over the limit are refused", () => {
+  const { store } = readyStore();
+  expect(() => store.settings.setOrientation({ instructions: "x".repeat(4001) })).toThrow("at most 4000 characters");
+  expect(() => store.projectRegistry.update("project_one", { instructions: "x".repeat(4001) })).toThrow("at most 4000 characters");
+});
+
 test("fast mode survives a selection that names no model", () => {
   // A Claude-side switch the composer offers on the provider default, so it has
   // to survive a selection that names no model at all — and it travels beside

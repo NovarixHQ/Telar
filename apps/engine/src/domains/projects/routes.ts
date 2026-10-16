@@ -35,6 +35,10 @@ function readPatch(input: Record<string, unknown>, plugins: ProjectPlugins): Pro
     }
     patch.envMode = input.envMode as ProjectPatch["envMode"];
   }
+  if ("instructions" in input) {
+    if (input.instructions !== null && typeof input.instructions !== "string") throw new HttpError(400, "invalid_request", "instructions must be a string or null");
+    patch.instructions = input.instructions as string | null;
+  }
   if ("dataScience" in input) {
     if (!nullableObject(input.dataScience)) throw new HttpError(400, "invalid_request", "dataScience must be an object or null");
     patch.dataScience = input.dataScience as ProjectPatch["dataScience"];

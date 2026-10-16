@@ -103,6 +103,10 @@ describe("the reason a load failed", () => {
     expect(reason("ERR_EMPTY_RESPONSE")).toBe("The page could not be loaded (ERR_EMPTY_RESPONSE).");
   });
 
+  test("a page whose renderer kept dying says it crashed, not that it is unreachable", () => {
+    expect(describeLoadError({ code: "ERR_RENDERER_GONE", url: "https://www.youtube.com/" })).toMatchObject({ title: "This page crashed", host: "www.youtube.com" });
+  });
+
   test("errors shown to people drop the IPC prefix", () => {
     expect(errorText(new Error("Error invoking remote method 'telar:browser:action': Error: Boom"), "x")).toBe("Boom");
     expect(errorText("nope", "fallback")).toBe("fallback");

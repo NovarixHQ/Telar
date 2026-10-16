@@ -19,6 +19,7 @@ function reasonFor(code: string, host: string, hostname: string): string {
 
 export function describeLoadError({ code, url }: PageLoadError) {
   const { host, hostname } = hostOf(url);
+  if (code === "ERR_RENDERER_GONE") return { title: "This page crashed", host, reason: "It stopped twice in a minute, so it was not reloaded again." };
   return { title: "Can’t reach this page", host, reason: reasonFor(code, host, hostname) };
 }
 

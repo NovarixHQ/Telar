@@ -212,7 +212,7 @@ export class TurnIntake {
       const correction = input.corrects && !this.deps.readQueue(sessionId, [input.runId]).turns.some((turn) => turn.runId === input.runId)
         ? this.correctionOf(sessionId, input.corrects, sender.sessionId)
         : undefined;
-      // The child's ending notice tells this result, so the message itself wakes no one.
+      // The child's delivery tells this result, so the message itself wakes no one.
       const childHeld = intent === "result" && sender.sessionId !== undefined && this.deps.holdsChild(sessionId, sender.sessionId);
       const answers = intent === "result" && sender.sessionId !== undefined && this.assignedBy(sender.sessionId, sessionId);
       const delivery = !childHeld && (intent === "task" || intent === "blocker" || waiting || answers || correction === "read" || correction === "queued")

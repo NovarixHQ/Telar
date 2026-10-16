@@ -24,8 +24,7 @@ test("a wake-up between turns becomes a PROVIDER TURN on the engine, with its to
 
   // The shell ends between turns: no claim, no turn.
   await door!.onTasks([{ kind: "task.started", task: { id: "task_toolu_bg", kind: "background", state: "running", title: "Wait for CI" } }]);
-  // (a start for a row nobody opened is dropped — see reportSessionTasks)
-  expect((await client.session(sessionId)).tasks).toHaveLength(0);
+  expect((await client.session(sessionId)).tasks).toEqual([expect.objectContaining({ id: "task_toolu_bg", state: "running", runId: "run_one" })]);
 
   // The CLI wakes the model; the driver asks for a turn.
   const binding = await door!.onProviderTurn({ input: "Background task completed (green).", reason: { kind: "task_notification", taskId: "task_toolu_bg" } });
@@ -43,6 +42,7 @@ test("a wake-up between turns becomes a PROVIDER TURN on the engine, with its to
     { kind: "item.started", item: { id: "i_wake", detail: { type: "assistant_message", text: "merging" } } },
     { kind: "item.completed", itemId: "i_wake", status: "completed" },
   ]);
+  await door!.onTasks([{ kind: "task.completed", task: { id: "task_toolu_bg", kind: "background", state: "completed" } }]);
   await binding!.close({ text: "merged" });
   await eventually(async () => {
     const after = await client.session(sessionId);

@@ -28,6 +28,7 @@
     "test:desktop:profile-cookies": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/browser-profile-cookies.electron-test.js",
     "test:desktop:host-header": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/host-header.electron-test.js",
     "test:desktop:popup-geometry": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/popup-geometry.electron-test.js",
+    "test:desktop:native-messaging": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/native-messaging.electron-test.js",
     "test:desktop:extension": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/extension-harness.electron-test.js",
     "test:desktop:extension-boot": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/extension-boot.electron-test.js",
     "test:desktop:webauthn": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/webauthn-fixture.electron-test.js",

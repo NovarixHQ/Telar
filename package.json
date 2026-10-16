@@ -41,5 +41,8 @@
     "knip": "^6.38.0",
     "oxlint": "^1.85.0",
     "typescript": "6.0.3"
+  },
+  "patchedDependencies": {
+    "electron-chrome-extensions@4.9.0": "patches/electron-chrome-extensions@4.9.0.patch"
   }
 }

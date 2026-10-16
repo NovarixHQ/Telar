@@ -29,10 +29,10 @@ function plannedRestartPath(engineRoot) {
   return require("node:path").join(engineRoot, PLANNED_RESTART_FILE);
 }
 
-function writePlannedRestart(engineRoot, { now = Date.now, fs = require("node:fs") } = {}) {
+function writePlannedRestart(engineRoot, { reason = "update", now = Date.now, fs = require("node:fs") } = {}) {
   try {
     fs.mkdirSync(engineRoot, { recursive: true, mode: 0o700 });
-    fs.writeFileSync(plannedRestartPath(engineRoot), JSON.stringify({ version: 1, reason: "update", at: now() }), { mode: 0o600 });
+    fs.writeFileSync(plannedRestartPath(engineRoot), JSON.stringify({ version: 1, reason, at: now() }), { mode: 0o600, flag: reason === "quit" ? "wx" : "w" });
     return true;
   } catch {
     return false;

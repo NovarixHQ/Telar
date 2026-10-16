@@ -31,7 +31,8 @@ const { captureLoginShellEnv } = require("./login-shell-env");
 const { findVolumeMount } = require("./volumes");
 const { logShell, shellLogPath, startHeapLog } = require("./shell-log");
 const { processMetricsReader, startServiceWorkerWatchdog } = require("./renderer-watch");
-const { engineDiscoveryFile, markMainWindowShown, postToEngine, rememberEngine, reportStartupFailure, startEngineChild, stopEngineChild, waitForEngine } = require("./engine-child");
+const { engineDiscoveryFile, markMainWindowShown, postToEngine, rememberEngine, reportStartupFailure, requestEngine, startEngineChild, stopEngineChild, waitForEngine } = require("./engine-child");
+const { createQuitGate } = require("./quit-gate");
 const { keepOccludedWindowsPainting, watchSchemeForVibrancy } = require("./appearance");
 const { buildApplicationMenu, followFocusedWindow, readKeybindingOverrides } = require("./app-menu");
 const { startExtensionHost } = require("./cockpit-extensions");
@@ -298,9 +299,28 @@ function closeBrowserControl() {
   if (control) void control.close();
 }
 
+function confirmQuit(options, signal) {
+  app.focus({ steal: true });
+  const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  return parent ? dialog.showMessageBox(parent, { ...options, signal }) : dialog.showMessageBox({ ...options, signal });
+}
+
+const quitGate = createQuitGate({
+  ask: () => Promise.all([
+    requestEngine(telarHome(), "GET", "/v2/sessions/working").then((body) => body.count),
+    requestEngine(telarHome(), "GET", "/v2/session-defaults").then((body) => body.sessionDefaults),
+  ]),
+  confirm: confirmQuit,
+  save: (patch) => requestEngine(telarHome(), "PATCH", "/v2/session-defaults", patch),
+  bypass: () => app.isQuitting === true || SMOKE || Boolean(E2E_USER_DATA),
+  onCancel: () => requireSurfaceWindows().release(),
+  power: powerMonitor,
+});
+
 let terminalsClosedForQuit = false;
 let closingTerminalsForQuit = false;
 app.on("before-quit", (event) => {
+  if (quitGate.hold(event, () => app.quit())) return;
   if (terminalsClosedForQuit || !terminalHost || terminalHost.size === 0) return;
   event.preventDefault();
   if (closingTerminalsForQuit) return;
@@ -314,12 +334,12 @@ async function closeTerminalsThenQuit() {
   try {
     const { decideQuit } = require("../terminal/terminal-host");
     const plan = decideQuit(await host.activeProcesses());
-    if (plan.action === "confirm" && !SMOKE && !E2E_USER_DATA) {
-      const parent = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-      const { response } = parent ? await dialog.showMessageBox(parent, plan.dialog) : await dialog.showMessageBox(plan.dialog);
+    if (plan.action === "confirm" && !SMOKE && !E2E_USER_DATA && !quitGate.systemEnding()) {
+      const { response } = await confirmQuit(plan.dialog);
       if (response !== plan.dialog.defaultId) {
         closingTerminalsForQuit = false;
         app.isQuitting = false;
+        quitGate.reset();
         requireSurfaceWindows().release();
         return;
       }
@@ -341,7 +361,7 @@ app.on("will-quit", (event) => {
   if (terminalHost) { try { void terminalHost.dispose(); } catch {} }
   if (runTerminalChannel) { try { void runTerminalChannel.close(); } catch {} runTerminalChannel = null; }
   uiServer.stopServer();
-  const engineStopped = stopEngineChild();
+  const engineStopped = stopEngineChild({ quit: true });
   stopComputerUseHelper();
   closeBrowserControl();
 

@@ -7,6 +7,7 @@ const { DEV_BUILD, SMOKE } = require("./flags");
 const { bundledPlaywrightMcpCli, nodeExecPath, resolveEngineJs } = require("./bundle-paths");
 const { logShell, shellLogPath } = require("./shell-log");
 const { HOST_TOKEN } = require("./ui-server");
+const { writePlannedRestart } = require("./update-install");
 
 const ENGINE_EXIT_LOCK_HELD = 3;
 
@@ -24,6 +25,7 @@ function markMainWindowShown() {
 }
 
 let engineChild = null;
+let engineHome = null;
 let engineDiscovery = null;
 let discoveryReadAt = 0;
 
@@ -149,6 +151,7 @@ function openEngineLog() {
 }
 
 function superviseEngine(home, spawn) {
+  engineHome = home;
   respawn = () => {
     const child = spawn();
     engineChild = child;
@@ -222,12 +225,13 @@ function stopChild(child, graceMs = ENGINE_STOP_GRACE_MS) {
   });
 }
 
-function stopEngineChild() {
+function stopEngineChild({ quit = false } = {}) {
   respawn = null;
   clearTimeout(restartTimer);
   restartTimer = null;
   const child = engineChild;
   engineChild = null;
+  if (quit && child && engineHome) writePlannedRestart(path.join(engineHome, "engine"), { reason: "quit" });
   return stopChild(child);
 }
 
@@ -313,27 +317,48 @@ function currentEngineDiscovery(home) {
   return engineDiscovery;
 }
 
-function postToEngine(home, routePath, body) {
+function requestEngine(home, method, routePath, body) {
   const discovery = currentEngineDiscovery(home);
-  if (!discovery?.port || !discovery?.token) return;
-  const payload = JSON.stringify(body ?? {});
-  const request = http.request({
-    host: discovery.host || "127.0.0.1",
-    port: discovery.port,
-    path: routePath,
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${discovery.token}`,
-      "content-length": Buffer.byteLength(payload),
-    },
-    timeout: 2_000,
+  if (!discovery?.port || !discovery?.token) return Promise.reject(new Error("the engine is not running"));
+  const payload = body === undefined ? undefined : JSON.stringify(body);
+  return new Promise((resolve, reject) => {
+    const request = http.request(
+      {
+        host: discovery.host || "127.0.0.1",
+        port: discovery.port,
+        path: routePath,
+        method,
+        headers: {
+          authorization: `Bearer ${discovery.token}`,
+          ...(payload === undefined ? {} : { "content-type": "application/json", "content-length": Buffer.byteLength(payload) }),
+        },
+        timeout: 2_000,
+      },
+      (response) => {
+        let raw = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => (raw += chunk));
+        response.on("end", () => {
+          if (response.statusCode !== 200) return reject(new Error(`the engine answered ${response.statusCode}`));
+          try {
+            resolve(raw ? JSON.parse(raw) : {});
+          } catch (error) {
+            reject(error);
+          }
+        });
+      },
+    );
+    request.on("error", (error) => {
+      if (engineDiscovery === discovery) engineDiscovery = null;
+      reject(error);
+    });
+    request.on("timeout", () => request.destroy(new Error("the engine did not answer")));
+    request.end(payload);
   });
-  request.on("error", () => {
-    if (engineDiscovery === discovery) engineDiscovery = null;
-  });
-  request.on("timeout", () => request.destroy());
-  request.end(payload);
+}
+
+function postToEngine(home, routePath, body) {
+  requestEngine(home, "POST", routePath, body ?? {}).catch(() => {});
 }
 
 module.exports = {
@@ -344,6 +369,7 @@ module.exports = {
   postToEngine,
   rememberEngine,
   reportStartupFailure,
+  requestEngine,
   startEngineChild,
   stopChild,
   superviseEngine,

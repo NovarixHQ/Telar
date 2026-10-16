@@ -15,9 +15,11 @@ type Context = { params: Promise<{ sessionId: string }> };
 
 export const GET = engineRoute(async (request: Request, context: Context) => {
   const { sessionId } = await context.params;
-  const target = new URL(request.url).searchParams.get("path");
+  const query = new URL(request.url).searchParams;
+  const target = query.get("path");
   const engine = await engineClient();
   if (target) return Response.json(await engine.sessionFile(sessionId, target));
+  if (query.has("dir")) return Response.json(await engine.sessionDirectory(sessionId, query.get("dir")!));
   return Response.json(await engine.sessionFiles(sessionId));
 });
 

@@ -1,7 +1,9 @@
 
+import type { WorkspaceEntry } from "@telar/engine-client";
+
 export type FileTreeNode =
-  | { kind: "file"; path: string; name: string }
-  | { kind: "directory"; path: string; name: string; children: FileTreeNode[]; submodule?: true };
+  | { kind: "file"; path: string; name: string; link?: true; ignored?: true }
+  | { kind: "directory"; path: string; name: string; children: FileTreeNode[]; submodule?: true; ignored?: true };
 
 function compareNodes(left: FileTreeNode, right: FileTreeNode): number {
   if (left.kind !== right.kind) return left.kind === "directory" ? -1 : 1;
@@ -112,4 +114,21 @@ export function ancestorsOf(paths: Iterable<string>): Set<string> {
     }
   }
   return dirs;
+}
+
+function entryNode(entry: WorkspaceEntry): FileTreeNode {
+  const marks = { ...(entry.ignored ? { ignored: true as const } : {}) };
+  if (entry.kind === "directory") {
+    return { kind: "directory", path: entry.path, name: entry.name, children: [], ...(entry.submodule ? { submodule: true as const } : {}), ...marks };
+  }
+  return { kind: "file", path: entry.path, name: entry.name, ...(entry.kind === "link" ? { link: true as const } : {}), ...marks };
+}
+
+export function flattenLevels(levels: ReadonlyMap<string, readonly WorkspaceEntry[]>, expanded: ReadonlySet<string>, dir = "", depth = 0): FileTreeRow[] {
+  const rows: FileTreeRow[] = [];
+  for (const entry of levels.get(dir) ?? []) {
+    rows.push({ node: entryNode(entry), depth });
+    if (entry.kind === "directory" && expanded.has(entry.path)) rows.push(...flattenLevels(levels, expanded, entry.path, depth + 1));
+  }
+  return rows;
 }

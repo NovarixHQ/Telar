@@ -15,9 +15,11 @@ type Context = { params: Promise<{ projectId: string }> };
 
 export const GET = engineRoute(async (request: Request, context: Context) => {
   const { projectId } = await context.params;
-  const target = new URL(request.url).searchParams.get("path");
+  const query = new URL(request.url).searchParams;
+  const target = query.get("path");
   const engine = await engineClient();
   if (target) return Response.json(await engine.projectFile(projectId, target));
+  if (query.has("dir")) return Response.json(await engine.projectDirectory(projectId, query.get("dir")!));
   return Response.json(await engine.projectFiles(projectId));
 });
 

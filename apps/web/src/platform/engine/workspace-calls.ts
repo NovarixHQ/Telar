@@ -7,7 +7,8 @@ ProviderSkills,
 ProviderInstance,
 ProviderInstanceEnvVar,
 AutoCompact,
-ProviderProbe,Session,Turn,UsageLimitWindow,WorkspaceFile,
+ProviderProbe,Session,Turn,UsageLimitWindow,WorkspaceDirectory,
+WorkspaceFile,
 WorkspaceListing,
 WorkspaceWriteResult
 } from "@telar/engine-client";
@@ -21,6 +22,10 @@ export function workspaceCalls(fetcher: Fetcher) {
       request<{ listing: WorkspaceListing }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/files`),
     sessionFiles: (sessionId: string) =>
       request<{ listing: WorkspaceListing }>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/files`),
+    projectDirectory: (projectId: string, dir: string) =>
+      request<{ directory: WorkspaceDirectory }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/files?${new URLSearchParams({ dir }).toString()}`),
+    sessionDirectory: (sessionId: string, dir: string) =>
+      request<{ directory: WorkspaceDirectory }>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ dir }).toString()}`),
     /**
      * The provider's own skills and slash commands, for the composer's `$` and
      * `/` menus. Asked when a menu first opens and cached by the caller for the

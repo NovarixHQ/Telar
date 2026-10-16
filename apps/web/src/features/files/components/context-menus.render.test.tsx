@@ -32,8 +32,18 @@ const item = (label: string) => menuItems().find((node) => node.textContent === 
 
 const LISTING = { workspacePath: "/w", repository: true, files: ["src/a.ts", "src/lib/b.ts", "README.md"], source: "git", truncated: false, readAt: 1 };
 
+const level = (path: string, entries: { name: string; kind: "file" | "directory" }[]) => () => ({
+  directory: { path, truncated: false, entries: entries.map((entry) => ({ ...entry, path: path ? `${path}/${entry.name}` : entry.name })) },
+});
+
 function stubTree() {
-  return stubFetch({ "GET /api/sessions/s1/files": () => ({ listing: LISTING }), "GET /api/sessions/s1/diff": () => ({ diff: { files: [] } }) });
+  return stubFetch({
+    "GET /api/sessions/s1/files": () => ({ listing: LISTING }),
+    "GET /api/sessions/s1/files?dir=": level("", [{ name: "src", kind: "directory" }, { name: "README.md", kind: "file" }]),
+    "GET /api/sessions/s1/files?dir=src": level("src", [{ name: "lib", kind: "directory" }, { name: "a.ts", kind: "file" }]),
+    "GET /api/sessions/s1/files?dir=src%2Flib": level("src/lib", [{ name: "b.ts", kind: "file" }]),
+    "GET /api/sessions/s1/diff": () => ({ diff: { files: [] } }),
+  });
 }
 
 const copied: string[] = [];

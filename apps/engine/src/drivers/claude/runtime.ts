@@ -52,7 +52,6 @@ type TaskMemory<Seed extends { id: string; providerTaskId?: string }> = {
   readonly known: Map<string, Seed>;
   readonly suppressed: Set<string>;
   readonly typesBySdkId: Map<string, string>;
-  /** A sub-agent's own sub-agents: child task id → the task that launched it. */
   readonly parents: Map<string, string>;
   lastWokenTaskId: string | undefined;
 };

@@ -6,7 +6,6 @@ export const CUT_OFF_GRACE_MS = 2 * 60_000;
 const LIVE_TURN_STATES: ReadonlySet<Turn["state"]> = new Set(["queued", "claimed", "running", "steering"]);
 const LIVE_TASK_STATES: ReadonlySet<Task["state"]> = new Set(["pending", "running", "waiting"]);
 
-/** Everything below one session node that can still make it run, read from the stores that own each node. */
 export type SessionSubtree = {
   liveTurns: Turn[];
   recentTurns: Turn[];
@@ -23,7 +22,6 @@ export function cutOffByTelar(turn: Turn): boolean {
   return turn.state === "failed" && turn.failure?.code === "interrupted";
 }
 
-/** A task's chain up to its turn: `task_c < task_b < run_x`. */
 function taskPath(task: Task, byId: Map<string, Task>): string {
   const chain = [task.id];
   for (let parent = task.parentTaskId ? byId.get(task.parentTaskId) : undefined; parent && chain.length < 16; parent = parent.parentTaskId ? byId.get(parent.parentTaskId) : undefined) {

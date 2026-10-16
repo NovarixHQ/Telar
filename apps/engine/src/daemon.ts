@@ -257,7 +257,6 @@ function engineRoutes(ctx: RouteContext): Route[] {
   ];
 }
 
-// The lineage is rechecked once every cut-off turn is stopped and every planned continuation is queued.
 function recoverAtBoot(store: EngineStore): void {
   store.recovery.recover();
   store.lineage.sweep();

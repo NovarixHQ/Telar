@@ -8,7 +8,6 @@ import { cutOffByTelar, livenessOf, type SessionSubtree } from "./liveness";
 const StoredNode = SessionChild.omit({ provider: true, model: true, progress: true, blocked: true, updatedAt: true }).extend({
   rootSessionId: Id,
   generation: z.number().int().positive(),
-  /** The derived liveness last persisted: one reason per live node below the child, empty once nothing will run it. */
   live: z.array(z.string()).optional(),
   nudgedRunId: Id.optional(),
   stopRequested: z.literal(true).optional(),
@@ -72,7 +71,6 @@ export class SessionLineage {
     kernel.beforeCommit(() => this.settle());
   }
 
-  /** A node under this session changed; its liveness is recomputed before the command commits. */
   touch(sessionId: string): void {
     this.pendingIds ??= new Set(this.read().filter(pending).map((node) => node.sessionId));
     if (this.pendingIds.has(sessionId)) this.dirty.add(sessionId);
@@ -141,7 +139,6 @@ export class SessionLineage {
     }
   }
 
-  /** Background work stopped by a person or a settle: the child's ending, once nothing else runs, is a stop. */
   noteStopped(sessionId: string): void {
     this.update((node) => node.sessionId === sessionId && pending(node), (node) => ({ ...node, stopRequested: true }));
     this.touch(sessionId);
@@ -176,7 +173,6 @@ export class SessionLineage {
     this.touch(childSessionId);
   }
 
-  /** Once, on the first open after the registry moved: `children.json` becomes the lineage's session nodes. */
   migrate(): number | undefined {
     if (this.kernel.readDocument(this.kernel.paths.lineage) !== undefined) return undefined;
     const legacy = this.kernel.readDocument(this.kernel.paths.children) as { children?: unknown } | undefined;
@@ -205,7 +201,6 @@ export class SessionLineage {
         try {
           this.evaluate(sessionId);
         } catch (error) {
-          // The sweep evaluates it again; a commit is never lost to the tree.
           console.warn(`[engine] could not settle the lineage of ${sessionId}:`, error);
         }
       }

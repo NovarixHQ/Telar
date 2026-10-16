@@ -17,7 +17,6 @@ export const liveBackgroundTasks = (ctx: TaskCtx): Array<TaskSeed & { id: string
     isBackgroundWork(task) && !isTerminalTaskState(task.state) ? [{ ...task, id }] : [],
   );
 
-/** The process ended: every task it still ran is lost, a sub-agent's own sub-agents included. */
 export const reportLostBackgroundWork = (ctx: TaskCtx): void => {
   const lost = [...ctx.turn.knownTasks.entries()].flatMap(([id, task]) => (isTerminalTaskState(task.state) ? [] : [{ ...task, id }]));
   if (lost.length === 0) return;

@@ -20,7 +20,6 @@ function tasksFile(paths: EngineStatePaths, sessionId: string): string {
 
 const LIVE_STATES: ReadonlySet<Task["state"]> = new Set(["pending", "running", "waiting"]);
 
-/** Background work, or a task launched under it: a sub-agent's own sub-agents outlive the turn as their parent does. */
 function underBackgroundWork(task: Task, tasks: Map<string, Task>): boolean {
   let node: Task | undefined = task;
   for (let hops = 0; node && hops < 16; hops += 1) {

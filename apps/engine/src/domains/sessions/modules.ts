@@ -17,7 +17,6 @@ type SessionHost = {
   nextWake: (sessionId: string) => number | undefined;
   autoSettleAfterHours: () => number | null;
   onQueueChanged?: () => void;
-  /** A turn or task row of the session was written: a node of the lineage tree changed. */
   nodesChanged: (sessionId: string) => void;
 };
 

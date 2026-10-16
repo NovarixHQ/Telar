@@ -42,6 +42,7 @@ export const Task = z.object({
   completedAt: Timestamp.optional(),
 
   parentTaskId: Id.optional(),
+  orphan: z.literal(true).optional(),
 
   /** The provider's own task/tool-use handle, for correlation. */
   providerTaskId: z.string().min(1).optional(),

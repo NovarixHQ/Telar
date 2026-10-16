@@ -12,8 +12,6 @@ import type { OpenPrefixes, SessionItems, SessionQueue, SessionRecords, SessionT
 type Projection = { items: Map<string, Item>; tasks: Map<string, Task>; itemsTouched: Set<string>; tasksTouched: boolean; turnTouched: boolean };
 type TaskObservation = Extract<TurnObservation, { kind: "task.started" | "task.progress" | "task.completed" }>;
 
-const LIVE_TASK_STATES: ReadonlySet<Task["state"]> = new Set(["pending", "running", "waiting"]);
-
 // Drops explicitly-undefined keys, so a spread patches rather than erases.
 function definedOnly<T extends object>(value: T): Partial<T> {
   const out: Partial<T> = {};
@@ -39,7 +37,7 @@ type IngestDeps = {
   prefixes: OpenPrefixes;
   readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
-  recentTurns: (sessionId: string) => Turn[];
+  firstRunOf: (sessionId: string) => string | undefined;
   requireRunningClaimFromQueue: (queue: SessionQueue, runId: string, claimToken: string) => Turn;
   filesChanged: (sessionId: string) => void;
 };
@@ -308,7 +306,7 @@ export class TurnIngest {
     );
   }
 
-  /** Task reports between turns fold onto known rows; an unknown start (a nested sub-agent) opens as background work under the latest turn. */
+  /** Task reports between turns fold onto known rows; an unknown task is adopted under the task that launched it, or the session root. */
   reportSessionTasks(sessionId: string, workerId: string, observations: unknown[]): { accepted: number } {
     return this.kernel.command("reportSessionTasks", () => {
       assertId(workerId, "worker id");
@@ -317,7 +315,7 @@ export class TurnIngest {
       if (!parsed.success) throw new EngineStateError("invalid_request", "task observations are invalid");
       const tasks = this.deps.tasks.read(sessionId);
       const projection = { items: this.deps.items.read(sessionId), tasks, itemsTouched: new Set<string>(), tasksTouched: false, turnTouched: false };
-      let owner: string | null | undefined;
+      let root: string | null | undefined;
       let accepted = 0;
       for (const observation of parsed.data) {
         if (observation.kind === "runtime.warning") {
@@ -327,18 +325,18 @@ export class TurnIngest {
         }
         if (observation.kind !== "task.started" && observation.kind !== "task.progress" && observation.kind !== "task.completed") continue;
         const seed = observation.task;
-        const known =
-          tasks.get(seed.id) ?? (seed.providerTaskId ? [...tasks.values()].find((task) => task.providerTaskId === seed.providerTaskId) : undefined);
+        const known = taskNamed(tasks, seed.id, seed.providerTaskId);
         if (known) {
           // `journalObservation` takes the owning turn only for its runId.
           this.journalObservation(sessionId, { runId: known.runId } as Turn, observation, projection);
           accepted += 1;
           continue;
         }
-        if (observation.kind !== "task.started" || !LIVE_TASK_STATES.has(seed.state)) continue;
-        owner ??= this.latestRunOf(sessionId) ?? null;
-        if (!owner) continue;
-        this.journalObservation(sessionId, { runId: owner } as Turn, { ...observation, task: { ...seed, backgrounded: true } }, projection);
+        const parent = seed.parentTaskId ? taskNamed(tasks, seed.parentTaskId, seed.parentTaskId) : undefined;
+        const runId = parent?.runId ?? (root ??= this.deps.firstRunOf(sessionId) ?? null);
+        if (!runId) continue;
+        const adopted = { ...seed, backgrounded: true, ...(parent ? { parentTaskId: parent.id } : { orphan: true as const }) };
+        this.journalObservation(sessionId, { runId } as Turn, { ...observation, task: adopted }, projection);
         accepted += 1;
       }
       if (projection.tasksTouched) {
@@ -348,8 +346,8 @@ export class TurnIngest {
       return { accepted };
     });
   }
+}
 
-  private latestRunOf(sessionId: string): string | undefined {
-    return this.deps.recentTurns(sessionId).filter((turn) => turn.agentDelivery !== "passive" && turn.state !== "queued" && turn.state !== "discarded").at(-1)?.runId;
-  }
+function taskNamed(tasks: Map<string, Task>, id: string, providerTaskId: string | undefined): Task | undefined {
+  return tasks.get(id) ?? (providerTaskId ? [...tasks.values()].find((task) => task.providerTaskId === providerTaskId) : undefined);
 }

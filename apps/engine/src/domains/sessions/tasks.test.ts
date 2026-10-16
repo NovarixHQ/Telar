@@ -82,7 +82,7 @@ test("a close the level signal inferred yields to the notification that says the
   expect(store.queries.tasks("session_one").find((task) => task.id === "task_other")?.state).toBe("completed");
 });
 
-test("task reports between turns fold onto the rows they name; only an unknown start opens one", () => {
+test("task reports between turns fold onto the rows they name; a task nobody launched is filed under the session root, flagged", () => {
   const { store } = readyStore();
   store.intake.submitTurn("session_one", { runId: "run_one", input: "Watch it" });
   const first = store.claims.claimNextTurn("worker_one")!;
@@ -100,14 +100,16 @@ test("task reports between turns fold onto the rows they name; only an unknown s
     { kind: "task.progress", task: { id: "task_ghost", kind: "agent", state: "running" } },
     { kind: "task.completed", task: { id: "task_ghost", kind: "agent", state: "completed" } },
   ]);
-  expect(accepted).toEqual({ accepted: 1 });
-  expect(store.queries.tasks("session_one")).toHaveLength(1);
-  expect(store.queries.tasks("session_one")[0]).toMatchObject({ id: "task_toolu_bg", state: "completed", resultText: "green", runId: "run_one" });
+  expect(accepted).toEqual({ accepted: 3 });
+  expect(store.queries.tasks("session_one").map((task) => [task.id, task.state, task.runId, task.orphan])).toEqual([
+    ["task_toolu_bg", "completed", "run_one", undefined],
+    ["task_ghost", "completed", "run_one", true],
+  ]);
+  expect(store.queries.tasks("session_one")[0]).toMatchObject({ resultText: "green" });
   expect(store.records.get("session_one").activity).toBe("idle");
-  expect(store.queries.readEvents("session_one").at(-1)).toMatchObject({ type: "task.completed", runId: "run_one" });
 });
 
-test("a sub-agent a background agent launched keeps the session live after its parent ends, until it ends itself", () => {
+test("a sub-agent a background agent launched is filed under that agent's turn, not the latest, and keeps the session live until it ends", () => {
   const { store } = readyStore();
   store.intake.submitTurn("session_one", { runId: "run_one", input: "Fan out" });
   const first = store.claims.claimNextTurn("worker_one")!;
@@ -116,13 +118,18 @@ test("a sub-agent a background agent launched keeps the session live after its p
   const parent = { id: "task_toolu_migrate", providerTaskId: "m1", kind: "agent" as const, backgrounded: true };
   store.ingest.ingestObservations("session_one", "run_one", token, [{ kind: "task.started", task: { ...parent, state: "running", title: "Migrations" } }]);
   store.turnLifecycle.completeTurn("session_one", "run_one", token, { text: "Waiting on the agents" });
+  store.intake.submitTurn("session_one", { runId: "run_two", input: "Anything?" });
+  const second = store.claims.claimNextTurn("worker_one")!.turn.claim!.token;
+  store.turnLifecycle.markRunning("session_one", "run_two", second);
+  store.turnLifecycle.completeTurn("session_one", "run_two", second, { text: "Still waiting" });
 
-  const nested = { id: "task_toolu_runtime", providerTaskId: "n1", kind: "agent" as const };
+  const nested = { id: "task_toolu_runtime", providerTaskId: "n1", kind: "agent" as const, parentTaskId: parent.id };
   store.ingest.reportSessionTasks("session_one", "worker_one", [
     { kind: "task.started", task: { ...nested, state: "running", title: "Runtime check" } },
     { kind: "task.completed", task: { ...parent, state: "completed", resultText: "launched the checks" } },
   ]);
-  expect(store.queries.tasks("session_one").find((task) => task.id === nested.id)).toMatchObject({ state: "running", backgrounded: true, runId: "run_one" });
+  expect(store.queries.tasks("session_one").find((task) => task.id === nested.id)).toMatchObject({ state: "running", backgrounded: true, runId: "run_one", parentTaskId: parent.id });
+  expect(store.queries.tasks("session_one").find((task) => task.id === nested.id)?.orphan).toBeUndefined();
   expect(store.sessionTasks.hasLiveBackground("session_one")).toBe(true);
   expect(store.records.get("session_one").activity).toBe("monitoring");
 

@@ -73,7 +73,7 @@ function ContextOffers({ quick }: { quick: Quick }) {
 }
 
 const EDITOR = '[data-slot="composer-editor"]';
-const INTERACTIVE = 'button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [role="listbox"], [role="toolbar"], [contenteditable="true"], [data-slot="quick-transcript"], [role="note"] p';
+const INTERACTIVE = 'button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [role="listbox"], [role="toolbar"], [contenteditable="true"], [data-slot="live-transcript"], [role="note"] p';
 
 function focusFromEmpty(target: EventTarget) {
   if (!(target instanceof Element) || target.closest(INTERACTIVE)) return;

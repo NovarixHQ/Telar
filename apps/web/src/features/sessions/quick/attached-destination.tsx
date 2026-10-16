@@ -9,7 +9,8 @@ import { SessionProjectAvatar } from "../components/session-project-avatar";
 import type { Destination } from "./destination";
 import { LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { placeOf, sessionStatus, statusDot } from "./destination-picker";
-import { LiveTranscript, useLiveSession } from "./live-transcript";
+import { LiveTranscript } from "../cockpit/components/live-transcript";
+import { useLiveSession } from "./live-session";
 
 type CardProps = { nudge: number; height: number; manyHosts: boolean; onClear: () => void };
 
@@ -36,7 +37,7 @@ function SessionCard({ destination, nudge, height, manyHosts, onClear }: CardPro
           <XIcon />
         </Button>
       </div>
-      <LiveTranscript hostId={hostId} sessionId={session.id} live={live} height={height} />
+      <LiveTranscript sync={live.sync} model={live.model} onDecide={live.decide} followRef={live.follow} size={{ height }} />
     </div>
   );
 }

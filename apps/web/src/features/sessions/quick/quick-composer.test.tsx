@@ -454,12 +454,12 @@ describe("the # destination picker", () => {
     expect(host.querySelector('[aria-selected="true"]')?.textContent).toContain("New session in exoplanets");
     await press(host, "ArrowUp");
     await press(host, "Enter");
-    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Shall I run it?") ?? false);
+    await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Shall I run it?") ?? false);
     const card = host.querySelector('[data-slot="quick-destination"]')!;
     expect(card.textContent).toContain("Sales dashboard and checkout");
     expect(card.querySelector("img")?.getAttribute("src")).toBe("/api/projects/project_2/icon?v=k2");
     expect(card.textContent).toContain("exoplanets · Waiting on you");
-    const transcript = card.querySelector('[data-slot="quick-transcript"]')!;
+    const transcript = card.querySelector('[data-slot="live-transcript"]')!;
     expect(transcript.textContent).toContain("Can you check the build?");
     expect(transcript.textContent).not.toContain("**");
     expect(host.querySelector('[role="listbox"]')).toBeNull();
@@ -538,9 +538,9 @@ describe("an attached conversation", () => {
     await type(host, "#sales");
     await flush(() => options(host).length > 0);
     await press(host, "Enter");
-    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Can you check the build?") ?? false);
+    await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Can you check the build?") ?? false);
     await typeAndPress(host, "Yes, go ahead");
-    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Yes, go ahead") ?? false);
+    await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Yes, go ahead") ?? false);
     expect(sent).toEqual([]);
     expect(closed()).toBe(0);
     expect(host.querySelector('[data-slot="quick-destination"]')?.textContent).toContain("Sales dashboard and checkout");
@@ -584,8 +584,8 @@ describe("the attached conversation's transcript", () => {
     await type(host, "#transit");
     await flush(() => options(host).length > 0);
     await press(host, "Enter");
-    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("The four artifacts") ?? false);
-    const text = host.querySelector('[data-slot="quick-transcript"]')!.textContent!;
+    await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("The four artifacts") ?? false);
+    const text = host.querySelector('[data-slot="live-transcript"]')!.textContent!;
     expect(text.indexOf("add Jul = 310")).toBeLessThan(text.indexOf("Hello"));
     expect(text.indexOf("Hello")).toBeLessThan(text.indexOf("The four artifacts"));
   });
@@ -595,8 +595,8 @@ describe("the attached conversation's transcript", () => {
     await type(host, "#readme");
     await flush(() => options(host).length > 0);
     await press(host, "Enter");
-    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("No messages yet") ?? false);
-    expect(host.querySelector('[data-slot="quick-transcript"] [role="status"]')).toBeNull();
+    await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("No messages yet") ?? false);
+    expect(host.querySelector('[data-slot="live-transcript"] [role="status"]')).toBeNull();
   });
 
   test("typing # closes the attached conversation and opens the picker in its place", async () => {
@@ -619,8 +619,8 @@ describe("the attached conversation's transcript", () => {
     await type(host, "#sales");
     await flush(() => options(host).length > 0);
     await press(host, "Enter");
-    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Can you check the build?") ?? false);
-    const transcript = host.querySelector<HTMLElement>('[data-slot="quick-transcript"]')!;
+    await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Can you check the build?") ?? false);
+    const transcript = host.querySelector<HTMLElement>('[data-slot="live-transcript"]')!;
     const scroller = transcript.firstElementChild as HTMLElement;
     expect(transcript.hasAttribute("data-fade-top")).toBe(false);
     expect(transcript.hasAttribute("data-fade-bottom")).toBe(false);
@@ -719,7 +719,7 @@ describe("the strip of conversations that need you", () => {
     const pill = [...host.querySelectorAll<HTMLButtonElement>('[role="toolbar"] button')].find((button) => button.title.startsWith("Remote build question"))!;
     expect(pill.title).toBe("Remote build question · exoplanets · Mini");
     await act(async () => pill.click());
-    await flush(() => host.querySelector('[data-slot="quick-transcript"]')?.textContent?.includes("Waiting for your go-ahead") ?? false);
+    await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Waiting for your go-ahead") ?? false);
     await typeAndPress(host, "Go ahead", { metaKey: true });
     expect(calls.find((call) => call.method === "POST" && call.url === "/api/hosts/host_b/sessions/s_remote/turns")?.body).toMatchObject({ input: "Go ahead" });
     expect(calls.some((call) => call.method === "POST" && call.url === "/api/sessions/s_remote/turns")).toBe(false);

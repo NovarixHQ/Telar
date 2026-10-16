@@ -1,57 +1,49 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useEffect, useState, type CSSProperties, type Dispatch, type Ref, type RefObject, type SetStateAction } from "react";
 import type { EngineRequest } from "@telar/engine-client";
 import { ConversationContent, ConversationScrollButton, ConversationTopEdge, ConversationViewport, type ConversationFollowHandle } from "@/ui/conversation";
 import { MessageSquareIcon } from "lucide-react";
 import { typedOpening } from "@/features/transcript";
 import { cn } from "@/ui/utils";
-import { SessionTurn } from "../cockpit/components/session-turn";
-import { useSessionSync } from "../cockpit/hooks/use-session-sync";
-import { useTranscriptModel } from "../cockpit/hooks/use-transcript-model";
-import { transcriptRows } from "../cockpit/model";
-import { hostApi } from "./hosts";
+import { SessionTurn } from "./session-turn";
+import type { useSessionSync } from "../hooks/use-session-sync";
+import type { useTranscriptModel } from "../hooks/use-transcript-model";
+import { transcriptRows } from "../model";
 
+type Size = { height: number } | { maxHeight: string };
 
-export function useLiveSession(hostId: string, sessionId: string, nudge: number) {
-  const sync = useSessionSync({ hostId, sessionId, initiallyLoading: true });
-  const model = useTranscriptModel(sessionId, sync);
-  const follow = useRef<ConversationFollowHandle>(null);
-  const { hydrate } = sync;
-  useEffect(() => {
-    if (nudge === 0) return;
-    follow.current?.toBottom();
-    hydrate();
-  }, [nudge, hydrate]);
-  return { sync, model, follow };
-}
+type LiveTranscriptProps = {
+  sync: ReturnType<typeof useSessionSync>;
+  model: ReturnType<typeof useTranscriptModel>;
+  onDecide: Parameters<typeof SessionTurn>[0]["onDecide"];
+  size: Size;
+  followRef?: Ref<ConversationFollowHandle>;
+};
 
-export function LiveTranscript({ hostId, sessionId, live, height }: { hostId: string; sessionId: string; live: ReturnType<typeof useLiveSession>; height: number }) {
-  const { sync, model } = live;
+export function LiveTranscript({ sync, model, onDecide, size, followRef }: LiveTranscriptProps) {
   const { shown, hostOf } = transcriptRows(model.transcript);
   const hostRun = (request: EngineRequest) => hostOf.get(request.runId) ?? request.runId;
-  const decide = (requestId: string, decision: Parameters<ReturnType<typeof hostApi>["resolveRequest"]>[2]["decision"], extra?: { answers?: Record<string, unknown> }) =>
-    void hostApi(hostId).resolveRequest(sessionId, requestId, { decision, ...(extra?.answers ? { answers: extra.answers } : {}) }).then(sync.hydrate, () => undefined);
-
   const [fade, setFade] = useState<Fade>({ top: false, bottom: false });
+  const grows = "maxHeight" in size;
 
   return (
     <ConversationViewport
-      data-slot="quick-transcript"
+      data-slot="live-transcript"
       data-fade-top={fade.top || undefined}
       data-fade-bottom={fade.bottom || undefined}
-      className="flex-none text-xs"
-      style={{ height, "--chat-content-max-width": "100%", "--fade-top": fade.top ? FADE : "0px", "--fade-bottom": fade.bottom ? FADE : "0px" } as CSSProperties}
+      className={cn("flex-none text-xs", grows && "flex flex-col")}
+      style={{ ...(size as CSSProperties), "--chat-content-max-width": "100%", "--fade-top": fade.top ? FADE : "0px", "--fade-bottom": fade.bottom ? FADE : "0px" } as CSSProperties}
       conversation={sync.syncKey}
       landed={sync.transcriptLanded}
-      followRef={live.follow}
+      {...(followRef ? { followRef } : {})}
     >
       {(context) => (
         <>
           <FadeEdges scrollRef={context.scrollRef} atBottom={context.isAtBottom} onFade={setFade} />
           <ConversationContent
             className="gap-2 px-3 py-2"
-            scrollClassName="[mask-image:linear-gradient(to_bottom,transparent,#000_var(--fade-top),#000_calc(100%_-_var(--fade-bottom)),transparent)]"
+            scrollClassName={cn("[mask-image:linear-gradient(to_bottom,transparent,#000_var(--fade-top),#000_calc(100%_-_var(--fade-bottom)),transparent)]", grows && "min-h-0")}
           >
             <ConversationTopEdge more={Boolean(sync.page?.more)} loading={sync.loadingOlder} onReach={sync.loadOlder}>
               <p className="text-center text-2xs text-muted-foreground">{sync.loadingOlder ? "Loading earlier turns…" : "Scroll up for earlier turns"}</p>
@@ -64,7 +56,7 @@ export function LiveTranscript({ hostId, sessionId, live, height }: { hostId: st
                   live={turn.runId === model.active?.runId}
                   sending={false}
                   requests={model.openRequests.filter((request) => hostRun(request) === turn.runId)}
-                  onDecide={decide}
+                  onDecide={onDecide}
                 />
               </div>
             ))}

@@ -59,7 +59,7 @@ function Cockpit({ start = "", busy = false }: { start?: string; busy?: boolean 
         Exit fullscreen
       </button>
       <p data-testid="draft">{draft}</p>
-      {fullscreen ? <MiniComposer composer={props} exchange={<p data-testid="exchange">The last reply</p>} /> : <Composer {...props} />}
+      {fullscreen ? <MiniComposer composer={props} transcript={<p data-testid="transcript">The last reply</p>} /> : <Composer {...props} />}
     </>
   );
 }
@@ -151,13 +151,13 @@ const pointerAt = (clientY: number) =>
   });
 
 describe("with the panel filling the window, a message can be typed over it", () => {
-  test("the chord opens the session's composer for typing, with the last exchange above it and nothing listening", async () => {
+  test("the chord opens the session's composer for typing, with the conversation above it and nothing listening", async () => {
     knobs.provider = "deepgram";
     const { runCommand } = await import("@/features/commands");
     await mounted(<Cockpit start="draft kept" />);
     await act(async () => void runCommand("mini-composer"));
     expect(floating()).not.toBeNull();
-    expect(document.querySelector('[data-testid="exchange"]')?.textContent).toBe("The last reply");
+    expect(document.querySelector('[data-testid="transcript"]')?.textContent).toBe("The last reply");
     expect(editor()?.textContent).toBe("draft kept");
     expect(live).toBeUndefined();
   });

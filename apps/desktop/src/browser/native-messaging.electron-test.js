@@ -2,8 +2,11 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { app, BrowserWindow, session } = require("electron");
+const { app, BrowserWindow, dialog, session } = require("electron");
 const { attachExtensionSupport } = require("./extension-compat");
+
+dialog.showErrorBox = () => undefined;
+process.on("uncaughtException", (error) => { console.error("NATIVE_MESSAGING_FAIL uncaught", error); app.exit(1); });
 
 const PARTITION = "persist:telar-native-messaging";
 const HOST_NAME = "com.telar.native_messaging_test";

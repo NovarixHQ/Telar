@@ -18,12 +18,27 @@ function tasksFile(paths: EngineStatePaths, sessionId: string): string {
   return path.join(sessionDir(paths, sessionId), "tasks.json");
 }
 
+const LIVE_STATES: ReadonlySet<Task["state"]> = new Set(["pending", "running", "waiting"]);
+
+/** Background work, or a task launched under it: a sub-agent's own sub-agents outlive the turn as their parent does. */
+function underBackgroundWork(task: Task, tasks: Map<string, Task>): boolean {
+  let node: Task | undefined = task;
+  for (let hops = 0; node && hops < 16; hops += 1) {
+    if (isBackgroundWork(node)) return true;
+    node = node.parentTaskId ? tasks.get(node.parentTaskId) : undefined;
+  }
+  return false;
+}
+
 /**
  * Each session's `tasks.json`, the only record that a cold session still has
  * background work running, plus the engine-wide queue of task stops owed to workers.
  */
 export class SessionTasks {
-  constructor(private readonly kernel: Kernel) {}
+  constructor(
+    private readonly kernel: Kernel,
+    private readonly onWrite: (sessionId: string) => void = () => undefined,
+  ) {}
 
   read(sessionId: string): Map<string, Task> {
     const stored = this.kernel.readDocument(tasksFile(this.kernel.paths, sessionId));
@@ -35,10 +50,12 @@ export class SessionTasks {
 
   write(sessionId: string, tasks: Map<string, Task>): void {
     this.kernel.writeDocument(tasksFile(this.kernel.paths, sessionId), { version: STATE_VERSION, tasks: [...tasks.values()] });
+    this.onWrite(sessionId);
   }
 
   hasLiveBackground(sessionId: string): boolean {
-    return [...this.read(sessionId).values()].some((task) => isBackgroundWork(task) && (task.state === "pending" || task.state === "running" || task.state === "waiting"));
+    const tasks = this.read(sessionId);
+    return [...tasks.values()].some((task) => LIVE_STATES.has(task.state) && underBackgroundWork(task, tasks));
   }
 
   /** A turn that ended takes its sub-agents with it; background work outlives its turn and is left alone. */
@@ -56,9 +73,10 @@ export class SessionTasks {
     for (const [id, task] of tasks) {
       if (options.runId !== undefined && task.runId !== options.runId) continue;
       if (options.runIds !== undefined && !options.runIds.has(task.runId)) continue;
-      if (!options.includeBackground && isBackgroundWork(task)) continue;
-      if (options.onlyBackground && !isBackgroundWork(task)) continue;
-      if (task.state === "completed" || task.state === "failed" || task.state === "stopped") continue;
+      if (!LIVE_STATES.has(task.state)) continue;
+      const background = underBackgroundWork(task, tasks);
+      if (!options.includeBackground && background) continue;
+      if (options.onlyBackground && !background) continue;
       const closed: Task = { ...task, state: options.state ?? "failed", failure, updatedAt: at, completedAt: at };
       tasks.set(id, closed);
       this.kernel.appendEvent(sessionId, { type: "task.completed", task: closed }, task.runId);

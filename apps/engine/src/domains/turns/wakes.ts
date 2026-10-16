@@ -11,7 +11,7 @@ import {
   type WakeReason,
 } from "@telar/engine-client";
 import { EngineStateError, type Kernel } from "../../platform/kernel";
-import { isQuietMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionChildren, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
+import { isQuietMail, requestTitle, TERMINAL_WAKE_KINDS, type SessionLineage, type SessionItems, type SessionMailbox, type SessionQueue, type SessionRecords, type SessionSubscriptions } from "../sessions";
 import { quotedExcerpt } from "./agent-notice";
 import { RELAY_RULE } from "./attribution";
 import { FOLDING_INTENTS, type TurnSubmission } from "./intake";
@@ -90,7 +90,7 @@ type WakeDeps = {
   items: SessionItems;
   mailbox: SessionMailbox;
   subscriptions: SessionSubscriptions;
-  children: Pick<SessionChildren, "turnEnded" | "parentsOf">;
+  lineage: Pick<SessionLineage, "parentsOf">;
   readQueue: (sessionId: string, runIds?: readonly string[]) => SessionQueue;
   writeQueue: (sessionId: string, queue: SessionQueue) => void;
   scanQueue: (sessionId: string) => SessionQueue;
@@ -107,7 +107,7 @@ export class TurnWakes {
 
   /**
    * The wake, after a terminal transition or a parked request has been written, so it can never fail that transition.
-   * A wake is a turn on the subscriber through `submitTurn`; a wake's own ending wakes nobody, but may end an errand.
+   * A wake is a turn on the subscriber through `submitTurn`; a wake's own ending wakes nobody.
    */
   fireSubscriptions(
     targetSessionId: string,
@@ -117,12 +117,11 @@ export class TurnWakes {
   ): void {
     // A background-claim turn only decided a tool call for work still running: no model spoke, so it is nobody's news.
     if (turn.origin === "provider" && turn.providerReason?.kind === "background_task" && TERMINAL_WAKE_KINDS.includes(kind)) return;
-    this.deps.children.turnEnded(targetSessionId, kind, turn, context);
     if (turn.origin === "session" && turn.wakeReason) return;
     const all = this.deps.subscriptions.readSubscriptions();
     const hits = all.filter((each) => each.targetSessionId === targetSessionId && each.events.includes(kind));
     if (kind === "request_opened") {
-      for (const parentId of this.deps.children.parentsOf(targetSessionId)) {
+      for (const parentId of this.deps.lineage.parentsOf(targetSessionId)) {
         if (hits.some((each) => each.subscriberSessionId === parentId)) continue;
         hits.push({ id: `child_${targetSessionId}`, subscriberSessionId: parentId, targetSessionId, events: ["request_opened"], createdAt: turn.acceptedAt });
       }

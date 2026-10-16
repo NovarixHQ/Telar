@@ -183,7 +183,7 @@ describe("a session created by a session", () => {
     expect(store.handoff.parentOf(id)).toBeUndefined();
     expect(store.live.all().sessions.find((row) => row.id === id)?.startedFrom).toBeUndefined();
     expect(store.subscriptions.subscriptionsFor(parent.id)).toEqual([]);
-    expect(store.children.childrenOf(parent.id)).toEqual([]);
+    expect(store.lineage.childrenOf(parent.id)).toEqual([]);
     expect(store.queries.turns(id)).toEqual([]);
     expect(String(created.json!.note)).toContain("not filed under you");
   });
@@ -204,7 +204,7 @@ describe("a session created by a session", () => {
     expect(turn!.notification).toBeUndefined();
     expect(store.queries.assignments(id)).toEqual([]);
     expect(store.subscriptions.subscriptionsFor(parent.id)).toEqual([]);
-    expect(store.children.childrenOf(parent.id)).toEqual([]);
+    expect(store.lineage.childrenOf(parent.id)).toEqual([]);
   });
 
   test("without a task, nothing is assigned or queued", async () => {

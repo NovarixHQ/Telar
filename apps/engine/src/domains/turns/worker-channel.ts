@@ -34,6 +34,7 @@ type ChannelDeps = {
   liveQueueSessionIds: () => Set<string>;
   stopSession: (sessionId: string) => { stopped: Turn[]; live?: Turn };
   assertProjectAvailable: (projectId: string) => void;
+  backgroundStopped: (sessionId: string) => void;
 };
 
 /** What the worker's heartbeat and claims are checked against: steers to deliver, claims to prove, background stops. */
@@ -117,6 +118,7 @@ export class WorkerChannel {
         state: "stopped",
       });
       if (closed.length === 0) return 0;
+      this.deps.backgroundStopped(sessionId);
       const deliveries = this.deps.tasks.readStops();
       const turns = this.deps.readQueue(sessionId, closed.map((task) => task.runId)).turns;
       const driver = this.deps.records.get(sessionId).driver;

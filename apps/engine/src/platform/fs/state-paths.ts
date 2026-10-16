@@ -19,6 +19,7 @@ export type EngineStatePaths = {
   usageLimitSecrets: string;
   subscriptions: string;
   children: string;
+  lineage: string;
   textGen: string;
   sessionDefaults: string;
   simulatorSettings: string;
@@ -68,6 +69,7 @@ export function statePaths(root: string): EngineStatePaths {
     usageLimitSecrets: path.join(resolved, "usage-limit-secrets.json"),
     subscriptions: path.join(resolved, "subscriptions.json"),
     children: path.join(resolved, "children.json"),
+    lineage: path.join(resolved, "lineage.json"),
     textGen: path.join(resolved, "text-generation.json"),
     sessionDefaults: path.join(resolved, "session-defaults.json"),
     simulatorSettings: path.join(resolved, "simulator-settings.json"),

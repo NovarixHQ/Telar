@@ -15,7 +15,7 @@ function runtime(sessionId: string, closed: string[], live = false): ClaudeSessi
     query: { [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }), stopTask: async () => {} },
     iterator: { next: async () => ({ done: true, value: undefined }) },
     bindings: { current: undefined },
-    tasks: { bySdkId: new Map(), known: new Map(seeds.map((seed) => [seed.id, seed])), suppressed: new Set(), typesBySdkId: new Map(), lastWokenTaskId: undefined },
+    tasks: { bySdkId: new Map(), known: new Map(seeds.map((seed) => [seed.id, seed])), suppressed: new Set(), typesBySdkId: new Map(), parents: new Map(), lastWokenTaskId: undefined },
     pendingStep: undefined,
     parked: [],
     idlePump: undefined,

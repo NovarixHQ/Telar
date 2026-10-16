@@ -3,14 +3,14 @@ import { assertId, EngineStateError, type JournalEntry, type Kernel } from "../.
 import type { SessionLifecycle } from "./lifecycle-store";
 import { sessionMetadataFile, storedSession } from "./metadata";
 import type { SessionRecords } from "./records";
-import type { SessionChildren } from "./children";
+import type { SessionLineage } from "./lineage";
 import type { SessionSubscriptions } from "./subscriptions";
 
 type HandoffDeps = {
   records: SessionRecords;
   lifecycle: Pick<SessionLifecycle, "detachAssignments">;
   subscriptions: Pick<SessionSubscriptions, "handOver">;
-  children: Pick<SessionChildren, "handOver">;
+  lineage: Pick<SessionLineage, "handOver">;
   assignments(sessionId: string): SessionAssignment[];
   appendEvent(sessionId: string, event: JournalEntry): unknown;
 };
@@ -49,7 +49,7 @@ export class SessionHandoff {
       this.deps.appendEvent(sessionId, { type: "session.updated", session: next });
       if (from !== undefined) {
         this.deps.subscriptions.handOver(sessionId, from, input.to);
-        this.deps.children.handOver(sessionId, from, input.to);
+        this.deps.lineage.handOver(sessionId, from, input.to);
       }
 
       const moved: JournalEntry = { type: "session.handed_off", subject: sessionId, ...(from ? { from } : {}), ...(input.to ? { to: input.to } : {}) };

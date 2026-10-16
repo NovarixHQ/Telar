@@ -158,13 +158,13 @@ function engineSweeps(store: EngineStore, options: EngineDaemonOptions, pruneWor
     { name: "delegations", every: options.delegationSweepIntervalMs ?? 5 * 60_000, run: () => store.settler.sweepDelegated() },
     { name: "settled-terminals", every: options.settledTerminalSweepIntervalMs ?? 5 * 60_000, run: () => store.sessionTerminals.sweepSettled() },
     { name: "idle-terminals", every: options.settledTerminalSweepIntervalMs ?? 60_000, run: closeIdleTerminals },
-    // Also where a child put away unseen is noticed.
+    // Also where the lineage rechecks every pending child: a lapsed grace or schedule writes nothing.
     {
       name: "subscriptions",
       every: options.mailboxSweepIntervalMs ?? 30_000,
       run: () => {
         try {
-          store.children.review();
+          store.lineage.sweep();
         } finally {
           store.subscriptions.sweepSubscriptions();
         }
@@ -257,6 +257,12 @@ function engineRoutes(ctx: RouteContext): Route[] {
   ];
 }
 
+// The lineage is rechecked once every cut-off turn is stopped and every planned continuation is queued.
+function recoverAtBoot(store: EngineStore): void {
+  store.recovery.recover();
+  store.lineage.sweep();
+}
+
 export async function startEngine(options: EngineDaemonOptions = {}): Promise<EngineDaemon> {
   const root = options.engineRoot ?? engineRootFromEnv();
   const now = options.now ?? Date.now;
@@ -346,7 +352,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
     port = await listenLoopback(server, options.port ?? 0);
     const discovery: EngineDiscovery = { version: ENGINE_PROTOCOL_VERSION, daemonId, host: "127.0.0.1", port, token, startedAt };
     // Recovered under the lock and before discovery is published, so no client sees a pre-recovery queue.
-    loopLag.run("boot: recovery", () => store.recovery.recover());
+    loopLag.run("boot: recovery", () => recoverAtBoot(store));
     writeDiscovery(store.paths.engine, discovery);
     push.listening(discovery);
     const checkoutPasses = sweepCheckoutsAfterBoot(store, say).catch((error: unknown) => console.error(`[engine] the checkout passes failed: ${String(error)}`));

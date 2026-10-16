@@ -340,6 +340,7 @@ export async function pumpFrame(ctx: PumpCtx,
       const name = str(block.name) ?? "tool";
       const useId = str(block.id) ?? itemId();
       const isTask = name === "Task" || name === "Agent";
+      if (isTask && ownerTaskId) ctx.turn.taskParents.set(`task_${useId}`, ownerTaskId);
       const detail: ItemDetail = isTask ? { type: "task", taskId: `task_${useId}` } : itemDetailForToolCall(name, block.input);
       const title = isTask ? oneLine(str(asRecord(block.input).description) ?? str(asRecord(block.input).subagent_type) ?? name) : titleForToolCall(name, detail);
       const streamed = tools.has(useId);

@@ -22,6 +22,6 @@ export function orchestration(store: EngineStore) {
     };
   };
   const endingWakes = () => store.queries.turns(host).filter((each) => each.wakeReason && each.notification?.entries?.some((entry) => entry.title !== undefined));
-  const children = () => store.children.childrenOf(host).map((child) => [child.sessionId, child.state]);
+  const children = () => store.lineage.childrenOf(host).map((child) => [child.sessionId, child.state]);
   return { host, turn, endingWakes, children };
 }

@@ -5,17 +5,21 @@ import { busy, closeStores, reopenStore, reports, runTurn, setup } from "./notif
 afterEach(closeStores);
 
 function parkRequest(store: EngineStore): string {
-  store.intake.submitTurn("session_a", { runId: "run_a", input: "work" });
-  const token = store.claims.claimTurn("session_a", "worker_child")!.claim!.token;
-  store.turnLifecycle.markRunning("session_a", "run_a", token);
+  if (!store.queries.turns("session_a").some((turn) => turn.state === "queued")) store.intake.submitTurn("session_a", { runId: "run_a", input: "work" });
+  const claimed = store.claims.claimTurn("session_a", "worker_child")!;
+  const token = claimed.claim!.token;
+  store.turnLifecycle.markRunning("session_a", claimed.runId, token);
   store.lifecycle.updateSession("session_a", { runtimeMode: "approval-required" });
-  store.requestGate.open("session_a", "run_a", token, {
+  store.requestGate.open("session_a", claimed.runId, token, {
     requestId: "req_one",
     kind: "user_input",
     detail: { kind: "user_input", prompt: "Which database?", fields: [{ key: "db", label: "Database", kind: "choice", choices: ["postgres"] }] },
   });
   return token;
 }
+
+const taskA = (store: EngineStore, from: { runId: string; token: string }) =>
+  store.intake.submitAgentTurn("session_a", { runId: `run_task_${from.runId}`, input: "Build it.", intent: "task" }, { sessionId: "session_host", runId: from.runId, claimToken: from.token });
 
 const steered = (store: EngineStore) => store.queries.turns("session_host").filter((turn) => turn.state === "steering" && turn.wakeReason?.kind === "request_opened");
 
@@ -32,8 +36,7 @@ test("a request parked while the subscriber is busy goes into its running turn, 
 
 test("a builder's parked request reaches a busy orchestrator at once", () => {
   const { store } = setup();
-  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
-  busy(store);
+  taskA(store, busy(store));
 
   parkRequest(store);
 
@@ -104,13 +107,10 @@ test("the mailbox sweep delivers a box a lost worker left behind, found on disk 
   expect(queuedNotices(fresh).map((turn) => turn.wakeReason?.runId)).toEqual(["run_a"]);
 });
 
-const taskA = (store: EngineStore, from: { runId: string; token: string }) =>
-  store.intake.submitAgentTurn("session_a", { runId: `run_task_${from.runId}`, input: "Build it.", intent: "task" }, { sessionId: "session_host", runId: from.runId, claimToken: from.token });
-
 test("a builder's ending held while its orchestrator is busy wakes it as soon as that turn ends", () => {
   const { store } = setup();
   const host = busy(store);
-  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
+  store.lineage.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
   reports(store, { runId: "run_build" });
   expect(store.wakes.pendingNotifications("session_host").map((each) => each.summary)).toEqual([expect.stringContaining("[builder done]")]);
 
@@ -131,7 +131,7 @@ test("a result from a builder whose record already ended still wakes its orchest
   store.turnLifecycle.markRunning("session_a", nudged.runId, nudged.claim!.token);
   store.turnLifecycle.completeTurn("session_a", nudged.runId, nudged.claim!.token, { text: "still rebasing" });
   store.turnLifecycle.completeTurn("session_host", first.runId, first.token, { text: "ok" });
-  expect(store.children.childrenOf("session_host").map((each) => each.state)).toEqual(["done"]);
+  expect(store.lineage.childrenOf("session_host").map((each) => each.state)).toEqual(["done"]);
   const wake = store.claims.claimTurn("session_host", "worker_host")!;
   store.turnLifecycle.markRunning("session_host", wake.runId, wake.claim!.token);
   store.turnLifecycle.completeTurn("session_host", wake.runId, wake.claim!.token, { text: "noted" });
@@ -148,7 +148,7 @@ test("a result from a builder whose record already ended still wakes its orchest
 test("a person's message steered into a busy orchestrator brings the endings held for it", () => {
   const { store } = setup();
   const host = busy(store);
-  store.children.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
+  store.lineage.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "do it" });
   reports(store);
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(1);
 

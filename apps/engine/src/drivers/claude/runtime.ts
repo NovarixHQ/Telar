@@ -52,13 +52,16 @@ type TaskMemory<Seed extends { id: string; providerTaskId?: string }> = {
   readonly known: Map<string, Seed>;
   readonly suppressed: Set<string>;
   readonly typesBySdkId: Map<string, string>;
+  /** A sub-agent's own sub-agents: child task id → the task that launched it. */
+  readonly parents: Map<string, string>;
   lastWokenTaskId: string | undefined;
 };
 
-export function taskMemoryFrom<Seed extends { id: string; providerTaskId?: string }>(seeds: Iterable<Seed>): TaskMemory<Seed> {
-  const memory: TaskMemory<Seed> = { bySdkId: new Map(), known: new Map(), suppressed: new Set(), typesBySdkId: new Map(), lastWokenTaskId: undefined };
+export function taskMemoryFrom<Seed extends { id: string; providerTaskId?: string; parentTaskId?: string }>(seeds: Iterable<Seed>): TaskMemory<Seed> {
+  const memory: TaskMemory<Seed> = { bySdkId: new Map(), known: new Map(), suppressed: new Set(), typesBySdkId: new Map(), parents: new Map(), lastWokenTaskId: undefined };
   for (const seed of seeds) {
     memory.known.set(seed.id, seed);
+    if (seed.parentTaskId) memory.parents.set(seed.id, seed.parentTaskId);
     if (seed.providerTaskId) memory.bySdkId.set(seed.providerTaskId, seed.id);
   }
   return memory;

@@ -17,6 +17,8 @@ type SessionHost = {
   nextWake: (sessionId: string) => number | undefined;
   autoSettleAfterHours: () => number | null;
   onQueueChanged?: () => void;
+  /** A turn or task row of the session was written: a node of the lineage tree changed. */
+  nodesChanged: (sessionId: string) => void;
 };
 
 /** Builds the sessions store modules on one kernel and wires them to each other. */
@@ -28,7 +30,7 @@ export function createSessionModules(kernel: Kernel, host: SessionHost) {
   });
   const items = new SessionItems(kernel);
   const requests = new SessionRequests(kernel, () => records.ids());
-  const tasks = new SessionTasks(kernel);
+  const tasks = new SessionTasks(kernel, host.nodesChanged);
   const mailbox = new SessionMailbox(kernel);
   const activity: SessionActivity = new SessionActivity(kernel, {
     activityTurns: (sessionId, runIds) => queues.forActivity(sessionId, runIds),
@@ -49,7 +51,10 @@ export function createSessionModules(kernel: Kernel, host: SessionHost) {
   const queues: SessionQueues = new SessionQueues(kernel, {
     sessionIds: () => records.ids(),
     itemsForRuns: (sessionId, runs) => items.forRuns(sessionId, runs),
-    afterWrite: (sessionId, turns) => requests.trim(sessionId, turns),
+    afterWrite: (sessionId, turns) => {
+      requests.trim(sessionId, turns);
+      host.nodesChanged(sessionId);
+    },
     ...(host.onQueueChanged ? { onChanged: host.onQueueChanged } : {}),
   });
   const prefixes = new OpenPrefixes(kernel, (sessionId, before, limit) => kernel.executionStore.eventsBefore(sessionId, before, limit));

@@ -6,6 +6,34 @@ import type { BrowserRefs, TurnHost } from "./host";
 
 const WITHDRAWN_REASON = "the agent withdrew this request before it was answered";
 
+/** Background work asking between turns: parked under its task, answered on the heartbeat under the task's run. */
+export function bindTaskGate(host: TurnHost, sessionId: string) {
+  const { client } = host.options;
+  return async (taskId: string, { kind, detail, toolUseId, deadlineMs, default: fallback, signal }: DriverRequest): Promise<DriverRequestOutcome> => {
+    const requestId = `req_${toolUseId.replace(/[^A-Za-z0-9_-]/g, "")}`;
+    const opened = await client.openTaskRequest(sessionId, taskId, {
+      workerId: host.options.workerId,
+      requestId,
+      kind,
+      detail,
+      ...(deadlineMs !== undefined ? { deadlineMs } : {}),
+      ...(fallback !== undefined ? { default: fallback } : {}),
+    });
+    if (opened.state === "resolved") return { decision: opened.decision };
+    const key = `${opened.runId}:${requestId}`;
+    return new Promise<DriverRequestOutcome>((resolve) => {
+      host.awaiting.set(key, resolve);
+      const onWithdrawn = () => {
+        if (!host.awaiting.delete(key)) return;
+        resolve({ decision: "cancel" });
+        void client.resolveRequest(sessionId, requestId, { decision: "cancel", resolvedBy: "cancelled", reason: WITHDRAWN_REASON }).catch(() => undefined);
+      };
+      if (signal?.aborted) onWithdrawn();
+      else signal?.addEventListener("abort", onWithdrawn, { once: true });
+    });
+  };
+}
+
 export type TurnGate =BrowserRefs & { askEngine: (request: DriverRequest) => Promise<DriverRequestOutcome> };
 
 /** Everything a claim binds: the engine gate and the browser's gate, navigation sink and secret fill on top of it. */

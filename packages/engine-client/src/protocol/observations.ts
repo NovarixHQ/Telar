@@ -123,7 +123,7 @@ export type WorkerClaim = z.infer<typeof WorkerClaim>;
 export const ProviderTurnOpenInput = z.object({
   workerId: Id,
   input: z.string(),
-  reason: z.object({ kind: z.enum(["task_notification", "background_task", "unknown"]), taskId: Id.optional() }),
+  reason: z.object({ kind: z.enum(["task_notification", "unknown"]), taskId: Id.optional() }),
 });
 export type ProviderTurnOpenInput = z.infer<typeof ProviderTurnOpenInput>;
 
@@ -193,6 +193,9 @@ export const RequestOpenInput = z.object({
   default: RequestDefault.optional(),
 });
 export type RequestOpenInput = z.infer<typeof RequestOpenInput>;
+
+export const TaskRequestOpenInput = RequestOpenInput.omit({ claimToken: true }).extend({ workerId: Id });
+export type TaskRequestOpenInput = z.infer<typeof TaskRequestOpenInput>;
 
 /** The engine's answer. `state: "open"` means park and watch the heartbeat. */
 export const RequestOpenResult = z.discriminatedUnion("state", [

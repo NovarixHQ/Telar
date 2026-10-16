@@ -1,4 +1,4 @@
-import { AgentTurnInput, ProviderTurnOpenInput, SessionTaskReport, TurnModelSelection, type TurnSubmissionResult } from "@telar/engine-client";
+import { AgentTurnInput, ProviderTurnOpenInput, SessionTaskReport, TaskRequestOpenInput, TurnModelSelection, type TurnSubmissionResult } from "@telar/engine-client";
 import { HttpError } from "../../platform/http/http";
 import { stringValue } from "../../platform/http/params";
 import { ok, sessionRoute, type Route } from "../../platform/http/route";
@@ -91,6 +91,17 @@ export function sessionTurnRoutes(store: EngineStore, { execution, requireWorker
         if (!parsed.success) throw new HttpError(400, "invalid_request", "task report payload is invalid");
         activeWorker(parsed.data.workerId);
         return ok(await execution.reportSessionTasks(sessionId!, parsed.data.workerId, parsed.data.observations));
+      },
+    },
+    {
+      method: "POST",
+      path: sessionRoute("/tasks/([A-Za-z0-9_-]+)/request"),
+      auth: "engine",
+      async handle({ params: [sessionId, taskId], body }) {
+        const parsed = TaskRequestOpenInput.safeParse(body);
+        if (!parsed.success) throw new HttpError(400, "invalid_request", "task request payload is invalid");
+        activeWorker(parsed.data.workerId);
+        return ok(await execution.openTaskRequest(sessionId!, taskId!, parsed.data));
       },
     },
   ];

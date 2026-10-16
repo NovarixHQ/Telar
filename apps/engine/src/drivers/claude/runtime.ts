@@ -53,11 +53,12 @@ type TaskMemory<Seed extends { id: string; providerTaskId?: string }> = {
   readonly suppressed: Set<string>;
   readonly typesBySdkId: Map<string, string>;
   readonly parents: Map<string, string>;
+  readonly toolOwners: Map<string, string>;
   lastWokenTaskId: string | undefined;
 };
 
 export function taskMemoryFrom<Seed extends { id: string; providerTaskId?: string; parentTaskId?: string }>(seeds: Iterable<Seed>): TaskMemory<Seed> {
-  const memory: TaskMemory<Seed> = { bySdkId: new Map(), known: new Map(), suppressed: new Set(), typesBySdkId: new Map(), parents: new Map(), lastWokenTaskId: undefined };
+  const memory: TaskMemory<Seed> = { bySdkId: new Map(), known: new Map(), suppressed: new Set(), typesBySdkId: new Map(), parents: new Map(), toolOwners: new Map(), lastWokenTaskId: undefined };
   for (const seed of seeds) {
     memory.known.set(seed.id, seed);
     if (seed.parentTaskId) memory.parents.set(seed.id, seed.parentTaskId);

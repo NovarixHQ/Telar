@@ -2,7 +2,6 @@ import type { bindProviderWait } from "./provider-wait";
 import type { createEmitter } from "./emitter";
 import type { bindBlocks } from "./observations";
 import type { bindTasks } from "./task-tracker";
-import type { bindClaims } from "./background-claims";
 import { type ClaudeSessionRuntime, type ClaudeRuntimeStore } from "./runtime";
 import { type ClaudeTurnBindings, type SdkCanUseTool } from "./sdk";
 import { type TaskSeed, type UsageSnapshot, type ItemDetail, type TurnObservation } from "@telar/engine-client";
@@ -19,13 +18,11 @@ import { type TurnState, type Rest } from "./turn";
 export type PumpCtx = {
   turn: TurnState;
   backgroundGate: SdkCanUseTool;
-  closeBackgroundClaim: ReturnType<typeof bindClaims>["closeBackgroundClaim"];
   closeBlock: ReturnType<typeof bindBlocks>["closeBlock"];
   decorateUsage: ReturnType<typeof bindProviderWait>["decorateUsage"];
   emit: ReturnType<typeof createEmitter>["emit"];
   flush: ReturnType<typeof createEmitter>["flush"];
   handleTaskFrame: ReturnType<typeof bindTasks>["handleTaskFrame"];
-  lingerOnceQuiet: ReturnType<typeof bindClaims>["lingerOnceQuiet"];
   reportLostBackgroundWork: ReturnType<typeof bindTasks>["reportLostBackgroundWork"];
   runtimes: ClaudeRuntimeStore<ClaudeTurnBindings, TaskSeed>;
 };
@@ -78,9 +75,6 @@ export function startIdlePump(ctx: PumpCtx, idleRuntime: ClaudeSessionRuntime<Cl
           await endWake(ctx, pump, { failure: "the provider process ended" });
           ctx.turn.sink = pump.idleSink;
           ctx.reportLostBackgroundWork();
-          // The work the claim was held for died with the process; a
-          // claim left open would be a turn nothing will ever settle.
-          await ctx.closeBackgroundClaim().catch(() => undefined);
           await ctx.flush();
           return;
         }
@@ -93,9 +87,6 @@ export function startIdlePump(ctx: PumpCtx, idleRuntime: ClaudeSessionRuntime<Cl
         if (str(item.session_id)) ctx.turn.reportedSessionId = item.session_id;
 
         if (await ctx.handleTaskFrame(item)) {
-          // The last task may just have ended, which is what a held
-          // background claim was waiting for.
-          if (ctx.turn.backgroundClaim) ctx.lingerOnceQuiet(ctx.turn.backgroundClaim);
           await ctx.flush();
           continue;
         }
@@ -113,12 +104,10 @@ export function startIdlePump(ctx: PumpCtx, idleRuntime: ClaudeSessionRuntime<Cl
       // same consequence for its shells — see `reportLostBackgroundWork`.
       ctx.turn.sink = pump.idleSink;
       ctx.reportLostBackgroundWork();
-      await ctx.closeBackgroundClaim().catch(() => undefined);
       await ctx.flush().catch(() => undefined);
       ctx.runtimes.destroy(idleRuntime.sessionId);
     } finally {
       if (idleRuntime.idlePump?.stop === undefined || stopped) idleRuntime.idlePump = undefined;
-      void ctx.closeBackgroundClaim().catch(() => undefined);
     }
   })();
 }
@@ -158,7 +147,6 @@ async function openWake(ctx: PumpCtx, pump: IdlePump, item: SdkFrame, parentTool
     return false;
   }
   const text = item.type === "user" ? userText(item.message?.content) : undefined;
-  await ctx.closeBackgroundClaim().catch(() => undefined);
   const binding = await pump.hooks.onProviderTurn({
     input: text ?? "",
     reason: wokenTask ? { kind: "task_notification", taskId: wokenTask } : { kind: "unknown" },
@@ -341,6 +329,7 @@ export async function pumpFrame(ctx: PumpCtx,
       const useId = str(block.id) ?? itemId();
       const isTask = name === "Task" || name === "Agent";
       if (isTask && ownerTaskId) ctx.turn.taskParents.set(`task_${useId}`, ownerTaskId);
+      if (ownerTaskId) ctx.turn.toolOwners.set(useId, ownerTaskId);
       const detail: ItemDetail = isTask ? { type: "task", taskId: `task_${useId}` } : itemDetailForToolCall(name, block.input);
       const title = isTask ? oneLine(str(asRecord(block.input).description) ?? str(asRecord(block.input).subagent_type) ?? name) : titleForToolCall(name, detail);
       const streamed = tools.has(useId);
@@ -357,6 +346,7 @@ export async function pumpFrame(ctx: PumpCtx,
       const open = useId ? tools.get(useId) : undefined;
       if (!open || !useId) continue;
       tools.delete(useId);
+      ctx.turn.toolOwners.delete(useId);
       const output = typeof block.content === "string" ? block.content : JSON.stringify(block.content ?? null);
       ctx.emit({ kind: "item.completed", itemId: open.id, status: block.is_error === true ? "failed" : "completed", detail: withToolResult(open.detail, output, structured) });
     }

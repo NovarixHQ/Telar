@@ -1,7 +1,7 @@
 import type { UsageSnapshot } from "../protocol/common";
 import type { Turn, WorkerTurnFailure } from "../protocol/entities";
 import type { EngineEvent, EventPage, TurnModelSelection, TurnSubmissionResult } from "../protocol/events";
-import type { AgentTurnInput, ProviderTurnOpenInput, RequestOpenResult, TurnObservation, WorkerClaim, WorkerStatus } from "../protocol/observations";
+import type { AgentTurnInput, ProviderTurnOpenInput, RequestOpenResult, TaskRequestOpenInput, TurnObservation, WorkerClaim, WorkerStatus } from "../protocol/observations";
 import type { EngineRequest, RequestDecision, RequestDefault, RequestDetail, RequestKind } from "../protocol/requests";
 import type { EngineTransport } from "../platform/transport";
 import { queryOf, sessionPath } from "../sessions/client";
@@ -110,6 +110,10 @@ export const turnsClient = {
   /** Task reports between turns: no claim, worker-authenticated. */
   reportSessionTasks(this: EngineTransport, sessionId: string, workerId: string, observations: TurnObservation[]): Promise<{ accepted: number }> {
     return this.request("POST", `${sessionPath(sessionId)}/tasks`, { workerId, observations });
+  },
+
+  openTaskRequest(this: EngineTransport, sessionId: string, taskId: string, input: Omit<TaskRequestOpenInput, "providerRefs">): Promise<RequestOpenResult & { runId: string }> {
+    return this.request("POST", `${sessionPath(sessionId)}/tasks/${encodeURIComponent(taskId)}/request`, input);
   },
 
   markTurnRunning(this: EngineTransport, sessionId: string, runId: string, claimToken: string): Promise<{ turn: Turn }> {

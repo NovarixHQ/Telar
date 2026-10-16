@@ -12,7 +12,7 @@ import { isConnectivityLoss } from "./lease";
 import { assertProjectRoot, unreachableReason, WorkspaceUnreachableError } from "./project-root";
 import { tokenizeCliArgs } from "../platform/process/cli-args";
 import { telarCapabilities } from "./capabilities";
-import { bindTurn, repointBrowser, type TurnGate } from "./turn-gate";
+import { bindTaskGate, bindTurn, repointBrowser, type TurnGate } from "./turn-gate";
 import type { PendingSteerAck, TurnHost } from "./host";
 
 type Turn = {
@@ -219,6 +219,7 @@ function driverRun(
     session: {
       onTasks: (observations) => client.reportSessionTasks(sessionId, host.options.workerId, observations).then(() => undefined),
       onProviderTurn: (opening) => openProviderTurn(host, sessionId, opening),
+      onTaskRequest: bindTaskGate(host, sessionId),
     },
   };
 }
@@ -242,14 +243,11 @@ async function openProviderTurn(
   const claimToken = opened.turn.claim!.token;
   const controller = new AbortController();
   host.active.set(claimToken, controller);
-  const wanted = new AbortController();
-  host.providerTurnsWanted.set(claimToken, wanted);
   const gate = bindTurn(host, sessionId, runId, claimToken, controller);
   host.liveClaims.set(sessionId, { runId, claimToken });
   repointBrowser(host, sessionId, gate);
   return {
     runId,
-    wanted: wanted.signal,
     onRequest: gate.askEngine,
     onObservations: async (observations) => {
       if (controller.signal.aborted) return;
@@ -257,7 +255,6 @@ async function openProviderTurn(
     },
     close: async (result) => {
       host.active.delete(claimToken);
-      host.providerTurnsWanted.delete(claimToken);
       if (controller.signal.aborted) return;
       try {
         if ("failure" in result) await client.failTurn(sessionId, runId, claimToken, { code: "driver_failed", message: result.failure });

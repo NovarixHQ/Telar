@@ -39,7 +39,6 @@ export type TurnHost = {
   readonly telarLeases: Map<string, { key: string; lease?: TelarSocketLease; capabilities: { current: TelarCapabilities } }>;
   /** The session's live claim, read when `sessions_send` is called: the capability outlives its turn. */
   readonly liveClaims: Map<string, { runId: string; claimToken: string }>;
-  readonly providerTurnsWanted: Map<string, AbortController>;
   readonly stopDeliveredAt: Map<string, number>;
   readonly pluginsLookedFor: Set<string>;
   stopped(): boolean;

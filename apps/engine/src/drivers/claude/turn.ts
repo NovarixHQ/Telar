@@ -3,7 +3,6 @@ import type { ClaudeSessionRuntime } from "./runtime";
 import type { SdkCanUseTool, ClaudeTurnBindings, ClaudeSdk, ClaudeEffort } from "./sdk";
 import type { LimitWarningSeen } from "./limits";
 import type { OpenBlock, StreamingInput } from "./observations";
-import type { BackgroundClaim } from "./background-claims";
 
 export const COALESCE_MS = 16;
 
@@ -39,6 +38,7 @@ export type TurnState = {
   taskIdsBySdkId: Map<string, string>;
   knownTasks: Map<string, TaskSeed>;
   taskParents: Map<string, string>;
+  toolOwners: Map<string, string>;
   taskTypesBySdkId: Map<string, string>;
   suppressedTasks: Set<string>;
   pendingOutputFiles: Map<string, string>;
@@ -51,8 +51,6 @@ export type TurnState = {
   pendingSink: ((observations: TurnObservation[]) => Promise<void>) | undefined;
   coalescing: ReturnType<typeof setTimeout> | undefined;
   canUseTool: SdkCanUseTool | undefined;
-  backgroundClaim: BackgroundClaim | undefined;
-  backgroundClaimChain: Promise<unknown>;
   executable: string | undefined;
   extraArgs: Record<string, string | null> | undefined;
   turnBindings: ClaudeTurnBindings;

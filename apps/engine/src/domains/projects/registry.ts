@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  MAX_AGENT_INSTRUCTIONS,
   applyPluginPatch,
   DataScienceConfig as DataScienceConfigSchema,
   LatexConfig as LatexConfigSchema,
@@ -30,6 +31,7 @@ export type ProjectPatch = {
   iconEmoji?: string | null;
   defaultModel?: ModelSelection | null;
   envMode?: EnvMode | null;
+  instructions?: string | null;
   dataScience?: DataScienceConfig | null;
   latex?: LatexConfig | null;
   plugins?: PluginPatch;
@@ -295,6 +297,12 @@ export class ProjectRegistry {
       const mode = ProjectSchema.shape.envMode.safeParse(patch.envMode);
       if (!mode.success || mode.data === undefined) throw new EngineStateError("invalid_request", "workspace mode must be local or worktree");
       next.envMode = mode.data;
+    }
+    if (patch.instructions !== undefined) {
+      const text = ProjectSchema.shape.instructions.safeParse(typeof patch.instructions === "string" ? patch.instructions.trim() : undefined);
+      if (!text.success) throw new EngineStateError("invalid_request", `instructions must be text of at most ${MAX_AGENT_INSTRUCTIONS} characters`);
+      if (text.data) next.instructions = text.data;
+      else delete next.instructions;
     }
     const fromLegacy: PluginPatch = {};
     if (patch.dataScience !== undefined) {

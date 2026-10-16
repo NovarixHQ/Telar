@@ -30,7 +30,7 @@ export function settingsRoutes(
       auth: "engine",
       // The skill is re-synced before answering: "off" must mean the file is gone.
       async handle({ body }) {
-        const orientation = store.settings.setOrientation(present(body, ["preamble", "skill"]));
+        const orientation = store.settings.setOrientation(present(body, ["preamble", "skill", "instructions"]));
         await syncOrientationSkill(orientation);
         return ok({ orientation, text: TELAR_ORIENTATION });
       },

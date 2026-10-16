@@ -31,6 +31,7 @@ import {
   type SessionRequests,
   type SessionTasks,
 } from "../sessions";
+import { personInstructions } from "../settings";
 import { MAX_TEXT_LENGTH } from "./intake";
 import { carriedContext, stampClaimProvider, switchItem } from "./provider-carry";
 
@@ -412,6 +413,10 @@ export class TurnClaims {
       })(),
       ...(this.deps.getAgentOrientation().preamble ? { orientation: TELAR_ORIENTATION } : {}),
       ...(() => {
+        const instructions = personInstructions(this.deps.getAgentOrientation().instructions, this.projectInstructions(session));
+        return instructions ? { instructions } : {};
+      })(),
+      ...(() => {
         const simulators = this.deps.simulatorAccess();
         return simulators ? { simulators } : {};
       })(),
@@ -421,6 +426,15 @@ export class TurnClaims {
       })(),
       turn,
     };
+  }
+
+  private projectInstructions(session: Session): string | undefined {
+    if (!session.projectId) return undefined;
+    try {
+      return this.deps.getProject(session.projectId).instructions;
+    } catch {
+      return undefined;
+    }
   }
 
   private diagnosisClaim(session: Session, turn: Turn): WorkerClaim {

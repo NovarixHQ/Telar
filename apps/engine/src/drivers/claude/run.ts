@@ -241,6 +241,7 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     run: Boolean(run),
     orientation: orientation ?? null,
     mainBriefing: mainBriefing ?? null,
+    instructions: input.instructions ?? null,
     plugins: Object.keys(plugins ?? {}).sort(),
     gate: Boolean(turn.canUseTool),
     instance: providerInstanceId ?? null,

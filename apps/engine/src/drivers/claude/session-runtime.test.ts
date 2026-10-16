@@ -570,6 +570,21 @@ describe("the model-visible prefix", () => {
   });
 });
 
+test("the person's instructions close the system prompt, and new ones start a fresh process", async () => {
+  const appended: unknown[] = [];
+  const driver = createClaudeDriver(async () => ({
+    tool: (name: string) => ({ name }),
+    createSdkMcpServer: (input: { name: string }) => ({ type: "sdk", name: input.name }),
+    async *query(input: { options: { systemPrompt?: { append?: string } } }) {
+      appended.push(input.options.systemPrompt?.append);
+      yield { type: "result", subtype: "success" };
+    },
+  }) as never);
+  await run(driver, { sessionId: "session_instructions", orientation: "You are in Telar.", instructions: "Answer in Spanish." }).result;
+  await run(driver, { sessionId: "session_instructions", orientation: "You are in Telar.", instructions: "Answer in French." }).result;
+  expect(appended).toEqual(["You are in Telar.\n\nAnswer in Spanish.", "You are in Telar.\n\nAnswer in French."]);
+});
+
 test("Telar's in-process server outlasts a delegated wait", async () => {
   let servers: Record<string, { timeout?: number }> | undefined;
   const driver = createClaudeDriver(async () => ({

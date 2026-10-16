@@ -197,6 +197,7 @@ function driverRun(
     ...(claim.computerUse ? { computerUse: claim.computerUse } : {}),
     ...(claim.tasks?.length ? { tasks: claim.tasks } : {}),
     ...(claim.orientation ? { orientation: claim.orientation } : {}),
+    ...(claim.instructions ? { instructions: claim.instructions } : {}),
     ...(claim.readOnly ? { readOnly: true } : {}),
     ...(env ? { env } : {}),
     ...(providerInstance?.binaryPath ? { binaryPath: providerInstance.binaryPath } : {}),

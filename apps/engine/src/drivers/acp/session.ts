@@ -67,6 +67,7 @@ async function loadSession(rpc: AcpConnection, params: Record<string, unknown>):
 export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
   const clock = options.clock ?? realClock;
   const runtimes = new Map<string, Runtime>();
+  const deliveredInstructions = new Map<string, string>();
   const close = (sessionId: string): void => {
     const runtime = runtimes.get(sessionId);
     if (!runtime) return;
@@ -149,6 +150,8 @@ export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
     const turn = new AcpTurn(run.runId ?? `${Date.now()}`, emit);
     const fresh = active.fresh;
     active.fresh = false;
+    const preface = fresh ? driverBriefings(run) : changedInstructions(deliveredInstructions.get(run.sessionId), run.instructions);
+    deliveredInstructions.set(run.sessionId, run.instructions ?? "");
     emit({ kind: "provider.session", providerSessionId: active.sessionId });
     if (fresh && run.providerSessionId && run.providerSessionId !== active.sessionId) {
       emit({ kind: "runtime.warning", message: "The agent was restarted and does not remember the earlier turns of this session." });
@@ -166,7 +169,7 @@ export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
     if (run.signal.aborted) cancel();
     else run.signal.addEventListener("abort", cancel, { once: true });
     try {
-      const response = await active.rpc.request("session/prompt", { sessionId: active.sessionId, prompt: promptBlocks(run, fresh, active.images) });
+      const response = await active.rpc.request("session/prompt", { sessionId: active.sessionId, prompt: promptBlocks(run, preface, active.images) });
       turn.finish();
       const usage = turn.usage(response);
       if (usage) emit({ kind: "usage", usage });
@@ -191,17 +194,23 @@ export function createAcpDriver(options: AcpDriverOptions = {}): TurnDriver {
     run: runTurn,
     dispose() {
       for (const sessionId of runtimes.keys()) close(sessionId);
+      deliveredInstructions.clear();
     },
   };
 }
 
-// Telar's briefings travel inline, once per agent session, because ACP has no system channel.
-function promptBlocks(run: DriverRun, fresh: boolean, images: boolean): Array<Record<string, unknown>> {
+function changedInstructions(delivered: string | undefined, current: string | undefined): string[] {
+  if (delivered === undefined || delivered === (current ?? "")) return [];
+  return [current || "The person's earlier instructions for agents no longer apply."];
+}
+
+// ACP has no system channel: briefings go inline once per agent session, and later instruction edits ride the next prompt.
+function promptBlocks(run: DriverRun, preface: string[], images: boolean): Array<Record<string, unknown>> {
   const files = run.attachments ?? [];
   const inlineImages = images ? files.filter((file) => file.mediaType.startsWith("image/")) : [];
   const named = files.filter((file) => !inlineImages.includes(file));
   const prompt = withAttachedFiles(run.notification ? run.notification.summary : run.prompt, named);
-  const text = [...(fresh ? driverBriefings(run) : []), prompt].filter((part) => part.trim()).join("\n\n");
+  const text = [...preface, prompt].filter((part) => part.trim()).join("\n\n");
   return [
     ...(text ? [{ type: "text", text }] : []),
     ...inlineImages.map((file): Record<string, unknown> => {

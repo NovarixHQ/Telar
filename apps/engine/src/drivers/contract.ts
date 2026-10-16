@@ -47,6 +47,7 @@ export type DriverRun = {
   ultracode?: boolean;
   orientation?: string;
   mainBriefing?: string;
+  instructions?: string;
   readOnly?: boolean;
   usageDiagnosis?: UsageDiagnosisCapability;
   attachments?: TurnAttachment[];

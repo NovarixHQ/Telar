@@ -41,6 +41,7 @@ export const projectsClient = {
       iconEmoji?: string | null;
       defaultModel?: ModelSelection | null;
       envMode?: EnvMode | null;
+      instructions?: string | null;
       plugins?: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>;
     },
   ): Promise<{ project: Project }> {

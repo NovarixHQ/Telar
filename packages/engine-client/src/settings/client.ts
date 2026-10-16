@@ -22,7 +22,7 @@ export const settingsClient = {
   },
 
   /** An absent switch is left alone. */
-  setOrientation(this: EngineTransport, patch: { preamble?: boolean; skill?: boolean }): Promise<OrientationAnswer> {
+  setOrientation(this: EngineTransport, patch: { preamble?: boolean; skill?: boolean; instructions?: string }): Promise<OrientationAnswer> {
     return this.request("PATCH", "/v2/orientation", patch);
   },
 

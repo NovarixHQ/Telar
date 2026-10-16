@@ -112,3 +112,7 @@ test("the server identity changes with the compaction setting, and with the mode
   expect(openCodeServerIdentity(base)).toBe(openCodeServerIdentity(run({ ...base, model: "opencode/b" })));
   expect(openCodeServerIdentity(run({ ...base, extraArgs: ["--print-logs"] }))).not.toBe(openCodeServerIdentity(base));
 });
+
+test("new instructions from the person restart the server, which reads them at startup", () => {
+  expect(openCodeServerIdentity(run({ instructions: "Answer in Spanish." }))).not.toBe(openCodeServerIdentity(run({ instructions: "Answer in French." })));
+});

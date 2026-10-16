@@ -8,7 +8,7 @@ import { afterOverlayShows, trackOverlayElement, useOverlayLayer } from "@/platf
 
 type Phase = Parameters<NonNullable<ComposerProps["onDictationPhase"]>>[0];
 
-export const NOTCH = { width: 64, height: 22, bottom: 8 };
+export const NOTCH = { width: 200, height: 36, bottom: 12 };
 const MORPH_MS = 220;
 const EASE_OUT = "cubic-bezier(.22,1,.36,1)";
 

@@ -87,9 +87,10 @@ function Notch({ onOpen }: { onOpen: () => void }) {
       onPointerLeave={() => setHovered(false)}
       onClick={onOpen}
       style={{ width: NOTCH.width, height: NOTCH.height, bottom: NOTCH.bottom, left: `calc(50% - ${NOTCH.width / 2}px)` }}
-      className="fixed z-50 flex items-center justify-center rounded-full bg-card/95 text-muted-foreground shadow-2 ring-1 ring-foreground/10 backdrop-blur-xl transition-colors hover:text-foreground"
+      className="fixed z-50 flex items-center justify-center gap-2 rounded-full bg-card/95 text-sm text-muted-foreground shadow-2 ring-1 ring-foreground/10 backdrop-blur-xl transition-colors hover:text-foreground"
     >
-      <MessageSquareTextIcon className="size-3.5" />
+      <MessageSquareTextIcon className="size-4" />
+      <span>Write a message</span>
     </button>,
     layer ?? document.body,
   );

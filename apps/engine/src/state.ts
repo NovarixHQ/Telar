@@ -428,6 +428,11 @@ export class EngineStore {
     });
     const requestGate = new RequestGate(this.kernel, this.records, this.sessionRequests, {
       requireRunningClaim: (sessionId, runId, claimToken) => this.worker.requireRunningClaim(sessionId, runId, claimToken),
+      liveTask: (sessionId, taskId) => {
+        const task = this.sessionTasks.read(sessionId).get(taskId);
+        return task && (task.state === "pending" || task.state === "running" || task.state === "waiting") ? task : undefined;
+      },
+      turnOf: (sessionId, runId) => this.sessionQueues.read(sessionId, [runId]).turns.find((turn) => turn.runId === runId),
       liveQueueSessionIds: () => this.sessionQueues.liveSessionIds(),
       liveTurns: (sessionId) => this.sessionQueues.live(sessionId),
       appendEvent: (sessionId, event, runId) => this.kernel.appendEvent(sessionId, event, runId),

@@ -80,15 +80,16 @@ export type ProviderTurnBinding = {
   onObservations(observations: TurnObservation[]): Promise<void>;
   onRequest?(request: DriverRequest): Promise<RequestDecision | DriverRequestOutcome>;
   close(result: DriverResult | { failure: string }): Promise<void>;
-  wanted?: AbortSignal;
 };
 
 export type DriverSessionHooks = {
   onTasks(observations: TurnObservation[]): Promise<void>;
   onProviderTurn(input: {
     input: string;
-    reason: { kind: "task_notification" | "background_task" | "unknown"; taskId?: string };
+    reason: { kind: "task_notification" | "unknown"; taskId?: string };
   }): Promise<ProviderTurnBinding | undefined>;
+  /** A permission prompt from background work with no turn open: parked under the task, not a turn. */
+  onTaskRequest?(taskId: string, request: DriverRequest): Promise<RequestDecision | DriverRequestOutcome>;
 };
 
 export type TurnDriver = {

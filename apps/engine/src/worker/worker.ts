@@ -62,7 +62,6 @@ export class EngineWorker {
   private readonly pushedSteers = new Set<string>();
   private readonly browserLeases: TurnHost["browserLeases"] = new Map();
   private readonly liveClaims: TurnHost["liveClaims"] = new Map();
-  private readonly providerTurnsWanted = new Map<string, AbortController>();
   private readonly telarLeases: TurnHost["telarLeases"] = new Map();
   private readonly stopDeliveredAt = new Map<string, number>();
   /** Terminal settlements the engine has not acknowledged, by runId. */
@@ -85,7 +84,6 @@ export class EngineWorker {
       browserLeases: this.browserLeases,
       telarLeases: this.telarLeases,
       liveClaims: this.liveClaims,
-      providerTurnsWanted: this.providerTurnsWanted,
       stopDeliveredAt: this.stopDeliveredAt,
       pluginsLookedFor: this.pluginsLookedFor,
       stopped: () => this.stopped,
@@ -196,7 +194,6 @@ export class EngineWorker {
     for (const { lease } of this.browserLeases.values()) lease.release();
     this.browserLeases.clear();
     this.liveClaims.clear();
-    this.providerTurnsWanted.clear();
     for (const entry of this.telarLeases.values()) entry.lease?.release();
     this.telarLeases.clear();
     if (typeof this.options.driver !== "function") this.usedDrivers.add(this.options.driver);
@@ -401,8 +398,6 @@ export class EngineWorker {
     }
     for (const delivery of status.steer ?? []) {
       if (this.pushedSteers.has(delivery.steerRunId)) continue;
-      // A provider turn has no mailbox; the message tells it somebody wants the session.
-      this.providerTurnsWanted.get(delivery.claimToken)?.abort();
       const entry = this.steering.get(delivery.claimToken);
       // Undeliverable here: the turn stays `steering` and the engine's sweep requeues it.
       if (

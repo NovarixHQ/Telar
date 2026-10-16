@@ -111,6 +111,8 @@ export const EngineRequest = z.object({
   sessionId: Id,
   /** The timeline row this request is about, when there is one. */
   itemId: Id.optional(),
+  taskId: Id.optional(),
+  workerId: Id.optional(),
   state: RequestState,
   detail: RequestDetail,
   openedAt: Timestamp,

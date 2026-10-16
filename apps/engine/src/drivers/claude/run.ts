@@ -12,12 +12,11 @@ import { providerWaitFrom, RateLimitedError, END_TURN_GRACE_MS } from "./limits"
 import { bindBlocks, type OpenBlock, type StreamingInput } from "./observations";
 import { gateFor } from "./permission-gate";
 import type { SdkFrame } from "./frames";
-import { BACKGROUND_CLAIM_LINGER_MS } from "./background-claims";
 import type { TurnState } from "./turn";
 import { createEmitter } from "./emitter";
 import { bindTasks } from "./task-tracker";
 import { bindProviderWait } from "./provider-wait";
-import { bindClaims, createBackgroundGate } from "./background-claims";
+import { createBackgroundGate } from "./background-gate";
 import { bindSteering } from "./steering";
 import { bindRuntime } from "./session-runtime";
 import { bindIdlePump } from "./idle-pump";
@@ -54,15 +53,10 @@ export function createClaudeDriver(
      *  `END_TURN_GRACE_MS`. Injected so a test does not sleep for the real one. */
     endTurnGraceMs?: number;
     unattendedBackgroundWorkMs?: number;
-    /** How long a background task's claim is kept after its last decision —
-     *  see `BACKGROUND_CLAIM_LINGER_MS`. Injected so a test does not sleep for
-     *  the real window. */
-    backgroundClaimLingerMs?: number;
   } = {},
 ): TurnDriver {
   const resolveExecutable = options.resolveExecutable ?? defaultClaudeExecutable;
   const endTurnGraceMs = options.endTurnGraceMs ?? END_TURN_GRACE_MS;
-  const backgroundClaimLingerMs = options.backgroundClaimLingerMs ?? BACKGROUND_CLAIM_LINGER_MS;
   /** sessionId → live query. Owned per driver instance so every test gets
    *  isolation and each worker deployment owns exactly its own processes. */
   const runtimes = new ClaudeRuntimeStore<ClaudeTurnBindings, TaskSeed>({
@@ -83,7 +77,7 @@ export function createClaudeDriver(
     capabilities: CLAUDE_CAPABILITIES,
     dispose: () => runtimes.destroyAll(),
     stopTask: (sessionId, providerTaskId) => runtimes.stopTask(sessionId, providerTaskId),
-    run: (input) => runClaudeTurn({ loadSdk, resolveExecutable, endTurnGraceMs, backgroundClaimLingerMs, runtimes }, input),
+    run: (input) => runClaudeTurn({ loadSdk, resolveExecutable, endTurnGraceMs, runtimes }, input),
   };
 }
 
@@ -91,7 +85,6 @@ type DriverDeps = {
   loadSdk: () => Promise<ClaudeSdk>;
   resolveExecutable: (binaryPath?: string) => string | undefined;
   endTurnGraceMs: number;
-  backgroundClaimLingerMs: number;
   runtimes: ClaudeRuntimeStore<ClaudeTurnBindings, TaskSeed>;
 };
 
@@ -99,7 +92,7 @@ type TurnScope = Awaited<ReturnType<typeof openTurn>>;
 
 async function openTurn(deps: DriverDeps, input: DriverRun) {
   const { prompt, notification, sessionId, cwd: claimedCwd, model, effort, fastMode, ultracode, attachments, computerUse, autoCompact, onObservations, onRequest, providerSessionId, browserSocket, tasks: seededTasks, session: sessionHooks } = input;
-  const { loadSdk, backgroundClaimLingerMs, runtimes } = deps;
+  const { loadSdk, runtimes } = deps;
   const turn = {} as TurnState;
   const { flush, flushSoon, emit } = createEmitter(turn);
   
@@ -159,6 +152,7 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
    *  something rather than sent as a task with no title or kind. */
   turn.knownTasks = new Map();
   turn.taskParents = new Map();
+  turn.toolOwners = new Map();
   /** The SDK's `task_type` per task id — see `TaskMemory.typesBySdkId`. */
   turn.taskTypesBySdkId = new Map();
   turn.suppressedTasks = new Set();
@@ -180,11 +174,8 @@ async function openTurn(deps: DriverDeps, input: DriverRun) {
   turn.flushQueue = Promise.resolve();
   turn.canUseTool = onRequest ? gateFor(onRequest) : undefined;
   
-  turn.backgroundClaimChain = Promise.resolve();
-  const { acquireBackgroundClaim, closeBackgroundClaim, lingerOnceQuiet, releaseBackgroundClaim } = bindClaims({ turn, backgroundClaimLingerMs, liveBackgroundTasks, runtimes, sessionHooks, sessionId });
-
-  const backgroundGate = createBackgroundGate(turn, acquireBackgroundClaim, releaseBackgroundClaim);
-  const { startIdlePump } = bindIdlePump({ turn, backgroundGate, closeBackgroundClaim, closeBlock, decorateUsage, emit, flush, handleTaskFrame, lingerOnceQuiet, reportLostBackgroundWork, runtimes });
+  const backgroundGate = createBackgroundGate(turn, sessionHooks);
+  const { startIdlePump } = bindIdlePump({ turn, backgroundGate, closeBlock, decorateUsage, emit, flush, handleTaskFrame, reportLostBackgroundWork, runtimes });
   const { onSteered, consumeSteerCut, closeCutTools } = bindSteering({ turn, emit });
   identifyTurn(deps, input, turn);
   const { buildRuntime } = bindRuntime({ turn, attachments, browserSocket, fastMode, model, notification, prompt, providerSessionId, seededTasks, sessionId, ultracode });
@@ -300,6 +291,7 @@ async function claimTurnRuntime(deps: DriverDeps, input: DriverRun, scope: TurnS
   turn.taskIdsBySdkId = turn.runtime.tasks.bySdkId;
   turn.knownTasks = turn.runtime.tasks.known;
   turn.taskParents = turn.runtime.tasks.parents;
+  turn.toolOwners = turn.runtime.tasks.toolOwners;
   turn.suppressedTasks = turn.runtime.tasks.suppressed;
   turn.taskTypesBySdkId = turn.runtime.tasks.typesBySdkId;
 

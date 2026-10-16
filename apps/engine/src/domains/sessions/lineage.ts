@@ -26,12 +26,11 @@ const out = (state: SessionChildState): boolean => state === "working" || state 
 const pending = (node: StoredNode): boolean => out(node.state);
 const lineOf = (text: string): string | undefined => firstLine(text, SUMMARY_CHARS) || undefined;
 const sameReasons = (a: readonly string[] | undefined, b: readonly string[]): boolean => a !== undefined && a.length === b.length && a.every((reason, index) => reason === b[index]);
-const isBackgroundClaim = (turn: Turn): boolean => turn.origin === "provider" && turn.providerReason?.kind === "background_task";
 
-// The newest turn the child's model ran; a background claim only decided a tool call, so it is nobody's ending.
+// The newest turn the child's model ran.
 function lastOwnTurn(turns: Turn[]): Turn | undefined {
   return turns
-    .filter((turn) => turn.agentDelivery !== "passive" && ENDED_TURN_STATES.has(turn.state) && !isBackgroundClaim(turn))
+    .filter((turn) => turn.agentDelivery !== "passive" && ENDED_TURN_STATES.has(turn.state))
     .sort((a, b) => (a.completedAt ?? 0) - (b.completedAt ?? 0))
     .at(-1);
 }

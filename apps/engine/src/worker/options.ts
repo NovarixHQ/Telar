@@ -18,6 +18,7 @@ export type WorkerClient = Pick<
   | "reportObservations"
   | "uploadAttachment"
   | "openRequest"
+  | "openTaskRequest"
   | "completeTurn"
   | "failTurn"
   | "openProviderTurn"

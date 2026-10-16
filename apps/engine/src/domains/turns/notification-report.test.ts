@@ -37,19 +37,23 @@ test("a run that FAILS after a held report still wakes the host, carrying the re
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
 });
 
-test("a background-claim turn reaches no subscriber or parent, even one that asked for every completion", () => {
+test("a background permission prompt between turns opens no turn and wakes neither a subscriber nor the parent", () => {
   const { store } = setup();
   store.subscriptions.subscribe("session_host", { targetSessionId: "session_a", completionWake: "always", once: false });
   store.lineage.recordMessage("session_a", "session_host", "task", { runId: "run_errand", body: "plan it" });
+  store.intake.submitTurn("session_a", { runId: "run_errand", input: "work" });
+  const token = store.claims.claimTurn("session_a", "worker_child")!.claim!.token;
+  store.turnLifecycle.markRunning("session_a", "run_errand", token);
   const agent = { id: "task_agent", sessionId: "session_a", runId: "run_errand", kind: "agent" as const, backgrounded: true, state: "running" as const, startedAt: 1, updatedAt: 1 };
   store.sessionTasks.write("session_a", new Map([[agent.id, agent]]));
-  for (const end of ["complete", "fail"] as const) {
-    const claim = store.claims.openProviderTurn("session_a", { workerId: "worker_child", input: "", reason: { kind: "background_task" } });
-    if (end === "complete") store.turnLifecycle.completeTurn("session_a", claim.runId, claim.claim!.token, { text: "Decided a tool call for background work still running after its turn ended." });
-    else store.turnLifecycle.failTurn("session_a", claim.runId, claim.claim!.token, { code: "interrupted", message: "cut" });
-  }
+  store.turnLifecycle.completeTurn("session_a", "run_errand", token, { text: "dispatched" });
+  const before = store.queries.turns("session_host").length;
 
-  expect(notifications(store)).toHaveLength(0);
+  const answer = store.requestGate.openForTask("session_a", "task_agent", "worker_child", { requestId: "req_bg", kind: "tool_call", detail: { kind: "command_execution", command: { command: "bun test" } } });
+
+  expect(answer).toMatchObject({ state: "resolved", decision: "accept", runId: "run_errand" });
+  expect(store.queries.turns("session_a").map((turn) => turn.runId)).toEqual(["run_errand"]);
+  expect(store.queries.turns("session_host")).toHaveLength(before);
   expect(store.wakes.pendingNotifications("session_host")).toHaveLength(0);
   expect(store.lineage.childrenOf("session_host")[0]!.state).toBe("working");
 });

@@ -67,6 +67,7 @@ export async function onAssistantFrame(ctx: LoopCtx, item: SdkFrame, ours: boole
           }
           const isTask = name === "Task" || name === "Agent";
           if (isTask && ownerTaskId) ctx.turn.taskParents.set(`task_${useId}`, ownerTaskId);
+          if (ownerTaskId) ctx.turn.toolOwners.set(useId, ownerTaskId);
           const detail: ItemDetail = isTask
             ? { type: "task", taskId: `task_${useId}` }
             : itemDetailForToolCall(name, block.input);

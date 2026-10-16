@@ -19,6 +19,7 @@ function tasksFile(paths: EngineStatePaths, sessionId: string): string {
 }
 
 const LIVE_STATES: ReadonlySet<Task["state"]> = new Set(["pending", "running", "waiting"]);
+export const isLiveTaskRow = (task: Task | undefined): boolean => task !== undefined && LIVE_STATES.has(task.state);
 
 function underBackgroundWork(task: Task, tasks: Map<string, Task>): boolean {
   let node: Task | undefined = task;
@@ -36,7 +37,7 @@ function underBackgroundWork(task: Task, tasks: Map<string, Task>): boolean {
 export class SessionTasks {
   constructor(
     private readonly kernel: Kernel,
-    private readonly onWrite: (sessionId: string) => void = () => undefined,
+    private readonly onWrite: (sessionId: string, tasks: Map<string, Task>) => void = () => undefined,
   ) {}
 
   read(sessionId: string): Map<string, Task> {
@@ -49,7 +50,7 @@ export class SessionTasks {
 
   write(sessionId: string, tasks: Map<string, Task>): void {
     this.kernel.writeDocument(tasksFile(this.kernel.paths, sessionId), { version: STATE_VERSION, tasks: [...tasks.values()] });
-    this.onWrite(sessionId);
+    this.onWrite(sessionId, tasks);
   }
 
   hasLiveBackground(sessionId: string): boolean {

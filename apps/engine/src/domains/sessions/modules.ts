@@ -9,7 +9,7 @@ import { SessionRecords } from "./records";
 import { SessionRequests } from "./requests";
 import { SessionIndex } from "./session-index";
 import { SessionQueries } from "./queries";
-import { SessionTasks } from "./tasks";
+import { isLiveTaskRow, SessionTasks } from "./tasks";
 
 /** What the sessions modules still ask of the store around them. */
 type SessionHost = {
@@ -29,7 +29,10 @@ export function createSessionModules(kernel: Kernel, host: SessionHost) {
   });
   const items = new SessionItems(kernel);
   const requests = new SessionRequests(kernel, () => records.ids());
-  const tasks = new SessionTasks(kernel, host.nodesChanged);
+  const tasks = new SessionTasks(kernel, (sessionId, written) => {
+    requests.settleTasks(sessionId, (taskId) => isLiveTaskRow(written.get(taskId)), kernel.now());
+    host.nodesChanged(sessionId);
+  });
   const mailbox = new SessionMailbox(kernel);
   const activity: SessionActivity = new SessionActivity(kernel, {
     activityTurns: (sessionId, runIds) => queues.forActivity(sessionId, runIds),

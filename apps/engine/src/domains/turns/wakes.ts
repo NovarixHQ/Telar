@@ -117,8 +117,6 @@ export class TurnWakes {
     turn: Turn,
     context: { resultText?: string; failure?: Turn["failure"]; request?: EngineRequest },
   ): void {
-    // A background-claim turn only decided a tool call for work still running: no model spoke, so it is nobody's news.
-    if (turn.origin === "provider" && turn.providerReason?.kind === "background_task" && TERMINAL_WAKE_KINDS.includes(kind)) return;
     if (turn.origin === "session" && turn.wakeReason) return;
     const all = this.deps.subscriptions.readSubscriptions();
     const hits = all.filter((each) => each.targetSessionId === targetSessionId && each.events.includes(kind)

@@ -89,9 +89,32 @@ export class SessionRequests {
     if (!live) return;
     const answerable = new Set(turns.filter((turn) => turn.state === "running" && turn.claim).map((turn) => turn.runId));
     for (const [id, request] of live) {
-      if (request.state !== "open" && !answerable.has(request.runId)) live.delete(id);
+      if (request.state !== "open" && request.taskId === undefined && !answerable.has(request.runId)) live.delete(id);
     }
     if (live.size === 0) this.liveIndex?.delete(sessionId);
+  }
+
+  sessionsWithLive(): string[] {
+    this.live("");
+    return [...this.liveIndex!.keys()];
+  }
+
+  /** A task that ended takes its requests with it: an open one is cancelled, an answered one is no longer polled for. */
+  settleTasks(sessionId: string, live: (taskId: string) => boolean, at: number): void {
+    const owned = [...this.live(sessionId).values()].filter((request) => request.taskId !== undefined && !live(request.taskId));
+    if (owned.length === 0) return;
+    const index = this.liveIndex?.get(sessionId);
+    for (const request of owned) if (request.state !== "open") index?.delete(request.id);
+    const open = new Set(owned.filter((request) => request.state === "open").map((request) => request.id));
+    if (open.size === 0) return;
+    const requests = this.read(sessionId);
+    for (const id of open) {
+      const request = requests.get(id);
+      if (!request || request.state !== "open") continue;
+      Object.assign(request, { state: "resolved", decision: "cancel", resolvedBy: "cancelled", resolvedAt: at, reason: "the task that asked ended before this request was answered" });
+      this.kernel.appendEvent(sessionId, { type: "request.resolved", requestId: id, decision: "cancel", resolvedBy: "cancelled", reason: request.reason }, request.runId);
+    }
+    this.write(sessionId, requests);
   }
 
   /** Cancels the open requests of runs that ended; nothing will resume to answer them. */

@@ -11,6 +11,7 @@ import {
   type RequestKind,
   type RequestOpenResult,
   type RequestResolver,
+  type Task,
   type Turn,
   type WorkerStatus,
 } from "@telar/engine-client";
@@ -59,7 +60,8 @@ export type ResolveRequestInput = { decision: RequestDecision; resolvedBy?: Requ
 
 export type RequestGateHost = {
   requireRunningClaim(sessionId: string, runId: string, claimToken: string): Turn;
-  /** An open request implies a running claim, so these sessions are the whole candidate set. */
+  liveTask(sessionId: string, taskId: string): Task | undefined;
+  turnOf(sessionId: string, runId: string): Turn | undefined;
   liveQueueSessionIds(): Iterable<string>;
   liveTurns(sessionId: string): Turn[];
   appendEvent(sessionId: string, event: JournalEntry, runId?: string): EngineEvent;
@@ -86,73 +88,89 @@ export class RequestGate {
   open(sessionId: string, runId: string, claimToken: string, input: OpenRequestInput): RequestOpenResult {
     return this.kernel.command("openRequest", () => {
       assertId(input.requestId, "request id");
-      if (input.deadlineMs !== undefined && (!Number.isSafeInteger(input.deadlineMs) || input.deadlineMs <= 0)) {
-        throw new EngineStateError("invalid_request", "a request deadline is a positive whole number of milliseconds");
-      }
-      if (input.default !== undefined && !defaultAllowed(input.kind)) {
-        throw new EngineStateError("invalid_request", `a ${input.kind} request may not carry a default — a deadline may not release a secret`);
-      }
-      if (input.default !== undefined && input.deadlineMs === undefined) {
-        throw new EngineStateError("invalid_request", "a request default needs a deadline for anything to take it");
-      }
-      const turn = this.host.requireRunningClaim(sessionId, runId, claimToken);
-      const session = this.records.get(sessionId);
-      const requests = this.requests.read(sessionId);
-
-      const known = requests.get(input.requestId);
-      if (known) {
-        return known.state === "resolved"
-          ? { state: "resolved", requestId: known.id, decision: known.decision!, resolvedBy: known.resolvedBy! }
-          : { state: "open", requestId: known.id, notified: known.notified ?? false };
-      }
-
-      const at = this.kernel.now();
-      const automatic = session.purpose === "usage-diagnosis" ? diagnosisRequestDecision(input.detail) : autoResolution(session.runtimeMode, input.kind);
-      const request: EngineRequest = {
-        id: input.requestId,
-        runId: turn.runId,
-        sessionId,
-        state: automatic ? "resolved" : "open",
-        detail: input.detail,
-        openedAt: at,
-        ...(input.itemId ? { itemId: input.itemId } : {}),
-        ...(input.providerRefs ? { providerRefs: input.providerRefs } : {}),
-        ...(automatic ? { decision: automatic, resolvedBy: "policy" as const, resolvedAt: at } : {}),
-        ...(!automatic && input.deadlineMs !== undefined ? { deadlineMs: input.deadlineMs } : {}),
-        ...(!automatic && input.default !== undefined ? { default: input.default } : {}),
-      };
-
-      if (!automatic) {
-        // Record whether anyone was reached: "stuck and nobody was told" has to be a detectable state.
-        const notify = () => this.kernel.notifier?.({ sessionId, runId: turn.runId, requestId: request.id,
-          kind: input.kind, title: requestTitle(input.detail) }) ?? false;
-        request.notified = false;
-        this.kernel.afterCommit(() => {
-          // Outside the transaction: a crash here leaves a durable, explicitly unnotified open request.
-          try {
-            const latest = this.requests.read(sessionId);
-            const pending = latest.get(request.id);
-            if (pending?.state !== "open") return;
-            pending.notified = notify();
-            this.requests.write(sessionId, latest);
-          } catch { /* retain the unnotified request for the next reader */ }
-        });
-      }
-
-      const written = RequestSchema.safeParse(request);
-      if (!written.success) throw new EngineStateError("invalid_request", "invalid request");
-      requests.set(request.id, request);
-      this.requests.write(sessionId, requests);
-      this.host.appendEvent(sessionId, { type: "request.opened", request }, turn.runId);
-
-      if (automatic) {
-        this.host.appendEvent(sessionId, { type: "request.resolved", requestId: request.id, decision: automatic, resolvedBy: "policy" }, turn.runId);
-        return { state: "resolved", requestId: request.id, decision: automatic, resolvedBy: "policy" };
-      }
-      this.records.touch(sessionId, at);
-      this.host.requestOpened(sessionId, turn, request);
-      return { state: "open", requestId: request.id, notified: request.notified ?? false };
+      return this.park(sessionId, this.host.requireRunningClaim(sessionId, runId, claimToken), input);
     });
+  }
+
+  /** Background work asking with no turn open: the request belongs to its task and is answered on the heartbeat. */
+  openForTask(sessionId: string, taskId: string, workerId: string, input: OpenRequestInput): RequestOpenResult & { runId: string } {
+    return this.kernel.command("openTaskRequest", () => {
+      assertId(input.requestId, "request id");
+      const task = this.host.liveTask(sessionId, taskId);
+      if (!task) throw new EngineStateError("conflict", `task ${taskId} has ended, so nothing is left to ask for`);
+      const turn = this.host.turnOf(sessionId, task.runId);
+      if (!turn) throw new EngineStateError("not_found", "the turn that started this task does not exist");
+      return { ...this.park(sessionId, turn, input, { taskId, workerId }), runId: turn.runId };
+    });
+  }
+
+  private park(sessionId: string, turn: Turn, input: OpenRequestInput, owner?: { taskId: string; workerId: string }): RequestOpenResult {
+    if (input.deadlineMs !== undefined && (!Number.isSafeInteger(input.deadlineMs) || input.deadlineMs <= 0)) {
+      throw new EngineStateError("invalid_request", "a request deadline is a positive whole number of milliseconds");
+    }
+    if (input.default !== undefined && !defaultAllowed(input.kind)) {
+      throw new EngineStateError("invalid_request", `a ${input.kind} request may not carry a default — a deadline may not release a secret`);
+    }
+    if (input.default !== undefined && input.deadlineMs === undefined) {
+      throw new EngineStateError("invalid_request", "a request default needs a deadline for anything to take it");
+    }
+    const session = this.records.get(sessionId);
+    const requests = this.requests.read(sessionId);
+
+    const known = requests.get(input.requestId);
+    if (known) {
+      return known.state === "resolved"
+        ? { state: "resolved", requestId: known.id, decision: known.decision!, resolvedBy: known.resolvedBy! }
+        : { state: "open", requestId: known.id, notified: known.notified ?? false };
+    }
+
+    const at = this.kernel.now();
+    const automatic = session.purpose === "usage-diagnosis" ? diagnosisRequestDecision(input.detail) : autoResolution(session.runtimeMode, input.kind);
+    const request: EngineRequest = {
+      id: input.requestId,
+      runId: turn.runId,
+      sessionId,
+      state: automatic ? "resolved" : "open",
+      detail: input.detail,
+      openedAt: at,
+      ...(input.itemId ? { itemId: input.itemId } : {}),
+      ...owner,
+      ...(input.providerRefs ? { providerRefs: input.providerRefs } : {}),
+      ...(automatic ? { decision: automatic, resolvedBy: "policy" as const, resolvedAt: at } : {}),
+      ...(!automatic && input.deadlineMs !== undefined ? { deadlineMs: input.deadlineMs } : {}),
+      ...(!automatic && input.default !== undefined ? { default: input.default } : {}),
+    };
+
+    if (!automatic) {
+      // Record whether anyone was reached: "stuck and nobody was told" has to be a detectable state.
+      const notify = () => this.kernel.notifier?.({ sessionId, runId: turn.runId, requestId: request.id,
+        kind: input.kind, title: requestTitle(input.detail) }) ?? false;
+      request.notified = false;
+      this.kernel.afterCommit(() => {
+        // Outside the transaction: a crash here leaves a durable, explicitly unnotified open request.
+        try {
+          const latest = this.requests.read(sessionId);
+          const pending = latest.get(request.id);
+          if (pending?.state !== "open") return;
+          pending.notified = notify();
+          this.requests.write(sessionId, latest);
+        } catch { /* retain the unnotified request for the next reader */ }
+      });
+    }
+
+    const written = RequestSchema.safeParse(request);
+    if (!written.success) throw new EngineStateError("invalid_request", "invalid request");
+    requests.set(request.id, request);
+    this.requests.write(sessionId, requests);
+    this.host.appendEvent(sessionId, { type: "request.opened", request }, turn.runId);
+
+    if (automatic) {
+      this.host.appendEvent(sessionId, { type: "request.resolved", requestId: request.id, decision: automatic, resolvedBy: "policy" }, turn.runId);
+      return { state: "resolved", requestId: request.id, decision: automatic, resolvedBy: "policy" };
+    }
+    this.records.touch(sessionId, at);
+    this.host.requestOpened(sessionId, turn, request);
+    return { state: "open", requestId: request.id, notified: request.notified ?? false };
   }
 
   /** A person, a timeout or a cancellation answering a parked request. */
@@ -188,22 +206,26 @@ export class RequestGate {
    */
   resolutionsForWorker(workerId: string): WorkerStatus["resolved"] {
     assertId(workerId, "worker id");
-    return [...this.host.liveQueueSessionIds()].flatMap((sessionId) => {
+    const answered = (request: EngineRequest, sessionId: string) => ({
+      requestId: request.id,
+      sessionId,
+      runId: request.runId,
+      decision: request.decision!,
+      ...(request.reason ? { reason: request.reason } : {}),
+      ...(request.answers ? { answers: request.answers } : {}),
+    });
+    const owned = this.requests.sessionsWithLive().flatMap((sessionId) => [...this.requests.live(sessionId).values()]
+      .filter((request) => request.taskId !== undefined && request.workerId === workerId && request.state === "resolved" && request.decision)
+      .map((request) => answered(request, sessionId)));
+    return [...owned, ...[...this.host.liveQueueSessionIds()].flatMap((sessionId) => {
       const turns = this.host.liveTurns(sessionId);
       const claimed = new Map(turns.filter((turn) => turn.claim?.workerId === workerId && turn.state === "running").map((turn) => [turn.runId, turn] as const));
       if (claimed.size === 0) return [];
       this.requests.trim(sessionId, turns);
       return [...this.requests.live(sessionId).values()]
-        .filter((request) => request.state === "resolved" && request.decision && claimed.has(request.runId))
-        .map((request) => ({
-          requestId: request.id,
-          sessionId,
-          runId: request.runId,
-          decision: request.decision!,
-          ...(request.reason ? { reason: request.reason } : {}),
-          ...(request.answers ? { answers: request.answers } : {}),
-        }));
-    });
+        .filter((request) => request.taskId === undefined && request.state === "resolved" && request.decision && claimed.has(request.runId))
+        .map((request) => answered(request, sessionId));
+    })];
   }
 
   /**
@@ -213,7 +235,7 @@ export class RequestGate {
   sweepDeadlines(): string[] {
     const now = this.kernel.now();
     const resolved: string[] = [];
-    for (const sessionId of Array.from(this.host.liveQueueSessionIds())) {
+    for (const sessionId of new Set([...this.host.liveQueueSessionIds(), ...this.requests.sessionsWithLive()])) {
       // Snapshot first: each resolution rewrites the index being read.
       let due: Array<{ request: EngineRequest; answer: RequestDefault }>;
       try {

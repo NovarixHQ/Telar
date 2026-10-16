@@ -1,5 +1,5 @@
 import { requestObject, engineClient, engineRoute } from "@/platform/engine/server";
-import type { EnvMode, ModelSelection, RuntimeMode, WhileWorking } from "@telar/engine-client";
+import type { DelegationMode, EnvMode, ModelSelection, RuntimeMode, WhileWorking } from "@telar/engine-client";
 
 /**
  * What a new session is built with when nobody said — today, the workspace:
@@ -29,6 +29,7 @@ export const PATCH = engineRoute(async (request: Request) => {
       ...("whileWorking" in body ? { whileWorking: body.whileWorking as WhileWorking } : {}),
       ...("runtimeMode" in body ? { runtimeMode: body.runtimeMode as RuntimeMode | null } : {}),
       ...("defaultModel" in body ? { defaultModel: body.defaultModel as ModelSelection | null } : {}),
+      ...("delegationMode" in body ? { delegationMode: body.delegationMode as DelegationMode } : {}),
     }),
   );
 });

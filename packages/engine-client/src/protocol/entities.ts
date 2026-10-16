@@ -169,6 +169,7 @@ export const Session = z.object({
   /** Provenance, never a link — see `SessionOrigin`. Absent is "human". */
   origin: SessionOrigin.optional(),
   purpose: z.literal("usage-diagnosis").optional(),
+  delegated: z.string().min(1).optional(),
   startedFrom: z
     .object({ sessionId: Id, runId: Id.optional() })
     .optional(),
@@ -255,6 +256,7 @@ export const LiveSessionRow = Session.omit({
   providerSeen: true,
   switchedFrom: true,
   forkedFrom: true,
+  delegated: true,
   agentMessagesBlocked: true,
   agentMessagesBlockedAt: true,
   paused: true,

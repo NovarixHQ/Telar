@@ -31,7 +31,7 @@ const CODEX = [
 const CURSOR = [row("default[]", { efforts: [] }), row("claude-opus-5-5[context=300k]", { efforts: [] }), row("gpt-5.5[context=272k]", { efforts: [] })];
 
 const pick = (mode: DelegationMode, driver: string, rows: ProviderModel[] | undefined, choice: { model?: string; effort?: string } = {}, personSaid?: string) =>
-  delegatedChoice({ mode, driver, rows, choice, ...(personSaid ? { personSaid } : {}) });
+  delegatedChoice({ mode, driver, rows, choice, ...(personSaid ? { personSaid } : {}) }).choice;
 
 test("with no model named, Conservative and Normal run the provider's best tier-2 model at medium", () => {
   for (const mode of ["conservative", "normal"] as const) {
@@ -71,4 +71,20 @@ test("a model of unknown cost passes uncapped, and one the provider does not off
   expect(pick("conservative", "cursor", CURSOR, { model: "default[]" })).toEqual({ model: "default[]" });
   expect(pick("conservative", "claude", CLAUDE, { model: "gpt-9" })).toEqual({ model: "gpt-9" });
   expect(pick("conservative", "claude", undefined)).toEqual({});
+});
+
+test("a capped request says which mode capped it", () => {
+  expect(delegatedChoice({ mode: "conservative", driver: "claude", rows: CLAUDE, choice: { model: "claude-opus-5-5" } }).note).toBe(
+    "The person's Conservative delegation mode allows builders up to tier 2 at medium effort.",
+  );
+  expect(delegatedChoice({ mode: "normal", driver: "claude", rows: CLAUDE, choice: { model: "claude-sonnet-5-5", effort: "low" } }).note).toBeUndefined();
+});
+
+test("past 80% of a window, a new builder drops one tier and says why", () => {
+  const nearLimit = { label: "5-hour", usedPercent: 86.4 };
+  const lowered = delegatedChoice({ mode: "normal", driver: "claude", rows: CLAUDE, choice: { model: "claude-opus-5-5" }, nearLimit });
+  expect(lowered.choice).toEqual({ model: "claude-sonnet-5-5", effort: "high" });
+  expect(lowered.note).toBe("5-hour is 86% used, so this builder runs one tier lower.");
+  expect(delegatedChoice({ mode: "conservative", driver: "codex", rows: CODEX, choice: {}, nearLimit }).choice).toEqual({ model: "gpt-6-luna" });
+  expect(delegatedChoice({ mode: "normal", driver: "claude", rows: CLAUDE, choice: { model: "claude-haiku-4-5" }, nearLimit })).toEqual({ choice: { model: "claude-haiku-4-5" } });
 });

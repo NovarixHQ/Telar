@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { EngineStore } from "../../../state";
+import { UsageLimitReader } from "../../usage";
 import { call, cleanUp, engine, openStores, orchestrator, repo, tmp, wall, withModelCatalogue as withCatalogue } from "./test-helpers";
 
 afterEach(cleanUp);
@@ -122,5 +123,21 @@ describe("the delegation mode", () => {
     expect(fresh.settings.sessionDefaults().delegationMode).toBe("normal");
     fresh.projectRegistry.register({ name: "later", root: repo() });
     expect(fresh.settings.sessionDefaults().delegationMode).toBe("normal");
+  });
+});
+
+describe("near a usage limit", () => {
+  test("a new builder drops one tier, and the create result says why", async () => {
+    const { store, projectId } = engine();
+    withCatalogue(store);
+    store.settings.setSessionDefaults({ delegationMode: "normal" });
+    const hub = { id: "hub", kind: "cliproxy" as const, url: "http://hub.local", managementKey: "k" };
+    const accounts = [{ id: "a", driver: "claude", windows: [{ key: "five_hour", label: "5-hour", usedPercent: 85 }] }];
+    Object.assign(store, { usageLimits: new UsageLimitReader({ resolve: () => [hub] } as never, async () => ({ id: "hub", kind: "cliproxy", label: "Hub", checkedAt: 1, accounts })) });
+    await store.usageLimits.refresh();
+    const { tools } = orchestrator(store, projectId);
+    const created = await call(tools, "sessions_create", { projectId, envMode: "local", model: "claude-opus-5-5[1m]" });
+    expect(created.json!.model).toBe("claude-sonnet-5-5 at high");
+    expect(created.json!.why).toBe("5-hour is 85% used, so this builder runs one tier lower.");
   });
 });

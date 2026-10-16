@@ -370,3 +370,25 @@ test("the old child registry is carried into the lineage once, and removed", () 
   expect(fresh.lineage.childrenOf(HOST)).toEqual([expect.objectContaining({ sessionId: "session_a", state: "working" })]);
   expect(fresh.kernel.readDocument(fresh.paths.children)).toBeUndefined();
 });
+
+test("the nudge is only a safety net: a builder with its own builder out, or a delivery owed to it, is not nudged", () => {
+  const { store, run, task, woken, children } = setup();
+  task("session_a");
+  const a = run("session_a");
+  a.say("session_b", "task", "Write the tests.");
+  a.complete("Waiting on session_b.");
+  expect(queuedOn(store, "session_a")).toEqual([]);
+
+  const b = run("session_b");
+  b.say("session_a", "result", "Tests written.");
+  b.complete();
+  const delivered = queuedOn(store, "session_a");
+  expect(delivered.map((turn) => turn.notification?.body)).toEqual([expect.stringContaining("[builder done]")]);
+
+  run("session_a").complete("Noted; still thinking.");
+  expect(queuedOn(store, "session_a").map((turn) => turn.notification?.body)).toEqual([expect.stringContaining("nothing is running in this session")]);
+  run("session_a").complete("Still thinking.");
+  expect(queuedOn(store, "session_a")).toEqual([]);
+  expect(children()[0]).toMatchObject({ state: "done" });
+  expect(woken()).toHaveLength(1);
+});

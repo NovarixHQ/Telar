@@ -35,6 +35,7 @@
     "test:desktop:clipboard": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/clipboard-write.electron-test.js",
     "test:desktop:metrics": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/process-metrics.electron-test.js",
     "test:desktop:visibility": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/window-visibility.electron-test.js",
+    "test:desktop:quit-gate": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/quit-gate.electron-test.js",
     "test:desktop:pty": "env -u ELECTRON_RUN_AS_NODE electron ./src/terminal/pty-host.electron-test.js",
     "test:desktop:overlay-menus": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/overlay-menus.electron-test.js",
     "test:desktop:preview": "env -u ELECTRON_RUN_AS_NODE electron ./src/agent-tools/preview-renderer.electron-test.js",

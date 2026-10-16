@@ -110,6 +110,21 @@ describe("the planned-restart marker", () => {
     }
   });
 
+  test("a quit leaves its own marker, but never replaces an update's", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "telar-planned-restart-"));
+    const engineRoot = path.join(root, "engine");
+    const read = () => JSON.parse(fs.readFileSync(path.join(engineRoot, PLANNED_RESTART_FILE), "utf8"));
+    try {
+      expect(writePlannedRestart(engineRoot, { reason: "quit", now: () => 5 })).toBe(true);
+      expect(read()).toEqual({ version: 1, reason: "quit", at: 5 });
+      writePlannedRestart(engineRoot, { now: () => 6 });
+      expect(writePlannedRestart(engineRoot, { reason: "quit", now: () => 7 })).toBe(false);
+      expect(read()).toEqual({ version: 1, reason: "update", at: 6 });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("a marker that cannot be written costs the resume, never the update", () => {
     const failing = { mkdirSync() { throw new Error("read-only"); }, writeFileSync() {} };
     expect(writePlannedRestart("/nowhere", { fs: failing })).toBe(false);

@@ -14,7 +14,6 @@ function familyTierOf(id: string): number | undefined {
   return FAMILY_TIERS.find(([family]) => family.test(name))?.[1];
 }
 
-/** Relative list price, 1 cheapest; undefined when the cost is unknown. */
 export function tierOf(driver: ProviderDriverKind, id: string, manifest: ModelManifest = BUNDLED_MANIFEST): number | undefined {
   if (driver === "claude") return claudeTierOf(id, manifest);
   if (driver === "codex") return codexTierOf(id, manifest);

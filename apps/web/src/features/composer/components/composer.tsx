@@ -15,7 +15,7 @@ import { hasUltrathink, toggleUltrathink } from "../model-options";
 import { useHasEfforts } from "../hooks/use-composer-efforts";
 import { useComposerCompletions } from "../hooks/use-composer-completions";
 import { useComposerMotion } from "../hooks/use-composer-motion";
-import { useNarrowComposer } from "../hooks/use-narrow-composer";
+import { useInlineWhileOneLine, useNarrowComposer } from "../hooks/use-narrow-composer";
 import { composerKeyHandler, useEscArm, usePromptRecall } from "../hooks/use-composer-keys";
 import { useComposerRegistration } from "../hooks/use-composer-registration";
 import { MAX_ATTACHMENTS, useComposerStash } from "../hooks/use-composer-stash";
@@ -90,8 +90,8 @@ function useCompact(readingBack: boolean, allowed: boolean, editor: RefObject<Co
   return [readingBack && allowed && !expanded, expand] as const;
 }
 
-function useComposerShape(box: RefObject<HTMLElement | null>, editor: RefObject<ComposerEditorHandle | null>, readingBack: boolean, fitsOneRow: boolean) {
-  const inline = useNarrowComposer(box) && fitsOneRow;
+function useComposerShape(box: RefObject<HTMLElement | null>, editor: RefObject<ComposerEditorHandle | null>, readingBack: boolean, fitsOneRow: boolean, draft: string) {
+  const inline = useInlineWhileOneLine(box, draft, useNarrowComposer(box) && fitsOneRow);
   const [scrolled, expand] = useCompact(readingBack, fitsOneRow, editor);
   return { inline, compactNow: scrolled && !inline, expand };
 }
@@ -157,7 +157,7 @@ export function Composer(props: ComposerProps) {
 
   const addFiles = (files: File[]) => onAttach([...attachments, ...files].slice(0, MAX_ATTACHMENTS));
   const drop = useDropTarget(editor, addFiles);
-  const { inline, compactNow, expand } = useComposerShape(box, editor, readingBack, !fresh && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0);
+  const { inline, compactNow, expand } = useComposerShape(box, editor, readingBack, !fresh && !question.active && !drop.dropping && !stash.open && !esc.armed && !driveAway && attachments.length === 0, draft);
   useCommandHandlers({ "focus-composer": () => (compactNow && !props.compact ? expand() : editor.current?.focus()), send: () => void trySubmit(), "stop-turn": () => busy && onStop() });
   const motion = useComposerMotion(box, [compactNow, inline, attachments.length > 0, question.active, Boolean(driveAway)].join(), session?.id ?? `fresh:${projectId}`);
   const pills = (

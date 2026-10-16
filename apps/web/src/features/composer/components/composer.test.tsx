@@ -109,7 +109,7 @@ async function type(editor: HTMLElement, text: string) {
   await flush();
 }
 
-const layout = { width: 0, observers: new Set<() => void>() };
+const layout = { width: 0, lines: 1, observers: new Set<() => void>() };
 
 beforeAll(() => {
   globalThis.ResizeObserver = class {
@@ -126,10 +126,17 @@ beforeAll(() => {
     }
   } as unknown as typeof ResizeObserver;
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => layout.width });
+  Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this.dataset.slot === "composer-editor" ? 24 * layout.lines : 0;
+    },
+  });
 });
 
 afterEach(() => {
   layout.width = 0;
+  layout.lines = 1;
 });
 
 async function narrowable(props: BoxProps, width: number) {
@@ -591,6 +598,31 @@ describe("a narrow column, such as one beside an open panel", () => {
     await resize(720);
     expect(words(host)[0]).not.toBe("");
     expect(document.activeElement).toBe(editor);
+  });
+
+  test("text that wraps moves the editor above the controls, and a line that fits again folds it back", async () => {
+    const { host, editor, resize } = await narrowable({ session }, 370);
+    expect(words(host)[0]).toBe("");
+    layout.lines = 5;
+    await type(editor, "x".repeat(240));
+    await resize(370);
+    expect(words(host)[0]).not.toBe("");
+    expect(editor.style.maxHeight).toBe("");
+    expect(editor.compareDocumentPosition(row(host)!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(row(host)!.contains(editor)).toBe(false);
+
+    layout.lines = 1;
+    act(() => activeComposer()!.replace(0, 240, "short"));
+    await flush();
+    expect(words(host)[0]).toBe("");
+    expect(editor.style.maxHeight).toBe("calc(5lh + 1.25rem)");
+  });
+
+  test("a second line of text leaves the one-row shape at once", async () => {
+    const { host, editor } = await narrowable({ session }, 370);
+    await type(editor, "first line\nsecond line");
+    expect(words(host)[0]).not.toBe("");
+    expect(editor.style.maxHeight).toBe("");
   });
 
   test("whatever needs the full box still gets it when narrow", async () => {

@@ -431,7 +431,7 @@ export const ComposerEditor = forwardRef<
         // The quiet sign that the microphone is open, which survives the caret pill scrolling away.
         data-dictating={listening ? "" : undefined}
         className={cn(
-          "w-full whitespace-pre-wrap break-words px-3 text-[0.9375rem] leading-6 outline-none",
+          "w-full whitespace-pre-wrap wrap-anywhere px-3 text-[0.9375rem] leading-6 outline-none",
           compact ? "overflow-y-auto py-2.5" : "max-h-48 min-h-[76px] overflow-y-auto pt-3 pb-2",
           "data-dictating:caret-primary",
           disabled && "opacity-60",

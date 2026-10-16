@@ -2,7 +2,7 @@
 
 The panel is the pane to the right of the conversation. It shows what the session is doing to your project: its changes, its files, its terminals, its browser and the agents working under it. Each session keeps its own set of panel tabs.
 
-Press ⌘\ to show or hide it. ⌥⌘→ and ⌥⌘← move between its tabs, and ⌥⌘F lets it fill the window. While it fills the window, you can still write to the session: press ⌘J, or click the notch that appears when the pointer reaches the bottom edge. The session's composer opens over a dimmed panel, with its latest exchange above it. ⌘D opens it the same way and starts dictating. Sending, clicking the dimmed panel, or Esc when nothing is running closes it; mid-turn, Esc stops the turn as it does in the session. Dictation that hears nothing closes it too. The draft stays with the session. A new session's panel starts empty and offers the surfaces you can open. You can drag tabs to reorder them.
+Press ⌘\ to show or hide it. ⌥⌘→ and ⌥⌘← move between its tabs, and ⌥⌘F lets it fill the window. While it fills the window, you can still write to the session: press the write-to-the-agent shortcut (⌥⇧Space by default), or click the notch that appears when the pointer reaches the bottom edge. The session's composer opens over a dimmed panel, with its latest exchange above it. ⌘D opens it the same way and starts dictating. Sending, clicking the dimmed panel, or Esc when nothing is running closes it; mid-turn, Esc stops the turn as it does in the session. Dictation that hears nothing closes it too. The draft stays with the session. A new session's panel starts empty and offers the surfaces you can open. You can drag tabs to reorder them.
 
 ## What it can show
 

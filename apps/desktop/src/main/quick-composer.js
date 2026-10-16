@@ -9,6 +9,7 @@ const { HEIGHTS, WIDTH } = require("./quick-composer-layout");
 const { createPlacement } = require("./quick-composer-placement");
 const prefs = jsonPrefs("quick-composer.json", { asked: false }, (raw) => ({ asked: raw?.asked === true }), "quick composer");
 const REMEMBER_MS = 60_000;
+const SUMMON_ANSWER_MS = 300;
 
 function panelOptions() {
   const { webPreferences } = cockpitWindowOptions("Quick Composer");
@@ -31,6 +32,34 @@ function panelOptions() {
     alwaysOnTop: true,
     webPreferences,
   };
+}
+
+function askToCompose() {
+  const asked = new Map();
+  let nextAsk = 0;
+  ipcMain.on("telar:compose:summoned", (event, answer) => {
+    const pending = asked.get(answer?.id);
+    if (pending?.front.webContents === event.sender) pending.settle(answer.handled === true);
+  });
+  return (front) =>
+    new Promise((resolve) => {
+      const id = (nextAsk += 1);
+      const settle = (handled) => {
+        clearTimeout(timer);
+        asked.delete(id);
+        resolve(handled);
+      };
+      const timer = setTimeout(() => settle(false), SUMMON_ANSWER_MS);
+      asked.set(id, { front, settle });
+      front.webContents.send("telar:compose:summon", id);
+    });
+}
+
+async function summon(win, composeIn, hide, show) {
+  if (win && !win.isDestroyed() && win.isVisible()) return hide();
+  const front = BrowserWindow.getFocusedWindow();
+  if (front && front !== win && !front.isDestroyed() && (await composeIn(front))) return;
+  return show();
 }
 
 /** The global shortcut and the panel it opens over any app; `openRoute` brings a cockpit window to a path. */
@@ -121,9 +150,12 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
 
   const toggle = () => (win && !win.isDestroyed() && win.isVisible() ? hide() : show().catch((error) => log(`quick composer failed to open: ${error?.message || error}`)));
 
+  const composeIn = askToCompose();
+  const summonSafely = () => summon(win, composeIn, hide, show).catch((error) => log(`quick composer failed to open: ${error?.message || error}`));
+
   const register = () => {
     if (!chord || suspended) return;
-    if (!globalShortcut.register(chord, toggle)) log(`quick composer could not claim ${chord}`);
+    if (!globalShortcut.register(chord, summonSafely)) log(`quick composer could not claim ${chord}`);
   };
 
   const unregister = () => {

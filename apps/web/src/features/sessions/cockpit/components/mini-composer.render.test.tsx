@@ -216,3 +216,37 @@ describe("with the panel filling the window, a message can be typed over it", ()
     }
   });
 });
+
+describe("the shell's write-to-the-agent chord, with this window in front", () => {
+  test("over the full panel it opens the composer from the notch, and pressing it again only keeps it focused", async () => {
+    const { focusComposerOnScreen } = await import("@/features/commands");
+    await mounted(<Cockpit start="hello" />);
+    let handled = false;
+    await act(async () => void (handled = focusComposerOnScreen()));
+    expect(handled).toBe(true);
+    expect(floating()).not.toBeNull();
+    expect(live).toBeUndefined();
+    await flush(() => document.activeElement === editor());
+    expect(document.activeElement).toBe(editor());
+
+    await act(async () => void (handled = focusComposerOnScreen()));
+    expect(handled).toBe(true);
+    expect(floating()).not.toBeNull();
+    expect(document.activeElement).toBe(editor());
+
+    await key("Escape");
+    await flush(() => floating() === null);
+    expect(floating()).toBeNull();
+  });
+
+  test("out of fullscreen it focuses the session's own composer", async () => {
+    const { focusComposerOnScreen } = await import("@/features/commands");
+    const host = await mounted(<Cockpit />);
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Exit fullscreen")!.click());
+    let handled = false;
+    await act(async () => void (handled = focusComposerOnScreen()));
+    expect(handled).toBe(true);
+    expect(floating()).toBeNull();
+    expect(document.activeElement).toBe(editor());
+  });
+});

@@ -590,6 +590,7 @@ jobs:
           run_case overlay-menus   OVERLAY_MENUS_OK
           run_case blank-tab       BLANK_TAB_OK
           run_case page-edge       PAGE_EDGE_OK
+          run_case compose-summon  COMPOSE_SUMMON_OK
 
           # THE THREE THAT ARE NOT HERE, AND WHY — all one reason: they need
           # 1Password's official extension package, which is proprietary, is not

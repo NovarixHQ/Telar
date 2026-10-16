@@ -280,6 +280,10 @@ export function commandHandler(id: CommandId): (() => void) | undefined {
   return stack?.[stack.length - 1];
 }
 
+export function focusComposerOnScreen(): boolean {
+  return runCommand("mini-composer") || runCommand("focus-composer");
+}
+
 export function runCommand(id: CommandId): boolean {
   const run = commandHandler(id);
   if (!run) return false;

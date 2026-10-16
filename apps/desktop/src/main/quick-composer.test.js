@@ -77,6 +77,79 @@ describe("the shortcut", () => {
   });
 });
 
+describe("with a Telar window in front, the chord means that window's composer", () => {
+  const cockpit = (answer) => {
+    const win = new FakeBrowserWindow({ title: "Telar" });
+    win.webContents.send = (channel, id) => {
+      win.webContents.sent.push({ channel, payload: id });
+      if (channel === "telar:compose:summon" && answer !== undefined) electron.ipcMain.send("telar:compose:summoned", { sender: win.webContents }, { id, handled: answer });
+    };
+    win.focus();
+    return win;
+  };
+  const asked = (win) => win.webContents.sent.filter((message) => message.channel === "telar:compose:summon").length;
+
+  test("a window with a composer on screen takes it, and the panel stays hidden", async () => {
+    quick.bind("Alt+Space");
+    const win = cockpit(true);
+    await press("Alt+Space");
+    await press("Alt+Space");
+    expect(asked(win)).toBe(2);
+    expect(panel().isVisible()).toBe(false);
+  });
+
+  test("a window with no composer on screen leaves it to the panel", async () => {
+    quick.bind("Alt+Space");
+    const win = cockpit(false);
+    await press("Alt+Space");
+    expect(asked(win)).toBe(1);
+    expect(panel().isVisible()).toBe(true);
+  });
+
+  test("with another app in front the panel opens without asking any window", async () => {
+    quick.bind("Alt+Space");
+    const win = new FakeBrowserWindow({ title: "Telar" });
+    FakeBrowserWindow.focused = null;
+    await press("Alt+Space");
+    expect(asked(win)).toBe(0);
+    expect(panel().isVisible()).toBe(true);
+  });
+
+  test("a window that never answers falls back to the panel", async () => {
+    jest.useFakeTimers();
+    try {
+      quick.bind("Alt+Space");
+      const win = cockpit(undefined);
+      const pressed = press("Alt+Space");
+      jest.advanceTimersByTime(300);
+      await pressed;
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve();
+      expect(asked(win)).toBe(1);
+      expect(panel().isVisible()).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("an answer from another window does not count", async () => {
+    jest.useFakeTimers();
+    try {
+      quick.bind("Alt+Space");
+      const win = cockpit(undefined);
+      const other = new FakeBrowserWindow({ title: "Other" });
+      const pressed = press("Alt+Space");
+      const id = win.webContents.sent.find((message) => message.channel === "telar:compose:summon").payload;
+      electron.ipcMain.send("telar:compose:summoned", { sender: other.webContents }, { id, handled: true });
+      jest.advanceTimersByTime(300);
+      await pressed;
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve();
+      expect(panel().isVisible()).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
 describe("the window", () => {
   test("opens compact, low on the cursor's display, switches size in one unanimated step, and tells the page once it has", async () => {
     quick.bind("Alt+Space");
@@ -210,8 +283,8 @@ describe("the window", () => {
   test("closing it gives focus back to the Telar window that had it, and asks its page to restore the caret", async () => {
     const main = new FakeBrowserWindow();
     main.focus();
-    quick.bind("Alt+Space");
-    await press("Alt+Space");
+    await electron.ipcMain.invoke("telar:quick-composer:toggle", {});
+    expect(panel().isVisible()).toBe(true);
     await electron.ipcMain.invoke("telar:quick-composer:close", eventFrom(panel()));
     expect(FakeBrowserWindow.focused).toBe(main);
     expect(main.webContents.sent.at(-1)).toEqual({ channel: "telar:focus:restore", payload: undefined });

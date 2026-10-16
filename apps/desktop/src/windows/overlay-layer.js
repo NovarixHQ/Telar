@@ -62,7 +62,7 @@ function watchFocus(win, layer, onOutside) {
   contents.on("blur", () => {
     setImmediate(() => {
       if (layers.get(win) !== layer || !layer.shown || win.isDestroyed()) return;
-      if (!win.isFocused() || win.webContents.isFocused() || contents.isFocused()) return;
+      if (!win.isFocused() || contents.isFocused()) return;
       onOutside();
     });
   });

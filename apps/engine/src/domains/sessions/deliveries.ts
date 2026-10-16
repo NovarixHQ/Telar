@@ -20,7 +20,6 @@ export type Delivery = z.infer<typeof Delivery>;
 const KEEP_SETTLED_MS = 24 * 60 * 60_000;
 const isOpen = (delivery: Delivery): boolean => delivery.state === "pending" || delivery.state === "claimed";
 
-/** The outbox of builder endings: one row per (parent, child, generation), each told to its parent exactly once. */
 export class SessionDeliveries {
   private cache: Delivery[] | undefined;
 

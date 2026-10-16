@@ -7,7 +7,6 @@ afterEach(closeStores);
 const HOST = "session_host";
 let runs = 0;
 
-/** Runs `sessionId`'s queued turn (or a new one) and hands back what it can do while running. */
 function run(store: EngineStore, sessionId: string) {
   if (!store.queries.turns(sessionId).some((turn) => turn.state === "queued")) store.intake.submitTurn(sessionId, { runId: `run_${sessionId}_${++runs}`, input: "go" });
   const claimed = store.claims.claimTurn(sessionId, `worker_${sessionId}`)!;
@@ -28,7 +27,6 @@ function tasked(store: EngineStore, ...children: string[]) {
 }
 
 const told = (turn: { state: string; startedAt?: number }) => turn.state !== "discarded" && !(turn.state === "stopped" && turn.startedAt === undefined);
-/** Every builder ending the host's model was or will be handed, across all its turns. */
 const endingsTold = (store: EngineStore) =>
   store.queries.turns(HOST)
     .filter((turn) => told(turn) && turn.agentDelivery !== "passive" && turn.wakeReason)

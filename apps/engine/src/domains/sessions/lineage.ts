@@ -126,7 +126,6 @@ export class SessionLineage {
     return this.read().some((node) => node.parentSessionId === parentSessionId && node.sessionId === childSessionId && pending(node));
   }
 
-  /** The parent hears of this run through the child's delivery: it ran on the errand of the child's latest generation. */
   coversRun(parentSessionId: string, childSessionId: string, turn: Turn): boolean {
     const node = this.read().find((each) => each.parentSessionId === parentSessionId && each.sessionId === childSessionId);
     return node !== undefined && (pending(node) || (turn.startedAt ?? turn.acceptedAt) <= (node.endedAt ?? 0));

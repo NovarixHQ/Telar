@@ -27,7 +27,6 @@ function wakeReasonOf(merged: NotificationDetail, parentSessionId: string): Wake
   };
 }
 
-/** Moves the outbox's builder endings to their parents: batched into one wake per parent turn, each exactly once. */
 export class BuilderDeliveries {
   private readonly dirty = new Set<string>();
 
@@ -46,7 +45,6 @@ export class BuilderDeliveries {
     for (const parentSessionId of this.deps.deliveries.parentsWithOpen()) this.dirty.add(parentSessionId);
   }
 
-  /** Reconciles every parent touched in this command; false when there was nothing to do. */
   settle(): boolean {
     if (this.dirty.size === 0) return false;
     const batch = [...this.dirty];
@@ -61,12 +59,10 @@ export class BuilderDeliveries {
     return true;
   }
 
-  /** A person's message steered into a busy parent takes the pending endings with it. */
   steer(parentSessionId: string): void {
     this.claimInto(parentSessionId, this.pending(parentSessionId), { steer: true });
   }
 
-  /** The parent read the run itself: an ending not yet in front of its model is withdrawn. */
   acknowledge(readerSessionId: string, targetSessionId: string, runId: string): void {
     const read = this.deps.deliveries.forParent(readerSessionId).filter((delivery) => {
       const fetch = delivery.notification.fetch;

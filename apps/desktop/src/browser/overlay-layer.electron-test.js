@@ -38,7 +38,7 @@ const COCKPIT_PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>co
   window.show = () => {
     const doc = window.open('', 'telar-overlay').document;
     doc.head.innerHTML = '<style>html,body{margin:0;background:transparent;overflow:hidden}</style>';
-    doc.body.innerHTML = '<div style="transform:translate(' + -RECT.x + 'px,' + -RECT.y + 'px)"><div id="card" style="position:absolute;left:' + CARD.x + 'px;top:' + CARD.y + 'px;width:' + CARD.width + 'px;height:' + CARD.height + 'px;border-radius:14px;background:#fff"><input id="field"></div></div>';
+    doc.body.innerHTML = '<div style="transform:translate(' + -RECT.x + 'px,' + -RECT.y + 'px)"><div id="card" style="position:absolute;left:' + CARD.x + 'px;top:' + CARD.y + 'px;width:' + CARD.width + 'px;height:' + CARD.height + 'px;box-sizing:border-box;padding:16px;border-radius:14px;background:#fff"><input id="field"></div></div>';
     const field = doc.getElementById('field');
     for (const type of ['compositionstart', 'compositionupdate', 'compositionend']) field.addEventListener(type, (e) => log_.push(type + ':' + e.data));
     doc.addEventListener('keydown', (e) => { if (e.key === 'Escape') { log_.push('escape'); hide(); } });

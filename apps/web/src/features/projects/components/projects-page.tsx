@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RemoveProjectRow } from "./remove-project-row";
 import { Dropdown, Row, Segmented, SettingsGroup } from "@/features/settings";
 import { ProjectWorkspaceSection } from "./workspace-config-section";
+import { InstructionsRow } from "@/features/agent-tools";
 
 const api = createEngineApi();
 
@@ -227,6 +228,23 @@ export function ProjectConversationRows({
   );
 }
 
+function ProjectAgentRows({ project, writer }: { project?: ScopedProject; writer: ProjectWriter }) {
+  const blocked = blockedReason(project, "set its agent instructions");
+  return (
+    <SettingsGroup title="Agents">
+      <InstructionsRow
+        key={project?.id ?? ALL_PROJECTS}
+        hint="Sent to agents in this project with each turn, after your global instructions."
+        saved={project?.instructions ?? ""}
+        onSave={(text) => writer.save("instructions", { instructions: text })}
+        saving={writer.busy === "instructions"}
+        {...(writer.error?.field === "instructions" ? { error: writer.error.message } : {})}
+        {...(blocked ? { unavailable: { reason: blocked } } : {})}
+      />
+    </SettingsGroup>
+  );
+}
+
 function ProjectScopePicker({
   hosts,
   hostId,
@@ -419,11 +437,9 @@ export function ProjectsPage() {
         writer={writer}
       />
 
-      {project && !project.hostId && (
-        <>
-          <ProjectWorkspaceSection key={project.id} projectId={project.id} />
-        </>
-      )}
+      <ProjectAgentRows {...(project ? { project } : {})} writer={writer} />
+
+      {project && !project.hostId && <ProjectWorkspaceSection key={project.id} projectId={project.id} />}
 
       <ProjectPluginList
         {...(project ? { project } : {})}

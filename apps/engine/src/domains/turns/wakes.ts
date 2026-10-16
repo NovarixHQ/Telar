@@ -110,6 +110,8 @@ export class TurnWakes {
     turn: Turn,
     context: { resultText?: string; failure?: Turn["failure"]; request?: EngineRequest },
   ): void {
+    // A background-claim turn only decided a tool call for work still running: no model spoke, so it is nobody's news.
+    if (turn.origin === "provider" && turn.providerReason?.kind === "background_task" && TERMINAL_WAKE_KINDS.includes(kind)) return;
     this.deps.children.turnEnded(targetSessionId, kind, turn, context);
     if (turn.origin === "session" && turn.wakeReason) return;
     const all = this.deps.subscriptions.readSubscriptions();
@@ -344,9 +346,8 @@ export class TurnWakes {
     return true;
   }
 
-  // A run that left nothing to read: a background-claim turn, or no answer text and no assistant message.
+  // A run that left nothing to read: no answer text and no assistant message.
   private saidNothing(sessionId: string, turn: Turn): boolean {
-    if (turn.origin === "provider" && turn.providerReason?.kind === "background_task") return true;
     if (turn.resultText?.trim()) return false;
     const items = this.deps.items.peekRun(sessionId, turn.runId);
     return !items.some((item) => item.detail.type === "assistant_message" && item.detail.text.trim().length > 0);

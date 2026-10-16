@@ -101,11 +101,10 @@ export class SessionChildren {
 
   /**
    * A child's turn ended. Only on a parent's errand does it end the child: a failure or a stop does, and a completion
-   * after which Telar will not run it again. Background-task turns, Telar's cut-offs and wakes off the errand never do.
+   * after which Telar will not run it again. Telar's cut-offs and wakes off the errand never do.
    */
   turnEnded(sessionId: string, kind: WakeKind, turn: Turn, context: { resultText?: string; failure?: Turn["failure"] }): void {
     if (!TERMINAL_WAKE_KINDS.includes(kind)) return;
-    if (turn.origin === "provider" && turn.providerReason?.kind === "background_task") return;
     if (cutOffByTelar(turn) && turn.stopReason !== "engine_restart") return;
     const out = this.read().filter((child) => child.sessionId === sessionId && pending(child));
     if (out.length === 0) return;

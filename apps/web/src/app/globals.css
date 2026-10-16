@@ -1511,24 +1511,24 @@ html:has([data-surface="quick"]) *::-webkit-scrollbar {
 [data-telar-shell] [data-surface="quick"] {
   -webkit-app-region: drag;
 }
-[data-telar-shell] [data-surface="quick"] :is(button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [role="listbox"], [role="toolbar"], [contenteditable="true"], [data-slot="composer-editor"], [data-slot="composer-placeholder"], [data-slot="quick-transcript"], [role="note"] p) {
+[data-telar-shell] [data-surface="quick"] :is(button, a, input, select, textarea, [role="button"], [role="combobox"], [role="option"], [role="listbox"], [role="toolbar"], [contenteditable="true"], [data-slot="composer-editor"], [data-slot="composer-placeholder"], [data-slot="live-transcript"], [role="note"] p) {
   -webkit-app-region: no-drag;
 }
 [data-surface="quick"] [data-slot="input-group"] {
   background-color: var(--card);
   backdrop-filter: none;
 }
-[data-slot="quick-transcript"] :is(.text-sm, .telar-markdown) {
+[data-slot="live-transcript"] :is(.text-sm, .telar-markdown) {
   font-size: 0.75rem;
   line-height: 1rem;
 }
-[data-slot="quick-transcript"] [data-role] {
+[data-slot="live-transcript"] [data-role] {
   gap: 0.25rem;
 }
-[data-slot="quick-transcript"] [data-role="user"] > :first-child {
+[data-slot="live-transcript"] [data-role="user"] > :first-child {
   border-radius: var(--radius);
   padding: 0.375rem 0.625rem;
 }
-[data-slot="quick-transcript"] [data-slot="message-actions"] {
+[data-slot="live-transcript"] [data-slot="message-actions"] {
   display: none;
 }

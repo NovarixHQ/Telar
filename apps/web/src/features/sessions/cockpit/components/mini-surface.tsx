@@ -81,7 +81,7 @@ function useMorph(onClosed: () => void) {
   return { card, backdrop, close };
 }
 
-export function MiniSurface({ composer, exchange, dictate, onClosed }: { composer: ComposerProps; exchange: ReactNode; dictate: boolean; onClosed: () => void }) {
+export function MiniSurface({ composer, transcript, dictate, onClosed }: { composer: ComposerProps; transcript: ReactNode; dictate: boolean; onClosed: () => void }) {
   const layer = useOverlayLayer();
   const box = useRef<HTMLDivElement>(null);
   const { card, backdrop, close } = useMorph(onClosed);
@@ -108,11 +108,7 @@ export function MiniSurface({ composer, exchange, dictate, onClosed }: { compose
     <div ref={box} className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-4">
       <div ref={backdrop} data-slot="mini-backdrop" aria-hidden className="absolute inset-0 bg-overlay supports-backdrop-filter:backdrop-blur-xs" onMouseDown={close} />
       <div ref={card} role="dialog" aria-label="Message" onKeyDown={escape} className="relative flex w-full max-w-(--chat-content-max-width) flex-col gap-2 px-4">
-        {exchange ? (
-          <div data-slot="mini-exchange" className="max-h-[40vh] overflow-y-auto rounded-2xl bg-card/95 p-3 text-xs shadow-2 ring-1 ring-foreground/10 backdrop-blur-xl">
-            {exchange}
-          </div>
-        ) : null}
+        {transcript ? <div className="overflow-hidden rounded-2xl bg-card/95 shadow-2 ring-1 ring-foreground/10 backdrop-blur-xl">{transcript}</div> : null}
         <Composer {...composer} compact readingBack dictateOnOpen={dictate} onSubmit={submit} {...(dictate ? { onDictationPhase } : {})} />
       </div>
     </div>,

@@ -98,7 +98,7 @@ function Notch({ onOpen }: { onOpen: () => void }) {
 
 type Opened = "type" | "dictate";
 
-export function MiniComposer({ composer, exchange }: { composer: ComposerProps; exchange: ReactNode }) {
+export function MiniComposer({ composer, transcript }: { composer: ComposerProps; transcript: ReactNode }) {
   const fullscreen = usePanelFullscreen();
   const [opened, setOpened] = useState<Opened>();
   if (opened && !fullscreen) setOpened(undefined);
@@ -107,5 +107,5 @@ export function MiniComposer({ composer, exchange }: { composer: ComposerProps; 
   const onClosed = useCallback(() => setOpened(undefined), []);
   if (!fullscreen) return null;
   if (!opened) return <Notch onOpen={() => setOpened("type")} />;
-  return <MiniSurface composer={composer} exchange={exchange} dictate={opened === "dictate"} onClosed={onClosed} />;
+  return <MiniSurface composer={composer} transcript={transcript} dictate={opened === "dictate"} onClosed={onClosed} />;
 }

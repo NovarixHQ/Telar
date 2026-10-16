@@ -33,7 +33,7 @@ import { useTranscriptModel } from "../hooks/use-transcript-model";
 import { useCardPlacement } from "../hooks/use-workspace-card";
 import { pendingStillShown, type PendingTurn } from "../pending-turn";
 import { composerProps } from "./composer-props";
-import { SessionComposer } from "./mini-exchange";
+import { SessionComposer } from "./session-composer";
 import { rightPanelProps } from "./right-panel-props";
 import { SessionMasthead, SoloTools, usePanelPresence } from "./masthead";
 import { WorkspaceCard } from "./workspace-card";
@@ -177,7 +177,7 @@ export function SessionCockpit({
               onResumeNow={(runId) => void actions.resumeNow(runId)}
             />
           </div>
-          <SessionComposer composer={composing} model={model} sending={actions.sending} onDecide={(requestId, decision, extra) => void actions.decideRequest(requestId, decision, extra)} />
+          <SessionComposer composer={composing} sync={sync} model={model} onDecide={(requestId, decision, extra) => void actions.decideRequest(requestId, decision, extra)} />
           {floating && sessionId && (
             <Suspense fallback={null}>
               <FloatingSimulator sessionId={sessionId} hostId={hostId} onOpenInPanel={(id) => panelState.updatePanel((current) => showSimulatorTab(current, id))} />

@@ -6,7 +6,6 @@ const HARMLESS = new Set(["--version", "-v", "-V", "--help", "-h", "version", "h
 
 const unquote = (word: string): string => word.replace(/^["']|["']$/g, "");
 
-/** The provider CLI a shell command runs as a command, if any; `claude --version` and the like don't count. */
 export function providerCliInvocation(command: string): string | undefined {
   const bins = providerCliBins();
   for (const segment of command.split(SEGMENT)) {

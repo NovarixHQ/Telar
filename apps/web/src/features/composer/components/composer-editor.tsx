@@ -9,7 +9,7 @@ import { continueLine, indentLine, isLargePaste } from "../editor-keys";
 import { editorHistory } from "../editor-history";
 import { insertReference } from "@telar/client/composer";
 import { runAt, type ComposerDecoration, type DecorationRun } from "../decorations";
-import { decorationsDrawn, paint, placeCaret, selectionRange, serialize, type Run } from "./editor-dom";
+import { chipBeside, decorationsDrawn, paint, placeCaret, selectionRange, serialize, type Run } from "./editor-dom";
 import { cn } from "@/ui/utils";
 import { commandModifierDown } from "@/features/commands";
 
@@ -288,6 +288,12 @@ function editorKey(event: React.KeyboardEvent<HTMLDivElement>, box: HTMLElement,
   } else if (commandModifierDown(event) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "a") {
     event.preventDefault();
     box.ownerDocument.getSelection()?.selectAllChildren(box);
+  } else if (event.key === "Backspace" || event.key === "Delete") {
+    const chip = chipBeside(box, event.key);
+    if (!chip) return;
+    event.preventDefault();
+    const next = replaceTextRange(painted, chip.start, chip.end, "");
+    rewrite(next.text, next.cursor);
   } else if (event.key === "Enter") {
     // Only a shifted Enter reaches here.
     event.preventDefault();

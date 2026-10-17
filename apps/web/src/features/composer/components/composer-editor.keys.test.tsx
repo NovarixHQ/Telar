@@ -153,6 +153,50 @@ test("Shift+Enter inside a fenced code block keeps the line's indentation", asyn
   expect(box.text()).toBe("```\nif (x) {\n    run()\n    ");
 });
 
+describe("Backspace and Delete beside a chip", () => {
+  const SKILL = 'the "deploy" skill';
+  const FILE = "`src/app.ts`";
+
+  test.each([
+    ["a skill", SKILL],
+    ["a file", FILE],
+  ])("Backspace right after %s removes the whole chip", async (_, chip) => {
+    const box = await editor(`go ${chip}`);
+    const field = document.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
+    window.getSelection()!.collapse(field, field.childNodes.length);
+    expect(box.press({ key: "Backspace" }).defaultPrevented).toBe(true);
+    expect(box.text()).toBe("go ");
+  });
+
+  test.each([
+    ["a skill", SKILL],
+    ["a file", FILE],
+  ])("Delete right before %s removes the whole chip", async (_, chip) => {
+    const box = await editor(`go ${chip} now`);
+    const field = document.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
+    window.getSelection()!.collapse(field, 1);
+    expect(box.press({ key: "Delete" }).defaultPrevented).toBe(true);
+    expect(box.text()).toBe("go  now");
+  });
+
+  test("Backspace after a space that follows the chip only removes the space", async () => {
+    const box = await editor(`${SKILL} |`);
+    window.getSelection()!.collapse(document.querySelector("[data-slot=composer-editor]")!.lastChild!, 1);
+    expect(box.press({ key: "Backspace" }).defaultPrevented).toBe(false);
+    expect(box.text()).toBe(`${SKILL} `);
+  });
+
+  test("undo brings the chip back", async () => {
+    const box = await editor(`go ${SKILL}`);
+    const field = document.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
+    window.getSelection()!.collapse(field, field.childNodes.length);
+    box.press({ key: "Backspace" });
+    box.press({ key: "z", metaKey: true });
+    expect(box.text()).toBe(`go ${SKILL}`);
+    expect(field.querySelector("[data-chip-kind=skill]")).not.toBeNull();
+  });
+});
+
 describe("a paste", () => {
   test("at the threshold goes to the parent instead of the box", async () => {
     const pasted: string[] = [];

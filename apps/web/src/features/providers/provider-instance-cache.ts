@@ -65,7 +65,6 @@ function useProviderRead(): Read | undefined {
   return read;
 }
 
-/** The providers a new session can start on; `keep` is the session's own, shown even when off. */
 export function useOfferedDrivers(keep?: ProviderDriverKind): ProviderDriverKind[] {
   const read = useProviderRead();
   return offeredDrivers(read?.instances, read?.probes, keep);

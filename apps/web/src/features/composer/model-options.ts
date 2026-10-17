@@ -1,7 +1,5 @@
-import { BUILT_IN_DRIVERS, type ProviderDriverKind, type ProviderModel } from "@telar/engine-client";
+import { type ProviderDriverKind, type ProviderModel } from "@telar/engine-client";
 import { effortLabel, type ModelChoice, defaultModelId, contextWindowOf, familyOf, groupFamilies, rowFor, rowOf, windowsOf, WINDOW_LABEL, type ContextWindow } from "@telar/client/providers";
-
-export const PROVIDERS: readonly ProviderDriverKind[] = BUILT_IN_DRIVERS;
 
 /** The model pill, the options popover and the overflow menu all read this, so they agree. */
 export function selectionOf(models: readonly ProviderModel[], choice: ModelChoice) {
@@ -180,6 +178,6 @@ export function withModel(choice: ModelChoice, row: ProviderModel): ModelChoice 
 }
 
 /** The catalogues a live model search reads: every provider while it can still be switched, else the session's own. */
-export function searchScope(driver: ProviderDriverKind, canSwitchProvider: boolean): ProviderDriverKind[] {
-  return canSwitchProvider ? [driver, ...PROVIDERS.filter((option) => option !== driver)] : [driver];
+export function searchScope(driver: ProviderDriverKind, canSwitchProvider: boolean, offered: readonly ProviderDriverKind[]): ProviderDriverKind[] {
+  return canSwitchProvider ? [driver, ...offered.filter((option) => option !== driver)] : [driver];
 }

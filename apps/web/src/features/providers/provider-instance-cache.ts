@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { defaultInstanceIdForDriver, type ProviderDriverKind, type ProviderInstance } from "@telar/engine-client";
+import { defaultInstanceIdForDriver, type ProviderDriverKind, type ProviderInstance, type ProviderProbe } from "@telar/engine-client";
+import { offeredDrivers } from "@telar/client/providers";
 import { createEngineApi } from "@/platform/engine";
 
 const api = createEngineApi();
@@ -13,20 +14,22 @@ export function announceProviderInstancesChanged(): void {
   window.dispatchEvent(new Event(PROVIDER_INSTANCES_CHANGED_EVENT));
 }
 
-let cached: ProviderInstance[] | undefined;
-let inFlight: Promise<ProviderInstance[]> | undefined;
+type Read = { instances: ProviderInstance[]; probes: ProviderProbe[] };
 
-function readProviderInstances(): Promise<ProviderInstance[]> {
+let cached: Read | undefined;
+let inFlight: Promise<Read> | undefined;
+
+function readProviderInstances(): Promise<Read> {
   if (cached) return Promise.resolve(cached);
   const pending =
     inFlight ??
     api
       .providerInstances()
       .then((answer) => {
-        cached = answer.providerInstances;
+        cached = { instances: answer.providerInstances, probes: answer.probes };
         return cached;
       })
-      .catch((): ProviderInstance[] => [])
+      .catch((): Read => ({ instances: [], probes: [] }))
       .finally(() => {
         inFlight = undefined;
       });
@@ -34,21 +37,18 @@ function readProviderInstances(): Promise<ProviderInstance[]> {
   return pending;
 }
 
-function forgetProviderInstances(): void {
+export function forgetProviderInstances(): void {
   cached = undefined;
 }
 
-export function useProviderInstance(
-  id: string | undefined,
-  driver: ProviderDriverKind | undefined,
-): ProviderInstance | undefined {
-  const [instances, setInstances] = useState<ProviderInstance[] | undefined>(cached);
+function useProviderRead(): Read | undefined {
+  const [read, setRead] = useState<Read | undefined>(cached);
 
   useEffect(() => {
     let live = true;
     const load = () =>
       void readProviderInstances().then((next) => {
-        if (live) setInstances(next);
+        if (live) setRead(next);
       });
     load();
     const invalidate = () => {
@@ -62,6 +62,20 @@ export function useProviderInstance(
     };
   }, []);
 
+  return read;
+}
+
+/** The providers a new session can start on; `keep` is the session's own, shown even when off. */
+export function useOfferedDrivers(keep?: ProviderDriverKind): ProviderDriverKind[] {
+  const read = useProviderRead();
+  return offeredDrivers(read?.instances, read?.probes, keep);
+}
+
+export function useProviderInstance(
+  id: string | undefined,
+  driver: ProviderDriverKind | undefined,
+): ProviderInstance | undefined {
+  const instances = useProviderRead()?.instances;
   if (!instances) return undefined;
   const named = instances.find((instance) => instance.id === id);
   if (named) return named;

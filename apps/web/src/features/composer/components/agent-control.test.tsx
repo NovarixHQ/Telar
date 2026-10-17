@@ -52,10 +52,11 @@ import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:tes
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { BuiltInDriver, ModelCatalogue, ProviderDriverKind, ProviderModel } from "@telar/engine-client";
+import { BUILT_IN_DRIVERS, type BuiltInDriver, type ModelCatalogue, type ProviderDriverKind, type ProviderModel } from "@telar/engine-client";
 import { searchScope } from "../model-options";
 import { AgentControl } from "./agent-control";
 import { forgetModelCatalogues } from "@/features/providers/model-catalogue-cache";
+import { forgetProviderInstances } from "@/features/providers/provider-instance-cache";
 import { typeInto } from "@/test/type-into";
 
 /** Registered here and released in `afterAll` — Happy DOM throws on a second
@@ -93,12 +94,15 @@ const CATALOGUES: Record<BuiltInDriver, ProviderModel[]> = {
 /** Which drivers the engine was asked for, so "it did not ask" is testable
  *  rather than inferred from an empty list. */
 let asked: ProviderDriverKind[] = [];
+let switchedOff: ProviderDriverKind[] = [];
 
 let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
   asked = [];
+  switchedOff = [];
+  forgetProviderInstances();
   // The catalogue cache is module-scoped and page-lived by design, so without
   // this the first test's answers would serve every later one.
   forgetModelCatalogues();
@@ -109,6 +113,10 @@ beforeEach(() => {
       asked.push(driver);
       const catalogue: ModelCatalogue = { driver, models: CATALOGUES[driver], source: "provider", readAt: 0 };
       return Response.json({ catalogue });
+    }
+    if (url.startsWith("/api/provider-instances")) {
+      const providerInstances = BUILT_IN_DRIVERS.map((driver) => ({ id: driver, driver, enabled: !switchedOff.includes(driver), env: [], createdAt: 0, updatedAt: 0 }));
+      return Response.json({ providerInstances, probes: [] });
     }
     if (url.includes("/models")) return Response.json({ overlay: { instanceId: "x", favorites: [], hidden: [], order: [], custom: [] } });
     throw new Error(`unexpected fetch: ${url}`);
@@ -394,18 +402,18 @@ describe("the empty state says which scope came up empty", () => {
  */
 describe("which catalogues a live query reads", () => {
   test("every harness while the provider can still change, the session's own first", () => {
-    expect(searchScope("opencode", true)).toEqual(["opencode", "claude", "codex", "cursor"]);
-    expect(searchScope("claude", true)).toEqual(["claude", "codex", "opencode", "cursor"]);
+    expect(searchScope("opencode", true, BUILT_IN_DRIVERS)).toEqual(["opencode", "claude", "codex", "cursor"]);
+    expect(searchScope("claude", true, BUILT_IN_DRIVERS)).toEqual(["claude", "codex", "opencode", "cursor"]);
   });
 
   test("only its own once the session has fixed the provider", () => {
-    expect(searchScope("opencode", false)).toEqual(["opencode"]);
-    expect(searchScope("claude", false)).toEqual(["claude"]);
+    expect(searchScope("opencode", false, BUILT_IN_DRIVERS)).toEqual(["opencode"]);
+    expect(searchScope("claude", false, BUILT_IN_DRIVERS)).toEqual(["claude"]);
   });
 
   test("no provider is listed twice, whichever one you are on", () => {
     for (const driver of ["claude", "codex", "opencode", "cursor"] as ProviderDriverKind[]) {
-      const scope = searchScope(driver, true);
+      const scope = searchScope(driver, true, BUILT_IN_DRIVERS);
       expect(new Set(scope).size).toBe(scope.length);
       expect(scope).toHaveLength(4);
     }
@@ -421,6 +429,24 @@ describe("Switch provider, from a running session's picker", () => {
     expect(rowText()).toEqual(["GPT-6 Astra"]);
     await press(rows()[0]!);
     expect(switched).toEqual([["codex", { model: "gpt-6-astra" }]]);
+  });
+
+  test("a provider switched off is not offered, unless the session already runs on it", async () => {
+    switchedOff = ["opencode"];
+    const tab = (label: string) => document.body.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+    await open({ driver: "claude", onSwitchProvider: () => undefined });
+    expect(tab("Codex")).not.toBeNull();
+    expect(tab("OpenCode")).toBeNull();
+    await press(document.body.querySelector<HTMLButtonElement>('button[aria-label="Favourites"]')!);
+    await type("luna");
+    expect(rows()).toHaveLength(0);
+    expect(asked).not.toContain("opencode");
+  });
+
+  test("a session already on a switched-off provider still shows it", async () => {
+    switchedOff = ["opencode"];
+    await open({ driver: "opencode", onSwitchProvider: () => undefined });
+    expect(document.body.querySelector('button[aria-label="OpenCode"]')).not.toBeNull();
   });
 
   test("a session that cannot switch keeps the other tabs shut", async () => {

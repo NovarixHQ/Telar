@@ -1,5 +1,5 @@
 export { driverLabel, ModelPillIcon, ModelRowIcon, modelVendorLabel, ProviderIcon } from "./components/provider-icon";
 export { importLocalFavorites, patchModelOverlay, useModelCatalogue, useModelCatalogues, useModelOverlays } from "./model-catalogue-cache";
 export { connectionLabel, familySearchText, routedModelLabel, routeOf } from "./model-connections";
-export { useProviderInstance } from "./provider-instance-cache";
+export { useOfferedDrivers, useProviderInstance } from "./provider-instance-cache";
 export { reportsContextUsage } from "./context-reporting";

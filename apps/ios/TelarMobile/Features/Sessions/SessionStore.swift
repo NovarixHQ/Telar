@@ -108,7 +108,9 @@ import Observation
     }
 
     func loadModels() async {
-        for driver in ["claude", "codex", "opencode", "cursor"] where catalogues[driver] == nil {
+        let offered = (try? await api.providerInstances())?.filter(\.enabled).map(\.driver) ?? []
+        let own = sync.session?.driver
+        for driver in ModelMenu.drivers.map(\.id) where catalogues[driver] == nil && (driver == own || offered.contains(driver)) {
             if let catalogue = try? await api.models(driver: driver) { catalogues[driver] = catalogue }
         }
     }

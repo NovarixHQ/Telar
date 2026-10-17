@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PlatformColor, Settings, StyleSheet, Text, TextInput, View, type TextInputInstance } from "react-native";
 import { composerPaste } from "../../../modules/composer-paste";
 import { CaretPill, type DictationPhase } from "../dictation";
@@ -8,6 +8,7 @@ import type { Completion } from "./completions";
 import { followCaret, scrolled } from "./follow";
 import type { Picked } from "./intake";
 import { listenForPaste } from "./paste";
+import { applyEdit, runsOf, showDraft, snapOut, toDraftOffset, toShownOffset } from "./pills";
 import { PlusMenu, type PlusMenuProps } from "./PlusMenu";
 import type { Slot } from "./slot";
 import { SuggestionList } from "./SuggestionList";
@@ -64,6 +65,7 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
   const heard = dictation?.heard ?? "";
   const scroll = useRef({ offset: 0, following: true });
   const shown = useRef(draft);
+  const drawn = useMemo(() => showDraft(draft), [draft]);
   useEffect(() => {
     if (listening) scroll.current = { ...scroll.current, following: true };
   }, [listening]);
@@ -73,7 +75,8 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
     const end = listening ? followCaret(previous, draft, caret, scroll.current.following) : undefined;
     if (end === undefined) return;
     // The command lands after the new text is mounted; moving the caret is what scrolls a multiline field.
-    const frame = requestAnimationFrame(() => field.current?.setSelection(end, end));
+    const at = toShownOffset(showDraft(draft).pills, end);
+    const frame = requestAnimationFrame(() => field.current?.setSelection(at, at));
     return () => cancelAnimationFrame(frame);
   }, [draft]);
   return (
@@ -101,17 +104,22 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
               onLayout={focusOnce}
               style={[styles.input, !dictation && styles.inputAlone]}
               accessibilityLabel={placeholder}
-              value={draft}
-              onChangeText={onDraft}
+              onChangeText={(next) => onDraft(applyEdit(draft, drawn, next))}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              onSelectionChange={(event) => onCaret(event.nativeEvent.selection.end)}
+              onSelectionChange={({ nativeEvent: { selection } }) => {
+                const at = snapOut(drawn.pills, selection.end);
+                if (selection.start === selection.end && at !== selection.end) field.current?.setSelection(at, at);
+                onCaret(toDraftOffset(drawn.pills, at));
+              }}
               onScroll={({ nativeEvent: { contentOffset, layoutMeasurement, contentSize } }) => {
                 scroll.current = scrolled(scroll.current, { offset: contentOffset.y, height: layoutMeasurement.height, content: contentSize.height }, LINE);
               }}
               autoFocus={FOCUS_ON_OPEN}
               multiline
-            />
+            >
+              <Text>{runsOf(drawn).map((run, index) => (run.pill ? <Text key={index} style={styles.pillText}>{run.text}</Text> : run.text))}</Text>
+            </TextInput>
             {listening ? (
               <>
                 <Text
@@ -122,7 +130,7 @@ export function Composer({ draft, caret, onDraft, onCaret, resetKey, placeholder
                     setCaretAt(last ? { x: last.x + last.width, y: last.y } : { x: 0, y: 0 });
                   }}
                 >
-                  {draft.slice(0, caret)}
+                  {drawn.text.slice(0, toShownOffset(drawn.pills, caret))}
                 </Text>
                 <CaretPill language={dictation.language} x={16 + Math.max(caretAt.x - 2, 0)} y={12 + Math.max(caretAt.y - 24, 0)} />
               </>
@@ -141,6 +149,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   pill: { flex: 1, minHeight: ROW, borderRadius: Radius.composer },
   strip: { paddingHorizontal: 16, paddingTop: 10, fontSize: 13, color: Theme.textMuted },
+  pillText: { fontWeight: "600", color: Theme.accent },
   heard: { color: Theme.accent },
   line: { flexDirection: "row", alignItems: "flex-end" },
   input: { flex: 1, maxHeight: LINE * MAX_LINES + 24, paddingLeft: 16, paddingRight: 0, paddingTop: 12, paddingBottom: 12, fontSize: 16, lineHeight: LINE, color: Theme.text },

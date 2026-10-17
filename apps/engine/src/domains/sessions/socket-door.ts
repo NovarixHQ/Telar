@@ -1,4 +1,4 @@
-import { mcpSocketRoute, type SocketTool } from "../agent-tools";
+import { mcpSocketRoute } from "../agent-tools";
 import type { EngineStore } from "../../state";
 import { sessionsCapability, storeReads, storeSessionsPort } from "./capability";
 import { collectSessionsWallTools, ensureSessionsSocketSecret, handleSessionsSocketMessage, sessionsSocketConnectCard } from "./tools/socket";

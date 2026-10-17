@@ -126,6 +126,13 @@ function chipsIn(root: HTMLElement, draft: string): Chip[] {
   return chips;
 }
 
+export function chipBeside(root: HTMLElement, key: "Backspace" | "Delete"): Run | undefined {
+  const at = selectionRange(root);
+  if (!at || at.start !== at.end) return undefined;
+  const chip = chipsIn(root, serialize(root)).find((candidate) => (key === "Backspace" ? candidate.end : candidate.start) === at.end);
+  return chip && { start: chip.start, end: chip.end };
+}
+
 function sameNode(current: Node, next: Node): boolean {
   if (current === next) return true;
   if (current.nodeType !== next.nodeType) return false;

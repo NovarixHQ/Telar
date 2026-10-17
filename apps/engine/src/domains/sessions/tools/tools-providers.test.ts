@@ -31,6 +31,14 @@ describe("the providers an agent can start a session on", () => {
     expect(capabilities.providers.map((provider) => provider.instanceId)).toEqual(["claude", "codex", "cursor"]);
   });
 
+  test("sessions_create names the enabled providers and says it is how work moves to another one", () => {
+    const { store } = engine();
+    store.providers.save({ id: "cursor", driver: "cursor", enabled: true });
+    const create = wall(store).get("sessions_create")!;
+    expect(create.description).toContain("another provider or model");
+    expect((create.shape.provider as { unwrap(): { description?: string } }).unwrap().description).toContain("Offered: claude, codex, cursor");
+  });
+
   test("a Cursor builder on Grok is created with the exact id the capabilities list", async () => {
     const { store, projectId } = engine();
     store.providers.save({ id: "cursor", driver: "cursor", enabled: true });

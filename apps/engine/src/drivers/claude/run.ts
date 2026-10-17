@@ -221,7 +221,7 @@ function identifyTurn(deps: DriverDeps, input: DriverRun, turn: TurnState): void
     extraArgs: extraArgs ?? null,
     computerUse: computerUse ?? null,
     browser: browserSocket ?? null,
-    sessions: Boolean(sessions),
+    sessions: sessions ? { providers: sessions.providers ?? null, delegation: sessions.delegationMode ?? null } : false,
     // The toolkits are baked into the query at creation, so a project-less
     // session gaining a project must cold-start to advertise them.
     prompts: Boolean(prompts),

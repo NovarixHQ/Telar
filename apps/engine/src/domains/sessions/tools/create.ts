@@ -21,7 +21,7 @@ export const runIdFor = (tool: string, toolCallId: string | undefined): string =
     : `run_${crypto.randomUUID().replaceAll("-", "")}`;
 
 const providerSchema = (offered: readonly string[] | undefined) => {
-  const note = "Omit unless the user asked. sessions_capabilities lists each one's models.";
+  const note = "Omit for the person's default provider; set it to run work on another one. sessions_capabilities lists each one's models.";
   return (offered?.length ? z.enum(offered as [string, ...string[]]).describe(`${note} Offered: ${offered.join(", ")}.`) : z.string().min(1).describe(note)).optional();
 };
 

@@ -73,6 +73,9 @@ Write each worker a self-contained brief. It will not see this conversation.
 ${PICKING[mode]} \`sessions_capabilities\` lists what is
   offered with each model's cost tier, and each result says what that run
   ran on and spent.
+- Work the person wants on another provider or model gets its own session with
+  \`provider\` and \`model\`, never a provider CLI run from a shell or your own
+  sub-agents.
 - Then END YOUR TURN. No subscribing, no polling, no sleeping. Each worker
   reaches you as one line when it sends its result (or fails, is stopped or
   settled); several that finish while you are busy arrive together. A blocker

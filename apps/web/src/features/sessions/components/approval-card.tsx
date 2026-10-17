@@ -238,6 +238,8 @@ function SecretAccessCard({
         </label>
       )}
 
+      {request.reason && <p className="text-xs text-muted-foreground">{request.reason}</p>}
+
       {request.notified === false && (
         <p className="text-xs text-muted-foreground">Parked with nobody watching — no notification was sent.</p>
       )}

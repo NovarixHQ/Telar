@@ -16,6 +16,7 @@ export {
   requireCli,
   resolveCli,
 } from "./cli";
+export { providerCliAdvice, providerCliInvocation } from "./cli-guard";
 export { type CliUpdateRun } from "./cli-updates";
 export { providerProcessEnv, type VersionProbe } from "./instances";
 export { oneShotCompleter, type OneShotCompleter, type OneShotRequest } from "./one-shot";

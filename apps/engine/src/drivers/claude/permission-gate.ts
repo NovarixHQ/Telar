@@ -62,7 +62,7 @@ export const gateFor = (onRequest: NonNullable<DriverRun["onRequest"]>): SdkCanU
         }
       }
       try {
-        const { decision } = normalizeOutcome(
+        const { decision, reason } = normalizeOutcome(
           await onRequest({
             kind: requestKindForTool(toolName),
             detail: requestDetailForToolCall(toolName, input),
@@ -74,7 +74,7 @@ export const gateFor = (onRequest: NonNullable<DriverRun["onRequest"]>): SdkCanU
         // `cancel` withdraws the whole turn rather than just this call.
         return {
           behavior: "deny",
-          message: decision === "cancel" ? "The human cancelled this turn." : "The human declined this tool call.",
+          message: decision === "cancel" ? "The human cancelled this turn." : (reason ?? "The human declined this tool call."),
           ...(decision === "cancel" ? { interrupt: true } : {}),
         };
       } catch (error) {

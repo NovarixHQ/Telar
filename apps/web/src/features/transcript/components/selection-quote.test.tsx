@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { act } from "react";
 import { buttonLabelled, click, installTestDom, mount } from "@/test/dom";
-import { segmentDraft } from "@/features/composer/tokens";
+import { segmentDraft } from "@telar/client/composer";
 import { MessageResponse } from "@/ui/message";
 import { SelectionQuote } from "./selection-quote";
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { decorationRuns, runAt, type ComposerDecoration } from "./decorations";
 import { isLiteral, markdownStyles } from "./markdown";
-import { segmentDraft } from "./tokens";
+import { segmentDraft } from "@telar/client/composer";
 
 const DISPLAY = String.raw`\$\$[^$]+?\$\$`;
 const INLINE = String.raw`(?<!\$)\$(?=[^\s$])[^$\n]*?[^\s$\\]\$(?![\d$])`;

@@ -2,9 +2,9 @@
 
 import { Fragment, useState, type ReactNode } from "react";
 import type { FileReference } from "@telar/engine-client";
-import { CHIP_CLASS, CHIP_ICON_CLASS, CHIP_LABEL_CLASS, chipIsDirectory, chipPath, chipTitle, segmentDraft } from "@/features/composer";
+import { CHIP_CLASS, CHIP_ICON_CLASS, CHIP_LABEL_CLASS, chipTitle } from "@/features/composer";
 import { chipGlyphFor } from "@/features/composer";
-import { quoteSource, type TelarReference } from "@telar/client/composer";
+import { chipIsDirectory, chipPath, quoteSource, segmentDraft, type TelarReference } from "@telar/client/composer";
 import { FileKindIcon, revealLine } from "@/features/files";
 import { cn } from "@/ui/utils";
 import { filePanelTab, issuePanelTab, pullPanelTab, type PanelTab } from "@/features/panel";

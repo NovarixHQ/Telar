@@ -194,3 +194,5 @@ export function insertReference(draft: string, text: string, caret: number): { d
   const inserted = `${lead}${text}${trail}`;
   return { draft: `${before}${inserted}${after}`, caret: at + inserted.length };
 }
+
+export { chipBasename, chipIsDirectory, chipPath, segmentDraft, type ComposerSegment } from "./segments";

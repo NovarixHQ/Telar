@@ -1,5 +1,5 @@
 
-import { chipIsDirectory, chipPath } from "./tokens";
+import { chipIsDirectory, chipPath } from "@telar/client/composer";
 import type { TelarReference } from "@telar/client/composer";
 import { fileKind, type FileGlyph } from "@/features/files";
 

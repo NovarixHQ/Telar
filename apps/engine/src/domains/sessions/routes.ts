@@ -113,7 +113,7 @@ export function sessionsRoutes(store: EngineStore, { daemonId, openStreams, mcpI
             ...(typeof body.branchSlug === "string" ? { branchSlug: body.branchSlug } : {}),
             ...(typeof body.baseRef === "string" ? { baseRef: body.baseRef } : {}),
             ...(typeof body.branchName === "string" ? { branchName: body.branchName } : {}),
-            ...(typeof body.driver === "string" ? { driver: body.driver as "claude" | "codex" } : {}),
+            ...(typeof body.driver === "string" ? { driver: body.driver } : {}),
             ...(typeof body.providerInstanceId === "string" ? { providerInstanceId: body.providerInstanceId } : {}),
             ...(body.origin === "session" ? { origin: "session" as const } : {}),
             ...(typeof body.ceilingFrom === "string" ? { ceilingFrom: body.ceilingFrom } : {}),

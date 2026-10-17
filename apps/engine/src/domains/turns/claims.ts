@@ -71,6 +71,7 @@ type ClaimDeps = {
   enabledPluginIds: (session: Session) => string[];
   getAgentOrientation: () => AgentOrientation;
   delegationMode?: () => DelegationMode;
+  offeredProviders?: () => string[];
   simulatorAccess: () => WorkerClaim["simulators"];
 };
 
@@ -415,6 +416,7 @@ export class TurnClaims {
       })(),
       ...(this.deps.getAgentOrientation().preamble ? { orientation: TELAR_ORIENTATION } : {}),
       ...(this.deps.delegationMode ? { delegationMode: this.deps.delegationMode() } : {}),
+      ...(this.deps.offeredProviders ? { providers: this.deps.offeredProviders() } : {}),
       ...(() => {
         const instructions = personInstructions(this.deps.getAgentOrientation().instructions, this.projectInstructions(session));
         return instructions ? { instructions } : {};

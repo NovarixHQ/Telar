@@ -371,7 +371,7 @@ test("the worker cannot archive, delete or accept anything — the client it hol
   const { sawCapability } = await turnWith(async (sessions) => {
     const surface = Object.keys(sessions).sort();
     expect(surface).toEqual([
-      "acknowledge", "builders", "capabilities", "create", "cursor", "delegationMode", "diff", "handOff", "list", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscriptions", "turn", "unsubscribe",
+      "acknowledge", "builders", "capabilities", "create", "cursor", "delegationMode", "diff", "handOff", "list", "providers", "query", "read", "requests", "resolveRequest", "self", "send", "settle", "status", "stop", "subscribe", "subscriptions", "turn", "unsubscribe",
     ]);
     expect(Object.keys(sessions.query).sort()).toEqual(["answer", "find", "grep", "outline", "step", "steps"]);
     for (const forbidden of ["archive", "delete", "accept", "merge", "commit"]) {

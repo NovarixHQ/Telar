@@ -56,12 +56,13 @@ describe("sessions_capabilities", () => {
     withCatalogue(store);
     const host = store.lifecycle.createSession({ projectId, title: "host" });
     const answer = await call(wall(store, { sessionId: host.id }), "sessions_capabilities");
-    const json = answer.json as { you: Record<string, unknown>; providers: Array<{ instanceId: string; models: Array<{ id: string; tier?: number }> }> };
+    const json = answer.json as { you: Record<string, unknown>; providers: Array<{ instanceId: string; models: string[] }> };
     expect(json.you).toMatchObject({ sessionId: host.id, driver: "claude", model: "claude-fable-5-1[1m]", tier: 4, access: host.runtimeMode });
-    const tiers = new Map(json.providers.find((provider) => provider.instanceId === "claude")!.models.map((model) => [model.id, model.tier]));
-    expect(tiers.get("claude-sonnet-5")).toBe(2);
-    expect(tiers.get("claude-haiku-4-5")).toBe(1);
-    expect(tiers.has("claude-opus-4-8[1m]")).toBe(false);
+    const lines = json.providers.find((provider) => provider.instanceId === "claude")!.models;
+    const line = (id: string) => lines.find((candidate) => candidate.startsWith(`${id} · `));
+    expect(line("claude-sonnet-5")).toContain("tier 2");
+    expect(line("claude-haiku-4-5")).toContain("tier 1");
+    expect(line("claude-opus-4-8[1m]")).toBeUndefined();
   });
 
   test("its description never changes with the catalogue, so the tool list stays cacheable", () => {

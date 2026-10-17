@@ -24,6 +24,7 @@ const PROVIDERS: { driver: ProviderDriverKind; title: string }[] = [
   { driver: "claude", title: "Claude" },
   { driver: "codex", title: "Codex" },
   { driver: "opencode", title: "OpenCode" },
+  { driver: "cursor", title: "Cursor" },
 ];
 
 /** What the menus show as chosen: a session's model and access, or a new session's picks so far. */

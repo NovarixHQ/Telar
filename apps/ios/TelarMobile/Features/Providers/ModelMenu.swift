@@ -45,6 +45,12 @@ struct ModelMenu: View {
     let driversSwitchable: Bool
     let onChange: (ModelChoice) -> Void
 
+    struct Driver: Identifiable {
+        let id: String
+        let title: String
+    }
+    static let drivers = [Driver(id: "claude", title: "Claude"), Driver(id: "codex", title: "Codex"), Driver(id: "opencode", title: "OpenCode"), Driver(id: "cursor", title: "Cursor")]
+
     private var models: [ProviderModel] {
         (catalogues[choice.driver]?.models ?? []).filter { !$0.hidden }
     }
@@ -75,10 +81,9 @@ struct ModelMenu: View {
     var body: some View {
         Menu {
             if driversSwitchable {
-                familySection("Claude", driver: "claude")
-                familySection("Codex", driver: "codex")
-                familySection("OpenCode", driver: "opencode")
-                familySection("Cursor", driver: "cursor")
+                ForEach(Self.drivers.filter { $0.id == choice.driver || catalogues[$0.id] != nil }) { entry in
+                    familySection(entry.title, driver: entry.id)
+                }
             } else {
                 familySection(nil, driver: choice.driver)
             }

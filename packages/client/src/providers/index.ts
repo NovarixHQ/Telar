@@ -26,4 +26,5 @@ export {
   projectDraftModel,
   sessionModelSelection,
 } from "./models";
+export { offeredDrivers } from "./offered";
 export { RUNTIME_MODE_HELP, RUNTIME_MODE_LABELS, RUNTIME_MODES } from "./runtime-modes";

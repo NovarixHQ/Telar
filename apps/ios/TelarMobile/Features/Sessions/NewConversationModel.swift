@@ -77,7 +77,8 @@ import Observation
 
     func loadDetails() async {
         guard let api, let projectId = draft.target?.project.id else { return }
-        for driver in ["claude", "codex", "opencode", "cursor"] where catalogues[driver] == nil {
+        let offered = (try? await api.providerInstances())?.filter(\.enabled).map(\.driver) ?? []
+        for driver in ModelMenu.drivers.map(\.id) where catalogues[driver] == nil && (driver == choice.driver || offered.contains(driver)) {
             catalogues[driver] = try? await api.models(driver: driver)
         }
         git = try? await api.projectGit(projectId)

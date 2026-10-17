@@ -177,7 +177,7 @@ function engineSweeps(store: EngineStore, options: EngineDaemonOptions, pruneWor
     { name: "request-deadlines", every: options.requestDeadlineSweepIntervalMs ?? 15_000, run: () => store.requestGate.sweepDeadlines() },
     { name: "first-cleanup", once: options.cleanupFirstDelayMs ?? 5 * 60 * 1000, run: sweepCleanup },
     { name: "cleanup", every: options.cleanupIntervalMs ?? 30 * 60 * 1000, run: sweepCleanup },
-    { name: "model-prefetch", once: options.modelPrefetchDelayMs === null ? null : (options.modelPrefetchDelayMs ?? 5_000), run: () => store.catalogues.prefetch() },
+    { name: "model-prefetch", once: options.modelPrefetchDelayMs === null ? null : (options.modelPrefetchDelayMs ?? 5_000), run: () => store.catalogues.prefetch([...new Set(store.providers.list().filter((instance) => instance.enabled).map((instance) => instance.driver))]) },
   ];
 }
 

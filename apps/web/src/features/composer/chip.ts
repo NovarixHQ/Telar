@@ -2,7 +2,7 @@
  * Shared chip styling: the composer builds chips as DOM nodes, the transcript as
  * React. Every measurement is in `em` so a chip scales with the prose around it.
  */
-import { chipPath } from "./tokens";
+import { chipPath } from "@telar/client/composer";
 import type { TelarReference } from "@telar/client/composer";
 
 export const CHIP_CLASS =

@@ -7,7 +7,7 @@ import { chipGlyphFor, glyphElement } from "../glyph-paths";
 import { decorationBits, decorationRuns, decorationStyleOf, type ComposerDecoration, type DecorationRun } from "../decorations";
 import { isLiteral, markdownStyles, styleNames, type MarkdownStyle } from "../markdown";
 import type { PluginDecorationStyle } from "@telar/engine-client";
-import { segmentDraft } from "../tokens";
+import { segmentDraft } from "@telar/client/composer";
 import { cn } from "@/ui/utils";
 
 export type Run = { start: number; end: number };

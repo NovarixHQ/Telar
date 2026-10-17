@@ -12,6 +12,9 @@ function closeLayer(win) {
 }
 
 function layOut(win, layer) {
+  if (win.isDestroyed() || layer.view.webContents.isDestroyed()) return;
+  const zoom = win.webContents.getZoomFactor();
+  if (layer.view.webContents.getZoomFactor() !== zoom) layer.view.webContents.setZoomFactor(zoom);
   const [width, height] = win.getContentSize();
   const key = `${width}x${height}`;
   if (layer.laidOut === key) return;
@@ -38,6 +41,7 @@ function setOverlayRect(win, rect) {
   const layer = layers.get(win);
   if (!layer || win.isDestroyed()) return;
   if (!rect) return hide(win, layer);
+  layOut(win, layer);
   const zoom = win.webContents.getZoomFactor();
   const bounds = {
     x: Math.round(rect.x * zoom),
@@ -96,10 +100,12 @@ function adoptOverlay(win, options) {
   if (!watched.has(win)) {
     watched.add(win);
     win.once("closed", () => closeLayer(win));
-    win.on("resize", () => {
+    const relayout = () => {
       const current = layers.get(win);
       if (current) layOut(win, current);
-    });
+    };
+    for (const event of ["resize", "resized", "maximize", "unmaximize", "enter-full-screen", "leave-full-screen", "moved"]) win.on(event, relayout);
+    win.webContents.on("zoom-changed", () => setImmediate(relayout));
     win.webContents.on("did-start-loading", () => {
       const current = layers.get(win);
       if (current) hide(win, current);

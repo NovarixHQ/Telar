@@ -19,6 +19,7 @@ import { assertId, EngineStateError, type JournalEntry, type Kernel } from "../.
 import type { EngineNotifier } from "../../state";
 import type { SessionRecords } from "./records";
 import type { SessionRequests } from "./requests";
+import { providerCliAdvice, providerCliInvocation } from "../providers";
 import { diagnosisRequestDecision } from "../usage";
 
 /**
@@ -125,7 +126,13 @@ export class RequestGate {
     }
 
     const at = this.kernel.now();
-    const automatic = session.purpose === "usage-diagnosis" ? diagnosisRequestDecision(input.detail) : autoResolution(session.runtimeMode, input.kind);
+    const cli = input.detail.kind === "command_execution" ? providerCliInvocation(input.detail.command.command) : undefined;
+    const advice = cli ? providerCliAdvice(cli) : undefined;
+    const automatic = session.purpose === "usage-diagnosis"
+      ? diagnosisRequestDecision(input.detail)
+      : advice && session.runtimeMode === "auto"
+        ? "decline"
+        : autoResolution(session.runtimeMode, input.kind);
     const request: EngineRequest = {
       id: input.requestId,
       runId: turn.runId,
@@ -136,6 +143,7 @@ export class RequestGate {
       ...(input.itemId ? { itemId: input.itemId } : {}),
       ...owner,
       ...(input.providerRefs ? { providerRefs: input.providerRefs } : {}),
+      ...(advice && automatic !== "accept" ? { reason: advice } : {}),
       ...(automatic ? { decision: automatic, resolvedBy: "policy" as const, resolvedAt: at } : {}),
       ...(!automatic && input.deadlineMs !== undefined ? { deadlineMs: input.deadlineMs } : {}),
       ...(!automatic && input.default !== undefined ? { default: input.default } : {}),
@@ -165,8 +173,8 @@ export class RequestGate {
     this.host.appendEvent(sessionId, { type: "request.opened", request }, turn.runId);
 
     if (automatic) {
-      this.host.appendEvent(sessionId, { type: "request.resolved", requestId: request.id, decision: automatic, resolvedBy: "policy" }, turn.runId);
-      return { state: "resolved", requestId: request.id, decision: automatic, resolvedBy: "policy" };
+      this.host.appendEvent(sessionId, { type: "request.resolved", requestId: request.id, decision: automatic, resolvedBy: "policy", ...(request.reason ? { reason: request.reason } : {}) }, turn.runId);
+      return { state: "resolved", requestId: request.id, decision: automatic, resolvedBy: "policy", ...(request.reason ? { reason: request.reason } : {}) };
     }
     this.records.touch(sessionId, at);
     this.host.requestOpened(sessionId, turn, request);

@@ -19,7 +19,7 @@ export function bindTaskGate(host: TurnHost, sessionId: string) {
       ...(deadlineMs !== undefined ? { deadlineMs } : {}),
       ...(fallback !== undefined ? { default: fallback } : {}),
     });
-    if (opened.state === "resolved") return { decision: opened.decision };
+    if (opened.state === "resolved") return { decision: opened.decision, ...(opened.reason ? { reason: opened.reason } : {}) };
     const key = `${opened.runId}:${requestId}`;
     return new Promise<DriverRequestOutcome>((resolve) => {
       host.awaiting.set(key, resolve);
@@ -63,7 +63,7 @@ export function bindTurn(host: TurnHost, sessionId: string, runId: string, claim
       }
       throw error;
     });
-    if (opened.state === "resolved") return { decision: opened.decision };
+    if (opened.state === "resolved") return { decision: opened.decision, ...(opened.reason ? { reason: opened.reason } : {}) };
     // Abort must settle a parked request, or a stop during a decision blocks the driver forever.
     return new Promise<DriverRequestOutcome>((resolve) => {
       host.awaiting.set(`${runId}:${requestId}`, resolve);

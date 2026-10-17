@@ -205,6 +205,7 @@ export const RequestOpenResult = z.discriminatedUnion("state", [
     requestId: Id,
     decision: RequestDecision,
     resolvedBy: RequestResolver,
+    reason: z.string().optional(),
   }),
   z.object({ state: z.literal("open"), requestId: Id, notified: z.boolean() }),
 ]);

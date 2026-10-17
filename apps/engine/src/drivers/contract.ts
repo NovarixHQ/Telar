@@ -19,7 +19,7 @@ export type DriverRequest = {
   signal?: AbortSignal;
 };
 
-export type DriverRequestOutcome = { decision: RequestDecision; answers?: Record<string, unknown> };
+export type DriverRequestOutcome = { decision: RequestDecision; answers?: Record<string, unknown>; reason?: string };
 
 export function normalizeOutcome(value: RequestDecision | DriverRequestOutcome): DriverRequestOutcome {
   return typeof value === "string" ? { decision: value } : value;

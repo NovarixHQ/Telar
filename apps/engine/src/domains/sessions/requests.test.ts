@@ -91,6 +91,18 @@ test("full-access resolves by policy with no human and nobody notified", () => {
   expect(types.filter((type) => type.startsWith("request."))).toEqual(["request.opened", "request.resolved"]);
 });
 
+test("a provider CLI command is declined under auto with advice for the agent, and parked with the advice otherwise", () => {
+  const command = { kind: "command_execution" as const, command: { command: 'agent --mode ask "map the repo"' } };
+  const auto = readyStore("auto");
+  const declined = auto.store.requestGate.open("session_one", "run_one", runningTurn(auto.store), { requestId: "req_1", kind: "command_execution", detail: command });
+  expect(declined).toMatchObject({ state: "resolved", decision: "decline", resolvedBy: "policy" });
+  expect((declined as { reason?: string }).reason).toContain("sessions_create");
+  const asking = readyStore("approval-required");
+  const parked = asking.store.requestGate.open("session_one", "run_one", runningTurn(asking.store), { requestId: "req_1", kind: "command_execution", detail: command });
+  expect(parked).toMatchObject({ state: "open" });
+  expect(asking.store.requestGate.list("session_one")[0]?.reason).toContain("sessions_create");
+});
+
 test("approval-required parks a command, records that someone was told, and blocks the queue", () => {
   const { store, parked } = readyStore("approval-required");
   const token = runningTurn(store);

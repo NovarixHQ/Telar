@@ -158,6 +158,8 @@ export function findExecutable(bin: string): string | undefined {
   return candidatePathsFor(bin).find(isExecutableFile);
 }
 
+export const providerCliBins = (): string[] => Object.values(SPECS).flatMap((spec) => [spec.bin, ...(spec.altBins ?? [])]);
+
 export function cliLabel(id: CliId): string {
   return SPECS[id].label;
 }

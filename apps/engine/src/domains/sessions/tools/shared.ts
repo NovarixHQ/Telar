@@ -7,7 +7,7 @@ export type SessionsCapability = {
     projects: Array<{ id: string; name: string }>;
     settledCount?: number;
   }>;
-  create(input: { projectId: string; title?: string; envMode?: EnvMode; driver?: ProviderDriverKind; model?: AgentModelChoice; owner?: "person"; brief?: { runId: string; input: string } }): Promise<Session>;
+  create(input: { projectId: string; title?: string; envMode?: EnvMode; driver?: ProviderDriverKind; providerInstanceId?: string; model?: AgentModelChoice; owner?: "person"; brief?: { runId: string; input: string } }): Promise<Session>;
   send(sessionId: string, input: { runId: string; input: string; intent?: Turn["agentIntent"]; corrects?: string; model?: AgentModelChoice }): Promise<{
     turn: Turn;
     replayed: boolean;
@@ -29,6 +29,7 @@ export type SessionsCapability = {
   acknowledge(sessionId: string, runId: string): Promise<void>;
   self?: { sessionId: string };
   delegationMode?: DelegationMode;
+  providers?: string[];
   subscribe(
     subscriberSessionId: string,
     input: { targetSessionId: string; events?: WakeKind[]; once?: boolean; completionWake?: Subscription["completionWake"] },

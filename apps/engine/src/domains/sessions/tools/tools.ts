@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { err, failure, json, type ToolFactory } from "../../agent-tools";
+import { capabilitiesTool } from "./capabilities";
 import { controlTools, handoffTool } from "./control";
 import { messagingTools } from "./messaging";
 import { readTools } from "./read";
-import { CAPABILITIES, NO_SESSION_TO_SCHEDULE, type SessionsCapability } from "./shared";
+import { NO_SESSION_TO_SCHEDULE, type SessionsCapability } from "./shared";
 import { wakeTools } from "./wakes";
 
 export function sessionsTools(tool: ToolFactory, capability: SessionsCapability): unknown[] {
@@ -50,13 +51,7 @@ export function sessionsTools(tool: ToolFactory, capability: SessionsCapability)
         }
       },
     ),
-    tool("sessions_capabilities", CAPABILITIES, {}, async () => {
-      try {
-        return json(await capability.capabilities());
-      } catch (error) {
-        return err(`Could not read what this Mac offers: ${failure(error)}`);
-      }
-    }),
+    capabilitiesTool(tool, capability),
     handoffTool(tool, capability),
   ];
 }

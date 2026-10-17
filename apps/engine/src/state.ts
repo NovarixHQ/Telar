@@ -451,6 +451,10 @@ export class EngineStore {
     return { sessionPulls, sessionTerminals, requestGate, pluginDoors, anchors, schedules };
   }
 
+  offeredProviders(): string[] {
+    return this.providers.list().filter((instance) => instance.enabled).map((instance) => instance.id);
+  }
+
   sessionCapabilities(caller?: string): SessionCapabilities {
     return sessionCapabilities({
       instances: () => this.providers.list(),
@@ -639,6 +643,7 @@ export class EngineStore {
       enabledPluginIds: (session) => this.toolchains.enabledIds(session),
       getAgentOrientation: () => this.settings.orientation(),
       delegationMode: () => this.settings.sessionDefaults().delegationMode,
+      offeredProviders: () => this.offeredProviders(),
       simulatorAccess: () => this.simulatorAccess?.(),
     });
   }

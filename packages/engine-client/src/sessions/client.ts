@@ -65,6 +65,7 @@ export const sessionsClient = {
       detached?: boolean;
       envMode?: "local" | "worktree";
       driver?: ProviderDriverKind;
+      providerInstanceId?: string;
       /** Must live under `loom/` or `telar/`; the engine refuses anything else. */
       branchSlug?: string;
       baseRef?: string;

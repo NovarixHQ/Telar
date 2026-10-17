@@ -53,6 +53,7 @@ export function telarCapabilities(host: TurnHost, claim: WorkerClaim, runId: str
   const sessions: SessionsCapability = {
     ...shared,
     ...(claim.delegationMode ? { delegationMode: claim.delegationMode } : {}),
+    ...(claim.providers ? { providers: claim.providers } : {}),
     send: async (id, input) => {
       const accepted = await shared.send(id, input);
       return { turn: accepted.turn, replayed: accepted.replayed };

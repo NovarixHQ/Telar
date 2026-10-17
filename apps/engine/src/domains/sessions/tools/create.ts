@@ -20,6 +20,11 @@ export const runIdFor = (tool: string, toolCallId: string | undefined): string =
     ? `run_${crypto.createHash("sha256").update(`${tool}:${toolCallId}`).digest("hex").slice(0, 32)}`
     : `run_${crypto.randomUUID().replaceAll("-", "")}`;
 
+const providerSchema = (offered: readonly string[] | undefined) => {
+  const note = "Omit unless the user asked. sessions_capabilities lists each one's models.";
+  return (offered?.length ? z.enum(offered as [string, ...string[]]).describe(`${note} Offered: ${offered.join(", ")}.`) : z.string().min(1).describe(note)).optional();
+};
+
 export function createTool(tool: ToolFactory, capability: SessionsCapability): unknown {
   return tool(
     "sessions_create",
@@ -34,10 +39,7 @@ export function createTool(tool: ToolFactory, capability: SessionsCapability): u
         .enum(["local", "worktree"])
         .optional()
         .describe("Omit for the project's mode. worktree: its own checkout, to isolate code changes. local: shares the project's checkout."),
-      driver: z
-        .enum(["claude", "codex"])
-        .optional()
-        .describe("Omit unless the user asked."),
+      provider: providerSchema(capability.providers),
       model: z.string().min(1).optional().describe(modelGuide(capability.delegationMode)),
       effort: z.string().min(1).optional().describe(EFFORT),
       task: z.string().min(1).optional().describe("A self-contained brief; it cannot see this conversation."),
@@ -51,14 +53,20 @@ export function createTool(tool: ToolFactory, capability: SessionsCapability): u
 }
 
 async function createOne(capability: SessionsCapability, args: Record<string, unknown>, toolCallId: string | undefined) {
-  const shared: { projectId: string; envMode?: "local" | "worktree"; driver?: "claude" | "codex" } = {
+  const shared: { projectId: string; envMode?: "local" | "worktree"; providerInstanceId?: string } = {
     projectId: String(args.projectId ?? ""),
     ...(args.envMode === "local" || args.envMode === "worktree" ? { envMode: args.envMode } : {}),
-    ...(args.driver === "claude" || args.driver === "codex" ? { driver: args.driver } : {}),
+    ...(typeof args.provider === "string" && args.provider ? { providerInstanceId: args.provider } : {}),
   };
   const person = args.owner === "person";
   const briefRunId = runIdFor("sessions_create", toolCallId);
   let session: Session;
+  if (shared.providerInstanceId) {
+    const offered = (await capability.capabilities()).providers.map((provider) => provider.instanceId);
+    if (!offered.includes(shared.providerInstanceId)) {
+      return err(`"${shared.providerInstanceId}" is not a provider this Mac offers. Offered: ${offered.join(", ")}. sessions_capabilities lists their models.`);
+    }
+  }
   try {
     session = await capability.create({
       ...shared,

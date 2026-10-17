@@ -59,6 +59,7 @@ export function capabilityOver(store: EngineStore, self?: { sessionId: string })
       store.requestPath.createSession(owner === "person" ? { ...input, detached: false } : { ...input, origin: "session" }),
     send: async (sessionId, input) => store.requestPath.submitAgentTurn(sessionId, input),
     read: async (sessionId, after) => store.queries.readEvents(sessionId, after),
+    providers: store.offeredProviders(),
     capabilities: async () => store.sessionCapabilities(self?.sessionId),
     status: async (sessionId) => ({
       session: store.records.get(sessionId),
@@ -131,7 +132,7 @@ export function orchestrator(store: EngineStore, projectId: string) {
   return { parent, tools };
 }
 
-const catalogueRow = (id: string, extra: Partial<ProviderModel> = {}): ProviderModel => ({
+export const catalogueRow = (id: string, extra: Partial<ProviderModel> = {}): ProviderModel => ({
   id,
   label: id,
   isDefault: false,

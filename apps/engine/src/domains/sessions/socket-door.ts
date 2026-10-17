@@ -6,10 +6,9 @@ import { collectSessionsWallTools, ensureSessionsSocketSecret, handleSessionsSoc
 /** The outward sessions MCP socket: its own secret, minted lazily and separately from every other door's. */
 export function sessionsSocketDoor(store: EngineStore, port: () => number) {
   let secret: string | undefined;
-  let tools: SocketTool[] | undefined;
   const currentSecret = () => (secret ??= ensureSessionsSocketSecret(store.paths));
   // No identity: a chat client is not a session, so it has no `self`, no ceiling and no claim proof.
-  const wall = () => (tools ??= collectSessionsWallTools(sessionsCapability(storeSessionsPort(store), undefined, storeReads(store))));
+  const wall = () => collectSessionsWallTools(sessionsCapability(storeSessionsPort(store), undefined, storeReads(store)));
   return {
     secret: currentSecret,
     route: mcpSocketRoute("/v2/sessions/mcp", "sessions-socket", "sessions", (message) => handleSessionsSocketMessage(wall(), message)),

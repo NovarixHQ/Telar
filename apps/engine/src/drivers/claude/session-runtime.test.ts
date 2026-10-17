@@ -243,6 +243,24 @@ describe("the session runtime", () => {
     expect(queryCalls).toBe(2);
   });
 
+  test("a provider enabled between turns cold-starts the process so sessions_create names it", async () => {
+    let queryCalls = 0;
+    const driver = createClaudeDriver(async () => ({
+      async *query({ prompt }: { prompt: AsyncIterable<unknown> }) {
+        queryCalls += 1;
+        for await (const message of prompt) {
+          void message;
+          yield { type: "result", subtype: "success" };
+        }
+      },
+    }) as never);
+    await run(driver, { sessionId: "session_providers", sessions: { providers: ["claude", "codex"] } as never }).result;
+    await run(driver, { sessionId: "session_providers", sessions: { providers: ["claude", "codex"] } as never }).result;
+    expect(queryCalls).toBe(1);
+    await run(driver, { sessionId: "session_providers", sessions: { providers: ["claude", "codex", "cursor"] } as never }).result;
+    expect(queryCalls).toBe(2);
+  });
+
   test("the idle pool never evicts a process that still owns background work", async () => {
     const ended: string[] = [];
     // Hoisted: `loadSdk` is invoked once per run, so a counter inside it would

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-export const ORIENTATION_VERSION = 14;
+export const ORIENTATION_VERSION = 15;
 
 export const TELAR_SKILL_NAME = "telar";
 
@@ -13,6 +13,7 @@ export const TELAR_ORIENTATION =
   '"The browser" is Telar\'s own integrated browser, driven by the `telar-browser` tools and sharing its tabs with them — not this Mac\'s Chrome or Safari, unless they say so outright. ' +
   'A "session" or "conversation" is a Telar session, reached through the `mcp__telar` tools, not this CLI\'s own history. ' +
   'The "panel" is the cockpit\'s right pane, the "rail" its list of sessions, and a "surface" one thing drawn in either. ' +
+  "To run work on another provider or model, create a Telar session with `sessions_create`; never run a provider's CLI from a shell. " +
   `The \`${TELAR_SKILL_NAME}\` skill has the detail. When one of these words could mean two things here, ask which.`;
 
 export const TELAR_SKILL = `---
@@ -60,6 +61,11 @@ It is not this CLI's own notion of a session, and not a chat thread.
   medium; review, a Sonnet at high; design or debugging, your own model.
   \`sessions_capabilities\` lists what this Mac offers, and a worker's result
   says what its run spent.
+- **Another provider or model** — to run work on one (any provider
+  \`sessions_create\` offers, any model \`sessions_capabilities\` lists), create a
+  session with \`provider\` and \`model\`. Never run a provider's CLI (\`claude\`,
+  \`codex\`, \`opencode\`, \`agent\`) from a shell for it, and never use your own
+  sub-agents for work the person asked to put on another provider.
 - **Working for someone: end with a \`result\` and ONE line.** When the task
   is done, \`sessions_send\` intent \`result\` to whoever tasked you — the
   point first, under ~800 characters; tasked by several, each gets its own;

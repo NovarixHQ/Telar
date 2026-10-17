@@ -6,8 +6,9 @@ import { ArtifactCard } from "./Artifact";
 import { providerSwitchLabel } from "./layout";
 import { agentNotice, notificationNotice, wakeNotice, type Notice } from "./notices";
 import { Markdown } from "./Markdown";
+import { maskReferences } from "./pills";
 import { isPlainProse } from "./markdown-blocks";
-import { bubbleSegments, bubbleShows } from "./sent";
+import { bubbleShows } from "./sent";
 import { SentAttachments } from "./SentAttachments";
 import { advanceReveal, REVEAL_FRAME_MS, revealed, revealText, stepReveal, type Reveal } from "./reveal";
 import { Radius, Theme, type SymbolName } from "../../ui";
@@ -119,8 +120,10 @@ export function UserBubble({ text, attachments }: { text: string; attachments: r
 }
 
 function BubbleText({ text, image }: { text: string; image: boolean }) {
-  const plain = useMemo(() => isPlainProse(text), [text]);
-  const segments = useMemo(() => bubbleSegments(text), [text]);
+  const plain = useMemo(() => {
+    const { masked, references } = maskReferences(text);
+    return references.length === 0 && isPlainProse(masked);
+  }, [text]);
   const [hug, setHug] = useState<number>();
   return (
     <View style={styles.bubbleRow}>
@@ -130,18 +133,8 @@ function BubbleText({ text, image }: { text: string; image: boolean }) {
             <Symbol name="photo" size={TextSize.body} color={Theme.textMuted} />
             <Text style={[styles.bubbleText, styles.muted]}>Image</Text>
           </View>
-        ) : segments ? (
-          <Text selectable style={styles.bubbleText}>
-            {segments.map((segment, index) =>
-              segment.type === "chip" ? (
-                <Text key={index} style={styles.pill}>{` ${segment.reference.label} `}</Text>
-              ) : (
-                segment.text
-              ),
-            )}
-          </Text>
         ) : !plain ? (
-          <Markdown text={text} size={TextSize.body} />
+          <Markdown text={text} size={TextSize.body} pills />
         ) : (
           <Text
             selectable
@@ -210,7 +203,6 @@ const styles = StyleSheet.create({
   bubble: { padding: 12, borderRadius: Radius.bubble, backgroundColor: Theme.subtle, flexShrink: 1 },
   richBubble: { flexGrow: 1 },
   bubbleText: { fontSize: TextSize.body, lineHeight: TextSize.body * 1.2 + 4, color: Theme.text },
-  pill: { fontWeight: "600", backgroundColor: Theme.border },
   imageLabel: { flexDirection: "row", alignItems: "center", gap: 6 },
   notice: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 24 },
   monoSmall: { fontFamily: MONO, fontSize: TextSize.caption2, color: Theme.textMuted },

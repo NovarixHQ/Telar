@@ -1,11 +1,13 @@
 import { createContext, Fragment, memo, useContext, useMemo, type ReactNode } from "react";
 import { DynamicColorIOS, Linking, ScrollView, StyleSheet, Text, View, type ColorValue, type TextStyle } from "react-native";
 import type { Tokens } from "marked";
+import type { TelarReference } from "@telar/client/composer";
 import { fencedLanguage, highlightCode, markdownBlocks, type Token } from "./markdown-blocks";
 import { faded, Radius, Theme } from "../../ui";
 import { copyAction, LongPressMenu } from "./chrome";
 import { MarkdownImage, MathView } from "./media";
 import { MONO, Symbol } from "./native";
+import { maskReferences, splitReferences } from "./pills";
 
 const BASE = 15;
 const HEADINGS: Record<number, { scale: number; top: number; bottom: number; muted?: boolean }> = {
@@ -32,24 +34,27 @@ const SYNTAX: Record<string, ColorValue> = {
 const SYNTAX_BASE = tone("#383A42", "#ABB2BF");
 const syntaxColor = (scope: string) => SYNTAX[scope] ?? SYNTAX[scope.split(" ")[0]!] ?? SYNTAX_BASE;
 
-type Styles = Sheet["styles"];
-
-function inline(tokens: readonly Token[] | undefined, styles: Styles, key = ""): ReactNode[] {
+function inline(tokens: readonly Token[] | undefined, sheet: Sheet, key = ""): ReactNode[] {
+  const { styles, references } = sheet;
+  const prose = (text: string): ReactNode[] =>
+    splitReferences(text, references).map((part, at) =>
+      typeof part === "string" ? part : <Text key={at} style={styles.pill}>{` ${part.label} `}</Text>,
+    );
   return (tokens ?? []).map((token, index) => {
     const id = `${key}${index}`;
     switch (token.type) {
       case "text":
-        return token.tokens ? <Fragment key={id}>{inline(token.tokens, styles, `${id}.`)}</Fragment> : token.text;
+        return token.tokens ? <Fragment key={id}>{inline(token.tokens, sheet, `${id}.`)}</Fragment> : <Fragment key={id}>{prose(token.text)}</Fragment>;
       case "strong":
-        return <Text key={id} style={styles.strong}>{inline(token.tokens, styles, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.strong}>{inline(token.tokens, sheet, `${id}.`)}</Text>;
       case "em":
-        return <Text key={id} style={styles.em}>{inline(token.tokens, styles, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.em}>{inline(token.tokens, sheet, `${id}.`)}</Text>;
       case "del":
-        return <Text key={id} style={styles.del}>{inline(token.tokens, styles, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.del}>{inline(token.tokens, sheet, `${id}.`)}</Text>;
       case "codespan":
         return <Text key={id} style={styles.codespan}>{token.text}</Text>;
       case "link":
-        return <Text key={id} style={styles.link} onPress={() => void Linking.openURL(token.href)}>{inline(token.tokens, styles, `${id}.`)}</Text>;
+        return <Text key={id} style={styles.link} onPress={() => void Linking.openURL(token.href)}>{inline(token.tokens, sheet, `${id}.`)}</Text>;
       case "image":
         return <Text key={id} style={styles.link} onPress={() => void Linking.openURL(token.href)}>{token.text || token.href}</Text>;
       case "br":
@@ -59,7 +64,7 @@ function inline(tokens: readonly Token[] | undefined, styles: Styles, key = ""):
       case "mathInline":
         return <MathView key={id} tex={token.text as string} display={false} size={styles.paragraph.fontSize} />;
       default:
-        return "text" in token && typeof token.text === "string" ? token.text : token.raw;
+        return "text" in token && typeof token.text === "string" ? <Fragment key={id}>{prose(token.text)}</Fragment> : token.raw;
     }
   });
 }
@@ -74,8 +79,8 @@ function marginOf(token: Token): Margin {
 }
 
 function Paragraph({ tokens, style }: { tokens: readonly Token[] | undefined; style?: TextStyle }) {
-  const { styles } = useContext(SheetContext);
-  return <Text selectable style={[styles.paragraph, style]}>{inline(tokens, styles)}</Text>;
+  const sheet = useContext(SheetContext);
+  return <Text selectable style={[sheet.styles.paragraph, style]}>{inline(tokens, sheet)}</Text>;
 }
 
 function CodeBlock({ token }: { token: Tokens.Code }) {
@@ -96,7 +101,8 @@ function CodeBlock({ token }: { token: Tokens.Code }) {
 }
 
 function Table({ token }: { token: Tokens.Table }) {
-  const { styles } = useContext(SheetContext);
+  const sheet = useContext(SheetContext);
+  const { styles } = sheet;
   const columns = token.header.map((head, column) => [head, ...token.rows.map((row) => row[column])]);
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableScroll}>
@@ -105,7 +111,7 @@ function Table({ token }: { token: Tokens.Table }) {
           <View key={column} style={column > 0 && styles.tableColumn}>
             {cells.map((cell, row) => (
               <View key={row} style={[styles.cell, row > 0 && styles.cellRule, row > 0 && row % 2 === 0 && styles.cellStripe]}>
-                <Text selectable numberOfLines={1} style={[styles.cellText, row === 0 && styles.strong]}>{inline(cell?.tokens, styles)}</Text>
+                <Text selectable numberOfLines={1} style={[styles.cellText, row === 0 && styles.strong]}>{inline(cell?.tokens, sheet)}</Text>
               </View>
             ))}
           </View>
@@ -193,10 +199,14 @@ function Blocks({ tokens, muted = false }: { tokens: readonly Token[]; muted?: b
 }
 
 /** An agent's words: GFM at 15pt in the Swift app's MarkdownUI theme. */
-export const Markdown = memo(function Markdown({ text, size = BASE }: { text: string; size?: number }) {
-  const tokens = useMemo(() => markdownBlocks(text), [text]);
+export const Markdown = memo(function Markdown({ text, size = BASE, pills = false }: { text: string; size?: number; pills?: boolean }) {
+  const { tokens, references } = useMemo(() => {
+    const { masked, references } = pills ? maskReferences(text) : { masked: text, references: [] };
+    return { tokens: markdownBlocks(masked), references };
+  }, [text, pills]);
+  const sheet = useMemo(() => ({ ...sheetFor(size), references }), [size, references]);
   return (
-    <SheetContext.Provider value={sheetFor(size)}>
+    <SheetContext.Provider value={sheet}>
       <View>
         <Blocks tokens={tokens} />
       </View>
@@ -212,6 +222,7 @@ function sheet(size: number) {
     em: { fontStyle: "italic" },
     del: { textDecorationLine: "line-through" },
     link: { color: Theme.accent },
+    pill: { fontWeight: "600", backgroundColor: Theme.border },
     codespan: { fontFamily: MONO, fontSize: size * 0.88, backgroundColor: Theme.codeBackground },
     codeBlock: { backgroundColor: Theme.codeBackground, borderRadius: Radius.row, borderWidth: 1, borderColor: faded("border", 0.6), overflow: "hidden" },
     codePad: { padding: 10 },
@@ -237,11 +248,11 @@ function sheet(size: number) {
   });
 }
 
-type Sheet = { size: number; styles: ReturnType<typeof sheet> };
+type Sheet = { size: number; styles: ReturnType<typeof sheet>; references: readonly TelarReference[] };
 const sheets = new Map<number, Sheet>();
 function sheetFor(size: number): Sheet {
   let found = sheets.get(size);
-  if (!found) sheets.set(size, (found = { size, styles: sheet(size) }));
+  if (!found) sheets.set(size, (found = { size, styles: sheet(size), references: [] }));
   return found;
 }
 const SheetContext = createContext<Sheet>(sheetFor(BASE));

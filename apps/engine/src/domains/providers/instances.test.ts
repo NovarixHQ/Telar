@@ -21,7 +21,11 @@ const root = (): string => {
   return directory;
 };
 
+const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+
 afterEach(() => {
+  if (claudeConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = claudeConfigDir;
   for (const directory of roots.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
@@ -360,6 +364,9 @@ test("what the CLI resolution says outranks the sign-in note", async () => {
 });
 
 test("one version probe serves every instance of a driver", async () => {
+  const signedIn = root();
+  fs.writeFileSync(path.join(signedIn, ".credentials.json"), "{}");
+  process.env.CLAUDE_CONFIG_DIR = signedIn;
   const calls: string[] = [];
   const prober = createProviderProber({
     version: async (driver) => {

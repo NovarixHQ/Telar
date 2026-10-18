@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const LOCAL_HOST_ID = "local";
+export const ENGINE_PROTO = 2;
 
 export type PublicHost = { id: string; name: string; baseUrl: string; daemonId?: string; addedAt: number };
 

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { ENGINE_PROTO } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
 import { stubModels } from "../../../test/stub-models";
 
@@ -55,7 +56,9 @@ test("without TELAR_ENGINE_HOST there is no network listener", async () => {
 
 test("ping and pair are open on the network listener; everything else needs a device", async () => {
   const { remote, pair } = await engine({ host: "127.0.0.1" });
-  expect((await remote("GET", "/v2/ping")).status).toBe(200);
+  const ping = await remote("GET", "/v2/ping");
+  expect(ping.status).toBe(200);
+  expect(ping.body).toMatchObject({ ok: true, proto: ENGINE_PROTO });
   expect((await remote("GET", "/v2/sessions")).status).toBe(401);
   expect((await remote("GET", "/v2/health")).status).toBe(401);
   expect((await remote("POST", "/v2/remote/pairing")).status).toBe(401);

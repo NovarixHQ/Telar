@@ -108,7 +108,7 @@
     "apps/desktop/src/{handoff/desktop-handoff-core,handoff/desktop-handoff,dev/dev-update-core,dev/dev-update,main/tailscale,main/update-watchdog,store/store-location,store/store-migrate}.js": [
       "exports"
     ],
-    "apps/desktop/src/main/{ipc-app,ipc-browser,ipc-prefs,ipc-store,ipc-terminal,ui-server,updates}.js": [
+    "apps/desktop/src/main/{ipc-app,ipc-browser,ipc-prefs,ipc-store,ui-server,updates}.js": [
       "exports"
     ],
     "apps/web/src/features/remote/server/**": [

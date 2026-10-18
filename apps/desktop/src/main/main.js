@@ -30,6 +30,7 @@ const { captureLoginShellEnv } = require("./login-shell-env");
 const { findVolumeMount } = require("./volumes");
 const { logShell, shellLogPath, startHeapLog } = require("./shell-log");
 const { processMetricsReader, startServiceWorkerWatchdog } = require("./renderer-watch");
+const { decideQuit, heldTerminals } = require("./terminal-quit");
 const { engineDiscoveryFile, markMainWindowShown, postToEngine, rememberEngine, reportStartupFailure, requestEngine, startEngineChild, stopEngineChild, waitForEngine } = require("./engine-child");
 const { createQuitGate } = require("./quit-gate");
 const { keepOccludedWindowsPainting, watchSchemeForVibrancy } = require("./appearance");
@@ -41,7 +42,6 @@ const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require
 const { createCockpitWindow } = require("./cockpit-window");
 const { cockpitFocus } = require("./cockpit-focus");
 const { pinUserData } = require("./user-data");
-const { createTerminalReaders } = require("./terminal-readers");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
 const { mainWindow, windowToFocus } = require("../windows/main-window");
 const { createSurfaceWindowStore } = require("../windows/surface-window-store");
@@ -236,34 +236,6 @@ function reportVolumesChanged() {
   postToEngine(telarHome(), "/v2/projects/reprobe");
 }
 
-let terminalHost = null;
-
-const { TerminalOwner } = require("../terminal/terminal-host");
-
-const terminalReaders = createTerminalReaders({
-  onOrphaned: (id) => {
-    if (terminalHost?.ownerOf(id) === RENDERER) terminalHost.close(id, RENDERER).catch(() => {});
-  },
-});
-
-function requireTerminalHost() {
-  if (terminalHost) return terminalHost;
-  const { TerminalHost } = require("../terminal/terminal-host");
-  terminalHost = new TerminalHost({
-    version: app.getVersion(),
-    onData: (id, data) => {
-      terminalReaders.deliver(id, "telar:terminal:data", { id, data });
-    },
-    onExit: (id, ending) => {
-      terminalReaders.deliver(id, "telar:terminal:exit", ending);
-      terminalReaders.detach(id);
-    },
-  });
-  return terminalHost;
-}
-
-const RENDERER = TerminalOwner.RENDERER;
-
 let updaterWindow = null;
 
 function killServer() {
@@ -308,19 +280,17 @@ let terminalsClosedForQuit = false;
 let closingTerminalsForQuit = false;
 app.on("before-quit", (event) => {
   if (quitGate.hold(event, () => app.quit())) return;
-  if (terminalsClosedForQuit || !terminalHost || terminalHost.size === 0) return;
+  if (terminalsClosedForQuit) return;
   event.preventDefault();
   if (closingTerminalsForQuit) return;
   closingTerminalsForQuit = true;
-  void closeTerminalsThenQuit();
+  void askBeforeEndingTerminals();
 });
 app.on("before-quit", () => requireSurfaceWindows().holdForQuit());
 
-async function closeTerminalsThenQuit() {
-  const host = terminalHost;
+async function askBeforeEndingTerminals() {
   try {
-    const { decideQuit } = require("../terminal/terminal-host");
-    const plan = decideQuit(await host.activeProcesses());
+    const plan = decideQuit(await heldTerminals(telarHome()));
     if (plan.action === "confirm" && !SMOKE && !E2E_USER_DATA && !quitGate.systemEnding()) {
       const { response } = await confirmQuit(plan.dialog);
       if (response !== plan.dialog.defaultId) {
@@ -331,11 +301,8 @@ async function closeTerminalsThenQuit() {
         return;
       }
     }
-    await host.closeAll({ final: true });
-
-    await host.drain();
   } catch (error) {
-    logShell("error", `closing terminals before quit failed: ${error?.stack || error}`);
+    logShell("error", `asking about terminals before quit failed: ${error?.stack || error}`);
   }
   terminalsClosedForQuit = true;
   app.quit();
@@ -345,7 +312,6 @@ app.on("will-quit", (event) => {
   app.isQuitting = true;
   persistAllHosts();
 
-  if (terminalHost) { try { void terminalHost.dispose(); } catch {} }
   uiServer.stopServer();
   const engineStopped = stopEngineChild({ quit: true });
   stopComputerUseHelper();
@@ -435,12 +401,6 @@ async function runSmoke() {
 
 require("./ipc-browser").registerBrowserIpc({ requireBrowserSuggestions, requireLoginOffer });
 
-require("./ipc-terminal").registerTerminalIpc({
-  RENDERER,
-  requireTerminalHost,
-  terminalReaders,
-});
-
 require("./ipc-store").registerWorkspaceAndStoreIpc({ telarHome });
 
 require("./ipc-prefs").registerPrefsIpc({
@@ -456,9 +416,6 @@ const { configureAutoUpdater } = require("./updates").registerUpdates({
   telarHome,
   get updaterWindow() {
     return updaterWindow;
-  },
-  get terminalHost() {
-    return terminalHost;
   },
   get terminalsClosedForQuit() {
     return terminalsClosedForQuit;

@@ -1,11 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type http from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { matchRoute } from "../../platform/http/router";
-import { authRoutes, decideAccess, EXEMPT_PATHS, type Credentials } from "./auth";
-import { createPresence } from "./presence";
+import { decideAccess, EXEMPT_PATHS } from "./auth";
 import type { DeviceScope } from "@telar/engine-client";
 import { ALL_SCOPES, normaliseScopes, requiredScope, scopesForRole } from "./scopes";
 import { createRemoteStore, hashToken, type RemoteFile } from "./store";
@@ -41,26 +38,26 @@ function ask(
 
 describe("api gate", () => {
   test("everything passes while requireAuth is off", () => {
-    expect(ask("/api/health", {}, file({ requireAuth: false }))).toEqual({ allow: true });
+    expect(ask("/v2/health", {}, file({ requireAuth: false }))).toEqual({ allow: true });
   });
 
   test("a tokenless request is refused once requireAuth is on", () => {
-    expect(ask("/api/sessions/live")).toEqual({ allow: false, code: "cockpit_unauthorized" });
+    expect(ask("/v2/sessions/live")).toEqual({ allow: false, code: "cockpit_unauthorized" });
   });
 
-  test("/api/mcp reaches the engine for any caller on an allowed host, which then checks the bearer", () => {
-    expect(ask("/api/mcp", { method: "POST" })).toEqual({ allow: true });
-    expect(ask("/api/mcp", { method: "POST", authorization: `Bearer ${RAW}` }, file({}, "observer"))).toEqual({ allow: true });
-    expect(decideAccess(file(), { pathname: "/api/mcp", method: "POST", host: "evil.example" }, undefined)).toEqual({ allow: false, code: "cockpit_misdirected" });
+  test("/v2/mcp reaches the engine for any caller on an allowed host, which then checks the bearer", () => {
+    expect(ask("/v2/mcp", { method: "POST" })).toEqual({ allow: true });
+    expect(ask("/v2/mcp", { method: "POST", authorization: `Bearer ${RAW}` }, file({}, "observer"))).toEqual({ allow: true });
+    expect(decideAccess(file(), { pathname: "/v2/mcp", method: "POST", host: "evil.example" }, undefined)).toEqual({ allow: false, code: "cockpit_misdirected" });
   });
 
-  test("/api/health is gated by name — it identifies the daemon", () => {
-    expect(ask("/api/health")).toEqual({ allow: false, code: "cockpit_unauthorized" });
+  test("/v2/health is gated by name — it identifies the daemon", () => {
+    expect(ask("/v2/health")).toEqual({ allow: false, code: "cockpit_unauthorized" });
   });
 
   test("a rebinding Host is refused before anything else, even with auth off; loopback and LAN pass", () => {
     const decide = (host: string | null, remote = file()) =>
-      decideAccess(remote, { pathname: "/api/pair", method: "GET", authorization: `Bearer ${RAW}`, host }, undefined);
+      decideAccess(remote, { pathname: "/v2/pair", method: "GET", authorization: `Bearer ${RAW}`, host }, undefined);
     expect(decide("evil.example:3000", file({ requireAuth: false }))).toEqual({ allow: false, code: "cockpit_misdirected" });
     expect(decide("evil.example")).toEqual({ allow: false, code: "cockpit_misdirected" });
     for (const host of ["127.0.0.1:3000", "[::1]:3000", "192.168.1.20:3000", "mac.tail1234.ts.net", null]) {
@@ -75,15 +72,15 @@ describe("api gate", () => {
   });
 
   test("a bearer token admits the device", () => {
-    expect(ask("/api/health", { authorization: `Bearer ${RAW}` })).toEqual({ allow: true, deviceId: "dev_1", scopes: ALL_SCOPES });
+    expect(ask("/v2/health", { authorization: `Bearer ${RAW}` })).toEqual({ allow: true, deviceId: "dev_1", scopes: ALL_SCOPES });
   });
 
   test("the cookie admits a paired browser", () => {
-    expect(ask("/api/health", { deviceCookie: RAW })).toEqual({ allow: true, deviceId: "dev_1", scopes: ALL_SCOPES });
+    expect(ask("/v2/health", { deviceCookie: RAW })).toEqual({ allow: true, deviceId: "dev_1", scopes: ALL_SCOPES });
   });
 
   test("the bearer wins over the cookie when both are present", () => {
-    expect(ask("/api/health", { authorization: `Bearer ${RAW}`, deviceCookie: "tlr_wrong" })).toEqual({
+    expect(ask("/v2/health", { authorization: `Bearer ${RAW}`, deviceCookie: "tlr_wrong" })).toEqual({
       allow: true,
       deviceId: "dev_1",
       scopes: ALL_SCOPES,
@@ -91,25 +88,25 @@ describe("api gate", () => {
   });
 
   test("a revoked device's token is refused", () => {
-    expect(ask("/api/health", { authorization: `Bearer ${RAW}` }, file({ devices: [] }))).toEqual({
+    expect(ask("/v2/health", { authorization: `Bearer ${RAW}` }, file({ devices: [] }))).toEqual({
       allow: false,
       code: "cockpit_unauthorized",
     });
   });
 
   test("a malformed authorization header is refused, not crashed on", () => {
-    expect(ask("/api/health", { authorization: "Bearer not-a-telar-token" })).toEqual({
+    expect(ask("/v2/health", { authorization: "Bearer not-a-telar-token" })).toEqual({
       allow: false,
       code: "cockpit_unauthorized",
     });
-    expect(ask("/api/health", { authorization: "Basic dXNlcg==" })).toEqual({
+    expect(ask("/v2/health", { authorization: "Basic dXNlcg==" })).toEqual({
       allow: false,
       code: "cockpit_unauthorized",
     });
   });
 
   test("a full device may write", () => {
-    expect(ask("/api/sessions/x/turns", { authorization: `Bearer ${RAW}`, method: "POST" })).toEqual({
+    expect(ask("/v2/sessions/x/turns", { authorization: `Bearer ${RAW}`, method: "POST" })).toEqual({
       allow: true,
       deviceId: "dev_1",
       scopes: ALL_SCOPES,
@@ -118,18 +115,18 @@ describe("api gate", () => {
 
   test("an observer may GET and HEAD, nothing else", () => {
     const observer = file({}, "observer");
-    expect(ask("/api/health", { authorization: `Bearer ${RAW}` }, observer)).toEqual({
+    expect(ask("/v2/health", { authorization: `Bearer ${RAW}` }, observer)).toEqual({
       allow: true,
       deviceId: "dev_1",
       scopes: ["read"],
     });
-    expect(ask("/api/health", { authorization: `Bearer ${RAW}`, method: "HEAD" }, observer)).toEqual({
+    expect(ask("/v2/health", { authorization: `Bearer ${RAW}`, method: "HEAD" }, observer)).toEqual({
       allow: true,
       deviceId: "dev_1",
       scopes: ["read"],
     });
     for (const method of ["POST", "PATCH", "PUT", "DELETE"]) {
-      expect(ask("/api/sessions/x/turns", { authorization: `Bearer ${RAW}`, method }, observer)).toEqual({
+      expect(ask("/v2/sessions/x/turns", { authorization: `Bearer ${RAW}`, method }, observer)).toEqual({
         allow: false,
         code: "cockpit_forbidden",
       });
@@ -139,21 +136,21 @@ describe("api gate", () => {
   test("an observer watches a terminal's stream but cannot type into it or resize it", () => {
     const observer = file({}, "observer");
     const as = (pathname: string, method: string) => ask(pathname, { authorization: `Bearer ${RAW}`, method }, observer);
-    expect(as("/api/sessions/s1/run/bytes/stream?terminalId=t1", "GET")).toEqual({ allow: true, deviceId: "dev_1", scopes: ["read"] });
-    expect(as("/api/sessions/s1/run/write", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
-    expect(as("/api/sessions/s1/run/resize", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
-    expect(ask("/api/sessions/s1/run/write", { authorization: `Bearer ${RAW}`, method: "POST" })).toEqual({ allow: true, deviceId: "dev_1", scopes: ALL_SCOPES });
+    expect(as("/v2/sessions/s1/run/bytes/stream?terminalId=t1", "GET")).toEqual({ allow: true, deviceId: "dev_1", scopes: ["read"] });
+    expect(as("/v2/sessions/s1/run/write", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(as("/v2/sessions/s1/run/resize", "POST")).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(ask("/v2/sessions/s1/run/write", { authorization: `Bearer ${RAW}`, method: "POST" })).toEqual({ allow: true, deviceId: "dev_1", scopes: ALL_SCOPES });
   });
 
   test("an observer cannot escalate itself — the device routes are writes too", () => {
-    expect(ask("/api/remote/devices/dev_1", { authorization: `Bearer ${RAW}`, method: "PATCH" }, file({}, "observer"))).toEqual({
+    expect(ask("/v2/remote/devices/dev_1", { authorization: `Bearer ${RAW}`, method: "PATCH" }, file({}, "observer"))).toEqual({
       allow: false,
       code: "cockpit_forbidden",
     });
   });
 
   test("the pairing exchange stays open to an observer's POST — it is exempt by path", () => {
-    expect(ask("/api/pair", { method: "POST" }, file({}, "observer"))).toEqual({ allow: true });
+    expect(ask("/v2/pair", { method: "POST" }, file({}, "observer"))).toEqual({ allow: true });
   });
 });
 
@@ -167,10 +164,10 @@ describe("scopes", () => {
 
   test("what a request needs comes from one table, by path and method", () => {
     expect(requiredScope("GET", "/v2/sessions/live")).toBe("read");
-    expect(requiredScope("HEAD", "/api/health")).toBe("read");
+    expect(requiredScope("HEAD", "/v2/health")).toBe("read");
     expect(requiredScope("POST", "/v2/sessions/s1/turns")).toBe("write");
     expect(requiredScope("GET", "/v2/remote")).toBe("admin");
-    expect(requiredScope("POST", "/api/remote/pairing")).toBe("admin");
+    expect(requiredScope("POST", "/v2/remote/pairing")).toBe("admin");
     expect(requiredScope("DELETE", "/v2/remote/devices/dev_1")).toBe("admin");
     expect(requiredScope("GET", "/v2/hosts")).toBe("admin");
     expect(requiredScope("GET", "/v2/plugins")).toBe("read");
@@ -179,20 +176,20 @@ describe("scopes", () => {
   });
 
   test("write covers changing sessions but not devices, pairing or settings", () => {
-    expect(as(["read", "write"], "/api/sessions/s1/turns", "POST")).toMatchObject({ allow: true, scopes: ["read", "write"] });
-    expect(as(["read", "write"], "/api/remote/pairing", "POST")).toEqual(FORBIDDEN);
-    expect(as(["read", "write"], "/api/remote", "GET")).toEqual(FORBIDDEN);
-    expect(as(["read", "write"], "/api/plugins/install", "POST")).toEqual(FORBIDDEN);
+    expect(as(["read", "write"], "/v2/sessions/s1/turns", "POST")).toMatchObject({ allow: true, scopes: ["read", "write"] });
+    expect(as(["read", "write"], "/v2/remote/pairing", "POST")).toEqual(FORBIDDEN);
+    expect(as(["read", "write"], "/v2/remote", "GET")).toEqual(FORBIDDEN);
+    expect(as(["read", "write"], "/v2/plugins/install", "POST")).toEqual(FORBIDDEN);
   });
 
   test("read alone reaches no write and no admin route", () => {
-    expect(as(["read"], "/api/sessions/live", "GET")).toMatchObject({ allow: true });
-    expect(as(["read"], "/api/sessions/s1/turns", "POST")).toEqual(FORBIDDEN);
-    expect(as(["read"], "/api/remote", "GET")).toEqual(FORBIDDEN);
+    expect(as(["read"], "/v2/sessions/live", "GET")).toMatchObject({ allow: true });
+    expect(as(["read"], "/v2/sessions/s1/turns", "POST")).toEqual(FORBIDDEN);
+    expect(as(["read"], "/v2/remote", "GET")).toEqual(FORBIDDEN);
   });
 
   test("admin reaches everything", () => {
-    for (const [pathname, method] of [["/api/remote", "GET"], ["/api/remote/devices/dev_1", "DELETE"], ["/api/sessions/s1/turns", "POST"]] as const) {
+    for (const [pathname, method] of [["/v2/remote", "GET"], ["/v2/remote/devices/dev_1", "DELETE"], ["/v2/sessions/s1/turns", "POST"]] as const) {
       expect(as(["read", "write", "admin"], pathname, method)).toMatchObject({ allow: true });
     }
   });
@@ -206,7 +203,7 @@ describe("scopes", () => {
 });
 
 describe("simulators", () => {
-  const STREAM = "/api/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg";
+  const STREAM = "/v2/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg";
   const tickets = new StreamTickets();
   const decide = (pathname: string, method: string, ticket: string | null, remote = file()) =>
     decideAccess(remote, { pathname, method, ticket }, undefined, (path, verb, value) => tickets.check(path, verb, value));
@@ -214,15 +211,15 @@ describe("simulators", () => {
   test("an observer watches a simulator but cannot touch it or change its settings", () => {
     const observer = file({}, "observer");
     expect(ask(STREAM, { authorization: `Bearer ${RAW}` }, observer)).toMatchObject({ allow: true, scopes: ["read"] });
-    expect(ask("/api/simulators/A1B2/input", { authorization: `Bearer ${RAW}`, method: "POST" }, observer)).toEqual({ allow: false, code: "cockpit_forbidden" });
-    expect(ask("/api/simulators/A1B2/action", { authorization: `Bearer ${RAW}`, method: "POST" }, observer)).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(ask("/v2/simulators/A1B2/input", { authorization: `Bearer ${RAW}`, method: "POST" }, observer)).toEqual({ allow: false, code: "cockpit_forbidden" });
+    expect(ask("/v2/simulators/A1B2/action", { authorization: `Bearer ${RAW}`, method: "POST" }, observer)).toEqual({ allow: false, code: "cockpit_forbidden" });
   });
 
   test("a stream ticket stands in for credentials only on hub reads, and only while its device is paired", () => {
     const { ticket } = tickets.mint("dev_1");
     expect(decide(STREAM, "GET", ticket)).toEqual({ allow: true, deviceId: "dev_1", scopes: ["read"] });
-    expect(decide("/api/simulators/A1B2/input", "POST", ticket)).toEqual({ allow: false, code: "cockpit_unauthorized" });
-    expect(decide("/api/sessions/live", "GET", ticket)).toEqual({ allow: false, code: "cockpit_unauthorized" });
+    expect(decide("/v2/simulators/A1B2/input", "POST", ticket)).toEqual({ allow: false, code: "cockpit_unauthorized" });
+    expect(decide("/v2/sessions/live", "GET", ticket)).toEqual({ allow: false, code: "cockpit_unauthorized" });
     expect(decide(STREAM, "GET", ticket, file({ devices: [] }))).toEqual({ allow: false, code: "cockpit_unauthorized" });
     expect(decide(STREAM, "GET", tickets.mint(null).ticket, file({ devices: [] }))).toEqual({ allow: true, scopes: ["read"] });
   });
@@ -235,7 +232,7 @@ describe("the process that runs the server", () => {
     decideAccess(
       file,
       {
-        pathname: "/api/projects",
+        pathname: "/v2/projects",
         method: credentials.method ?? "GET",
         authorization: null,
         deviceCookie: credentials.deviceCookie ?? null,
@@ -271,45 +268,5 @@ describe("the process that runs the server", () => {
   test("a near-miss is still refused", () => {
     expect(asHost({ deviceCookie: HOST + "x" }).allow).toBe(false);
     expect(asHost({ deviceCookie: HOST.slice(0, -1) + "z" }).allow).toBe(false);
-  });
-});
-
-describe("the routes the cockpit asks", () => {
-  const HOST = "tlr_" + "h".repeat(43);
-  function routes() {
-    const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-auth-"));
-    const store = createRemoteStore(path.join(home, "remote"));
-    const raw = "tlr_" + "p".repeat(43);
-    const device = store.addDevice("Phone", raw);
-    store.setRequireAuth(true);
-    const table = authRoutes(store, createPresence(), undefined, () => HOST);
-    const call = async (route: string, body: Record<string, unknown>) =>
-      (await matchRoute(table, "POST", route)!.route.handle({ body, params: [], query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse }))!;
-    return { store, device, raw, call, cleanup: () => fs.rmSync(home, { recursive: true, force: true }) };
-  }
-
-  test("decide answers the gate and stamps the admitted device", async () => {
-    const { store, device, raw, call, cleanup } = routes();
-    try {
-      expect((await call("/v2/auth/decide", { pathname: "/api/projects", method: "GET" })).body).toEqual({ allow: false, code: "cockpit_unauthorized" });
-      expect((await call("/v2/auth/decide", { pathname: "/api/projects", method: "GET", authorization: `Bearer ${raw}` })).body).toEqual({ allow: true, deviceId: device.id, scopes: ALL_SCOPES });
-      expect(store.read().devices[0]!.lastSeenAt).toBeGreaterThan(0);
-      expect((await call("/v2/auth/decide", { pathname: "/api/projects", method: "POST", hostHeader: HOST })).body).toEqual({ allow: true, scopes: ALL_SCOPES });
-      expect((await call("/v2/auth/decide", { method: "GET" })).status).toBe(400);
-    } finally {
-      cleanup();
-    }
-  });
-
-  test("identify names the device and the host without deciding anything", async () => {
-    const { device, raw, call, cleanup } = routes();
-    try {
-      const credentials: Credentials = { deviceCookie: raw };
-      expect((await call("/v2/auth/identify", credentials)).body).toEqual({ host: false, device: { id: device.id, scopes: ALL_SCOPES, role: "full" } });
-      expect((await call("/v2/auth/identify", { hostHeader: HOST })).body).toEqual({ host: true });
-      expect((await call("/v2/auth/identify", {})).body).toEqual({ host: false });
-    } finally {
-      cleanup();
-    }
   });
 });

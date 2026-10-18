@@ -3,7 +3,6 @@ import pkg from "../../../package.json" with { type: "json" };
 import type { DeviceIdentity, DevicePlatform, PairingRefusal, RemoteDevice, RemoteState } from "@telar/engine-client";
 import { mintDeviceToken, RemoteStoreError, type PairedDevice, type RemoteStore } from "./store";
 import { fail, ok, type Route } from "../../platform/http/route";
-import { authRoutes, type TicketCheck } from "./auth";
 import { deviceCookieHeader } from "./cookie";
 import { createPresence, type Presence } from "./presence";
 import { ALL_SCOPES, normaliseScopes, roleOf, scopesForRole } from "./scopes";
@@ -106,7 +105,7 @@ function statusRoute(store: RemoteStore, presence: Presence, endpoints: () => Co
   };
 }
 
-export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, presence: Presence = createPresence(), endpoints: () => CockpitEndpoint[] = () => []): Route[] {
+export function remoteRoutes(store: RemoteStore, presence: Presence = createPresence(), endpoints: () => CockpitEndpoint[] = () => []): Route[] {
   const routes: Route[] = [
     {
       method: "GET",
@@ -237,7 +236,7 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       handle: ({ params: [id] }) => (store.revokeDevice(id!) ? ok({ ok: true }) : fail(404, "not_found", "No such device.")),
     },
   ];
-  return [...routes, ...authRoutes(store, presence, checkTicket)].map((route) => ({ ...route, handle: (input) => refusalsAsBadRequest(() => route.handle(input)) }));
+  return routes.map((route) => ({ ...route, handle: (input) => refusalsAsBadRequest(() => route.handle(input)) }));
 }
 
 function refusalsAsBadRequest(run: () => ReturnType<Route["handle"]>): ReturnType<Route["handle"]> {

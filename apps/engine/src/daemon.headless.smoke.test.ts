@@ -61,8 +61,6 @@ test("pairs a device, runs a turn and shuts down inside its home", async () => {
   const minted = await call("/v2/remote/pairing", {});
   const paired = await call("/v2/remote/pair", { code: minted.code, name: "CI phone", identity: { kind: "phone" } });
   expect(paired.deviceToken).toMatch(/^tlr_/);
-  const decision = await call("/v2/auth/decide", { pathname: "/api/projects", method: "GET", authorization: `Bearer ${paired.deviceToken}` });
-  expect(decision.allow).toBe(true);
 
   const checkout = repo();
   await client.registerProject({ id: "project_headless", name: "Headless", root: checkout });

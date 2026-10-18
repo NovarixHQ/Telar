@@ -225,7 +225,7 @@ function currentRoutes(ctx: RouteContext): Route[] {
     connector.route,
     { method: "GET", path: "/v2/health", auth: "engine", handle: () => ({ status: 200, body: health() }) },
     ...filesRoutes(),
-    ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket), presence, endpoints),
+    ...remoteRoutes(remoteStore, presence, endpoints),
     ...hostsRoutes(hostsStore),
     ...identityRoutes(identity, () => advertisedAddresses(endpoints())),
     ...aboutRoutes(root),
@@ -370,7 +370,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const routes = engineRoutes({ store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity, endpoints: () => (options.network && networkServer ? listEndpoints({ host: options.network.host, port: (networkServer.address() as AddressInfo).port }) : []) });
   const staticFiles = options.staticDir ? createStaticHandler(options.staticDir) : undefined;
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run, ...(staticFiles ? { staticFiles } : {}) }));
-  const networkServer = options.network && http.createServer(router(routes, { ...networkRouting(remoteStore, presence, options.network.host, errorFor, loopLag.run), ...(staticFiles ? { staticFiles } : {}) }));
+  const networkServer = options.network && http.createServer(router(routes, { ...networkRouting(remoteStore, presence, options.network.host, errorFor, loopLag.run, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket)), ...(staticFiles ? { staticFiles } : {}) }));
   try {
     port = await listenOn(server, "127.0.0.1", options.port ?? 0);
     const network = options.network && networkServer && { host: options.network.host, port: await listenOn(networkServer, options.network.host, options.network.port ?? 0) };

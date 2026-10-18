@@ -37,6 +37,7 @@ export function router(routes: readonly Route[], options: RouterOptions): http.R
   return async (request, response) => {
     try {
       if (!hostIsAllowed(request.headers.host, options.hostNames)) throw new HttpError(421, "invalid_request", "this engine answers only to this machine's own host names", true);
+      if (request.url?.startsWith("/api/")) request.url = `/v2/${request.url.slice("/api/".length)}`;
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
       const matched = matchRoute(routes, request.method ?? "GET", url.pathname);
       if (!matched) {

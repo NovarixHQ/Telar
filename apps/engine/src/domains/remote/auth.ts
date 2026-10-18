@@ -1,13 +1,11 @@
 import crypto from "node:crypto";
 import { hostIsAllowed } from "../../platform/http/host";
-import { fail, ok, type Route } from "../../platform/http/route";
 import type { DeviceScope } from "@telar/engine-client";
 import { ALL_SCOPES, requiredScope, roleOf } from "./scopes";
-import type { Presence } from "./presence";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
-export const EXEMPT_PATHS = new Set(["/api/ping", "/api/pair", "/api/identity"]);
-const DEVICE_DOORS = new Set(["/api/mcp"]);
+export const EXEMPT_PATHS = new Set(["/v2/ping", "/v2/pair", "/v2/identity"]);
+const DEVICE_DOORS = new Set(["/v2/mcp"]);
 
 export type Credentials = { authorization?: string | null; deviceCookie?: string | null; hostHeader?: string | null };
 export type TicketCheck = (pathname: string, method: string, ticket: string | null | undefined) => { holder: string | null } | undefined;
@@ -34,7 +32,7 @@ export function deviceForBearer(store: RemoteStore, authorization: string | unde
   return { id: device.id, scopes: device.scopes };
 }
 
-const isHostCaller = (credentials: Credentials, secret: string | undefined): boolean =>
+export const isHostCaller = (credentials: Credentials, secret: string | undefined): boolean =>
   isHostSecret(credentials.hostHeader, secret) || isHostSecret(credentials.deviceCookie, secret);
 
 function ticketDecision(file: RemoteFile, ticket: { holder: string | null } | undefined): AccessDecision {
@@ -57,47 +55,4 @@ export function decideAccess(
   if (!device) return ticketDecision(file, checkTicket(request.pathname, request.method.toUpperCase(), request.ticket));
   if (!device.scopes.includes(requiredScope(request.method.toUpperCase(), request.pathname))) return { allow: false, code: "cockpit_forbidden" };
   return { allow: true, deviceId: device.id, scopes: device.scopes };
-}
-
-const text = (value: unknown): string | null => (typeof value === "string" ? value : null);
-const credentialsOf = (body: Record<string, unknown>): Credentials => ({
-  authorization: text(body.authorization),
-  deviceCookie: text(body.deviceCookie),
-  hostHeader: text(body.hostHeader),
-});
-
-export function authRoutes(
-  store: RemoteStore,
-  presence: Presence,
-  checkTicket?: TicketCheck,
-  hostSecret: () => string | undefined = () => process.env.TELAR_HOST_TOKEN,
-): Route[] {
-  return [
-    {
-      method: "POST",
-      path: "/v2/auth/decide",
-      auth: "engine",
-      handle({ body }) {
-        const pathname = text(body.pathname);
-        const method = text(body.method);
-        if (!pathname || !method) return fail(400, "invalid_request", "pathname and method are required.");
-        const decision = decideAccess(store.read(), { ...credentialsOf(body), pathname, method, host: text(body.host), ticket: text(body.ticket) }, hostSecret(), checkTicket);
-        if (decision.allow && decision.deviceId) {
-          presence.seen(decision.deviceId);
-          store.touchDevice(decision.deviceId);
-        }
-        return ok(decision);
-      },
-    },
-    {
-      method: "POST",
-      path: "/v2/auth/identify",
-      auth: "engine",
-      handle({ body }) {
-        const credentials = credentialsOf(body);
-        const device = identifyDevice(store.read(), credentials);
-        return ok({ host: isHostCaller(credentials, hostSecret()), ...(device ? { device: { id: device.id, scopes: device.scopes, role: roleOf(device.scopes) } } : {}) });
-      },
-    },
-  ];
 }

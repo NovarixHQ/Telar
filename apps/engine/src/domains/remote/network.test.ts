@@ -25,10 +25,10 @@ async function engine(network?: { host: string }) {
       headers: { authorization: `Bearer ${daemon.discovery.token}`, "content-type": "application/json" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-  const remote = (method: string, route: string, init: { token?: string; body?: unknown; host?: string } = {}) =>
+  const remote = (method: string, route: string, init: { token?: string; body?: unknown; host?: string; headers?: Record<string, string> } = {}) =>
     new Promise<{ status: number; headers: http.IncomingHttpHeaders; body: any }>((resolve, reject) => {
       const request = http.request(
-        { host: daemon.network!.host, port: daemon.network!.port, path: route, method, headers: { "content-type": "application/json", ...(init.token ? { authorization: `Bearer ${init.token}` } : {}), ...(init.host ? { host: init.host } : {}) } },
+        { host: daemon.network!.host, port: daemon.network!.port, path: route, method, headers: { "content-type": "application/json", ...(init.token ? { authorization: `Bearer ${init.token}` } : {}), ...(init.host ? { host: init.host } : {}), ...init.headers } },
         (response) => {
           let text = "";
           response.on("data", (chunk) => (text += chunk));
@@ -92,4 +92,35 @@ test("a Host that is not this machine's is refused, and no CORS header is sent",
   expect((await remote("GET", "/v2/ping", { host: "evil.example" })).status).toBe(421);
   const answer = await remote("GET", "/v2/ping");
   expect(Object.keys(answer.headers).filter((name) => name.startsWith("access-control-"))).toEqual([]);
+});
+
+test("a browser pairs for a strict HttpOnly cookie that reads freely but writes only from this host's own pages", async () => {
+  const { daemon, loopback, remote } = await engine({ host: "127.0.0.1" });
+  const code = ((await (await loopback("POST", "/v2/remote/pairing")).json()) as { code: string }).code;
+  const paired = await remote("POST", "/v2/remote/pair", { body: { code, name: "Safari", platform: "browser" }, headers: { "x-forwarded-proto": "https" } });
+  const setCookie = String(paired.headers["set-cookie"]);
+  expect(setCookie).toMatch(/^telar_device=tlr_/);
+  for (const attribute of ["HttpOnly", "SameSite=Strict", "Secure"]) expect(setCookie).toContain(attribute);
+  const cookie = setCookie.split(";")[0]!;
+  expect((await remote("GET", "/v2/health", { headers: { cookie } })).status).toBe(200);
+  const write = (origin?: string) => remote("POST", "/v2/remote/pairing", { headers: { cookie, ...(origin ? { origin } : {}) } });
+  expect((await write()).status).toBe(403);
+  expect((await write("https://evil.example")).status).toBe(403);
+  expect((await write("http://127.0.0.1")).status).toBe(403);
+  expect((await write(`http://127.0.0.1:${daemon.network!.port}`)).status).toBe(200);
+  expect((await remote("POST", "/v2/remote/pairing", { token: paired.body.deviceToken })).status).toBe(200);
+});
+
+test("a cookie stops working when its device is revoked, and an iOS pairing sets none", async () => {
+  const { loopback, remote } = await engine({ host: "127.0.0.1" });
+  const pairAs = async (platform: string) => {
+    const code = ((await (await loopback("POST", "/v2/remote/pairing")).json()) as { code: string }).code;
+    return remote("POST", "/v2/remote/pair", { body: { code, name: platform, platform } });
+  };
+  expect((await pairAs("ios")).headers["set-cookie"]).toBeUndefined();
+  const browser = await pairAs("browser");
+  const cookie = String(browser.headers["set-cookie"]).split(";")[0]!;
+  expect((await remote("GET", "/v2/health", { headers: { cookie } })).status).toBe(200);
+  await loopback("DELETE", `/v2/remote/devices/${browser.body.deviceId}`);
+  expect((await remote("GET", "/v2/health", { headers: { cookie } })).status).toBe(401);
 });

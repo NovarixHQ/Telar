@@ -22,7 +22,6 @@ const TYPES: Record<string, string> = {
 const HEADERS = { "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" };
 const PARAMETER_PARENTS = new Set(["projects", "sessions", "hosts"]);
 
-/** `/projects/p1/sessions/s1/solo` is the export's `projects/_/sessions/_/solo`; `new` stays a literal. */
 export function placeholderPath(pathname: string): string {
   const segments = pathname.split("/");
   return segments.map((segment, index) => (index > 1 && segment !== "new" && PARAMETER_PARENTS.has(segments[index - 1]!) ? "_" : segment)).join("/");
@@ -53,7 +52,6 @@ function resolveFile(root: string, pathname: string): string | undefined {
   return undefined;
 }
 
-/** Serves the exported cockpit. Returns false when nothing in `staticDir` answers the request. */
 export function createStaticHandler(staticDir: string): (request: http.IncomingMessage, response: http.ServerResponse, pathname: string) => boolean {
   const root = path.resolve(staticDir);
   return (request, response, pathname) => {

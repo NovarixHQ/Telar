@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { OWN_GROUP, signalGroup } from "../../platform/process/group";
 import { browserErrorText, textOf } from "./helpers";
@@ -20,10 +21,10 @@ export type BrowserProcess = {
   kill(signal: "SIGTERM" | "SIGKILL"): void;
 };
 
-export type SpawnBrowserProcess = (command: string, args: readonly string[]) => BrowserProcess;
+export type SpawnBrowserProcess = (command: string, args: readonly string[], env?: NodeJS.ProcessEnv) => BrowserProcess;
 
-const spawnBrowserProcess: SpawnBrowserProcess = (command, args) => {
-  const child = spawn(command, [...args], { stdio: ["pipe", "pipe", "pipe"], detached: OWN_GROUP });
+const spawnBrowserProcess: SpawnBrowserProcess = (command, args, env) => {
+  const child = spawn(command, [...args], { stdio: ["pipe", "pipe", "pipe"], detached: OWN_GROUP, ...(env ? { env } : {}) });
   child.stdin.on("error", () => undefined);
   return {
     write: (frame) => {
@@ -51,6 +52,10 @@ function resolvePlaywrightMcpCli(startDir?: string): string {
   );
 }
 
+export function resolvePlaywrightCoreCli(): string {
+  return path.join(path.dirname(createRequire(fs.realpathSync(resolvePlaywrightMcpCli())).resolve("playwright-core/package.json")), "cli.js");
+}
+
 function walkUpForPlaywrightMcpCli(startDir: string | undefined): string | null {
   let dir = startDir;
   for (let i = 0; i < 8 && typeof dir === "string" && dir !== "" && dir !== path.dirname(dir); i++) {
@@ -73,6 +78,9 @@ function walkUpForPlaywrightMcpCli(startDir: string | undefined): string | null 
   return null;
 }
 
+const browserEnv = (browsersPath: string | undefined): NodeJS.ProcessEnv | undefined =>
+  browsersPath ? { ...process.env, PLAYWRIGHT_BROWSERS_PATH: browsersPath } : undefined;
+
 export type BrowserTransportOptions = {
   spawn?: SpawnBrowserProcess;
   browser?: string;
@@ -81,6 +89,7 @@ export type BrowserTransportOptions = {
   killGraceMs?: number;
   cliPath?: string;
   userDataDir?: string;
+  browsersPath?: string;
 };
 
 type RpcMessage = {
@@ -105,7 +114,7 @@ type LiveChild = {
 
 export class PlaywrightMcpTransport {
   private readonly spawnProcess: SpawnBrowserProcess;
-  private readonly options: Required<Omit<BrowserTransportOptions, "spawn" | "cliPath" | "userDataDir">> & { cliPath?: string; userDataDir?: string };
+  private readonly options: Required<Omit<BrowserTransportOptions, "spawn" | "cliPath" | "userDataDir" | "browsersPath">> & { cliPath?: string; userDataDir?: string; browsersPath?: string };
   private child: LiveChild | null = null;
   private starting: Promise<void> | null = null;
   private nextId = 1;
@@ -124,6 +133,7 @@ export class PlaywrightMcpTransport {
       killGraceMs: options.killGraceMs ?? BROWSER_KILL_GRACE_MS,
       ...(options.cliPath ? { cliPath: options.cliPath } : {}),
       ...(options.userDataDir ? { userDataDir: options.userDataDir } : {}),
+      ...(options.browsersPath ? { browsersPath: options.browsersPath } : {}),
     };
   }
 
@@ -169,15 +179,15 @@ export class PlaywrightMcpTransport {
       "--viewport-size",
       this.options.viewportSize,
     ];
-    return this.launchInner(process.execPath, args);
+    return this.launchInner(process.execPath, args, browserEnv(this.options.browsersPath));
   }
 
-  private async launchInner(command: string, args: readonly string[]): Promise<void> {
+  private async launchInner(command: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<void> {
     let settle: () => void = () => {};
     const exited = new Promise<void>((resolve) => {
       settle = resolve;
     });
-    const child: LiveChild = { process: this.spawnProcess(command, args), exited, settle, closed: false };
+    const child: LiveChild = { process: this.spawnProcess(command, args, env), exited, settle, closed: false };
     this.child = child;
     this.lastFailure = null;
     this.stdoutBuffer = "";
@@ -320,11 +330,12 @@ export class PlaywrightMcpTransport {
   }
 }
 
-export type RunOnce = (command: string, args: readonly string[]) => Promise<{ code: number | null; output: string }>;
+export type RunOnce = (command: string, args: readonly string[], env?: NodeJS.ProcessEnv, input?: string) => Promise<{ code: number | null; output: string }>;
 
-const runOnce: RunOnce = (command, args) =>
+export const runOnce: RunOnce = (command, args, env, input) =>
   new Promise((resolve, reject) => {
-    const child = spawn(command, [...args], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, [...args], { stdio: ["pipe", "pipe", "pipe"], ...(env ? { env } : {}) });
+    child.stdin.end(input);
     let output = "";
     const collect = (chunk: Buffer) => {
       output = `${output}${String(chunk)}`.slice(-20_000);
@@ -338,13 +349,13 @@ const runOnce: RunOnce = (command, args) =>
 let installInFlight: Promise<string> | null = null;
 
 export function installBrowser(
-  options: { browser?: string; cliPath?: string; run?: RunOnce } = {},
+  options: { browser?: string; cliPath?: string; browsersPath?: string; run?: RunOnce } = {},
 ): Promise<string> {
   if (installInFlight) return installInFlight;
   const run = options.run ?? runOnce;
   const cli = options.cliPath ?? resolvePlaywrightMcpCli();
   const browser = options.browser ?? "chromium";
-  const operation = run(process.execPath, [cli, "install-browser", browser]).then(({ code, output }) => {
+  const operation = run(process.execPath, [cli, "install-browser", browser], browserEnv(options.browsersPath)).then(({ code, output }) => {
     const text = output.trim();
     if (code === 0) return text || "Controlled browser installed.";
     throw new Error(text || `The browser installer exited with code ${code}.`);

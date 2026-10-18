@@ -152,7 +152,7 @@ test("doctor reports each check against the running engine", async () => {
   process.env.HOME = tempDir("telar-cli-user-");
   try {
     const checks = await runChecks(home);
-    expect(checks.map((check) => check.name)).toEqual(["home", "engine", "network", "claude", "codex", "opencode", "cursor agent", "terminals", "tailscale"]);
+    expect(checks.map((check) => check.name)).toEqual(["home", "engine", "network", "claude", "codex", "opencode", "cursor agent", "terminals", "browser", "tailscale"]);
     const byName = Object.fromEntries(checks.map((check) => [check.name, check]));
     expect(byName.engine?.level).toBe("ok");
     expect(byName.network?.level).toBe("ok");
@@ -169,6 +169,16 @@ test("doctor fails when no engine runs, and bad usage exits 2", async () => {
   expect(lines.join("\n")).toContain("fail  engine — not running");
   expect(await runCli(["bogus"], capture().io)).toBe(2);
   expect(await runCli(["pair", "--home", tempDir("telar-cli-empty-")], capture().io)).toBe(2);
+});
+
+test("browser setup --dry-run lists the steps and changes nothing", async () => {
+  const empty = tempDir("telar-cli-empty-");
+  const { lines, io } = capture();
+  expect(await runCli(["browser", "setup", "--dry-run", "--home", empty], io)).toBe(0);
+  expect(lines[0]).toBe("Would:");
+  expect(lines.join("\n")).toContain("Download Chromium");
+  expect(fs.readdirSync(empty)).toEqual([]);
+  expect(await runCli(["browser", "--home", empty], capture().io)).toBe(2);
 });
 
 test("SIGTERM stops serve cleanly and removes its files", async () => {

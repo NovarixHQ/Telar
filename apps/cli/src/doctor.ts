@@ -1,5 +1,6 @@
 import fs from "node:fs";
-import { nodePtySpawner, resolveCli, signInOf } from "@telar/engine/headless";
+import { browserReadiness, nodePtySpawner, resolveCli, signInOf } from "@telar/engine/headless";
+import { browsersPathFor } from "./browser";
 import { connect, readServeInfo } from "./link";
 import type { Io } from "./io";
 import { tailscaleStatus } from "./tailscale";
@@ -68,6 +69,15 @@ function terminalCheck(): Check {
   }
 }
 
+async function browserCheck(home: string): Promise<Check> {
+  const readiness = await browserReadiness({ browsersPath: browsersPathFor(home) });
+  const hint = "Run `telar browser setup` (add --dry-run to see the steps).";
+  if (!readiness.binary) return { level: "warn", name: "browser", detail: "Chromium is not downloaded", hint };
+  if (readiness.missingLibraries.length > 0) return { level: "warn", name: "browser", detail: `missing libraries: ${readiness.missingLibraries.join(", ")}`, hint };
+  if (readiness.sandbox !== "ok") return { level: "warn", name: "browser", detail: `the ${readiness.sandbox === "apparmor" ? "AppArmor" : "kernel"} user-namespace restriction blocks Chromium's sandbox`, hint };
+  return { level: "ok", name: "browser", detail: "Chromium is ready" };
+}
+
 async function tailscaleCheck(): Promise<Check> {
   const status = await tailscaleStatus();
   if (status.state === "missing") return { level: "ok", name: "tailscale", detail: "not installed" };
@@ -85,7 +95,7 @@ export async function runChecks(home: string): Promise<Check[]> {
     }
   })();
   const homeCheck: Check = writable ? { level: "ok", name: "home", detail: home } : { level: "fail", name: "home", detail: `${home} is not writable` };
-  return [homeCheck, ...(await engineChecks(home)), ...providerChecks(), terminalCheck(), await tailscaleCheck()];
+  return [homeCheck, ...(await engineChecks(home)), ...providerChecks(), terminalCheck(), await browserCheck(home), await tailscaleCheck()];
 }
 
 const MARK: Record<Level, string> = { ok: "ok  ", warn: "warn", fail: "fail" };

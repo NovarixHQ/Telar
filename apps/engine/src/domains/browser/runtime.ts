@@ -80,6 +80,7 @@ export class BrowserRuntime {
             installBrowser({
               ...(browser ? { browser } : {}),
               ...(transportOptions.cliPath ? { cliPath: transportOptions.cliPath } : {}),
+              ...(transportOptions.browsersPath ? { browsersPath: transportOptions.browsersPath } : {}),
             })));
   }
 

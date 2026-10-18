@@ -3,6 +3,7 @@ import type { DeviceIdentity, DevicePlatform, PairingRefusal, RemoteDevice, Remo
 import { mintDeviceToken, RemoteStoreError, type PairedDevice, type RemoteStore } from "./store";
 import { fail, ok, type Route } from "../../platform/http/route";
 import { authRoutes, type TicketCheck } from "./auth";
+import { deviceCookieHeader } from "./cookie";
 import { createPresence, type Presence } from "./presence";
 import { normaliseScopes, roleOf, scopesForRole } from "./scopes";
 
@@ -112,7 +113,7 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       method: "POST",
       path: "/v2/remote/pair",
       auth: "engine",
-      handle({ body }) {
+      handle({ body, request }) {
         const code = typeof body.code === "string" ? body.code : "";
         const outcome = code ? store.consumePairing(code) : "none-pending";
         if (outcome !== true) return { status: 401, body: { error: { code: "cockpit_unauthorized", reason: outcome, message: REFUSAL[outcome] } } };
@@ -125,7 +126,8 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
           ...(identity ? { identity } : {}),
           ...(clientId ? { clientId } : {}),
         });
-        return ok({ deviceToken, deviceId: device.id, deviceName: device.name });
+        const answer = ok({ deviceToken, deviceId: device.id, deviceName: device.name });
+        return platform === "browser" ? { ...answer, headers: { "set-cookie": deviceCookieHeader(deviceToken, request) } } : answer;
       },
     },
     {

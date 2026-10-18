@@ -3,6 +3,7 @@ import { MACHINE_NAMES } from "../../platform/http/host";
 import { HttpError } from "../../platform/http/http";
 import type { Route } from "../../platform/http/route";
 import { decideAccess, deviceForBearer } from "./auth";
+import { cookieRequestIsSameOrigin, readDeviceCookie } from "./cookie";
 import type { Presence } from "./presence";
 import type { RemoteStore } from "./store";
 
@@ -20,7 +21,9 @@ function networkAuthorize(store: RemoteStore, presence: Presence) {
     }
     if (auth !== "engine" || ENGINE_ONLY.has(pathname)) throw new HttpError(401, "engine_unauthorized", "this endpoint is not served on the network");
     const file = { ...store.read(), requireAuth: true };
-    const decision = decideAccess(file, { pathname, method, authorization: request.headers.authorization ?? null }, undefined);
+    const deviceCookie = request.headers.authorization ? null : readDeviceCookie(request);
+    if (deviceCookie && !cookieRequestIsSameOrigin(request)) throw new HttpError(403, "engine_unauthorized", "a browser session may write only from this host's own pages");
+    const decision = decideAccess(file, { pathname, method, authorization: request.headers.authorization ?? null, deviceCookie }, undefined);
     if (!decision.allow) {
       if (decision.code === "cockpit_forbidden") throw new HttpError(403, "engine_unauthorized", "this device's access does not cover this request");
       throw new HttpError(401, "engine_unauthorized", "pair this device to use the engine");

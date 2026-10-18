@@ -55,7 +55,7 @@ export function sessionFilesRoutes(store: EngineStore): Route[] {
           status: 200,
           body: null,
           bytes: raw.data,
-          headers: { "content-type": raw.mediaType, "content-length": String(raw.data.byteLength), "cache-control": "no-store" },
+          headers: { "content-type": raw.mediaType, "content-length": String(raw.data.byteLength), "cache-control": "no-store", "x-content-type-options": "nosniff" },
         };
       },
     },

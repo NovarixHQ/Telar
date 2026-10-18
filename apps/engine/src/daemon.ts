@@ -36,6 +36,7 @@ import type { AsyncGitRunner, GitRunner } from "./platform/git/runner";
 import { bearerIsValid } from "./platform/http/auth";
 import { errorFor as httpErrorFor, HttpError } from "./platform/http/http";
 import { closeServer, listenOn, removeOwnDiscovery, writeDiscovery } from "./platform/http/listen";
+import { legacyRoutes } from "./platform/http/legacy";
 import { createStaticHandler } from "./platform/http/static";
 import type { Route } from "./platform/http/route";
 import { router } from "./platform/http/router";
@@ -211,6 +212,11 @@ type RouteContext = {
 };
 
 function engineRoutes(ctx: RouteContext): Route[] {
+  const current = currentRoutes(ctx);
+  return [...current, ...legacyRoutes(current)];
+}
+
+function currentRoutes(ctx: RouteContext): Route[] {
   const { store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity } = ctx;
   return [
     sessionsDoor.route,

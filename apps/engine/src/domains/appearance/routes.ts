@@ -1,4 +1,5 @@
 import type http from "node:http";
+import { parsePublishedAppearance } from "@telar/engine-client";
 import { HttpError, matchesETag } from "../../platform/http/http";
 import { notModified, ok, type Route, type RouteAnswer } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
@@ -66,7 +67,9 @@ export function appearanceRoutes(store: EngineStore): Route[] {
       auth: "engine",
       body: "raw",
       async handle({ request }) {
-        const written = store.appearance.set(await appearanceBody(request));
+        const blob = parsePublishedAppearance(await appearanceBody(request));
+        if (!blob) throw new HttpError(400, "invalid_request", "that is not a publishable appearance");
+        const written = store.appearance.set(blob);
         const etag = appearanceEtag(written.updatedAt);
         return { status: 200, body: { ok: true, updatedAt: written.updatedAt, etag }, headers: { etag } };
       },

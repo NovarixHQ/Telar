@@ -41,7 +41,6 @@ export function distroOf(osRelease: string | null): Distro {
   return "other";
 }
 
-/** The newest Chromium Playwright left in `browsersPath`; its install marker is written last. */
 export function findChromium(browsersPath: string): string | null {
   let entries: string[];
   try {
@@ -77,7 +76,6 @@ export async function browserReadiness(options: { browsersPath: string; platform
 const profile = (browsersPath: string): string =>
   `abi <abi/4.0>,\ninclude <tunables/global>\n\nprofile telar-chromium ${path.join(browsersPath, "**", "{chrome,chrome-headless-shell,headless_shell}")} flags=(unconfined) {\n  userns,\n  include if exists <local/telar-chromium>\n}\n`;
 
-/** What would make the browser launch on this host. Empty when nothing is missing. */
 export function setupPlan(options: { browsersPath: string; readiness: BrowserReadiness; distro: Distro; playwrightCli: string }): SetupStep[] {
   const { readiness, distro, browsersPath } = options;
   const steps: SetupStep[] = [];
@@ -111,7 +109,6 @@ export type SetupEffects = {
   download: (browsersPath: string) => Promise<string>;
 };
 
-/** Runs each step in order, asking `sudo` only for the ones that need root. Returns the first failure, or null. */
 export async function runSetup(steps: SetupStep[], browsersPath: string, effects: SetupEffects, report: (line: string) => void): Promise<string | null> {
   for (const step of steps) {
     report(describeStep(step));

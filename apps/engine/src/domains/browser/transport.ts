@@ -53,7 +53,7 @@ function resolvePlaywrightMcpCli(startDir?: string): string {
 }
 
 export function resolvePlaywrightCoreCli(): string {
-  return createRequire(resolvePlaywrightMcpCli()).resolve("playwright-core/cli.js");
+  return path.join(path.dirname(createRequire(fs.realpathSync(resolvePlaywrightMcpCli())).resolve("playwright-core/package.json")), "cli.js");
 }
 
 function walkUpForPlaywrightMcpCli(startDir: string | undefined): string | null {

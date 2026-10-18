@@ -6,7 +6,6 @@ import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
 import { GET as machineGet } from "@/app/api/plugins/[plugin]/[...verb]/route";
 import { catchAll } from "@/test/catch-all";
-import { POST as sessionPost } from "@/app/api/sessions/[sessionId]/plugins/[plugin]/[...verb]/route";
 import { startEngine, type EngineDaemon } from "../../../../engine/src/daemon";
 
 const savedTelarHome = process.env.TELAR_HOME;
@@ -66,10 +65,7 @@ describe("generic plugin proxies", () => {
 
   test("the session door maps a missing session like its neighbours", async () => {
     await ready();
-    const response = await sessionPost(
-      new Request("http://telar.local/api/sessions/session_missing/plugins/latex/status", { method: "POST", body: "{}" }),
-      { params: Promise.resolve({ sessionId: "session_missing", plugin: "latex", verb: ["status"] }) },
-    );
+    const response = await catchAll(new Request("http://telar.local/api/sessions/session_missing/plugins/latex/status", { method: "POST", body: "{}" }));
     expect(response.status).toBe(404);
     expect((await response.json()).error.code).toBe("not_found");
   });

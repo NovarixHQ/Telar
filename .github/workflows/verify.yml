@@ -397,6 +397,25 @@ jobs:
           bun run --cwd apps/cli build
           node apps/cli/dist/telar.mjs --help
 
+  # The engine's own Chromium on a stock Ubuntu runner: `telar browser setup` (libraries, AppArmor), then navigate + snapshot.
+  browser-linux:
+    name: Browser on Linux
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: bun install --frozen-lockfile
+      - run: bun apps/cli/src/main.ts browser setup --home "$RUNNER_TEMP/telar"
+      - run: bun apps/cli/src/main.ts doctor --home "$RUNNER_TEMP/telar" | grep "browser — Chromium is ready"
+      - run: bun test --timeout 120000 apps/engine/src/domains/browser/headless.real.test.ts
+        env:
+          TELAR_REAL_BROWSER_DIR: ${{ runner.temp }}/telar/engine/browsers
+
   # node-pty loads a native addon per OS and arch, and the engine runs terminals through it under Node
   # (it delivers nothing under bun). This loads it and drives real shells on every platform the
   # engine is meant to run on; Linux arm64 is the one T3 Code had to compile from source.
@@ -779,7 +798,7 @@ jobs:
     name: Verify passed
     runs-on: ubuntu-latest
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    needs: [source, knip, oxlint, typecheck, lint, static-cockpit, test, test-engine, pty, engine-linux, macos, electron, ios]
+    needs: [source, knip, oxlint, typecheck, lint, static-cockpit, test, test-engine, pty, engine-linux, browser-linux, macos, electron, ios]
     timeout-minutes: 5
     steps:
       - name: Report the aggregate

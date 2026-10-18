@@ -68,7 +68,6 @@ function lockHeldElsewhere(owner: LockOwner): boolean {
 async function staleReason(owner: LockOwner, probe: LockProbe): Promise<string | null> {
   const pid = owner.pid ?? -1;
   if (!probe.alive(pid)) return `pid ${pid} is gone`;
-  // A container restarts as the same pid (often 1), so a lock this process did not take is a previous life's.
   if (pid === process.pid && !(owner.token && heldHere.has(owner.token))) return `pid ${pid} is this process, restarted`;
   const boot = await probe.bootTime();
   if (boot !== null && typeof owner.startedAt === "number" && owner.startedAt < boot) return "it was written before this boot";

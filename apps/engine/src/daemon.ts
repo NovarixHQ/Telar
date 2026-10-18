@@ -24,7 +24,7 @@ import { connectorDoor, sessionAttachmentRoutes, sessionLifecycleRoutes, session
 import { settingsRoutes } from "./domains/settings";
 import { simulatorSessionRoutes, Simulators, simulatorsRoutes, type SimulatorsDeps } from "./domains/simulators";
 import { createStorageMeter, reportBootHousekeeping, storageRoutes, sweepCheckoutsAfterBoot, type CheckoutSizesOptions } from "./domains/storage";
-import { createRunMount, runRoutes } from "./domains/terminal";
+import { createRunMount, runRoutes, shellRoutes } from "./domains/terminal";
 import { sessionTurnRoutes, turnRoutes, workerRoutes } from "./domains/turns";
 import { aboutRoutes } from "./domains/updates";
 import { usageRoutes, warmUsageScanCache } from "./domains/usage";
@@ -250,6 +250,7 @@ function engineRoutes(ctx: RouteContext): Route[] {
     ...simulatorSessionRoutes(store, simulators),
     ...pluginSessionRoutes((id) => plugins.host.ready(id)),
     ...runRoutes(store, runMount, openStreams),
+    ...shellRoutes(runMount.shells, openStreams),
     ...sessionAttachmentRoutes(store),
     ...sessionTurnRoutes(store, {
       execution,

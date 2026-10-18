@@ -8,3 +8,4 @@ export { processGroupFor } from "./platform";
 export { resolveShell } from "./shell";
 export { runTools } from "./tools";
 export { SessionTerminals } from "./session-terminals";
+export { shellRoutes } from "./shell-routes";

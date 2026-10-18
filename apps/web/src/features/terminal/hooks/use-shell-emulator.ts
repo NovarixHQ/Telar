@@ -16,8 +16,7 @@ export type Phase =
   | { kind: "cwd-refused"; ending: TerminalEnding }
   | { kind: "unavailable"; why: string };
 
-const NO_BRIDGE =
-  "A terminal needs Telar's desktop shell — and one on this computer. A session on another host would otherwise get a shell on this computer while claiming to be that one.";
+const NO_BRIDGE = "Terminals are not available here.";
 
 type Mount = {
   element: HTMLElement;

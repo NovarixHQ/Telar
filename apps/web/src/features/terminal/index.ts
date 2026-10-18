@@ -1,4 +1,4 @@
-export type { TerminalOpenRequest } from "./bridge";
+export { installTerminalBridge, type TerminalBridge, type TerminalOpenRequest } from "./bridge";
 export { closeTerminalTab } from "./close";
 export { RunHeaderControl } from "./components/run-header-control";
 export { RunRow } from "./components/run-row";

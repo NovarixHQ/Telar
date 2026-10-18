@@ -26,7 +26,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RightPanel } from "./right-panel";
 import type { PanelTabItem } from "../model";
-import type { TerminalOpenRequest } from "@/features/terminal";
+import { installTerminalBridge, type TerminalOpenRequest } from "@/features/terminal";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -98,7 +98,7 @@ function installBridge(): Host {
     onData: () => () => {},
     onExit: () => () => {},
   };
-  (window as unknown as { telarDesktop?: unknown }).telarDesktop = { terminal };
+  installTerminalBridge(terminal);
   return { opens, kills };
 }
 
@@ -119,7 +119,7 @@ afterEach(() => {
   host?.remove();
   host = undefined;
   globalThis.fetch = realFetch;
-  delete (window as unknown as { telarDesktop?: unknown }).telarDesktop;
+  installTerminalBridge(undefined);
 });
 
 /** A quiet moment — long enough for a frame, when there are frames. */

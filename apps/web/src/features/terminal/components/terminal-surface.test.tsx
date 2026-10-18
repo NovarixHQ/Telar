@@ -12,7 +12,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { flush } from "@/test/dom";
 import { TERMINAL_IMAGE_OPTIONS } from "../emulator";
 import { TerminalSurface } from "./terminal-surface";
-import type { LiveTerminal, TerminalChunk, TerminalEnding, TerminalOpenRequest } from "../bridge";
+import { installTerminalBridge, type LiveTerminal, type TerminalChunk, type TerminalEnding, type TerminalOpenRequest } from "../bridge";
 import type { RunView } from "../run/types";
 import { readTerminalTab, terminalTabParams } from "../tab";
 
@@ -69,7 +69,7 @@ function installBridge(
       return () => exits.splice(exits.indexOf(listener), 1);
     },
   };
-  (window as unknown as { telarDesktop?: unknown }).telarDesktop = { terminal };
+  installTerminalBridge(terminal);
   return {
     opens,
     kills,
@@ -95,7 +95,7 @@ afterEach(() => {
   mounted = undefined;
   if (root) act(() => root.unmount());
   globalThis.fetch = realFetch;
-  delete (window as unknown as { telarDesktop?: unknown }).telarDesktop;
+  installTerminalBridge(undefined);
 });
 
 async function mount(props: Parameters<typeof TerminalSurface>[0] = {}): Promise<HTMLElement> {
@@ -130,14 +130,6 @@ async function press(host: HTMLElement, key: string, modifiers: { metaKey?: bool
   });
   return event.defaultPrevented;
 }
-
-describe("without the desktop shell", () => {
-  test("it says why there is no terminal instead of drawing an empty one", async () => {
-    const host = await mount();
-    expect(host.textContent).toContain("desktop shell");
-    expect(host.textContent).toContain("this computer");
-  });
-});
 
 describe("opening a shell", () => {
   test("one mount asks for exactly one shell, and writes its id to the tab's params", async () => {
@@ -179,7 +171,7 @@ describe("opening a shell", () => {
 });
 
 describe("a cwd the host refuses (#851)", () => {
-  /** The exact shape `unusableCwd` writes in apps/desktop/terminal-host.js. */
+  /** The exact shape `unusableCwd` writes in the engine's pty-host.ts. */
   const CWD_REFUSAL = {
     id: "term_failed",
     fate: "failed" as const,

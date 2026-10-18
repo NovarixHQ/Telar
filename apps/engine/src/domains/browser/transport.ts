@@ -78,6 +78,8 @@ function walkUpForPlaywrightMcpCli(startDir: string | undefined): string | null 
   return null;
 }
 
+const nodeBinary = (): string => (process.versions.bun ? (Bun.which("node") ?? process.execPath) : process.execPath);
+
 const browserEnv = (browsersPath: string | undefined): NodeJS.ProcessEnv | undefined =>
   browsersPath ? { ...process.env, PLAYWRIGHT_BROWSERS_PATH: browsersPath } : undefined;
 
@@ -90,6 +92,7 @@ export type BrowserTransportOptions = {
   cliPath?: string;
   userDataDir?: string;
   browsersPath?: string;
+  endpoint?: () => Promise<string | undefined>;
 };
 
 type RpcMessage = {
@@ -114,7 +117,7 @@ type LiveChild = {
 
 export class PlaywrightMcpTransport {
   private readonly spawnProcess: SpawnBrowserProcess;
-  private readonly options: Required<Omit<BrowserTransportOptions, "spawn" | "cliPath" | "userDataDir" | "browsersPath">> & { cliPath?: string; userDataDir?: string; browsersPath?: string };
+  private readonly options: Required<Omit<BrowserTransportOptions, "spawn" | "cliPath" | "userDataDir" | "browsersPath" | "endpoint">> & { cliPath?: string; userDataDir?: string; browsersPath?: string; endpoint?: () => Promise<string | undefined> };
   private child: LiveChild | null = null;
   private starting: Promise<void> | null = null;
   private nextId = 1;
@@ -134,6 +137,7 @@ export class PlaywrightMcpTransport {
       ...(options.cliPath ? { cliPath: options.cliPath } : {}),
       ...(options.userDataDir ? { userDataDir: options.userDataDir } : {}),
       ...(options.browsersPath ? { browsersPath: options.browsersPath } : {}),
+      ...(options.endpoint ? { endpoint: options.endpoint } : {}),
     };
   }
 
@@ -162,24 +166,14 @@ export class PlaywrightMcpTransport {
     return this.starting;
   }
 
-  private launch(): Promise<void> {
+  private async launch(): Promise<void> {
     const cli = this.options.cliPath ?? resolvePlaywrightMcpCli();
-    const args = [
-      cli,
-      "--headless",
-      "--caps",
-      "vision",
-      ...(this.options.userDataDir ? ["--user-data-dir", this.options.userDataDir] : ["--isolated"]),
-      "--browser",
-      this.options.browser,
-      "--output-mode",
-      "stdout",
-      "--image-responses",
-      "allow",
-      "--viewport-size",
-      this.options.viewportSize,
-    ];
-    return this.launchInner(process.execPath, args, browserEnv(this.options.browsersPath));
+    const endpoint = await this.options.endpoint?.();
+    const own = endpoint
+      ? ["--cdp-endpoint", endpoint]
+      : ["--headless", ...(this.options.userDataDir ? ["--user-data-dir", this.options.userDataDir] : ["--isolated"]), "--browser", this.options.browser, "--viewport-size", this.options.viewportSize];
+    const args = [cli, ...own, "--caps", "vision", "--output-mode", "stdout", "--image-responses", "allow"];
+    return this.launchInner(nodeBinary(), args, browserEnv(this.options.browsersPath));
   }
 
   private async launchInner(command: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<void> {

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { discoverEngine } from "@telar/engine-client/node";
 import { engineRootFor } from "@telar/engine/headless";
+import { parseDuration, parseScopes } from "./auth";
 import { runCli } from "./cli";
 import { runChecks } from "./doctor";
 import { DEFAULT_PORT } from "./link";
@@ -96,6 +97,51 @@ test("pair prints a fragment-only link and returns when a device pairs", async (
   expect(text).not.toContain(discovery.token);
   const state = (await (await fetch(`http://127.0.0.1:${discovery.port}/v2/remote`, { headers: { authorization: `Bearer ${discovery.token}` } })).json()) as { devices: { name: string }[] };
   expect(state.devices.map((device) => device.name)).toEqual(["Kitchen iPad"]);
+});
+
+async function pairDevice(scopes: string, expires: string, name: string): Promise<void> {
+  const { lines, io } = capture();
+  const done = pair({ home, tailscale: false, pollMs: 25, scopes: parseScopes(scopes), expiresInMs: parseDuration(expires) }, io);
+  let link: string | undefined;
+  while (!(link = lines.join("\n").match(/Link: (\S+)/)?.[1])) await Bun.sleep(10);
+  const url = new URL(link);
+  const code = new URLSearchParams(url.hash.slice(1)).get("token")!;
+  await fetch(`${url.origin}/v2/remote/pair`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code, name }) });
+  expect(await done).toBe(0);
+  expect(lines.join("\n")).toContain(`Access: ${scopes.split(",").join(", ")}`);
+}
+
+test("auth session lists scoped sessions and revokes them", async () => {
+  await pairDevice("read", "2h", "Wall display");
+  await pairDevice("read,write", "7d", "Laptop");
+
+  const listed = capture();
+  expect(await runCli(["auth", "session", "list", "--home", home], listed.io)).toBe(0);
+  const wall = listed.lines.find((line) => line.includes("Wall display"))!;
+  expect(wall).toMatch(/\sread\s/);
+  expect(wall).toContain("expires 20");
+  expect(listed.lines.find((line) => line.includes("Laptop"))).toContain("read,write");
+
+  const id = wall.split("  ")[0]!;
+  expect(await runCli(["auth", "session", "revoke", id, "--home", home], capture().io)).toBe(0);
+  const after = capture();
+  await runCli(["auth", "session", "list", "--home", home], after.io);
+  expect(after.lines.join("\n")).not.toContain("Wall display");
+
+  const keep = after.lines.find((line) => line.includes("Laptop"))!.split("  ")[0]!;
+  const all = capture();
+  expect(await runCli(["auth", "session", "revoke", "--all-others", "--keep", keep, "--home", home], all.io)).toBe(0);
+  expect(all.lines.join("\n")).toContain("Revoked");
+  const last = capture();
+  await runCli(["auth", "session", "list", "--home", home], last.io);
+  expect(last.lines).toHaveLength(1);
+  expect(last.lines[0]).toContain("Laptop");
+});
+
+test("auth and pair reject bad scopes, durations and missing ids", async () => {
+  for (const argv of [["pair", "--scopes", "root"], ["pair", "--expires", "soon"], ["auth", "session", "revoke"], ["auth", "device"]]) {
+    expect(await runCli([...argv, "--home", home], capture().io)).toBe(2);
+  }
 });
 
 test("doctor reports each check against the running engine", async () => {

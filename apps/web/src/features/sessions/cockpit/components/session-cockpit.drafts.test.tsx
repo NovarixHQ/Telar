@@ -62,7 +62,7 @@ function wire({ opening = {}, create }: { opening?: Opening; create?: (id: strin
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
     calls.push({ method, url, body, pathname: window.location.pathname });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
-    if (method === "POST" && url.endsWith("/api/engine/v2/projects/project_1/sessions")) {
+    if (method === "POST" && url.endsWith("/api/engine/v2/sessions")) {
       await create?.(body.id);
       return Response.json({ session: record(body.id) });
     }
@@ -134,7 +134,7 @@ describe("the first message of a new conversation", () => {
     await type(host, "hello there");
     await send(host);
     await settle();
-    const created = calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/projects/project_1/sessions"));
+    const created = calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/sessions") && (call.body as { projectId?: string } | undefined)?.projectId === "project_1");
     expect(created).toBeDefined();
     const id = (created!.body as { id: string }).id;
     expect(id).toMatch(/^session_[0-9a-f]{32}$/);

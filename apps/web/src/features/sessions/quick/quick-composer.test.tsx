@@ -175,7 +175,7 @@ async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEvent
   await flush();
 }
 
-const created = () => calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/projects/project_1/sessions"))?.body as { id: string };
+const created = () => calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/sessions") && (call.body as { projectId?: string } | undefined)?.projectId === "project_1")?.body as { id: string };
 
 describe("the quick composer", () => {
   test("Enter starts a session in the project and hands it back without opening Telar", async () => {
@@ -493,7 +493,7 @@ describe("the # destination picker", () => {
     await press(host, "Enter", { altKey: true });
     expect(host.querySelector('[data-slot="quick-destination"]')?.textContent).toContain("exoplanets· new worktree");
     await typeAndPress(host, "Fix the CI build");
-    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/projects/project_2/sessions"))?.body).toMatchObject({ envMode: "worktree" });
+    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/sessions") && (call.body as { projectId?: string } | undefined)?.projectId === "project_2")?.body).toMatchObject({ envMode: "worktree" });
     expect(sent[0]?.detail).toBe("exoplanets");
   });
 
@@ -734,8 +734,8 @@ describe("the strip of conversations that need you", () => {
     const mini = [...host.querySelectorAll('[role="option"]')].find((row) => row.textContent?.includes("New session in exoplanets · Mini"))!;
     await act(async () => void mini.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
     await typeAndPress(host, "Fix CI on the Mini");
-    const created = calls.find((call) => call.method === "POST" && /\/sessions$/.test(call.url) && call.url.includes("projects/project_9"));
-    expect(created?.url).toBe("/api/engine/v2/hosts/host_b/api/projects/project_9/sessions");
+    const created = calls.find((call) => call.method === "POST" && /\/sessions$/.test(call.url) && (call.body as { projectId?: string } | undefined)?.projectId === "project_9");
+    expect(created?.url).toBe("/api/engine/v2/hosts/host_b/api/engine/v2/sessions");
     expect(sent[0]?.route).toMatch(/^\/hosts\/host_b\/projects\/project_9\/sessions\//);
   });
 

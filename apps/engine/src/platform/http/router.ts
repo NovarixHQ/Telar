@@ -11,6 +11,7 @@ type RouterOptions = {
   /** What an unmatched request gets; by default an authenticated 404. */
   fallback?(request: http.IncomingMessage, response: http.ServerResponse, url: URL): Promise<void>;
   observe?<T>(operation: string, section: () => T): T;
+  staticFiles?(request: http.IncomingMessage, response: http.ServerResponse, pathname: string): boolean;
 };
 
 /** Exact paths win over patterns, whatever the order; patterns are tried in declaration order. */
@@ -38,7 +39,10 @@ export function router(routes: readonly Route[], options: RouterOptions): http.R
       if (!hostIsAllowed(request.headers.host, options.hostNames)) throw new HttpError(421, "invalid_request", "this engine answers only to this machine's own host names", true);
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
       const matched = matchRoute(routes, request.method ?? "GET", url.pathname);
-      if (!matched) return await fallback(request, response, url);
+      if (!matched) {
+        if (options.staticFiles?.(request, response, url.pathname)) return;
+        return await fallback(request, response, url);
+      }
       options.authorize(matched.route.auth, request);
       const parsed = request.method === "GET" || matched.route.body === "raw" ? {} : await body(request);
       const handle = () => matched.route.handle({ body: parsed, params: matched.params, query: url.searchParams, request, response });

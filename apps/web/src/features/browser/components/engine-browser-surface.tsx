@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
-import { ArrowLeftIcon, ArrowRightIcon, GlobeIcon, PlusIcon, RotateCwIcon, XIcon } from "lucide-react";
+import { GlobeIcon } from "lucide-react";
 import type { BrowserInput } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher, LOCAL_HOST_ID } from "@/platform/engine/host-client";
 import { Spinner } from "@/ui/spinner";
-import { cn } from "@/ui/utils";
+import { EngineBrowserChrome } from "./engine-browser-chrome";
 import { addressToUrl, keyInput, mouseInput, pagePoint } from "../engine-browser-input";
 import { useEngineBrowser } from "../hooks/use-engine-browser";
 
@@ -101,43 +101,9 @@ export function EngineBrowserSurface({ sessionId, hostId = LOCAL_HOST_ID }: { se
       </div>
     );
   }
-  const tool = "grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground";
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div role="tablist" aria-label="Browser tabs" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 py-1">
-        {tabs.map((tab) => (
-          <div key={tab.id} className={cn("flex max-w-40 shrink-0 items-center rounded-md text-2xs", tab.active ? "bg-muted text-foreground" : "text-muted-foreground")}>
-            <button type="button" role="tab" aria-selected={tab.active} className="min-w-0 truncate px-2 py-1" onClick={() => send({ type: "tab", action: "select", tabId: tab.id })}>
-              {tab.title || tab.url || "New tab"}
-            </button>
-            <button type="button" aria-label={`Close ${tab.title || tab.url || "tab"}`} className="grid size-5 shrink-0 place-items-center rounded hover:bg-background" onClick={() => send({ type: "tab", action: "close", tabId: tab.id })}>
-              <XIcon className="size-3" />
-            </button>
-          </div>
-        ))}
-        <button type="button" aria-label="New tab" className={tool} onClick={() => send({ type: "tab", action: "new" })}>
-          <PlusIcon className="size-3.5" />
-        </button>
-      </div>
-      <form onSubmit={go} className="flex shrink-0 items-center gap-1 border-b border-border px-2 py-1">
-        <button type="button" aria-label="Back" className={tool} onClick={() => send({ type: "history", action: "back" })}>
-          <ArrowLeftIcon className="size-3.5" />
-        </button>
-        <button type="button" aria-label="Forward" className={tool} onClick={() => send({ type: "history", action: "forward" })}>
-          <ArrowRightIcon className="size-3.5" />
-        </button>
-        <button type="button" aria-label="Reload" className={tool} onClick={() => send({ type: "history", action: "reload" })}>
-          <RotateCwIcon className="size-3.5" />
-        </button>
-        <input
-          aria-label="Address"
-          value={address ?? active?.url ?? ""}
-          onChange={(event) => setAddress(event.target.value)}
-          onBlur={() => setAddress(undefined)}
-          spellCheck={false}
-          className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1 font-mono text-2xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
-      </form>
+      <EngineBrowserChrome tabs={tabs} address={address ?? active?.url ?? ""} onAddress={setAddress} onSubmit={go} send={send} />
       <div ref={viewport} className="relative min-h-0 flex-1 overflow-hidden bg-muted/40">
         {frame ? (
           // eslint-disable-next-line @next/next/no-img-element -- a screencast frame as a data URL; there is nothing for next/image to optimise

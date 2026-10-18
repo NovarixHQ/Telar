@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { browserStreamPath, BrowserStreamEvent, type BrowserTab } from "@telar/engine-client";
-import { cockpitPath } from "@/platform/engine/cockpit-path";
 import { readEventStream } from "@/platform/engine/event-stream";
 import { hostFetcher } from "@/platform/engine/host-client";
 
@@ -26,7 +25,7 @@ export function useEngineBrowser(hostId: string, sessionId: string): EngineBrows
       let delay = 1_000;
       while (!signal.aborted) {
         try {
-          const response = await hostFetcher(hostId)(cockpitPath(browserStreamPath(sessionId)), { signal, headers: { accept: "text/event-stream" } });
+          const response = await hostFetcher(hostId)(browserStreamPath(sessionId), { signal, headers: { accept: "text/event-stream" } });
           if (response.status >= 400 && response.status < 500) {
             const error = await refusal(response);
             if (!signal.aborted) setView((current) => ({ ...current, error }));

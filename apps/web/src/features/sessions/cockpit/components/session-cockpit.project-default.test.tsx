@@ -40,13 +40,13 @@ const realFetch = globalThis.fetch;
 function wire(defaultModel?: ModelSelection, extra: { envMode?: "local" | "worktree"; sessionDefaults?: Record<string, unknown> } = {}) {
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.includes("/api/engine/v2/projects")) {
+    if (url.includes("/v2/projects")) {
       return Response.json({
         projects: [{ id: "project_1", name: "exoplanets", root: "/tmp", ...(defaultModel ? { defaultModel } : {}), ...(extra.envMode ? { envMode: extra.envMode } : {}) }],
       });
     }
-    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local", ...extra.sessionDefaults } });
-    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { driver: "claude", instanceId: "claude", readAt: 1, models: MODELS } });
+    if (url.includes("/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local", ...extra.sessionDefaults } });
+    if (url.includes("/v2/models")) return Response.json({ catalogue: { driver: "claude", instanceId: "claude", readAt: 1, models: MODELS } });
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
     return Response.json({});
   }) as typeof fetch;

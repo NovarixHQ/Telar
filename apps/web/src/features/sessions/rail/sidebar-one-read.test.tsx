@@ -15,7 +15,7 @@ describe("a rail's pass is one read per host", () => {
     await mountRail();
     const before = requests.length;
     await nextPass();
-    expect(requests.slice(before).map((request) => request.path).sort()).toEqual(["/api/engine/v2/hosts", "/api/engine/v2/hosts/mini/api/sessions/live", "/api/engine/v2/sessions/live"]);
+    expect(requests.slice(before).map((request) => request.path).sort()).toEqual(["/v2/hosts", "/v2/hosts/mini/api/sessions/live", "/v2/sessions/live"]);
   });
 
   test("the settling window rides the list and bands that Mac's rows", async () => {
@@ -83,8 +83,8 @@ describe("and that one read is conditional", () => {
     await mountRail();
     await nextPass();
     const second = liveReads(requests).slice(2);
-    expect(second.find((request) => request.path === "/api/engine/v2/sessions/live")!.ifNoneMatch).toBe("local-tag");
-    expect(second.find((request) => request.path === "/api/engine/v2/hosts/mini/api/sessions/live")!.ifNoneMatch).toBe("mini-tag");
+    expect(second.find((request) => request.path === "/v2/sessions/live")!.ifNoneMatch).toBe("local-tag");
+    expect(second.find((request) => request.path === "/v2/hosts/mini/api/sessions/live")!.ifNoneMatch).toBe("mini-tag");
   });
 
   test("opening the Settled shelf reads the shelf beside the list", async () => {

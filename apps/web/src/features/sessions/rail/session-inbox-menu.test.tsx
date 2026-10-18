@@ -15,7 +15,7 @@ const dialog = () => document.querySelector<HTMLElement>('[role="alertdialog"]')
 const button = (label: string) => [...document.querySelectorAll<HTMLElement>("button, [role^='menuitem']")].find((node) => node.textContent === label);
 
 async function chooseDelete(session: SidebarSession) {
-  const calls = stubFetch({ "DELETE /api/engine/v2/sessions/s1": () => ({ deleted: true }) });
+  const calls = stubFetch({ "DELETE /v2/sessions/s1": () => ({ deleted: true }) });
   const changes: SessionRowChange[] = [];
   const { host } = await mount(<SessionInboxMenu session={session} now={0} onRowChanged={(change) => changes.push(change)} />);
   await press(host.querySelector('[aria-label="Session actions"]')!);
@@ -51,6 +51,6 @@ test("Delete removes the session once and drops its row", async () => {
   const { calls, changes } = await chooseDelete(row());
   await click(button("Delete"));
   await flush(() => calls.length > 0 && !dialog());
-  expect(calls.map((call) => call.route)).toEqual(["DELETE /api/engine/v2/sessions/s1"]);
+  expect(calls.map((call) => call.route)).toEqual(["DELETE /v2/sessions/s1"]);
   expect(changes.some((change) => "removed" in change)).toBe(true);
 });

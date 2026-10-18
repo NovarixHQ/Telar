@@ -11,7 +11,7 @@ function stubLayout(mode?: "grouped" | "flat") {
   stubRail(() => ({ body: { projects: [project("p1", "One"), project("p2", "Two")], sessions: [liveRow("a"), liveRow("b", { projectId: "p2" })] } }));
   const railFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (new URL(String(input), "http://localhost").pathname !== "/api/engine/v2/sidebar-layout") return railFetch(input, init);
+    if (new URL(String(input), "http://localhost").pathname !== "/v2/sidebar-layout") return railFetch(input, init);
     if (init?.method === "PATCH") {
       const patch = JSON.parse(String(init.body));
       patches.push(patch);

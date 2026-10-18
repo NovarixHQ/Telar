@@ -1,12 +1,11 @@
 // Run refusals are EngineApiError; `conflict` means the terminal host is
 // unreachable or the terminal has already ended.
 
-import { cockpitPath } from "@/platform/engine/cockpit-path";
 import { domainMethods, type RunConfigurationDraft } from "@telar/engine-client";
 import { pathnameFetcher, type Fetcher } from "@/platform/engine/host-client";
 import { apiTransport } from "@/platform/engine/transport";
 
-/** `/api/engine/v2/sessions/:id/run/…` — the run door is session-scoped because the
+/** `/v2/sessions/:id/run/…` — the run door is session-scoped because the
  *  project and the worktree are things the daemon knows about the session, not
  *  things a client should be able to name. */
 export function runPath(sessionId: string, tail: string, query?: Record<string, string | number | undefined>): string {
@@ -15,7 +14,7 @@ export function runPath(sessionId: string, tail: string, query?: Record<string, 
     if (value !== undefined) search.set(key, String(value));
   }
   const suffix = search.size ? `?${search.toString()}` : "";
-  return cockpitPath(`/v2/sessions/${encodeURIComponent(sessionId)}/run${tail}${suffix}`);
+  return `/v2/sessions/${encodeURIComponent(sessionId)}/run${tail}${suffix}`;
 }
 
 /** The contract's terminal methods over the host hop. Unbudgeted: a live terminal's polls must not queue behind other reads. */

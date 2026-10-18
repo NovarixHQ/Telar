@@ -185,7 +185,7 @@ describe("a row near the viewport", () => {
     expect(warmedRows()).toEqual(["session_1"]);
     // …and it paid its own `/bootstrap`, which is the read the click would
     // otherwise have waited for.
-    expect(fetched.some((url) => url.includes("/api/engine/v2/sessions/session_1/bootstrap"))).toBe(true);
+    expect(fetched.some((url) => url.includes("/v2/sessions/session_1/bootstrap"))).toBe(true);
 
     await act(async () => watchers[0]!.fire(false));
     expect(asked.at(-1)).toBe(false);
@@ -213,7 +213,7 @@ describe("a row you are pointing at", () => {
     await rest(120);
     expect(warmedRows()).toEqual(["session_hover"]);
     expect(asked.at(-1)).toBe(true);
-    expect(fetched.some((url) => url.includes("/api/engine/v2/sessions/session_hover/bootstrap"))).toBe(true);
+    expect(fetched.some((url) => url.includes("/v2/sessions/session_hover/bootstrap"))).toBe(true);
   });
 
   test("leaving before the pause elapses cancels it", async () => {

@@ -59,29 +59,29 @@ const button = (text: string) => [...document.querySelectorAll("button")].find((
 const press = (el: Element) => act(async () => void (el as HTMLElement).click());
 
 test("with no diagnosis yet, the chosen model starts one and the card shows it running", async () => {
-  await mount({ "POST /api/engine/v2/usage/diagnosis": base });
+  await mount({ "POST /v2/usage/diagnosis": base });
   expect(document.body.textContent).toContain("explains what drives it");
 
   await press(button("Haiku"));
   await press(button("Diagnose usage"));
 
-  expect(calls.find((call) => call.method === "POST")).toMatchObject({ url: "/api/engine/v2/usage/diagnosis", body: { model: "haiku", effort: "medium" } });
+  expect(calls.find((call) => call.method === "POST")).toMatchObject({ url: "/v2/usage/diagnosis", body: { model: "haiku", effort: "medium" } });
   expect(document.querySelector('[role="status"]')?.textContent).toContain("Diagnosing with sonnet · medium");
   expect(button("Diagnose usage")).toBeUndefined();
 });
 
 test("a running diagnosis can be stopped", async () => {
-  await mount({ "GET /api/engine/v2/usage/diagnosis": base, "POST /api/engine/v2/usage/diagnosis/stop": { ...base, state: "failed", error: "The diagnosis was stopped." } });
+  await mount({ "GET /v2/usage/diagnosis": base, "POST /v2/usage/diagnosis/stop": { ...base, state: "failed", error: "The diagnosis was stopped." } });
 
   await press(button("Stop"));
 
-  expect(calls.at(-1)).toMatchObject({ method: "POST", url: "/api/engine/v2/usage/diagnosis/stop" });
+  expect(calls.at(-1)).toMatchObject({ method: "POST", url: "/v2/usage/diagnosis/stop" });
   expect(document.body.textContent).toContain("The diagnosis was stopped.");
   expect(button("Run again")).toBeDefined();
 });
 
 test("a ready report shows its figures, the local session name and each finding's fix", async () => {
-  await mount({ "GET /api/engine/v2/usage/diagnosis": ready });
+  await mount({ "GET /v2/usage/diagnosis": ready });
 
   const text = document.body.textContent ?? "";
   expect(text).toContain("Most tokens are cache reads in one long session.");
@@ -97,7 +97,7 @@ test("a ready report shows its figures, the local session name and each finding'
 });
 
 test("a fallback report says it came from the engine's own checks", async () => {
-  await mount({ "GET /api/engine/v2/usage/diagnosis": { ...ready, fallback: true } });
+  await mount({ "GET /v2/usage/diagnosis": { ...ready, fallback: true } });
 
   expect(document.body.textContent).toContain("this report comes from the engine's own checks");
 });
@@ -109,7 +109,7 @@ test("the logs' usage shows by bucket and folder, and says when this Telar holds
     projects: [{ id: "p2", bucket: "telar" as const, tokens: 900_000, costUsd: 0, models: {} }],
     models: [{ model: "claude-opus-5[1m]", tokens: 900_000, costUsd: 0 }],
   };
-  await mount({ "GET /api/engine/v2/usage/diagnosis": { ...ready, logs, names: { ...ready.names, p2: "acme-1234" } } });
+  await mount({ "GET /v2/usage/diagnosis": { ...ready, logs, names: { ...ready.names, p2: "acme-1234" } } });
 
   const section = document.querySelector('[aria-label="Claude logs"]')!.textContent!;
   expect(section).toContain("Telar, elsewhere900K · 90.0%");

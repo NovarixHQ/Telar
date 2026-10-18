@@ -22,7 +22,7 @@ const CURSOR_MODELS = [
 
 function serve(models: ProviderModel[]) {
   const catalogue: ModelCatalogue = { driver: "cursor", instanceId: "cursor", models, source: "provider", readAt: 0 };
-  stubFetch({ "GET /api/engine/v2/models": () => ({ catalogue }) });
+  stubFetch({ "GET /v2/models": () => ({ catalogue }) });
 }
 
 function Box({ usage }: { usage?: UsageSnapshot }) {

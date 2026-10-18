@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { parsePluginEventFrame, type PluginEventFrame } from "@telar/engine-client";
 import { readEventStream } from "./event-stream";
-import { cockpitPath } from "./cockpit-path";
 import { hostFetcher } from "./host-client";
 
 export type SessionFrame = { sessionId: string; id: number; type: string };
@@ -29,7 +28,7 @@ async function follow(hostId: string, channel: Channel) {
   let delay = 1_000;
   while (!signal.aborted) {
     try {
-      const response = await hostFetcher(hostId)(cockpitPath("/v2/sessions/stream"), { signal, headers: { accept: "text/event-stream" } });
+      const response = await hostFetcher(hostId)("/v2/sessions/stream", { signal, headers: { accept: "text/event-stream" } });
       const body = response.ok && response.headers.get("content-type")?.includes("text/event-stream") ? response.body : null;
       if (!body && (response.ok || response.status === 404)) return;
       if (!body) throw new Error(`sessions stream ${response.status}`);

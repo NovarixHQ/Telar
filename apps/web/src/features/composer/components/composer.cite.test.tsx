@@ -53,7 +53,7 @@ const found = () => ({
 });
 
 async function composer() {
-  const calls = stubFetch({ "GET /api/engine/v2/projects/project_a/files": files, "GET /api/engine/v2/sessions/live": live, "GET /api/engine/v2/sessions/find": found });
+  const calls = stubFetch({ "GET /v2/projects/project_a/files": files, "GET /v2/sessions/live": live, "GET /v2/sessions/find": found });
   const { host } = await mount(<Box />);
   await flush();
   const editor = host.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
@@ -119,7 +119,7 @@ describe("searching settled sessions from @", () => {
 
     act(() => void activeComposer()!.replace(1, 1, "orch"));
     await flush(() => rows(host).some((row) => row.includes("settled sessions")));
-    expect(calls.some((call) => call.route === "GET /api/engine/v2/sessions/find")).toBe(false);
+    expect(calls.some((call) => call.route === "GET /v2/sessions/find")).toBe(false);
   });
 
   test("choosing the row lists settled matches newest first, and picking one inserts a session reference", async () => {

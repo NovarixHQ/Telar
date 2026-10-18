@@ -95,7 +95,7 @@ test("Start boots the simulator and opens it in a tab that streams from the hub 
   expect(calls[0]).toEqual(["bootSimulator", "A1B2"]);
   expect([...host.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent)).toEqual(["iPhone 16", ""]);
   await flush(() => Boolean(host.querySelector("img")));
-  expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/engine/v2/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg?ticket=stk_1");
+  expect(host.querySelector("img")?.getAttribute("src")).toBe("/v2/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg?ticket=stk_1");
 });
 
 test("the toolbar sends Home and Rotate as input, each Rotate turns one step further, and Power off shuts the simulator down and closes its tab", async () => {
@@ -164,7 +164,7 @@ test("a watch paired with an iPhone shows under it, and opens to a stream of its
   expect(button("Home")).toBeNull();
   expect(button("Rotate")).toBeNull();
   await flush(() => Boolean(host.querySelector("img")));
-  expect(host.querySelector("img")?.getAttribute("src")).toBe("/api/engine/v2/simulators/hub/vendor/serve-sim/helper/W1/stream.mjpeg?ticket=stk_1");
+  expect(host.querySelector("img")?.getAttribute("src")).toBe("/v2/simulators/hub/vendor/serve-sim/helper/W1/stream.mjpeg?ticket=stk_1");
 });
 
 test("on a watch, scrolling turns the crown, the toolbar presses the crown and side button, and the screen says touch doesn't reach it", async () => {

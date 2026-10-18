@@ -7,8 +7,8 @@ test("two listeners on one session share one connection and both get every frame
   const hub = createStatusHub(followRunStatus({ fetch: upstream.fetch }));
   const header = recorder();
   const strip = recorder();
-  hub.subscribe("/api/engine/v2/sessions/s/run/stream", header.listener);
-  hub.subscribe("/api/engine/v2/sessions/s/run/stream", strip.listener);
+  hub.subscribe("/v2/sessions/s/run/stream", header.listener);
+  hub.subscribe("/v2/sessions/s/run/stream", strip.listener);
   await header.until(1);
   await strip.until(1);
 

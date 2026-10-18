@@ -16,7 +16,6 @@ TurnSubmissionResult,PluginStatus,
 ProjectPlugins
 } from "@telar/engine-client";
 import { snapshotQuery } from "@telar/engine-client";
-import { cockpitPath } from "./cockpit-path";
 import { EngineApiError, opens, request, requestIfChanged, type EngineApiErrorCode } from "./transport";
 import type { Fetcher } from "./host-client";
 import type { LiveSessionsPage } from "./client";
@@ -171,7 +170,7 @@ export function turnCalls(fetcher: Fetcher) {
     uploadAttachment: async (sessionId: string, file: File): Promise<{ attachment: TurnAttachment }> => {
       let response: Response;
       try {
-        response = await fetcher(cockpitPath(`/v2/sessions/${encodeURIComponent(sessionId)}/attachments`, "POST"), {
+        response = await fetcher(`/v2/sessions/${encodeURIComponent(sessionId)}/attachments`, {
           method: "POST",
           headers: {
             "content-type": file.type || "application/octet-stream",

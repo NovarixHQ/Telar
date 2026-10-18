@@ -22,9 +22,9 @@ async function type(label: string, value: string) {
 test("saving a URL shows where it posts and offers the secret and a test", async () => {
   let saved: WebhookStatus = { configured: false, hasSecret: false };
   const calls = stubFetch({
-    "GET /api/engine/v2/push/webhook": () => saved,
-    "PUT /api/engine/v2/push/webhook": () => (saved = { configured: true, target: "https://hooks.example.com/…", hasSecret: false }),
-    "POST /api/engine/v2/push/webhook/test": () => ({ status: 204 }),
+    "GET /v2/push/webhook": () => saved,
+    "PUT /v2/push/webhook": () => (saved = { configured: true, target: "https://hooks.example.com/…", hasSecret: false }),
+    "POST /v2/push/webhook/test": () => ({ status: 204 }),
   });
   const { host } = await mount(<WebhookGroup />);
   await flush(() => !(host.querySelector('input[aria-label="Webhook URL"]') as HTMLInputElement | null)?.disabled);
@@ -32,7 +32,7 @@ test("saving a URL shows where it posts and offers the secret and a test", async
 
   await type("Webhook URL", "https://hooks.example.com/telar");
   await click(buttonLabelled("Save", host));
-  expect(calls.find((call) => call.route === "PUT /api/engine/v2/push/webhook")?.body).toEqual({ url: "https://hooks.example.com/telar" });
+  expect(calls.find((call) => call.route === "PUT /v2/push/webhook")?.body).toEqual({ url: "https://hooks.example.com/telar" });
   await flush(() => Boolean(host.textContent?.includes("https://hooks.example.com/…")));
   expect(host.querySelector('input[aria-label="Webhook secret"]')).not.toBeNull();
 
@@ -43,15 +43,15 @@ test("saving a URL shows where it posts and offers the secret and a test", async
 
 test("a secret is saved on its own, without resending the URL", async () => {
   const calls = stubFetch({
-    "GET /api/engine/v2/push/webhook": () => ({ configured: true, target: "https://hooks.example.com/…", hasSecret: false }),
-    "PUT /api/engine/v2/push/webhook": () => ({ configured: true, target: "https://hooks.example.com/…", hasSecret: true }),
+    "GET /v2/push/webhook": () => ({ configured: true, target: "https://hooks.example.com/…", hasSecret: false }),
+    "PUT /v2/push/webhook": () => ({ configured: true, target: "https://hooks.example.com/…", hasSecret: true }),
   });
   const { host } = await mount(<WebhookGroup />);
   await flush(() => host.querySelector('input[aria-label="Webhook secret"]') !== null);
   await type("Webhook secret", "s3cret");
   const saves = () => [...host.querySelectorAll("button")].filter((node) => node.textContent?.trim() === "Save");
   await click(saves().at(-1));
-  expect(calls.find((call) => call.route === "PUT /api/engine/v2/push/webhook")?.body).toEqual({ secret: "s3cret" });
+  expect(calls.find((call) => call.route === "PUT /v2/push/webhook")?.body).toEqual({ secret: "s3cret" });
   await flush(() => (host.querySelector('input[aria-label="Webhook secret"]') as HTMLInputElement).placeholder === "A secret is saved");
   expect((host.querySelector('input[aria-label="Webhook secret"]') as HTMLInputElement).value).toBe("");
 });

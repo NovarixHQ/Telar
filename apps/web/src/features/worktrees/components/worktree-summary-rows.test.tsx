@@ -58,8 +58,8 @@ beforeEach(() => {
     const method = init?.method ?? "GET";
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ url, method, body });
-    if (url.startsWith("/api/engine/v2/worktrees/summary")) return Response.json({ summary });
-    if (url === "/api/engine/v2/worktrees-root/move") {
+    if (url.startsWith("/v2/worktrees/summary")) return Response.json({ summary });
+    if (url === "/v2/worktrees-root/move") {
       return Response.json({
         move: {
           moved: Array.from({ length: 143 }, (_, index) => ({ sessionId: `s${index}`, from: "/a", to: "/b" })),
@@ -71,8 +71,8 @@ beforeEach(() => {
         },
       });
     }
-    if (url === "/api/engine/v2/worktrees/reclaim") return Response.json({ reclaim: { results: [], summary: "Released 97 checkouts." } });
-    if (url === "/api/engine/v2/worktrees") return Response.json({ inventory: INVENTORY });
+    if (url === "/v2/worktrees/reclaim") return Response.json({ reclaim: { results: [], summary: "Released 97 checkouts." } });
+    if (url === "/v2/worktrees") return Response.json({ inventory: INVENTORY });
     return Response.json({});
   }) as typeof fetch;
 });
@@ -143,10 +143,10 @@ describe("Settings ▸ Storage ▸ where worktrees live", () => {
     await view.click(view.button("Move 143 worktrees · 38 GB to Taller")!);
     expect(view.text()).toContain("Move 143 worktrees from /Volumes/Focaltec HD/live/Telar to /Volumes/Taller/worktrees?");
     expect(view.text()).toContain("7 will stay put: 5 have uncommitted changes, 1 has a turn running, 1 belongs to no session.");
-    expect(calls.some((call) => call.url === "/api/engine/v2/worktrees-root/move")).toBe(false);
+    expect(calls.some((call) => call.url === "/v2/worktrees-root/move")).toBe(false);
 
     await view.click(view.button("Move them")!);
-    expect(calls.find((call) => call.url === "/api/engine/v2/worktrees-root/move")?.body).toEqual({ from: "/Volumes/Focaltec HD/live/Telar" });
+    expect(calls.find((call) => call.url === "/v2/worktrees-root/move")?.body).toEqual({ from: "/Volumes/Focaltec HD/live/Telar" });
     expect(view.text()).toContain("Moved 143 · stayed 1 · failed 1");
     view.unmount();
   });
@@ -206,9 +206,9 @@ describe("Settings ▸ Storage ▸ worktrees by state", () => {
   test("releasing asks once more, then sends only the state", async () => {
     const view = await mount();
     await view.click(view.button("Release 97 worktrees · 24 GB")!);
-    expect(calls.some((call) => call.url === "/api/engine/v2/worktrees/reclaim")).toBe(false);
+    expect(calls.some((call) => call.url === "/v2/worktrees/reclaim")).toBe(false);
     await view.click(view.button("Confirm: Release 97 worktrees · 24 GB")!);
-    expect(calls.find((call) => call.url === "/api/engine/v2/worktrees/reclaim")?.body).toEqual({ state: "idle" });
+    expect(calls.find((call) => call.url === "/v2/worktrees/reclaim")?.body).toEqual({ state: "idle" });
     expect(view.text()).toContain("Released 97 checkouts.");
     view.unmount();
   });
@@ -217,7 +217,7 @@ describe("Settings ▸ Storage ▸ worktrees by state", () => {
 describe("the individual list", () => {
   test("is never on the page: it opens in a dialog, and only then is fetched", async () => {
     const view = await mount();
-    expect(calls.some((call) => call.url === "/api/engine/v2/worktrees")).toBe(false);
+    expect(calls.some((call) => call.url === "/v2/worktrees")).toBe(false);
     await view.click(view.button("Show all (158)")!);
     await act(async () => {
       await settle();
@@ -226,7 +226,7 @@ describe("the individual list", () => {
     expect(dialog?.textContent).toContain("All worktrees");
     expect(dialog?.querySelector('[aria-label="Search worktrees"]')).not.toBeNull();
     expect(view.host.contains(dialog)).toBe(false);
-    expect(calls.some((call) => call.url === "/api/engine/v2/worktrees")).toBe(true);
+    expect(calls.some((call) => call.url === "/v2/worktrees")).toBe(true);
     view.unmount();
   });
 });

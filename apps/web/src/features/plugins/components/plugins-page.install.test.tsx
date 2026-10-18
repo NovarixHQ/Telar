@@ -37,7 +37,7 @@ beforeEach(() => {
     const url = String(input);
     const method = init?.method ?? "GET";
     calls.push({ method, url, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
-    if (method === "POST" && url === "/api/engine/v2/plugins/installed") {
+    if (method === "POST" && url === "/v2/plugins/installed") {
       if (refuse) return json({ error: { code: "invalid_request", message: refuse } }, 400);
       plugins = [...plugins, { meta: meta("other", "Other"), state: "ready", installed: { linked: false } }];
       return json({ plugin: plugins.at(-1) });
@@ -46,7 +46,7 @@ beforeEach(() => {
       plugins = plugins.filter((status) => (status as { meta: { id: string } }).meta.id !== "echo");
       return json({ removed: true });
     }
-    if (url.includes("/api/engine/v2/plugins")) return json({ plugins, machine: { version: 1, entries: {} } });
+    if (url.includes("/v2/plugins")) return json({ plugins, machine: { version: 1, entries: {} } });
     return json({});
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void) => {
@@ -121,7 +121,7 @@ test("Remove asks first, and a declined confirm removes nothing", async () => {
   window.confirm = () => true;
   await act(async () => buttons(host, "Remove")[0]!.click());
   await flush();
-  expect(calls.find((call) => call.method === "DELETE")?.url).toBe("/api/engine/v2/plugins/installed/echo");
+  expect(calls.find((call) => call.method === "DELETE")?.url).toBe("/v2/plugins/installed/echo");
   expect(host.textContent).not.toContain("Echo");
   done();
 });

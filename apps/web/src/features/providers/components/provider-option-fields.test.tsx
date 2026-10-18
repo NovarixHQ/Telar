@@ -42,7 +42,7 @@ test("Show reads the login's windows and lists each one's use", async () => {
     { key: "secondary", label: "week", usedPercent: 18 },
   ];
   const { host, asked } = await pressShow(Response.json({ windows }));
-  expect(asked).toEqual(["/api/engine/v2/provider-instances/codex/limits"]);
+  expect(asked).toEqual(["/v2/provider-instances/codex/limits"]);
   expect(host.textContent).toContain("5 h: 42% · week: 18%");
   expect(host.textContent).toContain("Refresh");
 });

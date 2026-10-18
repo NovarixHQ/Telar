@@ -62,11 +62,11 @@ describe("the bridge to the engine's terminals", () => {
     await bridge.kill("term_1", "SIGINT");
 
     expect(calls.map((call) => call.path)).toEqual([
-      "/api/engine/v2/terminals/open",
-      "/api/engine/v2/terminals/term_1/resize",
-      "/api/engine/v2/terminals/term_1/close",
-      "/api/engine/v2/terminals/active",
-      "/api/engine/v2/terminals/term_1/kill",
+      "/v2/terminals/open",
+      "/v2/terminals/term_1/resize",
+      "/v2/terminals/term_1/close",
+      "/v2/terminals/active",
+      "/v2/terminals/term_1/kill",
     ]);
     expect(calls[0]!.body).toEqual({ cwd: "/work", cols: 100, rows: 30, sessionId: "s1" });
     expect(calls[3]!.body).toEqual({ ids: ["term_1"] });
@@ -121,7 +121,7 @@ describe("the bridge to the engine's terminals", () => {
 
     expect(chunks).toEqual([{ id: "term_1", data: "hello\r\n", cursor: 1 }]);
     expect(endings).toEqual([{ id: "term_1", fate: "exited", exitCode: 3 }]);
-    expect(live.calls).toEqual([{ path: "/api/engine/v2/terminals/term_1/stream", body: { after: 0 } }]);
+    expect(live.calls).toEqual([{ path: "/v2/terminals/term_1/stream", body: { after: 0 } }]);
   });
 
   test("a dropped stream is picked up again from the last cursor", async () => {

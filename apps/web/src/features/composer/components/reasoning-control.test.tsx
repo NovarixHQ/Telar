@@ -40,7 +40,7 @@ beforeEach(() => {
   forgetModelCatalogues();
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.startsWith("/api/engine/v2/models")) {
+    if (url.startsWith("/v2/models")) {
       const catalogue: ModelCatalogue = { driver: "claude", instanceId: "claude", models: MODELS, source: "provider", readAt: 0 };
       return Response.json({ catalogue });
     }

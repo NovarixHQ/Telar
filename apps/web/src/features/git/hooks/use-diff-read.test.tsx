@@ -84,7 +84,7 @@ test("a folder whose status answers 304 is not diffed again", async () => {
     act(() => root!.render(<Reader onLoad={(load) => void loads.push(load)} />));
     await act(() => loads[0]!());
     await act(() => loads[0]!());
-    expect(asked).toEqual(["/api/engine/v2/sessions/session_1/git/status", "/api/engine/v2/sessions/session_1/diff", '/api/engine/v2/sessions/session_1/git/status "t1"']);
+    expect(asked).toEqual(["/v2/sessions/session_1/git/status", "/v2/sessions/session_1/diff", '/v2/sessions/session_1/git/status "t1"']);
   } finally {
     globalThis.fetch = realFetch;
   }

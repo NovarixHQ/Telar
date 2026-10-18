@@ -69,7 +69,7 @@ export function PairClient() {
   const pair = async (token: string, announce = true) => {
     if (announce) setState({ phase: "pairing" });
     try {
-      const response = await fetch("/api/pair", {
+      const response = await fetch("/v2/pair", {
         method: "POST",
         headers: { "content-type": "application/json" },
         // No deviceName: the server names a browser better from its request.

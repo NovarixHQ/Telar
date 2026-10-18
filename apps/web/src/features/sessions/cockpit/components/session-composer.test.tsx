@@ -58,14 +58,14 @@ function wire() {
     const url = String(input);
     const snapshot = (turns: unknown[], page: { before: string | null; more: boolean }) =>
       Response.json({ session: { id: "s_1", title: "Build", projectId: "project_1", state: "active", activity: "idle", createdAt: 1, updatedAt: 1, driver: "claude", workspace: { mode: "none" }, environmentId: "env", providerInstanceId: "claude", envMode: "local" }, turns, items: [], tasks: [], requests: [], cursor: 1, events: [], subscriptions: [], page });
-    if (url.includes("/api/engine/v2/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
+    if (url.includes("/v2/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
     if (url.includes("/delta")) return Response.json({}, { status: 404 });
     if (url.includes("/events")) return Response.json({ events: arrived, cursor: arrived.at(-1)?.id ?? 1, more: false });
     if (url.includes("before=")) {
       olderAsks += 1;
       return snapshot(older, { before: null, more: false });
     }
-    if (url.includes("/api/engine/v2/sessions/s_1")) return snapshot(recent, { before: older.length ? "run_3" : null, more: older.length > 0 });
+    if (url.includes("/v2/sessions/s_1")) return snapshot(recent, { before: older.length ? "run_3" : null, more: older.length > 0 });
     return Response.json({});
   }) as typeof fetch;
 }

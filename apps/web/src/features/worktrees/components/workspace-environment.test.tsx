@@ -86,8 +86,8 @@ describe("the uncommitted count", () => {
   const engine = (worktreeFiles: string[] | "gone") =>
     createEngineApi(async (url) => {
       const path = String(url);
-      if (path === "/api/engine/v2/projects/p1/git") return Response.json({ git: git({ dirtyFiles: 7 }) });
-      if (path === "/api/engine/v2/sessions/session_1/git/status") {
+      if (path === "/v2/projects/p1/git") return Response.json({ git: git({ dirtyFiles: 7 }) });
+      if (path === "/v2/sessions/session_1/git/status") {
         if (worktreeFiles === "gone") return Response.json({ error: { code: "not_found", message: "gone" } }, { status: 404 });
         return Response.json({ dirtyFiles: worktreeFiles.length });
       }
@@ -107,7 +107,7 @@ describe("the uncommitted count", () => {
     const asked: Array<string | undefined> = [];
     const conditional = createEngineApi(async (url, init) => {
       const path = String(url);
-      if (path === "/api/engine/v2/projects/p1/git") return Response.json({ git: git({ dirtyFiles: 7 }) });
+      if (path === "/v2/projects/p1/git") return Response.json({ git: git({ dirtyFiles: 7 }) });
       const tag = (init?.headers as Record<string, string> | undefined)?.["if-none-match"];
       asked.push(tag);
       if (tag === '"t1"') return new Response(null, { status: 304, headers: { etag: '"t1"' } });

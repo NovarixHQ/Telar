@@ -20,9 +20,9 @@ beforeEach(() => {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const { pathname } = new URL(String(input), "http://localhost");
     paths.push(pathname);
-    if (pathname === "/api/engine/v2/sessions/stream") return streaming ? stream.answer(init?.signal) : Response.json({}, { status: 404 });
-    if (pathname === "/api/engine/v2/hosts") return Response.json({ hosts: [] });
-    if (pathname === "/api/engine/v2/sessions/live") return Response.json({ projects: [project("p1", "One")], sessions: [liveRow("a")] });
+    if (pathname === "/v2/sessions/stream") return streaming ? stream.answer(init?.signal) : Response.json({}, { status: 404 });
+    if (pathname === "/v2/hosts") return Response.json({ hosts: [] });
+    if (pathname === "/v2/sessions/live") return Response.json({ projects: [project("p1", "One")], sessions: [liveRow("a")] });
     return Response.json({}, { status: 404 });
   }) as typeof fetch;
 });
@@ -42,7 +42,7 @@ async function elapse(ms: number) {
   }
 }
 
-const reads = () => paths.filter((path) => path !== "/api/engine/v2/sessions/stream").length;
+const reads = () => paths.filter((path) => path !== "/v2/sessions/stream").length;
 
 describe("an idle rail", () => {
   test.each([

@@ -1,4 +1,3 @@
-import { cockpitPath } from "@/platform/engine/cockpit-path";
 import { createEngineApi } from "@/platform/engine";
 import { hostFetcher, LOCAL_HOST_ID, rewriteApiPath } from "@/platform/engine/host-client";
 import { openSimulators } from "./tabs";
@@ -21,6 +20,6 @@ export function releaseSimulatorTab(api: Pick<SimulatorsApi, "showSessionSimulat
 export function hubUrl(path: string, options: { hostId?: string | undefined; ticket?: string | undefined; query?: Record<string, string> } = {}): string {
   const search = new URLSearchParams(options.query);
   if (options.ticket) search.set("ticket", options.ticket);
-  const pathname = rewriteApiPath(cockpitPath(`/v2/simulators/hub${path}`), options.hostId ?? LOCAL_HOST_ID);
+  const pathname = rewriteApiPath(`/v2/simulators/hub${path}`, options.hostId ?? LOCAL_HOST_ID);
   return search.size > 0 ? `${pathname}?${search}` : pathname;
 }

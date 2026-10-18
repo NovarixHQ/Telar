@@ -43,7 +43,7 @@ function serve(assets: (plugin: string, asset: string) => string | undefined, js
     const url = new URL(String(input), "http://localhost");
     const method = init?.method ?? "GET";
     calls.push({ method, url });
-    const asset = /^\/api\/engine\/v2\/plugin-assets\/([^/]+)\/(.+)$/.exec(url.pathname);
+    const asset = /^\/v2\/plugin-assets\/([^/]+)\/(.+)$/.exec(url.pathname);
     if (asset) {
       const text = assets(asset[1]!, decodeURIComponent(asset[2]!));
       return text === undefined ? Response.json({ error: { code: "not_found", message: "no asset" } }, { status: 404 }) : new Response(text, { headers: { "content-type": "text/html" } });
@@ -105,7 +105,7 @@ describe("an installed plugin's viewer works the same way", () => {
   async function opened() {
     setPluginStatuses([DATA_SCIENCE_STATUS, ECHO_STATUS]);
     const calls = serve((plugin, asset) => (plugin === "echo" ? ECHO_ASSETS[asset] : undefined), {
-      "GET /api/engine/v2/sessions/session_1/files": () => ({ file: { path: "logs/app.log", text: "booted", sha256: "x", binary: false, truncated: false } }),
+      "GET /v2/sessions/session_1/files": () => ({ file: { path: "logs/app.log", text: "booted", sha256: "x", binary: false, truncated: false } }),
     });
     const { host } = await mount(<PluginFileView path="logs/app.log" enabledPlugins={["echo"]} sessionId="session_1" fallback={<p>code view</p>} />);
     await flush(() => Boolean(frameOf(host)));
@@ -132,7 +132,7 @@ describe("an installed plugin's viewer works the same way", () => {
     const { calls, frame, nonce, posted } = await opened();
     await ask(frame, nonce, 7, { op: "read" });
     await flush(() => posted.some((message) => message.id === 7));
-    expect(calls.filter((call) => call.url.pathname === "/api/engine/v2/sessions/session_1/files").map((call) => call.url.searchParams.get("path"))).toEqual(["logs/app.log"]);
+    expect(calls.filter((call) => call.url.pathname === "/v2/sessions/session_1/files").map((call) => call.url.searchParams.get("path"))).toEqual(["logs/app.log"]);
     expect(posted.find((message) => message.id === 7)).toMatchObject({ type: "reply", ok: true, value: { text: "booted" } });
 
     await ask(frame, nonce, 8, { op: "read", path: "secrets.json" });

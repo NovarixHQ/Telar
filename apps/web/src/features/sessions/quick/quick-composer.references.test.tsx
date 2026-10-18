@@ -30,16 +30,16 @@ function wire() {
   globalThis.fetch = (async (input: string | URL | Request) => {
     const raw = String(input);
     urls.push(raw);
-    const hosted = /^\/api\/engine\/v2\/hosts\/([^/]+)\/api(\/.*)$/.exec(raw);
+    const hosted = /^\/v2\/hosts\/([^/]+)\/api(\/.*)$/.exec(raw);
     const engine = hosted ? REMOTE : LOCAL;
-    const url = hosted ? `/api/engine/v2${hosted[2]}` : raw;
-    if (raw === "/api/engine/v2/hosts") return Response.json({ hosts: remote ? [{ id: "studio", name: "Studio Mac", baseUrl: "https://studio", addedAt: 1 }] : [] });
+    const url = hosted ? `/v2${hosted[2]}` : raw;
+    if (raw === "/v2/hosts") return Response.json({ hosts: remote ? [{ id: "studio", name: "Studio Mac", baseUrl: "https://studio", addedAt: 1 }] : [] });
     if (url.endsWith("/files")) return Response.json(engine.files);
-    if (url.includes("/api/engine/v2/sessions/live")) return Response.json({ sessions: [], projects: engine.projects, daemonId: hosted ? "studio" : "local" });
-    if (url.includes("/api/engine/v2/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
-    if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: remote && !hosted ? [] : engine.projects });
-    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { models: [] } });
+    if (url.includes("/v2/sessions/live")) return Response.json({ sessions: [], projects: engine.projects, daemonId: hosted ? "studio" : "local" });
+    if (url.includes("/v2/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
+    if (url.includes("/v2/projects")) return Response.json({ projects: remote && !hosted ? [] : engine.projects });
+    if (url.includes("/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
+    if (url.includes("/v2/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;
 }
@@ -113,6 +113,6 @@ describe("@ in the quick composer", () => {
     const host = await open();
     await type(host, "@plan");
     expect(options(host).some((row) => row.includes("plan.md"))).toBe(true);
-    expect(urls).toContain("/api/engine/v2/hosts/studio/api/projects/project_9/files");
+    expect(urls).toContain("/v2/hosts/studio/api/projects/project_9/files");
   });
 });

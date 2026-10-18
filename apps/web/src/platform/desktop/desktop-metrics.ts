@@ -57,17 +57,8 @@ export function desktopMetrics(): MetricsBridge | undefined {
 
 export async function readProcessMetrics(): Promise<ProcessMetricsSummary> {
   const bridge = desktopMetrics();
-  if (bridge) return bridge.read();
-  const response = await fetch("/api/desktop/metrics", { cache: "no-store" });
-  const payload: unknown = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && typeof (payload as { error?: unknown }).error === "string"
-        ? (payload as { error: string }).error
-        : "The Telar desktop shell did not answer.";
-    throw new Error(message);
-  }
-  return payload as ProcessMetricsSummary;
+  if (!bridge) throw new Error("This cockpit is not running inside the Telar desktop app, so it has no processes to report.");
+  return bridge.read();
 }
 
 export function formatCpu(percent: number): string {

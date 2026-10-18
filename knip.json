@@ -92,7 +92,6 @@
     "op",
     "diskutil",
     "uv",
-    "osascript",
     "scutil",
     "tailscale"
   ],

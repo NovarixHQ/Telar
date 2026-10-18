@@ -34,4 +34,4 @@ Sign in on the host itself, over SSH if needed: `claude auth login`, `codex logi
 
 ## The browser on a host
 
-With no desktop app attached, the engine runs its own Chromium and shows it in the panel as a live view you can click and type into; agents drive the same pages. Run `telar browser setup` once (about 170 MB on disk). This browser has no extensions (so no password-manager fill), no passkeys or hardware keys, and no picture-in-picture; sites see a headless Chromium. When a desktop app is attached to the engine, its browser is used instead.
+With no desktop app attached, the engine runs its own Chromium and shows it in the panel as a live view you can click and type into; agents drive the same pages. Run `telar browser setup` once; it downloads Chromium on first use. This browser has no extensions (so no password-manager fill), no passkeys or hardware keys, and no picture-in-picture; sites see a headless Chromium. When a desktop app is attached to the engine, its browser is used instead.

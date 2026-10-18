@@ -26,7 +26,16 @@ const root = (): string => {
   return knownClaudeDefault(directory);
 };
 
+const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+const signedInClaude = (): void => {
+  const directory = root();
+  fs.writeFileSync(path.join(directory, ".credentials.json"), "{}");
+  process.env.CLAUDE_CONFIG_DIR = directory;
+};
+
 afterEach(async () => {
+  if (claudeConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = claudeConfigDir;
   for (const daemon of daemons.splice(0).reverse()) await daemon.close();
   for (const directory of roots.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
@@ -188,6 +197,7 @@ test("attachments upload as raw bytes, ride the turn, and the browser answers ev
 });
 
 test("the provider registry answers with its probe, and never with a secret", async () => {
+  signedInClaude();
   const daemon = await startEngine({ models: stubModels,
     engineRoot: root(),
     // Injected so the suite never depends on which CLIs happen to be installed

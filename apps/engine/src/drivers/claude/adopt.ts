@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ConversationImportDetail } from "@telar/engine-client";
+import { telarHome } from "../../platform/fs/telar-home";
 import {
   claudeProjectsRoot,
   findTranscript,
@@ -14,8 +15,7 @@ import {
 import { readClaudeTranscriptFile, type ImportedRow, type TranscriptImport } from ".";
 
 export function adoptedForkHome(env: NodeJS.ProcessEnv = process.env): string {
-  const home = env.TELAR_HOME?.trim() || path.join(env.HOME ?? "", "Library", "Application Support", "Telar");
-  return path.join(home, "adopted");
+  return path.join(telarHome(env), "adopted");
 }
 
 let configGate: Promise<unknown> = Promise.resolve();

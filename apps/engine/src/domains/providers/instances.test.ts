@@ -21,7 +21,16 @@ const root = (): string => {
   return directory;
 };
 
+const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+const signedInClaude = (): void => {
+  const directory = root();
+  fs.writeFileSync(path.join(directory, ".credentials.json"), "{}");
+  process.env.CLAUDE_CONFIG_DIR = directory;
+};
+
 afterEach(() => {
+  if (claudeConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = claudeConfigDir;
   for (const directory of roots.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
@@ -310,12 +319,22 @@ test("an empty inherited value is not an inheritance", () => {
 
 test("sign-in is read from the filesystem, and never asserts more than it knows", () => {
   const dir = root();
-  expect(signInOf({ driver: "claude", configDir: dir }).signIn).toBe("unknown");
+  expect(signInOf({ driver: "claude", configDir: dir }, "darwin").signIn).toBe("unknown");
   expect(signInOf({ driver: "codex", configDir: dir }).signIn).toBe("signed-out");
   fs.writeFileSync(path.join(dir, "auth.json"), "{}");
   expect(signInOf({ driver: "codex", configDir: dir }).signIn).toBe("signed-in");
   expect(signInOf({ driver: "codex", configDir: path.join(dir, "nope") }).signIn).toBe("missing-config-dir");
-  expect(signInOf({ driver: "claude" }).signIn).toBe("unknown");
+  expect(signInOf({ driver: "claude" }, "darwin").signIn).toBe("unknown");
+});
+
+test("on Linux the Claude Code sign-in is the presence of .credentials.json", () => {
+  const dir = root();
+  expect(signInOf({ driver: "claude", configDir: dir }, "linux", {}).signIn).toBe("signed-out");
+  expect(signInOf({ driver: "claude", configDir: dir }, "linux", { ANTHROPIC_API_KEY: "k" }).signIn).toBe("signed-in");
+  fs.writeFileSync(path.join(dir, ".credentials.json"), "{}");
+  expect(signInOf({ driver: "claude", configDir: dir }, "linux", {}).signIn).toBe("signed-in");
+  expect(signInOf({ driver: "claude" }, "linux", { CLAUDE_CONFIG_DIR: dir }).signIn).toBe("signed-in");
+  expect(signInOf({ driver: "claude", configDir: path.join(dir, "nope") }, "linux", {}).signIn).toBe("missing-config-dir");
 });
 
 test("disabled outranks every other status", () => {
@@ -333,6 +352,7 @@ test("a CLI that is installed AND unusable is an error, not a green tick", () =>
 });
 
 test("what the CLI resolution says outranks the sign-in note", async () => {
+  signedInClaude();
   const prober = createProviderProber({
     version: async () => ({
       installed: true,
@@ -350,6 +370,7 @@ test("what the CLI resolution says outranks the sign-in note", async () => {
 });
 
 test("one version probe serves every instance of a driver", async () => {
+  signedInClaude();
   const calls: string[] = [];
   const prober = createProviderProber({
     version: async (driver) => {

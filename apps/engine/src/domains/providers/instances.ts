@@ -142,14 +142,19 @@ async function probeVersion(driver: CliId, binaryPath?: string, force = false): 
   };
 }
 
-export function signInOf(instance: Pick<ProviderInstance, "driver" | "configDir">): { signIn: ProviderSignIn; message?: string } {
+export function signInOf(
+  instance: Pick<ProviderInstance, "driver" | "configDir">,
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): { signIn: ProviderSignIn; message?: string } {
   if (instance.driver === "opencode") return { signIn: "unknown", message: "OpenCode authentication uses the CLI login. A config directory does not isolate credentials." };
-  if (!instance.configDir) {
+  const credentialsFile = instance.driver === "claude" && platform !== "darwin";
+  if (!instance.configDir && !credentialsFile) {
     return { signIn: "unknown", message: "Base login — sign-in state cannot be verified from disk." };
   }
   const artifact = isBuiltInDriver(instance.driver) ? LOGIN_ARTIFACT[instance.driver] : undefined;
   if (!artifact) return { signIn: "unknown" };
-  const dir = expandHome(instance.configDir);
+  const dir = instance.configDir ? expandHome(instance.configDir) : env.CLAUDE_CONFIG_DIR?.trim() || path.join(os.homedir(), ".claude");
   if (!fs.existsSync(dir)) {
     return { signIn: "missing-config-dir", message: "Config directory not found on this machine." };
   }
@@ -158,6 +163,10 @@ export function signInOf(instance: Pick<ProviderInstance, "driver" | "configDir"
   }
   if (instance.driver === "codex") {
     return { signIn: "signed-out", message: "Config directory holds no Codex login (auth.json is missing)." };
+  }
+  if (credentialsFile) {
+    if (env.ANTHROPIC_API_KEY || env.CLAUDE_CODE_OAUTH_TOKEN) return { signIn: "signed-in" };
+    return { signIn: "signed-out", message: "No Claude Code login found (.credentials.json is missing). Sign in on this machine." };
   }
   return {
     signIn: "unknown",

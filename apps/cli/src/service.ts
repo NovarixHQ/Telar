@@ -29,7 +29,7 @@ export const defaultContext = (home: string): ServiceContext => ({
 
 export type ServeFlags = { host: string; port: number; tailscaleServe: boolean };
 
-const runtimeDir = (env: NodeJS.ProcessEnv, userHome: string): string => env.TELAR_RUNTIME?.trim() || path.join(userHome, ".telar", "runtime");
+export const runtimeDir = (env: NodeJS.ProcessEnv, userHome: string): string => env.TELAR_RUNTIME?.trim() || path.join(userHome, ".telar", "runtime");
 
 export function serviceCommand(ctx: ServiceContext, flags: ServeFlags, exe = process.execPath, script = process.argv[1]): string[] {
   const runtime = runtimeDir(ctx.env, ctx.userHome);
@@ -43,7 +43,7 @@ const unitFile = (ctx: ServiceContext): string =>
     ? path.join(ctx.userHome, "Library", "LaunchAgents", `${LAUNCHD_LABEL}.plist`)
     : path.join(ctx.env.XDG_CONFIG_HOME?.trim() || path.join(ctx.userHome, ".config"), "systemd", "user", SYSTEMD_UNIT);
 
-const logFile = (home: string): string => path.join(home, "logs", "engine.log");
+export const logFile = (home: string): string => path.join(home, "logs", "engine.log");
 
 async function must(ctx: ServiceContext, file: string, args: string[]): Promise<string> {
   const done = await ctx.exec(file, args);
@@ -86,8 +86,15 @@ export async function serviceStatus(ctx: ServiceContext, io: Io): Promise<number
   return done.code === 0 ? 0 : 3;
 }
 
+export const serviceInstalled = (ctx: ServiceContext): boolean => fs.existsSync(unitFile(ctx));
+
+export async function stopService(ctx: ServiceContext): Promise<void> {
+  if (ctx.platform === "darwin") await must(ctx, "launchctl", ["kill", "SIGTERM", launchTarget(ctx)]);
+  else await must(ctx, "systemctl", ["--user", "stop", SYSTEMD_UNIT]);
+}
+
 export async function restartService(ctx: ServiceContext, io: Io): Promise<void> {
-  if (!fs.existsSync(unitFile(ctx))) throw new UsageError("Not installed. Run `telar service install`.");
+  if (!serviceInstalled(ctx)) throw new UsageError("Not installed. Run `telar service install`.");
   if (ctx.platform === "darwin") await must(ctx, "launchctl", ["kickstart", "-k", launchTarget(ctx)]);
   else await must(ctx, "systemctl", ["--user", "restart", SYSTEMD_UNIT]);
   io.out("Restarted.");

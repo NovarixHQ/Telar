@@ -36,6 +36,13 @@ test("without scutil, only the hostname's own names pass", () => {
   expect([...machineNames("Studio.local")]).toEqual(["studio", "studio.local"]);
 });
 
+test("a Linux box answers to its hostname and its .local name, and refuses others", () => {
+  const names = machineNames("build-box");
+  expect(hostIsAllowed("build-box:7777", names)).toBe(true);
+  expect(hostIsAllowed("build-box.local", names)).toBe(true);
+  expect(hostIsAllowed("evil.example.com", names)).toBe(false);
+});
+
 test("no Host header passes, as from the desktop or the worker", () => {
   expect(hostIsAllowed(undefined)).toBe(true);
   expect(hostIsAllowed(null)).toBe(true);

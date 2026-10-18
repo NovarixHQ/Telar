@@ -32,6 +32,10 @@ describe("iconPng", () => {
     expect(calls).toHaveLength(0);
   });
 
+  test("has no PNG for an SVG where nothing can rasterize it", async () => {
+    expect(await createIconPng(tempDir(), undefined)(svg())).toBeUndefined();
+  });
+
   test("rasterizes an SVG once at a bounded size, then serves it from the disk cache", async () => {
     const dir = tempDir();
     const { calls, rasterize } = fakeRasterizer();

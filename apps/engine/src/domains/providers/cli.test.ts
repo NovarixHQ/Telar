@@ -39,6 +39,14 @@ test("PATH decides, and the well-known directories are only a net behind it", ()
   expect(candidatePathsFor("claude").filter((entry) => entry === "/opt/homebrew/bin/claude")).toHaveLength(1);
 });
 
+test("the usual Linux install locations are searched when PATH misses them", () => {
+  process.env.PATH = "/nowhere";
+  const candidates = candidatePathsFor("codex");
+  for (const dir of ["/usr/local/bin", "/usr/bin", path.join(os.homedir(), ".bun", "bin"), path.join(os.homedir(), ".npm-global", "bin")]) {
+    expect(candidates).toContain(path.join(dir, "codex"));
+  }
+});
+
 test("an explicit pin beats PATH, and beats it whichever way PATH is ordered", () => {
   const onPath = root();
   const pinned = root();

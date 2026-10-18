@@ -16,11 +16,11 @@ const sips: Rasterize = (input, output, edge) =>
     );
   });
 
-/** Turns served icon bytes into a PNG a phone can decode, cached on disk by content hash. */
-export function createIconPng(cacheDir: string, rasterize: Rasterize = sips) {
+/** Turns served icon bytes into a PNG a phone can decode, cached on disk by content hash. Without a rasterizer (off macOS) an SVG has no PNG. */
+export function createIconPng(cacheDir: string, rasterize: Rasterize | undefined = process.platform === "darwin" ? sips : undefined) {
   const pending = new Map<string, Promise<Buffer | undefined>>();
 
-  async function render(bytes: Buffer, hash: string): Promise<Buffer | undefined> {
+  async function render(bytes: Buffer, hash: string, rasterize: Rasterize): Promise<Buffer | undefined> {
     const output = path.join(cacheDir, `${hash}.png`);
     const cached = await fs.readFile(output).catch(() => undefined);
     if (cached) return cached;
@@ -43,10 +43,11 @@ export function createIconPng(cacheDir: string, rasterize: Rasterize = sips) {
 
   return async function iconPng(icon: { bytes: Buffer; contentType: string }): Promise<Buffer | undefined> {
     if (icon.contentType !== "image/svg+xml") return icon.bytes;
+    if (!rasterize) return undefined;
     const hash = crypto.createHash("sha256").update(icon.bytes).digest("hex");
     let job = pending.get(hash);
     if (!job) {
-      job = render(icon.bytes, hash).finally(() => pending.delete(hash));
+      job = render(icon.bytes, hash, rasterize).finally(() => pending.delete(hash));
       pending.set(hash, job);
     }
     return job;

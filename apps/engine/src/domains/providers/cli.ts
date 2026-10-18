@@ -131,6 +131,9 @@ const FALLBACK_DIRS = (bin: string): string[] => [
   path.join(os.homedir(), ".local", "bin", bin),
   `/opt/homebrew/bin/${bin}`,
   `/usr/local/bin/${bin}`,
+  `/usr/bin/${bin}`,
+  path.join(os.homedir(), ".bun", "bin", bin),
+  path.join(os.homedir(), ".npm-global", "bin", bin),
 ];
 
 export function candidatePathsFor(bin: string, override?: string | undefined): string[] {

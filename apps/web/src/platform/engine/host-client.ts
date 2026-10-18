@@ -1,6 +1,5 @@
 
-import { cockpitPath } from "./cockpit-path";
-import { COCKPIT_API, LOCAL_HOST_ID } from "@telar/engine-client";
+import { LOCAL_HOST_ID } from "@telar/engine-client";
 
 export { LOCAL_HOST_ID };
 
@@ -18,18 +17,17 @@ export function hostPrefix(hostId: string | undefined): string {
   return !hostId || hostId === LOCAL_HOST_ID ? "" : `/hosts/${encodeURIComponent(hostId)}`;
 }
 
-const HOSTS_PREFIX = `${COCKPIT_API}/v2/hosts`;
-const ownBook = (pathname: string) => [HOSTS_PREFIX, "/api/hosts"].some((book) => pathname === book || pathname.startsWith(`${book}/`));
+const HOSTS_PREFIX = "/v2/hosts";
+const ownBook = (pathname: string) => [HOSTS_PREFIX].some((book) => pathname === book || pathname.startsWith(`${book}/`));
 
-/** A cockpit URL as another Mac's engine receives it: the catch-all's `hosts/:id/api/*` hop, aimed at that Mac's own `/api`. */
+/** A cockpit URL as another Mac's engine receives it: this engine's `hosts/:id/api/*` hop, aimed at that Mac's own `/api`. */
 export function rewriteApiPath(pathname: string, hostId: string): string {
-  if (hostId === LOCAL_HOST_ID || !pathname.startsWith("/api/") || ownBook(pathname)) return pathname;
-  const there = pathname.startsWith(`${COCKPIT_API}/v2/`) ? pathname.slice(`${COCKPIT_API}/v2`.length) : pathname.slice("/api".length);
-  return `${HOSTS_PREFIX}/${encodeURIComponent(hostId)}/api${there}`;
+  if (hostId === LOCAL_HOST_ID || !pathname.startsWith("/v2/") || ownBook(pathname)) return pathname;
+  return `${HOSTS_PREFIX}/${encodeURIComponent(hostId)}/api${pathname.slice("/v2".length)}`;
 }
 
 export function attachmentUrl(sessionId: string, attachmentId: string, options: { display?: boolean; hostId?: string } = {}): string {
-  const path = cockpitPath(`/v2/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}${options.display ? "?variant=display" : ""}`);
+  const path = `/v2/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}${options.display ? "?variant=display" : ""}`;
   return options.hostId ? rewriteApiPath(path, options.hostId) : path;
 }
 

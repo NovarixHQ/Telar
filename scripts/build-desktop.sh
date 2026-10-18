@@ -163,13 +163,12 @@ log "computer-use helper (cua-driver pinned in apps/desktop/src/main/computer-us
 NODE_OPTIONS= bun scripts/computer-use-helper.mjs --out "$SNAP/apps/desktop/vendor/computer-use" --sign auto
 export TELAR_REQUIRE_COMPUTER_USE_HELPER=1
 
-# --- standalone web build ----------------------------------------------------
-log "scripts/build-app.sh (standalone Next server)"
+# --- static cockpit and engine build -----------------------------------------
+log "scripts/build-app.sh (static cockpit, engine bundle)"
 NODE_OPTIONS= bash apps/desktop/scripts/build-app.sh
 
 # --- stamp build-info.json into the desktop resources (BEFORE packaging) -----
-# It lands at the root of the standalone tree, which electron-builder copies to
-# <Resources>/standalone/build-info.json, so it is inside the packaged .app.
+# electron-builder copies apps/web/build-info.json to <Resources>/build-info.json, so it is inside the packaged .app.
 #
 # `channel` rides along because the WEB TIER has no other way to learn it. The
 # version's prerelease tag is what electron-builder derives the channel from,
@@ -179,9 +178,9 @@ NODE_OPTIONS= bash apps/desktop/scripts/build-app.sh
 # flag that picked the channel writes it down here, and /api/about reports it
 # (apps/engine/src/domains/updates/identity.ts). Empty for an unchannelled build, which reads
 # as "stable" — a build somebody cut.
-STANDALONE="$SNAP/apps/web/.next-desktop/standalone"
+STAMP="$SNAP/apps/web/build-info.json"
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-cat > "$STANDALONE/build-info.json" <<JSON
+cat > "$STAMP" <<JSON
 {
   "shortSha": "$SHORT_SHA",
   "sha": "$SHA",

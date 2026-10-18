@@ -137,6 +137,6 @@ describe("read receipt", () => {
   test("a remote cockpit marks the answer read on the host that owns the session", async () => {
     await mount(<Harness hostId="host_7f3a" initial={[turn(1), turn(2)]} />);
     await wait(2_000);
-    expect(sent).toEqual([{ url: "/api/engine/v2/hosts/host_7f3a/api/sessions/session_a/read", body: { runId: "run_2" } }]);
+    expect(sent).toEqual([{ url: "/v2/hosts/host_7f3a/api/sessions/session_a/read", body: { runId: "run_2" } }]);
   });
 });

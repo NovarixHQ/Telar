@@ -38,9 +38,8 @@ async function engineWith(file: RemoteFile) {
     });
     return (await response.json()) as Record<string, any>;
   };
-  const admits = async (id: string) =>
-    (await call("POST", "/v2/auth/decide", { pathname: "/api/projects", method: "GET", authorization: `Bearer tlr_${id}` })).allow as boolean;
   const ids = async () => ((await call("GET", "/v2/remote")).devices as { id: string }[]).map((each) => each.id);
+  const admits = async (id: string) => (await ids()).includes(id);
   return { admits, ids, home };
 }
 

@@ -56,7 +56,7 @@ Pick tag numbers that sort above the version currently on the channel. Clients c
 4. Runs `scripts/build-desktop.sh`:
    - takes a clean `git worktree` snapshot of the ref, so local changes never ship;
    - runs a frozen install and builds the pinned computer-use helper (`apps/desktop/src/main/computer-use-helper.json`);
-   - builds the standalone web server and stamps `build-info.json` (sha, ref, channel);
+   - builds the static cockpit and the engine bundle and stamps `build-info.json` (sha, ref, channel);
    - sets the version, then runs `electron-builder --mac`. The app is signed from the keychain and notarized when `APPLE_API_KEY*` are set;
    - verifies the signature, checks that the helper has Telar's team ID, and runs `spctl --assess`;
    - runs `Telar.app --smoke`, which must print `SMOKE_OK` and `ENGINE_WORKER_OK`;

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 export const TICKET_TTL_MS = 5 * 60_000;
-const HUB_API_PREFIX = "/api/simulators/hub/";
+const HUB_API_PREFIX = "/v2/simulators/hub/";
 
 const digest = (ticket: string) => crypto.createHash("sha256").update(ticket).digest("hex");
 

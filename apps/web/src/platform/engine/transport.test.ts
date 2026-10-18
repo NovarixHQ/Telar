@@ -11,8 +11,8 @@ describe("the package's domain methods over the cockpit's /api proxy", () => {
     await expect(api.projectGit("project a")).resolves.toEqual({ git: { repository: true, branch: "main" } });
     await api.commitSessionWork("session_a", "save");
     expect(calls).toEqual([
-      { url: "/api/engine/v2/projects/project%20a/git", method: "GET" },
-      { url: "/api/engine/v2/sessions/session_a/git/commit", method: "POST" },
+      { url: "/v2/projects/project%20a/git", method: "GET" },
+      { url: "/v2/sessions/session_a/git/commit", method: "POST" },
     ]);
   });
 

@@ -1,6 +1,5 @@
 import type { DeviceIdentity, DeviceRole, DeviceScope, ExposureMode, RemoteState } from "@telar/engine-client";
 import { request } from "@/platform/engine/transport";
-import type { QrMatrix } from "./qr";
 import type { TailscaleServeError } from "./tailscale-serve";
 
 /** The engine's answer plus what only this cockpit knows: its own host row, the caller, and where it listens. */
@@ -13,7 +12,7 @@ export type RemoteStatus = RemoteState & {
   endpoints: Array<{ kind: string; label: string; url: string; qrSafe: boolean }>;
 };
 
-export type MintedPairing = { code: string; expiresAt: number; qrByUrl: Record<string, QrMatrix> };
+export type MintedPairing = { code: string; expiresAt: number };
 
 const device = (deviceId: string) => `/v2/remote/devices/${encodeURIComponent(deviceId)}`;
 

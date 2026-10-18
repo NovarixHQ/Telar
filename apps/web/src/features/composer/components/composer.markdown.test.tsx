@@ -31,8 +31,8 @@ function Box({ initial, onSend }: { initial: string; onSend: (draft: string) => 
 async function composer(initial: string) {
   const sent: string[] = [];
   stubFetch({
-    "GET /api/engine/v2/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }),
-    "GET /api/engine/v2/sessions/live": () => ({ sessions: [], projects: [] }),
+    "GET /v2/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }),
+    "GET /v2/sessions/live": () => ({ sessions: [], projects: [] }),
   });
   const { host } = await mount(<Box initial={initial} onSend={(draft) => sent.push(draft)} />);
   await flush();

@@ -36,7 +36,7 @@ describe("the builders notice above the composer", () => {
     }) as typeof fetch;
     const { host } = await mount(<Banner agents={[child("a", "working"), child("b", "waiting"), child("c", "done")]} />);
     await click(buttonLabelled("Stop all", host));
-    expect(stops.sort()).toEqual(["POST /api/engine/v2/sessions/a/stop", "POST /api/engine/v2/sessions/b/stop"]);
+    expect(stops.sort()).toEqual(["POST /v2/sessions/a/stop", "POST /v2/sessions/b/stop"]);
     expect(buttonLabelled("Stopping…", host)?.disabled).toBe(true);
     release();
     await flush(() => Boolean(buttonLabelled("Stop all", host)));

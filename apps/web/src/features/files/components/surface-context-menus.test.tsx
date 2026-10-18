@@ -101,7 +101,7 @@ describe("the diff surface around its rows", () => {
   };
 
   async function surface(tab: DiffTab, onTabChange: (tab: DiffTab) => void = () => {}) {
-    stubFetch({ "GET /api/engine/v2/sessions/s1/diff": () => ({ diff }) });
+    stubFetch({ "GET /v2/sessions/s1/diff": () => ({ diff }) });
     const opened: string[] = [];
     const { host } = await mount(
       <DiffSurface sessionId="s1" reported={new Map([["b.ts", 1]])} suggestion="Work" tab={tab} onTabChange={onTabChange} onOpenFile={(at) => opened.push(at)} />,

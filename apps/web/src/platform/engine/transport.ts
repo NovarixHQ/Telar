@@ -2,7 +2,6 @@ import { httpTransport, type Conditional, type EngineTransport } from "@telar/en
 import type {
 EngineErrorCode
 } from "@telar/engine-client";
-import { cockpitPath } from "./cockpit-path";
 import { hostFromPathname, hostName, HOST_NAME_HEADER, LOCAL_HOST_ID, pinnedHost, type Fetcher } from "@/platform/engine/host-client";
 
 export type EngineApiErrorCode = EngineErrorCode | "cockpit_unauthorized";
@@ -122,7 +121,7 @@ export async function requestIfChanged<T>(fetcher: Fetcher, pathname: string, et
 }
 
 function askedThisCockpit(fetcher: Fetcher, pathname: string): boolean {
-  if (typeof window === "undefined" || window.location.pathname === "/pair" || pathname.startsWith("/api/engine/v2/hosts/")) return false;
+  if (typeof window === "undefined" || window.location.pathname === "/pair" || pathname.startsWith("/v2/hosts/")) return false;
   return (pinnedHost(fetcher) ?? hostFromPathname(window.location.pathname)) === LOCAL_HOST_ID;
 }
 
@@ -133,9 +132,8 @@ async function refusedAsUnpaired(response: Response): Promise<boolean> {
 
 async function reach(fetcher: Fetcher, pathname: string, init: RequestInit): Promise<Response> {
   try {
-    const url = cockpitPath(pathname, init.method);
-    const response = await fetcher(url, init);
-    if (response.status === 401 && askedThisCockpit(fetcher, url) && (await refusedAsUnpaired(response))) window.location.replace("/pair");
+    const response = await fetcher(pathname, init);
+    if (response.status === 401 && askedThisCockpit(fetcher, pathname) && (await refusedAsUnpaired(response))) window.location.replace("/pair");
     return response;
   } catch (cause) {
     // An abort is the CALLER's decision arriving back, not the adapter being
@@ -153,7 +151,7 @@ async function reach(fetcher: Fetcher, pathname: string, init: RequestInit): Pro
   }
 }
 
-/** Runs the package's per-domain methods through this cockpit's `/api` proxy. `lane: null` skips the read budget. */
+/** Runs the package's per-domain methods through this engine. `lane: null` skips the read budget. */
 export function apiTransport(fetcher: Fetcher, lane: Gate | null = reads): EngineTransport {
   return {
     request: (method, pathname, body, signal) => request(fetcher, method, pathname, body, signal, lane),

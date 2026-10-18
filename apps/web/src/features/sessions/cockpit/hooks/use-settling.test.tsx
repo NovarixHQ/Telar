@@ -37,12 +37,12 @@ describe("unsettling from the cockpit", () => {
   test("a session on another Mac is patched through that Mac", async () => {
     const urls = await unsettleOn("mac-mini");
     expect(urls.length).toBeGreaterThan(0);
-    for (const url of urls) expect(url).toContain("/api/engine/v2/hosts/mac-mini/api/sessions/session_1");
+    for (const url of urls) expect(url).toContain("/v2/hosts/mac-mini/api/sessions/session_1");
   });
 
   test("a local session is patched locally", async () => {
     const urls = await unsettleOn("local");
     expect(urls.length).toBeGreaterThan(0);
-    for (const url of urls) expect(url).not.toContain("/api/engine/v2/hosts/");
+    for (const url of urls) expect(url).not.toContain("/v2/hosts/");
   });
 });

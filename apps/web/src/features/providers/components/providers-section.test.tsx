@@ -25,12 +25,12 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/settings?section=providers");
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (url.startsWith("/api/engine/v2/provider-instances") && init?.method && init.method !== "GET") {
+    if (url.startsWith("/v2/provider-instances") && init?.method && init.method !== "GET") {
       saved.push(JSON.parse(String(init.body)));
       return json({ providerInstance: INSTANCES[0] });
     }
-    if (url.startsWith("/api/engine/v2/provider-instances")) return json({ providerInstances: INSTANCES, probes: PROBES });
-    if (url.startsWith("/api/engine/v2/usage/sources")) return json({ sources: [{ id: "home-hub", label: "Home hub", url: "http://localhost:8317", enabled: true, keyRedacted: "…abcd" }] });
+    if (url.startsWith("/v2/provider-instances")) return json({ providerInstances: INSTANCES, probes: PROBES });
+    if (url.startsWith("/v2/usage/sources")) return json({ sources: [{ id: "home-hub", label: "Home hub", url: "http://localhost:8317", enabled: true, keyRedacted: "…abcd" }] });
     return json({});
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void) => {

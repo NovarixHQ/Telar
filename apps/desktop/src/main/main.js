@@ -21,11 +21,12 @@ const { createSitePermissionStore } = require("../browser/site-permissions");
 const { bundledHelperDaemon, stopHelperDaemon } = require("./computer-use-stop");
 const desktopHandoff = require("../handoff/desktop-handoff");
 const { wireLoginOffer } = require("../login/login-offer-window");
-const uiServer = require("./ui-server");
-const { findFreePort, getStablePort, seatHostCookie, waitForServer } = uiServer;
+const remoteFile = require("./remote-file");
+const cockpitOrigin = require("./cockpit-origin");
+const { findFreePort, getStablePort, seatHostCookie, waitForCockpit } = cockpitOrigin;
 const engineNotices = require("./engine-notices").createEngineNotices({ onMessage: (message) => desktopNotifier.handleServerMessage(message) });
 const { DEV_BUILD, E2E_USER_DATA, OVERRIDE_URL, SMOKE } = require("./flags");
-const { applyDevelopmentAppIcon, bundledAgentSdkEntry, bundledPlaywrightMcpCli, computerUseHelperPath, nodeExecPath, windowTitle } = require("./bundle-paths");
+const { applyDevelopmentAppIcon, bundledAgentSdkEntry, bundledPlaywrightMcpCli, buildInfoPath, computerUseHelperPath, cockpitDir, windowTitle } = require("./bundle-paths");
 const { captureLoginShellEnv } = require("./login-shell-env");
 const { findVolumeMount } = require("./volumes");
 const { logShell, shellLogPath, startHeapLog } = require("./shell-log");
@@ -139,23 +140,16 @@ function childEnv(home) {
   };
 }
 
-function startServer(port, home) {
-  const child = uiServer.startServer(port, home, {
-    execPath: nodeExecPath(),
-    env: {
-      ...childEnv(home),
-      TELAR_PROCESS_TITLE: DEV_BUILD ? "telar-ui-dev" : "telar-ui",
-      ...serveEnv(),
-    },
-    onExit: (code, signal) => {
-      if (!SMOKE && !app.isQuitting) {
-        console.error(`[telar-desktop] server exited (code=${code} signal=${signal})`);
-        app.quit();
-      }
-    },
-  });
-  engineNotices.start(engineDiscoveryFile(home));
-  return child;
+function cockpitEnv(home, port) {
+  return {
+    ...childEnv(home),
+    TELAR_ENGINE_HOST: remoteFile.serverBindHost(home),
+    TELAR_ENGINE_PORT: String(port),
+    TELAR_STATIC_DIR: cockpitDir(),
+    TELAR_BUILD_INFO: buildInfoPath(),
+    TELAR_HOST_CLIENT: app.getName(),
+    ...serveEnv(),
+  };
 }
 
 const chime = createChime({ packaged: app.isPackaged });
@@ -238,11 +232,6 @@ function reportVolumesChanged() {
 
 let updaterWindow = null;
 
-function killServer() {
-  uiServer.stopServer();
-  stopEngineChild();
-}
-
 function stopComputerUseHelper() {
   const helperApp = computerUseHelperPath();
   if (!helperApp) return;
@@ -312,7 +301,6 @@ app.on("will-quit", (event) => {
   app.isQuitting = true;
   persistAllHosts();
 
-  uiServer.stopServer();
   const engineStopped = stopEngineChild({ quit: true });
   stopComputerUseHelper();
   closeBrowserControl();
@@ -322,10 +310,10 @@ app.on("will-quit", (event) => {
   void Promise.allSettled([engineStopped, unpublished]).finally(() => app.exit(0));
 });
 
-process.on("exit", killServer);
+process.on("exit", () => stopEngineChild());
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
-    killServer();
+    stopEngineChild();
     stopComputerUseHelper();
     process.exit(0);
   });
@@ -350,16 +338,15 @@ async function runSmoke() {
     } else {
       captureLoginShellEnv();
       const home = telarHome();
-      startEngineChild(home, childEnv(home));
+      port = await findFreePort();
+      startEngineChild(home, cockpitEnv(home, port));
 
       const discovery = await waitForEngine(home, { requireWorker: true });
       rememberEngine(discovery);
       console.log("ENGINE_OK");
       console.log(`ENGINE_WORKER_OK ${discovery.workerId}`);
-      port = await findFreePort();
-      startServer(port, home);
     }
-    await waitForServer(port);
+    await waitForCockpit(port);
     console.log(`BUILD ${windowTitle()}`);
     console.log("SMOKE_OK");
 
@@ -370,7 +357,7 @@ async function runSmoke() {
       console.error("PLAYWRIGHT_MCP_BUNDLED_MISSING:", cli);
       if (app.isPackaged) {
         app.isQuitting = true;
-        killServer();
+        stopEngineChild();
         app.exit(1);
         return;
       }
@@ -383,18 +370,18 @@ async function runSmoke() {
       console.error("AGENT_SDK_BUNDLED_MISSING:", sdk);
       if (app.isPackaged) {
         app.isQuitting = true;
-        killServer();
+        stopEngineChild();
         app.exit(1);
         return;
       }
     }
     app.isQuitting = true;
-    killServer();
+    stopEngineChild();
     app.exit(0);
   } catch (err) {
     console.error("SMOKE_FAIL:", err && err.message ? err.message : err);
     app.isQuitting = true;
-    killServer();
+    stopEngineChild();
     app.exit(1);
   }
 }
@@ -492,16 +479,16 @@ if (SMOKE) {
           }
 
           const home = telarHome();
-          startEngineChild(home, childEnv(home));
+          const port = await getStablePort();
+          startEngineChild(home, cockpitEnv(home, port));
           rememberEngine(await waitForEngine(home));
           await recordHandoffBoot(home);
-          const port = await getStablePort();
           await publishTailscaleServe(home, port);
-          startServer(port, home);
-          await waitForServer(port);
+          engineNotices.start(engineDiscoveryFile(home));
+          await waitForCockpit(port);
           url = `http://127.0.0.1:${port}/`;
           const notify = (body) => new Notification({ title: "Pair Booted Simulators", body }).show();
-          if (registerDevPairing({ dev: DEV_BUILD, appUrl: url, hostToken: uiServer.HOST_TOKEN, ipcMain, notify })) buildApplicationMenu();
+          if (registerDevPairing({ dev: DEV_BUILD, appUrl: url, hostToken: cockpitOrigin.HOST_TOKEN, ipcMain, notify })) buildApplicationMenu();
         }
         updaterWindow = createWindow(url, { main: true });
         if (process.platform === "darwin") {

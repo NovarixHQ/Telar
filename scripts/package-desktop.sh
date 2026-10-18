@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DESKTOP_DIR="$REPO_ROOT/apps/desktop"
 WEB_DIR="$REPO_ROOT/apps/web"
-STANDALONE="$WEB_DIR/.next-desktop/standalone"
+STAMP="$WEB_DIR/build-info.json"
 INSTALL=0
 DEV=0
 INSTALL_ARGS=()
@@ -88,7 +88,7 @@ if [ "$DEV" -eq 1 ] && [ "$INSTALL" -eq 1 ]; then
   done
 fi
 
-echo "==> build standalone web app"
+echo "==> build the static cockpit"
 NODE_OPTIONS= bash "$DESKTOP_DIR/scripts/build-app.sh"
 
 if git -C "$REPO_ROOT" rev-parse --verify HEAD >/dev/null 2>&1; then
@@ -103,13 +103,12 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=normal)" ]; 
   DIRTY=true
 fi
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-mkdir -p "$STANDALONE"
 # `channel` is what the web tier's build identity reads (apps/engine/src/domains/
 # updates/identity.ts); "local" for a plain working-tree build, "dev" for --dev so
 # a paired client can tell the two apart the way the title bar does.
 CHANNEL="local"; [ "$DEV" -eq 1 ] && CHANNEL="dev"
 printf '{\n  "shortSha": "%s",\n  "sha": "%s",\n  "ref": "working-tree",\n  "channel": "%s",\n  "dirty": %s,\n  "builtAt": "%s"\n}\n' \
-  "$SHORT_SHA" "$FULL_SHA" "$CHANNEL" "$DIRTY" "$BUILT_AT" > "$STANDALONE/build-info.json"
+  "$SHORT_SHA" "$FULL_SHA" "$CHANNEL" "$DIRTY" "$BUILT_AT" > "$STAMP"
 echo "==> stamped local build: $SHORT_SHA (channel=$CHANNEL dirty=$DIRTY)"
 
 cd "$DESKTOP_DIR"

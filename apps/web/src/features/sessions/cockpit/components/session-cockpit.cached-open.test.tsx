@@ -133,5 +133,5 @@ test("a session saved to disk paints before the network, which then asks only fo
   expect(host!.textContent).toContain("answer from session_b");
   expect(host!.textContent).not.toContain("Showing what was recorded");
   const reads = fetched.filter((url) => /\/sessions\/session_b(\/(delta|bootstrap|events)|\?|$)/.test(url));
-  expect(reads).toEqual(["/api/engine/v2/sessions/session_b/delta?after=7"]);
+  expect(reads).toEqual(["/v2/sessions/session_b/delta?after=7"]);
 });

@@ -66,8 +66,8 @@ function wire() {
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = new URL(String(input), "http://localhost");
     asked.push(url.pathname + url.search);
-    if (url.pathname === "/api/engine/v2/projects") return Response.json({ projects: PROJECTS });
-    if (url.pathname === "/api/engine/v2/sessions/activity") {
+    if (url.pathname === "/v2/projects") return Response.json({ projects: PROJECTS });
+    if (url.pathname === "/v2/sessions/activity") {
       return Response.json({
         projects: [
           { projectId: "project_quiet", updatedAt: STAMP },
@@ -80,7 +80,7 @@ function wire() {
      * would make the test pass for the wrong reason — a door that still asked
      * would merely fail to rank, and `asked` is what has to carry the verdict.
      */
-    if (url.pathname === "/api/engine/v2/sessions/live") {
+    if (url.pathname === "/v2/sessions/live") {
       return Response.json({
         projects: PROJECTS,
         sessions: [
@@ -95,7 +95,7 @@ function wire() {
 
 /** Whichever session list went out, by any spelling. The point of the warm test
  *  is that NOTHING did, so this must not be pinned to one query string. */
-const sessionReads = (): string[] => asked.filter((path) => path.startsWith("/api/engine/v2/sessions/"));
+const sessionReads = (): string[] => asked.filter((path) => path.startsWith("/v2/sessions/"));
 
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
@@ -148,7 +148,7 @@ test("a launch the note already answered reads nothing from the engine", async (
   // that happened to agree.
   expect(replaced).toEqual([canvasHrefFor("project_busy")]);
   /**
-   * AND IT ASKED FOR NOTHING. On `main` this is `["/api/engine/v2/sessions/live?all=1"]`:
+   * AND IT ASKED FOR NOTHING. On `main` this is `["/v2/sessions/live?all=1"]`:
    * the 101.6 KB read, issued after the redirect, with no consumer and the
    * opening's own reads queued behind it.
    */
@@ -163,12 +163,12 @@ test("a first launch ranks from the aggregate, not from every session on the mac
 
   /**
    * ONE SESSION READ, AND IT IS THE NARROW ONE. On `main` this is
-   * `/api/engine/v2/sessions/live?all=1` — every active session on the engine, rendered
+   * `/v2/sessions/live?all=1` — every active session on the engine, rendered
    * nowhere. The equality is deliberate: a door that asked for BOTH would pass
    * a "did it call activity" check and still ship the defect.
    */
-  expect(sessionReads()).toEqual(["/api/engine/v2/sessions/activity"]);
-  expect(asked.sort()).toEqual(["/api/engine/v2/projects", "/api/engine/v2/sessions/activity"]);
+  expect(sessionReads()).toEqual(["/v2/sessions/activity"]);
+  expect(asked.sort()).toEqual(["/v2/projects", "/v2/sessions/activity"]);
 
   // And the answer it ranked from is the same one: `busy` holds the newer
   // session, `quiet` was registered later. A fold that had failed would fall
@@ -187,7 +187,7 @@ test("an engine that cannot answer the aggregate still opens a project", async (
   const answering = globalThis.fetch;
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = new URL(String(input), "http://localhost");
-    if (url.pathname === "/api/engine/v2/sessions/activity") {
+    if (url.pathname === "/v2/sessions/activity") {
       asked.push(url.pathname);
       return new Response("not found", { status: 404 });
     }
@@ -196,7 +196,7 @@ test("an engine that cannot answer the aggregate still opens a project", async (
 
   await open();
 
-  expect(asked).toContain("/api/engine/v2/sessions/activity");
+  expect(asked).toContain("/v2/sessions/activity");
   // `quiet` is `createdAt: 2` — the registration fallback, reached rather than
   // nothing being reached at all.
   expect(replaced).toEqual([canvasHrefFor("project_quiet")]);

@@ -41,4 +41,4 @@ export { shellStreamPath, type RunTargetInput } from "./terminal/client";
 export { EngineClient, type EngineEndpoint, type FetchLike } from "./platform/client";
 export { domainMethods, type EngineDomainMethods } from "./platform/domains";
 export { EngineClientError, sanitizeTransportCause } from "./platform/errors";
-export { COCKPIT_API, enginePathOf, httpTransport, type Conditional, type EngineTransport, type Fail, type Send } from "./platform/transport";
+export { httpTransport, type Conditional, type EngineTransport, type Fail, type Send } from "./platform/transport";

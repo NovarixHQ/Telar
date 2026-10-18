@@ -12,7 +12,7 @@ const known = { "src/app/globals.css": "src/app/globals.css", "plan.md:42": "doc
 function engine() {
   sessions += 1;
   return stubFetch({
-    [`POST /api/engine/v2/sessions/session_${sessions}/files/references`]: (body) => ({
+    [`POST /v2/sessions/session_${sessions}/files/references`]: (body) => ({
       references: (body as { texts: string[] }).texts
         .filter((text) => known[text])
         .map((text) => ({ text, path: known[text], ...(text.endsWith(":42") ? { line: 42 } : {}) })),

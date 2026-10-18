@@ -38,13 +38,13 @@ beforeEach(() => {
   machine = { version: 1, entries: { latex: { enabled: false } } };
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (init?.method === "PATCH" && url.includes("/api/engine/v2/plugins")) {
+    if (init?.method === "PATCH" && url.includes("/v2/plugins")) {
       const body = JSON.parse(String(init.body)) as { plugins: Record<string, unknown> };
       patches.push(body.plugins);
       machine = { ...machine, entries: { ...machine.entries, ...body.plugins } };
       return json({ machine });
     }
-    if (url.includes("/api/engine/v2/plugins")) return json({ plugins: PLUGINS, machine });
+    if (url.includes("/v2/plugins")) return json({ plugins: PLUGINS, machine });
     if (url.includes("/latex/toolchain")) return json({ toolchain: { texlive: [] } });
     return json({});
   }) as typeof fetch;

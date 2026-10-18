@@ -37,12 +37,12 @@ const ENGINES = [LOCAL, MINI];
 
 let reached: { url: string; engine: string }[] = [];
 
-/** Routed as the app does: `/api/engine/v2/hosts/:id/api/…` goes to that Mac, anything else to the local engine. */
+/** Routed as the app does: `/v2/hosts/:id/api/…` goes to that Mac, anything else to the local engine. */
 const wire: typeof fetch = (async (input: string | URL | Request) => {
   const url = typeof input === "string" ? input : String(input);
-  const hop = /^\/api\/engine\/v2\/hosts\/([^/]+)\/api\/(.*)$/.exec(url);
+  const hop = /^\/v2\/hosts\/([^/]+)\/api\/(.*)$/.exec(url);
   const engine = hop ? ENGINES.find((candidate) => candidate.hostId === hop[1]) : LOCAL;
-  const rest = hop ? `/${hop[2]!}` : url.slice("/api/engine/v2".length);
+  const rest = hop ? `/${hop[2]!}` : url.slice("/v2".length);
   if (!engine) {
     return Response.json({ error: { code: "not_found", message: "No such host." } }, { status: 404 });
   }
@@ -154,7 +154,7 @@ describe("the address bar is not the subject", () => {
     const standingOn = `/hosts/host_b/projects/project_shared/sessions/${SHARED}`;
     expect(hostFromPathname(standingOn)).toBe("host_b");
     // The default fetcher follows the address; wrong when the subject is not the address.
-    expect(rewriteApiPath(`/api/engine/v2/sessions/${SHARED}`, hostFromPathname(standingOn))).toBe(`/api/engine/v2/hosts/host_b/api/sessions/${SHARED}`);
+    expect(rewriteApiPath(`/v2/sessions/${SHARED}`, hostFromPathname(standingOn))).toBe(`/v2/hosts/host_b/api/sessions/${SHARED}`);
 
     await createEngineApi(hostFetcher(LOCAL_HOST_ID, wire)).session(SHARED);
     expect(reached.at(-1)!.engine).toBe(LOCAL_HOST_ID);

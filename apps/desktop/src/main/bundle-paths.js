@@ -4,17 +4,16 @@ const { app } = require("electron");
 const { DEV_BUILD } = require("./flags");
 const { resolveHelperExec } = require("./helper-exec");
 
+function buildInfoPath() {
+  return app.isPackaged ? path.join(process.resourcesPath, "build-info.json") : path.join(__dirname, "..", "..", "..", "web", "build-info.json");
+}
+
 function readBuildInfo() {
-  const candidates = app.isPackaged
-    ? [path.join(process.resourcesPath, "standalone", "build-info.json")]
-    : [path.join(__dirname, "..", "..", "..", "web", ".next-desktop", "standalone", "build-info.json")];
-  for (const c of candidates) {
-    try {
-      if (fs.existsSync(c)) return JSON.parse(fs.readFileSync(c, "utf8"));
-    } catch {
-    }
+  try {
+    return JSON.parse(fs.readFileSync(buildInfoPath(), "utf8"));
+  } catch {
+    return null;
   }
-  return null;
 }
 
 function windowTitle() {
@@ -54,6 +53,12 @@ function bundledAgentSdkEntry() {
     : path.join(__dirname, "..", "..", "..", "engine", "dist", "node_modules", "@anthropic-ai", "claude-agent-sdk", "sdk.mjs");
 }
 
+function cockpitDir() {
+  const dir = app.isPackaged ? path.join(process.resourcesPath, "cockpit") : path.join(__dirname, "..", "..", "..", "web", "out");
+  if (!fs.existsSync(path.join(dir, "index.html"))) throw new Error(`cockpit not found at ${dir}. Run \`bun run build:app\` first.`);
+  return dir;
+}
+
 function resolveEngineJs() {
   const candidates = app.isPackaged
     ? [path.join(process.resourcesPath, "engine", "engine.mjs")]
@@ -85,7 +90,9 @@ function computerUseHelperPath() {
 module.exports = {
   applyDevelopmentAppIcon,
   bundledAgentSdkEntry,
+  buildInfoPath,
   bundledPlaywrightMcpCli,
+  cockpitDir,
   computerUseHelperPath,
   developmentIconPath,
   nodeExecPath,

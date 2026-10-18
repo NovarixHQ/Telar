@@ -19,7 +19,8 @@ export function readDeviceCookie(request: http.IncomingMessage): string | null {
 export function cookieRequestIsSameOrigin(request: http.IncomingMessage): boolean {
   if (SAFE_METHODS.has((request.method ?? "GET").toUpperCase())) return true;
   try {
-    return new URL(request.headers.origin ?? "").host === request.headers.host;
+    const behindDevProxy = process.env.TELAR_DEV_PROXY === "1" ? request.headers["x-forwarded-host"] : undefined;
+    return new URL(request.headers.origin ?? "").host === (behindDevProxy ?? request.headers.host);
   } catch {
     return false;
   }

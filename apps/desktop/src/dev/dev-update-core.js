@@ -92,7 +92,7 @@ function validateCandidate(stagedApp, fsImpl = fs) {
   const mainBin = path.join(stagedApp, "Contents", "MacOS", "Telar Dev");
   const helperBin = path.join(stagedApp, "Contents", "Frameworks", "Telar Dev Helper.app", "Contents", "MacOS", "Telar Dev Helper");
   const plist = path.join(stagedApp, "Contents", "Info.plist");
-  const stamp = path.join(stagedApp, "Contents", "Resources", "standalone", "build-info.json");
+  const stamp = path.join(stagedApp, "Contents", "Resources", "build-info.json");
   if (!fsImpl.existsSync(mainBin)) problems.push("main executable missing");
   if (!fsImpl.existsSync(helperBin)) problems.push("Telar Dev Helper missing (children would land in the Dock)");
   try {

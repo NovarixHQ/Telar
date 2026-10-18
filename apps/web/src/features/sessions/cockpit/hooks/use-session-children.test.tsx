@@ -17,9 +17,9 @@ beforeEach(() => {
   reads = [];
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const path = new URL(String(input), "http://localhost").pathname;
-    if (path === "/api/engine/v2/sessions/stream") return new Response(null, { status: 404 });
+    if (path === "/v2/sessions/stream") return new Response(null, { status: 404 });
     reads.push(path);
-    const id = /\/api\/engine\/v2\/sessions\/([^/]+)\/children$/.exec(path)?.[1] ?? "";
+    const id = /\/v2\/sessions\/([^/]+)\/children$/.exec(path)?.[1] ?? "";
     return Response.json({ children: answers[id] ?? [] });
   }) as typeof fetch;
 });
@@ -108,7 +108,7 @@ describe("useSessionChildren", () => {
   test("an engine that answers 404 is never asked again for that session", async () => {
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const path = new URL(String(input), "http://localhost").pathname;
-      if (path !== "/api/engine/v2/sessions/stream") reads.push(path);
+      if (path !== "/v2/sessions/stream") reads.push(path);
       return Response.json({ error: { code: "not_found", message: "Not found" } }, { status: 404 });
     }) as typeof fetch;
     await mount(<Growing />);

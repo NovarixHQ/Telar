@@ -10,12 +10,6 @@ export type EngineTransport = {
   readBytes(pathAndQuery: string): Promise<{ data: Uint8Array; contentType: string }>;
 };
 
-export const COCKPIT_API = "/api/engine";
-
-export function enginePathOf(pathname: string): string | undefined {
-  return pathname.startsWith(`${COCKPIT_API}/v2/`) ? pathname.slice(COCKPIT_API.length) : undefined;
-}
-
 export type Send = (pathname: string, init: RequestInit & { headers?: Record<string, string> }, operation?: string) => Promise<Response>;
 
 export type Fail = (code: EngineErrorCode, message: string, status: number | undefined, details: { operation?: string; transport?: string; response: Response }) => Error;

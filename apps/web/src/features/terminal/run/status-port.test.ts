@@ -18,8 +18,8 @@ test("two windows on one session hold one connection, and both get the frame", a
   const worker = createStatusHub(followRunStatus({ fetch: upstream.fetch }));
   const left = recorder();
   const right = recorder();
-  connectWindow(worker).subscribe("/api/engine/v2/sessions/s/run/stream", left.listener);
-  connectWindow(worker).subscribe("/api/engine/v2/sessions/s/run/stream", right.listener);
+  connectWindow(worker).subscribe("/v2/sessions/s/run/stream", left.listener);
+  connectWindow(worker).subscribe("/v2/sessions/s/run/stream", right.listener);
   await left.until(1);
   await right.until(1);
 
@@ -56,13 +56,13 @@ test("without SharedWorker the window follows the feed itself", async () => {
   globalThis.fetch = ((path: string, init: RequestInit) => upstream.fetch(path, init)) as typeof fetch;
   try {
     const feed = recorder();
-    const stop = runStatusSource().subscribe("/api/engine/v2/sessions/s/run/stream", feed.listener);
+    const stop = runStatusSource().subscribe("/v2/sessions/s/run/stream", feed.listener);
     await feed.until(1);
     upstream.connections[0]!.send(statusEvent("exited"));
     await feed.until(2);
     stop();
     expect(feed.seen).toEqual([{ type: "open" }, { type: "frame", event: statusEvent("exited") }]);
-    expect(upstream.connections[0]!.path).toBe("/api/engine/v2/sessions/s/run/stream");
+    expect(upstream.connections[0]!.path).toBe("/v2/sessions/s/run/stream");
   } finally {
     globalThis.fetch = original;
   }

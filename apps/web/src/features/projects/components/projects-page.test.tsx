@@ -57,14 +57,14 @@ beforeEach(() => {
     const method = init?.method ?? "GET";
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ method, url, ...(body ? { body } : {}) });
-    if (method === "PATCH" && url.startsWith("/api/engine/v2/projects/")) {
+    if (method === "PATCH" && url.startsWith("/v2/projects/")) {
       const found = local.find((entry) => url.endsWith(entry.id))!;
       return json({ project: { ...found, ...body, ...(body.name ? { name: `${body.name} (kept)` } : {}) } });
     }
-    if (url === "/api/engine/v2/hosts") return json({ hosts });
-    if (url === "/api/engine/v2/projects") return json({ projects: local });
-    if (url === "/api/engine/v2/hosts/host_mini/api/projects") return json({ projects: remote });
-    if (url === "/api/engine/v2/health") return json({ plugins: [LATEX] });
+    if (url === "/v2/hosts") return json({ hosts });
+    if (url === "/v2/projects") return json({ projects: local });
+    if (url === "/v2/hosts/host_mini/api/projects") return json({ projects: remote });
+    if (url === "/v2/health") return json({ plugins: [LATEX] });
     return json({ error: { code: "not_found", message: "no" } }, 404);
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void, ms?: number) => {
@@ -384,7 +384,7 @@ describe("the pane", () => {
     local = [project({ removedAt: 5 } as Partial<ScopedProject>)];
     const mocked = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input) === "/api/engine/v2/projects/project_abc/restore" && init?.method === "POST") {
+      if (String(input) === "/v2/projects/project_abc/restore" && init?.method === "POST") {
         calls.push({ method: "POST", url: String(input) });
         return json({ project: project() });
       }
@@ -396,7 +396,7 @@ describe("the pane", () => {
     expect(group().textContent).toContain("Restore this project");
     expect(group().textContent).not.toContain("Remove project from Telar");
     await press(view.button("Restore"));
-    expect(calls.some((call) => call.url === "/api/engine/v2/projects/project_abc/restore")).toBe(true);
+    expect(calls.some((call) => call.url === "/v2/projects/project_abc/restore")).toBe(true);
     expect(group().textContent).toContain("Remove project from Telar");
     view.done();
   });
@@ -404,7 +404,7 @@ describe("the pane", () => {
   test("a rename patches the named project and shows the engine's record", async () => {
     const view = await mount(<ProjectsPage />);
     await rename(view.host.querySelector<HTMLInputElement>('[aria-label="Project name"]')!, "Loom");
-    expect(calls.filter((call) => call.method === "PATCH")).toEqual([{ method: "PATCH", url: "/api/engine/v2/projects/project_abc", body: { name: "Loom" } }]);
+    expect(calls.filter((call) => call.method === "PATCH")).toEqual([{ method: "PATCH", url: "/v2/projects/project_abc", body: { name: "Loom" } }]);
     expect(view.host.querySelector<HTMLInputElement>('[aria-label="Project name"]')!.value).toBe("Loom (kept)");
     view.done();
   });
@@ -414,7 +414,7 @@ describe("the pane", () => {
     const field = view.host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Agent instructions"]')!;
     await typeInto(field, "Use bun.");
     await press(view.button("Save"));
-    expect(calls.filter((call) => call.method === "PATCH")).toEqual([{ method: "PATCH", url: "/api/engine/v2/projects/project_abc", body: { instructions: "Use bun." } }]);
+    expect(calls.filter((call) => call.method === "PATCH")).toEqual([{ method: "PATCH", url: "/v2/projects/project_abc", body: { instructions: "Use bun." } }]);
     expect(view.button("Save")).toBeUndefined();
     view.done();
   });
@@ -424,10 +424,10 @@ describe("the pane", () => {
     remote = [project({ id: "project_far", name: "Far" })];
     const view = await mount(<ProjectsPage />);
     expect(view.button("This computer")).toBeDefined();
-    expect(calls.some((call) => call.url.startsWith("/api/engine/v2/hosts/host_mini"))).toBe(false);
+    expect(calls.some((call) => call.url.startsWith("/v2/hosts/host_mini"))).toBe(false);
 
     await press(view.button("mini"));
-    expect(calls.some((call) => call.url === "/api/engine/v2/hosts/host_mini/api/projects")).toBe(true);
+    expect(calls.some((call) => call.url === "/v2/hosts/host_mini/api/projects")).toBe(true);
     expect(view.scope()).toBe("Far");
     expect(view.host.textContent).toContain("Registered on mini");
     expect(view.host.textContent).toContain("Which of this computer's plugins this project has opted into.");
@@ -477,7 +477,7 @@ describe("a project whose folder is gone", () => {
     bridge("/Users/someone/elsewhere/telar");
     const mocked = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input) === "/api/engine/v2/projects/project_abc/root" && init?.method === "POST") {
+      if (String(input) === "/v2/projects/project_abc/root" && init?.method === "POST") {
         const { root } = JSON.parse(String(init.body)) as { root: string };
         calls.push({ method: "POST", url: String(input), body: { root } });
         return json({ project: { ...local[0], root, availability: "available" } });
@@ -489,7 +489,7 @@ describe("a project whose folder is gone", () => {
     await press(view.button("Choose folder…"));
     await flush();
 
-    expect(calls.find((call) => call.url === "/api/engine/v2/projects/project_abc/root")?.body).toEqual({ root: "/Users/someone/elsewhere/telar" });
+    expect(calls.find((call) => call.url === "/v2/projects/project_abc/root")?.body).toEqual({ root: "/Users/someone/elsewhere/telar" });
     expect(view.host.textContent).toContain("/Users/someone/elsewhere/telar");
     expect(view.host.textContent).not.toContain("This folder is gone.");
     expect(view.button("Choose folder…")).toBeUndefined();
@@ -511,7 +511,7 @@ describe("a project whose folder is gone", () => {
     bridge("/Users/someone/other-clone");
     const mocked = globalThis.fetch;
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (String(input) === "/api/engine/v2/projects/project_abc/root") {
+      if (String(input) === "/v2/projects/project_abc/root") {
         return json({ error: { code: "conflict", message: "Other already uses that folder" } }, 409);
       }
       return mocked(input, init);

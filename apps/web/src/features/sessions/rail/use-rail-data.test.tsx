@@ -41,8 +41,8 @@ test("a project added while the rail is mid-read still shows up", async () => {
   let firstRead: (() => void) | undefined;
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.includes("/api/engine/v2/hosts")) return Response.json({ hosts: [] });
-    if (url.includes("/api/engine/v2/sessions/live")) {
+    if (url.includes("/v2/hosts")) return Response.json({ hosts: [] });
+    if (url.includes("/v2/sessions/live")) {
       const page = Response.json({ projects: [...registered], sessions: [] });
       if (firstRead === undefined) return new Promise<Response>((resolve) => (firstRead = () => resolve(page)));
       return page;
@@ -85,7 +85,7 @@ function stubShelf() {
   const state = { hold: false, release: [] as (() => void)[] };
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
-    if (url.includes("/api/engine/v2/hosts")) return Response.json({ hosts: [] });
+    if (url.includes("/v2/hosts")) return Response.json({ hosts: [] });
     const ifNoneMatch = (init?.headers as Record<string, string> | undefined)?.["if-none-match"];
     if (url.includes("shelf=1")) {
       shelfReads.push(ifNoneMatch ? { ifNoneMatch } : {});
@@ -93,8 +93,8 @@ function stubShelf() {
       if (!state.hold) return answer();
       return new Promise<Response>((resolve) => state.release.push(() => resolve(answer())));
     }
-    if (url.includes("/api/engine/v2/sessions/live") && ifNoneMatch === "lean-1") return new Response(null, { status: 304, headers: { etag: "lean-1" } });
-    if (url.includes("/api/engine/v2/sessions/live")) return Response.json({ projects: [], sessions: [row("open one")], settledByProject: { p1: 1 } }, { headers: { etag: "lean-1" } });
+    if (url.includes("/v2/sessions/live") && ifNoneMatch === "lean-1") return new Response(null, { status: 304, headers: { etag: "lean-1" } });
+    if (url.includes("/v2/sessions/live")) return Response.json({ projects: [], sessions: [row("open one")], settledByProject: { p1: 1 } }, { headers: { etag: "lean-1" } });
     return Response.json({});
   }) as typeof fetch;
   return { shelfReads, state };
@@ -158,8 +158,8 @@ test("a draft nobody has sent to is not a row until its first message lands", as
   const draft = row("Browser draft", { draft: true });
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.includes("/api/engine/v2/hosts")) return Response.json({ hosts: [] });
-    if (url.includes("/api/engine/v2/sessions/live")) return Response.json({ projects: [], sessions: [draft, row("open one")] });
+    if (url.includes("/v2/hosts")) return Response.json({ hosts: [] });
+    if (url.includes("/v2/sessions/live")) return Response.json({ projects: [], sessions: [draft, row("open one")] });
     return Response.json({});
   }) as typeof fetch;
   const { host, into } = await mountShelf();

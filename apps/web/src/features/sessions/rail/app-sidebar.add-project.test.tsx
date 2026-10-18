@@ -11,8 +11,8 @@ test("adding a project from the rail opens the new project's canvas", async () =
   const rail = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(input), "http://localhost").pathname;
-    if (path === "/api/engine/v2/fs") return Response.json({ path: "/Users/me/code/telar", name: "telar", parent: "/", home: "/Users/me", dirs: [] });
-    if (path === "/api/engine/v2/projects" && init?.method === "POST") return Response.json({ project: { id: "p_new", name: "telar" } });
+    if (path === "/v2/fs") return Response.json({ path: "/Users/me/code/telar", name: "telar", parent: "/", home: "/Users/me", dirs: [] });
+    if (path === "/v2/projects" && init?.method === "POST") return Response.json({ project: { id: "p_new", name: "telar" } });
     return rail(input, init);
   }) as typeof fetch;
 

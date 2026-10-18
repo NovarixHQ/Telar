@@ -169,7 +169,7 @@ describe("the mic button on a composer", () => {
       const rest = globalThis.fetch;
       globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
         const url = String(typeof input === "object" && "url" in input ? input.url : input);
-        return url.includes("/api/engine/v2/dictation/diagnose") ? answer() : rest(input, init);
+        return url.includes("/v2/dictation/diagnose") ? answer() : rest(input, init);
       }) as typeof fetch;
     }
 
@@ -237,7 +237,7 @@ describe("the mic button on a composer", () => {
     const settings = globalThis.fetch;
     globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(typeof input === "object" && "url" in input ? input.url : input);
-      if (!url.includes("/api/engine/v2/dictation/token")) return settings(input, init);
+      if (!url.includes("/v2/dictation/token")) return settings(input, init);
       return Response.json({ error: { code: "conflict", message: "No Deepgram key is configured on this computer, so dictation cannot start." } }, { status: 409 });
     }) as typeof fetch;
     const host = await mounted(<Box kind="session" />);
@@ -249,7 +249,7 @@ describe("the mic button on a composer", () => {
     const settings = globalThis.fetch;
     globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(typeof input === "object" && "url" in input ? input.url : input);
-      if (!url.includes("/api/engine/v2/dictation/token")) return settings(input, init);
+      if (!url.includes("/v2/dictation/token")) return settings(input, init);
       return Response.json({ provider: "openai", token: "jwt-abc", expiresAt: Date.now() + 300_000 });
     }) as typeof fetch;
     const host = await mounted(<Box kind="session" />);

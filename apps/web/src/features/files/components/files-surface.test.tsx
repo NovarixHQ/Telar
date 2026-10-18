@@ -23,7 +23,7 @@ function stubDisk(disk: Record<string, WorkspaceEntry[]>) {
   const asked: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = new URL(String(input), "http://localhost");
-    if (url.pathname === "/api/engine/v2/sessions/s1/diff") return Response.json({ diff: { files: [] } });
+    if (url.pathname === "/v2/sessions/s1/diff") return Response.json({ diff: { files: [] } });
     const level = url.searchParams.get("dir");
     if (level === null) return Response.json({ listing: LISTING });
     asked.push(level);

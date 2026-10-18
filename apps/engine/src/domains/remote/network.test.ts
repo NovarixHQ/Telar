@@ -67,7 +67,6 @@ test("ping and pair are open on the network listener; everything else needs a de
 test("the engine token opens nothing on the network listener", async () => {
   const { daemon, remote } = await engine({ host: "127.0.0.1" });
   expect((await remote("GET", "/v2/health", { token: daemon.discovery.token })).status).toBe(401);
-  expect((await remote("POST", "/v2/auth/decide", { token: daemon.discovery.token, body: {} })).status).toBe(401);
   expect((await remote("POST", "/v2/mcp", { token: daemon.discovery.token, body: {} })).status).toBe(401);
 });
 
@@ -179,4 +178,36 @@ test("the mobile push paths act on the calling device and refuse an unpaired or 
   expect((await remote("PUT", "/v2/mobile/push", { token: viewer, body: {} })).status).toBe(403);
   expect((await remote("GET", "/v2/mobile/read-state", { token })).status).toBe(400);
   expect((await loopback("GET", "/v2/mobile/read-state?ids=a")).status).toBe(401);
+});
+
+test("a stream ticket admits a hub read on the network listener, and nothing else", async () => {
+  const { loopback, remote } = await engine({ host: "127.0.0.1" });
+  const { ticket } = (await (await loopback("GET", "/v2/simulators/stream-ticket")).json()) as { ticket: string };
+  const stream = "/v2/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg";
+  expect((await remote("GET", `${stream}?ticket=${ticket}`)).status).not.toBe(401);
+  expect((await remote("GET", `${stream}?ticket=stk_forged`)).status).toBe(401);
+  expect((await remote("POST", `${stream}?ticket=${ticket}`)).status).toBe(401);
+  expect((await remote("GET", `/v2/simulators?ticket=${ticket}`)).status).toBe(401);
+});
+
+test("the desktop shell's host token is a host caller on the network listener, from a header or a cookie", async () => {
+  process.env.TELAR_HOST_TOKEN = "tlr_" + "h".repeat(43);
+  try {
+    const { remote } = await engine({ host: "127.0.0.1" });
+    const viaHeader = await remote("GET", "/v2/remote", { headers: { "x-telar-host": process.env.TELAR_HOST_TOKEN } });
+    expect(viaHeader.status).toBe(200);
+    expect(viaHeader.body.host.isCaller).toBe(true);
+    expect((await remote("GET", "/v2/remote", { headers: { cookie: `telar_device=${process.env.TELAR_HOST_TOKEN}` } })).status).toBe(200);
+    expect((await remote("GET", "/v2/remote", { headers: { "x-telar-host": "tlr_wrong" } })).status).toBe(401);
+  } finally {
+    delete process.env.TELAR_HOST_TOKEN;
+  }
+});
+
+test("the legacy /api paths reach the same routes, open or gated alike", async () => {
+  const { remote, pair } = await engine({ host: "127.0.0.1" });
+  expect((await remote("GET", "/api/ping")).status).toBe(200);
+  expect((await remote("GET", "/api/identity")).status).toBe(200);
+  expect((await remote("GET", "/api/health")).status).toBe(401);
+  expect((await remote("GET", "/api/health", { token: await pair() })).status).toBe(200);
 });

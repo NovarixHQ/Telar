@@ -116,7 +116,7 @@ function fakeCandidate({ helper = true, channel = "dev" } = {}) {
   write(["Contents", "MacOS", "Telar Dev"], "#!/bin/bash\ntrue\n");
   if (helper) write(["Contents", "Frameworks", "Telar Dev Helper.app", "Contents", "MacOS", "Telar Dev Helper"], "");
   write(["Contents", "Info.plist"], `...${core.DEV_BUNDLE_ID}...`);
-  write(["Contents", "Resources", "standalone", "build-info.json"], JSON.stringify({ shortSha: "abc1234", channel, dirty: true }));
+  write(["Contents", "Resources", "build-info.json"], JSON.stringify({ shortSha: "abc1234", channel, dirty: true }));
   return app;
 }
 

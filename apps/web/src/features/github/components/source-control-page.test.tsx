@@ -64,7 +64,7 @@ test("a broken gh names the command that fixes it, and Check again re-asks the m
     await flush();
     expect(page.host.textContent).toContain("gh auth login");
     expect(page.host.textContent).not.toContain("brew install gh");
-    expect(asked).toEqual(["/api/engine/v2/github/cli", "/api/engine/v2/github/cli"]);
+    expect(asked).toEqual(["/v2/github/cli", "/v2/github/cli"]);
   } finally {
     page.unmount();
     restore();

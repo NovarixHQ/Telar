@@ -26,6 +26,7 @@
     "test:desktop:persistence": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/browser-persistence.electron-test.js",
     "test:desktop:profile-cookies": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/browser-profile-cookies.electron-test.js",
     "test:desktop:host-header": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/host-header.electron-test.js",
+    "test:desktop:cockpit-served": "env -u ELECTRON_RUN_AS_NODE electron ./src/main/cockpit-served.electron-test.js",
     "test:desktop:popup-geometry": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/popup-geometry.electron-test.js",
     "test:desktop:native-messaging": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/native-messaging.electron-test.js",
     "test:desktop:extension": "env -u ELECTRON_RUN_AS_NODE electron ./src/browser/extension-harness.electron-test.js",
@@ -66,12 +67,12 @@
     ],
     "extraResources": [
       {
-        "from": "../web/.next-desktop/standalone",
-        "to": "standalone"
+        "from": "../web/out",
+        "to": "cockpit"
       },
       {
-        "from": "../web/.next-desktop/standalone/node_modules/.bun",
-        "to": "standalone/node_modules/.bun"
+        "from": "../web/build-info.json",
+        "to": "build-info.json"
       },
       {
         "from": "../engine/dist",

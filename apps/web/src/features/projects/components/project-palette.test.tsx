@@ -305,10 +305,10 @@ test("only a path is a path", () => {
 });
 
 const registerRoutes = () => ({
-  "GET /api/engine/v2/fs": () => listing("/Users/me/code/telar"),
-  "POST /api/engine/v2/projects": (body: unknown) => ({ project: { id: "project_new", name: (body as { name: string }).name } }),
-  "POST /api/engine/v2/projects/clone": () => ({ project: { id: "project_new", name: "repo" } }),
-  "DELETE /api/engine/v2/projects/project_new": () => ({ project: { id: "project_new" }, sessions: 0 }),
+  "GET /v2/fs": () => listing("/Users/me/code/telar"),
+  "POST /v2/projects": (body: unknown) => ({ project: { id: "project_new", name: (body as { name: string }).name } }),
+  "POST /v2/projects/clone": () => ({ project: { id: "project_new", name: "repo" } }),
+  "DELETE /v2/projects/project_new": () => ({ project: { id: "project_new" }, sessions: 0 }),
 });
 
 test("Local folder with a pasted path opens the browser at it, Add registers only that, and Undo removes it", async () => {
@@ -322,15 +322,15 @@ test("Local folder with a pasted path opens the browser at it, Add registers onl
   await key({ key: "Enter" });
   await flush(() => Boolean(buttonLabelled("Add⌘↵")));
   expect(document.querySelector("h2")?.textContent).toBe("Choose a project folder");
-  expect(urls).toContain("GET /api/engine/v2/fs?path=%2FUsers%2Fme%2Fcode%2Ftelar&nearest=1");
+  expect(urls).toContain("GET /v2/fs?path=%2FUsers%2Fme%2Fcode%2Ftelar&nearest=1");
 
   await click(buttonLabelled("Add⌘↵"));
   await flush(() => log.includes("registered"));
-  expect(calls.map((call) => call.route).filter((route) => route !== "GET /api/engine/v2/hosts")).toEqual([
-    "GET /api/engine/v2/fs",
-    "POST /api/engine/v2/projects",
+  expect(calls.map((call) => call.route).filter((route) => route !== "GET /v2/hosts")).toEqual([
+    "GET /v2/fs",
+    "POST /v2/projects",
   ]);
-  expect(calls.find((call) => call.route === "POST /api/engine/v2/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
+  expect(calls.find((call) => call.route === "POST /v2/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
   expect(log).toEqual(["open:false", "registered"]);
   expect(registered).toEqual([{ projectId: "project_new", name: "telar", hostId: "local" }]);
   expect(announced).toBe(1);
@@ -338,7 +338,7 @@ test("Local folder with a pasted path opens the browser at it, Add registers onl
 
   await click(buttonLabelled("Undo"));
   await flush(() => page().includes("telar was removed again."));
-  expect(calls.at(-1)!.route).toBe("DELETE /api/engine/v2/projects/project_new");
+  expect(calls.at(-1)!.route).toBe("DELETE /v2/projects/project_new");
   expect(buttonLabelled("Undo")).toBeUndefined();
   window.removeEventListener(PROJECTS_CHANGED_EVENT, count);
   expect(announced).toBe(2);
@@ -353,13 +353,13 @@ test("a path typed into the browser is what ⌘↵ adds, not the folder still be
   await typeInto(field(), "~/some/repo");
   await key({ key: "Enter", metaKey: true });
   await flush(() => log.includes("registered"));
-  expect(calls.find((call) => call.route === "POST /api/engine/v2/projects")?.body).toEqual({ name: "repo", root: "/Users/me/some/repo" });
+  expect(calls.find((call) => call.route === "POST /v2/projects")?.body).toEqual({ name: "repo", root: "/Users/me/some/repo" });
 });
 
 test("a refused folder keeps the dialog open and says why", async () => {
   engine({
     ...registerRoutes(),
-    "POST /api/engine/v2/projects": () => {
+    "POST /v2/projects": () => {
       throw new Error("/Users/me holds far more than one project. Choose the project's own folder inside it.");
     },
   });
@@ -390,7 +390,7 @@ test("a clone row with nothing to clone asks for the URL, refuses junk, then ask
 
   await click(buttonLabelled("Clone here⌘↵"));
   await flush(() => log.includes("registered"));
-  expect(calls.find((call) => call.route === "POST /api/engine/v2/projects/clone")?.body).toEqual({
+  expect(calls.find((call) => call.route === "POST /v2/projects/clone")?.body).toEqual({
     url: "owner/repo",
     parent: "/Users/me/code/telar",
   });
@@ -404,7 +404,7 @@ test("a URL already in the search field skips the URL page", async () => {
   await flush(() => Boolean(buttonLabelled("Clone here⌘↵")));
   await click(buttonLabelled("Clone here⌘↵"));
   await flush(() => log.includes("registered"));
-  expect(calls.find((call) => call.route === "POST /api/engine/v2/projects/clone")?.body).toEqual({
+  expect(calls.find((call) => call.route === "POST /v2/projects/clone")?.body).toEqual({
     url: "https://github.com/owner/repo.git",
     parent: "/Users/me/code/telar",
   });
@@ -425,7 +425,7 @@ describe("a Google Drive folder", () => {
     await click(buttonLabelled("Choose in Finder…"));
     await flush(() => log.includes("registered"));
     expect(asked).toEqual([{ title: "Choose a project folder", defaultPath: "/Users/me/code/telar" }]);
-    expect(calls.find((call) => call.route === "POST /api/engine/v2/projects")?.body).toEqual({ name: "repo", root: drive });
+    expect(calls.find((call) => call.route === "POST /v2/projects")?.body).toEqual({ name: "repo", root: drive });
   });
 
   test("a pasted path the engine cannot list can still be added", async () => {
@@ -443,7 +443,7 @@ describe("a Google Drive folder", () => {
     expect(page()).toContain("macOS has not let Telar read this cloud folder.");
     await click(anyway());
     await flush(() => log.includes("registered"));
-    expect(calls.find((call) => call.route === "POST /api/engine/v2/projects")?.body).toEqual({ name: "repo", root: drive });
+    expect(calls.find((call) => call.route === "POST /v2/projects")?.body).toEqual({ name: "repo", root: drive });
   });
 
   test("a browser tab has no native picker to offer", async () => {
@@ -492,9 +492,9 @@ describe("with another computer paired", () => {
   const mini = { id: "host_mini", name: "mini", baseUrl: "http://mini.tail:3000", addedAt: 1 };
   const remoteRoutes = {
     ...registerRoutes(),
-    "GET /api/engine/v2/hosts": () => ({ hosts: [mini] }),
-    "GET /api/engine/v2/hosts/host_mini/api/fs": () => listing("/Users/mini/code/site"),
-    "POST /api/engine/v2/hosts/host_mini/api/projects": (body: unknown) => ({ project: { id: "project_far", name: (body as { name: string }).name } }),
+    "GET /v2/hosts": () => ({ hosts: [mini] }),
+    "GET /v2/hosts/host_mini/api/fs": () => listing("/Users/mini/code/site"),
+    "POST /v2/hosts/host_mini/api/projects": (body: unknown) => ({ project: { id: "project_far", name: (body as { name: string }).name } }),
   };
   afterEach(() => delete (window as { telarDesktop?: unknown }).telarDesktop);
 
@@ -514,8 +514,8 @@ describe("with another computer paired", () => {
 
     await click(buttonLabelled("Add⌘↵"));
     await flush(() => log.includes("registered"));
-    expect(calls.find((call) => call.route === "POST /api/engine/v2/hosts/host_mini/api/projects")?.body).toEqual({ name: "site", root: "/Users/mini/code/site" });
-    expect(calls.some((call) => call.route === "POST /api/engine/v2/projects")).toBe(false);
+    expect(calls.find((call) => call.route === "POST /v2/hosts/host_mini/api/projects")?.body).toEqual({ name: "site", root: "/Users/mini/code/site" });
+    expect(calls.some((call) => call.route === "POST /v2/projects")).toBe(false);
   });
 
   test("this computer keeps the local engine, and Backspace on its sources goes back to the computers", async () => {
@@ -533,6 +533,6 @@ describe("with another computer paired", () => {
     await flush(() => Boolean(buttonLabelled("Add⌘↵")));
     await click(buttonLabelled("Add⌘↵"));
     await flush(() => log.includes("registered"));
-    expect(calls.find((call) => call.route === "POST /api/engine/v2/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
+    expect(calls.find((call) => call.route === "POST /v2/projects")?.body).toEqual({ name: "telar", root: "/Users/me/code/telar" });
   });
 });

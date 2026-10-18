@@ -55,14 +55,14 @@ beforeEach(() => {
   written = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (init?.method === "PATCH" && url.includes("/api/engine/v2/plugins")) {
+    if (init?.method === "PATCH" && url.includes("/v2/plugins")) {
       const body = JSON.parse(String(init.body)) as { plugins: Record<string, unknown> };
       written.push(body.plugins);
       machine = { ...machine, entries: { ...machine.entries, ...(body.plugins as typeof machine.entries) } };
       return json({ machine });
     }
-    if (url.endsWith("/api/engine/v2/plugins/latex/defaults")) return json({ blocks: [{ type: "text", text: "TeX distribution: what this computer compiles with." }] });
-    if (url.endsWith("/api/engine/v2/plugins/data-science/defaults")) {
+    if (url.endsWith("/v2/plugins/latex/defaults")) return json({ blocks: [{ type: "text", text: "TeX distribution: what this computer compiles with." }] });
+    if (url.endsWith("/v2/plugins/data-science/defaults")) {
       return json({
         blocks: [
           { type: "select", label: "Default Python", name: "python", value: "/usr/bin/python3", options: [{ value: "", label: "None" }, { value: "/usr/bin/python3", label: "Python 3.12.4 — /usr/bin/python3" }], verb: "default-python" },
@@ -71,7 +71,7 @@ beforeEach(() => {
         ],
       });
     }
-    if (url.includes("/api/engine/v2/plugins")) return json({ plugins: PLUGINS, machine });
+    if (url.includes("/v2/plugins")) return json({ plugins: PLUGINS, machine });
     return json({});
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void) => {

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { StreamTickets, TICKET_TTL_MS } from "./tickets";
 
-const STREAM = "/api/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg";
+const STREAM = "/v2/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg";
 
 test("a ticket opens reads under the hub prefix for its holder, and nothing else", () => {
   const tickets = new StreamTickets(() => 1_000);

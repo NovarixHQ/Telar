@@ -12,12 +12,12 @@ describe("hostFromPathname", () => {
 
 describe("rewriteApiPath", () => {
   test("an api call from a remote screen goes through that host's proxy", () => {
-    expect(rewriteApiPath("/api/engine/v2/projects", "host_ab")).toBe("/api/engine/v2/hosts/host_ab/api/projects");
-    expect(rewriteApiPath("/api/engine/v2/sessions/s1/turns?x=1", "host_ab")).toBe("/api/engine/v2/hosts/host_ab/api/sessions/s1/turns?x=1");
+    expect(rewriteApiPath("/v2/projects", "host_ab")).toBe("/v2/hosts/host_ab/api/projects");
+    expect(rewriteApiPath("/v2/sessions/s1/turns?x=1", "host_ab")).toBe("/v2/hosts/host_ab/api/sessions/s1/turns?x=1");
   });
 
   test("local is the absence of the hop", () => {
-    expect(rewriteApiPath("/api/engine/v2/projects", LOCAL_HOST_ID)).toBe("/api/engine/v2/projects");
+    expect(rewriteApiPath("/v2/projects", LOCAL_HOST_ID)).toBe("/v2/projects");
     expect(hostPrefix(LOCAL_HOST_ID)).toBe("");
     expect(hostPrefix(undefined)).toBe("");
     expect(hostPrefix("host_ab")).toBe("/hosts/host_ab");
@@ -26,10 +26,10 @@ describe("rewriteApiPath", () => {
   // The hosts routes are this cockpit's own book; a remote's book is not
   // ours, and a nested hop would loop.
   test("the hosts routes are never proxied", () => {
-    expect(rewriteApiPath("/api/engine/v2/hosts", "host_ab")).toBe("/api/engine/v2/hosts");
-    expect(rewriteApiPath("/api/engine/v2/hosts/host_ab", "host_ab")).toBe("/api/engine/v2/hosts/host_ab");
-    expect(rewriteApiPath("/api/engine/v2/hosts", "host_ab")).toBe("/api/engine/v2/hosts");
-    expect(rewriteApiPath("/api/engine/v2/hosts/host_ab/api/projects", "host_ab")).toBe("/api/engine/v2/hosts/host_ab/api/projects");
+    expect(rewriteApiPath("/v2/hosts", "host_ab")).toBe("/v2/hosts");
+    expect(rewriteApiPath("/v2/hosts/host_ab", "host_ab")).toBe("/v2/hosts/host_ab");
+    expect(rewriteApiPath("/v2/hosts", "host_ab")).toBe("/v2/hosts");
+    expect(rewriteApiPath("/v2/hosts/host_ab/api/projects", "host_ab")).toBe("/v2/hosts/host_ab/api/projects");
   });
 
   test("non-api paths are left alone", () => {
@@ -45,9 +45,9 @@ describe("hostFetcher", () => {
       seen.push(typeof input === "string" ? input : String(input));
       return new Response("{}");
     }) as typeof fetch;
-    await hostFetcher("host_ab", base)("/api/engine/v2/projects");
-    await hostFetcher(LOCAL_HOST_ID, base)("/api/engine/v2/projects");
-    expect(seen).toEqual(["/api/engine/v2/hosts/host_ab/api/projects", "/api/engine/v2/projects"]);
+    await hostFetcher("host_ab", base)("/v2/projects");
+    await hostFetcher(LOCAL_HOST_ID, base)("/v2/projects");
+    expect(seen).toEqual(["/v2/hosts/host_ab/api/projects", "/v2/projects"]);
   });
 });
 
@@ -60,8 +60,8 @@ describe("a row's own Mac", () => {
       seen.push(typeof input === "string" ? input : String(input));
       return new Response("{}");
     }) as typeof fetch;
-    await hostFetcher("host_ab", base)("/api/engine/v2/sessions/s1", { method: "PATCH" });
-    await hostFetcher(LOCAL_HOST_ID, base)("/api/engine/v2/sessions/s1", { method: "PATCH" });
-    expect(seen).toEqual(["/api/engine/v2/hosts/host_ab/api/sessions/s1", "/api/engine/v2/sessions/s1"]);
+    await hostFetcher("host_ab", base)("/v2/sessions/s1", { method: "PATCH" });
+    await hostFetcher(LOCAL_HOST_ID, base)("/v2/sessions/s1", { method: "PATCH" });
+    expect(seen).toEqual(["/v2/hosts/host_ab/api/sessions/s1", "/v2/sessions/s1"]);
   });
 });

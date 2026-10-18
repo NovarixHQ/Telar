@@ -5,8 +5,8 @@ const { HOST_HEADER, isOwnServer, attachHostHeader } = require("./host-header");
 
 
 describe("the shell and the gate name the same header", () => {
-  test("the web gate reads the header this module writes", async () => {
-    const gate = await import("../../../web/src/features/remote/server/host-token.ts");
+  test("the engine reads the header this module writes", async () => {
+    const gate = await import("../../../engine/src/domains/remote/auth.ts");
     expect(gate.HOST_HEADER).toBe(HOST_HEADER);
   });
 
@@ -86,7 +86,7 @@ describe("the cockpit's session carries it", () => {
   test("seating the header hooks the default session, for the window's own server only", () => {
     const hooks = [];
     electron.session.defaultSession.webRequest.onBeforeSendHeaders = (hook) => hooks.push(hook);
-    const { HOST_TOKEN, seatHostHeader } = require("./ui-server");
+    const { HOST_TOKEN, seatHostHeader } = require("./cockpit-origin");
     seatHostHeader("http://127.0.0.1:42731/");
     expect(hooks).toHaveLength(1);
     const sent = [];

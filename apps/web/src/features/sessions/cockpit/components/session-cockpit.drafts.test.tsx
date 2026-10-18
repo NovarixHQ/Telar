@@ -62,11 +62,11 @@ function wire({ opening = {}, create }: { opening?: Opening; create?: (id: strin
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
     calls.push({ method, url, body, pathname: window.location.pathname });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
-    if (method === "POST" && url.endsWith("/api/engine/v2/sessions")) {
+    if (method === "POST" && url.endsWith("/v2/sessions")) {
       await create?.(body.id);
       return Response.json({ session: record(body.id) });
     }
-    if (method === "PATCH" && /\/api\/engine\/v2\/sessions\/[^/]+$/.test(url)) return Response.json({ session: record(id, body) });
+    if (method === "PATCH" && /\/v2\/sessions\/[^/]+$/.test(url)) return Response.json({ session: record(id, body) });
     if (url.includes("/bootstrap")) {
       return Response.json({
         session: record(id, opening.session),
@@ -82,10 +82,10 @@ function wire({ opening = {}, create }: { opening?: Opening; create?: (id: strin
     if (url.includes("/turns")) return Response.json({ runId: "run_next", state: "queued" });
     if (url.includes("/events")) return Response.json({ events: [], cursor: 1, more: false });
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
-    if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
-    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { models: [] } });
-    if (url.includes("/api/engine/v2/inbox")) return Response.json({ inbox: DEFAULT_INBOX_POLICY });
+    if (url.includes("/v2/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
+    if (url.includes("/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
+    if (url.includes("/v2/models")) return Response.json({ catalogue: { models: [] } });
+    if (url.includes("/v2/inbox")) return Response.json({ inbox: DEFAULT_INBOX_POLICY });
     return Response.json({});
   }) as typeof fetch;
 }
@@ -134,7 +134,7 @@ describe("the first message of a new conversation", () => {
     await type(host, "hello there");
     await send(host);
     await settle();
-    const created = calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/sessions") && (call.body as { projectId?: string } | undefined)?.projectId === "project_1");
+    const created = calls.find((call) => call.method === "POST" && call.url.endsWith("/v2/sessions") && (call.body as { projectId?: string } | undefined)?.projectId === "project_1");
     expect(created).toBeDefined();
     const id = (created!.body as { id: string }).id;
     expect(id).toMatch(/^session_[0-9a-f]{32}$/);
@@ -305,7 +305,7 @@ describe("attachments in an unsent draft", () => {
 
 describe("⌘P over the conversation you are reading", () => {
   const pinPatches = (id: string) =>
-    calls.filter((call) => call.method === "PATCH" && call.url.endsWith(`/api/engine/v2/sessions/${id}`)).map((call) => call.body);
+    calls.filter((call) => call.method === "PATCH" && call.url.endsWith(`/v2/sessions/${id}`)).map((call) => call.body);
 
   test("pins an unpinned conversation", async () => {
     wire();

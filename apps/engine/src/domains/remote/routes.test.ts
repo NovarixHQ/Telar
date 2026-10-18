@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
+import { hashToken } from "./store";
 import { stubModels } from "../../../test/stub-models";
 
 const roots: string[] = [];
@@ -14,10 +15,10 @@ afterEach(async () => {
   for (const directory of roots.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 });
 
-async function engine() {
+async function engine(network?: { host: string }) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-remote-routes-"));
   roots.push(home);
-  const daemon = await startEngine({ models: stubModels, engineRoot: path.join(home, "engine") });
+  const daemon = await startEngine({ models: stubModels, engineRoot: path.join(home, "engine"), ...(network ? { network } : {}) });
   daemons.push(daemon);
   const call = async (method: string, route: string, body?: unknown, token = daemon.discovery.token) => {
     const response = await fetch(`http://127.0.0.1:${daemon.discovery.port}${route}`, {
@@ -31,7 +32,8 @@ async function engine() {
     const { body } = await call("POST", "/v2/remote/pairing");
     return (await call("POST", "/v2/remote/pair", { code: body.code, name, identity: { kind: "phone" } })).body;
   };
-  return { call, pair, client: new EngineClient(daemon.discovery), file: path.join(home, "remote", "remote.json") };
+  const viaNetwork = (route: string, token: string) => fetch(`http://127.0.0.1:${daemon.network!.port}${route}`, { headers: { authorization: `Bearer ${token}` } });
+  return { call, pair, viaNetwork, client: new EngineClient(daemon.discovery), file: path.join(home, "remote", "remote.json") };
 }
 
 test("every remote route answers only to the engine token", async () => {
@@ -72,13 +74,12 @@ test("the fifth wrong guess burns the code", async () => {
 });
 
 test("pairing the same device again replaces its entry and revokes the old token", async () => {
-  const { call } = await engine();
+  const { call, file } = await engine();
   const pairAs = async (body: Record<string, unknown>) => {
     const { body: minted } = await call("POST", "/v2/remote/pairing");
     return (await call("POST", "/v2/remote/pair", { code: minted.code, ...body })).body;
   };
-  const admits = async (token: string) =>
-    (await call("POST", "/v2/auth/decide", { pathname: "/api/projects", method: "GET", authorization: `Bearer ${token}` })).body.allow;
+  const admits = async (token: string) => (JSON.parse(fs.readFileSync(file, "utf8")) as { devices: { tokenHash: string }[] }).devices.some((device) => device.tokenHash === hashToken(token));
   const iphone = { name: "Telar iPhone", platform: "ios", clientId: "A1B2" };
   await pairAs({ name: "Telar iPad", platform: "ios", clientId: "C3D4" });
   const first = await pairAs(iphone);
@@ -156,11 +157,11 @@ test("turning pairing on without a device to pair mints nothing", async () => {
 });
 
 test("the device list says which devices are connected now", async () => {
-  const { call, pair } = await engine();
+  const { call, pair, viaNetwork } = await engine({ host: "127.0.0.1" });
   const phone = await pair("Phone");
   const laptop = await pair("Laptop");
   await call("PATCH", "/v2/remote", { requireAuth: true, device: { name: "Mac" } });
-  await call("POST", "/v2/auth/decide", { pathname: "/api/projects", method: "GET", authorization: `Bearer ${phone.deviceToken}` });
+  await viaNetwork("/v2/health", phone.deviceToken);
 
   const devices = (await call("GET", "/v2/remote")).body.devices as Array<{ id: string; connected: boolean; lastSeenAt?: number }>;
   expect(devices.find((device) => device.id === phone.deviceId)).toMatchObject({ connected: true, lastSeenAt: expect.any(Number) });

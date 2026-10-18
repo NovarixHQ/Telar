@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/ui/button";
 import { CopyCommand } from "@/ui/copy-command";
 import { cn } from "@/ui/utils";
 import { Row } from "@/features/settings";
 import { QrCodeView } from "./qr-code";
+import { encodeQr } from "../qr";
 import { PairSimulatorsButton } from "./pair-simulators-button";
 import type { MintedPairing, RemoteStatus } from "../api";
 
@@ -83,8 +84,8 @@ type EndpointChoice = { endpointUrl: string | null; onSelectEndpoint: (url: stri
 function MintedCode({ minted, endpoints, endpointUrl, onSelectEndpoint }: { minted: MintedPairing; endpoints: RemoteEndpoint[] } & EndpointChoice) {
   const selectedUrl = endpointUrl ?? endpoints.filter((endpoint) => endpoint.qrSafe).at(-1)?.url ?? endpoints.at(-1)?.url ?? null;
   const selectedEndpoint = endpoints.find((endpoint) => endpoint.url === selectedUrl);
-  const matrix = selectedUrl && selectedEndpoint?.qrSafe ? minted.qrByUrl[selectedUrl] : undefined;
   const pairingUrl = selectedUrl ? `${selectedUrl}/pair#token=${minted.code}` : null;
+  const matrix = useMemo(() => (pairingUrl && selectedEndpoint?.qrSafe ? encodeQr(pairingUrl) : undefined), [pairingUrl, selectedEndpoint?.qrSafe]);
   return (
     <div className="flex flex-col gap-4 py-3 sm:flex-row sm:items-start sm:gap-6">
       <div className="flex min-w-0 flex-1 flex-col gap-3">

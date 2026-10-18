@@ -1,7 +1,10 @@
+import type { BrowserInput } from "./schema";
 import type { BrowserSnapshot } from "../protocol/common";
 import type { EngineTransport } from "../platform/transport";
 
 const browserPath = (sessionId: string) => `/v2/sessions/${encodeURIComponent(sessionId)}/browser`;
+
+export const browserStreamPath = (sessionId: string): string => `${browserPath(sessionId)}/stream`;
 
 export const browserClient = {
   browserState(this: EngineTransport, sessionId: string, options: { screenshot?: boolean; start?: boolean } = {}): Promise<{ browser: BrowserSnapshot }> {
@@ -14,5 +17,9 @@ export const browserClient = {
   /** Opens an http(s) page as a new tab, as the person would, for clients without a desktop shell. */
   browserOpen(this: EngineTransport, sessionId: string, url: string): Promise<{ browser: BrowserSnapshot }> {
     return this.request("POST", `${browserPath(sessionId)}/open`, { url });
+  },
+
+  browserInput(this: EngineTransport, sessionId: string, input: BrowserInput): Promise<Record<string, never>> {
+    return this.request("POST", `${browserPath(sessionId)}/input`, input);
   },
 };

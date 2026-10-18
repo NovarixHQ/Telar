@@ -256,7 +256,7 @@ function currentRoutes(ctx: RouteContext): Route[] {
     ...sessionGitRoutes(store),
     ...sessionGitHubRoutes(store),
     ...sessionProviderRoutes(store, options.providerSkills),
-    ...browserSessionRoutes(store),
+    ...browserSessionRoutes(store, openStreams),
     ...simulatorSessionRoutes(store, simulators),
     ...pluginSessionRoutes((id) => plugins.host.ready(id)),
     ...runRoutes(store, runMount, openStreams),

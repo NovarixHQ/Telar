@@ -12,6 +12,9 @@ import {
 } from "./helpers";
 import type { BrowserProfileIdentity, DesktopBrowserClient, DesktopBrowserState } from "./desktop";
 import { headlessCanvasCall } from "./canvas";
+import type { BrowserInput, BrowserStreamEvent } from "@telar/engine-client";
+import { BrowserScreencast } from "./screencast";
+import { ChromiumHost, type LaunchChromium } from "./chromium";
 import { ScopedRuntimePool, type ScopedRuntimeResource } from "./pool";
 import { installBrowser, PlaywrightMcpTransport, type BrowserTransportOptions } from "./transport";
 import { BrowserToolResult, parseBrowserToolInput } from "./tools";
@@ -48,11 +51,14 @@ export type BrowserRuntimeOptions = BrowserTransportOptions & {
   installExitHandler?: boolean;
   install?: (browser?: string) => Promise<string>;
   autoInstall?: boolean;
+  launch?: LaunchChromium;
 };
 
 type BrowserScope = ScopedRuntimeResource & {
   scopeKey: string;
   transport: PlaywrightMcpTransport;
+  host: ChromiumHost | null;
+  screencast: BrowserScreencast | null;
 };
 
 export class BrowserRuntime {
@@ -64,9 +70,11 @@ export class BrowserRuntime {
   private readonly install: ((browser?: string) => Promise<string>) | null;
   private readonly profileRoot: string | undefined;
   private installAttempted = false;
+  private readonly launch: LaunchChromium | undefined;
 
   constructor(options: BrowserRuntimeOptions = {}) {
-    const { maxScopes, exitHooks, installExitHandler, install, autoInstall, profileRoot, ...transportOptions } = options;
+    const { maxScopes, exitHooks, installExitHandler, install, autoInstall, profileRoot, launch, ...transportOptions } = options;
+    this.launch = launch;
     this.profileRoot = profileRoot;
     this.scopes = new ScopedRuntimePool<BrowserScope>(maxScopes ?? MAX_BROWSER_SCOPES);
     this.transportOptions = transportOptions;
@@ -189,19 +197,47 @@ export class BrowserRuntime {
 
   private scopeFor(scopeKey: string): BrowserScope {
     return this.scopes.acquire(scopeKey, () => {
+      const userDataDir = this.profileRoot ? nodePath.join(this.profileRoot, scopeKey.replace(/[^A-Za-z0-9._-]/g, "_")) : undefined;
+      const { browsersPath } = this.transportOptions;
+      const host = browsersPath ? new ChromiumHost({ browsersPath, ...(userDataDir ? { userDataDir } : {}), ...(this.launch ? { launch: this.launch } : {}) }) : null;
       const transport = new PlaywrightMcpTransport({
         ...this.transportOptions,
-        ...(this.profileRoot
-          ? { userDataDir: nodePath.join(this.profileRoot, scopeKey.replace(/[^A-Za-z0-9._-]/g, "_")) }
-          : {}),
+        ...(userDataDir ? { userDataDir } : {}),
+        ...(host ? { endpoint: async () => (host.installed ? (await host.ensure()).endpoint : undefined) } : {}),
       });
       return {
         scopeKey,
         transport,
+        host,
+        screencast: null,
         isBusy: () => transport.busy,
-        dispose: (reason) => transport.close(reason),
+        dispose: async (reason) => {
+          await transport.close(reason);
+          await host?.close();
+        },
       };
     });
+  }
+
+  private async view(scopeKey: string): Promise<BrowserScreencast> {
+    if (this.closed) throw new Error("The browser runtime is closed.");
+    const scope = this.scopeFor(scopeKey);
+    if (!scope.host) throw new Error("This engine has no browser to stream.");
+    if (!scope.host.installed && this.install) {
+      this.installAttempted = true;
+      await this.install(this.transportOptions.browser);
+    }
+    const { cdp } = await scope.host.ensure();
+    scope.screencast ??= new BrowserScreencast(cdp);
+    return scope.screencast;
+  }
+
+  async stream(scopeKey: string, listener: (event: BrowserStreamEvent) => void): Promise<() => void> {
+    return (await this.view(scopeKey)).subscribe(listener);
+  }
+
+  async input(scopeKey: string, input: BrowserInput): Promise<void> {
+    await (await this.view(scopeKey)).input(input);
   }
 }
 
@@ -216,6 +252,8 @@ export type EngineBrowser = {
   bindProfile?(scopeKey: string, profileKey: string): Promise<void>;
   profileIdentity?(scopeKey: string): Promise<BrowserProfileIdentity | null>;
   passwordManagerEnabled?(): Promise<boolean>;
+  stream?(scopeKey: string, listener: (event: BrowserStreamEvent) => void): Promise<() => void>;
+  input?(scopeKey: string, input: BrowserInput): Promise<void>;
   release(scopeKey: string, reason?: string): Promise<boolean>;
   close(reason?: string): Promise<void>;
 };
@@ -326,6 +364,16 @@ export class BrowserRouter implements EngineBrowser {
         error: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+
+  async stream(scopeKey: string, listener: (event: BrowserStreamEvent) => void): Promise<() => void> {
+    if (await this.useDesktop()) throw new Error("This session's browser is in the desktop app.");
+    return this.headless.stream(scopeKey, listener);
+  }
+
+  async input(scopeKey: string, input: BrowserInput): Promise<void> {
+    if (await this.useDesktop()) throw new Error("This session's browser is in the desktop app.");
+    return this.headless.input(scopeKey, input);
   }
 
   async release(scopeKey: string, reason?: string): Promise<boolean> {

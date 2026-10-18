@@ -1,4 +1,4 @@
-import type { BrowserProvider, BrowserSnapshot, BrowserTab, Session } from "@telar/engine-client";
+import type { BrowserInput, BrowserProvider, BrowserStreamEvent, BrowserSnapshot, BrowserTab, Session } from "@telar/engine-client";
 import { EngineStateError, type Kernel } from "../../platform/kernel";
 
 /**
@@ -14,6 +14,8 @@ export type AttachedBrowser = {
   ): Promise<{ provider: BrowserProvider; running: boolean; tabs: BrowserTab[]; screenshot?: string | null; error?: string | null }>;
   /** The desktop host refuses a scope with no profile bound. */
   bindProfile?(scopeKey: string, profileKey: string): Promise<void>;
+  stream?(scopeKey: string, listener: (event: BrowserStreamEvent) => void): Promise<() => void>;
+  input?(scopeKey: string, input: BrowserInput): Promise<void>;
   call?(scopeKey: string, name: string, args?: Record<string, unknown>): Promise<{ isError?: boolean; content: Array<{ type: string; text?: string }> }>;
 };
 
@@ -107,5 +109,22 @@ export class SessionBrowser {
       throw new EngineStateError("invalid_request", text || "the browser could not open that page");
     }
     return this.state(sessionId, { start: true });
+  }
+
+  async stream(sessionId: string, listener: (event: BrowserStreamEvent) => void): Promise<() => void> {
+    const session = this.deps.getSession(sessionId);
+    if (!this.browser?.stream) throw new EngineStateError("invalid_request", "this engine has no browser to stream");
+    if (this.browser.bindProfile) await this.browser.bindProfile(sessionId, session.projectId ?? "none");
+    return this.browser.stream(sessionId, listener).catch((error) => {
+      throw new EngineStateError("invalid_request", error instanceof Error ? error.message : String(error));
+    });
+  }
+
+  async input(sessionId: string, input: BrowserInput): Promise<void> {
+    this.deps.require(sessionId);
+    if (!this.browser?.input) throw new EngineStateError("invalid_request", "this engine has no browser to control");
+    await this.browser.input(sessionId, input).catch((error) => {
+      throw new EngineStateError("invalid_request", error instanceof Error ? error.message : String(error));
+    });
   }
 }

@@ -1,7 +1,3 @@
-/**
- * The headless path end to end, as the Linux CI lane runs it: an engine in a temp TELAR_HOME,
- * a device paired over HTTP, one turn on a stubbed provider, then a clean shutdown.
- */
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";

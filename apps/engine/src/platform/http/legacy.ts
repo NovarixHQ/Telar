@@ -11,7 +11,6 @@ function target(routes: readonly Route[], method: string, path: string): { route
   return matched;
 }
 
-/** The paths released iOS builds and older hosts still call. Remove on 2027-01-31. */
 type Caller = (request: http.IncomingMessage) => { device?: { id: string; scopes: readonly string[] } };
 
 const PUSH_REGISTRATION_MAX_BYTES = 32768;
@@ -41,6 +40,7 @@ function mobileRoutes(routes: readonly Route[], callerOf: Caller): Route[] {
         const device = callerOf(input.request).device;
         if (!device) return unpaired();
         if (!device.scopes.includes("write")) return fail(403, "engine_unauthorized", "Write access is required.");
+        if (Number(input.request.headers["content-length"]) > PUSH_REGISTRATION_MAX_BYTES) return fail(413, "invalid_request", "Registration too large.");
         let registration: Record<string, unknown>;
         try {
           registration = JSON.parse((await rawBody(input.request, PUSH_REGISTRATION_MAX_BYTES)).toString("utf8")) as Record<string, unknown>;

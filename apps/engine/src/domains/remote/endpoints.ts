@@ -21,7 +21,6 @@ function hostEndpoint(address: string, port: number): CockpitEndpoint {
   return { kind: tailnet ? "tailnet" : "lan", label: tailnet ? "Tailscale IP" : "Local network", url, qrSafe: true };
 }
 
-/** Where a browser or phone can reach the network listener, nearest first. Nothing without one. */
 export function listEndpoints(
   network: Listener | undefined,
   nics: NicMap = os.networkInterfaces() as NicMap,
@@ -42,7 +41,6 @@ export function dialableAddresses(endpoints: readonly CockpitEndpoint[]): string
   return endpoints.filter((endpoint) => endpoint.qrSafe).map((endpoint) => endpoint.url);
 }
 
-/** Tailnet addresses first: a phone that can see the Mac over Tailscale should prefer it over the LAN. */
 export function advertisedAddresses(endpoints: readonly CockpitEndpoint[]): string[] {
   const order: Record<CockpitEndpoint["kind"], number> = { tailnet: 0, magicdns: 1, lan: 2, loopback: 3 };
   return endpoints.filter((endpoint) => endpoint.qrSafe).sort((left, right) => order[left.kind] - order[right.kind]).map((endpoint) => endpoint.url);

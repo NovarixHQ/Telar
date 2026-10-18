@@ -32,7 +32,7 @@ fs.cpSync(path.join(web, "src"), path.join(stage, "src"), { recursive: true, fil
 for (const name of ["package.json", "tsconfig.json", "next.config.ts", "postcss.config.mjs"]) fs.copyFileSync(path.join(web, name), path.join(stage, name));
 for (const name of ["node_modules", "public"]) fs.symlinkSync(path.join(web, name), path.join(stage, name));
 
-const build = spawnSync("bunx", ["--bun", "next", "build"], { cwd: stage, stdio: "inherit", env: { ...process.env, NEXT_OUTPUT: "export" } });
+const build = spawnSync("bunx", ["next", "build"], { cwd: stage, stdio: "inherit", env: { ...process.env, NEXT_OUTPUT: "export" } });
 if (build.status === 0) fs.renameSync(path.join(stage, "out"), out);
 fs.rmSync(stage, { recursive: true, force: true });
 if (build.status !== 0) process.exit(build.status ?? 1);

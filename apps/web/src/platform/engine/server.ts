@@ -35,7 +35,7 @@ export function engineRootFromWebEnv(
   return path.join(canonicalHome, "engine");
 }
 
-export async function engineClient(): Promise<EngineClient> {
+async function engineClient(): Promise<EngineClient> {
   return connectEngine(engineRootFromWebEnv());
 }
 
@@ -86,13 +86,6 @@ export function invalidRequest(message: string): EngineClientError {
   return new EngineClientError("invalid_request", message);
 }
 
-/** File bytes as the cockpit reads them: never cached, never sniffed into something executable. */
-export function bytesResponse({ data, contentType }: { data: Uint8Array; contentType: string }): Response {
-  return new Response(new Uint8Array(data).buffer as ArrayBuffer, {
-    headers: { "content-type": contentType, "cache-control": "no-store", "x-content-type-options": "nosniff" },
-  });
-}
-
 export async function requestObject(request: Request): Promise<Record<string, unknown>> {
   try {
     const value: unknown = await request.json();
@@ -101,18 +94,6 @@ export async function requestObject(request: Request): Promise<Record<string, un
   } catch {
     throw new EngineClientError("invalid_request", "Request body must be a JSON object.");
   }
-}
-
-export function requiredString(value: unknown, label: string): string {
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new EngineClientError("invalid_request", `${label} is required.`);
-  }
-  return value;
-}
-
-export function optionalString(value: unknown, label: string): string | undefined {
-  if (value === undefined) return undefined;
-  return requiredString(value, label);
 }
 
 const FORWARDED_HEADERS = ["content-type", "etag", "cache-control"];

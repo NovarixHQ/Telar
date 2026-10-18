@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { GET as eventsGet } from "@/app/api/sessions/[sessionId]/events/route";
 import { catchAll as projectsGet, catchAll as liveGet, catchAll as fsGet, catchAll as aboutGet, catchAll as aboutIconGet, catchAll as discardPost } from "@/test/catch-all";
 import { EngineClient } from "@telar/engine-client";
 import { engineRootFromWebEnv } from "@/platform/engine/server";
@@ -47,12 +46,6 @@ describe("engine route adapters", () => {
     expect(() => engineRootFromWebEnv({ TELAR_HOME: path.join(os.homedir(), ".telar-dev"), TELAR_COCKPIT: "1" })).toThrow(
       "must not point at legacy Telar state",
     );
-  });
-
-  test("validates a journal cursor in the thin adapter", async () => {
-    const response = await eventsGet(new Request("http://telar.local/api/sessions/session_a/events?after=not-a-cursor"), { params: Promise.resolve({ sessionId: "session_a" }) });
-    expect(response.status).toBe(400);
-    expect((await response.json()).error.code).toBe("invalid_request");
   });
 
   test("the live list carries every project's sessions, and the rail's arrangement", async () => {

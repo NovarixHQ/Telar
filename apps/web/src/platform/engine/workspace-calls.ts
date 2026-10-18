@@ -38,7 +38,7 @@ export function workspaceCalls(fetcher: Fetcher) {
       request<{ conversations: ClaudeConversation[] }>(
         fetcher,
         "GET",
-        `/v2/claude-conversations${instanceId ? `?${new URLSearchParams({ instanceId }).toString()}` : ""}`,
+        `/v2/claude/conversations${instanceId ? `?${new URLSearchParams({ instanceId }).toString()}` : ""}`,
       ),
     /** Adopt one: fork it, import its history, and point this session's next
      *  turn at the fork. The person's own conversation is not written to. */
@@ -131,7 +131,7 @@ export function integrationCalls(fetcher: Fetcher) {
       request<{ providerInstance: ProviderInstance; stoppedInheriting?: string[] }>(
         fetcher,
         "PUT",
-        "/v2/provider-instances",
+        `/v2/provider-instances/${encodeURIComponent(input.id)}`,
         input,
       ),
     agentCatalog: (options: { refresh?: boolean } = {}) => request<AgentCatalog>(fetcher, "GET", `/v2/agent-catalog${options.refresh ? "?refresh=1" : ""}`),

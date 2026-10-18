@@ -143,7 +143,7 @@ describe("the popover", () => {
     forgetModelCatalogues();
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url.startsWith("/api/models")) {
+      if (url.startsWith("/api/engine/v2/models")) {
         const driver = new URL(url, "http://localhost").searchParams.get("driver") as BuiltInDriver;
         const catalogue: ModelCatalogue = { driver, instanceId: driver, models: CATALOGUES[driver], source: "provider", readAt: 0 };
         return Response.json({ catalogue });

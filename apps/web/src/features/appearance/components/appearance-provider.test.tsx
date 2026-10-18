@@ -58,8 +58,8 @@ test("a window wears the host's appearance, even one stored with layers, and sha
     window.localStorage.setItem("telar-looks", "[]");
     window.localStorage.setItem("telar-theme-css", ":root{--card:red}");
     const calls = stubFetch({
-      "GET /api/appearance": () => ({ appearance: hostAppearance, updatedAt: 7 }),
-      "PUT /api/appearance": () => ({ ok: true, updatedAt: 8, etag: '"a8"' }),
+      "GET /api/engine/v2/appearance": () => ({ appearance: hostAppearance, updatedAt: 7 }),
+      "PUT /api/engine/v2/appearance": () => ({ ok: true, updatedAt: 8, etag: '"a8"' }),
     });
     const { host } = await mount(
       <AppearanceProvider>
@@ -77,11 +77,11 @@ test("a window wears the host's appearance, even one stored with layers, and sha
     expect(window.localStorage.getItem("telar-theme-css")).toBeNull();
 
     await runDebounced();
-    expect(calls.filter((call) => call.route === "PUT /api/appearance")).toEqual([]);
+    expect(calls.filter((call) => call.route === "PUT /api/engine/v2/appearance")).toEqual([]);
 
     await click(buttonLabelled("Rose", host));
     await runDebounced();
-    const puts = calls.filter((call) => call.route === "PUT /api/appearance");
+    const puts = calls.filter((call) => call.route === "PUT /api/engine/v2/appearance");
     expect(puts).toHaveLength(1);
     expect(puts[0]!.body).toMatchObject({ version: 3, accent: "rose", fontSize: 15, scheme: "light", background: { kind: "image", image: "data:image/webp;base64,AAAA" } });
     expect(puts[0]!.body).not.toHaveProperty("composition");

@@ -33,7 +33,7 @@ const livePath = ({ all, shelf }: LiveScope): string =>
 export function sessionCalls(fetcher: Fetcher) {
   return {
     sessions: (projectId: string) =>
-      request<{ sessions: Session[] }>(fetcher, "GET", `/v2/projects/${encodeURIComponent(projectId)}/sessions`),
+      request<{ sessions: Session[] }>(fetcher, "GET", `/v2/sessions?${new URLSearchParams({ projectId }).toString()}`),
     machinePlugins: () => request<{ plugins: PluginStatus[]; machine: ProjectPlugins }>(fetcher, "GET", "/v2/plugins"),
     installPlugin: (input: { path: string; mode: "copy" | "link" }) =>
       request<{ plugin: PluginStatus }>(fetcher, "POST", "/v2/plugins/installed", input),
@@ -81,7 +81,7 @@ export function sessionCalls(fetcher: Fetcher) {
         branchName?: string;
       } = {},
     ) =>
-      request<{ session: Session }>(fetcher, "POST", `/v2/projects/${encodeURIComponent(projectId)}/sessions`, input),
+      request<{ session: Session }>(fetcher, "POST", "/v2/sessions", { ...input, projectId }),
     // The contract's own snapshot type, not a hand-copied structural twin: this
     // route proxies the engine verbatim, so a field the engine adds is already
     // arriving and a local re-declaration only hides it.

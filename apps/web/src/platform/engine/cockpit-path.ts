@@ -1,13 +1,11 @@
 import { COCKPIT_API } from "@telar/engine-client";
 
-const SEGMENT = "[^/?]+";
 const ANY = "*";
 
 const OWN: [method: string, path: RegExp][] = [
-  [ANY, /^\/v2\/(appearance|dictation|remote|remote\/pairing|provider-instances|claude-conversations)$/],
-  [ANY, new RegExp(`^/v2/projects/${SEGMENT}/sessions$`)],
-  ["GET", new RegExp(`^/v2/(health|identity|models|sessions/find|simulators/stream-ticket|projects/${SEGMENT}/files/raw|sessions/${SEGMENT}/(events|files/raw))$`)],
-  ["POST", new RegExp(`^/v2/(hosts|pair|sessions/${SEGMENT}/(adopt|handoff|stop|requests/${SEGMENT})|sessions/${SEGMENT}/turns/${SEGMENT}/move)$`)],
+  [ANY, /^\/v2\/(remote|remote\/pairing)$/],
+  ["GET", /^\/v2\/(identity|simulators\/stream-ticket)$/],
+  ["POST", /^\/v2\/(hosts|pair)$/],
   ["DELETE", /^\/v2\/remote\/devices$/],
 ];
 

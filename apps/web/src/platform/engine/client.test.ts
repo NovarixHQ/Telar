@@ -113,13 +113,13 @@ describe("engine browser adapter", () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       live -= 1;
       // These two throw while holding both slots; a gate freeing slots only on success would deadlock.
-      if (String(url) === "/api/health") throw new Error("socket died");
+      if (String(url) === "/api/engine/v2/health") throw new Error("socket died");
       return Response.json({});
     }) as unknown as typeof fetch);
     const results = await Promise.allSettled([api.health(), api.health(), api.projects(), api.inbox(), api.hosts()]);
     expect(peak).toBe(READ_BUDGET);
     expect(results.map((result) => result.status)).toEqual(["rejected", "rejected", "fulfilled", "fulfilled", "fulfilled"]);
-    expect(order).toEqual(["/api/health", "/api/health", "/api/engine/v2/projects", "/api/engine/v2/inbox", "/api/engine/v2/hosts"]);
+    expect(order).toEqual(["/api/engine/v2/health", "/api/engine/v2/health", "/api/engine/v2/projects", "/api/engine/v2/inbox", "/api/engine/v2/hosts"]);
   });
 
   test("a mutation never waits behind background reads", async () => {

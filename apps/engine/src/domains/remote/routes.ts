@@ -1,3 +1,4 @@
+import { thisComputerName } from "../../platform/http/host";
 import pkg from "../../../package.json" with { type: "json" };
 import type { DeviceIdentity, DevicePlatform, PairingRefusal, RemoteDevice, RemoteState } from "@telar/engine-client";
 import { mintDeviceToken, RemoteStoreError, type PairedDevice, type RemoteStore } from "./store";
@@ -6,6 +7,10 @@ import { authRoutes, type TicketCheck } from "./auth";
 import { deviceCookieHeader } from "./cookie";
 import { createPresence, type Presence } from "./presence";
 import { ALL_SCOPES, normaliseScopes, roleOf, scopesForRole } from "./scopes";
+import { callerOf } from "./caller";
+import { readServeError } from "./serve-error";
+import { dialableAddresses, type CockpitEndpoint } from "./endpoints";
+import { describeDevice, observeIdentity } from "./observe";
 
 type Body = Record<string, unknown>;
 
@@ -44,7 +49,64 @@ const publicDevice = ({ id, name, createdAt, lastSeenAt, expiresAt, scopes, plat
   identity,
 });
 
-export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, presence: Presence = createPresence()): Route[] {
+const OS_NAMES: Record<string, string> = { darwin: "macOS", win32: "Windows", linux: "Linux" };
+
+function hostRow(isCaller: boolean) {
+  if (!process.env.TELAR_HOST_TOKEN) return undefined;
+  const machine = thisComputerName();
+  const identity: DeviceIdentity = {
+    kind: "desktop",
+    client: process.env.TELAR_HOST_CLIENT?.trim() || "Telar",
+    ...(machine ? { machine } : {}),
+    ...(OS_NAMES[process.platform] ? { os: OS_NAMES[process.platform] } : {}),
+  };
+  return { name: describeDevice(identity), identity, isCaller };
+}
+
+function pairDevice(store: RemoteStore, input: { code: string; name: string | undefined; identity: DeviceIdentity | undefined; clientId: string | undefined; platform: DevicePlatform | undefined }) {
+  const grant = store.pendingGrant();
+  const outcome = input.code ? store.consumePairing(input.code) : "none-pending";
+  if (outcome !== true) return { refused: { status: 401, body: { error: { code: "cockpit_unauthorized", reason: outcome, message: REFUSAL[outcome] } } } };
+  const deviceToken = mintDeviceToken();
+  const device = store.addDevice(input.name ?? "Unnamed device", deviceToken, {
+    ...(grant ? { scopes: grant.scopes } : {}),
+    ...(grant?.sessionMs ? { expiresAt: Date.now() + grant.sessionMs } : {}),
+    ...(input.platform ? { platform: input.platform } : {}),
+    ...(input.identity ? { identity: input.identity } : {}),
+    ...(input.clientId ? { clientId: input.clientId } : {}),
+  });
+  return { deviceToken, device };
+}
+
+function statusRoute(store: RemoteStore, presence: Presence, endpoints: () => CockpitEndpoint[]): Route {
+  return {
+    method: "GET",
+    path: "/v2/remote",
+    auth: "engine",
+    handle({ request }) {
+      const file = store.read();
+      const caller = callerOf(request);
+      const state: RemoteState = {
+        requireAuth: file.requireAuth,
+        exposure: file.exposure ?? "local-only",
+        tailscaleServe: file.tailscaleServe === true,
+        devices: file.devices.map((device) => ({ ...publicDevice(device), ...presence.of(device.id, device.lastSeenAt) })),
+        ...(file.pairing ? { pairing: { expiresAt: file.pairing.expiresAt } } : {}),
+      };
+      return ok({
+        ...state,
+        host: hostRow(caller.host),
+        tailscaleServeError: readServeError(),
+        callerDeviceId: caller.device?.id,
+        callerRole: caller.device?.role,
+        callerScopes: caller.device?.scopes,
+        endpoints: endpoints(),
+      });
+    },
+  };
+}
+
+export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, presence: Presence = createPresence(), endpoints: () => CockpitEndpoint[] = () => []): Route[] {
   const routes: Route[] = [
     {
       method: "GET",
@@ -52,27 +114,12 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       auth: "engine",
       handle: () => ok({ ok: true, proto: 1, appVersion: pkg.version }),
     },
-    {
-      method: "GET",
-      path: "/v2/remote",
-      auth: "engine",
-      handle() {
-        const file = store.read();
-        const state: RemoteState = {
-          requireAuth: file.requireAuth,
-          exposure: file.exposure ?? "local-only",
-          tailscaleServe: file.tailscaleServe === true,
-          devices: file.devices.map((device) => ({ ...publicDevice(device), ...presence.of(device.id, device.lastSeenAt) })),
-          ...(file.pairing ? { pairing: { expiresAt: file.pairing.expiresAt } } : {}),
-        };
-        return ok(state);
-      },
-    },
+    statusRoute(store, presence, endpoints),
     {
       method: "PATCH",
       path: "/v2/remote",
       auth: "engine",
-      handle({ body }) {
+      handle({ body, request }) {
         if (body.tailscaleServe !== undefined) {
           if (typeof body.tailscaleServe !== "boolean") return fail(400, "invalid_request", "tailscaleServe must be a boolean.");
           return ok({ tailscaleServe: store.setTailscaleServe(body.tailscaleServe).tailscaleServe === true, restartRequired: true });
@@ -89,12 +136,15 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
           return ok({ requireAuth: false });
         }
         store.setRequireAuth(true);
-        if (!body.device || typeof body.device !== "object") return ok({ requireAuth: true });
-        const caller = body.device as Body;
+        const pairsCaller = !body.device && !callerOf(request).host;
+        const identity = pairsCaller ? observeIdentity(request) : identityOf((body.device as Body | undefined)?.identity);
+        if (!pairsCaller && (!body.device || typeof body.device !== "object")) return ok({ requireAuth: true });
         const deviceToken = mintDeviceToken();
-        const identity = identityOf(caller.identity);
-        const device = store.addDevice(text(caller.name) ?? "Unnamed device", deviceToken, identity ? { identity } : {});
-        return ok({ requireAuth: true, device: { id: device.id, name: device.name }, deviceToken });
+        const name = pairsCaller ? describeDevice(identity!) : text((body.device as Body).name);
+        const device = store.addDevice(name ?? "Unnamed device", deviceToken, identity ? { identity } : {});
+        const answer = { requireAuth: true, device: { id: device.id, name: device.name } };
+        if (!pairsCaller) return ok({ ...answer, deviceToken });
+        return { status: 200, body: answer, headers: { "set-cookie": deviceCookieHeader(deviceToken, request), "cache-control": "no-store" } };
       },
     },
     {
@@ -126,31 +176,35 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       path: "/v2/remote/pair",
       auth: "engine",
       handle({ body, request }) {
-        const code = typeof body.code === "string" ? body.code : "";
-        const grant = store.pendingGrant();
-        const outcome = code ? store.consumePairing(code) : "none-pending";
-        if (outcome !== true) return { status: 401, body: { error: { code: "cockpit_unauthorized", reason: outcome, message: REFUSAL[outcome] } } };
         const platform: DevicePlatform | undefined = body.platform === "ios" || body.platform === "browser" ? body.platform : undefined;
-        const identity = identityOf(body.identity);
-        const clientId = text(body.clientId, 128);
-        const deviceToken = mintDeviceToken();
-        const device = store.addDevice(text(body.name) ?? "Unnamed device", deviceToken, {
-          ...(grant ? { scopes: grant.scopes } : {}),
-          ...(grant?.sessionMs ? { expiresAt: Date.now() + grant.sessionMs } : {}),
-          ...(platform ? { platform } : {}),
-          ...(identity ? { identity } : {}),
-          ...(clientId ? { clientId } : {}),
-        });
-        const answer = ok({ deviceToken, deviceId: device.id, deviceName: device.name });
-        return platform === "browser" ? { ...answer, headers: { "set-cookie": deviceCookieHeader(deviceToken, request) } } : answer;
+        const paired = pairDevice(store, { code: typeof body.code === "string" ? body.code : "", name: text(body.name), identity: identityOf(body.identity), clientId: text(body.clientId, 128), platform });
+        if ("refused" in paired) return paired.refused;
+        const answer = ok({ deviceToken: paired.deviceToken, deviceId: paired.device.id, deviceName: paired.device.name });
+        return platform === "browser" ? { ...answer, headers: { "set-cookie": deviceCookieHeader(paired.deviceToken, request) } } : answer;
+      },
+    },
+    {
+      method: "POST",
+      path: "/v2/pair",
+      auth: "engine",
+      handle({ body, request }) {
+        const platform: DevicePlatform | undefined = body.platform === "ios" || body.platform === "browser" ? body.platform : undefined;
+        const identity = observeIdentity(request, { kind: body.kind ?? (platform === "ios" ? "phone" : undefined), client: body.client, machine: body.machine, os: body.os });
+        const paired = pairDevice(store, { code: typeof body.token === "string" ? body.token : "", name: describeDevice(identity, typeof body.deviceName === "string" ? body.deviceName : undefined), identity, clientId: text(body.clientId, 128), platform });
+        if ("refused" in paired) return paired.refused;
+        return {
+          status: 200,
+          body: { deviceToken: paired.deviceToken, deviceId: paired.device.id, deviceName: paired.device.name, addresses: dialableAddresses(endpoints()) },
+          headers: { "set-cookie": deviceCookieHeader(paired.deviceToken, request), "cache-control": "no-store" },
+        };
       },
     },
     {
       method: "DELETE",
       path: "/v2/remote/devices",
       auth: "engine",
-      handle({ query }) {
-        return ok({ revoked: store.revokeOtherDevices(query.get("keep") ?? undefined) });
+      handle({ query, request }) {
+        return ok({ revoked: store.revokeOtherDevices(query.get("keep") ?? callerOf(request).device?.id) });
       },
     },
     {

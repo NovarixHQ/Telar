@@ -3,6 +3,7 @@ import { MAX_SIMULATOR_INPUT_EVENTS, SimulatorAction, SimulatorInput } from "@te
 import { HttpError } from "../../platform/http/http";
 import { ok, sessionRoute, type Route } from "../../platform/http/route";
 import type { EngineStore } from "../../state";
+import { callerOf } from "../remote";
 import { hubProxyRoute } from "./proxy";
 import type { Simulators } from "./service";
 
@@ -23,7 +24,7 @@ export function simulatorsRoutes(simulators: Simulators, fetchImpl?: typeof fetc
       method: "GET",
       path: "/v2/simulators/stream-ticket",
       auth: "engine",
-      handle: ({ query }) => ({ status: 200, body: simulators.tickets.mint(query.get("holder")), headers: { "cache-control": "no-store" } }),
+      handle: ({ query, request }) => ({ status: 200, body: simulators.tickets.mint(callerOf(request).device?.id ?? query.get("holder")), headers: { "cache-control": "no-store" } }),
     },
     { method: "POST", path: simulatorRoute("boot"), auth: "engine", handle: async ({ params }) => ok({ simulator: await simulators.boot(params[0]!) }) },
     { method: "POST", path: simulatorRoute("shutdown"), auth: "engine", handle: async ({ params }) => ok({ simulator: await simulators.shutdown(params[0]!) }) },

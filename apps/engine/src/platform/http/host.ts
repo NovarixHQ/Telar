@@ -17,6 +17,11 @@ export function machineNames(hostname: string, localHostName?: string, computerN
   return new Set(bases.filter(Boolean).flatMap(base => [base, `${base}.local`]));
 }
 
+export function thisComputerName(): string | undefined {
+  const name = (scutil("ComputerName") ?? os.hostname()).trim().replace(/\.local$/i, "");
+  return name ? [...name].map((char) => (char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127 ? " " : char)).join("").slice(0, 48) : undefined;
+}
+
 export const MACHINE_NAMES: ReadonlySet<string> = machineNames(os.hostname(), scutil("LocalHostName"), scutil("ComputerName"));
 
 function hostName(header: string): string | undefined {

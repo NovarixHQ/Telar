@@ -1,5 +1,6 @@
 import os from "node:os";
 import { parsePairingUrl } from "@telar/engine-client";
+import { thisComputerName } from "../../platform/http/host";
 import { fail, ok, type Route } from "../../platform/http/route";
 import { forwardRoute } from "./forward";
 import { publicHost, type HostsStore } from "./store";
@@ -59,7 +60,7 @@ export function hostsRoutes(store: HostsStore, fetcher: typeof fetch = fetch): R
         if (!parsed) {
           return fail(400, "invalid_request", "Paste the pairing link from the other computer's Settings → Remote access (it ends in #token= and the eight-digit code).");
         }
-        const deviceName = typeof body.deviceName === "string" && body.deviceName.trim() ? body.deviceName.trim() : os.hostname();
+        const deviceName = typeof body.deviceName === "string" && body.deviceName.trim() ? body.deviceName.trim() : thisComputerName() ?? os.hostname();
         const paired = await exchange(parsed.baseUrl, parsed.token, deviceName, fetcher);
         if (!paired) return fail(503, "engine_unavailable", "The other computer did not answer. Check that it is reachable from here and that Remote access is on.");
         if ("refused" in paired) return fail(502, "cockpit_pairing_refused", paired.refused);

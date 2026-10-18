@@ -3,11 +3,13 @@ import { MACHINE_NAMES } from "../../platform/http/host";
 import { HttpError } from "../../platform/http/http";
 import type { Route } from "../../platform/http/route";
 import { decideAccess, deviceForBearer } from "./auth";
+import { setCaller } from "./caller";
+import { roleOf } from "./scopes";
 import { cookieRequestIsSameOrigin, readDeviceCookie } from "./cookie";
 import type { Presence } from "./presence";
 import type { RemoteStore } from "./store";
 
-const OPEN = new Set(["GET /v2/ping", "POST /v2/remote/pair"]);
+const OPEN = new Set(["GET /v2/ping", "GET /v2/identity", "POST /v2/remote/pair", "POST /v2/pair"]);
 const ENGINE_ONLY = new Set(["/v2/auth/decide", "/v2/auth/identify"]);
 
 function networkAuthorize(store: RemoteStore, presence: Presence) {
@@ -28,6 +30,7 @@ function networkAuthorize(store: RemoteStore, presence: Presence) {
       if (decision.code === "cockpit_forbidden") throw new HttpError(403, "engine_unauthorized", "this device's access does not cover this request");
       throw new HttpError(401, "engine_unauthorized", "pair this device to use the engine");
     }
+    setCaller(request, { host: false, ...(decision.deviceId && decision.scopes ? { device: { id: decision.deviceId, scopes: decision.scopes, role: roleOf(decision.scopes) } } : {}) });
     if (decision.deviceId) {
       presence.seen(decision.deviceId);
       store.touchDevice(decision.deviceId);

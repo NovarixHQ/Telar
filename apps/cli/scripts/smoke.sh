@@ -27,6 +27,10 @@ wait_for() {
 "$telar" version
 "$telar" doctor --home "$home" || true
 
+"$telar" browser setup --dry-run --home "$home" | tee "$work/browser.log"
+grep -q "Download Chromium" "$work/browser.log"
+TELAR_RUN_SCRIPT="$(dirname "$telar")/node_modules/playwright-core/cli.js" "$telar" --version | grep -q "[0-9]\.[0-9]"
+
 "$telar" serve --home "$home" --port 0 >"$work/serve.log" 2>&1 &
 serve_pid=$!
 wait_for "Pair a device" "$work/serve.log"

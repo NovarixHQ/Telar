@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { OWN_GROUP, signalGroup } from "../../platform/process/group";
+import { scriptArgv } from "./script";
 import { browserErrorText, textOf } from "./helpers";
 import { BrowserToolResult } from "./tools";
 
@@ -47,6 +48,7 @@ function resolvePlaywrightMcpCli(startDir?: string): string {
   if (override) return override;
   return (
     walkUpForPlaywrightMcpCli(startDir !== undefined ? startDir : import.meta.dirname) ??
+    walkUpForPlaywrightMcpCli(path.dirname(process.execPath)) ??
     walkUpForPlaywrightMcpCli(process.cwd()) ??
     "playwright-mcp"
   );
@@ -77,8 +79,6 @@ function walkUpForPlaywrightMcpCli(startDir: string | undefined): string | null 
   }
   return null;
 }
-
-const nodeBinary = (): string => (process.versions.bun ? (Bun.which("node") ?? process.execPath) : process.execPath);
 
 const browserEnv = (browsersPath: string | undefined): NodeJS.ProcessEnv | undefined =>
   browsersPath ? { ...process.env, PLAYWRIGHT_BROWSERS_PATH: browsersPath } : undefined;
@@ -172,8 +172,8 @@ export class PlaywrightMcpTransport {
     const own = endpoint
       ? ["--cdp-endpoint", endpoint]
       : ["--headless", ...(this.options.userDataDir ? ["--user-data-dir", this.options.userDataDir] : ["--isolated"]), "--browser", this.options.browser, "--viewport-size", this.options.viewportSize];
-    const args = [cli, ...own, "--caps", "vision", "--output-mode", "stdout", "--image-responses", "allow"];
-    return this.launchInner(nodeBinary(), args, browserEnv(this.options.browsersPath));
+    const [command, ...args] = scriptArgv(cli, [...own, "--caps", "vision", "--output-mode", "stdout", "--image-responses", "allow"]);
+    return this.launchInner(command!, args, browserEnv(this.options.browsersPath));
   }
 
   private async launchInner(command: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<void> {
@@ -349,7 +349,8 @@ export function installBrowser(
   const run = options.run ?? runOnce;
   const cli = options.cliPath ?? resolvePlaywrightMcpCli();
   const browser = options.browser ?? "chromium";
-  const operation = run(process.execPath, [cli, "install-browser", browser], browserEnv(options.browsersPath)).then(({ code, output }) => {
+  const [command, ...args] = scriptArgv(cli, ["install-browser", browser]);
+  const operation = run(command!, args, browserEnv(options.browsersPath)).then(({ code, output }) => {
     const text = output.trim();
     if (code === 0) return text || "Controlled browser installed.";
     throw new Error(text || `The browser installer exited with code ${code}.`);

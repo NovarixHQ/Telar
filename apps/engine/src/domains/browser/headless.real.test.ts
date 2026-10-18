@@ -16,10 +16,7 @@ afterAll(async () => {
 
 test.skipIf(!real)("the engine's own Chromium navigates and reads the page back", async () => {
   const url = `http://127.0.0.1:${server.port}/`;
-  const navigated = await browser!.call("scope", "browser_navigate", { url }).catch((error: Error) => {
-    const scope = (browser as unknown as { scopes: { peek(key: string): { transport: { diagnostics: string }; host: { ensure(): Promise<{ endpoint: string }> } } | null } }).scopes.peek("scope");
-    throw new Error(`${error.message}\nSTDERR: ${scope?.transport.diagnostics.slice(-3000)}`);
-  });
+  const navigated = await browser!.call("scope", "browser_navigate", { url });
   expect(navigated.isError).toBeFalsy();
   const snapshot = await browser!.call("scope", "browser_snapshot");
   expect(textOf(snapshot)).toContain("Hello from the host");

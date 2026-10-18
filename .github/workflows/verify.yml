@@ -420,7 +420,6 @@ jobs:
       - run: bun test --timeout 120000 apps/engine/src/domains/browser/headless.real.test.ts
         env:
           TELAR_REAL_BROWSER_DIR: ${{ runner.temp }}/telar/engine/browsers
-          DEBUG: "pw:api,pw:browser*,pw:protocol"
 
   # node-pty loads a native addon per OS and arch, and the engine runs terminals through it under Node
   # (it delivers nothing under bun). This loads it and drives real shells on every platform the

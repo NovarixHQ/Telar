@@ -6,7 +6,7 @@ const { app, BrowserWindow, dialog } = require("electron");
 const { DEV_BUILD, SMOKE } = require("./flags");
 const { bundledPlaywrightMcpCli, nodeExecPath, resolveEngineJs } = require("./bundle-paths");
 const { logShell, shellLogPath } = require("./shell-log");
-const { HOST_TOKEN } = require("./ui-server");
+const { HOST_TOKEN } = require("./cockpit-origin");
 const { writePlannedRestart } = require("./update-install");
 
 const ENGINE_EXIT_LOCK_HELD = 3;

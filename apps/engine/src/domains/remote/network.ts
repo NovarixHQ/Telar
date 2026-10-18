@@ -2,7 +2,7 @@ import type http from "node:http";
 import { MACHINE_NAMES } from "../../platform/http/host";
 import { HttpError } from "../../platform/http/http";
 import type { Route } from "../../platform/http/route";
-import { decideAccess, deviceForBearer, isHostCaller, type TicketCheck } from "./auth";
+import { decideAccess, deviceForBearer, HOST_HEADER, isHostCaller, type TicketCheck } from "./auth";
 import { setCaller } from "./caller";
 import { roleOf } from "./scopes";
 import { cookieRequestIsSameOrigin, readDeviceCookie } from "./cookie";
@@ -24,7 +24,7 @@ function networkAuthorize(store: RemoteStore, presence: Presence, checkTicket: T
     const file = { ...store.read(), requireAuth: true };
     const deviceCookie = request.headers.authorization ? null : readDeviceCookie(request);
     if (deviceCookie && !cookieRequestIsSameOrigin(request)) throw new HttpError(403, "engine_unauthorized", "a browser session may write only from this host's own pages");
-    const credentials = { authorization: request.headers.authorization ?? null, deviceCookie, hostHeader: String(request.headers["x-telar-host"] ?? "") || null };
+    const credentials = { authorization: request.headers.authorization ?? null, deviceCookie, hostHeader: String(request.headers[HOST_HEADER] ?? "") || null };
     const hostSecret = process.env.TELAR_HOST_TOKEN;
     const decision = decideAccess(file, { pathname, method, ...credentials, ticket: searchParams.get("ticket") }, hostSecret, checkTicket);
     if (!decision.allow) {

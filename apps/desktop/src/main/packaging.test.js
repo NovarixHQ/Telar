@@ -33,9 +33,9 @@ describe("extraResources carries the node_modules its trees need", () => {
   const entries = manifest.build.extraResources;
   const destinations = new Set(entries.map((entry) => entry.to));
 
-  test("the standalone tree gets its .bun store named explicitly", () => {
-    expect(destinations).toContain("standalone");
-    expect(destinations).toContain("standalone/node_modules/.bun");
+  test("the static cockpit ships with the stamp that names the build", () => {
+    expect(destinations).toContain("cockpit");
+    expect(destinations).toContain("build-info.json");
   });
 
   test("the engine bundle gets its node_modules named explicitly", () => {
@@ -119,7 +119,7 @@ describe("a --dev package is a separate app that cannot collide with the install
     );
     expect(result.status).toBe(2);
     expect(result.stderr).toContain("may not target Telar.app");
-    expect(result.stdout).not.toContain("==> build standalone web app");
+    expect(result.stdout).not.toContain("==> build the static cockpit");
   });
 
   test.skipIf(process.platform !== "darwin")("install-app.sh installs a dev bundle beside Telar.app, named after the source", () => {
@@ -177,7 +177,7 @@ describe("a --dev package is a separate app that cannot collide with the install
     expect(plist("CFBundleName")).toBe("Telar Dev");
     expect(fs.existsSync(path.join(devApp, "Contents", "MacOS", "Telar Dev"))).toBe(true);
 
-    const stamp = JSON.parse(fs.readFileSync(path.join(devApp, "Contents", "Resources", "standalone", "build-info.json"), "utf8"));
+    const stamp = JSON.parse(fs.readFileSync(path.join(devApp, "Contents", "Resources", "build-info.json"), "utf8"));
     expect(stamp.channel).toBe("dev");
     expect(typeof stamp.dirty).toBe("boolean");
   });

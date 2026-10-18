@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<!--
-	  The child processes this app forks — the engine, the Next standalone
+	  The child process this app forks — the engine —
 	  server — inherit the parent's sandbox and, crucially, its Apple-events
 	  permission: the engine is what actually sends the computer-use events,
 	  so without inheriting this the grant given to Telar would not reach the

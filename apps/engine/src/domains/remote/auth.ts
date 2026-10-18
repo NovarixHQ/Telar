@@ -4,6 +4,7 @@ import type { DeviceScope } from "@telar/engine-client";
 import { ALL_SCOPES, requiredScope } from "./scopes";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
+export const HOST_HEADER = "x-telar-host";
 export const EXEMPT_PATHS = new Set(["/v2/ping", "/v2/pair", "/v2/identity"]);
 const DEVICE_DOORS = new Set(["/v2/mcp"]);
 

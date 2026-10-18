@@ -14,7 +14,7 @@ type BuildStamp = { shortSha?: string; channel?: string };
 
 function readBuildStamp(cwd: string): BuildStamp | undefined {
   try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(path.join(cwd, "..", "..", "build-info.json"), "utf8"));
+    const parsed: unknown = JSON.parse(fs.readFileSync(process.env.TELAR_BUILD_INFO?.trim() || path.join(cwd, "..", "..", "build-info.json"), "utf8"));
     return parsed && typeof parsed === "object" ? (parsed as BuildStamp) : undefined;
   } catch {
     return undefined;

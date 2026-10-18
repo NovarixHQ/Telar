@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import net from "node:net";
 import process from "node:process";
 // Root scripts are outside an individual workspace package, so resolve this
 // first-party client directly rather than relying on a hoisted workspace link.
@@ -66,7 +67,7 @@ function migrateDefaultHome(home) {
 function childEnv(telarHome) {
   // Next's global instrumentation belongs to the legacy product surface. The
   // door must make its client-only role explicit before that hook runs.
-  return { ...process.env, TELAR_HOME: telarHome, TELAR_COCKPIT: "1" };
+  return { ...process.env, TELAR_HOME: telarHome };
 }
 
 function spawnOwned(label, command, args, options = {}) {
@@ -122,6 +123,17 @@ function readRequireAuth(telarHome) {
  *  version this build knows, the same rule the packaged shell applies. */
 function readTailscaleServe(telarHome) {
   return tailscaleServeRequested(telarHome);
+}
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
 }
 
 async function probeEngine(engineRoot) {
@@ -255,6 +267,12 @@ async function main() {
   const launchDesktop = shouldLaunchDesktop(process.argv.slice(2));
   mintSharedSecrets(env, launchDesktop);
 
+  const enginePort = await freePort();
+  env.TELAR_ENGINE_HOST = "127.0.0.1";
+  env.TELAR_ENGINE_PORT = String(enginePort);
+  env.TELAR_DEV_ENGINE_URL = `http://127.0.0.1:${enginePort}`;
+  env.TELAR_DEV_PROXY = "1";
+
   const webPort = resolveWebPort(env);
   const webHost = resolveWebHost(env);
   const cockpitUrl = makeCockpitUrl(webPort, webHost);
@@ -281,9 +299,8 @@ async function main() {
     throw new Error("worker is not live and registered; refusing to start the cockpit.");
   }
 
-  // The web client discovers the engine from TELAR_HOME on each server request.
-  // Do not pass host, port, token, or a discovery snapshot: an engine restart must
-  // be discoverable rather than pinning web to stale credentials.
+  const listening = await fetch(`${env.TELAR_DEV_ENGINE_URL}/v2/ping`).then((response) => response.ok, () => false);
+  if (!listening) console.error("[telar] WARNING: the engine is not listening for the cockpit (an engine started elsewhere has no network listener); stop it and run `bun run dev` again.");
   const webCommand = webDevCommand(webPort, webHost);
   stopWhenExits(spawnOwned(webCommand.label, process.execPath, webCommand.args, { env }), "web cockpit exited");
   process.stdout.write(`[telar] cockpit: ${cockpitUrl}\n`);

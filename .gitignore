@@ -68,3 +68,4 @@ apps/desktop/vendor/
 # Static cockpit export (apps/web/scripts/build-static.mjs)
 apps/web/out/
 apps/.web-static/
+apps/web/build-info.json

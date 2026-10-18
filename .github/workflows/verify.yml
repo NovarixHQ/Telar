@@ -595,6 +595,8 @@ jobs:
         run: |
           set -euo pipefail
           bun install --frozen-lockfile
+      - name: Build the static cockpit the engine serves
+        run: bun run --cwd apps/web build:static
       # AND PROVE EACH ONE ACTUALLY RAN. Two independent gates per test, because
       # they catch different things: the exit code (every file ends `app.exit(0)`
       # on success and `app.exit(1)` on a thrown assertion), AND the success
@@ -633,6 +635,7 @@ jobs:
           run_case persistence     BROWSER_PERSISTENCE_OK
           run_case profile-cookies PROFILE_COOKIES_OK
           run_case host-header     HOST_HEADER_OK
+          run_case cockpit-served  COCKPIT_SERVED_OK
           run_case popup-geometry  POPUP_GEOMETRY_OK
           run_case native-messaging "NATIVE_MESSAGING_OK 3/3"
           run_case clipboard       "CLIPBOARD OK"

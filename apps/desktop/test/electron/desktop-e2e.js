@@ -86,6 +86,7 @@ function stopChild(child) {
 async function main() {
   const browserControlPort = await freePort();
   const browserControlToken = randomUUID();
+  const hostToken = `tlr_${randomUUID().replaceAll("-", "")}`;
   const browserControlEnv = {
     TELAR_DESKTOP_BROWSER_CONTROL_PORT: String(browserControlPort),
     TELAR_DESKTOP_BROWSER_CONTROL_TOKEN: browserControlToken,
@@ -93,7 +94,6 @@ async function main() {
   let appUrl = process.env.TELAR_DESKTOP_URL?.replace(/\/$/, "");
   let webChild = null;
   let isolatedHome = null;
-  let isolatedDistDir = null;
   let webOutput = "";
   if (!appUrl) {
     const bunPath = process.env.TELAR_BUN_BINARY;
@@ -101,33 +101,29 @@ async function main() {
     const webPort = await freePort();
     appUrl = `http://127.0.0.1:${webPort}`;
     isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "telar-desktop-e2e-"));
-    isolatedDistDir = `.next-desktop-e2e-${process.pid}`;
-    webChild = spawn(
-      bunPath,
-      ["run", "--cwd", webDir, "dev", "--", "--hostname", "127.0.0.1", "--port", String(webPort)],
-      {
-        cwd: path.resolve(desktopDir, "../.."),
-        env: {
-          ...process.env,
-          ...browserControlEnv,
-          TELAR_HOME: isolatedHome,
-          NEXT_DIST_DIR: isolatedDistDir,
-        },
-        stdio: ["ignore", "pipe", "pipe"],
+    webChild = spawn(bunPath, [path.resolve(desktopDir, "../engine/src/main.ts")], {
+      cwd: path.resolve(desktopDir, "../.."),
+      env: {
+        ...process.env,
+        ...browserControlEnv,
+        TELAR_HOME: isolatedHome,
+        TELAR_EMBEDDED_WORKER: "0",
+        TELAR_ENGINE_HOST: "127.0.0.1",
+        TELAR_ENGINE_PORT: String(webPort),
+        TELAR_STATIC_DIR: path.join(webDir, "out"),
+        TELAR_HOST_TOKEN: hostToken,
       },
-    );
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     webChild.stdout.on("data", (chunk) => { webOutput = `${webOutput}${chunk}`.slice(-20_000); });
     webChild.stderr.on("data", (chunk) => { webOutput = `${webOutput}${chunk}`.slice(-20_000); });
   }
 
   try {
-    await waitForUrl(appUrl, 90_000);
+    await waitForUrl(`${appUrl}/v2/ping`, 90_000);
   } catch (error) {
     await stopChild(webChild);
     if (isolatedHome) fs.rmSync(isolatedHome, { recursive: true, force: true });
-    if (isolatedDistDir) {
-      fs.rmSync(path.join(webDir, isolatedDistDir), { recursive: true, force: true });
-    }
     throw new Error(`${error instanceof Error ? error.message : String(error)}\n${webOutput}`);
   }
 
@@ -145,6 +141,7 @@ async function main() {
     ...process.env,
     ...browserControlEnv,
     TELAR_DESKTOP_URL: appUrl,
+    TELAR_HOST_TOKEN: hostToken,
     TELAR_DESKTOP_REMOTE_DEBUGGING_PORT: String(debuggingPort),
     TELAR_DESKTOP_E2E_USER_DATA: desktopUserData,
   };
@@ -227,9 +224,6 @@ async function main() {
     await new Promise((resolve) => fixture.close(resolve));
     await stopChild(webChild);
     if (isolatedHome) fs.rmSync(isolatedHome, { recursive: true, force: true });
-    if (isolatedDistDir) {
-      fs.rmSync(path.join(webDir, isolatedDistDir), { recursive: true, force: true });
-    }
     fs.rmSync(desktopUserData, { recursive: true, force: true });
   }
 }

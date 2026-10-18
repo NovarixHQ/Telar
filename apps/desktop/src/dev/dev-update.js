@@ -53,7 +53,7 @@ function currentState() {
   const source = config.ok ? core.readSourceInfo(config.repo) : { ok: false, error: config.error };
   let running = null;
   try {
-    running = JSON.parse(fs.readFileSync(path.join(process.resourcesPath, "standalone", "build-info.json"), "utf8"));
+    running = JSON.parse(fs.readFileSync(path.join(process.resourcesPath, "build-info.json"), "utf8"));
   } catch {
   }
   const swap = config.ok

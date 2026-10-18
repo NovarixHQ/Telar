@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { hostIsAllowed } from "../../platform/http/host";
 import type { DeviceScope } from "@telar/engine-client";
-import { ALL_SCOPES, requiredScope, roleOf } from "./scopes";
+import { ALL_SCOPES, requiredScope } from "./scopes";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
 export const EXEMPT_PATHS = new Set(["/v2/ping", "/v2/pair", "/v2/identity"]);

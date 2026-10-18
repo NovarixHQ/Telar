@@ -1,6 +1,6 @@
 import { thisComputerName } from "../../platform/http/host";
 import pkg from "../../../package.json" with { type: "json" };
-import type { DeviceIdentity, DevicePlatform, PairingRefusal, RemoteDevice, RemoteState } from "@telar/engine-client";
+import { ENGINE_PROTO, type DeviceIdentity, type DevicePlatform, PairingRefusal, type RemoteDevice, type RemoteState } from "@telar/engine-client";
 import { mintDeviceToken, RemoteStoreError, type PairedDevice, type RemoteStore } from "./store";
 import { fail, ok, type Route } from "../../platform/http/route";
 import { deviceCookieHeader } from "./cookie";
@@ -111,7 +111,7 @@ export function remoteRoutes(store: RemoteStore, presence: Presence = createPres
       method: "GET",
       path: "/v2/ping",
       auth: "engine",
-      handle: () => ok({ ok: true, proto: 1, appVersion: pkg.version }),
+      handle: () => ok({ ok: true, proto: ENGINE_PROTO, appVersion: pkg.version }),
     },
     statusRoute(store, presence, endpoints),
     {

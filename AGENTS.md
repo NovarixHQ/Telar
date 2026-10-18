@@ -35,7 +35,7 @@ Use these words. When you name things in code, use them too.
 ## Where code lives
 
 - `apps/engine`: engine and worker (Bun, TypeScript).
-- `apps/web`: the cockpit (Next.js, React). Features call the engine through typed clients; the `/api/**` routes that forward those calls go away when the cockpit is static.
+- `apps/web`: the cockpit (Next.js, React). Features call the engine through typed clients; the engine serves the exported cockpit.
 - `apps/desktop`: the Electron shell. It hosts the cockpit, the integrated browser, terminals, packaging and self-update.
 - `apps/ios`: the native SwiftUI iPhone app and its Live Activity.
 - `packages/engine-client`: the engine's protocol (zod schemas) and typed HTTP client. It is the only contract between the apps.
@@ -54,7 +54,7 @@ Code that is not a feature goes in `platform/` (kernel, db, http, git, process),
 ## The ways to hurt yourself
 
 - **The owner's live data.** Never touch `~/Library/Application Support/Telar*`. Tests build fixtures in a temp dir.
-- **Their running app.** Never restart, kill or update Telar or its processes (`telar-engine`, `telar-ui`). Never `pkill`/`killall`.
+- **Their running app.** Never restart, kill or update Telar or its processes (`telar-engine`). Never `pkill`/`killall`.
 - **Secrets.** Never print or read keys, tokens or Keychain items (for example `com.telar.push-relay`).
 
 ## Taste

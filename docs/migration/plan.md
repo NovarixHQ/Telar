@@ -40,11 +40,11 @@ The target layout is in `docs/internals/architecture.md`, and it is in place in 
 
 Done: remote (pairing, devices, settings), the access gate, `sessions/live` projects, `fs`, mobile push routes, the push worker and notification decider, the other-Macs book, and `about`. Cockpit features call the engine through typed clients.
 
+Also done: the kept routes live in the engine, the engine serves the static cockpit, `telar-ui` and `proxy.ts` are gone, and the desktop loads the cockpit from the engine's network listener on the port it always used (so its storage and paired phones keep their address). The `/api/<path>` alias goes on 2027-01-31.
+
 Left, in order:
-1. Fold what the 27 kept routes add (`apps/web/src/platform/engine/cockpit-path.ts` lists the calls) into the engine, then drop the `next.config.ts` alias (2027-01-31).
-2. Make the cockpit static-ready, build it statically, and serve it over `telar://`.
-3. Remove `telar-ui`.
-4. Add the network listener with Tailscale, and move iOS to `/v2` behind `ping.proto`.
+1. Move iOS to `/v2` behind `ping.proto`, then delete the alias and `platform/http/legacy.ts`.
+2. The CLI and distribution need `TELAR_STATIC_DIR` pointing at a packaged `cockpit` directory.
 
 Security invariants to preserve: the engine token never reaches a browser or phone; only ping and pair are open; observers are GET-only; the pairing code is 8 digits, 5 min, 5 tries, fragment-only; hashes at rest with constant-time comparison; no CORS; Host-header checks on the network listener; login grants stay written by the shell.
 

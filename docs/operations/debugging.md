@@ -94,7 +94,7 @@ A test that dies at 5 s instead of 20 s ran without the ceiling. That happens fr
 | `Timed out waiting for engine` | The engine didn't answer health within 15 s. Read the engine's own error above it in the terminal. |
 | `worker exited before registration` / `refusing to start the cockpit` | The worker died on start. Its error is above this line. The cockpit doesn't start without a worker. |
 | Cockpit calls answer `engine_unavailable` | No engine is serving that home. `engine.json` from a crashed engine stays behind and is rewritten on the next start. Restart `bun run dev`. |
-| `Set an absolute TELAR_HOME before opening the cockpit.` | The Next server was started without `TELAR_HOME`, for example with `cd apps/web && bun run dev`. Start it through `bun run dev`. |
+| The cockpit loads but nothing answers in `bun run dev`. | The engine it proxies to was started elsewhere and has no network listener. Stop it and run `bun run dev` again. |
 | Launcher warns the cockpit is reachable with pairing off | `TELAR_WEB_HOST` is not loopback, or Tailscale Serve is on, and "Require pairing" is off. Turn it on in Settings ▸ Connections. |
 | Phone or browser locked out of pairing | Delete `<TELAR_HOME>/remote/remote.json` for the dev home and pair again. |
 | Type error naming a route that doesn't exist | A stale `apps/web/.next`. See [development.md](development.md#type-errors-about-a-route-that-doesnt-exist). |

@@ -86,7 +86,7 @@ bun run test:desktop:e2e
 bun run --cwd apps/desktop build:app && bun run test:desktop:smoke
 ```
 
-The smoke boots the bundled engine and the standalone cockpit, so it needs `build:app` first. Use the smallest layer that proves the change; `test:desktop:e2e` is a final integration pass. The `extension`, `extension-boot` and `webauthn` tests need the 1Password extension: set `TELAR_1P_CRX` to a packaged one or `TELAR_1P_UNPACKED` to an unpacked one.
+The smoke boots the bundled engine, which serves the static cockpit, so it needs `build:app` first. Use the smallest layer that proves the change; `test:desktop:e2e` is a final integration pass. The `extension`, `extension-boot` and `webauthn` tests need the 1Password extension: set `TELAR_1P_CRX` to a packaged one or `TELAR_1P_UNPACKED` to an unpacked one.
 
 ## Checks
 
@@ -161,17 +161,15 @@ bash scripts/package-desktop.sh --dev --install --open # -> ~/Applications/Telar
 
 ### Type errors about a route that doesn't exist
 
-`apps/web/tsconfig.json` type-checks `.next/` and `.next-desktop/` alongside the source. A leftover `.next/` from an older build makes packaging or `bun run typecheck` fail with an error such as `Cannot find module '../../app/api/…/route.js'`. Stop the dev server, clear it, and build again:
+`apps/web/tsconfig.json` type-checks `.next/` alongside the source. A leftover `.next/` from an older build makes packaging or `bun run typecheck` fail with an error such as `Cannot find module '../../app/api/…/route.js'`. Stop the dev server, clear it, and build again:
 
 ```sh
 rm -rf apps/web/.next
 ```
 
-A packaging build rewrites `apps/web/next-env.d.ts` to point at `.next-desktop`. Don't commit that change: `git checkout apps/web/next-env.d.ts`.
-
 ## iOS, locally
 
-The app talks only to the cockpit's `/api/**`. To use it against a dev stack, bind the cockpit to your tailnet address and pair from the phone (Settings ▸ Connections):
+The app talks to the cockpit's address. To use it against a dev stack, bind the cockpit to your tailnet address and pair from the phone (Settings ▸ Connections):
 
 ```sh
 TELAR_WEB_HOST=<tailnet IP> bun run dev

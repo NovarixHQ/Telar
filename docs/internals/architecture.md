@@ -4,18 +4,17 @@
 
 ```
 Telar.app (Electron main)
- ├─ telar-engine   the engine + an embedded worker. Owns all state (SQLite journal, TELAR_HOME).
- ├─ telar-ui       Next standalone server for the cockpit. Being removed (see "Headless").
+ ├─ telar-engine   the engine + an embedded worker. Owns all state (SQLite journal, TELAR_HOME) and serves the static cockpit.
  └─ renderer       the cockpit, plus WebContentsViews for the integrated browser
-iPhone app ──HTTP──▶ cockpit /api/** today, engine /v2 later
+iPhone app ──HTTP──▶ the engine's network listener, /v2 (and /api/<path> as an alias until 2027-01-31)
 providers (claude, codex, opencode) are child processes of the worker
 ```
 
-- The engine listens on loopback with a per-boot token written to `<TELAR_HOME>/engine/engine.json`.
-- Desktop main starts the engine, waits on `/v2/health`, then loads the cockpit.
+- The engine listens on loopback with a per-boot token written to `<TELAR_HOME>/engine/engine.json`, and on its network listener, which the desktop binds to the same stable port the cockpit has always had (127.0.0.1, or 0.0.0.0 when remote access is on).
+- Desktop main starts the engine, waits on `/v2/health`, then loads the cockpit from the network listener at `http://127.0.0.1:<port>/`.
 - Electron main owns the integrated browser's tabs, views and CDP; the cockpit only draws and attaches to them through the preload bridge. Never add a second, renderer-owned browser: agents would drive tabs the person can't see.
 - A turn goes: cockpit → engine `/v2` → queued in the journal → claimed by the worker → driver → provider. The worker streams observations back into the journal, and the cockpit folds them into the transcript.
-- The cockpit's `src/proxy.ts` gates every request, but the engine makes the decision (`decideAccess`). If the engine can't answer, the request is denied.
+- The engine gates every request itself (`decideAccess`): a paired device's bearer or cookie, the desktop shell's host token (sent as `x-telar-host` only to its own loopback origin), or a simulator stream ticket. The engine token opens nothing on the network listener.
 
 ### Notifications reach every device
 
@@ -96,15 +95,13 @@ A feature can have a second entry when the main index would pull too much into e
 5. Anything that crosses a process boundary is declared in `packages/engine-client`, once. Cockpit features reach the engine only through their `api.ts`.
 6. Any phone build works with any host back to the oldest one in `packages/engine-client/test/fixtures/hosts`, and the reverse. A field a host may not send is optional; an endpoint a host may not serve is feature-detected by its 404 and its feature turns off. Only connecting and listing sessions are never optional. Every host reports `appVersion` 0.1.0, so gate on what the host answers, not its version. `apps/engine/scripts/record-host-fixture.ts`, copied onto an old tag, records a host's fixture; dropping one is a declared break.
 
-## Headless (where this is going)
+## Headless
 
-The engine already owns pairing, devices and the access gate, push and the notification decider, the other-Macs book and forwarding to them, the folder listing, `sessions/live` and `about`. What still runs in `telar-ui`:
-- the `/api` routes: 27 besides the `/api/engine/v2/**` catch-all, each adding something the engine does not (cookies, QR, reshaped bodies, nosniff); installed phones and paired Macs reach the catch-all through a `next.config.ts` alias of `/api/<path>` until 2027-01-31.
+The engine serves the cockpit: `TELAR_STATIC_DIR` (the exported `apps/web/out`, packaged as `Resources/cockpit`) is served on both listeners, public and cached by name (`/_next/static` immutable, html revalidated). A real session, solo, new-session or host URL gets its `_` placeholder page; the cockpit reads the real ids from `usePathname`, which Next initialises from `window.location`, so the address, not the placeholder, is what it sees. `cockpit-served.electron-test.js` proves it in a real Chromium.
 
-The target:
-- The cockpit becomes a static SPA. Desktop serves it over a `telar://` scheme whose handler injects the engine token.
-- The `/api` pass-through routes and `telar-ui` go away.
-- Every client uses the same `EngineClient`.
-- An optional network listener on the engine serves the SPA and the API to paired devices.
+- The cockpit calls the engine's own `/v2/**` paths on its origin through `httpTransport`; there is no Next server in production. `bun run dev` runs Next dev behind the engine's network listener, which the dev launcher starts on a free loopback port and Next's `rewrites` forward `/v2/**` to.
+- Who is calling comes from the connection, not from a server in front: `callerOf(request)` is the host on loopback and for the host token, a paired device for a bearer or cookie.
+- `/api/<path>` is served as `/v2/<path>` for released phones and older hosts, with a few phone-only paths in `platform/http/legacy.ts`. Remove both on 2027-01-31.
+- Left: move iOS to `/v2` behind `ping.proto`, Linux-clean engine, terminals and the browser in the engine, the CLI, distribution.
 
-The security invariants for that move are in `security.md`.
+The security invariants for the move are in `security.md`.

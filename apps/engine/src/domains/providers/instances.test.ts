@@ -22,6 +22,11 @@ const root = (): string => {
 };
 
 const claudeConfigDir = process.env.CLAUDE_CONFIG_DIR;
+const signedInClaude = (): void => {
+  const directory = root();
+  fs.writeFileSync(path.join(directory, ".credentials.json"), "{}");
+  process.env.CLAUDE_CONFIG_DIR = directory;
+};
 
 afterEach(() => {
   if (claudeConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
@@ -347,6 +352,7 @@ test("a CLI that is installed AND unusable is an error, not a green tick", () =>
 });
 
 test("what the CLI resolution says outranks the sign-in note", async () => {
+  signedInClaude();
   const prober = createProviderProber({
     version: async () => ({
       installed: true,
@@ -364,9 +370,7 @@ test("what the CLI resolution says outranks the sign-in note", async () => {
 });
 
 test("one version probe serves every instance of a driver", async () => {
-  const signedIn = root();
-  fs.writeFileSync(path.join(signedIn, ".credentials.json"), "{}");
-  process.env.CLAUDE_CONFIG_DIR = signedIn;
+  signedInClaude();
   const calls: string[] = [];
   const prober = createProviderProber({
     version: async (driver) => {

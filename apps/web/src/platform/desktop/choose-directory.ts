@@ -27,21 +27,13 @@ export function readDirectoryChoice(answer: unknown): DirectoryChoice {
 
 export async function chooseDirectory(
   options: DirectoryPickerOptions = {},
-  seams: { bridge?: DesktopDialogBridge | undefined; fetcher?: typeof fetch } = {},
+  seams: { bridge?: DesktopDialogBridge | undefined } = {},
 ): Promise<DirectoryChoice> {
   const bridge = "bridge" in seams ? seams.bridge : desktop();
-  if (bridge?.dialog?.chooseDirectory) {
-    try {
-      return readDirectoryChoice(await bridge.dialog.chooseDirectory(options));
-    } catch (cause) {
-      return { unavailable: cause instanceof Error ? cause.message : "The desktop shell could not open a folder picker." };
-    }
-  }
-  const fetcher = seams.fetcher ?? fetch;
+  if (!bridge?.dialog?.chooseDirectory) return { unavailable: "A folder picker needs the Telar desktop app." };
   try {
-    const response = await fetcher("/api/browse", { method: "POST" });
-    return readDirectoryChoice(await response.json());
-  } catch {
-    return { unavailable: "The folder picker is not available here." };
+    return readDirectoryChoice(await bridge.dialog.chooseDirectory(options));
+  } catch (cause) {
+    return { unavailable: cause instanceof Error ? cause.message : "The desktop shell could not open a folder picker." };
   }
 }

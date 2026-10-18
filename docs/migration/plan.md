@@ -41,11 +41,10 @@ The target layout is in `docs/internals/architecture.md`, and it is in place in 
 Done: remote (pairing, devices, settings), the access gate, `sessions/live` projects, `fs`, mobile push routes, the push worker and notification decider, the other-Macs book, and `about`. Cockpit features call the engine through typed clients.
 
 Left, in order:
-1. Move forwarding to other Macs into the engine, then delete `browse` and `desktop/metrics` (the preload covers them).
-2. One `/api/engine/[...path]` catch-all and a Transport. Delete the 155 per-route files.
-3. Make the cockpit static-ready, build it statically, and serve it over `telar://`.
-4. Remove `telar-ui`.
-5. Add the network listener with Tailscale, and move iOS to `/v2` behind `ping.proto`.
+1. One `/api/engine/[...path]` catch-all and a Transport. Delete the 155 per-route files.
+2. Make the cockpit static-ready, build it statically, and serve it over `telar://`.
+3. Remove `telar-ui`.
+4. Add the network listener with Tailscale, and move iOS to `/v2` behind `ping.proto`.
 
 Security invariants to preserve: the engine token never reaches a browser or phone; only ping and pair are open; observers are GET-only; the pairing code is 8 digits, 5 min, 5 tries, fragment-only; hashes at rest with constant-time comparison; no CORS; Host-header checks on the network listener; login grants stay written by the shell.
 

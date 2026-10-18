@@ -151,7 +151,7 @@ describe("Settings ▸ Storage ▸ Worktrees ▸ Location", () => {
       view.button("Change…")!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
       await settle();
     });
-    // No desktop bridge and no `/api/browse` here: the row reports it rather
+    // No desktop bridge here: the row reports it rather
     // than appearing to do nothing.
     expect(sent.some((request) => request.method === "PUT")).toBe(false);
     view.unmount();

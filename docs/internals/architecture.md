@@ -98,10 +98,8 @@ A feature can have a second entry when the main index would pull too much into e
 
 ## Headless (where this is going)
 
-The engine already owns pairing, devices and the access gate, push and the notification decider, the other-Macs book, the folder listing, `sessions/live` and `about`. What still runs in `telar-ui`:
-- the `/api` routes: 155, most of them forwarding one call to the engine;
-- forwarding requests to other Macs (`features/hosts/server`);
-- `browse` and `desktop/metrics`.
+The engine already owns pairing, devices and the access gate, push and the notification decider, the other-Macs book and forwarding to them, the folder listing, `sessions/live` and `about`. What still runs in `telar-ui`:
+- the `/api` routes: 153, most of them forwarding one call to the engine.
 
 The target:
 - The cockpit becomes a static SPA. Desktop serves it over a `telar://` scheme whose handler injects the engine token.

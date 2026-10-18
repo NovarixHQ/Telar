@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
 import { GET as machineGet } from "@/app/api/plugins/[plugin]/[...verb]/route";
-import { GET as projectGet } from "@/app/api/projects/[projectId]/plugins/[plugin]/[...verb]/route";
+import { catchAll } from "@/test/catch-all";
 import { POST as sessionPost } from "@/app/api/sessions/[sessionId]/plugins/[plugin]/[...verb]/route";
 import { startEngine, type EngineDaemon } from "../../../../engine/src/daemon";
 
@@ -59,9 +59,7 @@ describe("generic plugin proxies", () => {
   test("the project door carries the project, and the engine's gate answers", async () => {
     // `packages` is not a before-enable read, so the refusal proves the id reached the project gate.
     await ready();
-    const response = await projectGet(new Request("http://telar.local/api/projects/project_one/plugins/latex/packages"), {
-      params: Promise.resolve({ projectId: "project_one", plugin: "latex", verb: ["packages"] }),
-    });
+    const response = await catchAll(new Request("http://telar.local/api/projects/project_one/plugins/latex/packages"));
     expect(response.status).toBe(400);
     expect((await response.json()).error).toMatchObject({ code: "invalid_request", message: "latex is not enabled for this project" });
   });

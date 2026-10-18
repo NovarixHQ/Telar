@@ -30,6 +30,7 @@ const result = await Bun.build({
   entrypoints: [path.join(root, "src/main.ts")],
   outdir: values.sea ? path.join(outdir, "sea") : outdir,
   naming: "telar.mjs",
+  banner: values.sea ? "" : "#!/usr/bin/env node",
   target: "node",
   format: "esm",
   external: values.sea ? ["node-pty"] : EXTERNALS,

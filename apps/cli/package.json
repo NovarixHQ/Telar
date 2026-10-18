@@ -1,25 +1,36 @@
 {
-  "name": "@telar/cli",
+  "name": "telar",
   "version": "0.1.0",
-  "private": true,
+  "description": "Run the Telar engine on a machine with no desktop app.",
+  "license": "UNLICENSED",
   "type": "module",
+  "bin": {
+    "telar": "dist/telar.mjs"
+  },
+  "files": [
+    "dist/telar.mjs"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "bun scripts/build.mjs",
     "build:sea": "bun scripts/build.mjs --sea",
     "test": "bun test --timeout 20000",
-    "typecheck": "bunx --bun tsc --noEmit -p tsconfig.json"
+    "typecheck": "bunx --bun tsc --noEmit -p tsconfig.json",
+    "prepack": "bun scripts/build.mjs"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.270",
-    "@telar/engine": "workspace:*",
-    "@telar/engine-client": "workspace:*",
-    "node-pty": "1.2.0-beta.15",
-    "qrcode": "^1.5.4"
+    "node-pty": "1.2.0-beta.15"
   },
   "devDependencies": {
+    "@telar/engine": "workspace:*",
+    "@telar/engine-client": "workspace:*",
     "@types/bun": "1.3.11",
     "@types/node": "^26.1.0",
     "@types/qrcode": "^1.5.6",
+    "qrcode": "^1.5.4",
     "typescript": "^6.0.3"
   }
 }

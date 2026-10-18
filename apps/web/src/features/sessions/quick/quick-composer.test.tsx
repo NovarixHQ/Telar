@@ -62,8 +62,7 @@ function wire() {
     calls.push({ method, url: raw, body });
     if (raw === "/api/engine/v2/hosts") return Response.json({ hosts: remotes.map(({ id, name }) => ({ id, name, baseUrl: `https://${id}`, addedAt: 1 })) });
     if (url.startsWith("/api/engine/v2/inbox")) return Response.json({ inbox: {} });
-    const create = /\/api\/(?:engine\/v2\/)?projects\/(project_\d)\/sessions$/.exec(url);
-    if (method === "POST" && create) return Response.json({ session: { ...session(body.id, body.title), projectId: create[1] } });
+    if (method === "POST" && url === "/api/engine/v2/sessions") return Response.json({ session: { ...session(body.id, body.title), projectId: body.projectId } });
     if (url.includes("/api/engine/v2/sessions/live")) return Response.json({ sessions: host?.sessions ?? LIVE, projects: host?.projects ?? PROJECTS, daemonId: host?.id ?? "local-engine" });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
     if (url.includes("/bootstrap") || (url.includes("/sessions/") && url.includes("turns="))) {
@@ -735,7 +734,7 @@ describe("the strip of conversations that need you", () => {
     await act(async () => void mini.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
     await typeAndPress(host, "Fix CI on the Mini");
     const created = calls.find((call) => call.method === "POST" && /\/sessions$/.test(call.url) && (call.body as { projectId?: string } | undefined)?.projectId === "project_9");
-    expect(created?.url).toBe("/api/engine/v2/hosts/host_b/api/engine/v2/sessions");
+    expect(created?.url).toBe("/api/engine/v2/hosts/host_b/api/sessions");
     expect(sent[0]?.route).toMatch(/^\/hosts\/host_b\/projects\/project_9\/sessions\//);
   });
 

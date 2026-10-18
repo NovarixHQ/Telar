@@ -56,7 +56,7 @@ function wire() {
     const raw = String(input);
     const method = init?.method ?? "GET";
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
-    const hosted = /^\/api\/hosts\/([^/]+)(\/.*)$/.exec(raw);
+    const hosted = /^\/api\/engine\/v2\/hosts\/([^/]+)\/api(\/.*)$/.exec(raw);
     const host = hosted ? remotes.find((each) => each.id === decodeURIComponent(hosted[1]!)) : undefined;
     const url = hosted ? `/api${hosted[2]}` : raw;
     calls.push({ method, url: raw, body });
@@ -721,7 +721,7 @@ describe("the strip of conversations that need you", () => {
     await act(async () => pill.click());
     await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Waiting for your go-ahead") ?? false);
     await typeAndPress(host, "Go ahead", { metaKey: true });
-    expect(calls.find((call) => call.method === "POST" && call.url === "/api/hosts/host_b/sessions/s_remote/turns")?.body).toMatchObject({ input: "Go ahead" });
+    expect(calls.find((call) => call.method === "POST" && call.url === "/api/engine/v2/hosts/host_b/api/sessions/s_remote/turns")?.body).toMatchObject({ input: "Go ahead" });
     expect(calls.some((call) => call.method === "POST" && call.url === "/api/sessions/s_remote/turns")).toBe(false);
     expect(sent).toEqual([{ route: "/hosts/host_b/projects/project_9/sessions/s_remote", title: "Remote build question", detail: "exoplanets", open: true }]);
   });
@@ -735,7 +735,7 @@ describe("the strip of conversations that need you", () => {
     await act(async () => void mini.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
     await typeAndPress(host, "Fix CI on the Mini");
     const created = calls.find((call) => call.method === "POST" && /\/sessions$/.test(call.url) && call.url.includes("projects/project_9"));
-    expect(created?.url).toBe("/api/hosts/host_b/projects/project_9/sessions");
+    expect(created?.url).toBe("/api/engine/v2/hosts/host_b/api/projects/project_9/sessions");
     expect(sent[0]?.route).toMatch(/^\/hosts\/host_b\/projects\/project_9\/sessions\//);
   });
 

@@ -16,7 +16,7 @@ describe("a needs-you pill", () => {
   });
 
   test("fetches a remote project's icon through its host", () => {
-    expect(pill({ projectIcon: "k9", hostId: "host_b" })).toContain('src="/api/hosts/host_b/projects/project_2/icon?v=k9"');
+    expect(pill({ projectIcon: "k9", hostId: "host_b" })).toContain('src="/api/engine/v2/hosts/host_b/api/projects/project_2/icon?v=k9"');
   });
 
   test("shows the project's initial when it has no icon", () => {

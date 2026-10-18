@@ -15,12 +15,6 @@ import { engineClient, engineRoute } from "@/platform/engine/server";
  * the design: a credential worth little if it is caught, scoped to the voice
  * APIs, and gone in five minutes.
  *
- * THE PHONE REACHES IT THROUGH THE HOST PROXY unchanged: `/api/hosts/:id/*`
- * forwards any path to that Mac's `/api/*` with its bearer (see
- * `features/hosts/server/proxy.ts`), so `/api/hosts/:id/dictation/token` is this route on
- * the other Mac. Nothing had to be allowlisted — the proxy is path-agnostic on
- * purpose, and the timeout table only names the rail's polling reads.
- *
  * POST BECAUSE IT MINTS. Every call spends a round trip against Deepgram and
  * produces a new credential; a GET that did that would be cached by something
  * eventually.

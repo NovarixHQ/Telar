@@ -192,10 +192,10 @@ describe("a sent image on a conversation from another host", () => {
     const thumbnail = () => host!.querySelector('button[aria-label="Open image.png"] img')?.getAttribute("src");
 
     await show("session_e", "/hosts/host_mini");
-    expect(thumbnail()).toBe("/api/hosts/host_mini/sessions/session_e/attachments/att_session_e?variant=display");
+    expect(thumbnail()).toBe("/api/engine/v2/hosts/host_mini/api/sessions/session_e/attachments/att_session_e?variant=display");
     await show("session_f", "/hosts/host_mini");
     await show("session_e", "/hosts/host_mini");
-    expect(thumbnail()).toBe("/api/hosts/host_mini/sessions/session_e/attachments/att_session_e?variant=display");
+    expect(thumbnail()).toBe("/api/engine/v2/hosts/host_mini/api/sessions/session_e/attachments/att_session_e?variant=display");
   });
 });
 

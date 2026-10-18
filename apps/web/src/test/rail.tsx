@@ -58,7 +58,7 @@ export function stubRail(live: (request: RailRequest) => LiveAnswer, hosts: { id
     const request = { path: url.pathname, search: url.search, ...(ifNoneMatch ? { ifNoneMatch } : {}) };
     requests.push(request);
     if (url.pathname === "/api/hosts") return Response.json({ hosts });
-    if (/^\/api(\/hosts\/[^/]+)?\/sessions\/live$/.test(url.pathname)) {
+    if (/^\/api(\/engine\/v2\/hosts\/[^/]+\/api)?\/sessions\/live$/.test(url.pathname)) {
       const answer = live(request);
       const headers = answer.etag ? { etag: answer.etag } : undefined;
       if (answer.status === 304) return new Response(null, { status: 304, ...(headers ? { headers } : {}) });

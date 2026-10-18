@@ -210,12 +210,6 @@ export const engineForward = engineRoute(async (request: Request, pathname: stri
   return Response.json(answer.body, { status: answer.status, headers: out });
 });
 
-/** Forwards `/api/<path>` to the engine's `/v2/<path>` unchanged, for routes whose paths mirror the engine's. */
-export function engineProxy(request: Request): Promise<Response> {
-  const { pathname, search } = new URL(request.url);
-  return engineForward(request, `${pathname.replace(/^\/api\//, "/v2/")}${search}`);
-}
-
 /** Streams `request` to the engine and its answer back unbuffered, for answers that may be a live stream. `asCaller` keeps the caller's own Authorization for a route the engine authenticates by device token. */
 export async function enginePipe(request: Request, pathname: string, { asCaller = false } = {}): Promise<Response> {
   const { url, headers: auth } = (await engineClient()).locate(pathname);

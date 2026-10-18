@@ -1,5 +1,5 @@
 
-import { LOCAL_HOST_ID } from "@telar/engine-client";
+import { COCKPIT_API, LOCAL_HOST_ID } from "@telar/engine-client";
 
 export { LOCAL_HOST_ID };
 
@@ -17,10 +17,14 @@ export function hostPrefix(hostId: string | undefined): string {
   return !hostId || hostId === LOCAL_HOST_ID ? "" : `/hosts/${encodeURIComponent(hostId)}`;
 }
 
+const HOSTS_PREFIX = `${COCKPIT_API}/v2/hosts`;
+const ownBook = (pathname: string) => [HOSTS_PREFIX, "/api/hosts"].some((book) => pathname === book || pathname.startsWith(`${book}/`));
+
+/** A cockpit URL as another Mac's engine receives it: the catch-all's `hosts/:id/api/*` hop, aimed at that Mac's own `/api`. */
 export function rewriteApiPath(pathname: string, hostId: string): string {
-  if (hostId === LOCAL_HOST_ID || !pathname.startsWith("/api/")) return pathname;
-  if (pathname.startsWith("/api/hosts/") || pathname === "/api/hosts") return pathname;
-  return `/api/hosts/${encodeURIComponent(hostId)}${pathname.slice("/api".length)}`;
+  if (hostId === LOCAL_HOST_ID || !pathname.startsWith("/api/") || ownBook(pathname)) return pathname;
+  const there = pathname.startsWith(`${COCKPIT_API}/v2/`) ? pathname.slice(`${COCKPIT_API}/v2`.length) : pathname.slice("/api".length);
+  return `${HOSTS_PREFIX}/${encodeURIComponent(hostId)}/api${there}`;
 }
 
 export function attachmentUrl(sessionId: string, attachmentId: string, options: { display?: boolean; hostId?: string } = {}): string {

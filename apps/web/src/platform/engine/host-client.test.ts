@@ -12,8 +12,8 @@ describe("hostFromPathname", () => {
 
 describe("rewriteApiPath", () => {
   test("an api call from a remote screen goes through that host's proxy", () => {
-    expect(rewriteApiPath("/api/projects", "host_ab")).toBe("/api/hosts/host_ab/projects");
-    expect(rewriteApiPath("/api/sessions/s1/turns?x=1", "host_ab")).toBe("/api/hosts/host_ab/sessions/s1/turns?x=1");
+    expect(rewriteApiPath("/api/projects", "host_ab")).toBe("/api/engine/v2/hosts/host_ab/api/projects");
+    expect(rewriteApiPath("/api/sessions/s1/turns?x=1", "host_ab")).toBe("/api/engine/v2/hosts/host_ab/api/sessions/s1/turns?x=1");
   });
 
   test("local is the absence of the hop", () => {
@@ -27,7 +27,9 @@ describe("rewriteApiPath", () => {
   // ours, and a nested hop would loop.
   test("the hosts routes are never proxied", () => {
     expect(rewriteApiPath("/api/hosts", "host_ab")).toBe("/api/hosts");
-    expect(rewriteApiPath("/api/hosts/host_ab/projects", "host_ab")).toBe("/api/hosts/host_ab/projects");
+    expect(rewriteApiPath("/api/hosts/host_ab", "host_ab")).toBe("/api/hosts/host_ab");
+    expect(rewriteApiPath("/api/engine/v2/hosts", "host_ab")).toBe("/api/engine/v2/hosts");
+    expect(rewriteApiPath("/api/engine/v2/hosts/host_ab/api/projects", "host_ab")).toBe("/api/engine/v2/hosts/host_ab/api/projects");
   });
 
   test("non-api paths are left alone", () => {
@@ -45,7 +47,7 @@ describe("hostFetcher", () => {
     }) as typeof fetch;
     await hostFetcher("host_ab", base)("/api/projects");
     await hostFetcher(LOCAL_HOST_ID, base)("/api/projects");
-    expect(seen).toEqual(["/api/hosts/host_ab/projects", "/api/projects"]);
+    expect(seen).toEqual(["/api/engine/v2/hosts/host_ab/api/projects", "/api/projects"]);
   });
 });
 
@@ -60,6 +62,6 @@ describe("a row's own Mac", () => {
     }) as typeof fetch;
     await hostFetcher("host_ab", base)("/api/sessions/s1", { method: "PATCH" });
     await hostFetcher(LOCAL_HOST_ID, base)("/api/sessions/s1", { method: "PATCH" });
-    expect(seen).toEqual(["/api/hosts/host_ab/sessions/s1", "/api/sessions/s1"]);
+    expect(seen).toEqual(["/api/engine/v2/hosts/host_ab/api/sessions/s1", "/api/sessions/s1"]);
   });
 });

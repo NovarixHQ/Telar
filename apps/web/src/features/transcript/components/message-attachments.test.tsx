@@ -28,10 +28,10 @@ test("a sent image shows as a drawable thumbnail and a sent file as a download l
 
 test("on a cockpit viewing another host, the bytes come through that host", async () => {
   const { host } = await mount(message({ sessionId: "session_1", hostId: "host_mini" }));
-  expect(host.querySelector('button[aria-label="Open Screenshot.png"] img')?.getAttribute("src")).toBe("/api/hosts/host_mini/sessions/session_1/attachments/att_1?variant=display");
-  expect(host.querySelector("a[download]")?.getAttribute("href")).toBe("/api/hosts/host_mini/sessions/session_1/attachments/att_2");
+  expect(host.querySelector('button[aria-label="Open Screenshot.png"] img')?.getAttribute("src")).toBe("/api/engine/v2/hosts/host_mini/api/sessions/session_1/attachments/att_1?variant=display");
+  expect(host.querySelector("a[download]")?.getAttribute("href")).toBe("/api/engine/v2/hosts/host_mini/api/sessions/session_1/attachments/att_2");
   await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Open Screenshot.png"]')!.click());
-  expect(document.querySelector('[role="dialog"] img')?.getAttribute("src")).toBe("/api/hosts/host_mini/sessions/session_1/attachments/att_1?variant=display");
+  expect(document.querySelector('[role="dialog"] img')?.getAttribute("src")).toBe("/api/engine/v2/hosts/host_mini/api/sessions/session_1/attachments/att_1?variant=display");
 });
 
 test("clicking a thumbnail opens the image full size", async () => {

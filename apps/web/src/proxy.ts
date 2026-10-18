@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { enginePathOf } from "@telar/engine-client";
 import { decideAccess } from "@/features/remote/server";
 
 export const config = {
@@ -11,12 +12,18 @@ const DENIALS = {
   cockpit_misdirected: { status: 421, message: "This address is not one of this computer's names. Open the cockpit by its IP, .local or Tailscale address." },
 } as const;
 
+/** The engine keys its exemptions and tickets on the legacy `/api/<path>` a catch-all call stands for. */
+const gated = (pathname: string) => {
+  const enginePath = enginePathOf(pathname);
+  return enginePath ? `/api${enginePath.slice("/v2".length)}` : pathname;
+};
+
 /** The engine decides; an engine that cannot answer denies. */
 export async function proxy(request: NextRequest): Promise<Response | undefined> {
   const { pathname } = request.nextUrl;
   let decision;
   try {
-    decision = await decideAccess(request, pathname);
+    decision = await decideAccess(request, gated(pathname));
   } catch {
     return Response.json({ error: { code: "engine_unavailable", message: "The engine is not answering." } }, { status: 503, headers: { "cache-control": "no-store" } });
   }

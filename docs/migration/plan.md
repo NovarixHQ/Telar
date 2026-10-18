@@ -41,7 +41,7 @@ The target layout is in `docs/internals/architecture.md`, and it is in place in 
 Done: remote (pairing, devices, settings), the access gate, `sessions/live` projects, `fs`, mobile push routes, the push worker and notification decider, the other-Macs book, and `about`. Cockpit features call the engine through typed clients.
 
 Left, in order:
-1. One `/api/engine/[...path]` catch-all and a Transport. Delete the 155 per-route files.
+1. Move the cockpit's own calls onto `/api/engine/v2` (the catch-all and the host hop already serve them; `next.config.ts` aliases `/api/<path>` until 2027-01-31), then delete the per-route files that remain.
 2. Make the cockpit static-ready, build it statically, and serve it over `telar://`.
 3. Remove `telar-ui`.
 4. Add the network listener with Tailscale, and move iOS to `/v2` behind `ping.proto`.

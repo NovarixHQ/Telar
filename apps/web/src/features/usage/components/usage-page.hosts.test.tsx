@@ -53,8 +53,8 @@ describe("usage across hosts", () => {
         ],
       }),
       "GET /api/usage": () => ({ usage: report(2, 3) }),
-      "GET /api/hosts/host_studio/usage": () => ({ usage: report(5, 1) }),
-      "GET /api/hosts/host_away/usage": () => {
+      "GET /api/engine/v2/hosts/host_studio/api/usage": () => ({ usage: report(5, 1) }),
+      "GET /api/engine/v2/hosts/host_away/api/usage": () => {
         throw new Error("The cockpit cannot reach away.");
       },
     });

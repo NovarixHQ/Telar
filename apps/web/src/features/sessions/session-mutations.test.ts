@@ -73,7 +73,7 @@ const record = (over: Partial<LiveSessionRow> = {}): LiveSessionRow =>
  * rather than a fetcher injected, because `sessionFetch` reaches for
  * `hostFetcher` itself — a fake threaded in through an argument would prove
  * nothing about the path the rail actually takes, including the remote-host
- * rewrite that turns `/api/x` into `/api/hosts/:id/x`.
+ * rewrite that turns `/api/x` into `/api/engine/v2/hosts/:id/api/x`.
  */
 let asked: string[] = [];
 let answer: () => Response = () => Response.json({ session: record() });
@@ -166,7 +166,7 @@ describe("no mutation reads the live list", () => {
     const before = row({ hostId: "host_mini", hostName: "mini" });
     await run(before, { row: withSettling(before, "settled", 5_000) }, () => patchSession(before, { settledOverride: "settled" }));
     expect(liveListReads()).toEqual([]);
-    expect(asked).toEqual(["PATCH /api/hosts/host_mini/sessions/session_one"]);
+    expect(asked).toEqual(["PATCH /api/engine/v2/hosts/host_mini/api/sessions/session_one"]);
   });
 });
 

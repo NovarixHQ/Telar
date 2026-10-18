@@ -110,6 +110,22 @@ describe("pairing proxy", () => {
     expect(await proxy(new NextRequest("http://cockpit.test/settings", { headers: { authorization: `Bearer ${raw}` } }))).toBeUndefined();
   });
 
+  test("the catch-all is gated as the legacy path it stands for", async () => {
+    await freshHome();
+    const raw = mintDeviceToken();
+    const phone = addDevice("Phone", raw);
+    addDevice("Mac", mintDeviceToken());
+    setRequireAuth(true);
+    setDeviceRole(phone.id, "observer");
+    const asPhone = { authorization: `Bearer ${raw}` };
+
+    expect((await proxy(new NextRequest("http://cockpit.test/api/engine/v2/ping")))).toBeUndefined();
+    expect((await proxy(new NextRequest("http://cockpit.test/api/engine/v2/projects")))?.status).toBe(401);
+    expect(await proxy(new NextRequest("http://cockpit.test/api/engine/v2/projects", { headers: asPhone }))).toBeUndefined();
+    const write = await proxy(new NextRequest("http://cockpit.test/api/engine/v2/sessions/x/turns", { method: "POST", headers: asPhone }));
+    expect(write?.status).toBe(403);
+  });
+
   test("a page reached under a rebinding name is refused even while requireAuth is off", async () => {
     await freshHome();
     setRequireAuth(false);

@@ -14,9 +14,6 @@ import { engineClient, engineRoute } from "@/platform/engine/server";
  * asks Deepgram on its behalf and answers in Deepgram's words. See
  * `apps/engine/src/domains/dictation/diagnose.ts` for why after rather than before.
  *
- * THE PHONE REACHES IT THROUGH THE HOST PROXY unchanged, like the mint:
- * `/api/hosts/:id/dictation/diagnose` is this route on the other Mac.
- *
  * POST BECAUSE IT SPENDS A HANDSHAKE against Deepgram every time it is called.
  *
  * THE REFUSALS SURVIVE AS THEMSELVES. A 409 is "dictation is off here" or "no

@@ -7,6 +7,6 @@ describe("projectIconUrl", () => {
   });
 
   test("routes a remote host's icon through that host", () => {
-    expect(projectIconUrl("project_1", "abc123", "mac.lan")).toBe("/api/hosts/mac.lan/projects/project_1/icon?v=abc123");
+    expect(projectIconUrl("project_1", "abc123", "mac.lan")).toBe("/api/engine/v2/hosts/mac.lan/api/projects/project_1/icon?v=abc123");
   });
 });

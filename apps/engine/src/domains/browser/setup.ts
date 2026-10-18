@@ -69,7 +69,8 @@ export async function browserReadiness(options: { browsersPath: string; platform
     const run = options.run ?? runOnce;
     libraries = missingLibraries((await run("ldd", [binary]).catch(() => ({ code: 1, output: "" }))).output);
   }
-  const sandbox = read(APPARMOR_RESTRICT)?.trim() === "1" ? "apparmor" : read(UNPRIVILEGED_USERNS)?.trim() === "0" ? "userns" : "ok";
+  const exempt = read(APPARMOR_PROFILE_PATH)?.includes(options.browsersPath) === true;
+  const sandbox = read(APPARMOR_RESTRICT)?.trim() === "1" && !exempt ? "apparmor" : read(UNPRIVILEGED_USERNS)?.trim() === "0" ? "userns" : "ok";
   return { binary, missingLibraries: libraries, sandbox };
 }
 

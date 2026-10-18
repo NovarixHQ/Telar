@@ -6,6 +6,7 @@ import { UsageError, type Io } from "./io";
 import { pair } from "./pair";
 import { VERSION } from "./version";
 import { serve, serveOptions } from "./serve";
+import { defaultContext, installService, restartService, serviceStatus, uninstallService } from "./service";
 
 const USAGE = `Usage: telar <command> [options]
 
@@ -14,6 +15,8 @@ const USAGE = `Usage: telar <command> [options]
                                                             Print a link and code for a new device
   auth session list                                         List paired sessions
   auth session revoke <id> | --all-others [--keep <id>]     Cut sessions off
+  service install|status|restart|uninstall [--host <addr>] [--port <n>] [--tailscale-serve]
+                                                            Run the engine in the background at login
   doctor                                                    Check this machine
   version                                                   Print the version
 
@@ -59,6 +62,16 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
     if (command === "auth") {
       if (positionals[1] !== "session") throw new UsageError("Usage: telar auth session list | revoke <id>");
       return await auth({ home, action: positionals[2], ...(positionals[3] ? { id: positionals[3] } : {}), allOthers: values["all-others"] === true, ...(values.keep ? { keep: values.keep } : {}) }, io);
+    }
+    if (command === "service") {
+      const ctx = defaultContext(home);
+      const action = positionals[1];
+      if (action === "install") await installService(ctx, serveOptions(values, home), io);
+      else if (action === "status") return await serviceStatus(ctx, io);
+      else if (action === "restart") await restartService(ctx, io);
+      else if (action === "uninstall") await uninstallService(ctx, io);
+      else throw new UsageError("Usage: telar service install|status|restart|uninstall");
+      return 0;
     }
     if (command === "doctor") return await doctor(home, io);
     throw new UsageError(`Unknown command: ${command}\n\n${USAGE}`);

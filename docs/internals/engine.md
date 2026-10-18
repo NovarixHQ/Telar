@@ -35,3 +35,9 @@
 
 - `telarWall(caps)` is the single list of tools every provider gets. Claude receives them in-process through `toSdkTools`; Codex and OpenCode receive them over the per-run socket. Never register a toolkit anywhere else; the copies drift.
 - Tool names are `mcp__telar__<prefix>_*`. Approvals and the read-only policy key on those names, so renaming a tool changes what gets approved.
+
+## Terminals
+
+- The engine owns the PTYs (`domains/terminal/pty-host.ts`, node-pty). Agent and run terminals die with the engine; nothing re-adopts them after a restart.
+- node-pty delivers no data or exit events under Bun, so terminals exist only when the engine runs on Node (the packaged app, the headless build). Under `bun run dev` runs fall back to pipes. `bun run --cwd apps/engine test:pty` runs real shells through the bundled host under Node.
+- node-pty is a native addon with a per-platform prebuild. Only the 1.2 betas ship linux-x64 and linux-arm64 (1.1.0 has darwin and win32 only, so Linux installs compile it from source), which is why the engine pins `1.2.0-beta.15`. The `pty` CI job loads it on ubuntu x64, ubuntu arm64 and macOS. Linux arm64 is the risk: T3 Code had to compile it from source, so if the prebuild stops loading there, the fix is a build toolchain, not code. On macOS the host chmods `spawn-helper`, which the tarball ships mode 0644 in 1.1.

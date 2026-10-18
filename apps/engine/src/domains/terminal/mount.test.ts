@@ -13,33 +13,11 @@ const temp = (label: string) => track(fs.mkdtempSync(path.join(os.tmpdir(), `tel
 const mounts: RunMount[] = [];
 const tempDirs: string[] = [];
 
-function hermeticEnv(): NodeJS.ProcessEnv {
-  const { TELAR_DESKTOP_RUN_TERMINAL_PORT: _port, TELAR_DESKTOP_RUN_TERMINAL_TOKEN: _token, ...rest } = process.env;
-  return rest;
-}
-
 function mountRun(options: { root: string }): RunMount {
-  const mount = createRunMount({ ...options, env: hermeticEnv() });
+  const mount = createRunMount(options);
   mounts.push(mount);
   return mount;
 }
-
-test("a mount in this suite never reaches a live desktop's terminal, even when the environment names one", () => {
-  const saved = { port: process.env.TELAR_DESKTOP_RUN_TERMINAL_PORT, token: process.env.TELAR_DESKTOP_RUN_TERMINAL_TOKEN };
-  process.env.TELAR_DESKTOP_RUN_TERMINAL_PORT = "59999";
-  process.env.TELAR_DESKTOP_RUN_TERMINAL_TOKEN = "fixture-token";
-  try {
-    expect(mountRun({ root: temp("home") }).terminalChannel).toBe(false);
-    const bare = createRunMount({ root: temp("home"), env: process.env });
-    mounts.push(bare);
-    expect(bare.terminalChannel).toBe(true);
-  } finally {
-    for (const [key, value] of [["TELAR_DESKTOP_RUN_TERMINAL_PORT", saved.port], ["TELAR_DESKTOP_RUN_TERMINAL_TOKEN", saved.token]] as const) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
-});
 
 afterEach(async () => {
   while (mounts.length) {
@@ -226,28 +204,5 @@ test("terminals are the session's: another session in the same project neither s
     reap(mine.pid);
     reap(theirs.pid);
     await mount.shutdown();
-  }
-}, 20_000);
-
-test("a home left by an engine that died re-lists nothing on the pipe fallback, and blocks nothing", async () => {
-  const tree = temp("tree");
-  const root = temp("home");
-  const first = mountRun({ root });
-  const context = (): RunSessionContext => ({ sessionId: "s", projectId: "proj_1", worktreePath: tree });
-  const config = (await first.handle("POST", "/run/configs", { name: "server", command: "sleep 30" }, context)) as RunConfigurationView;
-  const started = (await first.handle("POST", "/run/start", { configId: config.id }, context)) as RunView;
-  fs.writeFileSync(path.join(root, "run", "open-runs.json"), JSON.stringify({ runs: [{ runId: "run_old" }] }));
-
-  try {
-    const second = mountRun({ root });
-    expect(await second.recovered).toEqual([]);
-    expect(fs.existsSync(path.join(root, "run", "open-runs.json"))).toBe(false);
-    expect(((await second.handle("GET", "/run/status", {}, context)) as Answer).terminals).toEqual([]);
-    const next = (await second.handle("POST", "/run/start", { configId: config.id }, context)) as RunView;
-    expect(next.status).toBe("running");
-    reap(next.pid);
-  } finally {
-    reap(started.pid);
-    await first.shutdown();
   }
 }, 20_000);

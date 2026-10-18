@@ -1,13 +1,13 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const UNPACKED = path.join("Contents", "Resources", "app.asar.unpacked");
+const ENGINE_PTY = path.join("Contents", "Resources", "engine", "node_modules", "node-pty");
 
 function verifyPackagedPty(appPath, deps = {}) {
   const io = deps.fs ?? fs;
   const platform = deps.platform ?? process.platform;
   const arch = deps.arch ?? process.arch;
-  const root = path.join(appPath, UNPACKED, "node_modules", "node-pty");
+  const root = path.join(appPath, ENGINE_PTY);
 
   const searched = [];
   for (const build of ["build/Release", "build/Debug", `prebuilds/${platform}-${arch}`]) {
@@ -29,7 +29,7 @@ function verifyPackagedPty(appPath, deps = {}) {
 
   throw new Error(
     `packaged app has no loadable PTY addon. Looked in: ${searched.join(", ")}. ` +
-      "node-pty was packed INSIDE app.asar, where a .node cannot be loaded — check build.asarUnpack in apps/desktop/package.json.",
+      "build-app.sh materializes node-pty beside the engine bundle; check that step.",
   );
 }
 
@@ -72,7 +72,7 @@ exports.default = async function afterPack(context) {
   const appPath = path.join(context.appOutDir, appName);
   const arch = ARCH_NAMES[context.arch] ?? process.arch;
   const found = verifyPackagedPty(appPath, { arch });
-  console.log(`  • node-pty unpacked and runnable from ${found.from}${found.chmodded ? " (spawn-helper made executable)" : ""}`);
+  console.log(`  • node-pty beside the engine and runnable from ${found.from}${found.chmodded ? " (spawn-helper made executable)" : ""}`);
   console.log(`  • ${verifyPackagedSounds(appPath)} notification sounds in Contents/Resources`);
   const pin = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "src", "main", "computer-use-helper.json"), "utf8"));
   const helper = verifyPackagedComputerUse(appPath, pin, { required: process.env.TELAR_REQUIRE_COMPUTER_USE_HELPER === "1" });
@@ -82,4 +82,4 @@ exports.default = async function afterPack(context) {
 exports.verifyPackagedPty = verifyPackagedPty;
 exports.verifyPackagedComputerUse = verifyPackagedComputerUse;
 exports.verifyPackagedSounds = verifyPackagedSounds;
-exports.UNPACKED = UNPACKED;
+exports.ENGINE_PTY = ENGINE_PTY;

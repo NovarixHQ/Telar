@@ -1,7 +1,7 @@
 import { type RunOrigin } from "@telar/engine-client";
 import { spawn } from "node:child_process";
 import type { RunProcessGroup } from "./platform";
-import type { RunTerminalClient, TerminalEnding, TerminalFacts } from "./terminal-client";
+import type { PtyHost, TerminalEnding } from "./pty-host";
 import { newPipeTerminalId } from "./types";
 
 export type RunLaunchRequest = {
@@ -24,7 +24,6 @@ export type RunLaunchEvents = {
   output(stream: "stdout" | "stderr", chunk: string): void;
   exited(detail: { exitCode?: number; signal?: string; closed?: RunCloseReason }): void;
   failed(reason: string): void;
-  gone(reason: string): void;
 };
 
 export type RunHandle = {
@@ -34,18 +33,14 @@ export type RunHandle = {
   signal(signal: NodeJS.Signals): Promise<void>;
   write?(data: string): Promise<boolean>;
   resize?(cols: number, rows: number): Promise<boolean>;
-  mirror?(data: string, cursor: number): void;
 };
 
 export type RunLauncher = {
   readonly kind: "pipes" | "pty";
   launch(request: RunLaunchRequest, events: RunLaunchEvents): Promise<RunHandle>;
-  held?(): Promise<TerminalFacts[]>;
-  adopt?(facts: TerminalFacts, events: RunLaunchEvents): Promise<RunHandle>;
   closeSession?(sessionId: string): Promise<number>;
   closeIdleSession?(sessionId: string): Promise<string[]>;
   sessionCounts?(): Promise<Record<string, number>>;
-  detach?(): void;
 };
 
 const PIPE_CLOSE_GRACE_MS = 1000;
@@ -135,47 +130,35 @@ export function pipeLauncher(group: RunProcessGroup, options: { graceMs?: number
   };
 }
 
-export function terminalLauncher(client: RunTerminalClient, defaults: { cols?: number; rows?: number } = {}): RunLauncher {
+export function terminalLauncher(host: PtyHost, defaults: { cols?: number; rows?: number } = {}): RunLauncher {
   const handleFor = (id: string, pid: number | undefined): RunHandle => ({
     pid,
     terminalId: id,
-    write: (data: string) => client.write(id, data),
-    resize: (cols: number, rows: number) => client.resize(id, cols, rows),
-    mirror: (data: string, cursor: number) => {
-      void client.mirror(id, data, cursor).catch(() => {});
-    },
+    write: async (data: string) => host.write(id, data),
+    resize: async (cols: number, rows: number) => host.resize(id, cols, rows),
     async close() {
-      await client.close(id);
+      await host.close(id);
     },
     async signal(signal: NodeJS.Signals) {
-      await client.kill(id, signal);
+      host.kill(id, signal);
     },
-  });
-  const sinkFor = (events: RunLaunchEvents) => ({
-    data: (chunk: string) => events.output("stdout", chunk),
-    ending: (ending: TerminalEnding) => deliver(ending, events),
-    gone: (reason: string) => events.gone(reason),
   });
   return {
     kind: "pty",
     async launch(request, events) {
-      const env: Record<string, string> = {};
-      for (const [key, value] of Object.entries(request.env)) {
-        if (typeof value === "string") env[key] = value;
-      }
-      const opened = await client.open(
+      const opened = await host.open(
         {
           shell: request.file,
           args: request.args,
           cwd: request.cwd,
-          env,
+          env: request.env,
           cols: request.cols ?? defaults.cols ?? 120,
           rows: request.rows ?? defaults.rows ?? 30,
           sessionId: request.sessionId,
           origin: request.origin,
           title: request.title,
         },
-        sinkFor(events),
+        { data: (chunk) => events.output("stdout", chunk), ending: (ending) => deliver(ending, events) },
       );
       if (opened.ending) {
         deliver(opened.ending, events);
@@ -183,15 +166,9 @@ export function terminalLauncher(client: RunTerminalClient, defaults: { cols?: n
       }
       return handleFor(opened.id, opened.pid);
     },
-    held: () => client.state(),
-    async adopt(facts, events) {
-      await client.adopt(facts.id, sinkFor(events));
-      return handleFor(facts.id, facts.pid);
-    },
-    closeSession: (sessionId) => client.closeSession(sessionId),
-    closeIdleSession: (sessionId) => client.closeIdleSession(sessionId),
-    sessionCounts: () => client.sessionCounts(),
-    detach: () => client.detach(),
+    closeSession: (sessionId) => host.closeSession(sessionId),
+    closeIdleSession: (sessionId) => host.closeIdle(sessionId),
+    sessionCounts: async () => host.sessionCounts(),
   };
 }
 
@@ -204,9 +181,5 @@ function deliver(ending: TerminalEnding, events: RunLaunchEvents): void {
     });
     return;
   }
-  if (ending.fate === "failed") {
-    events.failed(ending.error ?? "Telar's terminal host could not start this terminal");
-    return;
-  }
-  events.gone(ending.reason ?? "Telar's terminal host stopped holding this terminal");
+  events.failed(ending.error ?? "Telar's terminal host could not start this terminal");
 }

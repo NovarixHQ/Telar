@@ -373,6 +373,32 @@ jobs:
         run: bun install --frozen-lockfile
       - run: bun test --timeout 20000 apps/engine/src/daemon.headless.smoke.test.ts
 
+  # node-pty loads a native addon per OS and arch, and the engine runs terminals through it under Node
+  # (it delivers nothing under bun). This loads it and drives real shells on every platform the
+  # engine is meant to run on; Linux arm64 is the one T3 Code had to compile from source.
+  pty:
+    name: Terminals on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+      - run: bun run --cwd apps/engine test:pty
+
   # THE ONE THING HERE THAT REALLY NEEDS macOS — on a hosted Mac, not a person's.
   #
   # A BLOCK IS SKIPPED OFF DARWIN AND SO RUNS NOWHERE ELSE. The nightly and
@@ -745,7 +771,7 @@ jobs:
     name: Verify passed
     runs-on: ubuntu-latest
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    needs: [source, knip, oxlint, typecheck, lint, test, test-engine, engine-linux, macos, electron, ios]
+    needs: [source, knip, oxlint, typecheck, lint, test, test-engine, pty, engine-linux, macos, electron, ios]
     timeout-minutes: 5
     steps:
       - name: Report the aggregate

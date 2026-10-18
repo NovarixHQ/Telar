@@ -2,7 +2,6 @@ import { afterAll, afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { RunJournalFile } from "./journal";
 import type { RunLauncher } from "./launcher";
 import { RunManager } from "./manager";
 import { type StartRunInput } from "./live-run";
@@ -58,30 +57,9 @@ function keepingHost() {
       held.push(terminal);
       return { pid: terminal.pid, terminalId: terminal.id, close: async () => {}, signal: async () => {} };
     },
-    held: async () => held,
-    adopt: async (facts) => ({ pid: facts.pid, terminalId: facts.id, close: async () => {}, signal: async () => {} }),
   };
   return launcher;
 }
-
-test("a secret pasted into the command or the name never reaches the name tag, before OR after a restart", async () => {
-  const dir = temp("journal-secrets");
-  const tree = temp("tree");
-  const launcher = keepingHost();
-  const manager = runManager({ journal: new RunJournalFile(dir), launcher });
-  const recipe = config({ name: `deploy ${TOKEN}`, command: `sleep 30 # ${TOKEN}` });
-  await manager.start(input(tree, recipe));
-
-  const onDisk = fs.readFileSync(path.join(dir, "open-terminals.json"), "utf8");
-  expect(onDisk).not.toContain(TOKEN);
-  expect(onDisk).toContain(REDACTED);
-
-  const next = runManager({ journal: new RunJournalFile(dir), launcher });
-  const [recovered] = await next.recover({ configFor: () => undefined });
-  expect(recovered).toBeDefined();
-  expect(recovered!.status).toBe("running");
-  expect(JSON.stringify(recovered)).not.toContain(TOKEN);
-});
 
 test("a busy port's warning and readiness sentence are scrubbed like every other text", async () => {
   const manager = runManager({ launcher: keepingHost(), probe: async () => ({ answered: true, serving: true }) });

@@ -4,7 +4,6 @@ import os from "node:os";
 import path from "node:path";
 import { RunManager } from "./manager";
 import { type StartRunInput } from "./live-run";
-import { RunJournalFile } from "./journal";
 import { RunConfigurationInput, type RunConfiguration, type RunProbeResult } from "./types";
 
 const temp = (label: string) => track(fs.mkdtempSync(path.join(os.tmpdir(), `telar-run-${label}-`)));
@@ -130,18 +129,6 @@ test("an ordinary run still exits cleanly", async () => {
     await until("the ordinary run to be reported as exited", () => manager.run(run.terminalId).status === "exited");
     expect(manager.run(run.terminalId).exitCode).toBe(0);
     expect(manager.run(run.terminalId).closedBy).toBeUndefined();
-  } finally {
-    await manager.shutdown();
-  }
-}, settling());
-
-test("the pipe fallback writes no name tag — there is no host to keep its terminal across a restart", async () => {
-  const dir = temp("journal");
-  const manager = runManager({ journal: new RunJournalFile(dir) });
-  const run = await manager.start(input(temp("tree"), config("sleep 5")));
-  try {
-    expect(run.status).toBe("running");
-    expect(new RunJournalFile(dir).list()).toHaveLength(0);
   } finally {
     await manager.shutdown();
   }

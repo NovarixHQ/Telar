@@ -1,7 +1,7 @@
 const { describe, expect, test } = require("bun:test");
 const path = require("node:path");
 const { TerminalHost, ensureSpawnHelper, spawnHelperCandidates } = require("./terminal-host");
-const { verifyPackagedPty, UNPACKED } = require("../../scripts/after-pack");
+const { verifyPackagedPty, ENGINE_PTY } = require("../../scripts/after-pack");
 
 describe("node-pty's spawn-helper, which the package ships un-executable", () => {
   const libDir = "/app/node_modules/node-pty/lib";
@@ -83,7 +83,7 @@ describe("node-pty's spawn-helper, which the package ships un-executable", () =>
 
 describe("what a packaged .app has to contain before a terminal can run", () => {
   const app = "/out/Telar.app";
-  const root = path.join(app, UNPACKED, "node_modules", "node-pty");
+  const root = path.join(app, ENGINE_PTY);
   const prebuilds = path.join(root, "prebuilds", "darwin-arm64");
   const release = path.join(root, "build", "Release");
   const both = (dir) => [path.join(dir, "pty.node"), path.join(dir, "spawn-helper")];
@@ -94,8 +94,8 @@ describe("what a packaged .app has to contain before a terminal can run", () => 
     chmodSync: (target, next) => chmods.push([target, next]),
   });
 
-  test("refuses an app whose addon is sealed inside the asar", () => {
-    expect(() => verifyPackagedPty(app, { platform: "darwin", arch: "arm64", fs: fakeFs([]) })).toThrow(/asarUnpack/);
+  test("refuses an app with no node-pty beside the engine", () => {
+    expect(() => verifyPackagedPty(app, { platform: "darwin", arch: "arm64", fs: fakeFs([]) })).toThrow(/build-app\.sh/);
   });
 
   test("refuses an app with the addon but no spawn-helper beside it", () => {

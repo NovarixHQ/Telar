@@ -1,5 +1,4 @@
 import { type RunClosedBy, type RunOrigin, type RunOutputLine, type RunReadiness, type RunStatus, type RunView } from "@telar/engine-client";
-import type { RunJournal } from "./journal";
 import type { RunHandle, RunLauncher } from "./launcher";
 import type { RunKill, RunProcessGroup } from "./platform";
 import type { ShellKind } from "./shell";
@@ -62,7 +61,6 @@ export type LiveRun = {
   readyPattern?: RegExp;
   closeTask?: Promise<void>;
   handle?: RunHandle;
-  blind: boolean;
   lines: RunOutputLine[];
   dropped: number;
   bytes: string[];
@@ -88,7 +86,6 @@ export type RunManagerOptions = {
   platform?: NodeJS.Platform;
   processGroup?: RunProcessGroup;
   launcher?: RunLauncher;
-  journal?: RunJournal;
   stopGraceMs?: number;
   closeSettleMs?: number;
   readyPollMs?: number;

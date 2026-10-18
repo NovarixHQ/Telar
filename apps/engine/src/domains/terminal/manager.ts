@@ -1,17 +1,15 @@
 import { type RunBytesFrame, type RunClosedBy, type RunOutputFilter, type RunOutputLine, type RunStatusEvent, type RunView, type RunWaitAnswer } from "@telar/engine-client";
 import os from "node:os";
 import path from "node:path";
-import { nullRunJournal, type RunJournal, type RunRecord } from "./journal";
 import { pipeLauncher, type RunHandle, type RunLaunchEvents, type RunLauncher } from "./launcher";
 import { processGroupFor, type RunKill } from "./platform";
 import { createPtyRedactor, escapeScan, safeCutBack } from "./pty-stream";
 import { interactiveShell, splitMarkers } from "./shell";
 import { onMarker, typeCommand, type TypingHost, untilIdle, wakeIdle } from "./typing";
 import { createOutputSplitter } from "./stream";
-import type { TerminalFacts } from "./terminal-client";
-import { isTerminal, type RunConfiguration, RunError, type RunProbe, redactText, secretValues, unhideableSecrets } from "./types";
+import { isTerminal, RunError, type RunProbe, redactText, secretValues, unhideableSecrets } from "./types";
 import { CLOSE_SETTLE_MS, compile, defaultProbe, KEEP_FINISHED, type LiveRun, MAX_BYTE_CHARS, MAX_BYTE_CHUNKS, MAX_LINE_CHARS, MAX_LINES, portOf, PROMPT_WAIT_MS, READY_POLL_MS, type RunManagerOptions, type StartRunInput, WAIT_TICK_MS } from "./live-run";
-import { recordOf, splitTitle, titleOf, viewOf } from "./views";
+import { titleOf, viewOf } from "./views";
 import { agentEnv } from "../../platform/process/agent-env";
 import { terminalEnv } from "./env";
 import { AGENT_SHELL_CAP, AGENT_SHELL_IDLE_MS, evictionFor, expiredAgentShells, idleAgentShell } from "./agent-shells";
@@ -28,7 +26,6 @@ export class RunManager {
   private readonly probe: RunProbe;
   private readonly platform: NodeJS.Platform;
   private readonly launcher: RunLauncher;
-  private readonly journal: RunJournal;
   private readonly closeSettleMs: number;
   private readonly readyPollMs: number;
   private readonly personClosed: ((run: RunView) => void) | undefined;
@@ -45,7 +42,6 @@ export class RunManager {
     this.platform = options.platform ?? process.platform;
     const group = options.processGroup ?? processGroupFor(this.platform, kill);
     this.launcher = options.launcher ?? pipeLauncher(group, options.stopGraceMs === undefined ? {} : { graceMs: options.stopGraceMs });
-    this.journal = options.journal ?? nullRunJournal;
     this.closeSettleMs = options.closeSettleMs ?? CLOSE_SETTLE_MS;
     this.readyPollMs = options.readyPollMs ?? READY_POLL_MS;
     this.personClosed = options.personClosed;
@@ -67,83 +63,6 @@ export class RunManager {
     announce: (run) => this.announce(run),
     pollReadiness: (run) => this.pollReadiness(run),
   };
-
-  async recover(options: { configFor?: (projectId: string, configId: string) => RunConfiguration | undefined } = {}): Promise<RunView[]> {
-    const records = this.journal.list();
-    if (records.length === 0) return [];
-    if (!this.launcher.held || !this.launcher.adopt) {
-      this.forgetJournal([]);
-      return [];
-    }
-    let held: TerminalFacts[];
-    try {
-      held = await this.launcher.held();
-    } catch {
-      return [];
-    }
-    const recovered: RunView[] = [];
-    const kept: RunRecord[] = [];
-    for (const record of records) {
-      const facts = held.find((terminal) => terminal.id === record.terminalId);
-      if (!facts || this.runs.has(record.terminalId)) continue;
-      const stored = record.configId ? options.configFor?.(record.projectId, record.configId) : undefined;
-      const run = this.relisted(record, stored);
-      try {
-        run.handle = await this.launcher.adopt(facts, this.events(run));
-      } catch {
-        continue;
-      }
-      this.register(run);
-      if (run.blind) {
-        this.log(
-          run,
-          "stderr",
-          "Telar restarted, and the run configuration this terminal came from has since been deleted, so its output is not shown here: it could contain values that configuration marked secret. The terminal itself is still running and can be closed.",
-        );
-      }
-      if (run.readiness.kind === "pending") this.pollReadiness(run);
-      kept.push(record);
-      recovered.push(this.view(run));
-    }
-    this.forgetJournal(kept);
-    return recovered;
-  }
-
-  private relisted(record: RunRecord, stored: RunConfiguration | undefined): LiveRun {
-    const config: RunConfiguration = stored ?? {
-      id: record.configId ?? "",
-      projectId: record.projectId,
-      name: record.configName,
-      command: record.command,
-      ...(record.readinessUrl ? { readinessUrl: record.readinessUrl } : {}),
-      createdAt: record.startedAt,
-      updatedAt: record.startedAt,
-    };
-    const { base, instance } = splitTitle(record.title);
-    return {
-      ...this.blank(),
-      terminalId: record.terminalId,
-      projectId: record.projectId,
-      sessionId: record.sessionId,
-      origin: record.origin,
-      baseTitle: base,
-      instance,
-      config,
-      configName: record.configName,
-      command: record.command,
-      worktreePath: record.worktreePath,
-      ...(record.worktreeBranch ? { worktreeBranch: record.worktreeBranch } : {}),
-      cwd: record.cwd,
-      startedAt: record.startedAt,
-      readiness: config.readinessUrl ? { kind: "pending" } : { kind: "none" },
-      blind: record.configId !== undefined && stored === undefined,
-      secrets: stored ? secretValues(stored) : [],
-      shell: { kind: record.shellKind ?? "other", integrated: record.integrated ?? false },
-      prompted: true,
-      activity: "busy",
-      typed: true,
-    };
-  }
 
   watch(listener: (event: RunStatusEvent) => void): () => void {
     this.watchers.add(listener);
@@ -401,12 +320,6 @@ export class RunManager {
     }
     typeCommand(this.typing, run, run.command, { armed: true });
     if (run.readiness.kind === "pending" && run.config.readinessUrl) this.pollReadiness(run);
-    if (this.launcher.held) {
-      try {
-        this.journal.open(recordOf(run));
-      } catch {
-      }
-    }
   }
 
   private events(run: LiveRun): RunLaunchEvents {
@@ -422,10 +335,6 @@ export class RunManager {
         const code = { ...(detail.exitCode === undefined ? {} : { exitCode: detail.exitCode }), ...(detail.signal ? { signal: detail.signal } : {}) };
         if (by) this.finish(run, "closed", { ...code, closedBy: by });
         else this.finish(run, detail.exitCode === 0 || detail.exitCode === undefined ? "exited" : "failed", code);
-      },
-      gone: (reason) => {
-        if (isTerminal(run.status)) return;
-        this.finish(run, "closed", { closedBy: run.closing ?? "telar", error: reason });
       },
     };
   }
@@ -443,20 +352,6 @@ export class RunManager {
   private register(run: LiveRun): void {
     run.terminalId = run.handle?.terminalId ?? run.terminalId;
     this.runs.set(run.terminalId, run);
-  }
-
-  private closeRecord(run: LiveRun): void {
-    try {
-      this.journal.close(run.terminalId);
-    } catch {
-    }
-  }
-
-  private forgetJournal(kept: RunRecord[]): void {
-    try {
-      this.journal.replace(kept);
-    } catch {
-    }
   }
 
   private capture(run: LiveRun): (stream: "stdout" | "stderr", chunk: string) => void {
@@ -485,8 +380,7 @@ export class RunManager {
     let carry = "";
     const emitLine = (text: string) => this.log(run, "stdout", text);
     const redactor = createPtyRedactor(run.secrets, (text) => {
-      const cursor = this.keep(run, text);
-      run.handle?.mirror?.(text, cursor);
+      this.keep(run, text);
       for (const part of splitMarkers(text)) {
         if (typeof part !== "string") {
           if (part.kind === "done" && carry) {
@@ -510,7 +404,7 @@ export class RunManager {
       }
     });
     return (_stream, chunk) => {
-      if (!run.blind) redactor.push(chunk);
+      redactor.push(chunk);
     };
   }
 
@@ -711,7 +605,6 @@ export class RunManager {
       );
     }
     for (const run of this.runs.values()) if (run.readyTimer) clearInterval(run.readyTimer);
-    this.launcher.detach?.();
   }
 
   private require(terminalId: string): LiveRun {
@@ -722,14 +615,13 @@ export class RunManager {
 
   private blank(): Pick<
     LiveRun,
-    | "terminalId" | "status" | "readiness" | "blind" | "lines" | "dropped" | "bytes" | "byteChars" | "bytesDropped" | "secrets" | "waiters" | "agentWatching"
+    | "terminalId" | "status" | "readiness" | "lines" | "dropped" | "bytes" | "byteChars" | "bytesDropped" | "secrets" | "waiters" | "agentWatching"
     | "shell" | "activity" | "prompted" | "typed" | "idleWaiters"
   > {
     return {
       terminalId: "",
       status: "running",
       readiness: { kind: "none" },
-      blind: false,
       lines: [],
       dropped: 0,
       bytes: [],
@@ -761,7 +653,6 @@ export class RunManager {
     clearTimeout(run.promptTimer);
     run.queued = undefined;
     if (run.readiness.kind === "pending") run.readiness = { kind: "none" };
-    this.closeRecord(run);
     this.wake(run);
     wakeIdle(run);
     this.announce(run);

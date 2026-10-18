@@ -24,6 +24,7 @@
     "bench:compaction": "bun run bench/compaction-cost.ts",
     "//durability:pragmas": "THE ASSERTION THE SUITE CANNOT MAKE — #632. `checkpoint_fullfsync` is 1 by default under bun:sqlite and 0 under node:sqlite, and the .app runs the second; a bun test asserting it is vacuous. This bundles the store the way build-app.sh bundles the engine, runs it under plain node, and asserts the three pragma values. Seconds, and it does not build the app.",
     "durability:pragmas": "node scripts/durability-pragmas.mjs",
+    "test:pty": "node scripts/pty-host-node.mjs",
     "typecheck": "bunx --bun tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "@opencode-ai/sdk": "1.18.30",
     "@playwright/mcp": "^0.0.77",
     "@telar/engine-client": "workspace:*",
+    "node-pty": "1.2.0-beta.15",
     "zod": "^4.4.3"
   },
   "devDependencies": {

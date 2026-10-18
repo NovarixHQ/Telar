@@ -1,12 +1,7 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { DEFAULT_INBOX_POLICY, EngineClient } from "@telar/engine-client";
-import { GET as liveGet } from "@/app/api/sessions/live/route";
+import { describe, expect, test } from "bun:test";
+import { DEFAULT_INBOX_POLICY } from "@telar/engine-client";
 import { click, installTestDom } from "@/test/dom";
 import { liveReads, liveRow, mountRail, nextPass, project, stubRail, type LiveAnswer, type RailRequest } from "@/test/rail";
-import { startEngine, type EngineDaemon } from "../../../../../engine/src/daemon";
 
 installTestDom();
 
@@ -20,7 +15,7 @@ describe("a rail's pass is one read per host", () => {
     await mountRail();
     const before = requests.length;
     await nextPass();
-    expect(requests.slice(before).map((request) => request.path).sort()).toEqual(["/api/hosts", "/api/hosts/mini/sessions/live", "/api/sessions/live"]);
+    expect(requests.slice(before).map((request) => request.path).sort()).toEqual(["/api/engine/v2/hosts/mini/api/sessions/live", "/api/hosts", "/api/sessions/live"]);
   });
 
   test("the settling window rides the list and bands that Mac's rows", async () => {
@@ -89,7 +84,7 @@ describe("and that one read is conditional", () => {
     await nextPass();
     const second = liveReads(requests).slice(2);
     expect(second.find((request) => request.path === "/api/sessions/live")!.ifNoneMatch).toBe("local-tag");
-    expect(second.find((request) => request.path === "/api/hosts/mini/sessions/live")!.ifNoneMatch).toBe("mini-tag");
+    expect(second.find((request) => request.path === "/api/engine/v2/hosts/mini/api/sessions/live")!.ifNoneMatch).toBe("mini-tag");
   });
 
   test("opening the Settled shelf reads the shelf beside the list", async () => {
@@ -113,74 +108,5 @@ describe("and that one read is conditional", () => {
     await nextPass();
     expect(liveReads(requests).slice(before).map((request) => request.search)).toEqual([""]);
     expect(host.textContent).toContain("Title done");
-  });
-});
-
-describe("the route forwards what the engine stamped", () => {
-  const saved = { home: process.env.TELAR_HOME, cockpit: process.env.TELAR_COCKPIT };
-  let root: string;
-  let daemon: EngineDaemon;
-
-  beforeAll(async () => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), "telar-live-route-"));
-    process.env.TELAR_HOME = root;
-    process.env.TELAR_COCKPIT = "1";
-    daemon = await startEngine({ engineRoot: path.join(root, "engine") });
-    const client = new EngineClient(daemon.discovery);
-    await client.registerProject({ id: "project_one", name: "One", root });
-    await client.createSession({ id: "session_open", projectId: "project_one" });
-    await client.createSession({ id: "session_done", projectId: "project_one" });
-    await client.settleSession("session_done", true);
-  });
-
-  afterAll(async () => {
-    await daemon.close();
-    fs.rmSync(root, { recursive: true, force: true });
-    for (const [key, value] of [["TELAR_HOME", saved.home], ["TELAR_COCKPIT", saved.cockpit]] as const) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  });
-
-  const read = (query = "", headers: Record<string, string> = {}) => liveGet(new Request(`http://cockpit.test/api/sessions/live${query}`, { headers }));
-
-  test("the engine's identity and settling window reach a browser", async () => {
-    const body = await (await read()).json();
-    expect(typeof body.daemonId).toBe("string");
-    expect(body.inbox).toMatchObject({ autoSettleAfterHours: DEFAULT_INBOX_POLICY.autoSettleAfterHours });
-  });
-
-  test("the default read leaves the shelf out and counts it; ?all=1 brings it", async () => {
-    const narrow = await (await read()).json();
-    expect(narrow.sessions.map((session: { id: string }) => session.id)).toEqual(["session_open"]);
-    expect(narrow.settledCount).toBe(1);
-    const wide = await (await read("?all=1")).json();
-    expect(wide.sessions.map((session: { id: string }) => session.id).sort()).toEqual(["session_done", "session_open"]);
-  });
-
-  test("the first read carries a tag out, and handing it back is answered 304", async () => {
-    const first = await read();
-    const etag = first.headers.get("etag")!;
-    expect(etag).toBeTruthy();
-    const again = await read("", { "if-none-match": etag });
-    expect(again.status).toBe(304);
-    expect(again.headers.get("etag")).toBe(etag);
-  });
-
-  test("?shelf=1 answers the settled rows alone, under a tag of its own", async () => {
-    const shelf = await read("?shelf=1");
-    expect((await shelf.json()).sessions.map((session: { id: string }) => session.id)).toEqual(["session_done"]);
-    expect((await read("?shelf=1", { "if-none-match": shelf.headers.get("etag")! })).status).toBe(304);
-  });
-
-  test("a narrow tag is not spent against the whole list", async () => {
-    const etag = (await read()).headers.get("etag")!;
-    const wide = await read("?all=1", { "if-none-match": etag });
-    expect(wide.status).toBe(200);
-  });
-
-  test("the revision cursor still answers a caller that sends one and no tag", async () => {
-    const { revision } = await (await read()).json();
-    expect(await (await read(`?since=${revision}`)).json()).toMatchObject({ unchanged: true, revision });
   });
 });

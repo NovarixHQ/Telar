@@ -63,7 +63,7 @@ beforeEach(() => {
     }
     if (url === "/api/hosts") return json({ hosts });
     if (url === "/api/projects") return json({ projects: local });
-    if (url === "/api/hosts/host_mini/projects") return json({ projects: remote });
+    if (url === "/api/engine/v2/hosts/host_mini/api/projects") return json({ projects: remote });
     if (url === "/api/health") return json({ plugins: [LATEX] });
     return json({ error: { code: "not_found", message: "no" } }, 404);
   }) as typeof fetch;
@@ -427,7 +427,7 @@ describe("the pane", () => {
     expect(calls.some((call) => call.url.startsWith("/api/hosts/host_mini"))).toBe(false);
 
     await press(view.button("mini"));
-    expect(calls.some((call) => call.url === "/api/hosts/host_mini/projects")).toBe(true);
+    expect(calls.some((call) => call.url === "/api/engine/v2/hosts/host_mini/api/projects")).toBe(true);
     expect(view.scope()).toBe("Far");
     expect(view.host.textContent).toContain("Registered on mini");
     expect(view.host.textContent).toContain("Which of this computer's plugins this project has opted into.");

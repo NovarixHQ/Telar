@@ -30,7 +30,7 @@ function wire() {
   globalThis.fetch = (async (input: string | URL | Request) => {
     const raw = String(input);
     urls.push(raw);
-    const hosted = /^\/api\/hosts\/([^/]+)(\/.*)$/.exec(raw);
+    const hosted = /^\/api\/engine\/v2\/hosts\/([^/]+)\/api(\/.*)$/.exec(raw);
     const engine = hosted ? REMOTE : LOCAL;
     const url = hosted ? `/api${hosted[2]}` : raw;
     if (raw === "/api/hosts") return Response.json({ hosts: remote ? [{ id: "studio", name: "Studio Mac", baseUrl: "https://studio", addedAt: 1 }] : [] });
@@ -113,6 +113,6 @@ describe("@ in the quick composer", () => {
     const host = await open();
     await type(host, "@plan");
     expect(options(host).some((row) => row.includes("plan.md"))).toBe(true);
-    expect(urls).toContain("/api/hosts/studio/projects/project_9/files");
+    expect(urls).toContain("/api/engine/v2/hosts/studio/api/projects/project_9/files");
   });
 });

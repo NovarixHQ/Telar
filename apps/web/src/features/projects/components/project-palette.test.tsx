@@ -493,8 +493,8 @@ describe("with another computer paired", () => {
   const remoteRoutes = {
     ...registerRoutes(),
     "GET /api/hosts": () => ({ hosts: [mini] }),
-    "GET /api/hosts/host_mini/fs": () => listing("/Users/mini/code/site"),
-    "POST /api/hosts/host_mini/projects": (body: unknown) => ({ project: { id: "project_far", name: (body as { name: string }).name } }),
+    "GET /api/engine/v2/hosts/host_mini/api/fs": () => listing("/Users/mini/code/site"),
+    "POST /api/engine/v2/hosts/host_mini/api/projects": (body: unknown) => ({ project: { id: "project_far", name: (body as { name: string }).name } }),
   };
   afterEach(() => delete (window as { telarDesktop?: unknown }).telarDesktop);
 
@@ -514,7 +514,7 @@ describe("with another computer paired", () => {
 
     await click(buttonLabelled("Add⌘↵"));
     await flush(() => log.includes("registered"));
-    expect(calls.find((call) => call.route === "POST /api/hosts/host_mini/projects")?.body).toEqual({ name: "site", root: "/Users/mini/code/site" });
+    expect(calls.find((call) => call.route === "POST /api/engine/v2/hosts/host_mini/api/projects")?.body).toEqual({ name: "site", root: "/Users/mini/code/site" });
     expect(calls.some((call) => call.route === "POST /api/projects")).toBe(false);
   });
 

@@ -40,7 +40,7 @@ describe("the rail's header is one row", () => {
 
   test("a sole project on a paired Mac opens its canvas on that Mac", async () => {
     stubRail(
-      (request) => (request.path.startsWith("/api/hosts/mini/")
+      (request) => (request.path.startsWith("/api/engine/v2/hosts/mini/api/")
         ? { body: { projects: [project("p9", "Far")], sessions: [], daemonId: "mini-engine" } }
         : { body: { projects: [], sessions: [], daemonId: "local-engine" } }),
       [{ id: "mini", name: "Mini" }],

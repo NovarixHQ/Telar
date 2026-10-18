@@ -89,6 +89,8 @@ const nextConfig: NextConfig = {
    * runtime errors, and losing that to tidy a corner is a bad trade.
    */
   devIndicators: { position: "bottom-right" },
+  // Installed phones and paired Macs still call `/api/<path>`; remove on 2027-01-31.
+  rewrites: async () => ({ fallback: [{ source: "/api/:path*", destination: "/api/engine/v2/:path*" }] }),
   ...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
 };
 

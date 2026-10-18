@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import http from "node:http";
+import type { AddressInfo } from "node:net";
 import os from "node:os";
 import pkg from "../package.json" with { type: "json" };
 import path from "node:path";
@@ -18,7 +19,7 @@ import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
 import { maybeRetitleSession, providersRoutes, readModelCatalogue, sessionProviderRoutes, type AgentRouteDeps, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
 import { createPushService } from "./domains/push";
-import { createPresence, createRemoteStore, deviceForBearer, networkRouting, remoteDirFor, remoteRoutes } from "./domains/remote";
+import { advertisedAddresses, callerOf, createPresence, createRemoteStore, deviceForBearer, listEndpoints, networkRouting, remoteDirFor, remoteRoutes, setCaller } from "./domains/remote";
 import { schedulesRoutes } from "./domains/schedules";
 import { connectorDoor, sessionAttachmentRoutes, sessionLifecycleRoutes, sessionReadRoutes, sessionsRoutes, sessionsSocketDoor, syncTelarSkill, type OpenStream } from "./domains/sessions";
 import { settingsRoutes } from "./domains/settings";
@@ -209,23 +210,24 @@ type RouteContext = {
   workers: ReturnType<typeof createWorkerRegistry>;
   health: () => EngineHealth;
   identity: EngineIdentity;
+  endpoints: () => ReturnType<typeof listEndpoints>;
 };
 
 function engineRoutes(ctx: RouteContext): Route[] {
   const current = currentRoutes(ctx);
-  return [...current, ...legacyRoutes(current)];
+  return [...current, ...legacyRoutes(current, callerOf)];
 }
 
 function currentRoutes(ctx: RouteContext): Route[] {
-  const { store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity } = ctx;
+  const { store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity, endpoints } = ctx;
   return [
     sessionsDoor.route,
     connector.route,
     { method: "GET", path: "/v2/health", auth: "engine", handle: () => ({ status: 200, body: health() }) },
     ...filesRoutes(),
-    ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket), presence),
+    ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket), presence, endpoints),
     ...hostsRoutes(hostsStore),
-    ...identityRoutes(identity),
+    ...identityRoutes(identity, () => advertisedAddresses(endpoints())),
     ...aboutRoutes(root),
     ...push.routes,
     ...settingsRoutes(store, syncOrientationSkill, (settings) => simulators.settingsChanged(settings)),
@@ -362,9 +364,10 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const authorize = (auth: Route["auth"], request: http.IncomingMessage): void => {
     const allowed = auth === "device" ? connector.device(request) !== undefined : bearerIsValid(request.headers.authorization, secrets[auth]());
     if (!allowed) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
+    if (auth === "engine") setCaller(request, { host: true });
   };
   const identity: EngineIdentity = { hostId: readHostId(remoteDir), ...(hostname ? { name: hostname } : {}), appVersion: pkg.version };
-  const routes = engineRoutes({ store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity });
+  const routes = engineRoutes({ store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity, endpoints: () => (options.network && networkServer ? listEndpoints({ host: options.network.host, port: (networkServer.address() as AddressInfo).port }) : []) });
   const staticFiles = options.staticDir ? createStaticHandler(options.staticDir) : undefined;
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run, ...(staticFiles ? { staticFiles } : {}) }));
   const networkServer = options.network && http.createServer(router(routes, { ...networkRouting(remoteStore, presence, options.network.host, errorFor, loopLag.run), ...(staticFiles ? { staticFiles } : {}) }));

@@ -124,3 +124,59 @@ test("a cookie stops working when its device is revoked, and an iOS pairing sets
   await loopback("DELETE", `/v2/remote/devices/${browser.body.deviceId}`);
   expect((await remote("GET", "/v2/health", { headers: { cookie } })).status).toBe(401);
 });
+
+test("a stranger learns this host's identity and addresses, and nothing else", async () => {
+  const { daemon, remote } = await engine({ host: "127.0.0.1" });
+  const identity = await remote("GET", "/v2/identity");
+  expect(identity.status).toBe(200);
+  expect(identity.body.hostId).toMatch(/^host_/);
+  expect(Array.isArray(identity.body.addresses)).toBe(true);
+  expect((await remote("GET", "/v2/remote")).status).toBe(401);
+  expect(daemon.network!.port).toBeGreaterThan(0);
+});
+
+test("the legacy pairing shape names the device from what the engine observes and sets the cookie", async () => {
+  const { loopback, remote } = await engine({ host: "127.0.0.1" });
+  const code = ((await (await loopback("POST", "/v2/remote/pairing")).json()) as { code: string }).code;
+  const paired = await remote("POST", "/v2/pair", { body: { token: code, platform: "browser" }, headers: { "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1" } });
+  expect(paired.status).toBe(200);
+  expect(paired.body.deviceName).toMatch(/^Safari on /);
+  expect(String(paired.headers["set-cookie"])).toMatch(/^telar_device=tlr_/);
+  const devices = (await (await loopback("GET", "/v2/remote")).json()) as { devices: { name: string; identity?: { kind: string; client?: string } }[] };
+  expect(devices.devices[0]?.identity).toMatchObject({ kind: "phone", client: "Safari", os: "iOS" });
+  const refused = await remote("POST", "/v2/pair", { body: { token: code } });
+  expect(refused.status).toBe(401);
+});
+
+test("the remote status names the caller, a device that turns auth on is paired in the same answer, and signing out the others keeps it", async () => {
+  const { daemon, loopback, remote, pair } = await engine({ host: "127.0.0.1" });
+  const token = await pair();
+  await pair(["read"]);
+  const status = await remote("GET", "/v2/remote", { token });
+  expect(status.body.callerDeviceId).toMatch(/^dev_/);
+  expect(status.body.callerRole).toBe("full");
+  expect(status.body.endpoints.map((endpoint: { url: string }) => endpoint.url)).toEqual([`http://127.0.0.1:${daemon.network!.port}`]);
+  expect(((await (await loopback("GET", "/v2/remote")).json()) as { callerDeviceId?: string }).callerDeviceId).toBeUndefined();
+
+  const enabled = await remote("PATCH", "/v2/remote", { token, body: { requireAuth: true } });
+  expect(enabled.status).toBe(200);
+  expect(enabled.body.deviceToken).toBeUndefined();
+  expect(String(enabled.headers["set-cookie"])).toMatch(/^telar_device=tlr_/);
+
+  const revoked = await remote("DELETE", "/v2/remote/devices", { token });
+  expect(revoked.body.revoked).toBeGreaterThanOrEqual(1);
+  expect((await remote("GET", "/v2/remote", { token })).status).toBe(200);
+});
+
+test("the mobile push paths act on the calling device and refuse an unpaired or oversized caller", async () => {
+  const { loopback, remote, pair } = await engine({ host: "127.0.0.1" });
+  const token = await pair();
+  const viewer = await pair(["read"]);
+  expect((await remote("GET", "/v2/mobile/push", { token })).body.configured).toBe(false);
+  expect((await loopback("GET", "/v2/mobile/push")).status).toBe(401);
+  expect((await remote("PUT", "/v2/mobile/push", { token, body: { nonsense: true } })).status).toBe(400);
+  expect((await remote("PUT", "/v2/mobile/push", { token, body: { padding: "x".repeat(40_000) } })).status).toBe(413);
+  expect((await remote("PUT", "/v2/mobile/push", { token: viewer, body: {} })).status).toBe(403);
+  expect((await remote("GET", "/v2/mobile/read-state", { token })).status).toBe(400);
+  expect((await loopback("GET", "/v2/mobile/read-state?ids=a")).status).toBe(401);
+});

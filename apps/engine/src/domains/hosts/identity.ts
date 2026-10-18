@@ -20,6 +20,6 @@ export function readHostId(dir: string): string {
   return hostId;
 }
 
-export function identityRoutes(identity: EngineIdentity): Route[] {
-  return [{ method: "GET", path: "/v2/identity", auth: "engine", handle: () => ok(identity) }];
+export function identityRoutes(identity: EngineIdentity, addresses: () => string[]): Route[] {
+  return [{ method: "GET", path: "/v2/identity", auth: "engine", handle: () => ok({ ...identity, addresses: addresses() }) }];
 }

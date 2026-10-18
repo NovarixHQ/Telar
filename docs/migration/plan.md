@@ -43,8 +43,7 @@ Done: remote (pairing, devices, settings), the access gate, `sessions/live` proj
 Also done: the kept routes live in the engine, the engine serves the static cockpit, `telar-ui` and `proxy.ts` are gone, and the desktop loads the cockpit from the engine's network listener on the port it always used (so its storage and paired phones keep their address). The `/api/<path>` alias goes on 2027-01-31.
 
 Left, in order:
-1. Move iOS to `/v2` behind `ping.proto`, then delete the alias and `platform/http/legacy.ts`.
-2. The CLI and distribution need `TELAR_STATIC_DIR` pointing at a packaged `cockpit` directory.
+1. The CLI and distribution need `TELAR_STATIC_DIR` pointing at a packaged `cockpit` directory.
 
 Security invariants to preserve: the engine token never reaches a browser or phone; only ping and pair are open; observers are GET-only; the pairing code is 8 digits, 5 min, 5 tries, fragment-only; hashes at rest with constant-time comparison; no CORS; Host-header checks on the network listener; login grants stay written by the shell.
 

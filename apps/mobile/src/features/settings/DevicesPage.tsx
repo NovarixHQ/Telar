@@ -1,18 +1,18 @@
 import { Alert, Button, ConfirmationDialog, HStack, Menu, ProgressView, Section, Text, TextField, useNativeState, VStack } from "@expo/ui/swift-ui";
 import { background, clipShape, font, foregroundStyle, frame, lineLimit, monospacedDigit, padding, strokeBorder } from "@expo/ui/swift-ui/modifiers";
-import type { DeviceRole, RemoteDevice } from "@telar/engine-client";
+import type { RemoteDevice } from "@telar/engine-client";
 import { Fragment, useState, type ReactNode } from "react";
 import { faded, Icon, Theme } from "../../ui";
-import type { HostConnection } from "../../platform/connection";
-import { deviceSubtitle, devicesView, platformSymbol, type RemoteStatus } from "./devices";
+import { canAdmin, type HostConnection } from "../../platform/connection";
+import { ACCESS_LABEL, ACCESS_SCOPES, accessOf, deviceSubtitle, devicesView, platformSymbol, type Access, type RemoteStatus } from "./devices";
 import { failureText, useHostLoad } from "./host-call";
 import { CardButtonRow, CardDivider, Footnote, GlyphBox, SectionLabel, SettingsCard, SettingsGroup, SettingsPage, StatusBanner } from "./kit";
 
 const loadStatus = (host: HostConnection) => host.request<RemoteStatus>("GET", "/v2/remote");
 const devicePath = (id: string) => `/v2/remote/devices/${encodeURIComponent(id)}`;
 
-function RoleChip({ role, canManage }: { role: DeviceRole; canManage: boolean }) {
-  const observer = role === "observer";
+function AccessChip({ access, canManage }: { access: Access; canManage: boolean }) {
+  const observer = access === "view";
   return (
     <HStack
       spacing={5}
@@ -25,17 +25,18 @@ function RoleChip({ role, canManage }: { role: DeviceRole; canManage: boolean })
         strokeBorder({ color: Theme.border, style: { lineWidth: 1 }, shape: "capsule" }),
       ]}
     >
-      <Icon name={observer ? "eye" : "checkmark.shield"} textStyle="caption" weight="medium" />
-      <Text modifiers={[font({ textStyle: "footnote", weight: "semibold" })]}>{observer ? "View only" : "Full"}</Text>
+      <Icon name={observer ? "eye" : access === "edit" ? "pencil" : "checkmark.shield"} textStyle="caption" weight="medium" />
+      <Text modifiers={[font({ textStyle: "footnote", weight: "semibold" })]}>{ACCESS_LABEL[access]}</Text>
       {canManage ? <Icon name="chevron.down" textStyle="caption2" weight="medium" /> : null}
     </HStack>
   );
 }
 
-type Actions = { setRole: (device: RemoteDevice, role: DeviceRole) => void; rename: (device: RemoteDevice) => void; revoke: (device: RemoteDevice) => void };
+type Actions = { setAccess: (device: RemoteDevice, access: Access) => void; rename: (device: RemoteDevice) => void; revoke: (device: RemoteDevice) => void };
 
 function DeviceRow({ device, isSelf, canManage, actions }: { device: RemoteDevice; isSelf: boolean; canManage: boolean; actions: Actions }) {
-  const chip = <RoleChip role={device.role} canManage={canManage} />;
+  const access = accessOf(device.scopes);
+  const chip = <AccessChip access={access} canManage={canManage} />;
   return (
     <HStack spacing={12} modifiers={[padding({ horizontal: 16, vertical: 14 })]}>
       <GlyphBox name={platformSymbol(device.platform)} />
@@ -53,8 +54,9 @@ function DeviceRow({ device, isSelf, canManage, actions }: { device: RemoteDevic
       {canManage ? (
         <Menu label={chip}>
           <Section title="Access">
-            <Button label="Full access" systemImage={device.role === "full" ? "checkmark" : "hand.raised"} onPress={() => actions.setRole(device, "full")} />
-            <Button label="View only" systemImage={device.role === "observer" ? "checkmark" : "eye"} onPress={() => actions.setRole(device, "observer")} />
+            <Button label="Full access" systemImage={access === "full" ? "checkmark" : "hand.raised"} onPress={() => actions.setAccess(device, "full")} />
+            <Button label="Can edit" systemImage={access === "edit" ? "checkmark" : "pencil"} onPress={() => actions.setAccess(device, "edit")} />
+            <Button label="View only" systemImage={access === "view" ? "checkmark" : "eye"} onPress={() => actions.setAccess(device, "view")} />
           </Section>
           <Button label="Rename…" systemImage="pencil" onPress={() => actions.rename(device)} />
           {isSelf ? null : <Button label="Revoke" systemImage="xmark.circle" role="destructive" onPress={() => actions.revoke(device)} />}
@@ -89,10 +91,10 @@ function Body({ status, error, actions, onRevokeOthers }: { status: RemoteStatus
       </SettingsCard>,
     );
   }
-  if (status.callerRole === "observer") {
+  if (!canAdmin(status.callerScopes)) {
     banners.push(
       <SettingsCard key="observer">
-        <StatusBanner icon="eye" color={Theme.amber} title="This phone is view-only." detail="It can see the devices but not change them." />
+        <StatusBanner icon="eye" color={Theme.amber} title="This phone can't change devices." detail="It can see the devices but not change them." />
       </SettingsCard>,
     );
   }
@@ -109,7 +111,7 @@ function Body({ status, error, actions, onRevokeOthers }: { status: RemoteStatus
       ) : null}
       <SettingsGroup
         label={view.othersLabel}
-        {...(view.canManage ? { footer: "Tap the role chip to rename, change access, or revoke. Revoking logs the device out on its next request." } : {})}
+        {...(view.canManage ? { footer: "Tap the access chip to rename, change access, or revoke. Revoking logs the device out on its next request." } : {})}
         {...(error ? { error } : {})}
       >
         {view.emptyTitle ? <StatusBanner icon="antenna.radiowaves.left.and.right" color={Theme.textMuted} title={view.emptyTitle} detail="Devices appear here as they pair from the computer's Connections settings." /> : null}
@@ -144,7 +146,7 @@ export function DevicesPage({ hostId }: { hostId: string }) {
     await reload();
   };
   const actions: Actions = {
-    setRole: (device, role) => void run("PATCH", devicePath(device.id), { role }),
+    setAccess: (device, access) => void run("PATCH", devicePath(device.id), { scopes: ACCESS_SCOPES[access] }),
     rename: (device) => {
       draft.set(device.name);
       setRenaming(device);

@@ -38,7 +38,7 @@ const beforeIdentity = (path: string) => (path === "/api/ping" ? pong() : unauth
 
 test("a host too old to name itself is trusted on the address this phone paired with, and nowhere else", async () => {
   const { fetch } = fakeNetwork({ [TAILNET]: beforeIdentity, [LAN]: beforeIdentity });
-  expect(await probe([TAILNET, LAN], { hostId: HOST, paired: [`${LAN}/`] }, fetch, fakeClock())).toEqual({ address: LAN });
+  expect(await probe([TAILNET, LAN], { hostId: HOST, paired: [`${LAN}/`] }, fetch, fakeClock())).toEqual({ address: LAN, proto: 1 });
   expect(await probe([TAILNET], { hostId: HOST, paired: [LAN] }, fetch, fakeClock())).toBeUndefined();
 });
 

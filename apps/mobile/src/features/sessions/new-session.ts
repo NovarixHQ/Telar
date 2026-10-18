@@ -139,7 +139,11 @@ export async function startSession(registry: Pick<HostRegistry, "get">, hostId: 
   if (!host) throw new Error("That computer is no longer paired.");
   let sessionId = created;
   if (!sessionId) {
-    const { session } = await host.request<{ session: { id: string; providerInstanceId: string } }>("POST", `/v2/projects/${encodeURIComponent(draft.projectId)}/sessions`, createBody(draft));
+    const { session } = await host.request<{ session: { id: string; providerInstanceId: string } }>(
+      "POST",
+      host.speaksV2 ? "/v2/sessions" : `/v2/projects/${encodeURIComponent(draft.projectId)}/sessions`,
+      host.speaksV2 ? { ...createBody(draft), projectId: draft.projectId } : createBody(draft),
+    );
     sessionId = session.id;
     onCreated(sessionId);
     const model = draft.choice && sessionModelSelection(session.providerInstanceId, draft.choice);

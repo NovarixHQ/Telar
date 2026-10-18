@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { ENGINE_PROTO } from "@telar/engine-client";
 import { fakeNetwork, identityOf } from "../../platform/connection/testing";
 import { pair, supersededBy } from "./pairing";
 
@@ -16,6 +17,24 @@ test("a pairing link yields the Mac's lasting id, its name and a device token", 
     host: { hostId: HOST, name: "Mini", token: "tlr_phone", deviceId: "dev_1", paired: [MAC] },
   });
   expect(seen.map((call) => `${call.method} ${call.url}`)).toEqual([`GET ${MAC}/api/identity`, `POST ${MAC}/api/pair`]);
+});
+
+const v2Host = (path: string) => (path === "/v2/ping" ? Response.json({ ok: true, proto: ENGINE_PROTO }) : path === "/v2/identity" ? identityOf(HOST) : paired());
+
+test("a /v2 host is paired on /v2 from a link with the secret in the fragment", async () => {
+  const { fetch, seen } = fakeNetwork({ [MAC]: v2Host }, { speaksV2: true });
+  const outcome = await pair(`${MAC}/pair#token=tlr_abc-123`, PHONE, fetch);
+  expect(outcome).toEqual({ ok: true, host: { hostId: HOST, name: "Mini", token: "tlr_phone", deviceId: "dev_1", paired: [MAC] } });
+  expect(seen.map((call) => `${call.method} ${call.url}`)).toEqual([`GET ${MAC}/v2/ping`, `GET ${MAC}/v2/identity`, `POST ${MAC}/v2/pair`]);
+});
+
+test("an 8-digit code and a Tailscale name pair the same way, and the secret is what the phone sends", async () => {
+  const tailnet = "https://mini.tail1234.ts.net";
+  const bodies: unknown[] = [];
+  const { fetch } = fakeNetwork({ [tailnet]: (path, init) => (init.method === "POST" ? (bodies.push(JSON.parse(String(init.body))), paired()) : v2Host(path)) }, { speaksV2: true });
+  const outcome = await pair(`${tailnet}/pair#token=48129037`, PHONE, fetch);
+  expect(outcome).toMatchObject({ ok: true, host: { hostId: HOST, paired: [`${tailnet}:443`] } });
+  expect(bodies).toEqual([expect.objectContaining({ token: "48129037", platform: "ios" })]);
 });
 
 test("the telar:// form of the link pairs the same way", async () => {

@@ -25,17 +25,19 @@ export function fakeClock(start = 1_000_000): Clock & { advance(ms: number): voi
 type Answer = Response | "unreachable" | "hang";
 type Handler = (path: string, init: RequestInit) => Answer;
 
-/** A network of Macs keyed by origin; an origin with no handler is unreachable. */
-export function fakeNetwork(macs: Record<string, Handler>) {
+/** A network of Macs keyed by origin; an origin with no handler is unreachable. Unless `speaksV2`, the Macs are older than proto 2 and `/v2/ping` is a 404 nobody records. */
+export function fakeNetwork(macs: Record<string, Handler>, { speaksV2 = false } = {}) {
   const seen: { url: string; method: string; authorization?: string }[] = [];
   const fetch = ((input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = new URL(String(input));
+    if (!speaksV2 && url.pathname === "/v2/ping") return Promise.resolve(Response.json({ error: { code: "not_found" } }, { status: 404 }));
     seen.push({ url: String(input), method: init.method ?? "GET", authorization: (init.headers as Record<string, string> | undefined)?.authorization });
     const answer = macs[url.origin]?.(url.pathname, init) ?? "unreachable";
     if (answer === "unreachable") return Promise.reject(new TypeError("Network request failed"));
     if (answer === "hang") {
       return new Promise<Response>((_, reject) => {
         const signal = init.signal;
+        if (signal?.aborted) return reject(signal.reason);
         signal?.addEventListener("abort", () => reject(signal.reason));
       });
     }

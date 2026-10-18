@@ -1,5 +1,5 @@
 import { HostIdentity, parsePairingUrl } from "@telar/engine-client";
-import type { HostRecord } from "../../platform/connection";
+import { apiRoot, hostProto, type HostRecord } from "../../platform/connection";
 import { newClientId } from "./client-id";
 
 export type PairedHost = HostRecord & { deviceId: string };
@@ -22,16 +22,17 @@ export async function pair(link: string, device: ThisDevice, fetch: typeof globa
   const parsed = parsePairingUrl(link);
   if (!parsed) return { ok: false, message: NOT_A_LINK };
   let identity: HostIdentity | undefined;
+  const root = apiRoot(parsed.baseUrl, await hostProto(parsed.baseUrl, fetch));
   try {
-    const answer = HostIdentity.safeParse(await json(await fetch(`${parsed.baseUrl}/api/identity`)));
+    const answer = HostIdentity.safeParse(await json(await fetch(`${root}/identity`)));
     identity = answer.success ? answer.data : undefined;
-    if (!identity && (await json(await fetch(`${parsed.baseUrl}/api/ping`)) as { ok?: unknown } | null)?.ok !== true) return { ok: false, message: NOT_TELAR };
+    if (!identity && (await json(await fetch(`${root}/ping`)) as { ok?: unknown } | null)?.ok !== true) return { ok: false, message: NOT_TELAR };
   } catch {
     return { ok: false, message: unreachable(parsed.baseUrl) };
   }
   let response: Response;
   try {
-    response = await fetch(`${parsed.baseUrl}/api/pair`, {
+    response = await fetch(`${root}/pair`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -54,7 +55,7 @@ export async function pair(link: string, device: ThisDevice, fetch: typeof globa
   }
   const host = { token: body.deviceToken, deviceId: body.deviceId, paired: [parsed.baseUrl] };
   if (identity) return { ok: true, host: { ...host, hostId: identity.hostId, name: identity.name ?? new URL(parsed.baseUrl).hostname } };
-  const health = (await fetch(`${parsed.baseUrl}/api/health`, { headers: { authorization: `Bearer ${body.deviceToken}` } }).then(json, () => null)) as { hostname?: unknown } | null;
+  const health = (await fetch(`${root}/health`, { headers: { authorization: `Bearer ${body.deviceToken}` } }).then(json, () => null)) as { hostname?: unknown } | null;
   const name = typeof health?.hostname === "string" ? health.hostname.replace(/\.(local|lan)$/, "") : new URL(parsed.baseUrl).hostname;
   return { ok: true, host: { ...host, hostId: `host_${newClientId().toLowerCase()}`, name, legacy: true } };
 }

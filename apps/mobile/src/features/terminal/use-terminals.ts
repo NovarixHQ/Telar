@@ -16,7 +16,7 @@ export function useTerminals(host: HostConnection, sessionId: string): { termina
         setTerminals(liveTerminals(listed.terminals));
         heard();
         const stream = host.client.locate(`/v2/sessions/${encodeURIComponent(sessionId)}/run/stream`);
-        await readFrames(stream, (frame) => frame.type === "run.status" && setTerminals((list) => upsertTerminal(list ?? [], frame.run)), abort.signal);
+        await readFrames(stream, host.route, (frame) => frame.type === "run.status" && setTerminals((list) => upsertTerminal(list ?? [], frame.run)), abort.signal);
       },
       abort.signal,
       { first: 2_000, max: 60_000 },
@@ -37,7 +37,7 @@ export function useTerminalFeed(host: HostConnection, sessionId: string, termina
       feed.absorb(frame);
     };
     void keepFollowing(
-      (heard) => readFrames(host.client.runBytesStream(sessionId, { terminalId: terminal.terminalId, after: feed.cursor }), onFrame(heard), abort.signal),
+      (heard) => readFrames(host.client.runBytesStream(sessionId, { terminalId: terminal.terminalId, after: feed.cursor }), host.route, onFrame(heard), abort.signal),
       abort.signal,
       { first: 1_000, max: 30_000 },
       (error) => feed.fail(error),

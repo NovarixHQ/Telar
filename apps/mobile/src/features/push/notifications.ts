@@ -46,7 +46,7 @@ const registry = new PushSync({
   topic,
   sandbox,
   simulator: !isDevice,
-  hosts: () => hosts.list().map((host) => ({ hostId: pushHostId(host.hostId), name: host.name, register: (body) => host.request("PUT", "/v2/mobile/push", body) })),
+  hosts: () => hosts.list().map((host) => ({ hostId: pushHostId(host.hostId), name: host.name, register: (body) => host.request("PUT", host.speaksV2 && host.deviceId ? `/v2/push/devices/${encodeURIComponent(host.deviceId)}` : "/v2/mobile/push", body) })),
   prefs: () => appSettings.current,
   muted: (hostId) => mutedSessionsOf(mutedList(Settings.get(MUTED_KEY)), hostId),
   allowed,
@@ -88,7 +88,7 @@ async function reconcile(): Promise<void> {
   for (const [hostId, ids] of reconcileQueries(await delivered())) {
     const host = pairedHost(hostId);
     if (!host) continue;
-    const answer = await host.request<{ cleared: string[] }>("GET", `/v2/mobile/read-state?ids=${encodeURIComponent(ids.join(","))}`).catch(() => undefined);
+    const answer = await host.request<{ cleared: string[] }>("GET", `${host.speaksV2 ? "/v2/push/read-state" : "/v2/mobile/read-state"}?ids=${encodeURIComponent(ids.join(","))}`).catch(() => undefined);
     for (const sessionId of answer?.cleared ?? []) if (ids.includes(sessionId)) cleared.push({ hostId, sessionId });
   }
   await clearDelivered(cleared);

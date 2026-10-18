@@ -2,9 +2,10 @@ import { EngineClient, EngineClientError, type FetchLike } from "@telar/engine-c
 import { probe, rankAddresses } from "./addresses";
 import { backoffDelay, RESET_AFTER_ONLINE_MS } from "./backoff";
 import { anyOf, systemClock, type Clock } from "./clock";
+import { speaksV2 } from "./proto";
 
 /** `legacy`: paired with a host too old to name itself, so its id is this phone's own and any answer on a paired address is it. */
-export type HostRecord = { hostId: string; name: string; token: string; paired: string[]; legacy?: true };
+export type HostRecord = { hostId: string; name: string; token: string; paired: string[]; legacy?: true; deviceId?: string };
 
 export type BlockReason = "unauthorized" | "misdirected";
 
@@ -23,15 +24,13 @@ const IDEMPOTENT = new Set(["GET", "HEAD"]);
 
 const isAbort = (error: unknown): boolean => (error as { name?: unknown } | null)?.name === "AbortError";
 
-/** The phone reaches the engine through the cockpit, which serves each `/v2/` route under `/api/`. */
-export const viaCockpit = (url: string) => url.replace(/^(https?:\/\/[^/]+)\/v2\//, "$1/api/");
-
 /** The one owner of a host's link: it picks the address, retries with backoff, and is the only thing that aborts its own requests. */
 export class HostConnection {
   readonly client: EngineClient;
   private current: ConnectionState = { kind: "stopped" };
   private advertised: string[] = [];
   private attempt = 0;
+  private proto = 1;
   private generation = new AbortController();
   private cancelRetry: () => void = () => {};
   private readonly listeners = new Set<() => void>();
@@ -46,9 +45,9 @@ export class HostConnection {
     this.fetch = deps.fetch ?? globalThis.fetch;
     this.clock = deps.clock ?? systemClock;
     this.random = deps.random ?? Math.random;
-    const cockpitFetch: FetchLike = (input, init) => this.fetch(viaCockpit(String(input)), init);
+    const routed: FetchLike = (input, init) => this.fetch(this.route(String(input)), init);
     const endpoint = Object.defineProperty({ baseUrl: () => this.address() }, "token", { get: () => this.record.token, enumerable: true }) as { baseUrl: () => string; token: string };
-    this.client = new EngineClient(endpoint, cockpitFetch);
+    this.client = new EngineClient(endpoint, routed);
   }
 
   get hostId(): string {
@@ -61,6 +60,20 @@ export class HostConnection {
 
   get state(): ConnectionState {
     return this.current;
+  }
+
+  get speaksV2(): boolean {
+    return speaksV2(this.proto);
+  }
+
+  /** The id the host gave this phone when it paired; none for a phone migrated from the Swift app. */
+  get deviceId(): string | undefined {
+    return this.record.deviceId || undefined;
+  }
+
+  /** Hosts older than proto 2 serve each `/v2/` route under `/api/` only. */
+  route(url: string): string {
+    return this.speaksV2 ? url : url.replace(/^(https?:\/\/[^/]+)\/v2\//, "$1/api/");
   }
 
   addresses(): string[] {
@@ -129,6 +142,7 @@ export class HostConnection {
     if (signal.aborted) return;
     if (found) {
       this.advertised = found.identity?.addresses ?? [];
+      this.proto = found.proto;
       this.set({ kind: "online", address: found.address.replace(/\/+$/, ""), since: this.clock.now() });
       return;
     }

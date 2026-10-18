@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun build src/main.ts --target=node --format=esm --external node-pty --external @anthropic-ai/claude-agent-sdk --outfile dist/telar.mjs",
+    "build": "bun scripts/build.mjs",
+    "build:sea": "bun scripts/build.mjs --sea",
     "test": "bun test --timeout 20000",
     "typecheck": "bunx --bun tsc --noEmit -p tsconfig.json"
   },

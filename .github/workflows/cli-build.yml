@@ -1,0 +1,82 @@
+name: CLI build
+
+# Builds the telar single executable for each supported OS and architecture and
+# smoke-runs it. Nothing is published: the archives are workflow artifacts the
+# owner downloads or attaches to a release by hand. A tag or a manual run only
+# builds what is on main; a pull request builds its own head as a dry run.
+on:
+  pull_request:
+    paths:
+      - "apps/cli/**"
+      - "scripts/install.sh"
+      - ".github/workflows/cli-build.yml"
+  push:
+    tags:
+      - "cli-v*"
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "stable builds the package.json version; nightly adds a -nightly.N suffix"
+        type: choice
+        options: [stable, nightly]
+        default: nightly
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: linux-x64 }
+          - { os: ubuntu-24.04-arm, target: linux-arm64 }
+          - { os: macos-latest, target: darwin-arm64 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Refuse to build a tag that is not on main
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not an ancestor of origin/main."
+            exit 1
+          fi
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26.12.0"
+      - run: bun install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Version
+        id: version
+        run: |
+          set -euo pipefail
+          base="$(node -p 'require("./apps/cli/package.json").version')"
+          case "$GITHUB_EVENT_NAME" in
+            push) version="${GITHUB_REF_NAME#cli-v}" ;;
+            workflow_dispatch) if [ "${{ inputs.channel }}" = nightly ]; then version="$base-nightly.$GITHUB_RUN_NUMBER"; else version="$base"; fi ;;
+            *) version="$base-pr.$GITHUB_RUN_NUMBER" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build
+        run: bun run --cwd apps/cli build:sea --version "${{ steps.version.outputs.version }}"
+      - name: Smoke
+        run: |
+          set -euo pipefail
+          dir="$(mktemp -d)"
+          tar -xzf apps/cli/dist/release/telar-*-${{ matrix.target }}.tar.gz -C "$dir"
+          apps/cli/scripts/smoke.sh "$dir/telar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telar-${{ steps.version.outputs.version }}-${{ matrix.target }}
+          path: apps/cli/dist/release/*
+          if-no-files-found: error

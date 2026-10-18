@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { textOf } from "./helpers";
 import { BrowserRuntime } from "./runtime";
 import { BrowserToolInputError } from "./tools";
+import { scriptArgv } from "./script";
 import { type BrowserProcess, installBrowser, MCP_PROTOCOL_VERSION, PlaywrightMcpTransport, type RunOnce, type SpawnBrowserProcess } from "./transport";
 
 type RpcRequest = { id?: number; method: string; params?: Record<string, unknown> };
@@ -106,7 +107,7 @@ describe("the playwright-mcp transport", () => {
 
     expect(fake.children).toHaveLength(1);
     const child = fake.children[0]!;
-    expect(child.command).toBe(process.versions.bun ? (Bun.which("node") ?? process.execPath) : process.execPath);
+    expect(child.command).toBe(scriptArgv("cli.js", [])[0]);
     expect(child.args[0]).toBe("/fake/@playwright/mcp/cli.js");
     expect(child.args).toContain("--headless");
     expect(child.args).toContain("--isolated");
@@ -520,7 +521,7 @@ describe("installing the browser binary", () => {
     const install = installBrowser({ run, cliPath: "/fake/cli.js" });
     release();
     expect(await install).toBe("Chromium downloaded");
-    expect(runs).toEqual([[process.execPath, "/fake/cli.js", "install-browser", "chromium"]]);
+    expect(runs).toEqual([scriptArgv("/fake/cli.js", ["install-browser", "chromium"])]);
   });
 
   test("is single-flight: two sessions discovering the gap at once run one download", async () => {

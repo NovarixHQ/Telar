@@ -72,6 +72,11 @@ if (!fs.existsSync(sdkBinary)) throw new Error(`${sdkBinary} is missing; run bun
 copy(sdk, "@anthropic-ai/claude-agent-sdk");
 copy(sdkBinary, `@anthropic-ai/claude-agent-sdk-${target}`);
 
+// The engine's browser tools run Playwright's CLI from beside the executable, through the executable itself.
+const playwright = fs.realpathSync(path.join(root, "..", "engine", "node_modules", "@playwright", "mcp"));
+const playwrightModules = path.resolve(playwright, "..", "..");
+for (const name of ["@playwright/mcp", "playwright", "playwright-core"]) copy(fs.realpathSync(path.join(playwrightModules, name)), name);
+
 const releases = path.join(outdir, "release");
 fs.mkdirSync(releases, { recursive: true });
 const archive = `telar-${version}-${target}.tar.gz`;

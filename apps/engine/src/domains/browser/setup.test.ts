@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { scriptArgv } from "./script";
 import { browserReadiness, distroOf, findChromium, missingLibraries, runSetup, setupPlan, type BrowserReadiness, type SetupEffects } from "./setup";
 
 const dirs: string[] = [];
@@ -62,7 +63,7 @@ test("a ready host needs nothing", () => {
 test("a fresh Ubuntu host downloads, installs libraries and loosens AppArmor for Telar's Chromium only", () => {
   const steps = plan({ binary: null, missingLibraries: [], sandbox: "apparmor" }, "debian");
   expect(steps.map((step) => step.kind)).toEqual(["download", "command", "file", "command"]);
-  expect(steps[1]).toMatchObject({ command: [process.execPath, "/pw/cli.js", "install-deps", "chromium"], root: true });
+  expect(steps[1]).toMatchObject({ command: scriptArgv("/pw/cli.js", ["install-deps", "chromium"]), root: true });
   const profile = steps[2];
   expect(profile.kind === "file" && profile.content).toContain("/home/u/engine/browsers/**/{chrome,chrome-headless-shell,headless_shell}");
   expect(profile.kind === "file" && profile.content).toContain("userns,");
@@ -112,5 +113,5 @@ test("setup stops at the first failing step and says why", async () => {
   const steps = plan({ binary: null, missingLibraries: [], sandbox: "apparmor" }, "debian");
   const failing = effects(true, "install-deps");
   expect(await runSetup(steps, "/b", failing.value, () => undefined)).toBe("boom");
-  expect(failing.calls).toEqual(["download", `${process.execPath} /pw/cli.js install-deps chromium`]);
+  expect(failing.calls).toEqual(["download", scriptArgv("/pw/cli.js", ["install-deps", "chromium"]).join(" ")]);
 });

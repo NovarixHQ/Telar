@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { scriptArgv } from "./script";
 import { installBrowser, runOnce, type RunOnce } from "./transport";
 
 export type Distro = "debian" | "fedora" | "other";
@@ -83,7 +84,7 @@ export function setupPlan(options: { browsersPath: string; readiness: BrowserRea
   if (!readiness.binary) steps.push({ kind: "download", title: "Download Chromium" });
   if (!readiness.binary || readiness.missingLibraries.length > 0) {
     if (distro === "debian") {
-      steps.push({ kind: "command", title: "Install Chromium's system libraries", command: [process.execPath, options.playwrightCli, "install-deps", "chromium"], root: true });
+      steps.push({ kind: "command", title: "Install Chromium's system libraries", command: scriptArgv(options.playwrightCli, ["install-deps", "chromium"]), root: true });
     } else if (distro === "fedora") {
       steps.push({ kind: "command", title: "Install Chromium's system libraries", command: ["dnf", "install", "-y", ...FEDORA_PACKAGES], root: true });
     }

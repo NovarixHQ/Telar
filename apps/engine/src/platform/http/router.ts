@@ -7,6 +7,7 @@ type RouterOptions = {
   /** Throws when the request may not reach a route with this auth. */
   authorize(auth: Route["auth"], request: http.IncomingMessage): void;
   errorFor(error: unknown): HttpError;
+  hostNames?: ReadonlySet<string>;
   /** What an unmatched request gets; by default an authenticated 404. */
   fallback?(request: http.IncomingMessage, response: http.ServerResponse, url: URL): Promise<void>;
   observe?<T>(operation: string, section: () => T): T;
@@ -34,7 +35,7 @@ export function router(routes: readonly Route[], options: RouterOptions): http.R
     });
   return async (request, response) => {
     try {
-      if (!hostIsAllowed(request.headers.host)) throw new HttpError(421, "invalid_request", "this engine answers only to this machine's own host names", true);
+      if (!hostIsAllowed(request.headers.host, options.hostNames)) throw new HttpError(421, "invalid_request", "this engine answers only to this machine's own host names", true);
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
       const matched = matchRoute(routes, request.method ?? "GET", url.pathname);
       if (!matched) return await fallback(request, response, url);

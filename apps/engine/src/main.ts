@@ -10,6 +10,13 @@ import { isMcpBridgeProcess, runMcpBridge } from "./drivers/acp/mcp-bridge";
 
 if (isMcpBridgeProcess()) process.exit(await runMcpBridge().then(() => 0));
 
+function networkFromEnv(): { network?: { host: string; port?: number } } {
+  const host = process.env.TELAR_ENGINE_HOST?.trim();
+  if (!host) return {};
+  const port = Number(process.env.TELAR_ENGINE_PORT);
+  return { network: { host, ...(Number.isInteger(port) && port > 0 ? { port } : {}) } };
+}
+
 /**
  * BEFORE ANYTHING RESOLVES A BINARY, and therefore the first statement here.
  *
@@ -65,7 +72,7 @@ const embeddedWorker = process.env.TELAR_EMBEDDED_WORKER?.trim() !== "0";
  */
 let daemon: Awaited<ReturnType<typeof startEngine>>;
 try {
-  daemon = await startEngine({ embeddedWorker, warmUsageCacheAfterMs: 5_000, skillRoots: providerSkillRoots() });
+  daemon = await startEngine({ embeddedWorker, ...networkFromEnv(), warmUsageCacheAfterMs: 5_000, skillRoots: providerSkillRoots() });
 } catch (error) {
   if (!(error instanceof EngineStateError) || error.code !== "conflict") throw error;
   process.stderr.write(`Telar engine: ${error.message} — ${statePaths(engineRootFromEnv()).lock}\n`);
@@ -74,6 +81,7 @@ try {
 installLastResortHandlers();
 process.stdout.write(
   `Telar engine listening on ${daemon.discovery.host}:${daemon.discovery.port}` +
+    `${daemon.network ? `, paired devices on ${daemon.network.host}:${daemon.network.port}` : ""}` +
     `${daemon.worker ? ` with embedded worker ${daemon.worker.workerId}` : " (no embedded worker)"}\n`,
 );
 

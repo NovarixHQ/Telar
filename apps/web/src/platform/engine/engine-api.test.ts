@@ -4,6 +4,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { DEFAULT_INBOX_POLICY, EngineClient } from "@telar/engine-client";
+import { stubModels } from "../../../../engine/test/stub-models";
 import { catchAll as liveGet } from "@/test/catch-all";
 import { engineApi } from "./engine-api";
 import { createHostsStore } from "../../../../engine/src/domains/hosts";
@@ -148,5 +149,20 @@ describe("the catch-all reaches only what the cockpit's routes reached", () => {
     expect(await stream.text()).toBe("data: 1\n\n");
     expect(seen.every((hop) => hop.authorization === "Bearer tlr_remote" && hop.cookie === undefined)).toBe(true);
     expect((await engineApi(new Request("http://cockpit.test/api/engine/v2/hosts/host_nope/api/projects"), segments("v2", "hosts", "host_nope", "api", "projects"))).status).toBe(404);
+  });
+
+  test("a /compact gesture keeps its kind on the way to the engine", async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-engine-api-"));
+    closers.push(() => fs.rmSync(home, { recursive: true, force: true }));
+    process.env.TELAR_HOME = home;
+    process.env.TELAR_COCKPIT = "1";
+    const daemon = await startEngine({ engineRoot: path.join(home, "engine"), models: stubModels, embeddedWorker: true });
+    closers.push(() => daemon.close());
+    const client = new EngineClient(daemon.discovery);
+    await client.registerProject({ id: "project_one", name: "One", root: home });
+    await client.createSession({ id: "session_compact", projectId: "project_one" });
+    const sent = await engineApi(new Request("http://cockpit.test/api/engine/v2/sessions/session_compact/turns", { method: "POST", body: JSON.stringify({ runId: "run_c1", input: "/compact", kind: "compact" }) }), segments("v2", "sessions", "session_compact", "turns"));
+    expect(sent.status).toBe(202);
+    expect((await client.session("session_compact")).turns[0]).toMatchObject({ runId: "run_c1", kind: "compact" });
   });
 });

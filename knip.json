@@ -13,7 +13,8 @@
     },
     "apps/cli": {
       "entry": ["src/main.ts"],
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@anthropic-ai/claude-agent-sdk", "node-pty"]
     },
     "apps/engine": {
       "entry": [
@@ -94,7 +95,6 @@
     "pgrep",
     "mkfifo",
     "op",
-    "diskutil",
     "uv",
     "scutil",
     "tailscale"

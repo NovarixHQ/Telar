@@ -1,4 +1,4 @@
-import type { DeviceIdentity, DeviceRole, ExposureMode, RemoteState } from "@telar/engine-client";
+import type { DeviceIdentity, DeviceRole, DeviceScope, ExposureMode, RemoteState } from "@telar/engine-client";
 import { request } from "@/platform/engine/transport";
 import type { QrMatrix } from "./qr";
 import type { TailscaleServeError } from "./tailscale-serve";
@@ -9,6 +9,7 @@ export type RemoteStatus = RemoteState & {
   host?: { name: string; identity?: DeviceIdentity; isCaller?: boolean };
   callerDeviceId?: string;
   callerRole?: DeviceRole;
+  callerScopes?: DeviceScope[];
   endpoints: Array<{ kind: string; label: string; url: string; qrSafe: boolean }>;
 };
 
@@ -23,7 +24,7 @@ export const setRemote = (patch: { requireAuth: boolean } | { exposure: Exposure
 
 export const mintPairing = () => request<MintedPairing>(fetch, "POST", "/api/remote/pairing");
 
-export const updateDevice = (deviceId: string, patch: { name?: string; role?: DeviceRole }) => request<unknown>(fetch, "PATCH", device(deviceId), patch);
+export const updateDevice = (deviceId: string, patch: { name?: string; scopes?: DeviceScope[] }) => request<unknown>(fetch, "PATCH", device(deviceId), patch);
 
 export const revokeDevice = (deviceId: string) => request<unknown>(fetch, "DELETE", device(deviceId));
 

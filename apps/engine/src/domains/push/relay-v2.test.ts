@@ -31,7 +31,7 @@ function setup() {
   process.env.TELAR_HOME = folder;
   delete process.env.TELAR_APNS_KEY_ID;
 }
-const phone = { id: "phone", name: "Phone", role: "full" };
+const phone = { id: "phone", name: "Phone", scopes: ["read", "write", "admin"] };
 async function call(method: Route["method"], pathname: string, body: unknown = {}, devices = [phone]) {
   const { route, params } = matchRoute(pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => devices }), method, pathname)!;
   return (await route.handle({ body: body as Record<string, unknown>, params, query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse }))!;

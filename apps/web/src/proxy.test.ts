@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
 // Named for the deprecated convention; it is the matcher-testing util Next 16 ships.
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { config, proxy } from "./proxy";
-import { addDevice, mintDeviceToken, setDeviceRole, setRequireAuth } from "@/features/remote/server/testing";
+import { addDevice, mintDeviceToken, setDeviceScopes, setRequireAuth } from "@/features/remote/server/testing";
 import { startEngine, type EngineDaemon } from "../../engine/src/daemon";
 
 const savedTelarHome = process.env.TELAR_HOME;
@@ -93,7 +93,7 @@ describe("pairing proxy", () => {
     const phone = addDevice("Phone", raw);
     addDevice("Mac", full); // keeps a full device so the demotion is legal
     setRequireAuth(true);
-    setDeviceRole(phone.id, "observer");
+    setDeviceScopes(phone.id, ["read"]);
 
     const read = new NextRequest("http://cockpit.test/api/health", { headers: { authorization: `Bearer ${raw}` } });
     expect(await proxy(read)).toBeUndefined();
@@ -116,7 +116,7 @@ describe("pairing proxy", () => {
     const phone = addDevice("Phone", raw);
     addDevice("Mac", mintDeviceToken());
     setRequireAuth(true);
-    setDeviceRole(phone.id, "observer");
+    setDeviceScopes(phone.id, ["read"]);
     const asPhone = { authorization: `Bearer ${raw}` };
 
     expect((await proxy(new NextRequest("http://cockpit.test/api/engine/v2/ping")))).toBeUndefined();

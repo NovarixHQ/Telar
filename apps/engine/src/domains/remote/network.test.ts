@@ -38,10 +38,10 @@ async function engine(network?: { host: string }) {
       request.on("error", reject);
       request.end(init.body === undefined ? undefined : JSON.stringify(init.body));
     });
-  const pair = async (role?: "observer") => {
+  const pair = async (scopes?: string[]) => {
     const code = ((await (await loopback("POST", "/v2/remote/pairing")).json()) as { code: string }).code;
-    const paired = await remote("POST", "/v2/remote/pair", { body: { code, name: role ? "Viewer" : "Phone" } });
-    if (role) await loopback("PATCH", `/v2/remote/devices/${paired.body.deviceId}`, { role });
+    const paired = await remote("POST", "/v2/remote/pair", { body: { code, name: scopes ? scopes.join("+") : "Phone" } });
+    if (scopes) await loopback("PATCH", `/v2/remote/devices/${paired.body.deviceId}`, { scopes });
     return paired.body.deviceToken as string;
   };
   return { daemon, loopback, remote, pair };
@@ -71,11 +71,16 @@ test("the engine token opens nothing on the network listener", async () => {
   expect((await remote("POST", "/v2/mcp", { token: daemon.discovery.token, body: {} })).status).toBe(401);
 });
 
-test("a View-only device can read but not write, and turning requireAuth off does not open the network", async () => {
+test("a device reaches only the routes its scopes cover, and turning requireAuth off does not open the network", async () => {
   const { loopback, remote, pair } = await engine({ host: "127.0.0.1" });
   const full = await pair();
-  const viewer = await pair("observer");
-  expect((await remote("GET", "/v2/remote", { token: viewer })).status).toBe(200);
+  const viewer = await pair(["read"]);
+  const editor = await pair(["read", "write"]);
+  expect((await remote("GET", "/v2/health", { token: viewer })).status).toBe(200);
+  expect((await remote("GET", "/v2/remote", { token: viewer })).status).toBe(403);
+  expect((await remote("GET", "/v2/remote", { token: editor })).status).toBe(403);
+  expect((await remote("POST", "/v2/remote/pairing", { token: editor })).status).toBe(403);
+  expect((await remote("GET", "/v2/remote", { token: full })).status).toBe(200);
   expect((await remote("POST", "/v2/remote/pairing", { token: viewer })).status).toBe(403);
   expect((await remote("POST", "/v2/remote/pairing", { token: full })).status).toBe(200);
   await loopback("PATCH", "/v2/remote", { requireAuth: false });

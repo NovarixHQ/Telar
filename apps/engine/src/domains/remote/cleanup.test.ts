@@ -19,7 +19,7 @@ const device = (id: string, name: string, extra: Partial<PairedDevice> = {}): Pa
   name,
   tokenHash: hashToken(`tlr_${id}`),
   createdAt: 1_000,
-  role: "full",
+  scopes: ["read", "write", "admin"],
   ...extra,
 });
 

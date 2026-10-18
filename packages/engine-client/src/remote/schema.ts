@@ -1,3 +1,5 @@
+export const DEVICE_SCOPES = ["read", "write", "admin"] as const;
+export type DeviceScope = (typeof DEVICE_SCOPES)[number];
 export type DeviceRole = "full" | "observer";
 export type DevicePlatform = "ios" | "browser";
 export type ExposureMode = "local-only" | "network-accessible";
@@ -10,6 +12,7 @@ export type RemoteDevice = {
   createdAt: number;
   lastSeenAt?: number;
   connected?: boolean;
+  scopes: DeviceScope[];
   role: DeviceRole;
   platform?: DevicePlatform;
   identity?: DeviceIdentity;

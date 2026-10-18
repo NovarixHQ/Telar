@@ -39,6 +39,7 @@ export const GET = engineRoute(async (request: Request) => {
     tailscaleServeError: readServeError(),
     callerDeviceId: caller.device?.id,
     callerRole: caller.device?.role,
+    callerScopes: caller.device?.scopes,
     endpoints: listEndpoints(cockpitPort()),
   });
 });

@@ -22,7 +22,7 @@ function networkAuthorize(store: RemoteStore, presence: Presence) {
     const file = { ...store.read(), requireAuth: true };
     const decision = decideAccess(file, { pathname, method, authorization: request.headers.authorization ?? null }, undefined);
     if (!decision.allow) {
-      if (decision.code === "cockpit_forbidden") throw new HttpError(403, "engine_unauthorized", "this device is paired for viewing only");
+      if (decision.code === "cockpit_forbidden") throw new HttpError(403, "engine_unauthorized", "this device's access does not cover this request");
       throw new HttpError(401, "engine_unauthorized", "pair this device to use the engine");
     }
     if (decision.deviceId) {

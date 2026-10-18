@@ -2,13 +2,14 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { cleanUpPairings } from "./cleanup";
-import type { DeviceIdentity, DevicePlatform, DeviceRole, ExposureMode, PairingRefusal, RemoteDevice } from "@telar/engine-client";
+import type { DeviceIdentity, DevicePlatform, DeviceScope, ExposureMode, PairingRefusal, RemoteDevice } from "@telar/engine-client";
+import { ALL_SCOPES, normaliseScopes, scopesForRole } from "./scopes";
 
 export class RemoteStoreError extends Error {}
 
-export type PairedDevice = RemoteDevice & { tokenHash: string; clientId?: string };
+export type PairedDevice = Omit<RemoteDevice, "role"> & { tokenHash: string; clientId?: string };
 
-type NewDevice = { platform?: DevicePlatform; role?: DeviceRole; identity?: DeviceIdentity; clientId?: string };
+type NewDevice = { platform?: DevicePlatform; scopes?: DeviceScope[]; identity?: DeviceIdentity; clientId?: string };
 
 interface PendingPairing {
   tokenHash: string;
@@ -84,7 +85,11 @@ function createRemoteStoreContext(dir: string) {
     if (!fs.existsSync(file)) return { ...FRESH, devices: [] };
     const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as RemoteFile;
     if (parsed.version !== 1) return { ...RESET, devices: [] };
-    for (const device of parsed.devices) device.role = device.role === "observer" ? "observer" : "full";
+    for (const device of parsed.devices) {
+      const legacy = device as { role?: unknown };
+      device.scopes = normaliseScopes(device.scopes) ?? scopesForRole(legacy.role);
+      delete legacy.role;
+    }
     parsed.exposure = parsed.exposure === "network-accessible" ? "network-accessible" : "local-only";
     return parsed;
   }
@@ -114,6 +119,11 @@ export function createRemoteStore(dir: string) {
     ...deviceMethods(h),
     ...pairingMethods(h),
     ...exposureMethods(h),
+    migrateDevices(): void {
+      if (!fs.existsSync(file)) return;
+      const raw = JSON.parse(fs.readFileSync(file, "utf8")) as { devices?: { scopes?: unknown }[] };
+      if (raw.devices?.some((device) => !Array.isArray(device.scopes))) write(read());
+    },
     cleanUpPairings(): void {
       if (!fs.existsSync(file)) return;
       const current = read();
@@ -131,7 +141,7 @@ function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
         name: cleanName(name),
         tokenHash: hashToken(raw),
         createdAt: Date.now(),
-        role: options.role ?? "full",
+        scopes: options.scopes ?? ALL_SCOPES,
         ...(options.platform ? { platform: options.platform } : {}),
         ...(options.identity ? { identity: options.identity } : {}),
         ...(options.clientId ? { clientId: options.clientId } : {}),
@@ -142,7 +152,7 @@ function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
           current.devices.push(fresh);
           return fresh;
         }
-        const device: PairedDevice = { ...fresh, id: earlier.id, role: options.role ?? earlier.role };
+        const device: PairedDevice = { ...fresh, id: earlier.id, scopes: options.scopes ?? earlier.scopes };
         current.devices = current.devices.map((each) => (each === earlier ? device : each));
         return device;
       });
@@ -155,13 +165,13 @@ function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
       write(current);
       return device;
     },
-    setDeviceRole(id: string, role: DeviceRole): PairedDevice | undefined {
+    setDeviceScopes(id: string, scopes: DeviceScope[]): PairedDevice | undefined {
       const current = read();
       const device = find(current, id);
       if (!device) return undefined;
-      const lastFull = current.requireAuth && device.role === "full" && !current.devices.some((other) => other.id !== id && other.role === "full");
-      if (role === "observer" && lastFull) throw new RemoteStoreError("Keep at least one device with full access.");
-      device.role = role;
+      const lastAdmin = current.requireAuth && device.scopes.includes("admin") && !current.devices.some((other) => other.id !== id && other.scopes.includes("admin"));
+      if (!scopes.includes("admin") && lastAdmin) throw new RemoteStoreError("Keep at least one device with admin access.");
+      device.scopes = scopes;
       write(current);
       return device;
     },

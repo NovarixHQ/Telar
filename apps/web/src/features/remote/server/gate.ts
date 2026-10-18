@@ -1,9 +1,10 @@
+import type { DeviceScope } from "@telar/engine-client";
 import { engineCall } from "@/platform/engine/server";
 import { readDeviceCookie } from "./cookie";
 import { HOST_HEADER } from "./host-token";
 
-export type Caller = { host: boolean; device?: { id: string; role: "full" | "observer" } };
-export type GateDecision = { allow: true; deviceId?: string; role?: "full" | "observer" } | { allow: false; code: "cockpit_unauthorized" | "cockpit_forbidden" | "cockpit_misdirected" };
+export type Caller = { host: boolean; device?: { id: string; scopes: DeviceScope[]; role: "full" | "observer" } };
+export type GateDecision = { allow: true; deviceId?: string; scopes?: DeviceScope[] } | { allow: false; code: "cockpit_unauthorized" | "cockpit_forbidden" | "cockpit_misdirected" };
 
 const credentialsOf = (request: Request) => ({
   authorization: request.headers.get("authorization"),

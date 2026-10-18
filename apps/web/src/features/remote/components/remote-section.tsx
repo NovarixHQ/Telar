@@ -65,7 +65,7 @@ export function RemoteSection({ children }: { children?: ReactNode }) {
           status={status}
           busy={remote.busy}
           onRename={(id, name) => void remote.patchDevice(id, { name })}
-          onRole={(id, role) => void remote.patchDevice(id, { role })}
+          onScopes={(id, scopes) => void remote.patchDevice(id, { scopes })}
           onRevoke={(id) => void remote.revoke(id)}
         />
         {status.devices.length > 1 && status.callerDeviceId && (

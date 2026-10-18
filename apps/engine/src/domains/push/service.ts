@@ -19,7 +19,7 @@ export function createPushService(options: { remoteDir: string; pairedDevices: P
     },
     pairedDevices: options.pairedDevices,
   };
-  const fullDevices = () => options.pairedDevices().filter((device) => device.role === "full").map((device) => device.id);
+  const fullDevices = () => options.pairedDevices().filter((device) => device.scopes.includes("write")).map((device) => device.id);
   return {
     routes: [
       ...(pushRoutes(deps) as Route[]),

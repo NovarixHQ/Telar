@@ -19,7 +19,7 @@ export const GET = engineRoute(async (request: Request) => {
 export const PUT = engineRoute(async (request: Request) => {
   const device = await caller(request);
   if (!device) return Response.json({ error: { message: "Pair this device first." } }, { status: 401 });
-  if (device.role !== "full") return Response.json({ error: { message: "Full access is required." } }, { status: 403 });
+  if (!device.scopes.includes("write")) return Response.json({ error: { message: "Write access is required." } }, { status: 403 });
   const reader = request.body?.getReader();
   if (!reader) return Response.json({ error: { message: "Missing registration." } }, { status: 400 });
   const chunks: Uint8Array[] = [];

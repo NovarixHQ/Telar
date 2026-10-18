@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { hostVisible, subscribeHostVisibility } from "@/platform/desktop/host-visibility";
+import type { DeviceScope } from "@telar/engine-client";
 import { EngineApiError } from "@/platform/engine";
 import { mintPairing, remoteStatus, revokeDevice, revokeOtherDevices, setRemote, updateDevice, type MintedPairing, type RemoteStatus } from "../api";
 
@@ -89,7 +90,7 @@ export function useRemoteStatus() {
   );
 
   const patchDevice = useCallback(
-    async (deviceId: string, body: { name?: string; role?: "full" | "observer" }) => {
+    async (deviceId: string, body: { name?: string; scopes?: DeviceScope[] }) => {
       try {
         await updateDevice(deviceId, body);
         setError(null);

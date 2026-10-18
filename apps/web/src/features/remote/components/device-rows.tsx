@@ -7,7 +7,7 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { fmtAgo } from "@/ui/format";
 import { Dropdown, Row, SettingsList } from "@/features/settings";
-import type { RemoteDevice } from "@telar/engine-client";
+import type { DeviceScope, RemoteDevice } from "@telar/engine-client";
 import type { RemoteStatus } from "../api";
 
 const KIND_ICONS: Record<string, typeof MonitorIcon> = {
@@ -84,14 +84,22 @@ function Presence({ device }: { device: RemoteDevice }) {
   return <span>{device.lastSeenAt ? fmtAgo(device.lastSeenAt) : `paired ${fmtAgo(device.createdAt)}`}</span>;
 }
 
+const ACCESS = {
+  admin: { text: "Full access", hint: "Reads and changes everything, including devices, pairing and settings", scopes: ["read", "write", "admin"] },
+  write: { text: "Can change", hint: "Reads and changes sessions, but not devices, pairing or settings", scopes: ["read", "write"] },
+  read: { text: "View only", hint: "Reads everything, changes nothing", scopes: ["read"] },
+} as const satisfies Record<string, { text: string; hint: string; scopes: DeviceScope[] }>;
+type AccessLevel = keyof typeof ACCESS;
+const accessOf = (scopes: DeviceScope[]): AccessLevel => (scopes.includes("admin") ? "admin" : scopes.includes("write") ? "write" : "read");
+
 type DeviceActions = {
   busy: boolean;
   onRename: (id: string, name: string) => void;
-  onRole: (id: string, role: "full" | "observer") => void;
+  onScopes: (id: string, scopes: DeviceScope[]) => void;
   onRevoke: (id: string) => void;
 };
 
-function DeviceRow({ device, busy, onRename, onRole, onRevoke }: { device: RemoteDevice } & DeviceActions) {
+function DeviceRow({ device, busy, onRename, onScopes, onRevoke }: { device: RemoteDevice } & DeviceActions) {
   const kind = device.identity?.kind ?? (device.platform === "ios" ? "phone" : device.platform);
   const kindLabel = device.platform === "ios" ? (kind === "tablet" ? "iPad" : "iPhone") : kind;
   const declaredSource = [device.identity?.client, device.identity?.machine].filter(Boolean).join(" on ");
@@ -109,18 +117,15 @@ function DeviceRow({ device, busy, onRename, onRole, onRevoke }: { device: Remot
       }
       control={
         <div className="flex items-center gap-1.5">
-          <Dropdown<"full" | "observer">
-            value={device.role}
-            className="w-28"
+          <Dropdown<AccessLevel>
+            value={accessOf(device.scopes)}
+            className="w-32"
             label={`What ${device.name} may do`}
             disabled={busy}
-            onChange={(role) => {
-              if (!busy && role !== device.role) onRole(device.id, role);
+            onChange={(level) => {
+              if (!busy && level !== accessOf(device.scopes)) onScopes(device.id, ACCESS[level].scopes);
             }}
-            options={[
-              { value: "full", text: "Full", label: <span title="Reads and changes everything, like this app">Full</span> },
-              { value: "observer", text: "View only", label: <span title="Reads everything, changes nothing">View only</span> },
-            ]}
+            options={(Object.keys(ACCESS) as AccessLevel[]).map((level) => ({ value: level, text: ACCESS[level].text, label: <span title={ACCESS[level].hint}>{ACCESS[level].text}</span> }))}
           />
           <Button
             variant="ghost"

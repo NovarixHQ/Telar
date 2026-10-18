@@ -114,7 +114,7 @@ function wire() {
     if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
     if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
     if (url.includes("/api/engine/v2/inbox")) return Response.json({ inbox: {} });
-    if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
+    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;
 }

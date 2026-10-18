@@ -51,20 +51,20 @@ async function openMenuOn(host: HTMLElement, title: string) {
 const menuItem = (label: string) => [...document.querySelectorAll<HTMLElement>('[role^="menuitem"]')].find((node) => node.textContent === label);
 
 test("detaching a sub-session moves its row to the top level", async () => {
-  const calls = stubFetch({ "POST /api/sessions/child/handoff": () => answered() });
+  const calls = stubFetch({ "POST /api/engine/v2/sessions/child/handoff": () => answered() });
   const { host } = await mount(<Rail />);
   expect(nestedUnder(host, "title-parent").join()).toContain("title-child");
 
   await openMenuOn(host, "title-child");
   await click(menuItem("Detach from title-parent"));
 
-  expect(calls.find((call) => call.route === "POST /api/sessions/child/handoff")?.body).toEqual({});
+  expect(calls.find((call) => call.route === "POST /api/engine/v2/sessions/child/handoff")?.body).toEqual({});
   expect(nestedUnder(host, "title-parent")).toEqual([]);
   expect([...host.querySelectorAll("a")].some((link) => link.textContent?.includes("title-child"))).toBe(true);
 });
 
 test("Move to… lists the other sessions and moves the row under the one picked", async () => {
-  const calls = stubFetch({ "POST /api/sessions/child/handoff": () => answered("other") });
+  const calls = stubFetch({ "POST /api/engine/v2/sessions/child/handoff": () => answered("other") });
   const { host } = await mount(<Rail />);
 
   await openMenuOn(host, "title-child");
@@ -73,7 +73,7 @@ test("Move to… lists the other sessions and moves the row under the one picked
   expect(choices.map((choice) => choice.textContent)).toEqual(["title-otherTelar"]);
   await click(choices[0]);
 
-  expect(calls.find((call) => call.route === "POST /api/sessions/child/handoff")?.body).toEqual({ to: "other" });
+  expect(calls.find((call) => call.route === "POST /api/engine/v2/sessions/child/handoff")?.body).toEqual({ to: "other" });
   expect(nestedUnder(host, "title-parent")).toEqual([]);
   expect(nestedUnder(host, "title-other").join()).toContain("title-child");
 });

@@ -46,7 +46,7 @@ function wire(defaultModel?: ModelSelection, extra: { envMode?: "local" | "workt
       });
     }
     if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local", ...extra.sessionDefaults } });
-    if (url.includes("/api/models")) return Response.json({ catalogue: { driver: "claude", instanceId: "claude", readAt: 1, models: MODELS } });
+    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { driver: "claude", instanceId: "claude", readAt: 1, models: MODELS } });
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
     return Response.json({});
   }) as typeof fetch;

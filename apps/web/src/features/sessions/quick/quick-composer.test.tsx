@@ -78,7 +78,7 @@ function wire() {
     }
     if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: host?.projects ?? PROJECTS });
     if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
+    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;
 }
@@ -175,7 +175,7 @@ async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEvent
   await flush();
 }
 
-const created = () => calls.find((call) => call.method === "POST" && call.url.endsWith("/api/projects/project_1/sessions"))?.body as { id: string };
+const created = () => calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/projects/project_1/sessions"))?.body as { id: string };
 
 describe("the quick composer", () => {
   test("Enter starts a session in the project and hands it back without opening Telar", async () => {
@@ -493,7 +493,7 @@ describe("the # destination picker", () => {
     await press(host, "Enter", { altKey: true });
     expect(host.querySelector('[data-slot="quick-destination"]')?.textContent).toContain("exoplanets· new worktree");
     await typeAndPress(host, "Fix the CI build");
-    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/projects/project_2/sessions"))?.body).toMatchObject({ envMode: "worktree" });
+    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/projects/project_2/sessions"))?.body).toMatchObject({ envMode: "worktree" });
     expect(sent[0]?.detail).toBe("exoplanets");
   });
 

@@ -110,7 +110,6 @@ export function projectCheckoutRoutes(store: EngineStore, providerSkills: Provid
         const target = query.get("path");
         if (!target) throw new HttpError(400, "invalid_request", "a file path is required");
         const raw = await store.files.projectBytes(params[0]!, target);
-        // Unlike an attachment, a workspace file changes under its own name.
         return { status: 200, body: null, bytes: raw.data, headers: { "content-type": raw.mediaType, "content-length": String(raw.data.byteLength), "cache-control": "no-store", "x-content-type-options": "nosniff" } };
       },
     },

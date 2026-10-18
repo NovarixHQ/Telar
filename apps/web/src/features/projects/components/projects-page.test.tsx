@@ -64,7 +64,7 @@ beforeEach(() => {
     if (url === "/api/engine/v2/hosts") return json({ hosts });
     if (url === "/api/engine/v2/projects") return json({ projects: local });
     if (url === "/api/engine/v2/hosts/host_mini/api/projects") return json({ projects: remote });
-    if (url === "/api/health") return json({ plugins: [LATEX] });
+    if (url === "/api/engine/v2/health") return json({ plugins: [LATEX] });
     return json({ error: { code: "not_found", message: "no" } }, 404);
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void, ms?: number) => {

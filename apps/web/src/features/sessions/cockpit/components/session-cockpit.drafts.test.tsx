@@ -62,7 +62,7 @@ function wire({ opening = {}, create }: { opening?: Opening; create?: (id: strin
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
     calls.push({ method, url, body, pathname: window.location.pathname });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
-    if (method === "POST" && url.endsWith("/api/projects/project_1/sessions")) {
+    if (method === "POST" && url.endsWith("/api/engine/v2/projects/project_1/sessions")) {
       await create?.(body.id);
       return Response.json({ session: record(body.id) });
     }
@@ -84,7 +84,7 @@ function wire({ opening = {}, create }: { opening?: Opening; create?: (id: strin
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
     if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
     if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
+    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { models: [] } });
     if (url.includes("/api/engine/v2/inbox")) return Response.json({ inbox: DEFAULT_INBOX_POLICY });
     return Response.json({});
   }) as typeof fetch;
@@ -134,7 +134,7 @@ describe("the first message of a new conversation", () => {
     await type(host, "hello there");
     await send(host);
     await settle();
-    const created = calls.find((call) => call.method === "POST" && call.url.endsWith("/api/projects/project_1/sessions"));
+    const created = calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/projects/project_1/sessions"));
     expect(created).toBeDefined();
     const id = (created!.body as { id: string }).id;
     expect(id).toMatch(/^session_[0-9a-f]{32}$/);

@@ -1,14 +1,10 @@
-/**
- * The route only forwards; its one possible bug is dropping a field. `null` is a
- * value here (turns a feature off, hands back to the Mac's default), so tests
- * assert the stored record. Runs a real daemon on a temp home.
- */
+/** `null` is a value here, so tests assert the stored record. Runs a real daemon on a temp home. */
 import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
-import { PATCH as projectPatch } from "@/app/api/projects/[projectId]/route";
+import { catchAll } from "@/test/catch-all";
 import { startEngine, type EngineDaemon } from "../../../../engine/src/daemon";
 
 const savedTelarHome = process.env.TELAR_HOME;
@@ -40,10 +36,7 @@ async function ready(): Promise<EngineClient> {
 }
 
 const patch = (payload: unknown) =>
-  projectPatch(
-    new Request("http://telar.local/api/projects/project_one", { method: "PATCH", body: JSON.stringify(payload) }),
-    { params: Promise.resolve({ projectId: "project_one" }) },
-  );
+  catchAll(new Request("http://telar.local/api/projects/project_one", { method: "PATCH", body: JSON.stringify(payload) }));
 
 describe("PATCH /api/projects/:projectId", () => {
   test("carries the four identity fields through to the engine", async () => {

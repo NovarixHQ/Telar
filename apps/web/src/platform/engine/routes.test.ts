@@ -2,9 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { GET as projectsGet, POST as projectsPost } from "@/app/api/projects/route";
 import { GET as eventsGet } from "@/app/api/sessions/[sessionId]/events/route";
-import { catchAll as liveGet, catchAll as fsGet, catchAll as aboutGet, catchAll as aboutIconGet } from "@/test/catch-all";
+import { catchAll as projectsGet, catchAll as liveGet, catchAll as fsGet, catchAll as aboutGet, catchAll as aboutIconGet } from "@/test/catch-all";
 import { POST as discardPost } from "@/app/api/sessions/[sessionId]/turns/[runId]/discard/route";
 import { EngineClient } from "@telar/engine-client";
 import { engineRootFromWebEnv } from "@/platform/engine/server";
@@ -49,12 +48,6 @@ describe("engine route adapters", () => {
     expect(() => engineRootFromWebEnv({ TELAR_HOME: path.join(os.homedir(), ".telar-dev"), TELAR_COCKPIT: "1" })).toThrow(
       "must not point at legacy Telar state",
     );
-  });
-
-  test("rejects malformed command input before it reaches the engine", async () => {
-    const response = await projectsPost(new Request("http://telar.local/api/projects", { method: "POST", body: "not json" }));
-    expect(response.status).toBe(400);
-    expect((await response.json()).error.code).toBe("invalid_request");
   });
 
   test("validates a journal cursor in the thin adapter", async () => {

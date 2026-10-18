@@ -11,6 +11,11 @@
         "workers/push-relay/**/*.mjs"
       ]
     },
+    "apps/cli": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@anthropic-ai/claude-agent-sdk", "node-pty"]
+    },
     "apps/engine": {
       "entry": [
         "bench/*.ts",
@@ -90,7 +95,6 @@
     "pgrep",
     "mkfifo",
     "op",
-    "diskutil",
     "uv",
     "scutil",
     "tailscale"

@@ -18,7 +18,7 @@ export {
 } from "./cli";
 export { providerCliAdvice, providerCliInvocation } from "./cli-guard";
 export { type CliUpdateRun } from "./cli-updates";
-export { providerProcessEnv, type VersionProbe } from "./instances";
+export { providerProcessEnv, signInOf, type VersionProbe } from "./instances";
 export { oneShotCompleter, type OneShotCompleter, type OneShotRequest } from "./one-shot";
 export { withClaudeSettingsEnv } from "./claude-settings-env";
 export {

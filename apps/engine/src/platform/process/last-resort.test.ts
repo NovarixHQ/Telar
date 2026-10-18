@@ -30,3 +30,12 @@ test("a throw in a timer exits 1 with the reason the desktop reports", async () 
   expect(code).toBe(1);
   expect(stderr).toContain("Telar engine stopped: uncaught TypeError: x is not a function\n");
 });
+
+test("a connection reset is logged and the engine keeps running", async () => {
+  const { code, stdout, stderr } = await run(
+    `setTimeout(() => { throw Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }); }, 0);\nsetTimeout(() => { console.log("still serving"); process.exit(0); }, 20);`,
+  );
+  expect(code).toBe(0);
+  expect(stdout).toContain("still serving");
+  expect(stderr).toContain("kept running past a dropped connection");
+});

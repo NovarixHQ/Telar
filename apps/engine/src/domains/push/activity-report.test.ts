@@ -53,7 +53,7 @@ describe("to the phone", () => {
     folder = fs.mkdtempSync(path.join(os.tmpdir(), "telar-activity-"));
     process.env.TELAR_HOME = folder;
     (globalThis as { telarMobilePushTimer?: unknown }).telarMobilePushTimer = setTimeout(() => {}, 0);
-    const routes = pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => [{ id: "phone", name: "Phone", role: "full" }] });
+    const routes = pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => [{ id: "phone", name: "Phone", scopes: ["read", "write", "admin"] }] });
     const { route, params } = matchRoute(routes, "PUT", "/v2/push/devices/phone")!;
     const { deviceId: _, revision: __, updatedAt: ___, seen: ____, activitySent: _____, ...registration } = record({ pushToStartToken: undefined });
     const answer = await route.handle({ body: registration, params, query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse });

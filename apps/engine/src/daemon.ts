@@ -311,6 +311,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   const remoteDir = options.remoteDir ?? remoteDirFor(root);
   const remoteStore = createRemoteStore(remoteDir);
   const presence = createPresence();
+  remoteStore.migrateDevices();
   remoteStore.cleanUpPairings();
   const openStreams = new Set<OpenStream>();
   const hostsStore = createHostsStore(remoteDir);

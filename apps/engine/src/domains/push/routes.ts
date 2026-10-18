@@ -9,7 +9,7 @@ import { sendRelayTest, startMobilePushWorker } from "./worker";
 
 export type PushRouteDeps = {
   client: () => EngineClient;
-  pairedDevices: () => { id: string; name: string; role: string }[];
+  pairedDevices: () => { id: string; name: string; scopes: string[] }[];
 };
 
 function activityFor(deviceId: string, topic?: string) {
@@ -18,7 +18,7 @@ function activityFor(deviceId: string, topic?: string) {
 }
 
 export function pushRoutes(deps: PushRouteDeps): Route[] {
-  const start = () => startMobilePushWorker({ client: deps.client, fullDevices: () => deps.pairedDevices().filter((d) => d.role === "full").map((d) => d.id) });
+  const start = () => startMobilePushWorker({ client: deps.client, fullDevices: () => deps.pairedDevices().filter((d) => d.scopes.includes("write")).map((d) => d.id) });
   return [
     {
       method: "GET",
@@ -131,7 +131,7 @@ export function serveDesktopStream(
   const unsubscribe = desktopStream.subscribe(response);
   const beat = setInterval(() => response.write(": beat\n\n"), BEAT_MS);
   beat.unref();
-  startMobilePushWorker({ client: deps.client, fullDevices: () => deps.pairedDevices().filter((d) => d.role === "full").map((d) => d.id) });
+  startMobilePushWorker({ client: deps.client, fullDevices: () => deps.pairedDevices().filter((d) => d.scopes.includes("write")).map((d) => d.id) });
   return () => {
     clearInterval(beat);
     unsubscribe();

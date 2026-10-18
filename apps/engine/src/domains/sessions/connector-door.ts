@@ -1,6 +1,6 @@
 import type http from "node:http";
 import { z } from "zod";
-import type { DeviceRole } from "@telar/engine-client";
+import type { DeviceScope } from "@telar/engine-client";
 import { collectTools, handleSocketMessage, json, mcpSocketRoute, type SocketTool } from "../agent-tools";
 import type { EngineStore } from "../../state";
 import { sessionsCapability, storeReads, storeSessionsPort } from "./capability";
@@ -11,7 +11,7 @@ const CONNECTOR_SERVER = { name: "telar", version: "1.0.0", retired: RETIRED_TOO
 const READS = ["sessions_list", "sessions_read", "sessions_capabilities", "sessions_requests"];
 const WRITES = ["sessions_create", "sessions_send", "sessions_stop", "sessions_settle"];
 
-type DeviceLookup = (authorization: string | undefined) => { id: string; role: DeviceRole } | undefined;
+type DeviceLookup = (authorization: string | undefined) => { id: string; scopes: DeviceScope[] } | undefined;
 
 function schedulesTool(store: EngineStore): SocketTool[] {
   return collectTools(
@@ -29,7 +29,7 @@ function readOnly(tool: SocketTool): SocketTool {
   return { ...tool, description: "The permission prompts a session is waiting on.", shape: { sessionId: tool.shape.sessionId } };
 }
 
-function connectorTools(store: EngineStore): Record<DeviceRole, SocketTool[]> {
+function connectorTools(store: EngineStore): Record<"full" | "observer", SocketTool[]> {
   const wall = collectSessionsWallTools(sessionsCapability(storeSessionsPort(store), undefined, storeReads(store)));
   const pick = (names: string[]) => wall.filter((tool) => names.includes(tool.name));
   const schedules = schedulesTool(store);
@@ -40,13 +40,13 @@ function connectorTools(store: EngineStore): Record<DeviceRole, SocketTool[]> {
 }
 
 export function connectorDoor(store: EngineStore, lookup: DeviceLookup) {
-  let tools: Record<DeviceRole, SocketTool[]> | undefined;
+  let tools: Record<"full" | "observer", SocketTool[]> | undefined;
   const device = (request: http.IncomingMessage) => lookup(request.headers.authorization);
   return {
     device,
     route: mcpSocketRoute("/v2/mcp", "device", "connector", (message, request) => {
       tools ??= connectorTools(store);
-      return handleSocketMessage(tools[device(request)?.role ?? "observer"], message, CONNECTOR_SERVER);
+      return handleSocketMessage(tools[device(request)?.scopes.includes("write") ? "full" : "observer"], message, CONNECTOR_SERVER);
     }),
   };
 }

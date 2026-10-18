@@ -3,7 +3,7 @@ import type { RemoteDevice } from "@telar/engine-client";
 import { ago, deviceSubtitle, devicesView, platformSymbol, type RemoteStatus } from "./devices";
 
 const now = Date.UTC(2026, 9, 8, 12);
-const device = (id: string, extra: Partial<RemoteDevice> = {}): RemoteDevice => ({ id, name: id, createdAt: now - 3 * 86_400_000, role: "full", ...extra });
+const device = (id: string, extra: Partial<RemoteDevice> = {}): RemoteDevice => ({ id, name: id, createdAt: now - 3 * 86_400_000, role: "full", scopes: ["read", "write", "admin"], ...extra });
 const status = (extra: Partial<RemoteStatus>): RemoteStatus => ({ requireAuth: true, exposure: "local-only", tailscaleServe: false, devices: [], ...extra });
 
 describe("Devices", () => {

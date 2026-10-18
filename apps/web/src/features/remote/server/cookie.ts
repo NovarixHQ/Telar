@@ -2,7 +2,7 @@ const DEVICE_COOKIE = "telar_device";
 
 export function deviceCookieHeader(raw: string, request: Request): string {
   const https = request.headers.get("x-forwarded-proto") === "https";
-  const base = `${DEVICE_COOKIE}=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`;
+  const base = `${DEVICE_COOKIE}=${raw}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000`;
   return https ? `${base}; Secure` : base;
 }
 

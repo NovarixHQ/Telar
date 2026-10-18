@@ -1,18 +1,18 @@
 import crypto from "node:crypto";
 import { hostIsAllowed } from "../../platform/http/host";
 import { fail, ok, type Route } from "../../platform/http/route";
-import type { DeviceRole } from "@telar/engine-client";
+import type { DeviceScope } from "@telar/engine-client";
+import { ALL_SCOPES, requiredScope, roleOf } from "./scopes";
 import type { Presence } from "./presence";
 import { matchDevice, type PairedDevice, type RemoteFile, type RemoteStore } from "./store";
 
 export const EXEMPT_PATHS = new Set(["/api/ping", "/api/pair", "/api/identity"]);
 const DEVICE_DOORS = new Set(["/api/mcp"]);
-const OBSERVER_METHODS = new Set(["GET", "HEAD"]);
 
 export type Credentials = { authorization?: string | null; deviceCookie?: string | null; hostHeader?: string | null };
 export type TicketCheck = (pathname: string, method: string, ticket: string | null | undefined) => { holder: string | null } | undefined;
 export type AccessDecision =
-  | { allow: true; deviceId?: string; role?: DeviceRole }
+  | { allow: true; deviceId?: string; scopes?: DeviceScope[] }
   | { allow: false; code: "cockpit_unauthorized" | "cockpit_forbidden" | "cockpit_misdirected" };
 
 function isHostSecret(candidate: string | null | undefined, secret: string | undefined): boolean {
@@ -27,20 +27,20 @@ function identifyDevice(file: RemoteFile, credentials: Credentials): PairedDevic
 }
 
 /** A paired device named by a bearer alone, never a cookie, so a browser page cannot ride a device's session into it. */
-export function deviceForBearer(store: RemoteStore, authorization: string | undefined): { id: string; role: DeviceRole } | undefined {
+export function deviceForBearer(store: RemoteStore, authorization: string | undefined): { id: string; scopes: DeviceScope[] } | undefined {
   const device = identifyDevice(store.read(), { authorization: authorization ?? null });
   if (!device) return undefined;
   store.touchDevice(device.id);
-  return { id: device.id, role: device.role };
+  return { id: device.id, scopes: device.scopes };
 }
 
 const isHostCaller = (credentials: Credentials, secret: string | undefined): boolean =>
   isHostSecret(credentials.hostHeader, secret) || isHostSecret(credentials.deviceCookie, secret);
 
 function ticketDecision(file: RemoteFile, ticket: { holder: string | null } | undefined): AccessDecision {
-  if (ticket?.holder === null) return { allow: true, role: "observer" };
+  if (ticket?.holder === null) return { allow: true, scopes: ["read"] };
   const holder = ticket && file.devices.find((device) => device.id === ticket.holder);
-  return holder ? { allow: true, deviceId: holder.id, role: "observer" } : { allow: false, code: "cockpit_unauthorized" };
+  return holder ? { allow: true, deviceId: holder.id, scopes: ["read"] } : { allow: false, code: "cockpit_unauthorized" };
 }
 
 export function decideAccess(
@@ -52,11 +52,11 @@ export function decideAccess(
   if (!hostIsAllowed(request.host)) return { allow: false, code: "cockpit_misdirected" };
   if (DEVICE_DOORS.has(request.pathname)) return { allow: true };
   if (!file.requireAuth || EXEMPT_PATHS.has(request.pathname)) return { allow: true };
-  if (isHostCaller(request, hostSecret)) return { allow: true, role: "full" };
+  if (isHostCaller(request, hostSecret)) return { allow: true, scopes: ALL_SCOPES };
   const device = identifyDevice(file, request);
   if (!device) return ticketDecision(file, checkTicket(request.pathname, request.method.toUpperCase(), request.ticket));
-  if (device.role === "observer" && !OBSERVER_METHODS.has(request.method.toUpperCase())) return { allow: false, code: "cockpit_forbidden" };
-  return { allow: true, deviceId: device.id, role: device.role };
+  if (!device.scopes.includes(requiredScope(request.method.toUpperCase(), request.pathname))) return { allow: false, code: "cockpit_forbidden" };
+  return { allow: true, deviceId: device.id, scopes: device.scopes };
 }
 
 const text = (value: unknown): string | null => (typeof value === "string" ? value : null);
@@ -96,7 +96,7 @@ export function authRoutes(
       handle({ body }) {
         const credentials = credentialsOf(body);
         const device = identifyDevice(store.read(), credentials);
-        return ok({ host: isHostCaller(credentials, hostSecret()), ...(device ? { device: { id: device.id, role: device.role } } : {}) });
+        return ok({ host: isHostCaller(credentials, hostSecret()), ...(device ? { device: { id: device.id, scopes: device.scopes, role: roleOf(device.scopes) } } : {}) });
       },
     },
   ];

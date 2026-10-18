@@ -92,12 +92,12 @@ test("pairing the same device again replaces its entry and revokes the old token
   expect(await admits(first.deviceToken)).toBe(false);
   expect(await admits(again.deviceToken)).toBe(true);
   expect(await admits(safari.deviceToken)).toBe(false);
-  const devices = (await call("GET", "/v2/remote")).body.devices as Array<{ name: string; role: string }>;
-  expect(devices.map((device) => [device.name, device.role])).toEqual([
-    ["Telar iPad", "full"],
-    ["Facundo's iPhone", "observer"],
-    ["Safari · macOS", "full"],
-    ["Safari · macOS", "full"],
+  const devices = (await call("GET", "/v2/remote")).body.devices as Array<{ name: string; role: string; scopes: string[] }>;
+  expect(devices.map((device) => [device.name, device.role, device.scopes.join()])).toEqual([
+    ["Telar iPad", "full", "read,write,admin"],
+    ["Facundo's iPhone", "observer", "read"],
+    ["Safari · macOS", "full", "read,write,admin"],
+    ["Safari · macOS", "full", "read,write,admin"],
   ]);
   expect(JSON.stringify(devices)).not.toContain("A1B2");
 });
@@ -113,13 +113,14 @@ test("the status lists devices without token material", async () => {
   expect(JSON.stringify(status.body)).not.toMatch(/tokenHash|tlr_/);
 });
 
-test("the last full device cannot be demoted while pairing is required", async () => {
+test("the last admin device cannot be demoted while pairing is required", async () => {
   const { call, pair } = await engine();
   const phone = await pair("Phone");
   const laptop = await pair("Laptop");
-  expect((await call("PATCH", `/v2/remote/devices/${laptop.deviceId}`, { role: "observer" })).body.device.role).toBe("observer");
+  expect((await call("PATCH", `/v2/remote/devices/${laptop.deviceId}`, { scopes: ["read", "write"] })).body.device.scopes).toEqual(["read", "write"]);
   const last = await call("PATCH", `/v2/remote/devices/${phone.deviceId}`, { role: "observer" });
-  expect(last).toMatchObject({ status: 409, body: { error: { code: "cockpit_last_full_device" } } });
+  expect(last).toMatchObject({ status: 409, body: { error: { code: "cockpit_last_admin_device" } } });
+  expect((await call("PATCH", `/v2/remote/devices/${phone.deviceId}`, { scopes: ["root"] })).status).toBe(400);
   expect((await call("PATCH", `/v2/remote/devices/${phone.deviceId}`, { name: "  The phone  " })).body.device.name).toBe("The phone");
   expect((await call("PATCH", "/v2/remote/devices/dev_missing", { name: "Ghost" })).status).toBe(404);
 });

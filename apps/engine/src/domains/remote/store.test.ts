@@ -32,7 +32,7 @@ const writeRemote = (file: Parameters<RemoteStore["write"]>[0]) => store.write(f
 const storePath = () => store.path;
 const addDevice = (...args: Parameters<RemoteStore["addDevice"]>) => store.addDevice(...args);
 const renameDevice = (id: string, name: string) => store.renameDevice(id, name);
-const setDeviceRole = (...args: Parameters<RemoteStore["setDeviceRole"]>) => store.setDeviceRole(...args);
+const setDeviceScopes = (...args: Parameters<RemoteStore["setDeviceScopes"]>) => store.setDeviceScopes(...args);
 const revokeDevice = (id: string) => store.revokeDevice(id);
 const revokeOtherDevices = (id: string) => store.revokeOtherDevices(id);
 const touchDevice = (id: string, now: number) => store.touchDevice(id, now);
@@ -156,7 +156,7 @@ describe("remote store", () => {
     touchDevice("dev_missing", 200_000);
   });
 
-  test("a file written before roles existed reads every device as full", () => {
+  test("a file written before scopes existed reads every device as holding all of them", () => {
     freshHome();
     fs.mkdirSync(path.dirname(storePath()), { recursive: true });
     fs.writeFileSync(
@@ -168,14 +168,38 @@ describe("remote store", () => {
       }),
     );
     const device = readRemote().devices[0];
-    expect(device.role).toBe("full");
+    expect(device.scopes).toEqual(["read", "write", "admin"]);
     expect(device.platform).toBeUndefined();
   });
 
-  test("addDevice records platform and defaults to full", () => {
+  test("migrateDevices maps Full to every scope and View only to read, once, without re-pairing", () => {
+    freshHome();
+    fs.mkdirSync(path.dirname(storePath()), { recursive: true });
+    const hash = "ab".repeat(32);
+    fs.writeFileSync(
+      storePath(),
+      JSON.stringify({
+        version: 1,
+        requireAuth: true,
+        devices: [
+          { id: "dev_full", name: "Full", tokenHash: hash, createdAt: 1, role: "full" },
+          { id: "dev_view", name: "View", tokenHash: hash, createdAt: 1, role: "observer" },
+        ],
+      }),
+    );
+    store.migrateDevices();
+    const stored = JSON.parse(fs.readFileSync(storePath(), "utf8")).devices;
+    expect(stored.map((device: { id: string; scopes: string[]; role?: string }) => [device.id, device.scopes, device.role])).toEqual([
+      ["dev_full", ["read", "write", "admin"], undefined],
+      ["dev_view", ["read"], undefined],
+    ]);
+    expect(stored[0].tokenHash).toBe(hash);
+  });
+
+  test("addDevice records platform and defaults to every scope", () => {
     freshHome();
     const device = addDevice("Phone", mintDeviceToken(), { platform: "ios" });
-    expect(device.role).toBe("full");
+    expect(device.scopes).toEqual(["read", "write", "admin"]);
     expect(device.platform).toBe("ios");
     expect(readRemote().devices[0].platform).toBe("ios");
   });
@@ -189,16 +213,16 @@ describe("remote store", () => {
     expect(renameDevice("dev_missing", "Ghost")).toBeUndefined();
   });
 
-  test("setDeviceRole round-trips, and refuses to demote the last full device while the gate is on", () => {
+  test("setDeviceScopes round-trips, and refuses to demote the last admin device while the gate is on", () => {
     freshHome();
     const phone = addDevice("Phone", mintDeviceToken());
     const browser = addDevice("Browser", mintDeviceToken());
     setRequireAuth(true);
-    expect(setDeviceRole(browser.id, "observer")?.role).toBe("observer");
-    expect(() => setDeviceRole(phone.id, "observer")).toThrow(RemoteStoreError);
+    expect(setDeviceScopes(browser.id, ["read"])?.scopes).toEqual(["read"]);
+    expect(() => setDeviceScopes(phone.id, ["read", "write"])).toThrow(RemoteStoreError);
     setRequireAuth(false);
-    expect(setDeviceRole(phone.id, "observer")?.role).toBe("observer");
-    expect(setDeviceRole(phone.id, "full")?.role).toBe("full");
+    expect(setDeviceScopes(phone.id, ["read"])?.scopes).toEqual(["read"]);
+    expect(setDeviceScopes(phone.id, ["read", "write", "admin"])?.scopes).toEqual(["read", "write", "admin"]);
   });
 
   test("revokeOtherDevices keeps exactly the named device", () => {

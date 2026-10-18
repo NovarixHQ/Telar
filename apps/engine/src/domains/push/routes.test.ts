@@ -22,7 +22,7 @@ afterEach(() => {
 function setup() {
   folder = fs.mkdtempSync(path.join(os.tmpdir(), "telar-mobile-route-"));
   process.env.TELAR_HOME = folder; delete process.env.TELAR_APNS_KEY_ID;
-  const routes = pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => [{ id: "phone", name: "Phone", role: "full" }] });
+  const routes = pushRoutes({ client: () => ({}) as EngineClient, pairedDevices: () => [{ id: "phone", name: "Phone", scopes: ["read", "write", "admin"] }] });
   return async (method: Route["method"], pathname: string, body: unknown = {}) => {
     const { route, params } = matchRoute(routes, method, pathname)!;
     return (await route.handle({ body: body as Record<string, unknown>, params, query: new URLSearchParams(), request: {} as http.IncomingMessage, response: {} as http.ServerResponse }))!;

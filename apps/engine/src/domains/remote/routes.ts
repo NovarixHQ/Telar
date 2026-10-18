@@ -4,6 +4,7 @@ import { mintDeviceToken, RemoteStoreError, type PairedDevice, type RemoteStore 
 import { fail, ok, type Route } from "../../platform/http/route";
 import { authRoutes, type TicketCheck } from "./auth";
 import { createPresence, type Presence } from "./presence";
+import { normaliseScopes, roleOf, scopesForRole } from "./scopes";
 
 type Body = Record<string, unknown>;
 
@@ -28,12 +29,13 @@ function identityOf(value: unknown): DeviceIdentity | undefined {
   return identity;
 }
 
-const publicDevice = ({ id, name, createdAt, lastSeenAt, role, platform, identity }: PairedDevice): RemoteDevice => ({
+const publicDevice = ({ id, name, createdAt, lastSeenAt, scopes, platform, identity }: PairedDevice): RemoteDevice => ({
   id,
   name,
   createdAt,
   lastSeenAt,
-  role,
+  scopes,
+  role: roleOf(scopes),
   platform,
   identity,
 });
@@ -142,15 +144,15 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       auth: "engine",
       handle({ body, params: [id] }) {
         const name = typeof body.name === "string" ? body.name : undefined;
-        const role = body.role === "full" || body.role === "observer" ? body.role : undefined;
-        if (name === undefined && role === undefined) return fail(400, "invalid_request", "Provide a name and/or a role of full|observer.");
+        const scopes = body.scopes !== undefined ? normaliseScopes(body.scopes) : body.role === "full" || body.role === "observer" ? scopesForRole(body.role) : undefined;
+        if (name === undefined && scopes === undefined) return fail(400, "invalid_request", "Provide a name and/or scopes from read|write|admin.");
         let device: PairedDevice | undefined;
         if (name !== undefined) device = store.renameDevice(id!, name);
-        if (role !== undefined) {
+        if (scopes !== undefined) {
           try {
-            device = store.setDeviceRole(id!, role);
+            device = store.setDeviceScopes(id!, scopes);
           } catch (error) {
-            if (error instanceof RemoteStoreError) return fail(409, "cockpit_last_full_device", error.message);
+            if (error instanceof RemoteStoreError) return fail(409, "cockpit_last_admin_device", error.message);
             throw error;
           }
         }

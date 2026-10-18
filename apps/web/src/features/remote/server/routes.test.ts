@@ -85,7 +85,7 @@ describe("pairing routes", () => {
     expect(body.addresses.some((url) => url.includes("127.0.0.1"))).toBe(false);
   });
 
-  test("mint → exchange yields a device token and a lax http cookie", async () => {
+  test("mint → exchange yields a device token and a strict http cookie", async () => {
     await freshHome();
     const response = await pairPost(pairRequest(await mintToken()));
     expect(response.status).toBe(200);
@@ -94,10 +94,10 @@ describe("pairing routes", () => {
     const cookie = response.headers.get("set-cookie") ?? "";
     expect(cookie).toContain("telar_device=tlr_");
     expect(cookie).toContain("HttpOnly");
-    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain("SameSite=Strict");
     expect(cookie.includes("Secure")).toBe(false);
     // And the minted device actually admits requests.
-    expect(gateFor(body.deviceToken)).toEqual({ allow: true, deviceId: body.deviceId, role: "full" });
+    expect(gateFor(body.deviceToken)).toEqual({ allow: true, deviceId: body.deviceId, scopes: ["read", "write", "admin"] });
   });
 
   test("the exchange hands the device every dialable address, never loopback", async () => {
@@ -173,7 +173,7 @@ describe("pairing routes", () => {
     expect(stranger.callerDeviceId).toBeUndefined();
   });
 
-  test("PATCH renames and re-roles a device; demoting the last full one is 409", async () => {
+  test("PATCH renames and changes the scopes of a device; demoting the last admin one is 409", async () => {
     await freshHome();
     const paired = (await (await pairPost(pairRequest(await mintToken()))).json()) as { deviceId: string };
     const renamed = await patchDeviceRequest(paired.deviceId, { name: "  The phone  " });
@@ -186,14 +186,14 @@ describe("pairing routes", () => {
       body: JSON.stringify({ requireAuth: true }),
     }));
     // Three full devices now (two paired + the self-paired caller); demote two.
-    expect((await patchDeviceRequest(other.deviceId, { role: "observer" })).status).toBe(200);
+    expect((await patchDeviceRequest(other.deviceId, { scopes: ["read"] })).status).toBe(200);
     const selfPaired = readRemote().devices.find(
       (device) => device.id !== paired.deviceId && device.id !== other.deviceId,
     )!;
-    expect((await patchDeviceRequest(selfPaired.id, { role: "observer" })).status).toBe(200);
-    const last = await patchDeviceRequest(paired.deviceId, { role: "observer" });
+    expect((await patchDeviceRequest(selfPaired.id, { scopes: ["read"] })).status).toBe(200);
+    const last = await patchDeviceRequest(paired.deviceId, { scopes: ["read"] });
     expect(last.status).toBe(409);
-    expect(((await last.json()) as { error: { code: string } }).error.code).toBe("cockpit_last_full_device");
+    expect(((await last.json()) as { error: { code: string } }).error.code).toBe("cockpit_last_admin_device");
 
     expect((await patchDeviceRequest(paired.deviceId, {})).status).toBe(400);
     expect((await patchDeviceRequest("dev_missing", { name: "Ghost" })).status).toBe(404);

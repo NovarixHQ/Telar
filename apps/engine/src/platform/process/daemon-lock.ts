@@ -8,9 +8,11 @@ import type { EngineStatePaths } from "../fs/state-paths";
 /** What `main.ts` exits with when the lock is held, so the shell shows "already running" instead of a crash. The shell keeps a copy. */
 export const ENGINE_EXIT_LOCK_HELD = 3;
 
+const heldHere = new Set<string>();
+
 export type DaemonLock = { token: string; release(): void };
 
-type LockOwner = { pid?: number; hostname?: string; startedAt?: number; command?: string };
+type LockOwner = { pid?: number; token?: string; hostname?: string; startedAt?: number; command?: string };
 
 /** How the lock tells a live owner from a stale file. `command` and `bootTime` resolve to null when unknown. */
 export type LockProbe = {
@@ -66,6 +68,8 @@ function lockHeldElsewhere(owner: LockOwner): boolean {
 async function staleReason(owner: LockOwner, probe: LockProbe): Promise<string | null> {
   const pid = owner.pid ?? -1;
   if (!probe.alive(pid)) return `pid ${pid} is gone`;
+  // A container restarts as the same pid (often 1), so a lock this process did not take is a previous life's.
+  if (pid === process.pid && !(owner.token && heldHere.has(owner.token))) return `pid ${pid} is this process, restarted`;
   const boot = await probe.bootTime();
   if (boot !== null && typeof owner.startedAt === "number" && owner.startedAt < boot) return "it was written before this boot";
   const command = await probe.command(pid);
@@ -129,7 +133,8 @@ export async function acquireDaemonLock(paths: EngineStatePaths, probe: LockProb
       const descriptor = fs.openSync(paths.lock, "wx", 0o600);
       fs.writeFileSync(descriptor, JSON.stringify({ pid: process.pid, token, hostname: os.hostname(), startedAt: probe.now(), command }));
       fs.closeSync(descriptor);
-      return { token, release: () => unlinkIfToken(paths.lock, token) };
+      heldHere.add(token);
+      return { token, release: () => (heldHere.delete(token), unlinkIfToken(paths.lock, token)) };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }

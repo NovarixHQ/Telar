@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { forkSession, listSessions } from "@anthropic-ai/claude-agent-sdk";
 import type { ClaudeConversation } from "@telar/engine-client";
+import { telarHome } from "../../platform/fs/telar-home";
 
 export function claudeProjectSlug(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, "-");
@@ -150,7 +151,7 @@ export function findTranscript(projectsRoot: string, sessionId: string): string 
 }
 
 function forkHomeRoot(env: NodeJS.ProcessEnv): string {
-  return env.TELAR_HOME?.trim() || path.join(env.HOME ?? "", "Library", "Application Support", "Telar");
+  return telarHome(env);
 }
 
 function adoptedSessionIds(env: NodeJS.ProcessEnv, adoptedRoot?: string): Set<string> {

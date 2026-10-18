@@ -345,7 +345,8 @@ describe("node-pty's spawn-helper", () => {
 
   test("a missing helper names every place it looked", () => {
     const { lib } = pty(0o755);
-    expect(() => ensureSpawnHelper(lib, "linux", "arm64")).toThrow("linux-arm64");
+    expect(() => ensureSpawnHelper(lib, "darwin", "x64")).toThrow("darwin-x64");
+    expect(ensureSpawnHelper(lib, "linux", "arm64")).toBeNull();
     expect(spawnHelperCandidates("/a/app.asar/node_modules/node-pty/lib", "linux", "x64")[0]).toContain("app.asar.unpacked");
   });
 });

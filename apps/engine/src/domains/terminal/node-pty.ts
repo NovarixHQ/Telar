@@ -27,7 +27,7 @@ export function spawnHelperCandidates(libDir: string, platform: string, arch: st
 }
 
 export function ensureSpawnHelper(libDir: string, platform = process.platform, arch = process.arch): { path: string; changed: boolean } | null {
-  if (platform === "win32") return null;
+  if (platform !== "darwin") return null;
   const candidates = spawnHelperCandidates(libDir, platform, arch);
   const helper = candidates.find((candidate) => fs.existsSync(candidate));
   if (!helper) throw new Error(`node-pty has no spawn-helper for ${platform}-${arch}. Looked in: ${candidates.join(", ")}.`);

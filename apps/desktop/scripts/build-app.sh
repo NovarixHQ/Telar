@@ -88,7 +88,7 @@ PTY_TARGET="$("$JS_RUNTIME" -e 'process.stdout.write(process.platform + "-" + pr
 mkdir -p "$PTY_DEST/prebuilds"
 cp -RL "$PTY_SRC/lib" "$PTY_SRC/package.json" "$PTY_DEST/"
 cp -RL "$PTY_SRC/prebuilds/$PTY_TARGET" "$PTY_DEST/prebuilds/$PTY_TARGET"
-chmod 755 "$PTY_DEST/prebuilds/$PTY_TARGET/spawn-helper"
+if [ -f "$PTY_DEST/prebuilds/$PTY_TARGET/spawn-helper" ]; then chmod 755 "$PTY_DEST/prebuilds/$PTY_TARGET/spawn-helper"; fi
 test -f "$PTY_DEST/prebuilds/$PTY_TARGET/pty.node" \
   || { echo "!! node-pty has no prebuild for $PTY_TARGET" >&2; exit 1; }
 

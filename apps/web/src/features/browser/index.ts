@@ -6,3 +6,4 @@ export { DesktopBrowserSurface } from "./components/desktop-browser-surface";
 export { desktopBrowserBridge } from "./desktop-browser-bridge";
 export { closeNativePage, nativePageToShow } from "./native-pages";
 export { errorText } from "./load-error";
+export { EngineBrowserSurface } from "./components/engine-browser-surface";

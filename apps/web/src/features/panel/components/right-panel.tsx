@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, typ
 import dynamic from "next/dynamic";
 import type { EngineEvent, Item, Turn, TurnState } from "@telar/engine-client";
 import type { PluginPanelSource } from "@/features/plugins";
-import { desktopBrowserBridge } from "@/features/browser";
+import { desktopBrowserBridge, EngineBrowserSurface } from "@/features/browser";
 import { diffTabParams, readDiffTab, type DiffTab, diffTurns, type DiffTurn } from "@/features/git";
 import type { TelarReference } from "@telar/client/composer";
 import type { EditorState, OpenIntent } from "@/features/files";
@@ -23,7 +23,6 @@ import { defaultRightPanelWidth, RIGHT_PANEL_WIDTH_STORAGE_KEY } from "../layout
 import * as model from "../model";
 import type { BrowserState, PanelTab, PanelTabItem } from "../model";
 import type { PanelTabParams } from "../tabs";
-import { BrowserScreenshotSurface } from "./browser-screenshot-surface";
 import { PanelEmptyState } from "./panel-empty-state";
 import { RightPanelResizeHandle } from "./resize-handle";
 import { TabStrip } from "./tab-strip";
@@ -176,7 +175,7 @@ function recordSurface(props: SurfaceProps): ReactNode {
     // Keyed by the session's one native scope, so moving between its page tabs keeps the surface mounted.
     if (bridge && sessionId)
       return <DesktopBrowserSurface key={sessionId} bridge={bridge} scopeKey={sessionId} pageId={pageId} {...(projectId ? { projectId } : {})} {...(props.onAttach ? { onAttach: props.onAttach } : {})} />;
-    return <BrowserScreenshotSurface pageId={pageId} {...(browser ? { state: browser } : {})} {...(sessionId ? { sessionId } : {})} />;
+    return sessionId ? <EngineBrowserSurface key={sessionId} sessionId={sessionId} {...(hostId ? { hostId } : {})} /> : undefined;
   }
   if (kind === "diff")
     return (

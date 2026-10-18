@@ -17,7 +17,7 @@ export function machineNames(hostname: string, localHostName?: string, computerN
   return new Set(bases.filter(Boolean).flatMap(base => [base, `${base}.local`]));
 }
 
-const machine = machineNames(os.hostname(), scutil("LocalHostName"), scutil("ComputerName"));
+export const MACHINE_NAMES: ReadonlySet<string> = machineNames(os.hostname(), scutil("LocalHostName"), scutil("ComputerName"));
 
 function hostName(header: string): string | undefined {
   const match = /^(?:\[([0-9a-f:.]+)\]|([^:[\]]+))(?::\d{1,5})?$/i.exec(header.trim());
@@ -25,7 +25,7 @@ function hostName(header: string): string | undefined {
 }
 
 // Rebinding pages reach us under a DNS name, so IP literals pass; only Tailscale issues `.ts.net` names; browsers always send a Host.
-export function hostIsAllowed(header: string | null | undefined, names: ReadonlySet<string> = machine): boolean {
+export function hostIsAllowed(header: string | null | undefined, names: ReadonlySet<string> = MACHINE_NAMES): boolean {
   if (header === undefined || header === null) return true;
   const name = hostName(header);
   if (!name) return false;

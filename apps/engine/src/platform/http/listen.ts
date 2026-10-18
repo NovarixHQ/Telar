@@ -4,8 +4,8 @@ import path from "node:path";
 import type { EngineDiscovery } from "@telar/engine-client";
 import { atomicWrite } from "../fs/atomic";
 
-/** Binds loopback only and resolves with the port, or rejects with the bind error. */
-export function listenLoopback(server: http.Server, port: number): Promise<number> {
+/** Resolves with the bound port, or rejects with the bind error. */
+export function listenOn(server: http.Server, host: string, port: number): Promise<number> {
   return new Promise((resolve, reject) => {
     const onError = (error: Error) => {
       server.off("listening", onListening);
@@ -19,7 +19,7 @@ export function listenLoopback(server: http.Server, port: number): Promise<numbe
     };
     server.once("error", onError);
     server.once("listening", onListening);
-    server.listen(port, "127.0.0.1");
+    server.listen(port, host);
   });
 }
 

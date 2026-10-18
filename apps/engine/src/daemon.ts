@@ -18,7 +18,7 @@ import { PreparedPromptsError, promptsRoutes } from "./domains/prompts";
 import { projectCheckoutRoutes, projectRoutes } from "./domains/projects";
 import { maybeRetitleSession, providersRoutes, readModelCatalogue, sessionProviderRoutes, type AgentRouteDeps, type CliUpdateRun, type ProviderSkillsOptions, type VersionProbe } from "./domains/providers";
 import { createPushService } from "./domains/push";
-import { createRemoteStore, deviceForBearer, remoteDirFor, remoteRoutes } from "./domains/remote";
+import { createPresence, createRemoteStore, deviceForBearer, networkRouting, remoteDirFor, remoteRoutes } from "./domains/remote";
 import { schedulesRoutes } from "./domains/schedules";
 import { connectorDoor, sessionAttachmentRoutes, sessionLifecycleRoutes, sessionReadRoutes, sessionsRoutes, sessionsSocketDoor, syncTelarSkill, type OpenStream } from "./domains/sessions";
 import { settingsRoutes } from "./domains/settings";
@@ -35,7 +35,7 @@ import { statePaths } from "./platform/fs/state-paths";
 import type { AsyncGitRunner, GitRunner } from "./platform/git/runner";
 import { bearerIsValid } from "./platform/http/auth";
 import { errorFor as httpErrorFor, HttpError } from "./platform/http/http";
-import { closeServer, listenLoopback, removeOwnDiscovery, writeDiscovery } from "./platform/http/listen";
+import { closeServer, listenOn, removeOwnDiscovery, writeDiscovery } from "./platform/http/listen";
 import type { Route } from "./platform/http/route";
 import { router } from "./platform/http/router";
 import { createLoopLag } from "./platform/process/loop-lag";
@@ -55,6 +55,7 @@ export type EngineDaemonOptions = {
   pluginsDir?: string;
   remoteDir?: string;
   port?: number;
+  network?: { host: string; port?: number };
   now?: () => number;
   /** How the engine reaches Deepgram; a test must never spend a real account. */
   dictationFetch?: typeof fetch;
@@ -106,6 +107,7 @@ export type EngineDaemonOptions = {
 
 export type EngineDaemon = {
   discovery: EngineDiscovery;
+  network?: { host: string; port: number };
   store: EngineStore;
   /** Present only with `embeddedWorker`; the id changes when the worker re-registers after lease loss. */
   worker?: { readonly workerId: string };
@@ -187,6 +189,7 @@ type RouteContext = {
   now: () => number;
   root: string;
   remoteStore: ReturnType<typeof createRemoteStore>;
+  presence: ReturnType<typeof createPresence>;
   hostsStore: ReturnType<typeof createHostsStore>;
   push: ReturnType<typeof createPushService>;
   syncOrientationSkill: (policy: ReturnType<EngineStore["settings"]["orientation"]>) => Promise<unknown>;
@@ -206,13 +209,13 @@ type RouteContext = {
 };
 
 function engineRoutes(ctx: RouteContext): Route[] {
-  const { store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity } = ctx;
+  const { store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity } = ctx;
   return [
     sessionsDoor.route,
     connector.route,
     { method: "GET", path: "/v2/health", auth: "engine", handle: () => ({ status: 200, body: health() }) },
     ...filesRoutes(),
-    ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket)),
+    ...remoteRoutes(remoteStore, (pathname, method, ticket) => simulators.tickets.check(pathname, method, ticket), presence),
     ...hostsRoutes(hostsStore),
     ...identityRoutes(identity),
     ...aboutRoutes(root),
@@ -262,6 +265,12 @@ function recoverAtBoot(store: EngineStore): void {
   store.lineage.sweep();
 }
 
+function scheduleUsageWarmUp(store: EngineStore, afterMs: number): ReturnType<typeof setTimeout> {
+  const timer = setTimeout(() => void warmUsageScanCache({ scanCachePath: store.paths.usageScanCache }).catch(() => undefined), afterMs);
+  timer.unref();
+  return timer;
+}
+
 export async function startEngine(options: EngineDaemonOptions = {}): Promise<EngineDaemon> {
   const root = options.engineRoot ?? engineRootFromEnv();
   const now = options.now ?? Date.now;
@@ -300,6 +309,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   });
   const remoteDir = options.remoteDir ?? remoteDirFor(root);
   const remoteStore = createRemoteStore(remoteDir);
+  const presence = createPresence();
   remoteStore.cleanUpPairings();
   const openStreams = new Set<OpenStream>();
   const hostsStore = createHostsStore(remoteDir);
@@ -344,11 +354,12 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
     if (!allowed) throw new HttpError(401, "engine_unauthorized", refusals[auth]);
   };
   const identity: EngineIdentity = { hostId: readHostId(remoteDir), ...(hostname ? { name: hostname } : {}), appVersion: pkg.version };
-  const routes = engineRoutes({ store, options, now, root, remoteStore, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity });
+  const routes = engineRoutes({ store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity });
   const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run }));
-
+  const networkServer = options.network && http.createServer(router(routes, networkRouting(remoteStore, presence, options.network.host, errorFor, loopLag.run)));
   try {
-    port = await listenLoopback(server, options.port ?? 0);
+    port = await listenOn(server, "127.0.0.1", options.port ?? 0);
+    const network = options.network && networkServer && { host: options.network.host, port: await listenOn(networkServer, options.network.host, options.network.port ?? 0) };
     const discovery: EngineDiscovery = { version: ENGINE_PROTOCOL_VERSION, daemonId, host: "127.0.0.1", port, token, startedAt };
     // Recovered under the lock and before discovery is published, so no client sees a pre-recovery queue.
     loopLag.run("boot: recovery", () => recoverAtBoot(store));
@@ -359,27 +370,20 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
       ? await startEmbeddedWorker(options.embeddedWorker === true ? {} : options.embeddedWorker, { store, discovery, execution, workers, doorbell, errorFor })
       : undefined;
     // After everything that matters has started, so a gigabyte of transcript I/O does not compete with the first reads.
-    let warmUp: ReturnType<typeof setTimeout> | undefined;
-    if (options.warmUsageCacheAfterMs !== undefined && options.warmUsageCacheAfterMs !== false) {
-      warmUp = setTimeout(() => {
-        warmUp = undefined;
-        void warmUsageScanCache({ scanCachePath: store.paths.usageScanCache }).catch(() => undefined);
-      }, options.warmUsageCacheAfterMs);
-      warmUp.unref();
-    }
+    const warmUp = options.warmUsageCacheAfterMs === undefined || options.warmUsageCacheAfterMs === false ? undefined : scheduleUsageWarmUp(store, options.warmUsageCacheAfterMs);
     // Only against a cua daemon already running: the one probe that cannot draw a permissions panel.
     void computerUseGate.measureIfHostRunning();
-
     let closed = false;
     return {
       discovery,
+      ...(network ? { network } : {}),
       store,
       ...(embedded ? { worker: embedded } : {}),
       checkoutPasses,
       async close() {
         if (closed) return;
         closed = true;
-        if (warmUp) clearTimeout(warmUp);
+        clearTimeout(warmUp);
         push.close();
         // The worker first: a claim outliving the server it reports to becomes an ambiguous turn on the next start.
         await embedded?.stop();
@@ -393,6 +397,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
         for (const stream of openStreams) (stream.end ?? stream)();
         openStreams.clear();
         await closeServer(server);
+        if (networkServer) await closeServer(networkServer);
         sweepers.stop();
         loopLag.stop();
         store.checkoutSizes.stop();
@@ -406,6 +411,7 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
     sweepers.stop();
     loopLag.stop();
     server.close();
+    networkServer?.close();
     store.kernel.executionStore.close();
     lock.release();
     throw error;

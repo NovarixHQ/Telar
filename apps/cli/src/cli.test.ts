@@ -50,6 +50,12 @@ afterAll(() => {
   for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test("version prints the build version", async () => {
+  const { lines, io } = capture();
+  expect(await runCli(["version"], io)).toBe(0);
+  expect(lines).toEqual(["0.0.0-dev"]);
+});
+
 test("serve defaults to a fixed port and rejects a bad one", () => {
   expect(serveOptions({}, "/h")).toEqual({ home: "/h", host: "127.0.0.1", port: DEFAULT_PORT, tailscaleServe: false });
   expect(() => serveOptions({ port: "70000" }, "/h")).toThrow("--port");

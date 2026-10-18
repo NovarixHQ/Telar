@@ -3,6 +3,7 @@ import { doctor } from "./doctor";
 import { resolveHome } from "./home";
 import { UsageError, type Io } from "./io";
 import { pair } from "./pair";
+import { VERSION } from "./version";
 import { serve, serveOptions } from "./serve";
 
 const USAGE = `Usage: telar <command> [options]
@@ -10,6 +11,7 @@ const USAGE = `Usage: telar <command> [options]
   serve [--host <addr>] [--port <n>] [--tailscale-serve]   Run the engine in the foreground
   pair [--tailscale] [--name <device>]                      Print a link and code for a new device
   doctor                                                    Check this machine
+  version                                                   Print the version
 
 Every command takes --home <dir> (default: $TELAR_HOME, then $XDG_DATA_HOME/telar).`;
 
@@ -31,6 +33,10 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
     if (!command || values.help) {
       io.out(USAGE);
       return command || values.help ? 0 : 1;
+    }
+    if (command === "version") {
+      io.out(VERSION);
+      return 0;
     }
     const home = resolveHome(values.home);
     if (command === "serve") {

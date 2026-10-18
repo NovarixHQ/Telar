@@ -143,7 +143,6 @@ function RunTerminal({ sessionId, hostId, tab, run, visible = true }: SurfacePro
           api={api}
           sessionId={sessionId}
           runId={run.runId}
-          {...(tab.terminalId ? { terminalId: tab.terminalId } : {})}
           live={isOpenTerminal(view)}
           visible={visible}
         />

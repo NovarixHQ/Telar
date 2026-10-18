@@ -104,10 +104,6 @@ contextBridge.exposeInMainWorld("telarDesktop", {
 
     list: () => ipcRenderer.invoke("telar:terminal:list"),
 
-    adopt: (id) => ipcRenderer.invoke("telar:terminal:adopt", { id }),
-
-    abandon: (id) => ipcRenderer.invoke("telar:terminal:abandon", { id }),
-
     readImageFile: (path) => ipcRenderer.invoke("telar:terminal:read-image-file", { path }),
     onData: (listener) => on("telar:terminal:data", listener),
     onExit: (listener) => on("telar:terminal:exit", listener),

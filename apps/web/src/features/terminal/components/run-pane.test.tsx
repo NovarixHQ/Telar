@@ -14,9 +14,8 @@
  * So the assertion is about the CALLS, not the cells: what this file counts is
  * how many items the emulator was handed and what was in each. It watches
  * `Terminal.prototype.write` because that is the one door
- * `lib/terminal-session.ts`'s writer goes through, and it is the same door for
- * both feeds — the bridge's attach and the hop's poll each read the run from
- * the top and each used to join.
+ * `lib/terminal-session.ts`'s writer goes through, and the poll reads the run
+ * from the top and used to join it.
  *
  * `right-panel.chooser.test.tsx` explains why a DOM is registered per file.
  */
@@ -27,7 +26,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { RunPane } from "./run-pane";
 import type { RunApi } from "../run/api";
 import type { RunBytesAnswer } from "../run/types";
-import type { TerminalChunk } from "../bridge";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -72,7 +70,6 @@ afterEach(() => {
   const root = mounted;
   mounted = undefined;
   if (root) act(() => root.unmount());
-  delete (window as unknown as { telarDesktop?: unknown }).telarDesktop;
 });
 
 /** The engine's run door, answering the one question a pane asks on attach.
@@ -91,29 +88,7 @@ function runDoor(answer: RunBytesAnswer): RunApi & { resizes: Array<{ cols: numb
   } as unknown as RunApi & { resizes: Array<{ cols: number; rows: number }> };
 }
 
-/** The desktop shell, holding a run's terminal open for adoption. Installed
- *  only by the STREAM tests: its absence is what puts a pane on the poll. */
-function installBridge(): { push: (chunk: TerminalChunk) => void } {
-  const listeners: Array<(chunk: TerminalChunk) => void> = [];
-  const terminal = {
-    open: async () => ({ id: "term_run" }),
-    write: async () => ({ ok: true }),
-    resize: async () => ({ ok: true }),
-    kill: async () => ({ ok: true }),
-    list: async () => ({ terminals: [] }),
-    adopt: async () => ({ ok: true }),
-    abandon: async () => ({ ok: true }),
-    onData: (listener: (chunk: TerminalChunk) => void) => {
-      listeners.push(listener);
-      return () => listeners.splice(listeners.indexOf(listener), 1);
-    },
-    onExit: () => () => {},
-  };
-  (window as unknown as { telarDesktop?: unknown }).telarDesktop = { terminal };
-  return { push: (chunk) => listeners.forEach((listener) => listener(chunk)) };
-}
-
-/** Mounted, then flushed: the attach adopts and reads, and both are promises. */
+/** Mounted, then flushed: the poll reads, and that is a promise. */
 async function mount(props: Partial<Parameters<typeof RunPane>[0]> & { api: RunApi }): Promise<HTMLElement> {
   const host = document.createElement("div");
   document.body.append(host);
@@ -134,20 +109,8 @@ async function mount(props: Partial<Parameters<typeof RunPane>[0]> & { api: RunA
 const WINDOW = ["first line\r\n", "second line\r\n", "third line\r\n"];
 
 describe("the scrollback a chip attaches to", () => {
-  test("over the bridge: one write per chunk, and never the joined window", async () => {
-    installBridge();
-    await mount({ api: runDoor({ chunks: WINDOW, cursor: 3, dropped: 0 }), terminalId: "term_run" });
-
-    // THE REGRESSION, STATED AS THE NUMBER IT IS: three chunks are three items
-    // for xterm to yield between, not one item three times as long.
-    expect(written).toEqual(WINDOW);
-    expect(written).not.toContain(WINDOW.join(""));
-  });
-
-  test("over the hop: the poll's first tick reads the same window and cuts it the same way", async () => {
-    // No bridge — `runFeedKind` puts this pane on the poll, which reads from
-    // cursor 0 on its first tick. A settled run then stops asking, so nothing
-    // here waits on a timer.
+  test("the poll's first tick reads the window and writes one item per chunk, never the joined window", async () => {
+    // The first tick reads from cursor 0. A settled run then stops asking, so nothing here waits on a timer.
     await mount({ api: runDoor({ chunks: WINDOW, cursor: 3, dropped: 0 }) });
 
     expect(written).toEqual(WINDOW);
@@ -172,7 +135,7 @@ describe("the scrollback a chip attaches to", () => {
     window.cancelAnimationFrame = (() => {}) as typeof window.cancelAnimationFrame;
     try {
       const api = runDoor({ chunks: WINDOW, cursor: 3, dropped: 0 });
-      await mount({ api, terminalId: "term_run" });
+      await mount({ api });
       // Mounting measures — on reveal, and again when the fonts land — and not
       // one of those has reached the engine.
       expect(api.resizes).toEqual([]);
@@ -200,54 +163,18 @@ describe("the scrollback a chip attaches to", () => {
     }
   });
 
-  test("frames that arrive within one animation frame are written once, after the scrollback", async () => {
-    const queued: Array<() => void> = [];
-    const real = { request: globalThis.requestAnimationFrame, cancel: globalThis.cancelAnimationFrame };
-    globalThis.requestAnimationFrame = ((callback: (time: number) => void) => queued.push(() => callback(0))) as typeof requestAnimationFrame;
-    globalThis.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
-    try {
-      const bridge = installBridge();
-      await mount({ api: runDoor({ chunks: WINDOW, cursor: 3, dropped: 0 }), terminalId: "term_run", live: true });
-      await act(async () => {
-        bridge.push({ id: "term_run", data: "fourth line\r\n", cursor: 4 });
-        bridge.push({ id: "term_run", data: "fifth line\r\n", cursor: 5 });
-      });
-      expect(written).toEqual(WINDOW);
-
-      await act(async () => {
-        for (const run of queued.splice(0)) {
-          try {
-            run();
-          } catch {
-            // xterm's own render frames have no canvas here.
-          }
-        }
-      });
-      expect(written).toEqual([...WINDOW, "fourth line\r\nfifth line\r\n"]);
-    } finally {
-      globalThis.requestAnimationFrame = real.request;
-      globalThis.cancelAnimationFrame = real.cancel;
-    }
-  });
 });
 
 describe("a run tab that is not on screen", () => {
   test("keeps its emulator: switching back builds no new xterm and reads nothing again", async () => {
-    let adopted = 0;
-    installBridge();
-    const bridge = (window as unknown as { telarDesktop: { terminal: { adopt: () => Promise<{ ok: boolean }> } } }).telarDesktop.terminal;
-    bridge.adopt = async () => {
-      adopted += 1;
-      return { ok: true };
-    };
     const api = runDoor({ chunks: WINDOW, cursor: 3, dropped: 0 });
-    const host = await mount({ api, terminalId: "term_run", live: true });
+    const host = await mount({ api, live: true });
     const emulator = host.querySelector(".xterm");
     expect(emulator).not.toBeNull();
 
     const show = async (visible: boolean) => {
       await act(async () => {
-        mounted!.render(<RunPane api={api} sessionId="session_a" runId="run_a" terminalId="term_run" live visible={visible} />);
+        mounted!.render(<RunPane api={api} sessionId="session_a" runId="run_a" live visible={visible} />);
       });
     };
     await show(false);
@@ -256,7 +183,6 @@ describe("a run tab that is not on screen", () => {
     await show(true);
     expect(host.querySelectorAll(".xterm")).toHaveLength(1);
     expect(host.querySelector(".xterm")).toBe(emulator);
-    expect(adopted).toBe(1);
     expect(written).toEqual(WINDOW);
   });
 

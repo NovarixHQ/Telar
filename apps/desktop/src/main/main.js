@@ -6,7 +6,6 @@ const { app, BrowserWindow, dialog, ipcMain, Notification, powerMonitor, session
 const { DesktopBrowserManager, managerForScope } = require("../browser/browser-manager");
 const { startBrowserControlServer } = require("../browser/browser-control-server");
 const { createPreviewRenderer } = require("../agent-tools/preview-renderer");
-const { startRunTerminalServer } = require("../terminal/run-terminal-server");
 const { publishTailscaleServe, serveEnv, unpublishTailscaleServe } = require("./tailscale");
 const { windowTargetUrl } = require("./window-target");
 const { createDesktopNotifier } = require("./desktop-notifications");
@@ -72,8 +71,6 @@ let browserControl = null;
 let previewRenderer = null;
 let browserControlConfig = null;
 
-let runTerminalChannel = null;
-let runTerminalConfig = null;
 const REMOTE_DEBUGGING_PORT = process.env.TELAR_DESKTOP_REMOTE_DEBUGGING_PORT?.trim();
 if (REMOTE_DEBUGGING_PORT && /^\d+$/.test(REMOTE_DEBUGGING_PORT)) {
   app.commandLine.appendSwitch("remote-debugging-port", REMOTE_DEBUGGING_PORT);
@@ -137,13 +134,6 @@ function childEnv(home) {
       ? {
           TELAR_DESKTOP_BROWSER_CONTROL_PORT: String(browserControlConfig.port),
           TELAR_DESKTOP_BROWSER_CONTROL_TOKEN: browserControlConfig.token,
-        }
-      : {}),
-
-    ...(runTerminalConfig
-      ? {
-          TELAR_DESKTOP_RUN_TERMINAL_PORT: String(runTerminalConfig.port),
-          TELAR_DESKTOP_RUN_TERMINAL_TOKEN: runTerminalConfig.token,
         }
       : {}),
   };
@@ -262,14 +252,11 @@ function requireTerminalHost() {
   terminalHost = new TerminalHost({
     version: app.getVersion(),
     onData: (id, data) => {
-      if (terminalHost?.ownerOf(id) !== TerminalOwner.ENGINE) terminalReaders.deliver(id, "telar:terminal:data", { id, data });
-      runTerminalChannel?.onData(id, data);
+      terminalReaders.deliver(id, "telar:terminal:data", { id, data });
     },
     onExit: (id, ending) => {
       terminalReaders.deliver(id, "telar:terminal:exit", ending);
       terminalReaders.detach(id);
-
-      runTerminalChannel?.onExit(id, ending);
     },
   });
   return terminalHost;
@@ -359,7 +346,6 @@ app.on("will-quit", (event) => {
   persistAllHosts();
 
   if (terminalHost) { try { void terminalHost.dispose(); } catch {} }
-  if (runTerminalChannel) { try { void runTerminalChannel.close(); } catch {} runTerminalChannel = null; }
   uiServer.stopServer();
   const engineStopped = stopEngineChild({ quit: true });
   stopComputerUseHelper();
@@ -538,14 +524,6 @@ if (SMOKE) {
           renderPreview: (input) => (previewRenderer ||= createPreviewRenderer({ BrowserWindow, session })).render(input),
         });
 
-        runTerminalConfig = { port: await findFreePort(), token: randomUUID() };
-        runTerminalChannel = await startRunTerminalServer({
-          ...runTerminalConfig,
-
-          getTerminalHost: () => requireTerminalHost(),
-
-          onMirror: (id, data, cursor) => terminalReaders.deliver(id, "telar:terminal:data", { id, data, cursor }),
-        });
         let url = OVERRIDE_URL;
         if (!url) {
           captureLoginShellEnv();

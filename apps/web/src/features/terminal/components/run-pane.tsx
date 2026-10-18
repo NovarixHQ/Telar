@@ -14,8 +14,6 @@ type RunPaneProps = {
   api: RunApi;
   sessionId: string;
   runId: string;
-  /** The host's name for this run's PTY while it has one; absent means poll. */
-  terminalId?: string;
   /** Whether the run can still say anything; sets the poll cadence only. */
   live: boolean;
   /** On screen. A hidden pane keeps its emulator and its feed, so showing it again is one fit. */
@@ -23,9 +21,9 @@ type RunPaneProps = {
 };
 
 /** One run tab's pane. */
-export function RunPane({ api, sessionId, runId, terminalId, live, visible }: RunPaneProps) {
+export function RunPane({ api, sessionId, runId, live, visible }: RunPaneProps) {
   const { host, notice, ...emulator } = useRunEmulator({ api, sessionId, runId, live }, visible);
-  const dropped = useRunFeed(emulator, { sessionId, runId, terminalId, live });
+  const dropped = useRunFeed(emulator, { sessionId, runId, live });
 
   useEffect(() => claimChords(TERMINAL_CHORD_CLAIMS), []);
 

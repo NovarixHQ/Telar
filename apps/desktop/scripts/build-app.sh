@@ -59,6 +59,7 @@ NODE_OPTIONS= bun build src/main.ts \
   --target=node \
   --format=esm \
   --external @anthropic-ai/claude-agent-sdk \
+  --external node-pty \
   --outfile "$ENGINE_DIST/engine.mjs"
 test -f "$ENGINE_DIST/engine.mjs" || { echo "!! engine bundle missing after build" >&2; exit 1; }
 
@@ -78,6 +79,18 @@ mkdir -p "$ENGINE_DIST/node_modules/@anthropic-ai"
 cp -RL "$SDK_SRC" "$ENGINE_DIST/node_modules/@anthropic-ai/claude-agent-sdk"
 test -f "$ENGINE_DIST/node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs" \
   || { echo "!! Agent SDK bundle missing sdk.mjs after copy" >&2; exit 1; }
+
+echo "==> materialize node-pty beside the engine bundle"
+# node-pty loads a native addon and execs its spawn-helper beside it, so it ships as files, not inside the bundle. Only this host's prebuild is copied; the npm tarball ships spawn-helper mode 0644.
+PTY_SRC="$("$JS_RUNTIME" -e 'process.stdout.write(require("fs").realpathSync(require("path").dirname(require.resolve("node-pty/package.json"))))')"
+PTY_DEST="$ENGINE_DIST/node_modules/node-pty"
+PTY_TARGET="$("$JS_RUNTIME" -e 'process.stdout.write(process.platform + "-" + process.arch)')"
+mkdir -p "$PTY_DEST/prebuilds"
+cp -RL "$PTY_SRC/lib" "$PTY_SRC/package.json" "$PTY_DEST/"
+cp -RL "$PTY_SRC/prebuilds/$PTY_TARGET" "$PTY_DEST/prebuilds/$PTY_TARGET"
+chmod 755 "$PTY_DEST/prebuilds/$PTY_TARGET/spawn-helper"
+test -f "$PTY_DEST/prebuilds/$PTY_TARGET/pty.node" \
+  || { echo "!! node-pty has no prebuild for $PTY_TARGET" >&2; exit 1; }
 
 echo "==> materialize @playwright/mcp for the engine's browser"
 # @playwright/mcp is spawned as a CLI by the engine's browser transport

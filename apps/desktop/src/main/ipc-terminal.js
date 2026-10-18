@@ -1,6 +1,5 @@
 const { ipcMain } = require("electron");
 const { readKittyImageFile } = require("../terminal/kitty-image-file");
-const { TerminalOwner } = require("../terminal/terminal-host");
 const { requireCockpitSender } = require("./browser-hosts");
 
 function registerTerminalIpc(main) {
@@ -63,23 +62,6 @@ function registerTerminalIpc(main) {
   ipcMain.handle("telar:terminal:list", (event) => {
     requireCockpitSender(event, "list terminals");
     return { terminals: requireTerminalHost().list(RENDERER).filter((entry) => terminalReaders.reads(entry.id, event.sender)) };
-  });
-
-  ipcMain.handle("telar:terminal:adopt", (event, input) => {
-    requireCockpitSender(event, "read a run's terminal");
-    const id = String(input?.id ?? "");
-    if (!id) return { ok: false };
-    const host = requireTerminalHost();
-    if (!host.list(TerminalOwner.ENGINE).some((entry) => entry.id === id)) return { ok: false };
-    terminalReaders.attach(id, event.sender);
-    return { ok: true };
-  });
-
-  ipcMain.handle("telar:terminal:abandon", (event, input) => {
-    requireCockpitSender(event, "stop reading a run's terminal");
-    const id = String(input?.id ?? "");
-    if (id) terminalReaders.detach(id, event.sender);
-    return { ok: true };
   });
 }
 

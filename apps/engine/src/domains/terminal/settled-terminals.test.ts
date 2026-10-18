@@ -6,72 +6,10 @@ import type { RunView } from "@telar/engine-client";
 import { terminalLauncher } from "./launcher";
 import { RunManager } from "./manager";
 import { type StartRunInput } from "./live-run";
-import { RunTerminalClient } from "./terminal-client";
 import { EngineStore } from "../../state";
-import { desktopTerminalServer } from "../../../test/desktop-terminal";
-
-type StartServer = (options: {
-  port: number;
-  token: string;
-  getTerminalHost: () => unknown;
-}) => Promise<{ port: number; onExit: (id: string, ending: unknown) => void; close: () => Promise<unknown> }>;
-const { startRunTerminalServer } = (await import(desktopTerminalServer)) as { startRunTerminalServer: StartServer };
+import { fakeHost } from "../../../test/pty-fakes";
 
 const HOUR = 60 * 60 * 1000;
-
-type FakeTerminal = { id: string; pid: number; sessionId?: string; owner: "engine" | "renderer"; busy?: boolean };
-
-class FakeHost {
-  readonly terminals = new Map<string, FakeTerminal>();
-  readonly sessionCloses: string[] = [];
-  onExit: (id: string, ending: unknown) => void = () => {};
-  private sequence = 0;
-
-  open(request: { sessionId?: string }): unknown {
-    const id = `term_${(this.sequence += 1)}`;
-    this.terminals.set(id, { id, pid: 40_000 + this.sequence, sessionId: request.sessionId, owner: "engine" });
-    return { id, pid: 40_000 + this.sequence };
-  }
-
-  personShell(sessionId: string): string {
-    const id = `term_${(this.sequence += 1)}`;
-    this.terminals.set(id, { id, pid: 40_000 + this.sequence, sessionId, owner: "renderer" });
-    return id;
-  }
-
-  countBySession(): Record<string, number> {
-    const counts: Record<string, number> = {};
-    for (const terminal of this.terminals.values()) if (terminal.sessionId) counts[terminal.sessionId] = (counts[terminal.sessionId] ?? 0) + 1;
-    return counts;
-  }
-
-  async killBySession(sessionId: string): Promise<number> {
-    this.sessionCloses.push(sessionId);
-    const records = [...this.terminals.values()].filter((terminal) => terminal.sessionId === sessionId);
-    for (const record of records) {
-      this.terminals.delete(record.id);
-      if (record.owner === "engine") this.onExit(record.id, { id: record.id, pid: record.pid, fate: "exited", exitCode: 0, signal: "1", at: Date.now(), closed: "session" });
-    }
-    return records.length;
-  }
-
-  async closeIdleBySession(sessionId: string): Promise<string[]> {
-    const idle = [...this.terminals.values()].filter((terminal) => terminal.sessionId === sessionId && !terminal.busy);
-    for (const record of idle) {
-      this.terminals.delete(record.id);
-      if (record.owner === "engine") this.onExit(record.id, { id: record.id, pid: record.pid, fate: "exited", exitCode: 0, signal: "1", at: Date.now(), closed: "session" });
-    }
-    return idle.map((record) => record.id);
-  }
-
-  held(sessionId: string): number {
-    return [...this.terminals.values()].filter((terminal) => terminal.sessionId === sessionId).length;
-  }
-
-  list(): FakeTerminal[] {
-    return [...this.terminals.values()].filter((terminal) => terminal.owner === "engine");
-  }
-}
 
 const cleanups: Array<() => unknown> = [];
 afterEach(async () => {
@@ -79,14 +17,18 @@ afterEach(async () => {
 });
 
 async function scene() {
-  const host = new FakeHost();
-  const server = await startRunTerminalServer({ port: 0, token: "test-token", getTerminalHost: () => host });
-  cleanups.push(() => server.close());
-  host.onExit = server.onExit;
-  const client = new RunTerminalClient({ baseUrl: `http://127.0.0.1:${server.port}`, token: "test-token", reconnectMs: 20, reconnectMaxMs: 50 });
-  cleanups.push(() => client.detach());
+  const { host, busy } = fakeHost();
+  const sessionCloses: string[] = [];
+  const idleCloses: string[] = [];
+  const closeSession = host.closeSession.bind(host);
+  const closeIdle = host.closeIdle.bind(host);
+  host.closeSession = (sessionId) => (sessionCloses.push(sessionId), closeSession(sessionId));
+  host.closeIdle = (sessionId) => (idleCloses.push(sessionId), closeIdle(sessionId));
+  const held = (sessionId: string) => host.sessionCounts()[sessionId] ?? 0;
+  const personShell = async (sessionId: string) => (await host.open({ origin: "user", sessionId }, { data() {}, ending() {} })).id;
+  const has = (id: string) => host.list().some((terminal) => terminal.id === id);
   const closedByPerson: RunView[] = [];
-  const manager = new RunManager({ launcher: terminalLauncher(client), closeSettleMs: 150, personClosed: (run) => closedByPerson.push(run) });
+  const manager = new RunManager({ launcher: terminalLauncher(host), closeSettleMs: 150, personClosed: (run) => closedByPerson.push(run) });
   cleanups.push(() => manager.shutdown());
 
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-settled-terminals-"));
@@ -113,30 +55,30 @@ async function scene() {
     store.lifecycle.updateSession(sessionId, { settledOverride: "settled" });
     advance(60_000);
   };
-  return { host, manager, store, closedByPerson, open, advance, settle };
+  return { host, busy, sessionCloses, idleCloses, held, personShell, has, manager, store, closedByPerson, open, advance, settle };
 }
 
 test("the automatic settle's sweep closes a shell the person opened, which only the host can see", async () => {
-  const { host, manager, store, advance } = await scene();
-  const shell = host.personShell("session_one");
+  const { personShell, has, manager, store, advance } = await scene();
+  const shell = await personShell("session_one");
   expect(manager.openSessions()).toEqual([]);
   const window = store.settings.inbox().autoSettleAfterHours!;
 
   expect(await store.sessionTerminals.sweepSettled()).toEqual([]);
-  expect(host.terminals.has(shell)).toBe(true);
+  expect(has(shell)).toBe(true);
 
   advance(window * HOUR + 60_000);
   expect(await store.sessionTerminals.sweepSettled()).toEqual(["session_one"]);
-  expect(host.terminals.has(shell)).toBe(false);
+  expect(has(shell)).toBe(false);
   expect(store.records.get("session_one").terminalsClosed).toMatchObject({ terminals: 1 });
   expect(store.live.rows({ all: true }).terminals).toEqual({});
 });
 
 test("the counts include the person's shells: what Settle would close, and what the rail is told", async () => {
-  const { host, store, open } = await scene();
+  const { personShell, store, open } = await scene();
   await open("session_one");
-  host.personShell("session_one");
-  host.personShell("session_three");
+  await personShell("session_one");
+  await personShell("session_three");
   const before = store.live.revision();
 
   expect(await store.sessionTerminals.countNow("session_one")).toBe(2);
@@ -150,28 +92,28 @@ test("the counts include the person's shells: what Settle would close, and what 
 });
 
 test("a settled session keeps a terminal still running something, and the sweep closes it once it is idle", async () => {
-  const { host, manager, store, open, settle } = await scene();
+  const { busy, personShell, has, manager, store, open, settle } = await scene();
   const run = await open("session_one");
-  host.terminals.get(run.terminalId)!.busy = true;
-  const shell = host.personShell("session_one");
+  busy.add(run.pid!);
+  const shell = await personShell("session_one");
   settle("session_one");
 
   expect(await store.settler.endLeftovers("session_one")).toEqual({ terminals: 1, backgroundTasks: 0 });
-  expect(host.terminals.has(shell)).toBe(false);
+  expect(has(shell)).toBe(false);
   expect(manager.run(run.terminalId).status).toBe("running");
   expect(store.live.rows({ all: true }).terminals).toEqual({ session_one: 1 });
 
   expect(await store.sessionTerminals.sweepSettled()).toEqual([]);
-  host.terminals.get(run.terminalId)!.busy = false;
+  busy.delete(run.pid!);
   expect(await store.sessionTerminals.sweepSettled()).toEqual(["session_one"]);
   expect(manager.run(run.terminalId)).toMatchObject({ status: "closed", closedBy: "telar" });
   expect(store.records.get("session_one").terminalsClosed).toMatchObject({ terminals: 1 });
 });
 
 test("the person closing a settled session's terminals is recorded as the person's", async () => {
-  const { host, manager, store, closedByPerson, open, settle } = await scene();
+  const { personShell, manager, store, closedByPerson, open, settle } = await scene();
   const run = await open("session_one");
-  host.personShell("session_one");
+  await personShell("session_one");
   settle("session_one");
   expect(await store.sessionTerminals.closeForPerson("session_one")).toBe(2);
   expect(manager.run(run.terminalId)).toMatchObject({ status: "closed", closedBy: "person" });

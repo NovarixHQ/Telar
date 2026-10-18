@@ -190,7 +190,6 @@ export class WorktreeSetups {
               ...(signal ? { signal } : {}),
             }),
           failed: (reason) => this.finish(sessionId, run, { state: "failed", detail: reason }),
-          gone: (reason) => this.finish(sessionId, run, { state: "interrupted", detail: reason }),
         },
       );
     } catch (error) {

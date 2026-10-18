@@ -37,7 +37,7 @@ export async function startEmbeddedWorker(config: EmbeddedWorkerConfig, { store,
   const { WorkerReconnectController } = await import("./supervisor");
   const { createWorkerDiagnostics } = await import("./diagnostics");
   // The engine owns the browser and both sockets: they outlive any turn and close exactly once.
-  const browser = new BrowserRuntime({ profileRoot: store.paths.browserProfiles });
+  const browser = new BrowserRuntime({ profileRoot: store.paths.browserProfiles, browsersPath: store.paths.browsers });
   const desktop = desktopBrowserFromEnv();
   const routed = new BrowserRouter(browser, desktop);
   store.browser.attach(routed);

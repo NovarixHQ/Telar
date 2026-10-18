@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { browserSetup } from "./browser";
 import { auth, parseDuration, parseScopes } from "./auth";
 import { doctor } from "./doctor";
 import { resolveHome } from "./home";
@@ -17,6 +18,7 @@ const USAGE = `Usage: telar <command> [options]
   auth session revoke <id> | --all-others [--keep <id>]     Cut sessions off
   service install|status|restart|uninstall [--host <addr>] [--port <n>] [--tailscale-serve]
                                                             Run the engine in the background at login
+  browser setup [--dry-run]                                 Make the engine browser launchable (Linux libraries, AppArmor)
   doctor                                                    Check this machine
   version                                                   Print the version
 
@@ -31,6 +33,7 @@ const OPTIONS = {
   expires: { type: "string" },
   keep: { type: "string" },
   "all-others": { type: "boolean" },
+  "dry-run": { type: "boolean" },
   tailscale: { type: "boolean" },
   "tailscale-serve": { type: "boolean" },
   help: { type: "boolean", short: "h" },
@@ -72,6 +75,10 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
       else if (action === "uninstall") await uninstallService(ctx, io);
       else throw new UsageError("Usage: telar service install|status|restart|uninstall");
       return 0;
+    }
+    if (command === "browser") {
+      if (positionals[1] !== "setup") throw new UsageError("Usage: telar browser setup [--dry-run]");
+      return await browserSetup({ home, dryRun: values["dry-run"] === true }, io);
     }
     if (command === "doctor") return await doctor(home, io);
     throw new UsageError(`Unknown command: ${command}\n\n${USAGE}`);

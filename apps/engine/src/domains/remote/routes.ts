@@ -5,9 +5,11 @@ import { fail, ok, type Route } from "../../platform/http/route";
 import { authRoutes, type TicketCheck } from "./auth";
 import { deviceCookieHeader } from "./cookie";
 import { createPresence, type Presence } from "./presence";
-import { normaliseScopes, roleOf, scopesForRole } from "./scopes";
+import { ALL_SCOPES, normaliseScopes, roleOf, scopesForRole } from "./scopes";
 
 type Body = Record<string, unknown>;
+
+const SESSION_MAX_MS = 365 * 24 * 60 * 60 * 1000;
 
 const REFUSAL: Record<PairingRefusal, string> = {
   "none-pending": "No pairing code is waiting. Generate one in Settings → Remote access — a code is single-use, so one that already paired a device is spent.",
@@ -30,11 +32,12 @@ function identityOf(value: unknown): DeviceIdentity | undefined {
   return identity;
 }
 
-const publicDevice = ({ id, name, createdAt, lastSeenAt, scopes, platform, identity }: PairedDevice): RemoteDevice => ({
+const publicDevice = ({ id, name, createdAt, lastSeenAt, expiresAt, scopes, platform, identity }: PairedDevice): RemoteDevice => ({
   id,
   name,
   createdAt,
   lastSeenAt,
+  expiresAt,
   scopes,
   role: roleOf(scopes),
   platform,
@@ -98,7 +101,16 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       method: "POST",
       path: "/v2/remote/pairing",
       auth: "engine",
-      handle: () => ok(store.mintPairing()),
+      handle({ body }) {
+        const scopes = body.scopes === undefined ? ALL_SCOPES : normaliseScopes(body.scopes);
+        if (!scopes) return fail(400, "invalid_request", "scopes must be a non-empty list from read|write|admin.");
+        const sessionMs = body.expiresInMs;
+        if (sessionMs !== undefined && !(typeof sessionMs === "number" && Number.isInteger(sessionMs) && sessionMs > 0 && sessionMs <= SESSION_MAX_MS)) {
+          return fail(400, "invalid_request", "expiresInMs must be a whole number of milliseconds, at most a year.");
+        }
+        const chosen = body.scopes !== undefined || sessionMs !== undefined;
+        return ok({ ...store.mintPairing(Date.now(), undefined, chosen ? { scopes, ...(sessionMs ? { sessionMs } : {}) } : undefined), scopes });
+      },
     },
     {
       method: "DELETE",
@@ -115,6 +127,7 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       auth: "engine",
       handle({ body, request }) {
         const code = typeof body.code === "string" ? body.code : "";
+        const grant = store.pendingGrant();
         const outcome = code ? store.consumePairing(code) : "none-pending";
         if (outcome !== true) return { status: 401, body: { error: { code: "cockpit_unauthorized", reason: outcome, message: REFUSAL[outcome] } } };
         const platform: DevicePlatform | undefined = body.platform === "ios" || body.platform === "browser" ? body.platform : undefined;
@@ -122,6 +135,8 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
         const clientId = text(body.clientId, 128);
         const deviceToken = mintDeviceToken();
         const device = store.addDevice(text(body.name) ?? "Unnamed device", deviceToken, {
+          ...(grant ? { scopes: grant.scopes } : {}),
+          ...(grant?.sessionMs ? { expiresAt: Date.now() + grant.sessionMs } : {}),
           ...(platform ? { platform } : {}),
           ...(identity ? { identity } : {}),
           ...(clientId ? { clientId } : {}),
@@ -135,9 +150,7 @@ export function remoteRoutes(store: RemoteStore, checkTicket?: TicketCheck, pres
       path: "/v2/remote/devices",
       auth: "engine",
       handle({ query }) {
-        const keep = query.get("keep");
-        if (!keep) return fail(400, "invalid_request", "keep must name the device to keep.");
-        return ok({ revoked: store.revokeOtherDevices(keep) });
+        return ok({ revoked: store.revokeOtherDevices(query.get("keep") ?? undefined) });
       },
     },
     {

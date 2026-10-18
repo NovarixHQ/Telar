@@ -4,7 +4,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
-import { GET as machineGet } from "@/app/api/plugins/[plugin]/[...verb]/route";
 import { catchAll } from "@/test/catch-all";
 import { startEngine, type EngineDaemon } from "../../../../engine/src/daemon";
 
@@ -39,18 +38,14 @@ async function ready(): Promise<EngineClient> {
 describe("generic plugin proxies", () => {
   test("the machine door reaches the plugin's verb", async () => {
     await ready();
-    const response = await machineGet(new Request("http://telar.local/api/plugins/latex/managed"), {
-      params: Promise.resolve({ plugin: "latex", verb: ["managed"] }),
-    });
+    const response = await catchAll(new Request("http://telar.local/api/plugins/latex/managed"));
     expect(response.status).toBe(200);
     expect(await response.json()).toHaveProperty("managed");
   });
 
   test("an unknown plugin is the engine's 404, not the route's", async () => {
     await ready();
-    const response = await machineGet(new Request("http://telar.local/api/plugins/nope/anything"), {
-      params: Promise.resolve({ plugin: "nope", verb: ["anything"] }),
-    });
+    const response = await catchAll(new Request("http://telar.local/api/plugins/nope/anything"));
     expect(response.status).toBe(404);
     expect((await response.json()).error).toMatchObject({ code: "not_found", message: "no plugin nope" });
   });

@@ -1,4 +1,4 @@
-import type { Conditional, EngineTransport } from "@telar/engine-client";
+import { httpTransport, type Conditional, type EngineTransport } from "@telar/engine-client";
 import type {
 EngineErrorCode
 } from "@telar/engine-client";
@@ -81,6 +81,19 @@ const reads = gate(READ_BUDGET);
  *  it, or it stops being the thing that makes an opening never wait. */
 export const opens = gate(OPEN_BUDGET);
 
+const FAILURE_TEXT: Record<string, string> = {
+  "engine returned an invalid response": "The engine adapter returned an invalid response.",
+  "engine request failed": "The engine request failed.",
+};
+
+function cockpitTransport(fetcher: Fetcher) {
+  return httpTransport(
+    (pathname, init) => reach(fetcher, pathname, init),
+    (code, message, status, { response }) =>
+      new EngineApiError(code, FAILURE_TEXT[message] ?? message, status, answeringHost(fetcher, response)),
+  );
+}
+
 export async function request<T>(
   fetcher: Fetcher,
   method: string,
@@ -92,7 +105,7 @@ export async function request<T>(
   const budgeted = lane !== null && method === "GET" && signal === undefined;
   if (budgeted) await lane.take();
   try {
-    return await send<T>(fetcher, method, pathname, body, signal);
+    return await cockpitTransport(fetcher).request<T>(method, pathname, body, signal);
   } finally {
     if (budgeted) lane.give();
   }
@@ -100,25 +113,11 @@ export async function request<T>(
 
 export async function requestIfChanged<T>(fetcher: Fetcher, pathname: string, etag?: string, lane: Gate | null = reads): Promise<Conditional<T>> {
   if (lane) await lane.take();
-  let response: Response;
   try {
-    response = await reach(fetcher, pathname, { method: "GET", cache: "no-store", ...(etag === undefined ? {} : { headers: { "if-none-match": etag } }) });
+    return await cockpitTransport(fetcher).requestIfChanged<T>(pathname, etag);
   } finally {
     lane?.give();
   }
-  const tag = response.headers.get("etag") ?? undefined;
-  if (response.status === 304) return { unchanged: true, ...(tag ? { etag: tag } : {}) };
-  return { unchanged: false, payload: await answer<T>(fetcher, response), ...(tag ? { etag: tag } : {}) };
-}
-
-async function send<T>(fetcher: Fetcher, method: string, pathname: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  const response = await reach(fetcher, pathname, {
-    method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    ...(signal ? { signal } : {}),
-  });
-  return answer<T>(fetcher, response);
 }
 
 function askedThisCockpit(fetcher: Fetcher, pathname: string): boolean {
@@ -131,10 +130,12 @@ async function refusedAsUnpaired(response: Response): Promise<boolean> {
   return payload?.error?.code === "cockpit_unauthorized";
 }
 
+const cockpitPath = (pathname: string): string => (pathname.startsWith("/v2/") ? `/api${pathname.slice("/v2".length)}` : pathname);
+
 async function reach(fetcher: Fetcher, pathname: string, init: RequestInit): Promise<Response> {
   try {
-    const response = await fetcher(pathname, init);
-    if (response.status === 401 && askedThisCockpit(fetcher, pathname) && (await refusedAsUnpaired(response))) window.location.replace("/pair");
+    const response = await fetcher(cockpitPath(pathname), init);
+    if (response.status === 401 && askedThisCockpit(fetcher, cockpitPath(pathname)) && (await refusedAsUnpaired(response))) window.location.replace("/pair");
     return response;
   } catch (cause) {
     // An abort is the CALLER's decision arriving back, not the adapter being
@@ -152,31 +153,11 @@ async function reach(fetcher: Fetcher, pathname: string, init: RequestInit): Pro
   }
 }
 
-async function answer<T>(fetcher: Fetcher, response: Response): Promise<T> {
-  const host = answeringHost(fetcher, response);
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new EngineApiError("engine_unavailable", "The engine adapter returned an invalid response.", response.status, host);
-  }
-  if (!response.ok) {
-    const error = (payload as { error?: { code?: EngineApiErrorCode; message?: string } } | null)?.error;
-    throw new EngineApiError(error?.code ?? "internal_error", error?.message ?? "The engine request failed.", response.status, host);
-  }
-  return payload as T;
-}
-
 /** Runs the package's per-domain methods through this cockpit's `/api` proxy. `lane: null` skips the read budget. */
 export function apiTransport(fetcher: Fetcher, lane: Gate | null = reads): EngineTransport {
-  const apiPath = (pathname: string) => pathname.replace(/^\/v2\//, "/api/");
   return {
-    request: (method, pathname, body, signal) => request(fetcher, method, apiPath(pathname), body, signal, lane),
-    requestIfChanged: (pathname, etag) => requestIfChanged(fetcher, apiPath(pathname), etag, lane),
-    async readBytes(pathAndQuery) {
-      const response = await fetcher(apiPath(pathAndQuery));
-      if (!response.ok) throw new EngineApiError("engine_unavailable", "The engine request failed.", response.status, answeringHost(fetcher, response));
-      return { data: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") ?? "" };
-    },
+    request: (method, pathname, body, signal) => request(fetcher, method, pathname, body, signal, lane),
+    requestIfChanged: (pathname, etag) => requestIfChanged(fetcher, pathname, etag, lane),
+    readBytes: (pathAndQuery) => cockpitTransport(fetcher).readBytes(pathAndQuery),
   };
 }

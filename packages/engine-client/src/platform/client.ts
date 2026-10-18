@@ -1,11 +1,11 @@
 import type { TurnAttachment } from "../protocol/common";
-import type { EngineDiscovery, EngineErrorBody, EngineHealth, EventPage } from "../protocol/events";
+import type { EngineDiscovery, EngineHealth, EventPage } from "../protocol/events";
 import { queryOf, sessionPath } from "../sessions/client";
 import type { LiveSessionsAnswer } from "../sessions/schema";
 import { runBytesStreamPath, type RunTargetInput } from "../terminal/client";
 import { domainClients, type EngineDomainMethods } from "./domains";
 import { EngineClientError, sanitizeTransportCause } from "./errors";
-import type { Conditional, EngineTransport } from "./transport";
+import { httpTransport, type Conditional, type EngineTransport } from "./transport";
 
 export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -21,18 +21,14 @@ export class EngineClient implements EngineTransport {
     private readonly fetchImpl: FetchLike = fetch,
   ) {}
 
-  async request<T>(method: string, pathname: string, body?: unknown, signal?: AbortSignal, operation?: string): Promise<T> {
-    const json = body === undefined ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify(body) };
-    return this.parse<T>(await this.send(pathname, { method, ...json, ...(signal ? { signal } : {}) }, operation), operation);
+  private readonly http = httpTransport((pathname, init, operation) => this.send(pathname, init, operation));
+
+  request<T>(method: string, pathname: string, body?: unknown, signal?: AbortSignal, operation?: string): Promise<T> {
+    return this.http.request(method, pathname, body, signal, operation);
   }
 
-  async readBytes(pathAndQuery: string): Promise<{ data: Uint8Array; contentType: string }> {
-    const response = await this.send(pathAndQuery, { method: "GET" });
-    if (!response.ok) {
-      const error = ((await response.json().catch(() => null)) as EngineErrorBody | null)?.error;
-      throw new EngineClientError(error?.code ?? "engine_unavailable", error?.message ?? "engine request failed", response.status);
-    }
-    return { data: new Uint8Array(await response.arrayBuffer()), contentType: response.headers.get("content-type") ?? "application/octet-stream" };
+  readBytes(pathAndQuery: string): Promise<{ data: Uint8Array; contentType: string }> {
+    return this.http.readBytes(pathAndQuery);
   }
 
   health(): Promise<EngineHealth> {
@@ -79,7 +75,7 @@ export class EngineClient implements EngineTransport {
       // A fresh copy: `BodyInit` refuses a view whose buffer may be shared.
       body: new Uint8Array(file.data instanceof Uint8Array ? file.data : new Uint8Array(file.data)) as unknown as BodyInit,
     });
-    return this.parse(response);
+    return this.http.parse(response);
   }
 
   locate(pathname: string): Stream {
@@ -99,26 +95,8 @@ export class EngineClient implements EngineTransport {
     }
   }
 
-  private async parse<T>(response: Response, operation?: string): Promise<T> {
-    const named = operation === undefined ? {} : { operation };
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      throw new EngineClientError("engine_unavailable", "engine returned an invalid response", response.status, { ...named, transport: "malformed_response" });
-    }
-    if (!response.ok) {
-      const error = (payload as EngineErrorBody | null)?.error;
-      throw new EngineClientError(error?.code ?? "engine_unavailable", error?.message ?? "engine request failed", response.status, named);
-    }
-    return payload as T;
-  }
-
-  async requestIfChanged<T>(pathname: string, etag?: string, operation?: string, signal?: AbortSignal): Promise<Conditional<T>> {
-    const response = await this.send(pathname, { method: "GET", headers: etag ? { "if-none-match": etag } : {}, ...(signal ? { signal } : {}) }, operation);
-    const tag = response.headers.get("etag") ?? undefined;
-    if (response.status === 304) return { unchanged: true, ...(tag ? { etag: tag } : {}) };
-    return { unchanged: false, payload: await this.parse<T>(response, operation), ...(tag ? { etag: tag } : {}) };
+  requestIfChanged<T>(pathname: string, etag?: string, operation?: string, signal?: AbortSignal): Promise<Conditional<T>> {
+    return this.http.requestIfChanged(pathname, etag, operation, signal);
   }
 }
 

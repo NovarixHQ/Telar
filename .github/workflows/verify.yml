@@ -410,6 +410,9 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
         run: bun install --frozen-lockfile
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - run: bun apps/cli/src/main.ts browser setup --home "$RUNNER_TEMP/telar"
       - run: |
           bun apps/cli/src/main.ts doctor --home "$RUNNER_TEMP/telar" | tee doctor.txt || true

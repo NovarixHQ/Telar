@@ -106,7 +106,7 @@ describe("the playwright-mcp transport", () => {
 
     expect(fake.children).toHaveLength(1);
     const child = fake.children[0]!;
-    expect(child.command).toBe(process.execPath);
+    expect(child.command).toBe(process.versions.bun ? (Bun.which("node") ?? process.execPath) : process.execPath);
     expect(child.args[0]).toBe("/fake/@playwright/mcp/cli.js");
     expect(child.args).toContain("--headless");
     expect(child.args).toContain("--isolated");

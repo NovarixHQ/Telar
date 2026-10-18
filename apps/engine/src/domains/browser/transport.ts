@@ -78,6 +78,8 @@ function walkUpForPlaywrightMcpCli(startDir: string | undefined): string | null 
   return null;
 }
 
+const nodeBinary = (): string => (process.versions.bun ? (Bun.which("node") ?? process.execPath) : process.execPath);
+
 const browserEnv = (browsersPath: string | undefined): NodeJS.ProcessEnv | undefined =>
   browsersPath ? { ...process.env, PLAYWRIGHT_BROWSERS_PATH: browsersPath } : undefined;
 
@@ -171,7 +173,7 @@ export class PlaywrightMcpTransport {
       ? ["--cdp-endpoint", endpoint]
       : ["--headless", ...(this.options.userDataDir ? ["--user-data-dir", this.options.userDataDir] : ["--isolated"]), "--browser", this.options.browser, "--viewport-size", this.options.viewportSize];
     const args = [cli, ...own, "--caps", "vision", "--output-mode", "stdout", "--image-responses", "allow"];
-    return this.launchInner(process.execPath, args, browserEnv(this.options.browsersPath));
+    return this.launchInner(nodeBinary(), args, browserEnv(this.options.browsersPath));
   }
 
   private async launchInner(command: string, args: readonly string[], env?: NodeJS.ProcessEnv): Promise<void> {

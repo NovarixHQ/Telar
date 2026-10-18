@@ -22,7 +22,8 @@ export async function runEngine(options: RunEngineOptions = {}): Promise<EngineD
   const embeddedWorker = process.env.TELAR_EMBEDDED_WORKER?.trim() !== "0";
   let daemon: EngineDaemon;
   try {
-    daemon = await startEngine({ embeddedWorker, ...(options.network ? { network: options.network } : {}), warmUsageCacheAfterMs: 5_000, skillRoots: providerSkillRoots() });
+    const staticDir = process.env.TELAR_STATIC_DIR?.trim();
+    daemon = await startEngine({ embeddedWorker, ...(options.network ? { network: options.network } : {}), ...(staticDir ? { staticDir } : {}), warmUsageCacheAfterMs: 5_000, skillRoots: providerSkillRoots() });
   } catch (error) {
     // A live lock means the store has an owner; it is not a crash, and gets its own exit code.
     if (!(error instanceof EngineStateError) || error.code !== "conflict") throw error;

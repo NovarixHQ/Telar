@@ -36,6 +36,7 @@ import type { AsyncGitRunner, GitRunner } from "./platform/git/runner";
 import { bearerIsValid } from "./platform/http/auth";
 import { errorFor as httpErrorFor, HttpError } from "./platform/http/http";
 import { closeServer, listenOn, removeOwnDiscovery, writeDiscovery } from "./platform/http/listen";
+import { createStaticHandler } from "./platform/http/static";
 import type { Route } from "./platform/http/route";
 import { router } from "./platform/http/router";
 import { createLoopLag } from "./platform/process/loop-lag";
@@ -56,6 +57,7 @@ export type EngineDaemonOptions = {
   remoteDir?: string;
   port?: number;
   network?: { host: string; port?: number };
+  staticDir?: string;
   now?: () => number;
   /** How the engine reaches Deepgram; a test must never spend a real account. */
   dictationFetch?: typeof fetch;
@@ -357,8 +359,9 @@ export async function startEngine(options: EngineDaemonOptions = {}): Promise<En
   };
   const identity: EngineIdentity = { hostId: readHostId(remoteDir), ...(hostname ? { name: hostname } : {}), appVersion: pkg.version };
   const routes = engineRoutes({ store, options, now, root, remoteStore, presence, hostsStore, push, syncOrientationSkill, computerUseGate, simulators, storageMeter, sessionsDoor, connector, daemonId, openStreams, execution, plugins, runMount, workers, health, identity });
-  const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run }));
-  const networkServer = options.network && http.createServer(router(routes, networkRouting(remoteStore, presence, options.network.host, errorFor, loopLag.run)));
+  const staticFiles = options.staticDir ? createStaticHandler(options.staticDir) : undefined;
+  const server = http.createServer(router(routes, { authorize, errorFor, observe: loopLag.run, ...(staticFiles ? { staticFiles } : {}) }));
+  const networkServer = options.network && http.createServer(router(routes, { ...networkRouting(remoteStore, presence, options.network.host, errorFor, loopLag.run), ...(staticFiles ? { staticFiles } : {}) }));
   try {
     port = await listenOn(server, "127.0.0.1", options.port ?? 0);
     const network = options.network && networkServer && { host: options.network.host, port: await listenOn(networkServer, options.network.host, options.network.port ?? 0) };

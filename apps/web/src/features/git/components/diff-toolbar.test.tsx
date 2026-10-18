@@ -73,7 +73,7 @@ describe("the diff toolbar", () => {
     const options = { ignoreWhitespace: true, untracked: true, renamedFrom: "src.txt", base: "origin/main" };
     await api.sessionFilePatch("session_a", "dst.txt", options);
     await api.projectFilePatch("project_a", "dst.txt", options);
-    expect(urls.map((url) => new URL(url, "http://localhost").pathname)).toEqual(["/api/sessions/session_a/diff", "/api/projects/project_a/diff"]);
+    expect(urls.map((url) => new URL(url, "http://localhost").pathname)).toEqual(["/api/engine/v2/sessions/session_a/diff", "/api/engine/v2/projects/project_a/diff"]);
     for (const url of urls) {
       const params = new URL(url, "http://localhost").searchParams;
       expect(params.get("path")).toBe("dst.txt");

@@ -88,7 +88,7 @@ function wire(id: string, over: Partial<Session> = {}) {
     } catch {
       body = undefined;
     }
-    if (method === "PATCH" && /\/api\/sessions\/[^/]+$/.test(url)) {
+    if (method === "PATCH" && /\/api\/engine\/v2\/sessions\/[^/]+$/.test(url)) {
       return new Promise<Response>((resolve) => {
         patches.push({
           body,

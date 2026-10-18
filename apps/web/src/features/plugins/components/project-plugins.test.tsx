@@ -98,7 +98,7 @@ test("a plugin's declared settings view draws on its page once it is on", async 
   expect(off).toContain('aria-label="LaTeX enabled"');
   expect(off).not.toContain("Loading");
   globalThis.fetch = (async (input: RequestInfo | URL) =>
-    String(input).endsWith("/api/projects/project_abc/plugins/latex/settings")
+    String(input).endsWith("/api/engine/v2/projects/project_abc/plugins/latex/settings")
       ? json({ blocks: [{ type: "select", label: "Default document", name: "mainFile", options: [{ value: "", label: "No default" }], verb: "document" }] })
       : json({})) as typeof fetch;
   const view = await mount(<ProjectPluginList project={project({}, "latex")} plugins={[LATEX]} onChange={() => {}} />);
@@ -111,8 +111,8 @@ test("the list switch sends the patch the plugin's own switch sends", async () =
   await click(view.host.querySelector('[aria-label="LaTeX for this project"]'));
   await click(view.host.querySelector('[aria-label="Hello for this project"]'));
   expect(patches).toEqual([
-    { url: "/api/projects/project_abc", body: enablePatch("latex", true) },
-    { url: "/api/projects/project_abc", body: enablePatch("hello", true) },
+    { url: "/api/engine/v2/projects/project_abc", body: enablePatch("latex", true) },
+    { url: "/api/engine/v2/projects/project_abc", body: enablePatch("hello", true) },
   ]);
   view.done();
 });

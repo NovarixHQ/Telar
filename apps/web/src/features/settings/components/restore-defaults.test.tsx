@@ -42,15 +42,15 @@ test("Restore defaults turns every trial off", async () => {
 test("Restore defaults writes the cleanup rules back in one write", async () => {
   const policy = { settledDays: null };
   const calls = stubFetch({
-    "GET /api/cleanup": () => ({ cleanup: { policy, running: false } }),
-    "PUT /api/cleanup": (body) => ({ cleanup: { policy: body, running: false } }),
+    "GET /api/engine/v2/cleanup": () => ({ cleanup: { policy, running: false } }),
+    "PUT /api/engine/v2/cleanup": (body) => ({ cleanup: { policy: body, running: false } }),
   });
   const { host } = await mount(
     <SettingsShell title="Settings" sections={[{ id: "storage", label: "Storage", icon: BellIcon }]} active="storage" onSelect={() => {}}>
       <CleanupSection />
     </SettingsShell>,
   );
-  await flush(() => calls.some((call) => call.route === "GET /api/cleanup"));
+  await flush(() => calls.some((call) => call.route === "GET /api/engine/v2/cleanup"));
   await click(buttonLabelled("Restore defaults", host));
-  expect(calls.filter((call) => call.route === "PUT /api/cleanup").map((call) => call.body)).toEqual([DEFAULT_CLEANUP_POLICY]);
+  expect(calls.filter((call) => call.route === "PUT /api/engine/v2/cleanup").map((call) => call.body)).toEqual([DEFAULT_CLEANUP_POLICY]);
 });

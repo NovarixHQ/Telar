@@ -8,8 +8,8 @@ installTestDom();
 
 async function row(delegationMode: string) {
   const calls = stubFetch({
-    "GET /api/session-defaults": () => ({ sessionDefaults: { envMode: "local", delegationMode } }),
-    "PATCH /api/session-defaults": (body) => ({ sessionDefaults: { envMode: "local", delegationMode, ...(body as object) } }),
+    "GET /api/engine/v2/session-defaults": () => ({ sessionDefaults: { envMode: "local", delegationMode } }),
+    "PATCH /api/engine/v2/session-defaults": (body) => ({ sessionDefaults: { envMode: "local", delegationMode, ...(body as object) } }),
   });
   const { host } = await mount(
     <SettingsShell title="Settings" sections={[{ id: "general", label: "General", icon: BellIcon }]} active="general" onSelect={() => {}}>
@@ -21,7 +21,7 @@ async function row(delegationMode: string) {
   return { host, calls, trigger: () => trigger()! };
 }
 
-const patches = (calls: { route: string; body?: unknown }[]) => calls.filter((call) => call.route === "PATCH /api/session-defaults").map((call) => call.body);
+const patches = (calls: { route: string; body?: unknown }[]) => calls.filter((call) => call.route === "PATCH /api/engine/v2/session-defaults").map((call) => call.body);
 
 test("the host's mode is shown with what it means, and choosing Conservative saves it", async () => {
   const { host, calls, trigger } = await row("normal");

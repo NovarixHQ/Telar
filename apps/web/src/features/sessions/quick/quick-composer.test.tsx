@@ -58,26 +58,26 @@ function wire() {
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : init?.body;
     const hosted = /^\/api\/engine\/v2\/hosts\/([^/]+)\/api(\/.*)$/.exec(raw);
     const host = hosted ? remotes.find((each) => each.id === decodeURIComponent(hosted[1]!)) : undefined;
-    const url = hosted ? `/api${hosted[2]}` : raw;
+    const url = hosted ? `/api/engine/v2${hosted[2]}` : raw;
     calls.push({ method, url: raw, body });
-    if (raw === "/api/hosts") return Response.json({ hosts: remotes.map(({ id, name }) => ({ id, name, baseUrl: `https://${id}`, addedAt: 1 })) });
-    if (url.startsWith("/api/inbox")) return Response.json({ inbox: {} });
-    const create = /\/api\/projects\/(project_\d)\/sessions$/.exec(url);
+    if (raw === "/api/engine/v2/hosts") return Response.json({ hosts: remotes.map(({ id, name }) => ({ id, name, baseUrl: `https://${id}`, addedAt: 1 })) });
+    if (url.startsWith("/api/engine/v2/inbox")) return Response.json({ inbox: {} });
+    const create = /\/api\/(?:engine\/v2\/)?projects\/(project_\d)\/sessions$/.exec(url);
     if (method === "POST" && create) return Response.json({ session: { ...session(body.id, body.title), projectId: create[1] } });
-    if (url.includes("/api/sessions/live")) return Response.json({ sessions: host?.sessions ?? LIVE, projects: host?.projects ?? PROJECTS, daemonId: host?.id ?? "local-engine" });
+    if (url.includes("/api/engine/v2/sessions/live")) return Response.json({ sessions: host?.sessions ?? LIVE, projects: host?.projects ?? PROJECTS, daemonId: host?.id ?? "local-engine" });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
     if (url.includes("/bootstrap") || (url.includes("/sessions/") && url.includes("turns="))) {
       return Response.json({ session: { ...LIVE.find((row) => row.id === id), environmentId: "env", providerInstanceId: "claude", envMode: "local" }, turns: journal[id] ?? [], items: [], tasks: [], requests: [], cursor: 1, events: [], subscriptions: [] });
     }
     if (url.includes("/events")) return Response.json({ events: [], cursor: 1, more: false });
-    if (url.includes("/api/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
+    if (url.includes("/api/engine/v2/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
     if (url.includes("/attachments")) return Response.json({ attachment: { id: `att_${calls.length}` } });
     if (url.includes("/turns")) {
       if (method === "POST" && journal[id]) journal[id] = [...journal[id], turn(id, journal[id].length + 1, body.input, "running")];
       return Response.json({ runId: "run_1", state: "queued" });
     }
-    if (url.includes("/api/projects")) return Response.json({ projects: host?.projects ?? PROJECTS });
-    if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
+    if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: host?.projects ?? PROJECTS });
+    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
     if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;
@@ -182,7 +182,7 @@ describe("the quick composer", () => {
     const { host, sent } = await open(front(GRANTED));
     await typeAndPress(host, "Review this PR");
     const { id } = created();
-    expect(calls.find((call) => call.url.endsWith(`/api/sessions/${id}/turns`))?.body).toMatchObject({ input: "Review this PR" });
+    expect(calls.find((call) => call.url.endsWith(`/api/engine/v2/sessions/${id}/turns`))?.body).toMatchObject({ input: "Review this PR" });
     expect(sent).toEqual([{ route: `/projects/project_1/sessions/${id}`, title: "Review this PR", detail: "Telar", open: false }]);
   });
 
@@ -457,14 +457,14 @@ describe("the # destination picker", () => {
     await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Shall I run it?") ?? false);
     const card = host.querySelector('[data-slot="quick-destination"]')!;
     expect(card.textContent).toContain("Sales dashboard and checkout");
-    expect(card.querySelector("img")?.getAttribute("src")).toBe("/api/projects/project_2/icon?v=k2");
+    expect(card.querySelector("img")?.getAttribute("src")).toBe("/api/engine/v2/projects/project_2/icon?v=k2");
     expect(card.textContent).toContain("exoplanets · Waiting on you");
     const transcript = card.querySelector('[data-slot="live-transcript"]')!;
     expect(transcript.textContent).toContain("Can you check the build?");
     expect(transcript.textContent).not.toContain("**");
     expect(host.querySelector('[role="listbox"]')).toBeNull();
     await typeAndPress(host, "Yes, go ahead", { metaKey: true });
-    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/sessions/s_sales/turns"))?.body).toMatchObject({ input: "Yes, go ahead" });
+    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/sessions/s_sales/turns"))?.body).toMatchObject({ input: "Yes, go ahead" });
     expect(calls.some((call) => call.method === "POST" && /\/api\/projects\/.*\/sessions$/.test(call.url))).toBe(false);
     expect(sent).toEqual([{ route: "/projects/project_2/sessions/s_sales", title: "Sales dashboard and checkout", detail: "exoplanets", open: true }]);
   });
@@ -722,7 +722,7 @@ describe("the strip of conversations that need you", () => {
     await flush(() => host.querySelector('[data-slot="live-transcript"]')?.textContent?.includes("Waiting for your go-ahead") ?? false);
     await typeAndPress(host, "Go ahead", { metaKey: true });
     expect(calls.find((call) => call.method === "POST" && call.url === "/api/engine/v2/hosts/host_b/api/sessions/s_remote/turns")?.body).toMatchObject({ input: "Go ahead" });
-    expect(calls.some((call) => call.method === "POST" && call.url === "/api/sessions/s_remote/turns")).toBe(false);
+    expect(calls.some((call) => call.method === "POST" && call.url === "/api/engine/v2/sessions/s_remote/turns")).toBe(false);
     expect(sent).toEqual([{ route: "/hosts/host_b/projects/project_9/sessions/s_remote", title: "Remote build question", detail: "exoplanets", open: true }]);
   });
 

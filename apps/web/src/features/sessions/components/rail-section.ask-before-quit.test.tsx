@@ -8,8 +8,8 @@ installTestDom();
 
 async function row(askBeforeQuit?: boolean) {
   const calls = stubFetch({
-    "GET /api/session-defaults": () => ({ sessionDefaults: { envMode: "local", ...(askBeforeQuit === undefined ? {} : { askBeforeQuit }) } }),
-    "PATCH /api/session-defaults": (body) => ({ sessionDefaults: { envMode: "local", ...(body as object) } }),
+    "GET /api/engine/v2/session-defaults": () => ({ sessionDefaults: { envMode: "local", ...(askBeforeQuit === undefined ? {} : { askBeforeQuit }) } }),
+    "PATCH /api/engine/v2/session-defaults": (body) => ({ sessionDefaults: { envMode: "local", ...(body as object) } }),
   });
   const { host } = await mount(
     <SettingsShell title="Settings" sections={[{ id: "general", label: "General", icon: BellIcon }]} active="general" onSelect={() => {}}>
@@ -17,9 +17,9 @@ async function row(askBeforeQuit?: boolean) {
     </SettingsShell>,
   );
   const toggle = () => host.querySelector<HTMLElement>('[aria-label="Ask before quitting while sessions work"]')!;
-  await flush(() => calls.some((call) => call.route === "GET /api/session-defaults"));
+  await flush(() => calls.some((call) => call.route === "GET /api/engine/v2/session-defaults"));
   await flush();
-  const patches = () => calls.filter((call) => call.route === "PATCH /api/session-defaults").map((call) => call.body);
+  const patches = () => calls.filter((call) => call.route === "PATCH /api/engine/v2/session-defaults").map((call) => call.body);
   return { host, toggle, patches };
 }
 

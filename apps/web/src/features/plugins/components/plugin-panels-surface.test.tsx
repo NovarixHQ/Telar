@@ -44,7 +44,7 @@ beforeEach(() => {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    if (url.endsWith("/api/sessions/stream")) return stream.answer(init?.signal);
+    if (url.endsWith("/api/engine/v2/sessions/stream")) return stream.answer(init?.signal);
     posted.push({ url, body });
     if (url.endsWith("/plugins/echo/clear")) {
       cleared += 1;
@@ -116,7 +116,7 @@ const button = (host: HTMLElement, label: string) =>
 describe("a panel's blocks", () => {
   test("each kind renders, and one this build does not know is skipped", async () => {
     const { host, done } = await mount();
-    expect(posted[0]?.url).toBe("/api/sessions/session_one/plugins/echo/status");
+    expect(posted[0]?.url).toBe("/api/engine/v2/sessions/session_one/plugins/echo/status");
     expect(host.querySelector("h3")?.textContent).toBe("Jobs");
     expect(host.textContent).toContain("Cleared 0 times");
     expect(host.querySelector("dt")?.textContent).toBe("Queue");
@@ -154,7 +154,7 @@ describe("LaTeX's compile panel, drawn from its blocks", () => {
   test("a problem and the PDF open their file; the log stays folded until asked", async () => {
     const opened: string[] = [];
     const { host, done } = await mount(LATEX, (path) => opened.push(path));
-    expect(posted[0]?.url).toBe("/api/sessions/session_one/plugins/latex/panel");
+    expect(posted[0]?.url).toBe("/api/engine/v2/sessions/session_one/plugins/latex/panel");
     expect(host.textContent).toContain("Failed · main.tex");
     await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Undefined control sequence."))!.click());
     await act(async () => [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Open PDF"))!.click());

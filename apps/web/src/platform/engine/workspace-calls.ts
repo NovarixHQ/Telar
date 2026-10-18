@@ -19,13 +19,13 @@ import { request } from "./transport";
 export function workspaceCalls(fetcher: Fetcher) {
   return {
     projectFiles: (projectId: string) =>
-      request<{ listing: WorkspaceListing }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/files`),
+      request<{ listing: WorkspaceListing }>(fetcher, "GET", `/v2/projects/${encodeURIComponent(projectId)}/files`),
     sessionFiles: (sessionId: string) =>
-      request<{ listing: WorkspaceListing }>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/files`),
+      request<{ listing: WorkspaceListing }>(fetcher, "GET", `/v2/sessions/${encodeURIComponent(sessionId)}/files`),
     projectDirectory: (projectId: string, dir: string) =>
-      request<{ directory: WorkspaceDirectory }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/files?${new URLSearchParams({ dir }).toString()}`),
+      request<{ directory: WorkspaceDirectory }>(fetcher, "GET", `/v2/projects/${encodeURIComponent(projectId)}/files?${new URLSearchParams({ dir }).toString()}`),
     sessionDirectory: (sessionId: string, dir: string) =>
-      request<{ directory: WorkspaceDirectory }>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ dir }).toString()}`),
+      request<{ directory: WorkspaceDirectory }>(fetcher, "GET", `/v2/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ dir }).toString()}`),
     /**
      * The provider's own skills and slash commands, for the composer's `$` and
      * `/` menus. Asked when a menu first opens and cached by the caller for the
@@ -33,12 +33,12 @@ export function workspaceCalls(fetcher: Fetcher) {
      * cost of asking twice is a round trip rather than a subprocess.
      */
     sessionSkills: (sessionId: string) =>
-      request<ProviderSkills>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/skills`),
+      request<ProviderSkills>(fetcher, "GET", `/v2/sessions/${encodeURIComponent(sessionId)}/skills`),
     claudeConversations: (instanceId?: string) =>
       request<{ conversations: ClaudeConversation[] }>(
         fetcher,
         "GET",
-        `/api/claude-conversations${instanceId ? `?${new URLSearchParams({ instanceId }).toString()}` : ""}`,
+        `/v2/claude-conversations${instanceId ? `?${new URLSearchParams({ instanceId }).toString()}` : ""}`,
       ),
     /** Adopt one: fork it, import its history, and point this session's next
      *  turn at the fork. The person's own conversation is not written to. */
@@ -46,7 +46,7 @@ export function workspaceCalls(fetcher: Fetcher) {
       request<{ session: Session; turn: Turn; provenance: ConversationImportDetail }>(
         fetcher,
         "POST",
-        `/api/sessions/${encodeURIComponent(sessionId)}/adopt`,
+        `/v2/sessions/${encodeURIComponent(sessionId)}/adopt`,
         { sourceSessionId },
       ),
     /**
@@ -58,32 +58,32 @@ export function workspaceCalls(fetcher: Fetcher) {
       request<ProviderSkills>(
         fetcher,
         "GET",
-        `/api/projects/${encodeURIComponent(projectId)}/skills${driver ? `?${new URLSearchParams({ driver }).toString()}` : ""}`,
+        `/v2/projects/${encodeURIComponent(projectId)}/skills${driver ? `?${new URLSearchParams({ driver }).toString()}` : ""}`,
       ),
     projectFile: (projectId: string, path: string) =>
       request<{ file: WorkspaceFile }>(
         fetcher,
         "GET",
-        `/api/projects/${encodeURIComponent(projectId)}/files?${new URLSearchParams({ path }).toString()}`,
+        `/v2/projects/${encodeURIComponent(projectId)}/files?${new URLSearchParams({ path }).toString()}`,
       ),
     sessionFile: (sessionId: string, path: string) =>
       request<{ file: WorkspaceFile }>(
         fetcher,
         "GET",
-        `/api/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ path }).toString()}`,
+        `/v2/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ path }).toString()}`,
       ),
     writeProjectFile: (projectId: string, path: string, text: string, expectedSha256: string) =>
       request<WorkspaceWriteResult>(
         fetcher,
         "PUT",
-        `/api/projects/${encodeURIComponent(projectId)}/files?${new URLSearchParams({ path }).toString()}`,
+        `/v2/projects/${encodeURIComponent(projectId)}/files?${new URLSearchParams({ path }).toString()}`,
         { text, expectedSha256 },
       ),
     writeSessionFile: (sessionId: string, path: string, text: string, expectedSha256: string) =>
       request<WorkspaceWriteResult>(
         fetcher,
         "PUT",
-        `/api/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ path }).toString()}`,
+        `/v2/sessions/${encodeURIComponent(sessionId)}/files?${new URLSearchParams({ path }).toString()}`,
         { text, expectedSha256 },
       ),
   };
@@ -98,17 +98,17 @@ export function integrationCalls(fetcher: Fetcher) {
       if (options.screenshot) query.set("screenshot", "1");
       if (options.start) query.set("start", "1");
       const suffix = query.size > 0 ? `?${query.toString()}` : "";
-      return request<{ browser: BrowserSnapshot }>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/browser${suffix}`);
+      return request<{ browser: BrowserSnapshot }>(fetcher, "GET", `/v2/sessions/${encodeURIComponent(sessionId)}/browser${suffix}`);
     },
     /** Open a page in the session's browser as the human — the engine's door,
      *  for a client with no native shell (a remote cockpit, a phone). */
     browserOpen: (sessionId: string, url: string) =>
-      request<{ browser: BrowserSnapshot }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/browser/open`, { url }),
+      request<{ browser: BrowserSnapshot }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/browser/open`, { url }),
     providerInstances: (options: { refresh?: boolean } = {}) =>
       request<{ providerInstances: ProviderInstance[]; probes: ProviderProbe[] }>(
         fetcher,
         "GET",
-        `/api/provider-instances${options.refresh ? "?refresh=1" : ""}`,
+        `/v2/provider-instances${options.refresh ? "?refresh=1" : ""}`,
       ),
     saveProviderInstance: (input: {
       id: string;
@@ -131,13 +131,13 @@ export function integrationCalls(fetcher: Fetcher) {
       request<{ providerInstance: ProviderInstance; stoppedInheriting?: string[] }>(
         fetcher,
         "PUT",
-        "/api/provider-instances",
+        "/v2/provider-instances",
         input,
       ),
-    agentCatalog: (options: { refresh?: boolean } = {}) => request<AgentCatalog>(fetcher, "GET", `/api/agent-catalog${options.refresh ? "?refresh=1" : ""}`),
+    agentCatalog: (options: { refresh?: boolean } = {}) => request<AgentCatalog>(fetcher, "GET", `/v2/agent-catalog${options.refresh ? "?refresh=1" : ""}`),
     installAgent: (agentId: string) =>
-      request<{ providerInstance: ProviderInstance }>(fetcher, "POST", `/api/agent-catalog/${encodeURIComponent(agentId)}/install`, {}),
+      request<{ providerInstance: ProviderInstance }>(fetcher, "POST", `/v2/agent-catalog/${encodeURIComponent(agentId)}/install`, {}),
     providerLimits: (instanceId: string) =>
-      request<{ windows: UsageLimitWindow[] }>(fetcher, "GET", `/api/provider-instances/${encodeURIComponent(instanceId)}/limits`),
+      request<{ windows: UsageLimitWindow[] }>(fetcher, "GET", `/v2/provider-instances/${encodeURIComponent(instanceId)}/limits`),
   };
 }

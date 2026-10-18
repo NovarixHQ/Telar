@@ -60,10 +60,10 @@ function shell(status: UpdateStatus, terminals = { count: 0, commands: [] as str
 function engine(activities: string[]) {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/api/sessions/live")) {
+    if (url.includes("/api/engine/v2/sessions/live")) {
       return Response.json({ sessions: activities.map((activity, index) => ({ id: `session_${index}`, activity })), projects: [] });
     }
-    if (url.includes("/api/session-defaults")) {
+    if (url.includes("/api/engine/v2/session-defaults")) {
       if (init?.method === "PATCH") {
         const patch = JSON.parse(String(init.body));
         defaultsPatches.push(patch);

@@ -16,6 +16,7 @@ TurnSubmissionResult,PluginStatus,
 ProjectPlugins
 } from "@telar/engine-client";
 import { snapshotQuery } from "@telar/engine-client";
+import { cockpitPath } from "./cockpit-path";
 import { EngineApiError, opens, request, requestIfChanged, type EngineApiErrorCode } from "./transport";
 import type { Fetcher } from "./host-client";
 import type { LiveSessionsPage } from "./client";
@@ -26,38 +27,38 @@ type LiveScope = { all?: boolean; shelf?: boolean };
 
 // An engine that predates `shelf` reads it as `all`, which still carries every settled row.
 const livePath = ({ all, shelf }: LiveScope): string =>
-  shelf ? "/api/sessions/live?all=1&shelf=1" : all ? "/api/sessions/live?all=1" : "/api/sessions/live";
+  shelf ? "/v2/sessions/live?all=1&shelf=1" : all ? "/v2/sessions/live?all=1" : "/v2/sessions/live";
 
 /** The cockpit's own sessions calls: the ones no package domain client covers yet. */
 export function sessionCalls(fetcher: Fetcher) {
   return {
     sessions: (projectId: string) =>
-      request<{ sessions: Session[] }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/sessions`),
-    machinePlugins: () => request<{ plugins: PluginStatus[]; machine: ProjectPlugins }>(fetcher, "GET", "/api/plugins"),
+      request<{ sessions: Session[] }>(fetcher, "GET", `/v2/projects/${encodeURIComponent(projectId)}/sessions`),
+    machinePlugins: () => request<{ plugins: PluginStatus[]; machine: ProjectPlugins }>(fetcher, "GET", "/v2/plugins"),
     installPlugin: (input: { path: string; mode: "copy" | "link" }) =>
-      request<{ plugin: PluginStatus }>(fetcher, "POST", "/api/plugins/installed", input),
-    uninstallPlugin: (id: string) => request<{ removed: true }>(fetcher, "DELETE", `/api/plugins/installed/${encodeURIComponent(id)}`),
+      request<{ plugin: PluginStatus }>(fetcher, "POST", "/v2/plugins/installed", input),
+    uninstallPlugin: (id: string) => request<{ removed: true }>(fetcher, "DELETE", `/v2/plugins/installed/${encodeURIComponent(id)}`),
     /** Any plugin's session verb, through the generic door. */
     sessionPluginVerb: (sessionId: string, plugin: string, verb: string, input: Record<string, unknown> = {}) =>
-      request<unknown>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/plugins/${encodeURIComponent(plugin)}/${verb.split("/").map(encodeURIComponent).join("/")}`, input),
+      request<unknown>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/plugins/${encodeURIComponent(plugin)}/${verb.split("/").map(encodeURIComponent).join("/")}`, input),
     /** Any plugin's project or machine route; `projectId` absent means this Mac's. */
     scopedPluginRoute: (scope: { projectId?: string }, plugin: string, method: "GET" | "POST", verb: string, input: Record<string, unknown> = {}) =>
       request<unknown>(
         fetcher,
         method,
-        `/api/${scope.projectId ? `projects/${encodeURIComponent(scope.projectId)}/` : ""}plugins/${encodeURIComponent(plugin)}/${encodeURIComponent(verb)}`,
+        `/v2/${scope.projectId ? `projects/${encodeURIComponent(scope.projectId)}/` : ""}plugins/${encodeURIComponent(plugin)}/${encodeURIComponent(verb)}`,
         method === "POST" ? input : undefined,
       ),
     updateMachinePlugins: (plugins: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>) =>
-      request<{ machine: ProjectPlugins }>(fetcher, "PATCH", "/api/plugins", { plugins }),
+      request<{ machine: ProjectPlugins }>(fetcher, "PATCH", "/v2/plugins", { plugins }),
     liveSessions: (options: LiveScope = {}) => request<LiveSessionsPage>(fetcher, "GET", livePath(options)),
     projectActivity: () =>
-      request<{ projects: Array<{ projectId: string; updatedAt: number }> }>(fetcher, "GET", "/api/sessions/activity"),
+      request<{ projects: Array<{ projectId: string; updatedAt: number }> }>(fetcher, "GET", "/v2/sessions/activity"),
     liveSessionsSince: (since: number) =>
       request<LiveSessionsPage | { unchanged: true; revision: number; daemonId?: string }>(
         fetcher,
         "GET",
-        `/api/sessions/live?since=${encodeURIComponent(String(since))}`,
+        `/v2/sessions/live?since=${encodeURIComponent(String(since))}`,
       ),
     liveSessionsMatching: async (
       options: LiveScope & { etag?: string } = {},
@@ -80,23 +81,23 @@ export function sessionCalls(fetcher: Fetcher) {
         branchName?: string;
       } = {},
     ) =>
-      request<{ session: Session }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/sessions`, input),
+      request<{ session: Session }>(fetcher, "POST", `/v2/projects/${encodeURIComponent(projectId)}/sessions`, input),
     // The contract's own snapshot type, not a hand-copied structural twin: this
     // route proxies the engine verbatim, so a field the engine adds is already
     // arriving and a local re-declaration only hides it.
     session: (sessionId: string, window?: SnapshotWindow) =>
-      request<SessionSnapshot>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}${snapshotQuery(window)}`),
+      request<SessionSnapshot>(fetcher, "GET", `/v2/sessions/${encodeURIComponent(sessionId)}${snapshotQuery(window)}`),
     sessionBootstrap: (sessionId: string, window?: SnapshotWindow) =>
       request<SessionBootstrap>(
         fetcher,
         "GET",
-        `/api/sessions/${encodeURIComponent(sessionId)}/bootstrap${snapshotQuery(window)}`,
+        `/v2/sessions/${encodeURIComponent(sessionId)}/bootstrap${snapshotQuery(window)}`,
         undefined,
         undefined,
         opens,
       ),
     sessionDelta: (sessionId: string, after: number) =>
-      request<SessionDelta>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/delta?after=${after}`, undefined, undefined, opens),
+      request<SessionDelta>(fetcher, "GET", `/v2/sessions/${encodeURIComponent(sessionId)}/delta?after=${after}`, undefined, undefined, opens),
     /** Rename, change the model, or change what the session may do without
      *  asking. The model must belong to the session's provider instance — the
      *  engine rejects anything else, because a turn is routed by that instance
@@ -113,9 +114,9 @@ export function sessionCalls(fetcher: Fetcher) {
         settledOverride?: "settled" | "active" | null;
         snoozedUntil?: number | null;
       },
-    ) => request<{ session: Session; ended?: SessionSettleEnded }>(fetcher, "PATCH", `/api/sessions/${encodeURIComponent(sessionId)}`, patch),
+    ) => request<{ session: Session; ended?: SessionSettleEnded }>(fetcher, "PATCH", `/v2/sessions/${encodeURIComponent(sessionId)}`, patch),
     markSessionRead: (sessionId: string, runId: string) =>
-      request<{ session: Session }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/read`, { runId }),
+      request<{ session: Session }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/read`, { runId }),
   };
 }
 
@@ -123,26 +124,26 @@ export function turnCalls(fetcher: Fetcher) {
   return {
     /** Computer use, measured — slow by design (one subprocess round trip in
      *  the engine). A granted answer is also what lets sessions claim the tools. */
-    computerUseStatus: () => request<{ computerUse: ComputerUseStatus }>(fetcher, "GET", "/api/computer-use"),
+    computerUseStatus: () => request<{ computerUse: ComputerUseStatus }>(fetcher, "GET", "/v2/computer-use"),
     /** Asks macOS for the grants — through Telar's bundled helper when there
      *  is one, else through an external cua install. */
-    grantComputerUseAccess: () => request<ComputerUseGrant>(fetcher, "POST", "/api/computer-use/grant", {}),
+    grantComputerUseAccess: () => request<ComputerUseGrant>(fetcher, "POST", "/v2/computer-use/grant", {}),
     /** Shows the bundled helper in Finder, to drag into a Settings list. */
-    revealComputerUseHelper: () => request<{ revealed: boolean }>(fetcher, "POST", "/api/computer-use/reveal", {}),
+    revealComputerUseHelper: () => request<{ revealed: boolean }>(fetcher, "POST", "/v2/computer-use/reveal", {}),
     /** Clears the bundled helper's grants only; `reset: false` without one. */
     resetComputerUseAccess: () =>
-      request<{ reset: boolean; message?: string }>(fetcher, "POST", "/api/computer-use/reset", {}),
+      request<{ reset: boolean; message?: string }>(fetcher, "POST", "/v2/computer-use/reset", {}),
     regenerateSessionTitle: (sessionId: string) =>
-      request<{ session: Session; changed: boolean }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/regenerate-title`, {}),
+      request<{ session: Session; changed: boolean }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/regenerate-title`, {}),
     handOffSession: (sessionId: string, to?: string) =>
-      request<{ session: Session }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/handoff`, to ? { to } : {}),
+      request<{ session: Session }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/handoff`, to ? { to } : {}),
     /** End a session and free its worktree. The branch survives. */
     archiveSession: (sessionId: string) =>
-      request<{ session: Session }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/archive`, {}),
+      request<{ session: Session }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/archive`, {}),
     /** REMOVE A SESSION AND EVERYTHING IT OWNS — transcript included. No undo,
      *  and the engine refuses while a turn is in flight. */
     deleteSession: (sessionId: string) =>
-      request<{ deleted: boolean }>(fetcher, "DELETE", `/api/sessions/${encodeURIComponent(sessionId)}`),
+      request<{ deleted: boolean }>(fetcher, "DELETE", `/v2/sessions/${encodeURIComponent(sessionId)}`),
     /** `answers` is only meaningful for a `user_input` request — the route has
      *  always forwarded it; this signature simply never offered it, so the one
      *  request kind that asks a question could not be answered from the UI. */
@@ -151,7 +152,7 @@ export function turnCalls(fetcher: Fetcher) {
       requestId: string,
       input: { decision: RequestDecision; reason?: string; answers?: Record<string, unknown> },
     ) =>
-      request<{ request: EngineRequest }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/requests/${encodeURIComponent(requestId)}`, input),
+      request<{ request: EngineRequest }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/requests/${encodeURIComponent(requestId)}`, input),
     /**
      * ONE PAGE of the journal above `after` (#494). `more` true is ordinary,
      * not an error — see `drainEvents` in `session-sync.ts` for the loop.
@@ -160,17 +161,17 @@ export function turnCalls(fetcher: Fetcher) {
       request<EventPage>(
         fetcher,
         "GET",
-        `/api/sessions/${encodeURIComponent(sessionId)}/events?after=${after}${limit === undefined ? "" : `&limit=${limit}`}`,
+        `/v2/sessions/${encodeURIComponent(sessionId)}/events?after=${after}${limit === undefined ? "" : `&limit=${limit}`}`,
       ),
     /** `model` rides with THIS message — queue three with different models and
      *  each runs on the one it was written under. It cannot name a provider
      *  instance, so the session's provider is fixed for its whole life. */
     submitTurn: (sessionId: string, input: { runId: string; input: string; kind?: "message" | "compact"; model?: TurnModelSelection; attachments?: string[] }) =>
-      request<TurnSubmissionResult>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns`, input),
+      request<TurnSubmissionResult>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/turns`, input),
     uploadAttachment: async (sessionId: string, file: File): Promise<{ attachment: TurnAttachment }> => {
       let response: Response;
       try {
-        response = await fetcher(`/api/sessions/${encodeURIComponent(sessionId)}/attachments`, {
+        response = await fetcher(cockpitPath(`/v2/sessions/${encodeURIComponent(sessionId)}/attachments`, "POST"), {
           method: "POST",
           headers: {
             "content-type": file.type || "application/octet-stream",
@@ -190,41 +191,41 @@ export function turnCalls(fetcher: Fetcher) {
       return payload as { attachment: TurnAttachment };
     },
     stopTurn: (sessionId: string, runId?: string) =>
-      request<{ turn?: Turn; stopped: boolean }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/stop`, { runId }),
+      request<{ turn?: Turn; stopped: boolean }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/stop`, { runId }),
     /** THE STOP BUTTON: end the live turn and settle what was waiting behind
      *  it, leaving the session idle. No latch — the next message just runs. */
     stopSession: (sessionId: string) =>
-      request<{ stopped: Turn[]; live?: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/stop`, { scope: "session", commandId: randomUuid() }),
+      request<{ stopped: Turn[]; live?: Turn }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/stop`, { scope: "session", commandId: randomUuid() }),
     /** Deprecated compatibility alias for session Stop; never creates a latch. */
     pauseSession: (sessionId: string) =>
-      request<{ session: Session; stopped?: Turn; held: number; already: boolean }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/pause`, {}),
+      request<{ session: Session; stopped?: Turn; held: number; already: boolean }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/pause`, {}),
     resumeSession: (sessionId: string) =>
-      request<{ session: Session; released: number; already: boolean }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/resume`, {}),
+      request<{ session: Session; released: number; already: boolean }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/resume`, {}),
     stopBackgroundTasks: (sessionId: string) =>
-      request<{ stopped: number }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/stop-background`, {}),
+      request<{ stopped: number }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/stop-background`, {}),
     /** What Settle would close, asked as a menu opens (#883). */
     sessionTerminals: (sessionId: string) =>
-      request<{ open: number }>(fetcher, "GET", `/api/sessions/${encodeURIComponent(sessionId)}/terminals`),
+      request<{ open: number }>(fetcher, "GET", `/v2/sessions/${encodeURIComponent(sessionId)}/terminals`),
     /** Close a session's terminals, as the person (#883). */
     closeSessionTerminals: (sessionId: string) =>
-      request<{ closed: number }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/terminals/close`, {}),
+      request<{ closed: number }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/terminals/close`, {}),
     discardAmbiguousTurn: (sessionId: string, runId: string) =>
-      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/discard`, {}),
+      request<{ turn: Turn }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/discard`, {}),
     /** Run a message recovery held, now that a person has re-read it. Dropping
      *  one instead is `stopTurn` — it is still an ordinary queued turn. */
     releaseHeldTurn: (sessionId: string, runId: string) =>
-      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/release`, {}),
+      request<{ turn: Turn }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/release`, {}),
     /** RESUME NOW: run a turn that is waiting out a usage limit, without
      *  waiting for the reset. The engine does not check the clock — the person
      *  pressing this may know the limit has already lifted. */
     resumeRateLimitedTurn: (sessionId: string, runId: string) =>
-      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/resume`, {}),
+      request<{ turn: Turn }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/resume`, {}),
     /** SEND NOW: promote a queued message into the running turn. */
     promoteTurn: (sessionId: string, runId: string) =>
-      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/promote`, {}),
+      request<{ turn: Turn }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/promote`, {}),
     editQueuedTurn: (sessionId: string, runId: string, input: string) =>
-      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/edit`, { input }),
+      request<{ turn: Turn }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/edit`, { input }),
     moveQueuedTurn: (sessionId: string, runId: string, beforeRunId: string | null) =>
-      request<{ turn: Turn }>(fetcher, "POST", `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/move`, { beforeRunId }),
+      request<{ turn: Turn }>(fetcher, "POST", `/v2/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(runId)}/move`, { beforeRunId }),
   };
 }

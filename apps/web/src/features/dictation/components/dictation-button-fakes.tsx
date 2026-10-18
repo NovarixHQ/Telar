@@ -144,7 +144,7 @@ function installBrowserFakes(): void {
   });
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(typeof input === "object" && "url" in input ? input.url : input);
-    if (url.includes("/api/dictation/token")) {
+    if (url.includes("/api/engine/v2/dictation/token")) {
       tokenCalls += 1;
       return Response.json({ provider: "deepgram", token: "jwt-abc", expiresAt: Date.now() + 300_000, language: knobs.language, keyterms: knobs.keyterms });
     }

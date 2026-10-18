@@ -60,14 +60,14 @@ const ON = ["notes"];
 async function composer(initial: string, shout: (body: { text: string }) => unknown = ({ text }) => ({ text: `${text.toUpperCase()}!` }), enabled: readonly string[] = ON) {
   const sent: string[] = [];
   const calls = stubFetch({
-    "GET /api/plugins": () => ({ plugins: [NOTES], machine: { version: 1, entries: {} } }),
-    "POST /api/sessions/session_a/plugins/notes/shout": (body) => shout(body as { text: string }),
-    "GET /api/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: [], source: "git", truncated: false, readAt: 0 } }),
-    "GET /api/sessions/live": () => ({ sessions: [], projects: [] }),
-    "GET /api/projects/project_a/skills": () => ({ skills: [], commands: [] }),
+    "GET /api/engine/v2/plugins": () => ({ plugins: [NOTES], machine: { version: 1, entries: {} } }),
+    "POST /api/engine/v2/sessions/session_a/plugins/notes/shout": (body) => shout(body as { text: string }),
+    "GET /api/engine/v2/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: [], source: "git", truncated: false, readAt: 0 } }),
+    "GET /api/engine/v2/sessions/live": () => ({ sessions: [], projects: [] }),
+    "GET /api/engine/v2/projects/project_a/skills": () => ({ skills: [], commands: [] }),
   });
   const { host } = await mount(<Box initial={initial} enabled={enabled} onSend={(draft) => sent.push(draft)} />);
-  await flush(() => calls.some((call) => call.route === "GET /api/plugins"));
+  await flush(() => calls.some((call) => call.route === "GET /api/engine/v2/plugins"));
   await flush();
   const editor = host.querySelector<HTMLElement>("[data-slot=composer-editor]")!;
   act(() => {

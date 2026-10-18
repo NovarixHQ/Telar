@@ -70,7 +70,7 @@ describe("the session's schedules", () => {
   test("renders nothing when the session has no schedules", async () => {
     stub([]);
     await mount();
-    expect(calls).toEqual([{ method: "GET", url: "/api/schedules?sessionId=session_1" }]);
+    expect(calls).toEqual([{ method: "GET", url: "/api/engine/v2/schedules?sessionId=session_1" }]);
     expect(host!.innerHTML).toBe("");
   });
 
@@ -98,7 +98,7 @@ describe("the session's schedules", () => {
       deletes[0]!.click();
       await settle();
     });
-    expect(calls.at(-1)).toEqual({ method: "DELETE", url: "/api/schedules/sched_1" });
+    expect(calls.at(-1)).toEqual({ method: "DELETE", url: "/api/engine/v2/schedules/sched_1" });
     expect(document.body.textContent).not.toContain("daily digest");
     expect(host!.querySelector("button")!.getAttribute("aria-label")).toBe("1 schedule");
   });

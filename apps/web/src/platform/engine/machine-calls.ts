@@ -28,7 +28,7 @@ import { request } from "./transport";
 /** The cockpit's own machine calls: the ones no package domain client covers yet. */
 export function machineCalls(fetcher: Fetcher) {
   return {
-    health: () => request<EngineHealth>(fetcher, "GET", "/api/health"),
+    health: () => request<EngineHealth>(fetcher, "GET", "/v2/health"),
     /** Which build this is, what it looks like, and where its state lives.
      *  Deliberately does NOT go through the engine: every answer here matters
      *  most when the engine is down. `iconUrl` is absent when this layout has no
@@ -37,33 +37,33 @@ export function machineCalls(fetcher: Fetcher) {
       request<{ appVersion: string; appName: string; channel: Channel; iconUrl?: string; stateRoot?: string }>(
         fetcher,
         "GET",
-        "/api/about",
+        "/v2/about",
       ),
     /** `includeRemoved` also returns put-away projects, which carry `removedAt`.
      *  Only the project settings page asks for them. */
     projects: (options: { includeRemoved?: boolean } = {}) =>
-      request<{ projects: Project[] }>(fetcher, "GET", options.includeRemoved ? "/api/projects?includeRemoved=1" : "/api/projects"),
+      request<{ projects: Project[] }>(fetcher, "GET", options.includeRemoved ? "/v2/projects?includeRemoved=1" : "/v2/projects"),
     /** The other Macs this cockpit is paired with — always THIS cockpit's book,
      *  whichever host the fetcher points at (platform/engine/host-client.ts). */
-    hosts: () => request<{ hosts: PublicHost[] }>(fetcher, "GET", "/api/hosts"),
-    addHost: (input: { pairingUrl: string; name?: string }) => request<{ host: PublicHost }>(fetcher, "POST", "/api/hosts", input),
+    hosts: () => request<{ hosts: PublicHost[] }>(fetcher, "GET", "/v2/hosts"),
+    addHost: (input: { pairingUrl: string; name?: string }) => request<{ host: PublicHost }>(fetcher, "POST", "/v2/hosts", input),
     renameHost: (hostId: string, name: string) =>
-      request<{ host: PublicHost }>(fetcher, "PATCH", `/api/hosts/${encodeURIComponent(hostId)}`, { name }),
-    removeHost: (hostId: string) => request<{ ok: boolean }>(fetcher, "DELETE", `/api/hosts/${encodeURIComponent(hostId)}`),
+      request<{ host: PublicHost }>(fetcher, "PATCH", `/v2/hosts/${encodeURIComponent(hostId)}`, { name }),
+    removeHost: (hostId: string) => request<{ ok: boolean }>(fetcher, "DELETE", `/v2/hosts/${encodeURIComponent(hostId)}`),
     registerProject: (input: { name: string; root: string }) =>
-      request<{ project: Project }>(fetcher, "POST", "/api/projects", input),
+      request<{ project: Project }>(fetcher, "POST", "/v2/projects", input),
     /** Clone a repository into `parent` and register what landed, in one call —
      *  the caller cannot name the path in between, because `git clone` chooses
      *  the folder from the URL. `owner/repo` is expanded by the engine. */
     cloneProject: (input: { url: string; parent: string; name?: string }) =>
-      request<{ project: Project }>(fetcher, "POST", "/api/projects/clone", input),
+      request<{ project: Project }>(fetcher, "POST", "/v2/projects/clone", input),
     fsDirs: (input: { path?: string; hidden?: boolean; nearest?: boolean } = {}) => {
       const query = new URLSearchParams();
       if (input.path) query.set("path", input.path);
       if (input.hidden) query.set("hidden", "1");
       if (input.nearest) query.set("nearest", "1");
       const search = query.toString();
-      return request<DirectoryListing>(fetcher, "GET", search ? `/api/fs?${search}` : "/api/fs");
+      return request<DirectoryListing>(fetcher, "GET", search ? `/v2/fs?${search}` : "/v2/fs");
     },
     updateProject: (
       projectId: string,
@@ -84,17 +84,17 @@ export function machineCalls(fetcher: Fetcher) {
         plugins?: Record<string, { enabled: boolean; settings?: Record<string, unknown> } | null>;
       },
     ) =>
-      request<{ project: Project }>(fetcher, "PATCH", `/api/projects/${encodeURIComponent(projectId)}`, patch),
+      request<{ project: Project }>(fetcher, "PATCH", `/v2/projects/${encodeURIComponent(projectId)}`, patch),
     /** Remove a project from Telar. Nothing on disk is touched and the record
      *  is kept — see the engine client's `unregisterProject`. 409 while a
      *  session on it is working. */
     unregisterProject: (projectId: string) =>
-      request<{ project: Project; sessions: number }>(fetcher, "DELETE", `/api/projects/${encodeURIComponent(projectId)}`),
+      request<{ project: Project; sessions: number }>(fetcher, "DELETE", `/v2/projects/${encodeURIComponent(projectId)}`),
     /** Put a removed project back: same id, same settings, same sessions. */
     restoreProject: (projectId: string) =>
-      request<{ project: Project }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/restore`, {}),
+      request<{ project: Project }>(fetcher, "POST", `/v2/projects/${encodeURIComponent(projectId)}/restore`, {}),
     relocateProject: (projectId: string, root: string) =>
-      request<{ project: Project }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/root`, { root }),
+      request<{ project: Project }>(fetcher, "POST", `/v2/projects/${encodeURIComponent(projectId)}/root`, { root }),
   };
 }
 
@@ -102,18 +102,18 @@ export function settingsCalls(fetcher: Fetcher) {
   return {
     /** How this machine's inbox bands — the auto-settle window, or `null` for
      *  no clock at all. One answer for every client of this engine. */
-    inbox: () => request<{ inbox: InboxPolicy }>(fetcher, "GET", "/api/inbox"),
+    inbox: () => request<{ inbox: InboxPolicy }>(fetcher, "GET", "/v2/inbox"),
     setInbox: (patch: { autoSettleAfterHours?: number | null }) =>
-      request<{ inbox: InboxPolicy }>(fetcher, "PATCH", "/api/inbox", patch),
+      request<{ inbox: InboxPolicy }>(fetcher, "PATCH", "/v2/inbox", patch),
     /** How worktrees are prepared — `protocol/workspace.ts`. Both writes are
      *  whole-layer PUTs: the body IS the new layer, not a patch onto it. */
-    machineWorkspace: () => request<{ machine: WorkspaceConfig }>(fetcher, "GET", "/api/workspace"),
+    machineWorkspace: () => request<{ machine: WorkspaceConfig }>(fetcher, "GET", "/v2/workspace"),
     setMachineWorkspace: (machine: WorkspaceConfig) =>
-      request<{ machine: WorkspaceConfig }>(fetcher, "PUT", "/api/workspace", { machine }),
+      request<{ machine: WorkspaceConfig }>(fetcher, "PUT", "/v2/workspace", { machine }),
     projectWorkspace: (projectId: string) =>
-      request<{ workspace: ProjectWorkspaceView }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/workspace`),
+      request<{ workspace: ProjectWorkspaceView }>(fetcher, "GET", `/v2/projects/${encodeURIComponent(projectId)}/workspace`),
     setProjectWorkspace: (projectId: string, overrides: ProjectWorkspaceOverrides) =>
-      request<{ workspace: ProjectWorkspaceView }>(fetcher, "PUT", `/api/projects/${encodeURIComponent(projectId)}/workspace`, {
+      request<{ workspace: ProjectWorkspaceView }>(fetcher, "PUT", `/v2/projects/${encodeURIComponent(projectId)}/workspace`, {
         overrides,
       }),
     /** Choose a provider, choose a language, paste its key, or clear the key
@@ -121,31 +121,31 @@ export function settingsCalls(fetcher: Fetcher) {
      *  comes back. Any field absent leaves the stored one alone — switching
      *  providers throws away neither a key nor a language. */
     setDictation: (patch: { provider?: DictationProviderId; apiKey?: string; language?: string }) =>
-      request<DictationAnswer>(fetcher, "PATCH", "/api/dictation", patch),
+      request<DictationAnswer>(fetcher, "PATCH", "/v2/dictation", patch),
     setSidebarLayout: (patch: { projectOrder?: string[]; sessionOrder?: Record<string, string[]>; pinnedOrder?: string[]; mode?: SidebarMode }) =>
-      request<{ layout: SidebarLayout }>(fetcher, "PATCH", "/api/sidebar-layout", patch),
+      request<{ layout: SidebarLayout }>(fetcher, "PATCH", "/v2/sidebar-layout", patch),
     /** Spend over time, folded from the engine's journals. */
     usage: (input: { sinceMs: number; untilMs: number; resolution?: UsageResolution; timeZone?: string }) => {
       const query = new URLSearchParams({ since: String(input.sinceMs), until: String(input.untilMs) });
       if (input.resolution) query.set("resolution", input.resolution);
       if (input.timeZone) query.set("tz", input.timeZone);
-      return request<{ usage: UsageReport }>(fetcher, "GET", `/api/usage?${query.toString()}`);
+      return request<{ usage: UsageReport }>(fetcher, "GET", `/v2/usage?${query.toString()}`);
     },
     /** Create or replace one. An EMPTY `managementKey` keeps the stored one, so
      *  saving a row read back redacted is safe. */
     saveUsageLimitSource: (input: { id: string; label?: string | null; url?: string; managementKey?: string; enabled?: boolean }) => {
       const { id, ...patch } = input;
-      return request<{ source: UsageLimitSource }>(fetcher, "PUT", `/api/usage/sources/${encodeURIComponent(id)}`, patch);
+      return request<{ source: UsageLimitSource }>(fetcher, "PUT", `/v2/usage/sources/${encodeURIComponent(id)}`, patch);
     },
     /** Create a row, or replace one by `id`. `nextRunAt` is the ENGINE's to
      *  compute: a caller that could name it could aim a row at the past, where
      *  the grace rule would skip it for ever. */
     putSchedule: (input: { id?: string; sessionId: string; prompt: string; rule: ScheduleRule; zone: string; enabled?: boolean }) =>
-      request<{ schedule: Schedule }>(fetcher, "POST", "/api/schedules", input),
+      request<{ schedule: Schedule }>(fetcher, "POST", "/v2/schedules", input),
     /** Who writes generated titles and branch names — see `TextGenPolicy`. */
-    textGen: () => request<{ textGen: TextGenPolicy }>(fetcher, "GET", "/api/textgen"),
+    textGen: () => request<{ textGen: TextGenPolicy }>(fetcher, "GET", "/v2/textgen"),
     setTextGen: (patch: { titles?: boolean; driver?: ProviderDriverKind; model?: string | null; effort?: TextGenEffort | null }) =>
-      request<{ textGen: TextGenPolicy }>(fetcher, "PATCH", "/api/textgen", patch),
+      request<{ textGen: TextGenPolicy }>(fetcher, "PATCH", "/v2/textgen", patch),
     /** One structured completion from the policy's harness. SLOW (a cold CLI
      *  start plus a completion) and fallible — a harness that does not answer
      *  is a 502, never an empty result. `effort` asks the harness to think
@@ -154,14 +154,14 @@ export function settingsCalls(fetcher: Fetcher) {
     complete: (
       input: { prompt: string; schema: Record<string, unknown>; model?: string; effort?: "low" | "medium" | "high" },
       options: { signal?: AbortSignal } = {},
-    ) => request<{ result: Record<string, unknown> }>(fetcher, "POST", "/api/textgen/complete", input, options.signal),
+    ) => request<{ result: Record<string, unknown> }>(fetcher, "POST", "/v2/textgen/complete", input, options.signal),
     /** Which models a provider says it has — asked of the provider where it can
      *  answer, and this cockpit's own short list where it cannot. */
     modelCatalogue: (driver: ProviderDriverKind, options: { refresh?: boolean; instanceId?: string } = {}) => {
       const query = new URLSearchParams({ driver });
       if (options.refresh) query.set("refresh", "1");
       if (options.instanceId) query.set("instanceId", options.instanceId);
-      return request<{ catalogue: ModelCatalogue }>(fetcher, "GET", `/api/models?${query.toString()}`);
+      return request<{ catalogue: ModelCatalogue }>(fetcher, "GET", `/v2/models?${query.toString()}`);
     },
     /** Presence is the patch: a submitted list replaces its own whole, so
      *  `{ hidden: [] }` clears the hides and omitting `hidden` leaves them. */
@@ -172,19 +172,19 @@ export function settingsCalls(fetcher: Fetcher) {
       request<{ overlay: ModelOverlay }>(
         fetcher,
         "PATCH",
-        `/api/provider-instances/${encodeURIComponent(instanceId)}/models`,
+        `/v2/provider-instances/${encodeURIComponent(instanceId)}/models`,
         patch,
       ),
     /** `text` is required and may not be blank: a prepared prompt with no
      *  message is a row that does nothing when you press it. */
     createProjectPrompt: (projectId: string, input: { title: string; text: string; reason?: string; sessionId?: string }) =>
-      request<{ prompt: PreparedPrompt }>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/prompts`, input),
+      request<{ prompt: PreparedPrompt }>(fetcher, "POST", `/v2/projects/${encodeURIComponent(projectId)}/prompts`, input),
     /** The author NEVER changes — the engine refuses a patch that names it. */
     updateProjectPrompt: (projectId: string, promptId: string, patch: { title?: string; text?: string; reason?: string }) =>
       request<{ prompt: PreparedPrompt }>(
         fetcher,
         "PATCH",
-        `/api/projects/${encodeURIComponent(projectId)}/prompts/${encodeURIComponent(promptId)}`,
+        `/v2/projects/${encodeURIComponent(projectId)}/prompts/${encodeURIComponent(promptId)}`,
         patch,
       ),
     /** Issues and pull requests. A NETWORK read behind a thirty-second cache —
@@ -193,9 +193,9 @@ export function settingsCalls(fetcher: Fetcher) {
       // `forgeQuery` is the CONTRACT's own builder, not a second copy: the engine
       // route parses these names, and two hand-written versions of the same query
       // string would drift on the first filter anybody adds.
-      request<{ github: GitHubSnapshot }>(fetcher, "GET", `/api/projects/${encodeURIComponent(projectId)}/github${forgeQuery(options)}`),
+      request<{ github: GitHubSnapshot }>(fetcher, "GET", `/v2/projects/${encodeURIComponent(projectId)}/github${forgeQuery(options)}`),
     mergeProjectPull: (projectId: string, number: number, input: { method: GitHubMergeMethod; expectedHeadOid: string }) =>
-      request<GitHubMergeResult>(fetcher, "POST", `/api/projects/${encodeURIComponent(projectId)}/github/pulls/${number}/merge`, input),
+      request<GitHubMergeResult>(fetcher, "POST", `/v2/projects/${encodeURIComponent(projectId)}/github/pulls/${number}/merge`, input),
     /** Add or remove one reaction (#842). A refusal is `reacted: false` with a
      *  reason — `scope` is the one with a command behind it. */
     reactOnProjectForge: (
@@ -207,7 +207,7 @@ export function settingsCalls(fetcher: Fetcher) {
       request<GitHubReactionResult>(
         fetcher,
         "POST",
-        `/api/projects/${encodeURIComponent(projectId)}/github/${kind === "issue" ? "issues" : "pulls"}/${number}/reactions`,
+        `/v2/projects/${encodeURIComponent(projectId)}/github/${kind === "issue" ? "issues" : "pulls"}/${number}/reactions`,
         input,
       ),
   };

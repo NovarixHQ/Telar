@@ -1,4 +1,5 @@
 
+import { cockpitPath } from "./cockpit-path";
 import { COCKPIT_API, LOCAL_HOST_ID } from "@telar/engine-client";
 
 export { LOCAL_HOST_ID };
@@ -28,7 +29,7 @@ export function rewriteApiPath(pathname: string, hostId: string): string {
 }
 
 export function attachmentUrl(sessionId: string, attachmentId: string, options: { display?: boolean; hostId?: string } = {}): string {
-  const path = `/api/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}${options.display ? "?variant=display" : ""}`;
+  const path = cockpitPath(`/v2/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(attachmentId)}${options.display ? "?variant=display" : ""}`);
   return options.hostId ? rewriteApiPath(path, options.hostId) : path;
 }
 

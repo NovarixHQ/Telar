@@ -29,8 +29,8 @@ let held: (() => void)[] = [];
 function wire(projects: () => Promise<Response>) {
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.includes("/api/projects") && !url.includes(`/api/projects/`)) return projects();
-    if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
+    if (url.includes("/api/engine/v2/projects") && !url.includes(`/api/engine/v2/projects/`)) return projects();
+    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
     return Response.json({});
   }) as typeof fetch;

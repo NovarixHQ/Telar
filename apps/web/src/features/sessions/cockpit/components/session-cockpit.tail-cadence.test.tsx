@@ -95,7 +95,7 @@ const realFetch = globalThis.fetch;
 function wire() {
   globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
-    if (url.includes("/api/sessions/stream")) return streaming ? stream.answer(init?.signal) : Response.json({}, { status: 404 });
+    if (url.includes("/api/engine/v2/sessions/stream")) return streaming ? stream.answer(init?.signal) : Response.json({}, { status: 404 });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
     if (url.includes("/events")) {
       tails += 1;
@@ -111,9 +111,9 @@ function wire() {
       return Response.json({ session: record(id), turns: rows, items: [], tasks: [], requests: [], cursor: nextEventId - 1 });
     }
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
-    if (url.includes("/api/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
-    if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/inbox")) return Response.json({ inbox: {} });
+    if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
+    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
+    if (url.includes("/api/engine/v2/inbox")) return Response.json({ inbox: {} });
     if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;

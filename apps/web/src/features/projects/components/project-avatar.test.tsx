@@ -10,7 +10,7 @@ describe("ProjectAvatar", () => {
 
   test("a local project's icon is fetched from the local engine", () => {
     const html = renderToStaticMarkup(<ProjectAvatar name="Delta" projectId="project_1" icon="k1" />);
-    expect(html).toContain('src="/api/projects/project_1/icon?v=k1"');
+    expect(html).toContain('src="/api/engine/v2/projects/project_1/icon?v=k1"');
   });
 
   test("a remote project without an icon shows its initial", () => {

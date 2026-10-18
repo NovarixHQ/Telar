@@ -33,7 +33,7 @@ const headline = () => document.querySelector("p.text-4xl")?.textContent;
 
 describe("usage across hosts", () => {
   test("one host shows no host switcher", async () => {
-    stubFetch({ "GET /api/hosts": () => ({ hosts: [] }), "GET /api/usage": () => ({ usage: report(2, 3) }) });
+    stubFetch({ "GET /api/engine/v2/hosts": () => ({ hosts: [] }), "GET /api/engine/v2/usage": () => ({ usage: report(2, 3) }) });
     await mount(
       <SidebarProvider>
         <UsagePage />
@@ -46,13 +46,13 @@ describe("usage across hosts", () => {
 
   test("totals every host that answered, and an unreachable one does not hold up the rest", async () => {
     stubFetch({
-      "GET /api/hosts": () => ({
+      "GET /api/engine/v2/hosts": () => ({
         hosts: [
           { id: "host_studio", name: "studio", baseUrl: "http://studio", addedAt: 1 },
           { id: "host_away", name: "away", baseUrl: "http://away", addedAt: 1 },
         ],
       }),
-      "GET /api/usage": () => ({ usage: report(2, 3) }),
+      "GET /api/engine/v2/usage": () => ({ usage: report(2, 3) }),
       "GET /api/engine/v2/hosts/host_studio/api/usage": () => ({ usage: report(5, 1) }),
       "GET /api/engine/v2/hosts/host_away/api/usage": () => {
         throw new Error("The cockpit cannot reach away.");

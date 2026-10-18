@@ -178,9 +178,9 @@ function wire() {
     }
     if (url.includes("/events")) return Response.json({ events: [], cursor: 1, more: false });
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
-    if (url.includes("/api/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
-    if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/inbox")) return Response.json({ inbox: {} });
+    if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
+    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
+    if (url.includes("/api/engine/v2/inbox")) return Response.json({ inbox: {} });
     if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;
@@ -203,7 +203,7 @@ beforeEach(() => {
  * Mounting the real cockpit is not a local act. `features/sessions/inbox-policy.ts` keeps a
  * `Map` keyed by host at module scope with a 30 s TTL (`:38`, `:44`), and the
  * cockpit's `useInboxPolicy()` fills the `"local"` entry from this file's stub
- * answer to `/api/inbox`. `inbox-policy.test.ts` then asserts that nine callers
+ * answer to `/api/engine/v2/inbox`. `inbox-policy.test.ts` then asserts that nine callers
  * make ONE request — and is served zero, because the entry is already warm.
  *
  * THAT FAILURE IS A FLAKE, WHICH IS WHY IT REACHED CI AND NOT THE LOCAL RUN.

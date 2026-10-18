@@ -20,9 +20,9 @@ const fireError = (image: Element | null | undefined) => act(async () => void im
 test("a sent image shows as a drawable thumbnail and a sent file as a download link", async () => {
   const { host } = await mount(message({ sessionId: "session_1", hostId: "local" }));
   const thumb = host.querySelector<HTMLImageElement>('button[aria-label="Open Screenshot.png"] img');
-  expect(thumb?.getAttribute("src")).toBe("/api/sessions/session_1/attachments/att_1?variant=display");
+  expect(thumb?.getAttribute("src")).toBe("/api/engine/v2/sessions/session_1/attachments/att_1?variant=display");
   const link = host.querySelector<HTMLAnchorElement>("a[download]");
-  expect(link?.getAttribute("href")).toBe("/api/sessions/session_1/attachments/att_2");
+  expect(link?.getAttribute("href")).toBe("/api/engine/v2/sessions/session_1/attachments/att_2");
   expect(link?.getAttribute("download")).toBe("notes.pdf");
 });
 
@@ -39,7 +39,7 @@ test("clicking a thumbnail opens the image full size", async () => {
   expect(document.querySelector('[role="dialog"]')).toBeNull();
   await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Open Screenshot.png"]')!.click());
   const dialog = document.querySelector('[role="dialog"]');
-  expect(dialog?.querySelector("img")?.getAttribute("src")).toBe("/api/sessions/session_1/attachments/att_1?variant=display");
+  expect(dialog?.querySelector("img")?.getAttribute("src")).toBe("/api/engine/v2/sessions/session_1/attachments/att_1?variant=display");
 });
 
 test("an image the browser cannot draw becomes a file chip that downloads, with no lightbox to open", async () => {
@@ -48,7 +48,7 @@ test("an image the browser cannot draw becomes a file chip that downloads, with 
   expect(host.querySelector("img")).toBeNull();
   expect(host.querySelector('button[aria-label="Open Screenshot.png"]')).toBeNull();
   const chip = host.querySelector<HTMLAnchorElement>('a[download="Screenshot.png"]');
-  expect(chip?.getAttribute("href")).toBe("/api/sessions/session_1/attachments/att_1");
+  expect(chip?.getAttribute("href")).toBe("/api/engine/v2/sessions/session_1/attachments/att_1");
   expect(chip?.textContent).toContain("4 B");
 });
 

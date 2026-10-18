@@ -52,7 +52,7 @@ test("installing adds the login and the row then reads as installed", async () =
   const { host, calls, installed, button } = await mount([{ agents: [sample] }, after], () => Response.json({ providerInstance: { id: "agent_sample" } }));
   await act(async () => button("Install")!.click());
   await until(() => host.textContent?.includes("Installed") ?? false);
-  expect(calls).toContain("POST /api/agent-catalog/sample/install");
+  expect(calls).toContain("POST /api/engine/v2/agent-catalog/sample/install");
   expect(installed).toEqual(["agent_sample"]);
   expect(host.textContent).toContain("Installed");
 });

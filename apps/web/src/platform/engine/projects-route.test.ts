@@ -38,7 +38,7 @@ async function ready(): Promise<EngineClient> {
 const patch = (payload: unknown) =>
   catchAll(new Request("http://telar.local/api/projects/project_one", { method: "PATCH", body: JSON.stringify(payload) }));
 
-describe("PATCH /api/projects/:projectId", () => {
+describe("PATCH /api/engine/v2/projects/:projectId", () => {
   test("carries the four identity fields through to the engine", async () => {
     const client = await ready();
     const response = await patch({

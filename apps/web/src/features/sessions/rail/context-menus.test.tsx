@@ -64,7 +64,7 @@ function recordLayoutWrites() {
   const writes: unknown[] = [];
   const rail = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (new URL(String(input), "http://localhost").pathname === "/api/sidebar-layout" && init?.method && init.method !== "GET") {
+    if (new URL(String(input), "http://localhost").pathname === "/api/engine/v2/sidebar-layout" && init?.method && init.method !== "GET") {
       writes.push({ method: init.method, body: JSON.parse(String(init.body)) });
     }
     return rail(input, init);

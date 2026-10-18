@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { LiveSessionsAnswer } from "@telar/engine-client";
+import { ENGINE_PROTO, type LiveSessionsAnswer } from "@telar/engine-client";
 import { HostConnection, HostRegistry } from "../../platform/connection";
 import { fakeClock, fakeNetwork, identityOf, until } from "../../platform/connection/testing";
 import { branchRows, createdRoute, pickerSections, targetState, workspaceLabel as label, preferredTarget, projectActivity, projectTargets, sessionTitle, startSession, workspaceLabel, type NewSession } from "./new-session";
@@ -10,17 +10,18 @@ const HOST = "host_00000000-0000-0000-0000-000000000001";
 const project = (id: string, name: string) => ({ id, name, root: `/code/${name}` }) as LiveSessionsAnswer["projects"][number];
 const answer = (projects: ReturnType<typeof project>[], sessions: { projectId: string; updatedAt: number }[] = []) => ({ projects, sessions }) as unknown as LiveSessionsAnswer;
 
-function online(routes: Record<string, () => Response>) {
+function online(routes: Record<string, () => Response>, speaksV2 = false) {
   const calls: { method: string; path: string; body?: unknown }[] = [];
   const network = fakeNetwork({
     [MAC]: (path, init) => {
-      if (path === "/api/identity") return identityOf(HOST);
+      if (path === "/api/identity" || path === "/v2/identity") return identityOf(HOST);
+      if (path === "/v2/ping") return Response.json({ ok: true, proto: ENGINE_PROTO });
       const method = init.method ?? "GET";
       const json = (init.headers as Record<string, string> | undefined)?.["content-type"]?.includes("json");
       calls.push({ method, path, ...(init.body ? { body: json ? JSON.parse(String(init.body)) : "bytes" } : {}) });
       return routes[`${method} ${path}`]?.() ?? Response.json({ error: { code: "not_found", message: "nope" } }, { status: 404 });
     },
-  });
+  }, { speaksV2 });
   const host = new HostConnection({ hostId: HOST, name: "Mini", token: "tlr_phone", paired: [MAC] }, { fetch: network.fetch, clock: fakeClock(), random: () => 0 });
   host.start();
   return { host, calls };
@@ -67,6 +68,13 @@ test("starting a session creates it on the project, then sends the first message
     { method: "POST", path: "/api/projects/p1/sessions", body: { title: "Fix the login bug", driver: "claude", envMode: "worktree", branchName: "fix-login" } },
     { method: "POST", path: "/api/sessions/s1/turns", body: { runId: "run_1", input: "Fix   the\nlogin bug" } },
   ]);
+});
+
+test("a /v2 host creates the session on /v2/sessions with the project in the body", async () => {
+  const { host, calls } = online({ "POST /v2/sessions": created, "POST /v2/sessions/s1/turns": accepted }, true);
+  await until(host, "online");
+  await startSession({ get: () => host }, HOST, draft, undefined, () => {});
+  expect(calls[0]).toEqual({ method: "POST", path: "/v2/sessions", body: { title: "Fix the login bug", driver: "claude", envMode: "worktree", projectId: "p1" } });
 });
 
 test("a chosen model and access are set on the new session before the message goes, and a checkout never names a branch", async () => {

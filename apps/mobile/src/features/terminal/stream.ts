@@ -1,11 +1,10 @@
 import type { EngineClient, RunStreamFrame } from "@telar/engine-client";
 import { fetch } from "expo/fetch";
-import { viaCockpit } from "../../platform/connection";
 import { takeFrames } from "./events";
 
 /** Reads one event stream until the engine ends it; throws when it is refused or breaks. */
-export async function readFrames({ url, headers }: ReturnType<EngineClient["locate"]>, onFrame: (frame: RunStreamFrame) => void, signal: AbortSignal): Promise<void> {
-  const response = await fetch(viaCockpit(url), { headers: { ...headers, accept: "text/event-stream" }, signal });
+export async function readFrames({ url, headers }: ReturnType<EngineClient["locate"]>, route: (url: string) => string, onFrame: (frame: RunStreamFrame) => void, signal: AbortSignal): Promise<void> {
+  const response = await fetch(route(url), { headers: { ...headers, accept: "text/event-stream" }, signal });
   if (!response.ok || !response.body) throw new Error(`The computer refused the stream (${response.status}).`);
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

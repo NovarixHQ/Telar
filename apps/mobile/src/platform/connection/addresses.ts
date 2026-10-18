@@ -1,5 +1,6 @@
 import { HostIdentity } from "@telar/engine-client";
 import { deadline, type Clock } from "./clock";
+import { apiRoot, hostProto } from "./proto";
 
 export const PROBE_TIMEOUT_MS = 2_500;
 
@@ -16,14 +17,14 @@ export function rankAddresses(paired: readonly string[], advertised: readonly st
   return [...unique.filter(isTailnet), ...unique.filter((address) => !isTailnet(address))];
 }
 
-export type Probe = { address: string; identity?: HostIdentity };
+export type Probe = { address: string; proto: number; identity?: HostIdentity };
 
 export type ProbeTarget = { hostId: string; paired: readonly string[]; legacy?: true };
 
 const trimmed = (address: string) => address.replace(/\/+$/, "");
 
-async function pings(address: string, fetch: typeof globalThis.fetch, signal: AbortSignal): Promise<boolean> {
-  const answer = (await (await fetch(`${address}/api/ping`, { signal })).json().catch(() => null)) as { ok?: unknown } | null;
+async function pings(root: string, fetch: typeof globalThis.fetch, signal: AbortSignal): Promise<boolean> {
+  const answer = (await (await fetch(`${root}/ping`, { signal })).json().catch(() => null)) as { ok?: unknown } | null;
   return answer?.ok === true;
 }
 
@@ -37,10 +38,12 @@ export async function probe(addresses: readonly string[], target: ProbeTarget, f
   const answers = addresses.map(async (address): Promise<Probe | undefined> => {
     const limit = deadline(clock, PROBE_TIMEOUT_MS, signal);
     try {
-      const response = await fetch(`${address}/api/identity`, { signal: limit.signal });
+      const proto = await hostProto(address, fetch, limit.signal);
+      const root = apiRoot(address, proto);
+      const response = await fetch(`${root}/identity`, { signal: limit.signal });
       const identity = HostIdentity.safeParse(await response.json().catch(() => null));
-      if (identity.success) return identity.data.hostId === target.hostId || (target.legacy && paired.has(address)) ? { address, identity: identity.data } : undefined;
-      return paired.has(address) && (await pings(address, fetch, limit.signal)) ? { address } : undefined;
+      if (identity.success) return identity.data.hostId === target.hostId || (target.legacy && paired.has(address)) ? { address, proto, identity: identity.data } : undefined;
+      return paired.has(address) && (await pings(root, fetch, limit.signal)) ? { address, proto } : undefined;
     } catch {
       return undefined;
     } finally {

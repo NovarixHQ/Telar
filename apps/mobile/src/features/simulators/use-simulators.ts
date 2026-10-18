@@ -1,7 +1,7 @@
-import type { SimulatorInput, SimulatorsState } from "@telar/engine-client";
+import type { DeviceScope, SimulatorInput, SimulatorsState } from "@telar/engine-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { viaCockpit, type HostConnection } from "../../platform/connection";
+import { canWrite, type HostConnection } from "../../platform/connection";
 import { hubPath, inputQueue, nextOrientation, readScreenConfig, type Orientation, type ScreenConfig, type Size } from "./model";
 
 const LIST_MS = 12_000;
@@ -35,7 +35,7 @@ export function useSimulatorList(host: HostConnection, active: boolean) {
     [host],
   );
   useEffect(() => {
-    host.request<{ callerRole?: string }>("GET", "/v2/remote").then((status) => setCanDrive(status.callerRole !== "observer"), () => setCanDrive(true));
+    host.request<{ callerScopes?: DeviceScope[] }>("GET", "/v2/remote").then((status) => setCanDrive(canWrite(status.callerScopes)), () => setCanDrive(true));
   }, [host]);
   const settling = !state || state.status === "idle" || state.status === "installing" || state.status === "starting";
   useEffect(() => {
@@ -76,7 +76,7 @@ export function useSimulatorViewer(host: HostConnection, id: string, active: boo
       .call(true, () => host.client.simulatorStreamTicket())
       .then(({ ticket }) => {
         if (!live) return;
-        setUrl(`${viaCockpit(host.client.locate(hubPath(id, "stream.mjpeg")).url)}?ticket=${encodeURIComponent(ticket)}`);
+        setUrl(`${host.route(host.client.locate(hubPath(id, "stream.mjpeg")).url)}?ticket=${encodeURIComponent(ticket)}`);
       })
       .catch((error) => {
         if (!live) return;

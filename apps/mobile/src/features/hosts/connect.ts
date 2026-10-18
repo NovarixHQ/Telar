@@ -1,4 +1,5 @@
 import { EngineHealth, HostIdentity } from "@telar/engine-client";
+import { apiRoot, hostProto } from "../../platform/connection";
 import type { SymbolName } from "../../ui";
 
 export type Banner = { icon: SymbolName; tone: "emerald" | "amber" | "red"; title: string; detail?: string };
@@ -41,21 +42,22 @@ async function body(response: Response): Promise<unknown> {
 export async function testConnection(address: string, token: string | undefined, fetch: typeof globalThis.fetch = globalThis.fetch): Promise<ProbeResult> {
   if (!parse(address)) return { kind: "failed", message: "That doesn't look like a host." };
   let response: Response;
+  const root = apiRoot(address, await hostProto(address, fetch));
   try {
-    response = await fetch(`${address}/api/health`, token ? { headers: { authorization: `Bearer ${token}` } } : {});
+    response = await fetch(`${root}/health`, token ? { headers: { authorization: `Bearer ${token}` } } : {});
   } catch {
     return { kind: "failed", message: NO_ANSWER };
   }
   const answer = await body(response);
   if (response.status === 401) {
-    const pong = await fetch(`${address}/api/ping`).then(body, () => null);
+    const pong = await fetch(`${root}/ping`).then(body, () => null);
     return (pong as { ok?: unknown } | null)?.ok === true ? { kind: "unpaired" } : { kind: "failed", message: "No answer. Is this phone on the tailnet?" };
   }
   const error = (answer as { error?: { code?: unknown; message?: unknown } } | null)?.error;
   if (error?.code === "engine_unavailable") return { kind: "failed", message: "Cockpit answered, but the engine on the computer is down." };
   const health = EngineHealth.pick({ daemonId: true, worker: true }).safeParse(answer);
   if (!response.ok || !health.success) return { kind: "failed", message: typeof error?.message === "string" ? error.message : "Failed." };
-  const identity = HostIdentity.safeParse(await fetch(`${address}/api/identity`).then(body, () => null));
+  const identity = HostIdentity.safeParse(await fetch(`${root}/identity`).then(body, () => null));
   return {
     kind: "ok",
     daemonId: health.data.daemonId,

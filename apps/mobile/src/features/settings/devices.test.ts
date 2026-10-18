@@ -8,15 +8,15 @@ const status = (extra: Partial<RemoteStatus>): RemoteStatus => ({ requireAuth: t
 
 describe("Devices", () => {
   test("this phone is listed apart from the others, which it may revoke", () => {
-    const view = devicesView(status({ devices: [device("phone"), device("laptop")], callerDeviceId: "phone", callerRole: "full" }));
+    const view = devicesView(status({ devices: [device("phone"), device("laptop")], callerDeviceId: "phone", callerScopes: ["read", "write", "admin"] }));
     expect(view.mine.map((d) => d.id)).toEqual(["phone"]);
     expect(view.others.map((d) => d.id)).toEqual(["laptop"]);
     expect(view.othersLabel).toBe("Other devices");
     expect(view.canRevokeOthers).toBe(true);
   });
 
-  test("a view-only phone can't manage or revoke", () => {
-    const view = devicesView(status({ devices: [device("phone"), device("laptop")], callerDeviceId: "phone", callerRole: "observer" }));
+  test("a phone without admin can't manage or revoke", () => {
+    const view = devicesView(status({ devices: [device("phone"), device("laptop")], callerDeviceId: "phone", callerScopes: ["read"] }));
     expect(view.canManage).toBe(false);
     expect(view.canRevokeOthers).toBe(false);
   });

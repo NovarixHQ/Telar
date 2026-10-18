@@ -1,7 +1,15 @@
-import type { DevicePlatform, DeviceRole, RemoteDevice, RemoteState } from "@telar/engine-client";
+import type { DevicePlatform, DeviceScope, RemoteDevice, RemoteState } from "@telar/engine-client";
+import { canAdmin } from "../../platform/connection";
 
-/** The cockpit's `/api/remote` adds who is asking to the engine's answer. */
-export type RemoteStatus = RemoteState & { callerDeviceId?: string; callerRole?: DeviceRole };
+export type RemoteStatus = RemoteState & { callerDeviceId?: string; callerScopes?: DeviceScope[] };
+
+export type Access = "full" | "edit" | "view";
+
+export const ACCESS_SCOPES: Record<Access, DeviceScope[]> = { full: ["read", "write", "admin"], edit: ["read", "write"], view: ["read"] };
+
+export const ACCESS_LABEL: Record<Access, string> = { full: "Full", edit: "Can edit", view: "View only" };
+
+export const accessOf = (scopes: readonly DeviceScope[]): Access => (scopes.includes("admin") ? "full" : scopes.includes("write") ? "edit" : "view");
 
 export type DevicesView = {
   canManage: boolean;
@@ -13,7 +21,7 @@ export type DevicesView = {
 };
 
 export function devicesView(status: RemoteStatus): DevicesView {
-  const canManage = status.callerRole !== "observer";
+  const canManage = canAdmin(status.callerScopes);
   const mine = status.devices.filter((device) => device.id === status.callerDeviceId);
   const others = status.devices.filter((device) => device.id !== status.callerDeviceId);
   return {

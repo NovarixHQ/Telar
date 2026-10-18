@@ -101,7 +101,7 @@ The engine serves the cockpit: `TELAR_STATIC_DIR` (the exported `apps/web/out`, 
 
 - The cockpit calls the engine's own `/v2/**` paths on its origin through `httpTransport`; there is no Next server in production. `bun run dev` runs Next dev behind the engine's network listener, which the dev launcher starts on a free loopback port and Next's `rewrites` forward `/v2/**` to.
 - Who is calling comes from the connection, not from a server in front: `callerOf(request)` is the host on loopback and for the host token, a paired device for a bearer or cookie.
-- `/api/<path>` is served as `/v2/<path>` for released phones and older hosts, with a few phone-only paths in `platform/http/legacy.ts`. Remove both on 2027-01-31.
-- Left: move iOS to `/v2` behind `ping.proto`, Linux-clean engine, terminals and the browser in the engine, the CLI, distribution.
+- `/api/<path>` is served as `/v2/<path>` for released phones, with a few phone-only paths in `platform/http/legacy.ts`. Remove both on 2027-01-31. The Expo app asks `GET /v2/ping` and talks `/v2` to a host whose `proto` is at least `ENGINE_PROTO` (2); an older host, which has no `/v2` on the network, is reached through `/api`. The phone registers push on `/v2/push/devices/<id>` and reads `/v2/push/read-state` on a proto-2 host, and keeps the `mobile/push` shape only when it has no device id (a pairing carried over from the Swift app).
+- Left: Linux-clean engine, terminals and the browser in the engine, the CLI, distribution.
 
 The security invariants for the move are in `security.md`.

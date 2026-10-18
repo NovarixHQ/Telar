@@ -2,7 +2,7 @@ import { Button, ProgressView, VStack } from "@expo/ui/swift-ui";
 import { buttonStyle, controlSize, frame, padding, tint } from "@expo/ui/swift-ui/modifiers";
 import type { SimulatorsState, SimulatorSummary } from "@telar/engine-client";
 import { Fragment, useEffect, useState } from "react";
-import type { HostConnection } from "../../platform/connection";
+import { canWrite, type HostConnection } from "../../platform/connection";
 import { Theme } from "../../ui";
 import type { RemoteStatus } from "./devices";
 import { failureText, useHostLoad } from "./host-call";
@@ -18,7 +18,7 @@ export function SimulatorsPage({ hostId }: { hostId: string }) {
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
-    host?.request<RemoteStatus>("GET", "/v2/remote").then((status) => setCanDrive(status.callerRole !== "observer"), () => setCanDrive(true));
+    host?.request<RemoteStatus>("GET", "/v2/remote").then((status) => setCanDrive(canWrite(status.callerScopes)), () => setCanDrive(true));
   }, [host]);
   useEffect(() => {
     const timer = setTimeout(() => void reload(), pollDelay(state));

@@ -11,6 +11,10 @@
         "workers/push-relay/**/*.mjs"
       ]
     },
+    "apps/cli": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "apps/engine": {
       "entry": [
         "bench/*.ts",

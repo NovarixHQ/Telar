@@ -388,6 +388,14 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
         run: bun install --frozen-lockfile
       - run: bun test --timeout 20000 apps/engine/src/daemon.headless.smoke.test.ts
+      # `telar serve` and `telar pair` against a temp home, then the bundle under Node.
+      - run: bun test --timeout 30000 apps/cli
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: |
+          bun run --cwd apps/cli build
+          node apps/cli/dist/telar.mjs --help
 
   # node-pty loads a native addon per OS and arch, and the engine runs terminals through it under Node
   # (it delivers nothing under bun). This loads it and drives real shells on every platform the

@@ -39,6 +39,16 @@ test("a reused pid running an unrelated command is stale, and the replacement sa
   lock.release();
 });
 
+test("a lock left by the same pid in a previous container life is stale", async () => {
+  const paths = lockedStore({ pid: process.pid, token: "previous-life", startedAt: BOOT + 1_000, command: ENGINE });
+  const logs: string[] = [];
+  const lock = await acquireDaemonLock(paths, fakeProbe({ [process.pid]: ENGINE }, logs));
+  expect(ownerToken(paths)).toBe(lock.token);
+  expect(logs[0]).toContain("is this process, restarted");
+  await expect(acquireDaemonLock(paths, fakeProbe({ [process.pid]: ENGINE }))).rejects.toThrow("already locked");
+  lock.release();
+});
+
 test("a lock written before the last boot is stale even when its pid runs a Telar engine", async () => {
   const paths = lockedStore({ pid: 724, token: "old", startedAt: BOOT - 1_000, command: ENGINE });
   const logs: string[] = [];

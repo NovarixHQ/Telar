@@ -6,7 +6,7 @@ Telar has its own browser, shared between you and your agents. An agent can open
 
 Open the Browser tab in a conversation's panel (see [The panel](panel.md)). It has the tabs, address bar and back, forward and reload of an ordinary browser. A tab's menu can also open the page in your system browser.
 
-The full browser lives in the desktop app. In a browser tab or on the iPhone, the panel shows screenshots of the session's pages instead, so you can still follow what an agent is doing.
+The full browser lives in the desktop app. In a browser tab, the panel shows the engine's own Chromium live, with tabs, an address bar, clicks and typing, but without extensions, passkeys or picture-in-picture (on a machine with no desktop app, `telar browser setup` prepares it; see [headless](headless.md)). On the iPhone, the panel shows screenshots of the session's pages.
 
 ## You and the agent share it
 

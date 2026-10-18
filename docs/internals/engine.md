@@ -42,3 +42,9 @@
 - node-pty delivers no data or exit events under Bun, so terminals exist only when the engine runs on Node (the packaged app, the headless build). Under `bun run dev` runs fall back to pipes. `bun run --cwd apps/engine test:pty` runs real shells through the bundled host under Node.
 - node-pty is a native addon with a per-platform prebuild. Only the 1.2 betas ship linux-x64 and linux-arm64 (1.1.0 has darwin and win32 only, so Linux installs compile it from source), which is why the engine pins `1.2.0-beta.15`. The `pty` CI job loads it on ubuntu x64, ubuntu arm64 and macOS. Linux arm64 is the risk: T3 Code had to compile it from source, so if the prebuild stops loading there, the fix is a build toolchain, not code. On macOS the host chmods `spawn-helper`, which the tarball ships mode 0644 in 1.1.
 - The person's own shells are `/v2/terminals/*` (`shells.ts`), a replay ring per shell and an SSE stream cursored like a run's. Every route is a POST so an observer device, which may only GET, can neither type into a shell nor read its output. A shell is closed by the person, by settling or archiving its session, or when the engine stops; closing the cockpit does not close it.
+
+## The engine's own browser
+
+- The engine launches Chromium itself and hands the Playwright tools the same instance through `--cdp-endpoint`, so the screencast the cockpit plays and the agent's page are one browser. A scope with no Chromium installed falls back to Playwright launching its own.
+- Playwright's websocket to a debugging port never opens under Bun, so a Bun engine runs the Playwright CLI under Node (`scriptArgv`). A packaged `telar` has no Node beside it and runs the script itself when `TELAR_RUN_SCRIPT` names one.
+- Ubuntu 23.10+ blocks the user namespaces Chromium's sandbox needs. `telar browser setup` adds an AppArmor profile for the Telar-owned Chromium path only, so the host-wide setting stays on; the engine never passes `--no-sandbox`.

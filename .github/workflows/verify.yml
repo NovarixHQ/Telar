@@ -358,6 +358,21 @@ jobs:
           bun install --frozen-lockfile
       - run: bun scripts/engine-shard.mjs ${{ matrix.shard }} ${{ matrix.total }}
 
+  # The engine without Electron or a Mac: pair a device, run a turn on a stub provider, shut down.
+  engine-linux:
+    name: Engine on Linux
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: bun install --frozen-lockfile
+      - run: bun test --timeout 20000 apps/engine/src/daemon.headless.smoke.test.ts
+
   # THE ONE THING HERE THAT REALLY NEEDS macOS — on a hosted Mac, not a person's.
   #
   # A BLOCK IS SKIPPED OFF DARWIN AND SO RUNS NOWHERE ELSE. The nightly and
@@ -730,7 +745,7 @@ jobs:
     name: Verify passed
     runs-on: ubuntu-latest
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    needs: [source, knip, oxlint, typecheck, lint, test, test-engine, macos, electron, ios]
+    needs: [source, knip, oxlint, typecheck, lint, test, test-engine, engine-linux, macos, electron, ios]
     timeout-minutes: 5
     steps:
       - name: Report the aggregate

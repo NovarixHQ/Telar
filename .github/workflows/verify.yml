@@ -411,7 +411,9 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
         run: bun install --frozen-lockfile
       - run: bun apps/cli/src/main.ts browser setup --home "$RUNNER_TEMP/telar"
-      - run: bun apps/cli/src/main.ts doctor --home "$RUNNER_TEMP/telar" | grep "browser — Chromium is ready"
+      - run: |
+          bun apps/cli/src/main.ts doctor --home "$RUNNER_TEMP/telar" | tee doctor.txt || true
+          grep "browser — Chromium is ready" doctor.txt
       - run: bun test --timeout 120000 apps/engine/src/domains/browser/headless.real.test.ts
         env:
           TELAR_REAL_BROWSER_DIR: ${{ runner.temp }}/telar/engine/browsers

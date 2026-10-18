@@ -97,7 +97,8 @@
     "op",
     "uv",
     "scutil",
-    "tailscale"
+    "tailscale",
+    "systemd-run"
   ],
   "ignoreIssues": {
     "packages/engine-client/src/protocol/common.ts": [

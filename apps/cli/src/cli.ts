@@ -7,6 +7,8 @@ import { UsageError, type Io } from "./io";
 import { pair } from "./pair";
 import { VERSION } from "./version";
 import { serve, serveOptions } from "./serve";
+import type { Channel } from "./runtime";
+import { update } from "./update";
 import { defaultContext, installService, restartService, serviceStatus, uninstallService } from "./service";
 
 const USAGE = `Usage: telar <command> [options]
@@ -19,6 +21,8 @@ const USAGE = `Usage: telar <command> [options]
   service install|status|restart|uninstall [--host <addr>] [--port <n>] [--tailscale-serve]
                                                             Run the engine in the background at login
   browser setup [--dry-run]                                 Make the engine browser launchable (Linux libraries, AppArmor)
+  update [--channel stable|nightly] [--version <v>] [--base <url>]
+                                                            Install a newer version, with rollback
   doctor                                                    Check this machine
   version                                                   Print the version
 
@@ -32,6 +36,10 @@ const OPTIONS = {
   scopes: { type: "string" },
   expires: { type: "string" },
   keep: { type: "string" },
+  channel: { type: "string" },
+  version: { type: "string" },
+  base: { type: "string" },
+  apply: { type: "boolean" },
   "all-others": { type: "boolean" },
   "dry-run": { type: "boolean" },
   tailscale: { type: "boolean" },
@@ -79,6 +87,11 @@ export async function runCli(argv: string[], io: Io): Promise<number> {
     if (command === "browser") {
       if (positionals[1] !== "setup") throw new UsageError("Usage: telar browser setup [--dry-run]");
       return await browserSetup({ home, dryRun: values["dry-run"] === true }, io);
+    }
+    if (command === "update") {
+      if (values.channel !== undefined && values.channel !== "stable" && values.channel !== "nightly") throw new UsageError("--channel must be stable or nightly.");
+      const channel: Channel = values.channel ?? "stable";
+      return await update({ home, channel, apply: values.apply === true, ...(values.version ? { version: values.version } : {}), ...(values.base ? { base: values.base } : {}) }, io);
     }
     if (command === "doctor") return await doctor(home, io);
     throw new UsageError(`Unknown command: ${command}\n\n${USAGE}`);

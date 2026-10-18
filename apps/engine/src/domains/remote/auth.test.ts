@@ -1,11 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { decideAccess, EXEMPT_PATHS } from "./auth";
 import type { DeviceScope } from "@telar/engine-client";
 import { ALL_SCOPES, normaliseScopes, requiredScope, scopesForRole } from "./scopes";
-import { createRemoteStore, hashToken, type RemoteFile } from "./store";
+import { hashToken, type RemoteFile } from "./store";
 import { StreamTickets } from "../simulators";
 
 const RAW = "tlr_" + "a".repeat(43);

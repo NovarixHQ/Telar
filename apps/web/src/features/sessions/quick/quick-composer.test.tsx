@@ -62,8 +62,7 @@ function wire() {
     calls.push({ method, url: raw, body });
     if (raw === "/api/engine/v2/hosts") return Response.json({ hosts: remotes.map(({ id, name }) => ({ id, name, baseUrl: `https://${id}`, addedAt: 1 })) });
     if (url.startsWith("/api/engine/v2/inbox")) return Response.json({ inbox: {} });
-    const create = /\/api\/(?:engine\/v2\/)?projects\/(project_\d)\/sessions$/.exec(url);
-    if (method === "POST" && create) return Response.json({ session: { ...session(body.id, body.title), projectId: create[1] } });
+    if (method === "POST" && url === "/api/engine/v2/sessions") return Response.json({ session: { ...session(body.id, body.title), projectId: body.projectId } });
     if (url.includes("/api/engine/v2/sessions/live")) return Response.json({ sessions: host?.sessions ?? LIVE, projects: host?.projects ?? PROJECTS, daemonId: host?.id ?? "local-engine" });
     const id = /sessions\/([^/?]+)/.exec(url)?.[1] ?? "";
     if (url.includes("/bootstrap") || (url.includes("/sessions/") && url.includes("turns="))) {
@@ -78,7 +77,7 @@ function wire() {
     }
     if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: host?.projects ?? PROJECTS });
     if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
+    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;
 }
@@ -175,7 +174,7 @@ async function typeAndPress(host: HTMLElement, text: string, keys: KeyboardEvent
   await flush();
 }
 
-const created = () => calls.find((call) => call.method === "POST" && call.url.endsWith("/api/projects/project_1/sessions"))?.body as { id: string };
+const created = () => calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/sessions") && (call.body as { projectId?: string } | undefined)?.projectId === "project_1")?.body as { id: string };
 
 describe("the quick composer", () => {
   test("Enter starts a session in the project and hands it back without opening Telar", async () => {
@@ -493,7 +492,7 @@ describe("the # destination picker", () => {
     await press(host, "Enter", { altKey: true });
     expect(host.querySelector('[data-slot="quick-destination"]')?.textContent).toContain("exoplanets· new worktree");
     await typeAndPress(host, "Fix the CI build");
-    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/projects/project_2/sessions"))?.body).toMatchObject({ envMode: "worktree" });
+    expect(calls.find((call) => call.method === "POST" && call.url.endsWith("/api/engine/v2/sessions") && (call.body as { projectId?: string } | undefined)?.projectId === "project_2")?.body).toMatchObject({ envMode: "worktree" });
     expect(sent[0]?.detail).toBe("exoplanets");
   });
 
@@ -734,8 +733,8 @@ describe("the strip of conversations that need you", () => {
     const mini = [...host.querySelectorAll('[role="option"]')].find((row) => row.textContent?.includes("New session in exoplanets · Mini"))!;
     await act(async () => void mini.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })));
     await typeAndPress(host, "Fix CI on the Mini");
-    const created = calls.find((call) => call.method === "POST" && /\/sessions$/.test(call.url) && call.url.includes("projects/project_9"));
-    expect(created?.url).toBe("/api/engine/v2/hosts/host_b/api/projects/project_9/sessions");
+    const created = calls.find((call) => call.method === "POST" && /\/sessions$/.test(call.url) && (call.body as { projectId?: string } | undefined)?.projectId === "project_9");
+    expect(created?.url).toBe("/api/engine/v2/hosts/host_b/api/sessions");
     expect(sent[0]?.route).toMatch(/^\/hosts\/host_b\/projects\/project_9\/sessions\//);
   });
 

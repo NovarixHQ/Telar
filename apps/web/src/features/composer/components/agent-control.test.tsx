@@ -108,13 +108,13 @@ beforeEach(() => {
   forgetModelCatalogues();
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.startsWith("/api/models")) {
+    if (url.startsWith("/api/engine/v2/models")) {
       const driver = new URL(url, "http://localhost").searchParams.get("driver") as BuiltInDriver;
       asked.push(driver);
       const catalogue: ModelCatalogue = { driver, models: CATALOGUES[driver], source: "provider", readAt: 0 };
       return Response.json({ catalogue });
     }
-    if (url.startsWith("/api/provider-instances")) {
+    if (url.startsWith("/api/engine/v2/provider-instances")) {
       const providerInstances = BUILT_IN_DRIVERS.map((driver) => ({ id: driver, driver, enabled: !switchedOff.includes(driver), env: [], createdAt: 0, updatedAt: 0 }));
       return Response.json({ providerInstances, probes: [] });
     }

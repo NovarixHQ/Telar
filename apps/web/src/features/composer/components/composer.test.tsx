@@ -690,7 +690,7 @@ describe("/effort opens the reasoning picker", () => {
   const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
   const opus = { id: "opus", label: "Opus", isDefault: true, hidden: false, efforts: ["low", "medium", "high", "xhigh", "max"], defaultEffort: "high", fastMode: false, hiddenByUser: false, legacy: false, source: "provider" } as ProviderModel;
   const catalogue: ModelCatalogue = { driver: "claude", instanceId: "claude", models: [opus], source: "provider", readAt: 0 };
-  const routes = { "GET /api/models": () => ({ catalogue }) };
+  const routes = { "GET /api/engine/v2/models": () => ({ catalogue }) };
   const options = (host: HTMLElement) => [...host.querySelectorAll('[role="listbox"] [role="option"]')].map((row) => row.textContent ?? "");
   const pill = () => document.querySelector<HTMLElement>('[aria-label^="Reasoning effort:"]');
 

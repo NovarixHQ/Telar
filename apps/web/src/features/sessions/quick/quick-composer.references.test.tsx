@@ -39,7 +39,7 @@ function wire() {
     if (url.includes("/api/engine/v2/sessions/stream")) return new Response(new ReadableStream({ start() {} }));
     if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: remote && !hosted ? [] : engine.projects });
     if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
-    if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
+    if (url.includes("/api/engine/v2/models")) return Response.json({ catalogue: { models: [] } });
     return Response.json({});
   }) as typeof fetch;
 }

@@ -148,7 +148,7 @@ function installBrowserFakes(): void {
       tokenCalls += 1;
       return Response.json({ provider: "deepgram", token: "jwt-abc", expiresAt: Date.now() + 300_000, language: knobs.language, keyterms: knobs.keyterms });
     }
-    if (url.includes("/api/dictation")) return Response.json({ dictation: { provider: knobs.provider, configured: knobs.provider !== "off" } });
+    if (url.includes("/api/engine/v2/dictation")) return Response.json({ dictation: { provider: knobs.provider, configured: knobs.provider !== "off" } });
     return Response.json({});
   }) as typeof fetch;
 }

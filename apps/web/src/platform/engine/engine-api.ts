@@ -2,7 +2,7 @@ import { EngineClientError } from "@telar/engine-client";
 import { enginePipe, engineRoute } from "@/platform/engine/server";
 
 const OPEN = new Set([
-  "about", "agent-catalog", "appearance", "browser-logins", "claude-conversations", "cleanup", "computer-use", "data-science", "dictation", "fs", "github",
+  "about", "agent-catalog", "appearance", "browser-logins", "claude", "cleanup", "computer-use", "data-science", "dictation", "fs", "github",
   "health", "hosts", "inbox", "latex", "mcp-servers", "models", "orientation", "ping", "plugin-assets", "plugins", "projects", "provider-instances",
   "provider-updates", "schedules", "session-defaults", "sessions", "sidebar-layout", "simulator-settings", "simulators", "storage", "terminals", "textgen", "usage",
   "workspace", "worktrees", "worktrees-root",

@@ -103,35 +103,6 @@ export async function requestObject(request: Request): Promise<Record<string, un
   }
 }
 
-export type PluginDoorMethod = "GET" | "POST" | "DELETE";
-
-/**
- * A plugin's project or machine verb, spoken with the client's discovery and token since the client names only the session door.
- * The engine's status comes back unchanged; a refusal throws the same `EngineClientError` the client would.
- */
-export async function enginePluginDoor(
-  scope: { projectId: string } | "machine",
-  pluginId: string,
-  verb: readonly string[],
-  method: PluginDoorMethod,
-  options: { search?: string; body?: Record<string, unknown> } = {},
-): Promise<Response> {
-  const base = scope === "machine" ? "/v2/plugins" : `/v2/projects/${encodeURIComponent(scope.projectId)}/plugins`;
-  const pathname = `${base}/${encodeURIComponent(pluginId)}/${verb.map(encodeURIComponent).join("/")}${options.search ?? ""}`;
-  const response = await engineFetch(method, pathname, options.body === undefined ? {} : { body: JSON.stringify(options.body) });
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new EngineClientError("engine_unavailable", "engine returned an invalid response", response.status);
-  }
-  if (!response.ok) {
-    const error = (payload as { error?: { code?: EngineErrorCode; message?: string } } | null)?.error;
-    throw new EngineClientError(error?.code ?? "engine_unavailable", error?.message ?? "engine request failed", response.status);
-  }
-  return Response.json(payload, { status: response.status });
-}
-
 export function requiredString(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim() === "") {
     throw new EngineClientError("invalid_request", `${label} is required.`);

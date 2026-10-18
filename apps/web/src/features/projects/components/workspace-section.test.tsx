@@ -8,8 +8,8 @@ installTestDom();
 
 async function general(whileWorking?: "steer" | "queue") {
   const calls = stubFetch({
-    "GET /api/session-defaults": () => ({ sessionDefaults: { envMode: "local", ...(whileWorking ? { whileWorking } : {}) } }),
-    "PATCH /api/session-defaults": (body) => ({ sessionDefaults: { envMode: "local", ...(body as object) } }),
+    "GET /api/engine/v2/session-defaults": () => ({ sessionDefaults: { envMode: "local", ...(whileWorking ? { whileWorking } : {}) } }),
+    "PATCH /api/engine/v2/session-defaults": (body) => ({ sessionDefaults: { envMode: "local", ...(body as object) } }),
   });
   const { host } = await mount(
     <SettingsShell title="Settings" sections={[{ id: "general", label: "General", icon: BellIcon }]} active="general" onSelect={() => {}}>
@@ -18,7 +18,7 @@ async function general(whileWorking?: "steer" | "queue") {
   );
   const trigger = () => host.querySelector('[aria-label="While an agent is working"]')!;
   await flush(() => Boolean(trigger()));
-  await flush(() => calls.some((call) => call.route === "GET /api/session-defaults"));
+  await flush(() => calls.some((call) => call.route === "GET /api/engine/v2/session-defaults"));
   await flush();
   return { host, calls, trigger };
 }
@@ -31,7 +31,7 @@ test("steering is the default, and choosing Queue for after saves it on the host
   await press(trigger());
   const option = [...document.querySelectorAll('[role="option"]')].find((node) => node.textContent?.includes("Queue for after"))!;
   await press(option);
-  expect(calls.filter((call) => call.route === "PATCH /api/session-defaults").map((call) => call.body)).toEqual([{ whileWorking: "queue" }]);
+  expect(calls.filter((call) => call.route === "PATCH /api/engine/v2/session-defaults").map((call) => call.body)).toEqual([{ whileWorking: "queue" }]);
   await flush(() => Boolean(host.textContent?.includes("waits above the composer")));
   expect(trigger().textContent).toContain("Queue for after");
 });
@@ -43,5 +43,5 @@ test("a queueing host shows it, and reverting steers again", async () => {
   const revert = [...host.querySelectorAll('button[aria-label="Revert to the default"]')];
   expect(revert).toHaveLength(1);
   await press(revert[0]!);
-  expect(calls.filter((call) => call.route === "PATCH /api/session-defaults").map((call) => call.body)).toEqual([{ whileWorking: "steer" }]);
+  expect(calls.filter((call) => call.route === "PATCH /api/engine/v2/session-defaults").map((call) => call.body)).toEqual([{ whileWorking: "steer" }]);
 });

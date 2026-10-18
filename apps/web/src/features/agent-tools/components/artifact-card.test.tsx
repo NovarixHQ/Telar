@@ -61,7 +61,7 @@ describe("an artifact card", () => {
     const host = await card(artifact("html", "att_html"));
     await flush(() => host.querySelector("iframe") !== null);
     const frame = host.querySelector("iframe")!;
-    expect(asked).toEqual(["/api/sessions/session_1/attachments/att_html"]);
+    expect(asked).toEqual(["/api/engine/v2/sessions/session_1/attachments/att_html"]);
     expect(frame.getAttribute("sandbox")).toBe("allow-scripts");
     const doc = frame.getAttribute("srcdoc")!;
     expect(doc).toContain("default-src 'none'");

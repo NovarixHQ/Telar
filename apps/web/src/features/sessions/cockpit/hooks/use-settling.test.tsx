@@ -43,6 +43,6 @@ describe("unsettling from the cockpit", () => {
   test("a local session is patched locally", async () => {
     const urls = await unsettleOn("local");
     expect(urls.length).toBeGreaterThan(0);
-    for (const url of urls) expect(url).not.toContain("/api/hosts/");
+    for (const url of urls) expect(url).not.toContain("/api/engine/v2/hosts/");
   });
 });

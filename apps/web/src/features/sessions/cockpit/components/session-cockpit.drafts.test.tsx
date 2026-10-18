@@ -66,7 +66,7 @@ function wire({ opening = {}, create }: { opening?: Opening; create?: (id: strin
       await create?.(body.id);
       return Response.json({ session: record(body.id) });
     }
-    if (method === "PATCH" && /\/api\/sessions\/[^/]+$/.test(url)) return Response.json({ session: record(id, body) });
+    if (method === "PATCH" && /\/api\/engine\/v2\/sessions\/[^/]+$/.test(url)) return Response.json({ session: record(id, body) });
     if (url.includes("/bootstrap")) {
       return Response.json({
         session: record(id, opening.session),
@@ -82,10 +82,10 @@ function wire({ opening = {}, create }: { opening?: Opening; create?: (id: strin
     if (url.includes("/turns")) return Response.json({ runId: "run_next", state: "queued" });
     if (url.includes("/events")) return Response.json({ events: [], cursor: 1, more: false });
     if (url.includes("/browser")) return Response.json({ browser: { tabs: [], canStart: false } });
-    if (url.includes("/api/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
-    if (url.includes("/api/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
+    if (url.includes("/api/engine/v2/projects")) return Response.json({ projects: [{ id: "project_1", name: "exoplanets", root: "/tmp" }] });
+    if (url.includes("/api/engine/v2/session-defaults")) return Response.json({ sessionDefaults: { envMode: "local" } });
     if (url.includes("/api/models")) return Response.json({ catalogue: { models: [] } });
-    if (url.includes("/api/inbox")) return Response.json({ inbox: DEFAULT_INBOX_POLICY });
+    if (url.includes("/api/engine/v2/inbox")) return Response.json({ inbox: DEFAULT_INBOX_POLICY });
     return Response.json({});
   }) as typeof fetch;
 }
@@ -305,7 +305,7 @@ describe("attachments in an unsent draft", () => {
 
 describe("⌘P over the conversation you are reading", () => {
   const pinPatches = (id: string) =>
-    calls.filter((call) => call.method === "PATCH" && call.url.endsWith(`/api/sessions/${id}`)).map((call) => call.body);
+    calls.filter((call) => call.method === "PATCH" && call.url.endsWith(`/api/engine/v2/sessions/${id}`)).map((call) => call.body);
 
   test("pins an unpinned conversation", async () => {
     wire();

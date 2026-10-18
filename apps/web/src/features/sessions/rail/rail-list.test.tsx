@@ -8,8 +8,8 @@ function holdLiveRead() {
   let answer: (body: unknown) => void = () => {};
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const path = new URL(String(input), "http://localhost").pathname;
-    if (path === "/api/hosts") return Response.json({ hosts: [] });
-    if (path === "/api/sessions/live") return new Promise<Response>((resolve) => (answer = (body) => resolve(Response.json(body))));
+    if (path === "/api/engine/v2/hosts") return Response.json({ hosts: [] });
+    if (path === "/api/engine/v2/sessions/live") return new Promise<Response>((resolve) => (answer = (body) => resolve(Response.json(body))));
     return Response.json({ error: { message: `no route ${path}` } }, { status: 404 });
   }) as typeof fetch;
   return (body: unknown) => answer(body);

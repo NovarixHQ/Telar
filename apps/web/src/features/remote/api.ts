@@ -15,17 +15,17 @@ export type RemoteStatus = RemoteState & {
 
 export type MintedPairing = { code: string; expiresAt: number; qrByUrl: Record<string, QrMatrix> };
 
-const device = (deviceId: string) => `/api/remote/devices/${encodeURIComponent(deviceId)}`;
+const device = (deviceId: string) => `/v2/remote/devices/${encodeURIComponent(deviceId)}`;
 
-export const remoteStatus = () => request<RemoteStatus>(fetch, "GET", "/api/remote");
+export const remoteStatus = () => request<RemoteStatus>(fetch, "GET", "/v2/remote");
 
 export const setRemote = (patch: { requireAuth: boolean } | { exposure: ExposureMode } | { tailscaleServe: boolean }) =>
-  request<Record<string, unknown>>(fetch, "PATCH", "/api/remote", patch);
+  request<Record<string, unknown>>(fetch, "PATCH", "/v2/remote", patch);
 
-export const mintPairing = () => request<MintedPairing>(fetch, "POST", "/api/remote/pairing");
+export const mintPairing = () => request<MintedPairing>(fetch, "POST", "/v2/remote/pairing");
 
 export const updateDevice = (deviceId: string, patch: { name?: string; scopes?: DeviceScope[] }) => request<unknown>(fetch, "PATCH", device(deviceId), patch);
 
 export const revokeDevice = (deviceId: string) => request<unknown>(fetch, "DELETE", device(deviceId));
 
-export const revokeOtherDevices = () => request<unknown>(fetch, "DELETE", "/api/remote/devices");
+export const revokeOtherDevices = () => request<unknown>(fetch, "DELETE", "/v2/remote/devices");

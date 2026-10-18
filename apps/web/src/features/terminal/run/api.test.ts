@@ -26,12 +26,12 @@ describe("runPath", () => {
   test("is session-scoped and encodes what it is given", () => {
     // The project and the worktree come from the session on the daemon side; a
     // client that could name a project could stop another project's server.
-    expect(runPath("sess_1", "/status")).toBe("/api/sessions/sess_1/run/status");
-    expect(runPath("a/b", "/start")).toBe("/api/sessions/a%2Fb/run/start");
+    expect(runPath("sess_1", "/status")).toBe("/api/engine/v2/sessions/sess_1/run/status");
+    expect(runPath("a/b", "/start")).toBe("/api/engine/v2/sessions/a%2Fb/run/start");
   });
 
   test("undefined query values are omitted rather than sent as the string", () => {
-    expect(runPath("s", "/output", { runId: undefined, after: 0 })).toBe("/api/sessions/s/run/output?after=0");
+    expect(runPath("s", "/output", { runId: undefined, after: 0 })).toBe("/api/engine/v2/sessions/s/run/output?after=0");
   });
 });
 
@@ -39,21 +39,21 @@ describe("createRunApi", () => {
   test("start names only the configuration — every start opens a new terminal", () => {
     const { calls, api } = recorder();
     void api.start("sess_1", "cfg_1");
-    expect(calls[0]).toEqual({ url: "/api/sessions/sess_1/run/start", method: "POST", body: { configId: "cfg_1" } });
+    expect(calls[0]).toEqual({ url: "/api/engine/v2/sessions/sess_1/run/start", method: "POST", body: { configId: "cfg_1" } });
   });
 
   test("stop and restart name the terminal, or leave it to the session's one open terminal", () => {
     const { calls, api } = recorder();
     void api.stop("sess_1");
     void api.restart("sess_1", "term_9");
-    expect(calls[0]).toEqual({ url: "/api/sessions/sess_1/run/stop", method: "POST", body: {} });
+    expect(calls[0]).toEqual({ url: "/api/engine/v2/sessions/sess_1/run/stop", method: "POST", body: {} });
     expect(calls[1]!.body).toEqual({ terminalId: "term_9" });
   });
 
   test("output carries the cursor as a query parameter", () => {
     const { calls, api } = recorder({ lines: [], cursor: 0, dropped: 0 });
     void api.output("sess_1", { after: 42 });
-    expect(calls[0]!.url).toBe("/api/sessions/sess_1/run/output?after=42");
+    expect(calls[0]!.url).toBe("/api/engine/v2/sessions/sess_1/run/output?after=42");
     expect(calls[0]!.method).toBe("GET");
   });
 
@@ -61,7 +61,7 @@ describe("createRunApi", () => {
     const { calls, api } = recorder();
     void api.updateConfiguration("sess_1", "cfg 1", { command: "bun run dev" });
     void api.removeConfiguration("sess_1", "cfg 1");
-    expect(calls[0]!.url).toBe("/api/sessions/sess_1/run/configs/cfg%201");
+    expect(calls[0]!.url).toBe("/api/engine/v2/sessions/sess_1/run/configs/cfg%201");
     expect(calls[1]!.method).toBe("DELETE");
   });
 

@@ -32,15 +32,15 @@ beforeEach(() => {
     const method = init?.method ?? "GET";
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ url, method, body });
-    if (url.startsWith("/api/cleanup/run")) {
+    if (url.startsWith("/api/engine/v2/cleanup/run")) {
       state = { ...state, last: { at: Date.now() - 12 * 60_000, freedBytes: 8.4 * 1024 ** 3, released: 3, logs: 5, skipped: 1 } };
       return Response.json({ cleanup: state });
     }
-    if (url.startsWith("/api/cleanup")) {
+    if (url.startsWith("/api/engine/v2/cleanup")) {
       if (method === "PUT") state = putAnswer ? putAnswer(body) : { ...state, policy: { ...state.policy, ...body } };
       return Response.json({ cleanup: state });
     }
-    if (url.startsWith("/api/worktrees-root")) return Response.json({ worktreesRoot: { kind: "default", root: ROOT, default: ROOT } });
+    if (url.startsWith("/api/engine/v2/worktrees-root")) return Response.json({ worktreesRoot: { kind: "default", root: ROOT, default: ROOT } });
     return Response.json({});
   }) as typeof fetch;
 });
@@ -117,7 +117,7 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
     putAnswer = (patch) => ({ ...state, policy: { ...state.policy, ...patch } });
     const view = await mount();
     await view.choose("Remove worktrees", "7 days");
-    expect(calls.find((call) => call.method === "PUT")).toEqual({ url: "/api/cleanup", method: "PUT", body: { settledDays: 7 } });
+    expect(calls.find((call) => call.method === "PUT")).toEqual({ url: "/api/engine/v2/cleanup", method: "PUT", body: { settledDays: 7 } });
     expect(view.host.querySelector('[aria-label="Remove worktrees"]')?.textContent).toContain("7 days");
     view.unmount();
   });
@@ -139,7 +139,7 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
     const view = await mount();
     expect(view.text()).toContain("Never cleaned up");
     await view.click(view.button("Clean up now")!);
-    expect(calls.some((call) => call.url === "/api/cleanup/run" && call.method === "POST")).toBe(true);
+    expect(calls.some((call) => call.url === "/api/engine/v2/cleanup/run" && call.method === "POST")).toBe(true);
     expect(view.text()).toContain("Last cleanup: 12m ago · freed 8.4 GB");
     expect(view.text()).toContain("3 worktrees released, 5 logs deleted, 1 skipped");
     view.unmount();
@@ -155,8 +155,8 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
 
   test("the page asks for the summary, never the full worktree list", async () => {
     const view = await mount();
-    expect(calls.some((call) => call.url === "/api/worktrees/summary")).toBe(true);
-    expect(calls.some((call) => call.url.startsWith("/api/worktrees?") || call.url === "/api/worktrees")).toBe(false);
+    expect(calls.some((call) => call.url === "/api/engine/v2/worktrees/summary")).toBe(true);
+    expect(calls.some((call) => call.url.startsWith("/api/engine/v2/worktrees?") || call.url === "/api/engine/v2/worktrees")).toBe(false);
     expect(view.button("Show worktrees")).toBeUndefined();
     view.unmount();
   });

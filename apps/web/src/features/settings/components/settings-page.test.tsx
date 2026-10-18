@@ -23,7 +23,7 @@ beforeEach(() => {
     if (url.startsWith("/api/provider-instances")) {
       return json({ providerInstances: [{ id: "claude", driver: "claude", enabled: true, env: [], createdAt: 1, updatedAt: 1 }], probes: [] });
     }
-    if (url.startsWith("/api/usage/sources")) return json({ sources: [{ id: "home-hub", label: "Home hub", url: "http://localhost:8317", enabled: true, keyRedacted: "…abcd" }] });
+    if (url.startsWith("/api/engine/v2/usage/sources")) return json({ sources: [{ id: "home-hub", label: "Home hub", url: "http://localhost:8317", enabled: true, keyRedacted: "…abcd" }] });
     return json({});
   }) as typeof fetch;
 });

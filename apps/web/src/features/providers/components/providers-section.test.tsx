@@ -30,7 +30,7 @@ beforeEach(() => {
       return json({ providerInstance: INSTANCES[0] });
     }
     if (url.startsWith("/api/provider-instances")) return json({ providerInstances: INSTANCES, probes: PROBES });
-    if (url.startsWith("/api/usage/sources")) return json({ sources: [{ id: "home-hub", label: "Home hub", url: "http://localhost:8317", enabled: true, keyRedacted: "…abcd" }] });
+    if (url.startsWith("/api/engine/v2/usage/sources")) return json({ sources: [{ id: "home-hub", label: "Home hub", url: "http://localhost:8317", enabled: true, keyRedacted: "…abcd" }] });
     return json({});
   }) as typeof fetch;
   window.setTimeout = ((fn: () => void) => {

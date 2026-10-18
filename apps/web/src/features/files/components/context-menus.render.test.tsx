@@ -38,11 +38,11 @@ const level = (path: string, entries: { name: string; kind: "file" | "directory"
 
 function stubTree() {
   return stubFetch({
-    "GET /api/sessions/s1/files": () => ({ listing: LISTING }),
-    "GET /api/sessions/s1/files?dir=": level("", [{ name: "src", kind: "directory" }, { name: "README.md", kind: "file" }]),
-    "GET /api/sessions/s1/files?dir=src": level("src", [{ name: "lib", kind: "directory" }, { name: "a.ts", kind: "file" }]),
-    "GET /api/sessions/s1/files?dir=src%2Flib": level("src/lib", [{ name: "b.ts", kind: "file" }]),
-    "GET /api/sessions/s1/diff": () => ({ diff: { files: [] } }),
+    "GET /api/engine/v2/sessions/s1/files": () => ({ listing: LISTING }),
+    "GET /api/engine/v2/sessions/s1/files?dir=": level("", [{ name: "src", kind: "directory" }, { name: "README.md", kind: "file" }]),
+    "GET /api/engine/v2/sessions/s1/files?dir=src": level("src", [{ name: "lib", kind: "directory" }, { name: "a.ts", kind: "file" }]),
+    "GET /api/engine/v2/sessions/s1/files?dir=src%2Flib": level("src/lib", [{ name: "b.ts", kind: "file" }]),
+    "GET /api/engine/v2/sessions/s1/diff": () => ({ diff: { files: [] } }),
   });
 }
 
@@ -178,7 +178,7 @@ describe("the file tree", () => {
     await rightClick(host.querySelector("p:last-of-type")!);
     expect(labels()).toEqual(["Refresh", "Collapse all"]);
     await click(item("Refresh"));
-    expect(calls.filter((call) => call.route === "GET /api/sessions/s1/files")).toHaveLength(2);
+    expect(calls.filter((call) => call.route === "GET /api/engine/v2/sessions/s1/files")).toHaveLength(2);
   });
 
   test("the search field keeps the browser's own menu", async () => {
@@ -269,7 +269,7 @@ describe("the file view's menu", () => {
   const read = (path: string, text: string) => ({ file: { path, text, bytes: text.length, sha256: "sha", binary: false, truncated: false } });
 
   async function mountFile(path: string, text: string, extra: { onInsertReference?: (reference: TelarReference) => void } = {}) {
-    const calls = stubFetch({ "GET /api/sessions/s1/files": () => read(path, text) });
+    const calls = stubFetch({ "GET /api/engine/v2/sessions/s1/files": () => read(path, text) });
     const { host } = await mount(<FileViewSurface path={path} sessionId="s1" workspacePath="/w" {...extra} />);
     await flush(() => Boolean(host.querySelector("textarea") || host.textContent?.includes(text.trim().slice(2))));
     return { host, calls };
@@ -296,7 +296,7 @@ describe("the file view's menu", () => {
     await rightClick(host.querySelector('[aria-label="Re-read this file"]')!);
     await click(item("Re-read from disk"));
     await flush();
-    expect(calls.filter((call) => call.route === "GET /api/sessions/s1/files")).toHaveLength(2);
+    expect(calls.filter((call) => call.route === "GET /api/engine/v2/sessions/s1/files")).toHaveLength(2);
   });
 
   test("markdown's Rendered/Source radio switches the view, and Wrap lines drives the header's switch", async () => {

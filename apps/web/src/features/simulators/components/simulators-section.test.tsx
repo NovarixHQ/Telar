@@ -8,19 +8,19 @@ installTestDom();
 async function mountSection(initial: SimulatorSettings, refuse?: string) {
   let settings = initial;
   const calls = stubFetch({
-    "GET /api/simulator-settings": () => ({ simulatorSettings: settings }),
-    "PATCH /api/simulator-settings": (body) => {
+    "GET /api/engine/v2/simulator-settings": () => ({ simulatorSettings: settings }),
+    "PATCH /api/engine/v2/simulator-settings": (body) => {
       if (refuse) throw new Error(refuse);
       settings = { ...settings, ...(body as Partial<SimulatorSettings>) };
       return { simulatorSettings: settings };
     },
   });
   const { host } = await mount(<SimulatorsRows />);
-  await flush(() => calls.some((call) => call.route === "GET /api/simulator-settings"));
+  await flush(() => calls.some((call) => call.route === "GET /api/engine/v2/simulator-settings"));
   await flush();
   const switches = () => [...host.querySelectorAll<HTMLElement>('[role="switch"]')];
   const checked = () => switches().map((element) => element.getAttribute("aria-checked") === "true");
-  const patches = () => calls.filter((call) => call.route === "PATCH /api/simulator-settings").map((call) => call.body);
+  const patches = () => calls.filter((call) => call.route === "PATCH /api/engine/v2/simulator-settings").map((call) => call.body);
   return { host, switches, checked, patches };
 }
 

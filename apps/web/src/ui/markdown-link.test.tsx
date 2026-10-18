@@ -50,7 +50,7 @@ describe("a link to the cockpit's own route", () => {
     expect(inAppHref("/hosts/h/projects/p/sessions/s", "/hosts/other/x", origin)).toBe("/hosts/h/projects/p/sessions/s");
     expect(inAppHref("https://example.com/projects/p", "/", origin)).toBeUndefined();
     expect(inAppHref("//example.com/projects/p", "/", origin)).toBeUndefined();
-    expect(inAppHref("/api/projects", "/", origin)).toBeUndefined();
+    expect(inAppHref("/api/engine/v2/projects", "/", origin)).toBeUndefined();
   });
 });
 

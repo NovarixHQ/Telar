@@ -4,7 +4,7 @@
  *
  * THE NUMBER THAT MATTERS IS THE LIVE-LIST READ. Before this, every verb on a
  * rail row ended in `onRefresh()`, which the rail answered with `loadAll()`:
- * one `hosts()` read plus one `/api/sessions/live` read PER PAIRED MAC, per
+ * one `hosts()` read plus one `/api/engine/v2/sessions/live` read PER PAIRED MAC, per
  * click. So the recorded reads below are not a performance smoke test — they
  * are the whole feature, and a regression would be invisible in every other
  * assertion this suite makes.
@@ -73,7 +73,7 @@ const record = (over: Partial<LiveSessionRow> = {}): LiveSessionRow =>
  * rather than a fetcher injected, because `sessionFetch` reaches for
  * `hostFetcher` itself — a fake threaded in through an argument would prove
  * nothing about the path the rail actually takes, including the remote-host
- * rewrite that turns `/api/x` into `/api/engine/v2/hosts/:id/api/x`.
+ * rewrite that turns `/api/engine/v2/x` into `/api/engine/v2/hosts/:id/api/x`.
  */
 let asked: string[] = [];
 let answer: () => Response = () => Response.json({ session: record() });
@@ -94,7 +94,7 @@ afterEach(() => {
 
 /** The assertion this file exists for. `live` is the aggregate list read the
  *  rail polls on; `hosts` is the pairing book `loadAll` reads before it. */
-const liveListReads = () => asked.filter((call) => call.includes("/sessions/live") || call.endsWith("/api/hosts"));
+const liveListReads = () => asked.filter((call) => call.includes("/sessions/live") || call.endsWith("/api/engine/v2/hosts"));
 
 /** Run one mutation and report what the rail was told, in order. */
 async function run(
@@ -115,7 +115,7 @@ describe("no mutation reads the live list", () => {
       patchSession(before, { settledOverride: "settled" }),
     );
     expect(liveListReads()).toEqual([]);
-    expect(asked).toEqual(["PATCH /api/sessions/session_one"]);
+    expect(asked).toEqual(["PATCH /api/engine/v2/sessions/session_one"]);
     expect(changes).toHaveLength(2);
   });
 
@@ -123,21 +123,21 @@ describe("no mutation reads the live list", () => {
     const before = row();
     await run(before, { row: withSettling(before, "active", 5_000) }, () => patchSession(before, { settledOverride: "active" }));
     expect(liveListReads()).toEqual([]);
-    expect(asked).toEqual(["PATCH /api/sessions/session_one"]);
+    expect(asked).toEqual(["PATCH /api/engine/v2/sessions/session_one"]);
   });
 
   test("snooze sends one PATCH and nothing else", async () => {
     const before = row();
     await run(before, { row: withSnooze(before, 8_000, 5_000) }, () => patchSession(before, { snoozedUntil: 8_000 }));
     expect(liveListReads()).toEqual([]);
-    expect(asked).toEqual(["PATCH /api/sessions/session_one"]);
+    expect(asked).toEqual(["PATCH /api/engine/v2/sessions/session_one"]);
   });
 
   test("rename sends one PATCH and nothing else", async () => {
     const before = row();
     await run(before, { row: withTitle(before, "Transit timing", 5_000) }, () => patchSession(before, { title: "Transit timing" }));
     expect(liveListReads()).toEqual([]);
-    expect(asked).toEqual(["PATCH /api/sessions/session_one"]);
+    expect(asked).toEqual(["PATCH /api/engine/v2/sessions/session_one"]);
   });
 
   test("delete sends one DELETE and nothing else", async () => {
@@ -145,7 +145,7 @@ describe("no mutation reads the live list", () => {
     answer = () => Response.json({ deleted: true });
     await run(before, { removed: "session_one" }, () => deleteSession(before));
     expect(liveListReads()).toEqual([]);
-    expect(asked).toEqual(["DELETE /api/sessions/session_one"]);
+    expect(asked).toEqual(["DELETE /api/engine/v2/sessions/session_one"]);
   });
 
   test("un-settling costs its two patches and still no list read", () => {
@@ -158,7 +158,7 @@ describe("no mutation reads the live list", () => {
       return patchSession(before, { settledOverride: null });
     }).then(() => {
       expect(liveListReads()).toEqual([]);
-      expect(asked).toEqual(["PATCH /api/sessions/session_one", "PATCH /api/sessions/session_one"]);
+      expect(asked).toEqual(["PATCH /api/engine/v2/sessions/session_one", "PATCH /api/engine/v2/sessions/session_one"]);
     });
   });
 
@@ -235,7 +235,7 @@ describe("a settled row's terminals (#883)", () => {
     answer = () => Response.json({ closed: 2 });
     const changes: SessionRowChange[] = [];
     await closeRowTerminals({ row: before, onRowChanged: (change) => changes.push(change), report: () => {} });
-    expect(asked).toEqual(["POST /api/sessions/session_one/terminals/close"]);
+    expect(asked).toEqual(["POST /api/engine/v2/sessions/session_one/terminals/close"]);
     expect(changes).toHaveLength(1);
     expect("row" in changes[0]! && changes[0].row.terminals).toBeUndefined();
     expect(liveListReads()).toEqual([]);

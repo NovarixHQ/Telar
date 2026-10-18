@@ -53,7 +53,7 @@ const found = () => ({
 });
 
 async function composer() {
-  const calls = stubFetch({ "GET /api/projects/project_a/files": files, "GET /api/sessions/live": live, "GET /api/sessions/find": found });
+  const calls = stubFetch({ "GET /api/engine/v2/projects/project_a/files": files, "GET /api/engine/v2/sessions/live": live, "GET /api/sessions/find": found });
   const { host } = await mount(<Box />);
   await flush();
   const editor = host.querySelector<HTMLElement>("[data-slot=composer-editor]")!;

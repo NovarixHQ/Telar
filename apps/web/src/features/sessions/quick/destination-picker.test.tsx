@@ -11,7 +11,7 @@ const row = (extra: Partial<SidebarSession>) =>
 
 describe("a # session row", () => {
   test("shows its project's icon", () => {
-    expect(row({ projectIcon: "k1" })).toContain('src="/api/projects/project_1/icon?v=k1"');
+    expect(row({ projectIcon: "k1" })).toContain('src="/api/engine/v2/projects/project_1/icon?v=k1"');
   });
 
   test("shows the project's initial when it has no icon", () => {

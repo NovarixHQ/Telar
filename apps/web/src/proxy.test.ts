@@ -38,7 +38,7 @@ function matches(url: string): boolean {
 describe("pairing proxy", () => {
   test("the matcher covers /api and pages, sparing /pair and static assets", () => {
     expect(matches("/api/health")).toBe(true);
-    expect(matches("/api/sessions/live")).toBe(true);
+    expect(matches("/api/engine/v2/sessions/live")).toBe(true);
     expect(matches("/")).toBe(true);
     expect(matches("/settings")).toBe(true);
     expect(matches("/pair")).toBe(false);

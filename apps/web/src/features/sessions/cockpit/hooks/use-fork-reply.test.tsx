@@ -50,7 +50,7 @@ describe("Fork from here", () => {
     await press(host.querySelector('button[aria-label="Fork from here"]')!);
     await flush(() => pushes.length > 0);
 
-    expect(calls).toEqual([{ method: "POST", url: "/api/sessions/session_one/fork", body: { runId: "run_two" } }]);
+    expect(calls).toEqual([{ method: "POST", url: "/api/engine/v2/sessions/session_one/fork", body: { runId: "run_two" } }]);
     expect(pushes).toEqual(["/projects/project_one/sessions/session_fork"]);
     expect(errors).toEqual([]);
   });

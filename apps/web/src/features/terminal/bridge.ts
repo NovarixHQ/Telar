@@ -1,5 +1,6 @@
 import { domainMethods, shellStreamPath, type ShellActivity, type ShellEnding, type ShellFacts, type ShellFrame, type ShellOpened, type ShellOpenInput } from "@telar/engine-client";
 import { readEventStream } from "@/platform/engine/event-stream";
+import { cockpitPath } from "@/platform/engine/cockpit-path";
 import { pathnameFetcher, type Fetcher } from "@/platform/engine/host-client";
 import { apiTransport } from "@/platform/engine/transport";
 
@@ -82,7 +83,7 @@ export function createTerminalBridge(fetcher: Fetcher, retryMs: readonly number[
     let cursor = 0;
     for (let attempt = 0; !signal.aborted; attempt += 1) {
       try {
-        const response = await fetcher(shellStreamPath(id).replace(/^\/v2\//, "/api/"), {
+        const response = await fetcher(cockpitPath(shellStreamPath(id), "POST"), {
           method: "POST",
           headers: { "content-type": "application/json", accept: "text/event-stream" },
           body: JSON.stringify({ after: cursor }),

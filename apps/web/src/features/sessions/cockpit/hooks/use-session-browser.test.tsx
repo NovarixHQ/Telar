@@ -42,8 +42,8 @@ async function probe({ sessionId = "session_1", bridge, events = [], canStart = 
   const starts: string[] = [];
   let started = () => {};
   stubFetch({
-    "GET /api/sessions/session_1/browser": () => (started(), { browser: { scopeKey: "session_1", provider: "none", running: false, tabs: [], canStart } }),
-    "POST /api/sessions/session_1/browser": () => {
+    "GET /api/engine/v2/sessions/session_1/browser": () => (started(), { browser: { scopeKey: "session_1", provider: "none", running: false, tabs: [], canStart } }),
+    "POST /api/engine/v2/sessions/session_1/browser": () => {
       starts.push("start");
       return { browser: { scopeKey: "session_1", provider: "integrated", running: true, tabs: [], canStart } };
     },

@@ -46,7 +46,7 @@ export function liveRow(id: string, extra: Record<string, unknown> & { idleHours
 export const project = (id: string, name: string) => ({ id, name, root: `/tmp/${id}` });
 
 /**
- * Answers the rail's reads: `/api/hosts` with `hosts`, every host's live list
+ * Answers the rail's reads: `/api/engine/v2/hosts` with `hosts`, every host's live list
  * with `live`, and anything else 404. Returns every request, in order.
  */
 export function stubRail(live: (request: RailRequest) => LiveAnswer, hosts: { id: string; name: string }[] = []) {
@@ -57,8 +57,8 @@ export function stubRail(live: (request: RailRequest) => LiveAnswer, hosts: { id
     const ifNoneMatch = (init?.headers as Record<string, string> | undefined)?.["if-none-match"];
     const request = { path: url.pathname, search: url.search, ...(ifNoneMatch ? { ifNoneMatch } : {}) };
     requests.push(request);
-    if (url.pathname === "/api/hosts") return Response.json({ hosts });
-    if (/^\/api(\/engine\/v2\/hosts\/[^/]+\/api)?\/sessions\/live$/.test(url.pathname)) {
+    if (url.pathname === "/api/engine/v2/hosts") return Response.json({ hosts });
+    if (/^\/api\/engine\/v2(\/hosts\/[^/]+\/api)?\/sessions\/live$/.test(url.pathname)) {
       const answer = live(request);
       const headers = answer.etag ? { etag: answer.etag } : undefined;
       if (answer.status === 304) return new Response(null, { status: 304, ...(headers ? { headers } : {}) });
@@ -89,7 +89,7 @@ export async function mountRail({ viewing = "/" }: { viewing?: string } = {}) {
     </SidebarProvider>,
   );
   // The layout read is deferred; a test that ends before it lands leaks it past the fetch stub.
-  const layoutRead = () => served.some((request) => request.path === "/api/sidebar-layout");
+  const layoutRead = () => served.some((request) => request.path === "/api/engine/v2/sidebar-layout");
   await flush(layoutRead);
   await flush();
   return host;

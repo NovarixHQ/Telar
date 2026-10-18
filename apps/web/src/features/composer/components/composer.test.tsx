@@ -334,20 +334,20 @@ describe("the skills menu", () => {
   const skills = () => ({ skills: [{ name: "deploy", description: "Ship it" }], commands: [] });
 
   test("a canvas with no session asks the project", async () => {
-    const { editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/skills": skills });
+    const { editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/engine/v2/projects/project_a/skills": skills });
     await type(editor, "$");
     await flush(() => calls.some((call) => call.route.endsWith("/skills")));
-    expect(calls.map((call) => call.route)).toContain("GET /api/projects/project_a/skills");
+    expect(calls.map((call) => call.route)).toContain("GET /api/engine/v2/projects/project_a/skills");
   });
 
   test("a session asks itself, not the project", async () => {
     const session = { id: "session_a", driver: "claude", projectId: "project_a", workspace: { mode: "local", path: "/work" } } as Session;
-    const { editor, calls } = await composer({ projectId: "project_a", session }, { "GET /api/sessions/session_a/skills": skills });
+    const { editor, calls } = await composer({ projectId: "project_a", session }, { "GET /api/engine/v2/sessions/session_a/skills": skills });
     await type(editor, "$");
     await flush(() => calls.some((call) => call.route.endsWith("/skills")));
     const routes = calls.map((call) => call.route);
-    expect(routes).toContain("GET /api/sessions/session_a/skills");
-    expect(routes).not.toContain("GET /api/projects/project_a/skills");
+    expect(routes).toContain("GET /api/engine/v2/sessions/session_a/skills");
+    expect(routes).not.toContain("GET /api/engine/v2/projects/project_a/skills");
   });
 });
 
@@ -357,14 +357,14 @@ describe("the @ menu", () => {
   const menu = (host: HTMLElement) => host.querySelector('[role="listbox"][aria-label="Files and folders"]');
 
   test("offers the project's files and folders", async () => {
-    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": listing(["README.md", "src/app.ts"]), "GET /api/sessions/live": live });
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/engine/v2/projects/project_a/files": listing(["README.md", "src/app.ts"]), "GET /api/engine/v2/sessions/live": live });
     await type(editor, "@");
     await flush(() => menu(host)?.textContent?.includes("README.md") ?? false);
     expect(menu(host)?.textContent).toContain("src");
   });
 
   test("with nothing to offer it still opens and says so", async () => {
-    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": listing([]), "GET /api/sessions/live": live });
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/engine/v2/projects/project_a/files": listing([]), "GET /api/engine/v2/sessions/live": live });
     await type(editor, "@");
     await flush(() => menu(host)?.textContent?.includes("No matches.") ?? false);
     expect(menu(host)).not.toBeNull();
@@ -374,10 +374,10 @@ describe("the @ menu", () => {
     let answer: () => unknown = () => {
       throw new Error("git timed out");
     };
-    const { host, editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => answer(), "GET /api/sessions/live": live });
+    const { host, editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/engine/v2/projects/project_a/files": () => answer(), "GET /api/engine/v2/sessions/live": live });
     await type(editor, "@");
     await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
-    const reads = () => calls.filter((call) => call.route === "GET /api/projects/project_a/files").length;
+    const reads = () => calls.filter((call) => call.route === "GET /api/engine/v2/projects/project_a/files").length;
     const failedReads = reads();
 
     answer = listing(["README.md"]);
@@ -393,7 +393,7 @@ describe("the @ menu", () => {
   const files = ["README.md", "package.json", "src/app/page.tsx", "src/lib/api.ts"];
 
   test("a prefix lists the session's matching files", async () => {
-    const { host, editor } = await composer({ projectId: "project_a", session }, { "GET /api/sessions/session_a/files": listing(files), "GET /api/sessions/live": live });
+    const { host, editor } = await composer({ projectId: "project_a", session }, { "GET /api/engine/v2/sessions/session_a/files": listing(files), "GET /api/engine/v2/sessions/live": live });
     await type(editor, "@pa");
     await flush(() => menu(host)?.textContent?.includes("page.tsx") ?? false);
     const rows = [...menu(host)!.querySelectorAll('[role="option"]')].map((row) => row.textContent ?? "");
@@ -405,11 +405,11 @@ describe("the @ menu", () => {
     let answer: () => unknown = () => {
       throw new Error("git timed out");
     };
-    const { host, editor, calls } = await composer({ projectId: "project_a", session }, { "GET /api/sessions/session_a/files": () => answer(), "GET /api/sessions/live": others });
+    const { host, editor, calls } = await composer({ projectId: "project_a", session }, { "GET /api/engine/v2/sessions/session_a/files": () => answer(), "GET /api/engine/v2/sessions/live": others });
     await type(editor, "@p");
     await flush(() => menu(host)?.textContent?.includes("Could not read the files here.") ?? false);
     expect(menu(host)?.textContent).toContain("Pair on the parser");
-    const reads = () => calls.filter((call) => call.route === "GET /api/sessions/session_a/files").length;
+    const reads = () => calls.filter((call) => call.route === "GET /api/engine/v2/sessions/session_a/files").length;
     const failedReads = reads();
 
     answer = listing(files);
@@ -425,7 +425,7 @@ describe("the @ menu before the listing arrives", () => {
   const menu = (host: HTMLElement) => host.querySelector('[role="listbox"][aria-label="Files and folders"]');
 
   test("a pending listing shows a reading row under the heading, not an empty heading", async () => {
-    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/sessions/live": live });
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/engine/v2/sessions/live": live });
     const answered = globalThis.fetch;
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => (String(input).endsWith("/files") ? new Promise(() => {}) : answered(input, init))) as typeof fetch;
     await type(editor, "@");
@@ -435,7 +435,7 @@ describe("the @ menu before the listing arrives", () => {
   });
 
   test("with only session matches there is no Files and folders heading", async () => {
-    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/sessions/live": live });
+    const { host, editor } = await composer({ projectId: "project_a" }, { "GET /api/engine/v2/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/engine/v2/sessions/live": live });
     await type(editor, "@parser");
     await flush(() => menu(host)?.textContent?.includes("Pair on the parser") ?? false);
     expect(menu(host)!.textContent).not.toContain("Files and folders");
@@ -443,13 +443,13 @@ describe("the @ menu before the listing arrives", () => {
   });
 
   test("focusing the box reads the listing before @ is typed", async () => {
-    const { editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/sessions/live": live });
+    const { editor, calls } = await composer({ projectId: "project_a" }, { "GET /api/engine/v2/projects/project_a/files": () => ({ listing: { workspacePath: "/w", repository: true, files: ["README.md"], source: "git", truncated: false, readAt: 0 } }), "GET /api/engine/v2/sessions/live": live });
     act(() => {
       editor.focus();
       editor.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
     });
-    await flush(() => calls.some((call) => call.route === "GET /api/projects/project_a/files"));
-    expect(calls.map((call) => call.route)).toContain("GET /api/projects/project_a/files");
+    await flush(() => calls.some((call) => call.route === "GET /api/engine/v2/projects/project_a/files"));
+    expect(calls.map((call) => call.route)).toContain("GET /api/engine/v2/projects/project_a/files");
   });
 });
 

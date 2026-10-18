@@ -12,7 +12,7 @@ const pill = (extra: Partial<SidebarSession>) =>
 
 describe("a needs-you pill", () => {
   test("shows its project's icon", () => {
-    expect(pill({ projectIcon: "k2" })).toContain('src="/api/projects/project_2/icon?v=k2"');
+    expect(pill({ projectIcon: "k2" })).toContain('src="/api/engine/v2/projects/project_2/icon?v=k2"');
   });
 
   test("fetches a remote project's icon through its host", () => {

@@ -17,9 +17,9 @@ const stubEngine = (routes: Record<string, Route>) => (calls = stubFetch(routes)
 const called = (route: string) => calls.filter((call) => call.route === route);
 
 async function mountPermissions(status: () => ComputerUseStatus, routes: Record<string, Route> = {}) {
-  stubEngine({ "GET /api/computer-use": () => ({ computerUse: status() }), ...routes });
+  stubEngine({ "GET /api/engine/v2/computer-use": () => ({ computerUse: status() }), ...routes });
   const { host } = await mount(<ComputerUseRow />);
-  await flush(() => called("GET /api/computer-use").length > 0 && !host.querySelector('[data-slot="spinner"]'));
+  await flush(() => called("GET /api/engine/v2/computer-use").length > 0 && !host.querySelector('[data-slot="spinner"]'));
   return host;
 }
 
@@ -85,17 +85,17 @@ describe("computer use", () => {
     await mountPermissions(() => probe());
     expect(button("Remove permissions")).toBeUndefined();
 
-    await mountPermissions(() => probe({ bundled: true }), { "POST /api/computer-use/reset": () => ({ reset: true }) });
+    await mountPermissions(() => probe({ bundled: true }), { "POST /api/engine/v2/computer-use/reset": () => ({ reset: true }) });
     await click(button("Remove permissions"));
-    expect(called("POST /api/computer-use/reset")).toHaveLength(0);
+    expect(called("POST /api/engine/v2/computer-use/reset")).toHaveLength(0);
     await click(button("Cancel"));
     expect(button("Confirm remove")).toBeUndefined();
 
     await click(button("Remove permissions"));
-    const probes = called("GET /api/computer-use").length;
+    const probes = called("GET /api/engine/v2/computer-use").length;
     await click(button("Confirm remove"));
-    expect(called("POST /api/computer-use/reset")).toHaveLength(1);
-    expect(called("GET /api/computer-use").length).toBe(probes + 1);
+    expect(called("POST /api/engine/v2/computer-use/reset")).toHaveLength(1);
+    expect(called("GET /api/engine/v2/computer-use").length).toBe(probes + 1);
   });
 
   test("the row names whose sessions it governs, from the engine's own list", () => {
@@ -128,15 +128,15 @@ describe("computer use", () => {
 
     let status = probe({ permission: "denied", missing: ["accessibility", "screen-recording"] });
     let opened = "accessibility";
-    const host = await mountPermissions(() => status, { "POST /api/computer-use/grant": () => ({ started: true, opened }) });
+    const host = await mountPermissions(() => status, { "POST /api/engine/v2/computer-use/grant": () => ({ started: true, opened }) });
     await click(button("Grant access"));
-    expect(called("POST /api/computer-use/grant")).toHaveLength(1);
+    expect(called("POST /api/engine/v2/computer-use/grant")).toHaveLength(1);
 
     status = probe({ permission: "denied", missing: ["screen-recording"] });
     opened = "screen-recording";
     await act(async () => window.dispatchEvent(new Event("focus")));
     await flush();
-    expect(called("POST /api/computer-use/grant")).toHaveLength(2);
+    expect(called("POST /api/engine/v2/computer-use/grant")).toHaveLength(2);
 
     status = probe();
     await act(async () => window.dispatchEvent(new Event("focus")));
@@ -146,13 +146,13 @@ describe("computer use", () => {
 
   test("Grant's failures reach the row, and the bundled helper can be shown in Finder", async () => {
     const host = await mountPermissions(() => probe({ bundled: true, permission: "denied" }), {
-      "POST /api/computer-use/grant": () => ({ started: false, message: "macOS refused the prompt." }),
-      "POST /api/computer-use/reveal": () => ({ revealed: true }),
+      "POST /api/engine/v2/computer-use/grant": () => ({ started: false, message: "macOS refused the prompt." }),
+      "POST /api/engine/v2/computer-use/reveal": () => ({ revealed: true }),
     });
     await click(button("Grant access"));
     expect(host.textContent).toContain("macOS refused the prompt.");
     await click(button("Show in Finder"));
-    expect(called("POST /api/computer-use/reveal")).toHaveLength(1);
+    expect(called("POST /api/engine/v2/computer-use/reveal")).toHaveLength(1);
   });
 });
 
@@ -161,14 +161,14 @@ describe("Telar orientation", () => {
 
   async function mountOrientation(orientation: { preamble: boolean; skill: boolean }, answers = true) {
     stubEngine({
-      "GET /api/orientation": () => {
+      "GET /api/engine/v2/orientation": () => {
         if (!answers) throw new Error("down");
         return { orientation, text: ENGINE_TEXT };
       },
-      "PATCH /api/orientation": (patch) => ({ orientation: { ...orientation, ...(patch as object) }, text: ENGINE_TEXT }),
+      "PATCH /api/engine/v2/orientation": (patch) => ({ orientation: { ...orientation, ...(patch as object) }, text: ENGINE_TEXT }),
     });
     const { host } = await mount(<OrientationRow />);
-    await flush(() => called("GET /api/orientation").length > 0);
+    await flush(() => called("GET /api/engine/v2/orientation").length > 0);
     await flush();
     return host;
   }
@@ -190,6 +190,6 @@ describe("Telar orientation", () => {
     const host = await mountOrientation({ preamble: true, skill: true });
     expect(host.querySelector('[aria-label="Install the telar skill"]')).toBeNull();
     await press(host.querySelector('[aria-label="Tell agents they are inside Telar"]')!);
-    expect(called("PATCH /api/orientation").map((call) => call.body)).toEqual([{ preamble: false, skill: false }]);
+    expect(called("PATCH /api/engine/v2/orientation").map((call) => call.body)).toEqual([{ preamble: false, skill: false }]);
   });
 });

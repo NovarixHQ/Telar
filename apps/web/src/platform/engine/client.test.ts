@@ -27,7 +27,7 @@ describe("engine browser adapter", () => {
       return Response.json({ turn: { runId: "run_x" }, replayed: false }, { status: 202 });
     });
     await api.submitTurn("session_a", { runId: "run_stable", input: "hello" });
-    expect(calls).toEqual([{ url: "/api/sessions/session_a/turns", init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: "run_stable", input: "hello" }) } }]);
+    expect(calls).toEqual([{ url: "/api/engine/v2/sessions/session_a/turns", init: { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId: "run_stable", input: "hello" }) } }]);
     expect(newRunId(() => "a-b-c")).toBe("run_abc");
   });
 
@@ -77,7 +77,7 @@ describe("engine browser adapter", () => {
     );
     const api = createEngineApi(wire.fetcher);
     await Promise.all([api.health(), api.projects(), api.sessionBootstrap("session_1", { turns: 10 })]);
-    expect(wire.urls.slice(0, 3)).toContain("/api/sessions/session_1/bootstrap?turns=10");
+    expect(wire.urls.slice(0, 3)).toContain("/api/engine/v2/sessions/session_1/bootstrap?turns=10");
     expect(wire.peak).toBe(READ_BUDGET + OPEN_BUDGET);
     // Six per origin minus what this cockpit can spend leaves three for navigation.
     expect(6 - wire.peak).toBeGreaterThanOrEqual(3);
@@ -119,7 +119,7 @@ describe("engine browser adapter", () => {
     const results = await Promise.allSettled([api.health(), api.health(), api.projects(), api.inbox(), api.hosts()]);
     expect(peak).toBe(READ_BUDGET);
     expect(results.map((result) => result.status)).toEqual(["rejected", "rejected", "fulfilled", "fulfilled", "fulfilled"]);
-    expect(order).toEqual(["/api/health", "/api/health", "/api/projects", "/api/inbox", "/api/hosts"]);
+    expect(order).toEqual(["/api/health", "/api/health", "/api/engine/v2/projects", "/api/engine/v2/inbox", "/api/engine/v2/hosts"]);
   });
 
   test("a mutation never waits behind background reads", async () => {
@@ -127,7 +127,7 @@ describe("engine browser adapter", () => {
     const api = createEngineApi(wire.fetcher);
     const sent = Promise.all([api.health(), api.projects(), api.submitTurn("session_a", { runId: "run_1", input: "hello" })]);
     await sent;
-    expect(wire.urls.slice(0, 3)).toContain("/api/sessions/session_a/turns");
+    expect(wire.urls.slice(0, 3)).toContain("/api/engine/v2/sessions/session_a/turns");
     expect(wire.peak).toBe(READ_BUDGET + 1);
   });
 
@@ -164,7 +164,7 @@ describe("engine browser adapter", () => {
     });
     await api.discardAmbiguousTurn("session_a", "uncertain_run");
     expect(calls).toEqual([{
-      url: "/api/sessions/session_a/turns/uncertain_run/discard",
+      url: "/api/engine/v2/sessions/session_a/turns/uncertain_run/discard",
       init: { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
     }]);
   });

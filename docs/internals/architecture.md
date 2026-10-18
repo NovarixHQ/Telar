@@ -99,7 +99,7 @@ A feature can have a second entry when the main index would pull too much into e
 ## Headless (where this is going)
 
 The engine already owns pairing, devices and the access gate, push and the notification decider, the other-Macs book and forwarding to them, the folder listing, `sessions/live` and `about`. What still runs in `telar-ui`:
-- the `/api` routes: 133, most of them forwarding one call to the engine; `/api/engine/v2/**` is the one catch-all that replaces them.
+- the `/api` routes: 27 besides the `/api/engine/v2/**` catch-all, each adding something the engine does not (cookies, QR, reshaped bodies, nosniff); installed phones and paired Macs reach the catch-all through a `next.config.ts` alias of `/api/<path>` until 2027-01-31.
 
 The target:
 - The cockpit becomes a static SPA. Desktop serves it over a `telar://` scheme whose handler injects the engine token.

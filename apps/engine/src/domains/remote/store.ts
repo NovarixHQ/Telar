@@ -9,10 +9,13 @@ export class RemoteStoreError extends Error {}
 
 export type PairedDevice = Omit<RemoteDevice, "role"> & { tokenHash: string; clientId?: string };
 
-type NewDevice = { platform?: DevicePlatform; scopes?: DeviceScope[]; identity?: DeviceIdentity; clientId?: string };
+type NewDevice = { platform?: DevicePlatform; scopes?: DeviceScope[]; expiresAt?: number; identity?: DeviceIdentity; clientId?: string };
+
+type PairingGrant = { scopes: DeviceScope[]; sessionMs?: number };
 
 interface PendingPairing {
   tokenHash: string;
+  grant?: PairingGrant;
   attempts?: number;
   createdAt: number;
   expiresAt: number;
@@ -67,7 +70,7 @@ function sameHash(storedHex: string, raw: string): boolean {
 export function matchDevice(file: RemoteFile, raw: string): PairedDevice | undefined {
   let matched: PairedDevice | undefined;
   for (const device of file.devices) {
-    if (sameHash(device.tokenHash, raw)) matched = device;
+    if (sameHash(device.tokenHash, raw) && !(device.expiresAt !== undefined && Date.now() >= device.expiresAt)) matched = device;
   }
   return matched;
 }
@@ -141,6 +144,7 @@ function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
         name: cleanName(name),
         tokenHash: hashToken(raw),
         createdAt: Date.now(),
+        ...(options.expiresAt ? { expiresAt: options.expiresAt } : {}),
         scopes: options.scopes ?? ALL_SCOPES,
         ...(options.platform ? { platform: options.platform } : {}),
         ...(options.identity ? { identity: options.identity } : {}),
@@ -183,7 +187,7 @@ function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
       write(current);
       return true;
     },
-    revokeOtherDevices(keepId: string): number {
+    revokeOtherDevices(keepId?: string): number {
       const current = read();
       const before = current.devices.length;
       current.devices = current.devices.filter((device) => device.id === keepId);
@@ -211,11 +215,14 @@ function deviceMethods(h: ReturnType<typeof createRemoteStoreContext>) {
 function pairingMethods(h: ReturnType<typeof createRemoteStoreContext>) {
   const { read, write, update } = h;
   return {
-    mintPairing(nowMs: number = Date.now(), ttlMs: number = PAIRING_TTL_MS): { code: string; expiresAt: number } {
+    mintPairing(nowMs: number = Date.now(), ttlMs: number = PAIRING_TTL_MS, grant?: PairingGrant): { code: string; expiresAt: number } {
       const code = mintPairingCode();
       const expiresAt = nowMs + ttlMs;
-      update((current) => (current.pairing = { tokenHash: hashToken(code), createdAt: nowMs, expiresAt }));
+      update((current) => (current.pairing = { tokenHash: hashToken(code), createdAt: nowMs, expiresAt, ...(grant ? { grant } : {}) }));
       return { code, expiresAt };
+    },
+    pendingGrant(): PairingGrant | undefined {
+      return read().pairing?.grant;
     },
     clearPairing(): void {
       const current = read();

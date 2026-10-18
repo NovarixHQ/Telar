@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { EngineClient } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
 import { stubModels } from "../../../test/stub-models";
 
@@ -30,7 +31,7 @@ async function engine() {
     const { body } = await call("POST", "/v2/remote/pairing");
     return (await call("POST", "/v2/remote/pair", { code: body.code, name, identity: { kind: "phone" } })).body;
   };
-  return { call, pair, file: path.join(home, "remote", "remote.json") };
+  return { call, pair, client: new EngineClient(daemon.discovery), file: path.join(home, "remote", "remote.json") };
 }
 
 test("every remote route answers only to the engine token", async () => {
@@ -165,4 +166,35 @@ test("the device list says which devices are connected now", async () => {
   expect(devices.find((device) => device.id === phone.deviceId)).toMatchObject({ connected: true, lastSeenAt: expect.any(Number) });
   expect(devices.find((device) => device.id === laptop.deviceId)).toMatchObject({ connected: false });
   expect(devices.find((device) => device.id === laptop.deviceId)!.lastSeenAt).toBeUndefined();
+});
+
+test("a pairing carries the scopes and session expiry chosen for it, and a bad choice is refused", async () => {
+  const { call } = await engine();
+  expect((await call("POST", "/v2/remote/pairing", { scopes: ["root"] })).status).toBe(400);
+  expect((await call("POST", "/v2/remote/pairing", { expiresInMs: -1 })).status).toBe(400);
+  const { body: minted } = await call("POST", "/v2/remote/pairing", { scopes: ["write"], expiresInMs: 60_000 });
+  expect(minted.scopes).toEqual(["read", "write"]);
+  const paired = await call("POST", "/v2/remote/pair", { code: minted.code, name: "Laptop" });
+  const [device] = (await call("GET", "/v2/remote")).body.devices;
+  expect(device).toMatchObject({ id: paired.body.deviceId, scopes: ["read", "write"] });
+  expect(device.expiresAt - Date.now()).toBeLessThanOrEqual(60_000);
+  const next = await call("POST", "/v2/remote/pairing");
+  expect(next.body.scopes).toEqual(["read", "write", "admin"]);
+});
+
+test("the typed client lists, re-scopes and revokes sessions the way the CLI does", async () => {
+  const { client, pair } = await engine();
+  const first = await pair("Phone");
+  await pair("Laptop");
+  expect((await client.setDeviceScopes(first.deviceId, ["read"])).device.scopes).toEqual(["read"]);
+  const { code, scopes } = await client.mintPairing({ scopes: ["read"] });
+  expect([code, scopes]).toEqual([expect.stringMatching(/^\d{8}$/), ["read"]]);
+  const state = await client.remoteState();
+  expect(state.devices.map((device) => [device.name, device.scopes, device.createdAt > 0])).toEqual([
+    ["Phone", ["read"], true],
+    ["Laptop", ["read", "write", "admin"], true],
+  ]);
+  await client.revokeDevice(first.deviceId);
+  expect((await client.revokeOtherDevices()).revoked).toBe(1);
+  expect((await client.remoteState()).devices).toEqual([]);
 });

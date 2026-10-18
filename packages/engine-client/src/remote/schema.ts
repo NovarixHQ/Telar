@@ -11,6 +11,7 @@ export type RemoteDevice = {
   name: string;
   createdAt: number;
   lastSeenAt?: number;
+  expiresAt?: number;
   connected?: boolean;
   scopes: DeviceScope[];
   role: DeviceRole;
@@ -27,3 +28,5 @@ export type RemoteState = {
 };
 
 export type PairingRefusal = "none-pending" | "expired" | "mismatch" | "burned";
+
+export type PairingMint = { code: string; expiresAt: number; scopes: DeviceScope[] };

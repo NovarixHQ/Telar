@@ -225,6 +225,15 @@ describe("remote store", () => {
     expect(setDeviceScopes(phone.id, ["read", "write", "admin"])?.scopes).toEqual(["read", "write", "admin"]);
   });
 
+  test("a device past its expiry no longer matches its token", () => {
+    freshHome();
+    const raw = mintDeviceToken();
+    addDevice("Guest", raw, { expiresAt: Date.now() + 60_000 });
+    expect(matchDevice(readRemote(), raw)).toBeDefined();
+    addDevice("Guest", raw, { expiresAt: Date.now() - 1 });
+    expect(matchDevice(readRemote(), raw)).toBeUndefined();
+  });
+
   test("revokeOtherDevices keeps exactly the named device", () => {
     freshHome();
     const keep = addDevice("Phone", mintDeviceToken());

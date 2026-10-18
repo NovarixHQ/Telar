@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { EngineIdentity } from "@telar/engine-client";
+import { ENGINE_PROTO, type EngineIdentity } from "@telar/engine-client";
 import { ok, type Route } from "../../platform/http/route";
 
 const HOST_ID = /^host_[0-9a-f-]{36}$/;
@@ -21,5 +21,8 @@ export function readHostId(dir: string): string {
 }
 
 export function identityRoutes(identity: EngineIdentity, addresses: () => string[]): Route[] {
-  return [{ method: "GET", path: "/v2/identity", auth: "engine", handle: () => ok({ ...identity, addresses: addresses() }) }];
+  return [
+    { method: "GET", path: "/v2/ping", auth: "engine", handle: () => ok({ proto: ENGINE_PROTO }) },
+    { method: "GET", path: "/v2/identity", auth: "engine", handle: () => ok({ ...identity, addresses: addresses() }) },
+  ];
 }

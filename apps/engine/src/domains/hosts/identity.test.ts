@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { ENGINE_PROTO } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
 import { stubModels } from "../../../test/stub-models";
 import { readHostId } from "./identity";
@@ -33,6 +34,15 @@ test("a damaged host id file is replaced with a fresh id", () => {
   const minted = readHostId(dir);
   expect(minted).toMatch(/^host_/);
   expect(fs.readFileSync(path.join(dir, "host-id"), "utf8")).toBe(minted);
+});
+
+test("ping answers the protocol number", async () => {
+  const daemon = await startEngine({ models: stubModels, engineRoot: path.join(tempDir(), "engine") });
+  daemons.push(daemon);
+  const { port, token } = daemon.discovery;
+  const response = await fetch(`http://127.0.0.1:${port}/v2/ping`, { headers: { authorization: `Bearer ${token}` } });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ proto: ENGINE_PROTO });
 });
 
 test("the engine answers the same host id across restarts while its daemon id changes", async () => {

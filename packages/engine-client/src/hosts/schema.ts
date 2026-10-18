@@ -2,6 +2,10 @@ import { z } from "zod";
 
 export const LOCAL_HOST_ID = "local";
 
+export const ENGINE_PROTO = 1;
+export const EnginePing = z.object({ proto: z.number().int().positive() });
+export type EnginePing = z.infer<typeof EnginePing>;
+
 export type PublicHost = { id: string; name: string; baseUrl: string; daemonId?: string; addedAt: number };
 
 export const EngineIdentity = z.object({

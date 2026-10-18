@@ -9,3 +9,4 @@ export { resolveShell } from "./shell";
 export { runTools } from "./tools";
 export { SessionTerminals } from "./session-terminals";
 export { shellRoutes } from "./shell-routes";
+export { nodePtySpawner } from "./node-pty";

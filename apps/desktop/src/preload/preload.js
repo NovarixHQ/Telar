@@ -92,23 +92,6 @@ contextBridge.exposeInMainWorld("telarDesktop", {
     offerLoginMemory: (scopeKey) => ipcRenderer.invoke("telar:login-offer:open", scopeKey),
   },
 
-  terminal: {
-    open: (options) => ipcRenderer.invoke("telar:terminal:open", options ?? {}),
-    write: (id, data) => ipcRenderer.invoke("telar:terminal:write", { id, data }),
-    resize: (id, cols, rows) => ipcRenderer.invoke("telar:terminal:resize", { id, cols, rows }),
-    kill: (id, signal) => ipcRenderer.invoke("telar:terminal:kill", { id, signal }),
-
-    close: (id) => ipcRenderer.invoke("telar:terminal:close", { id }),
-
-    active: (ids) => ipcRenderer.invoke("telar:terminal:active", ids ? { ids } : {}),
-
-    list: () => ipcRenderer.invoke("telar:terminal:list"),
-
-    readImageFile: (path) => ipcRenderer.invoke("telar:terminal:read-image-file", { path }),
-    onData: (listener) => on("telar:terminal:data", listener),
-    onExit: (listener) => on("telar:terminal:exit", listener),
-  },
-
   dialog: {
     chooseDirectory: (options) => ipcRenderer.invoke("telar:dialog:choose-directory", options ?? {}),
   },

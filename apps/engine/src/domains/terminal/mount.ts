@@ -9,6 +9,7 @@ import { RunStore } from "./store";
 import { storeRunCapability, type RunSessionContext } from "./store-capability";
 import { nodePtySpawner, type PtySpawn } from "./node-pty";
 import { PtyHost } from "./pty-host";
+import { ShellHub } from "./shells";
 
 export type RunMount = {
   store: RunStore;
@@ -16,6 +17,8 @@ export type RunMount = {
   handle(method: string, tail: string, input: Record<string, unknown>, context: () => RunSessionContext): Promise<unknown> | undefined;
   watch(sessionId: string, listener: (event: RunStatusEvent) => void): () => void;
   attach(input: Record<string, unknown>, context: () => RunSessionContext): (send: (frame: RunStreamFrame) => void) => () => void;
+  shells: ShellHub | undefined;
+  host: PtyHost | undefined;
   shutdown(): Promise<void>;
 };
 
@@ -34,6 +37,7 @@ export function createRunMount(options: {
   const store = new RunStore(dir);
   const spawnPty = options.spawnPty ?? availablePty();
   const host = spawnPty ? new PtyHost({ spawnPty, version: options.version }) : undefined;
+  const shells = host ? new ShellHub(host) : undefined;
   const manager = new RunManager({
     shellDir: path.join(dir, "shell"),
     ...(host ? { launcher: terminalLauncher(host) } : {}),
@@ -43,6 +47,8 @@ export function createRunMount(options: {
   return {
     store,
     manager,
+    shells,
+    host,
     handle(method, tail, input, context) {
       const matched = matchRunRoute(method, tail);
       if (!matched) return undefined;

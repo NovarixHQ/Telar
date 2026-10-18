@@ -1,14 +1,13 @@
-const { afterAll, beforeAll, describe, expect, test } = require("bun:test");
-const { execFileSync } = require("node:child_process");
-const fs = require("node:fs");
-const os = require("node:os");
-const path = require("node:path");
-
-const { readKittyImageFile, isForbiddenLocation } = require("./kitty-image-file");
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { isForbiddenLocation, readKittyImageFile } from "./kitty-image-file";
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
-let dir;
-const at = (name) => path.join(dir, name);
+let dir: string;
+const at = (name: string) => path.join(dir, name);
 
 beforeAll(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "kitty-file-"));
@@ -28,7 +27,7 @@ afterAll(() => {
 describe("the read it exists for", () => {
   test("a PNG the person owns comes back as its bytes", async () => {
     const answer = await readKittyImageFile(at("logo.png"));
-    expect(answer.ok).toBe(true);
+    if (!answer.ok) throw new Error(answer.code);
     expect(Buffer.from(answer.bytes).equals(PNG)).toBe(true);
   });
 
@@ -39,10 +38,10 @@ describe("the read it exists for", () => {
 });
 
 describe("each refusal, and its bare code", () => {
-  const refused = async (requested, code, options) => {
+  const refused = async (requested: unknown, code: string, options?: Parameters<typeof readKittyImageFile>[1]) => {
     const answer = await readKittyImageFile(requested, options);
     expect(answer).toEqual({ ok: false, code });
-    expect(answer.code).toMatch(/^E[A-Z]+$/);
+    expect(code).toMatch(/^E[A-Z]+$/);
   };
 
   test("a relative path", () => refused("logo.png", "EINVAL"));
@@ -64,7 +63,7 @@ describe("each refusal, and its bare code", () => {
 
   test("a link swapped in after the resolve is refused on the descriptor, not followed", async () => {
     fs.symlinkSync("/dev/null", at("swapped"));
-    const fsp = { ...fs.promises, realpath: async () => at("swapped") };
+    const fsp = { ...fs.promises, realpath: (async () => at("swapped")) as unknown as typeof fs.promises.realpath };
     await refused(at("logo.png"), "ENOENT", { fsp });
   });
 });

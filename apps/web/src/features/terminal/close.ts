@@ -11,7 +11,7 @@ export type CloseTarget = {
 
 export type CloseDecision = { action: "close" } | { action: "confirm"; message: string };
 
-/** Mirrors the host's own `clip` (apps/desktop/terminal-host.js). */
+/** Mirrors the quit dialog's own `clip` (apps/desktop/src/main/terminal-quit.js). */
 function clip(text: string, max = 80): string {
   const flat = text.replace(/\s+/g, " ").trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;

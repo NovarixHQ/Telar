@@ -1,26 +1,28 @@
-const fs = require("node:fs");
-const path = require("node:path");
+import fs from "node:fs";
+import path from "node:path";
 
 const KITTY_FILE_LIMIT = 20_000_000;
 const FORBIDDEN_ROOTS = ["/dev", "/proc", "/sys"];
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-function isForbiddenLocation(resolved) {
+export function isForbiddenLocation(resolved: string): boolean {
   const lower = resolved.toLowerCase();
   return FORBIDDEN_ROOTS.some((root) => lower === root || lower.startsWith(`${root}/`));
 }
 
-async function readKittyImageFile(requested, { limit = KITTY_FILE_LIMIT, fsp = fs.promises } = {}) {
+export type KittyFileAnswer = { ok: true; bytes: Uint8Array } | { ok: false; code: string };
+
+export async function readKittyImageFile(requested: unknown, { limit = KITTY_FILE_LIMIT, fsp = fs.promises }: { limit?: number; fsp?: typeof fs.promises } = {}): Promise<KittyFileAnswer> {
   if (typeof requested !== "string" || !path.isAbsolute(requested) || requested.includes("\0")) return { ok: false, code: "EINVAL" };
   if (isForbiddenLocation(path.normalize(requested))) return { ok: false, code: "EPERM" };
-  let resolved;
+  let resolved: string;
   try {
     resolved = await fsp.realpath(requested);
   } catch {
     return { ok: false, code: "ENOENT" };
   }
   if (isForbiddenLocation(resolved)) return { ok: false, code: "EPERM" };
-  let handle;
+  let handle: fs.promises.FileHandle;
   try {
     handle = await fsp.open(resolved, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | (fs.constants.O_NONBLOCK ?? 0));
   } catch {
@@ -43,5 +45,3 @@ async function readKittyImageFile(requested, { limit = KITTY_FILE_LIMIT, fsp = f
     await handle.close().catch(() => {});
   }
 }
-
-module.exports = { readKittyImageFile, isForbiddenLocation };

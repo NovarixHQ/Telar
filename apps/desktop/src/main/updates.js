@@ -6,7 +6,7 @@ const { writePlannedRestart, createInstallGate, clearPlannedRestart } = require(
 const path = require("node:path");
 const devUpdate = require("../dev/dev-update");
 const { DEV_BUILD } = require("./flags");
-const { logShell } = require("./shell-log");
+const { busyTerminals, heldTerminals } = require("./terminal-quit");
 const { requireCockpitSender } = require("./browser-hosts");
 const { readUpdatePrefs, UPDATE_CHANNELS, updateLogPath, updateProxyKey, writeUpdatePrefs } = require("./update-prefs");
 
@@ -162,14 +162,6 @@ function createUpdater(main) {
   async function quitForHandoff() {
     app.isQuitting = true;
     writePlannedRestart(path.join(telarHome(), "engine"));
-    if (main.terminalHost && main.terminalHost.size > 0) {
-      try {
-        await main.terminalHost.closeAll();
-        await main.terminalHost.drain();
-      } catch (error) {
-        logShell("error", `closing terminals before the hand-off failed: ${error?.stack || error}`);
-      }
-    }
     main.terminalsClosedForQuit = true;
     app.quit();
   }
@@ -219,14 +211,6 @@ function registerUpdates(main) {
     const engineRoot = path.join(telarHome(), "engine");
     writePlannedRestart(engineRoot);
 
-    if (main.terminalHost && main.terminalHost.size > 0) {
-      try {
-        await main.terminalHost.closeAll();
-        await main.terminalHost.drain();
-      } catch (error) {
-        logShell("error", `closing terminals before the update restart failed: ${error?.stack || error}`);
-      }
-    }
     main.terminalsClosedForQuit = true;
     try {
       autoUpdater.quitAndInstall();
@@ -248,9 +232,7 @@ function registerUpdates(main) {
 
   ipcMain.handle("telar:updates:busy", async (event) => {
     requireCockpitSender(event, "ask what a restart would end");
-    if (!main.terminalHost || main.terminalHost.size === 0) return { terminals: { count: 0, commands: [] } };
-    const { busyTerminals } = require("../terminal/terminal-host");
-    return { terminals: busyTerminals(await main.terminalHost.activeProcesses()) };
+    return { terminals: busyTerminals(await heldTerminals(telarHome())) };
   });
 
   ipcMain.handle("telar:updates:openLocalUpdater", () => {

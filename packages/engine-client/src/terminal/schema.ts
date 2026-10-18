@@ -218,3 +218,26 @@ export type RunCommandInput = z.infer<typeof RunCommandInput>;
 
 export const RunConfigurationsAnswer = z.object({ configurations: z.array(RunConfigurationView) });
 export type RunConfigurationsAnswer = z.infer<typeof RunConfigurationsAnswer>;
+
+export type ShellOpenInput = { shell?: string; args?: string[]; cwd?: string; cols?: number; rows?: number; sessionId?: string; title?: string };
+
+export type ShellEnding = {
+  id: string;
+  pid?: number;
+  fate: "exited" | "failed";
+  exitCode?: number;
+  signal?: string;
+  closed?: "close" | "session" | "quit";
+  error?: string;
+  at?: number;
+};
+
+export type ShellOpened = { id: string; pid?: number; ending?: ShellEnding };
+
+export type ShellFacts = { id: string; pid?: number; sessionId?: string; shell?: string; cwd?: string; cols?: number; rows?: number; startedAt?: number };
+
+export type ShellActivity = { id: string; active: boolean; processes: number; command?: string };
+
+export type ShellImageAnswer = { ok: true; base64: string } | { ok: false; code: string };
+
+export type ShellFrame = { type: "data"; data: string; cursor: number } | { type: "exit"; ending: ShellEnding };

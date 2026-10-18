@@ -1,5 +1,6 @@
 import type { EngineTransport } from "../platform/transport";
 import type {
+  ShellActivity, ShellFacts, ShellImageAnswer, ShellOpened, ShellOpenInput,
   RunBytesAnswer, RunClosedBy, RunCommandInput, RunConfigurationDraft, RunConfigurationsAnswer, RunConfigurationView, RunOpenInput, RunOutputAnswer, RunOutputFilter,
   RunResizeAnswer, RunStartInput, RunStatusAnswer, RunStopSignal, RunView, RunWaitAnswer, RunWriteAnswer,
 } from "./schema";
@@ -32,6 +33,10 @@ function runCursor(input: RunTargetInput & { after?: number } & RunOutputFilter)
 
 export const runBytesStreamPath = (sessionId: string, input: RunTargetInput & { after?: number } = {}) =>
   `${runBase(sessionId)}/bytes/stream${runCursor(input)}`;
+
+export const shellStreamPath = (id: string) => `/v2/terminals/${encodeURIComponent(id)}/stream`;
+
+const shellPath = (id: string, action: string) => `/v2/terminals/${encodeURIComponent(id)}/${action}`;
 
 const defined =(fields: Record<string, unknown>) => Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
 
@@ -107,5 +112,37 @@ export const terminalClient = {
 
   closeSessionTerminals(this: EngineTransport, sessionId: string): Promise<{ closed: number }> {
     return this.request("POST", `/v2/sessions/${encodeURIComponent(sessionId)}/terminals/close`, {});
+  },
+
+  openShell(this: EngineTransport, input: ShellOpenInput): Promise<ShellOpened> {
+    return this.request("POST", "/v2/terminals/open", input);
+  },
+
+  listShells(this: EngineTransport, sessionId?: string): Promise<{ terminals: ShellFacts[] }> {
+    return this.request("POST", "/v2/terminals/list", defined({ sessionId }));
+  },
+
+  shellActivity(this: EngineTransport, ids?: string[]): Promise<{ terminals: ShellActivity[] }> {
+    return this.request("POST", "/v2/terminals/active", defined({ ids }));
+  },
+
+  writeShell(this: EngineTransport, id: string, data: string): Promise<{ ok: boolean }> {
+    return this.request("POST", shellPath(id, "write"), { data });
+  },
+
+  resizeShell(this: EngineTransport, id: string, cols: number, rows: number): Promise<{ ok: boolean }> {
+    return this.request("POST", shellPath(id, "resize"), { cols, rows });
+  },
+
+  killShell(this: EngineTransport, id: string, signal?: "SIGTERM" | "SIGINT" | "SIGKILL" | "SIGHUP"): Promise<{ ok: boolean }> {
+    return this.request("POST", shellPath(id, "kill"), defined({ signal }));
+  },
+
+  closeShell(this: EngineTransport, id: string): Promise<{ ok: boolean }> {
+    return this.request("POST", shellPath(id, "close"), {});
+  },
+
+  readShellImage(this: EngineTransport, path: string): Promise<ShellImageAnswer> {
+    return this.request("POST", "/v2/terminals/image-file", { path });
   },
 };

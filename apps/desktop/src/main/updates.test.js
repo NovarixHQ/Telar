@@ -21,15 +21,13 @@ const { PLANNED_RESTART_FILE } = require("./update-install");
 
 let home;
 let main;
-let terminals;
 let cockpit;
 const marker = () => path.join(home, "engine", PLANNED_RESTART_FILE);
 
 beforeAll(() => {
   resetElectron();
   home = fs.mkdtempSync(path.join(os.tmpdir(), "telar-updates-"));
-  terminals = { size: 0, closed: 0, async closeAll() { this.closed += 1; }, async drain() {}, async activeProcesses() { return []; } };
-  main = { telarHome: () => home, updaterWindow: null, terminalHost: terminals, terminalsClosedForQuit: false };
+  main = { telarHome: () => home, updaterWindow: null, terminalsClosedForQuit: false };
   const win = new FakeBrowserWindow();
   cockpit = { window: win, windowOfSender: (sender) => (sender === win.webContents ? win : null) };
   hosts.addHost(cockpit.window, cockpit);
@@ -41,7 +39,6 @@ beforeEach(() => {
   electron.dialog.shown = [];
   autoUpdater.failInstall = false;
   main.terminalsClosedForQuit = false;
-  terminals.size = 0;
   fs.rmSync(path.join(home, "engine"), { recursive: true, force: true });
   registerUpdates(main);
 });
@@ -54,11 +51,9 @@ afterAll(() => {
 });
 
 describe("telar:updates:install", () => {
-  test("it marks the restart as planned, closes the terminals and installs without asking", async () => {
-    terminals.size = 2;
+  test("it marks the restart as planned, skips the quit question and installs without asking", async () => {
     expect(await electron.ipcMain.invoke("telar:updates:install", {})).toEqual({ status: "restarting" });
     expect(JSON.parse(fs.readFileSync(marker(), "utf8"))).toMatchObject({ reason: "update" });
-    expect(terminals.closed).toBe(1);
     expect(main.terminalsClosedForQuit).toBe(true);
     expect(autoUpdater.installs).toBeGreaterThan(0);
     expect(electron.dialog.shown).toEqual([]);

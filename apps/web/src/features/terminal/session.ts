@@ -236,7 +236,7 @@ export function gridMeasurer(
  */
 export function attachTerminal(
   term: TerminalLike,
-  bridge: Pick<TerminalBridge, "write" | "onData" | "onExit">,
+  bridge: Pick<TerminalBridge, "write" | "onData" | "onExit" | "follow">,
   id: string,
   onEnd?: (ending: TerminalEnding) => void,
 ): () => void {
@@ -253,6 +253,8 @@ export function attachTerminal(
     if (ending.id === id) onEnd?.(ending);
   });
   if (offExit) offs.push(offExit);
+  const stop = bridge.follow?.(id);
+  if (stop) offs.push(stop);
   return () => {
     for (const off of offs.splice(0)) off();
   };

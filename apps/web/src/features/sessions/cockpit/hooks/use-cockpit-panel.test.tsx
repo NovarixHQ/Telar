@@ -4,6 +4,7 @@ import { keymapSnapshot, resolveCommandForEvent, runCommand, type CommandId } fr
 import { writePanelTabs, type PanelTab, type PanelTabState } from "@/features/panel";
 import { SidebarProvider } from "@/ui/sidebar";
 import { flush, installTestDom, mount } from "@/test/dom";
+import { installTerminalBridge, type TerminalBridge } from "@/features/terminal";
 import { useCockpitCommands } from "./use-cockpit-commands";
 import { useCockpitPanel } from "./use-cockpit-panel";
 
@@ -11,11 +12,15 @@ installTestDom();
 
 type Strip = PanelTabState<PanelTab>;
 type Desktop = { browser?: unknown; terminal?: unknown };
-const desktop = (bridges: Desktop) => ((window as unknown as { telarDesktop?: Desktop }).telarDesktop = bridges);
+const desktop = (bridges: Desktop) => {
+  installTerminalBridge(bridges.terminal as TerminalBridge | undefined);
+  (window as unknown as { telarDesktop?: Desktop }).telarDesktop = { browser: bridges.browser };
+};
 
 beforeEach(() => window.localStorage.clear());
 afterEach(() => {
   delete (window as unknown as { telarDesktop?: unknown }).telarDesktop;
+  installTerminalBridge(undefined);
 });
 
 async function cockpit(stored?: Strip) {

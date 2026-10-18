@@ -3,8 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { GET as eventsGet } from "@/app/api/sessions/[sessionId]/events/route";
-import { catchAll as projectsGet, catchAll as liveGet, catchAll as fsGet, catchAll as aboutGet, catchAll as aboutIconGet } from "@/test/catch-all";
-import { POST as discardPost } from "@/app/api/sessions/[sessionId]/turns/[runId]/discard/route";
+import { catchAll as projectsGet, catchAll as liveGet, catchAll as fsGet, catchAll as aboutGet, catchAll as aboutIconGet, catchAll as discardPost } from "@/test/catch-all";
 import { EngineClient } from "@telar/engine-client";
 import { engineRootFromWebEnv } from "@/platform/engine/server";
 import { startEngine, type EngineDaemon } from "../../../../engine/src/daemon";
@@ -188,9 +187,7 @@ describe("engine route adapters", () => {
     await client.markTurnRunning(claim.sessionId, claim.turn.runId, claim.turn.claim!.token);
     daemon.store.recovery.recover();
 
-    const response = await discardPost(new Request("http://telar.local/api/sessions/session_one/turns/uncertain_run/discard", { method: "POST" }), {
-      params: Promise.resolve({ sessionId: "session_one", runId: "uncertain_run" }),
-    });
+    const response = await discardPost(new Request("http://telar.local/api/sessions/session_one/turns/uncertain_run/discard", { method: "POST" }));
     expect(response.status).toBe(409);
     expect((await response.json()).error.code).toBe("conflict");
     expect((await client.session("session_one")).turns[0]?.state).toBe("stopped");

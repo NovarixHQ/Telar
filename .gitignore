@@ -63,3 +63,7 @@ __pycache__/
 # The computer-use helper scripts/computer-use-helper.mjs builds from the pinned
 # cua-driver release (apps/desktop/computer-use-helper.json). Never committed.
 apps/desktop/vendor/
+
+# Static cockpit export (apps/web/scripts/build-static.mjs)
+apps/web/out/
+apps/.web-static/

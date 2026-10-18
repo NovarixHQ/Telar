@@ -282,6 +282,22 @@ jobs:
           bun install --frozen-lockfile
       - run: bun run lint
 
+  static-cockpit:
+    name: Static cockpit
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+      - run: bun run --cwd apps/web build:static
+
   # One job per suite; engine has its own sharded job below. fail-fast is off so one
   # red suite does not hide the others. `operations` runs scripts/*.test.mjs.
   test:
@@ -771,7 +787,7 @@ jobs:
     name: Verify passed
     runs-on: ubuntu-latest
     if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-    needs: [source, knip, oxlint, typecheck, lint, test, test-engine, pty, engine-linux, macos, electron, ios]
+    needs: [source, knip, oxlint, typecheck, lint, static-cockpit, test, test-engine, pty, engine-linux, macos, electron, ios]
     timeout-minutes: 5
     steps:
       - name: Report the aggregate

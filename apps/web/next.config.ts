@@ -81,7 +81,8 @@ const nextConfig: NextConfig = {
    * Composed with NEXT_DIST_DIR above by the same script, so a packaging build
    * never collides with the dev server's `.next`.
    */
-  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : process.env.NEXT_OUTPUT === "export" ? "export" : undefined,
+  ...(process.env.NEXT_OUTPUT === "export" ? { images: { unoptimized: true }, trailingSlash: false } : {}),
   /**
    * Next's dev indicator defaults to `bottom-left`, which is exactly where this
    * app's sidebar puts its session list — it sat on top of the last row and

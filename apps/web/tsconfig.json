@@ -37,9 +37,12 @@
     ".next/dev/types/**/*.ts",
     ".next-desktop/types/**/*.ts",
     ".next-desktop/dev/types/**/*.ts",
-    ".next/dev/dev/types/**/*.ts"
+    ".next/dev/dev/types/**/*.ts",
+    ".next-check/types/**/*.ts",
+    ".next-check/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "out"
   ]
 }

@@ -1,12 +1,7 @@
-import { SessionCockpit } from "@/features/sessions/cockpit";
+import { RoutedCockpit } from "@/features/sessions/cockpit";
 
-export const dynamic = "force-dynamic";
+export const generateStaticParams = () => [{ projectId: "_", sessionId: "_" }];
 
-export default async function SessionPage({
-  params,
-}: {
-  params: Promise<{ projectId: string; sessionId: string }>;
-}) {
-  const { projectId, sessionId } = await params;
-  return <SessionCockpit projectId={projectId} sessionId={sessionId} />;
+export default function Page() {
+  return <RoutedCockpit />;
 }

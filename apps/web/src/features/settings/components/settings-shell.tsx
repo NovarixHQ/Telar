@@ -214,7 +214,7 @@ export function SettingsShell({
           paneList
         )}
         {backHref && (
-          <div className="mt-auto shrink-0 pt-2">
+          <div className="mt-auto shrink-0 pt-2 md:hidden">
             <Link
               href={backHref}
               className="group flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"

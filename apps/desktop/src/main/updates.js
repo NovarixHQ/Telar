@@ -53,10 +53,7 @@ function createUpdater(main) {
     win?.webContents.send("telar:updates:status", lastUpdateStatus);
   }
 
-  function updatesConfigured() {
-    if (DEV_BUILD || updateMode() === "package") return false;
-    return app.isPackaged && Boolean(updateProxyKey());
-  }
+  const updatesConfigured = () => false;
 
   const downloadWatch = updateWatchdog.createDownloadWatch({
     stallMs: updateWatchdog.STALL_MS,

@@ -60,7 +60,7 @@ export function updateStatusHint(status: UpdateStatus): string {
     case "error":
       return `Update failed: ${status.message}`;
     case "unsupported":
-      return "This build has no update feed — it was packaged locally rather than published to a channel.";
+      return "Telar is retired, so this last version gets no more updates.";
     default:
       return "You're on the latest build.";
   }

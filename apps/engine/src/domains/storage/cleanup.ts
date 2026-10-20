@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { CleanupPolicy, CleanupReport, DEFAULT_CLEANUP_POLICY } from "@telar/engine-client";
+import { CleanupPolicy, CleanupReport, DEFAULT_CLEANUP_POLICY, type CleanupSkip } from "@telar/engine-client";
 import { atomicWrite } from "../../platform/fs/atomic";
 import { eachBounded, type VolumeGate } from "../../platform/fs/volume-gate";
 
@@ -62,7 +62,7 @@ export function planWorktreeCleanup(sessions: readonly CleanupCandidate[], polic
   return plan;
 }
 
-export type SweepOutcome = "released" | "skipped" | "ignored";
+export type SweepOutcome = "released" | "ignored" | { skipped: CleanupSkip["reason"]; detail?: string };
 
 type Busy = Set<string> | undefined;
 
@@ -81,8 +81,8 @@ const SWEEP_TIMEOUT_MS = 60_000;
 const SWEEP_LIMIT = 8;
 
 /** Releases at most `limit` of the plan, least recently tried first (`tried` is the caller's, kept across sweeps); a volume that is missing or stops answering is skipped whole. */
-export async function sweepCheckouts(plan: readonly PlannedRelease[], deps: SweepDeps): Promise<{ released: number; skipped: number; freedBytes: number }> {
-  const tally = { released: 0, skipped: 0, freedBytes: 0 };
+export async function sweepCheckouts(plan: readonly PlannedRelease[], deps: SweepDeps): Promise<{ released: number; skips: CleanupSkip[]; freedBytes: number }> {
+  const tally = { released: 0, skips: [] as CleanupSkip[], freedBytes: 0 };
   const planned = new Set(plan.map((item) => item.sessionId));
   for (const sessionId of deps.tried.keys()) if (!planned.has(sessionId)) deps.tried.delete(sessionId);
   const lastTry = (item: PlannedRelease) => deps.tried.get(item.sessionId) ?? 0;
@@ -98,7 +98,11 @@ export async function sweepCheckouts(plan: readonly PlannedRelease[], deps: Swee
     if (outcome === "released") {
       tally.released += 1;
       tally.freedBytes += bytes ?? 0;
-    } else if (outcome !== "ignored") tally.skipped += 1;
+    } else if (outcome === undefined) {
+      tally.skips.push({ sessionId: item.sessionId, reason: deps.gate.open(item.path) ? "failed" : "offline" });
+    } else if (outcome !== "ignored") {
+      tally.skips.push({ sessionId: item.sessionId, reason: outcome.skipped, ...(outcome.detail ? { detail: outcome.detail } : {}) });
+    }
   });
   return tally;
 }

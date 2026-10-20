@@ -137,7 +137,12 @@ export class WorktreeMaintenance {
         tried: this.sweepTried,
       });
       let { freedBytes } = swept;
-      const { released, skipped } = swept;
+      const { released } = swept;
+      const titles = new Map(sessions.map((session) => [session.id, session.title]));
+      const skips = swept.skips.map((skip) => {
+        const title = titles.get(skip.sessionId);
+        return title ? { ...skip, title } : skip;
+      });
       let logs = 0;
       {
         const gone = new Set(
@@ -152,7 +157,7 @@ export class WorktreeMaintenance {
         logs = swept.count;
         freedBytes += swept.bytes;
       }
-      this.deps.cleanup.record({ at: this.kernel.now(), freedBytes, released, logs, skipped });
+      this.deps.cleanup.record({ at: this.kernel.now(), freedBytes, released, logs, skipped: skips.length, skips });
     } finally {
       this.cleanupRunning = false;
     }
@@ -162,7 +167,11 @@ export class WorktreeMaintenance {
     const session = this.deps.records.get(sessionId);
     if (session.workspace.mode !== "worktree" || !session.projectId) return "ignored";
     if (!(await existsWithin(this.volumes, session.workspace.path))) return "ignored";
-    return (await this.release(sessionId, reason, { strict: true, processes })).ok ? "released" : "skipped";
+    const released = await this.release(sessionId, reason, { strict: true, processes });
+    if (released.ok) return "released";
+    if (released.refusal === "not-worktree" || (released.refusal === "not-found" && !released.detail)) return "ignored";
+    const skipped = released.refusal === "not-found" ? "failed" : released.refusal;
+    return { skipped, ...(released.detail ? { detail: released.detail } : {}) };
   }
 
   isCleanupRunning(): boolean {

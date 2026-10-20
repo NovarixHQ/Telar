@@ -43,12 +43,20 @@ export type JournalReclaim = { before: number; after: number; deltas: number; st
 export const CLEANUP_SETTLED_DAYS = [1, 3, 7, 14, 30] as const;
 
 export const CleanupPolicy = z.object({
-  /** Release the checkout of a session settled or archived this many days. `null` is off. */
+  /** Release the checkout of a settled or archived session inactive this many days. `null` is off. */
   settledDays: z.union([z.literal(1), z.literal(3), z.literal(7), z.literal(14), z.literal(30)]).nullable().default(3),
 });
 export type CleanupPolicy = z.infer<typeof CleanupPolicy>;
 
 export const DEFAULT_CLEANUP_POLICY: CleanupPolicy = { settledDays: 3 };
+
+export const CleanupSkip = z.object({
+  sessionId: z.string(),
+  title: z.string().optional(),
+  reason: z.enum(["dirty", "unpushed", "process", "in-use", "not-telars", "offline", "failed"]),
+  detail: z.string().optional(),
+});
+export type CleanupSkip = z.infer<typeof CleanupSkip>;
 
 export const CleanupReport = z.object({
   at: z.number(),
@@ -56,6 +64,7 @@ export const CleanupReport = z.object({
   released: z.number().int().min(0),
   logs: z.number().int().min(0),
   skipped: z.number().int().min(0),
+  skips: z.array(CleanupSkip).optional(),
 });
 export type CleanupReport = z.infer<typeof CleanupReport>;
 

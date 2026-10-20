@@ -126,7 +126,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
   ] },
   { id: "storage", groups: [
     { "title":"Worktrees", rows: [
-      {"title":"Remove worktrees","hint":"Removes a settled or archived session's worktree after this many days; it comes back when you reopen the session.","keywords":["cleanup","clean up","disk","space","free","full","reclaim","checkout","idle","inactive","settled","archived","old","days"]},
+      {"title":"Remove worktrees","hint":"Removes the worktree of a settled or archived session inactive this many days; it comes back when you reopen the session.","keywords":["cleanup","clean up","disk","space","free","full","reclaim","checkout","idle","inactive","settled","archived","old","days"]},
       {"title":"Clean up","keywords":["clean up now","cleanup","sweep","free space","disk","run","logs"]},
       {"title":"Worktree folder","keywords":["worktree","checkout","external","drive","move","space","disk","relocate","worktree folder","how many","size"]},
       {"title":"Where worktrees live","keywords":["disk","size","drive","volume","location","file watchers","move"]},

@@ -118,7 +118,7 @@ export { SidebarBody as AppSidebarBody };
 
 export function AppSidebar() {
   return (
-    <Sidebar variant="floating" collapsible="offcanvas" resizable={APP_SIDEBAR_RESIZABLE} className="p-[var(--app-island-inset)]">
+    <Sidebar variant="floating" collapsible="offcanvas" resizable={APP_SIDEBAR_RESIZABLE} className="p-[var(--app-island-inset)] data-[side=left]:left-(--activity-bar-width)">
       <SidebarBody />
       <AppSidebarRail />
     </Sidebar>

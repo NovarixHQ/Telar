@@ -19,13 +19,13 @@ const iconButton = (active = false) =>
     active && "bg-sidebar-accent text-sidebar-accent-foreground",
   );
 
-function FooterLink({ href, label, onNavigate, children }: { href: string; label: string; onNavigate: () => void; children: React.ReactNode }) {
+function FooterLink({ href, label, onNavigate, className, children }: { href: string; label: string; onNavigate: () => void; className?: string; children: React.ReactNode }) {
   const pathname = usePathname();
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <Link href={href} aria-label={label} onClick={onNavigate} className={iconButton(pathname.startsWith(href))}>
+          <Link href={href} aria-label={label} onClick={onNavigate} className={cn(iconButton(pathname.startsWith(href)), className)}>
             {children}
           </Link>
         }
@@ -155,7 +155,7 @@ export function EngineRestartIndicator() {
 export function AppSidebarFooterRow({ onNavigate }: { onNavigate: () => void }) {
   return (
     <div className="flex items-center gap-0.5 p-1">
-      <FooterLink href="/settings" label="Settings" onNavigate={onNavigate}>
+      <FooterLink href="/settings" label="Settings" onNavigate={onNavigate} className="md:hidden">
         <SettingsIcon className="size-4" />
       </FooterLink>
       <FooterLink href="/usage" label="Usage" onNavigate={onNavigate}>

@@ -17,6 +17,8 @@ Linux builds come in two formats for each of x64 and arm64: `Telar-<version>-lin
 - **AppImage**: make it executable and run it. It updates itself.
 - **.deb**: `sudo apt install ./Telar-<version>-linux-<arch>.deb`. It adds a menu entry and a `telar` command. Upgrade it by installing the newer file; it has no in-app updater, and Settings says so.
 
+If Telar won't start and the error mentions the sandbox, your distribution restricts unprivileged user namespaces (Ubuntu 24.04 and newer do, through AppArmor). Allow them for Telar in your AppArmor settings, or start it with `--no-sandbox`, which turns Chromium's sandbox off for the app.
+
 Both register `telar://` links, so opening a `telar://app/...` link brings the running app to that page.
 
 Not available on Linux: Computer use, iOS simulators, window translucency, the quick-composer shortcut and custom notification sounds. Everything else, including terminals and the browser, works.

@@ -88,16 +88,6 @@ jobs:
           xvfb-run -a node apps/desktop/test/electron/linux-smoke.js /opt/Telar/telar | tee /tmp/smoke-deb.log
           grep -q '^LINUX_SMOKE_OK' /tmp/smoke-deb.log
 
-      - name: Smoke the installed .deb with the Chromium sandbox on
-        continue-on-error: true
-        env:
-          TELAR_SMOKE_SANDBOX: "1"
-        run: |
-          set -euo pipefail
-          ls -l /opt/Telar/chrome-sandbox
-          xvfb-run -a node apps/desktop/test/electron/linux-smoke.js /opt/Telar/telar | tee /tmp/smoke-deb-sandbox.log
-          grep -q '^LINUX_SMOKE_OK' /tmp/smoke-deb-sandbox.log
-
       - uses: actions/upload-artifact@v4
         with:
           name: telar-linux-${{ runner.arch }}

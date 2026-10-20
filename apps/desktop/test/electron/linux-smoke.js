@@ -69,7 +69,7 @@ async function main() {
 
   let output = "";
   globalThis.smokeOutput = () => output;
-  const child = spawn(executable, process.env.TELAR_SMOKE_SANDBOX === "1" ? [] : ["--no-sandbox"], { env, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(executable, ["--no-sandbox"], { env, stdio: ["ignore", "pipe", "pipe"] });
   const keep = (chunk) => {
     output = `${output}${chunk}`.slice(-20_000);
   };

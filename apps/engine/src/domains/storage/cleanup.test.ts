@@ -68,7 +68,9 @@ test("a volume that is missing or stops answering is skipped whole, and the othe
     },
   });
   expect(asked).toEqual([at("Slow", "a"), at("Fast", "d"), at("Fast", "e")]);
-  expect(swept).toEqual({ released: 2, skipped: 3, freedBytes: 100 });
+  expect(swept.released).toBe(2);
+  expect(swept.freedBytes).toBe(100);
+  expect(swept.skips.sort((a, b) => a.sessionId.localeCompare(b.sessionId))).toEqual(["s0", "s1", "s2"].map((sessionId) => ({ sessionId, reason: "offline" })));
 });
 
 test("a sweep tries at most its limit, the next one starts with those not yet tried, and the batch shares one process listing", async () => {
@@ -89,7 +91,7 @@ test("a sweep tries at most its limit, the next one starts with those not yet tr
       release: async (item, processes) => {
         asked.push(item.sessionId);
         await processes();
-        return "skipped";
+        return { skipped: "dirty" };
       },
     });
     return asked.sort();
@@ -196,7 +198,7 @@ test("the settled release never touches a dirty or an unpushed worktree", async 
   dirty.advance(10 * DAY);
   await dirty.store.worktrees.runCleanup();
   expect(fs.existsSync(path.join(dirty.checkout, "README.md"))).toBe(true);
-  expect(dirty.store.cleanup.last()).toMatchObject({ released: 0, skipped: 1 });
+  expect(dirty.store.cleanup.last()).toMatchObject({ released: 0, skipped: 1, skips: [{ sessionId: "session_one", reason: "dirty" }] });
 
   const unpushed = await setup();
   fs.writeFileSync(path.join(unpushed.checkout, "feature.txt"), "work\n");
@@ -206,7 +208,36 @@ test("the settled release never touches a dirty or an unpushed worktree", async 
   unpushed.advance(10 * DAY);
   await unpushed.store.worktrees.runCleanup();
   expect(fs.existsSync(path.join(unpushed.checkout, "feature.txt"))).toBe(true);
-  expect(unpushed.store.cleanup.last()).toMatchObject({ released: 0, skipped: 1 });
+  expect(unpushed.store.cleanup.last()).toMatchObject({ released: 0, skipped: 1, skips: [{ sessionId: "session_one", reason: "unpushed", detail: "1 commit(s) on no remote" }] });
+});
+
+test("a session settled by the inactivity clock is aged from its last activity, not from when the clock settled it", async () => {
+  const { store, checkout, branch, advance } = await setup();
+  git(checkout, "push", "-q", "origin", branch);
+  advance(2 * DAY);
+  await store.worktrees.runCleanup();
+  expect(fs.existsSync(checkout)).toBe(true);
+  advance(2 * DAY);
+  await store.worktrees.runCleanup();
+  expect(fs.existsSync(checkout)).toBe(false);
+  expect(store.cleanup.last()).toMatchObject({ released: 1, skipped: 0 });
+});
+
+test("one worktree that cannot be released does not stop the others", async () => {
+  const { store, root, checkout, branch, advance } = await setup();
+  git(checkout, "push", "-q", "origin", branch);
+  store.lifecycle.createSession({ id: "session_two", projectId: "project_one", envMode: "worktree" });
+  await worktreeReady(store, "session_two");
+  const second = store.records.get("session_two");
+  if (second.workspace.mode !== "worktree") throw new Error("expected a worktree");
+  git(second.workspace.path, "push", "-q", "origin", second.workspace.branch);
+  fs.rmSync(path.join(root, ".git", "refs", "heads", ...branch.split("/")));
+  for (const id of ["session_one", "session_two"]) store.lifecycle.updateSession(id, { settledOverride: "settled" });
+  advance(10 * DAY);
+  await store.worktrees.runCleanup();
+  expect(fs.existsSync(checkout)).toBe(true);
+  expect(fs.existsSync(second.workspace.path)).toBe(false);
+  expect(store.cleanup.last()).toMatchObject({ released: 1, skipped: 1, skips: [{ sessionId: "session_one", title: "New session" }] });
 });
 
 test("the sweep never releases a session that is not idle", async () => {

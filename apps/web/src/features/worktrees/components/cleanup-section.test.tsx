@@ -145,6 +145,18 @@ describe("Settings ▸ Storage ▸ automatic cleanup", () => {
     view.unmount();
   });
 
+  test("the last sweep says which worktrees it kept and why", async () => {
+    const skips = [
+      { sessionId: "session_a", title: "Fix the login", reason: "dirty" as const },
+      { sessionId: "session_b", reason: "unpushed" as const, detail: "2 commit(s) on no remote" },
+    ];
+    state = { ...OFF, last: { at: Date.now(), freedBytes: 0, released: 0, logs: 0, skipped: 2, skips } };
+    const view = await mount();
+    expect(view.text()).toContain("Kept Fix the login: uncommitted changes");
+    expect(view.text()).toContain("Kept session_b: commits not on any remote (2 commit(s) on no remote)");
+    view.unmount();
+  });
+
   test("the button is disabled while the engine reports a sweep running", async () => {
     state = { ...OFF, running: true };
     const view = await mount();

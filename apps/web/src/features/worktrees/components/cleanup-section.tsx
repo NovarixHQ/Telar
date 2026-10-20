@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CLEANUP_SETTLED_DAYS, DEFAULT_CLEANUP_POLICY, type CleanupPolicy, type CleanupReport, type CleanupState } from "@telar/engine-client";
+import { CLEANUP_SETTLED_DAYS, DEFAULT_CLEANUP_POLICY, type CleanupPolicy, type CleanupReport, type CleanupSkip, type CleanupState } from "@telar/engine-client";
 import { createEngineApi } from "@/platform/engine";
 import { fmtAgo, formatBytes, plural } from "@/ui/format";
 import { Button } from "@/ui/button";
@@ -33,6 +33,20 @@ export function runLabel(report: CleanupReport): string {
   ];
   if (report.skipped > 0) parts.push(`${report.skipped} skipped`);
   return parts.join(", ");
+}
+
+const SKIP_REASONS: Record<CleanupSkip["reason"], string> = {
+  dirty: "uncommitted changes",
+  unpushed: "commits not on any remote",
+  process: "a process is running in it",
+  "in-use": "the session is busy",
+  "not-telars": "not in Telar's worktree folder",
+  offline: "its drive is not connected",
+  failed: "the removal failed",
+};
+
+export function skipLines(report: CleanupReport | undefined): string[] {
+  return (report?.skips ?? []).map((skip) => `${skip.title ?? skip.sessionId}: ${SKIP_REASONS[skip.reason]}${skip.detail ? ` (${skip.detail})` : ""}`);
 }
 
 function reason(cause: unknown, fallback: string): string {
@@ -90,7 +104,7 @@ export function CleanupSection() {
       <Row
         keywords={["cleanup", "clean up", "disk", "space", "free", "full", "reclaim", "checkout", "idle", "inactive", "settled", "archived", "old", "days"]}
         label="Remove worktrees"
-        hint="Removes a settled or archived session's worktree after this many days; it comes back when you reopen the session."
+        hint="Removes the worktree of a settled or archived session inactive this many days; it comes back when you reopen the session."
         info={FIXED_RULES}
         {...errorFor("settledDays")}
         control={
@@ -111,6 +125,11 @@ export function CleanupSection() {
           <span role="status">
             {state ? lastCleanupLabel(state.last) : "…"}
             {ran && state?.last ? ` · ${runLabel(state.last)}` : ""}
+            {skipLines(state?.last).map((line) => (
+              <span key={line} className="block">
+                Kept {line}
+              </span>
+            ))}
           </span>
         }
         {...(error?.key === "run" ? { error: error.message } : {})}

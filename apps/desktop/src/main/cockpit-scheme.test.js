@@ -79,6 +79,15 @@ describe("the engine", () => {
     expect(await response.json()).toEqual({ ok: true });
   });
 
+  test("a remote computer is reached at its own address with its device token", async () => {
+    const seen = [];
+    const remote = { baseUrl: "https://mini.tail.ts.net:443", token: "tlr_device" };
+    const fetchImpl = async (url, init) => (seen.push({ url, init }), new Response("{}"));
+    await handler({ engine: () => remote, fetchImpl })(new Request("telar://app/v2/sessions/live?x=1", { headers: { authorization: "Bearer page" } }));
+    expect(seen[0].url).toBe("https://mini.tail.ts.net:443/v2/sessions/live?x=1");
+    expect(seen[0].init.headers.get("authorization")).toBe("Bearer tlr_device");
+  });
+
   test("the engine's token never appears in anything the page can read", async () => {
     const response = await handler({ fetchImpl: async () => new Response("ok", { headers: { "x-test": "1" } }) })(new Request("telar://app/api/ping"));
     expect([...response.headers.values()].join(" ")).not.toContain("engine-secret");

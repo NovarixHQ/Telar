@@ -147,6 +147,7 @@ export const GENERATED_PAGES: readonly { id: string; groups: readonly SettingsGr
     { "title":"Paired", rows: [
       {"title":"Pair a device","keywords":["qr","link","token","pairing code","phone","ipad"]},
       {"title":"Revoke all other devices","hint":"Keeps this one — the lost-phone button. Any of them can pair again with a new code.","keywords":["sign out","logout","lost","stolen"]},
+      {"title":"Run Telar on this Mac","keywords":["engine","client","remote","headless","local","this mac","server","run here"]},
       {"title":"Add a computer","hint":"Shows another Mac's sessions in this rail.","keywords":["host","pair","second machine","remote","mac","computer"]},
     ] },
     { "title":"Webhook", rows: [

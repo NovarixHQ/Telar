@@ -1,4 +1,4 @@
-const { app, BrowserWindow, net, protocol, session } = require("electron");
+const { app, BrowserWindow, ipcMain, net, protocol, session } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -6,12 +6,15 @@ const net_ = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const { APP_URL, registerCockpitScheme, serveCockpit } = require("./cockpit-scheme");
+const { createRemoteHost } = require("./remote-host");
 const { removeUserData } = require("../../test/electron/electron-test-teardown");
 
 registerCockpitScheme(protocol);
 
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "telar-cockpit-scheme-"));
 app.setPath("userData", userData);
+const remoteHost = createRemoteHost({ dir: userData });
+ipcMain.on("telar:host:mode-sync", (event) => (event.returnValue = remoteHost.publicMode()));
 
 const HOST_TOKEN = "tlr_" + "c".repeat(43);
 const repo = path.resolve(__dirname, "..", "..", "..", "..");
@@ -142,6 +145,26 @@ async function main() {
     }
     assert((await status(endpoint.port, "/v2/remote", { authorization: `Bearer ${endpoint.token}` })) === 200, "the loopback engine refused its own bearer");
     note("the network listener refuses the host token and the engine bearer");
+
+    const minted = await (await fetch(`http://127.0.0.1:${endpoint.port}/v2/remote/pairing`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${endpoint.token}`, "content-type": "application/json" },
+      body: "{}",
+    })).json();
+    await remoteHost.connect(`http://127.0.0.1:${port}/pair#token=${minted.code}`, "Cockpit scheme test");
+    const device = remoteHost.endpoint();
+    assert(device?.baseUrl === `http://127.0.0.1:${port}` && device.token.startsWith("tlr_"), "pairing gave no device credential");
+    assert((await fs.promises.stat(path.join(userData, "remote-host.json"))).mode % 0o1000 === 0o600, "the credential file is not private");
+
+    session.defaultSession.protocol.unhandle("telar");
+    serveCockpit(session.defaultSession, { net, staticDir, engine: remoteHost.endpoint });
+    await window.loadURL(`${APP_URL}settings`);
+    const remote = JSON.parse(await window.webContents.executeJavaScript(
+      `(async () => JSON.stringify({ cookie: document.cookie, status: (await fetch("/v2/sessions/live")).status, bridge: Object.keys(window.telarDesktop ?? {}) }))()`,
+    ));
+    assert(remote.status === 200, `the remote read answered ${remote.status}`);
+    assert(!remote.cookie.includes("tlr_") && !JSON.stringify(remote).includes(device.token), "the page can read the device credential");
+    note("client-only: /v2 reaches the remote listener with the device credential, which the page never holds");
 
     console.log("COCKPIT_SCHEME_OK");
   } finally {

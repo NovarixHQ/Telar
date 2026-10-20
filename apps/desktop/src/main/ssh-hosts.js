@@ -4,7 +4,6 @@ const { checkTarget, createTunnel, launchOverSsh } = require("./ssh-launch");
 
 const FILE = "ssh-hosts.json";
 
-// The computers added over ssh and the local port each is forwarded to. Holds no secret: ssh keeps the keys.
 function createSshHosts({ dir, base, findFreePort, log = () => {}, launch = launchOverSsh, tunnelFor = createTunnel, ssh = "ssh" }) {
   const file = path.join(dir, FILE);
   const tunnels = new Map();

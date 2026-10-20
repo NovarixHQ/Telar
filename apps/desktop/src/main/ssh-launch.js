@@ -123,7 +123,6 @@ function mintPairing({ ssh, target, env, spawnImpl, localPort }) {
   });
 }
 
-// Keeps `ssh -N -L` alive, restarting it with a growing delay until stop().
 function createTunnel({ ssh, target, localPort, remotePort = REMOTE_PORT, env, spawnImpl = spawn, schedule = setTimeout, cancel = clearTimeout, log = () => {} }) {
   const delays = [1_000, 2_000, 5_000, 10_000, 30_000];
   let child = null;
@@ -169,8 +168,6 @@ function createTunnel({ ssh, target, localPort, remotePort = REMOTE_PORT, env, s
   };
 }
 
-// Installs Telar on the other computer if needed, starts it, forwards a local port to it
-// and returns a one-time pairing link that works through that forward.
 async function launchOverSsh({ target, base, localPort, ssh = "ssh", env = process.env, spawnImpl = spawn, fetchImpl = fetch, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), log = () => {}, tunnel }) {
   const options = { ssh, target: checkTarget(target), env, spawnImpl };
   platformOf(await must(options, "uname -sm"));

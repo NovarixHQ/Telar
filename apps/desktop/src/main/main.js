@@ -2,7 +2,7 @@ const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
 const { randomUUID } = require("node:crypto");
-const { app, BrowserWindow, dialog, ipcMain, Notification, powerMonitor, session } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, net, Notification, powerMonitor, protocol, session } = require("electron");
 const { DesktopBrowserManager, managerForScope } = require("../browser/browser-manager");
 const { startBrowserControlServer } = require("../browser/browser-control-server");
 const { createPreviewRenderer } = require("../agent-tools/preview-renderer");
@@ -22,8 +22,9 @@ const { bundledHelperDaemon, stopHelperDaemon } = require("./computer-use-stop")
 const desktopHandoff = require("../handoff/desktop-handoff");
 const { wireLoginOffer } = require("../login/login-offer-window");
 const remoteFile = require("./remote-file");
-const cockpitOrigin = require("./cockpit-origin");
-const { findFreePort, getStablePort, seatHostCookie, waitForCockpit } = cockpitOrigin;
+const { findFreePort, getStablePort, storedPort, waitForCockpit } = require("./cockpit-origin");
+const { APP_URL, registerCockpitScheme, serveCockpit, serveDevCockpit } = require("./cockpit-scheme");
+const { migrateLegacyOrigin } = require("./origin-migration");
 const engineNotices = require("./engine-notices").createEngineNotices({ onMessage: (message) => desktopNotifier.handleServerMessage(message) });
 const { DEV_BUILD, E2E_USER_DATA, OVERRIDE_URL, SMOKE } = require("./flags");
 const { applyDevelopmentAppIcon, bundledAgentSdkEntry, bundledPlaywrightMcpCli, buildInfoPath, computerUseHelperPath, cockpitDir, windowTitle } = require("./bundle-paths");
@@ -32,7 +33,7 @@ const { findVolumeMount } = require("./volumes");
 const { logShell, shellLogPath, startHeapLog } = require("./shell-log");
 const { processMetricsReader, startServiceWorkerWatchdog } = require("./renderer-watch");
 const { decideQuit, heldTerminals } = require("./terminal-quit");
-const { engineDiscoveryFile, markMainWindowShown, postToEngine, rememberEngine, reportStartupFailure, requestEngine, startEngineChild, stopEngineChild, waitForEngine } = require("./engine-child");
+const { engineDiscoveryFile, engineEndpoint, markMainWindowShown, postToEngine, rememberEngine, reportStartupFailure, requestEngine, startEngineChild, stopEngineChild, waitForEngine } = require("./engine-child");
 const { createQuitGate } = require("./quit-gate");
 const { keepOccludedWindowsPainting, watchSchemeForVibrancy } = require("./appearance");
 const { buildApplicationMenu, followFocusedWindow, readKeybindingOverrides } = require("./app-menu");
@@ -94,6 +95,7 @@ function telarHome() {
 }
 
 let storeGate = null;
+let migratingOrigin = false;
 async function openStoreGate() {
   const explicit = DEV_BUILD ? "" : process.env.TELAR_HOME?.trim();
   if (explicit) return explicit;
@@ -119,8 +121,6 @@ function wireShellDiagnostics() {
       "warn",
       `child-process-gone type=${details.type} reason=${details.reason} exitCode=${details.exitCode} service=${details.serviceName ?? ""}`,
     );
-
-    if (lastWindowUrl()) void seatHostCookie(lastWindowUrl());
   });
 }
 
@@ -412,6 +412,8 @@ const { configureAutoUpdater } = require("./updates").registerUpdates({
   },
 });
 
+registerCockpitScheme(protocol);
+
 keepOccludedWindowsPainting();
 
 if (SMOKE) {
@@ -469,7 +471,10 @@ if (SMOKE) {
         });
 
         let url = OVERRIDE_URL;
-        if (!url) {
+        if (url) {
+          const home = telarHome();
+          serveDevCockpit(session.defaultSession, { net, origin: new URL(url).origin, engine: () => engineEndpoint(home) });
+        } else {
           captureLoginShellEnv();
 
           resolvedStoreHome = await openStoreGate();
@@ -479,6 +484,7 @@ if (SMOKE) {
           }
 
           const home = telarHome();
+          const legacyPort = storedPort();
           const port = await getStablePort();
           startEngineChild(home, cockpitEnv(home, port));
           rememberEngine(await waitForEngine(home));
@@ -486,11 +492,21 @@ if (SMOKE) {
           await publishTailscaleServe(home, port);
           engineNotices.start(engineDiscoveryFile(home));
           await waitForCockpit(port);
-          url = `http://127.0.0.1:${port}/`;
+          serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: () => engineEndpoint(home) });
+          migratingOrigin = true;
+          await migrateLegacyOrigin({
+            legacyPort,
+            listeningPort: port,
+            appUrl: APP_URL,
+            createWindow: () => new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } }),
+            log: (line) => logShell("info", line),
+          });
+          url = APP_URL;
           const notify = (body) => new Notification({ title: "Pair Booted Simulators", body }).show();
-          if (registerDevPairing({ dev: DEV_BUILD, appUrl: url, hostToken: cockpitOrigin.HOST_TOKEN, ipcMain, notify })) buildApplicationMenu();
+          if (registerDevPairing({ dev: DEV_BUILD, port, endpoint: () => engineEndpoint(home), ipcMain, notify })) buildApplicationMenu();
         }
         updaterWindow = createWindow(url, { main: true });
+        migratingOrigin = false;
         if (process.platform === "darwin") {
           quickComposer = createQuickComposer({ appUrl: url, openRoute: openNotificationPath, log: (line) => logShell("warn", line) });
           quickComposer.bind(mergeKeymap(readKeybindingOverrides())["quick-composer"]);
@@ -515,6 +531,7 @@ if (SMOKE) {
     });
 
     app.on("window-all-closed", () => {
+      if (migratingOrigin) return;
       app.isQuitting = true;
       app.quit();
     });

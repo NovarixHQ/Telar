@@ -29,7 +29,6 @@ function ask(
       authorization: credentials.authorization ?? null,
       deviceCookie: credentials.deviceCookie ?? null,
     },
-    undefined,
   );
 }
 
@@ -45,7 +44,7 @@ describe("api gate", () => {
   test("/v2/mcp reaches the engine for any caller on an allowed host, which then checks the bearer", () => {
     expect(ask("/v2/mcp", { method: "POST" })).toEqual({ allow: true });
     expect(ask("/v2/mcp", { method: "POST", authorization: `Bearer ${RAW}` }, file({}, "observer"))).toEqual({ allow: true });
-    expect(decideAccess(file(), { pathname: "/v2/mcp", method: "POST", host: "evil.example" }, undefined)).toEqual({ allow: false, code: "cockpit_misdirected" });
+    expect(decideAccess(file(), { pathname: "/v2/mcp", method: "POST", host: "evil.example" })).toEqual({ allow: false, code: "cockpit_misdirected" });
   });
 
   test("/v2/health is gated by name — it identifies the daemon", () => {
@@ -54,7 +53,7 @@ describe("api gate", () => {
 
   test("a rebinding Host is refused before anything else, even with auth off; loopback and LAN pass", () => {
     const decide = (host: string | null, remote = file()) =>
-      decideAccess(remote, { pathname: "/v2/pair", method: "GET", authorization: `Bearer ${RAW}`, host }, undefined);
+      decideAccess(remote, { pathname: "/v2/pair", method: "GET", authorization: `Bearer ${RAW}`, host });
     expect(decide("evil.example:3000", file({ requireAuth: false }))).toEqual({ allow: false, code: "cockpit_misdirected" });
     expect(decide("evil.example")).toEqual({ allow: false, code: "cockpit_misdirected" });
     for (const host of ["127.0.0.1:3000", "[::1]:3000", "192.168.1.20:3000", "mac.tail1234.ts.net", null]) {
@@ -203,7 +202,7 @@ describe("simulators", () => {
   const STREAM = "/v2/simulators/hub/vendor/serve-sim/helper/A1B2/stream.mjpeg";
   const tickets = new StreamTickets();
   const decide = (pathname: string, method: string, ticket: string | null, remote = file()) =>
-    decideAccess(remote, { pathname, method, ticket }, undefined, (path, verb, value) => tickets.check(path, verb, value));
+    decideAccess(remote, { pathname, method, ticket }, (path, verb, value) => tickets.check(path, verb, value));
 
   test("an observer watches a simulator but cannot touch it or change its settings", () => {
     const observer = file({}, "observer");
@@ -222,48 +221,13 @@ describe("simulators", () => {
   });
 });
 
-describe("the process that runs the server", () => {
-  const HOST = "tlr_" + "h".repeat(43);
-  const file = { version: 1 as const, requireAuth: true, devices: [] };
-  const asHost = (credentials: { deviceCookie?: string; hostHeader?: string; method?: string }, secret: string | null = HOST) =>
-    decideAccess(
-      file,
-      {
-        pathname: "/v2/projects",
-        method: credentials.method ?? "GET",
-        authorization: null,
-        deviceCookie: credentials.deviceCookie ?? null,
-        hostHeader: credentials.hostHeader ?? null,
-      },
-      secret ?? undefined,
-    );
-
-  test("the host's secret is a full-role caller without a device record", () => {
-    expect(asHost({ deviceCookie: HOST, method: "POST" })).toEqual({ allow: true, scopes: ALL_SCOPES });
-  });
-
-  test("the header alone admits the host, with no cookie at all", () => {
-    expect(asHost({ hostHeader: HOST, method: "POST" })).toEqual({ allow: true, scopes: ALL_SCOPES });
-  });
-
-  test("a near-miss header is refused, by length and by content", () => {
-    expect(asHost({ hostHeader: HOST + "x" }).allow).toBe(false);
-    expect(asHost({ hostHeader: HOST.slice(0, -1) + "z" }).allow).toBe(false);
-    expect(asHost({ hostHeader: HOST.slice(0, -1) }).allow).toBe(false);
-  });
-
-  test("with no secret set, an empty header is not a pass either", () => {
-    expect(asHost({ deviceCookie: "" }, null)).toEqual({ allow: false, code: "cockpit_unauthorized" });
-    expect(asHost({ hostHeader: "" }, null)).toEqual({ allow: false, code: "cockpit_unauthorized" });
-    expect(asHost({ hostHeader: HOST }, null)).toEqual({ allow: false, code: "cockpit_unauthorized" });
-  });
-
-  test("a wrong header does not spoil a right cookie", () => {
-    expect(asHost({ hostHeader: "tlr_stale", deviceCookie: HOST })).toEqual({ allow: true, scopes: ALL_SCOPES });
-  });
-
-  test("a near-miss is still refused", () => {
-    expect(asHost({ deviceCookie: HOST + "x" }).allow).toBe(false);
-    expect(asHost({ deviceCookie: HOST.slice(0, -1) + "z" }).allow).toBe(false);
+describe("the desktop shell's host token", () => {
+  test("opens nothing: a header or cookie carrying it is an unknown caller", () => {
+    const token = "tlr_" + "h".repeat(43);
+    const file = { version: 1 as const, requireAuth: true, devices: [] };
+    const asCaller = (credentials: { deviceCookie?: string; hostHeader?: string }) =>
+      decideAccess(file, { pathname: "/v2/projects", method: "POST", authorization: null, deviceCookie: credentials.deviceCookie ?? null, ...credentials });
+    expect(asCaller({ deviceCookie: token })).toEqual({ allow: false, code: "cockpit_unauthorized" });
+    expect(asCaller({ hostHeader: token })).toEqual({ allow: false, code: "cockpit_unauthorized" });
   });
 });

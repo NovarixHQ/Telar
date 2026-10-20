@@ -93,15 +93,14 @@ test("with no booted simulator that has Telar, no code is minted", async () => {
 test("a release build registers neither the verb nor the menu item; a dev build registers both", async () => {
   const handlers = new Map();
   const ipcMain = { handle: (channel, handler) => handlers.set(channel, handler) };
-  const appUrl = "http://127.0.0.1:62051/";
   const pair = async ({ port }) => ({ paired: [`port ${port}`], failed: [] });
 
-  expect(registerDevPairing({ dev: false, appUrl, hostToken: "tlr_x", ipcMain, pair })).toBe(false);
+  expect(registerDevPairing({ dev: false, port: 62051, endpoint: () => null, ipcMain, pair })).toBe(false);
   expect(handlers.has("telar:dev:pair-simulators")).toBe(false);
   expect(devMenuItem()).toBeNull();
 
   const notices = [];
-  expect(registerDevPairing({ dev: true, appUrl, hostToken: "tlr_x", ipcMain, notify: (body) => notices.push(body), pair })).toBe(true);
+  expect(registerDevPairing({ dev: true, port: 62051, endpoint: () => null, ipcMain, notify: (body) => notices.push(body), pair })).toBe(true);
   expect(await handlers.get("telar:dev:pair-simulators")()).toEqual({ paired: ["port 62051"], failed: [], message: "Paired port 62051." });
   expect(devMenuItem().label).toBe("Pair Booted Simulators");
 });

@@ -160,7 +160,7 @@ async function waitForHealth(engineRoot, predicate, timeoutMs = 15_000) {
 }
 
 // This script spawns engine, worker, web and desktop, so it alone can hand them one
-// browser-control pair and host secret. The pair is minted fresh, never inherited:
+// browser-control pair. The pair is minted fresh, never inherited:
 // a Telar-inside-Telar shell carries its parent app's.
 function mintSharedSecrets(env, launchDesktop) {
   delete env.TELAR_DESKTOP_BROWSER_CONTROL_PORT;
@@ -169,7 +169,6 @@ function mintSharedSecrets(env, launchDesktop) {
     env.TELAR_DESKTOP_BROWSER_CONTROL_PORT = String(19223 + Math.floor(Math.random() * 400));
     env.TELAR_DESKTOP_BROWSER_CONTROL_TOKEN = randomBytes(16).toString("hex");
   }
-  env.TELAR_HOST_TOKEN = env.TELAR_HOST_TOKEN || "tlr_" + randomBytes(32).toString("base64url");
   env.TELAR_HOST_CLIENT = env.TELAR_HOST_CLIENT || "Telar (dev)";
 }
 

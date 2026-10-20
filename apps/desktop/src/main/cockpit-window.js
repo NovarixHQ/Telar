@@ -5,7 +5,6 @@ const { createExternalLinkPolicy } = require("../browser/browser-manager");
 const { macWindowChrome } = require("./window-chrome");
 const { backdropWindowOptions } = require("./window-material");
 const { watchWindowVisibility } = require("./window-visibility");
-const { seatHostCookie, seatHostHeader } = require("./cockpit-origin");
 const { developmentIconPath, windowTitle } = require("./bundle-paths");
 const { watchForUnpairing } = require("./shell-log");
 const { readUiPrefs, supportsTranslucency } = require("./appearance");
@@ -108,10 +107,7 @@ function createCockpitWindow(appUrl, { createManager, main = false }) {
   win.once("ready-to-show", () => win.show());
   win.setTitle(title);
 
-  seatHostHeader(appUrl);
-  seatHostCookie(appUrl).finally(() => {
-    if (!win.isDestroyed()) win.loadURL(url);
-  });
+  win.loadURL(url);
   return win;
 }
 

@@ -51,7 +51,7 @@ const publicDevice = ({ id, name, createdAt, lastSeenAt, expiresAt, scopes, plat
 const OS_NAMES: Record<string, string> = { darwin: "macOS", win32: "Windows", linux: "Linux" };
 
 function hostRow(isCaller: boolean) {
-  if (!process.env.TELAR_HOST_TOKEN) return undefined;
+  if (!process.env.TELAR_HOST_CLIENT) return undefined;
   const machine = thisComputerName();
   const identity: DeviceIdentity = {
     kind: "desktop",

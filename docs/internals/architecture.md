@@ -4,17 +4,18 @@
 
 ```
 Telar.app (Electron main)
- ├─ telar-engine   the engine + an embedded worker. Owns all state (SQLite journal, TELAR_HOME) and serves the static cockpit.
- └─ renderer       the cockpit, plus WebContentsViews for the integrated browser
+ ├─ telar-engine   the engine + an embedded worker. Owns all state (SQLite journal, TELAR_HOME) and serves the static cockpit to outside browsers.
+ └─ renderer       the cockpit from the app's own bundle, plus WebContentsViews for the integrated browser
 iPhone app ──HTTP──▶ the engine's network listener, /v2 (and /api/<path> as an alias until 2027-01-31)
 providers (claude, codex, opencode) are child processes of the worker
 ```
 
 - The engine listens on loopback with a per-boot token written to `<TELAR_HOME>/engine/engine.json`, and on its network listener, which the desktop binds to the same stable port the cockpit has always had (127.0.0.1, or 0.0.0.0 when remote access is on).
-- Desktop main starts the engine, waits on `/v2/health`, then loads the cockpit from the network listener at `http://127.0.0.1:<port>/`.
+- Desktop main starts the engine, waits for it, then loads the cockpit over `telar://app/`: a privileged scheme (`main/cockpit-scheme.js`) that serves the bundled static cockpit and forwards `/v2` and `/api` to the engine's loopback listener with the engine bearer, which stays in the main process. The page has no credentials and the network listener is not its origin. The scheme answers 404 to any host but `app`.
+- localStorage is per origin, so the move off `http://127.0.0.1:<port>` copies every key once, on the first launch, through hidden windows (`main/origin-migration.js`, delete after 2027-01-01). Cookies, IndexedDB (a rebuildable snapshot cache) and sessionStorage stay behind. It runs only while the engine still listens on the port the old origin used; if that port was taken, the migration is skipped for good.
 - Electron main owns the integrated browser's tabs, views and CDP; the cockpit only draws and attaches to them through the preload bridge. Never add a second, renderer-owned browser: agents would drive tabs the person can't see.
 - A turn goes: cockpit → engine `/v2` → queued in the journal → claimed by the worker → driver → provider. The worker streams observations back into the journal, and the cockpit folds them into the transcript.
-- The engine gates every request itself (`decideAccess`): a paired device's bearer or cookie, the desktop shell's host token (sent as `x-telar-host` only to its own loopback origin), or a simulator stream ticket. The engine token opens nothing on the network listener.
+- The engine gates every request itself (`decideAccess`): a paired device's bearer or cookie, or a simulator stream ticket. The engine token and the desktop shell never open the network listener; the shell reaches the engine only on loopback.
 
 ### Notifications reach every device
 
@@ -100,7 +101,7 @@ A feature can have a second entry when the main index would pull too much into e
 The engine serves the cockpit: `TELAR_STATIC_DIR` (the exported `apps/web/out`, packaged as `Resources/cockpit`) is served on both listeners, public and cached by name (`/_next/static` immutable, html revalidated). A real session, solo, new-session or host URL gets its `_` placeholder page; the cockpit reads the real ids from `usePathname`, which Next initialises from `window.location`, so the address, not the placeholder, is what it sees. `cockpit-served.electron-test.js` proves it in a real Chromium.
 
 - The cockpit calls the engine's own `/v2/**` paths on its origin through `httpTransport`; there is no Next server in production. `bun run dev` runs Next dev behind the engine's network listener, which the dev launcher starts on a free loopback port and Next's `rewrites` forward `/v2/**` to.
-- Who is calling comes from the connection, not from a server in front: `callerOf(request)` is the host on loopback and for the host token, a paired device for a bearer or cookie.
+- Who is calling comes from the connection, not from a server in front: `callerOf(request)` is the host on loopback, a paired device for a bearer or cookie.
 - `/api/<path>` is served as `/v2/<path>` for released phones, with a few phone-only paths in `platform/http/legacy.ts`. Remove both on 2027-01-31. The Expo app asks `GET /v2/ping` and talks `/v2` to a host whose `proto` is at least `ENGINE_PROTO` (2); an older host, which has no `/v2` on the network, is reached through `/api`. The phone registers push on `/v2/push/devices/<id>` and reads `/v2/push/read-state` on a proto-2 host, and keeps the `mobile/push` shape only when it has no device id (a pairing carried over from the Swift app).
 - Left: Linux-clean engine, terminals and the browser in the engine, the CLI, distribution.
 

@@ -76,16 +76,18 @@ async function pairBootedSimulators({ port, cockpit, run = execRun, env = proces
   return { paired, failed };
 }
 
-function cockpitClient(baseUrl, hostToken, fetchImpl = fetch) {
+function cockpitClient(endpoint, fetchImpl = fetch) {
   const call = async (method, route) => {
-    const response = await fetchImpl(new URL(route, baseUrl), { method, headers: { "x-telar-host": hostToken } });
+    const engine = endpoint();
+    if (!engine) throw new Error("the engine is not running");
+    const response = await fetchImpl(`http://${engine.host}:${engine.port}${route}`, { method, headers: { authorization: `Bearer ${engine.token}` } });
     if (!response.ok) throw new Error(`${method} ${route} answered ${response.status}`);
     return response.json();
   };
   return {
-    mint: () => call("POST", "/api/remote/pairing"),
-    pending: async () => Boolean((await call("GET", "/api/remote")).pairing),
-    cancel: () => call("DELETE", "/api/remote/pairing").catch(() => undefined),
+    mint: () => call("POST", "/v2/remote/pairing"),
+    pending: async () => Boolean((await call("GET", "/v2/remote")).pairing),
+    cancel: () => call("DELETE", "/v2/remote/pairing").catch(() => undefined),
   };
 }
 
@@ -96,12 +98,11 @@ function summary({ paired, failed, error }) {
 
 let pairFromHost = null;
 
-function registerDevPairing({ dev, appUrl, hostToken, ipcMain, notify, pair = pairBootedSimulators }) {
+function registerDevPairing({ dev, port, endpoint, ipcMain, notify, pair = pairBootedSimulators }) {
   if (!dev) return false;
-  const port = Number(new URL(appUrl).port);
   pairFromHost = async () => {
     try {
-      const result = await pair({ port, cockpit: cockpitClient(appUrl, hostToken) });
+      const result = await pair({ port, cockpit: cockpitClient(endpoint) });
       return { ...result, message: summary(result) };
     } catch (error) {
       return { paired: [], failed: [], message: `Pairing failed: ${error?.message || error}` };

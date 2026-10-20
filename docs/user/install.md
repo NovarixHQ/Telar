@@ -19,7 +19,7 @@ Linux builds come in two formats for each of x64 and arm64: `Telar-<version>-lin
 
 If Telar won't start and the error mentions the sandbox, your distribution restricts unprivileged user namespaces (Ubuntu 24.04 and newer do, through AppArmor). Allow them for Telar in your AppArmor settings, or start it with `--no-sandbox`, which turns Chromium's sandbox off for the app.
 
-Both register `telar://` links, so opening a `telar://app/...` link brings the running app to that page.
+Opening a `telar://app/...` link opens Telar at that page, starting it first if it isn't running. The .deb registers the link type when installed; an AppImage registers it only once a desktop integration tool adds it to your menu.
 
 Not available on Linux: Computer use, iOS simulators, window translucency, the quick-composer shortcut and custom notification sounds. Everything else, including terminals and the browser, works.
 

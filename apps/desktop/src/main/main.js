@@ -54,6 +54,7 @@ const { createSurfaceWindowStore } = require("../windows/surface-window-store");
 const { isCompact, setCompact } = require("../windows/compact-window");
 const { registerDevPairing } = require("../dev/pair-simulators");
 const { createQuickComposer } = require("./quick-composer");
+const { createLaunchLinks } = require("./launch-links");
 const { mergeKeymap } = require("./command-keys");
 
 pinUserData();
@@ -180,6 +181,8 @@ function openNotificationPath(route) {
   win.focus();
   win.webContents.send("telar:notifications:open", route);
 }
+
+const launchLinks = createLaunchLinks(openNotificationPath);
 
 function createWindow(url, { main = false } = {}) {
   return createCockpitWindow(url, {
@@ -445,8 +448,7 @@ if (SMOKE) {
     app.quit();
   } else {
     app.on("second-instance", (_event, argv) => {
-      const deepLink = argv.find((arg) => arg.startsWith("telar://app/"));
-      if (deepLink) return openNotificationPath(new URL(deepLink).pathname);
+      if (launchLinks.take(argv)) return;
       const win = windowToFocus(mainWindow(), [...browserManagers].map((manager) => manager.window));
       if (win) {
         if (win.isMinimized()) win.restore();
@@ -454,6 +456,7 @@ if (SMOKE) {
       }
     });
 
+    launchLinks.take(process.argv);
     app.whenReady().then(async () => {
       try {
         wireShellDiagnostics();
@@ -536,6 +539,7 @@ if (SMOKE) {
           if (registerDevPairing({ dev: DEV_BUILD, port, endpoint: () => engineEndpoint(home), ipcMain, notify })) buildApplicationMenu();
         }
         updaterWindow = createWindow(url, { main: true });
+        launchLinks.loaded(updaterWindow.webContents);
         migratingOrigin = false;
         if (process.platform === "darwin") {
           quickComposer = createQuickComposer({ appUrl: url, openRoute: openNotificationPath, log: (line) => logShell("warn", line) });

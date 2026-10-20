@@ -6,6 +6,22 @@ function on(channel, listener) {
   return () => ipcRenderer.removeListener(channel, wrapped);
 }
 
+function heldUntilHeard(channel) {
+  const listeners = new Set();
+  const held = [];
+  ipcRenderer.on(channel, (_event, payload) => {
+    if (listeners.size === 0) held.push(payload);
+    for (const listener of listeners) listener(payload);
+  });
+  return (listener) => {
+    listeners.add(listener);
+    for (const payload of held.splice(0)) listener(payload);
+    return () => listeners.delete(listener);
+  };
+}
+
+const onNotificationOpen = heldUntilHeard("telar:notifications:open");
+
 function markShell() {
   const shell = process.platform === "darwin" ? "macos" : "desktop";
 
@@ -198,7 +214,7 @@ const bridge = {
   },
 
   notifications: {
-    onOpen: (listener) => on("telar:notifications:open", listener),
+    onOpen: onNotificationOpen,
     get: () => ipcRenderer.invoke("telar:notifications:get"),
     set: (enabled) => ipcRenderer.invoke("telar:notifications:set", { enabled }),
   },

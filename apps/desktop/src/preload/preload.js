@@ -20,7 +20,14 @@ document.addEventListener("DOMContentLoaded", () => {
   new MutationObserver(markShell).observe(document.documentElement, { attributes: true, attributeFilter: ["data-telar-shell"] });
 }, { once: true });
 
-const hostMode = ipcRenderer.sendSync("telar:host:mode-sync") ?? { local: true, remote: null };
+function readHostMode() {
+  try {
+    return ipcRenderer.sendSync("telar:host:mode-sync") ?? { local: true, remote: null };
+  } catch {
+    return { local: true, remote: null };
+  }
+}
+const hostMode = readHostMode();
 
 const bridge = {
   isDesktop: true,

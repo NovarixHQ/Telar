@@ -8,6 +8,7 @@ const { migrateLegacyOrigin } = require("./origin-migration");
 const { removeUserData } = require("../../test/electron/electron-test-teardown");
 
 registerCockpitScheme(protocol);
+app.on("window-all-closed", () => {});
 
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "telar-origin-migration-"));
 app.setPath("userData", userData);

@@ -95,6 +95,7 @@ function telarHome() {
 }
 
 let storeGate = null;
+let migratingOrigin = false;
 async function openStoreGate() {
   const explicit = DEV_BUILD ? "" : process.env.TELAR_HOME?.trim();
   if (explicit) return explicit;
@@ -492,6 +493,7 @@ if (SMOKE) {
           engineNotices.start(engineDiscoveryFile(home));
           await waitForCockpit(port);
           serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: () => engineEndpoint(home) });
+          migratingOrigin = true;
           await migrateLegacyOrigin({
             legacyPort,
             listeningPort: port,
@@ -504,6 +506,7 @@ if (SMOKE) {
           if (registerDevPairing({ dev: DEV_BUILD, port, endpoint: () => engineEndpoint(home), ipcMain, notify })) buildApplicationMenu();
         }
         updaterWindow = createWindow(url, { main: true });
+        migratingOrigin = false;
         if (process.platform === "darwin") {
           quickComposer = createQuickComposer({ appUrl: url, openRoute: openNotificationPath, log: (line) => logShell("warn", line) });
           quickComposer.bind(mergeKeymap(readKeybindingOverrides())["quick-composer"]);
@@ -528,6 +531,7 @@ if (SMOKE) {
     });
 
     app.on("window-all-closed", () => {
+      if (migratingOrigin) return;
       app.isQuitting = true;
       app.quit();
     });

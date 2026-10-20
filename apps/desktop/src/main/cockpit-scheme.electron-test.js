@@ -1,5 +1,5 @@
-const { app, BrowserWindow, net, protocol, session } = require("electron");
-const { spawn } = require("node:child_process");
+const { app, BrowserWindow, protocol, session } = require("electron");
+const { spawn, spawnSync } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
 const net_ = require("node:net");
@@ -57,6 +57,93 @@ const status = (port, route, headers = {}) =>
     request.on("error", () => resolve(0));
   });
 
+const STUB_ACP = `
+const readline = require("node:readline");
+const send = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\\n");
+readline.createInterface({ input: process.stdin }).on("line", (line) => {
+  const message = JSON.parse(line);
+  if (message.method === "initialize") send({ id: message.id, result: { protocolVersion: 1, agentCapabilities: {} } });
+  else if (message.method === "session/new") send({ id: message.id, result: { sessionId: "stub" } });
+  else if (message.method === "session/prompt") {
+    const text = message.params.prompt.map((part) => part.text ?? "").join("");
+    send({ method: "session/update", params: { sessionId: "stub", update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "echo:" + text.length } } } });
+    send({ id: message.id, result: { stopReason: "end_turn" } });
+  } else if (message.id !== undefined && message.method) send({ id: message.id, error: { code: -32601, message: "not supported" } });
+});
+`;
+
+async function engineCall(endpoint, method, route, body) {
+  const response = await fetch(`http://${endpoint.host}:${endpoint.port}${route}`, {
+    method,
+    headers: { authorization: `Bearer ${endpoint.token}`, "content-type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const text = await response.text();
+  assert(response.ok, `${method} ${route} answered ${response.status}: ${text}`);
+  return JSON.parse(text);
+}
+
+const PAGE_PROMPT = `async ({ sessionId, runId, input, dropped }) => {
+  const deadline = (ms, what) => new Promise((resolve) => setTimeout(() => resolve(what), ms));
+  for (let index = 0; index < dropped; index++) {
+    const controller = new AbortController();
+    const opened = await Promise.race([fetch("/v2/sessions/stream", { signal: controller.signal }).then(() => true, () => false), deadline(10000, false)]);
+    controller.abort();
+    if (!opened) return JSON.stringify({ posted: "stream " + index + " of " + dropped + " never opened", streamed: "", seen: [] });
+  }
+  const stream = await Promise.race([fetch("/v2/sessions/stream", { headers: { accept: "text/event-stream" } }), deadline(10000, null)]);
+  if (!stream) return JSON.stringify({ posted: "the sessions stream never opened", streamed: "", seen: [] });
+  const reader = stream.body.getReader();
+  const seen = [];
+  const watching = (async () => {
+    let text = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return "the stream ended";
+      text += new TextDecoder().decode(value);
+      for (const line of text.split("\\n")) if (line.startsWith("data: ") && line.includes(sessionId)) seen.push(JSON.parse(line.slice(6)).type);
+      if (seen.includes("turn.completed")) return "completed";
+    }
+  })();
+  const posted = await Promise.race([
+    fetch("/v2/sessions/" + sessionId + "/turns", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ runId, input }) })
+      .then(async (response) => "status " + response.status + (response.ok ? "" : " " + (await response.text()).slice(0, 160)), (error) => "threw " + error),
+    deadline(15000, "no answer in 15s"),
+  ]);
+  const streamed = await Promise.race([watching, deadline(30000, "no turn.completed in 30s")]);
+  reader.cancel().catch(() => {});
+  return JSON.stringify({ posted, streamed, seen });
+}`;
+
+function engineConnections(engine, port) {
+  const lines = spawnSync("lsof", ["-nP", "-a", "-p", String(engine.pid), "-iTCP", "-sTCP:ESTABLISHED"], { encoding: "utf8" }).stdout.split("\n");
+  return lines.filter((line) => line.includes(`:${port}->`)).length;
+}
+
+async function sendPrompt({ window, endpoint, engine, home, note }) {
+  const stub = path.join(home, "stub-acp.cjs");
+  fs.writeFileSync(stub, STUB_ACP);
+  const binary = path.join(home, "stub-acp");
+  fs.writeFileSync(binary, `#!/bin/sh\nexec node ${JSON.stringify(stub)} "$@"\n`, { mode: 0o755 });
+  const root = fs.mkdtempSync(path.join(home, "project-"));
+  await engineCall(endpoint, "PUT", "/v2/provider-instances/stub", { driver: "acp", binaryPath: binary, displayName: "Stub" });
+  const { project } = await engineCall(endpoint, "POST", "/v2/projects", { name: "prompt", root });
+  const { session } = await engineCall(endpoint, "POST", "/v2/sessions", { projectId: project.id, providerInstanceId: "stub", envMode: "local" });
+  const before = engineConnections(engine, endpoint.port);
+  const cases = [
+    { label: "a prompt", runId: "run_scheme_small", input: "hello", dropped: 0 },
+    { label: "a prompt after twenty dropped streams", runId: "run_scheme_dropped", input: "hello again", dropped: 20 },
+    { label: "a 190 kB prompt", runId: "run_scheme_large", input: "x".repeat(190_000), dropped: 0 },
+  ];
+  for (const { label, runId, input, dropped } of cases) {
+    const result = JSON.parse(await window.webContents.executeJavaScript(`(${PAGE_PROMPT})(${JSON.stringify({ sessionId: session.id, runId, input, dropped })})`));
+    assert(result.posted === "status 202" && result.streamed === "completed", `${label} through telar:// failed: ${JSON.stringify(result)}`);
+  }
+  note("a prompt sent from the page is accepted, run and streamed back through telar://, also after twenty dropped streams and at 190 kB");
+  await until(() => engineConnections(engine, endpoint.port) <= before + 4, `dropped streams to release their engine connections (${before} before)`, 15_000);
+  note("streams the page drops close their connections to the engine");
+}
+
 async function main() {
   assert(fs.existsSync(path.join(staticDir, "index.html")), `build the cockpit first: bun run --cwd apps/web build:static (${staticDir})`);
   const note = (line) => console.log(`COCKPIT_SCHEME ${line}`);
@@ -69,7 +156,6 @@ async function main() {
       ...process.env,
       HOME: home,
       TELAR_HOME: home,
-      TELAR_EMBEDDED_WORKER: "0",
       TELAR_ENGINE_HOST: "127.0.0.1",
       TELAR_ENGINE_PORT: String(port),
       TELAR_HOST_TOKEN: HOST_TOKEN,
@@ -88,7 +174,7 @@ async function main() {
     }
   };
   await app.whenReady();
-  serveCockpit(session.defaultSession, { net, staticDir, engine: readEndpoint });
+  serveCockpit(session.defaultSession, { staticDir, engine: readEndpoint });
 
   const window = new BrowserWindow({ show: false, width: 1200, height: 800, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload } });
   try {
@@ -139,6 +225,8 @@ async function main() {
     assert(!seen.cookie.includes("tlr_") && !leaked.includes(endpoint.token) && !leaked.includes(HOST_TOKEN), "the page can read a token");
     note("the preload bridge is present and no token is readable from the page");
 
+    await sendPrompt({ window, endpoint, engine, home, note });
+
     for (const headers of [{ "x-telar-host": HOST_TOKEN }, { cookie: `telar_device=${HOST_TOKEN}` }, { authorization: `Bearer ${endpoint.token}` }]) {
       assert((await status(port, "/v2/remote", headers)) === 401, `the network listener admitted ${Object.keys(headers)[0]}`);
     }
@@ -156,7 +244,7 @@ async function main() {
     assert((await fs.promises.stat(path.join(userData, "remote-host.json"))).mode % 0o1000 === 0o600, "the credential file is not private");
 
     session.defaultSession.protocol.unhandle("telar");
-    serveCockpit(session.defaultSession, { net, staticDir, engine: remoteHost.endpoint });
+    serveCockpit(session.defaultSession, { staticDir, engine: remoteHost.endpoint });
     await window.loadURL(`${APP_URL}settings`);
     const remote = JSON.parse(await window.webContents.executeJavaScript(
       `(async () => JSON.stringify({ cookie: document.cookie, status: (await fetch("/v2/sessions/live")).status, bridge: Object.keys(window.telarDesktop ?? {}) }))()`,

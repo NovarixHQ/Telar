@@ -40,7 +40,10 @@ async function main() {
   };
   await seed.loadURL(`http://127.0.0.1:${port}/v2/ping`);
   await seed.webContents.executeJavaScript(`Object.entries(${JSON.stringify(values)}).forEach(([k, v]) => localStorage.setItem(k, v))`);
-  seed.destroy();
+  await new Promise((resolve) => {
+    seed.once("closed", resolve);
+    seed.destroy();
+  });
 
   const lines = [];
   const run = () => migrateLegacyOrigin({ legacyPort: port, listeningPort: port, appUrl: APP_URL, createWindow: hidden, log: (line) => lines.push(line) });

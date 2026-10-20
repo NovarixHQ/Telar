@@ -21,6 +21,11 @@ describe("windowTargetUrl", () => {
     expect(windowTargetUrl("http://127.0.0.1:42731/deep/page", "/spool")).toBe("http://127.0.0.1:42731/spool");
   });
 
+  test("a path on the bundled cockpit resolves on telar://app", () => {
+    expect(windowTargetUrl("telar://app/?w=main", "/projects/p2/sessions/s2")).toBe("telar://app/projects/p2/sessions/s2");
+    expect(windowTargetUrl("telar://app/", "http://127.0.0.1:42731/")).toBeNull();
+  });
+
   test("nothing that leaves the origin is a window this shell will open", () => {
     for (const target of [
       "https://evil.example.com/",

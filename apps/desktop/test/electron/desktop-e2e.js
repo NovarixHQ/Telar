@@ -25,6 +25,16 @@ function freePort() {
   });
 }
 
+async function until(check, what, timeoutMs = 45_000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const found = check();
+    if (found) return found;
+    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${what}.`);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
 function waitForUrl(url, timeoutMs = 45_000) {
   const deadline = Date.now() + timeoutMs;
   return new Promise((resolve, reject) => {
@@ -86,46 +96,19 @@ function stopChild(child) {
 async function main() {
   const browserControlPort = await freePort();
   const browserControlToken = randomUUID();
-  const hostToken = `tlr_${randomUUID().replaceAll("-", "")}`;
   const browserControlEnv = {
     TELAR_DESKTOP_BROWSER_CONTROL_PORT: String(browserControlPort),
     TELAR_DESKTOP_BROWSER_CONTROL_TOKEN: browserControlToken,
   };
-  let appUrl = process.env.TELAR_DESKTOP_URL?.replace(/\/$/, "");
-  let webChild = null;
-  let isolatedHome = null;
-  let webOutput = "";
-  if (!appUrl) {
-    const bunPath = process.env.TELAR_BUN_BINARY;
-    assert(bunPath, "test:desktop:e2e must be launched through desktop-e2e-launcher.js.");
-    const webPort = await freePort();
-    appUrl = `http://127.0.0.1:${webPort}`;
-    isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "telar-desktop-e2e-"));
-    webChild = spawn(bunPath, [path.resolve(desktopDir, "../engine/src/main.ts")], {
-      cwd: path.resolve(desktopDir, "../.."),
-      env: {
-        ...process.env,
-        ...browserControlEnv,
-        TELAR_HOME: isolatedHome,
-        TELAR_EMBEDDED_WORKER: "0",
-        TELAR_ENGINE_HOST: "127.0.0.1",
-        TELAR_ENGINE_PORT: String(webPort),
-        TELAR_STATIC_DIR: path.join(webDir, "out"),
-        TELAR_HOST_TOKEN: hostToken,
-      },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    webChild.stdout.on("data", (chunk) => { webOutput = `${webOutput}${chunk}`.slice(-20_000); });
-    webChild.stderr.on("data", (chunk) => { webOutput = `${webOutput}${chunk}`.slice(-20_000); });
-  }
-
-  try {
-    await waitForUrl(`${appUrl}/v2/ping`, 90_000);
-  } catch (error) {
-    await stopChild(webChild);
-    if (isolatedHome) fs.rmSync(isolatedHome, { recursive: true, force: true });
-    throw new Error(`${error instanceof Error ? error.message : String(error)}\n${webOutput}`);
-  }
+  const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "telar-desktop-e2e-"));
+  const discoveryFile = path.join(isolatedHome, "engine", "engine.json");
+  const engineEndpoint = () => {
+    try {
+      return JSON.parse(fs.readFileSync(discoveryFile, "utf8"));
+    } catch {
+      return null;
+    }
+  };
 
   const fixture = fixtureServer();
   const fixturePort = await freePort();
@@ -140,8 +123,7 @@ async function main() {
   const childEnv = {
     ...process.env,
     ...browserControlEnv,
-    TELAR_DESKTOP_URL: appUrl,
-    TELAR_HOST_TOKEN: hostToken,
+    TELAR_HOME: isolatedHome,
     TELAR_DESKTOP_REMOTE_DEBUGGING_PORT: String(debuggingPort),
     TELAR_DESKTOP_E2E_USER_DATA: desktopUserData,
   };
@@ -160,8 +142,10 @@ async function main() {
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${debuggingPort}`);
     const context = browser.contexts()[0];
     assert(context, "Electron did not expose a CDP browser context.");
-    const page = context.pages().find((candidate) => candidate.url().startsWith(appUrl))
-      || await context.waitForEvent("page", { timeout: 15_000 }).catch(() => null);
+    const appUrl = "telar://app";
+    const isCockpit = (candidate) => candidate.url().startsWith(`${appUrl}/`);
+    const page = context.pages().find(isCockpit)
+      || await context.waitForEvent("page", { predicate: isCockpit, timeout: 15_000 }).catch(() => null);
     assert(page, `Could not find Telar's renderer at ${appUrl}.`);
     await page.waitForFunction(() => window.telarDesktop?.isDesktop === true, null, { timeout: 15_000 });
 
@@ -174,9 +158,10 @@ async function main() {
       await window.telarDesktop.browser.setVisible("e2e", true);
     });
 
-    const agentRoute = await fetch(`${appUrl}/api/browser`, {
+    const engine = await until(engineEndpoint, "the engine discovery file");
+    const agentRoute = await fetch(`http://${engine.host}:${engine.port}/v2/browser`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${engine.token}` },
       body: JSON.stringify({ scopeKey: "e2e", action: "new", url: fixtureUrl }),
     });
     const agentState = await agentRoute.json();
@@ -222,8 +207,7 @@ async function main() {
     await browser?.close().catch(() => {});
     await stopChild(child);
     await new Promise((resolve) => fixture.close(resolve));
-    await stopChild(webChild);
-    if (isolatedHome) fs.rmSync(isolatedHome, { recursive: true, force: true });
+    fs.rmSync(isolatedHome, { recursive: true, force: true });
     fs.rmSync(desktopUserData, { recursive: true, force: true });
   }
 }

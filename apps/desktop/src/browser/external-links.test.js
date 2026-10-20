@@ -81,9 +81,17 @@ describe("createExternalLinkPolicy", () => {
 
   test("refuses to build a policy that cannot recognise Telar's own UI", () => {
     for (const appUrl of ["not-a-url", "", undefined, null, "file:///Applications/Telar.app"]) {
-      expect(() => createExternalLinkPolicy({ appUrl })).toThrow(/http\(s\) app URL/);
+      expect(() => createExternalLinkPolicy({ appUrl })).toThrow(/app URL/);
     }
-    expect(() => createExternalLinkPolicy()).toThrow(/http\(s\) app URL/);
+    expect(() => createExternalLinkPolicy()).toThrow(/app URL/);
+  });
+});
+describe("the bundled cockpit origin", () => {
+  test("telar://app stays in-app and no other custom host does", () => {
+    const policy = createExternalLinkPolicy({ appUrl: "telar://app/" });
+    expect(policy.decide("telar://app/projects/p1")).toEqual({ action: "allow", openExternal: null });
+    expect(policy.decide("telar://other/projects/p1")).toEqual({ action: "deny", openExternal: null });
+    expect(policy.decide("http://127.0.0.1:42731/")).toEqual({ action: "deny", openExternal: "http://127.0.0.1:42731/" });
   });
 });
 describe("loopback aliases are the same server", () => {

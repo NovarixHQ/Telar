@@ -59,6 +59,14 @@ function normalizePopupUrl(value) {
   return parsed.href;
 }
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+function isOwnUi(target, appUrl) {
+  if (target.protocol !== appUrl.protocol || target.port !== appUrl.port) return false;
+  if (appUrl.protocol === "telar:") return target.host === appUrl.host;
+  return LOOPBACK_HOSTS.has(target.hostname) && LOOPBACK_HOSTS.has(appUrl.hostname);
+}
+
 const EXTERNAL_OPEN_DEDUPE_MS = 2_000;
 
 function parseUrl(value) {
@@ -69,33 +77,21 @@ function parseUrl(value) {
   }
 }
 
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
-
-function sameLoopbackServer(target, appUrl) {
-  if (target.protocol !== appUrl.protocol) return false;
-  if (target.port !== appUrl.port) return false;
-  return LOOPBACK_HOSTS.has(target.hostname) && LOOPBACK_HOSTS.has(appUrl.hostname);
-}
-
 function createExternalLinkPolicy({ appUrl, now = Date.now, dedupeMs = EXTERNAL_OPEN_DEDUPE_MS } = {}) {
   const parsedAppUrl = parseUrl(appUrl);
 
-  if (!parsedAppUrl || (parsedAppUrl.protocol !== "http:" && parsedAppUrl.protocol !== "https:")) {
+  if (!parsedAppUrl || !["http:", "https:", "telar:"].includes(parsedAppUrl.protocol)) {
     throw new Error(
-      `External-link policy needs an http(s) app URL to recognise Telar's own UI; got ${JSON.stringify(appUrl ?? null)}.`,
+      `External-link policy needs an http(s) or telar app URL to recognise Telar's own UI; got ${JSON.stringify(appUrl ?? null)}.`,
     );
   }
-  const appOrigin = parsedAppUrl.origin;
   let lastHref = null;
   let lastAt = 0;
   return {
     decide(target) {
       const parsed = parseUrl(target);
 
-      if (
-        parsed &&
-        (parsed.href === "about:blank" || parsed.origin === appOrigin || sameLoopbackServer(parsed, parsedAppUrl))
-      ) {
+      if (parsed && (parsed.href === "about:blank" || isOwnUi(parsed, parsedAppUrl))) {
         return { action: "allow", openExternal: null };
       }
 

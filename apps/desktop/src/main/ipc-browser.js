@@ -5,6 +5,7 @@ const { readLoginOfferPrefs, writeLoginOfferPrefs } = require("../login/login-of
 const { passwordManagerEnabled, setPasswordManagerEnabled } = require("../login/password-manager-prefs");
 const { browserManagers, requireBrowserManager, requireCockpitSender } = require("./browser-hosts");
 const { openInSystemBrowser } = require("./window-links");
+const { storedPort } = require("./cockpit-origin");
 
 const PASSWORD_MANAGER_OFF = "The password manager is turned off in Settings → Integrations.";
 
@@ -12,9 +13,8 @@ function registerViewIpc({ requireBrowserSuggestions }) {
   ipcMain.handle("telar:browser:suggestions", async (event, scopeKey) => {
     const manager = requireBrowserManager(event);
     manager.partitionOf(scopeKey);
-    const ownPort = Number(new URL(manager.window.webContents.getURL()).port);
     return requireBrowserSuggestions().list(manager.activeProfile(scopeKey)?.id, [
-      ownPort,
+      storedPort(),
       Number(process.env.TELAR_DESKTOP_REMOTE_DEBUGGING_PORT),
       Number(process.env.TELAR_DESKTOP_BROWSER_CONTROL_PORT),
     ]);

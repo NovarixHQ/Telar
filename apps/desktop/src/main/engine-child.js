@@ -6,7 +6,6 @@ const { app, BrowserWindow, dialog } = require("electron");
 const { DEV_BUILD, SMOKE } = require("./flags");
 const { bundledPlaywrightMcpCli, nodeExecPath, resolveEngineJs } = require("./bundle-paths");
 const { logShell, shellLogPath } = require("./shell-log");
-const { HOST_TOKEN } = require("./cockpit-origin");
 const { writePlannedRestart } = require("./update-install");
 
 const ENGINE_EXIT_LOCK_HELD = 3;
@@ -191,7 +190,6 @@ function startEngineChild(home, env) {
     execArgv: ["--require", path.join(__dirname, "..", "preload", "server-preload.js")],
     env: {
       ...env,
-      TELAR_HOST_TOKEN: HOST_TOKEN,
       TELAR_PROCESS_TITLE: DEV_BUILD ? "telar-engine-dev" : "telar-engine",
       NODE_ENV: "production",
 
@@ -317,6 +315,11 @@ function currentEngineDiscovery(home) {
   return engineDiscovery;
 }
 
+function engineEndpoint(home) {
+  const discovery = currentEngineDiscovery(home);
+  return discovery?.port && discovery?.token ? { host: discovery.host || "127.0.0.1", port: discovery.port, token: discovery.token } : null;
+}
+
 function requestEngine(home, method, routePath, body) {
   const discovery = currentEngineDiscovery(home);
   if (!discovery?.port || !discovery?.token) return Promise.reject(new Error("the engine is not running"));
@@ -363,6 +366,7 @@ function postToEngine(home, routePath, body) {
 
 module.exports = {
   engineDiscoveryFile,
+  engineEndpoint,
   lastEngineRestart,
   markMainWindowShown,
   onEngineExit,

@@ -637,8 +637,8 @@ jobs:
           run_case canvas-control  BROWSER_CANVAS_CONTROL_OK
           run_case persistence     BROWSER_PERSISTENCE_OK
           run_case profile-cookies PROFILE_COOKIES_OK
-          run_case host-header     HOST_HEADER_OK
-          run_case cockpit-served  COCKPIT_SERVED_OK
+          run_case cockpit-scheme  COCKPIT_SCHEME_OK
+          run_case origin-migration ORIGIN_MIGRATION_OK
           run_case popup-geometry  POPUP_GEOMETRY_OK
           run_case native-messaging "NATIVE_MESSAGING_OK 3/3"
           run_case clipboard       "CLIPBOARD OK"

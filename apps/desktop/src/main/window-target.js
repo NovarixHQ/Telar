@@ -15,7 +15,7 @@ function windowTargetUrl(appUrl, target) {
   } catch {
     return null;
   }
-  if (resolved.origin !== base.origin) return null;
+  if (resolved.protocol !== base.protocol || resolved.host !== base.host) return null;
   return resolved.href;
 }
 

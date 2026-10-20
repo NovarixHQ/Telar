@@ -7,6 +7,7 @@ const DEV_BUILD = (() => {
     return false;
   }
 })();
+
 const OVERRIDE_URL = DEV_BUILD ? undefined : process.env.TELAR_DESKTOP_URL;
 
 const E2E_USER_DATA = DEV_BUILD ? undefined : process.env.TELAR_DESKTOP_E2E_USER_DATA?.trim();

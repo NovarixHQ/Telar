@@ -149,6 +149,24 @@ describe("the rail, per route", () => {
   });
 });
 
+describe("the activity bar", () => {
+  const bar = () => host!.querySelector('nav[aria-label="App"]');
+
+  test("is drawn on the workspace and on Settings", async () => {
+    await show("/projects/p1/sessions/s1");
+    expect(bar()).not.toBeNull();
+    await show("/settings");
+    expect(bar()).not.toBeNull();
+  });
+
+  test("is not drawn on a solo conversation or a surface window", async () => {
+    await show("/projects/p1/sessions/s1/solo");
+    expect(bar()).toBeNull();
+    await show("/surface/browser");
+    expect(bar()).toBeNull();
+  });
+});
+
 describe("Settings › Back", () => {
   test("the shell remembers the last page outside Settings", async () => {
     window.history.replaceState(null, "", "/projects/p1/sessions/s1?panel=diff");

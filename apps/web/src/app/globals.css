@@ -1470,6 +1470,17 @@ pre span[style*="--sdm-c"] {
 [data-telar-shell="macos"] {
   --titlebar-inset: 76px;
 }
+[data-activity-bar] {
+  --activity-bar-width: 0px;
+}
+@media (width >= 48rem) {
+  [data-activity-bar] {
+    --activity-bar-width: 48px;
+  }
+  [data-telar-shell="macos"] [data-activity-bar] {
+    --titlebar-inset: 28px;
+  }
+}
 
 /* DRAG REGIONS ARE OPT-IN AND SHELL-ONLY. `-webkit-app-region` is inert in a
    real browser, but `drag` also suppresses text selection and pointer events on

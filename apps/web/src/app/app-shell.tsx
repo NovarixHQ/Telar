@@ -9,14 +9,11 @@ import { installNavigationMarks, isMeasuredHref, markNavigation, startNavigation
 import { installPageApi } from "@/features/composer";
 import { installFocusRestore } from "@/platform/desktop/focus-restore";
 import { rememberSettingsReturn } from "@/features/settings";
+import { ActivityBar, isSettingsRoute } from "./activity-bar";
 import { useRouteSwap } from "./route-swap";
 
 const AppSidebar = dynamic(() => import("@/features/sessions/rail/app-sidebar").then((mod) => mod.AppSidebar));
 const RaillessCommands = dynamic(() => import("@/features/sessions/rail/app-sidebar").then((mod) => mod.RaillessCommands));
-
-function isSettingsRoute(pathname: string): boolean {
-  return pathname === "/settings" || /^\/projects\/[^/]+\/settings(\/|$)/.test(pathname);
-}
 
 function isSoloRoute(pathname: string): boolean {
   return /^(?:\/hosts\/[^/]+)?\/projects\/[^/]+\/sessions\/[^/]+\/solo\/?$/.test(pathname);
@@ -33,7 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 function CockpitShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const settings = isSettingsRoute(pathname);
-  const railless = settings || isSoloRoute(pathname) || isSurfaceRoute(pathname);
+  const bare = isSoloRoute(pathname) || isSurfaceRoute(pathname);
+  const railless = settings || bare;
   const shell = useRef<HTMLDivElement>(null);
   useRouteSwap(shell, settings);
   useEffect(() => {
@@ -50,22 +48,25 @@ function CockpitShell({ children }: { children: ReactNode }) {
     markNavigation("commit", pathname);
   }, [pathname]);
   return (
-    <SidebarProvider ref={shell} storageKey={APP_SIDEBAR_STORAGE_KEY} className="app-ground bg-sidebar">
-      <Suspense fallback={null}>{settings ? <RaillessCommands /> : !railless && <AppSidebar />}</Suspense>
-      <SidebarInset
-        className={cn(
-          "flex h-dvh min-w-0 flex-col",
-          "md:m-[var(--app-island-inset)] md:h-[calc(100dvh-var(--app-island-span))] md:rounded-xl md:shadow-1",
-          "md:has-[[data-surfaces]]:bg-transparent md:has-[[data-surfaces]]:shadow-none md:has-[[data-surfaces]]:rounded-none",
-          "md:has-[[data-surfaces]]:overflow-visible",
-          railless
-            ? "md:ml-[var(--app-island-inset)]"
-            : "md:ml-0 md:peer-data-[state=collapsed]:ml-[var(--app-island-inset)]",
-        )}
-      >
-        {children}
-      </SidebarInset>
-    </SidebarProvider>
+    <div data-activity-bar={bare ? undefined : ""} className="app-ground flex bg-sidebar">
+      {!bare && <ActivityBar />}
+      <SidebarProvider ref={shell} storageKey={APP_SIDEBAR_STORAGE_KEY} className="min-w-0 flex-1">
+        <Suspense fallback={null}>{settings ? <RaillessCommands /> : !railless && <AppSidebar />}</Suspense>
+        <SidebarInset
+          className={cn(
+            "flex h-dvh min-w-0 flex-col",
+            "md:m-[var(--app-island-inset)] md:h-[calc(100dvh-var(--app-island-span))] md:rounded-xl md:shadow-1",
+            "md:has-[[data-surfaces]]:bg-transparent md:has-[[data-surfaces]]:shadow-none md:has-[[data-surfaces]]:rounded-none",
+            "md:has-[[data-surfaces]]:overflow-visible",
+            railless
+              ? "md:ml-[var(--app-island-inset)]"
+              : "md:ml-0 md:peer-data-[state=collapsed]:ml-[var(--app-island-inset)]",
+          )}
+        >
+          {children}
+        </SidebarInset>
+      </SidebarProvider>
+    </div>
   );
 }
 

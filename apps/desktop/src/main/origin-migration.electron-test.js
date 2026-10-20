@@ -1,4 +1,4 @@
-const { app, BrowserWindow, net, protocol, session } = require("electron");
+const { app, BrowserWindow, protocol, session } = require("electron");
 const fs = require("node:fs");
 const http = require("node:http");
 const os = require("node:os");
@@ -23,7 +23,7 @@ async function main() {
   await app.whenReady();
   const staticDir = fs.mkdtempSync(path.join(os.tmpdir(), "telar-origin-migration-static-"));
   fs.writeFileSync(path.join(staticDir, "index.html"), "<!doctype html><title>cockpit</title>");
-  serveCockpit(session.defaultSession, { net, staticDir, engine: () => null });
+  serveCockpit(session.defaultSession, { staticDir, engine: () => null });
 
   const legacy = http.createServer((request, response) => {
     response.writeHead(200, { "content-type": "application/json" });

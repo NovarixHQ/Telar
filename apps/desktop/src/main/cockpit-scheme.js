@@ -121,15 +121,17 @@ function createCockpitHandler({ staticDir, engine, fetchImpl }) {
   };
 }
 
-function serveCockpit(ses, { net, ...options }) {
-  ses.protocol.handle(SCHEME, createCockpitHandler({ ...options, fetchImpl: (url, init) => net.fetch(url, init) }));
+const fetchOutsideChromiumSocketCap = (url, init) => fetch(url, init);
+
+function serveCockpit(ses, options) {
+  ses.protocol.handle(SCHEME, createCockpitHandler({ ...options, fetchImpl: fetchOutsideChromiumSocketCap }));
 }
 
 function serveDevCockpit(ses, { net, origin, engine }) {
   ses.protocol.handle("http", (request) => {
     const url = new URL(request.url);
     if (url.origin === origin && (url.pathname.startsWith("/v2/") || url.pathname.startsWith("/api/"))) {
-      return proxyToEngine(request, url, engine, (target, init) => net.fetch(target, init));
+      return proxyToEngine(request, url, engine, fetchOutsideChromiumSocketCap);
     }
     return net.fetch(request, { bypassCustomProtocolHandlers: true });
   });

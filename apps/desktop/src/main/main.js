@@ -508,7 +508,7 @@ if (sandboxOff) {
         const clientOnly = !url && Boolean(remoteHost.endpoint());
         setClientOnly(clientOnly);
         if (clientOnly) {
-          serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: remoteHost.endpoint });
+          serveCockpit(session.defaultSession, { staticDir: cockpitDir(), engine: remoteHost.endpoint });
           engineNotices.start(remoteHost.endpoint);
           url = APP_URL;
         } else if (url) {
@@ -533,7 +533,7 @@ if (sandboxOff) {
           await publishTailscaleServe(home, port);
           engineNotices.start(discoveryEndpoint(engineDiscoveryFile(home)));
           await waitForCockpit(port);
-          serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: () => engineEndpoint(home) });
+          serveCockpit(session.defaultSession, { staticDir: cockpitDir(), engine: () => engineEndpoint(home) });
           if (legacyOrigin) {
             migratingOrigin = true;
             await migrateLegacyOrigin({

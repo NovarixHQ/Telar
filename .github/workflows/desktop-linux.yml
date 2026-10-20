@@ -1,0 +1,78 @@
+name: Linux desktop build
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "scripts/build-desktop-linux.sh"
+      - ".github/workflows/desktop-linux.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "scripts/build-desktop-linux.sh"
+      - ".github/workflows/desktop-linux.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Desktop on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: System packages
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y xvfb libfuse2t64 libgtk-3-0t64 libnss3 libasound2t64 libgbm1 libxss1
+          if [ "$(uname -m)" = "aarch64" ]; then
+            sudo apt-get install -y ruby ruby-dev build-essential
+            sudo gem install --no-document fpm
+            echo "USE_SYSTEM_FPM=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build the AppImage and the .deb
+        run: bash scripts/build-desktop-linux.sh
+
+      - name: Smoke the AppImage under xvfb
+        run: |
+          set -euo pipefail
+          appimage="$(ls apps/desktop/release/Telar-*.AppImage)"
+          chmod +x "$appimage"
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a node apps/desktop/test/electron/linux-smoke.js "$PWD/$appimage" | tee /tmp/smoke-appimage.log
+          grep -q '^LINUX_SMOKE_OK' /tmp/smoke-appimage.log
+
+      - name: Install the .deb and smoke it under xvfb
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y "$(ls "$PWD"/apps/desktop/release/Telar-*.deb)"
+          grep -q 'x-scheme-handler/telar' /usr/share/applications/telar.desktop
+          xvfb-run -a node apps/desktop/test/electron/linux-smoke.js /opt/Telar/telar | tee /tmp/smoke-deb.log
+          grep -q '^LINUX_SMOKE_OK' /tmp/smoke-deb.log
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telar-linux-${{ runner.arch }}
+          path: |
+            apps/desktop/release/Telar-*.AppImage
+            apps/desktop/release/Telar-*.deb
+          if-no-files-found: error
+          retention-days: 7

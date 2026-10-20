@@ -7,7 +7,7 @@ function verifyPackagedPty(appPath, deps = {}) {
   const io = deps.fs ?? fs;
   const platform = deps.platform ?? process.platform;
   const arch = deps.arch ?? process.arch;
-  const root = path.join(appPath, ENGINE_PTY);
+  const root = deps.root ?? path.join(appPath, ENGINE_PTY);
 
   const searched = [];
   for (const build of ["build/Release", "build/Debug", `prebuilds/${platform}-${arch}`]) {
@@ -15,7 +15,7 @@ function verifyPackagedPty(appPath, deps = {}) {
     searched.push(dir);
     if (!io.existsSync(path.join(dir, "pty.node"))) continue;
     const addon = path.join(dir, "pty.node");
-    if (platform === "win32") return { addon, helper: null, chmodded: false, from: build };
+    if (platform !== "darwin") return { addon, helper: null, chmodded: false, from: build };
 
     const helper = path.join(dir, "spawn-helper");
     if (!io.existsSync(helper)) {
@@ -64,9 +64,29 @@ function verifyPackagedSounds(appPath) {
   return SOUND_NAMES.length;
 }
 
+const LINUX_RESOURCES = [
+  ["engine", "engine.mjs"],
+  ["engine", "node_modules", "@anthropic-ai", "claude-agent-sdk", "sdk.mjs"],
+  ["engine", "playwright-mcp", "node_modules", "@playwright", "mcp", "cli.js"],
+  ["cockpit", "index.html"],
+  ["build-info.json"],
+];
+
+function verifyPackagedLinux(resources, arch, deps = {}) {
+  const io = deps.fs ?? fs;
+  const missing = LINUX_RESOURCES.map((parts) => path.join(resources, ...parts)).filter((file) => !io.existsSync(file));
+  if (missing.length) throw new Error(`packaged app is missing ${missing.join(", ")} — build-app.sh lays these out before electron-builder runs.`);
+  return verifyPackagedPty(null, { ...deps, platform: "linux", arch, root: path.join(resources, "engine", "node_modules", "node-pty") });
+}
+
 const ARCH_NAMES = ["ia32", "x64", "armv7l", "arm64", "universal"];
 
 exports.default = async function afterPack(context) {
+  if (context.electronPlatformName === "linux") {
+    const found = verifyPackagedLinux(path.join(context.appOutDir, "resources"), ARCH_NAMES[context.arch] ?? process.arch);
+    console.log(`  • engine, cockpit and node-pty (${found.from}) packaged and runnable`);
+    return;
+  }
   if (context.electronPlatformName !== "darwin") return;
   const appName = `${context.packager.appInfo.productFilename}.app`;
   const appPath = path.join(context.appOutDir, appName);
@@ -82,4 +102,5 @@ exports.default = async function afterPack(context) {
 exports.verifyPackagedPty = verifyPackagedPty;
 exports.verifyPackagedComputerUse = verifyPackagedComputerUse;
 exports.verifyPackagedSounds = verifyPackagedSounds;
+exports.verifyPackagedLinux = verifyPackagedLinux;
 exports.ENGINE_PTY = ENGINE_PTY;

@@ -92,6 +92,26 @@ test("the shared secret is checked before the bucket is touched", async () => {
   assert.equal((await worker.fetch(new Request(`https://updates.telar.test/${OBJECT}`, { method: "POST" }), env)).status, 405);
 });
 
+test("the CLI's downloads under cli/ need no key; nothing else does", async () => {
+  const served = [];
+  const store = {
+    async get(key) {
+      served.push(key);
+      return { size: 6, httpEtag: '"cli"', body: stream(new TextEncoder().encode("0.1.0\n")), writeHttpMetadata: writeMeta("text/plain") };
+    },
+  };
+  const env = { UPDATE_KEY: KEY, TELAR_UPDATES: store };
+  const anonymous = (path) => worker.fetch(new Request(`https://updates.telar.test/${path}`), env);
+  const response = await anonymous("cli/nightly");
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "0.1.0\n");
+  assert.equal((await anonymous("cli")).status, 403);
+  assert.equal((await anonymous("cli%2F..%2Fnightly-mac.yml")).status, 403);
+  assert.equal((await anonymous("io.github.novarix.telar/nightly-mac.yml")).status, 403);
+  assert.equal((await anonymous("cli/%E0%A4%A")).status, 400);
+  assert.deepEqual(served, ["cli/nightly"]);
+});
+
 test("a whole-object GET is unchanged: 200, the object's own type, its length", async () => {
   const response = await call(get());
   assert.equal(response.status, 200);

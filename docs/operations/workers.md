@@ -71,13 +71,13 @@ Until all three APNs secrets and the three Durable Object bindings are present, 
 
 ## Updates proxy
 
-The proxy accepts only `GET` and `HEAD`, and only with an `X-Telar-Update-Key` header equal to the `UPDATE_KEY` secret. Any other method gets 405, and a missing or wrong key gets 403. The request path is the R2 object key in the `TELAR_UPDATES` binding (bucket `telar-updates`). The proxy serves single-range and multi-range requests, so electron-updater's differential downloads work.
+The proxy accepts only `GET` and `HEAD`. Every key needs an `X-Telar-Update-Key` header equal to the `UPDATE_KEY` secret, except keys under `cli/`: those are the CLI's public downloads ([release-cli.md](release-cli.md)). Any other method gets 405, and a missing or wrong key gets 403. The request path is the R2 object key in the `TELAR_UPDATES` binding (bucket `telar-updates`). The proxy serves single-range and multi-range requests, so electron-updater's differential downloads work.
 
 It is read-only. CI writes to the bucket directly with R2 API credentials (see [release-desktop.md](release-desktop.md)).
 
 ### Deploying
 
-No workflow deploys the proxy. Deploy it by hand with wrangler, logged in to the account that owns the bucket:
+`deploy-updates-proxy.yml` runs the proxy tests and deploys with `CLOUDFLARE_API_TOKEN` (it needs Workers Scripts Write and R2 read on the account that owns the bucket). It runs on a push to `main` that touches `workers/updates-proxy/**`, or by hand with `gh workflow run deploy-updates-proxy.yml --ref main`. By hand from a shell logged in to that account:
 
 ```sh
 bunx wrangler@4.129.1 deploy --config workers/updates-proxy/wrangler.toml

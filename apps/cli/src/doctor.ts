@@ -74,7 +74,7 @@ async function browserCheck(home: string): Promise<Check> {
   const hint = "Run `telar browser setup` (add --dry-run to see the steps).";
   if (!readiness.binary) return { level: "warn", name: "browser", detail: "Chromium is not downloaded", hint };
   if (readiness.missingLibraries.length > 0) return { level: "warn", name: "browser", detail: `missing libraries: ${readiness.missingLibraries.join(", ")}`, hint };
-  if (readiness.sandbox !== "ok") return { level: "warn", name: "browser", detail: `the ${readiness.sandbox === "apparmor" ? "AppArmor" : "kernel"} user-namespace restriction blocks Chromium's sandbox`, hint };
+  if (readiness.sandbox !== "ok") return { level: "warn", name: "browser", detail: `the ${readiness.sandbox === "userns" ? "kernel" : "AppArmor"} user-namespace restriction blocks Chromium's sandbox${readiness.sandbox === "host-apparmor" ? ", and only the machine running this one can lift it" : ""}`, hint };
   return { level: "ok", name: "browser", detail: "Chromium is ready" };
 }
 

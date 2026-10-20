@@ -8,23 +8,25 @@ export type Distro = "debian" | "fedora" | "other";
 export type BrowserReadiness = {
   binary: string | null;
   missingLibraries: string[];
-  sandbox: "ok" | "apparmor" | "userns";
+  sandbox: "ok" | "apparmor" | "host-apparmor" | "userns";
 };
 
 export type SetupStep =
   | { kind: "download"; title: string }
   | { kind: "command"; title: string; command: string[]; root: boolean }
-  | { kind: "file"; title: string; path: string; content: string; root: true };
+  | { kind: "file"; title: string; path: string; content: string; root: true }
+  | { kind: "blocked"; title: string };
 
 const APPARMOR_RESTRICT = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
 const UNPRIVILEGED_USERNS = "/proc/sys/kernel/unprivileged_userns_clone";
 export const APPARMOR_PROFILE_PATH = "/etc/apparmor.d/telar-chromium";
+const APPARMOR_TUNABLES = "/etc/apparmor.d/tunables/global";
 
 const FEDORA_PACKAGES = ["nss", "nspr", "atk", "at-spi2-atk", "cups-libs", "libdrm", "libxkbcommon", "libXcomposite", "libXdamage", "libXfixes", "libXrandr", "mesa-libgbm", "pango", "alsa-lib"];
 
 const BINARIES = ["chrome-linux64/chrome", "chrome-linux/chrome", "chrome-headless-shell-linux64/chrome-headless-shell", "chrome-linux/headless_shell"];
 
-const read = (file: string): string | null => {
+const readFile = (file: string): string | null => {
   try {
     return fs.readFileSync(file, "utf8");
   } catch {
@@ -62,7 +64,8 @@ export function findChromium(browsersPath: string): string | null {
 export const missingLibraries = (lddOutput: string): string[] =>
   [...new Set([...lddOutput.matchAll(/^\s*(\S+)\s+=>\s+not found/gm)].map((match) => match[1]!))];
 
-export async function browserReadiness(options: { browsersPath: string; platform?: NodeJS.Platform; run?: RunOnce }): Promise<BrowserReadiness> {
+export async function browserReadiness(options: { browsersPath: string; platform?: NodeJS.Platform; run?: RunOnce; read?: (file: string) => string | null }): Promise<BrowserReadiness> {
+  const read = options.read ?? readFile;
   const binary = findChromium(options.browsersPath);
   if ((options.platform ?? process.platform) !== "linux") return { binary, missingLibraries: [], sandbox: "ok" };
   let libraries: string[] = [];
@@ -71,7 +74,8 @@ export async function browserReadiness(options: { browsersPath: string; platform
     libraries = missingLibraries((await run("ldd", [binary]).catch(() => ({ code: 1, output: "" }))).output);
   }
   const exempt = read(APPARMOR_PROFILE_PATH)?.includes(options.browsersPath) === true;
-  const sandbox = read(APPARMOR_RESTRICT)?.trim() === "1" && !exempt ? "apparmor" : read(UNPRIVILEGED_USERNS)?.trim() === "0" ? "userns" : "ok";
+  const restricted = read(APPARMOR_RESTRICT)?.trim() === "1" && !exempt;
+  const sandbox = restricted ? (read(APPARMOR_TUNABLES) === null ? "host-apparmor" : "apparmor") : read(UNPRIVILEGED_USERNS)?.trim() === "0" ? "userns" : "ok";
   return { binary, missingLibraries: libraries, sandbox };
 }
 
@@ -92,6 +96,8 @@ export function setupPlan(options: { browsersPath: string; readiness: BrowserRea
   if (readiness.sandbox === "apparmor") {
     steps.push({ kind: "file", title: "Allow Telar's Chromium to use user namespaces (AppArmor)", path: APPARMOR_PROFILE_PATH, content: profile(browsersPath), root: true });
     steps.push({ kind: "command", title: "Load the AppArmor profile", command: ["apparmor_parser", "-r", APPARMOR_PROFILE_PATH], root: true });
+  } else if (readiness.sandbox === "host-apparmor") {
+    steps.push({ kind: "blocked", title: "This kernel blocks Chromium's sandbox through AppArmor, which can't be set up from here (a container?). On the machine that runs it: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0" });
   } else if (readiness.sandbox === "userns") {
     steps.push({ kind: "command", title: "Allow unprivileged user namespaces", command: ["sysctl", "-w", "kernel.unprivileged_userns_clone=1"], root: true });
   }
@@ -99,7 +105,7 @@ export function setupPlan(options: { browsersPath: string; readiness: BrowserRea
 }
 
 export const describeStep = (step: SetupStep): string => {
-  if (step.kind === "download") return step.title;
+  if (step.kind === "download" || step.kind === "blocked") return step.title;
   if (step.kind === "command") return `${step.title}: ${step.root ? "sudo " : ""}${step.command.join(" ")}`;
   return `${step.title}: write ${step.path}`;
 };
@@ -115,6 +121,7 @@ export async function runSetup(steps: SetupStep[], browsersPath: string, effects
   for (const step of steps) {
     report(describeStep(step));
     try {
+      if (step.kind === "blocked") return step.title;
       if (step.kind === "download") {
         await effects.download(browsersPath);
       } else if (step.kind === "file") {

@@ -1,4 +1,3 @@
-// The AppImage launcher adds --no-sandbox by itself when user namespaces are blocked.
 function sandboxOffReason({ platform, packaged, hasSwitch, env }) {
   if (platform !== "linux" || !packaged) return null;
   if (hasSwitch("no-sandbox")) return "--no-sandbox";

@@ -59,8 +59,8 @@ function readProcess(pid) {
   try {
     const status = fs.readFileSync(`/proc/${pid}/status`, "utf8");
     const field = (name) => new RegExp(`^${name}:\\s*(.*)$`, "m").exec(status)?.[1].trim() ?? "";
-    const cmdline = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean);
-    return { pid, ppid: Number(field("PPid")), nspid: field("NSpid").split(/\s+/), seccomp: field("Seccomp"), cmdline };
+    const args = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split(/[\0\s]+/).filter(Boolean);
+    return { pid, ppid: Number(field("PPid")), nspid: field("NSpid").split(/\s+/), seccomp: field("Seccomp"), args };
   } catch {
     return null;
   }
@@ -74,10 +74,10 @@ function assertSandboxed(rootPid) {
     for (const proc of all) if (tree.has(proc.ppid)) tree.add(proc.pid);
   }
   const app = all.filter((proc) => tree.has(proc.pid));
-  const unsandboxed = app.filter((proc) => proc.cmdline.includes("--no-sandbox"));
-  if (unsandboxed.length) throw new Error(`--no-sandbox on ${unsandboxed.map((proc) => proc.cmdline.join(" ")).join("; ")}`);
-  const renderers = app.filter((proc) => proc.cmdline.includes("--type=renderer"));
-  if (!renderers.length) throw new Error("found no renderer process to check the sandbox on");
+  const unsandboxed = app.filter((proc) => proc.args.includes("--no-sandbox"));
+  if (unsandboxed.length) throw new Error(`--no-sandbox on ${unsandboxed.map((proc) => proc.args.join(" ")).join("; ")}`);
+  const renderers = app.filter((proc) => proc.args.includes("--type=renderer"));
+  if (!renderers.length) throw new Error(`found no renderer among ${app.map((proc) => `${proc.pid}: ${proc.args.slice(0, 2).join(" ")}`).join(", ")}`);
   const bare = renderers.filter((proc) => proc.seccomp !== "2" || proc.nspid.length < 2);
   if (bare.length) throw new Error(`renderers outside the sandbox: ${bare.map((proc) => `${proc.pid} (Seccomp ${proc.seccomp}, NSpid ${proc.nspid.join(" ")})`).join(", ")}`);
   return renderers.length;

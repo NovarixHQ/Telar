@@ -41,8 +41,10 @@ export function pruneVersions(runtime: string, keep: string[]): void {
   }
 }
 
+const BUILT_BASE = process.env.TELAR_CLI_DOWNLOAD_BASE ?? PLACEHOLDER_BASE;
+
 export function downloadBase(flag: string | undefined, env: NodeJS.ProcessEnv): string {
-  const base = (flag ?? env.TELAR_DOWNLOAD_BASE ?? PLACEHOLDER_BASE).replace(/\/+$/, "");
+  const base = (flag ?? env.TELAR_DOWNLOAD_BASE ?? BUILT_BASE).replace(/\/+$/, "");
   if (base === PLACEHOLDER_BASE) throw new UsageError("No download host is configured; pass --base <url> or set TELAR_DOWNLOAD_BASE.");
   return base;
 }

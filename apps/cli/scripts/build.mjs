@@ -34,7 +34,10 @@ const result = await Bun.build({
   target: "node",
   format: "esm",
   external: values.sea ? ["node-pty"] : EXTERNALS,
-  define: { "process.env.TELAR_CLI_VERSION": JSON.stringify(version) },
+  define: {
+    "process.env.TELAR_CLI_VERSION": JSON.stringify(version),
+    ...(process.env.TELAR_CLI_DOWNLOAD_BASE ? { "process.env.TELAR_CLI_DOWNLOAD_BASE": JSON.stringify(process.env.TELAR_CLI_DOWNLOAD_BASE) } : {}),
+  },
   plugins: values.sea ? [sidecar] : [],
 });
 if (!result.success) {

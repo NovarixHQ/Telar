@@ -1,6 +1,6 @@
 # Releasing the CLI
 
-`telar` ships two ways from `apps/cli`: a single-executable archive per platform (used by `install.sh` and `telar update`) and an npm package (`npx telar@latest`). Nothing publishes by itself; every publishing step below is the owner's.
+`telar` ships two ways from `apps/cli`: a single-executable archive per platform (used by `install.sh` and `telar update`) and an npm package (`npx telar@latest`).
 
 ## The archives
 
@@ -8,25 +8,27 @@
 
 The MCP bridge starts the agents' tool servers by re-running `process.execPath` with the script path; in the executable that is `telar` itself, so `main.ts` must keep the bridge check as its first statement.
 
-`cli-build.yml` builds linux-x64 (`ubuntu-latest`), linux-arm64 (`ubuntu-24.04-arm`) and darwin-arm64 (`macos-latest`), runs `apps/cli/scripts/smoke.sh` on each (`version`, `doctor`, `serve`, `pair`, SIGTERM exits 0) and uploads the archives as workflow artifacts. A pull request touching `apps/cli` runs it as a dry run. A `cli-v<version>` tag or a manual run builds only what is on `main`; the manual run takes a channel: `stable` uses the version in `apps/cli/package.json`, `nightly` adds `-nightly.<run number>`. The macOS binary is ad-hoc signed only.
+`cli-build.yml` builds linux-x64 (`ubuntu-latest`), linux-arm64 (`ubuntu-24.04-arm`) and darwin-arm64 (`macos-latest`), runs `apps/cli/scripts/smoke.sh` on each (`version`, `doctor`, `serve`, `pair`, SIGTERM exits 0) and uploads the archives as workflow artifacts. A pull request touching `apps/cli` runs it as a dry run. The macOS binary is ad-hoc signed only.
 
-## Where the archives go
+## Publishing
 
-The download base URL is the only host setting (`TELAR_DOWNLOAD_BASE`, `--base`, and `<install URL>` in the docs). Serve these files under it:
+A manual run on `main` or a `cli-v<version>` tag on `main` publishes. The manual run takes a channel: `nightly` builds `<package version>-nightly.<run number>`, `stable` the version in `apps/cli/package.json`. A tag is always `stable` and must match that version.
+
+The archives go to the desktop's R2 bucket under `cli/`, which the updates proxy serves without its key. The download base is `$UPDATE_PROXY_URL/cli`, baked into the build (`TELAR_CLI_DOWNLOAD_BASE` at build time) and into the uploaded `install.sh`, so official builds need no `--base`:
 
 ```
-<base>/stable                     text: the current stable version
-<base>/nightly                    text: the current nightly version
-<base>/<version>/telar-<version>-<os>-<arch>.tar.gz
-<base>/<version>/telar-<version>-<os>-<arch>.tar.gz.sha256
-<base>/install.sh                 scripts/install.sh
+<base>/stable  and  <base>/nightly    text: the channel's current version
+<base>/<version>/telar-<version>-<os>-<arch>.tar.gz(.sha256)
+<base>/install.sh
 ```
 
-To release: download the artifacts of a green `main` run, upload them under `<base>/<version>/`, then write the version into `<base>/stable` (or `/nightly`). Writing that file last is what makes installs and `telar update` see the release. `scripts/install.sh` has a placeholder host and refuses to run until one is set.
+The channel file is written last, after the archives and `install.sh`; that write is what makes installs and `telar update` see the release. The run summary prints the install command. A build from a checkout keeps the placeholder base and refuses `install.sh` and `telar update` until one is passed.
 
 ## The npm package
 
-`apps/cli/package.json` is the package `telar`. `prepack` builds `dist/telar.mjs` (a Node bundle with a `#!/usr/bin/env node` line); `node-pty` and the agent SDK are its only dependencies, everything else is bundled. Check what would ship with `cd apps/cli && npm pack --dry-run`. Publish with `npm publish` from `apps/cli`, using an account that owns the name. Bump `version` in `apps/cli/package.json` first; it is also the archives' stable version.
+`apps/cli/package.json` is the package `telar`. `prepack` builds `dist/telar.mjs` (a Node bundle with a `#!/usr/bin/env node` line); `node-pty` and the agent SDK are its only dependencies, everything else is bundled. Check what would ship with `cd apps/cli && npm pack --dry-run`.
+
+A `cli-v<version>` tag on `main` publishes it from the `npm` job through npm trusted publishing (GitHub OIDC, no token), with provenance. The trusted publisher on npmjs.com is organization `NovarixHQ`, repository `Telar`, workflow `cli-build.yml`, no environment. Bump `version` in `apps/cli/package.json`, merge, then tag that commit.
 
 ## Traps
 

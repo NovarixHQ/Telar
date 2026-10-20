@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Run the Telar engine on a machine with no desktop app.",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NovarixHQ/Telar.git",
+    "directory": "apps/cli"
+  },
   "type": "module",
   "bin": {
     "telar": "dist/telar.mjs"

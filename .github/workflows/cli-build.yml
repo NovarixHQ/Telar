@@ -1,9 +1,7 @@
 name: CLI build
 
-# Builds the telar single executable for each supported OS and architecture and
-# smoke-runs it. Nothing is published: the archives are workflow artifacts the
-# owner downloads or attaches to a release by hand. A tag or a manual run only
-# builds what is on main; a pull request builds its own head as a dry run.
+# A pull request builds and smokes as a dry run. A cli-v* tag or a manual run on
+# main also publishes to R2 under cli/, and a tag publishes to npm.
 on:
   pull_request:
     paths:
@@ -36,6 +34,8 @@ jobs:
           - { os: macos-latest, target: darwin-arm64 }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,7 +68,12 @@ jobs:
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Build
-        run: bun run --cwd apps/cli build:sea --version "${{ steps.version.outputs.version }}"
+        env:
+          UPDATE_PROXY_URL: ${{ github.event_name != 'pull_request' && secrets.UPDATE_PROXY_URL || '' }}
+        run: |
+          set -euo pipefail
+          if [ -n "$UPDATE_PROXY_URL" ]; then export TELAR_CLI_DOWNLOAD_BASE="${UPDATE_PROXY_URL%/}/cli"; fi
+          bun run --cwd apps/cli build:sea --version "${{ steps.version.outputs.version }}"
       - name: Smoke
         run: |
           set -euo pipefail
@@ -80,3 +85,77 @@ jobs:
           name: telar-${{ steps.version.outputs.version }}-${{ matrix.target }}
           path: apps/cli/dist/release/*
           if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: cli-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: telar-${{ needs.build.outputs.version }}-*
+          path: release
+          merge-multiple: true
+      - name: Upload to R2, channel file last
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          CHANNEL: ${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'stable' }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          UPDATE_PROXY_URL: ${{ secrets.UPDATE_PROXY_URL }}
+        run: |
+          set -euo pipefail
+          base="${UPDATE_PROXY_URL%/}/cli"
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          put() { aws s3 cp "$1" "s3://$R2_BUCKET/cli/$2" --endpoint-url "$endpoint" --no-progress ${3:+--content-type "$3"}; }
+          for file in release/*.tar.gz release/*.sha256; do put "$file" "$VERSION/$(basename "$file")"; done
+          sed "s#https://downloads.example.invalid/telar#$base#" scripts/install.sh > release/install.sh
+          grep -q "$base" release/install.sh
+          put release/install.sh install.sh text/x-shellscript
+          printf '%s\n' "$VERSION" > release/channel
+          put release/channel "$CHANNEL" text/plain
+          [ "$(curl -fsSL "$base/$CHANNEL")" = "$VERSION" ]
+          flag=""; [ "$CHANNEL" = stable ] || flag=" -s -- --channel $CHANNEL"
+          {
+            echo "## telar $VERSION ($CHANNEL)"
+            echo
+            echo '```sh'
+            echo "curl -fsSL $base/install.sh | sh$flag"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  npm:
+    needs: publish
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26.12.0"
+      - run: npm install -g npm@11.21.1
+      - run: bun install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Publish through npm trusted publishing
+        working-directory: apps/cli
+        env:
+          UPDATE_PROXY_URL: ${{ secrets.UPDATE_PROXY_URL }}
+        run: |
+          set -euo pipefail
+          [ "$(node -p 'require("./package.json").version')" = "${GITHUB_REF_NAME#cli-v}" ] || { echo "::error::${GITHUB_REF_NAME} does not match apps/cli/package.json."; exit 1; }
+          export TELAR_CLI_DOWNLOAD_BASE="${UPDATE_PROXY_URL%/}/cli"
+          npm publish --provenance --access public

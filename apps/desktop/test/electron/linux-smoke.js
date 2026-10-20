@@ -120,7 +120,7 @@ async function main() {
 
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${debuggingPort}`);
     const context = browser.contexts()[0];
-    const cockpit = (page) => page.url().startsWith("telar://app/");
+    const cockpit = (page) => page.url().startsWith("telar://app/") && !page.url().startsWith("telar://app/surface/");
     const page = await until(() => context.pages().find(cockpit), "the cockpit window at telar://app/");
     await page.waitForFunction(() => window.telarDesktop?.isDesktop === true, null, { timeout: 30_000 });
     console.log("LINUX_SMOKE cockpit loaded over telar://app/");
@@ -146,6 +146,12 @@ async function main() {
     if (secondExit !== 0) throw new Error(`the second instance exited ${secondExit} instead of handing its link over`);
     await onRoute("/usage");
     console.log("LINUX_SMOKE second-instance link opened /usage");
+
+    const quick = await until(() => context.pages().find((candidate) => candidate.url().startsWith("telar://app/surface/quick")), "the Quick Composer panel");
+    const summoned = await new Promise((resolve) => spawn(executable, ["--quick-composer"], { env: { ...env, NO_CLEANUP: "1" }, stdio: "ignore" }).once("exit", resolve));
+    if (summoned !== 0) throw new Error(`telar --quick-composer exited ${summoned} instead of handing over`);
+    await until(async () => (await quick.evaluate(() => document.visibilityState)) === "visible", "the Quick Composer to open", 30_000);
+    console.log("LINUX_SMOKE --quick-composer opened the Quick Composer");
 
     await Promise.all(context.pages().map((candidate) => candidate.close({ runBeforeUnload: false }).catch(() => {})));
     const result = await Promise.race([

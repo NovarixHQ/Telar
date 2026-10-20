@@ -10,8 +10,7 @@ if (!executable) {
   process.exit(2);
 }
 
-const webDir = path.resolve(__dirname, "..", "..", "..", "web");
-const { chromium } = require(path.resolve(fs.realpathSync(path.join(webDir, "node_modules", "@playwright", "mcp")), "../..", "playwright"));
+const { chromium } = require(path.resolve(__dirname, "..", "..", "..", "engine", "dist", "playwright-mcp", "node_modules", "playwright-core"));
 
 const freePort = () =>
   new Promise((resolve, reject) => {

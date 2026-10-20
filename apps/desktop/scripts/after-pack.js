@@ -15,7 +15,7 @@ function verifyPackagedPty(appPath, deps = {}) {
     searched.push(dir);
     if (!io.existsSync(path.join(dir, "pty.node"))) continue;
     const addon = path.join(dir, "pty.node");
-    if (platform === "win32") return { addon, helper: null, chmodded: false, from: build };
+    if (platform !== "darwin") return { addon, helper: null, chmodded: false, from: build };
 
     const helper = path.join(dir, "spawn-helper");
     if (!io.existsSync(helper)) {

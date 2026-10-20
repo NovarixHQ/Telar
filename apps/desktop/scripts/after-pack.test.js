@@ -89,7 +89,6 @@ describe("what a packaged Linux app has to contain", () => {
     at("cockpit", "index.html"),
     at("build-info.json"),
     path.join(pty, "pty.node"),
-    path.join(pty, "spawn-helper"),
   ];
   const fakeFs = (present, chmods = []) => ({
     existsSync: (target) => present.includes(target),
@@ -97,11 +96,10 @@ describe("what a packaged Linux app has to contain", () => {
     chmodSync: (target, next) => chmods.push([target, next]),
   });
 
-  test("a complete app passes, and node-pty's helper is made executable", () => {
-    const chmods = [];
-    const found = verifyPackagedLinux(resources, "arm64", { fs: fakeFs(everything, chmods) });
+  test("a complete app passes; node-pty needs no spawn-helper on Linux", () => {
+    const found = verifyPackagedLinux(resources, "arm64", { fs: fakeFs(everything) });
     expect(found.from).toBe("prebuilds/linux-arm64");
-    expect(chmods).toEqual([[path.join(pty, "spawn-helper"), 0o755]]);
+    expect(found.helper).toBeNull();
   });
 
   test("a missing cockpit fails the build and names the file", () => {

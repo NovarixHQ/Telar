@@ -60,7 +60,7 @@ export function RequestCards({ cards, deciding, onDecide }: Props) {
   );
   if (cards.length === 0) return null;
   return [sheet, ...cards.map((card) => (
-    <Host key={card.id} matchContents={{ vertical: true }}>
+    <Host key={card.id} matchContents={{ vertical: true }} ignoreSafeArea="all">
       <StatusCard tint="amber" spacing={8}>
         {card.question ? (
           <QuestionCard draft={card.question} busy={deciding === card.id} onSubmit={(answers) => onDecide(card.id, "accept", { answers })} />

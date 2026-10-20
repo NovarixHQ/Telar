@@ -1,8 +1,8 @@
-import { isMcpBridgeProcess, runMcpBridge, runScriptFromEnv } from "@telar/engine/headless";
+import { isMcpBridgeProcess, runMcpBridge, runShippedScript } from "@telar/engine/headless";
 import { runCli } from "./cli";
 import { processIo } from "./io";
 
-if (!runScriptFromEnv()) {
+if (!runShippedScript()) {
   if (isMcpBridgeProcess()) process.exit(await runMcpBridge().then(() => 0));
 
   const command = process.argv[2];

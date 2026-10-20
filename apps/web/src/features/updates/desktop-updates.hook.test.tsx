@@ -303,7 +303,7 @@ describe("the press that checks", () => {
     await settle();
     expect(probe.update.status.status).toBe("unsupported");
     expect(probe.update.busy).toBe(false);
-    expect(probe.update.label).toContain("packaged locally");
+    expect(probe.update.label).toContain("Telar is retired");
     probe.unmount();
   });
 

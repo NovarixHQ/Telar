@@ -16,7 +16,7 @@ describe("updateStatusHint", () => {
 
   test("a locally packaged build says WHY it will never update", () => {
     // A build with no feed is neither broken nor up to date.
-    expect(updateStatusHint({ status: "unsupported" })).toContain("packaged locally");
+    expect(updateStatusHint({ status: "unsupported" })).toContain("Telar is retired");
   });
 
   test("an error carries the shell's own message", () => {

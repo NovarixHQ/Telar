@@ -158,7 +158,7 @@ describe("the footer row", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const row = footer.host.firstElementChild!;
+    const row = footer.host.firstElementChild!.lastElementChild!;
     expect(row.lastElementChild?.getAttribute("data-slot")).toBe("update-control");
     footer.unmount();
   });
@@ -314,7 +314,7 @@ describe("a build with no update feed", () => {
       await Promise.resolve();
     });
     const text = view.host.textContent ?? "";
-    expect(text.match(/No update feed/g)).toHaveLength(1);
+    expect(text.match(/No more updates/g)).toHaveLength(1);
     expect(text).not.toContain("latest build");
     expect(text).not.toContain("Update status");
     expect(text).not.toContain("Channel");

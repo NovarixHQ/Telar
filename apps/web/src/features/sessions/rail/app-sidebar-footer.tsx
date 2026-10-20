@@ -154,18 +154,23 @@ export function EngineRestartIndicator() {
 
 export function AppSidebarFooterRow({ onNavigate }: { onNavigate: () => void }) {
   return (
-    <div className="flex items-center gap-0.5 p-1">
-      <FooterLink href="/settings" label="Settings" onNavigate={onNavigate}>
-        <SettingsIcon className="size-4" />
-      </FooterLink>
-      <FooterLink href="/usage" label="Usage" onNavigate={onNavigate}>
-        <ChartNoAxesColumnIcon className="size-4" />
-      </FooterLink>
-      <FeedbackDialog triggerClassName={iconButton()} />
-      <div className="flex-1" />
-      <EngineRestartIndicator />
-      <RunawayIndicator />
-      <UpdateButton />
+    <div>
+      <p data-slot="retired-notice" className="px-2 pt-2 text-xs text-muted-foreground">
+        Telar is retired. This last version keeps working but won&apos;t be updated; its successor is T3 Code.
+      </p>
+      <div className="flex items-center gap-0.5 p-1">
+        <FooterLink href="/settings" label="Settings" onNavigate={onNavigate}>
+          <SettingsIcon className="size-4" />
+        </FooterLink>
+        <FooterLink href="/usage" label="Usage" onNavigate={onNavigate}>
+          <ChartNoAxesColumnIcon className="size-4" />
+        </FooterLink>
+        <FeedbackDialog triggerClassName={iconButton()} />
+        <div className="flex-1" />
+        <EngineRestartIndicator />
+        <RunawayIndicator />
+        <UpdateButton />
+      </div>
     </div>
   );
 }

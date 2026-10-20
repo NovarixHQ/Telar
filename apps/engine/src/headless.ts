@@ -10,4 +10,4 @@ export { isMcpBridgeProcess, runMcpBridge } from "./drivers/acp/mcp-bridge";
 export { APPARMOR_PROFILE_PATH, browserReadiness, defaultDownload, distroOf, runSetup, setupPlan, describeStep, type BrowserReadiness, type SetupStep } from "./domains/browser/setup";
 export { runOnce } from "./domains/browser/transport";
 export { resolvePlaywrightCoreCli } from "./domains/browser/transport";
-export { runScriptFromEnv } from "./domains/browser/script";
+export { runShippedScript } from "./domains/browser/script";

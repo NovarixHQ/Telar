@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { electron, eventFrom, FakeBrowserWindow, FakeNotification, resetElectron, userData } = require("../../test/fake-electron");
 const { createQuickComposer } = require("./quick-composer");
+const { createChordClaim } = require("./chord-claim");
 const { HEIGHTS, WIDTH } = require("./quick-composer-layout");
 const { registerPrefsIpc } = require("./ipc-prefs");
 const { applyTranslucency } = require("./appearance");
@@ -66,6 +67,32 @@ describe("the shortcut", () => {
     expect(electron.globalShortcut.isRegistered("Alt+Space")).toBe(false);
     quick.suspend(false);
     expect(electron.globalShortcut.isRegistered("Alt+Space")).toBe(true);
+  });
+
+  test("tells every window whether the chord was claimed, and answers when asked", async () => {
+    const direct = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: () => {}, claimChord: createChordClaim({ route: "direct", command: null }) });
+    const cockpit = new FakeBrowserWindow({ title: "Telar" });
+    const claims = () => cockpit.webContents.sent.filter((message) => message.channel === "telar:keybindings:claim").map((message) => message.payload);
+    await direct.bind("Alt+Space");
+    electron.globalShortcut.refused.add("Control+Alt+K");
+    await direct.bind("Control+Alt+K");
+    await direct.bind("");
+    expect(claims()).toEqual([
+      { chord: "Alt+Space", outcome: "claimed" },
+      { chord: "Control+Alt+K", outcome: "unavailable", reason: "taken" },
+      null,
+    ]);
+    expect(await electron.ipcMain.invoke("telar:keybindings:claim", eventFrom(cockpit))).toBeNull();
+  });
+
+  test("a claim that settles after a rebind is not reported over the newer one", async () => {
+    let release;
+    const slow = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: () => {}, claimChord: (chord, held) => (chord === "Alt+Space" ? new Promise((resolve) => (release = () => resolve({ chord, outcome: "portal" }))) : Promise.resolve({ chord, outcome: held ? "portal" : "unavailable" })) });
+    const first = slow.bind("Alt+Space");
+    await slow.bind("Control+Alt+K");
+    release();
+    await first;
+    expect(await electron.ipcMain.invoke("telar:keybindings:claim", {})).toEqual({ chord: "Control+Alt+K", outcome: "portal" });
   });
 
   test("asks for the permissions only the first time it opens", async () => {

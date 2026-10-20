@@ -21,7 +21,9 @@ Telar always runs with Chromium's sandbox on and refuses to start with `--no-san
 
 Opening a `telar://app/...` link opens Telar at that page, starting it first if it isn't running. The .deb registers the link type when installed; an AppImage registers it only once a desktop integration tool adds it to your menu.
 
-Not available on Linux: Computer use, iOS simulators, window translucency, the quick-composer shortcut and custom notification sounds. Everything else, including terminals and the browser, works.
+The Quick Composer chord (Alt+Shift+Space) works under X11. On Wayland the desktop has to allow it: GNOME asks once, KDE binds it quietly, and both let you change it in their keyboard settings. Desktops that don't offer global shortcuts to apps can't give Telar the chord; Settings → Keybindings then shows the command to bind yourself, which opens the Quick Composer in the running app (or starts Telar first). The Quick Composer can't read the app in front or its selection on Linux.
+
+Not available on Linux: Computer use, iOS simulators, window translucency and custom notification sounds. Everything else, including terminals and the browser, works.
 
 On a machine with no desktop, use [Running Telar without the app](headless.md) instead.
 

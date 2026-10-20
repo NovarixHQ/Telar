@@ -217,7 +217,7 @@ const electron = {
     isQuitting: false,
     quits: 0,
     switches: [],
-    commandLine: { appendSwitch: (...args) => electron.app.switches.push(args) },
+    commandLine: { appendSwitch: (...args) => electron.app.switches.push(args), getSwitchValue: () => "" },
     paths: {},
     name: "Telar",
     getPath: () => userData,

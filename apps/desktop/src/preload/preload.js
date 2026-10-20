@@ -226,6 +226,9 @@ const bridge = {
     capture: (capturing) => ipcRenderer.invoke("telar:keybindings:capture", capturing),
 
     scope: (chords) => ipcRenderer.invoke("telar:keybindings:scope", chords),
+
+    claim: () => ipcRenderer.invoke("telar:keybindings:claim"),
+    onClaim: (listener) => on("telar:keybindings:claim", listener),
   },
 
   ...(process.argv.includes("--telar-dev-build")

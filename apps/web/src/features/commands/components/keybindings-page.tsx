@@ -5,6 +5,7 @@ import { COMMANDS, COMMAND_GROUPS, chordForEvent, defaultKeymap, jumpCommands, k
 import { useKeymap } from "../use-command-keys";
 import { keyCaps, useKeyCapPlatform, type KeyCapPlatform } from "../key-caps";
 import { Row, SettingsGroup, useRestoreDefaults } from "@/features/settings";
+import { chordClaimCopy, useChordClaim } from "./chord-claim";
 
 export type KeybindingRow = {
   id: string;
@@ -163,6 +164,7 @@ export function KeybindingsPage() {
   const platform = useKeyCapPlatform();
 
   const keymap = useKeymap();
+  const claim = useChordClaim();
   const [recording, setRecording] = useState<string>();
   const [rejected, setRejected] = useState<string>();
   useEffect(() => {
@@ -219,32 +221,37 @@ export function KeybindingsPage() {
         if (groupRows.length === 0) return null;
         return (
           <SettingsGroup key={group} title={group} description={GROUP_BLURBS[group]}>
-            {groupRows.map((row) => (
-              <Row
-                key={row.id}
-                id={`keybindings-${row.id}`}
-                label={row.title}
-                {...(row.hint ? { hint: row.hint } : {})}
-                {...(row.changed ? { onRevert: () => revert(row) } : {})}
-                {...(rejected === row.id
-                  ? { error: "The nine jumps share one set of modifiers — press a chord ending in a digit." }
-                  : row.conflicts.length > 0
-                    ? { error: `Also ${listed(row.conflicts)}. The first in this list wins.` }
-                    : {})}
-                control={
-                  <ChordButton
-                    row={row}
-                    recording={recording === row.id}
-                    onStart={() => {
-                      setRejected(undefined);
-                      setRecording(row.id);
-                    }}
-                    onStop={() => setRecording((current) => (current === row.id ? undefined : current))}
-                    onRecord={(chord) => record(row, chord)}
-                  />
-                }
-              />
-            ))}
+            {groupRows.map((row) => {
+              const claimed = row.id === "quick-composer" ? chordClaimCopy(claim, row.chord) : null;
+              const hint = claimed?.hint ?? row.hint;
+              return (
+                <Row
+                  key={row.id}
+                  id={`keybindings-${row.id}`}
+                  label={row.title}
+                  {...(hint ? { hint } : {})}
+                  {...(claimed?.info ? { info: claimed.info } : {})}
+                  {...(row.changed ? { onRevert: () => revert(row) } : {})}
+                  {...(rejected === row.id
+                    ? { error: "The nine jumps share one set of modifiers — press a chord ending in a digit." }
+                    : row.conflicts.length > 0
+                      ? { error: `Also ${listed(row.conflicts)}. The first in this list wins.` }
+                      : {})}
+                  control={
+                    <ChordButton
+                      row={row}
+                      recording={recording === row.id}
+                      onStart={() => {
+                        setRejected(undefined);
+                        setRecording(row.id);
+                      }}
+                      onStop={() => setRecording((current) => (current === row.id ? undefined : current))}
+                      onRecord={(chord) => record(row, chord)}
+                    />
+                  }
+                />
+              );
+            })}
           </SettingsGroup>
         );
       })}

@@ -28,12 +28,14 @@ function run() {
 
 const ACCESSIBILITY_SETTINGS = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility";
 
+const asksForAccessibility = () => typeof systemPreferences.isTrustedAccessibilityClient === "function";
+
 function permissions() {
-  return { accessibility: systemPreferences.isTrustedAccessibilityClient(false) };
+  return { accessibility: asksForAccessibility() ? systemPreferences.isTrustedAccessibilityClient(false) : true };
 }
 
 function requestPermissions() {
-  systemPreferences.isTrustedAccessibilityClient(true);
+  if (asksForAccessibility()) systemPreferences.isTrustedAccessibilityClient(true);
 }
 
 function openSettings(permission, open) {

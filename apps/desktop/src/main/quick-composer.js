@@ -1,12 +1,13 @@
 "use strict";
 
-const { app, BrowserWindow, globalShortcut, ipcMain, Notification, screen, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, screen, shell } = require("electron");
 const { keepClear } = require("./appearance");
 const { cockpitWindowOptions } = require("./cockpit-window");
 const { jsonPrefs } = require("./prefs");
 const { openSettings, permissions, readFrontContext, requestPermissions } = require("./front-context");
 const { HEIGHTS, WIDTH } = require("./quick-composer-layout");
 const { createPlacement } = require("./quick-composer-placement");
+const { createGlobalChord } = require("./global-chord");
 const prefs = jsonPrefs("quick-composer.json", { asked: false }, (raw) => ({ asked: raw?.asked === true }), "quick composer");
 const REMEMBER_MS = 60_000;
 const SUMMON_ANSWER_MS = 300;
@@ -63,10 +64,8 @@ async function summon(win, composeIn, hide, show) {
 }
 
 /** The global shortcut and the panel it opens over any app; `openRoute` brings a cockpit window to a path. */
-function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, log = () => {} }) {
+function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext, claimChord, log = () => {} }) {
   let win = null;
-  let chord = "";
-  let suspended = false;
   let latest = null;
   let holding = false;
   let reloaded = false;
@@ -153,14 +152,7 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
   const composeIn = askToCompose();
   const summonSafely = () => summon(win, composeIn, hide, show).catch((error) => log(`quick composer failed to open: ${error?.message || error}`));
 
-  const register = () => {
-    if (!chord || suspended) return;
-    if (!globalShortcut.register(chord, summonSafely)) log(`quick composer could not claim ${chord}`);
-  };
-
-  const unregister = () => {
-    if (chord && globalShortcut.isRegistered(chord)) globalShortcut.unregister(chord);
-  };
+  const chord = createGlobalChord({ press: summonSafely, claimChord, log });
 
   const fromPanel = (event) => win !== null && !win.isDestroyed() && event.sender === win.webContents;
 
@@ -190,21 +182,13 @@ function createQuickComposer({ appUrl, openRoute, readContext = readFrontContext
     notice.on("action", go);
     notice.show();
   });
-  app.on("will-quit", unregister);
   panel();
 
   return {
-    bind(next) {
-      unregister();
-      chord = next;
-      register();
-    },
+    bind: chord.bind,
     /** Held off while a chord is being recorded, so pressing it reaches the recorder. */
-    suspend(on) {
-      suspended = on;
-      if (on) unregister();
-      else register();
-    },
+    suspend: chord.suspend,
+    summon: summonSafely,
     toggle,
   };
 }

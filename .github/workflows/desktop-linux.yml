@@ -83,19 +83,25 @@ jobs:
           UPDATE_PROXY_KEY: ${{ inputs.publish && secrets.UPDATE_PROXY_KEY || '' }}
         run: bash scripts/build-desktop-linux.sh ${CHANNEL:+--channel "$CHANNEL"} ${VERSION:+--version "$VERSION"} ${FEED_PREFIX:+--feed-prefix "$FEED_PREFIX"}
 
-      - name: Smoke the AppImage under xvfb
+      # The AppImage has no AppArmor profile, so it needs the host to allow unprivileged user namespaces.
+      - name: Smoke the AppImage under xvfb, sandboxed
         run: |
           set -euo pipefail
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           appimage="$(ls apps/desktop/release/Telar-*.AppImage)"
           chmod +x "$appimage"
           APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a node apps/desktop/test/electron/linux-smoke.js "$PWD/$appimage" | tee /tmp/smoke-appimage.log
           grep -q '^LINUX_SMOKE_OK' /tmp/smoke-appimage.log
 
-      - name: Install the .deb and smoke it under xvfb
+      # Ubuntu's default restriction stays on: the postinst's AppArmor profile is what lets the .deb sandbox.
+      - name: Install the .deb and smoke it under xvfb, sandboxed
         run: |
           set -euo pipefail
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
           sudo apt-get install -y "$(ls "$PWD"/apps/desktop/release/Telar-*.deb)"
           grep -q 'x-scheme-handler/telar' /usr/share/applications/telar.desktop
+          sudo grep -q '^telar ' /sys/kernel/security/apparmor/profiles
+          test "$(stat -c %a /opt/Telar/chrome-sandbox)" = 755
           xvfb-run -a node apps/desktop/test/electron/linux-smoke.js /opt/Telar/telar | tee /tmp/smoke-deb.log
           grep -q '^LINUX_SMOKE_OK' /tmp/smoke-deb.log
 

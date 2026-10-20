@@ -1,5 +1,7 @@
 # Telar
 
+> **Telar is retired.** It is no longer developed and gets no more updates. The last release keeps working, but nothing new will ship. Its successor is [T3 Code](https://github.com/pingdotgg/t3code), which covers everything Telar set out to do.
+
 Telar is a control surface for the coding agents already installed on your machine. It doesn't replace or bundle them. A local engine owns your projects, their sessions and a durable journal of every turn. The cockpit is where you drive them: in the desktop app, in a browser, or on your iPhone.
 
 *Telar* is Spanish for **loom**. The icon is warp and weft: separate threads becoming one fabric.
@@ -29,7 +31,7 @@ Settings → Providers shows the exact binary and version that will answer you.
 
 ## Install
 
-Desktop builds are published as nightlies. To build and install one locally from source instead, see [docs/operations/development.md](docs/operations/development.md).
+No new builds are published. To build one locally from source, see [docs/operations/development.md](docs/operations/development.md).
 
 ## Develop
 

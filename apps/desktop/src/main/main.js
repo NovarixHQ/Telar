@@ -28,7 +28,8 @@ const { migrateLegacyOrigin } = require("./origin-migration");
 const { createRemoteHost } = require("./remote-host");
 const { registerRemoteHostIpc } = require("./ipc-remote-host");
 const { createSshHosts } = require("./ssh-hosts");
-const engineNotices = require("./engine-notices").createEngineNotices({ onMessage: (message) => desktopNotifier.handleServerMessage(message) });
+const { createEngineNotices, discoveryEndpoint } = require("./engine-notices");
+const engineNotices = createEngineNotices({ onMessage: (message) => desktopNotifier.handleServerMessage(message) });
 const { DEV_BUILD, E2E_USER_DATA, OVERRIDE_URL, SMOKE } = require("./flags");
 const { applyDevelopmentAppIcon, bundledAgentSdkEntry, bundledPlaywrightMcpCli, buildInfoPath, computerUseHelperPath, cockpitDir, windowTitle } = require("./bundle-paths");
 const { captureLoginShellEnv } = require("./login-shell-env");
@@ -495,6 +496,7 @@ if (SMOKE) {
         setClientOnly(clientOnly);
         if (clientOnly) {
           serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: remoteHost.endpoint });
+          engineNotices.start(remoteHost.endpoint);
           url = APP_URL;
         } else if (url) {
           const home = telarHome();
@@ -516,7 +518,7 @@ if (SMOKE) {
           rememberEngine(await waitForEngine(home));
           await recordHandoffBoot(home);
           await publishTailscaleServe(home, port);
-          engineNotices.start(engineDiscoveryFile(home));
+          engineNotices.start(discoveryEndpoint(engineDiscoveryFile(home)));
           await waitForCockpit(port);
           serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: () => engineEndpoint(home) });
           if (legacyOrigin) {

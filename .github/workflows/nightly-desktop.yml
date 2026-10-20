@@ -1,10 +1,8 @@
 name: Nightly channel build
 
 # On demand, not on a timer. Publishes straight to R2 under the "nightly"
-# channel and cuts no GitHub Release — that page is for betas, and a stream of
-# dev builds would bury them. The channel keeps its name because the version
-# scheme and the update feed (nightly-mac.yml) are keyed on it; only the
-# cadence is manual.
+# channel. The only GitHub Release it cuts is the Linux job's prerelease for
+# the .deb, which cannot update itself.
 #
 # There is deliberately no "has main moved since the last build?" gate: that
 # only ever earned its keep against an idle daily cron. Dispatching by hand and
@@ -47,6 +45,8 @@ jobs:
     if: github.event_name == 'push' || github.ref == 'refs/heads/main'
     runs-on: macos-latest
     timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       # Named explicitly so this job and the iOS nightly cannot drift onto
       # different toolchains.
@@ -186,7 +186,11 @@ jobs:
       # exists — that is what started it — and re-creating it would fail the
       # push, or worse, mint a SECOND tag at a different version because
       # set-desktop-version.mjs counts tags to pick the next number.
-      - name: Tag the nightly version (no GitHub Release)
+      - name: Version
+        id: version
+        run: echo "version=$(cat apps/desktop/release/from-origin/VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Tag the nightly version
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
@@ -210,10 +214,13 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/apple_api_key.p8" "$RUNNER_TEMP/keychain-search-list.txt"
 
   linux:
-    name: Linux build (artifacts only)
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    name: Linux build and publish
+    needs: nightly
     uses: ./.github/workflows/desktop-linux.yml
     with:
       channel: nightly
+      version: ${{ needs.nightly.outputs.version }}
+      publish: true
+    secrets: inherit
     permissions:
-      contents: read
+      contents: write

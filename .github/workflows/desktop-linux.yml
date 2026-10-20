@@ -18,13 +18,20 @@ on:
       channel:
         type: string
         default: ""
+      version:
+        type: string
+        default: ""
+      publish:
+        description: "Upload the AppImage and feeds to R2 and attach the .deb to the v<version> release"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: desktop-linux-${{ github.ref }}
-  cancel-in-progress: true
+  group: desktop-linux-${{ github.ref }}-${{ inputs.channel }}
+  cancel-in-progress: ${{ !inputs.publish }}
 
 jobs:
   linux:
@@ -70,7 +77,11 @@ jobs:
       - name: Build the AppImage and the .deb
         env:
           CHANNEL: ${{ inputs.channel }}
-        run: bash scripts/build-desktop-linux.sh ${CHANNEL:+--channel "$CHANNEL"}
+          VERSION: ${{ inputs.version }}
+          FEED_PREFIX: ${{ inputs.publish && 'io.github.novarix.telar' || '' }}
+          UPDATE_PROXY_URL: ${{ inputs.publish && secrets.UPDATE_PROXY_URL || '' }}
+          UPDATE_PROXY_KEY: ${{ inputs.publish && secrets.UPDATE_PROXY_KEY || '' }}
+        run: bash scripts/build-desktop-linux.sh ${CHANNEL:+--channel "$CHANNEL"} ${VERSION:+--version "$VERSION"} ${FEED_PREFIX:+--feed-prefix "$FEED_PREFIX"}
 
       - name: Smoke the AppImage under xvfb
         run: |
@@ -98,3 +109,46 @@ jobs:
             !apps/desktop/release/builder-*.yml
           if-no-files-found: error
           retention-days: 7
+
+  publish:
+    name: Publish to R2 and the release
+    needs: linux
+    if: inputs.publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: telar-linux-*
+          path: release
+          merge-multiple: true
+      - name: Upload the AppImages, then the feeds
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          put() { aws s3 cp "$1" "s3://$R2_BUCKET/io.github.novarix.telar/$(basename "$1")" --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" --no-progress; }
+          appimages=(release/*.AppImage)
+          feeds=(release/*-linux*.yml)
+          [ "${#appimages[@]}" -eq 2 ] && [ "${#feeds[@]}" -eq 2 ] || { echo "::error::expected two AppImages and two feeds"; exit 1; }
+          for file in ${appimages[@]+"${appimages[@]}"} release/*.blockmap; do put "$file"; done
+          for file in ${feeds[@]+"${feeds[@]}"}; do put "$file"; done
+      - name: Attach the .deb to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "v$VERSION" release/*.deb --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "v$VERSION" release/*.deb --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --title "v$VERSION" \
+              --notes "Linux .deb packages. The AppImage updates itself from the in-app updater."
+          fi

@@ -1,8 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-// A JSON file in userData read through `validate`; missing, corrupt or invalid
-// reads as a copy of `defaults`, and a failed write is logged, never thrown.
 function jsonPrefs(file, defaults, validate, label) {
   const userData = () => require("electron").app.getPath("userData");
   const filePath = () => path.join(userData(), file);

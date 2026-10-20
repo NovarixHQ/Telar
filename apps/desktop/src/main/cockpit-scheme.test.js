@@ -99,6 +99,26 @@ describe("the engine", () => {
     expect((await down(new Request("telar://app/v2/ping"))).status).toBe(502);
   });
 
+  test("an event stream reaches the page as the engine writes it", async () => {
+    let push;
+    const fetchImpl = async () => new Response(new ReadableStream({ start: (controller) => (push = controller) }), { headers: { "content-type": "text/event-stream" } });
+    const response = await handler({ fetchImpl })(new Request("telar://app/v2/sessions/stream"));
+    const reader = response.body.getReader();
+    push.enqueue(new TextEncoder().encode("data: 1\n\n"));
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe("data: 1\n\n");
+  });
+
+  test("a page that drops a stream closes the engine connection behind it", async () => {
+    const signals = [];
+    const fetchImpl = async (_url, init) => (signals.push(init.signal), new Response(new ReadableStream({ pull: () => new Promise(() => {}) })));
+    const run = handler({ fetchImpl });
+    await (await run(new Request("telar://app/v2/sessions/stream"))).body.cancel();
+    const page = new AbortController();
+    await run(new Request("telar://app/v2/sessions/stream", { signal: page.signal }));
+    page.abort();
+    expect(signals.map((signal) => signal.aborted)).toEqual([true, true]);
+  });
+
   test("the engine is read per request, so a restarted engine's new token is used", async () => {
     let token = "first";
     const seen = [];
@@ -111,24 +131,28 @@ describe("the engine", () => {
 });
 
 describe("the dev cockpit", () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => (globalThis.fetch = realFetch));
+
   function serve() {
-    const calls = [];
+    const engineCalls = [];
+    const passed = [];
     let handle;
-    const net = { fetch: async (target, init) => (calls.push({ target: String(target?.url ?? target), init }), new Response("{}")) };
+    globalThis.fetch = async (target, init) => (engineCalls.push({ target: String(target), init }), new Response("{}"));
+    const net = { fetch: async (target, init) => (passed.push({ target: String(target?.url ?? target), init }), new Response("{}")) };
     serveDevCockpit({ protocol: { handle: (_scheme, handler) => (handle = handler) } }, { net, origin: "http://127.0.0.1:3000", engine: () => endpoint });
-    return { calls, handle: (url, init) => handle(new Request(url, init)) };
+    return { engineCalls, passed, handle: (url, init) => handle(new Request(url, init)) };
   }
 
   test("/v2 on the dev origin goes to the engine with its bearer; everything else passes through untouched", async () => {
-    const { calls, handle } = serve();
+    const { engineCalls, passed, handle } = serve();
     await handle("http://127.0.0.1:3000/v2/sessions/live");
     await handle("http://127.0.0.1:3000/settings");
     await handle("http://127.0.0.1:9999/v2/sessions/live");
-    expect(calls[0].target).toBe("http://127.0.0.1:4100/v2/sessions/live");
-    expect(calls[0].init.headers.get("authorization")).toBe("Bearer engine-secret");
-    expect(calls[1].target).toBe("http://127.0.0.1:3000/settings");
-    expect(calls[1].init).toEqual({ bypassCustomProtocolHandlers: true });
-    expect(calls[2].target).toBe("http://127.0.0.1:9999/v2/sessions/live");
-    expect(calls[2].init).toEqual({ bypassCustomProtocolHandlers: true });
+    expect(engineCalls).toHaveLength(1);
+    expect(engineCalls[0].target).toBe("http://127.0.0.1:4100/v2/sessions/live");
+    expect(engineCalls[0].init.headers.get("authorization")).toBe("Bearer engine-secret");
+    expect(passed.map((call) => call.target)).toEqual(["http://127.0.0.1:3000/settings", "http://127.0.0.1:9999/v2/sessions/live"]);
+    expect(passed.map((call) => call.init)).toEqual([{ bypassCustomProtocolHandlers: true }, { bypassCustomProtocolHandlers: true }]);
   });
 });

@@ -28,7 +28,7 @@ The channel file is written last, after the archives and `install.sh`; that writ
 
 `apps/cli/package.json` is the package `telar`. `prepack` builds `dist/telar.mjs` (a Node bundle with a `#!/usr/bin/env node` line); `node-pty` and the agent SDK are its only dependencies, everything else is bundled. Check what would ship with `cd apps/cli && npm pack --dry-run`.
 
-A `cli-v<version>` tag publishes it with provenance from the `npm` job, using the `NPM_TOKEN` repository secret (an automation token for an account that owns the name). Bump `version` in `apps/cli/package.json`, merge, then tag that commit.
+A `cli-v<version>` tag on `main` publishes it from the `npm` job through npm trusted publishing (GitHub OIDC, no token), with provenance. The trusted publisher on npmjs.com is organization `NovarixHQ`, repository `Telar`, workflow `cli-build.yml`, no environment. Bump `version` in `apps/cli/package.json`, merge, then tag that commit.
 
 ## Traps
 

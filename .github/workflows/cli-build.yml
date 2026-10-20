@@ -146,18 +146,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "26.12.0"
-          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@11.21.1
       - run: bun install --frozen-lockfile
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
-      - name: Publish
+      - name: Publish through npm trusted publishing
         working-directory: apps/cli
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           UPDATE_PROXY_URL: ${{ secrets.UPDATE_PROXY_URL }}
         run: |
           set -euo pipefail
-          [ -n "$NODE_AUTH_TOKEN" ] || { echo "::error::The NPM_TOKEN secret is not set."; exit 1; }
           [ "$(node -p 'require("./package.json").version')" = "${GITHUB_REF_NAME#cli-v}" ] || { echo "::error::${GITHUB_REF_NAME} does not match apps/cli/package.json."; exit 1; }
           export TELAR_CLI_DOWNLOAD_BASE="${UPDATE_PROXY_URL%/}/cli"
           npm publish --provenance --access public

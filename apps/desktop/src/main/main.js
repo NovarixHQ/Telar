@@ -73,6 +73,8 @@ let browserControl = null;
 let previewRenderer = null;
 let browserControlConfig = null;
 
+if (process.platform === "linux") app.commandLine.appendSwitch("ozone-platform-hint", "auto");
+
 const REMOTE_DEBUGGING_PORT = process.env.TELAR_DESKTOP_REMOTE_DEBUGGING_PORT?.trim();
 if (REMOTE_DEBUGGING_PORT && /^\d+$/.test(REMOTE_DEBUGGING_PORT)) {
   app.commandLine.appendSwitch("remote-debugging-port", REMOTE_DEBUGGING_PORT);
@@ -427,7 +429,9 @@ if (SMOKE) {
     );
     app.quit();
   } else {
-    app.on("second-instance", () => {
+    app.on("second-instance", (_event, argv) => {
+      const deepLink = argv.find((arg) => arg.startsWith("telar://app/"));
+      if (deepLink) return openNotificationPath(new URL(deepLink).pathname);
       const win = windowToFocus(mainWindow(), [...browserManagers].map((manager) => manager.window));
       if (win) {
         if (win.isMinimized()) win.restore();
@@ -484,8 +488,9 @@ if (SMOKE) {
           }
 
           const home = telarHome();
-          const legacyPort = storedPort();
-          const port = await getStablePort();
+          const legacyOrigin = process.platform === "darwin";
+          const legacyPort = legacyOrigin ? storedPort() : null;
+          const port = legacyOrigin ? await getStablePort() : await findFreePort();
           startEngineChild(home, cockpitEnv(home, port));
           rememberEngine(await waitForEngine(home));
           await recordHandoffBoot(home);
@@ -493,14 +498,16 @@ if (SMOKE) {
           engineNotices.start(engineDiscoveryFile(home));
           await waitForCockpit(port);
           serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: () => engineEndpoint(home) });
-          migratingOrigin = true;
-          await migrateLegacyOrigin({
-            legacyPort,
-            listeningPort: port,
-            appUrl: APP_URL,
-            createWindow: () => new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } }),
-            log: (line) => logShell("info", line),
-          });
+          if (legacyOrigin) {
+            migratingOrigin = true;
+            await migrateLegacyOrigin({
+              legacyPort,
+              listeningPort: port,
+              appUrl: APP_URL,
+              createWindow: () => new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } }),
+              log: (line) => logShell("info", line),
+            });
+          }
           url = APP_URL;
           const notify = (body) => new Notification({ title: "Pair Booted Simulators", body }).show();
           if (registerDevPairing({ dev: DEV_BUILD, port, endpoint: () => engineEndpoint(home), ipcMain, notify })) buildApplicationMenu();

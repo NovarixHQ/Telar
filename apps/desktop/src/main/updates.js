@@ -8,6 +8,7 @@ const devUpdate = require("../dev/dev-update");
 const { DEV_BUILD } = require("./flags");
 const { busyTerminals, heldTerminals } = require("./terminal-quit");
 const { requireCockpitSender } = require("./browser-hosts");
+const { updateMode } = require("./update-mode");
 const { readUpdatePrefs, UPDATE_CHANNELS, updateLogPath, updateProxyKey, writeUpdatePrefs } = require("./update-prefs");
 
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -53,7 +54,7 @@ function createUpdater(main) {
   }
 
   function updatesConfigured() {
-    if (DEV_BUILD) return false;
+    if (DEV_BUILD || updateMode() === "package") return false;
     return app.isPackaged && Boolean(updateProxyKey());
   }
 
@@ -151,6 +152,7 @@ function createUpdater(main) {
     const timer = setInterval(() => void checkForUpdates(), UPDATE_CHECK_INTERVAL_MS);
     timer.unref?.();
 
+    if (process.platform !== "darwin") return;
     desktopHandoff.start({
       channel: () => readUpdatePrefs().channel,
       key: updateProxyKey(),
@@ -248,6 +250,8 @@ function registerUpdates(main) {
     logPath: updateLogPath(),
 
     configured: updatesConfigured(),
+
+    packageManaged: updateMode() === "package",
 
     localUpdater: DEV_BUILD,
   }));

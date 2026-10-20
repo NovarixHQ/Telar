@@ -14,6 +14,7 @@ const autoUpdater = Object.assign(new (require("node:events"))(), {
 mock.module("electron-updater", () => ({ autoUpdater, CancellationToken: class {} }));
 const prefs = require("./update-prefs");
 mock.module("./update-prefs", () => ({ ...prefs, updateProxyKey: () => "test-key" }));
+process.env.APPIMAGE ||= "/tmp/Telar.AppImage";
 
 const { registerUpdates } = require("./updates");
 const hosts = require("./browser-hosts");

@@ -73,6 +73,11 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE"
 tar -xzf "$WORK/$ARCHIVE" -C "$STAGE"
 [ -x "$STAGE/telar" ] || { rm -rf "$STAGE"; die "the archive has no telar executable"; }
+if ! "$STAGE/telar" version >/dev/null 2>"$WORK/run.log"; then
+  rm -rf "$STAGE"
+  grep -q libatomic "$WORK/run.log" && die "telar needs libatomic; install it (sudo apt install libatomic1, or sudo dnf install libatomic) and run this again"
+  die "telar $VERSION does not run on this machine: $(head -n 1 "$WORK/run.log")"
+fi
 rm -rf "$RUNTIME/versions/$VERSION"
 mv "$STAGE" "$RUNTIME/versions/$VERSION"
 

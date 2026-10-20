@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 import { EngineClientError, type EngineClient } from "@telar/engine-client";
 import { fail, ok, type Route } from "../../platform/http/route";
-import { desktopStream, handleDesktopMessage } from "./desktop";
+import { desktopAttached, desktopStream, handleDesktopMessage, resetDesktopNotices } from "./desktop";
 import { activityReport, parseRegistration, pushConfigured, PushInputError, readPushRecords, saveRegistration, writePushRecords } from "./push";
 import { clearedSessions, parseReadStateIds } from "./read-sync";
 import { deliverWebhook, parseWebhookUrl, readWebhook, WebhookInputError, webhookStatus, writeWebhook } from "./webhook";
-import { sendRelayTest, startMobilePushWorker } from "./worker";
+import { refreshMobilePushWorker, sendRelayTest, startMobilePushWorker } from "./worker";
 
 export type PushRouteDeps = {
   client: () => EngineClient;
@@ -128,10 +128,13 @@ export function serveDesktopStream(
 ): () => void {
   response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
   response.write(": open\n\n");
+  const first = !desktopAttached();
+  if (first) resetDesktopNotices();
   const unsubscribe = desktopStream.subscribe(response);
   const beat = setInterval(() => response.write(": beat\n\n"), BEAT_MS);
   beat.unref();
   startMobilePushWorker({ client: deps.client, fullDevices: () => deps.pairedDevices().filter((d) => d.scopes.includes("write")).map((d) => d.id) });
+  if (first) refreshMobilePushWorker();
   return () => {
     clearInterval(beat);
     unsubscribe();

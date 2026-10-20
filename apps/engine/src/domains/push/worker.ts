@@ -160,6 +160,7 @@ type WorkerState = {
   telarMobilePushFeedOpen?: boolean;
   telarMobilePushHeartbeat?: boolean;
   telarMobilePushFeedStop?: () => void;
+  telarMobilePushNudge?: () => void;
   telarMobilePushDeps?: PushWorkerDeps;
 };
 export type PushWorkerDeps = { client: () => EngineClient; fullDevices: () => string[] };
@@ -326,6 +327,7 @@ export async function sendRelayTest(deviceId: string, topic: string, send: (cred
 export function stopMobilePushWorker(): void {
   if (workerGlobal.telarMobilePushTimer) clearTimeout(workerGlobal.telarMobilePushTimer);
   delete workerGlobal.telarMobilePushTimer;
+  delete workerGlobal.telarMobilePushNudge;
   workerGlobal.telarMobilePushFeedStop?.();
 }
 
@@ -419,13 +421,20 @@ export function startMobilePushWorker(given?: PushWorkerDeps): void {
       console.warn("[mobile-push] Delivery unavailable; retrying.");
     } finally {
       workerGlobal.telarMobilePushRunning = false;
-      schedule(workerGlobal.telarMobilePushNudged ? FEED_COALESCE_MS : pollDelay(workerGlobal.telarMobilePushFeedOpen === true, workerGlobal.telarMobilePushHeartbeat === true));
+      if (workerGlobal.telarMobilePushNudge === nudge) schedule(workerGlobal.telarMobilePushNudged ? FEED_COALESCE_MS : pollDelay(workerGlobal.telarMobilePushFeedOpen === true, workerGlobal.telarMobilePushHeartbeat === true));
     }
   };
   schedule(0);
-  openSessionFeed(() => {
+  const nudge = () => {
     const action = frameAction(workerGlobal.telarMobilePushDueAt, workerGlobal.telarMobilePushRunning === true, Date.now());
     if (action === "after-pass") workerGlobal.telarMobilePushNudged = true;
     else if (action === "schedule") schedule(FEED_COALESCE_MS);
-  });
+  };
+  workerGlobal.telarMobilePushNudge = nudge;
+  openSessionFeed(nudge);
+}
+
+export function refreshMobilePushWorker(): void {
+  delete workerGlobal.telarMobilePushETag;
+  workerGlobal.telarMobilePushNudge?.();
 }

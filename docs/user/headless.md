@@ -51,5 +51,5 @@ What is not obvious:
 - The other computer needs systemd user services (Linux) or launchd (a Mac), because `telar service install` starts it.
 
 What is not obvious, for both ways:
-- The pairing stays in the app, never in the window. Nothing on this Mac runs the agents: the browser, terminals, computer use and simulators are the host's, and the desktop notifications of this Mac are off while it is a client.
+- The pairing stays in the app, never in the window. Nothing on this Mac runs the agents: the browser, terminals, computer use and simulators are the host's. This Mac still shows the host's notifications; one read on another client closes here too. A paired device with view-only access can't approve from a notification; Approve opens the session instead.
 - Folders you pick are folders on the host.

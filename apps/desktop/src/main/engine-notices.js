@@ -1,10 +1,11 @@
 "use strict";
 
 const fs = require("node:fs");
-const http = require("node:http");
 
 const STREAM_PATH = "/v2/push/desktop/stream";
 const MESSAGES_PATH = "/v2/push/desktop/messages";
+const APPROVE = "telar:desktop-notification:approve";
+const APPROVED = "telar:desktop-notification:approved";
 const RETRY_MS = 2_000;
 
 function frames(onMessage) {
@@ -34,76 +35,82 @@ function readJson(file) {
   }
 }
 
-function createEngineNotices({ onMessage, retryMs = RETRY_MS, readDiscovery: read = readJson }) {
-  let discoveryFile = null;
-  const readDiscovery = () => (discoveryFile ? read(discoveryFile) : null);
-  let request = null;
+function discoveryEndpoint(file, read = readJson) {
+  return () => {
+    const discovery = read(file);
+    return discovery?.port && discovery?.token ? { host: discovery.host || "127.0.0.1", port: discovery.port, token: discovery.token } : null;
+  };
+}
+
+const originOf = (endpoint) => endpoint.baseUrl ?? `http://${endpoint.host}:${endpoint.port}`;
+
+function createEngineNotices({ onMessage, retryMs = RETRY_MS, fetchImpl = (url, init) => fetch(url, init) }) {
+  let endpointOf = null;
+  let current = null;
   let timer = null;
-  let stopped = false;
 
   const retry = () => {
-    request = null;
-    if (stopped || timer) return;
+    if (!endpointOf || timer) return;
     timer = setTimeout(() => {
       timer = null;
-      connect();
+      void connect();
     }, retryMs);
     timer.unref?.();
   };
 
-  function connect() {
-    if (stopped) return;
-    const discovery = readDiscovery();
-    if (!discovery?.port || !discovery?.token) return retry();
-    request = http.get(
-      { host: discovery.host || "127.0.0.1", port: discovery.port, path: STREAM_PATH, headers: { authorization: `Bearer ${discovery.token}` } },
-      (response) => {
-        if (response.statusCode !== 200) {
-          response.resume();
-          return retry();
-        }
-        response.setEncoding("utf8");
-        response.on("data", frames(onMessage));
-        response.on("end", retry);
-        response.on("error", retry);
-      },
-    );
-    request.on("error", retry);
+  async function connect() {
+    const endpoint = endpointOf?.();
+    if (!endpoint) return retry();
+    const controller = new AbortController();
+    current = controller;
+    try {
+      const response = await fetchImpl(`${originOf(endpoint)}${STREAM_PATH}`, {
+        headers: { authorization: `Bearer ${endpoint.token}`, accept: "text/event-stream" },
+        signal: controller.signal,
+      });
+      if (response.ok && response.body) {
+        const feed = frames(onMessage);
+        const decoder = new TextDecoder();
+        for await (const chunk of response.body) feed(decoder.decode(chunk, { stream: true }));
+      } else await response.body?.cancel();
+    } catch {}
+    if (current !== controller) return;
+    current = null;
+    retry();
   }
 
-  function send(message) {
-    const discovery = readDiscovery();
-    if (!discovery?.port || !discovery?.token) return;
-    const body = JSON.stringify(message);
-    const post = http.request(
-      {
-        host: discovery.host || "127.0.0.1",
-        port: discovery.port,
-        method: "POST",
-        path: MESSAGES_PATH,
-        headers: { authorization: `Bearer ${discovery.token}`, "content-type": "application/json", "content-length": Buffer.byteLength(body) },
-      },
-      (response) => response.resume(),
-    );
-    post.on("error", () => {});
-    post.end(body);
+  async function send(message) {
+    const endpoint = endpointOf?.();
+    try {
+      if (endpoint) {
+        const response = await fetchImpl(`${originOf(endpoint)}${MESSAGES_PATH}`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${endpoint.token}`, "content-type": "application/json" },
+          body: JSON.stringify(message),
+        });
+        await response.body?.cancel();
+        if (response.ok) return;
+      }
+    } catch {}
+    if (message?.type === APPROVE) onMessage({ type: APPROVED, sessionId: message.sessionId, requestId: message.requestId, ok: false });
   }
 
   return {
     send,
-    start(file) {
-      if (discoveryFile && !stopped) return;
-      discoveryFile = file;
-      stopped = false;
-      connect();
+    start(endpoint) {
+      if (endpointOf) return;
+      endpointOf = endpoint;
+      void connect();
     },
     stop() {
-      stopped = true;
-      discoveryFile = null;
+      endpointOf = null;
       if (timer) clearTimeout(timer);
-      request?.destroy();
+      timer = null;
+      const controller = current;
+      current = null;
+      controller?.abort();
     },
   };
 }
 
-module.exports = { createEngineNotices, STREAM_PATH, MESSAGES_PATH };
+module.exports = { createEngineNotices, discoveryEndpoint, STREAM_PATH, MESSAGES_PATH };

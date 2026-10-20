@@ -1,0 +1,28 @@
+name: Deploy updates proxy
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['workers/updates-proxy/**', '.github/workflows/deploy-updates-proxy.yml']
+permissions:
+  contents: read
+concurrency:
+  group: telar-updates-proxy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test workers/updates-proxy/worker.test.mjs
+      - name: Deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: npx --yes wrangler@4.129.1 deploy --config workers/updates-proxy/wrangler.toml

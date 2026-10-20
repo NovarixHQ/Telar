@@ -1,6 +1,5 @@
 // Gate on a static shared secret before proxying reads from the private R2
-// bucket. electron-updater sends this as a custom request header (configured
-// via autoUpdater.requestHeaders in apps/desktop/main.js); CI writes to the
+// bucket, except the CLI's public downloads under cli/. CI writes to the
 // bucket directly with R2 API credentials, so this Worker is read-only.
 
 // R2 reports the range it actually served as either {offset,length} or
@@ -181,19 +180,27 @@ export async function answerMultiRange(bucket, objectKey, rangeHeader) {
   });
 }
 
+export function isPublicKey(objectKey) {
+  return objectKey.startsWith("cli/") && !objectKey.split("/").some((segment) => segment === "" || segment === "." || segment === "..");
+}
+
 export default {
   async fetch(request, env) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Method Not Allowed", { status: 405 });
     }
 
+    const url = new URL(request.url);
+    let objectKey;
+    try {
+      objectKey = decodeURIComponent(url.pathname.replace(/^\//, ""));
+    } catch {
+      return new Response("Bad Request", { status: 400 });
+    }
     const key = request.headers.get("X-Telar-Update-Key");
-    if (!key || key !== env.UPDATE_KEY) {
+    if (!isPublicKey(objectKey) && (!key || key !== env.UPDATE_KEY)) {
       return new Response("Forbidden", { status: 403 });
     }
-
-    const url = new URL(request.url);
-    const objectKey = decodeURIComponent(url.pathname.replace(/^\//, ""));
     if (!objectKey) {
       return new Response("Not Found", { status: 404 });
     }

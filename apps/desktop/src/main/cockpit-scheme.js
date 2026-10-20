@@ -93,13 +93,15 @@ async function proxyToEngine(request, url, engine, fetchImpl) {
   headers.set("authorization", `Bearer ${endpoint.token}`);
   const hasBody = request.method !== "GET" && request.method !== "HEAD" && request.body;
   const origin = endpoint.baseUrl ?? `http://${endpoint.host}:${endpoint.port}`;
+  const upstreamGone = new AbortController();
+  request.signal?.addEventListener("abort", () => upstreamGone.abort(), { once: true });
   let upstream;
   try {
     upstream = await fetchImpl(`${origin}${url.pathname}${url.search}`, {
       method: request.method,
       headers,
       redirect: "manual",
-      signal: request.signal,
+      signal: upstreamGone.signal,
       ...(hasBody ? { body: request.body, duplex: "half" } : {}),
     });
   } catch {
@@ -107,7 +109,26 @@ async function proxyToEngine(request, url, engine, fetchImpl) {
   }
   const responseHeaders = new Headers();
   for (const [name, value] of upstream.headers) if (!DROPPED_RESPONSE_HEADERS.has(name)) responseHeaders.set(name, value);
-  return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: responseHeaders });
+  return new Response(upstream.body && releasing(upstream.body, upstreamGone), { status: upstream.status, statusText: upstream.statusText, headers: responseHeaders });
+}
+
+function releasing(body, upstreamGone) {
+  const reader = body.getReader();
+  return new ReadableStream({
+    async pull(controller) {
+      try {
+        const { value, done } = await reader.read();
+        if (done) controller.close();
+        else controller.enqueue(value);
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    cancel(reason) {
+      upstreamGone.abort();
+      return reader.cancel(reason).catch(() => {});
+    },
+  });
 }
 
 function createCockpitHandler({ staticDir, engine, fetchImpl }) {
@@ -121,15 +142,18 @@ function createCockpitHandler({ staticDir, engine, fetchImpl }) {
   };
 }
 
-function serveCockpit(ses, { net, ...options }) {
-  ses.protocol.handle(SCHEME, createCockpitHandler({ ...options, fetchImpl: (url, init) => net.fetch(url, init) }));
+// Node's fetch, not net.fetch: Chromium caps a host at six connections, and the cockpit holds that many SSE streams.
+const engineFetch = (url, init) => fetch(url, init);
+
+function serveCockpit(ses, options) {
+  ses.protocol.handle(SCHEME, createCockpitHandler({ ...options, fetchImpl: engineFetch }));
 }
 
 function serveDevCockpit(ses, { net, origin, engine }) {
   ses.protocol.handle("http", (request) => {
     const url = new URL(request.url);
     if (url.origin === origin && (url.pathname.startsWith("/v2/") || url.pathname.startsWith("/api/"))) {
-      return proxyToEngine(request, url, engine, (target, init) => net.fetch(target, init));
+      return proxyToEngine(request, url, engine, engineFetch);
     }
     return net.fetch(request, { bypassCustomProtocolHandlers: true });
   });

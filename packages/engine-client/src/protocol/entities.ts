@@ -113,7 +113,7 @@ export const SessionWorkspace = z.discriminatedUnion("mode", [
     branch: z.string().min(1),
     baseRef: z.string().min(1).optional(),
     released: z
-      .object({ at: Timestamp, reason: z.enum(["manual", "inactive", "settled", "unchanged", "archived"]) })
+      .object({ at: Timestamp, reason: z.enum(["manual", "inactive", "settled", "unchanged", "archived", "missing"]) })
       .optional(),
   }),
   z.object({ mode: z.literal("none") }),

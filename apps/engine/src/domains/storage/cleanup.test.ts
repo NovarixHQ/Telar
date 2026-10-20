@@ -73,6 +73,31 @@ test("a volume that is missing or stops answering is skipped whole, and the othe
   expect(swept.skips.sort((a, b) => a.sessionId.localeCompare(b.sessionId))).toEqual(["s0", "s1", "s2"].map((sessionId) => ({ sessionId, reason: "offline" })));
 });
 
+test("checkouts on an unplugged drive are kept without taking a slot, and are tried again once it is back", async () => {
+  const mounts = mountRootsFor(process.platform)[0] ?? "/mnt";
+  const plan: PlannedRelease[] = [
+    { sessionId: "away", path: path.join(mounts, "Away", "a"), reason: "settled" },
+    { sessionId: "here", path: path.join(os.tmpdir(), "here"), reason: "settled" },
+  ];
+  let plugged = false;
+  const gate = new VolumeGate(async (mount) => (mount.endsWith("Away") && !plugged ? "missing" : "ok"));
+  const asked: string[] = [];
+  const sweep = () =>
+    sweepCheckouts(plan, {
+      limit: 1,
+      tried: new Map(),
+      gate,
+      sizeOf: () => undefined,
+      processes: async () => new Set(),
+      release: async (item) => (asked.push(item.sessionId), "released"),
+    });
+  expect(await sweep()).toMatchObject({ released: 1, skips: [{ sessionId: "away", reason: "offline" }] });
+  expect(asked).toEqual(["here"]);
+  plugged = true;
+  expect(await sweep()).toMatchObject({ released: 1, skips: [] });
+  expect(asked).toEqual(["here", "away"]);
+});
+
 test("a sweep tries at most its limit, the next one starts with those not yet tried, and the batch shares one process listing", async () => {
   const plan: PlannedRelease[] = ["a", "b", "c", "d", "e"].map((name) => ({ sessionId: name, path: path.join(os.tmpdir(), name), reason: "settled" }));
   const tried = new Map<string, number>();
@@ -221,6 +246,23 @@ test("a session settled by the inactivity clock is aged from its last activity, 
   await store.worktrees.runCleanup();
   expect(fs.existsSync(checkout)).toBe(false);
   expect(store.cleanup.last()).toMatchObject({ released: 1, skipped: 0 });
+});
+
+test("a checkout deleted behind Telar's back is pruned from git, marked missing and not swept again", async () => {
+  const { store, root, checkout, branch, advance } = await setup();
+  fs.rmSync(checkout, { recursive: true, force: true });
+  expect(git(root, "worktree", "list", "--porcelain")).toContain(checkout);
+  store.lifecycle.updateSession("session_one", { settledOverride: "settled" });
+  advance(10 * DAY);
+  await store.worktrees.runCleanup();
+  expect(git(root, "worktree", "list", "--porcelain")).not.toContain(checkout);
+  expect(git(root, "branch", "--list", branch)).toContain(branch);
+  const session = store.records.get("session_one");
+  expect(session.workspace.mode === "worktree" && session.workspace.released?.reason).toBe("missing");
+  await store.worktrees.runCleanup();
+  expect(store.cleanup.last()).toMatchObject({ released: 0, skipped: 0 });
+  store.worktrees.restore("session_one");
+  await until("the worktree is back", () => fs.existsSync(path.join(checkout, "README.md")));
 });
 
 test("one worktree that cannot be released does not stop the others", async () => {

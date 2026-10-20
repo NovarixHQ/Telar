@@ -80,18 +80,24 @@ export type SweepDeps = {
 const SWEEP_TIMEOUT_MS = 60_000;
 const SWEEP_LIMIT = 8;
 
-/** Releases at most `limit` of the plan, least recently tried first (`tried` is the caller's, kept across sweeps); a volume that is missing or stops answering is skipped whole. */
+/** Releases at most `limit` of the plan, least recently tried first (`tried` is the caller's, kept across sweeps); a checkout on a volume that is missing or stops answering is kept and takes no slot. */
 export async function sweepCheckouts(plan: readonly PlannedRelease[], deps: SweepDeps): Promise<{ released: number; skips: CleanupSkip[]; freedBytes: number }> {
   const tally = { released: 0, skips: [] as CleanupSkip[], freedBytes: 0 };
   const planned = new Set(plan.map((item) => item.sessionId));
   for (const sessionId of deps.tried.keys()) if (!planned.has(sessionId)) deps.tried.delete(sessionId);
+  await deps.gate.recheck();
+  await deps.gate.admit(plan.map((item) => item.path));
+  const reachable = plan.filter((item) => {
+    if (deps.gate.open(item.path)) return true;
+    tally.skips.push({ sessionId: item.sessionId, reason: "offline" });
+    return false;
+  });
   const lastTry = (item: PlannedRelease) => deps.tried.get(item.sessionId) ?? 0;
-  const batch = [...plan].sort((a, b) => lastTry(a) - lastTry(b)).slice(0, deps.limit ?? SWEEP_LIMIT);
+  const batch = reachable.sort((a, b) => lastTry(a) - lastTry(b)).slice(0, deps.limit ?? SWEEP_LIMIT);
   const sweep = Math.max(0, ...deps.tried.values()) + 1;
   for (const item of batch) deps.tried.set(item.sessionId, sweep);
   let busy: Promise<Busy> | undefined;
   const processes = () => (busy ??= deps.processes(batch.map((item) => item.path)));
-  await deps.gate.admit(batch.map((item) => item.path));
   await eachBounded(batch, deps.concurrency ?? 2, async (item) => {
     const bytes = deps.sizeOf(item.path);
     const outcome = await deps.gate.run(item.path, () => deps.release(item, processes), deps.timeoutMs ?? SWEEP_TIMEOUT_MS);

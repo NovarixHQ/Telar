@@ -18,7 +18,7 @@ import type { ProjectAvailability } from "../../platform/fs/volumes";
 import { existsWithin, VolumeGate, type VolumeProbe } from "../../platform/fs/volume-gate";
 import { parseSession, sessionDir, sessionMetadataFile, storedSession, type SessionRecords } from "../sessions";
 import { planWorktreeCleanup, sweepCheckouts, sweepLogs, type CheckoutSizes, type CleanupStore, type PlannedRelease, type ReapCandidate, type SweepOutcome } from "../storage";
-import { lockSessionWorktree, removeUnregisteredCheckout } from "./checkout";
+import { lockSessionWorktree, removeUnregisteredCheckout, unlockWorktree } from "./checkout";
 import { liveCheckouts, lockCheckouts } from "./boot-pass";
 import { cleanupCandidates } from "./cleanup-sweep";
 import { buildInventory, type InventoryProject, type InventorySession } from "./inventory";
@@ -29,6 +29,8 @@ import { removeSessionWorktreeAsync, type WorktreeQueue } from "./session-worktr
 import { countedRows, stateOf, summarizeWorktrees, type SessionFacts } from "./summary";
 
 const ROTATED_LOG_DAYS = 30;
+
+type ReleaseReason = NonNullable<Extract<Session["workspace"], { mode: "worktree" }>["released"]>["reason"];
 
 const SUMMARY_TTL_MS = 60_000;
 const DEFAULT_IDLE_DAYS = 7;
@@ -71,7 +73,7 @@ export class WorktreeMaintenance {
   /** Gives a session's checkout back, keeping its branch; refused with nothing touched while anything could still use it. `strict` is the sweep's. */
   async release(
     sessionId: string,
-    reason: "manual" | "inactive" | "settled" | "unchanged" | "archived",
+    reason: ReleaseReason,
     options: { strict?: boolean; processes?: () => Promise<Set<string> | undefined> } = {},
   ): Promise<{ ok: true } | { ok: false; refusal: ReleaseRefusal | "in-use" | "not-worktree"; detail?: string }> {
     const session = this.deps.records.get(sessionId);
@@ -106,10 +108,13 @@ export class WorktreeMaintenance {
     this.deps.forgetGitReadsUnder(project.root);
     this.deps.forgetGitReadsUnder(workspace.path);
     if (!removed) return { ok: false, refusal: "not-found", detail: "the checkout is still there" };
+    this.markReleased(sessionId, reason);
+    return { ok: true };
+  }
 
-    // Re-read: seconds passed while git ran.
+  private markReleased(sessionId: string, reason: ReleaseReason): void {
     const current = this.deps.records.get(sessionId);
-    if (current.workspace.mode !== "worktree") return { ok: true };
+    if (current.workspace.mode !== "worktree") return;
     const updated: Session = {
       ...current,
       workspace: { ...current.workspace, released: { at: this.kernel.now(), reason } },
@@ -117,7 +122,22 @@ export class WorktreeMaintenance {
     };
     this.kernel.writeDocument(sessionMetadataFile(this.kernel.paths, sessionId), storedSession(updated));
     this.kernel.appendEvent(sessionId, { type: "session.updated", session: updated });
-    return { ok: true };
+  }
+
+  /** A checkout deleted from a volume that is there: git's stale entry is dropped and the session stops being swept. */
+  private async forgetMissing(sessionId: string): Promise<SweepOutcome> {
+    const session = this.deps.records.get(sessionId);
+    if (session.workspace.mode !== "worktree" || !session.projectId) return "ignored";
+    const project = this.projectOf(session.projectId);
+    if (!project || this.deps.availability(project) !== "available") return { skipped: "offline" };
+    const target = session.workspace.path;
+    await this.deps.queue(project.root, async () => {
+      await unlockWorktree(this.deps.git, project.root, target);
+      await this.deps.git(project.root, ["worktree", "prune"]);
+    });
+    this.deps.forgetGitReadsUnder(project.root);
+    this.markReleased(sessionId, "missing");
+    return "released";
   }
 
   /** One sweep of the Storage switches; a second call while one runs does nothing. */
@@ -166,7 +186,9 @@ export class WorktreeMaintenance {
   private async sweepRelease({ sessionId, reason }: PlannedRelease, processes: () => Promise<Set<string> | undefined>): Promise<SweepOutcome> {
     const session = this.deps.records.get(sessionId);
     if (session.workspace.mode !== "worktree" || !session.projectId) return "ignored";
-    if (!(await existsWithin(this.volumes, session.workspace.path))) return "ignored";
+    if (!(await existsWithin(this.volumes, session.workspace.path))) {
+      return this.volumes.open(session.workspace.path) ? this.forgetMissing(sessionId) : { skipped: "offline" };
+    }
     const released = await this.release(sessionId, reason, { strict: true, processes });
     if (released.ok) return "released";
     if (released.refusal === "not-worktree" || (released.refusal === "not-found" && !released.detail)) return "ignored";

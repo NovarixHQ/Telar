@@ -13,9 +13,7 @@ Both workflows build only commits on `origin/main`. A tag that is not an ancesto
 
 `desktop-linux.yml` builds `Telar-<version>-linux-<arch>.AppImage` and `.deb` on `ubuntu-latest` (x64) and `ubuntu-24.04-arm` (arm64) through `scripts/build-desktop-linux.sh`. On every desktop change it also launches the AppImage and the installed `.deb` under xvfb (`apps/desktop/test/electron/linux-smoke.js`): the cockpit loads at `telar://app/`, the embedded engine answers, a terminal runs a command and the app quits cleanly. The artifacts are uploaded to the run for 7 days.
 
-`nightly-desktop.yml` and `release-desktop.yml` call the same workflow as a `linux` job on a manual dispatch from `main`. It refuses a commit that is not an ancestor of `origin/main`, builds with `--channel nightly|beta` and uploads the AppImage, `.deb` and feed files to the run. **Nothing is published.** No release, tag or R2 object is created for Linux.
-
-To publish, take the AppImage and the `<channel>-linux.yml` / `<channel>-linux-arm64.yml` feed files from the run and upload them under the `io.github.novarix.telar/` prefix next to the macOS feed (the proxy needs no change). The in-app updater on Linux reads those feeds; electron-updater picks the file by channel and architecture. The `.deb` is not self-updating, so attach it to a release for people to download.
+`nightly-desktop.yml` and `release-desktop.yml` call the same workflow as a `linux` job after the macOS job, with the version it built. It refuses a commit that is not an ancestor of `origin/main`, builds with `--channel nightly|beta --feed-prefix io.github.novarix.telar` (which bakes the proxy URL and key like the macOS build), then publishes: the AppImages and blockmaps go to R2 under `io.github.novarix.telar/`, then the `<channel>-linux.yml` / `<channel>-linux-arm64.yml` feeds last. The in-app updater on Linux reads those feeds. The `.deb` is not self-updating, so it is attached to the `v<version>` release, which the Linux job creates as a prerelease for a nightly.
 
 Gotchas:
 

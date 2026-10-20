@@ -47,7 +47,8 @@
     "package:local": "bash ../../scripts/package-desktop.sh",
     "package:dev": "bash ../../scripts/package-desktop.sh --dev",
     "install:app": "bash ./scripts/install-app.sh",
-    "install:local": "bash ../../scripts/package-desktop.sh --install"
+    "install:local": "bash ../../scripts/package-desktop.sh --install",
+    "test:desktop:linux-smoke": "node ./test/electron/linux-smoke.js"
   },
   "trustedDependencies": [
     "electron"
@@ -129,6 +130,30 @@
         "NSMicrophoneUsageDescription": "Telar's built-in browser needs the microphone for sites you allow it on — calls, dictation and anything that asks. Telar asks you per site first, and never listens by itself."
       }
     },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage"
+        },
+        {
+          "target": "deb"
+        }
+      ],
+      "executableName": "telar",
+      "artifactName": "Telar-${version}-linux-${arch}.${ext}",
+      "category": "Development",
+      "synopsis": "Run coding agents on this machine and steer them from anywhere",
+      "icon": "assets/icon.png",
+      "syncDesktopName": true,
+      "protocols": [
+        {
+          "name": "Telar",
+          "schemes": [
+            "telar"
+          ]
+        }
+      ]
+    },
     "publish": {
       "provider": "generic",
       "url": "https://example.invalid/set-at-build-time"
@@ -141,5 +166,6 @@
   "devDependencies": {
     "electron": "^43.1.1",
     "electron-builder": "^26.15.3"
-  }
+  },
+  "homepage": "https://github.com/NovarixHQ/Telar"
 }

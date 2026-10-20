@@ -2,7 +2,7 @@ const { describe, expect, test } = require("bun:test");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { ENGINE_PTY, verifyPackagedPty, verifyPackagedSounds } = require("./after-pack");
+const { ENGINE_PTY, verifyPackagedLinux, verifyPackagedPty, verifyPackagedSounds } = require("./after-pack");
 
 function appWith(names) {
   const app = fs.mkdtempSync(path.join(os.tmpdir(), "telar-pack-"));
@@ -75,5 +75,41 @@ describe("what a packaged .app has to contain before a terminal can run", () => 
   test("falls back to the shipped prebuild when nothing was rebuilt", () => {
     const found = verifyPackagedPty(app, { platform: "darwin", arch: "arm64", fs: fakeFs(both(prebuilds)) });
     expect(found.from).toBe("prebuilds/darwin-arm64");
+  });
+});
+
+describe("what a packaged Linux app has to contain", () => {
+  const resources = "/out/linux-unpacked/resources";
+  const at = (...parts) => path.join(resources, ...parts);
+  const pty = at("engine", "node_modules", "node-pty", "prebuilds", "linux-arm64");
+  const everything = [
+    at("engine", "engine.mjs"),
+    at("engine", "node_modules", "@anthropic-ai", "claude-agent-sdk", "sdk.mjs"),
+    at("engine", "playwright-mcp", "node_modules", "@playwright", "mcp", "cli.js"),
+    at("cockpit", "index.html"),
+    at("build-info.json"),
+    path.join(pty, "pty.node"),
+    path.join(pty, "spawn-helper"),
+  ];
+  const fakeFs = (present, chmods = []) => ({
+    existsSync: (target) => present.includes(target),
+    statSync: () => ({ mode: 0o100644 }),
+    chmodSync: (target, next) => chmods.push([target, next]),
+  });
+
+  test("a complete app passes, and node-pty's helper is made executable", () => {
+    const chmods = [];
+    const found = verifyPackagedLinux(resources, "arm64", { fs: fakeFs(everything, chmods) });
+    expect(found.from).toBe("prebuilds/linux-arm64");
+    expect(chmods).toEqual([[path.join(pty, "spawn-helper"), 0o755]]);
+  });
+
+  test("a missing cockpit fails the build and names the file", () => {
+    const present = everything.filter((file) => !file.endsWith("index.html"));
+    expect(() => verifyPackagedLinux(resources, "arm64", { fs: fakeFs(present) })).toThrow(at("cockpit", "index.html"));
+  });
+
+  test("a prebuild for the wrong architecture is refused", () => {
+    expect(() => verifyPackagedLinux(resources, "x64", { fs: fakeFs(everything) })).toThrow(/no loadable PTY addon/);
   });
 });

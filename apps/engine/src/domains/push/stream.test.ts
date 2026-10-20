@@ -5,6 +5,7 @@ import path from "node:path";
 import { EngineClient } from "@telar/engine-client";
 import { startEngine, type EngineDaemon } from "../../daemon";
 import { stubModels } from "../../../test/stub-models";
+import { desktopAttached } from "./desktop";
 import { alertId } from "./push";
 
 const roots: string[] = [];
@@ -56,10 +57,7 @@ test("the shell's stream carries a dismissal when a session is read", async () =
   await client.registerProject({ id: "project_one", name: "One", root: path.join(home, "checkout") });
   await client.createSession({ id: "session_one", projectId: "project_one" });
   await client.registerWorker("worker_one");
-  await client.submitTurn("session_one", { runId: "run_one", input: "Hello" });
-  const claim = (await client.claimTurn("worker_one", 1)).claim!;
-  await client.markTurnRunning("session_one", "run_one", claim.turn.claim!.token);
-  await client.completeTurn("session_one", "run_one", claim.turn.claim!.token, { text: "Done" });
+  await finishTurn(client, "session_one", "run_one");
 
   const stream = await subscribe(base, headers);
   expect(stream.status).toBe(200);
@@ -67,6 +65,45 @@ test("the shell's stream carries a dismissal when a session is read", async () =
   const frame = stream.next();
   await client.markSessionRead("session_one", "run_one");
   expect(await frame).toEqual({ type: "telar:desktop-notification:dismiss", sessionId: "session_one", id: alertId("session_one") });
+});
+
+async function finishTurn(client: EngineClient, sessionId: string, runId: string, claimSeq = 1) {
+  await client.submitTurn(sessionId, { runId, input: "Hello" });
+  const claim = (await client.claimTurn("worker_one", claimSeq)).claim!;
+  await client.markTurnRunning(sessionId, runId, claim.turn.claim!.token);
+  await client.completeTurn(sessionId, runId, claim.turn.claim!.token, { text: "Done" });
+}
+
+const desktopState = () => (globalThis as { telarDesktopNotify?: object }).telarDesktopNotify;
+async function until(condition: () => boolean) {
+  while (!condition()) await new Promise((resolve) => setImmediate(resolve));
+}
+async function nextPass() {
+  const before = desktopState();
+  await until(() => desktopState() !== undefined && desktopState() !== before);
+}
+
+test("a shell that reattaches is not replayed what finished while none listened, and hears what finishes next", async () => {
+  const { base, headers, client, home } = await engine();
+  fs.mkdirSync(path.join(home, "checkout"));
+  await client.registerProject({ id: "project_one", name: "One", root: path.join(home, "checkout") });
+  await client.createSession({ id: "session_one", projectId: "project_one" });
+  await client.createSession({ id: "session_two", projectId: "project_one" });
+  await client.registerWorker("worker_one");
+
+  const first = new AbortController();
+  const opened = await fetch(`${base}/v2/push/desktop/stream`, { headers, signal: first.signal });
+  await opened.body!.getReader().read();
+  await nextPass();
+  first.abort();
+  await until(() => !desktopAttached());
+  await finishTurn(client, "session_one", "run_one");
+
+  const stream = await subscribe(base, headers);
+  const frame = stream.next();
+  await nextPass();
+  await finishTurn(client, "session_two", "run_two", 2);
+  expect(await frame).toMatchObject({ type: "telar:desktop-notification", kind: "finished", sessionId: "session_two" });
 });
 
 test("an approval the engine never offered is answered not ok on the stream", async () => {

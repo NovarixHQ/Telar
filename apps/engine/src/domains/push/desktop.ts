@@ -20,6 +20,9 @@ export type DesktopNotice = {
 export type DesktopState = { seen: Record<string, string>; baselined: boolean; offered: Record<string, string> };
 export const emptyDesktopState = (): DesktopState => ({ seen: {}, baselined: false, offered: {} });
 
+const alreadyRead = (session: SessionSignal): boolean =>
+  session.lastTurnSequence !== undefined && (session.lastReadTurnSequence ?? 0) >= session.lastTurnSequence;
+
 export function desktopNotices(
   state: DesktopState,
   sessions: readonly SessionSignal[],
@@ -32,7 +35,7 @@ export function desktopNotices(
     const kind = alertKind(session, state.seen[session.id] ?? (state.baselined ? "new:0:0:false" : undefined), true);
     next.seen[session.id] = signalKey(session);
     if (state.seen[session.id] !== signalKey(session)) delete next.offered[session.id];
-    if (!kind) continue;
+    if (!kind || (kind !== "blocked" && alreadyRead(session))) continue;
     const request = kind === "blocked" ? session.approvable : undefined;
     if (request) next.offered[session.id] = request;
     notices.push({
@@ -76,6 +79,10 @@ const desktopGlobal = globalThis as typeof globalThis & {
 
 export function desktopAttached(channel: Channel = desktopStream): boolean {
   return channel.connected;
+}
+
+export function resetDesktopNotices(): void {
+  delete desktopGlobal.telarDesktopNotify;
 }
 
 export function notifyDesktop(sessions: readonly SessionSignal[], changed: ReadonlySet<string> | undefined, channel: Channel = desktopStream): void {

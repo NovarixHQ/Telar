@@ -78,6 +78,13 @@ describe("which transitions reach the Mac", () => {
     expect(pass(offered.state, [working]).state.offered).toEqual({});
     expect(pass(offered.state, []).state.offered).toEqual({});
   });
+
+  test("a result already read on another client does not pop, but a request still does", () => {
+    const { state } = pass(emptyDesktopState(), [{ ...working, lastTurnSequence: 1, lastReadTurnSequence: 0 }]);
+    expect(pass(state, [{ ...finished, lastTurnSequence: 1, lastReadTurnSequence: 1 }]).notices).toEqual([]);
+    expect(pass(state, [{ ...finished, lastTurnSequence: 1, lastReadTurnSequence: 0 }]).notices.map((n) => n.kind)).toEqual(["finished"]);
+    expect(pass(state, [{ ...blocked, lastTurnSequence: 1, lastReadTurnSequence: 1 }]).notices.map((n) => n.kind)).toEqual(["blocked"]);
+  });
 });
 
 describe("the desktop stream", () => {

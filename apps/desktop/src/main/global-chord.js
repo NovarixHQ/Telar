@@ -3,7 +3,6 @@
 const { app, BrowserWindow, globalShortcut, ipcMain } = require("electron");
 const { chordRoute, createChordClaim } = require("./chord-claim");
 
-/** One system-wide chord that calls `press`, and what came of claiming it, sent to every window. */
 function createGlobalChord({ press, claimChord, log = () => {} }) {
   const judge = claimChord ?? createChordClaim({ route: chordRoute({ ozone: app.commandLine.getSwitchValue("ozone-platform") }) });
   let chord = "";

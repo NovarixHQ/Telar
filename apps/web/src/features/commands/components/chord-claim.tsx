@@ -18,7 +18,6 @@ function bridge(): ClaimBridge | undefined {
   return (window as unknown as { telarDesktop?: { keybindings?: ClaimBridge } }).telarDesktop?.keybindings;
 }
 
-/** What the desktop app last managed to do with the Quick Composer's global chord; null outside it. */
 export function useChordClaim(): ChordClaim | null {
   const [claim, setClaim] = useState<ChordClaim | null>(null);
   useEffect(() => {
@@ -36,7 +35,6 @@ export function useChordClaim(): ChordClaim | null {
 
 const Command = ({ command }: { command: string }) => <code className="rounded bg-muted px-1 font-mono text-2xs">{command}</code>;
 
-/** The row's sentence and ⓘ for a chord the desktop could not simply grab; nothing for a claimed or stale one. */
 export function chordClaimCopy(claim: ChordClaim | null, chord: string): { hint: ReactNode; info?: ReactNode } | null {
   if (!claim || !chord || normalizeChord(claim.chord) !== normalizeChord(chord)) return null;
   if (claim.outcome === "claimed") return null;

@@ -70,7 +70,7 @@ describe("the shortcut", () => {
   });
 
   test("tells every window whether the chord was claimed, and answers when asked", async () => {
-    const direct = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: () => {}, claimChord: createChordClaim({ route: "direct", command: undefined }) });
+    const direct = createQuickComposer({ appUrl: "http://127.0.0.1:4000/", openRoute: () => {}, claimChord: createChordClaim({ route: "direct", command: null }) });
     const cockpit = new FakeBrowserWindow({ title: "Telar" });
     const claims = () => cockpit.webContents.sent.filter((message) => message.channel === "telar:keybindings:claim").map((message) => message.payload);
     await direct.bind("Alt+Space");

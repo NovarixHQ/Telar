@@ -64,7 +64,7 @@ describe("what Settings is told", () => {
 
   test("a direct grab another app holds is taken, with the command to bind instead", async () => {
     expect(await createChordClaim({ route: "direct", command })("Alt+Shift+Space", false)).toEqual({ chord: "Alt+Shift+Space", outcome: "unavailable", reason: "taken", command });
-    expect(await createChordClaim({ route: "direct", command: undefined })("Alt+Shift+Space", false)).toEqual({ chord: "Alt+Shift+Space", outcome: "unavailable", reason: "taken" });
+    expect(await createChordClaim({ route: "direct", command: null })("Alt+Shift+Space", false)).toEqual({ chord: "Alt+Shift+Space", outcome: "unavailable", reason: "taken" });
   });
 
   test("on Wayland with a portal the desktop holds it", async () => {

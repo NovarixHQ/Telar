@@ -10,6 +10,8 @@ The MCP bridge starts the agents' tool servers by re-running `process.execPath` 
 
 `cli-build.yml` builds linux-x64 (`ubuntu-latest`), linux-arm64 (`ubuntu-24.04-arm`) and darwin-arm64 (`macos-latest`), runs `apps/cli/scripts/smoke.sh` on each (`version`, `doctor`, `serve`, `pair`, SIGTERM exits 0) and uploads the archives as workflow artifacts. A pull request touching `apps/cli` runs it as a dry run. The macOS binary is ad-hoc signed only.
 
+`scripts/e2e-linux-host/run.sh` checks a build on a real Linux host before you release it. It needs Docker, and builds the archives inside a container. Then it installs them with `install.sh` into an Ubuntu 24.04 container that runs systemd and sshd. From the machine running Docker it drives the service, a restart, `browser setup`, pairing on the published port and through an SSH tunnel, a stub-agent turn, a terminal, an update and a forced rollback. `e2e-linux-host.yml` runs it nightly on `ubuntu-latest`; the job is not required. Set `E2E_PUBLISHED_BASE` to install a published nightly too (the nightly job does, from `UPDATE_PROXY_URL`), and `E2E_KEEP=1` to keep the containers.
+
 ## Publishing
 
 A manual run on `main` or a `cli-v<version>` tag on `main` publishes. The manual run takes a channel: `nightly` builds `<package version>-nightly.<run number>`, `stable` the version in `apps/cli/package.json`. A tag is always `stable` and must match that version.

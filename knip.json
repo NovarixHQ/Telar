@@ -4,6 +4,7 @@
     ".": {
       "entry": [
         "scripts/*.{mjs,ts}",
+        "scripts/e2e-linux-host/client.ts",
         "workers/push-relay/worker.mjs"
       ],
       "project": [

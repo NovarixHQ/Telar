@@ -15,7 +15,6 @@ function routeFromLink(arg) {
   return `${pathname}${url.search}${url.hash}`;
 }
 
-/** The cockpit route of the first telar://app link in a command line, or null. */
 function linkRouteFromArgv(argv) {
   for (const arg of argv ?? []) {
     if (typeof arg !== "string" || arg.startsWith("-")) continue;
@@ -25,7 +24,6 @@ function linkRouteFromArgv(argv) {
   return null;
 }
 
-/** Holds a launch link until the main cockpit window has loaded, then opens it; later links open at once. */
 function createLaunchLinks(open) {
   let pending = null;
   let loaded = false;

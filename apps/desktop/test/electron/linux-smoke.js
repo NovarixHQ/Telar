@@ -100,14 +100,6 @@ async function main() {
     await onRoute("/settings");
     console.log("LINUX_SMOKE cold-start link opened /settings");
 
-    const second = spawn(executable, ["--no-sandbox", "telar://app/usage"], { env, stdio: ["ignore", "pipe", "pipe"] });
-    second.stdout.on("data", keep);
-    second.stderr.on("data", keep);
-    const secondExit = await new Promise((resolve) => second.once("exit", resolve));
-    if (secondExit !== 0) throw new Error(`the second instance exited ${secondExit} instead of handing its link over`);
-    await onRoute("/usage");
-    console.log("LINUX_SMOKE second-instance link opened /usage");
-
     const opened = await fetch(`http://${engine.host}:${engine.port}/v2/terminals/open`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${engine.token}` },
@@ -116,6 +108,14 @@ async function main() {
     if (!opened.ok) throw new Error(`opening a terminal answered ${opened.status}: ${await opened.text()}`);
     await readTerminal(engine, (await opened.json()).id, "TELAR_PTY_OK");
     console.log("LINUX_SMOKE terminal ran a command");
+
+    const second = spawn(executable, ["--no-sandbox", "telar://app/usage"], { env: { ...env, NO_CLEANUP: "1" }, stdio: ["ignore", "pipe", "pipe"] });
+    second.stdout.on("data", keep);
+    second.stderr.on("data", keep);
+    const secondExit = await new Promise((resolve) => second.once("exit", resolve));
+    if (secondExit !== 0) throw new Error(`the second instance exited ${secondExit} instead of handing its link over`);
+    await onRoute("/usage");
+    console.log("LINUX_SMOKE second-instance link opened /usage");
 
     await Promise.all(context.pages().map((candidate) => candidate.close({ runBeforeUnload: false }).catch(() => {})));
     const result = await Promise.race([

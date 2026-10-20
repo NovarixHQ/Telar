@@ -99,7 +99,7 @@ async function main() {
     const opened = await fetch(`http://${engine.host}:${engine.port}/v2/terminals/open`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${engine.token}` },
-      body: JSON.stringify({ shell: "/bin/sh", args: ["-c", "echo TELAR_PTY_OK"] }),
+      body: JSON.stringify({ shell: "/bin/sh", args: ["-c", "echo TELAR_PTY_OK; sleep 30"] }),
     });
     if (!opened.ok) throw new Error(`opening a terminal answered ${opened.status}: ${await opened.text()}`);
     await readTerminal(engine, (await opened.json()).id, "TELAR_PTY_OK");

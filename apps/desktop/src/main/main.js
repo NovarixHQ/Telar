@@ -27,6 +27,7 @@ const { APP_URL, registerCockpitScheme, serveCockpit, serveDevCockpit } = requir
 const { migrateLegacyOrigin } = require("./origin-migration");
 const { createRemoteHost } = require("./remote-host");
 const { registerRemoteHostIpc } = require("./ipc-remote-host");
+const { createSshHosts } = require("./ssh-hosts");
 const engineNotices = require("./engine-notices").createEngineNotices({ onMessage: (message) => desktopNotifier.handleServerMessage(message) });
 const { DEV_BUILD, E2E_USER_DATA, OVERRIDE_URL, SMOKE } = require("./flags");
 const { applyDevelopmentAppIcon, bundledAgentSdkEntry, bundledPlaywrightMcpCli, buildInfoPath, computerUseHelperPath, cockpitDir, windowTitle } = require("./bundle-paths");
@@ -307,6 +308,7 @@ app.on("will-quit", (event) => {
 
   const engineStopped = stopEngineChild({ quit: true });
   stopComputerUseHelper();
+  sshHosts.stopAll();
   closeBrowserControl();
 
   const unpublished = unpublishTailscaleServe();
@@ -319,6 +321,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
     stopEngineChild();
     stopComputerUseHelper();
+    sshHosts.stopAll();
     process.exit(0);
   });
 }
@@ -402,7 +405,13 @@ require("./ipc-prefs").registerPrefsIpc({
 require("./ipc-app").registerAppIpc({ createWindow });
 
 const remoteHost = createRemoteHost({ dir: app.getPath("userData") });
-registerRemoteHostIpc({ remoteHost });
+const sshHosts = createSshHosts({
+  dir: app.getPath("userData"),
+  base: () => process.env.TELAR_DOWNLOAD_BASE?.trim(),
+  findFreePort,
+  log: (line) => logShell("info", line),
+});
+registerRemoteHostIpc({ remoteHost, sshHosts });
 
 require("../windows/overlay-layer").registerOverlayIpc();
 
@@ -480,6 +489,8 @@ if (SMOKE) {
         });
 
         let url = OVERRIDE_URL;
+        sshHosts.restore();
+        powerMonitor.on("resume", sshHosts.reconnectAll);
         const clientOnly = !url && Boolean(remoteHost.endpoint());
         setClientOnly(clientOnly);
         if (clientOnly) {

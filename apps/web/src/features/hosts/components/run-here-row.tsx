@@ -56,7 +56,7 @@ export function RunHereRow() {
       {(choosing || (!local && remote)) && (
         <Row
           label={remote ? remote.name : "Other computer"}
-          hint={remote ? remote.baseUrl : "Paste the link that `telar pair` prints on it."}
+          hint={remote ? remote.baseUrl : "Paste the link `telar pair` prints there, or type user@host to set it up over ssh."}
           control={
             remote ? (
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => void run(() => host.forget(), "Couldn't forget it. Try again.")}>
@@ -70,9 +70,9 @@ export function RunHereRow() {
                   void run(() => host.connect(link.trim()), "Could not pair with that computer.");
                 }}
               >
-                <Input value={link} onChange={(event) => setLink(event.target.value)} placeholder="http://box:7420/pair#token=…" aria-label="Pairing link from the other computer" className="h-8 w-72 font-mono text-xs" disabled={busy} />
+                <Input value={link} onChange={(event) => setLink(event.target.value)} placeholder="user@host or http://box:7420/pair#token=…" aria-label="Pairing link or user@host of the other computer" className="h-8 w-72 font-mono text-xs" disabled={busy} />
                 <Button type="submit" size="sm" disabled={busy || !link.trim()}>
-                  {busy ? "Pairing…" : "Use it"}
+                  {busy ? "Connecting…" : "Use it"}
                 </Button>
                 <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => setChoosing(false)}>
                   Cancel

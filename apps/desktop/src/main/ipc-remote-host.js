@@ -1,7 +1,9 @@
 const os = require("node:os");
 const { app, ipcMain } = require("electron");
 
-function registerRemoteHostIpc({ remoteHost }) {
+const isLink = (value) => /^(https?|telar):\/\//i.test(String(value).trim());
+
+function registerRemoteHostIpc({ remoteHost, sshHosts }) {
   const fromCockpit = (event) => {
     if (event.senderFrame !== event.sender.mainFrame) throw new Error("Only the cockpit may change where Telar runs.");
   };
@@ -15,9 +17,20 @@ function registerRemoteHostIpc({ remoteHost }) {
 
   ipcMain.handle("telar:host:connect", async (event, input) => {
     fromCockpit(event);
-    const mode = await remoteHost.connect(input?.link, os.hostname());
+    const link = isLink(input?.link) ? input.link : (await sshHosts.add(input?.link)).pairingUrl;
+    const mode = await remoteHost.connect(link, os.hostname());
     relaunch(true);
     return mode;
+  });
+
+  ipcMain.handle("telar:host:ssh-pair", (event, input) => {
+    fromCockpit(event);
+    return sshHosts.add(input?.target);
+  });
+
+  ipcMain.handle("telar:host:ssh-release", (event, input) => {
+    fromCockpit(event);
+    return typeof input?.baseUrl === "string" && sshHosts.release(input.baseUrl);
   });
 
   ipcMain.handle("telar:host:set-local", (event, input) => {

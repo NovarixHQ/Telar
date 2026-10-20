@@ -31,6 +31,8 @@ const bridge = {
     connect: (link) => ipcRenderer.invoke("telar:host:connect", { link }),
     setLocal: (on) => ipcRenderer.invoke("telar:host:set-local", { on }),
     forget: () => ipcRenderer.invoke("telar:host:forget"),
+    sshPair: (target) => ipcRenderer.invoke("telar:host:ssh-pair", { target }),
+    sshRelease: (baseUrl) => ipcRenderer.invoke("telar:host:ssh-release", { baseUrl }),
   },
 
   links: {

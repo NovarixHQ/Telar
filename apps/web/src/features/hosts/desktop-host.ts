@@ -4,10 +4,12 @@ export type DesktopHost = {
   connect: (link: string) => Promise<unknown>;
   setLocal: (on: boolean) => Promise<unknown>;
   forget: () => Promise<unknown>;
+  sshPair: (target: string) => Promise<{ pairingUrl: string; name: string }>;
+  sshRelease: (baseUrl: string) => Promise<boolean>;
 };
 
 export function desktopHost(): DesktopHost | undefined {
   if (typeof window === "undefined") return undefined;
   const host = (window as { telarDesktop?: { host?: Partial<DesktopHost> } }).telarDesktop?.host;
-  return host?.get && host.connect && host.setLocal && host.forget ? (host as DesktopHost) : undefined;
+  return host?.get && host.connect && host.setLocal && host.forget && host.sshPair && host.sshRelease ? (host as DesktopHost) : undefined;
 }

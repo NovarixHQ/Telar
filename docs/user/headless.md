@@ -11,7 +11,7 @@ curl -fsSL <install URL>/install.sh | sh
 curl -fsSL <install URL>/install.sh | sh -s -- --channel nightly
 ```
 
-It needs only `sh`, `tar`, `curl` or `wget`, and `sha256sum` or `shasum`. It checks the download's checksum, unpacks it under `~/.telar/runtime/versions/<version>` and links `~/.local/bin/telar`. Add `--version <v>` to pick one. With Node 24 or newer, `npx telar@latest <command>` works too, without installing anything.
+It needs only `sh`, `tar`, `curl` or `wget`, and `sha256sum` or `shasum`. On Linux, `telar` itself also needs `libatomic` (`sudo apt install libatomic1` on Ubuntu and Debian; slim and container images often lack it); the installer stops and says so if it is missing. It checks the download's checksum, unpacks it under `~/.telar/runtime/versions/<version>` and links `~/.local/bin/telar`. Add `--version <v>` to pick one. With Node 24 or newer, `npx telar@latest <command>` works too, without installing anything.
 
 From a checkout, build with `bun run --cwd apps/cli build` and run `node apps/cli/dist/telar.mjs`.
 

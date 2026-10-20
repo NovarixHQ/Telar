@@ -17,7 +17,7 @@ Linux builds come in two formats for each of x64 and arm64: `Telar-<version>-lin
 - **AppImage**: make it executable and run it. It updates itself.
 - **.deb**: `sudo apt install ./Telar-<version>-linux-<arch>.deb`. It adds a menu entry and a `telar` command. Upgrade it by installing the newer file; it has no in-app updater, and Settings says so.
 
-If Telar won't start and the error mentions the sandbox, your distribution restricts unprivileged user namespaces (Ubuntu 24.04 and newer do, through AppArmor). Allow them for Telar in your AppArmor settings, or start it with `--no-sandbox`, which turns Chromium's sandbox off for the app.
+Telar always runs with Chromium's sandbox on and refuses to start with `--no-sandbox`. The sandbox needs unprivileged user namespaces, which Ubuntu 24.04 and newer restrict through AppArmor. The .deb installs an AppArmor profile that allows them for Telar alone (or, where that can't work, makes Chromium's sandbox helper setuid). The AppImage can't do either, so on such a system it says it can't start: use the .deb, or allow user namespaces on the host with `sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0`.
 
 Opening a `telar://app/...` link opens Telar at that page, starting it first if it isn't running. The .deb registers the link type when installed; an AppImage registers it only once a desktop integration tool adds it to your menu.
 

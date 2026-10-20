@@ -1,4 +1,4 @@
-const { afterEach, beforeEach, describe, expect, test } = require("bun:test");
+const { afterEach, beforeEach, describe, expect, mock, spyOn, test } = require("bun:test");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -16,7 +16,10 @@ beforeEach(() => {
   fs.writeFileSync(path.join(root, "_next", "static", "app.js"), "1");
   fs.writeFileSync(path.join(root, "secret.txt"), "outside");
 });
-afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  mock.restore();
+  fs.rmSync(root, { recursive: true, force: true });
+});
 
 const endpoint = { host: "127.0.0.1", port: 4100, token: "engine-secret" };
 function handler({ engine = () => endpoint, fetchImpl = async () => new Response("{}") } = {}) {
@@ -114,7 +117,9 @@ describe("the dev cockpit", () => {
   function serve() {
     const calls = [];
     let handle;
-    const net = { fetch: async (target, init) => (calls.push({ target: String(target?.url ?? target), init }), new Response("{}")) };
+    const record = async (target, init) => (calls.push({ target: String(target?.url ?? target), init }), new Response("{}"));
+    const net = { fetch: record };
+    spyOn(globalThis, "fetch").mockImplementation(record);
     serveDevCockpit({ protocol: { handle: (_scheme, handler) => (handle = handler) } }, { net, origin: "http://127.0.0.1:3000", engine: () => endpoint });
     return { calls, handle: (url, init) => handle(new Request(url, init)) };
   }

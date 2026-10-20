@@ -1,4 +1,4 @@
-const { app, BrowserWindow, net, protocol, session } = require("electron");
+const { app, BrowserWindow, protocol, session } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -88,7 +88,7 @@ async function main() {
     }
   };
   await app.whenReady();
-  serveCockpit(session.defaultSession, { net, staticDir, engine: readEndpoint });
+  serveCockpit(session.defaultSession, { staticDir, engine: readEndpoint });
 
   const window = new BrowserWindow({ show: false, width: 1200, height: 800, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload } });
   try {
@@ -116,6 +116,15 @@ async function main() {
 
     await until(() => finished.some((entry) => entry.url.includes("/v2/sessions/live") && entry.status === 200), `an authenticated read of the live list; finished:\n${JSON.stringify(finished.filter((entry) => entry.url.includes("/v2/")))}`);
     note("the engine bearer authenticated the page's API calls from the main process");
+
+    const crowded = await window.webContents.executeJavaScript(`(async () => {
+      const streams = await Promise.all(Array.from({ length: 8 }, () => fetch("/v2/sessions/stream", { headers: { accept: "text/event-stream" } })));
+      const read = await Promise.race([fetch("/v2/ping").then((response) => response.status), new Promise((resolve) => setTimeout(() => resolve(0), 5000))]);
+      await Promise.all(streams.map((response) => response.body?.cancel()));
+      return { opened: streams.filter((response) => response.ok).length, read };
+    })()`);
+    assert(crowded.opened === 8 && crowded.read === 200, `with 8 event streams open a read answered ${crowded.read} (${crowded.opened} streams opened)`);
+    note("eight open event streams do not starve the page's other engine calls");
 
     const asset = finished.find((entry) => entry.url.includes("/_next/static/"));
     assert(asset && asset.status === 200, "a hashed asset was not served");
@@ -156,7 +165,7 @@ async function main() {
     assert((await fs.promises.stat(path.join(userData, "remote-host.json"))).mode % 0o1000 === 0o600, "the credential file is not private");
 
     session.defaultSession.protocol.unhandle("telar");
-    serveCockpit(session.defaultSession, { net, staticDir, engine: remoteHost.endpoint });
+    serveCockpit(session.defaultSession, { staticDir, engine: remoteHost.endpoint });
     await window.loadURL(`${APP_URL}settings`);
     const remote = JSON.parse(await window.webContents.executeJavaScript(
       `(async () => JSON.stringify({ cookie: document.cookie, status: (await fetch("/v2/sessions/live")).status, bridge: Object.keys(window.telarDesktop ?? {}) }))()`,

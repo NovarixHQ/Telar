@@ -31,8 +31,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm]
-    env:
-      ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/electron-builder
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

@@ -69,7 +69,7 @@ async function main() {
 
   let output = "";
   globalThis.smokeOutput = () => output;
-  const child = spawn(executable, ["--no-sandbox"], { env, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(executable, ["--no-sandbox", "telar://app/settings"], { env, stdio: ["ignore", "pipe", "pipe"] });
   const keep = (chunk) => {
     output = `${output}${chunk}`.slice(-20_000);
   };
@@ -95,6 +95,18 @@ async function main() {
     const page = await until(() => context.pages().find(cockpit), "the cockpit window at telar://app/");
     await page.waitForFunction(() => window.telarDesktop?.isDesktop === true, null, { timeout: 30_000 });
     console.log("LINUX_SMOKE cockpit loaded over telar://app/");
+
+    const onRoute = (route) => until(() => new URL(page.url()).pathname === route, `the cockpit to open ${route}`, 30_000);
+    await onRoute("/settings");
+    console.log("LINUX_SMOKE cold-start link opened /settings");
+
+    const second = spawn(executable, ["--no-sandbox", "telar://app/usage"], { env, stdio: ["ignore", "pipe", "pipe"] });
+    second.stdout.on("data", keep);
+    second.stderr.on("data", keep);
+    const secondExit = await new Promise((resolve) => second.once("exit", resolve));
+    if (secondExit !== 0) throw new Error(`the second instance exited ${secondExit} instead of handing its link over`);
+    await onRoute("/usage");
+    console.log("LINUX_SMOKE second-instance link opened /usage");
 
     const opened = await fetch(`http://${engine.host}:${engine.port}/v2/terminals/open`, {
       method: "POST",

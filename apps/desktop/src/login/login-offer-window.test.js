@@ -1,4 +1,4 @@
-const { describe, expect, test, mock } = require("bun:test");
+const { afterAll, describe, expect, test, mock } = require("bun:test");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -58,7 +58,9 @@ const fakeIpcMain = {
   },
 };
 
+const { electron: sharedElectron } = require("../../test/fake-electron");
 mock.module("electron", () => ({ BrowserWindow: FakeBrowserWindow, ipcMain: fakeIpcMain }));
+afterAll(() => mock.module("electron", () => sharedElectron));
 const { wireLoginOffer } = require("./login-offer-window");
 const { captureEntry } = require("./login-offer");
 const engine = require("../../../engine/src/domains/browser/login-grants.ts");

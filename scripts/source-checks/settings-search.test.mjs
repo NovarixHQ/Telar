@@ -10,7 +10,7 @@ test("a row is indexed on the pane and under the group that render it", () => {
 });
 
 test("rows a component draws inside its own group's children take that group", () => {
-  expect(group("connections", "Paired")?.rows.map((row) => row.title)).toEqual(["Pair a device", "Revoke all other devices", "Add a computer"]);
+  expect(group("connections", "Paired")?.rows.map((row) => row.title)).toEqual(["Pair a device", "Revoke all other devices", "Run Telar on this Mac", "Add a computer"]);
 });
 
 test("rows built from a list are found, and state rows are not", () => {

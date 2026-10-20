@@ -35,3 +35,11 @@ Sign in on the host itself, over SSH if needed: `claude auth login`, `codex logi
 ## The browser on a host
 
 With no desktop app attached, the engine runs its own Chromium and shows it in the panel as a live view you can click and type into; agents drive the same pages. Run `telar browser setup` once to download Chromium and prepare the host. This browser has no extensions (so no password-manager fill), no passkeys or hardware keys, and no picture-in-picture; sites see a headless Chromium. When a desktop app is attached to the engine, its browser is used instead.
+
+## Using a host from the desktop app
+
+Settings → Connections → **Run Telar on this Mac** is on by default. Turn it off and the app stops its own engine and shows another computer's Telar instead: its projects, sessions, terminals and browser. The first time, paste the link `telar pair` prints on that computer. The app restarts when you switch, and switching back starts the engine on this Mac again. **Forget** drops the pairing.
+
+What is not obvious:
+- The pairing stays in the app, never in the window. Nothing on this Mac runs the agents: the browser, terminals, computer use and simulators are the host's, and the desktop notifications of this Mac are off while it is a client.
+- Folders you pick are folders on the host.

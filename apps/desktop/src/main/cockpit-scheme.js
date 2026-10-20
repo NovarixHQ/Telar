@@ -92,9 +92,10 @@ async function proxyToEngine(request, url, engine, fetchImpl) {
   for (const [name, value] of request.headers) if (!DROPPED_REQUEST_HEADERS.has(name)) headers.set(name, value);
   headers.set("authorization", `Bearer ${endpoint.token}`);
   const hasBody = request.method !== "GET" && request.method !== "HEAD" && request.body;
+  const origin = endpoint.baseUrl ?? `http://${endpoint.host}:${endpoint.port}`;
   let upstream;
   try {
-    upstream = await fetchImpl(`http://${endpoint.host}:${endpoint.port}${url.pathname}${url.search}`, {
+    upstream = await fetchImpl(`${origin}${url.pathname}${url.search}`, {
       method: request.method,
       headers,
       redirect: "manual",

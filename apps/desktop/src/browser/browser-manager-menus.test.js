@@ -339,6 +339,7 @@ describe("the browser's options menu", () => {
 
     test("with no Chromium session to reach it says so — never a silent success", async () => {
       const { manager } = makeHarness();
+      manager.sessionFor = () => undefined;
       await manager.createTab("session-a", "https://example.com");
       await expect(manager.clearBrowsingData("session-a", "cookies")).rejects.toThrow("no Chromium session");
     });

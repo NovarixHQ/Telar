@@ -25,6 +25,8 @@ const remoteFile = require("./remote-file");
 const { findFreePort, getStablePort, storedPort, waitForCockpit } = require("./cockpit-origin");
 const { APP_URL, registerCockpitScheme, serveCockpit, serveDevCockpit } = require("./cockpit-scheme");
 const { migrateLegacyOrigin } = require("./origin-migration");
+const { createRemoteHost } = require("./remote-host");
+const { registerRemoteHostIpc } = require("./ipc-remote-host");
 const engineNotices = require("./engine-notices").createEngineNotices({ onMessage: (message) => desktopNotifier.handleServerMessage(message) });
 const { DEV_BUILD, E2E_USER_DATA, OVERRIDE_URL, SMOKE } = require("./flags");
 const { applyDevelopmentAppIcon, bundledAgentSdkEntry, bundledPlaywrightMcpCli, buildInfoPath, computerUseHelperPath, cockpitDir, windowTitle } = require("./bundle-paths");
@@ -41,7 +43,7 @@ const { startExtensionHost } = require("./cockpit-extensions");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
 const { adoptLegacyUpdatePrefs } = require("./update-prefs");
 const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require("./browser-hosts");
-const { createCockpitWindow } = require("./cockpit-window");
+const { createCockpitWindow, setClientOnly } = require("./cockpit-window");
 const { cockpitFocus } = require("./cockpit-focus");
 const { pinUserData } = require("./user-data");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
@@ -399,6 +401,9 @@ require("./ipc-prefs").registerPrefsIpc({
 
 require("./ipc-app").registerAppIpc({ createWindow });
 
+const remoteHost = createRemoteHost({ dir: app.getPath("userData") });
+registerRemoteHostIpc({ remoteHost });
+
 require("../windows/overlay-layer").registerOverlayIpc();
 
 const { configureAutoUpdater } = require("./updates").registerUpdates({
@@ -475,7 +480,12 @@ if (SMOKE) {
         });
 
         let url = OVERRIDE_URL;
-        if (url) {
+        const clientOnly = !url && Boolean(remoteHost.endpoint());
+        setClientOnly(clientOnly);
+        if (clientOnly) {
+          serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: remoteHost.endpoint });
+          url = APP_URL;
+        } else if (url) {
           const home = telarHome();
           serveDevCockpit(session.defaultSession, { net, origin: new URL(url).origin, engine: () => engineEndpoint(home) });
         } else {

@@ -9,6 +9,8 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Row, SettingsList } from "@/features/settings";
 
+import { RunHereRow } from "./run-here-row";
+
 const api = createEngineApi();
 
 type OtherHosts = ReturnType<typeof useOtherHosts>;
@@ -17,6 +19,7 @@ export function ComputerRows() {
   const others = useOtherHosts();
   return (
     <>
+      <RunHereRow />
       <AddComputerRow others={others} />
       <ComputerList others={others} />
     </>

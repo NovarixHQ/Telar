@@ -9,6 +9,21 @@ Desktop builds are signed, notarized and uploaded to a private R2 bucket. Instal
 
 Both workflows build only commits on `origin/main`. A tag that is not an ancestor of `origin/main` fails the first step, and a manual dispatch runs only when dispatched from `main`.
 
+## Linux builds
+
+`desktop-linux.yml` builds `Telar-<version>-linux-<arch>.AppImage` and `.deb` on `ubuntu-latest` (x64) and `ubuntu-24.04-arm` (arm64) through `scripts/build-desktop-linux.sh`. On every desktop change it also launches the AppImage and the installed `.deb` under xvfb (`apps/desktop/test/electron/linux-smoke.js`): the cockpit loads at `telar://app/`, the embedded engine answers, a terminal runs a command and the app quits cleanly. The artifacts are uploaded to the run for 7 days.
+
+`nightly-desktop.yml` and `release-desktop.yml` call the same workflow as a `linux` job on a manual dispatch from `main`. It refuses a commit that is not an ancestor of `origin/main`, builds with `--channel nightly|beta` and uploads the AppImage, `.deb` and feed files to the run. **Nothing is published.** No release, tag or R2 object is created for Linux.
+
+To publish, take the AppImage and the `<channel>-linux.yml` / `<channel>-linux-arm64.yml` feed files from the run and upload them under the `io.github.novarix.telar/` prefix next to the macOS feed (the proxy needs no change). The in-app updater on Linux reads those feeds; electron-updater picks the file by channel and architecture. The `.deb` is not self-updating, so attach it to a release for people to download.
+
+Gotchas:
+
+- `build.linux.protocols` registers `telar://` in the `.desktop` file. Use it, not the top-level `protocols`, which would also register the scheme in the macOS app.
+- node-pty ships no `spawn-helper` on Linux, so `after-pack.js` only requires it on macOS.
+- On arm64 electron-builder cannot run its bundled `fpm`; the workflow installs `fpm` and sets `USE_SYSTEM_FPM=true`.
+- Linux has no code signing or notarization step.
+
 ## Versions and tags
 
 `scripts/set-desktop-version.mjs` computes the version. It keeps the `x.y.z` base from `apps/desktop/package.json` (currently `0.1.0`) and adds:

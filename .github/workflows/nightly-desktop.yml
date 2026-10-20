@@ -208,3 +208,12 @@ jobs:
           fi
           security delete-keychain "$RUNNER_TEMP/signing-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/apple_api_key.p8" "$RUNNER_TEMP/keychain-search-list.txt"
+
+  linux:
+    name: Linux build (artifacts only)
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/desktop-linux.yml
+    with:
+      channel: nightly
+    permissions:
+      contents: read

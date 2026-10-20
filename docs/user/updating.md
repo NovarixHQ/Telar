@@ -10,6 +10,10 @@ Nothing installs until you choose **Install and restart**, not even when you qui
 
 To check by hand, use the update control in the rail, Settings → General → About, or Check for updates… in the command palette.
 
+## On Linux
+
+The AppImage updates itself the same way, from its own feed. A `.deb` install never checks: install a newer `.deb`, and Settings → General → About says the package manager does the updating.
+
 ## Sessions across a restart
 
 With **Continue after Telar restarts** on (Settings → General), sessions stopped by an update restart, or by quitting Telar mid-turn, pick up where they left off. Each one gets a single message saying Telar restarted.

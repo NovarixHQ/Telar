@@ -13,6 +13,11 @@ on:
       - "scripts/build-desktop-linux.sh"
       - ".github/workflows/desktop-linux.yml"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      channel:
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -33,6 +38,19 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ inputs.channel != '' && 0 || 1 }}
+
+      - name: Refuse a commit that is not on main
+        if: inputs.channel != ''
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::${GITHUB_SHA} is not an ancestor of origin/main. Releases come from main."
+            exit 1
+          fi
+
       - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
@@ -50,7 +68,9 @@ jobs:
           fi
 
       - name: Build the AppImage and the .deb
-        run: bash scripts/build-desktop-linux.sh
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: bash scripts/build-desktop-linux.sh ${CHANNEL:+--channel "$CHANNEL"}
 
       - name: Smoke the AppImage under xvfb
         run: |
@@ -74,5 +94,7 @@ jobs:
           path: |
             apps/desktop/release/Telar-*.AppImage
             apps/desktop/release/Telar-*.deb
+            apps/desktop/release/*-linux*.yml
+            !apps/desktop/release/builder-*.yml
           if-no-files-found: error
           retention-days: 7

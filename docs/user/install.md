@@ -1,6 +1,6 @@
 # Install
 
-Telar is a Mac app for Apple Silicon. It doesn't bring its own agent: it drives the coding agents you already have on the Mac (Claude Code, Codex and OpenCode). Install at least one of them and sign in to it before you start.
+Telar is a desktop app for Apple-silicon Macs and for Linux (x64 and arm64, see [Linux](#linux)). It doesn't bring its own agent: it drives the coding agents you already have on the Mac (Claude Code, Codex and OpenCode). Install at least one of them and sign in to it before you start.
 
 ## First run
 
@@ -10,9 +10,24 @@ Telar is a Mac app for Apple Silicon. It doesn't bring its own agent: it drives 
 
 Telar keeps its data in its own folder on the Mac. On first launch it creates that folder, and after that it only opens the one it created. If the folder is on a drive that isn't plugged in, or has moved, Telar waits and says so. It never creates a fresh, empty one on its own. Plug the drive back in and Telar carries on. Starting a new store instead has to be confirmed on purpose.
 
+## Linux
+
+Linux builds come in two formats for each of x64 and arm64: `Telar-<version>-linux-<arch>.AppImage` and `Telar-<version>-linux-<arch>.deb`.
+
+- **AppImage**: make it executable and run it. It updates itself.
+- **.deb**: `sudo apt install ./Telar-<version>-linux-<arch>.deb`. It adds a menu entry and a `telar` command. Upgrade it by installing the newer file; it has no in-app updater, and Settings says so.
+
+If Telar won't start and the error mentions the sandbox, your distribution restricts unprivileged user namespaces (Ubuntu 24.04 and newer do, through AppArmor). Allow them for Telar in your AppArmor settings, or start it with `--no-sandbox`, which turns Chromium's sandbox off for the app.
+
+Both register `telar://` links, so opening a `telar://app/...` link brings the running app to that page.
+
+Not available on Linux: Computer use, iOS simulators, window translucency, the quick-composer shortcut and custom notification sounds. Everything else, including terminals and the browser, works.
+
+On a machine with no desktop, use [Running Telar without the app](headless.md) instead.
+
 ## Adding a project
 
-A project is a folder Telar works in, usually a git repository. Add one from the rail or the command palette (⌘K → Add project):
+A project is a folder Telar works in, usually a git repository. Add one from the rail or the command palette (⌘K, or Ctrl+K on Linux → Add project):
 
 - **Local folder**: browse to a folder already on the Mac.
 - **Git URL** or **GitHub repository**: Telar clones it into a folder you pick. A GitHub repository can be written as `owner/repo`.

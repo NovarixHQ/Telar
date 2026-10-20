@@ -2,7 +2,7 @@ import type http from "node:http";
 import { MACHINE_NAMES } from "../../platform/http/host";
 import { HttpError } from "../../platform/http/http";
 import type { Route } from "../../platform/http/route";
-import { decideAccess, deviceForBearer, HOST_HEADER, isHostCaller, type TicketCheck } from "./auth";
+import { decideAccess, deviceForBearer, type TicketCheck } from "./auth";
 import { setCaller } from "./caller";
 import { roleOf } from "./scopes";
 import { cookieRequestIsSameOrigin, readDeviceCookie } from "./cookie";
@@ -24,14 +24,12 @@ function networkAuthorize(store: RemoteStore, presence: Presence, checkTicket: T
     const file = { ...store.read(), requireAuth: true };
     const deviceCookie = request.headers.authorization ? null : readDeviceCookie(request);
     if (deviceCookie && !cookieRequestIsSameOrigin(request)) throw new HttpError(403, "engine_unauthorized", "a browser session may write only from this host's own pages");
-    const credentials = { authorization: request.headers.authorization ?? null, deviceCookie, hostHeader: String(request.headers[HOST_HEADER] ?? "") || null };
-    const hostSecret = process.env.TELAR_HOST_TOKEN;
-    const decision = decideAccess(file, { pathname, method, ...credentials, ticket: searchParams.get("ticket") }, hostSecret, checkTicket);
+    const decision = decideAccess(file, { pathname, method, authorization: request.headers.authorization ?? null, deviceCookie, ticket: searchParams.get("ticket") }, checkTicket);
     if (!decision.allow) {
       if (decision.code === "cockpit_forbidden") throw new HttpError(403, "engine_unauthorized", "this device's access does not cover this request");
       throw new HttpError(401, "engine_unauthorized", "pair this device to use the engine");
     }
-    setCaller(request, { host: isHostCaller(credentials, hostSecret), ...(decision.deviceId && decision.scopes ? { device: { id: decision.deviceId, scopes: decision.scopes, role: roleOf(decision.scopes) } } : {}) });
+    setCaller(request, { host: false, ...(decision.deviceId && decision.scopes ? { device: { id: decision.deviceId, scopes: decision.scopes, role: roleOf(decision.scopes) } } : {}) });
     if (decision.deviceId) {
       presence.seen(decision.deviceId);
       store.touchDevice(decision.deviceId);

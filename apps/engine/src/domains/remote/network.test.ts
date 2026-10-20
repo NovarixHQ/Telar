@@ -193,15 +193,12 @@ test("a stream ticket admits a hub read on the network listener, and nothing els
   expect((await remote("GET", `/v2/simulators?ticket=${ticket}`)).status).toBe(401);
 });
 
-test("the desktop shell's host token is a host caller on the network listener, from a header or a cookie", async () => {
+test("the desktop shell's host token opens nothing on the network listener, as a header or a cookie", async () => {
   process.env.TELAR_HOST_TOKEN = "tlr_" + "h".repeat(43);
   try {
     const { remote } = await engine({ host: "127.0.0.1" });
-    const viaHeader = await remote("GET", "/v2/remote", { headers: { "x-telar-host": process.env.TELAR_HOST_TOKEN } });
-    expect(viaHeader.status).toBe(200);
-    expect(viaHeader.body.host.isCaller).toBe(true);
-    expect((await remote("GET", "/v2/remote", { headers: { cookie: `telar_device=${process.env.TELAR_HOST_TOKEN}` } })).status).toBe(200);
-    expect((await remote("GET", "/v2/remote", { headers: { "x-telar-host": "tlr_wrong" } })).status).toBe(401);
+    expect((await remote("GET", "/v2/remote", { headers: { "x-telar-host": process.env.TELAR_HOST_TOKEN } })).status).toBe(401);
+    expect((await remote("GET", "/v2/remote", { headers: { cookie: `telar_device=${process.env.TELAR_HOST_TOKEN}` } })).status).toBe(401);
   } finally {
     delete process.env.TELAR_HOST_TOKEN;
   }

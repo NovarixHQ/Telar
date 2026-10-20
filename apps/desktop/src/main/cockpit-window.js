@@ -12,8 +12,13 @@ const { forgetBrowserChordScope, forwardPageCommand, setBrowserChordScope } = re
 const { applyExternalLinkPolicy, linkRouting } = require("./window-links");
 const { addHost, rememberWindowUrl, removeHost } = require("./browser-hosts");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
-const { DEV_BUILD, DEV_BUILD_ARG } = require("./flags");
+const { CLIENT_ONLY_ARG, DEV_BUILD, DEV_BUILD_ARG } = require("./flags");
 const { adoptMainWindow, windowPlace } = require("../windows/main-window");
+
+let clientOnly = false;
+const setClientOnly = (on) => {
+  clientOnly = on;
+};
 
 function cockpitWindowOptions(title) {
   const icon = developmentIconPath();
@@ -28,7 +33,7 @@ function cockpitWindowOptions(title) {
       nodeIntegration: false,
       sandbox: true,
       preload: path.join(__dirname, "..", "preload", "preload.js"),
-      ...(DEV_BUILD ? { additionalArguments: [DEV_BUILD_ARG] } : {}),
+      additionalArguments: [...(DEV_BUILD ? [DEV_BUILD_ARG] : []), ...(clientOnly ? [CLIENT_ONLY_ARG] : [])],
 
       plugins: true,
 
@@ -111,4 +116,4 @@ function createCockpitWindow(appUrl, { createManager, main = false }) {
   return win;
 }
 
-module.exports = { cockpitWindowOptions, createCockpitWindow };
+module.exports = { cockpitWindowOptions, createCockpitWindow, setClientOnly };

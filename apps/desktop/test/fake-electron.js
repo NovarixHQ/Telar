@@ -246,8 +246,6 @@ const electron = {
   ipcRenderer: Object.assign(new Emitter(), {
     invoked: [],
     invoke: (channel, payload) => { electron.ipcRenderer.invoked.push([channel, payload]); return Promise.resolve(); },
-    syncReplies: {},
-    sendSync: (channel) => electron.ipcRenderer.syncReplies[channel],
     removeListener: (channel, listener) => {
       const listeners = electron.ipcRenderer.listeners.get(channel) ?? [];
       electron.ipcRenderer.listeners.set(channel, listeners.filter((candidate) => candidate !== listener));

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, net, protocol, session } = require("electron");
+const { app, BrowserWindow, net, protocol, session } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const http = require("node:http");
@@ -14,7 +14,6 @@ registerCockpitScheme(protocol);
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "telar-cockpit-scheme-"));
 app.setPath("userData", userData);
 const remoteHost = createRemoteHost({ dir: userData });
-ipcMain.on("telar:host:mode-sync", (event) => (event.returnValue = remoteHost.publicMode()));
 
 const HOST_TOKEN = "tlr_" + "c".repeat(43);
 const repo = path.resolve(__dirname, "..", "..", "..", "..");

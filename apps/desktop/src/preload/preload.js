@@ -20,21 +20,14 @@ document.addEventListener("DOMContentLoaded", () => {
   new MutationObserver(markShell).observe(document.documentElement, { attributes: true, attributeFilter: ["data-telar-shell"] });
 }, { once: true });
 
-function readHostMode() {
-  try {
-    return ipcRenderer.sendSync("telar:host:mode-sync") ?? { local: true, remote: null };
-  } catch {
-    return { local: true, remote: null };
-  }
-}
-const hostMode = readHostMode();
+const clientOnly = process.argv.includes("--telar-client-only");
 
 const bridge = {
   isDesktop: true,
 
   host: {
-    runsLocalEngine: hostMode.local,
-    remote: hostMode.remote,
+    runsLocalEngine: !clientOnly,
+    get: () => ipcRenderer.invoke("telar:host:get"),
     connect: (link) => ipcRenderer.invoke("telar:host:connect", { link }),
     setLocal: (on) => ipcRenderer.invoke("telar:host:set-local", { on }),
     forget: () => ipcRenderer.invoke("telar:host:forget"),
@@ -222,6 +215,6 @@ const bridge = {
     : {}),
 };
 
-if (!hostMode.local) delete bridge.browser;
+if (clientOnly) delete bridge.browser;
 
 contextBridge.exposeInMainWorld("telarDesktop", bridge);

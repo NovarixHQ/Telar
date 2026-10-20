@@ -9,18 +9,22 @@ import { desktopHost, type DesktopHost } from "../desktop-host";
 
 export function RunHereRow() {
   const [host, setHost] = useState<DesktopHost>();
+  const [remote, setRemote] = useState<{ baseUrl: string; name: string } | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    const task = window.setTimeout(() => setHost(desktopHost()), 0);
+    const task = window.setTimeout(() => {
+      const found = desktopHost();
+      setHost(found);
+      void found?.get().then((mode) => setRemote(mode.remote), () => undefined);
+    }, 0);
     return () => window.clearTimeout(task);
   }, []);
 
   if (!host) return null;
-  const { remote } = host;
   const local = host.runsLocalEngine;
 
   const run = async (action: () => Promise<unknown>, fallback: string) => {

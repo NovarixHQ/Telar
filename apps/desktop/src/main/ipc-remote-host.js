@@ -11,9 +11,6 @@ function registerRemoteHostIpc({ remoteHost }) {
     app.quit();
   };
 
-  ipcMain.on("telar:host:mode-sync", (event) => {
-    event.returnValue = remoteHost.publicMode();
-  });
   ipcMain.handle("telar:host:get", () => remoteHost.publicMode());
 
   ipcMain.handle("telar:host:connect", async (event, input) => {

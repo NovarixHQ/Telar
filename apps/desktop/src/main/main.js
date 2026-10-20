@@ -43,7 +43,7 @@ const { startExtensionHost } = require("./cockpit-extensions");
 const { passwordManagerEnabled } = require("../login/password-manager-prefs");
 const { adoptLegacyUpdatePrefs } = require("./update-prefs");
 const { browserManagers, currentHost, lastWindowUrl, persistAllHosts } = require("./browser-hosts");
-const { createCockpitWindow } = require("./cockpit-window");
+const { createCockpitWindow, setClientOnly } = require("./cockpit-window");
 const { cockpitFocus } = require("./cockpit-focus");
 const { pinUserData } = require("./user-data");
 const { openSurfaceWindow, restoreBrowserWindows } = require("../windows/surface-window");
@@ -480,7 +480,9 @@ if (SMOKE) {
         });
 
         let url = OVERRIDE_URL;
-        if (!url && remoteHost.endpoint()) {
+        const clientOnly = !url && Boolean(remoteHost.endpoint());
+        setClientOnly(clientOnly);
+        if (clientOnly) {
           serveCockpit(session.defaultSession, { net, staticDir: cockpitDir(), engine: remoteHost.endpoint });
           url = APP_URL;
         } else if (url) {

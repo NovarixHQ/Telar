@@ -6,9 +6,11 @@ installTestDom();
 
 type Calls = string[];
 function installHost(host: { runsLocalEngine: boolean; remote: { baseUrl: string; name: string } | null }, calls: Calls, connect?: () => Promise<unknown>) {
+  const { remote, ...rest } = host;
   (window as unknown as { telarDesktop: unknown }).telarDesktop = {
     host: {
-      ...host,
+      ...rest,
+      get: async () => ({ local: rest.runsLocalEngine, remote }),
       connect: connect ?? (async () => calls.push("connect")),
       setLocal: async (on: boolean) => calls.push(`setLocal ${on}`),
       forget: async () => calls.push("forget"),

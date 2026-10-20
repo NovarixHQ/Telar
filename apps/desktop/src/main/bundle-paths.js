@@ -81,7 +81,7 @@ function nodeExecPath() {
 }
 
 function computerUseHelperPath() {
-  if (!app.isPackaged) return null;
+  if (!app.isPackaged || process.platform !== "darwin") return null;
   const { appName } = require("./computer-use-helper.json");
   const helper = path.join(path.dirname(process.resourcesPath), "Helpers", `${appName}.app`);
   return fs.existsSync(helper) ? helper : null;

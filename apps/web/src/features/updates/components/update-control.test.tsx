@@ -321,4 +321,19 @@ describe("a build with no update feed", () => {
     view.unmount();
     bridge.getPrefs = configured;
   });
+
+  test("a package-managed install says the package manager updates it", async () => {
+    const configured = bridge.getPrefs;
+    bridge.getPrefs = async () => ({ channel: "beta", channels: ["beta"], configured: false, packageManaged: true, logPath: "/dev/null" }) as UpdatePrefsInfo;
+    const view = mountSurface(<AboutSection />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const text = view.host.textContent ?? "";
+    expect(text).toContain("Updated by your package manager");
+    expect(text).not.toContain("No update feed");
+    view.unmount();
+    bridge.getPrefs = configured;
+  });
 });

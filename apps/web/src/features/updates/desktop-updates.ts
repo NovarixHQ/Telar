@@ -17,6 +17,7 @@ type UpdatePrefs = {
 export type UpdatePrefsInfo = UpdatePrefs & {
   channels: string[];
   configured: boolean;
+  packageManaged?: boolean;
   logPath: string;
   localUpdater?: boolean;
 };

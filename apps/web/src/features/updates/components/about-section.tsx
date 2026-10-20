@@ -75,8 +75,12 @@ export function AboutSection({ appVersion, children }: { appVersion?: string; ch
         <VersionRow {...(appVersion ? { appVersion } : {})} />
         <Row
           keywords={["upgrade", "download", "updates", "channel"]}
-          label="No update feed in this build"
-          hint="It was packaged locally, so it never checks for or installs updates."
+          label={prefs.packageManaged ? "Updated by your package manager" : "No update feed in this build"}
+          hint={
+            prefs.packageManaged
+              ? "This install does not update itself. Upgrade it with apt, or use the AppImage for in-app updates."
+              : "It was packaged locally, so it never checks for or installs updates."
+          }
         />
         {children}
       </SettingsGroup>

@@ -26,7 +26,7 @@ function show(packaged, kind = "finished", allowed = true) {
   const played = [];
   const notifier = createDesktopNotifier({
     Notification: class extends FakeNotification { constructor(o) { super(o); made.push(this); } },
-    send() {}, context: () => ({}), open() {}, chime: createChime({ packaged, play: (file) => played.push(file) }),
+    send() {}, context: () => ({}), open() {}, chime: createChime({ packaged, platform: "darwin", play: (file) => played.push(file) }),
   });
   notifier.handleServerMessage({
     type: DESKTOP_NOTICE, kind, id: "a".repeat(64), sessionId: "s1", title: "Fix the build",
@@ -75,7 +75,7 @@ function tempHome() {
 
 function install({ from, home }, packaged = true) {
   const logs = [];
-  createChime({ packaged, play() {} }).install({ from, home, log: (line) => logs.push(line) });
+  createChime({ packaged, platform: "darwin", play() {} }).install({ from, home, log: (line) => logs.push(line) });
   return logs;
 }
 
@@ -112,6 +112,17 @@ describe("installing the sounds into ~/Library/Sounds", () => {
   test("in dev, nothing is installed", () => {
     const locations = tempHome();
     install(locations, false);
+    expect(fs.existsSync(path.join(locations.home, "Library"))).toBe(false);
+  });
+});
+
+describe("off macOS", () => {
+  test("a banner names no sound, plays none and installs nothing", () => {
+    const locations = tempHome();
+    const chime = createChime({ packaged: true, platform: "linux", play() { throw new Error("no afplay here"); } });
+    chime.install({ from: locations.from, home: locations.home });
+    chime.shown("finished");
+    expect(chime.options("finished")).toEqual({});
     expect(fs.existsSync(path.join(locations.home, "Library"))).toBe(false);
   });
 });

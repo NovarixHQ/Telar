@@ -38,7 +38,10 @@ function installSounds({ from, home, log = () => {} }) {
   }
 }
 
-function createChime({ packaged, dir = DEV_SOUNDS, play = (file) => execFile("afplay", [file], () => {}) }) {
+function createChime({ packaged, platform = process.platform, dir = DEV_SOUNDS, play = (file) => execFile("afplay", [file], () => {}) }) {
+  if (platform !== "darwin") {
+    return { install() {}, options: () => ({}), shown() {} };
+  }
   return {
     install(locations) {
       if (packaged) installSounds(locations);

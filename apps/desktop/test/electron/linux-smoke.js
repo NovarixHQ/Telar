@@ -68,6 +68,7 @@ async function main() {
   delete env.ELECTRON_RUN_AS_NODE;
 
   let output = "";
+  globalThis.smokeOutput = () => output;
   const child = spawn(executable, ["--no-sandbox"], { env, stdio: ["ignore", "pipe", "pipe"] });
   const keep = (chunk) => {
     output = `${output}${chunk}`.slice(-20_000);
@@ -122,4 +123,12 @@ async function main() {
   }
 }
 
-void main();
+const watchdog = setTimeout(() => {
+  console.error("LINUX_SMOKE_FAIL no result within 240s", `\n--- app output ---\n${globalThis.smokeOutput?.() ?? ""}`);
+  process.exit(1);
+}, 240_000);
+
+void main().finally(() => {
+  clearTimeout(watchdog);
+  process.exit(process.exitCode ?? 0);
+});

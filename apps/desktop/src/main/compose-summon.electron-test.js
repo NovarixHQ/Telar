@@ -39,7 +39,7 @@ async function main() {
     return true;
   };
   const quick = createQuickComposer({ appUrl: base, openRoute: () => undefined, readContext: async () => ({ app: "Telar" }) });
-  quick.bind("Alt+Shift+Space");
+  await quick.bind("Alt+Shift+Space");
   const panel = () => BrowserWindow.getAllWindows().find((win) => win.getTitle() === "Quick Composer");
   const win = new BrowserWindow({ ...cockpitWindowOptions("cockpit"), show: false, width: 800, height: 600 });
   try {
@@ -49,6 +49,10 @@ async function main() {
     win.focus();
     await delay(200);
     assert(BrowserWindow.getFocusedWindow() === win, "the cockpit window is not the focused window");
+
+    const claim = await win.webContents.executeJavaScript("window.telarDesktop.keybindings.claim()");
+    note(`claim read through the bridge: ${JSON.stringify(claim)}`);
+    assert(claim?.chord === "Alt+Shift+Space" && claim?.outcome === "claimed", "the cockpit was not told the chord was claimed");
 
     chord();
     await delay(400);

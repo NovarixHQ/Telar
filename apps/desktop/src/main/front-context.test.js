@@ -1,6 +1,6 @@
 const { beforeEach, describe, expect, test } = require("bun:test");
 const { electron, resetElectron } = require("../../test/fake-electron");
-const { grantee, openSettings, permissions, readFrontContext } = require("./front-context");
+const { grantee, openSettings, permissions, readFrontContext, requestPermissions } = require("./front-context");
 
 const script = (out) => (_cmd, _args, _options, done) => done(null, JSON.stringify(out));
 
@@ -29,6 +29,17 @@ describe("the permission", () => {
     electron.systemPreferences.trusted = true;
     expect(permissions()).toEqual({ accessibility: true });
     expect(electron.systemPreferences.prompted).toBe(0);
+  });
+
+  test("off macOS there is no grant to ask for, so it counts as given", () => {
+    const ask = electron.systemPreferences.isTrustedAccessibilityClient;
+    delete electron.systemPreferences.isTrustedAccessibilityClient;
+    try {
+      expect(permissions()).toEqual({ accessibility: true });
+      expect(() => requestPermissions()).not.toThrow();
+    } finally {
+      electron.systemPreferences.isTrustedAccessibilityClient = ask;
+    }
   });
 
   test("opens the Accessibility pane, and nothing else", async () => {

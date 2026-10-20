@@ -55,6 +55,7 @@ const { isCompact, setCompact } = require("../windows/compact-window");
 const { registerDevPairing } = require("../dev/pair-simulators");
 const { createQuickComposer } = require("./quick-composer");
 const { createLaunchLinks } = require("./launch-links");
+const { asksForQuickComposer } = require("./quick-composer-flag");
 const { mergeKeymap } = require("./command-keys");
 const { SANDBOX_REFUSAL_TITLE, sandboxOffReason, sandboxRefusal } = require("./linux-sandbox");
 
@@ -456,6 +457,7 @@ if (sandboxOff) {
     app.quit();
   } else {
     app.on("second-instance", (_event, argv) => {
+      if (quickComposer && asksForQuickComposer(argv)) return quickComposer.summon();
       if (launchLinks.take(argv)) return;
       const win = windowToFocus(mainWindow(), [...browserManagers].map((manager) => manager.window));
       if (win) {
@@ -549,9 +551,10 @@ if (sandboxOff) {
         updaterWindow = createWindow(url, { main: true });
         launchLinks.loaded(updaterWindow.webContents);
         migratingOrigin = false;
-        if (process.platform === "darwin") {
+        if (process.platform === "darwin" || process.platform === "linux") {
           quickComposer = createQuickComposer({ appUrl: url, openRoute: openNotificationPath, log: (line) => logShell("warn", line) });
-          quickComposer.bind(mergeKeymap(readKeybindingOverrides())["quick-composer"]);
+          void quickComposer.bind(mergeKeymap(readKeybindingOverrides())["quick-composer"]);
+          if (asksForQuickComposer(process.argv)) quickComposer.toggle();
         }
         restoreBrowserWindows(currentHost(), requireSurfaceWindows());
 

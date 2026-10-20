@@ -1,5 +1,7 @@
 const { describe, expect, test } = require("bun:test");
 const fs = require("node:fs");
+const { createRequire } = require("node:module");
+const os = require("node:os");
 const path = require("node:path");
 
 const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8"));
@@ -246,5 +248,44 @@ describe("the password-manager extension ships with what it needs", () => {
   test("the library's preload is resolvable from the desktop package (it is registered by path at runtime)", () => {
     const preload = require.resolve("electron-chrome-extensions/preload");
     expect(fs.existsSync(preload)).toBe(true);
+  });
+});
+
+describe("the Linux packages launch with Chromium's sandbox on", () => {
+  const SANDBOX_OFF = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu-sandbox", "ELECTRON_DISABLE_SANDBOX"];
+  const config = manifest.build;
+  const fromBuilder = createRequire(require.resolve("electron-builder/package.json"));
+  const { LinuxTargetHelper } = fromBuilder("app-builder-lib/out/targets/LinuxTargetHelper");
+  const AppImageTarget = fromBuilder("app-builder-lib/out/targets/appimage/AppImageTarget").default;
+  const packager = {
+    config,
+    platformSpecificBuildOptions: config.linux,
+    executableName: config.linux.executableName,
+    fileAssociations: [],
+    appInfo: { productName: config.productName, sanitizedProductName: config.productName, buildVersion: "1.0.0", description: manifest.description },
+    info: { metadata: { ...manifest, desktopName: `${config.linux.executableName}.desktop` } },
+  };
+  const helper = new LinuxTargetHelper(packager);
+  const execLine = (entry) => entry.split("\n").find((line) => line.startsWith("Exec="));
+
+  test("the AppImage's desktop entry starts AppRun with no sandbox switch", async () => {
+    const exec = execLine(await new AppImageTarget(null, packager, helper, os.tmpdir()).desktopEntry.value);
+    expect(exec).toBe("Exec=AppRun %U");
+  });
+
+  test("the .deb's desktop entry starts the installed binary with no sandbox switch", async () => {
+    const exec = execLine(await helper.computeDesktopEntry({ ...config.linux, ...config.deb }));
+    expect(exec).toBe(`Exec=/opt/${config.productName}/${config.linux.executableName} %U`);
+  });
+
+  test("no Linux target is given a sandbox-disabling argument", () => {
+    for (const options of [config.linux, config.appImage, config.deb]) {
+      for (const arg of options?.executableArgs ?? []) expect(SANDBOX_OFF.some((off) => arg.includes(off))).toBe(false);
+    }
+  });
+
+  test("the .deb runs Telar's postinst next to electron-builder's AppArmor profile", () => {
+    expect(fs.existsSync(path.join(ROOT, config.deb.afterInstall))).toBe(true);
+    expect(config.deb.appArmorProfile).toBeUndefined();
   });
 });

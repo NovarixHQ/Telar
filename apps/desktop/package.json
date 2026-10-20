@@ -7,7 +7,9 @@
   "//comments-live-out-here": "AND NOT INSIDE `build`. electron-builder VALIDATES its configuration object against a schema and REFUSES an unknown property — `build.//asarUnpack` fails the whole package with \"configuration has an unknown property\", before a single file is copied. The `//key` convention this file uses everywhere else is safe in `scripts` (no validator) and in `build.mac.extendInfo` (passed through to Info.plist), and nowhere else under `build`. Found by running a real package; nothing in the unit suite can see it, because the schema lives in electron-builder.",
   "//build.mac.extraFiles": "THE COMPUTER-USE HELPER, AT Contents/Helpers/Computer Use for Telar.app — inside the bundle, so it leaves with Telar and is replaced by every Telar update. scripts/build-desktop.sh builds it into vendor/computer-use from the release pinned in computer-use-helper.json (scripts/computer-use-helper.mjs) and signs it there with its own entitlements; a build with no vendor/computer-use (package-desktop.sh, a local iteration) only warns and ships without it, and the engine then falls back to an external install the way a dev checkout does.",
   "//build.mac.signIgnore": "WHY electron-builder MUST NOT SIGN THE HELPER. It would re-sign it with entitlements.mac.inherit.plist, whose com.apple.security.inherit is for children of a sandboxed parent, not for an app LaunchServices starts by itself, and the helper would lose the entitlements it was signed with. Already signed, it is still sealed into Telar's own signature.",
-  "//build.afterPack": "Proves the artefact that was just written holds node-pty beside the engine bundle, runnable, and the notification sounds. A build-time failure instead of a runtime one.",
+  "//build.appImage.executableArgs": "Empty on purpose: electron-builder's default puts --no-sandbox in the AppImage's desktop entry. The packaged app refuses to run without Chromium's sandbox (src/main/linux-sandbox.js).",
+  "//build.deb.afterInstall": "Installs the AppArmor profile that lets /opt/Telar/telar create user namespaces, and makes chrome-sandbox setuid root only when the namespace sandbox cannot work.",
+  "//build.afterPack":"Proves the artefact that was just written holds node-pty beside the engine bundle, runnable, and the notification sounds. A build-time failure instead of a runtime one.",
   "description": "Telar desktop shell with a shared Electron-owned browser host.",
   "author": "Facundo Barbera <facundo.barbera@gmail.com>",
   "main": "src/main/main.js",
@@ -153,6 +155,12 @@
           ]
         }
       ]
+    },
+    "appImage": {
+      "executableArgs": []
+    },
+    "deb": {
+      "afterInstall": "scripts/deb-after-install.sh"
     },
     "publish": {
       "provider": "generic",

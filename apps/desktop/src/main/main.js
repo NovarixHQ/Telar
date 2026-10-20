@@ -56,6 +56,7 @@ const { registerDevPairing } = require("../dev/pair-simulators");
 const { createQuickComposer } = require("./quick-composer");
 const { createLaunchLinks } = require("./launch-links");
 const { mergeKeymap } = require("./command-keys");
+const { SANDBOX_REFUSAL_TITLE, sandboxOffReason, sandboxRefusal } = require("./linux-sandbox");
 
 pinUserData();
 
@@ -436,7 +437,14 @@ registerCockpitScheme(protocol);
 
 keepOccludedWindowsPainting();
 
-if (SMOKE) {
+const sandboxOff = sandboxOffReason({ platform: process.platform, packaged: app.isPackaged, hasSwitch: (name) => app.commandLine.hasSwitch(name), env: process.env });
+if (sandboxOff) {
+  console.error(`[telar-desktop] refusing to run with ${sandboxOff}: Chromium's sandbox would be off.`);
+  app.whenReady().then(() => {
+    dialog.showErrorBox(SANDBOX_REFUSAL_TITLE, sandboxRefusal(sandboxOff));
+    app.exit(1);
+  });
+} else if (SMOKE) {
   app.on("window-all-closed", () => {});
   app.whenReady().then(runSmoke);
 } else {

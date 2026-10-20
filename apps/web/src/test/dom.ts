@@ -87,6 +87,14 @@ export function stubFetch(routes: Record<string, Route>) {
 export const buttonLabelled = (label: string, root: ParentNode = document) =>
   [...root.querySelectorAll("button")].find((node) => node.textContent?.trim() === label) as HTMLButtonElement | undefined;
 
+/** Types into a controlled input the way a keyboard does. */
+export async function type(input: HTMLInputElement, value: string) {
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 export async function click(element: Element | undefined) {
   await act(async () => (element as HTMLElement).click());
   await flush();

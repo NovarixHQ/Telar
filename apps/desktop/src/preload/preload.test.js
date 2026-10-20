@@ -34,6 +34,15 @@ describe("the bridge sends what the main process checks", () => {
   });
 });
 
+describe("the host verbs", () => {
+  test("the page names a computer by link or user@host and the shell does the pairing", () => {
+    expect(lastInvoke(() => desktop.host.connect("me@box"))).toEqual(["telar:host:connect", { link: "me@box" }]);
+    expect(lastInvoke(() => desktop.host.sshPair("me@box"))).toEqual(["telar:host:ssh-pair", { target: "me@box" }]);
+    expect(lastInvoke(() => desktop.host.setLocal(true))).toEqual(["telar:host:set-local", { on: true }]);
+    expect(desktop.host.runsLocalEngine).toBe(true);
+  });
+});
+
 describe("the workspace verbs share one channel, and only the file verbs send a kind", () => {
   test("the folder verbs send no kind at all", () => {
     expect(lastInvoke(() => desktop.workspace.open("/p"))).toEqual(["telar:workspace:open", { path: "/p" }]);

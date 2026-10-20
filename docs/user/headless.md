@@ -40,6 +40,16 @@ With no desktop app attached, the engine runs its own Chromium and shows it in t
 
 Settings → Connections → **Run Telar on this Mac** is on by default. Turn it off and the app stops its own engine and shows another computer's Telar instead: its projects, sessions, terminals and browser. The first time, paste the link `telar pair` prints on that computer. The app restarts when you switch, and switching back starts the engine on this Mac again. **Forget** drops the pairing.
 
+### Over SSH
+
+In Settings → Connections, type `user@host` (or a name from your `~/.ssh/config`) instead of a pairing link, in **Add a computer** or in the field that **Run Telar on this Mac** shows. The app signs in with your own `ssh` and agent, and Telar never stores a key. On that computer it installs `telar` under `~/.telar/runtime` if it is missing, starts it as a service, forwards a port on this Mac to it, and pairs through that port with full access. The computer then behaves like any other.
+
 What is not obvious:
+- Sign in must work without a prompt: load the key in your agent (`ssh-add`) and run `ssh user@host` once in Terminal to trust the host.
+- The installer needs the download address this build was released with. If it has none, install `telar` on the other computer yourself and use its pairing link.
+- The port is forwarded as long as the app runs; it reconnects after a dropped connection or a wake from sleep. Forgetting the computer closes it.
+- The other computer needs systemd user services (Linux) or launchd (a Mac), because `telar service install` starts it.
+
+What is not obvious, for both ways:
 - The pairing stays in the app, never in the window. Nothing on this Mac runs the agents: the browser, terminals, computer use and simulators are the host's, and the desktop notifications of this Mac are off while it is a client.
 - Folders you pick are folders on the host.

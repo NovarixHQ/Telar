@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
-import { click, flush, installTestDom, mount } from "@/test/dom";
+import { click, flush, installTestDom, mount, type } from "@/test/dom";
 import { RunHereRow } from "./run-here-row";
 
 installTestDom();
@@ -14,6 +14,8 @@ function installHost(host: { runsLocalEngine: boolean; remote: { baseUrl: string
       connect: connect ?? (async () => calls.push("connect")),
       setLocal: async (on: boolean) => calls.push(`setLocal ${on}`),
       forget: async () => calls.push("forget"),
+      sshPair: async () => ({ pairingUrl: "", name: "" }),
+      sshRelease: async () => false,
     },
   };
 }
@@ -51,8 +53,11 @@ test("with none paired, turning it off asks for the link first and says why a pa
   await flush(() => Boolean(host.querySelector('[aria-label="Run Telar on this Mac"]')));
   await click(host.querySelector('[aria-label="Run Telar on this Mac"]')!);
   expect(calls).toEqual([]);
-  const input = host.querySelector<HTMLInputElement>('[aria-label="Pairing link from the other computer"]')!;
-  expect(input).toBeTruthy();
+  const input = host.querySelector<HTMLInputElement>('[aria-label^="Pairing link or user@host"]')!;
+  await type(input, "me@box");
+  await click([...host.querySelectorAll("button")].find((button) => button.textContent === "Use it")!);
+  await flush(() => Boolean(host.querySelector('[role="alert"]')));
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe("That code expired.");
 });
 
 test("while using another computer, the row names it and can forget it", async () => {

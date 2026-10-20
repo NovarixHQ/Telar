@@ -9,6 +9,7 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Row, SettingsList } from "@/features/settings";
 
+import { desktopHost } from "../desktop-host";
 import { RunHereRow } from "./run-here-row";
 
 const api = createEngineApi();
@@ -52,11 +53,17 @@ function useOtherHosts() {
     setBusy(true);
     setError(null);
     try {
-      await api.addHost({ pairingUrl });
+      if (/^(https?|telar):\/\//i.test(pairingUrl)) await api.addHost({ pairingUrl });
+      else {
+        const desktop = desktopHost();
+        if (!desktop) throw new Error("Paste the pairing link `telar pair` prints on the other computer.");
+        const launched = await desktop.sshPair(pairingUrl);
+        await api.addHost({ pairingUrl: launched.pairingUrl, name: launched.name });
+      }
       setLink("");
       await load();
     } catch (cause) {
-      setError(cause instanceof EngineApiError ? cause.message : "Could not pair with that computer.");
+      setError(cause instanceof EngineApiError ? cause.message : cause instanceof Error ? cause.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "") : "Could not pair with that computer.");
     } finally {
       setBusy(false);
     }
@@ -77,12 +84,14 @@ function useOtherHosts() {
 
   const remove = async (id: string) => {
     setHostError(undefined);
+    const forgotten = hosts?.find((host) => host.id === id);
     try {
       await api.removeHost(id);
     } catch (cause) {
       refused(id, cause, "Could not forget that computer.");
       return;
     }
+    if (forgotten) void desktopHost()?.sshRelease(forgotten.baseUrl).catch(() => undefined);
     writeSidebarCache(forgetRows(readSidebarCache(), id));
     void forgetHostHeads(id).catch(() => undefined);
     await load();
@@ -109,7 +118,7 @@ function AddComputerRow({ others }: { others: OtherHosts }) {
     <Row
       keywords={["host", "pair", "second machine", "remote", "mac", "computer"]}
       label="Add a computer"
-      hint="Shows another Mac's sessions in this rail."
+      hint="Shows another computer's sessions in this rail; paste its pairing link or type user@host to set it up over ssh."
       {...(error ? { error } : {})}
       control={
         <form
@@ -122,13 +131,13 @@ function AddComputerRow({ others }: { others: OtherHosts }) {
           <Input
             value={link}
             onChange={(event) => setLink(event.target.value)}
-            placeholder="http://mini.tail:3000/pair#token=…"
-            aria-label="Pairing link from the other computer"
+            placeholder="http://mini.tail:7420/pair#token=… or user@host"
+            aria-label="Pairing link or user@host of the other computer"
             className="h-8 w-72 font-mono text-xs"
             disabled={busy}
           />
           <Button type="submit" size="sm" disabled={busy || !link.trim()}>
-            {busy ? "Pairing…" : "Pair"}
+            {busy ? "Connecting…" : "Pair"}
           </Button>
         </form>
       }

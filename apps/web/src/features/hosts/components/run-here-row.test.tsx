@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { click, flush, installTestDom, mount } from "@/test/dom";
 import { RunHereRow } from "./run-here-row";
 
@@ -17,7 +17,16 @@ function installHost(host: { runsLocalEngine: boolean; remote: { baseUrl: string
     },
   };
 }
-afterEach(() => delete (window as unknown as { telarDesktop?: unknown }).telarDesktop);
+type Global = { telarDesktop?: unknown };
+let before: unknown;
+beforeEach(() => {
+  before = (window as Global).telarDesktop;
+  delete (window as Global).telarDesktop;
+});
+afterEach(() => {
+  if (before === undefined) delete (window as Global).telarDesktop;
+  else (window as Global).telarDesktop = before;
+});
 
 test("a browser tab has no such row", async () => {
   const { host } = await mount(<RunHereRow />);

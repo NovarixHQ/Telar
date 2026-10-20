@@ -47,6 +47,15 @@ test("readiness reports the binary and its missing libraries", async () => {
   expect(await browserReadiness({ browsersPath: root, platform: "darwin", run })).toEqual({ binary, missingLibraries: [], sandbox: "ok" });
 });
 
+test("an AppArmor restriction is fixable where AppArmor is configured, and the host's to lift inside a container", async () => {
+  const root = tempDir();
+  const files = (extra: Record<string, string>) => (file: string) => ({ "/proc/sys/kernel/apparmor_restrict_unprivileged_userns": "1\n", ...extra })[file] ?? null;
+  const sandbox = async (read: (file: string) => string | null) => (await browserReadiness({ browsersPath: root, platform: "linux", read })).sandbox;
+  expect(await sandbox(files({ "/etc/apparmor.d/tunables/global": "" }))).toBe("apparmor");
+  expect(await sandbox(files({}))).toBe("host-apparmor");
+  expect(await sandbox(files({ "/etc/apparmor.d/telar-chromium": `profile x ${root}/** {}` }))).toBe("ok");
+});
+
 test("os-release maps to a package manager family", () => {
   expect(distroOf('ID=ubuntu\nID_LIKE=debian\n')).toBe("debian");
   expect(distroOf('ID="rocky"\nID_LIKE="rhel centos fedora"\n')).toBe("fedora");
@@ -95,6 +104,15 @@ const effects = (isRoot: boolean, failOn?: string) => {
   };
   return { calls, value };
 };
+
+test("inside a container setup changes nothing on the host and says what the host must run", async () => {
+  const steps = plan({ binary: "/b/chrome", missingLibraries: [], sandbox: "host-apparmor" }, "debian");
+  expect(steps.map((step) => step.kind)).toEqual(["blocked"]);
+  const ran: string[] = [];
+  const effects: SetupEffects = { isRoot: false, run: async (command) => (ran.push(command), { code: 0, output: "" }), writeFile: () => ran.push("write"), download: async () => "" };
+  expect(await runSetup(steps, "/b", effects, () => undefined)).toContain("sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0");
+  expect(ran).toEqual([]);
+});
 
 test("setup asks sudo for root steps only when not root", async () => {
   const steps = plan({ binary: null, missingLibraries: [], sandbox: "apparmor" }, "debian");

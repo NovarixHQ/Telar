@@ -13,7 +13,7 @@ export const copyAction = (label: string, text: string): MenuAction => ({ label,
 export function LongPressMenu({ actions, children }: { actions: MenuAction[]; children: ReactElement }) {
   if (!actions.length) return children;
   return (
-    <Host matchContents={{ vertical: true }} style={styles.fill}>
+    <Host matchContents={{ vertical: true }} ignoreSafeArea="all" style={styles.fill}>
       <ContextMenu>
         <ContextMenu.Items>
           {actions.map((action) => <Button key={action.label} label={action.label} systemImage={action.icon} onPress={action.onPress} />)}

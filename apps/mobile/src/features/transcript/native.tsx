@@ -6,9 +6,10 @@ import { Icon, SteppedPulseDot, type SymbolName } from "../../ui";
 export const TextSize = { body: 17, subheadline: 15, footnote: 13, caption: 12, caption2: 11 };
 export const MONO = "ui-monospace";
 
+// A hosting view inside the transcript's scroll view inherits the bar's safe area and draws its glyph that far below its row.
 export function Symbol({ name, size, color, weight }: { name: SymbolName; size: number; color: ColorValue; weight?: "regular" | "medium" | "semibold" }) {
   return (
-    <Host matchContents>
+    <Host matchContents ignoreSafeArea="all">
       <Icon name={name} size={size} color={color} {...(weight ? { weight } : {})} />
     </Host>
   );
@@ -16,7 +17,7 @@ export function Symbol({ name, size, color, weight }: { name: SymbolName; size: 
 
 export function PulseDot() {
   return (
-    <Host matchContents>
+    <Host matchContents ignoreSafeArea="all">
       <SteppedPulseDot />
     </Host>
   );

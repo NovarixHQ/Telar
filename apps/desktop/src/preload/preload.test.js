@@ -32,6 +32,19 @@ describe("the bridge sends what the main process checks", () => {
     electron.ipcRenderer.emit("telar:links:open", {}, { url: "https://late.example/" });
     expect(heard).toEqual([{ url: "https://example.com/" }]);
   });
+
+  test("a route sent before the page listens is held and handed to its first listener", () => {
+    electron.ipcRenderer.emit("telar:notifications:open", {}, "/settings");
+    const first = [];
+    const stop = desktop.notifications.onOpen((route) => first.push(route));
+    expect(first).toEqual(["/settings"]);
+    electron.ipcRenderer.emit("telar:notifications:open", {}, "/usage");
+    stop();
+    const second = [];
+    desktop.notifications.onOpen((route) => second.push(route));
+    expect(first).toEqual(["/settings", "/usage"]);
+    expect(second).toEqual([]);
+  });
 });
 
 describe("the host verbs", () => {
